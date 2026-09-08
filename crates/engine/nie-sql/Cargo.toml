@@ -11,9 +11,15 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+bytes.workspace = true
 rusqlite = { workspace = true, features = ["bundled", "column_decltype"] }
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 thiserror.workspace = true
+tokio = { workspace = true, features = ["rt"] }
+tokio-postgres.workspace = true
+tokio-postgres-rustls.workspace = true
+rustls.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

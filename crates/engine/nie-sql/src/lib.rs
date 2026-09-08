@@ -1,11 +1,9 @@
 //! One read-only SQL contract for local SQLite mirrors and PostgreSQL services.
 //!
-//! The crate intentionally owns neither schemas nor migrations.  A host passes an
-//! explicit database URL and a query that has been accepted as read-only.  SQLite
-//! is implemented with a read-only file handle.  PostgreSQL URLs are parsed by the
-//! same contract, but connecting them is rejected until the workspace adopts one
-//! reviewed PostgreSQL driver; silently emulating PostgreSQL through SQLite would
-//! make source and dialect errors invisible.
+//! The crate intentionally owns neither schemas nor migrations. A host passes an
+//! explicit database URL and a query that has been accepted as read-only. SQLite
+//! uses a read-only file handle and PostgreSQL uses a parameterized, asynchronous
+//! `tokio-postgres` client whose session is marked read-only by the server.
 
 #![forbid(unsafe_code)]
 
@@ -19,6 +17,10 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
+use tokio_postgres::{
+    Client, NoTls,
+    types::{IsNull, ToSql, Type},
+};
 
 /// The database families accepted by the shared configuration contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -79,6 +81,7 @@ impl DatabaseUrl {
 #[serde(rename_all = "snake_case")]
 pub enum Value {
     Null,
+    Boolean(bool),
     Integer(i64),
     Real(f64),
     Text(String),
@@ -130,6 +133,101 @@ pub struct SqliteReadOnly {
     connection: Connection,
 }
 
+/// A PostgreSQL connection whose server session rejects write transactions.
+///
+/// The caller must run this on a Tokio runtime. Its default connector uses the
+/// platform certificate store and verifies the server certificate. A separate
+/// explicit constructor exists for trusted local development databases without
+/// TLS.
+pub struct PostgresReadOnly {
+    client: Client,
+}
+
+impl PostgresReadOnly {
+    /// Connects with platform-trusted TLS and marks this session as read-only
+    /// at the server. PostgreSQL therefore supplies a second write barrier in
+    /// addition to [`ReadQuery`].
+    pub async fn connect(url: &str) -> Result<Self, SqlError> {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        let (tls, _warnings) = tokio_postgres_rustls::MakeRustlsConnect::with_native_certs()
+            .map_err(|_| SqlError::NativeCertificateStore)?;
+        let (client, connection) = tokio_postgres::connect(url, tls).await?;
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        client
+            .batch_execute("SET default_transaction_read_only = on")
+            .await?;
+        Ok(Self { client })
+    }
+
+    /// Connects without TLS for a loopback or otherwise trusted development
+    /// database. Remote PostgreSQL services should use [`Self::connect`].
+    pub async fn connect_insecure(url: &str) -> Result<Self, SqlError> {
+        let (client, connection) = tokio_postgres::connect(url, NoTls).await?;
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        client
+            .batch_execute("SET default_transaction_read_only = on")
+            .await?;
+        Ok(Self { client })
+    }
+
+    pub fn backend(&self) -> Backend {
+        Backend::PostgreSql
+    }
+
+    /// Executes a conservative read-only query with native PostgreSQL bindings.
+    pub async fn query(
+        &self,
+        query: &ReadQuery,
+        parameters: &[Value],
+    ) -> Result<QueryResult, SqlError> {
+        let bindings = parameters
+            .iter()
+            .map(postgres_parameter)
+            .collect::<Vec<_>>();
+        let parameters = bindings
+            .iter()
+            .map(|value| value.as_ref() as &(dyn ToSql + Sync))
+            .collect::<Vec<_>>();
+        let rows = self.client.query(query.as_str(), &parameters).await?;
+        rows.iter()
+            .map(postgres_row)
+            .collect::<Result<Vec<_>, _>>()
+            .map(|rows| QueryResult { rows })
+    }
+}
+
+/// The portable asynchronous connection. SQLite remains readable through the
+/// existing synchronous trait; PostgreSQL requires an async client to process
+/// its network connection.
+pub enum AsyncReadOnlyDatabase {
+    Sqlite(SqliteReadOnly),
+    PostgreSql(PostgresReadOnly),
+}
+
+impl AsyncReadOnlyDatabase {
+    pub fn backend(&self) -> Backend {
+        match self {
+            Self::Sqlite(database) => database.backend(),
+            Self::PostgreSql(database) => database.backend(),
+        }
+    }
+
+    pub async fn query(
+        &self,
+        query: &ReadQuery,
+        parameters: &[Value],
+    ) -> Result<QueryResult, SqlError> {
+        match self {
+            Self::Sqlite(database) => database.query(query, parameters),
+            Self::PostgreSql(database) => database.query(query, parameters).await,
+        }
+    }
+}
+
 impl SqliteReadOnly {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, SqlError> {
         let connection = Connection::open_with_flags(
@@ -172,14 +270,29 @@ impl ReadOnlyDatabase for SqliteReadOnly {
     }
 }
 
-/// Opens the selected backend. PostgreSQL selection is deliberate and visible even
-/// before its driver is added to the workspace.
+/// Opens a local SQLite backend from the shared URL contract.
+///
+/// PostgreSQL is asynchronous; use [`open_read_only_async`] for that backend.
 pub fn open_read_only(url: &DatabaseUrl) -> Result<Box<dyn ReadOnlyDatabase>, SqlError> {
     match url {
         DatabaseUrl::Sqlite { path } => Ok(Box::new(SqliteReadOnly::open(path)?)),
-        DatabaseUrl::PostgreSql { .. } => Err(SqlError::DriverUnavailable {
+        DatabaseUrl::PostgreSql { .. } => Err(SqlError::AsyncBackendRequired {
             backend: Backend::PostgreSql,
         }),
+    }
+}
+
+/// Opens either supported backend. PostgreSQL keeps its driver connection alive
+/// on the current Tokio runtime and SQLite preserves its operating-system
+/// read-only handle.
+pub async fn open_read_only_async(url: &DatabaseUrl) -> Result<AsyncReadOnlyDatabase, SqlError> {
+    match url {
+        DatabaseUrl::Sqlite { path } => {
+            Ok(AsyncReadOnlyDatabase::Sqlite(SqliteReadOnly::open(path)?))
+        }
+        DatabaseUrl::PostgreSql { url } => Ok(AsyncReadOnlyDatabase::PostgreSql(
+            PostgresReadOnly::connect(url).await?,
+        )),
     }
 }
 
@@ -189,17 +302,24 @@ pub enum SqlError {
     InvalidUrl(&'static str),
     #[error("query is not read-only")]
     NotReadOnly,
-    #[error("{backend:?} driver is not enabled in this workspace")]
-    DriverUnavailable { backend: Backend },
+    #[error("{backend:?} requires the asynchronous read-only API")]
+    AsyncBackendRequired { backend: Backend },
     #[error("SQLite error")]
     Sqlite(#[from] rusqlite::Error),
+    #[error("PostgreSQL error")]
+    PostgreSql(#[from] tokio_postgres::Error),
+    #[error("could not load a trusted native certificate store")]
+    NativeCertificateStore,
     #[error("binary query parameters are unsupported by SQLite bindings")]
     BlobParameterUnsupported,
+    #[error("PostgreSQL column type is not supported by the portable value contract")]
+    UnsupportedPostgreSqlType,
 }
 
 fn sqlite_parameter(value: &Value) -> Result<SqliteValue, SqlError> {
     Ok(match value {
         Value::Null => SqliteValue::Null,
+        Value::Boolean(value) => SqliteValue::Integer(i64::from(*value)),
         Value::Integer(value) => SqliteValue::Integer(*value),
         Value::Real(value) => SqliteValue::Real(*value),
         Value::Text(value) => SqliteValue::Text(value.clone()),
@@ -207,14 +327,104 @@ fn sqlite_parameter(value: &Value) -> Result<SqliteValue, SqlError> {
     })
 }
 
+fn postgres_parameter(value: &Value) -> Box<dyn ToSql + Sync> {
+    match value {
+        Value::Null => Box::new(PostgresNull),
+        Value::Boolean(value) => Box::new(*value),
+        Value::Integer(value) => Box::new(*value),
+        Value::Real(value) => Box::new(*value),
+        Value::Text(value) => Box::new(value.clone()),
+        Value::Blob(value) => Box::new(value.clone()),
+    }
+}
+
+#[derive(Debug)]
+struct PostgresNull;
+
+impl ToSql for PostgresNull {
+    fn to_sql(
+        &self,
+        _: &Type,
+        _: &mut bytes::BytesMut,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(IsNull::Yes)
+    }
+
+    fn accepts(_: &Type) -> bool {
+        true
+    }
+
+    tokio_postgres::types::to_sql_checked!();
+}
+
 fn sqlite_value(value: ValueRef<'_>) -> Result<Value, SqlError> {
     Ok(match value {
         ValueRef::Null => Value::Null,
+        // SQLite stores booleans as integers.
         ValueRef::Integer(value) => Value::Integer(value),
         ValueRef::Real(value) => Value::Real(value),
         ValueRef::Text(value) => Value::Text(String::from_utf8_lossy(value).into_owned()),
         ValueRef::Blob(value) => Value::Blob(value.to_vec()),
     })
+}
+
+fn postgres_row(row: &tokio_postgres::Row) -> Result<Row, SqlError> {
+    let columns = row
+        .columns()
+        .iter()
+        .map(|column| column.name().to_owned())
+        .collect::<Vec<_>>();
+    let values = row
+        .columns()
+        .iter()
+        .enumerate()
+        .map(|(index, column)| postgres_value(row, index, column.type_()))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Row { columns, values })
+}
+
+fn postgres_value(row: &tokio_postgres::Row, index: usize, ty: &Type) -> Result<Value, SqlError> {
+    macro_rules! nullable {
+        ($value:expr, $map:expr) => {{
+            match $value? {
+                Some(value) => Ok($map(value)),
+                None => Ok(Value::Null),
+            }
+        }};
+    }
+
+    if *ty == Type::BOOL {
+        nullable!(row.try_get::<_, Option<bool>>(index), Value::Boolean)
+    } else if *ty == Type::INT2 {
+        nullable!(
+            row.try_get::<_, Option<i16>>(index),
+            |value| Value::Integer(i64::from(value))
+        )
+    } else if *ty == Type::INT4 {
+        nullable!(
+            row.try_get::<_, Option<i32>>(index),
+            |value| Value::Integer(i64::from(value))
+        )
+    } else if *ty == Type::INT8 {
+        nullable!(row.try_get::<_, Option<i64>>(index), Value::Integer)
+    } else if *ty == Type::FLOAT4 {
+        nullable!(row.try_get::<_, Option<f32>>(index), |value| Value::Real(
+            f64::from(value)
+        ))
+    } else if *ty == Type::FLOAT8 {
+        nullable!(row.try_get::<_, Option<f64>>(index), Value::Real)
+    } else if matches!(*ty, Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::NAME) {
+        nullable!(row.try_get::<_, Option<String>>(index), Value::Text)
+    } else if *ty == Type::BYTEA {
+        nullable!(row.try_get::<_, Option<Vec<u8>>>(index), Value::Blob)
+    } else if matches!(*ty, Type::JSON | Type::JSONB) {
+        nullable!(
+            row.try_get::<_, Option<serde_json::Value>>(index),
+            |value: serde_json::Value| Value::Text(value.to_string())
+        )
+    } else {
+        Err(SqlError::UnsupportedPostgreSqlType)
+    }
 }
 
 fn normalize_sql(sql: &str) -> String {
@@ -304,13 +514,19 @@ mod tests {
     }
 
     #[test]
-    fn postgres_selection_is_visible_until_a_driver_is_adopted() {
+    fn synchronous_postgres_selection_requires_the_async_driver() {
         let url = DatabaseUrl::parse("postgres://localhost/inagle").unwrap();
         assert!(matches!(
             open_read_only(&url),
-            Err(SqlError::DriverUnavailable {
+            Err(SqlError::AsyncBackendRequired {
                 backend: Backend::PostgreSql
             })
         ));
+    }
+
+    #[test]
+    fn postgres_null_binding_accepts_the_server_parameter_type() {
+        assert!(PostgresNull::accepts(&Type::INT8));
+        assert!(PostgresNull::accepts(&Type::TEXT));
     }
 }
