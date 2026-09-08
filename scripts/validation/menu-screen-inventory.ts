@@ -71,6 +71,20 @@ const IDENTITIES: Record<string, Identity> = {
     source: "PLAN.md corrected screen identity: START, field and two foreground characters",
     clientCrop: OPENING_CROP,
   },
+  // Proven by the setting's own OBJBIN list: `setting_menu_setting.cfg.bin` owns the tab strip
+  // (cmn06_02/cmn06_20 + icon_list_tab.g4tx), the option row list and the guide band.
+  // `camera_option_menu` is the in-match camera panel (soccer06_*), not this screen.
+  "options.png": {
+    screen: "setting_menu",
+    tokens: ["setting_menu_setting", "setting_menu_1.", "option01_0"],
+    source: "OBJBIN list of data/common/gamedata/menu/cfg/setting_menu_setting.cfg.bin",
+  },
+  // "Configuration des touches": option01_21/22/23 keyconfig list objects.
+  "controls.png": {
+    screen: "keyconfig_setting_menu",
+    tokens: ["keyconfig_setting_menu", "option01_2"],
+    source: "OBJBIN list of data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
+  },
   // PLAN.md: the front selection reference is title02, NOT mainmenu01/main_menu.
   "main_menu_alt.png": {
     screen: "title_menu_2",
@@ -132,6 +146,25 @@ const pick = (dir: string, tokens: string[], exts?: string[]) =>
     )
     .map((e) => ({ path: e.path, size: e.size, cpk: e.cpk }));
 
+/** A setting whose referenced OBJBIN files are all absent renders nothing: a stale recipe. */
+const CFG_EXTRACT = `${REPO}var/outputs/menu-inventory/cfg`;
+const OBJ_REF = /[ -~]*gamedata\/menu\/obj\/[ -~]+\.objbin/g;
+const vfsPaths = new Set(vfs.map((e) => e.path));
+async function recipeStatus(settingPath: string) {
+  const local = Bun.file(`${CFG_EXTRACT}/${settingPath.slice(CFG_DIR.length)}`);
+  if (!(await local.exists())) return null;
+  const refs = [...((await local.text()).match(OBJ_REF) ?? [])].map((r) =>
+    r.startsWith("data/") ? r : `data/${r.replace(/^\/+/, "")}`,
+  );
+  const missing = refs.filter((r) => !vfsPaths.has(r));
+  return {
+    setting: settingPath,
+    referenced_objbins: refs.length,
+    missing_objbins: missing.length,
+    status: refs.length && missing.length === refs.length ? "stale" : "usable",
+  };
+}
+
 const captures = readdirSync(MENU_DIR)
   .filter((f) => f.toLowerCase().endsWith(".png"))
   .sort();
@@ -179,6 +212,10 @@ for (const file of captures) {
   const status =
     total === 0 ? "missing" : resources.setting_cfg.length || movies.length ? "resolved" : "partial";
 
+  const recipes = (
+    await Promise.all(resources.setting_cfg.map((r) => recipeStatus(r.path)))
+  ).filter((r): r is NonNullable<typeof r> => r !== null);
+
   entries.push({
     file,
     sha256: createHash("sha256").update(bytes).digest("hex"),
@@ -190,6 +227,8 @@ for (const file of captures) {
     identity_source: source,
     screen_tokens: tokens,
     pairing_status: status,
+    setting_recipes: recipes,
+    stale_recipes: recipes.filter((r) => r.status === "stale").length,
     resource_counts: Object.fromEntries(
       Object.entries(resources).map(([k, v]) => [k, v.length]),
     ),

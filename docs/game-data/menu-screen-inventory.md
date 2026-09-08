@@ -19,9 +19,15 @@ All 38 captures in `data/menu` are paired with the VFS resources that own them: 
 Each entry carries the capture's sha256, its pixel dimensions and, for the five opening
 captures, the game-client crop `x=1 y=32 w=1920 h=1080` inside the 1922×1113 Windows frame.
 
-Two corrections against `data/menu/manifest.json`:
+Four corrections against `data/menu/manifest.json`, each proven by the setting's own OBJBIN list:
 
 - `main_menu_alt.png` is **`title02` / `title_menu_2_setting.cfg.bin`**, not `main_menu`.
+- `options.png` is **`setting_menu_setting.cfg.bin`**, not `camera_option_menu`. It owns the tab
+  strip (`cmn06_02_list_tab_attach`, `cmn06_20_list_tab_item`, `icon_list_tab.g4tx`), the option
+  row list (`option01_01/02`) and the guide band (`option01_05`). `camera_option_menu` is the
+  in-match camera panel built from `soccer06_10/11`.
+- `controls.png` ("Configuration des touches") is **`keyconfig_setting_menu_setting.cfg.bin`**,
+  which owns `option01_21/22/23_keyconfig_setting_list_*` and `cmn01_22_keyconfig_edit_icon`.
 - The five `2026-09-08` opening captures were absent from the manifest. Their identity comes
   from the PLAN.md reference table and each token resolves in the VFS.
 
@@ -54,3 +60,21 @@ Because the pattern covers 89 settings and 1549 unreferenced shipped objects, "t
 exports zero objects" is a corpus-wide property of this build, not a per-screen defect. Any
 screen reconstruction that reads only `*_setting.cfg.bin` layers will silently render nothing
 for those 89 screens.
+
+## Stale recipes among the paired captures
+
+`screen-inventory.json` carries `setting_recipes` per capture, so a screen whose setting cannot
+render is visible before implementation starts:
+
+| Capture | Stale setting |
+|---|---|
+| `Capture d'écran 2026-09-08 124431.png` | `loading_menu_setting.cfg.bin` |
+| `Capture d'écran 2026-09-08 124504.png` | `title_auto_save_info_menu_setting.cfg.bin` |
+| `main_menu.png` | `main_menu_bg_setting.cfg.bin` |
+| `pause_controls.png` | `pause_menu_setting.cfg.bin` |
+| `story_mode.png` | `chapter_menu_setting.cfg.bin` |
+| `bank_character_detail.png`, `character_detail_hamano.png` | `chara_status_menu_setting.cfg.bin` |
+| `trophy_gallery.png` | 7 `medal_*` / `equip_medalset` settings |
+
+`options.png`, `controls.png` and `main_menu_alt.png` reference only OBJBIN files that ship, so
+those three screens can be rebuilt from their setting layers directly.

@@ -31,6 +31,15 @@
         "loading_menu_setting"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/loading_menu_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 5,
+          "status": "stale"
+        }
+      ],
+      "stale_recipes": 1,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -93,6 +102,8 @@
       "identity_source": "PLAN.md corrected screen identity: franchise emblem movie",
       "screen_tokens": [],
       "pairing_status": "resolved",
+      "setting_recipes": [],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 0,
         "menu_cfg": 0,
@@ -132,6 +143,8 @@
       "identity_source": "PLAN.md corrected screen identity: LEVEL5 symbol and wordmark movie",
       "screen_tokens": [],
       "pairing_status": "resolved",
+      "setting_recipes": [],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 0,
         "menu_cfg": 0,
@@ -173,6 +186,15 @@
         "title_auto_save_info"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/title_auto_save_info_menu_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 5,
+          "status": "stale"
+        }
+      ],
+      "stale_recipes": 1,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -230,6 +252,27 @@
         "title_menu_0."
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chapter_title_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/soccer_area_title_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/title_menu_setting.cfg.bin",
+          "referenced_objbins": 13,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 3,
         "menu_cfg": 3,
@@ -798,6 +841,267 @@
         "chara_uniform"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_skin_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_left_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_right_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_mouth_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_1_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_2_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_hair_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_setting.cfg.bin",
+          "referenced_objbins": 10,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_list_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+          "referenced_objbins": 13,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_model_menu_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_1_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_2_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_contour_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_ear_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_highlight_list_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_pupil_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_front_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_mouth_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_nose_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_preset_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_setting.cfg.bin",
+          "referenced_objbins": 15,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_ability_learning_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_personality_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_setting.cfg.bin",
+          "referenced_objbins": 12,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_voice_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_recipe_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/kizuna_town_avatar_menu_setting.cfg.bin",
+          "referenced_objbins": 30,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 43,
         "menu_cfg": 43,
@@ -1530,6 +1834,267 @@
         "chara_edit_color_menu_13x5_hair"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_skin_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_left_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_right_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_mouth_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_1_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_2_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_hair_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_setting.cfg.bin",
+          "referenced_objbins": 10,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_list_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+          "referenced_objbins": 13,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_model_menu_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_1_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_2_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_contour_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_ear_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_highlight_list_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_pupil_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_front_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_mouth_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_nose_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_preset_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_setting.cfg.bin",
+          "referenced_objbins": 15,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_ability_learning_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_personality_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_setting.cfg.bin",
+          "referenced_objbins": 12,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_voice_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_recipe_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/kizuna_town_avatar_menu_setting.cfg.bin",
+          "referenced_objbins": 30,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 43,
         "menu_cfg": 43,
@@ -2262,6 +2827,267 @@
         "name_entry"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_skin_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_left_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_right_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_mouth_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_1_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_2_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_hair_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_setting.cfg.bin",
+          "referenced_objbins": 10,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_list_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+          "referenced_objbins": 13,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_model_menu_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_1_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_2_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_contour_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_ear_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_highlight_list_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_pupil_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_front_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_mouth_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_nose_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_preset_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_setting.cfg.bin",
+          "referenced_objbins": 15,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_ability_learning_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_personality_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_setting.cfg.bin",
+          "referenced_objbins": 12,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_voice_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_recipe_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/kizuna_town_avatar_menu_setting.cfg.bin",
+          "referenced_objbins": 30,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 43,
         "menu_cfg": 43,
@@ -2993,6 +3819,267 @@
         "chara_edit_parts_menu_status"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_skin_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_left_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_right_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_mouth_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_1_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_2_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_hair_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_setting.cfg.bin",
+          "referenced_objbins": 10,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_list_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+          "referenced_objbins": 13,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_model_menu_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_1_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_2_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_contour_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_ear_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_highlight_list_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_pupil_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_front_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_mouth_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_nose_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_preset_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_setting.cfg.bin",
+          "referenced_objbins": 15,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_ability_learning_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_personality_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_setting.cfg.bin",
+          "referenced_objbins": 12,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_voice_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_recipe_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/kizuna_town_avatar_menu_setting.cfg.bin",
+          "referenced_objbins": 30,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 43,
         "menu_cfg": 43,
@@ -3725,6 +4812,267 @@
         "chara_edit_model_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_skin_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_left_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_right_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_mouth_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_1_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_2_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_hair_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_setting.cfg.bin",
+          "referenced_objbins": 10,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_list_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+          "referenced_objbins": 13,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_model_menu_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_1_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_2_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_contour_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_ear_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_highlight_list_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_pupil_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_front_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_mouth_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_nose_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_preset_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_setting.cfg.bin",
+          "referenced_objbins": 15,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_ability_learning_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_personality_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_setting.cfg.bin",
+          "referenced_objbins": 12,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_voice_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_recipe_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/kizuna_town_avatar_menu_setting.cfg.bin",
+          "referenced_objbins": 30,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 43,
         "menu_cfg": 43,
@@ -4457,6 +5805,267 @@
         "chara_edit_list_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_10x4_skin_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_left_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_eye_right_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_mouth_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_center_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_left_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_pupil_right_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_12x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_1_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_characteristic_2_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_hair_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_13x5_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_color_menu_setting.cfg.bin",
+          "referenced_objbins": 10,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_list_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+          "referenced_objbins": 13,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_model_menu_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_1_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_2_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_characteristic_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_contour_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_ear_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_highlight_list_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_pupil_list_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eye_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_eyebrow_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_front_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_list_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_hair_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_mouth_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_nose_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_preset_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_setting.cfg.bin",
+          "referenced_objbins": 15,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_ability_learning_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_personality_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_status_setting.cfg.bin",
+          "referenced_objbins": 12,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_parts_menu_voice_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_edit_recipe_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/kizuna_town_avatar_menu_setting.cfg.bin",
+          "referenced_objbins": 30,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 43,
         "menu_cfg": 43,
@@ -5188,6 +6797,39 @@
         "chara_model_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_model_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_status_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 1,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 1,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -5288,6 +6930,39 @@
         "chara_model_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_model_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_status_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 1,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 1,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -5387,6 +7062,15 @@
         "chronicle_mode_top_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chronicle_mode_top_menu_setting.cfg.bin",
+          "referenced_objbins": 18,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -5435,6 +7119,15 @@
         "chronicle_mode_top_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chronicle_mode_top_menu_setting.cfg.bin",
+          "referenced_objbins": 18,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -5484,6 +7177,33 @@
         "shop_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/shop_menu_basara_setting.cfg.bin",
+          "referenced_objbins": 15,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/shop_menu_basara_top_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/shop_menu_basara_trade_condition_setting.cfg.bin",
+          "referenced_objbins": 11,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/shop_menu_setting.cfg.bin",
+          "referenced_objbins": 67,
+          "missing_objbins": 1,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 4,
         "menu_cfg": 4,
@@ -5575,47 +7295,102 @@
       "width": 2560,
       "height": 1440,
       "client_crop": null,
-      "screen": "camera_option_menu_shortcut",
+      "screen": "keyconfig_setting_menu",
       "visual_subscreen": "controller_settings",
-      "identity_source": "data/menu/manifest.json (config_and_visual)",
+      "identity_source": "OBJBIN list of data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
       "screen_tokens": [
-        "camera_option_menu_shortcut",
-        "camera_option_menu_shortcut",
-        "virtual_pad"
+        "keyconfig_setting_menu",
+        "option01_2"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
-        "objbin": 0,
+        "objbin": 3,
         "lua": 1,
-        "scene": 0,
+        "scene": 6,
         "movie": 0
       },
       "resources": {
         "setting_cfg": [
           {
-            "path": "data/common/gamedata/menu/cfg/camera_option_menu_shortcut_setting.cfg.bin",
-            "size": 1488,
+            "path": "data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
+            "size": 3120,
             "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
           }
         ],
         "menu_cfg": [
           {
-            "path": "data/common/gamedata/menu/cfg/camera_option_menu_shortcut_setting.cfg.bin",
-            "size": 1488,
+            "path": "data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
+            "size": 3120,
             "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
           }
         ],
-        "objbin": [],
+        "objbin": [
+          {
+            "path": "data/common/gamedata/menu/obj/option01_21_keyconfig_setting_list_attach.objbin",
+            "size": 1040,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          },
+          {
+            "path": "data/common/gamedata/menu/obj/option01_22_keyconfig_setting_list_item.objbin",
+            "size": 944,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          },
+          {
+            "path": "data/common/gamedata/menu/obj/option01_23_keyconfig_setting_list_item_key.objbin",
+            "size": 848,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          }
+        ],
         "lua": [
           {
-            "path": "data/common/script/lua/menu/camera_option_menu_shortcut_0.02.80.lua.bin",
-            "size": 4551,
+            "path": "data/common/script/lua/menu/keyconfig_setting_menu.lua.bin",
+            "size": 12527,
             "cpk": "f1c9ce4d9c8f287a97e6cf5e15d05fee.cpk"
           }
         ],
-        "scene": [],
+        "scene": [
+          {
+            "path": "data/common/menu/108_option/option01/option01_21/option01_21.g4mg",
+            "size": 192,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_21/option01_21.g4pkm",
+            "size": 7488,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_22/option01_22.g4mg",
+            "size": 192,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_22/option01_22.g4pkm",
+            "size": 7744,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_23/option01_23.g4mg",
+            "size": 192,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_23/option01_23.g4pkm",
+            "size": 17216,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          }
+        ],
         "movie": []
       }
     },
@@ -5632,6 +7407,15 @@
         "advent_calendar_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/advent_calendar_menu_setting.cfg.bin",
+          "referenced_objbins": 20,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -5682,6 +7466,39 @@
         "chara_filter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 17,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -5792,6 +7609,39 @@
         "chara_filter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 17,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -5902,6 +7752,39 @@
         "chara_filter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 17,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -6012,6 +7895,39 @@
         "chara_filter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 17,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -6122,6 +8038,39 @@
         "chara_filter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 17,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -6232,6 +8181,39 @@
         "chara_filter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 17,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -6342,6 +8324,39 @@
         "chara_filter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 17,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -6452,6 +8467,39 @@
         "chara_filter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 3,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_filter_menu_setting.cfg.bin",
+          "referenced_objbins": 17,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 5,
         "menu_cfg": 5,
@@ -6562,6 +8610,15 @@
         "soccer_formation"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/soccer_formation_menu_setting.cfg.bin",
+          "referenced_objbins": 49,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -6620,6 +8677,15 @@
         "soccer_formation_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/soccer_formation_menu_setting.cfg.bin",
+          "referenced_objbins": 49,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -6678,6 +8744,27 @@
         "main_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/main_menu_bg_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 7,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/main_menu_setting.cfg.bin",
+          "referenced_objbins": 13,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/victory_road_main_menu_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 1,
       "resource_counts": {
         "setting_cfg": 3,
         "menu_cfg": 3,
@@ -6759,6 +8846,15 @@
         "title00_07"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin",
+          "referenced_objbins": 28,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -7087,60 +9183,151 @@
       "width": 2560,
       "height": 1440,
       "client_crop": null,
-      "screen": "camera_option_menu",
+      "screen": "setting_menu",
       "visual_subscreen": null,
-      "identity_source": "data/menu/manifest.json (config_and_visual)",
+      "identity_source": "OBJBIN list of data/common/gamedata/menu/cfg/setting_menu_setting.cfg.bin",
       "screen_tokens": [
-        "camera_option_menu"
+        "setting_menu_setting",
+        "setting_menu_1.",
+        "option01_0"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/communicate_setting_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/network_rank_match_setting_menu_setting.cfg.bin",
+          "referenced_objbins": 9,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/setting_menu_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
-        "setting_cfg": 2,
-        "menu_cfg": 2,
-        "objbin": 0,
-        "lua": 2,
-        "scene": 0,
+        "setting_cfg": 4,
+        "menu_cfg": 4,
+        "objbin": 3,
+        "lua": 1,
+        "scene": 6,
         "movie": 0
       },
       "resources": {
         "setting_cfg": [
           {
-            "path": "data/common/gamedata/menu/cfg/camera_option_menu_setting.cfg.bin",
-            "size": 3136,
+            "path": "data/common/gamedata/menu/cfg/communicate_setting_menu_setting.cfg.bin",
+            "size": 3776,
             "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
           },
           {
-            "path": "data/common/gamedata/menu/cfg/camera_option_menu_shortcut_setting.cfg.bin",
-            "size": 1488,
+            "path": "data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
+            "size": 3120,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          },
+          {
+            "path": "data/common/gamedata/menu/cfg/network_rank_match_setting_menu_setting.cfg.bin",
+            "size": 3664,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          },
+          {
+            "path": "data/common/gamedata/menu/cfg/setting_menu_setting.cfg.bin",
+            "size": 2672,
             "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
           }
         ],
         "menu_cfg": [
           {
-            "path": "data/common/gamedata/menu/cfg/camera_option_menu_setting.cfg.bin",
-            "size": 3136,
+            "path": "data/common/gamedata/menu/cfg/communicate_setting_menu_setting.cfg.bin",
+            "size": 3776,
             "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
           },
           {
-            "path": "data/common/gamedata/menu/cfg/camera_option_menu_shortcut_setting.cfg.bin",
-            "size": 1488,
+            "path": "data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
+            "size": 3120,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          },
+          {
+            "path": "data/common/gamedata/menu/cfg/network_rank_match_setting_menu_setting.cfg.bin",
+            "size": 3664,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          },
+          {
+            "path": "data/common/gamedata/menu/cfg/setting_menu_setting.cfg.bin",
+            "size": 2672,
             "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
           }
         ],
-        "objbin": [],
+        "objbin": [
+          {
+            "path": "data/common/gamedata/menu/obj/option01_01_setting_list_attach.objbin",
+            "size": 1024,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          },
+          {
+            "path": "data/common/gamedata/menu/obj/option01_02_setting_list_item.objbin",
+            "size": 1456,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          },
+          {
+            "path": "data/common/gamedata/menu/obj/option01_05_guide_base.objbin",
+            "size": 624,
+            "cpk": "672c0647c5ff4adf150dc88695184817.cpk"
+          }
+        ],
         "lua": [
           {
-            "path": "data/common/script/lua/menu/camera_option_menu_0.03.73.lua.bin",
-            "size": 8229,
-            "cpk": "f1c9ce4d9c8f287a97e6cf5e15d05fee.cpk"
-          },
-          {
-            "path": "data/common/script/lua/menu/camera_option_menu_shortcut_0.02.80.lua.bin",
-            "size": 4551,
+            "path": "data/common/script/lua/menu/setting_menu_1.03.73.00.lua.bin",
+            "size": 41525,
             "cpk": "f1c9ce4d9c8f287a97e6cf5e15d05fee.cpk"
           }
         ],
-        "scene": [],
+        "scene": [
+          {
+            "path": "data/common/menu/108_option/option01/option01_01/option01_01.g4mg",
+            "size": 192,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_01/option01_01.g4pkm",
+            "size": 6400,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_02/option01_02.g4mg",
+            "size": 320,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_02/option01_02.g4pkm",
+            "size": 27968,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_05/option01_05.g4mg",
+            "size": 192,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          },
+          {
+            "path": "data/common/menu/108_option/option01/option01_05/option01_05.g4pkm",
+            "size": 4576,
+            "cpk": "3924ae9c4f11ddb9f14deb731dbd0dac.cpk"
+          }
+        ],
         "movie": []
       }
     },
@@ -7158,6 +9345,15 @@
         "virtual_pad"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/pause_menu_setting.cfg.bin",
+          "referenced_objbins": 10,
+          "missing_objbins": 10,
+          "status": "stale"
+        }
+      ],
+      "stale_recipes": 1,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -7237,6 +9433,27 @@
         "chara_bank_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_for_search_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 26,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/fake_chara_bank_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 3,
         "menu_cfg": 3,
@@ -7315,6 +9532,15 @@
         "ability_learning_board_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/ability_learning_board_menu_setting.cfg.bin",
+          "referenced_objbins": 51,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 1,
         "menu_cfg": 1,
@@ -7364,6 +9590,21 @@
         "player_universe"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/players_universe_menu_setting.cfg.bin",
+          "referenced_objbins": 54,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/players_universe_search_menu_setting.cfg.bin",
+          "referenced_objbins": 29,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 2,
         "menu_cfg": 2,
@@ -7453,6 +9694,33 @@
         "shop_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/shop_menu_basara_setting.cfg.bin",
+          "referenced_objbins": 15,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/shop_menu_basara_top_setting.cfg.bin",
+          "referenced_objbins": 8,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/shop_menu_basara_trade_condition_setting.cfg.bin",
+          "referenced_objbins": 11,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/shop_menu_setting.cfg.bin",
+          "referenced_objbins": 67,
+          "missing_objbins": 1,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 0,
       "resource_counts": {
         "setting_cfg": 4,
         "menu_cfg": 4,
@@ -7552,6 +9820,21 @@
         "chapter_menu"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/chapter_menu_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 4,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/story_mode_top_menu_setting.cfg.bin",
+          "referenced_objbins": 16,
+          "missing_objbins": 0,
+          "status": "usable"
+        }
+      ],
+      "stale_recipes": 1,
       "resource_counts": {
         "setting_cfg": 2,
         "menu_cfg": 2,
@@ -7647,6 +9930,57 @@
         "medal"
       ],
       "pairing_status": "resolved",
+      "setting_recipes": [
+        {
+          "setting": "data/common/gamedata/menu/cfg/equip_medalset_menu_setting.cfg.bin",
+          "referenced_objbins": 32,
+          "missing_objbins": 32,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/gallery_menu_setting.cfg.bin",
+          "referenced_objbins": 7,
+          "missing_objbins": 0,
+          "status": "usable"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/medal_dict_detail_menu_setting.cfg.bin",
+          "referenced_objbins": 4,
+          "missing_objbins": 4,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/medal_dict_menu_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 6,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/medal_point_menu_setting.cfg.bin",
+          "referenced_objbins": 1,
+          "missing_objbins": 1,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/medal_recycle_check_window_setting.cfg.bin",
+          "referenced_objbins": 5,
+          "missing_objbins": 5,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/medal_recycle_window_setting.cfg.bin",
+          "referenced_objbins": 6,
+          "missing_objbins": 6,
+          "status": "stale"
+        },
+        {
+          "setting": "data/common/gamedata/menu/cfg/y_medal_load_menu_setting.cfg.bin",
+          "referenced_objbins": 14,
+          "missing_objbins": 14,
+          "status": "stale"
+        }
+      ],
+      "stale_recipes": 7,
       "resource_counts": {
         "setting_cfg": 8,
         "menu_cfg": 8,
