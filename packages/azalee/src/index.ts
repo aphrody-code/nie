@@ -25,7 +25,9 @@
 export * from "./game";
 export * from "./images";
 export * from "./bookmarks";
+export * from "./comments";
 export * from "./reading-history";
+export * from "./reactions";
 export * from "./search";
 export * from "./text";
 

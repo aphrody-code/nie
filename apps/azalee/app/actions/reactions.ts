@@ -11,7 +11,7 @@ import {
 	type ReactionState,
 	type ReactionToggleResult,
 	type ReactionType,
-} from "@niers/inacord-ui/lib/reactions";
+} from "@rosegriffon/azalee/reactions";
 
 export async function toggleReaction(
 	articleId: string,

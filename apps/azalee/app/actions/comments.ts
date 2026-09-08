@@ -11,7 +11,7 @@ import {
 	normalizeCommentIdentifier,
 	sortComments,
 	type CommentSortOrder,
-} from "@niers/inacord-ui/lib/comments";
+} from "@rosegriffon/azalee/comments";
 
 export interface Comment {
 	id: string;

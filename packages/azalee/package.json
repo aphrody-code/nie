@@ -32,6 +32,8 @@
 		".": "./src/index.ts",
 		"./db": "./src/db/index.ts",
 		"./bookmarks": "./src/bookmarks.ts",
+		"./comments": "./src/comments.ts",
+		"./reactions": "./src/reactions.ts",
 		"./wiki": "./src/wiki/index.ts",
 		"./wiki/*": "./src/wiki/*.ts",
 		"./cpk/*": "./src/cpk/*.ts",

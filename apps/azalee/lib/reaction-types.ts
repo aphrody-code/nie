@@ -1,6 +1,6 @@
-/** @deprecated Import the portable reaction contract from @niers/inacord-ui. */
+/** @deprecated Import the reaction contract from @rosegriffon/azalee/reactions. */
 export {
 	REACTION_EMOJIS,
 	REACTION_TYPES,
 	type ReactionType,
-} from "@niers/inacord-ui/lib/reactions";
+} from "@rosegriffon/azalee/reactions";

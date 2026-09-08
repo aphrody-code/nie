@@ -154,12 +154,6 @@ export {
 	type SkillDetailRecipe,
 	type SkillDetailRecipeCost,
 } from "./components/wiki/wiki/SkillDetailInfo";
-export {
-	FeaturedHero,
-	type FeaturedHeroArticle,
-	type FeaturedHeroImage,
-	type FeaturedHeroProps,
-} from "./components/wiki/news/FeaturedHero";
 
 // --- L'ecran des Options : les reglages d'Inacord, dans l'ecran du jeu ----------------------
 //
@@ -210,35 +204,3 @@ export {
 	uniqueNativeText,
 	useNativeText,
 } from "./lib/native-text";
-export {
-	accumulateReactionStates,
-	createReactionStates,
-	isReactionType,
-	normalizeReactionArticleId,
-	parseReactionRequest,
-	parseReactionType,
-	REACTION_EMOJIS,
-	REACTION_TYPES,
-	type ReactionRequest,
-	type ReactionState,
-	type ReactionStates,
-	type ReactionToggleResult,
-	type ReactionType,
-} from "./lib/reactions";
-export {
-	buildCommentTree,
-	commentReactionArticleId,
-	COMMENT_IDENTIFIER_MAX_LENGTH,
-	COMMENT_MAX_LENGTH,
-	COMMENT_MAX_REPLY_DEPTH,
-	COMMENT_SORT_ORDERS,
-	countRepliesByParentId,
-	isCommentSortOrder,
-	normalizeCommentContent,
-	normalizeCommentIdentifier,
-	sortComments,
-	type CommentAuthor,
-	type CommentRecord,
-	type CommentSortOrder,
-	type CommentTreeNode,
-} from "./lib/comments";

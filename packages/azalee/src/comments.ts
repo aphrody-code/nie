@@ -1,11 +1,4 @@
-/**
- * Host-neutral comment domain contract.
- *
- * A browser action, a desktop adapter and an API route can share validation,
- * stable reaction keys and reply aggregation without importing a session or a
- * database client. Persistence and authorization remain host responsibilities.
- */
-
+/** Article comment rules owned by the Azalée publishing product. */
 export const COMMENT_MAX_LENGTH = 2_000;
 export const COMMENT_IDENTIFIER_MAX_LENGTH = 512;
 export const COMMENT_MAX_REPLY_DEPTH = 2;
@@ -42,7 +35,6 @@ export function isCommentSortOrder(value: unknown): value is CommentSortOrder {
 	return typeof value === "string" && (COMMENT_SORT_ORDERS as readonly string[]).includes(value);
 }
 
-/** Normalizes host input without prescribing UUIDs or a database implementation. */
 export function normalizeCommentIdentifier(value: unknown, kind = "comment"): string {
 	if (typeof value !== "string") {
 		throw new TypeError(`A ${kind} identifier must be a string`);
@@ -56,7 +48,6 @@ export function normalizeCommentIdentifier(value: unknown, kind = "comment"): st
 	return identifier;
 }
 
-/** Validates and normalizes a persisted comment body before it reaches a transport. */
 export function normalizeCommentContent(value: unknown): string {
 	if (typeof value !== "string") {
 		throw new TypeError("A comment body must be a string");
@@ -70,12 +61,10 @@ export function normalizeCommentContent(value: unknown): string {
 	return content;
 }
 
-/** Shared storage key for a comment like in the legacy article-reactions table. */
 export function commentReactionArticleId(commentId: unknown): string {
 	return `comment:${normalizeCommentIdentifier(commentId)}`;
 }
 
-/** Counts direct replies only; recursive rendering remains a host presentation choice. */
 export function countRepliesByParentId(
 	rows: Iterable<{ parentId: unknown }>
 ): ReadonlyMap<string, number> {
@@ -87,7 +76,6 @@ export function countRepliesByParentId(
 	return counts;
 }
 
-/** Keeps pins first while applying the selected deterministic order to the remaining rows. */
 export function sortComments<T extends Pick<CommentRecord, "isPinned" | "createdAt" | "likes">>(
 	comments: readonly T[],
 	sortOrder: CommentSortOrder
@@ -100,10 +88,6 @@ export function sortComments<T extends Pick<CommentRecord, "isPinned" | "created
 	});
 }
 
-/**
- * Maps a flat comment collection to a bounded, cycle-safe tree. Orphans stay
- * at the root so hosts never silently lose server records.
- */
 export function buildCommentTree(comments: readonly CommentRecord[]): CommentTreeNode[] {
 	const nodes = new Map<string, CommentTreeNode>();
 	for (const comment of comments) nodes.set(comment.id, { ...comment, replies: [] });

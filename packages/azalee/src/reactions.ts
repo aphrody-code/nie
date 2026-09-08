@@ -1,9 +1,4 @@
-/**
- * Host-neutral contract for article reactions.
- *
- * UI, server actions, CLI bindings and future desktop transports share these
- * values. Authentication and persistence deliberately remain host concerns.
- */
+/** Article reaction rules owned by the Azalée publishing product. */
 export const REACTION_TYPES = ["like", "fire", "clap", "mind_blown", "sad"] as const;
 
 export type ReactionType = (typeof REACTION_TYPES)[number];
@@ -39,7 +34,6 @@ export function isReactionType(value: unknown): value is ReactionType {
 	return typeof value === "string" && (REACTION_TYPES as readonly string[]).includes(value);
 }
 
-/** Normalizes an identifier without assuming a storage backend or UUID format. */
 export function normalizeReactionArticleId(value: unknown): string {
 	if (typeof value !== "string") {
 		throw new TypeError("A reaction requires a string article identifier");
@@ -53,7 +47,6 @@ export function normalizeReactionArticleId(value: unknown): string {
 	return articleId;
 }
 
-/** Validates untrusted transport input before it reaches persistence. */
 export function parseReactionRequest(
 	articleId: unknown,
 	reactionType: unknown = "like"
@@ -75,7 +68,6 @@ export function createReactionStates(): ReactionStates {
 	) as ReactionStates;
 }
 
-/** Ignores legacy or future reaction values outside the public contract. */
 export function accumulateReactionStates(
 	rows: Iterable<{ reactionType: unknown; userId: unknown }>,
 	currentUserId?: string
