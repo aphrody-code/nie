@@ -52,6 +52,7 @@ function Site() {
 	const capacites = useCapacites();
 	const erreurSource = useErreurSource();
 	const [etat, setEtat] = useState<SanteApi | null>(null);
+	const [playing, setPlaying] = useState(false);
 
 	// Les réglages d'apparence (thème, densité, mouvement, taille du texte, zoom) prennent
 	// effet sur `<html>` dès ici, sur TOUS les écrans — un réglage enregistré qui ne change
@@ -149,11 +150,23 @@ function Site() {
 	// vides pendant la premiere seconde.
 	const pret = Boolean(capacites?.vfs);
 
-	// L'accueil est le JEU. Il passe AVANT la garde sur le VFS : le moteur wasm embarque sa
-	// logique et sa police, il n'interroge pas l'index du catalogue, et le faire attendre une
-	// capacité dont il ne se sert pas ajouterait un écran vide devant lui.
+	// The root opens on the VFS-backed main menu. The WASM simulation remains the action behind
+	// Match/Victory Road instead of exposing its temporary dark menu as the site's identity.
 	if (vue === HOME) {
-		return <Jeu />;
+		return playing ? (
+			<Jeu />
+		) : (
+			<div style={{ position: "fixed", inset: 0, background: "var(--jeu-ciel-clair)" }}>
+				<MenuPrincipal
+					view={vue}
+					onChoose={setVue}
+					onPlay={() => setPlaying(true)}
+					health={etat}
+					ready={pret}
+					failed={Boolean(erreurSource)}
+				/>
+			</div>
+		);
 	}
 
 	// Tant que le serveur n'a pas tranché sur son VFS, les écrans qui en DÉPENDENT montrent
@@ -179,11 +192,15 @@ function Site() {
 			// qu'il n'a pas, et laisse une bande vide en bas — sans qu'aucune valeur soit fausse.
 			<div style={{ position: "fixed", inset: 0, background: "var(--jeu-ciel-clair)" }}>
 				<MenuPrincipal
-					vue={vue}
-					onChoisir={setVue}
-					etat={etat}
-					pret={pret}
-					panne={Boolean(erreurSource)}
+					view={vue}
+					onChoose={setVue}
+					onPlay={() => {
+						setPlaying(true);
+						setVue(HOME);
+					}}
+					health={etat}
+					ready={pret}
+					failed={Boolean(erreurSource)}
 				/>
 			</div>
 		);
