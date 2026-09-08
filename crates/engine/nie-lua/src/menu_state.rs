@@ -327,6 +327,79 @@ impl<T: Copy + Default, const CAPACITY: usize> ObservedMenuFlags<T, CAPACITY> {
     }
 }
 
+/// Observed C-string bytes, excluding the terminator. The 4096-byte limit is a
+/// host input bound, not a claim about the native save buffer capacity.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(transparent)]
+pub struct ObservedMenuCString(Vec<u8>);
+impl ObservedMenuCString {
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn from_bytes(bytes: Vec<u8>) -> Option<Self> {
+        (bytes.len() <= 4096 && !bytes.contains(&0)).then_some(Self(bytes))
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ObservedMenuCString {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct BytesVisitor;
+        impl<'de> serde::de::Visitor<'de> for BytesVisitor {
+            type Value = ObservedMenuCString;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("at most 4096 nonzero C-string bytes")
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<Self::Value, A::Error> {
+                let mut bytes = Vec::new();
+                while let Some(byte) = seq.next_element::<u8>()? {
+                    if byte == 0 || bytes.len() >= 4096 {
+                        return Err(serde::de::Error::custom("invalid observed C-string bytes"));
+                    }
+                    bytes.push(byte);
+                }
+                Ok(ObservedMenuCString(bytes))
+            }
+        }
+        deserializer.deserialize_seq(BytesVisitor)
+    }
+}
+
+/// Result of the native primary-slot override search, shared by slots 0 and 1.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ObservedMenuStringOverride {
+    SavedFallback,
+    Value { bytes: ObservedMenuCString },
+}
+
+/// Inputs for command 0x3D935467 selector 6. Native 140ea51f0 searches the first
+/// qualifying override for primary slots, otherwise 140da20a0 uses saved data.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ObservedMenuStringQuery {
+    pub primary_override: Option<ObservedMenuStringOverride>,
+    /// Key = mapped saved slot * 3 + secondary slot. Missing keys are unobserved;
+    /// null means an observed null result pointer, [] a nonnull empty C string.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_flag_values::<_, Option<ObservedMenuCString>, 48>"
+    )]
+    pub saved_slots: BTreeMap<u16, Option<ObservedMenuCString>>,
+}
+
+/// Native numeric argument narrowing for the proven finite conversion domain.
+/// Nonfinite and out-of-range machine conversions remain unresolved.
+pub fn observed_menu_argument_byte(value: f64) -> Option<u8> {
+    if !value.is_finite() || value < f64::from(i32::MIN) || value >= 9_223_372_036_854_775_808.0 {
+        return None;
+    }
+    Some((value as i64) as u8)
+}
+
 /// Native menu inputs observed by a host; absent values remain unresolved.
 ///
 /// The offsets deliberately retain native names: the handlers prove these loads,
@@ -339,6 +412,8 @@ impl<T: Copy + Default, const CAPACITY: usize> ObservedMenuFlags<T, CAPACITY> {
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ObservedMenuNativeState {
+    /// Optional observations for the selector-6 raw string query.
+    pub string_query: Option<ObservedMenuStringQuery>,
     /// Byte at `*(context + 0x69c8) + 0x2cac6f`.
     pub context_69c8_field_2cac6f: Option<u8>,
     /// Byte at `*(context + 0x69a8) + 0x9f10`.
@@ -367,6 +442,35 @@ pub enum ObservedMenuQueryValue {
 }
 
 impl ObservedMenuNativeState {
+    /// Resolve the native string-query branch. Outer None means unresolved;
+    /// inner None is the single false return; bytes mean true plus a raw string.
+    /// 140be9cc0 returns the stack delta, not the handler status byte.
+    pub fn resolve_general_string_query(&self, args: &[u8]) -> Option<Option<&[u8]>> {
+        if args.len() < 3 || args[0] > 15 || args[1] > 2 {
+            return Some(None);
+        }
+        if args[2] != 6 {
+            return None;
+        }
+        let query = self.string_query.as_ref()?;
+        if args[0] < 2 {
+            match query.primary_override.as_ref()? {
+                ObservedMenuStringOverride::Value { bytes } => return Some(Some(&bytes.0)),
+                ObservedMenuStringOverride::SavedFallback => {}
+            }
+        }
+        // Native table VA1419d7e28, binary file offset 0x19d6a28.
+        const SLOTS: [u16; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15, 11, 12, 13];
+        let key = SLOTS[usize::from(args[0])] * 3 + u16::from(args[1]);
+        Some(
+            query
+                .saved_slots
+                .get(&key)?
+                .as_ref()
+                .map(|bytes| bytes.0.as_slice()),
+        )
+    }
+
     /// Count supplied observations without treating absent bytes as zero.
     pub fn observed_field_count(&self) -> usize {
         [
@@ -380,6 +484,7 @@ impl ObservedMenuNativeState {
             + usize::from(self.category_0_flags.is_some())
             + usize::from(self.category_1_values.is_some())
             + usize::from(self.category_5_flags.is_some())
+            + usize::from(self.string_query.is_some())
     }
 
     /// Resolve observed keyed flags without requiring unrelated native mode bytes.
@@ -426,6 +531,78 @@ impl ObservedMenuNativeState {
 #[cfg(test)]
 mod observed_native_tests {
     use super::*;
+
+    #[test]
+    fn string_observations_require_override_outcome_and_map_saved_slots() {
+        let mut state = ObservedMenuNativeState {
+            string_query: Some(ObservedMenuStringQuery {
+                primary_override: None,
+                saved_slots: BTreeMap::from([
+                    (0, Some(ObservedMenuCString(vec![65]))),
+                    (42, Some(ObservedMenuCString(vec![66]))),
+                    (47, None),
+                ]),
+            }),
+            ..Default::default()
+        };
+        assert_eq!(state.resolve_general_string_query(&[0, 0, 6]), None);
+        assert_eq!(
+            state.resolve_general_string_query(&[11, 0, 6]),
+            Some(Some(&b"B"[..]))
+        );
+        assert_eq!(state.resolve_general_string_query(&[12, 2, 6]), Some(None));
+        assert_eq!(state.resolve_general_string_query(&[13, 0, 6]), None);
+        assert_eq!(state.resolve_general_string_query(&[16, 0, 7]), Some(None));
+        assert_eq!(state.resolve_general_string_query(&[0, 0, 7]), None);
+        state.string_query.as_mut().unwrap().primary_override =
+            Some(ObservedMenuStringOverride::SavedFallback);
+        assert_eq!(
+            state.resolve_general_string_query(&[0, 0, 6]),
+            Some(Some(&b"A"[..]))
+        );
+        state.string_query.as_mut().unwrap().primary_override =
+            Some(ObservedMenuStringOverride::Value {
+                bytes: ObservedMenuCString(vec![]),
+            });
+        assert_eq!(
+            state.resolve_general_string_query(&[1, 2, 6]),
+            Some(Some(&b""[..]))
+        );
+        assert_eq!(
+            state.resolve_general_string_query(&[11, 0, 6]),
+            Some(Some(&b"B"[..]))
+        );
+    }
+
+    #[test]
+    fn string_observations_reject_unbounded_or_non_c_string_input() {
+        use serde::Deserialize;
+        use serde::de::value::{Error, SeqDeserializer};
+        for bytes in [vec![0], vec![1; 4097]] {
+            let input = SeqDeserializer::<_, Error>::new(bytes.into_iter());
+            assert!(ObservedMenuCString::deserialize(input).is_err());
+        }
+        assert!(ObservedMenuCString::from_bytes(vec![1; 4096]).is_some());
+        assert!(ObservedMenuCString::from_bytes(vec![1; 4097]).is_none());
+        assert!(ObservedMenuCString::from_bytes(vec![0]).is_none());
+        assert_eq!(
+            ObservedMenuCString::from_bytes(vec![255])
+                .unwrap()
+                .as_bytes(),
+            &[255]
+        );
+        assert_eq!(observed_menu_argument_byte(-256.9), Some(0));
+        assert_eq!(observed_menu_argument_byte(-1.9), Some(255));
+        assert_eq!(observed_menu_argument_byte(262.9), Some(6));
+        for input in [
+            f64::NAN,
+            f64::INFINITY,
+            -2147483649.0,
+            9223372036854775808.0,
+        ] {
+            assert_eq!(observed_menu_argument_byte(input), None);
+        }
+    }
 
     #[test]
     fn flag_queries_distinguish_unobserved_missing_and_saved_false() {

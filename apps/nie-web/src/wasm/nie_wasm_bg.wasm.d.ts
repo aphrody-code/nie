@@ -41,6 +41,7 @@ export const knowledge_search_json: (a: number, b: number, c: number, d: number,
 export const lip_to_json: (a: number, b: number) => [number, number, number, number];
 export const lua_bytecode_json: (a: number, b: number) => [number, number, number, number];
 export const match_tick: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+export const menu_animation_bindings_json: (a: number, b: number) => [number, number, number, number];
 export const menu_runtime_scene_json: (a: number, b: number) => [number, number, number, number];
 export const menu_static_layer_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
 export const minidump_summary_json: (a: number, b: number) => [number, number, number, number];

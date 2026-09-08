@@ -833,6 +833,44 @@ pub fn install_menu_host(lua: &Lua) -> mlua::Result<Rc<RefCell<MenuState>>> {
         let state = Rc::clone(&state);
         let f = lua.create_function(move |lua, args: Variadic<Value>| {
             let cmd_id = lua_to_u32(args.first());
+            if cmd_id == 0x3D93_5467 {
+                let mut converted = Vec::new();
+                for value in args.iter().skip(1).take(3) {
+                    // Native tonumberx returns zero when coercion fails.
+                    let number = lua.coerce_number(value.clone())?.unwrap_or(0.0);
+                    let Some(byte) = crate::menu_state::observed_menu_argument_byte(number) else {
+                        break;
+                    };
+                    converted.push(byte);
+                    if (converted.len() == 1 && byte > 15) || (converted.len() == 2 && byte > 2) {
+                        break;
+                    }
+                }
+                let invalid_bounds = converted.first().is_some_and(|byte| *byte > 15)
+                    || converted.get(1).is_some_and(|byte| *byte > 2);
+                let result = if args.len() < 4 || converted.len() == 3 || invalid_bounds {
+                    let state = state.borrow();
+                    state
+                        .observed_native
+                        .resolve_general_string_query(&converted)
+                        .map(|bytes| bytes.map(|bytes| lua.create_string(bytes)).transpose())
+                        .transpose()?
+                } else {
+                    None
+                };
+                if let Some(string) = result {
+                    let mut state = state.borrow_mut();
+                    let layer = state.current_layer;
+                    state
+                        .known_cmd_log
+                        .push(("ObservedNativeStringQuery".to_string(), layer));
+                    let mut values = vec![Value::Boolean(string.is_some())];
+                    if let Some(string) = string {
+                        values.push(Value::String(string));
+                    }
+                    return Ok(MultiValue::from_vec(values));
+                }
+            }
             let observed = state
                 .borrow()
                 .observed_native
@@ -2204,6 +2242,63 @@ mod dispatch_tests {
     }
     fn menu_cmd(lua: &mlua::Lua) -> Function {
         lua.globals().get("funcLuaMenuCommand").unwrap()
+    }
+
+    #[test]
+    fn observed_string_query_preserves_stack_shape_bytes_and_coercion() {
+        let (lua, state) = host();
+        use crate::menu_state::{
+            ObservedMenuCString, ObservedMenuStringOverride, ObservedMenuStringQuery,
+        };
+        state.borrow_mut().observed_native.string_query = Some(ObservedMenuStringQuery {
+            primary_override: Some(ObservedMenuStringOverride::SavedFallback),
+            saved_slots: BTreeMap::from([
+                (0, ObservedMenuCString::from_bytes(vec![255, 128, 65])),
+                (1, ObservedMenuCString::from_bytes(vec![])),
+                (2, None),
+                (42, ObservedMenuCString::from_bytes(vec![66])),
+            ]),
+        });
+        let values: MultiValue = lua
+            .load("return funcLuaCommand(0x3D935467, '256.9', '0', 262.7)")
+            .eval()
+            .unwrap();
+        assert_eq!(values.len(), 2);
+        assert!(matches!(values[0], Value::Boolean(true)));
+        let Value::String(bytes) = &values[1] else {
+            panic!("raw Lua string expected")
+        };
+        assert_eq!(bytes.as_bytes().as_ref(), &[255, 128, 65]);
+        let shape: (usize, bool, usize, usize, bool) = lua
+            .load(
+                r#"
+            local ok, empty = funcLuaCommand(0x3D935467, false, 1, 6)
+            return select('#', funcLuaCommand(0x3D935467,0,1,6)), ok, #empty,
+                select('#', funcLuaCommand(0x3D935467,0,2,6)), funcLuaCommand(0x3D935467,0,2,6)
+        "#,
+            )
+            .eval()
+            .unwrap();
+        assert_eq!(shape, (2, true, 0, 1, false));
+        let result: (bool, String) = lua
+            .load("return funcLuaCommand(0x3D935467,11,0,6)")
+            .eval()
+            .unwrap();
+        assert_eq!(result, (true, "B".to_string()));
+        let invalid: bool = lua
+            .load("return funcLuaCommand(0x3D935467,16,0/0,6)")
+            .eval()
+            .unwrap();
+        assert!(!invalid);
+        assert!(state.borrow().unknown_general_cmd_log.is_empty());
+    }
+
+    #[test]
+    fn string_query_unobserved_and_other_operations_remain_diagnostic() {
+        let (lua, state) = host();
+        lua.load("funcLuaCommand(0x3D935467,0,0,6); funcLuaCommand(0x3D935467,0,0,7); funcLuaCommand(0x3D935467,0/0,0,6)").exec().unwrap();
+        assert_eq!(state.borrow().unknown_general_cmd_log.len(), 3);
+        assert!(state.borrow().known_cmd_log.is_empty());
     }
 
     #[test]

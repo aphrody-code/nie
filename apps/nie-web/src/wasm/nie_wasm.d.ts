@@ -516,6 +516,11 @@ export function lua_bytecode_json(bytes: Uint8Array): string;
 export function match_tick(state: string, is_training: boolean, end_counter: number): string;
 
 /**
+ * Decode G4RA state, clip and target bindings without inferring animation playback.
+ */
+export function menu_animation_bindings_json(bytes: Uint8Array): string;
+
+/**
  * Portable scene compiler over caller-supplied, observed Lua menu state.
  */
 export function menu_runtime_scene_json(state_json: string): string;
@@ -684,6 +689,7 @@ export interface InitOutput {
     readonly lip_to_json: (a: number, b: number) => [number, number, number, number];
     readonly lua_bytecode_json: (a: number, b: number) => [number, number, number, number];
     readonly match_tick: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly menu_animation_bindings_json: (a: number, b: number) => [number, number, number, number];
     readonly menu_runtime_scene_json: (a: number, b: number) => [number, number, number, number];
     readonly menu_static_layer_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
     readonly minidump_summary_json: (a: number, b: number) => [number, number, number, number];

@@ -1765,6 +1765,28 @@ pub fn g4tx_info_json(bytes: &[u8]) -> Result<String, String> {
 
 // ── Static menu layer composition ───────────────────────────────────────────
 
+fn menu_animation_bindings_json_impl(bytes: &[u8]) -> Result<String, String> {
+    let bindings = nie_formats::g4ra::parse(bytes).map_err(|error| error.to_string())?;
+    serde_json::to_string(&serde_json::json!({
+        "schemaVersion": 1,
+        "bindings": bindings,
+    }))
+    .map_err(|error| error.to_string())
+}
+
+/// Decode G4RA state, clip and target bindings without inferring animation playback.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn menu_animation_bindings_json(bytes: &[u8]) -> Result<String, JsValue> {
+    menu_animation_bindings_json_impl(bytes).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native counterpart of the portable animation-binding decoder.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn menu_animation_bindings_json(bytes: &[u8]) -> Result<String, String> {
+    menu_animation_bindings_json_impl(bytes)
+}
+
 /// Derives one static menu layer from the exact three Level-5 assets that define it.
 ///
 /// The browser owns asynchronous VFS acquisition. This function intentionally receives one

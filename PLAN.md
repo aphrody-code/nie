@@ -447,3 +447,45 @@ Wasm retained native equality for 8 scenes, 61 layers and 76 objects and rejecte
 inputs. Its SHA256 is `f3c32e0492a056832461889f1c0c96cd177d900755ccd80876bd3c6af8e3ffdd`.
 Build and integration logs are under `var/animation-*.log`. Production publication of this
 animation-contract batch follows the pushed commit and its staged browser gate.
+
+Commit `9a04bebeb759cfd7290ea978c6c651a5a6bd68ec` was subsequently pushed and deployed on
+the same host/date: 66 isolated and 66 public HTTP checks passed; staged and public browser
+checks each passed 18 scenarios with 151 requests and zero failures. Both visual comparisons
+record SSIM 1 and zero changed pixels. The public Wasm matched the 8-scene state corpus and
+rejected the same 3 invalid inputs. The registered `kizuna_town_mainmenu` layout API returned
+20 animation objects, all exposing `loop`, including 7 non-null loop hashes. Standalone
+`loading01` is not a registered screen-setting route. The validated manifest is
+`var/releases/9a04bebeb759cfd7290ea978c6c651a5a6bd68ec/manifest.json`.
+
+### Shared G4RA bindings and observed native string query
+
+`nie-formats::g4ra` now owns the verified ordered-table reference-animation decoder.
+Native `FUN_140500b80` and `FUN_140501c80` prove the group/index-pool/row joins and separate
+skeletal/material offsets. Each binding retains its state, clip and target hashes plus all
+48 row bytes as 12 raw words; timing and blend semantics are not invented. Unsupported
+third-category profiles fail explicitly. The existing G4RA magic detector remains compatible.
+`nie-wasm::menu_animation_bindings_json` is a thin versioned binding over this parser.
+
+The actual 1312-byte loading G4RA yields 3 states, 6 skeletal bindings and 9 material bindings;
+all 15 clip references resolve in its real G4MT/G4MA resources. Native and actual Wasm results
+are identical, and 3 malformed inputs are rejected. The reusable gate is
+`scripts/validation/menu-animation-wasm-equality.mjs`; private evidence lives under
+`var/reports/loading-g4ra-native-20260908/` and `var/bindings-wasm-equality.json`.
+Independent mutation/truncation checks completed 6544 cases without panic. This establishes
+static bindings, not native playback or visual completion.
+
+General command `0x3D935467` selector 6 now resolves explicitly observed raw C strings.
+The library owns slot permutation, bounds and the shared primary-slot override outcome;
+the Lua binding preserves numeric coercion, byte narrowing and the native stack result:
+`true, string` for a non-null pointer, or one `false` for null. Missing observations remain
+unresolved. Empty non-null strings differ from null pointers. A validated Rust constructor and
+bounded JSON input preserve arbitrary non-NUL bytes; the 4096-byte limit is a host input policy,
+not a native buffer-size claim. Other selectors and unproven numeric conversion ranges remain
+diagnostic. Native evidence: `var/reports/general-string-query-20260908/findings.md`.
+
+Measured on `vps-203bea89`, 2026-09-08: formats with serde 311 tests passed; Lua 128 passed
+with 1 ignored; portable Lua 13 passed with 1 ignored; Wasm 64 passed; the real-VFS native
+menu-state integration test passed. Strict formats/Lua/Wasm clippy, portable library checks and
+scoped formatting passed. The existing 8-scene/61-layer/76-object native/Wasm state gate also
+passed. Generated Wasm SHA256:
+`81cb629ea4b0573f4ba2f261f883fa9195fdd1664537b8e91a4873556e8d8b2e`.

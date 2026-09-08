@@ -79,6 +79,8 @@ pub mod g4pkm;
 #[cfg(feature = "std")]
 pub mod g4pkm_motion;
 #[cfg(feature = "std")]
+pub mod g4ra;
+#[cfg(feature = "std")]
 pub mod g4sk;
 #[cfg(feature = "std")]
 pub mod g4tx;
