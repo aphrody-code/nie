@@ -232,6 +232,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 name = "aphrody-re"
 version = "0.5.11"
 dependencies = [
+ "anyhow",
  "goblin",
  "googletest",
  "hex",
@@ -3784,9 +3785,9 @@ name = "ievr-tools"
 version = "0.5.11"
 dependencies = [
  "anyhow",
+ "aphrody-re",
  "byteorder",
  "clap",
- "goblin",
  "hex",
  "serde",
  "serde_json",
@@ -5033,7 +5034,6 @@ dependencies = [
  "memmap2",
  "nie-app",
  "nie-data",
- "nie-explore",
  "nie-formats",
  "nie-lua",
  "nie-render3d",

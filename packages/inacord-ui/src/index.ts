@@ -15,9 +15,9 @@ export {
 
 // --- Coquilles : la direction artistique du jeu ------------------------------------------
 //
-// Deux ambiances, montees par deux hotes : le MENU PRINCIPAL pour nie, INACORD pour
-// l'application de bureau. Elles ne dessinent que des formes — aucune source, aucun hote.
-// Les couleurs vivent dans `shell/game-tokens.css`, mesurees sur la reference archivee.
+// Two visual environments are mounted by two hosts: measured game surfaces for nie and Inacord
+// for the desktop application. These primitives draw shapes only and own no data source or host.
+// Their colors live in `shell/game-tokens.css`, measured against the archived reference.
 export {
 	Badge,
 	Callout,

@@ -968,7 +968,7 @@ fn args_repr(args: &[Value]) -> String {
 /// - `funcLuaCommand(0xF2C13584, textId)` — résout un libellé injecté depuis `menu_text` ;
 /// - `funcLuaCommand(0x0196FA01, conditionId)` — lit une condition injectée ;
 /// - `funcLuaCommand(0x77E46CA8, listId, …)` — renvoie le compte et le statut de résolution ;
-///   les autres commandes générales renvoient `0` et sont journalisées.
+///   les autres commandes générales renvoient le neutre numérique `0` et sont journalisées.
 /// - `funcLuaActionCommand(…)` — no-op `0`.
 /// - `funcLuaCameraCommand(…)` — no-op `0`.
 /// - `funcLuaSpTacticsCommand(…)` — no-op `0`.
@@ -1306,6 +1306,9 @@ pub fn install_menu_host(lua: &Lua) -> mlua::Result<Rc<RefCell<MenuState>>> {
                 .borrow_mut()
                 .unknown_general_cmd_log
                 .push((cmd_id, layer, args_repr(&args)));
+            // Les scripts natifs emploient le retour de commandes encore opaques dans des
+            // comparaisons et des calculs. Conserver le neutre numérique empêche une erreur VM,
+            // tandis que `unknown_general_cmd_log` rend le manque explicitement observable.
             Ok(MultiValue::from_vec(vec![Value::Number(0.0)]))
         })?;
         lua.globals().set("funcLuaCommand", f)?;

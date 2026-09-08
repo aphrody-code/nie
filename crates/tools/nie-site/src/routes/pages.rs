@@ -279,25 +279,25 @@ pub const SITE: &str = nom_du_site!();
 /// endroits qu'un nom en dur laisserait diverger.
 pub const SUFFIXE_TITRE: &str = concat!(" — ", nom_du_site!());
 
-/// Titre et description de l'accueil.
+/// Home-page title and description.
 ///
-/// La description disait ce que l'OUTILLAGE fait — « explorer, décoder et exporter […] depuis
-/// leur chemin d'origine ». C'est exact, et c'est la description d'un site de travail sur des
-/// fichiers. L'accueil sert le jeu ; il se décrit donc par le jeu. Les catalogues restent
-/// servis et gardent leurs propres descriptions, chacune à sa page.
+/// The browser host exposes an incomplete reconstructed Rust runtime. The description makes that
+/// boundary explicit instead of presenting a reference capture or prototype as the shipped game.
 fn accueil(langue: Langue) -> (String, String) {
     match langue {
         Langue::Fr => (
             SITE.to_owned(),
-            "Inazuma Eleven: Victory Road, dans le navigateur.".to_owned(),
+            "Prototype Rust en reconstruction d’Inazuma Eleven: Victory Road dans le navigateur."
+                .to_owned(),
         ),
         Langue::En => (
             SITE.to_owned(),
-            "Inazuma Eleven: Victory Road, in the browser.".to_owned(),
+            "Reconstructed Rust prototype of Inazuma Eleven: Victory Road in the browser."
+                .to_owned(),
         ),
         Langue::Ja => (
             SITE.to_owned(),
-            "イナズマイレブン Victory Road を、ブラウザーで。".to_owned(),
+            "イナズマイレブン Victory Road の再構築中の Rust プロトタイプ。".to_owned(),
         ),
     }
 }
@@ -982,6 +982,29 @@ mod tests {
         assert_eq!(metadonnees("/textures", Langue::Fr).0, "Textures — nie");
         assert_eq!(metadonnees("/modeles/x/y", Langue::Fr).2, "website");
         assert_eq!(metadonnees("/inconnue", Langue::Fr).2, "article");
+    }
+
+    #[test]
+    fn homepage_metadata_identifies_the_incomplete_reconstructed_runtime() {
+        let expected = [
+            (
+                Langue::Fr,
+                "Prototype Rust en reconstruction d’Inazuma Eleven: Victory Road dans le navigateur.",
+            ),
+            (
+                Langue::En,
+                "Reconstructed Rust prototype of Inazuma Eleven: Victory Road in the browser.",
+            ),
+            (
+                Langue::Ja,
+                "イナズマイレブン Victory Road の再構築中の Rust プロトタイプ。",
+            ),
+        ];
+        for (language, description) in expected {
+            let (_, actual, kind) = metadonnees("/", language);
+            assert_eq!(actual, description, "incorrect description in {language}");
+            assert_eq!(kind, "website", "incorrect metadata kind in {language}");
+        }
     }
 
     #[test]

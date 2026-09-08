@@ -31,6 +31,11 @@ import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
+import {
+	neighboringEpisodes,
+	nextUnwatchedEpisode,
+} from "@aphrody/ietv-client/episode-navigation";
+
 /** Un épisode repéré par l'œuvre, pas par la source qui le sert. */
 export interface CleEpisode {
 	saison: number;
@@ -169,34 +174,15 @@ export class Progression {
  * Rend `null` quand la saison est finie — l'appelant enchaîne alors sur la
  * suivante.
  */
-export function prochainNonVu(
-	disponibles: readonly number[],
-	vus: ReadonlySet<number>
-): number | null {
-	for (const numero of [...disponibles].sort((a, b) => a - b)) {
-		if (!vus.has(numero)) return numero;
-	}
-	return null;
-}
+export const prochainNonVu = nextUnwatchedEpisode;
 
 /** Épisode précédent et suivant réellement présents au catalogue. */
 export function voisins(
 	disponibles: readonly number[],
 	numero: number
 ): { precedent: number | null; suivant: number | null } {
-	const tries = [...disponibles].sort((a, b) => a - b);
-	const rang = tries.indexOf(numero);
-	if (rang === -1) {
-		// L'épisode courant n'est pas au catalogue (source retirée entre-temps) :
-		// on encadre quand même, pour ne pas laisser la navigation sans issue.
-		const avant = tries.filter((n) => n < numero).at(-1) ?? null;
-		const apres = tries.find((n) => n > numero) ?? null;
-		return { precedent: avant, suivant: apres };
-	}
-	return {
-		precedent: rang > 0 ? tries[rang - 1]! : null,
-		suivant: rang < tries.length - 1 ? tries[rang + 1]! : null,
-	};
+	const result = neighboringEpisodes(disponibles, numero);
+	return { precedent: result.previous, suivant: result.next };
 }
 
 /**

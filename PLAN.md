@@ -91,6 +91,11 @@ Boundaries that must not be collapsed merely because names are close:
   is host-owned until the verified renderer supplies it.
 - `nie-wasm::menu_static_layer_json` composes OBJBIN + G4PKM/G4SK + G4TX through
   `nie-formats::menu::assemble_object` with a versioned JSON contract.
+- The public Web bundle contains no full-screen opening or main-menu capture. Startup and the
+  partial main menu are built from components, individual VFS assets, and shared interaction
+  reducers; the DOM explicitly reports partial runtime completeness.
+- Episode navigation now belongs to the neutral `@aphrody/ietv-client` package. Wonderbot keeps a
+  compatibility facade and Inacord no longer depends on the Discord bot package.
 - Inacord already contains lazy views, cancellable persistent VFS indexing, shared 3D viewport,
   G4MD/G4MG controls, avatar/menu pipelines, and a native Live Mod bridge. Git-history review did
   not identify a deleted UI worth restoring without reintroducing obsolete wiki/web coupling.
@@ -105,6 +110,8 @@ Latest relevant gates run from `/home/ubuntu/niers` on 2026-09-08:
 | `cargo test --offline -p nie-wasm --lib` | 62 passed, 0 failed |
 | `bun test packages/wonderbot/src` | 223 passed, 0 failed, 499 assertions |
 | shared menu interaction tests | 5 passed, 0 failed, 20 assertions |
+| `apps/nie-web` component tests | 83 passed, 0 failed, 288 assertions |
+| IETV/Wonderbot navigation tests | 225 passed, 0 failed, 503 assertions |
 
 ### Not yet complete
 

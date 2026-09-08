@@ -1,14 +1,12 @@
-//! **nie-app** — le CŒUR du jeu *Inazuma Eleven: Victory Road* réimplémenté (niers).
+//! **nie-app** — shared application-state and rendering prototype for niers.
 //!
-//! Possède le **DTO de rendu** ([`GameState`] — « quoi dessiner ») + le rendu abstrait (trait
-//! [`Renderer`]) ET la **FSM interactive** ([`flow::Screen`] — la navigation : input/update/score).
-//! Les deux sont **complémentaires** (DTO de rendu vs machine à états), pas dupliqués : `Screen`
-//! délègue son rendu à `GameState` via `render_state`. Consommateurs réels : `nie-play`
-//! (headless/golden, Renderer CPU → PNG/MP4) et `nie-wasm` (web interactif, délègue à `flow::Screen`).
-//! `nie-game` (wgpu natif 60 fps) suivra. Fondation de l'unification (cf. `docs/PLAN.md`, Phase 0).
+//! It owns the rendering DTO ([`GameState`]), the abstract rendering contract ([`Renderer`]),
+//! and the interactive state machine ([`flow::Screen`]). `Screen` delegates rendering to
+//! `GameState` through `render_state`. Current consumers include `nie-play` (headless CPU output)
+//! and `nie-wasm` (interactive web host).
 //!
-//! La logique (match `nie-core`), les données (`nie-data`), les menus (`nie-lua`) se branchent ici
-//! au fil des phases ; pour l'instant le cœur tient la FSM + l'orchestration du rendu.
+//! The state machine uses the deterministic local `nie-runtime` simulation. Its DTOs and scripted
+//! flows do not establish fidelity with the native executable or its screens.
 
 pub mod character;
 /// Effectif réel chargé depuis le VFS — natif seulement : le VFS lit des fichiers, ce que le web
@@ -29,9 +27,10 @@ pub mod story;
 pub use render::CpuRenderer;
 pub use render::{Font, Frame, H, W};
 
-/// État du jeu — la machine à états centrale, partagée par tous les front-ends.
+/// Shared rendering state used by the front ends.
 ///
-/// S'étendra (TeamSelect, KizunaTown, AvatarEdit, …) au fil de l'unification.
+/// These variants are presentation DTOs, not evidence that the corresponding native screens have
+/// been reproduced.
 #[derive(Debug, Clone)]
 pub enum GameState {
     /// Écran-titre (logo + PRESS START).
@@ -76,10 +75,11 @@ pub trait Renderer {
     fn render(&self, state: &GameState) -> Vec<u8>;
 }
 
-/// Le playthrough scripté (mode headless/golden) : suite de `(état, nombre de frames)`.
+/// Returns a deterministic presentation sequence for headless rendering tests.
 ///
-/// Le score vient d'un match réel (`nie_core::simulate_match`) côté front-end ; le flux reste ici
-/// pour qu'il soit partagé et déterministe (gate de non-régression PNG/MP4).
+/// The caller supplies the displayed score. The match state represents the local simulation, not
+/// the native executable's match engine. No story state is emitted because this function receives
+/// no sourced dialogue data.
 #[must_use]
 pub fn demo_flow(home: u8, away: u8) -> Vec<(GameState, u32)> {
     vec![
@@ -87,13 +87,36 @@ pub fn demo_flow(home: u8, away: u8) -> Vec<(GameState, u32)> {
         (GameState::MainMenu { sel: 0 }, 20),
         (GameState::Match { home, away }, 40),
         (GameState::MainMenu { sel: 1 }, 20),
-        (
-            GameState::Story {
-                speaker: String::from("Endou Mamoru"),
-                line: String::from("Can anyone bring down Raimon's unshakable fortress?!"),
-            },
-            40,
-        ),
         (GameState::MainMenu { sel: 3 }, 20),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GameState, demo_flow};
+
+    #[test]
+    fn demo_flow_never_invents_story_content() {
+        let flow = demo_flow(2, 1);
+
+        assert!(
+            flow.iter()
+                .all(|(state, _)| !matches!(state, GameState::Story { .. })),
+            "the data-free demo must not emit unsourced dialogue"
+        );
+    }
+
+    #[test]
+    fn demo_flow_preserves_the_caller_supplied_local_score() {
+        let flow = demo_flow(3, 2);
+        let scores: Vec<(u8, u8)> = flow
+            .iter()
+            .filter_map(|(state, _)| match state {
+                GameState::Match { home, away } => Some((*home, *away)),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(scores, [(3, 2)]);
+    }
 }

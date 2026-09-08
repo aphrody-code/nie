@@ -3,11 +3,9 @@
  *
  * ## Pourquoi ce fichier existe
  *
- * La liste vivait en double : une fois dans `App.tsx` (pour le routage), une fois dans
- * `MainMenu.tsx` (pour la rangée de tuiles), chacune avec son habillage. Les deux ont
- * dérivé — l'accueil affichait des comptes que la barre de navigation n'avait pas, et la barre
- * nommait « Catalogues » une liste qui contenait l'explorateur. Un seul endroit décide
- * désormais de ce que le site propose.
+ * The list used to be duplicated between routing and a handcrafted game menu. The latter was
+ * removed because it mixed real VFS textures with invented player data. This module now serves
+ * only the explicit catalogue navigation routes.
  *
  * ## Ce qui n'est PAS ici
  *
@@ -67,15 +65,7 @@ export const SETTINGS = "settings";
 /** L'éditeur d'avatar, alimenté par les tables `chara_edit` du VFS. */
 export const AVATAR = "avatar";
 
-/**
- * Le menu de navigation — les catalogues, l'explorateur, les Options.
- *
- * Il occupait la racine tant que le site était un catalogue. La racine sert le JEU depuis le
- * 2026-09-07 ; le menu a donc besoin d'une adresse à lui, sans quoi les quatre catalogues et
- * l'explorateur ne seraient plus atteignables que par URL directe. Segment anglais, comme toute
- * route nouvelle. Il n'entre PAS au plan du site : une page de liens vers des pages déjà
- * listées ne se référence pas deux fois.
- */
+/** Legacy route retained only so `/menu` can redirect to the game startup at `/`. */
 export const MENU = "menu";
 
 /** Une entrée du menu : sa route, son libellé, son pictogramme. */

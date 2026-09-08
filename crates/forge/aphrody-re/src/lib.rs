@@ -70,6 +70,7 @@
 /// `&[u8]` without any allocation.  The public entry point is
 /// [`headers::HeaderProbe::from_bytes`].
 pub mod headers;
+pub mod pe;
 
 use iced_x86::{Decoder, DecoderOptions, Formatter as _, Instruction, IntelFormatter};
 use serde::{Deserialize, Serialize};

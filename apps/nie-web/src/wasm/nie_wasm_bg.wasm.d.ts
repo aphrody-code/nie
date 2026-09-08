@@ -87,6 +87,7 @@ export const wasmgame_provide_dialogue: (a: number, b: number, c: number, d: num
 export const wasmgame_provide_list: (a: number, b: number, c: number) => [number, number];
 export const wasmgame_render: (a: number) => [number, number];
 export const wasmgame_render_frame: (a: number) => void;
+export const wasmgame_requires_host_surface: (a: number) => number;
 export const wasmgame_score: (a: number) => [number, number];
 export const wasmgame_set_match_input: (a: number, b: number, c: number, d: number) => void;
 export const wasmgame_state_json: (a: number) => [number, number, number, number];

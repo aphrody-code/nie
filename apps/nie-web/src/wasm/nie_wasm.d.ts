@@ -115,11 +115,10 @@ export class WasmFrontier {
  * Écran-titre → menu → match simulé (`nie-runtime` : physique, 22 joueurs, ballon, buts) → mode
  * histoire, pilotée au clavier, rendue dans un framebuffer RGBA8 `W*H*4` que JS peint.
  *
- * ⚠ **Ce n'est pas le jeu.** Le rendu est un placeholder 2D : il ne ressemble pas à l'UI d'IEVR,
- * parce que le vrai menu n'est pas dans les fichiers — il est construit à l'exécution par le
- * menu-manager C++ qui pilote Lua via `funcLuaMenuCommand`, boucle non encore portée. Et le
- * modèle de but de `match_sim` reste nominal. Ne pas présenter cette surface comme un jeu
- * jouable : ce qu'elle prouve, c'est que la logique portée tourne en wasm.
+ * ⚠ **Ce n'est pas le jeu.** This binding exposes a local 2D simulation, not the native IEVR
+ * renderer. Main-menu pixels are intentionally host-owned while the native `nie-lua` path
+ * reconstructs script state. This framebuffer stays transparent on that screen instead of
+ * drawing an invented substitute or naming a capture as a runtime asset.
  */
 export class WasmGame {
     free(): void;
@@ -200,6 +199,13 @@ export class WasmGame {
      * `true` si un match est en cours (pour l'overlay de score côté UI).
      */
     readonly in_match: boolean;
+    /**
+     * `true` when the current screen must be drawn from the verified host-side menu source.
+     *
+     * The Rust framebuffer is transparent in this state so the obsolete vertical placeholder
+     * can never be exposed as the native main menu.
+     */
+    readonly requires_host_surface: boolean;
     /**
      * Largeur du framebuffer (px).
      */
@@ -719,6 +725,7 @@ export interface InitOutput {
     readonly wasmgame_provide_list: (a: number, b: number, c: number) => [number, number];
     readonly wasmgame_render: (a: number) => [number, number];
     readonly wasmgame_render_frame: (a: number) => void;
+    readonly wasmgame_requires_host_surface: (a: number) => number;
     readonly wasmgame_score: (a: number) => [number, number];
     readonly wasmgame_set_match_input: (a: number, b: number, c: number, d: number) => void;
     readonly wasmgame_state_json: (a: number) => [number, number, number, number];

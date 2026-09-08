@@ -185,7 +185,7 @@ contrat de source (`source.tsx:39`, `:84`, `:102`) et les vignettes (`lib/thumbs
 
 | Page | Fichier:ligne | Filtres | Tri | Pagination | Recherche |
 |---|---|---|---|---|---|
-| `/` Menu principal | `pages/MainMenu.tsx`, `entries.ts` | **aucun** | — | — | — |
+| `/` Démarrage + menu reconstruit | `pages/Game.tsx`, `pages/MainMenu.tsx`, `entries.ts` | **aucun** | — | — | — |
 | `/explorateur` | `pages/Explorer.tsx` | **aucun** — un seul état, `prefixe`, fil d'Ariane. Tout `contenu.dossiers` et `contenu.fichiers` est rendu **sans troncature ni compte** | **aucun** | **aucune** | **aucune** |
 | `/textures`, `/sons`, `/videos` | `pages/Catalog.tsx` | **la vue elle-même** (jeu d'extensions figé) | **aucun** | `page`, `DEFAULT_PAGE_SIZE = 60`, Précédent/Suivant | `q` à **soumission explicite**, sous-chaîne chemin entier, insensible à la casse |
 | `/modeles` | `pages/Models3D.tsx` | **`famille`** — 6 valeurs servies par `/api/v1/3d` | **aucun** | `page`, `PAR_PAGE = 24` | `q` à soumission explicite, code **ou** nom |

@@ -62,7 +62,7 @@ export function splitLanguagePrefix(path: string): SplitPath {
 }
 
 /**
- * L'accueil — le menu principal — n'est pas une entrée comme les autres : il vit à la RACINE.
+ * The game startup is not a catalogue entry: it lives at the root.
  *
  * Le jeton existe pour que l'état de l'application ait toujours une valeur, y compris sur `/`.
  * Sans lui, l'accueil serait `null`, et chaque lecture devrait décider ce que `null` veut dire
@@ -71,10 +71,7 @@ export function splitLanguagePrefix(path: string): SplitPath {
 export const HOME = "home";
 
 /**
- * Le chemin canonique d'une entrée, dans la langue courante.
- *
- * L'accueil rend `/` (ou `/ja`) et non `/accueil` : le menu principal EST la racine du site, et
- * lui donner un second chemin dédoublerait la page d'accueil aux yeux d'un moteur.
+ * Canonical path of an entry in the current language. The game renders at `/` (or `/ja`).
  */
 export function pathForEntry(prefix: string, entry: string): string {
 	if (entry === HOME) return prefix || "/";

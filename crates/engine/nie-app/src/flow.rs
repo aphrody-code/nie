@@ -1,27 +1,23 @@
-//! FSM **interactive** du jeu jouable (écran-titre → menu → **vrai match** [moteur `nie-runtime`] →
-//! mode histoire). Relocalisée depuis `nie-wasm` (dédup Phase 5) : la logique d'écran vit dans le
-//! cœur `nie-app`, partageable par tous les fronts (wasm = navigateur ; à terme nie-game/nie-play).
+//! Interactive FSM for the niers prototype (title screen → menu → local `nie-runtime`
+//! simulation → story mode). Moved from `nie-wasm` (Phase 5 deduplication): screen logic lives
+//! in `nie-app` and is shared by every front end (wasm today; nie-game/nie-play eventually).
 //!
-//! Move **verbatim** : comportement identique à l'ancienne FSM de `WasmGame` (qui ne fait plus que
-//! déléguer + mapper clavier→commande). Le match embarque le vrai moteur `nie_runtime::World`.
+//! `nie_runtime::World` provides a deterministic local simulation. It is not the original game
+//! executable, its match engine, or proof that a game mode has been reproduced faithfully.
 
-use crate::render::{render_list, render_state};
+use crate::render::{host_owned_surface, render_list, render_state};
 use crate::{Font, GameState, H, MENU, MODES, W};
 
-/// Quelques répliques du mode histoire (placeholder localisé — les vrais dialogues SQLite suivront).
-const STORY: &[(&str, &str)] = &[
-    (
-        "Endou Mamoru",
-        "Can anyone bring down Raimon's unshakable fortress?!",
-    ),
-    ("Gouenji Shuuya", "Let's settle this on the pitch."),
-    (
-        "Kidou Yuuto",
-        "A perfect strategy demands a perfect execution.",
-    ),
-];
+/// Public fallback shown until a front end injects sourced dialogue lines.
+const STORY_UNAVAILABLE: &str =
+    "Dialogue indisponible — aucune donnée réelle n'a été chargée (Échap : retour).";
 
-/// Écran courant du JEU (machine à états interactive). Les 9 onglets = [`MENU`], les 5 modes = [`MODES`].
+/// Public fallback shown when an information screen has no injected data.
+const CONTENT_UNAVAILABLE: &str =
+    "Contenu indisponible — aucune donnée réelle n'a été chargée (Échap : retour).";
+
+/// Current screen of the interactive niers prototype. Its nine tabs are [`MENU`] and its five
+/// selectable modes are [`MODES`].
 #[derive(Default)]
 pub enum Screen {
     /// Écran-titre (PRESS START).
@@ -31,13 +27,13 @@ pub enum Screen {
     Menu { sel: usize },
     /// Sélecteur de mode : les 5 modes réels ([`MODES`]), atteint via « Adversaires ».
     ModeSelect { sel: usize },
-    /// Match en cours : le **vrai moteur** `nie-runtime` (physique, 22 joueurs, ballon, buts).
+    /// Local `nie-runtime` match simulation (physics, 22 players, ball, goals).
     Match { world: nie_runtime::World },
     /// Scène de dialogue (mode histoire).
     ///
-    /// `repliques` vides = la scène de démonstration intégrée ([`STORY`]) ; sinon les répliques
-    /// réelles du jeu, fournies par le front (`titre` = l'identifiant d'événement). Comme pour
-    /// [`Screen::Liste`], le chargement demande le VFS que le web n'a pas.
+    /// Empty `repliques` means that no sourced dialogue was injected and renders an explicit
+    /// unavailable state. Otherwise the front end supplied the lines (`titre` is the event ID).
+    /// As with [`Screen::Liste`], loading the source data requires access outside this FSM.
     Story {
         idx: usize,
         titre: String,
@@ -105,7 +101,7 @@ impl Screen {
                 if nav != 0 {
                     *sel = wrap(*sel, MODES.len());
                 } else if enter {
-                    // 0 = Mode Histoire → dialogues ; 1-4 → vrai match (moteur nie-runtime).
+                    // Mode 0 waits for sourced story data; modes 1-4 start the local simulation.
                     if *sel == 0 {
                         *self = Screen::Story {
                             idx: 0,
@@ -127,11 +123,8 @@ impl Screen {
                 }
             }
             Screen::Story { idx, repliques, .. } => {
-                let total = if repliques.is_empty() {
-                    STORY.len()
-                } else {
-                    repliques.len()
-                };
+                // An unavailable scene is a single status page, not synthetic dialogue.
+                let total = repliques.len().max(1);
                 if enter {
                     *idx += 1;
                     if *idx >= total {
@@ -156,14 +149,14 @@ impl Screen {
         }
     }
 
-    /// Avance le temps de `dt` secondes : la physique du match tourne quand un match est en cours.
+    /// Advances the local simulation by `dt` seconds while its match screen is active.
     pub fn update(&mut self, dt: f32) {
         if let Screen::Match { world } = self {
             world.step(dt);
         }
     }
 
-    /// Transmet au match l'état des commandes de jeu, pour le prochain [`Screen::update`].
+    /// Sends gameplay input to the local simulation for the next [`Screen::update`].
     ///
     /// Distinct de [`Screen::input`], qui traite des ÉVÉNEMENTS de menu : ici c'est un état
     /// maintenu — une direction dure tant que la touche est tenue. Hors match, l'appel est sans
@@ -195,11 +188,10 @@ impl Screen {
         }
     }
 
-    /// Remplace la scène de démonstration par un **dialogue réel** du jeu.
+    /// Injects sourced game dialogue into the current story screen.
     ///
-    /// Même partage que [`Screen::fournir_liste`] : le front charge (VFS), la FSM déroule. Sans
-    /// effet hors du mode Histoire ou si la scène est vide — la démonstration reste alors
-    /// affichée, ce qui vaut mieux qu'un écran muet.
+    /// The front end loads the source data and the FSM advances through it. An empty injection is
+    /// ignored, leaving the explicit unavailable state visible.
     pub fn fournir_dialogue(&mut self, id: String, lignes: Vec<String>) {
         if let Screen::Story {
             idx,
@@ -214,7 +206,7 @@ impl Screen {
         }
     }
 
-    /// Vrai si l'écran courant est une scène du mode Histoire encore vide de répliques réelles.
+    /// Returns `true` when the story screen still has no sourced dialogue lines.
     #[must_use]
     pub fn attend_dialogue(&self) -> bool {
         matches!(self, Screen::Story { repliques, .. } if repliques.is_empty())
@@ -229,7 +221,7 @@ impl Screen {
         }
     }
 
-    /// Le monde du match en cours, pour qu'un front puisse le rendre autrement.
+    /// Exposes the current local simulation world for alternate front-end rendering.
     ///
     /// C'est ce qui permet à `nie-game` de proposer la vue 3D (`crate::match3d`) sans que la FSM
     /// dépende du VFS : elle expose l'état, le front choisit sa caméra.
@@ -241,7 +233,7 @@ impl Screen {
         }
     }
 
-    /// Index du joueur que la joueuse contrôle, pour que l'interface puisse le désigner.
+    /// Index of the player controlled in the local simulation.
     #[must_use]
     pub fn controlled_player(&self) -> Option<usize> {
         match self {
@@ -250,7 +242,7 @@ impl Screen {
         }
     }
 
-    /// Score du match en cours `[domicile, extérieur]` (zéros hors match).
+    /// Current local simulation score `[home, away]` (zeroes outside its match screen).
     #[must_use]
     pub fn score(&self) -> Vec<u32> {
         match self {
@@ -259,10 +251,19 @@ impl Screen {
         }
     }
 
-    /// `true` si un match est en cours (pour l'overlay de score côté UI).
+    /// Returns `true` while the local simulation match screen is active.
     #[must_use]
     pub fn in_match(&self) -> bool {
         matches!(self, Screen::Match { .. })
+    }
+
+    /// Returns `true` when verified pixels must be supplied by the front end.
+    ///
+    /// `nie-app` deliberately does not synthesize the native main menu. Browser/native hosts can
+    /// use this boundary to display the measured reference or the `nie-lua` runtime renderer.
+    #[must_use]
+    pub fn requires_host_surface(&self) -> bool {
+        matches!(self, Screen::Menu { .. })
     }
 
     /// Rend l'écran courant en framebuffer RGBA8 `W*H*4`.
@@ -270,37 +271,16 @@ impl Screen {
     pub fn render(&self, font: &Font) -> Vec<u8> {
         match self {
             Screen::Title => render_state(&GameState::Title, font, None).buf,
-            Screen::Menu { sel } => render_list("MENU PRINCIPAL", &MENU, *sel, font).buf,
+            Screen::Menu { .. } => host_owned_surface(),
             Screen::ModeSelect { sel } => render_list("MODE DE JEU", &MODES, *sel, font).buf,
             Screen::Story {
                 idx,
                 titre,
                 repliques,
-            } => {
-                let st = if repliques.is_empty() {
-                    // Scène de démonstration : le front n'a pas su charger de dialogue réel.
-                    let (sp, ln) = STORY[(*idx).min(STORY.len() - 1)];
-                    GameState::Story {
-                        speaker: sp.into(),
-                        line: ln.into(),
-                    }
-                } else {
-                    // Le locuteur n'est pas résolu : le fichier de texte porte les répliques, pas
-                    // qui les prononce (c'est le script d'événement qui l'attribue). Afficher un
-                    // nom inventé serait pire que d'annoncer la scène et sa progression.
-                    let n = repliques.len();
-                    let i = (*idx).min(n - 1);
-                    GameState::Story {
-                        speaker: format!("{titre} — {}/{n}", i + 1),
-                        line: repliques[i].clone(),
-                    }
-                };
-                render_state(&st, font, None).buf
-            }
+            } => render_state(&story_render_state(*idx, titre, repliques), font, None).buf,
             Screen::Match { world } => {
                 let terrain = nie_runtime::render::render(world, W as u32, H as u32).px;
-                // Le score et le chrono se composent ICI : le rastériseur du moteur n'a pas de
-                // police, la FSM en a une.
+                // The local rasterizer has no font, so this layer adds its score and clock.
                 crate::render::hud_match(&terrain, font, world.score, world.time)
             }
             Screen::Liste { titre, lignes, sel } => {
@@ -317,10 +297,78 @@ impl Screen {
             Screen::Info { title } => {
                 let st = GameState::Story {
                     speaker: title.clone(),
-                    line: "Mode en cours d'intégration — données réelles disponibles (Échap : retour).".into(),
+                    line: CONTENT_UNAVAILABLE.into(),
                 };
                 render_state(&st, font, None).buf
             }
         }
+    }
+}
+
+fn story_render_state(idx: usize, title: &str, lines: &[String]) -> GameState {
+    if lines.is_empty() {
+        return GameState::Story {
+            speaker: MODES[0].into(),
+            line: STORY_UNAVAILABLE.into(),
+        };
+    }
+
+    // Text resources contain lines but not speaker attribution; the event script owns that
+    // mapping. Keep the verified event ID and progress instead of inventing a character name.
+    let i = idx.min(lines.len() - 1);
+    GameState::Story {
+        speaker: format!("{title} — {}/{}", i + 1, lines.len()),
+        line: lines[i].clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn story_without_injected_lines_reports_unavailable() {
+        let state = story_render_state(0, "", &[]);
+        let GameState::Story { speaker, line } = state else {
+            panic!("story renderer must produce a story state");
+        };
+
+        assert_eq!(speaker, MODES[0]);
+        assert_eq!(line, STORY_UNAVAILABLE);
+    }
+
+    #[test]
+    fn unavailable_story_is_one_status_page() {
+        let mut screen = Screen::Story {
+            idx: 0,
+            titre: String::new(),
+            repliques: Vec::new(),
+        };
+
+        screen.input("CMD_ENTER");
+
+        assert!(matches!(screen, Screen::ModeSelect { sel: 0 }));
+    }
+
+    #[test]
+    fn story_renderer_uses_only_injected_line_content() {
+        let lines = vec!["Sourced line one".to_owned(), "Sourced line two".to_owned()];
+        let state = story_render_state(1, "event_001", &lines);
+        let GameState::Story { speaker, line } = state else {
+            panic!("story renderer must produce a story state");
+        };
+
+        assert_eq!(speaker, "event_001 — 2/2");
+        assert_eq!(line, lines[1]);
+    }
+
+    #[test]
+    fn main_menu_is_a_host_owned_transparent_surface() {
+        let screen = Screen::Menu { sel: 0 };
+
+        assert!(screen.requires_host_surface());
+        let pixels = host_owned_surface();
+        assert_eq!(pixels.len(), W * H * 4);
+        assert!(pixels.iter().all(|channel| *channel == 0));
     }
 }

@@ -2279,7 +2279,12 @@ fn screen_snapshot(screen: &nie_app::flow::Screen) -> Result<String, String> {
         }),
         nie_app::flow::Screen::Menu { sel } => serde_json::json!({
             "schemaVersion": 1,
-            "screen": { "kind": "menu", "selection": sel },
+            "screen": {
+                "kind": "menu",
+                "selection": sel,
+                "renderOwner": "host",
+                "nativeSceneRequired": true,
+            },
         }),
         nie_app::flow::Screen::ModeSelect { sel } => serde_json::json!({
             "schemaVersion": 1,
@@ -2581,11 +2586,10 @@ impl WasmCamera {
 /// Écran-titre → menu → match simulé (`nie-runtime` : physique, 22 joueurs, ballon, buts) → mode
 /// histoire, pilotée au clavier, rendue dans un framebuffer RGBA8 `W*H*4` que JS peint.
 ///
-/// ⚠ **Ce n'est pas le jeu.** Le rendu est un placeholder 2D : il ne ressemble pas à l'UI d'IEVR,
-/// parce que le vrai menu n'est pas dans les fichiers — il est construit à l'exécution par le
-/// menu-manager C++ qui pilote Lua via `funcLuaMenuCommand`, boucle non encore portée. Et le
-/// modèle de but de `match_sim` reste nominal. Ne pas présenter cette surface comme un jeu
-/// jouable : ce qu'elle prouve, c'est que la logique portée tourne en wasm.
+/// ⚠ **Ce n'est pas le jeu.** This binding exposes a local 2D simulation, not the native IEVR
+/// renderer. Main-menu pixels are intentionally host-owned while the native `nie-lua` path
+/// reconstructs script state. This framebuffer stays transparent on that screen instead of
+/// drawing an invented substitute or naming a capture as a runtime asset.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub struct WasmGame {
@@ -2690,6 +2694,15 @@ impl WasmGame {
         self.screen.in_match()
     }
 
+    /// `true` when the current screen must be drawn from the verified host-side menu source.
+    ///
+    /// The Rust framebuffer is transparent in this state so the obsolete vertical placeholder
+    /// can never be exposed as the native main menu.
+    #[wasm_bindgen(getter)]
+    pub fn requires_host_surface(&self) -> bool {
+        self.screen.requires_host_surface()
+    }
+
     /// Rend l'écran courant en framebuffer RGBA8 `W*H*4`.
     pub fn render(&self) -> Vec<u8> {
         self.screen.render(&self.font)
@@ -2759,6 +2772,218 @@ mod tests {
         let error = menu_static_layer_json(b"invalid", b"invalid", b"invalid", "layer.g4tx")
             .expect_err("invalid OBJBIN must never yield a static layer");
         assert!(error.contains("objbin"));
+    }
+
+    #[test]
+    fn menu_static_layer_json_rejects_each_invalid_asset_kind() {
+        let objbin = synthetic_menu_objbin();
+        let g4pkm = synthetic_menu_g4pkm();
+        let g4tx = synthetic_menu_g4tx();
+
+        let g4pkm_error = menu_static_layer_json(&objbin, b"invalid", &g4tx, "layer.g4tx")
+            .expect_err("invalid G4PKM must never yield a static layer");
+        assert!(
+            !g4pkm_error.is_empty(),
+            "the G4PKM parser must return a diagnostic"
+        );
+
+        let g4tx_error = menu_static_layer_json(&objbin, &g4pkm, b"invalid", "layer.g4tx")
+            .expect_err("invalid G4TX must never yield a static layer");
+        assert!(
+            !g4tx_error.is_empty(),
+            "the G4TX parser must return a diagnostic"
+        );
+    }
+
+    #[test]
+    fn menu_static_layer_json_composes_a_synthetic_level5_layer() {
+        let json: serde_json::Value = serde_json::from_str(
+            &menu_static_layer_json(
+                &synthetic_menu_objbin(),
+                &synthetic_menu_g4pkm(),
+                &synthetic_menu_g4tx(),
+                "data/dx11/menu/layer.g4tx",
+            )
+            .expect("synthetic Level-5 layer should compose"),
+        )
+        .expect("static layer contract must be JSON");
+
+        assert_eq!(json["schemaVersion"], 1);
+        assert_eq!(json["name"], "synthetic_layer");
+        assert_eq!(json["g4txPath"], "data/dx11/menu/layer.g4tx");
+        assert_eq!(json["texture"]["name"], "layer");
+        assert_eq!(json["texture"]["width"], 4);
+        assert_eq!(json["texture"]["height"], 2);
+        assert_eq!(json["drawPriority"], 300);
+        assert_eq!(json["drawType"], 1);
+        assert_eq!(json["transform"]["x"], 640.0);
+        assert_eq!(json["transform"]["y"], 360.0);
+        assert!((json["transform"]["scaleX"].as_f64().unwrap() - 4.0 / 6.0).abs() < 1e-6);
+        assert!((json["transform"]["scaleY"].as_f64().unwrap() - 2.0 / 3.0).abs() < 1e-6);
+        assert_eq!(json["anchor"], serde_json::json!({ "x": 0.5, "y": 0.5 }));
+    }
+
+    /// Builds a minimal valid OBJBIN with one render component. The test owns the raw format
+    /// fixture so the WebAssembly boundary is exercised rather than bypassed with `MenuObject`.
+    fn synthetic_menu_objbin() -> Vec<u8> {
+        #[derive(Clone, Copy)]
+        enum Value<'a> {
+            Text(&'a str),
+            Integer(i32),
+        }
+
+        fn append_entry(
+            bytes: &mut Vec<u8>,
+            crc: u32,
+            values: &[Value<'_>],
+            offsets: &[(&str, i32)],
+        ) {
+            bytes.extend_from_slice(&crc.to_le_bytes());
+            bytes.push(u8::try_from(values.len()).expect("test fixture parameter count"));
+            let mut type_byte = 0u8;
+            for (index, value) in values.iter().enumerate() {
+                if matches!(value, Value::Integer(_)) {
+                    type_byte |= 1 << (index * 2);
+                }
+            }
+            bytes.push(type_byte);
+            while !bytes.len().is_multiple_of(4) {
+                bytes.push(0);
+            }
+            for value in values {
+                let raw = match value {
+                    Value::Text(value) => offsets
+                        .iter()
+                        .find_map(|(text, offset)| (*text == *value).then_some(*offset))
+                        .expect("string offset for synthetic OBJBIN"),
+                    Value::Integer(value) => *value,
+                };
+                bytes.extend_from_slice(&raw.to_le_bytes());
+            }
+        }
+
+        let strings = [
+            "synthetic_layer",
+            "gmdMenuObj",
+            "SkeletonAnime",
+            "data/dx11/menu/layer.g4pkm",
+            "Texture",
+            "data/dx11/menu/layer.g4tx",
+            "CMenuRenderComponent",
+            "m_drawPriority",
+            "m_drawType",
+        ];
+        let mut string_table = Vec::new();
+        let offsets: Vec<_> = strings
+            .iter()
+            .map(|text| {
+                let offset = i32::try_from(string_table.len()).expect("small test string table");
+                string_table.extend_from_slice(text.as_bytes());
+                string_table.push(0);
+                (*text, offset)
+            })
+            .collect();
+        let crc = nie_formats::cfgbin::crc32;
+        let mut entries = Vec::new();
+        append_entry(
+            &mut entries,
+            crc(b"OBJ_BGN"),
+            &[Value::Text("synthetic_layer")],
+            &offsets,
+        );
+        append_entry(
+            &mut entries,
+            crc(b"SETUP_BGN"),
+            &[Value::Text("gmdMenuObj")],
+            &offsets,
+        );
+        append_entry(
+            &mut entries,
+            crc(b"SETUP_PARAM"),
+            &[
+                Value::Text("SkeletonAnime"),
+                Value::Text("data/dx11/menu/layer.g4pkm"),
+            ],
+            &offsets,
+        );
+        append_entry(
+            &mut entries,
+            crc(b"SETUP_PARAM"),
+            &[
+                Value::Text("Texture"),
+                Value::Text("data/dx11/menu/layer.g4tx"),
+            ],
+            &offsets,
+        );
+        append_entry(&mut entries, crc(b"SETUP_END"), &[], &offsets);
+        append_entry(
+            &mut entries,
+            crc(b"PROP_INFO_BGN"),
+            &[Value::Text("CMenuRenderComponent")],
+            &offsets,
+        );
+        append_entry(
+            &mut entries,
+            crc(b"PROP_PARAM"),
+            &[Value::Text("m_drawPriority"), Value::Integer(300)],
+            &offsets,
+        );
+        append_entry(
+            &mut entries,
+            crc(b"PROP_PARAM"),
+            &[Value::Text("m_drawType"), Value::Integer(1)],
+            &offsets,
+        );
+        append_entry(&mut entries, crc(b"PROP_INFO_END"), &[], &offsets);
+        append_entry(&mut entries, crc(b"OBJ_END"), &[], &offsets);
+
+        let string_table_offset = 16 + entries.len();
+        let mut bytes = Vec::with_capacity(string_table_offset + string_table.len() + 4);
+        bytes.extend_from_slice(&10_i32.to_le_bytes());
+        bytes.extend_from_slice(&(string_table_offset as i32).to_le_bytes());
+        bytes.extend_from_slice(&(string_table.len() as i32).to_le_bytes());
+        bytes.extend_from_slice(&0_i32.to_le_bytes());
+        bytes.extend_from_slice(&entries);
+        bytes.extend_from_slice(&string_table);
+        // cfg.bin trailer required by `objbin::is_objb`; it is outside the declared string table.
+        bytes.extend_from_slice(&[0x01, b't', b'2', b'b']);
+        bytes
+    }
+
+    /// Builds a single-bone G4SK wrapped in a minimal G4PKM container.
+    fn synthetic_menu_g4pkm() -> Vec<u8> {
+        const HEADER_SIZE: usize = 0x40;
+        const G4SK_OFFSET: usize = 0x50;
+        let mut g4sk = vec![0u8; 0x80];
+        g4sk[..4].copy_from_slice(b"G4SK");
+        g4sk[0x20..0x22].copy_from_slice(&1_u16.to_le_bytes());
+        // Parent table at 0x70; name table at 0x74, both addressed from 0x40 in dwords.
+        g4sk[0x2a..0x2c].copy_from_slice(&12_u16.to_le_bytes());
+        g4sk[0x32..0x34].copy_from_slice(&13_u16.to_le_bytes());
+        g4sk[0x40..0x44].copy_from_slice(&4_f32.to_le_bytes());
+        g4sk[0x54..0x58].copy_from_slice(&2_f32.to_le_bytes());
+        g4sk[0x70..0x72].copy_from_slice(&(-1_i16).to_le_bytes());
+        g4sk[0x74..0x76].copy_from_slice(&2_u16.to_le_bytes());
+        g4sk[0x76..0x7b].copy_from_slice(b"root\0");
+
+        let mut container = vec![0u8; G4SK_OFFSET + g4sk.len()];
+        container[..4].copy_from_slice(b"G4PK");
+        container[4..6].copy_from_slice(&(HEADER_SIZE as u16).to_le_bytes());
+        container[0x20..0x24].copy_from_slice(&1_i32.to_le_bytes());
+        container[HEADER_SIZE..HEADER_SIZE + 4]
+            .copy_from_slice(&((G4SK_OFFSET - HEADER_SIZE) as i32 / 4).to_le_bytes());
+        container[HEADER_SIZE + 4..HEADER_SIZE + 8]
+            .copy_from_slice(&(g4sk.len() as i32).to_le_bytes());
+        container[G4SK_OFFSET..].copy_from_slice(&g4sk);
+        container
+    }
+
+    /// Uses the public encoder so the fixture drives the real G4TX/DDS selection path.
+    fn synthetic_menu_g4tx() -> Vec<u8> {
+        let rgba = [255_u8, 0, 0, 255].repeat(8);
+        let dds = nie_formats::g4tx_encode::encode_dds_bgra8(4, 2, &rgba)
+            .expect("valid synthetic BGRA DDS");
+        nie_formats::g4tx_encode::encode_g4tx_single_texture("layer", 1, 4, 2, &dds)
     }
 
     #[test]
@@ -3284,6 +3509,21 @@ mod tests {
         assert_eq!(json["schemaVersion"], 1);
         assert_eq!(json["screen"]["kind"], "title");
         assert!(json.get("world").is_none());
+    }
+
+    #[test]
+    fn main_menu_snapshot_requires_a_native_scene_without_naming_a_capture() {
+        let mut screen = nie_app::flow::Screen::new();
+        screen.input("CMD_ENTER");
+        let json: serde_json::Value = serde_json::from_str(
+            &screen_snapshot(&screen).expect("menu snapshot should serialize"),
+        )
+        .expect("menu snapshot should be valid JSON");
+
+        assert_eq!(json["screen"]["kind"], "menu");
+        assert_eq!(json["screen"]["renderOwner"], "host");
+        assert_eq!(json["screen"]["nativeSceneRequired"], true);
+        assert!(json["screen"].get("referenceCapture").is_none());
     }
 
     #[test]

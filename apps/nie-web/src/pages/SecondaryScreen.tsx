@@ -92,7 +92,7 @@ export function SecondaryScreen({
 						cursor: "pointer",
 					}}
 				>
-					APHRODY
+					nie
 				</button>
 
 				<nav

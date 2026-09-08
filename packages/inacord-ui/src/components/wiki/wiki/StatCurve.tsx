@@ -66,7 +66,7 @@ const LEVELS = [
  * SVG pur (cohérent avec `StatHeptagon`, aucune dépendance de charting) :
  * - mobile-first (largeur fluide via `viewBox`, hauteur fixe en prop) ;
  * - DA Azalée / tokens M3 pour le châssis, couleurs de stat héritées du jeu ;
- * - états vides/partiels : si aucun palier → message « bientôt » ; si 1 seul
+ * - états vides/partiels : si aucun palier → absence documentée ; si 1 seul
  *   palier → points isolés (pas de ligne fantôme) ; légende cliquable pour
  *   isoler une stat ;
  * - accessible : chaque série a un `<title>`, légende au clavier, axes labellisés.
@@ -119,7 +119,7 @@ export function StatCurve({ curves, name, className, height = 220 }: StatCurvePr
 					Courbes de stats indisponibles
 				</span>
 				<span className="type-body-small text-on-surface-variant/70">
-					Les progressions Niv. 50 → 200 du Zukan arrivent bientôt.
+					Aucune progression de statistiques n’est documentée pour ce personnage.
 				</span>
 			</div>
 		);
@@ -151,7 +151,10 @@ export function StatCurve({ curves, name, className, height = 220 }: StatCurvePr
 	}));
 
 	return (
-		<figure className={cn("w-full", className)} aria-label={`Courbes de stats de ${name ?? "personnage"}`}>
+		<figure
+			className={cn("w-full", className)}
+			aria-label={`Courbes de stats de ${name ?? "personnage"}`}
+		>
 			<svg
 				viewBox={`0 0 ${VB_W} ${VB_H}`}
 				width="100%"

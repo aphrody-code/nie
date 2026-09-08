@@ -11,13 +11,14 @@
 use axum::extract::State;
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
+use serde_json::Value;
 
 use crate::error::ErreurSite;
 use crate::state::EtatSite;
 
 /// Ce que la route dit quand la matrice n'a jamais été produite.
 const ABSENTE: &str = "matrice de couverture absente — la produire par \
-     `nie-site --regenerer-couverture var/couverture-site.json` (§ 4 du plan)";
+     la commande hors ligne documentée (§ 4 du plan)";
 
 /// Lit la matrice sur disque, telle qu'elle a été écrite.
 fn lire(etat: &EtatSite) -> Result<String, ErreurSite> {
@@ -31,12 +32,11 @@ fn lire(etat: &EtatSite) -> Result<String, ErreurSite> {
     })
 }
 
-/// `GET /api/v1/couverture` — la matrice, telle quelle.
-///
-/// Le corps est **republié verbatim** au lieu d'être désérialisé puis resérialisé : le fichier
-/// est la mesure, et une re-sérialisation en changerait la forme sans rien y ajouter.
+/// `GET /api/v1/couverture` — la matrice sans identité du processus qui l'a produite.
 pub async fn json(State(etat): State<EtatSite>) -> Result<Response, ErreurSite> {
     let corps = lire(&etat)?;
+    let matrix = parse_matrix(&corps)?;
+    let corps = serialize_public_matrix(&matrix)?;
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/json")],
@@ -48,11 +48,51 @@ pub async fn json(State(etat): State<EtatSite>) -> Result<Response, ErreurSite> 
 /// `GET /couverture` — la même matrice, lisible.
 pub async fn page(State(etat): State<EtatSite>) -> Result<Response, ErreurSite> {
     let corps = lire(&etat)?;
-    let matrice: crate::couverture::Matrice = serde_json::from_str(&corps).map_err(|e| {
+    let matrix = parse_matrix(&corps)?;
+    Ok(Html(rendre(&matrix)).into_response())
+}
+
+fn parse_matrix(corps: &str) -> Result<crate::couverture::Matrice, ErreurSite> {
+    serde_json::from_str(corps).map_err(|e| {
         tracing::error!(erreur = %e, "matrice de couverture illisible (JSON)");
         ErreurSite::Indisponible("matrice de couverture illisible — la régénérer".to_string())
+    })
+}
+
+/// Serialize the public matrix without process identity or version fingerprints.
+fn serialize_public_matrix(matrix: &crate::couverture::Matrice) -> Result<String, ErreurSite> {
+    let mut value = serde_json::to_value(matrix).map_err(|e| {
+        tracing::error!(erreur = %e, "matrice de couverture non sérialisable");
+        ErreurSite::Interne("sérialisation de la matrice impossible".to_owned())
     })?;
-    Ok(Html(rendre(&matrice)).into_response())
+    if let Value::Object(object) = &mut value {
+        object.remove("service");
+        object.remove("version");
+    }
+    strip_public_identity(&mut value);
+    serde_json::to_string(&value).map_err(|e| {
+        tracing::error!(erreur = %e, "matrice publique non sérialisable");
+        ErreurSite::Interne("sérialisation de la matrice publique impossible".to_owned())
+    })
+}
+
+/// Remove the internal service name from free-form diagnostic strings without changing the
+/// source matrix stored on disk.
+fn strip_public_identity(value: &mut Value) {
+    match value {
+        Value::String(text) => *text = text.replace(crate::SERVICE, "le serveur"),
+        Value::Array(elements) => {
+            for element in elements {
+                strip_public_identity(element);
+            }
+        }
+        Value::Object(object) => {
+            for element in object.values_mut() {
+                strip_public_identity(element);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
+    }
 }
 
 /// Rend la matrice en HTML — sans script, sans dépendance, et sans rien afficher que la mesure.
@@ -86,8 +126,8 @@ fn rendre(m: &crate::couverture::Matrice) -> String {
     );
     html.push_str("<h1>Couverture</h1><p class=\"sous\">");
     html.push_str(&echapper(&format!(
-        "Générée le {} par nie-site {} — {} routes montées. Chaque compte se rejoue par la commande de sa source.",
-        m.genere_le, m.version, m.routes_montees
+        "Générée le {} — {} routes montées. Chaque compte se rejoue par la commande de sa source.",
+        m.genere_le, m.routes_montees
     )));
     html.push_str("</p>");
 
@@ -204,8 +244,9 @@ fn rendre(m: &crate::couverture::Matrice) -> String {
 /// Échappe le texte inséré dans le document. Une raison de classement est du texte libre :
 /// elle contient des backticks, des chevrons et des guillemets.
 fn echapper(texte: &str) -> String {
-    let mut sortie = String::with_capacity(texte.len());
-    for c in texte.chars() {
+    let public_text = texte.replace(crate::SERVICE, "le serveur");
+    let mut sortie = String::with_capacity(public_text.len());
+    for c in public_text.chars() {
         match c {
             '&' => sortie.push_str("&amp;"),
             '<' => sortie.push_str("&lt;"),
@@ -255,6 +296,37 @@ mod tests {
         assert!(
             html.contains("parseur typé, golden testé, sans route"),
             "la raison est publiée, pas seulement le compte"
+        );
+    }
+
+    #[test]
+    fn public_outputs_remove_service_and_version_fingerprints() {
+        let mut matrix = matrice_temoin();
+        matrix.version = "9.8.7-private".to_string();
+        matrix
+            .incoherences
+            .push(format!("{} internal diagnostic", crate::SERVICE));
+
+        let json = serialize_public_matrix(&matrix).expect("public JSON");
+        let value: Value = serde_json::from_str(&json).expect("valid public JSON");
+        assert!(value.get("version").is_none(), "version field is public");
+        assert!(value.get("service").is_none(), "service field is public");
+        assert!(
+            !json.contains(crate::SERVICE),
+            "service name leaked in JSON"
+        );
+        assert!(!json.contains("9.8.7-private"), "version leaked in JSON");
+
+        let html = rendre(&matrix);
+        assert!(
+            !html.contains(crate::SERVICE),
+            "service name leaked in HTML"
+        );
+        assert!(!html.contains("9.8.7-private"), "version leaked in HTML");
+        assert!(html.contains(&matrix.genere_le), "generation date missing");
+        assert!(
+            html.contains(&format!("{} routes montées", matrix.routes_montees)),
+            "measured route count missing"
         );
     }
 

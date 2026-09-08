@@ -9,6 +9,10 @@ repository.workspace = true
 license.workspace = true
 description = "Primitives de reverse-engineering : triage PE/ELF/Mach-O (sections, entropie, empreintes), extraction de chaînes ASCII/UTF-16, désassemblage x86. Rust pur, sans binding C."
 
+[features]
+default = []
+integration = []
+
 [lib]
 crate-type = ["rlib"]
 
@@ -31,6 +35,8 @@ thiserror.workspace = true
 iced-x86.workspace = true
 # Vues typées sans copie sur les en-têtes ELF et DOS/PE (module `headers`).
 zerocopy.workspace = true
+# Structured context for the bounded PE inspection compatibility contract.
+anyhow.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

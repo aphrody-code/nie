@@ -51,8 +51,8 @@ mod gpu_select;
 use nie_formats::vfs::Vfs;
 use nie_formats::{cfgbin, font, g4pkm, g4tx, g4tx_decode, menu, objbin};
 // Primitives 2D pures centralisées dans nie-formats::raster2d (dédup Phase 2 ; le blend reste local, landmine #5).
+use nie_formats::menu::{choose_asset_basename, resolve_asset_basename};
 use nie_formats::raster2d::{crop_rgba, scale_nearest};
-use nie_explore::menu_layout::{choose_asset_basename, resolve_asset_basename};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -2553,10 +2553,9 @@ fn setting_objbin_paths_with_lookup(
     let Ok(bytes) = vfs.read(&setting_path) else {
         return Vec::new();
     };
-    let Ok(parsed) = cfgbin::parse_t2b(&bytes) else {
+    let Some(root) = cfgbin::t2b_to_iecode_json(&bytes) else {
         return Vec::new();
     };
-    let root = serde_json::json!({ "entries": t2b_siblings_to_iecode(&parsed.entries) });
     let ms = nie_data::menu_setting::parse(&root);
     ms.layers
         .iter()
@@ -2777,32 +2776,6 @@ impl LayoutObj {
 /// back-to-front par `draw_priority`. Logique partagée par l'export statique et l'export runtime.
 ///
 /// Retourne `(objets, nb_sprites_résolus)`.
-/// Convertit des frères T2B en forme iecode (suffixe `_<idx>` par nom, récursif) pour le résolveur
-/// de texte universel `nie_data::text` (réplique de `t2b_siblings_to_iecode` de nie-model-serve).
-fn t2b_siblings_to_iecode(siblings: &[cfgbin::CfgEntry]) -> Vec<serde_json::Value> {
-    use serde_json::json;
-    use std::collections::HashMap;
-    let mut counts: HashMap<&str, usize> = HashMap::new();
-    siblings
-        .iter()
-        .map(|e| {
-            let idx = counts.entry(e.name.as_str()).or_insert(0);
-            let name = format!("{}_{}", e.name, *idx);
-            *idx += 1;
-            let variables: Vec<serde_json::Value> = e
-                .variables
-                .iter()
-                .map(|v| match v {
-                    cfgbin::Value::String(s) => json!({ "type": "String", "value": s }),
-                    cfgbin::Value::Int(n) => json!({ "type": "Int", "value": n.to_string() }),
-                    cfgbin::Value::Float(f) => json!({ "type": "Float", "value": f.to_string() }),
-                })
-                .collect();
-            json!({ "name": name, "variables": variables, "children": t2b_siblings_to_iecode(&e.children) })
-        })
-        .collect()
-}
-
 /// Charge la table `menu_text` (locale [`MENU_LOCALE`]) en `(HashId, String)` via le résolveur
 /// universel de `nie-data`, pour résoudre les libellés **statiques** de menu. Vide si absente.
 ///
@@ -2820,10 +2793,9 @@ fn load_menu_text(vfs: &Vfs) -> Vec<(nie_data::hash::HashId, String)> {
     let Ok(bytes) = vfs.read(&path) else {
         return Vec::new();
     };
-    let Ok(file) = cfgbin::parse_t2b(&bytes) else {
+    let Some(root) = cfgbin::t2b_to_iecode_json(&bytes) else {
         return Vec::new();
     };
-    let root = serde_json::json!({ "entries": t2b_siblings_to_iecode(&file.entries) });
     nie_data::text::parse_text_file(&root)
 }
 

@@ -17,6 +17,7 @@
 		"./shell/layout-render": "./src/shell/layout-render.tsx",
 		"./shell/main-menu": "./src/shell/main-menu.tsx",
 		"./shell/main-menu-geometry": "./src/shell/main-menu-geometry.ts",
+		"./shell/menu-interaction": "./src/shell/menu-interaction.ts",
 		"./shell/menu-screen": "./src/shell/menu-screen.tsx",
 		"./shell/ecran-menu": "./src/shell/ecran-menu.tsx",
 		"./shell/geometrie-mainmenu": "./src/shell/geometrie-mainmenu.ts",

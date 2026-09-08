@@ -41,33 +41,6 @@ fn crc32(data: &[u8]) -> u32 {
     !crc
 }
 
-/// Convertit des frères T2B (`CfgEntry`) en forme iecode (`{name, variables, children}`, suffixe
-/// `_<idx>` par nom) consommée par `nie_data::menu_setting::parse`.
-fn t2b_to_iecode(siblings: &[nie_formats::cfgbin::CfgEntry]) -> Vec<serde_json::Value> {
-    use nie_formats::cfgbin::Value as CVal;
-    use serde_json::json;
-    use std::collections::HashMap;
-    let mut counts: HashMap<&str, usize> = HashMap::new();
-    siblings
-        .iter()
-        .map(|e| {
-            let idx = counts.entry(e.name.as_str()).or_insert(0);
-            let name = format!("{}_{}", e.name, *idx);
-            *idx += 1;
-            let variables: Vec<serde_json::Value> = e
-                .variables
-                .iter()
-                .map(|v| match v {
-                    CVal::String(s) => json!({ "type": "String", "value": s }),
-                    CVal::Int(n) => json!({ "type": "Int", "value": n.to_string() }),
-                    CVal::Float(f) => json!({ "type": "Float", "value": f.to_string() }),
-                })
-                .collect();
-            json!({ "name": name, "variables": variables, "children": t2b_to_iecode(&e.children) })
-        })
-        .collect()
-}
-
 /// Validation CORPUS de `nie_data::menu_setting` : parse les **485** `*_menu_setting.cfg.bin` du VFS,
 /// asserte 0 panic et — invariant fort — `layer_id == CRC32(name)` sur CHAQUE layer de CHAQUE écran.
 /// Prouve que le parseur de SCÈNE (D1.c-driver brique a) est robuste + correct sur tout le corpus,
@@ -97,10 +70,9 @@ fn menu_setting_corpus_layer_id_is_crc32() {
     let (mut files_ok, mut total_layers, mut total_cmds, mut mismatches) = (0u32, 0u64, 0u64, 0u64);
     for p in &paths {
         let Ok(bytes) = vfs.read(p) else { continue };
-        let Ok(f) = nie_formats::cfgbin::parse_t2b(&bytes) else {
+        let Some(root) = nie_formats::cfgbin::t2b_to_iecode_json(&bytes) else {
             continue;
         };
-        let root = serde_json::json!({ "entries": t2b_to_iecode(&f.entries) });
         let ms = nie_data::menu_setting::parse(&root); // ne doit pas paniquer
         for l in &ms.layers {
             total_layers += 1;

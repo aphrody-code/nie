@@ -4,8 +4,9 @@
 demande explicite de l'utilisateur, après le débat A2A avec Codex (`env-fa1cdc42`,
 `env-b002ca32`), et complétée le même jour par trois consignes de l'utilisateur : le site
 d'outils s'appelle **nie**, comme le jeu, et vit sur **`nie.aphrody.com`**,
-l'application de bureau et mobile s'appelle **Inacord** ; `nie.aphrody.com` porte la **direction
-artistique du vrai jeu**, Azalée garde celle de **Rose Griffon**. Ce dossier ne change plus :
+l'application de bureau et mobile s'appelle **Inacord** ; `nie.aphrody.com` suit des références
+visuelles mesurées du jeu sans se présenter comme son moteur original, Azalée garde celle de
+**Rose Griffon**. Ce dossier ne change plus :
 une brique qui doit bouger passe par un **amendement daté** dans
 [decision-record.md](decision-record.md), section *Amendements*, et nulle part ailleurs. Le
 plan d'exécution qui en découle est [`/PLAN.md`](../../PLAN.md), une semaine de bout en bout.
@@ -14,7 +15,7 @@ plan d'exécution qui en découle est [`/PLAN.md`](../../PLAN.md), une semaine d
 
 Le wiki **Azalée** (`azalee.rosegriffon.fr`, DA Rose Griffon) part sur **Vercel en full
 serverless**, adossé à **Supabase Cloud** comme seule source de données ; les outils et
-assets deviennent un second site, **nie** (`nie.aphrody.com`, DA du vrai jeu), servi par une
+assets deviennent un second site, **nie** (`nie.aphrody.com`, DA mesurée sur le jeu), servi par une
 crate **`nie-site` (Axum 0.8, 100 % Rust)** sur le VPS, qui héberge **`nie-web`** : la même
 interface que l'application **Inacord** (ex `nie-explorer`), partagée par extraction dans
 `packages/inacord-ui` et non réécrite. Le jeu, **nie**, reste `wgpu 29.0.3` + `winit` cette
@@ -25,7 +26,7 @@ semaine ; mobile et Steam sont **hors semaine**, gelés tels que documentés.
 | Produit | Nom public | Ce que c'est | Où dans le dépôt | Direction artistique |
 |---|---|---|---|---|
 | Le wiki | **Azalée** | fiches, articles, actualités — `azalee.rosegriffon.fr` | `apps/azalee`, `packages/azalee` | **Rose Griffon** : les 109 tokens M3 de `app/globals.css` (primaire `#f2a93b` / `#ffc66c`), inchangés |
-| Le site d'outils et d'assets | **Aphrody** | 250 800 fichiers, 53 126 textures, 6 236 modèles, sons, vidéos, avatar — `nie.aphrody.com` | `crates/tools/nie-site` (serveur) + `apps/nie-web` (bundle) | **le vrai jeu** : la référence est le **menu principal** du jeu (`mainmenu01`, capture ver. 7.1.2 fournie par l'utilisateur le 2026-09-05, `data/design/`, hors dépôt) — tuiles en parallélogramme, blanc et cyan, icônes blanches ; tokens extraits des données (palette `FONT_COLOR`, textures de menu, atlas d'icônes, fonte du jeu) |
+| Le site d'outils et d'assets | **nie** | exploration des fichiers, textures, modèles, sons, vidéos et surfaces du jeu — `nie.aphrody.com` | `crates/tools/nie-site` (serveur) + `apps/nie-web` (bundle) | **référence native mesurée** : le menu principal (`mainmenu01`, capture propre `data/menu/main_menu_alt.png`) — tuiles en parallélogramme, blanc et cyan, icônes blanches ; tokens extraits des données (palette `FONT_COLOR`, textures de menu, atlas d'icônes, fonte du jeu) |
 | L'application de bureau et mobile | **Inacord** | l'explorateur/éditeur Tauri, aujourd'hui `productName: "niers"` v0.5.9 | `apps/inacord` (ex `apps/inacord`) | **le vrai jeu** : **InaCord** (イナコード), l'application de messagerie du téléphone du mode histoire, d'où vient le nom — panneaux sombres, accent turquoise, motif hexagonal (référence officielle `inazuma.jp`, archivée dans `data/design/`, hors dépôt) |
 | Le jeu | **nie** | le moteur Rust et ses hôtes (natif, headless, WASM) | `crates/engine/*`, `nie-*` | le jeu lui-même |
 | L'interface partagée | — | écrans, composants, hooks communs à Inacord et nie | `packages/inacord-ui` + contrat `packages/asset-source` | un jeu de composants, **deux coquilles du jeu** : `shell/main-menu/` (nie), `shell/inacord/` (Inacord) |

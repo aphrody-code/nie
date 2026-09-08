@@ -13,6 +13,7 @@
     "./config": "./src/config.ts",
     "./catalogue": "./src/catalogue.ts",
     "./annonces": "./src/annonces.ts",
+    "./episode-navigation": "./src/episode-navigation.ts",
     "./planificateur": "./src/planificateur.ts",
     "./ui": "./src/ui/index.ts"
   },
@@ -28,6 +29,7 @@
     "streaming"
   ],
   "dependencies": {
+    "@aphrody/ietv-client": "workspace:*",
     "@aphrody/ietv": "0.1.0",
     "discord.js": "^14.26.4"
   },

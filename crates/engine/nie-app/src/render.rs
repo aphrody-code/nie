@@ -9,11 +9,11 @@ use anyhow::{Context, Result};
 use nie_formats::font::{self, LatinAtlas};
 use nie_formats::{cfgbin, g4tx};
 
+use crate::GameState;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::Renderer;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::character;
-use crate::{GameState, MENU};
 
 /// Largeur du canevas de rendu (px).
 pub const W: usize = 1280;
@@ -188,6 +188,15 @@ pub struct Frame<'a> {
     f: &'a Font,
 }
 
+/// Transparent framebuffer used for screens whose verified pixels are owned by the front end.
+///
+/// The reconstructed main-menu image and its measured interaction geometry live outside this
+/// generic CPU prototype. Returning an empty surface prevents this crate from drawing a second,
+/// invented menu while preserving the fixed framebuffer ABI expected by existing callers.
+pub(crate) fn host_owned_surface() -> Vec<u8> {
+    vec![0; W * H * 4]
+}
+
 impl<'a> Frame<'a> {
     fn new(f: &'a Font) -> Self {
         Self {
@@ -277,26 +286,11 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Fr
             s.text_centered(330, "VICTORY ROAD", [120, 200, 255, 255]);
             s.text_centered(560, "PRESS START", [200, 210, 230, 255]);
         }
-        GameState::MainMenu { sel } => {
-            if bg.is_none() {
-                s.gradient([30, 40, 80], [14, 18, 34]);
-            }
-            s.rect(0, 0, W as i32, 70, [20, 60, 130, 255]);
-            s.text(40, 16, "MAIN MENU", [220, 235, 255, 255]);
-            for (i, item) in MENU.iter().enumerate() {
-                let y = 100 + i as i32 * 72;
-                let hot = i == *sel;
-                let bg_c = if hot {
-                    [60, 130, 220, 235]
-                } else {
-                    [16, 22, 44, 210]
-                };
-                s.rect(70, y, 620, y + 56, bg_c);
-                if hot {
-                    s.rect(70, y, 76, y + 56, [120, 220, 255, 255]);
-                }
-                s.text(110, y + 14, item, [240, 245, 252, 255]);
-            }
+        GameState::MainMenu { .. } => {
+            return Frame {
+                buf: host_owned_surface(),
+                f,
+            };
         }
         GameState::Match { home, away } => {
             if bg.is_none() {

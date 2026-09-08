@@ -217,6 +217,60 @@ fn texture_logical_path(object: &objbin::MenuObject) -> Option<String> {
     })
 }
 
+/// Serializes only transform components backed by parsed layout data.
+///
+/// An attach locator proves the position of an instance, but it does not prove its scale,
+/// rotation, or anchor. Those unresolved components remain JSON `null` instead of silently
+/// turning into an identity transform at the centre of the canvas.
+fn serialize_transform(
+    transform: Option<menu_layout::ScreenTransform>,
+    attach_position: Option<(f32, f32)>,
+) -> Value {
+    match (transform, attach_position) {
+        (None, None) => Value::Null,
+        (Some(transform), position) => {
+            let (x, y) = position.unwrap_or((transform.x_px, transform.y_px));
+            json!({
+                "x": x,
+                "y": y,
+                "scaleX": transform.scale_x,
+                "scaleY": transform.scale_y,
+                "rot": transform.rot,
+                "anchorX": 0.5,
+                "anchorY": 0.5,
+            })
+        }
+        (None, Some((x, y))) => json!({
+            "x": x,
+            "y": y,
+            "scaleX": Value::Null,
+            "scaleY": Value::Null,
+            "rot": Value::Null,
+            "anchorX": Value::Null,
+            "anchorY": Value::Null,
+        }),
+    }
+}
+
+/// Rejects the identity placement produced when a parsed skeleton contains no usable visual
+/// geometry. A genuine centred object remains resolved when its skeleton designates a size.
+fn resolved_static_transform(
+    object: &objbin::MenuObject,
+    layout: &g4pkm::G4pkmLayout,
+    sprite_size: (u32, u32),
+) -> Option<menu_layout::ScreenTransform> {
+    let transform =
+        menu_layout::assemble_object(object, layout, sprite_size.0, sprite_size.1).transform;
+    let identity_centre = transform.x_px == 640.0
+        && transform.y_px == 360.0
+        && transform.scale_x == 1.0
+        && transform.scale_y == 1.0
+        && transform.rot == 0.0;
+    (!identity_centre
+        || menu_layout::taille_designee(layout, sprite_size.0, sprite_size.1).is_some())
+    .then_some(transform)
+}
+
 /// Construit le layout statique d'un écran depuis les octets déjà montés.
 ///
 /// Le résultat reprend le contrat consommé par Inacord (`transform`, `sprite`, `text`, `anim`).
@@ -277,6 +331,7 @@ fn build_static_layout(
     let mut objects = Vec::new();
     let mut sprite_count = 0usize;
     let mut attach_instances = 0usize;
+    let mut unresolved_transforms = 0usize;
 
     for (layer, _, object) in parsed {
         let mut draw_priority = 0i32;
@@ -321,15 +376,6 @@ fn build_static_layout(
             }
         }
 
-        let mut transform = json!({
-            "x": 640.0,
-            "y": 360.0,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "rot": 0.0,
-            "anchorX": 0.5,
-            "anchorY": 0.5,
-        });
         let mut sprite = Value::Null;
         let mut sprite_size = (0u32, 0u32);
 
@@ -374,33 +420,23 @@ fn build_static_layout(
             }
         }
 
-        if let Some(layout) = skeleton.as_ref() {
-            let placed =
-                menu_layout::assemble_object(&object, layout, sprite_size.0, sprite_size.1)
-                    .transform;
-            transform = json!({
-                "x": placed.x_px,
-                "y": placed.y_px,
-                "scaleX": placed.scale_x,
-                "scaleY": placed.scale_y,
-                "rot": placed.rot,
-                "anchorX": 0.5,
-                "anchorY": 0.5,
-            });
-        }
+        let static_transform = skeleton
+            .as_ref()
+            .and_then(|layout| resolved_static_transform(&object, layout, sprite_size));
 
         let positions = attaches
             .get(&cfgbin::crc32(object.name.as_bytes()))
-            .cloned()
-            .unwrap_or_else(|| vec![(640.0, 360.0)]);
+            .cloned();
+        let positions = positions
+            .map(|positions| positions.into_iter().map(Some).collect::<Vec<_>>())
+            .unwrap_or_else(|| vec![None]);
         if positions.len() > 1 {
             attach_instances += positions.len() - 1;
         }
-        for (position_index, (x, y)) in positions.into_iter().enumerate() {
-            let mut positioned = transform.clone();
-            if attaches.contains_key(&cfgbin::crc32(object.name.as_bytes())) {
-                positioned["x"] = json!(x);
-                positioned["y"] = json!(y);
+        for (position_index, attach_position) in positions.into_iter().enumerate() {
+            let positioned = serialize_transform(static_transform, attach_position);
+            if positioned.is_null() {
+                unresolved_transforms += 1;
             }
             objects.push(json!({
                 "name": object.name.clone(),
@@ -419,7 +455,7 @@ fn build_static_layout(
                 "anim": anim.clone(),
                 "primitive": Value::Null,
                 "charModel": Value::Null,
-                "visible": true,
+                "visible": Value::Null,
                 "runtime": Value::Null,
             }));
         }
@@ -447,6 +483,8 @@ fn build_static_layout(
             "objectsUnreadable": unreadable,
             "spritesResolved": sprite_count,
             "attachInstancesExtra": attach_instances,
+            "transformsUnresolved": unresolved_transforms,
+            "visibilityResolved": 0,
         },
     })
 }
@@ -502,5 +540,31 @@ mod tests {
         for stem in ["", "..", "../secret", "a/b", "a\\b", "a.json", "a.cfg.bin"] {
             assert!(setting_path(stem).is_err(), "stem accepté : {stem:?}");
         }
+    }
+
+    #[test]
+    fn unresolved_transform_and_visibility_are_not_invented() {
+        assert!(serialize_transform(None, None).is_null());
+        let attached = serialize_transform(None, Some((123.0, 456.0)));
+        assert_eq!(attached["x"], 123.0);
+        assert_eq!(attached["y"], 456.0);
+        assert!(attached["scaleX"].is_null());
+        assert!(attached["anchorX"].is_null());
+    }
+
+    #[test]
+    fn resolved_transform_preserves_parsed_values() {
+        let transform = menu_layout::ScreenTransform {
+            x_px: 12.0,
+            y_px: 34.0,
+            scale_x: 1.5,
+            scale_y: 2.0,
+            rot: 0.25,
+        };
+        let serialized = serialize_transform(Some(transform), None);
+        assert_eq!(serialized["x"], 12.0);
+        assert_eq!(serialized["y"], 34.0);
+        assert_eq!(serialized["scaleX"], 1.5);
+        assert_eq!(serialized["rot"], 0.25);
     }
 }

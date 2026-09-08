@@ -146,10 +146,15 @@
         "vitest": "catalog:",
       },
     },
+    "apps/cdn-variants": {
+      "name": "cdn-variants",
+      "version": "0.1.0",
+    },
     "apps/inacord": {
       "name": "inacord",
       "version": "0.5.11",
       "dependencies": {
+        "@aphrody/ietv-client": "workspace:*",
         "@base-ui/react": "^1.7.0",
         "@monaco-editor/react": "^4.7.0",
         "@niers/asset-source": "workspace:*",
@@ -742,6 +747,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@aphrody/ietv": "0.1.0",
+        "@aphrody/ietv-client": "workspace:*",
         "discord.js": "^14.26.4",
       },
       "devDependencies": {
@@ -2387,6 +2393,8 @@
     "camera-controls": ["camera-controls@3.1.2", "", { "peerDependencies": { "three": ">=0.126.1" } }, "sha512-xkxfpG2ECZ6Ww5/9+kf4mfg1VEYAoe9aDSY+IwF0UEs7qEzwy0aVRfs2grImIECs/PoBtWFrh7RXsQkwG922JA=="],
 
     "caniuse-lite": ["caniuse-lite@1.0.30001809", "", {}, "sha512-xxWVywk6a6Arlk+hymeycyn/VgqEfLDxupvhH/xiY5SJ/18kmi9o6MiO320DCUzypORHLtvh0I4i04tUhCNHNQ=="],
+
+    "cdn-variants": ["cdn-variants@workspace:apps/cdn-variants"],
 
     "ce-la-react": ["ce-la-react@0.3.2", "", { "peerDependencies": { "react": ">=17.0.0" } }, "sha512-QJ6k4lOD/btI08xG8jBPxRCGXvCnusGGkTsiXk0u3NqUu/W+BXRnFD4PYjwtqh8AWmGa5LDbGk0fLQsqr0nSMA=="],
 

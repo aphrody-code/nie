@@ -322,6 +322,54 @@ async fn healthz_ne_nomme_ni_le_service_ni_sa_version() {
 }
 
 #[tokio::test]
+async fn coverage_routes_hide_service_identity_and_version() {
+    let directory = tempfile::tempdir().expect("temporary coverage directory");
+    let path = directory.path().join("coverage.json");
+    let mut matrix = nie_site::couverture::construire(
+        &nie_site::couverture::mesure::Inventaire::default(),
+        &nie_site::app::chemins(),
+    );
+    matrix.version = "9.8.7-private".to_owned();
+    matrix
+        .incoherences
+        .push(format!("{} internal diagnostic", nie_site::SERVICE));
+    std::fs::write(
+        &path,
+        serde_json::to_vec(&matrix).expect("serializable coverage matrix"),
+    )
+    .expect("writable coverage matrix");
+    let state = etat_avec(|config| config.couverture = path);
+
+    for uri in ["/couverture", "/api/v1/couverture"] {
+        let (status, _, body) = reponse(&state, uri).await;
+        assert_eq!(status, StatusCode::OK, "{uri}");
+        let text = String::from_utf8(body).expect("UTF-8 coverage response");
+        assert!(
+            !text.contains(nie_site::SERVICE),
+            "{uri} leaked the service name"
+        );
+        assert!(
+            !text.contains("9.8.7-private"),
+            "{uri} leaked the service version"
+        );
+        if uri.starts_with("/api/") {
+            let value: serde_json::Value = serde_json::from_str(&text).expect("coverage JSON");
+            assert!(value.get("service").is_none(), "{uri}: service field");
+            assert!(value.get("version").is_none(), "{uri}: version field");
+        }
+    }
+
+    let (status, _, body) = reponse(&etat(), "/api/v1/couverture").await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(
+        !String::from_utf8(body)
+            .expect("UTF-8 unavailable response")
+            .contains(nie_site::SERVICE),
+        "the unavailable response leaked the service name"
+    );
+}
+
+#[tokio::test]
 async fn les_cinq_entetes_de_securite_sont_sur_toutes_les_reponses() {
     let etat = etat();
     for uri in ["/healthz", "/", "/api/v1/inconnue", "/robots.txt"] {

@@ -36,7 +36,10 @@
 //! car `FormatError` est défini dans `lib.rs` avec `thiserror`.
 
 extern crate alloc;
-use alloc::{string::String, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use crate::FormatError;
 

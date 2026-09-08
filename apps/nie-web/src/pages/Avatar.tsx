@@ -37,7 +37,8 @@ export function Avatar() {
 
   const categories = catalogue?.categories ?? [];
   const active = categories.find((c) => c.faceSettingType === categorie) ?? categories[0];
-  const url = useMemo(() => catalogue ? composerUrl(catalogue, choix, morphologie, taille) : null, [catalogue, choix, morphologie, taille]);
+  const url = useMemo(() => catalogue ? composeAvatarUrl(catalogue, choix, morphologie, taille) : null, [catalogue, choix, morphologie, taille]);
+  const presetCount = Array.isArray(catalogue?.presets) ? catalogue.presets.length : null;
 
   if (erreur) return <section><ViewTitle>Éditeur d’avatar</ViewTitle><Notice tone="alerte">Les données de l’atelier ne sont pas disponibles pour le moment.</Notice></section>;
   if (!catalogue && !legacy) return <section><ViewTitle>Éditeur d’avatar</ViewTitle><Notice>Chargement du catalogue de pièces…</Notice></section>;
@@ -47,7 +48,7 @@ export function Avatar() {
     <section aria-labelledby="titre-avatar">
       <ViewTitle detail={totalParts(categories) + " pièces · " + totalColors(categories) + " couleurs"}><span id="titre-avatar">Éditeur d’avatar</span></ViewTitle>
       <p style={{ margin: "0 0 var(--jeu-espace-l)", fontWeight: 700 }}>
-        Catalogue résolu depuis les fichiers du jeu : {catalogue.presets?.length ?? 0} visages prédéfinis et {catalogue.modelesDeBase.morphologies.length} morphologies.
+        Catalogue résolu depuis les fichiers du jeu : {presetCount === null ? null : <>{presetCount} visages prédéfinis et </>}{catalogue.modelesDeBase.morphologies.length} morphologies.
       </p>
       <div style={layout}>
         <div>
@@ -57,12 +58,12 @@ export function Avatar() {
           <div style={panneau}>
             <h3 style={titrePanneau}>{NOMS[active?.faceSettingType ?? 0] ?? active?.prefixe}</h3>
             <div style={grille}>
-              {(active?.parts ?? []).slice(0, 120).map((part, i) => {
+              {(active?.parts ?? []).slice(0, 120).map((part) => {
                 const choisi = choix[active!.faceSettingType] === part.id;
                 const image = vignette(part.icone);
                 return <button key={part.id} type="button" aria-pressed={choisi} onClick={() => setChoix((v) => ({ ...v, [active!.faceSettingType]: part.id }))} style={{ ...tuile, borderColor: choisi ? "var(--jeu-accent-azur)" : "transparent" }}>
                   {image ? <img src={image} alt="" loading="lazy" width={120} height={120} style={{ width: "100%", aspectRatio: "1", objectFit: "contain" }} /> : <span style={placeholder}>{colorFor(catalogue, active!, part) ?? "—"}</span>}
-                  <span style={caption}>{part.resource !== "0xFFFFFFFF" ? part.resource : ("Variante " + (i + 1))}</span>
+                  <span style={caption}>{part.resource !== "0xFFFFFFFF" ? part.resource : part.id}</span>
                 </button>;
               })}
             </div>
@@ -83,17 +84,23 @@ export function Avatar() {
 }
 
 function LegacyView({ data }: { data: Famille<Legacy> }) {
-  return <section><ViewTitle detail={(data.donnees.parts?.length ?? 0) + " pièces · " + (data.donnees.colors?.length ?? 0) + " couleurs"}>Éditeur d’avatar</ViewTitle><Notice>Le catalogue résolu est temporairement indisponible. Les tables chara_edit restent consultables.</Notice><pre style={ligneStyle}>{JSON.stringify(data.donnees, null, 2)}</pre></section>;
+  const counts = [
+    Array.isArray(data.donnees.parts) ? data.donnees.parts.length + " pièces" : null,
+    Array.isArray(data.donnees.colors) ? data.donnees.colors.length + " couleurs" : null,
+  ].filter((value): value is string => value !== null);
+  return <section><ViewTitle detail={counts.length > 0 ? counts.join(" · ") : undefined}>Éditeur d’avatar</ViewTitle><Notice>Le catalogue résolu est temporairement indisponible. Les tables chara_edit restent consultables.</Notice><pre style={ligneStyle}>{JSON.stringify(data.donnees, null, 2)}</pre></section>;
 }
 
-function composerUrl(catalogue: Catalogue, choix: Record<number, string>, morphologie: number, taille: number): string | null {
+export function composeAvatarUrl(catalogue: Catalogue, choix: Record<number, string>, morphologie: number, taille: number): string | null {
   const pieces = catalogue.categories.flatMap((c) => {
-    const p = c.parts.find((part) => part.id === choix[c.faceSettingType]) ?? c.parts[0];
+    const selectedId = choix[c.faceSettingType];
+    const p = selectedId ? c.parts.find((part) => part.id === selectedId) : undefined;
     return p ? [...(p.modeles ?? []), ...(p.modeles2 ?? [])].filter((x) => x.includes("/20_EDIT/") && x.endsWith(".g4md")).map((x) => x.split("/20_EDIT/")[1]?.replace(/\.g4md$/, "")).filter((x): x is string => Boolean(x)) : [];
   });
   const uniques = [...new Set(pieces)];
   if (!uniques.length) return null;
-  const morpho = catalogue.modelesDeBase.morphologies[morphologie] ?? catalogue.modelesDeBase.morphologies[0] ?? "male";
+  const morpho = catalogue.modelesDeBase.morphologies[morphologie] ?? catalogue.modelesDeBase.morphologies[0];
+  if (!morpho) return null;
   return CDN + "/model-avatar/" + uniques.join("+") + ".glb?morpho=" + encodeURIComponent(morpho) + "&taille=" + taille;
 }
 function vignette(icone?: string | null): string | null {

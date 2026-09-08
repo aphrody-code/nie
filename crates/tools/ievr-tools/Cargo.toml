@@ -17,17 +17,17 @@ path = "src/lib.rs"
 
 [features]
 default = []
-integration = []
+integration = ["aphrody-re/integration"]
 
 [lints]
 workspace = true
 
 [dependencies]
 anyhow     = { workspace = true }
+aphrody-re = { path = "../../forge/aphrody-re" }
 serde      = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 clap       = { workspace = true, features = ["derive"] }
-goblin     = { workspace = true }
 byteorder  = { workspace = true }
 hex        = { workspace = true }
 

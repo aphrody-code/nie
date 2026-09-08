@@ -19,17 +19,10 @@ import { Avatar } from "./pages/Avatar";
 import { Notice, SecondaryScreen } from "./pages/SecondaryScreen";
 import { Explorateur } from "./pages/Explorer";
 import { Game } from "./pages/Game";
-import { MenuPrincipal } from "./pages/MainMenu";
 import { Settings } from "./pages/Settings";
 import { HOME, pathForEntry, requestedEntry, splitLanguagePrefix } from "./routing";
 
-/**
- * Coquille de nie.
- *
- * L'hôte n'a qu'un rôle : construire sa source et la monter. Tout le reste vient de
- * `@niers/inacord-ui` — la même interface que celle d'Inacord, dans la DA du menu principal du
- * jeu. C'est le point de la manœuvre.
- */
+/** Hosts the real startup/game at root and the shared catalogue UI on explicit tool routes. */
 export function App() {
 	// La source ne dépend d'aucun état : la mémoriser évite de relancer la mesure des capacités
 	// à chaque rendu.
@@ -41,18 +34,11 @@ export function App() {
 	);
 }
 
-/**
- * L'application : une entrée courante, un écran.
- *
- * Il n'y a plus qu'UNE coquille. L'accueil est le menu principal reconstruit, les autres écrans
- * sont le même décor avec la rangée d'entrées réduite à une barre — voir `pages/SecondaryScreen.tsx` pour
- * ce que cette unification a remplacé.
- */
+/** One current route, one screen. The homepage always starts the native capture sequence. */
 function Site() {
 	const capacites = useCapacites();
 	const erreurSource = useErreurSource();
 	const [etat, setEtat] = useState<SanteApi | null>(null);
-	const [playing, setPlaying] = useState(false);
 
 	// Les réglages d'apparence (thème, densité, mouvement, taille du texte, zoom) prennent
 	// effet sur `<html>` dès ici, sur TOUS les écrans — un réglage enregistré qui ne change
@@ -77,6 +63,14 @@ function Site() {
 		const routeServeur = document.getElementById("racine")?.dataset.route;
 		return requestedEntry(INITIAL_ROUTES, window.location, routeServeur) ?? HOME;
 	});
+
+	// `/menu` used to expose a handcrafted React screen containing placeholder values. Keep the
+	// published URL as a compatibility alias, but canonicalize it to the real startup sequence.
+	useEffect(() => {
+		if (vue !== MENU) return;
+		setVueEtat(HOME);
+		window.history.replaceState({ vue: HOME }, "", pathForEntry(prefixe, HOME));
+	}, [prefixe, vue]);
 
 	/** Change de vue ET d'URL, sans recharger la page. */
 	const setVue = (suivante: string) => {
@@ -150,22 +144,16 @@ function Site() {
 	// vides pendant la premiere seconde.
 	const pret = Boolean(capacites?.vfs);
 
-	// The root opens on the VFS-backed main menu. The WASM simulation remains the action behind
-	// Match/Victory Road instead of exposing its temporary dark menu as the site's identity.
-	if (vue === HOME) {
-		return playing ? (
-			<Game />
-		) : (
-			<div style={{ position: "fixed", inset: 0, background: "var(--jeu-ciel-clair)" }}>
-				<MenuPrincipal
-					view={vue}
-					onChoose={setVue}
-					onPlay={() => setPlaying(true)}
-					health={etat}
-					ready={pret}
-					failed={Boolean(erreurSource)}
-				/>
-			</div>
+	// The root and legacy `/menu` alias both enter the captured startup sequence. START leads to
+	// the canonical menu reference; the prototype WASM menu is not part of the public path.
+	if (vue === HOME || vue === MENU) {
+		return (
+			<Game
+				onOpenAvatar={() => setVue(AVATAR)}
+				onOpenSettings={() => setVue(SETTINGS)}
+				onOpenMedia={() => setVue(MEDIA)}
+				onOpenExplorer={() => setVue(EXPLORER)}
+			/>
 		);
 	}
 
@@ -182,35 +170,10 @@ function Site() {
 		);
 	}
 
-	// Le menu de navigation reste atteignable, mais il n'est plus la page d'accueil : les
-	// catalogues restent servis, ils ne sont simplement plus la première chose qu'on voit.
-	if (vue === MENU) {
-		return (
-			// `fixed; inset: 0` et non `height: 100vh` : la seconde forme depend de la hauteur de
-			// tous ses ancetres, et il suffit qu'un seul ne la propage pas pour que la zone mesuree
-			// soit plus courte que la fenetre. Le canevas se met alors a l'echelle d'une hauteur
-			// qu'il n'a pas, et laisse une bande vide en bas — sans qu'aucune valeur soit fausse.
-			<div style={{ position: "fixed", inset: 0, background: "var(--jeu-ciel-clair)" }}>
-				<MenuPrincipal
-					view={vue}
-					onChoose={setVue}
-					onPlay={() => {
-						setPlaying(true);
-						setVue(HOME);
-					}}
-					health={etat}
-					ready={pret}
-					failed={Boolean(erreurSource)}
-				/>
-			</div>
-		);
-	}
-
-	// Les Options sont un écran ENTIER du jeu, comme l'accueil : pas de barre au-dessus, la
-	// touche Échap ramène au menu. Elles ne dépendent pas du catalogue — on y arrive même
-	// quand le VFS n'est pas prêt.
+	// Settings remains directly addressable. Leaving it returns to the canonical game root,
+	// never to the removed handcrafted menu.
 	if (vue === SETTINGS) {
-		return <Settings prefixe={prefixe} onRetour={() => setVue(MENU)} />;
+		return <Settings prefixe={prefixe} onRetour={() => setVue(HOME)} />;
 	}
 
 	return (
@@ -225,7 +188,9 @@ function Site() {
 				) : !capacites ? (
 					<Notice>Chargement…</Notice>
 				) : !pret ? (
-					<Notice>Le catalogue est en cours de préparation. Il s'affichera dès qu'il sera prêt.</Notice>
+					<Notice>
+						Le catalogue est en cours de préparation. Il s'affichera dès qu'il sera prêt.
+					</Notice>
 				) : vue === AVATAR ? (
 					<Avatar />
 				) : vue === EXPLORER || (ALIAS as readonly string[]).includes(vue) ? (

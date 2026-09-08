@@ -1,22 +1,21 @@
-// Les règles de la série, portées depuis le bot Discord (`packages/wonderbot`).
+// Shared series rules used by Inacord and the Discord bot.
 //
-// ## Pourquoi porter plutôt que réécrire
+// ## Why share instead of copying
 //
-// Le bot répond depuis des années aux mêmes questions que la vue Cinéma pose maintenant : que
-// reste-t-il à voir, quel est l'épisode suivant, que manque-t-il au catalogue. Ses réponses sont
-// écrites et testées (`wonderbot.test.ts`, 1 531 lignes). Les recopier ici à l'identique évite
-// deux vérités sur le même sujet — un « prochain épisode » qui différerait entre le bot et
-// l'application serait un défaut invisible et durable.
+// The bot and the Cinema view answer the same navigation questions. Their pure episode rules now
+// come from one browser-compatible module, so an update cannot silently diverge between surfaces.
 //
-// Trois règles sont reprises telles quelles, et leur origine est citée à chaque fois :
-//
-// * `lacunes` ← `wonderbot/src/lacunes.ts` (`lacunesDeSaison`) ;
-// * `prochainNonVu` et `voisins` ← `wonderbot/src/progression.ts`.
+// The gap detector remains an adapter over Inacord's number-only input. `prochainNonVu` and
+// `voisins` are compatibility names backed by `@aphrody/ietv-client`.
 //
 // Ce qui N'EST PAS porté : la persistance. Le bot garde la progression par membre Discord, en
 // base ; ici elle tient dans `localStorage`, cloisonnée par profil (`lib/profils.ts`) — c'est
 // déjà où vivent les positions de lecture des cinématiques.
+import { neighboringEpisodes } from "@aphrody/ietv-client/episode-navigation";
+
 import { clePourProfil, PROFIL_PRINCIPAL } from "./profils";
+
+export { nextUnwatchedEpisode as prochainNonVu } from "@aphrody/ietv-client/episode-navigation";
 
 /** Clé de persistance des épisodes marqués vus, avant cloisonnement par profil. */
 const CLE_VUS = "nie-explorer:cinema:vus";
@@ -69,44 +68,19 @@ export function decrireLacune(lacune: LacuneSaison): string {
 }
 
 /**
- * Le premier épisode non vu, par numéro croissant.
- *
- * Ce n'est PAS « celui qui suit le dernier vu » : qui a vu E01, E02 puis E08 se voit proposer
- * E03, l'épisode qui lui manque. Et seuls des numéros réellement présents au catalogue sont
- * proposés, donc une saison trouée ne renvoie jamais vers un épisode introuvable.
- *
- * Porté de `wonderbot/src/progression.ts` (`prochainNonVu`).
- */
-export function prochainNonVu(disponibles: readonly number[], vus: ReadonlySet<number>): number | null {
-  for (const numero of [...disponibles].sort((a, b) => a - b)) {
-    if (!vus.has(numero)) return numero;
-  }
-  return null;
-}
-
-/**
  * Épisode précédent et suivant réellement présents au catalogue.
  *
  * Quand l'épisode courant n'est pas au catalogue (source retirée entre-temps), on l'encadre quand
  * même plutôt que de laisser la navigation sans issue.
  *
- * Porté de `wonderbot/src/progression.ts` (`voisins`).
+ * Shared through `@aphrody/ietv-client/episode-navigation`.
  */
 export function voisins(
   disponibles: readonly number[],
   numero: number,
 ): { precedent: number | null; suivant: number | null } {
-  const tries = [...disponibles].sort((a, b) => a - b);
-  const rang = tries.indexOf(numero);
-  if (rang === -1) {
-    const avant = tries.filter((n) => n < numero).at(-1) ?? null;
-    const apres = tries.find((n) => n > numero) ?? null;
-    return { precedent: avant, suivant: apres };
-  }
-  return {
-    precedent: rang > 0 ? (tries[rang - 1] ?? null) : null,
-    suivant: rang < tries.length - 1 ? (tries[rang + 1] ?? null) : null,
-  };
+  const result = neighboringEpisodes(disponibles, numero);
+  return { precedent: result.previous, suivant: result.next };
 }
 
 /** `3:7` = saison 3, épisode 7 — porté de `empreinte`. */

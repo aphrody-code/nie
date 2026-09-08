@@ -27,8 +27,9 @@ pub mod export;
 pub mod folder_roles;
 #[cfg(feature = "host")]
 pub mod listing;
-pub mod menu_modes;
+/// Compatibility facade; menu layout ownership lives in `nie_formats::menu`.
 pub mod menu_layout;
+pub mod menu_modes;
 
 use nie_formats::{
     cfgbin, col, cri_audio, dxbc, g4cm, g4la, g4ma, g4md, g4mt, g4pk, g4sk, g4tx, g4vs, level5,

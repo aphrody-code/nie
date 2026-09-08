@@ -1,5 +1,5 @@
-//! Le parcours qu'une joueuse fait réellement : écran-titre → menu → adversaires → match, et
-//! retour. C'est la définition opérationnelle de « le jeu est jouable ».
+//! Deterministic navigation through the local prototype: title → menu boundary → opponents →
+//! simulation, then back. This tests the shared state machine, not native-game fidelity.
 //!
 //! La FSM ([`nie_app::flow::Screen`]) est partagée par le front web (`nie-wasm`) et le front natif
 //! (`nie-game --play`) : ce qui casse ici casse les deux. Elle n'avait aucun test — un parcours
@@ -24,9 +24,7 @@ fn ou(e: &Screen) -> String {
     }
 }
 
-/// Titre → menu → « Adversaires » → un mode → **match en cours**.
-///
-/// C'est le chemin le plus court vers du jeu réel, et le seul qui traverse toute la FSM.
+/// Title → menu boundary → “Adversaires” → one mode → local simulation.
 #[test]
 fn du_titre_au_match_en_cours() {
     let mut e = Screen::new();
@@ -64,7 +62,7 @@ fn du_titre_au_match_en_cours() {
         ou(&e)
     );
 
-    // Le mode 0 est l'histoire (dialogues) ; les suivants lancent un vrai match.
+    // Mode 0 is story data; the other modes start the deterministic local simulation.
     e.input("CMD_FCS_MTX_DOWN");
     e.input("CMD_ENTER");
     assert!(matches!(e, Screen::Match { .. }), "→ match, pas {}", ou(&e));
@@ -231,10 +229,7 @@ fn le_mode_histoire_se_deroule_puis_revient() {
     );
 }
 
-/// Le match se JOUE : la direction demandée déplace le joueur contrôlé.
-///
-/// Sans cela, « jouable » se limiterait à regarder une simulation tourner — c'est la différence
-/// entre un écran de démonstration et un jeu.
+/// Directional input moves the controlled player in the local simulation.
 #[test]
 fn la_direction_deplace_le_joueur_controle() {
     let mut e = Screen::new();
@@ -359,7 +354,7 @@ fn le_mode_histoire_joue_les_repliques_fournies() {
         e.input("CMD_FCS_MTX_DOWN");
     }
     e.input("CMD_ENTER"); // → modes
-    e.input("CMD_ENTER"); // → histoire (démonstration)
+    e.input("CMD_ENTER"); // → story, awaiting sourced lines
     assert!(
         e.attend_dialogue(),
         "la scène doit attendre un dialogue réel, pas {}",
@@ -373,8 +368,7 @@ fn le_mode_histoire_joue_les_repliques_fournies() {
         "le dialogue fourni doit être pris en compte"
     );
 
-    // Il faut exactement autant de validations que de répliques pour sortir — ni la longueur de
-    // la scène de démonstration, ni une de plus.
+    // Exactly one confirmation per sourced line is required before leaving the scene.
     for i in 0..repliques.len() {
         assert!(
             matches!(e, Screen::Story { .. }),
@@ -390,10 +384,9 @@ fn le_mode_histoire_joue_les_repliques_fournies() {
     );
 }
 
-/// Un dialogue VIDE laisse la scène de démonstration — comme une liste vide laisse l'écran
-/// d'information.
+/// An empty dialogue injection leaves the explicit waiting state unchanged.
 #[test]
-fn un_dialogue_vide_laisse_la_demonstration() {
+fn empty_dialogue_keeps_the_waiting_state() {
     let mut e = Screen::new();
     e.input("CMD_ENTER");
     for _ in 0..5 {
@@ -404,7 +397,7 @@ fn un_dialogue_vide_laisse_la_demonstration() {
     e.fournir_dialogue("vide".into(), Vec::new());
     assert!(
         e.attend_dialogue(),
-        "la démonstration doit rester, pas {}",
+        "the screen must keep waiting for sourced dialogue, not {}",
         ou(&e)
     );
 }

@@ -32,8 +32,8 @@ nie-lua = { path = "../../engine/nie-lua", default-features = false }
 # nie-app : le JEU jouable (FSM GameState + rendu CPU framebuffer). Cœur wasm-safe
 # (l'I/O assets est gatée hors wasm) → expose `WasmGame` pour le canvas navigateur.
 nie-app = { path = "../../engine/nie-app" }
-# nie-runtime : le MOTEUR de match (World : physique ballon, 22 joueurs, possession, buts) + rendu
-# top-down → expose `WasmMatch` (le vrai match tourne dans le navigateur). nie-render3d (3D CPU) suit.
+# `nie-runtime` provides the deterministic local match simulation and top-down renderer exposed by
+# `WasmMatch`; it is not the native executable's match engine. `nie-render3d` follows separately.
 nie-runtime = { path = "../../engine/nie-runtime" }
 # Camera state, projection/view matrices and the verified interpolation controller are pure
 # Rust. Host process memory and SQLite tooling stay excluded from the browser dependency graph.

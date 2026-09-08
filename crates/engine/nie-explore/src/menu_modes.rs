@@ -22,7 +22,6 @@ pub const MODES: &[ModeDef] = &[
             "victory_road",
             "victory_load",
             "victory_lode",
-            "fake_vroad",
             "vroad_",
             "fade_menu_encount_victory_road",
         ],
@@ -30,10 +29,9 @@ pub const MODES: &[ModeDef] = &[
         text_hash: Some(0x80cd_176b),
         official: true,
         note: "Tournoi en ligne en trois phases (inscription, qualifications, classement \
-               final). Ses assets vivent sous `menu/75_vroad/` et ses 28 ecrans couvrent \
+               final). Ses assets vivent sous `menu/75_vroad/` et ses ecrans couvrent \
                entree, tournoi final, classement, recompenses, region, photo et \
-               notifications. Les ecrans `fake_vroad_*` sont des MAQUETTES posees sous \
-               soccer99_*. `VictoryRoad` est l'orthographe canonique cote code ; \
+               notifications. `VictoryRoad` est l'orthographe canonique cote code ; \
                `victory_load`, `victory_lode` et `vroad` ne sont que des variantes cote \
                assets — aucune regle de prefixe ne les relierait, d'ou cette liste curatee.",
         key_pattern: Some("vroad"),
@@ -202,6 +200,7 @@ mod tests {
         let victory_road = find_mode("victory-road").expect("catalogued mode");
         assert!(matches_stem(victory_road, "victory_lode_top_menu"));
         assert!(matches_stem(victory_road, "vroad_match_setting"));
+        assert!(!matches_stem(victory_road, "fake_vroad_top_menu"));
         assert!(!matches_stem(victory_road, "story_mode_top_menu"));
     }
 }

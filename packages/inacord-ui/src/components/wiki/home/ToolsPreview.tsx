@@ -18,14 +18,14 @@ const TOOLS: Array<{
 	},
 	{
 		container: "bg-secondary-container text-on-secondary-container",
-		description: "11 joueurs, 1 coach, 3 manageuses. Filtrez par élément ou style de jeu.",
+		description: "Générez une équipe à partir des filtres disponibles.",
 		href: "/tools/random-team",
 		icon: "casino",
 		title: "Équipe aléatoire",
 	},
 	{
 		container: "bg-tertiary-container text-on-tertiary-container",
-		description: "Trouvez les noms français, anglais et japonais de toutes les entités du jeu.",
+		description: "Recherchez les noms français, anglais et japonais disponibles.",
 		href: "/tools/translator",
 		icon: "translate",
 		title: "Traducteur",

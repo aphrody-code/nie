@@ -18,7 +18,7 @@ Une implémentation maintenue d'IEVR sous une racine. Ce document dit **qui fait
 | Langage | Rôles |
 |---|---|
 | **Rust** | la seule CLI, GUI, core lib, wasm, RE, byte-exact et runtime |
-| **Bun/TS** | MCP, serveur web, types, API, UI |
+| **Bun/TS** | types, contrats WebView et UI |
 
 Règles qui en découlent :
 
@@ -38,8 +38,8 @@ Il n'existe plus de délégation vers un binaire C++, une assembly .NET, CMake o
 
 ## Les crates Rust
 
-**38 membres** (`cargo metadata --no-deps --format-version 1 | jq '.packages | length'`, mesuré
-2026-09-07 : 10 forge + 19 engine + 9 tools), rangés par rôle ci-dessous, colonne `tests` =
+**41 membres** (`cargo metadata --no-deps --format-version 1 | jq '.packages | length'`, mesuré
+2026-09-08 : 10 forge + 19 engine + 12 tools), rangés par rôle ci-dessous, colonne `tests` =
 `rg -c '#\[test\]' <dossier>` le même jour. `crates/archive/*` (2 crates, hors des 38) est **hors
 du workspace** : `nie-engine` en est exclu explicitement (`exclude = […]` dans le `Cargo.toml`
 racine — ~15 000 lignes portées des fichiers C décompilés, 434 marqueurs `// EXTERN:`, consommées
@@ -86,13 +86,16 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-ffi` | Frontière C-ABI — **seul natif chargé côté TS** | 13 |
 | `nie-wasm` | Bindings WebAssembly du savoir vérifié | 32 |
 
-### `crates/tools/*` — outillage (9)
+### `crates/tools/*` — outillage (12)
 
 | Crate | Rôle | Tests |
 |---|---|---:|
 | `nie-cli` | Binaire `niers` — la seule CLI utilisateur, pilote aussi la boucle RE et la frontière redis | 24 |
+| `nie-mcp` | Binding MCP Rust natif (`rmcp`) des commandes partagées de `niers` | 7 |
 | `nie-site` | Serveur HTTP nie (Axum 0.8) : le jeu wasm en `/`, bundle `nie-web`, `/api/v1`, VFS `/f` `/b`, proxy `nie-model-serve` | 275 |
 | `nie-model-serve` | Serveur HTTP live d'assemblage GLB IEVR (corps+face+uniforme depuis CPK, cache disque) | 13 |
+| `ievr-tools` | Binding historique d'outils IEVR ; son inspecteur PE est fourni par `aphrody-re` via ré-export compatible | 8 |
+| `nie-computer-use` | Capture et inspection locale bornée des images utilisées par les workflows d'observation | 6 |
 | `nie-steam` | Acquisition Steam native (download/dump de dépôts IEVR), remplace SteamKit2 | 35 |
 | `nie-zukan` | Ingesteur de l'encyclopédie officielle Level-5 Inagle (JP/FR/EN) | 53 |
 | `nie-wiki` | Exploration game-data IEVR depuis le miroir SQLite (personnages, skills, items, équipes) | 0 |
@@ -106,7 +109,7 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 |---|---|---|
 | `packages/nie` | Rust → TS | `nie_ffi` via `bun:ffi` (préchargé par `bunfig.toml`) — **seul** natif chargé côté TS |
 | `scripts/sync-gamedata.ts` | TS → Rust | `niers steam` puis `niers viola` |
-| `packages/nie-bridge` | TS ↔ TS | protocole `nie-mcp` ↔ `nie-explorer` |
+| `packages/nie-bridge` | Rust ↔ TS | contrat WebSocket entre le serveur Rust `nie-mcp` et le client WebView Inacord |
 
 `crates/archive/nie-rs` est du décompilé porté en Rust, hors workspace et compilé
 par personne : matière de RE, pas un pont.

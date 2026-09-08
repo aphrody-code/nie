@@ -428,11 +428,7 @@ where
 }
 
 fn re_database_path() -> std::path::PathBuf {
-    std::env::var_os("NIERS_SQLITE")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../var/niers.sqlite")
-        })
+    nie_index::resolve_re_database_path(std::env::var_os("NIERS_SQLITE").map(Into::into))
 }
 
 fn open_re_database() -> anyhow::Result<nie_index::rusqlite::Connection> {

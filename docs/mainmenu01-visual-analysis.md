@@ -7,9 +7,10 @@ Pour l'implémentation complète du rendu pixel-perfect du moteur, voir [DESIGN.
 | Décision | Source mesurée | État au 2026-09-07 |
 |---|---|---|
 | Nom VFS du fond | `data/common/gamedata/menu/obj/mainmenu01_00_background.objbin` | conservé verbatim |
-| Géométrie de la rangée | `data/menu/main_menu.png`, mesurée par `scripts/validation/measure-mainmenu.py` | figée dans `packages/inacord-ui/src/shell/main-menu-geometry.ts` |
+| Géométrie de la rangée | `data/menu/main_menu_alt.png`, mesurée par `scripts/validation/measure-mainmenu.py` | figée dans `packages/inacord-ui/src/shell/main-menu-geometry.ts` |
 | Construction dynamique | `*_menu_setting.cfg.bin` + appels Lua `funcLuaMenuCommand` | driver typé branché ; composition incomplète |
-| Référence pixel | `data/menu/main_menu.png`, 2560×1440, réduite à 1280×720 par le comparateur | référence suivie ; la surimpression de capture en bas à droite reste dans l'image |
+| Référence pixel hors runtime | `data/menu/main_menu_alt.png`, 2560×1440, SHA-256 `b4500e…f4327507` | oracle de comparaison uniquement ; jamais copié comme écran public |
+| Ancienne référence de diff | `data/menu/main_menu.png`, 2560×1440, réduite à 1280×720 par le comparateur | conserve une surimpression de capture en bas à droite ; ne pas la publier |
 | Rendu candidat | `/tmp/nie-main-menu-after.png`, produit localement par `target/release/nie-game` | 2 sprites principaux, 8/8 icônes de tuiles et le badge Deluxe Edition VFS placés |
 
 ## Layout runtime servi par le navigateur (2026-09-08)
@@ -22,11 +23,12 @@ visibles**, **21 sprites**, **19 valeurs de texte affichables**, **13 textures d
 directes établies par `SetText` et `SetObjectNum` sont normalisées par `lireLayout()` afin que le
 même rendu fonctionne dans nie-web et Inacord.
 
-Cet export reste l'oracle runtime du navigateur, mais le composant actuellement servi
-(`apps/nie-web/src/pages/MainMenu.tsx`) reconstruit encore la composition en React à partir des
-textures VFS. Il ne monte plus `LayoutRender`. Les 7 placements par défaut et la traduction des
-mutations C++/Lua vers le renderer restent donc des limites connues ; cette intégration ne les
-présente pas comme une fidélité pixel-perfect.
+Cet export reste l'oracle runtime du futur renderer de menu. La surface publique monte le seul
+calque actuellement vérifié (`mainmenu90_00_background`) puis construit les contrôles à partir de
+la géométrie partagée. Elle est marquée `data-runtime-completeness="partial"`. Les captures de
+démarrage et `main_menu_alt.png` ne sont plus présentes dans le bundle public. Les placements
+atlas C++/Lua, les actions natives restantes et la comparaison Chromium 1920×1080 restent des
+gates ouvertes ; aucune fidélité pixel-perfect n'est revendiquée avant leur mesure.
 
 ## Couverture des commandes runtime du menu principal (2026-09-08)
 

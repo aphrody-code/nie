@@ -27,16 +27,8 @@ use nie_formats::vfs::Vfs;
 use nie_lua::bytecode;
 use serde_json::Value as Json;
 
-use crate::mode_presentation::legacy_presentation;
 pub use nie_explore::menu_modes::MODES;
 use nie_explore::menu_modes::{ModeDef, matches_stem};
-
-fn legacy_text(definition: &ModeDef) -> (&'static str, &'static str) {
-    legacy_presentation(definition.slug).map_or((definition.label, definition.note), |legacy| {
-        debug_assert_eq!(legacy.text_hash, definition.text_hash);
-        (legacy.label, legacy.note)
-    })
-}
 
 /// Retourne les modes auxquels un écran est rattaché par ses préfixes réels.
 ///
@@ -215,8 +207,6 @@ fn walk<'a>(entries: &'a [CfgEntry], f: &mut impl FnMut(&'a CfgEntry)) {
         walk(&e.children, f);
     }
 }
-
-/// Vrai si `stem` relève d'un des préfixes du mode.
 
 /// Récolte les faits d'un mode depuis le VFS.
 pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
@@ -562,7 +552,7 @@ pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> 
 
     Ok(serde_json::json!({
         "slug": def.slug,
-        "label": legacy_text(def).0,
+        "label": def.label,
         "screens": screens,
         "objbins": objbins,
         "textures": textures,
@@ -832,8 +822,7 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize, usiz
     for def in MODES {
         let f = collect(vfs, def);
         // Le libellé du jeu prime sur le nom de repli ; s'il manque, on garde le nôtre.
-        let (legacy_label, legacy_note) = legacy_text(def);
-        let label_fr = libelle("fr", def.text_hash).unwrap_or_else(|| legacy_label.to_string());
+        let label_fr = libelle("fr", def.text_hash).unwrap_or_else(|| def.label.to_string());
         conn.execute(
             "INSERT INTO mode(slug, label, label_en, label_ja, text_hash, official,
                               icon_atlas, icon_region, screens, layers, focus, note)
@@ -858,7 +847,7 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize, usiz
                 f.screens.len() as i64,
                 f.layers.len() as i64,
                 f.focus as i64,
-                legacy_note,
+                def.note,
             ],
         )?;
         let mode_id: i64 =
@@ -1024,17 +1013,7 @@ pub fn export_json(db: &nie_index::Db) -> Result<serde_json::Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MODES, classify_screen, legacy_text};
-    use crate::mode_presentation::legacy_presentation;
-
-    #[test]
-    fn legacy_cli_presentation_covers_the_shared_catalog() {
-        for definition in MODES {
-            let legacy = legacy_presentation(definition.slug).expect("legacy presentation");
-            assert_eq!(legacy.text_hash, definition.text_hash);
-            assert_eq!(legacy_text(definition), (legacy.label, legacy.note));
-        }
-    }
+    use super::{MODES, classify_screen};
 
     #[test]
     fn coverage_keeps_empty_prefix_modes_unassigned() {

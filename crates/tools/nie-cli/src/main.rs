@@ -33,7 +33,6 @@ mod mem_lua;
 mod menu_predecode;
 mod mod_cmd;
 mod mode_index;
-mod mode_presentation;
 mod render_cmd;
 mod search_cmd;
 mod seed_ui;

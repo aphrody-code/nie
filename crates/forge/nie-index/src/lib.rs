@@ -10,10 +10,29 @@ pub mod memory;
 
 #[cfg(feature = "host")]
 mod host {
+    use std::path::{Path, PathBuf};
+
     use rusqlite::Connection;
     use thiserror::Error;
 
     pub use rusqlite;
+
+    /// Resolve the reverse-engineering SQLite database used by native bindings.
+    ///
+    /// An explicit caller path wins, allowing the CLI and MCP host to retain their
+    /// `NIERS_SQLITE` compatibility override. The fallback is anchored to the
+    /// workspace layout from this owning crate rather than a user home directory
+    /// or a caller's current working directory.
+    #[must_use]
+    pub fn resolve_re_database_path(override_path: Option<PathBuf>) -> PathBuf {
+        override_path.unwrap_or_else(default_re_database_path)
+    }
+
+    /// Return the repository-local fallback for the RE knowledge database.
+    #[must_use]
+    pub fn default_re_database_path() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../var/niers.sqlite")
+    }
 
     /// Schéma SQL embarqué.
     pub const SCHEMA: &str = include_str!("schema.sql");
@@ -488,6 +507,16 @@ mod host {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn re_database_resolution_prefers_the_explicit_binding_override() {
+            let override_path = PathBuf::from("custom-re.sqlite");
+            assert_eq!(
+                resolve_re_database_path(Some(override_path.clone())),
+                override_path
+            );
+            assert!(default_re_database_path().ends_with("var/niers.sqlite"));
+        }
 
         /// Le filtre des noms Ghidra ne doit pas emporter les noms qui commencent
         /// par « fun ». Avec `LIKE 'FUN_%'`, `_` est un joker et la comparaison

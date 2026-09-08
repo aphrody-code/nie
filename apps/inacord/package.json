@@ -13,6 +13,7 @@
 	"dependencies": {
 		"@base-ui/react": "^1.7.0",
 		"@monaco-editor/react": "^4.7.0",
+		"@aphrody/ietv-client": "workspace:*",
 		"@niers/bridge": "workspace:*",
 		"@spacedrive/primitives": "^0.2.3",
 		"@spacedrive/tokens": "^0.2.3",
