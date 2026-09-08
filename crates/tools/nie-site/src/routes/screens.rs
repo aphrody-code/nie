@@ -2,13 +2,12 @@
 //!
 //! # Pourquoi ces deux routes existent
 //!
-//! Deux capacités écrites, testées et servies par aucune URL : `niers icons` (l'index des
-//! icônes) et `niers mode` (l'agrégation d'un mode de jeu). Toutes deux vivent dans
-//! `crates/tools/nie-cli`, qui n'a **pas de cible `[lib]`** — ses modules sont `mod x;` privés
-//! et rien n'y est importable. La logique est donc **réécrite ici**, à partir de deux sources
-//! lues et non recopiées :
+//! Deux capacités d'abord accessibles par `niers icons` et `niers mode` sont également servies
+//! ici. L'indexation des icônes appartient désormais à `nie_explore::menu_icons`; cette route
+//! ne possède que les URLs, la pagination et le cache HTTP. L'agrégation des modes reste encore
+//! locale en attendant sa migration vers le même propriétaire partagé :
 //!
-//! - `crates/tools/nie-cli/src/icons_cmd.rs:101` (`indexer`) → [`build_index`] ;
+//! - `nie_explore::menu_icons::build_icon_index` → [`build_index`] (adaptateur HTTP) ;
 //! - `crates/tools/nie-cli/src/mode_index.rs:68` (`MODES`) et `:302` (`collect`) → [`MODES`]
 //!   et [`collect`].
 //!
@@ -64,6 +63,7 @@ use std::sync::OnceLock;
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use nie_explore::menu_icons::{IconIndexPolicy, MenuIcon, build_icon_index};
 use nie_formats::cfgbin::{self, CfgEntry, Value};
 use nie_formats::objbin;
 use nie_formats::vfs::Vfs;
@@ -214,28 +214,22 @@ impl IconIndex {
 /// L'index, calculé à la première demande.
 static ICONS: OnceLock<IconIndex> = OnceLock::new();
 
-/// Vrai si ce chemin est un atlas que l'index retient ; sinon la famille qui l'écarte.
-///
-/// Rend `Ok(())` pour un candidat retenu, `Err(Some(famille))` pour un écart délibéré, et
-/// `Err(None)` pour un chemin qui n'est simplement pas un atlas d'icône.
-fn candidate(path: &str) -> Result<(), Option<&'static str>> {
-    if !path.ends_with(ICONS_SUFFIX) || !path.contains(ICONS_ROOT) {
-        return Err(None);
+fn http_icon(icon: &MenuIcon) -> Icon {
+    Icon {
+        name: icon.name.clone(),
+        atlas: icon.atlas.clone(),
+        texture: icon.texture.clone(),
+        rect: icon.rect.map(|rect| Rect {
+            x: rect.x,
+            y: rect.y,
+            w: rect.w,
+            h: rect.h,
+        }),
+        width: icon.width,
+        height: icon.height,
+        url: region_url(&icon.atlas, &icon.name),
+        atlas_url: atlas_url(&icon.atlas),
     }
-    for (family, _) in SKIPPED_FAMILIES {
-        if path.contains(family) {
-            return Err(Some(family));
-        }
-    }
-    Ok(())
-}
-
-/// Une texture ou une région est-elle une vraie icône ?
-///
-/// Les `dmy` sont les bouche-trous du jeu, et une image de 4×4 ou moins n'est pas une icône.
-/// Même règle que `icons_cmd::indexer` — reproduite, pas devinée.
-fn is_real_icon(name: &str, width: i32, height: i32) -> bool {
-    !name.contains("dmy") && !(width <= 4 && height <= 4)
 }
 
 /// Construit l'index en lisant et parsant réellement chaque atlas retenu.
@@ -246,67 +240,31 @@ fn is_real_icon(name: &str, width: i32, height: i32) -> bool {
 fn build_index(index: &IndexVfs, vfs: &Vfs) -> IconIndex {
     let start = std::time::Instant::now();
     let (files, _) = index.page_filtree(None, &Requete::default());
-    let mut out = IconIndex::default();
-
-    let mut paths: Vec<String> = Vec::new();
-    for f in files {
-        match candidate(&f.chemin) {
-            Ok(()) => paths.push(f.chemin),
-            Err(Some(family)) => *out.skipped.entry(family).or_default() += 1,
-            Err(None) => {}
-        }
-    }
-
-    for path in paths {
-        let Ok(raw) = vfs.read(&path) else {
-            out.unreadable += 1;
-            continue;
-        };
-        let Ok(tx) = nie_formats::g4tx::parse(&raw) else {
-            out.unreadable += 1;
-            continue;
-        };
-        out.atlases += 1;
-        for tex in &tx.textures {
-            if !is_real_icon(&tex.name, tex.width, tex.height) {
-                continue;
-            }
-            // `or_insert` : le premier atlas qui porte un nom le garde. C'est la règle du CLI,
-            // et la changer réordonnerait l'index à chaque mise à jour du jeu.
-            out.icons.entry(tex.name.clone()).or_insert_with(|| Icon {
-                name: tex.name.clone(),
-                atlas: path.clone(),
-                texture: tex.name.clone(),
-                rect: None,
-                width: tex.width,
-                height: tex.height,
-                url: region_url(&path, &tex.name),
-                atlas_url: atlas_url(&path),
-            });
-            for sub in &tex.sub_textures {
-                if !is_real_icon(&sub.name, i32::from(sub.width), i32::from(sub.height)) {
-                    continue;
-                }
-                out.icons.entry(sub.name.clone()).or_insert_with(|| Icon {
-                    name: sub.name.clone(),
-                    atlas: path.clone(),
-                    texture: tex.name.clone(),
-                    rect: Some(Rect {
-                        x: sub.x,
-                        y: sub.y,
-                        w: sub.width,
-                        h: sub.height,
-                    }),
-                    width: i32::from(sub.width),
-                    height: i32::from(sub.height),
-                    url: region_url(&path, &sub.name),
-                    atlas_url: atlas_url(&path),
-                });
-            }
-        }
-    }
-
-    out.elapsed_ms = start.elapsed().as_millis();
+    let skipped: Vec<&str> = SKIPPED_FAMILIES.iter().map(|(family, _)| *family).collect();
+    let policy = IconIndexPolicy::new(ICONS_ROOT, ICONS_SUFFIX, &skipped);
+    let shared = build_icon_index(vfs, files.iter().map(|file| file.chemin.as_str()), &policy);
+    let out = IconIndex {
+        icons: shared
+            .icons
+            .values()
+            .map(http_icon)
+            .map(|icon| (icon.name.clone(), icon))
+            .collect(),
+        atlases: shared.stats.atlases,
+        skipped: SKIPPED_FAMILIES
+            .iter()
+            .filter_map(|(family, _)| {
+                shared
+                    .stats
+                    .skipped
+                    .get(*family)
+                    .copied()
+                    .map(|count| (*family, count))
+            })
+            .collect(),
+        unreadable: shared.stats.unreadable,
+        elapsed_ms: start.elapsed().as_millis(),
+    };
     tracing::info!(
         icons = out.icons.len(),
         atlases = out.atlases,
@@ -1987,48 +1945,39 @@ mod tests {
         assert_eq!(atlas_url("dx11/a/b.g4tx"), "/assets/tex/dx11/a/b.png");
     }
 
-    // ── Icônes : sélection des candidats ─────────────────────────────────────
+    // ── Icônes : adaptation du modèle partagé ────────────────────────────────
 
     #[test]
-    fn le_candidat_est_un_g4tx_de_l_arbre_d_icones_et_rien_d_autre() {
+    fn l_adaptateur_http_preserve_la_localisation_partagee_et_ajoute_les_urls() {
+        let shared = MenuIcon {
+            name: "ds01001".to_owned(),
+            atlas: "data/dx11/menu/200_icon/20_icon_deco/icon_deco.g4tx".to_owned(),
+            texture: "icon_deco".to_owned(),
+            rect: Some(nie_explore::menu_icons::IconRect {
+                x: 8,
+                y: 9,
+                w: 80,
+                h: 80,
+            }),
+            width: 80,
+            height: 80,
+        };
+        let icon = http_icon(&shared);
+        assert_eq!(icon.name, shared.name);
+        assert_eq!(icon.atlas, shared.atlas);
+        assert_eq!(icon.texture, shared.texture);
         assert_eq!(
-            candidate("data/dx11/menu/200_icon/02_icon_item/icon_item01.g4tx"),
-            Ok(())
+            icon.rect,
+            Some(Rect {
+                x: 8,
+                y: 9,
+                w: 80,
+                h: 80
+            })
         );
-        // Falsification : sans ces refus, l'index avalerait 41 191 atlas au lieu de 212.
-        assert_eq!(
-            candidate("data/dx11/menu/220_img/x.g4tx"),
-            Err(None),
-            "hors de l'arbre d'icones"
-        );
-        assert_eq!(
-            candidate("data/dx11/menu/200_icon/02_icon_item/icon_item01.g4pkm"),
-            Err(None),
-            "mauvaise extension"
-        );
-        // Les deux familles ecartees le sont NOMMEMENT, pas silencieusement.
-        assert_eq!(
-            candidate("data/dx11/menu/200_icon/10_icon_chr/c01000010.g4tx"),
-            Err(Some("10_icon_chr"))
-        );
-        assert_eq!(
-            candidate("data/dx11/menu/200_icon/01_icon_emblem/e001.g4tx"),
-            Err(Some("01_icon_emblem"))
-        );
-    }
-
-    #[test]
-    fn un_bouche_trou_n_est_pas_une_icone() {
-        assert!(is_real_icon("icon_item01", 256, 256));
-        // Falsification des deux moities de la regle, separement.
-        assert!(!is_real_icon("dmy_icon", 256, 256), "les `dmy` sont exclus");
-        assert!(
-            !is_real_icon("icon_item01", 4, 4),
-            "4x4 n'est pas une icone"
-        );
-        // Une image large mais fine reste une icone : la regle exige les DEUX dimensions.
-        assert!(is_real_icon("bar", 4, 64));
-        assert!(is_real_icon("bar", 64, 4));
+        assert_eq!((icon.width, icon.height), (80, 80));
+        assert!(icon.url.contains(".g4tx/ds01001.png"));
+        assert!(!icon.atlas_url.contains(".g4tx"));
     }
 
     // ── Icônes : les filtres agissent réellement ─────────────────────────────

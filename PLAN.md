@@ -617,3 +617,17 @@ deleted. Its String/Int/Float fixture passes one focused test; strict `nie-explo
 and `cargo check -p inacord --locked` passes with one pre-existing `nie-render3d` unused-import
 warning. The executable audit improves from seven to six failed invariants. The full goal remains
 open; the next owner extraction is the generic SQLite engine currently inside the HTTP route.
+
+The generic SQLite catalogue/query engine is now owned by `nie-wiki::entities`; the site retains
+Axum handlers, dataset selection, CSV rendering and error translation. Every execution remeasures
+the selected table against the live connection and revalidates all interpolated identifiers. Raw
+SQL clause builders are private and SQLite error display is sanitized. The owner passes 29 tests,
+including five independent schema/query/facet/blob/injection/error fixtures; the site adapter
+passes 33 tests with one real-mirror fixture ignored.
+
+Menu icon discovery and indexing now has one `nie-explore::menu_icons` owner consumed by CLI and
+site adapters. Texture and sub-region placeholder rules remain distinct to preserve the historical
+`width <= 4` region exclusion. Two owner tests and one adapter test in each consumer pass. The
+executable ownership audit now reports three failed invariants, down from six: mode analysis, the
+browser TypeScript GLB decoder, and site-owned geometry dispatch. Strict completion therefore
+remains open.

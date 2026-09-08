@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use nie_explore::menu_icons::{IconIndexPolicy, MenuIcon, MenuIconIndex, build_icon_index};
 use nie_formats::cfgbin;
 use nie_formats::vfs::Vfs;
 use serde_json::json;
@@ -88,60 +89,21 @@ pub enum IconsCmd {
     },
 }
 
-/// Une icône localisée dans un atlas.
-struct Icone {
-    /// Chemin VFS de l'atlas.
-    atlas: String,
-    /// Nom de la texture principale à décoder.
-    texture: String,
-    /// Rectangle de la région, `None` si l'icône est une texture entière.
-    rect: Option<(i16, i16, i16, i16)>,
-    /// Dimensions rendues.
-    taille: (i32, i32),
+fn icon_index(vfs: &Vfs, prefix: &str, skip: &[String]) -> MenuIconIndex {
+    let skipped: Vec<&str> = skip.iter().map(String::as_str).collect();
+    let policy = IconIndexPolicy::new(prefix, ".g4tx", &skipped);
+    build_icon_index(vfs, vfs.iter().map(|(path, _)| path), &policy)
 }
 
-/// Balaie les atlas sous `prefix` et indexe leurs textures et régions nommées.
-fn indexer(vfs: &Vfs, prefix: &str, skip: &[String]) -> BTreeMap<String, Icone> {
-    let mut out: BTreeMap<String, Icone> = BTreeMap::new();
-    let chemins: Vec<String> = vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| {
-            p.contains(prefix)
-                && p.ends_with(".g4tx")
-                && !skip.iter().any(|s| p.contains(s.as_str()))
-        })
-        .collect();
-    for chemin in chemins {
-        let Ok(raw) = vfs.read(&chemin) else { continue };
-        let Ok(tx) = nie_formats::g4tx::parse(&raw) else {
-            continue;
-        };
-        for tex in &tx.textures {
-            // Les placeholders du jeu (`dmy`, 4×4) ne sont pas des icônes.
-            if tex.name.contains("dmy") || (tex.width <= 4 && tex.height <= 4) {
-                continue;
-            }
-            out.entry(tex.name.clone()).or_insert(Icone {
-                atlas: chemin.clone(),
-                texture: tex.name.clone(),
-                rect: None,
-                taille: (tex.width, tex.height),
-            });
-            for sub in &tex.sub_textures {
-                if sub.name.contains("dmy") || sub.width <= 4 {
-                    continue;
-                }
-                out.entry(sub.name.clone()).or_insert(Icone {
-                    atlas: chemin.clone(),
-                    texture: tex.name.clone(),
-                    rect: Some((sub.x, sub.y, sub.width, sub.height)),
-                    taille: (i32::from(sub.width), i32::from(sub.height)),
-                });
-            }
-        }
-    }
-    out
+fn icon_json(name: &str, icon: &MenuIcon) -> serde_json::Value {
+    json!({
+        "atlas": icon.atlas,
+        "texture": icon.texture,
+        "rect": icon.rect.map(|rect| json!([rect.x, rect.y, rect.w, rect.h])),
+        "w": icon.width,
+        "h": icon.height,
+        "url": format!("/tex/{}/{}.png", icon.atlas.trim_start_matches("data/"), name),
+    })
 }
 
 /// Point d'entrée de `niers icons`.
@@ -156,36 +118,18 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
                 .filter(|s| !s.is_empty())
                 .map(str::to_string)
                 .collect();
-            let index = indexer(&vfs, prefix, &skip);
+            let index = icon_index(&vfs, prefix, &skip);
             let doc: BTreeMap<&String, serde_json::Value> = index
+                .icons
                 .iter()
-                .map(|(nom, i)| {
-                    (
-                        nom,
-                        json!({
-                            "atlas": i.atlas,
-                            "texture": i.texture,
-                            "rect": i.rect.map(|(x, y, w, h)| json!([x, y, w, h])),
-                            "w": i.taille.0,
-                            "h": i.taille.1,
-                            // URL servie par le CDN : le décodage se fait à la demande, et la
-                            // route rogne la région quand le nom en désigne une — d'où le nom de
-                            // l'icône dans l'URL, pas celui de la texture porteuse.
-                            "url": format!(
-                                "/tex/{}/{}.png",
-                                i.atlas.trim_start_matches("data/"),
-                                nom
-                            ),
-                        }),
-                    )
-                })
+                .map(|(name, icon)| (name, icon_json(name, icon)))
                 .collect();
             if let Some(parent) = out.parent() {
                 std::fs::create_dir_all(parent).ok();
             }
             std::fs::write(out, serde_json::to_vec_pretty(&doc)?)
                 .with_context(|| format!("écriture {}", out.display()))?;
-            println!("indexé {} icônes → {}", index.len(), out.display());
+            println!("indexé {} icônes → {}", index.icons.len(), out.display());
         }
 
         IconsCmd::Dict {
@@ -199,7 +143,7 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
                 .filter(|s| !s.is_empty())
                 .map(str::to_string)
                 .collect();
-            let index = indexer(&vfs, prefix, &skip);
+            let index = icon_index(&vfs, prefix, &skip);
 
             let chemin_crc = out_dir.join("menu-crc32-dictionary.json");
             let chemin_reg = out_dir.join("menu-region-index.json");
@@ -210,7 +154,7 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
             // Une collision de hachage est une information, pas un détail à écraser en silence :
             // deux noms distincts pour un même CRC-32 rendraient la résolution ambiguë.
             let mut collisions = 0usize;
-            for (nom, ic) in &index {
+            for (nom, ic) in &index.icons {
                 let cle = format!("0x{:08X}", cfgbin::crc32(nom.as_bytes()));
                 match crc.get(&cle) {
                     Some(deja) if deja != nom => collisions += 1,
@@ -227,7 +171,7 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
                  crc32   {crc_avant} → {crc_apres} (+{crc_delta})\n  \
                  régions {reg_avant} → {reg_apres} (+{reg_delta})\n  \
                  collisions de hachage : {collisions}",
-                index.len(),
+                index.icons.len(),
                 crc_apres = crc.len(),
                 crc_delta = crc.len() - crc_avant,
                 reg_apres = reg.len(),
@@ -250,10 +194,10 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
         }
 
         IconsCmd::Extract { prefix, limit } => {
-            let index = indexer(&vfs, prefix, &[]);
+            let index = icon_index(&vfs, prefix, &[]);
             let mut ecrits = 0usize;
             let mut echecs = 0usize;
-            for (nom, ic) in index.iter().take(*limit) {
+            for (nom, ic) in index.icons.iter().take(*limit) {
                 let Ok(raw) = vfs.read(&ic.atlas) else {
                     echecs += 1;
                     continue;
@@ -284,9 +228,43 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
             }
             println!(
                 "{ecrits} PNG écrits, {echecs} échec(s) — {} indexées",
-                index.len()
+                index.icons.len()
             );
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::icon_json;
+    use nie_explore::menu_icons::{IconRect, MenuIcon};
+
+    #[test]
+    fn cli_json_keeps_the_existing_shape_around_the_shared_icon() {
+        let icon = MenuIcon {
+            name: "ds01001".to_owned(),
+            atlas: "data/dx11/menu/200_icon/20_icon_deco/icon_deco.g4tx".to_owned(),
+            texture: "icon_deco".to_owned(),
+            rect: Some(IconRect {
+                x: 8,
+                y: 9,
+                w: 80,
+                h: 81,
+            }),
+            width: 80,
+            height: 81,
+        };
+        assert_eq!(
+            icon_json(&icon.name, &icon),
+            serde_json::json!({
+                "atlas": icon.atlas,
+                "texture": icon.texture,
+                "rect": [8, 9, 80, 81],
+                "w": 80,
+                "h": 81,
+                "url": "/tex/dx11/menu/200_icon/20_icon_deco/icon_deco.g4tx/ds01001.png",
+            })
+        );
+    }
 }

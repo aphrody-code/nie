@@ -30,6 +30,7 @@ pub mod folder_roles;
 #[cfg(feature = "host")]
 pub mod listing;
 pub mod menu_audio;
+pub mod menu_icons;
 /// Compatibility facade; menu layout ownership lives in `nie_formats::menu`.
 pub mod menu_layout;
 pub mod menu_modes;

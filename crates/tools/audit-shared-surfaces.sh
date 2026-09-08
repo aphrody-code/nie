@@ -52,11 +52,13 @@ for crate in "${shared_manifest_deps[@]}"; do
   fi
 done
 
-if contains 'fn indexer(' crates/tools/nie-cli/src/icons_cmd.rs \
-  && contains 'fn build_index(' crates/tools/nie-site/src/routes/screens.rs; then
-  row icon_index_single_owner FAIL 'CLI indexer and site build_index are separate implementations'
+if contains 'nie_explore::menu_icons' crates/tools/nie-cli/src/icons_cmd.rs \
+  && contains 'build_icon_index(' crates/tools/nie-cli/src/icons_cmd.rs \
+  && contains 'nie_explore::menu_icons' crates/tools/nie-site/src/routes/screens.rs \
+  && contains 'build_icon_index(' crates/tools/nie-site/src/routes/screens.rs; then
+  row icon_index_single_owner PASS 'CLI and site delegate icon discovery and indexing to nie-explore'
 else
-  row icon_index_single_owner PASS 'no known CLI/site icon-index duplication found'
+  row icon_index_single_owner FAIL 'CLI and site do not both delegate icon indexing to nie-explore'
 fi
 
 if contains 'pub fn collect(' crates/tools/nie-cli/src/mode_index.rs \
@@ -75,13 +77,16 @@ else
   row t2b_json_single_owner PASS 'no known engine/Inacord T2B JSON mapping duplication found'
 fi
 
-if contains 'pub fn schema(' crates/tools/nie-site/src/routes/entites.rs \
-  && contains 'pub fn analyser(' crates/tools/nie-site/src/routes/entites.rs \
-  && contains 'pub fn page_lignes(' crates/tools/nie-site/src/routes/entites.rs \
-  && contains 'pub fn facettes(' crates/tools/nie-site/src/routes/entites.rs; then
-  row sqlite_query_library_owner FAIL 'generic SQLite schema/filter/page/facet engine is owned by an HTTP route module'
+if contains 'use nie_wiki::entities as shared;' crates/tools/nie-site/src/routes/entites.rs \
+  && contains 'shared::analyser(table, brut)' crates/tools/nie-site/src/routes/entites.rs \
+  && contains 'shared::page_lignes(c, table, demande)' crates/tools/nie-site/src/routes/entites.rs \
+  && contains 'shared::facettes(c, table, demande)' crates/tools/nie-site/src/routes/entites.rs \
+  && ! contains 'fn clause(' crates/tools/nie-site/src/routes/entites.rs \
+  && ! contains 'fn clause_sauf(' crates/tools/nie-site/src/routes/entites.rs \
+  && ! contains 'fn ligne_en_json(' crates/tools/nie-site/src/routes/entites.rs; then
+  row sqlite_query_library_owner PASS 'site delegates schema, validated queries, pages and facets to nie-wiki'
 else
-  row sqlite_query_library_owner PASS 'generic SQLite query policy is not route-owned'
+  row sqlite_query_library_owner FAIL 'generic SQLite query policy is not fully delegated to nie-wiki'
 fi
 
 if contains 'function decoderGlb(buffer: ArrayBuffer)' apps/nie-web/src/pages/Models3D.tsx \
