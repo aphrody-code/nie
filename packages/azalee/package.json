@@ -31,6 +31,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./db": "./src/db/index.ts",
+		"./bookmarks": "./src/bookmarks.ts",
 		"./wiki": "./src/wiki/index.ts",
 		"./wiki/*": "./src/wiki/*.ts",
 		"./cpk/*": "./src/cpk/*.ts",
