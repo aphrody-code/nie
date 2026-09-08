@@ -1,13 +1,15 @@
 //! Discovery of localized game resources from VFS paths.
 //!
-//! Locale tags are not maintained as an authored list here. They are first discovered from the
-//! shipped `data/common/text/<tag>/` tree, then used to classify every other VFS path that has an
-//! exact matching path component. This captures menu textures and fonts that use `<LG>` without
-//! guessing which languages a particular build contains.
+//! Locale tags come from existing native companion-resolution evidence. The VFS scan then
+//! reports tags that occur as exact path components, retaining localized textures, fonts and
+//! Criware banks even where a build has no corresponding text table.
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+
+/// Native locale tags established by the existing companion resolver and RE evidence.
+pub const LOCALE_TAGS: [&str; 10] = ["de", "en", "es", "fr", "it", "pt", "ja", "ko", "zh_hans", "zh_hant"];
 
 /// A resource category inferred solely from its VFS path and extension.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -106,7 +108,11 @@ where
     I: IntoIterator<Item = &'a str>,
 {
     let paths: Vec<&str> = paths.into_iter().collect();
-    let locales: BTreeSet<&str> = paths.iter().filter_map(|path| text_locale(path)).collect();
+    let locales: BTreeSet<&str> = paths
+        .iter()
+        .flat_map(|path| path.split('/'))
+        .filter(|segment| LOCALE_TAGS.contains(segment))
+        .collect();
     let mut reports: BTreeMap<&str, LocaleAssets> = locales
         .iter()
         .map(|locale| {
@@ -147,7 +153,7 @@ mod tests {
     use super::{LocalizedAssetKind, discover_locale_assets};
 
     #[test]
-    fn discovers_only_locales_proved_by_text_tree() {
+    fn discovers_native_locale_assets_even_without_text() {
         let paths = [
             "data/common/text/fr/menu_text.cfg.bin",
             "data/common/text/en/menu_text.cfg.bin",
@@ -157,13 +163,16 @@ mod tests {
             "data/dx11/menu/unrelated/de/icon.g4tx",
         ];
         let report = discover_locale_assets(paths, 1);
-        assert_eq!(report.locales.len(), 2);
-        let fr = &report.locales[1];
+        assert_eq!(report.locales.len(), 3);
+        let de = &report.locales[0];
+        assert_eq!(de.locale, "de");
+        assert_eq!(de.kinds.get(LocalizedAssetKind::Texture.as_str()), Some(&1));
+        let fr = &report.locales[2];
         assert_eq!(fr.locale, "fr");
         assert_eq!(fr.kinds.get(LocalizedAssetKind::Text.as_str()), Some(&1));
         assert_eq!(fr.kinds.get(LocalizedAssetKind::Texture.as_str()), Some(&1));
         assert_eq!(fr.kinds.get(LocalizedAssetKind::Font.as_str()), Some(&1));
-        let en = &report.locales[0];
+        let en = &report.locales[1];
         assert_eq!(en.kinds.get(LocalizedAssetKind::Audio.as_str()), Some(&1));
         assert!(en.samples.values().all(|samples| samples.len() <= 1));
     }
