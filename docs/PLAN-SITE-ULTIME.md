@@ -642,9 +642,9 @@ L'état réel : `mainmenu01` reconstruit, 14 blocs mesurés, écart ≤ 10 px su
 reconstruction**, et l'ancienne SSIM du rendu moteur vaut 0,004.
 
 - Un test versionné qui, pour chaque écran couvert, compare **boîte par boîte** le rendu au
-  jeu (le mécanisme existe : `scripts/validation/mesurer-mainmenu.py`) ;
+  jeu (le mécanisme existe : `scripts/validation/measure-mainmenu.py`) ;
 - puis **SSIM** contre la capture, avec un plancher de non-régression qui ne baisse jamais ;
-- la géométrie vient de `geometrie-mainmenu.ts` (mesurée) ; aucune valeur nouvelle sans sa
+- la géométrie vient de `main-menu-geometry.ts` (mesurée) ; aucune valeur nouvelle sans sa
   commande de mesure.
 
 **Gate :** par écran — nombre de blocs, écart max en px, SSIM. **Aucune affirmation
@@ -986,7 +986,7 @@ arithmétique ne la trouve.
 | Chantier | Preuve |
 |---|---|
 | La façade purgée : doublons, texte étranger, liens d'infrastructure | le DOM rendu ne porte plus qu'une fois chaque information ; aucune route technique dans le menu |
-| Une seule coquille (`pages/Ecran.tsx`) au lieu de deux chartes | l'accueil et les écrans secondaires partagent fond, biseaux, typographie et la même rangée de tuiles |
+| Une seule coquille (`pages/SecondaryScreen.tsx`) au lieu de deux chartes | l'accueil et les écrans secondaires partagent fond, biseaux, typographie et la même rangée de tuiles |
 | `nie-aphrody` servie en sept routes ; le personnage remplace le titre | lot 5 ci-dessus |
 | Le SEO recentré sur ce que le site est | `<title>` de l'accueil = « nie » ; `/explorateur` titré et traduit ; **18** URL au plan de site (15 avant), `robots.txt` et `llms.txt` alignés |
 | La compatibilité `?vue=` retirée | le type de `entreeDemandee` l'interdit désormais **à la compilation**, ce qu'aucun test ne garantissait |

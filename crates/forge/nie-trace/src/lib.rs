@@ -25,26 +25,39 @@
 //!
 //! Seul crate de niers à faire de la FFI OS (libc / windows-sys), confinée aux backends et
 //! documentée `SAFETY`. Le reste (types, scan, patch) est sûr. Pas de `forbid(unsafe_code)`.
+//!
+//! Building with `--no-default-features` keeps only the portable [`aob`] scanner and [`catalog`]
+//! lookup surface. The default `host` feature preserves the process-memory, launch, recipe,
+//! dump, and patch APIs used by the native binaries.
 
+#[cfg(feature = "host")]
 use std::fs;
+#[cfg(feature = "host")]
 use std::io::{Read, Seek, SeekFrom, Write as _};
+#[cfg(feature = "host")]
 use std::path::Path;
 
+#[cfg(feature = "host")]
 use thiserror::Error;
 
 pub mod aob;
 pub mod catalog;
+#[cfg(feature = "host")]
 pub mod lancement;
+#[cfg(feature = "host")]
 pub mod recette;
-#[cfg(windows)]
+#[cfg(all(feature = "host", windows))]
 pub mod win_memory;
-#[cfg(target_os = "linux")]
+#[cfg(all(feature = "host", target_os = "linux"))]
 pub mod wine_memory;
 
-pub use aob::Pattern;
+pub use aob::{
+    AobScanReport, BoundedAobError, MAX_AOB_PATTERN_BYTES, MAX_AOB_PATTERN_SOURCE_BYTES,
+    MAX_AOB_SCAN_BYTES, MAX_AOB_SCAN_COMPARISONS, MAX_AOB_SCAN_HITS, Pattern, scan_bytes_bounded,
+};
 
 // Extras spécifiques au backend Wine/Linux (avertissement ptrace côté CLI).
-#[cfg(target_os = "linux")]
+#[cfg(all(feature = "host", target_os = "linux"))]
 pub use wine_memory::{likely_permitted, read_ptrace_scope};
 
 // ─── Types partagés ────────────────────────────────────────────────────────────────
@@ -52,6 +65,7 @@ pub use wine_memory::{likely_permitted, read_ptrace_scope};
 /// Une plage mémoire du process cible (issue de `/proc/<pid>/maps` sous Linux, de `VirtualQueryEx`
 /// sous Windows). `perms` est normalisé `rwx` (`-` si absent).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(feature = "host")]
 pub struct MapEntry {
     pub start: u64,
     pub end: u64,
@@ -60,6 +74,7 @@ pub struct MapEntry {
     pub path: String,
 }
 
+#[cfg(feature = "host")]
 impl MapEntry {
     #[must_use]
     pub fn size(&self) -> u64 {
@@ -81,6 +96,7 @@ impl MapEntry {
 
 /// Échec d'une lecture mémoire, détail OS décodé.
 #[derive(Debug, Error)]
+#[cfg(feature = "host")]
 pub enum MemError {
     #[error("lecture mémoire refusée: longueur {length} supérieure à la limite {max}")]
     InvalidLength { length: usize, max: usize },
@@ -118,6 +134,7 @@ pub enum MemError {
 
 /// Lit jusqu'à `dest.len()` octets à l'adresse virtuelle `addr` du process `pid`. Ne stoppe pas la
 /// cible. Renvoie le nombre d'octets lus (peut être `< dest.len()` aux frontières de plage).
+#[cfg(feature = "host")]
 pub fn read(pid: i32, addr: u64, dest: &mut [u8]) -> Result<usize, MemError> {
     #[cfg(target_os = "linux")]
     return wine_memory::read(pid, addr, dest);
@@ -139,6 +156,7 @@ pub fn read(pid: i32, addr: u64, dest: &mut [u8]) -> Result<usize, MemError> {
 /// RE / patch live d'un jeu **possédé** tournant en local : modifier la mémoire d'un process actif
 /// peut le déstabiliser ou le faire planter. Le backend Windows déverrouille puis restaure la
 /// protection de page ; le backend Wine exige une page déjà inscriptible.
+#[cfg(feature = "host")]
 pub fn write(pid: i32, addr: u64, src: &[u8]) -> Result<usize, MemError> {
     #[cfg(target_os = "linux")]
     return wine_memory::write(pid, addr, src);
@@ -157,6 +175,7 @@ pub fn write(pid: i32, addr: u64, src: &[u8]) -> Result<usize, MemError> {
 
 /// PID du premier process dont le nom d'image vaut `name` (ex. `"nie.exe"`).
 #[must_use]
+#[cfg(feature = "host")]
 pub fn find_pid_by_name(name: &str) -> Option<i32> {
     #[cfg(target_os = "linux")]
     return wine_memory::find_pid_by_name(name);
@@ -171,6 +190,7 @@ pub fn find_pid_by_name(name: &str) -> Option<i32> {
 
 /// Adresse de chargement (base) du module dont le chemin/nom contient `fragment`.
 #[must_use]
+#[cfg(feature = "host")]
 pub fn find_module_base(pid: i32, fragment: &str) -> Option<u64> {
     #[cfg(target_os = "linux")]
     return wine_memory::find_module_base(pid, fragment);
@@ -186,6 +206,7 @@ pub fn find_module_base(pid: i32, fragment: &str) -> Option<u64> {
 /// Étendue VA `[base, base+taille)` du module (taille = `SizeOfImage` PE sous Linux, `modBaseSize`
 /// Toolhelp sous Windows).
 #[must_use]
+#[cfg(feature = "host")]
 pub fn module_range(pid: i32, fragment: &str) -> Option<(u64, u64)> {
     #[cfg(target_os = "linux")]
     return wine_memory::module_range(pid, fragment);
@@ -200,6 +221,7 @@ pub fn module_range(pid: i32, fragment: &str) -> Option<(u64, u64)> {
 
 /// Toutes les plages mémoire (committées) du process.
 #[must_use]
+#[cfg(feature = "host")]
 pub fn enumerate_regions(pid: i32) -> Vec<MapEntry> {
     #[cfg(target_os = "linux")]
     return wine_memory::enumerate_regions(pid);
@@ -214,6 +236,7 @@ pub fn enumerate_regions(pid: i32) -> Vec<MapEntry> {
 
 /// Plages du module `fragment` uniquement (intersection avec [`module_range`]), ou toutes si `all`.
 #[must_use]
+#[cfg(feature = "host")]
 pub fn module_regions(pid: i32, fragment: &str, all: bool) -> Vec<MapEntry> {
     let regions = enumerate_regions(pid);
     if all {
@@ -232,6 +255,7 @@ pub fn module_regions(pid: i32, fragment: &str, all: bool) -> Vec<MapEntry> {
 }
 
 /// Lit exactement `length` octets ou échoue (lecture partielle = échec).
+#[cfg(feature = "host")]
 pub fn read_exact(pid: i32, addr: u64, length: usize) -> Result<Vec<u8>, MemError> {
     let mut buf = vec![0u8; length];
     let got = read(pid, addr, &mut buf)?;
@@ -248,12 +272,14 @@ pub fn read_exact(pid: i32, addr: u64, length: usize) -> Result<Vec<u8>, MemErro
 }
 
 /// Lit un `u32` little-endian (x86-64).
+#[cfg(feature = "host")]
 pub fn read_u32(pid: i32, addr: u64) -> Result<u32, MemError> {
     let b = read_exact(pid, addr, 4)?;
     Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
 }
 
 /// Lit un `u64` little-endian (x86-64).
+#[cfg(feature = "host")]
 pub fn read_u64(pid: i32, addr: u64) -> Result<u64, MemError> {
     let b = read_exact(pid, addr, 8)?;
     Ok(u64::from_le_bytes([
@@ -262,29 +288,34 @@ pub fn read_u64(pid: i32, addr: u64) -> Result<u64, MemError> {
 }
 
 /// Lit un `u8`.
+#[cfg(feature = "host")]
 pub fn read_u8(pid: i32, addr: u64) -> Result<u8, MemError> {
     Ok(read_exact(pid, addr, 1)?[0])
 }
 
 /// Lit un `u16` little-endian.
+#[cfg(feature = "host")]
 pub fn read_u16(pid: i32, addr: u64) -> Result<u16, MemError> {
     let b = read_exact(pid, addr, 2)?;
     Ok(u16::from_le_bytes([b[0], b[1]]))
 }
 
 /// Lit un `i32` little-endian (entier signé — niveaux, rangs, deltas).
+#[cfg(feature = "host")]
 pub fn read_i32(pid: i32, addr: u64) -> Result<i32, MemError> {
     let b = read_exact(pid, addr, 4)?;
     Ok(i32::from_le_bytes([b[0], b[1], b[2], b[3]]))
 }
 
 /// Lit un `f32` little-endian (jauges, cooldowns, temps de match).
+#[cfg(feature = "host")]
 pub fn read_f32(pid: i32, addr: u64) -> Result<f32, MemError> {
     let b = read_exact(pid, addr, 4)?;
     Ok(f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
 }
 
 /// Écrit exactement `src.len()` octets ou échoue (écriture partielle = échec).
+#[cfg(feature = "host")]
 pub fn write_exact(pid: i32, addr: u64, src: &[u8]) -> Result<(), MemError> {
     let put = write(pid, addr, src)?;
     if put != src.len() {
@@ -300,31 +331,37 @@ pub fn write_exact(pid: i32, addr: u64, src: &[u8]) -> Result<(), MemError> {
 }
 
 /// Écrit un `u8`.
+#[cfg(feature = "host")]
 pub fn write_u8(pid: i32, addr: u64, v: u8) -> Result<(), MemError> {
     write_exact(pid, addr, &[v])
 }
 
 /// Écrit un `u16` little-endian.
+#[cfg(feature = "host")]
 pub fn write_u16(pid: i32, addr: u64, v: u16) -> Result<(), MemError> {
     write_exact(pid, addr, &v.to_le_bytes())
 }
 
 /// Écrit un `u32` little-endian.
+#[cfg(feature = "host")]
 pub fn write_u32(pid: i32, addr: u64, v: u32) -> Result<(), MemError> {
     write_exact(pid, addr, &v.to_le_bytes())
 }
 
 /// Écrit un `i32` little-endian.
+#[cfg(feature = "host")]
 pub fn write_i32(pid: i32, addr: u64, v: i32) -> Result<(), MemError> {
     write_exact(pid, addr, &v.to_le_bytes())
 }
 
 /// Écrit un `u64` little-endian.
+#[cfg(feature = "host")]
 pub fn write_u64(pid: i32, addr: u64, v: u64) -> Result<(), MemError> {
     write_exact(pid, addr, &v.to_le_bytes())
 }
 
 /// Écrit un `f32` little-endian.
+#[cfg(feature = "host")]
 pub fn write_f32(pid: i32, addr: u64, v: f32) -> Result<(), MemError> {
     write_exact(pid, addr, &v.to_le_bytes())
 }
@@ -335,6 +372,7 @@ pub fn write_f32(pid: i32, addr: u64, v: f32) -> Result<(), MemError> {
 ///
 /// Ex. `[singleton+0x69A0]+0x5C` (rang du dump) = `resolve_chain(pid, singleton, &[0x69A0, 0x5C])`.
 /// `offsets` vide renvoie `base`.
+#[cfg(feature = "host")]
 pub fn resolve_chain(pid: i32, base: u64, offsets: &[i64]) -> Result<u64, MemError> {
     let mut addr = base;
     for (i, &off) in offsets.iter().enumerate() {
@@ -348,6 +386,7 @@ pub fn resolve_chain(pid: i32, base: u64, offsets: &[i64]) -> Result<u64, MemErr
 
 /// `addr + off` avec `off` signé, saturé dans `u64`.
 #[must_use]
+#[cfg(feature = "host")]
 fn add_offset(addr: u64, off: i64) -> u64 {
     if off >= 0 {
         addr.wrapping_add(off as u64)
@@ -360,14 +399,18 @@ fn add_offset(addr: u64, off: i64) -> u64 {
 
 /// File offset du `call` vers le constructeur de modale fatale (VA `0x14114ea02`,
 /// image base `0x140000000`). NOP-er ces 5 octets rend l'échec d'init EAC non-fatal.
+#[cfg(feature = "host")]
 pub const EAC_PATCH_OFFSET: u64 = 0x0114_DE02;
 /// Octets d'origine attendus : `call 0x140afa1a0` (`e8 99 b7 9a ff`). Garde-fou anti-mauvais-build.
+#[cfg(feature = "host")]
 pub const EAC_PATCH_ORIG: [u8; 5] = [0xE8, 0x99, 0xB7, 0x9A, 0xFF];
 /// 5× `nop`.
+#[cfg(feature = "host")]
 pub const EAC_PATCH_NOP: [u8; 5] = [0x90, 0x90, 0x90, 0x90, 0x90];
 
 /// Erreur du patch EAC.
 #[derive(Debug, Error)]
+#[cfg(feature = "host")]
 pub enum EacPatchError {
     #[error("E/S sur le patch EAC : {0}")]
     Io(#[from] std::io::Error),
@@ -381,6 +424,7 @@ pub enum EacPatchError {
 
 /// Compte-rendu d'un patch EAC réussi.
 #[derive(Debug, Clone)]
+#[cfg(feature = "host")]
 pub struct EacPatchReport {
     pub offset: u64,
     pub original: [u8; 5],
@@ -390,6 +434,7 @@ pub struct EacPatchReport {
 
 /// Crée `dst` comme **copie** de `src` puis NOP le `call` de modale fatale EAC @ [`EAC_PATCH_OFFSET`].
 /// Vérifie que les 5 octets valent [`EAC_PATCH_ORIG`] avant d'écrire. **Ne touche jamais `src`**.
+#[cfg(feature = "host")]
 pub fn patch_eac(src: &Path, dst: &Path) -> Result<EacPatchReport, EacPatchError> {
     fs::copy(src, dst)?;
     let mut f = fs::OpenOptions::new().read(true).write(true).open(dst)?;
@@ -418,6 +463,7 @@ pub fn patch_eac(src: &Path, dst: &Path) -> Result<EacPatchReport, EacPatchError
     })
 }
 
+#[cfg(feature = "host")]
 fn hex5(b: &[u8; 5]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
@@ -426,6 +472,7 @@ fn hex5(b: &[u8; 5]) -> String {
 
 /// Un hit de [`scan_regions`].
 #[derive(Debug, Clone)]
+#[cfg(feature = "host")]
 pub struct ScanHit {
     pub addr: u64,
     pub perms: String,
@@ -435,6 +482,7 @@ pub struct ScanHit {
 
 /// Résultat de [`dump_regions`].
 #[derive(Debug, Clone, Copy, Default)]
+#[cfg(feature = "host")]
 pub struct DumpStats {
     pub regions: usize,
     pub bytes: u64,
@@ -442,6 +490,7 @@ pub struct DumpStats {
 
 /// Dumpe les plages **lisibles** vers `out_dir` (`<start>-<end>.bin` par plage). Saute les plages
 /// volatiles/refusées.
+#[cfg(feature = "host")]
 pub fn dump_regions(pid: i32, regions: &[MapEntry], out_dir: &Path) -> std::io::Result<DumpStats> {
     fs::create_dir_all(out_dir)?;
     let mut stats = DumpStats::default();
@@ -464,6 +513,7 @@ pub fn dump_regions(pid: i32, regions: &[MapEntry], out_dir: &Path) -> std::io::
 
 /// Cherche `needle` dans les plages **lisibles**, jusqu'à `limit` hits. `base` sert à calculer la RVA.
 #[must_use]
+#[cfg(feature = "host")]
 pub fn scan_regions(
     pid: i32,
     regions: &[MapEntry],
@@ -512,6 +562,7 @@ pub fn scan_regions(
 /// trouvé. Sans conséquence ici — une signature de code AOB vit entièrement dans une section
 /// exécutable (une seule plage).
 #[must_use]
+#[cfg(feature = "host")]
 pub fn scan_regions_masked(
     pid: i32,
     regions: &[MapEntry],
@@ -547,6 +598,7 @@ pub fn scan_regions_masked(
 }
 
 /// Première occurrence de `needle` dans `hay` (recherche naïve).
+#[cfg(feature = "host")]
 fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() || needle.len() > hay.len() {
         return None;
@@ -554,7 +606,7 @@ fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     hay.windows(needle.len()).position(|w| w == needle)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "host"))]
 mod tests {
     use super::*;
 

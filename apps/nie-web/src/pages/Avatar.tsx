@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Note, TitreVue } from "./Ecran";
+import { Notice, ViewTitle } from "./SecondaryScreen";
 
 type Part = { id: string; itemNo: number; resource: string; modeles?: string[]; modeles2?: string[]; icone?: string | null };
 type Category = { faceSettingType: number; prefixe: string; parts: Part[]; couleurs?: string[] };
@@ -39,13 +39,13 @@ export function Avatar() {
   const active = categories.find((c) => c.faceSettingType === categorie) ?? categories[0];
   const url = useMemo(() => catalogue ? composerUrl(catalogue, choix, morphologie, taille) : null, [catalogue, choix, morphologie, taille]);
 
-  if (erreur) return <section><TitreVue>Éditeur d’avatar</TitreVue><Note ton="alerte">Les données de l’atelier ne sont pas disponibles pour le moment.</Note></section>;
-  if (!catalogue && !legacy) return <section><TitreVue>Éditeur d’avatar</TitreVue><Note>Chargement du catalogue de pièces…</Note></section>;
+  if (erreur) return <section><ViewTitle>Éditeur d’avatar</ViewTitle><Notice tone="alerte">Les données de l’atelier ne sont pas disponibles pour le moment.</Notice></section>;
+  if (!catalogue && !legacy) return <section><ViewTitle>Éditeur d’avatar</ViewTitle><Notice>Chargement du catalogue de pièces…</Notice></section>;
   if (!catalogue) return <LegacyView data={legacy!} />;
 
   return (
     <section aria-labelledby="titre-avatar">
-      <TitreVue appoint={totalParts(categories) + " pièces · " + totalColors(categories) + " couleurs"}><span id="titre-avatar">Éditeur d’avatar</span></TitreVue>
+      <ViewTitle detail={totalParts(categories) + " pièces · " + totalColors(categories) + " couleurs"}><span id="titre-avatar">Éditeur d’avatar</span></ViewTitle>
       <p style={{ margin: "0 0 var(--jeu-espace-l)", fontWeight: 700 }}>
         Catalogue résolu depuis les fichiers du jeu : {catalogue.presets?.length ?? 0} visages prédéfinis et {catalogue.modelesDeBase.morphologies.length} morphologies.
       </p>
@@ -74,7 +74,7 @@ export function Avatar() {
           <label style={champ}>Morphologie<select value={morphologie} onChange={(e) => setMorphologie(Number(e.target.value))}>{catalogue.modelesDeBase.morphologies.map((m, i) => <option key={m} value={i}>{m}</option>)}</select></label>
           <label style={champ}>Taille <output>{taille}</output><input type="range" min="0" max="14" value={taille} onChange={(e) => setTaille(Number(e.target.value))} /></label>
           <h3 style={titrePanneau}>Assemblage</h3>
-          {url ? <><a href={url} target="_blank" rel="noreferrer" style={lien}>Ouvrir le GLB assemblé</a><p style={meta}>Pièces, textures faciales et modèle de corps résolus par le serveur.</p></> : <Note>Sélectionnez une pièce de modèle pour préparer un GLB.</Note>}
+          {url ? <><a href={url} target="_blank" rel="noreferrer" style={lien}>Ouvrir le GLB assemblé</a><p style={meta}>Pièces, textures faciales et modèle de corps résolus par le serveur.</p></> : <Notice>Sélectionnez une pièce de modèle pour préparer un GLB.</Notice>}
           <p style={meta}>Source : {catalogue.source}</p>
         </aside>
       </div>
@@ -83,7 +83,7 @@ export function Avatar() {
 }
 
 function LegacyView({ data }: { data: Famille<Legacy> }) {
-  return <section><TitreVue appoint={(data.donnees.parts?.length ?? 0) + " pièces · " + (data.donnees.colors?.length ?? 0) + " couleurs"}>Éditeur d’avatar</TitreVue><Note>Le catalogue résolu est temporairement indisponible. Les tables chara_edit restent consultables.</Note><pre style={ligneStyle}>{JSON.stringify(data.donnees, null, 2)}</pre></section>;
+  return <section><ViewTitle detail={(data.donnees.parts?.length ?? 0) + " pièces · " + (data.donnees.colors?.length ?? 0) + " couleurs"}>Éditeur d’avatar</ViewTitle><Notice>Le catalogue résolu est temporairement indisponible. Les tables chara_edit restent consultables.</Notice><pre style={ligneStyle}>{JSON.stringify(data.donnees, null, 2)}</pre></section>;
 }
 
 function composerUrl(catalogue: Catalogue, choix: Record<number, string>, morphologie: number, taille: number): string | null {

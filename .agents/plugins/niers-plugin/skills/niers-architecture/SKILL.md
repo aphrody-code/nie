@@ -25,7 +25,7 @@ runtime dependencies.
 ## Bun ownership
 
 `packages/nie` and `packages/nie-plugin` expose Rust through FFI; `packages/asset-source` and
-`packages/inacord-ui` provide shared contracts/UI; `apps/nie-web`, `apps/inacord`, and `apps/nie-mcp`
+`packages/inacord-ui` provides shared contracts/UI; `apps/nie-web` and `apps/inacord`
 are the web, desktop, and MCP hosts.
 
 Before adding a parser or data family, search the owning Rust crate and consult

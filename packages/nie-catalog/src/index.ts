@@ -18,16 +18,22 @@
  * ```
  */
 import * as anime from "./anime.ts";
-import * as extrait from "./extrait.ts";
-import * as jeu from "./jeu.ts";
+import * as excerpt from "./excerpt.ts";
+import * as game from "./game.ts";
 import * as re from "./re.ts";
 import { sources } from "./sources.ts";
-import * as synergie from "./synergie.ts";
+import * as synergy from "./synergy.ts";
 
 export * as anime from "./anime.ts";
+export * as excerpt from "./excerpt.ts";
+/** @deprecated Use `excerpt` instead. */
 export * as extrait from "./extrait.ts";
+export * as game from "./game.ts";
+/** @deprecated Use `game` instead. */
 export * as jeu from "./jeu.ts";
 export * as re from "./re.ts";
+export * as synergy from "./synergy.ts";
+/** @deprecated Use `synergy` instead. */
 export * as synergie from "./synergie.ts";
 export { oublierSources, racineDepot, sources } from "./sources.ts";
 export type { Source, Sources } from "./sources.ts";
@@ -50,7 +56,7 @@ export interface EtatGisement {
  */
 export function etat(): EtatGisement[] {
 	const s = sources();
-	const tablesExtrait = extrait.tables();
+	const excerptTables = excerpt.tables();
 	const cv = re.couverture();
 	const ea = anime.etatAnime();
 	return [
@@ -61,10 +67,10 @@ export function etat(): EtatGisement[] {
 			nom: "jeu",
 		},
 		{
-			contenu: `${tablesExtrait.length} tables, ${tablesExtrait
+			contenu: `${excerptTables.length} tables, ${excerptTables
 				.reduce((t, x) => t + x.lignes, 0)
 				.toLocaleString("fr")} lignes`,
-			disponible: tablesExtrait.length > 0,
+			disponible: excerptTables.length > 0,
 			emplacement: s.extrait.emplacement,
 			nom: "extrait",
 		},
@@ -94,13 +100,18 @@ export function etat(): EtatGisement[] {
  */
 export const catalogue = {
 	anime,
-	chercher: synergie.chercher,
+	chercher: synergy.chercher,
 	etat,
-	extrait,
-	film: synergie.film,
-	jeu,
-	personnage: synergie.personnage,
+	excerpt,
+	/** @deprecated Use `excerpt` instead. */
+	extrait: excerpt,
+	film: synergy.film,
+	game,
+	/** @deprecated Use `game` instead. */
+	jeu: game,
+	personnage: synergy.personnage,
 	re,
 	sources,
-	technique: synergie.technique,
+	synergy,
+	technique: synergy.technique,
 } as const;

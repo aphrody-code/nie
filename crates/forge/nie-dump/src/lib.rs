@@ -23,7 +23,7 @@
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 use std::path::Path;
 
 use thiserror::Error;
@@ -32,6 +32,15 @@ const STREAM_MODULE_LIST: u32 = 4;
 const STREAM_MEMORY64_LIST: u32 = 9;
 const STREAM_MEMORY_INFO_LIST: u32 = 16;
 const MODULE_RECORD_SIZE: usize = 108;
+const MEMORY_INFO_RECORD_SIZE: usize = 48;
+const HEADER_SIZE: usize = 32;
+const DIRECTORY_RECORD_SIZE: usize = 12;
+const MAX_MODULE_NAME_BYTES: usize = 1024 * 1024;
+const MAX_STREAM_COUNT: u64 = 4096;
+const MAX_MODULE_COUNT: u64 = 65_536;
+const MAX_MEMORY_RANGE_COUNT: u64 = 1_000_000;
+const MAX_MEMORY_INFO_COUNT: u64 = 1_000_000;
+const MAX_MEMORY_INFO_RECORD_SIZE: usize = 4096;
 /// Image-base statique de `nie.exe` (PE `ImageBase`), pour traduire RVA → adresse r2.
 pub const NIE_IMAGE_BASE: u64 = 0x1_4000_0000;
 
@@ -89,6 +98,19 @@ pub struct Region {
     pub protect: u32,
     /// `Type` Win32 (`MEM_PRIVATE`/`MEM_MAPPED`/`MEM_IMAGE`).
     pub mtype: u32,
+}
+
+/// Bounded metadata summary for a parsed minidump.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DumpSummary {
+    /// Number of loaded modules described by the dump.
+    pub module_count: usize,
+    /// Number of captured virtual-memory ranges.
+    pub range_count: usize,
+    /// Number of virtual-memory metadata records.
+    pub region_count: usize,
+    /// Total number of captured memory bytes.
+    pub mapped_bytes: u64,
 }
 
 impl Region {
@@ -172,10 +194,41 @@ impl Hit {
     }
 }
 
-/// Un minidump ouvert : modules + régions mémoire, prêt à scanner et lire.
+#[derive(Debug)]
+enum DumpSource {
+    File { file: File, len: u64 },
+    Bytes(Cursor<Vec<u8>>),
+}
+
+impl DumpSource {
+    fn len(&self) -> u64 {
+        match self {
+            Self::File { len, .. } => *len,
+            Self::Bytes(cursor) => cursor.get_ref().len() as u64,
+        }
+    }
+
+    fn read_exact_at(&mut self, off: u64, buf: &mut [u8]) -> Result<()> {
+        let source_len = self.len();
+        checked_span(off, buf.len(), source_len)?;
+        match self {
+            Self::File { file, .. } => {
+                file.seek(SeekFrom::Start(off))?;
+                file.read_exact(buf)?;
+            }
+            Self::Bytes(cursor) => {
+                cursor.set_position(off);
+                cursor.read_exact(buf)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// A parsed minidump backed by either a file or owned in-memory bytes.
 #[derive(Debug)]
 pub struct Minidump {
-    file: File,
+    source: DumpSource,
     /// Modules chargés au moment de la capture.
     pub modules: Vec<Module>,
     ranges: Vec<Range>, // triées par va
@@ -200,10 +253,28 @@ fn u64le(b: &[u8], o: usize) -> u64 {
     ])
 }
 
-fn read_at(file: &mut File, off: u64, len: usize) -> Result<Vec<u8>> {
+fn checked_span(off: u64, len: usize, source_len: u64) -> Result<()> {
+    let len = u64::try_from(len).map_err(|_| DumpError::Invalid("byte range too large"))?;
+    let end = off
+        .checked_add(len)
+        .ok_or(DumpError::Invalid("byte range overflow"))?;
+    if end > source_len {
+        return Err(DumpError::Invalid("byte range outside minidump"));
+    }
+    Ok(())
+}
+
+fn checked_table_len(count: u64, record_size: usize) -> Result<usize> {
+    let count = usize::try_from(count).map_err(|_| DumpError::Invalid("record count too large"))?;
+    count
+        .checked_mul(record_size)
+        .ok_or(DumpError::Invalid("record table too large"))
+}
+
+fn read_at(source: &mut DumpSource, off: u64, len: usize) -> Result<Vec<u8>> {
+    checked_span(off, len, source.len())?;
     let mut buf = vec![0u8; len];
-    file.seek(SeekFrom::Start(off))?;
-    file.read_exact(&mut buf)?;
+    source.read_exact_at(off, &mut buf)?;
     Ok(buf)
 }
 
@@ -228,24 +299,58 @@ impl Minidump {
     /// Renvoie [`DumpError`] si le fichier n'est pas un minidump `MDMP` ou si un stream
     /// requis (module list / memory64 list) est absent.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let mut file = File::open(path)?;
+        let file = File::open(path)?;
+        let len = file.metadata()?.len();
+        Self::parse(DumpSource::File { file, len })
+    }
 
-        let header = read_at(&mut file, 0, 32)?;
+    /// Parses a minidump from borrowed bytes.
+    ///
+    /// The bytes are copied once so the returned dump owns its source and does not expose a
+    /// lifetime parameter. Use [`Minidump::from_owned_bytes`] to transfer an existing buffer
+    /// without copying it.
+    ///
+    /// # Errors
+    /// Returns [`DumpError`] when the bytes are truncated, malformed, or omit a required stream.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        Self::from_owned_bytes(bytes.to_vec())
+    }
+
+    /// Parses a minidump from an owned byte buffer without copying its contents.
+    ///
+    /// # Errors
+    /// Returns [`DumpError`] when the bytes are truncated, malformed, or omit a required stream.
+    pub fn from_owned_bytes(bytes: Vec<u8>) -> Result<Self> {
+        Self::parse(DumpSource::Bytes(Cursor::new(bytes)))
+    }
+
+    fn parse(mut source: DumpSource) -> Result<Self> {
+        let source_len = source.len();
+
+        let header = read_at(&mut source, 0, HEADER_SIZE)?;
         if &header[0..4] != b"MDMP" {
             return Err(DumpError::Invalid("signature MDMP absente"));
         }
-        let n_streams = u32le(&header, 8) as usize;
+        let n_streams = u64::from(u32le(&header, 8));
+        if n_streams > MAX_STREAM_COUNT {
+            return Err(DumpError::Invalid("stream count exceeds safety limit"));
+        }
         let dir_rva = u32le(&header, 12) as u64;
 
-        let dir = read_at(&mut file, dir_rva, n_streams * 12)?;
+        let directory_len = checked_table_len(n_streams, DIRECTORY_RECORD_SIZE)?;
+        checked_span(dir_rva, directory_len, source_len)?;
+        let dir = read_at(&mut source, dir_rva, directory_len)?;
         let mut module_loc = None;
         let mut mem64_loc = None;
         let mut info_loc = None;
-        for i in 0..n_streams {
-            let o = i * 12;
+        for i in 0..usize::try_from(n_streams)
+            .map_err(|_| DumpError::Invalid("stream count too large"))?
+        {
+            let o = i * DIRECTORY_RECORD_SIZE;
             let stype = u32le(&dir, o);
             let size = u32le(&dir, o + 4) as usize;
             let rva = u32le(&dir, o + 8) as u64;
+            checked_span(rva, size, source_len)?;
             match stype {
                 STREAM_MODULE_LIST => module_loc = Some((rva, size)),
                 STREAM_MEMORY64_LIST => mem64_loc = Some((rva, size)),
@@ -255,22 +360,22 @@ impl Minidump {
         }
 
         let (mrva, msize) = module_loc.ok_or(DumpError::MissingStream("ModuleList"))?;
-        let modules = Self::parse_modules(&mut file, mrva, msize)?;
+        let modules = Self::parse_modules(&mut source, source_len, mrva, msize)?;
 
-        let (rrva, _) = mem64_loc.ok_or(DumpError::MissingStream("Memory64List"))?;
-        let mut ranges = Self::parse_ranges(&mut file, rrva)?;
+        let (rrva, rsize) = mem64_loc.ok_or(DumpError::MissingStream("Memory64List"))?;
+        let mut ranges = Self::parse_ranges(&mut source, source_len, rrva, rsize)?;
         ranges.sort_by_key(|r| r.va);
         let starts = ranges.iter().map(|r| r.va).collect();
 
         let mut regions = match info_loc {
-            Some((irva, _)) => Self::parse_regions(&mut file, irva)?,
+            Some((irva, isize)) => Self::parse_regions(&mut source, source_len, irva, isize)?,
             None => Vec::new(),
         };
         regions.sort_by_key(|r| r.base);
         let region_starts = regions.iter().map(|r| r.base).collect();
 
         Ok(Self {
-            file,
+            source,
             modules,
             ranges,
             starts,
@@ -279,21 +384,48 @@ impl Minidump {
         })
     }
 
-    fn parse_modules(file: &mut File, rva: u64, size: usize) -> Result<Vec<Module>> {
-        let buf = read_at(file, rva, size.max(4))?;
-        let count = u32le(&buf, 0) as usize;
+    fn parse_modules(
+        source: &mut DumpSource,
+        source_len: u64,
+        rva: u64,
+        size: usize,
+    ) -> Result<Vec<Module>> {
+        if size < 4 {
+            return Err(DumpError::Invalid("module list stream too short"));
+        }
+        let count_buf = read_at(source, rva, 4)?;
+        let count = u64::from(u32le(&count_buf, 0));
+        if count > MAX_MODULE_COUNT {
+            return Err(DumpError::Invalid("module count exceeds safety limit"));
+        }
+        let records_len = checked_table_len(count, MODULE_RECORD_SIZE)?;
+        let required_len = 4usize
+            .checked_add(records_len)
+            .ok_or(DumpError::Invalid("module list too large"))?;
+        if required_len > size {
+            return Err(DumpError::Invalid("truncated module list"));
+        }
+        let buf = read_at(source, rva, required_len)?;
+        let count =
+            usize::try_from(count).map_err(|_| DumpError::Invalid("module count too large"))?;
         let mut mods = Vec::with_capacity(count);
         for i in 0..count {
             let o = 4 + i * MODULE_RECORD_SIZE;
-            if o + MODULE_RECORD_SIZE > buf.len() {
-                break;
-            }
             let base = u64le(&buf, o);
             let isize = u32le(&buf, o + 8);
+            base.checked_add(u64::from(isize))
+                .ok_or(DumpError::Invalid("module address range overflow"))?;
             let name_rva = u32le(&buf, o + 20) as u64;
-            let len_buf = read_at(file, name_rva, 4)?;
+            let len_buf = read_at(source, name_rva, 4)?;
             let nlen = u32le(&len_buf, 0) as usize;
-            let name_bytes = read_at(file, name_rva + 4, nlen)?;
+            if nlen > MAX_MODULE_NAME_BYTES || !nlen.is_multiple_of(2) {
+                return Err(DumpError::Invalid("invalid module name length"));
+            }
+            let name_data_rva = name_rva
+                .checked_add(4)
+                .ok_or(DumpError::Invalid("module name offset overflow"))?;
+            checked_span(name_data_rva, nlen, source_len)?;
+            let name_bytes = read_at(source, name_data_rva, nlen)?;
             let units: Vec<u16> = name_bytes
                 .chunks_exact(2)
                 .map(|c| u16::from_le_bytes([c[0], c[1]]))
@@ -309,41 +441,110 @@ impl Minidump {
         Ok(mods)
     }
 
-    fn parse_ranges(file: &mut File, rva: u64) -> Result<Vec<Range>> {
-        let head = read_at(file, rva, 16)?;
-        let count = u64le(&head, 0) as usize;
+    fn parse_ranges(
+        source: &mut DumpSource,
+        source_len: u64,
+        rva: u64,
+        stream_size: usize,
+    ) -> Result<Vec<Range>> {
+        if stream_size < 16 {
+            return Err(DumpError::Invalid("memory range stream too short"));
+        }
+        let head = read_at(source, rva, 16)?;
+        let count = u64le(&head, 0);
+        if count > MAX_MEMORY_RANGE_COUNT {
+            return Err(DumpError::Invalid(
+                "memory range count exceeds safety limit",
+            ));
+        }
         let base_rva = u64le(&head, 8);
-        let descs = read_at(file, rva + 16, count * 16)?;
+        let desc_len = checked_table_len(count, 16)?;
+        let required_len = 16usize
+            .checked_add(desc_len)
+            .ok_or(DumpError::Invalid("memory range table too large"))?;
+        if required_len > stream_size {
+            return Err(DumpError::Invalid("truncated memory range table"));
+        }
+        let desc_rva = rva
+            .checked_add(16)
+            .ok_or(DumpError::Invalid("memory range table offset overflow"))?;
+        let descs = read_at(source, desc_rva, desc_len)?;
+        let count = usize::try_from(count)
+            .map_err(|_| DumpError::Invalid("memory range count too large"))?;
         let mut ranges = Vec::with_capacity(count);
         let mut off = base_rva;
         for i in 0..count {
             let o = i * 16;
             let va = u64le(&descs, o);
             let dsz = u64le(&descs, o + 8);
+            va.checked_add(dsz)
+                .ok_or(DumpError::Invalid("virtual memory range overflow"))?;
+            let dsz_usize = usize::try_from(dsz)
+                .map_err(|_| DumpError::Invalid("captured memory range too large"))?;
+            checked_span(off, dsz_usize, source_len)?;
             ranges.push(Range {
                 va,
                 size: dsz,
                 file_off: off,
             });
-            off += dsz;
+            off = off
+                .checked_add(dsz)
+                .ok_or(DumpError::Invalid("captured memory offset overflow"))?;
         }
         Ok(ranges)
     }
 
-    fn parse_regions(file: &mut File, rva: u64) -> Result<Vec<Region>> {
+    fn parse_regions(
+        source: &mut DumpSource,
+        source_len: u64,
+        rva: u64,
+        stream_size: usize,
+    ) -> Result<Vec<Region>> {
+        if stream_size < 16 {
+            return Err(DumpError::Invalid("memory info stream too short"));
+        }
         // MINIDUMP_MEMORY_INFO_LIST : u32 SizeOfHeader, u32 SizeOfEntry, u64 NumberOfEntries.
-        let head = read_at(file, rva, 16)?;
+        let head = read_at(source, rva, 16)?;
         let soh = u32le(&head, 0) as u64;
         let soe = u32le(&head, 4) as usize;
-        let count = u64le(&head, 8) as usize;
-        let buf = read_at(file, rva + soh, count * soe)?;
+        let count = u64le(&head, 8);
+        if count > MAX_MEMORY_INFO_COUNT {
+            return Err(DumpError::Invalid("memory info count exceeds safety limit"));
+        }
+        if soh < 16 || !(MEMORY_INFO_RECORD_SIZE..=MAX_MEMORY_INFO_RECORD_SIZE).contains(&soe) {
+            return Err(DumpError::Invalid("invalid memory info record size"));
+        }
+        let table_len = checked_table_len(count, soe)?;
+        let required_len = soh
+            .checked_add(
+                u64::try_from(table_len)
+                    .map_err(|_| DumpError::Invalid("memory info table too large"))?,
+            )
+            .ok_or(DumpError::Invalid("memory info table too large"))?;
+        if required_len
+            > u64::try_from(stream_size)
+                .map_err(|_| DumpError::Invalid("memory info stream too large"))?
+        {
+            return Err(DumpError::Invalid("truncated memory info table"));
+        }
+        let table_rva = rva
+            .checked_add(soh)
+            .ok_or(DumpError::Invalid("memory info table offset overflow"))?;
+        checked_span(table_rva, table_len, source_len)?;
+        let buf = read_at(source, table_rva, table_len)?;
+        let count = usize::try_from(count)
+            .map_err(|_| DumpError::Invalid("memory info count too large"))?;
         let mut out = Vec::with_capacity(count);
         for i in 0..count {
             let o = i * soe;
             // u64 Base, u64 Alloc, u32 AllocProt, u32 a1, u64 RegionSize, u32 State, u32 Protect, u32 Type, u32 a2
+            let base = u64le(&buf, o);
+            let size = u64le(&buf, o + 24);
+            base.checked_add(size)
+                .ok_or(DumpError::Invalid("virtual memory region overflow"))?;
             out.push(Region {
-                base: u64le(&buf, o),
-                size: u64le(&buf, o + 24),
+                base,
+                size,
                 state: u32le(&buf, o + 32),
                 protect: u32le(&buf, o + 36),
                 mtype: u32le(&buf, o + 40),
@@ -366,6 +567,17 @@ impl Minidump {
         self.ranges.iter().map(|r| r.size).sum()
     }
 
+    /// Returns a fixed-size summary without exposing or copying captured memory contents.
+    #[must_use]
+    pub fn summary(&self) -> DumpSummary {
+        DumpSummary {
+            module_count: self.modules.len(),
+            range_count: self.ranges.len(),
+            region_count: self.regions.len(),
+            mapped_bytes: self.mapped_bytes(),
+        }
+    }
+
     /// Nombre de plages mémoire capturées.
     #[must_use]
     pub fn range_count(&self) -> usize {
@@ -380,7 +592,8 @@ impl Minidump {
 
     fn classify(&self, va: u64) -> (Option<String>, Option<u64>) {
         for m in &self.modules {
-            if va >= m.base && va < m.base + u64::from(m.size) {
+            let end = m.base + u64::from(m.size);
+            if va >= m.base && va < end {
                 return (Some(m.name.clone()), Some(va - m.base));
             }
         }
@@ -398,7 +611,8 @@ impl Minidump {
             return None;
         }
         let r = &self.regions[i - 1];
-        (va >= r.base && va < r.base + r.size).then_some(r)
+        let end = r.base + r.size;
+        (va >= r.base && va < end).then_some(r)
     }
 
     fn seg(&self, va: u64) -> Option<Range> {
@@ -410,12 +624,12 @@ impl Minidump {
             return None;
         }
         let r = self.ranges[i - 1];
-        (va >= r.va && va < r.va + r.size).then_some(r)
+        let end = r.va + r.size;
+        (va >= r.va && va < end).then_some(r)
     }
 
     fn read_into(&mut self, off: u64, buf: &mut [u8]) -> Option<()> {
-        self.file.seek(SeekFrom::Start(off)).ok()?;
-        self.file.read_exact(buf).ok()?;
+        self.source.read_exact_at(off, buf).ok()?;
         Some(())
     }
 
@@ -429,9 +643,10 @@ impl Minidump {
             let r = self.seg(cur)?;
             let within = cur - r.va;
             let take = ((n - filled) as u64).min(r.size - within) as usize;
-            self.read_into(r.file_off + within, &mut out[filled..filled + take])?;
+            let source_off = r.file_off.checked_add(within)?;
+            self.read_into(source_off, &mut out[filled..filled + take])?;
             filled += take;
-            cur += take as u64;
+            cur = cur.checked_add(take as u64)?;
         }
         Some(out)
     }
@@ -548,8 +763,7 @@ impl Minidump {
             let len = r.size as usize;
             buf.clear();
             buf.resize(len, 0);
-            self.file.seek(SeekFrom::Start(r.file_off))?;
-            self.file.read_exact(&mut buf)?;
+            self.source.read_exact_at(r.file_off, &mut buf)?;
             for (pi, pat) in patterns.iter().enumerate() {
                 let n = pat.bytes.len();
                 if len < n {
@@ -594,8 +808,7 @@ impl Minidump {
             }
             buf.clear();
             buf.resize(len, 0);
-            self.file.seek(SeekFrom::Start(r.file_off))?;
-            self.file.read_exact(&mut buf)?;
+            self.source.read_exact_at(r.file_off, &mut buf)?;
             let last = len - n;
             let mut i = 0;
             while i <= last {
@@ -617,6 +830,96 @@ impl Minidump {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const TEST_MODULE_BASE: u64 = 0x1_4000_0000;
+
+    fn put_u32(bytes: &mut [u8], offset: usize, value: u32) {
+        bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn put_u64(bytes: &mut [u8], offset: usize, value: u64) {
+        bytes[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn test_minidump() -> Vec<u8> {
+        const STREAM_COUNT: usize = 3;
+        let mut bytes = vec![0; HEADER_SIZE + STREAM_COUNT * DIRECTORY_RECORD_SIZE];
+
+        let module_rva = bytes.len();
+        bytes.resize(module_rva + 4 + MODULE_RECORD_SIZE, 0);
+
+        let module_name: Vec<u8> = r"C:\game\nie.exe"
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        let module_name_rva = bytes.len();
+        bytes.extend_from_slice(&(module_name.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(&module_name);
+
+        let memory_list_rva = bytes.len();
+        bytes.resize(memory_list_rva + 32, 0);
+
+        let memory_info_rva = bytes.len();
+        bytes.resize(memory_info_rva + 16 + MEMORY_INFO_RECORD_SIZE, 0);
+
+        let captured = [0x00, 0xDE, 0xAD, 0xBE, 0xEF, 0x00];
+        let captured_rva = bytes.len();
+        bytes.extend_from_slice(&captured);
+
+        bytes[0..4].copy_from_slice(b"MDMP");
+        put_u32(&mut bytes, 8, STREAM_COUNT as u32);
+        put_u32(&mut bytes, 12, HEADER_SIZE as u32);
+
+        let module_directory = HEADER_SIZE;
+        put_u32(&mut bytes, module_directory, STREAM_MODULE_LIST);
+        put_u32(
+            &mut bytes,
+            module_directory + 4,
+            (4 + MODULE_RECORD_SIZE) as u32,
+        );
+        put_u32(&mut bytes, module_directory + 8, module_rva as u32);
+
+        let memory_directory = module_directory + DIRECTORY_RECORD_SIZE;
+        put_u32(&mut bytes, memory_directory, STREAM_MEMORY64_LIST);
+        put_u32(&mut bytes, memory_directory + 4, 32);
+        put_u32(&mut bytes, memory_directory + 8, memory_list_rva as u32);
+
+        let info_directory = memory_directory + DIRECTORY_RECORD_SIZE;
+        put_u32(&mut bytes, info_directory, STREAM_MEMORY_INFO_LIST);
+        put_u32(
+            &mut bytes,
+            info_directory + 4,
+            (16 + MEMORY_INFO_RECORD_SIZE) as u32,
+        );
+        put_u32(&mut bytes, info_directory + 8, memory_info_rva as u32);
+
+        put_u32(&mut bytes, module_rva, 1);
+        let module = module_rva + 4;
+        put_u64(&mut bytes, module, TEST_MODULE_BASE);
+        put_u32(&mut bytes, module + 8, 0x1000);
+        put_u32(&mut bytes, module + 20, module_name_rva as u32);
+
+        put_u64(&mut bytes, memory_list_rva, 1);
+        put_u64(&mut bytes, memory_list_rva + 8, captured_rva as u64);
+        put_u64(&mut bytes, memory_list_rva + 16, TEST_MODULE_BASE);
+        put_u64(&mut bytes, memory_list_rva + 24, captured.len() as u64);
+
+        put_u32(&mut bytes, memory_info_rva, 16);
+        put_u32(
+            &mut bytes,
+            memory_info_rva + 4,
+            MEMORY_INFO_RECORD_SIZE as u32,
+        );
+        put_u64(&mut bytes, memory_info_rva + 8, 1);
+        let region = memory_info_rva + 16;
+        put_u64(&mut bytes, region, TEST_MODULE_BASE);
+        put_u64(&mut bytes, region + 24, captured.len() as u64);
+        put_u32(&mut bytes, region + 32, MEM_COMMIT);
+        put_u32(&mut bytes, region + 36, PAGE_READWRITE);
+        put_u32(&mut bytes, region + 40, MEM_PRIVATE);
+
+        bytes
+    }
 
     #[test]
     fn parse_aob_with_wildcards() {
@@ -675,5 +978,70 @@ mod tests {
             ..r
         };
         assert!(!img.is_heap());
+    }
+
+    #[test]
+    fn parses_borrowed_bytes_and_reports_bounded_summary() {
+        let bytes = test_minidump();
+        let mut dump = Minidump::from_bytes(&bytes).unwrap();
+
+        assert_eq!(
+            dump.summary(),
+            DumpSummary {
+                module_count: 1,
+                range_count: 1,
+                region_count: 1,
+                mapped_bytes: 6,
+            }
+        );
+        assert_eq!(dump.module("NIE.EXE").unwrap().base, TEST_MODULE_BASE);
+        assert_eq!(
+            dump.read(TEST_MODULE_BASE + 1, 4).unwrap(),
+            [0xDE, 0xAD, 0xBE, 0xEF]
+        );
+        assert!(dump.region_of(TEST_MODULE_BASE).unwrap().is_heap());
+    }
+
+    #[test]
+    fn parses_owned_bytes_and_scans_captured_memory() {
+        let mut dump = Minidump::from_owned_bytes(test_minidump()).unwrap();
+        let hits = dump.scan(&Pattern::parse("DE AD ?? EF").unwrap()).unwrap();
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].va, TEST_MODULE_BASE + 1);
+        assert_eq!(hits[0].module.as_deref(), Some("nie.exe"));
+        assert_eq!(hits[0].rva, Some(1));
+        assert_eq!(hits[0].nie_static(), Some(NIE_IMAGE_BASE + 1));
+    }
+
+    #[test]
+    fn preserves_file_backed_open_api() {
+        let path =
+            std::env::temp_dir().join(format!("nie-dump-file-source-{}.dmp", std::process::id()));
+        std::fs::write(&path, test_minidump()).unwrap();
+
+        let result = Minidump::open(&path).map(|dump| dump.summary());
+        std::fs::remove_file(path).unwrap();
+
+        assert_eq!(result.unwrap().module_count, 1);
+    }
+
+    #[test]
+    fn rejects_untrusted_byte_ranges_without_panicking() {
+        let mut truncated_directory = test_minidump();
+        put_u32(&mut truncated_directory, 8, u32::MAX);
+        assert!(matches!(
+            Minidump::from_owned_bytes(truncated_directory),
+            Err(DumpError::Invalid("stream count exceeds safety limit"))
+        ));
+
+        let mut overflowing_range = test_minidump();
+        let memory_directory = HEADER_SIZE + DIRECTORY_RECORD_SIZE;
+        let memory_list_rva = u32le(&overflowing_range, memory_directory + 8) as usize;
+        put_u64(&mut overflowing_range, memory_list_rva + 24, u64::MAX);
+        assert!(matches!(
+            Minidump::from_owned_bytes(overflowing_range),
+            Err(DumpError::Invalid("virtual memory range overflow"))
+        ));
     }
 }

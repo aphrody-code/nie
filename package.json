@@ -1,9 +1,8 @@
 {
 	"name": "nie-monorepo",
 	"version": "0.5.11",
-	"description": "Monorepo Bun du d\u00e9p\u00f4t nie \u2014 biblioth\u00e8ques (packages/*) et applications (apps/*). Nomm\u00e9 `nie-monorepo` et non `nie` : ce dernier est le paquet FFI (packages/nie).",
-	"type": "module",
 	"private": true,
+	"description": "Bun workspace for nie libraries and applications; the `nie` name is reserved for the FFI package.",
 	"workspaces": {
 		"packages": [
 			"packages/*",
@@ -204,8 +203,21 @@
 			}
 		}
 	},
+	"type": "module",
 	"scripts": {
 		"build:ffi": "cargo build -p nie-ffi",
+		"measure:inacord-unification": "bun --bun scripts/validation/measure-inacord-unification.ts",
+		"measure:azalee-audit-parity": "bun --bun scripts/validation/measure-azalee-audit-parity.ts",
+		"measure:azalee-compare-parity": "bun --bun scripts/validation/measure-azalee-compare-parity.ts",
+		"measure:azalee-db-parity": "bun --bun scripts/validation/measure-azalee-db-parity.ts",
+		"measure:azalee-dialogue-parity": "bun --bun scripts/validation/measure-azalee-dialogue-parity.ts",
+		"measure:azalee-item-parity": "bun --bun scripts/validation/measure-azalee-item-parity.ts",
+		"measure:azalee-random-team-parity": "bun --bun scripts/validation/measure-azalee-random-team-parity.ts",
+		"measure:azalee-redis-parity": "bun --bun scripts/validation/measure-azalee-redis-parity.ts",
+		"measure:azalee-skill-parity": "bun --bun scripts/validation/measure-azalee-skill-parity.ts",
+		"measure:azalee-status-parity": "bun --bun scripts/validation/measure-azalee-status-parity.ts",
+		"measure:azalee-team-parity": "bun --bun scripts/validation/measure-azalee-team-parity.ts",
+		"measure:rust-web": "bun --bun scripts/validation/measure-rust-web-coverage.ts",
 		"build": "bun run --filter '*' build",
 		"test": "bun run --filter '*' test",
 		"typecheck": "bun run --filter '*' typecheck",
@@ -213,8 +225,10 @@
 		"lint:fix": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction --fix packages apps",
 		"docs:check": "bun run scripts/docs/check.ts"
 	},
-	"engines": {
-		"bun": ">=1.3.0"
+	"devDependencies": {
+		"@happy-dom/global-registrator": "^20.10.1",
+		"@types/pg": "catalog:",
+		"pg": "catalog:"
 	},
 	"overrides": {
 		"@aphrody-code/bxc": "npm:@aphrody/bxc@^0.9.6",
@@ -229,9 +243,7 @@
 		"@aphrody-code/zukan": "npm:@aphrody/zukan@^0.1.5",
 		"kysely": "0.28.17"
 	},
-	"devDependencies": {
-		"@happy-dom/global-registrator": "^20.10.1",
-		"@types/pg": "catalog:",
-		"pg": "catalog:"
+	"engines": {
+		"bun": ">=1.3.0"
 	}
 }

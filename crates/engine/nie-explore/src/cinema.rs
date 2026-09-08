@@ -28,7 +28,7 @@
 //! | `rubrique`, `langue`, `nom` | conventions de nommage du jeu ([`usm::rubrique_de`], [`usm::langue_de`]) |
 //! | `codec`, `largeur`, `images`, `cadence` | en-tête `VIDEO_HDRINFO` du conteneur |
 //! | `audio` | pistes portées par le conteneur — **2 films sur 97** |
-//! | `bande_son` | `anime_stream.acb`, résolue par [`crate::bande_son`] — 30 films |
+//! | `bande_son` | `anime_stream.acb`, résolue par [`crate::soundtrack`] — 30 films |
 //! | `gamedata` | `movie_playing_config` / `event_movie_config` |
 
 use std::collections::BTreeMap;
@@ -39,7 +39,7 @@ use nie_formats::vfs::Vfs;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::bande_son;
+use crate::soundtrack;
 
 /// Dossier VFS de référence des films.
 ///
@@ -89,8 +89,8 @@ pub struct BandeSon {
     pub confirme_par_hash: bool,
 }
 
-impl From<bande_son::PisteFilm> for BandeSon {
-    fn from(p: bande_son::PisteFilm) -> Self {
+impl From<soundtrack::PisteFilm> for BandeSon {
+    fn from(p: soundtrack::PisteFilm) -> Self {
         Self {
             cue: p.cue,
             awb_id: p.awb_id,
@@ -126,7 +126,7 @@ pub struct Gamedata {
     /// Identifiant de la légende associée.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub caption_id: Option<String>,
-    /// Nom de la musique — en réalité le CRC32 du nom du film (cf. [`crate::bande_son`]).
+    /// Nom de la musique — en réalité le CRC32 du nom du film (cf. [`crate::soundtrack`]).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bgm_name: Option<String>,
     /// Durée du fondu d'entrée, en secondes.
@@ -585,7 +585,7 @@ fn greffer(vfs: &Vfs, f: &mut Film, jointure: Option<&Jointure>) {
     }
     if f.audio.is_empty() {
         let bgm = f.gamedata.as_ref().and_then(Gamedata::bgm_hash);
-        f.bande_son = bande_son::piste_de_film(vfs, &f.nom, f.duree, bgm).map(BandeSon::from);
+        f.bande_son = soundtrack::piste_de_film(vfs, &f.nom, f.duree, bgm).map(BandeSon::from);
     }
 }
 
@@ -650,7 +650,7 @@ pub fn wav_bande_son(vfs: &Vfs, cache_dir: &Path, film: &Film) -> Result<Vec<u8>
         .bande_son
         .as_ref()
         .ok_or_else(|| format!("{} n'a aucune bande-son identifiable", film.nom))?;
-    bande_son::wav_de_la_cue(vfs, cache_dir, bs.awb_id)
+    soundtrack::wav_de_la_cue(vfs, cache_dir, bs.awb_id)
 }
 
 #[cfg(test)]
@@ -692,7 +692,7 @@ mod tests {
             bgm_name: Some("0xD0750D09".into()),
             ..Gamedata::default()
         };
-        assert_eq!(g.bgm_hash(), Some(bande_son::hash_de_cue("ev01_00050")));
+        assert_eq!(g.bgm_hash(), Some(soundtrack::hash_de_cue("ev01_00050")));
     }
 
     #[test]

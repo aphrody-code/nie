@@ -1,8 +1,8 @@
 //! Installation du serveur MCP `niers-game` dans la configuration d'un client MCP.
 //!
 //! L'explorateur et le serveur MCP forment une paire : le serveur pilote l'explorateur par le
-//! pont `@niers/bridge`, et c'est l'explorateur qui déclare le serveur à Claude Code / Claude
-//! Desktop depuis ses Paramètres — l'utilisatrice n'a pas à éditer un JSON à la main.
+//! serveur Rust natif, et c'est l'explorateur qui le déclare à Claude Code / Claude Desktop
+//! depuis ses Paramètres — l'utilisatrice n'a pas à éditer un JSON à la main.
 //!
 //! L'écriture est une **fusion** : les autres serveurs MCP déjà déclarés sont conservés, seule
 //! l'entrée `niers-game` est ajoutée ou remplacée. Le fichier existant est sauvegardé en `.bak`
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 /// Nom de l'entrée dans `mcpServers`.
 const SERVER_NAME: &str = "niers-game";
 
-/// Point d'entrée du serveur, relatif à la racine du repo.
-const ENTRYPOINT: &str = "apps/nie-mcp/src/index.ts";
+/// Manifest of the native server, relative to the repository root.
+const ENTRYPOINT: &str = "crates/tools/nie-mcp/Cargo.toml";
 
 /// Client MCP visé par l'installation.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, specta::Type)]
@@ -110,24 +110,44 @@ fn config_path(target: McpTarget) -> Result<PathBuf, String> {
 /// arbitraire — il lui faut des chemins absolus.
 fn server_entry(target: McpTarget, game_dir: Option<&str>) -> serde_json::Value {
     let root = repo_root();
-    let (entry, mut env) = match target {
-        McpTarget::ClaudeCode => (ENTRYPOINT.to_string(), serde_json::Map::new()),
+    let (args, mut env) = match target {
+        McpTarget::ClaudeCode => (
+            vec!["run", "--quiet", "--package", "nie-mcp", "--"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect::<Vec<_>>(),
+            serde_json::Map::new(),
+        ),
         McpTarget::ClaudeDesktop => {
             let mut env = serde_json::Map::new();
             env.insert(
                 "NIERS_REPO".to_string(),
                 serde_json::Value::String(root.display().to_string()),
             );
-            (root.join(ENTRYPOINT).display().to_string(), env)
+            (
+                vec![
+                    "run".to_owned(),
+                    "--quiet".to_owned(),
+                    "--manifest-path".to_owned(),
+                    root.join("Cargo.toml").display().to_string(),
+                    "--package".to_owned(),
+                    "nie-mcp".to_owned(),
+                    "--".to_owned(),
+                ],
+                env,
+            )
         }
     };
     if let Some(dir) = game_dir.map(str::trim).filter(|d| !d.is_empty()) {
-        env.insert("NIE_GAME_DIR".to_string(), serde_json::Value::String(dir.to_string()));
+        env.insert(
+            "NIE_GAME_DIR".to_string(),
+            serde_json::Value::String(dir.to_string()),
+        );
     }
     serde_json::json!({
         "type": "stdio",
-        "command": "bun",
-        "args": ["run", entry],
+        "command": "cargo",
+        "args": args,
         "env": serde_json::Value::Object(env),
     })
 }
@@ -141,7 +161,8 @@ pub fn mcp_status(target: McpTarget) -> Result<McpStatusDto, String> {
 
     let (config_exists, installed, current_command) = match std::fs::read_to_string(&path) {
         Ok(text) => {
-            let parsed: serde_json::Value = serde_json::from_str(&text).unwrap_or(serde_json::Value::Null);
+            let parsed: serde_json::Value =
+                serde_json::from_str(&text).unwrap_or(serde_json::Value::Null);
             let entry = parsed.get("mcpServers").and_then(|m| m.get(SERVER_NAME));
             let command = entry.map(|e| {
                 let cmd = e.get("command").and_then(|c| c.as_str()).unwrap_or("");
@@ -189,16 +210,16 @@ pub fn mcp_install(target: McpTarget, game_dir: Option<String>) -> Result<McpIns
     let backup_path = match &existing {
         Some(text) => {
             let bak = path.with_extension("json.bak");
-            std::fs::write(&bak, text).map_err(|e| format!("sauvegarde impossible ({}) : {e}", bak.display()))?;
+            std::fs::write(&bak, text)
+                .map_err(|e| format!("sauvegarde impossible ({}) : {e}", bak.display()))?;
             Some(bak.display().to_string())
         }
         None => None,
     };
 
     let mut root: serde_json::Value = match &existing {
-        Some(text) if !text.trim().is_empty() => {
-            serde_json::from_str(text).map_err(|e| format!("{} n'est pas un JSON valide : {e}", path.display()))?
-        }
+        Some(text) if !text.trim().is_empty() => serde_json::from_str(text)
+            .map_err(|e| format!("{} n'est pas un JSON valide : {e}", path.display()))?,
         _ => serde_json::json!({}),
     };
     if !root.is_object() {
@@ -221,10 +242,12 @@ pub fn mcp_install(target: McpTarget, game_dir: Option<String>) -> Result<McpIns
     );
 
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("création de {} impossible : {e}", parent.display()))?;
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("création de {} impossible : {e}", parent.display()))?;
     }
     let rendered = serde_json::to_string_pretty(&root).map_err(|e| e.to_string())?;
-    std::fs::write(&path, format!("{rendered}\n")).map_err(|e| format!("écriture de {} impossible : {e}", path.display()))?;
+    std::fs::write(&path, format!("{rendered}\n"))
+        .map_err(|e| format!("écriture de {} impossible : {e}", path.display()))?;
 
     Ok(McpInstallDto {
         config_path: path.display().to_string(),
@@ -238,11 +261,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn l_entree_claude_code_reste_relative() {
+    fn claude_code_uses_the_workspace_native_binary() {
         let entry = server_entry(McpTarget::ClaudeCode, None);
         let args = entry["args"].as_array().expect("args");
-        assert_eq!(args[1].as_str(), Some(ENTRYPOINT));
-        assert_eq!(entry["command"].as_str(), Some("bun"));
+        assert_eq!(args[3].as_str(), Some("nie-mcp"));
+        assert_eq!(entry["command"].as_str(), Some("cargo"));
+        assert!(entry["env"].get("NIERS_REPO").is_none());
+    }
+
+    #[test]
+    fn claude_desktop_uses_an_absolute_workspace_manifest() {
+        let entry = server_entry(McpTarget::ClaudeDesktop, None);
+        let args = entry["args"].as_array().expect("args");
+        let manifest_index = args
+            .iter()
+            .position(|argument| argument.as_str() == Some("--manifest-path"))
+            .expect("manifest argument");
+        let manifest = args[manifest_index + 1].as_str().expect("manifest path");
+        assert!(std::path::Path::new(manifest).is_absolute());
+        assert!(manifest.ends_with("Cargo.toml"));
+        assert_eq!(entry["command"].as_str(), Some("cargo"));
     }
 
     #[test]

@@ -96,7 +96,7 @@ rg -o '\.from\("([a-z_]+)"' -r '$1' packages/azalee/src/<f> | sort -u
 | `wiki/shops.ts` | `inagle_shops`, `inagle_items` | — |
 | `wiki/quests.ts` / `trophies.ts` / `stadiums.ts` / `invocation.ts` | `inagle_quests` / `inagle_trophies` / `inagle_stadiums` / `inagle_constellations` | `stadiums.ts` et `invocation.ts` tapent aussi le CDN en dur |
 | `wiki/chara-stats.ts` | — | `https://cdn.rosegriffon.fr/cfg` (fichier du jeu) |
-| `cpk/live.ts`, `cpk/audio.ts`, `cpk/models.ts`, `cpk/shared.ts` | — | HTTP, chemins construits par **`@niers/catalog/jeu`** (les seuls du paquet à le faire) |
+| `cpk/live.ts`, `cpk/audio.ts`, `cpk/models.ts`, `cpk/shared.ts` | — | HTTP, chemins construits par **`@niers/catalog/game`** (les seuls du paquet à le faire) |
 | `cross/data.ts` | — | 6 JSON de `src/data/cross/` |
 | `rag.ts` | — | `@rosegriffon/db/redis` (embeddings + vector store) |
 | `game/roster-resolver.ts` | — | `fetch("/api/save/resolve-roster")` — une route d'`apps/azalee` |
@@ -225,11 +225,11 @@ Aucun n'évoque un personnage, une technique ou un objet. Ses consommateurs
 
 | Gisement | Module | Fonctions publiques | Support |
 |---|---|---|---|
-| `jeu` | `src/jeu.ts` (757 l) | **52 constructeurs d'URL/chemin** (`cheminFiche`, `cheminTexture`, `cheminModeleComplet`, `urlExport`…), `jeuJoignable`, 5 formateurs, 8 DTO (`FilmDto`, `AudioBank`…) | HTTP vers `nie-model-serve` |
-| `extrait` | `src/extrait.ts` (168 l) | `tables`, `requete`, `ligne`, `personnage`, `chercherPersonnages`, `technique`, `assets` | `var/mirror.sqlite` en lecture seule |
+| `game` (`jeu` compatible) | `src/game.ts` (757 l) | **52 constructeurs d'URL/chemin** (`cheminFiche`, `cheminTexture`, `cheminModeleComplet`, `urlExport`…), `jeuJoignable`, 5 formateurs, 8 DTO (`FilmDto`, `AudioBank`…) | HTTP vers `nie-model-serve` |
+| `excerpt` | `src/excerpt.ts` (168 l) | `tables`, `requete`, `ligne`, `personnage`, `chercherPersonnages`, `technique`, `assets` | `var/mirror.sqlite` en lecture seule |
 | `re` | `src/re.ts` (134 l) | `fonctions`, `fonctionA`, `fonctionsCitant`, `classes`, `couverture`, `BINAIRE_REFERENCE` | `var/niers.sqlite` |
 | `anime` | `src/anime.ts` (130 l) | `episode`, `saison`, `chercherEpisodes`, `etatAnime` | `data/anime/episodes.db` |
-| **jointures** | `src/synergie.ts` (282 l) | `fichiersDe`, `personnage`, `personnageComplet`, `film`, `technique`, `chercher` — chaque lien porte sa `Confiance` (`cle`/`prefixe`/`texte`) | les quatre |
+| **jointures** | `src/synergy.ts` (282 l) | `fichiersDe`, `personnage`, `personnageComplet`, `film`, `technique`, `chercher` — chaque lien porte sa `Confiance` (`cle`/`prefixe`/`texte`) | les quatre |
 | résolution | `src/sources.ts` (153 l) | `sources`, `racineDepot`, `oublierSources` — chaque source rend `emplacement: null` **et** la liste de ce qui a été essayé | — |
 | état | `src/index.ts` | `etat()` — **mesure le contenu**, pas l'existence du fichier | — |
 
@@ -258,7 +258,7 @@ CLAUDE.md interdit de « rouvrir une de ces bases à la main ».
 | Forme | Compte | Où |
 |---|---:|---|
 | **Ouverture directe d'un SQLite dans `apps/azalee`** | **0** | le wiki ne touche aucun fichier de base — le lot J2 a réussi |
-| Ouvertures directes ailleurs dans le dépôt | **7 paquets** | `packages/mcp/src/{resources.ts:120,171, tools/db.ts:68}`, `apps/nie-mcp/src/kb.ts:62`, `packages/ietv/src/cache.ts:123`, `packages/wonderbot/src/progression.ts:335`, `apps/nie-web/src/legacy/app/api/ietv/route.ts:70`, `packages/inagle/src/core/cfgbin-db.ts` |
+| Ouvertures directes ailleurs dans le dépôt | **4 paquets** | `packages/mcp/src/{resources.ts:120,171, tools/db.ts:68}`, `packages/ietv/src/cache.ts:123`, `packages/wonderbot/src/progression.ts:335`, `packages/inagle/src/core/cfgbin-db.ts` — chemins revérifiés le 2026-09-07 avec `test -f` |
 | **`.from("inagle_…")` en direct dans une page ou une action du wiki** | **71 occurrences, 17 fichiers** | contournement de `wikiService`, pas de la façade |
 
 Détail des 71 (`rg -o '\.from\("inagle_[a-z_]+"' apps/azalee | cut -d: -f1 | sort | uniq -c`) :
@@ -279,13 +279,13 @@ quatrième chemin. Deux façades — `wikiService` et `catalogue` — pour un se
 
 ### 3.4 La duplication d'URL, chiffrée
 
-`packages/nie-catalog/src/jeu.ts` expose **52** constructeurs de chemin/URL et est le seul endroit
+`packages/nie-catalog/src/game.ts` expose **52** constructeurs de chemin/URL et est le seul endroit
 qui connaît `BASE_JEU_DEFAUT`. En parallèle, `packages/azalee/src/images/utils.ts` exporte
 **42 symboles** dont `CDN_URL` (`:131`, lu de `NEXT_PUBLIC_ASSET_URL`) et une trentaine de
 constructeurs (`getCharacterFaceUrl`, `getSkillImageUrl`, `getKeshinModelGlbUrl`, …), et trois
 modules de `wiki/` écrivent `https://cdn.rosegriffon.fr/...` **en dur**
 (`stadiums.ts`, `service.ts`, `invocation.ts`, plus `text/gaiji.ts` et `images/utils.ts`).
-Les mêmes conventions d'URL sont donc écrites **trois fois** : `@niers/catalog/jeu`,
+Les mêmes conventions d'URL sont donc écrites **trois fois** : `@niers/catalog/game`,
 `azalee/images/utils.ts`, et à la main dans `wiki/*`.
 
 ---
@@ -391,7 +391,7 @@ donnée existe déjà dans un gisement joignable (le miroir, ou le VFS). Les com
 | `/api/v1/texte/{langue}/{cle}` | le texte du jeu traduit, gaiji **résolus** | `text/translations.ts`, `aura-translations.ts`, `format-description.ts`, `text/gaiji.ts` | `nie-data/src/text.rs` (`split_markup`) + `common/text/` (44 241 fichiers) |
 | `/api/v1/boutiques`, `/quetes`, `/trophees`, `/stades`, `/gacha`, `/drops`, `/coachs` | les sept familles sans aucune route | `wiki/{shops,quests,trophies,stadiums,gacha,drops,coaches}.ts` (~20 fn) | 2 331 / 182 / 347 / 81 / 740+577 / 98+177 / 102+80 lignes |
 | `/api/v1/recherche/entites` | recherche **dans les données**, pas dans les chemins du VFS | `search/smart-search.ts` (mort), `app/actions/search.ts` (6 tables en direct) | miroir |
-| `/api/v1/assets/urls` (ou un manifeste de conventions) | la table des conventions d'URL, **une seule fois** | les 3 copies du § 3.4 | `@niers/catalog/jeu` fait déjà autorité |
+| `/api/v1/assets/urls` (ou un manifeste de conventions) | la table des conventions d'URL, **une seule fois** | les 3 copies du § 3.4 | `@niers/catalog/game` fait déjà autorité |
 
 ### 5.3 Ce qu'il ne faut PAS router
 

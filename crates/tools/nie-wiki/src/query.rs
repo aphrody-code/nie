@@ -7,16 +7,19 @@
 //! - vues `*_clean` émulées par `GROUP BY name_fr`
 //! - lookup d'auras dans keshins/souls/miximax avec prefixe et hex normalisé
 
+use std::{path::Path, process::Command, time::Instant};
+
 use rusqlite::Connection;
 use serde_json::Value;
 
 use crate::{
     mirror::{merge_data_sheet, query_one, query_rows},
     model::{
-        AuditReport, AuditTable, AuraSummary, CharaCompareSlot, CharaProfile, CharaSummary,
-        CompareResult, CompareSkillSlot, DialogueMatch, ItemProfile, RandomTeam, RandomTeamCoord,
-        RandomTeamPlayer, RedisStatus, SearchResult, SkillProfile, SkillSlot, SqliteStatus,
-        StatBlock, StatusReport, TeamBuildEntry, TeamProfile,
+        AuditReport, AuraSummary, CharaCompareSlot, CharaProfile, CharaSummary, CharacterAudit,
+        CompareResult, CompareSkillSlot, DialogueMatch, DialogueText, GitStatus, ItemProfile,
+        ProcessMemoryStatus, ProcessStatus, RandomTeam, RandomTeamCoord, RandomTeamPlayer,
+        RedisStatus, SearchResult, SkillAudit, SkillProfile, SkillSlot, SqliteStatus, StatBlock,
+        StatusReport, SystemStatus, TeamBuildEntry, TeamProfile,
     },
 };
 
@@ -136,6 +139,10 @@ pub fn get_character(conn: &Connection, id: &str) -> anyhow::Result<Option<Chara
         return Ok(None);
     };
 
+    let source_data = data
+        .as_deref()
+        .and_then(|json| serde_json::from_str::<Value>(json).ok())
+        .unwrap_or_else(|| Value::Object(Default::default()));
     let merged = merge_data_sheet(data.as_deref(), sheet_data.as_deref());
 
     // Résoudre le nom de l'équipe depuis data.teams[0].names.fr
@@ -153,11 +160,15 @@ pub fn get_character(conn: &Connection, id: &str) -> anyhow::Result<Option<Chara
         .map(str::to_string)
         .or_else(|| team_id.clone());
 
-    // Stats depuis data.stats
-    let (stats_lv1, stats_lv50, stats_lv99) = extract_stats_from_merged(&merged);
-
-    // Skills depuis data.skills
-    let skills = extract_skills_from_merged(&merged);
+    // Variant curves and movesets come from the game data. `sheet_data` enriches
+    // presentation fields but must not replace these canonical gameplay arrays.
+    let gameplay = if source_data.get("stats").is_some() || source_data.get("skills").is_some() {
+        &source_data
+    } else {
+        &merged
+    };
+    let (stats_lv1, stats_lv30, stats_lv50, stats_lv99) = extract_stats_from_merged(gameplay);
+    let skills = extract_skills_from_merged(gameplay);
 
     // Auras du personnage (keshin/soul/miximax)
     let auras = get_auras_for_character(conn, &chara_id, &db_id, &merged)?;
@@ -181,6 +192,7 @@ pub fn get_character(conn: &Connection, id: &str) -> anyhow::Result<Option<Chara
         series,
         zukan_hash,
         stats_lv1,
+        stats_lv30,
         stats_lv50,
         stats_lv99,
         skills,
@@ -192,10 +204,18 @@ pub fn get_character(conn: &Connection, id: &str) -> anyhow::Result<Option<Chara
 /// Extrait les blocs de stats lv1/lv50/lv99 depuis le JSON fusionné.
 fn extract_stats_from_merged(
     merged: &Value,
-) -> (Option<StatBlock>, Option<StatBlock>, Option<StatBlock>) {
+) -> (
+    Option<StatBlock>,
+    Option<StatBlock>,
+    Option<StatBlock>,
+    Option<StatBlock>,
+) {
     let stats_obj = merged.get("stats");
     let lv1 = stats_obj
         .and_then(|s| s.get("lv1"))
+        .and_then(StatBlock::from_json);
+    let lv30 = stats_obj
+        .and_then(|s| s.get("lv30"))
         .and_then(StatBlock::from_json);
     let lv50 = stats_obj
         .and_then(|s| s.get("lv50"))
@@ -203,7 +223,7 @@ fn extract_stats_from_merged(
     let lv99 = stats_obj
         .and_then(|s| s.get("lv99"))
         .and_then(StatBlock::from_json);
-    (lv1, lv50, lv99)
+    (lv1, lv30, lv50, lv99)
 }
 
 /// Extrait les slots de skills depuis le JSON fusionné (data.skills).
@@ -252,6 +272,39 @@ pub fn interpolate_stats(lv1: StatBlock, lv50: StatBlock, lv99: StatBlock, level
     // Segment 2 : lv50 → lv99
     let t = f64::from(level - 50) / 49.0;
     lv50.lerp(lv99, t)
+}
+
+/// Reproduce Azalee's variant interpolation, including its partial-curve fallback.
+pub fn interpolate_stat_curve(
+    lv1: Option<StatBlock>,
+    lv30: Option<StatBlock>,
+    lv50: Option<StatBlock>,
+    lv99: Option<StatBlock>,
+    level: u8,
+) -> StatBlock {
+    let end = lv99.unwrap_or_default();
+    if level >= 99 {
+        return end;
+    }
+    if level <= 1
+        && let Some(start) = lv1
+    {
+        return start;
+    }
+
+    let (Some(start), Some(mid30), Some(mid50)) = (lv1, lv30, lv50) else {
+        let start = lv1.unwrap_or(end);
+        let t = f64::from(level.saturating_sub(1)) / 98.0;
+        return start.lerp(end, t);
+    };
+
+    if level <= 30 {
+        return start.lerp(mid30, f64::from(level.saturating_sub(1)) / 29.0);
+    }
+    if level <= 50 {
+        return mid30.lerp(mid50, f64::from(level - 30) / 20.0);
+    }
+    mid50.lerp(end, f64::from(level - 50) / 49.0)
 }
 
 /// Recherche les auras (keshins/souls/miximax) associées à un personnage.
@@ -477,6 +530,94 @@ fn skill_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillProfile> {
     })
 }
 
+/// Resolve main, passive and aura skills using the exact legacy precedence and result shapes.
+pub fn lookup_skill_legacy(
+    data_root: &std::path::Path,
+    query: &str,
+) -> anyhow::Result<serde_json::Value> {
+    let load = |name: &str| -> anyhow::Result<Vec<Value>> {
+        let path = data_root.join("all-gamedata").join(name);
+        let bytes = std::fs::read(&path)
+            .map_err(|e| anyhow::anyhow!("skill corpus {} not found: {e}", path.display()))?;
+        serde_json::from_slice(&bytes)
+            .map_err(|e| anyhow::anyhow!("invalid skill corpus {}: {e}", path.display()))
+    };
+    let main = load("skills.json")?;
+    let passives = load("passives.json")?;
+    let auras = load("auras.json")?;
+    Ok(lookup_skill_values(&main, &passives, &auras, query))
+}
+
+fn lookup_skill_values(main: &[Value], passives: &[Value], auras: &[Value], query: &str) -> Value {
+    let exact = |values: &[Value], fields: &[&str]| {
+        values
+            .iter()
+            .find(|value| {
+                fields
+                    .iter()
+                    .any(|field| value.get(field).and_then(Value::as_str) == Some(query))
+            })
+            .cloned()
+    };
+    if let Some(value) = exact(main, &["skillIDStr", "skillID"])
+        .or_else(|| exact(passives, &["passiveId", "passiveIdStr"]))
+        .or_else(|| exact(auras, &["auraId", "auraIdStr"]))
+    {
+        return value;
+    }
+
+    let query = query.to_lowercase();
+    let mut matches = main
+        .iter()
+        .filter(|skill| {
+            ["name_EN", "name_JA", "name_FR"].into_iter().any(|field| {
+                skill
+                    .get(field)
+                    .and_then(Value::as_str)
+                    .is_some_and(|name| name.to_lowercase().contains(&query))
+            })
+        })
+        .take(5)
+        .map(|skill| {
+            let mut skill = skill.clone();
+            skill["skillType"] = Value::String("main".to_string());
+            skill
+        })
+        .collect::<Vec<_>>();
+    matches.extend(
+        auras
+            .iter()
+            .filter(|aura| {
+                ["displayName", "name_FR", "desc_FR"]
+                    .into_iter()
+                    .any(|field| {
+                        aura.get(field)
+                            .and_then(Value::as_str)
+                            .is_some_and(|name| name.to_lowercase().contains(&query))
+                    })
+            })
+            .take(5)
+            .map(|aura| {
+                let mut aura = aura.clone();
+                aura["skillType"] = Value::String("aura".to_string());
+                if aura.get("displayName").is_none() {
+                    aura["displayName"] = aura
+                        .get("name_FR")
+                        .or_else(|| aura.get("name_EN"))
+                        .cloned()
+                        .unwrap_or(Value::Null);
+                }
+                aura
+            }),
+    );
+
+    match matches.as_slice() {
+        [] => Value::Array(Vec::new()),
+        [skill] => skill.clone(),
+        _ => Value::Array(matches),
+    }
+}
+
 // ─── Item ────────────────────────────────────────────────────────────────────
 
 /// Recherche des items par ID ou nom.
@@ -564,6 +705,58 @@ fn item_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<ItemProfile> {
         shops,
         merged,
     })
+}
+
+/// Resolve an item exactly as the legacy command does from the enriched mirror payload.
+///
+/// An exact `itemId` returns the complete object. A name search returns that object when unique,
+/// the legacy `{id,name}` selection list when ambiguous, or an empty array when absent.
+pub fn lookup_item_legacy(conn: &Connection, query: &str) -> anyhow::Result<serde_json::Value> {
+    let exact = query_one(
+        conn,
+        "SELECT COALESCE(data, sheet_data) FROM inagle_items WHERE id = ?1 LIMIT 1",
+        &[&query as &dyn rusqlite::ToSql],
+        |row| row.get::<_, String>(0),
+    )?;
+    if let Some(serialized) = exact {
+        return serde_json::from_str(&serialized)
+            .map_err(|e| anyhow::anyhow!("invalid enriched item payload: {e}"));
+    }
+
+    let pattern = format!("%{}%", query.to_lowercase());
+    let matches = query_rows(
+        conn,
+        "SELECT COALESCE(data, sheet_data) FROM inagle_items
+         WHERE LOWER(name_en) LIKE ?1 OR LOWER(name_ja) LIKE ?1 OR LOWER(name_fr) LIKE ?1
+         LIMIT 15",
+        &[&pattern as &dyn rusqlite::ToSql],
+        |row| row.get::<_, String>(0),
+    )?
+    .into_iter()
+    .map(|serialized| {
+        serde_json::from_str::<Value>(&serialized)
+            .map_err(|e| anyhow::anyhow!("invalid enriched item payload: {e}"))
+    })
+    .collect::<anyhow::Result<Vec<_>>>()?;
+
+    match matches.as_slice() {
+        [] => Ok(Value::Array(Vec::new())),
+        [item] => Ok(item.clone()),
+        items => Ok(Value::Array(
+            items
+                .iter()
+                .map(|item| {
+                    let id = item.get("itemId").cloned().unwrap_or(Value::Null);
+                    let name = item
+                        .pointer("/names/fr")
+                        .or_else(|| item.get("name"))
+                        .cloned()
+                        .unwrap_or(Value::Null);
+                    serde_json::json!({ "id": id, "name": name })
+                })
+                .collect(),
+        )),
+    }
 }
 
 fn parse_shops(shops_col: Option<&str>, merged: &Value) -> Vec<String> {
@@ -691,6 +884,76 @@ fn team_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<TeamProfile> {
     })
 }
 
+/// Resolve a team with the exact legacy JSON result shapes and canonical source order.
+pub fn lookup_team_legacy(
+    conn: &Connection,
+    corpus_path: &std::path::Path,
+    query: &str,
+) -> anyhow::Result<serde_json::Value> {
+    let bytes = std::fs::read(corpus_path)
+        .map_err(|e| anyhow::anyhow!("canonical team corpus not found: {e}"))?;
+    let corpus: Vec<Value> = serde_json::from_slice(&bytes)
+        .map_err(|e| anyhow::anyhow!("invalid canonical team corpus: {e}"))?;
+    let payloads = query_rows(
+        conn,
+        "SELECT id, COALESCE(data, sheet_data) FROM inagle_teams",
+        &[],
+        |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+    )?
+    .into_iter()
+    .collect::<std::collections::HashMap<_, _>>();
+    let teams = corpus
+        .iter()
+        .filter_map(|team| team.get("teamId").and_then(Value::as_str))
+        .filter_map(|id| payloads.get(id))
+        .map(|serialized| {
+            serde_json::from_str::<Value>(serialized)
+                .map_err(|e| anyhow::anyhow!("invalid enriched team payload: {e}"))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(lookup_team_values(&teams, query))
+}
+
+fn lookup_team_values(teams: &[Value], query: &str) -> Value {
+    if let Some(team) = teams
+        .iter()
+        .find(|team| team.get("teamId").and_then(Value::as_str) == Some(query))
+    {
+        return team.clone();
+    }
+
+    let lowercase_query = query.to_lowercase();
+    let matches = teams
+        .iter()
+        .filter(|team| {
+            ["name", "displayName", "name_EN"].into_iter().any(|field| {
+                team.get(field)
+                    .and_then(Value::as_str)
+                    .is_some_and(|name| name.to_lowercase().contains(&lowercase_query))
+            }) || team
+                .get("name_JA")
+                .and_then(Value::as_str)
+                .is_some_and(|name| name.contains(query))
+        })
+        .collect::<Vec<_>>();
+
+    match matches.as_slice() {
+        [] => Value::Array(Vec::new()),
+        [team] => (*team).clone(),
+        teams => Value::Array(
+            teams
+                .iter()
+                .map(|team| {
+                    serde_json::json!({
+                        "id": team.get("teamId").cloned().unwrap_or(Value::Null),
+                        "name": team.get("name").cloned().unwrap_or(Value::Null),
+                    })
+                })
+                .collect(),
+        ),
+    }
+}
+
 // ─── Résolution nom de skill ──────────────────────────────────────────────────
 
 /// Retourne le nom FR d'un skill depuis son ID (internal_code) ou son hex skillID.
@@ -720,13 +983,13 @@ pub fn skill_name_by_id(conn: &Connection, skill_id: &str) -> String {
         return name;
     }
 
-    // Essai 2 : recherche dans data->>'skillID' (hex hash de l'inagle_skills)
-    // Les IDs de skills dans les persos sont des hex 0xXXXXXXXX stockés en JSON.
-    let like_pattern = format!("%\"skillID\":\"{}\",%", q);
+    // Second pass: resolve the game hash stored in the JSON payload. Using
+    // json_extract avoids depending on whitespace or property order.
     let via_data = query_one(
         conn,
-        "SELECT name_fr, name_en FROM inagle_skills WHERE data LIKE ?1 LIMIT 1",
-        &[&like_pattern as &dyn rusqlite::ToSql],
+        "SELECT name_fr, name_en FROM inagle_skills \
+         WHERE UPPER(json_extract(data, '$.skillID')) = UPPER(?1) LIMIT 1",
+        &[&q as &dyn rusqlite::ToSql],
         |row| {
             Ok((
                 row.get::<_, Option<String>>(0)?,
@@ -749,40 +1012,26 @@ pub fn skill_name_by_id(conn: &Connection, skill_id: &str) -> String {
 /// résout les skills via `skill_name_by_id`.
 pub fn compare_characters(
     conn: &Connection,
+    data_root: &Path,
     query1: &str,
     query2: &str,
     level: u8,
 ) -> anyhow::Result<CompareResult> {
-    let m1 = search_characters(conn, query1)?;
-    let m2 = search_characters(conn, query2)?;
+    let raw_variants = load_compare_variants(data_root)?;
+    let raw_bases = load_compare_bases(data_root)?;
+    let skill_values = load_compare_skills(data_root)?;
+    let aura_ids = load_compare_aura_ids(data_root)?;
+    let base1 = find_compare_base(&raw_variants, &raw_bases, query1)
+        .ok_or_else(|| anyhow::anyhow!("aucun personnage trouvé pour : \"{query1}\""))?;
+    let base2 = find_compare_base(&raw_variants, &raw_bases, query2)
+        .ok_or_else(|| anyhow::anyhow!("aucun personnage trouvé pour : \"{query2}\""))?;
 
-    anyhow::ensure!(
-        !m1.is_empty(),
-        "aucun personnage trouvé pour : \"{}\"",
-        query1
-    );
-    anyhow::ensure!(
-        !m2.is_empty(),
-        "aucun personnage trouvé pour : \"{}\"",
-        query2
-    );
-
-    let p1 = get_character(conn, &m1[0].id)?
-        .ok_or_else(|| anyhow::anyhow!("profil introuvable pour {}", m1[0].id))?;
-    let p2 = get_character(conn, &m2[0].id)?
-        .ok_or_else(|| anyhow::anyhow!("profil introuvable pour {}", m2[0].id))?;
+    let p1 = select_compare_variant(conn, &raw_variants, &raw_bases, &aura_ids, base1, query1)?;
+    let p2 = select_compare_variant(conn, &raw_variants, &raw_bases, &aura_ids, base2, query2)?;
 
     let slot = |p: &CharaProfile| -> CharaCompareSlot {
-        let stats = match (p.stats_lv1, p.stats_lv50, p.stats_lv99) {
-            (Some(s1), Some(s50), Some(s99)) => interpolate_stats(s1, s50, s99, level),
-            (Some(s1), _, Some(s99)) => {
-                // 2 points → segment linéaire lv1→lv99
-                let t = f64::from(level.saturating_sub(1)) / 98.0;
-                s1.lerp(s99, t)
-            }
-            (_, _, Some(s99)) => s99,
-            _ => StatBlock::default(),
-        };
+        let stats =
+            interpolate_stat_curve(p.stats_lv1, p.stats_lv30, p.stats_lv50, p.stats_lv99, level);
 
         let name = p
             .name_fr
@@ -795,31 +1044,42 @@ pub fn compare_characters(
             .skills
             .iter()
             .map(|sk| {
-                let n = skill_name_by_id(conn, &sk.skill_id);
-                // Récupère power_max depuis la table skills
-                let power = conn
-                    .query_row(
-                        "SELECT power_max FROM inagle_skills WHERE id = ?1 OR internal_code = ?1 LIMIT 1",
-                        rusqlite::params![&sk.skill_id],
-                        |row| row.get::<_, Option<i64>>(0),
-                    )
-                    .ok()
-                    .flatten();
+                let details = skill_values.iter().find(|value| {
+                    ["skillID", "skillIDStr"].into_iter().any(|field| {
+                        value.get(field).and_then(Value::as_str) == Some(sk.skill_id.as_str())
+                    })
+                });
                 CompareSkillSlot {
                     learn_level: sk.learn_level,
                     skill_id: sk.skill_id.clone(),
-                    name: n,
-                    power,
+                    name: details
+                        .and_then(compare_skill_name)
+                        .unwrap_or_else(|| sk.skill_id.clone()),
+                    power: details.and_then(|value| {
+                        value
+                            .get("power_max")
+                            .or_else(|| value.get("power"))
+                            .and_then(Value::as_i64)
+                    }),
+                    cost: details.and_then(|value| {
+                        value
+                            .get("cost")
+                            .or_else(|| value.get("tp"))
+                            .and_then(Value::as_i64)
+                    }),
+                    element: details.and_then(|value| compare_localized_name(value, "elementName")),
+                    category: details
+                        .and_then(|value| compare_localized_name(value, "categoryName")),
                 }
             })
             .collect();
 
         CharaCompareSlot {
-            id: p.id.clone(),
+            id: p.chara_id.clone(),
             chara_id: p.chara_id.clone(),
             name,
-            position: p.position.clone(),
-            element: p.element.clone(),
+            position: p.position.as_deref().map(compare_position_code),
+            element: p.element.as_deref().map(compare_element_name),
             rarity: p.rarity_label.clone(),
             stats,
             skills,
@@ -831,6 +1091,418 @@ pub fn compare_characters(
         chara1: slot(&p1),
         chara2: slot(&p2),
     })
+}
+
+fn select_compare_variant(
+    conn: &Connection,
+    raw_variants: &[RawCompareVariant],
+    raw_bases: &[RawCompareBase],
+    aura_ids: &std::collections::HashSet<String>,
+    base: &RawCompareBase,
+    query: &str,
+) -> anyhow::Result<CharaProfile> {
+    let base_name = compare_base_name(base);
+    let mut variants = raw_variants
+        .iter()
+        .filter(|variant| {
+            raw_bases
+                .iter()
+                .find(|candidate| candidate.id.eq_ignore_ascii_case(&variant.base_id))
+                .is_some_and(|candidate| compare_base_name(candidate) == base_name)
+        })
+        .collect::<Vec<_>>();
+    variants.sort_by_key(|variant| {
+        let order = conn
+            .query_row(
+                "SELECT COALESCE(zukan_order, 999999) FROM inagle_characters WHERE id = ?1",
+                [&variant.param_id],
+                |row| row.get::<_, u64>(0),
+            )
+            .unwrap_or(999_999);
+        (
+            order,
+            u64::from_str_radix(variant.param_id.trim_start_matches("0x"), 16)
+                .map(|value| value as u32 as i32)
+                .unwrap_or_default(),
+        )
+    });
+    let first_variant = variants
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("raw variant unavailable for {query}"))?;
+    let mut profile = get_character(conn, &first_variant.param_id)?
+        .ok_or_else(|| anyhow::anyhow!("mirror variant unavailable for {query}"))?;
+    profile.chara_id.clone_from(&base.id);
+    profile.name_fr.clone_from(&base.name_fr);
+    profile.name_en.clone_from(&base.name_en);
+    profile.name_ja.clone_from(&base.name_ja);
+    profile.skills = variants
+        .iter()
+        .map(|variant| compare_playable_skills(&variant.skills, aura_ids))
+        .find(|skills| !skills.is_empty())
+        .unwrap_or_default();
+    Ok(profile)
+}
+
+fn compare_base_name(base: &RawCompareBase) -> &str {
+    base.name_fr
+        .as_deref()
+        .or(base.name_en.as_deref())
+        .or(base.name_ja.as_deref())
+        .unwrap_or(&base.id)
+}
+
+#[derive(Debug)]
+struct RawCompareVariant {
+    base_id: String,
+    param_id: String,
+    skills: Vec<SkillSlot>,
+}
+
+#[derive(Debug)]
+struct RawCompareBase {
+    id: String,
+    internal_code: String,
+    name_fr: Option<String>,
+    name_en: Option<String>,
+    name_ja: Option<String>,
+    slug: String,
+}
+
+fn find_compare_base<'a>(
+    variants: &[RawCompareVariant],
+    bases: &'a [RawCompareBase],
+    query: &str,
+) -> Option<&'a RawCompareBase> {
+    let query = query.trim().to_lowercase();
+    let mut ordered = variants.iter().filter_map(|variant| {
+        bases
+            .iter()
+            .find(|base| base.id.eq_ignore_ascii_case(&variant.base_id))
+    });
+    let exact = ordered.clone().find(|base| {
+        base.id.to_lowercase() == query
+            || base.internal_code.to_lowercase() == query
+            || base.slug.to_lowercase() == query
+            || [&base.name_fr, &base.name_en]
+                .into_iter()
+                .flatten()
+                .any(|name| name.to_lowercase() == query)
+    });
+    exact.or_else(|| {
+        ordered.find(|base| {
+            [&base.name_fr, &base.name_en, &base.name_ja]
+                .into_iter()
+                .flatten()
+                .any(|name| name.to_lowercase().contains(&query))
+                || base.slug.to_lowercase().contains(&query)
+        })
+    })
+}
+
+fn load_compare_bases(data_root: &Path) -> anyhow::Result<Vec<RawCompareBase>> {
+    let character_dir = data_root.join("common/gamedata/character");
+    let path = versioned_config(&character_dir, "chara_base_")?;
+    let root: Value = serde_json::from_slice(&std::fs::read(path)?)?;
+    let names_fr = load_compare_names(data_root, "fr")?;
+    let names_en = load_compare_names(data_root, "en")?;
+    let names_ja = load_compare_names(data_root, "ja")?;
+    let mut raw = Vec::new();
+    collect_compare_bases(&root, &mut raw);
+    Ok(raw
+        .into_iter()
+        .map(|(id, internal_code, name_hash)| {
+            let name_fr = names_fr.get(&name_hash).cloned();
+            let name_en = names_en.get(&name_hash).cloned();
+            let name_ja = names_ja.get(&name_hash).cloned();
+            let slug = compare_slug(
+                name_en
+                    .as_deref()
+                    .or(name_fr.as_deref())
+                    .or(name_ja.as_deref())
+                    .unwrap_or("unknown"),
+            );
+            RawCompareBase {
+                id,
+                internal_code,
+                name_fr,
+                name_en,
+                name_ja,
+                slug,
+            }
+        })
+        .collect())
+}
+
+fn collect_compare_bases(value: &Value, bases: &mut Vec<(String, String, String)>) {
+    if let Some(object) = value.as_object() {
+        let is_base = object
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|name| {
+                (name.starts_with("CHARA_BASE_INFO_") || name.starts_with("CHARA_BASE_BATTLE_"))
+                    && name.rsplit('_').next().is_some_and(|index| {
+                        index.chars().all(|character| character.is_ascii_digit())
+                    })
+            });
+        if is_base && let Some(variables) = object.get("variables").and_then(Value::as_array) {
+            let integer = |index: usize| {
+                variables
+                    .get(index)?
+                    .get("value")?
+                    .as_str()?
+                    .parse::<i64>()
+                    .ok()
+            };
+            let string = |index: usize| {
+                variables
+                    .get(index)?
+                    .get("value")?
+                    .as_str()
+                    .map(str::to_string)
+            };
+            if let (Some(id), Some(internal_code), Some(name_hash)) =
+                (integer(0), string(1), integer(3))
+            {
+                bases.push((compare_hex(id), internal_code, compare_hex(name_hash)));
+            }
+        }
+        for field in ["children", "entries"] {
+            if let Some(children) = object.get(field).and_then(Value::as_array) {
+                for child in children {
+                    collect_compare_bases(child, bases);
+                }
+            }
+        }
+    }
+}
+
+fn load_compare_names(
+    data_root: &Path,
+    locale: &str,
+) -> anyhow::Result<std::collections::HashMap<String, String>> {
+    let path = data_root
+        .join("common/text")
+        .join(locale)
+        .join("chara_text.cfg.bin.json");
+    let root: Value = serde_json::from_slice(&std::fs::read(path)?)?;
+    let mut names = std::collections::HashMap::new();
+    collect_compare_names(&root, &mut names);
+    Ok(names)
+}
+
+fn collect_compare_names(value: &Value, names: &mut std::collections::HashMap<String, String>) {
+    if let Some(object) = value.as_object() {
+        let is_name = object
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|name| name.starts_with("NOUN_INFO_") && !name.contains("BEGIN"));
+        if is_name && let Some(variables) = object.get("variables").and_then(Value::as_array) {
+            let hash = variables
+                .first()
+                .and_then(|variable| variable.get("value"))
+                .and_then(Value::as_str)
+                .and_then(|value| value.parse::<i64>().ok());
+            let name = variables.iter().skip(2).find_map(|variable| {
+                (variable.get("type").and_then(Value::as_str) == Some("String"))
+                    .then(|| variable.get("value").and_then(Value::as_str))
+                    .flatten()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string)
+            });
+            if let (Some(hash), Some(name)) = (hash, name) {
+                names.insert(compare_hex(hash), name);
+            }
+        }
+        for field in ["children", "entries"] {
+            if let Some(children) = object.get(field).and_then(Value::as_array) {
+                for child in children {
+                    collect_compare_names(child, names);
+                }
+            }
+        }
+    }
+}
+
+fn compare_slug(name: &str) -> String {
+    let mut slug = String::new();
+    let mut separator = false;
+    for character in name.to_lowercase().chars() {
+        if character.is_ascii_alphanumeric() {
+            if separator && !slug.is_empty() {
+                slug.push('_');
+            }
+            separator = false;
+            slug.push(character);
+        } else {
+            separator = true;
+        }
+    }
+    slug
+}
+
+fn versioned_config(directory: &Path, prefix: &str) -> anyhow::Result<std::path::PathBuf> {
+    std::fs::read_dir(directory)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| {
+                    name.strip_prefix(prefix)
+                        .and_then(|version| version.chars().next())
+                        .is_some_and(|first| first.is_ascii_digit())
+                        && name.ends_with(".cfg.bin.json")
+                })
+        })
+        .max()
+        .ok_or_else(|| anyhow::anyhow!("{prefix} corpus not found in {}", directory.display()))
+}
+
+fn load_compare_variants(data_root: &Path) -> anyhow::Result<Vec<RawCompareVariant>> {
+    let directory = data_root.join("common/gamedata/character");
+    let path = versioned_config(&directory, "chara_param_")?;
+    let root: Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+    let mut variants = Vec::new();
+    collect_compare_variants(&root, &mut variants);
+    Ok(variants)
+}
+
+fn collect_compare_variants(value: &Value, variants: &mut Vec<RawCompareVariant>) {
+    if let Some(object) = value.as_object() {
+        let is_param = object
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|name| {
+                name.starts_with("CHARA_PARAM_INFO_")
+                    && !name.contains("LIST")
+                    && !name.contains("BEG")
+            });
+        if is_param
+            && let Some(values) =
+                object
+                    .get("variables")
+                    .and_then(Value::as_array)
+                    .map(|variables| {
+                        variables
+                            .iter()
+                            .filter_map(|variable| {
+                                variable.get("value")?.as_str()?.parse::<i64>().ok()
+                            })
+                            .collect::<Vec<_>>()
+                    })
+            && values.len() >= 8
+        {
+            let mut skills = Vec::new();
+            for slot in 0..9 {
+                let level_index = 10 + slot * 2;
+                let hash_index = 11 + slot * 2;
+                if hash_index >= values.len() {
+                    break;
+                }
+                let level = values[level_index];
+                let skill = values[hash_index];
+                if skill != 0 && (0..=99).contains(&level) {
+                    skills.push(SkillSlot {
+                        skill_id: compare_hex(skill),
+                        learn_level: level as u32,
+                    });
+                }
+            }
+            variants.push(RawCompareVariant {
+                param_id: compare_hex(values[0]),
+                base_id: compare_hex(if values.len() == 8 && values[6] == values[0] {
+                    values[0]
+                } else {
+                    values[1]
+                }),
+                skills,
+            });
+        }
+        if let Some(children) = object.get("children").and_then(Value::as_array) {
+            for child in children {
+                collect_compare_variants(child, variants);
+            }
+        }
+        if let Some(entries) = object.get("entries").and_then(Value::as_array) {
+            for entry in entries {
+                collect_compare_variants(entry, variants);
+            }
+        }
+    }
+}
+
+fn compare_hex(value: i64) -> String {
+    format!("0x{:08X}", value as u32)
+}
+
+fn compare_playable_skills(
+    skills: &[SkillSlot],
+    aura_ids: &std::collections::HashSet<String>,
+) -> Vec<SkillSlot> {
+    skills
+        .iter()
+        .filter(|skill| skill.skill_id != "0xDBEDB6B8" && !aura_ids.contains(&skill.skill_id))
+        .cloned()
+        .collect()
+}
+
+fn load_compare_skills(data_root: &Path) -> anyhow::Result<Vec<Value>> {
+    Ok(serde_json::from_slice(&std::fs::read(
+        data_root.join("all-gamedata/skills.json"),
+    )?)?)
+}
+
+fn load_compare_aura_ids(data_root: &Path) -> anyhow::Result<std::collections::HashSet<String>> {
+    let values: Vec<Value> =
+        serde_json::from_slice(&std::fs::read(data_root.join("all-gamedata/auras.json"))?)?;
+    Ok(values
+        .iter()
+        .filter_map(|value| {
+            value
+                .get("auraId")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .collect())
+}
+
+fn compare_skill_name(value: &Value) -> Option<String> {
+    ["displayName", "name_FR", "name_EN", "name_JA"]
+        .into_iter()
+        .find_map(|field| value.get(field).and_then(Value::as_str).map(str::to_string))
+}
+
+fn compare_localized_name(value: &Value, field: &str) -> Option<String> {
+    let names = value.get(field)?;
+    names
+        .get("fr")
+        .or_else(|| names.get("en"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+fn compare_position_code(position: &str) -> String {
+    match position {
+        "Gardien" => "GK",
+        "Défenseur" => "DF",
+        "Milieu" => "MF",
+        "Attaquant" => "FW",
+        other => other,
+    }
+    .to_string()
+}
+
+fn compare_element_name(element: &str) -> String {
+    match element {
+        "Feu" => "Fire",
+        "Vent" => "Wind",
+        "Forêt" => "Forest",
+        "Montagne" => "Mountain",
+        "Néant" => "Void",
+        other => other,
+    }
+    .to_string()
 }
 
 // ─── Search multi-tables ──────────────────────────────────────────────────────
@@ -1020,6 +1692,10 @@ pub fn exec_readonly_sql(conn: &Connection, sql: &str) -> anyhow::Result<Vec<ser
     let mut stmt = conn
         .prepare(sql)
         .map_err(|e| anyhow::anyhow!("préparation SQL : {e}"))?;
+    anyhow::ensure!(
+        stmt.readonly(),
+        "requête non autorisée : SQLite indique que cette instruction peut modifier la base"
+    );
     let col_count = stmt.column_count();
     let col_names: Vec<String> = (0..col_count)
         .map(|i| stmt.column_name(i).unwrap_or("col").to_string())
@@ -1087,37 +1763,87 @@ pub fn random_team(
         ("3-3-4", 3, 3, 4),
         ("5-3-2", 5, 3, 2),
     ];
-    let (f_df, f_mf, f_fw) = formations
+    let (canonical_formation, f_df, f_mf, f_fw) = formations
         .iter()
         .find(|(name, _, _, _)| *name == formation)
-        .map(|(_, df, mf, fw)| (*df, *mf, *fw))
-        .unwrap_or((4, 4, 2)); // défaut 4-4-2
+        .map(|(name, df, mf, fw)| (*name, *df, *mf, *fw))
+        .unwrap_or(("4-4-2", 4, 4, 2));
 
     let mut rng = SmallRng::seed_from_u64(seed);
 
     // Map élément FR/EN (fidèle au TS)
-    let element_db: Option<&str> = element_filter.map(|e| match e {
-        "feu" | "fire" | "Feu" | "Fire" => "Feu",
-        "vent" | "wind" | "Vent" | "Wind" => "Vent",
-        "forêt" | "foret" | "forest" | "Forêt" | "Forest" => "Forêt",
-        "montagne" | "mountain" | "Montagne" | "Mountain" => "Montagne",
-        "néant" | "neant" | "void" | "Néant" | "Void" => "Néant",
-        other => other,
+    let element_db = element_filter.and_then(|element| match element.to_lowercase().as_str() {
+        "feu" | "fire" => Some("Feu"),
+        "vent" | "wind" => Some("Vent"),
+        "forêt" | "foret" | "forest" => Some("Forêt"),
+        "montagne" | "mountain" => Some("Montagne"),
+        "néant" | "neant" | "void" => Some("Néant"),
+        _ => None,
     });
+    let playstyle_db =
+        playstyle_filter.and_then(|playstyle| match playstyle.to_lowercase().as_str() {
+            "bond" | "lien" => Some("Bond"),
+            "justice" => Some("Justice"),
+            "breach" | "percée" | "percee" => Some("Breach"),
+            "tension" => Some("Tension"),
+            "rough play" | "roughplay" | "jeu violent" => Some("Rough Play"),
+            "counter" | "contre" => Some("Counter"),
+            _ => None,
+        });
 
     // Récupère un pool de joueurs pour une position donnée
-    let fetch_pool = |position: &str| -> anyhow::Result<Vec<(String, String, Option<String>)>> {
+    let fetch_pool = |position: &str,
+                      required: usize|
+     -> anyhow::Result<Vec<(String, String, Option<String>)>> {
         // Base query : id, name_fr/name_en, element
         let base_sql = "SELECT id, COALESCE(name_fr, name_en, id), element \
                         FROM inagle_characters \
                         WHERE position = ?1 AND stat_frappe IS NOT NULL AND zukan_hash IS NOT NULL";
 
-        // Essai avec filtre élément
-        if let Some(el) = element_db {
-            let filtered = query_rows(
+        if element_db.is_some() || playstyle_db.is_some() {
+            let filtered_sql = format!(
+                "{base_sql}{}{}",
+                if element_db.is_some() {
+                    " AND element = ?2"
+                } else {
+                    ""
+                },
+                match (element_db, playstyle_db) {
+                    (Some(_), Some(_)) => " AND json_extract(sheet_data, '$.playstyle') = ?3",
+                    (None, Some(_)) => " AND json_extract(sheet_data, '$.playstyle') = ?2",
+                    _ => "",
+                }
+            );
+            let mut values = vec![position.to_string()];
+            if let Some(element) = element_db {
+                values.push(element.to_string());
+            }
+            if let Some(playstyle) = playstyle_db {
+                values.push(playstyle.to_string());
+            }
+            let params: Vec<&dyn rusqlite::ToSql> = values
+                .iter()
+                .map(|value| value as &dyn rusqlite::ToSql)
+                .collect();
+            let filtered = query_rows(conn, &filtered_sql, &params, |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            })?;
+            if filtered.len() >= required {
+                return Ok(filtered);
+            }
+        }
+
+        if playstyle_db.is_some()
+            && let Some(element) = element_db
+        {
+            let element_only = query_rows(
                 conn,
                 &format!("{base_sql} AND element = ?2"),
-                &[&position as &dyn rusqlite::ToSql, &el],
+                &[&position as &dyn rusqlite::ToSql, &element],
                 |row| {
                     Ok((
                         row.get::<_, String>(0)?,
@@ -1126,8 +1852,8 @@ pub fn random_team(
                     ))
                 },
             )?;
-            if !filtered.is_empty() {
-                return Ok(filtered);
+            if element_only.len() >= required {
+                return Ok(element_only);
             }
         }
 
@@ -1168,10 +1894,10 @@ pub fn random_team(
         result
     };
 
-    let mut gk_pool = fetch_pool("Gardien")?;
-    let mut df_pool = fetch_pool("Défenseur")?;
-    let mut mf_pool = fetch_pool("Milieu")?;
-    let mut fw_pool = fetch_pool("Attaquant")?;
+    let mut gk_pool = fetch_pool("Gardien", 1)?;
+    let mut df_pool = fetch_pool("Défenseur", f_df)?;
+    let mut mf_pool = fetch_pool("Milieu", f_mf)?;
+    let mut fw_pool = fetch_pool("Attaquant", f_fw)?;
 
     let mut gk = pick_random(&mut gk_pool, 1, &mut rng);
     let mut df = pick_random(&mut df_pool, f_df, &mut rng);
@@ -1193,11 +1919,9 @@ pub fn random_team(
     }
 
     // Sélection coach/managers depuis inagle_coordinators
-    // On ignore le filtre playstyle pour les coords (table ne le supporte pas facilement)
-    let _ = playstyle_filter; // non utilisé pour les coordinators ici
     let all_coords = query_rows(
         conn,
-        "SELECT id, COALESCE(name_localised, name_romaji, CAST(id AS TEXT)), element, role, buff \
+        "SELECT id, COALESCE(name_localised, name_romaji, CAST(id AS TEXT)), element, playstyle, role, buff \
          FROM inagle_coordinators",
         &[],
         |row| {
@@ -1207,21 +1931,29 @@ pub fn random_team(
                 row.get::<_, Option<String>>(2)?,
                 row.get::<_, Option<String>>(3)?,
                 row.get::<_, Option<String>>(4)?,
+                row.get::<_, Option<String>>(5)?,
             ))
         },
     )?;
 
     // Ligne SQL d'un coordinateur : (game_id, name_ja, role, ?, ?).
-    type CoordRow = (i64, String, Option<String>, Option<String>, Option<String>);
+    type CoordRow = (
+        i64,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    );
     let mut coaches: Vec<_> = all_coords
         .iter()
-        .filter(|(_, _, _, role, _)| {
+        .filter(|(_, _, _, _, role, _)| {
             role.as_deref() == Some("Coach") || role.as_deref() == Some("Manager")
         })
         .collect();
     let mut mgrs: Vec<_> = all_coords
         .iter()
-        .filter(|(_, _, _, role, _)| role.as_deref() == Some("Coordinator"))
+        .filter(|(_, _, _, _, role, _)| role.as_deref() == Some("Coordinator"))
         .collect();
 
     let pick_coord = |pool: &mut Vec<&CoordRow>, rng: &mut SmallRng| -> Option<RandomTeamCoord> {
@@ -1229,11 +1961,12 @@ pub fn random_team(
             return None;
         }
         let idx = rng.gen_range(0..pool.len());
-        let (id, name, element, role, buff) = pool.swap_remove(idx);
+        let (id, name, element, playstyle, role, buff) = pool.swap_remove(idx);
         Some(RandomTeamCoord {
             id: *id,
             name: name.clone(),
             element: element.clone(),
+            playstyle: playstyle.clone(),
             role: role.clone().unwrap_or_default(),
             buff: buff.clone(),
         })
@@ -1246,7 +1979,7 @@ pub fn random_team(
 
     Ok(RandomTeam {
         seed,
-        formation: formation.to_string(),
+        formation: canonical_formation.to_string(),
         gk,
         df,
         mf,
@@ -1352,180 +2085,284 @@ pub fn team_build_calc(conn: &Connection, id: &str) -> anyhow::Result<Option<Tea
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 
-/// Produit un rapport de diagnostic : miroir SQLite + Redis db0 + Redis db3.
-///
-/// Identique à `status` TS : compte les tables clés, ping Redis.
-pub fn status_report(conn: &Connection) -> anyhow::Result<StatusReport> {
-    // SQLite
-    let mut sqlite = SqliteStatus {
-        healthy: false,
-        path: String::new(),
-        size_mb: None,
-        table_count: None,
-        characters: None,
-        skills: None,
-        items: None,
-        teams: None,
-        error: None,
+/// Produce the legacy `status` report without mutating Redis.
+pub fn status_report(
+    conn: &Connection,
+    db_path: &Path,
+    redis_url: &str,
+) -> anyhow::Result<StatusReport> {
+    let started = Instant::now();
+    let path = std::fs::canonicalize(db_path).unwrap_or_else(|_| db_path.to_path_buf());
+    let file_size = std::fs::metadata(&path)
+        .map(|meta| format_megabytes(meta.len()))
+        .unwrap_or_else(|_| "0.00 MB".to_string());
+    let tables = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table'",
+        [],
+        |row| row.get::<_, u64>(0),
+    )?;
+    let character_count = conn.query_row("SELECT COUNT(*) FROM inagle_characters", [], |row| {
+        row.get::<_, u64>(0)
+    })?;
+
+    let redis = redis_status(redis_url);
+    let git = GitStatus {
+        branch: git_output(&["rev-parse", "--abbrev-ref", "HEAD"])
+            .unwrap_or_else(|| "unknown".to_string()),
+        commit: git_output(&["rev-parse", "--short", "HEAD"])
+            .unwrap_or_else(|| "unknown".to_string()),
+        clean: git_output(&["status", "--porcelain"]).is_some_and(|output| output.is_empty()),
     };
-
-    // Résolution du chemin depuis le miroir ouvert
-    let path = crate::mirror::resolve(None)
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "inconnu".to_string());
-    sqlite.path = path.clone();
-
-    // Taille du fichier
-    if let Ok(meta) = std::fs::metadata(&path) {
-        sqlite.size_mb = Some(meta.len() as f64 / (1024.0 * 1024.0));
-    }
-
-    let count_table = |sql: &str| -> Option<u64> {
-        conn.query_row(sql, [], |row| row.get::<_, i64>(0))
-            .ok()
-            .map(|n| n as u64)
-    };
-
-    sqlite.table_count = count_table("SELECT COUNT(*) FROM sqlite_master WHERE type='table'");
-    sqlite.characters = count_table("SELECT COUNT(*) FROM inagle_characters");
-    sqlite.skills = count_table("SELECT COUNT(*) FROM inagle_skills");
-    sqlite.items = count_table("SELECT COUNT(*) FROM inagle_items");
-    sqlite.teams = count_table("SELECT COUNT(*) FROM inagle_teams");
-    sqlite.healthy = sqlite.characters.is_some();
-
-    // Redis db0 et db3
-    let redis_ping = |url: &str, db: u8| -> RedisStatus {
-        let client = match redis::Client::open(url) {
-            Ok(c) => c,
-            Err(e) => {
-                return RedisStatus {
-                    healthy: false,
-                    latency_ms: None,
-                    db,
-                    error: Some(e.to_string()),
-                };
-            }
-        };
-        let mut conn = match client.get_connection() {
-            Ok(c) => c,
-            Err(e) => {
-                return RedisStatus {
-                    healthy: false,
-                    latency_ms: None,
-                    db,
-                    error: Some(e.to_string()),
-                };
-            }
-        };
-        use redis::Commands;
-        let start = std::time::Instant::now();
-        let result: Result<(), _> = conn.set_ex("niers:status:ping", "1", 10);
-        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
-        match result {
-            Ok(_) => RedisStatus {
-                healthy: true,
-                latency_ms: Some(elapsed),
-                db,
-                error: None,
-            },
-            Err(e) => RedisStatus {
-                healthy: false,
-                latency_ms: None,
-                db,
-                error: Some(e.to_string()),
-            },
-        }
-    };
-
-    let redis_db0 = redis_ping("redis://127.0.0.1/0", 0);
-    let redis_db3 = redis_ping("redis://127.0.0.1/3", 3);
+    let proc_memory = proc_memory_kib();
+    let system_memory = system_memory_kib();
 
     Ok(StatusReport {
-        sqlite,
-        redis_db0,
-        redis_db3,
+        sqlite: SqliteStatus {
+            healthy: true,
+            path: path.display().to_string(),
+            file_size,
+            tables,
+            character_count,
+            error: None,
+        },
+        redis,
+        git,
+        process: ProcessStatus {
+            uptime: format!("{:.1}s", started.elapsed().as_secs_f64()),
+            memory: ProcessMemoryStatus {
+                heap_used: format_megabytes(proc_memory.0.saturating_mul(1024)),
+                rss: format_megabytes(proc_memory.1.saturating_mul(1024)),
+            },
+        },
+        system: SystemStatus {
+            total_memory: format_gigabytes(system_memory.0.saturating_mul(1024)),
+            free_memory: format_gigabytes(system_memory.1.saturating_mul(1024)),
+            platform: std::env::consts::OS.to_string(),
+            arch: legacy_arch().to_string(),
+        },
     })
+}
+
+fn redis_status(url: &str) -> RedisStatus {
+    let started = Instant::now();
+    let result = redis::Client::open(url)
+        .and_then(|client| client.get_connection())
+        .and_then(|mut connection| {
+            use redis::Commands;
+            connection.get::<_, Option<String>>("status:ping")
+        });
+    let latency = format!("{:.2}ms", started.elapsed().as_secs_f64() * 1000.0);
+    match result {
+        Ok(_) => RedisStatus {
+            healthy: true,
+            latency,
+            error: None,
+        },
+        Err(error) => RedisStatus {
+            healthy: false,
+            latency,
+            error: Some(error.to_string()),
+        },
+    }
+}
+
+fn git_output(args: &[&str]) -> Option<String> {
+    let output = Command::new("git").args(args).output().ok()?;
+    output.status.success().then(|| {
+        String::from_utf8_lossy(&output.stdout)
+            .trim_end()
+            .to_string()
+    })
+}
+
+fn proc_memory_kib() -> (u64, u64) {
+    let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
+    (
+        proc_status_kib(&status, "VmData:"),
+        proc_status_kib(&status, "VmRSS:"),
+    )
+}
+
+fn proc_status_kib(status: &str, field: &str) -> u64 {
+    status
+        .lines()
+        .find_map(|line| line.strip_prefix(field))
+        .and_then(|value| value.split_whitespace().next())
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0)
+}
+
+fn system_memory_kib() -> (u64, u64) {
+    let meminfo = std::fs::read_to_string("/proc/meminfo").unwrap_or_default();
+    (
+        proc_status_kib(&meminfo, "MemTotal:"),
+        proc_status_kib(&meminfo, "MemFree:"),
+    )
+}
+
+fn format_megabytes(bytes: u64) -> String {
+    format!("{:.2} MB", bytes as f64 / (1024.0 * 1024.0))
+}
+
+fn format_gigabytes(bytes: u64) -> String {
+    format!("{:.2} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+}
+
+fn legacy_arch() -> &'static str {
+    match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        other => other,
+    }
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
 
-/// Audite la cohérence du miroir : counts et nulls sur les tables clés.
+/// Audit the normalized character mirror and canonical enriched skill corpus.
 ///
-/// Reproduit fidèlement `audit` TS (counts/nulls), adapté au SQLite.
-pub fn audit_mirror(conn: &Connection) -> anyhow::Result<AuditReport> {
-    let audit_table = |table: &str| -> AuditTable {
-        let count_sql = format!("SELECT COUNT(*) FROM {table}");
-        let total = conn
-            .query_row(&count_sql, [], |r| r.get::<_, i64>(0))
-            .ok()
-            .unwrap_or(0) as u64;
+/// These are the two data sources used by the legacy `audit` command. The mirror stores derived
+/// character image/stat fields as columns, while `skills.json` contains the full skill collection
+/// rather than the smaller publication subset in `inagle_skills`.
+pub fn audit_mirror(
+    conn: &Connection,
+    skills_path: &std::path::Path,
+) -> anyhow::Result<AuditReport> {
+    let characters = conn.query_row(
+        "SELECT COUNT(*),
+                SUM(CASE WHEN COALESCE(name_fr, '') = '' AND COALESCE(name_en, '') = '' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN COALESCE(image_url, '') = ''
+                          AND COALESCE(json_extract(data, '$.icons.face'), '') = ''
+                          AND COALESCE(json_extract(data, '$.zukanHash'), '') = ''
+                          AND COALESCE(json_extract(data, '$.image'), '') = '' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN stat_frappe IS NULL AND stat_controle IS NULL
+                          AND stat_technique IS NULL AND stat_pression IS NULL
+                          AND stat_physique IS NULL AND stat_agilite IS NULL THEN 1 ELSE 0 END)
+         FROM inagle_characters",
+        [],
+        |row| {
+            Ok(CharacterAudit {
+                total: row.get::<_, i64>(0)? as u64,
+                missing_name_fr_en: row.get::<_, i64>(1)? as u64,
+                missing_image: row.get::<_, i64>(2)? as u64,
+                missing_stats: row.get::<_, i64>(3)? as u64,
+            })
+        },
+    )?;
 
-        let count_null = |col: &str| -> u64 {
-            let sql = format!("SELECT COUNT(*) FROM {table} WHERE {col} IS NULL OR {col} = ''");
-            conn.query_row(&sql, [], |r| r.get::<_, i64>(0))
-                .ok()
-                .unwrap_or(0) as u64
-        };
-        let null_data = {
-            let sql = format!("SELECT COUNT(*) FROM {table} WHERE data IS NULL");
-            conn.query_row(&sql, [], |r| r.get::<_, i64>(0))
-                .ok()
-                .unwrap_or(0) as u64
-        };
-
-        AuditTable {
-            total,
-            missing_name_fr: count_null("name_fr"),
-            missing_name_en: count_null("name_en"),
-            null_data,
-        }
+    #[derive(serde::Deserialize)]
+    struct SkillName {
+        #[serde(rename = "name_FR")]
+        name_fr: Option<String>,
+        #[serde(rename = "name_EN")]
+        name_en: Option<String>,
+    }
+    let bytes = std::fs::read(skills_path)
+        .map_err(|e| anyhow::anyhow!("canonical skill corpus not found: {e}"))?;
+    let skill_rows: Vec<SkillName> = serde_json::from_slice(&bytes)
+        .map_err(|e| anyhow::anyhow!("invalid canonical skill corpus: {e}"))?;
+    let skills = SkillAudit {
+        total: skill_rows.len() as u64,
+        missing_name_fr_en: skill_rows
+            .iter()
+            .filter(|skill| skill.name_fr.is_none() && skill.name_en.is_none())
+            .count() as u64,
     };
 
-    Ok(AuditReport {
-        characters: audit_table("inagle_characters"),
-        skills: audit_table("inagle_skills"),
-        items: audit_table("inagle_items"),
-        teams: audit_table("inagle_teams"),
-        auras: audit_table("inagle_auras"),
-        keshins: audit_table("inagle_keshins"),
-        souls: audit_table("inagle_souls"),
-    })
+    Ok(AuditReport { characters, skills })
 }
 
 // ─── Dialogue ────────────────────────────────────────────────────────────────
 
-/// Recherche dans les sous-titres/dialogues de `inagle_event_subtitles`.
+/// Search `story_text_database.json` in canonical source order.
 ///
-/// Reproduit `dialogue` TS : filtre par texte (FR/EN/JA).
-/// La table `inagle_event_subtitles` est présente dans le miroir (2093 lignes).
+/// Matches the legacy `dialogue` command with case-insensitive multilingual text filtering and
+/// optional speaker-name or exact speaker-identifier filtering.
 pub fn search_dialogues(
-    conn: &Connection,
+    database_path: &std::path::Path,
     text_query: &str,
+    speaker_query: Option<&str>,
     limit: usize,
 ) -> anyhow::Result<Vec<DialogueMatch>> {
-    let q = sanitize_filter(text_query);
-    let like_pat = format!("%{}%", q);
-    let limit_i = limit as i64;
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Database {
+        #[serde(default)]
+        events: Vec<Event>,
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Event {
+        event_id: String,
+        #[serde(default)]
+        dialogues: Vec<Dialogue>,
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Dialogue {
+        dialogue_id: String,
+        speaker: Option<Speaker>,
+        text: Option<DialogueText>,
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Speaker {
+        chara_id: Option<String>,
+        names: Option<DialogueText>,
+    }
 
-    query_rows(
-        conn,
-        "SELECT event_id, episode, line_index, text_fr, text_en, text_ja \
-         FROM inagle_event_subtitles \
-         WHERE text_fr LIKE ?1 OR text_en LIKE ?1 OR text_ja LIKE ?1 \
-         ORDER BY event_id ASC, line_index ASC \
-         LIMIT ?2",
-        &[&like_pat as &dyn rusqlite::ToSql, &limit_i],
-        |row| {
-            Ok(DialogueMatch {
-                event_id: row.get(0)?,
-                episode: row.get(1)?,
-                line_index: row.get(2)?,
-                text_fr: row.get(3)?,
-                text_en: row.get(4)?,
-                text_ja: row.get(5)?,
-            })
-        },
-    )
+    let bytes = std::fs::read(database_path)
+        .map_err(|e| anyhow::anyhow!("story text database not found: {e}"))?;
+    let database: Database = serde_json::from_slice(&bytes)
+        .map_err(|e| anyhow::anyhow!("invalid story text database: {e}"))?;
+    let text_query = text_query.trim().to_lowercase();
+    let speaker_query = speaker_query.map(|query| query.trim().to_lowercase());
+    let mut matches = Vec::new();
+
+    for event in database.events {
+        for dialogue in event.dialogues {
+            let matches_text = text_query.is_empty()
+                || dialogue.text.as_ref().is_some_and(|text| {
+                    [&text.fr, &text.en, &text.ja].into_iter().any(|value| {
+                        value
+                            .as_deref()
+                            .is_some_and(|value| value.to_lowercase().contains(&text_query))
+                    })
+                });
+            let matches_speaker = speaker_query.as_ref().is_none_or(|query| {
+                dialogue.speaker.as_ref().is_some_and(|speaker| {
+                    speaker
+                        .chara_id
+                        .as_deref()
+                        .is_some_and(|id| id.to_lowercase() == *query)
+                        || speaker.names.as_ref().is_some_and(|names| {
+                            [&names.fr, &names.en, &names.ja].into_iter().any(|value| {
+                                value
+                                    .as_deref()
+                                    .is_some_and(|value| value.to_lowercase().contains(query))
+                            })
+                        })
+                })
+            });
+            if matches_text && matches_speaker {
+                let speaker = dialogue.speaker.and_then(|speaker| {
+                    speaker
+                        .names
+                        .and_then(|names| names.fr.or(names.en).or(names.ja))
+                        .or(speaker.chara_id)
+                });
+                matches.push(DialogueMatch {
+                    event_id: event.event_id.clone(),
+                    dialogue_id: dialogue.dialogue_id,
+                    speaker,
+                    text: dialogue.text,
+                });
+                if matches.len() >= limit {
+                    return Ok(matches);
+                }
+            }
+        }
+    }
+    Ok(matches)
 }
 
 // ─── Redis get/set/del ────────────────────────────────────────────────────────
@@ -1538,7 +2375,7 @@ pub fn redis_cmd(
     cmd: &str,
     key: &str,
     val: Option<&str>,
-) -> anyhow::Result<Option<String>> {
+) -> anyhow::Result<Option<Value>> {
     use redis::Commands;
     let client = redis::Client::open(url).map_err(|e| anyhow::anyhow!("connexion Redis : {e}"))?;
     let mut conn = client
@@ -1550,22 +2387,233 @@ pub fn redis_cmd(
             let result: Option<String> = conn
                 .get(key)
                 .map_err(|e| anyhow::anyhow!("Redis GET : {e}"))?;
-            Ok(result)
+            Ok(result.map(|serialized| {
+                serde_json::from_str(&serialized).unwrap_or(Value::String(serialized))
+            }))
         }
         "set" => {
             let v = val.ok_or_else(|| anyhow::anyhow!("valeur requise pour set"))?;
-            conn.set::<_, _, ()>(key, v)
+            let parsed =
+                serde_json::from_str::<Value>(v).unwrap_or_else(|_| Value::String(v.into()));
+            let serialized = serde_json::to_string(&parsed)?;
+            conn.set_ex::<_, _, ()>(key, serialized, 3_600)
                 .map_err(|e| anyhow::anyhow!("Redis SET : {e}"))?;
-            Ok(Some("OK".to_string()))
+            Ok(Some(Value::Bool(true)))
         }
         "del" => {
             conn.del::<_, ()>(key)
                 .map_err(|e| anyhow::anyhow!("Redis DEL : {e}"))?;
-            Ok(Some("DEL OK".to_string()))
+            Ok(Some(Value::Bool(true)))
         }
         other => anyhow::bail!(
             "commande Redis inconnue : '{}'. Utiliser : get / set / del",
             other
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rusqlite::Connection;
+    use serde_json::json;
+
+    use super::{
+        check_readonly_sql, compare_element_name, compare_position_code, exec_readonly_sql,
+        interpolate_stat_curve, interpolate_stats, lookup_item_legacy, lookup_skill_values,
+        lookup_team_values, sanitize_filter,
+    };
+    use crate::model::{CompareSkillSlot, StatBlock};
+
+    #[test]
+    fn sanitize_filter_preserves_internal_identifier_underscores() {
+        assert_eq!(sanitize_filter(r"a_b%,().*\\c"), "a_bc");
+    }
+
+    #[test]
+    fn interpolation_uses_the_two_documented_segments() {
+        let lv1 = StatBlock {
+            kick: 1,
+            ..StatBlock::default()
+        };
+        let lv50 = StatBlock {
+            kick: 50,
+            ..StatBlock::default()
+        };
+        let lv99 = StatBlock {
+            kick: 99,
+            ..StatBlock::default()
+        };
+
+        assert_eq!(interpolate_stats(lv1, lv50, lv99, 1).kick, 1);
+        assert_eq!(interpolate_stats(lv1, lv50, lv99, 50).kick, 50);
+        assert_eq!(interpolate_stats(lv1, lv50, lv99, 75).kick, 75);
+        assert_eq!(interpolate_stats(lv1, lv50, lv99, 99).kick, 99);
+    }
+
+    #[test]
+    fn partial_stat_curve_ignores_lv50_like_legacy_azalee() {
+        let lv1 = StatBlock {
+            kick: 1,
+            ..StatBlock::default()
+        };
+        let misleading_lv50 = StatBlock {
+            kick: 500,
+            ..StatBlock::default()
+        };
+        let lv99 = StatBlock {
+            kick: 99,
+            ..StatBlock::default()
+        };
+
+        assert_eq!(
+            interpolate_stat_curve(Some(lv1), None, Some(misleading_lv50), Some(lv99), 50).kick,
+            50
+        );
+    }
+
+    #[test]
+    fn compare_contract_uses_legacy_codes_and_json_field_names() {
+        assert_eq!(compare_position_code("Gardien"), "GK");
+        assert_eq!(compare_element_name("Montagne"), "Mountain");
+
+        let skill = CompareSkillSlot {
+            learn_level: 7,
+            skill_id: "skill-id".to_string(),
+            name: "Skill".to_string(),
+            power: Some(100),
+            cost: None,
+            element: Some("Fire".to_string()),
+            category: Some("Shoot".to_string()),
+        };
+        let value = serde_json::to_value(skill).expect("serialize comparison skill");
+
+        assert_eq!(value["learnLevel"], 7);
+        assert_eq!(value["id"], "skill-id");
+        assert!(value.get("learn_level").is_none());
+        assert!(value.get("skill_id").is_none());
+        assert!(value.get("cost").is_none());
+    }
+
+    #[test]
+    fn readonly_sql_returns_typed_json_rows() {
+        let conn = Connection::open_in_memory().expect("open in-memory database");
+        conn.execute_batch(
+            "CREATE TABLE sample(id INTEGER, name TEXT); INSERT INTO sample VALUES (7, 'Mark');",
+        )
+        .expect("seed fixture");
+
+        let rows = exec_readonly_sql(&conn, "SELECT id, name FROM sample")
+            .expect("read-only query succeeds");
+
+        assert_eq!(rows, vec![json!({ "id": 7, "name": "Mark" })]);
+    }
+
+    #[test]
+    fn item_lookup_preserves_legacy_result_shapes() {
+        let conn = Connection::open_in_memory().expect("open in-memory database");
+        conn.execute_batch(
+            "CREATE TABLE inagle_items(
+                id TEXT, name_en TEXT, name_ja TEXT, name_fr TEXT, data TEXT, sheet_data TEXT
+             );
+             INSERT INTO inagle_items VALUES
+                ('item-1', 'Red Boots', NULL, 'Crampons rouges',
+                 '{\"itemId\":\"item-1\",\"name\":\"Red Boots\",\"names\":{\"fr\":\"Crampons rouges\"}}', NULL),
+                ('item-2', 'Blue Boots', NULL, 'Crampons bleus',
+                 '{\"itemId\":\"item-2\",\"name\":\"Blue Boots\",\"names\":{\"fr\":\"Crampons bleus\"}}', NULL);",
+        )
+        .expect("seed item fixture");
+
+        assert_eq!(
+            lookup_item_legacy(&conn, "item-1").expect("exact item"),
+            json!({"itemId": "item-1", "name": "Red Boots", "names": {"fr": "Crampons rouges"}})
+        );
+        assert_eq!(
+            lookup_item_legacy(&conn, "rouges").expect("unique item"),
+            json!({"itemId": "item-1", "name": "Red Boots", "names": {"fr": "Crampons rouges"}})
+        );
+        assert_eq!(
+            lookup_item_legacy(&conn, "Boots").expect("ambiguous items"),
+            json!([
+                {"id": "item-1", "name": "Crampons rouges"},
+                {"id": "item-2", "name": "Crampons bleus"}
+            ])
+        );
+        assert_eq!(
+            lookup_item_legacy(&conn, "missing").expect("missing item"),
+            json!([])
+        );
+    }
+
+    #[test]
+    fn team_lookup_preserves_legacy_result_shapes() {
+        let teams = json!([
+            {"teamId": "team-1", "name": "Raimon", "displayName": "Raimon", "name_EN": "Raimon", "name_JA": "雷門中"},
+            {"teamId": "team-2", "name": "Old Raimon", "displayName": "Old Raimon", "name_EN": "Old Raimon", "name_JA": "雷門OB"}
+        ]);
+        let teams = teams.as_array().expect("team fixture array");
+
+        assert_eq!(lookup_team_values(teams, "team-1")["name"], "Raimon");
+        assert_eq!(
+            lookup_team_values(teams, "Raimon"),
+            json!([
+                {"id": "team-1", "name": "Raimon"},
+                {"id": "team-2", "name": "Old Raimon"}
+            ])
+        );
+        assert_eq!(lookup_team_values(teams, "missing"), json!([]));
+    }
+
+    #[test]
+    fn skill_lookup_preserves_precedence_and_search_annotations() {
+        let main = json!([
+            {"skillID": "main-id", "skillIDStr": "main-code", "name_EN": "Fire Shot", "skillType": "main"},
+            {"skillID": "main-id-2", "skillIDStr": "main-code-2", "name_EN": "Fire Storm", "skillType": "main"}
+        ]);
+        let passives = json!([{"passiveId": "passive-id", "name_FR": "Passif"}]);
+        let auras = json!([{"auraId": "aura-id", "name_FR": "Fire Aura"}]);
+        let main = main.as_array().expect("main fixture");
+        let passives = passives.as_array().expect("passive fixture");
+        let auras = auras.as_array().expect("aura fixture");
+
+        assert_eq!(
+            lookup_skill_values(main, passives, auras, "passive-id")["name_FR"],
+            "Passif"
+        );
+        let matches = lookup_skill_values(main, passives, auras, "Fire");
+        assert_eq!(matches.as_array().map(Vec::len), Some(3));
+        assert_eq!(matches[0]["skillType"], "main");
+        assert_eq!(matches[2]["skillType"], "aura");
+        assert_eq!(
+            lookup_skill_values(main, passives, auras, "missing"),
+            json!([])
+        );
+    }
+
+    #[test]
+    fn sqlite_readonly_check_rejects_cte_and_pragma_mutations() {
+        let conn = Connection::open_in_memory().expect("open in-memory database");
+        conn.execute_batch("CREATE TABLE sample(id INTEGER); INSERT INTO sample VALUES (1);")
+            .expect("seed fixture");
+
+        assert!(check_readonly_sql("WITH selected AS (SELECT 1) SELECT * FROM selected").is_ok());
+        assert!(
+            exec_readonly_sql(
+                &conn,
+                "WITH selected AS (SELECT 1) DELETE FROM sample RETURNING id"
+            )
+            .is_err()
+        );
+        assert!(exec_readonly_sql(&conn, "PRAGMA user_version = 7").is_err());
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM sample", [], |row| row
+                .get::<_, i64>(0))
+                .expect("count rows"),
+            1
+        );
+        assert_eq!(
+            conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+                .expect("read user_version"),
+            0
+        );
     }
 }

@@ -14,6 +14,8 @@ use std::time::Duration;
 
 use crate::IEVR_STEAM_APP_ID;
 
+pub use crate::planning::{CollisionReason, ManifestCollision};
+
 // ─── Steam Guard ──────────────────────────────────────────────────────────────
 
 /// Type de second facteur Steam Guard demandé pendant l'authentification.
@@ -235,51 +237,6 @@ pub struct DepotInfo {
     pub name: Option<String>,
     pub file_count: u32,
     pub total_bytes: u64,
-}
-
-/// Cause d'une collision entre une entrée de manifest et l'état du disque.
-///
-/// Chacune fait échouer le depot ENTIER sur `Is a directory (os error 21)`,
-/// sans nommer le coupable : le downloader écrit (ou renomme depuis le
-/// staging) sur un chemin qui n'a pas la nature attendue.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CollisionReason {
-    /// Chemin vide : `install_dir.join("")` désigne le répertoire d'install
-    /// lui-même. Une entrée taille 0 sans chunk y déclenche `fs::write` sur
-    /// un répertoire.
-    EmptyPath,
-    /// Fichier pour le manifest, répertoire sur le disque.
-    DirectoryOnDisk,
-    /// Répertoire pour le manifest, fichier sur le disque.
-    FileOnDisk,
-}
-
-impl CollisionReason {
-    /// Libellé court en français, pour l'affichage CLI.
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::EmptyPath => "chemin vide (= le répertoire d'install)",
-            Self::DirectoryOnDisk => "répertoire sur le disque, fichier au manifest",
-            Self::FileOnDisk => "fichier sur le disque, répertoire au manifest",
-        }
-    }
-}
-
-/// Entrée de manifest dont l'application au disque échouerait.
-#[derive(Clone, Debug)]
-pub struct ManifestCollision {
-    /// Depot d'où provient l'entrée.
-    pub depot_id: u32,
-    /// Chemin déclaré par le manifest, séparateurs normalisés.
-    pub path: String,
-    /// Flags Steam bruts (`DepotFileFlags` : 1 exécutable, 2 répertoire, …).
-    pub flags: u32,
-    /// Taille déclarée par le manifest.
-    pub size: u64,
-    /// Nombre de chunks de l'entrée.
-    pub chunk_count: usize,
-    /// Nature du conflit.
-    pub reason: CollisionReason,
 }
 
 /// Résultat agrégé d'un téléchargement d'app.

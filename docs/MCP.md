@@ -1,182 +1,141 @@
-# Architecture & Spécification : Serveur MCP Rust Natif (`nie-mcp` via `rmcp`)
+# Native Rust MCP server
 
-> **Objectif :** Établir le serveur Model Context Protocol pur Rust (`crates/tools/nie-mcp` et commande `niers mcp`), remplaçant à terme la couche intermédiaire TypeScript/Bun (`apps/nie-mcp`) en exposant in-process 100% de la surface fonctionnelle de `nie-cli` et des crates du monorepo.
+Measured state on 2026-09-07: `niers-game` is a fully native Rust MCP server provided by the
+`crates/tools/nie-mcp` crate and the equivalent `niers mcp` command. It replaces the former
+`apps/nie-mcp` server, which depended on Bun, the TypeScript SDK, Zod, and FFI.
 
----
+## Architecture
 
-## 1. Contexte & Enseignements de l'Implémentation Aphrody (`google_mcp`)
+The `nie-mcp` binary is a thin binding over the `nie-cli` library. The server implementation
+lives in `crates/tools/nie-cli/src/mcp.rs` and uses the official Rust SDK `rmcp`, pinned to the
+same reviewed commit as the sibling `aphrody-mcp` server:
 
-L'architecture du serveur frère `aphrody-mcp` dans `aphrody/crates/google_mcp` a éprouvé en conditions réelles les mécanismes idéaux d'un serveur MCP natif en Rust :
-
-1. **Adoption de `rmcp` (Rust SDK officiel) :**
-   - Épinglé sur `https://github.com/modelcontextprotocol/rust-sdk.git` (commit validé `cc66e3091e1584f48ee1e0058a2a1201a1d35c81`).
-   - Fonctionnalités requises : `features = ["server", "transport-io", "macros", "schemars"]`.
-2. **Routage Typé et Déclaratif :**
-   - Utilisation de la macro `#[tool_router(server_handler)]` sur la structure de service.
-   - Outils déclarés via `#[tool(description = "...")]` acceptant des paramètres validés à la compilation via `Parameters<T>` et sérialisés avec `schemars::JsonSchema`.
-3. **Performance & Temps de Démarrage :**
-   - Démarrage instantané sur stdio via `Server.serve(stdio()).await`.
-   - Zéro empreinte V8/Bun, zéro risque de désynchronisation de bibliothèque partagée (`ERR_DLOPEN_FAILED`).
-
----
-
-## 2. Invariants & Avantages Stratégiques pour `niers`
-
-La migration vers un serveur MCP Rust natif procure des bénéfices décisifs :
-- **Accès in-process direct au moteur :** Les crates Rust du workspace (`nie-formats`, `nie-data`, `nie-core`, `nie-lua`, `nie-trace`) sont appelées directement en mémoire, évitant toute sérialisation FFI ou passage de gros tampons binaires (textures G4TX, modèles G4MD/GLB) à travers un sous-processus.
-- **Portabilité absolue :** Un binaire unique compilé (`niers.exe mcp` ou `nie-mcp.exe`) autonome, ne nécessitant ni runtime Bun, ni dépendances `node_modules`, ni Zod.
-- **Cohérence des types :** Synchronisation directe avec les structs de données canoniques de `nie-data` et `nie-formats`.
-
----
-
-## 3. Matrice Complète des Outils MCP (Couverture Intégrale de `nie-cli`)
-
-Le serveur MCP natif couvre la totalité des 38 sous-commandes de `nie-cli` réparties en 32 outils MCP :
-
-### 3.1 VFS & Extraction de Données CPK
-| Outil MCP | Sous-commande `nie-cli` | Rôle & Fonctionnement |
-| :--- | :--- | :--- |
-| `vfs_list` | `niers vfs tree` | Navigation arborescente paginée sous un préfixe de dossier CPK. |
-| `vfs_search` | `niers vfs search` | Recherche de fichiers par sous-chaîne ou motif glob (`**/*.g4md`). |
-| `vfs_stat` | `niers vfs stat` | Inspection des conteneurs CPK, type d'extension et taille d'un fichier. |
-| `vfs_read_bytes` | `niers vfs cat / hex` | Extraction directe et décompression des octets d'un asset VFS. |
-| `vfs_extract` | `niers vfs extract` | Extraction de masse ou ciblée d'arborescences de CPK sur disque. |
-
-### 3.2 Formats Binaires & Décodage
-| Outil MCP | Sous-commande `nie-cli` | Rôle & Fonctionnement |
-| :--- | :--- | :--- |
-| `format_detect` | `niers format` | Détection non-destructive du format Level-5 (G4TX, CFGBIN, RDBN, T2B...). |
-| `format_decode` | `niers decode` | Décodage universel d'un fichier vers JSON typé (données) ou PNG (textures). |
-| `format_convert` | `niers convert` | Conversion multiformat (PNG, WEBP, GLB, SVG) d'assets disque ou VFS. |
-| `refresh_typed_json` | `niers refresh-typed-json` | Régénération des formats iecode typés à côté des fichiers `*.cfg.bin`. |
-
-### 3.3 Reverse Engineering, Base de Connaissance & Mémoire Live
-| Outil MCP | Sous-commande `nie-cli` | Rôle & Fonctionnement |
-| :--- | :--- | :--- |
-| `re_coverage` | `niers coverage` | Rapport de couverture de classification des 117 068 fonctions du binaire. |
-| `re_function` | `niers disasm / pdata` | Détail d'une fonction, métadonnées, pagerank, adresse virtuelle et xrefs. |
-| `re_query` | `niers wiki / query` | Requête SQL SELECT sécurisée en lecture seule sur `var/niers.sqlite`. |
-| `re_strings` | `niers strings` | Extraction et recherche de chaînes ASCII/UTF-16 du binaire `nie.exe`. |
-| `re_rtti` | `niers rtti` | Exploration des classes C++ MSVC RTTI et de leurs hiérarchies. |
-| `re_disasm_slice` | `niers disasm` | Désassemblage dynamique via iced-x86 d'une tranche d'octets de `.text`. |
-| `mem_status` | `niers mem` | Détection du processus live `nie.exe` et lecture des régions mémoire. |
-| `mem_read` | `niers mem dump` | Lecture sécurisée d'une plage d'adresses en mémoire vive. |
-
-### 3.4 Environnement Lua 5.2
-| Outil MCP | Sous-commande `nie-cli` | Rôle & Fonctionnement |
-| :--- | :--- | :--- |
-| `lua_inspect` | `niers lua` | Analyse statique d'un script Lua (fonctions déclarées, chaînes, CRC32). |
-| `lua_run` | `niers lua-run` | Exécution d'un chunk `.lua.bin` sous VM Lua 5.2 sandboxée avec includes VFS. |
-| `lua_audit` | `niers lua-audit` | Mesure de compatibilité en lot des scripts du jeu contre les stubs du moteur. |
-
-### 3.5 3D, Interface Utilisateur & Multimédia
-| Outil MCP | Sous-commande `nie-cli` | Rôle & Fonctionnement |
-| :--- | :--- | :--- |
-| `asset_get` | Interne / ModelServe | Décodage à la volée de modèles 3D (.glb), textures (PNG) ou audio (WAV). |
-| `ui_icons_search` | `niers icons` | Index et résolution de découpe des icônes et sprites d'atlas. |
-| `avatar_inspect` | `niers avatar` | Recettes, catalogue et pièces de l'éditeur de personnage (`chara_edit`). |
-| `render_glb` | `niers render` | Rendu hors-écran d'un modèle GLB en image PNG ou turntable GIF (`nie-render3d`). |
-| `video_manifest` | `niers video` | Inventaire et métadonnées des vidéos Sofdec2/USM du jeu. |
-
-### 3.6 Diagnostic, Sauvegardes & Modding
-| Outil MCP | Sous-commande `nie-cli` | Rôle & Fonctionnement |
-| :--- | :--- | :--- |
-| `game_info` | `niers info` | Empreinte sha256 du binaire, état EAC, volume VFS et composants Steam. |
-| `game_launch` | `apps/nie-mcp` | Lancement détaché de `nie.exe` avec capture du PID. |
-| `save_inspect` | `niers save` | Déchiffrement et inspection d'une sauvegarde Lives IEVR. |
-| `mod_validate` | `niers mod / viola` | Contrôle de validité d'une archive CPK modifiée ou d'un mod. |
-
-### 3.7 Pont Explorateur & Fichiers du Dépôt
-| Outil MCP | Rôle & Fonctionnement |
-| :--- | :--- |
-| `explorer_status` | État du pont de communication WebSocket vers `nie-explorer`. |
-| `explorer_navigate` | Navigation assistée dans l'arborescence VFS de l'explorateur. |
-| `explorer_open` | Ouverture automatique d'un asset sélectionné dans l'UI. |
-| `explorer_tab` | Sélection programmée de l'onglet actif. |
-| `repo_read` | Lecture sécurisée des sources et de la documentation du monorepo. |
-
----
-
-## 4. Feuille de Route d'Implémentation & Jalons
-
-```mermaid
-flowchart LR
-    M1["Phase 1 : Crate nie-mcp & commande niers mcp (rmcp stdio)"] --> M2["Phase 2 : Port des 32 outils in-process"]
-    M2 --> M3["Phase 3 : Smoke tests Rust natifs (tests/mcp_smoke.rs)"]
-    M3 --> M4["Phase 4 : Remplacement de apps/nie-mcp & mise à jour des plugins"]
+```toml
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "cc66e3091e1584f48ee1e0058a2a1201a1d35c81", features = ["server", "transport-io", "macros", "schemars"] }
 ```
 
-1. **Jalon 1 — Déclaration de la crate & squelette `rmcp` :**
-   - Ajout de la dépendance `rmcp` dans le workspace Cargo.
-   - Création de `crates/tools/nie-mcp` exposant le serveur stdio.
-   - Intégration de la sous-commande `niers mcp` dans `crates/tools/nie-cli`.
-2. **Jalon 2 — Connexion directe des domaines métier :**
-   - Câblage direct de `nie-formats`, `nie-data`, `nie-lua`, `nie-trace` sans FFI.
-3. **Jalon 3 — Certification & Parité des Tests :**
-   - Implémentation du smoke test d'intégration validant les 32 outils en un temps de cycle record (< 500 ms).
-4. **Jalon 4 — Bascule Finale :**
-   - Mise à jour de `.mcp.json` pour invoquer `target/release/niers.exe mcp`.
-   - Archivage de la couche Bun `apps/nie-mcp`.
+MCP uses stdio. stdout is reserved exclusively for JSON-RPC frames; diagnostics and bridge logs
+go to stderr. Input schemas are derived with `schemars`, and `tools/list` is the executable
+source of truth for the tool inventory.
 
-## 5.1 API native Computer Use ciblée
-
-Le crate `nie-computer-use` porte la frontière locale vers `nie.exe` et Ghidra.
-Il expose la commande read-only :
+CLI commands are not relaunched as subprocesses. `nie-cli` exposes a library target and shared
+dispatch function. Output capture is thread-local, bounded to 8 MiB, and blocking work runs
+outside Tokio async tasks. The small `src/bin.rs` remains the terminal binding.
 
 ```text
-niers computer-use nie-exe --executable <path>
-niers computer-use ghidra --ghidra-url http://127.0.0.1:8080/mcp
+MCP client ──stdio──> nie-mcp / niers mcp
+                         │
+                         ├── rmcp + schemars schemas
+                         ├── in-process nie-cli dispatch
+                         ├── Rust VFS / format / RE / repository crates
+                         └── WebSocket 127.0.0.1:8791/bridge ──> Inacord
 ```
 
-La réponse suit `schemas/computer-use-probe.schema.json`. `available: true` signifie que la
-cible est trouvée ou que l'endpoint HTTP est joignable ; cela ne signifie ni que le jeu est lancé,
-ni qu'un handshake MCP Ghidra est terminé. Les actions visibles restent dans la frontière
-WinClean/Computer Use, avec observation avant et après et validation humaine.
+## Tool surface: 56 tools
 
-La crate réexporte aussi l'intégralité des surfaces publiques sous `nie_computer_use::re` et
-`nie_computer_use::trace`. `NiersComputerUse` fournit la façade ciblée `nie.exe` pour trouver le
-PID, résoudre les modules/plages et lire exactement une plage mémoire. Les opérations d'écriture
-de `nie-trace` restent hors de cette façade read-only.
+Forty `cli_*` tools cover exactly the forty top-level commands other than `mcp`. Every tool uses
+the common `{ "args": string[] }` input. These are the same arguments that follow the command in
+the terminal, keeping Clap as the single source of truth for nested commands and options.
 
-La façade expose également `snapshot`, `scan_aob` et `catalog_entry`. Le scan est limité par
-`limit` et par les régions du module demandé. Les capacités d'écriture, de dump disque, de
-lancement, de recette effective et de patch EAC ne sont pas implicitement activées : elles
-nécessitent une commande distincte, une autorisation explicite et une preuve post-opération.
+| Family | Tools |
+|---|---|
+| Forge and RE | `cli_seed`, `cli_seed_ui`, `cli_strings`, `cli_coverage`, `cli_queue`, `cli_propagate`, `cli_rtti`, `cli_index`, `cli_disasm`, `cli_pdata`, `cli_rebuild`, `cli_recover` |
+| Formats and VFS | `cli_viola`, `cli_format`, `cli_decode`, `cli_refresh_typed_json`, `cli_convert`, `cli_vfs` |
+| Game and content | `cli_steam`, `cli_info`, `cli_render`, `cli_lua`, `cli_lua_run`, `cli_lua_audit`, `cli_img`, `cli_mode`, `cli_icons`, `cli_avatar`, `cli_save`, `cli_wiki`, `cli_uniform_map`, `cli_textures`, `cli_menu_predecode`, `cli_vn`, `cli_video` |
+| System and control | `cli_computer_use`, `cli_mod`, `cli_find`, `cli_grep`, `cli_mem` |
 
-La décision détaillée et la matrice complète des API sont dans
-[`COMPUTER-USE-RE-TRACE.md`](COMPUTER-USE-RE-TRACE.md).
+Sixteen compatibility names preserve the former Bun server API:
 
-Références vérifiées : [MCP Tools](https://modelcontextprotocol.io/specification/2025-06-18/server/tools),
-[MCP Schema](https://modelcontextprotocol.io/specification/2025-11-25/schema),
-[GhidraMCP](https://github.com/gnummers/ghidra-mcp), et [OpenAI Computer Use](https://developers.openai.com/api/docs/guides/tools/computer-use).
+| Domain | Native tools |
+|---|---|
+| Service | `aphrody_api_health` |
+| VFS and assets | `vfs_list`, `vfs_search`, `vfs_stat`, `vfs_cat`, `asset_get` |
+| RE database | `re_query`, `re_function`, `re_coverage` |
+| Repository | `repo_read` |
+| Inacord | `explorer_status`, `explorer_navigate`, `explorer_open`, `explorer_tab`, `explorer_toast` |
+| Game | `game_launch` |
 
-## 5. Workflow natif multi-surface
+A compatibility-tool failure is returned as an MCP result with `isError: true`. Every `cli_*`
+tool returns the structured envelope `{ success, stdout, stderr, error, truncated }`, allowing a
+client to distinguish Clap or domain errors without parsing free-form output.
 
-Le serveur MCP `niers` est le point d'orchestration. Il ne remplace pas les surfaces spécialisées :
+`re_query` opens `NIERS_SQLITE` read-only, validates both SQL shape and SQLite's
+`Statement::readonly`, bounds rows, preserves large integers, and formats address columns as
+hexadecimal. VFS operations call `nie-formats` directly, while `repo_read` reuses the confined
+repository API from `nie-explore`.
 
-| Surface | Rôle | Preuve minimale |
+`asset_get` decodes `raw`, `cfg`, `tex`, and `audio` in memory. Compatibility mode `model` calls
+`nie-model-serve` through a native Rust HTTP client with a 30-second timeout, streaming reads,
+and an 8 MiB `maxBytes` ceiling. If `Content-Length` already exceeds the ceiling, the body is not
+downloaded and the exact URL is returned. Full conversion and rendering workflows remain
+available through `cli_convert` and `cli_render`.
+
+## Inacord bridge
+
+The Rust server listens only on `ws://127.0.0.1:8791/bridge`. `NIERS_BRIDGE_PORT` can override
+the port. The bridge is optional: a busy port or absent UI does not disable other MCP tools.
+
+The versioned protocol remains in `packages/nie-bridge/src/protocol.ts` as the WebView client
+contract. Its former `Bun.serve` implementation has been removed. The Rust server validates the
+HTTP path, `hello` frame, protocol version, requested tab, and bounds each reply wait to five
+seconds. A new connection cleanly replaces the previous one.
+
+## Running and configuration
+
+From the repository root:
+
+```bash
+cargo run --quiet --package nie-mcp --
+# equivalent binding
+cargo run --quiet --package nie-cli -- mcp
+```
+
+Portable project configuration:
+
+```json
+{
+  "mcpServers": {
+    "niers-game": {
+      "type": "stdio",
+      "command": "cargo",
+      "args": ["run", "--quiet", "--package", "nie-mcp", "--"]
+    }
+  }
+}
+```
+
+For a desktop client launched from another directory, Inacord adds
+`--manifest-path <repository>/Cargo.toml`. The four versioned declarations are `.mcp.json`,
+`.codex/config.toml`, `plugins/niers-plugin/mcp_config.json`, and
+`.agents/plugins/niers-plugin/mcp_config.json`.
+
+Recognized environment variables:
+
+| Variable | Default | Purpose |
 |---|---|---|
-| Aphrody | OCR, agent, données et MCP du dépôt `aphrody` | test ciblé ou réponse MCP réelle |
-| WinClean | observation/contrôle Windows et suivi PID | observation avant/après |
-| niers | VFS, formats, rendu, mémoire et orchestration | commande + artefact inspecté |
-| Ghidra | décompilation, xrefs, RTTI et analyse de `nie.exe` | CodeBrowser ou MCP live + export |
-| Computer Use | pilotage visible de l'interface | état observé après chaque action |
+| `NIERS_REPO` | root inferred from the manifest | `repo_read`, `game_launch`, and generated configuration |
+| `NIE_GAME_DIR` | native `nie-formats` resolution | VFS and game data |
+| `NIERS_SQLITE` | `<repo>/var/niers.sqlite` | read-only RE tools |
+| `NIE_APHRODY_API_URL` | `http://127.0.0.1:8085` | `aphrody_api_health` compatibility |
+| `MODEL_SERVE_URL` | `http://127.0.0.1:8790` | `asset_get` with `decode: "model"` |
+| `NIERS_BRIDGE_PORT` | `8791` | local Inacord bridge |
+| `NIERS_GAME_EXE` | `nie.exe` | executable launched by `game_launch` |
 
-Un run non trivial conserve ses entrées et preuves dans `var/runs/<run-id>/` :
+## Verification and maintenance
 
-```text
-pending/  results/  logs/  evidence/  manifest.json
+Run the scoped gates with:
+
+```bash
+cargo test -p nie-cli --lib mcp::
+cargo test -p nie-mcp --test stdio_smoke
+cargo clippy -p nie-cli --lib --bins --tests -- -D warnings
+cargo clippy -p nie-mcp --bins --tests -- -D warnings
+bun test packages/nie-bridge
+bunx tsc --noEmit -p packages/nie-bridge/tsconfig.json
 ```
 
-Le manifest contient `run_id`, `requested_scope`, `inputs`, `actions`, `outputs`, `status` et les
-hashes des artefacts. Les secrets, dumps privés et assets lourds restent hors dépôt.
-
-Niveaux de preuve : P0 (configuration), P1 (exécution locale), P2 (artefact inspecté), P3 (surface
-live), P4 (run reproductible). Un déploiement ou une affirmation runtime exige P3 ; une livraison
-reproductible exige P4.
-
-Routage : données et formats passent d'abord par `niers`; l'OCR et les agents spécialisés passent
-par Aphrody; une application Windows est observée par WinClean/Computer Use avant et après action;
-le RE passe par Ghidra puis est normalisé dans `nie-re`/`nie-index`. Aucun résultat d'outil ne vaut
-preuve tant que son artefact n'est pas inspecté. Les routes de lecture arbitraire du dépôt restent
-désactivées ou authentifiées.
+The protocol smoke test starts the real binary, initializes MCP, checks all 56 tools, and calls
+`cli_info` over clean stdout. The bridge test performs a real WebSocket round trip with the
+historical client contract. Every new top-level CLI command must add its `cli_*` binding and
+update the verified count. Every bridge protocol change must update both the TypeScript client
+and the Rust test.

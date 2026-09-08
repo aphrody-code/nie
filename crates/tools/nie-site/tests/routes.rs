@@ -374,7 +374,10 @@ async fn documents_well_known() {
             "{uri} ne commence pas par son titre"
         );
         assert!(doc.contains("https://exemple.test"), "{uri} : origine");
-        assert!(!doc.contains("nie.aphrody.com"), "{uri} : origine codee en dur");
+        assert!(
+            !doc.contains("nie.aphrody.com"),
+            "{uri} : origine codee en dur"
+        );
     }
 
     // `security.txt` a ete retire : il ne peut pas exister sans publier un contact.
@@ -417,7 +420,10 @@ async fn documents_well_known() {
         "<loc>https://exemple.test/explorateur</loc>",
         "<loc>https://exemple.test/menu</loc>",
     ] {
-        assert!(!texte.contains(absente), "{absente} ne doit plus etre annoncee");
+        assert!(
+            !texte.contains(absente),
+            "{absente} ne doit plus etre annoncee"
+        );
     }
 }
 

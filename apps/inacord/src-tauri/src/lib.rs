@@ -5108,7 +5108,6 @@ fn urlencode(s: &str) -> String {
     out
 }
 
-
 // --- Aphrody : le pet, et la chaine pixel-perfect -------------------------------------------
 //
 // Toutes ces commandes sont `async` : elles lisent le disque, et une commande Tauri SYNCHRONE
@@ -5143,7 +5142,9 @@ async fn aphrody_pixel_mesurer(
     teinte_max: Option<f64>,
     saturation: Option<f64>,
 ) -> Result<aphrody::MesureDto, String> {
-    aphrody::mesurer_fichier(&chemin, k, boite, &mode, seuil, teinte_min, teinte_max, saturation)
+    aphrody::mesurer_fichier(
+        &chemin, k, boite, &mode, seuil, teinte_min, teinte_max, saturation,
+    )
 }
 
 /// La palette d'une image en proprietes personnalisees CSS `oklch()`, HEX mesure en commentaire.

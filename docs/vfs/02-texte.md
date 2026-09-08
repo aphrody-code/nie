@@ -195,7 +195,7 @@ faute de build autorisé pendant cette session). Aucun module `nie-data` nommé 
 
 ### packages/
 
-`packages/nie-catalog/src/{jeu.ts,synergie.ts,anime.ts,cli.ts}` référencent `text`/`font`
+`packages/nie-catalog/src/{game.ts,synergy.ts,anime.ts,cli.ts}` référencent `text`/`font`
 (recherche `rg`), mais dans des contextes génériques (variables, pas une façade dédiée au texte
 localisé) — **pas de gisement `nie-catalog` propre à la localisation** identifié.
 

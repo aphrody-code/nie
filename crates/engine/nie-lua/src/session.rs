@@ -31,6 +31,7 @@
 //! c'est la liste de travail du portage moteur, produite par l'exécution elle-même.
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use mlua::{Lua, MultiValue, Table, Value};
@@ -79,6 +80,219 @@ pub enum CallbackArg {
     String(String),
     /// Valeur Lua `nil`, distincte de l’absence d’argument.
     Nil,
+}
+
+/// Menu-manager callback verified in the `CLuaMenuObject` vtable or in the inspected scripts.
+///
+/// This closes the scenario API over the entry points that are already mapped: a caller cannot
+/// silently introduce a plausible name that is absent from `nie.exe`. The three vtable slots
+/// identified as stubs are deliberately excluded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MenuCallback {
+    /// Simulation tick executed before [`Self::Step`].
+    PreStep,
+    /// Main simulation tick.
+    Step,
+    /// Simulation tick executed after [`Self::Step`].
+    PostStep,
+    /// Menu scene tick.
+    SceneStep,
+    /// Menu initialization.
+    OnInit,
+    /// Primary enter action.
+    OnEnter,
+    /// Secondary enter action.
+    OnSubEnter,
+    /// Function action.
+    OnFunction,
+    /// Return from the current screen, defined by the inspected menu scripts.
+    OnBack,
+    /// Layer setup.
+    OnSetupLayer,
+    /// Layer opening.
+    OnOpenLayer,
+    /// Layer closing.
+    OnCloseLayer,
+    /// End of layer opening.
+    OnOpenEndLayer,
+    /// End of layer closing.
+    OnCloseEndLayer,
+    /// Layer update.
+    OnUpdateLayer,
+    /// Move focus to the previous value.
+    MoveFocusDec,
+    /// Move focus to the next value.
+    MoveFocusInc,
+    /// Move focus through a matrix.
+    MoveFocusMtx,
+    /// Focus change.
+    OnChangeFocus,
+    /// Focus decision.
+    OnDecideFocus,
+    /// Layer-group change.
+    OnChangeLayerGroup,
+    /// Mouse movement.
+    OnMouseMove,
+    /// Left mouse button pressed.
+    OnMouseLDown,
+    /// Left mouse button held over an object.
+    OnMouseLOn,
+    /// Left mouse button released.
+    OnMouseLUp,
+}
+
+impl MenuCallback {
+    /// The 25 mapped callbacks in menu-manager family order, including `OnBack`, which is
+    /// verified in the inspected menu scripts.
+    pub const ALL: [Self; 25] = [
+        Self::PreStep,
+        Self::Step,
+        Self::PostStep,
+        Self::SceneStep,
+        Self::OnInit,
+        Self::OnEnter,
+        Self::OnSubEnter,
+        Self::OnFunction,
+        Self::OnBack,
+        Self::OnSetupLayer,
+        Self::OnOpenLayer,
+        Self::OnCloseLayer,
+        Self::OnOpenEndLayer,
+        Self::OnCloseEndLayer,
+        Self::OnUpdateLayer,
+        Self::MoveFocusDec,
+        Self::MoveFocusInc,
+        Self::MoveFocusMtx,
+        Self::OnChangeFocus,
+        Self::OnDecideFocus,
+        Self::OnChangeLayerGroup,
+        Self::OnMouseMove,
+        Self::OnMouseLDown,
+        Self::OnMouseLOn,
+        Self::OnMouseLUp,
+    ];
+
+    /// Exact global name read by the menu-manager Lua bridge.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::PreStep => "PreStep",
+            Self::Step => "Step",
+            Self::PostStep => "PostStep",
+            Self::SceneStep => "SceneStep",
+            Self::OnInit => "OnInit",
+            Self::OnEnter => "OnEnter",
+            Self::OnSubEnter => "OnSubEnter",
+            Self::OnFunction => "OnFunction",
+            Self::OnBack => "OnBack",
+            Self::OnSetupLayer => "OnSetupLayer",
+            Self::OnOpenLayer => "OnOpenLayer",
+            Self::OnCloseLayer => "OnCloseLayer",
+            Self::OnOpenEndLayer => "OnOpenEndLayer",
+            Self::OnCloseEndLayer => "OnCloseEndLayer",
+            Self::OnUpdateLayer => "OnUpdateLayer",
+            Self::MoveFocusDec => "MoveFocusDec",
+            Self::MoveFocusInc => "MoveFocusInc",
+            Self::MoveFocusMtx => "MoveFocusMtx",
+            Self::OnChangeFocus => "OnChangeFocus",
+            Self::OnDecideFocus => "OnDecideFocus",
+            Self::OnChangeLayerGroup => "OnChangeLayerGroup",
+            Self::OnMouseMove => "OnMouseMove",
+            Self::OnMouseLDown => "OnMouseLDown",
+            Self::OnMouseLOn => "OnMouseLOn",
+            Self::OnMouseLUp => "OnMouseLUp",
+        }
+    }
+}
+
+/// Explicit event in a menu scenario.
+///
+/// Arguments stay typed and preserve an explicit `nil`. When present, the optional context
+/// replaces the scene/save context immediately before the event.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MenuEvent {
+    /// Verified entry point to invoke.
+    pub callback: MenuCallback,
+    /// Callback arguments in Lua order.
+    pub args: Vec<CallbackArg>,
+    /// Engine context associated with this event.
+    pub context: Option<RuntimeContext>,
+}
+
+impl MenuEvent {
+    /// Builds an event without arguments or a context replacement.
+    #[must_use]
+    pub const fn new(callback: MenuCallback) -> Self {
+        Self {
+            callback,
+            args: Vec::new(),
+            context: None,
+        }
+    }
+
+    /// Adds the Lua arguments carried by the event.
+    #[must_use]
+    pub fn with_args(mut self, args: impl IntoIterator<Item = CallbackArg>) -> Self {
+        self.args = args.into_iter().collect();
+        self
+    }
+
+    /// Associates a scene/save context replacement with the event.
+    #[must_use]
+    pub fn with_context(mut self, context: RuntimeContext) -> Self {
+        self.context = Some(context);
+        self
+    }
+}
+
+/// Builds the standard layer and frame events driven by the native menu runtime.
+///
+/// Each layer is expanded to its known item count, with one item retained when no count is
+/// available. Frame events preserve the native `PreStep` -> `Step` -> `PostStep` order. Keeping
+/// this scenario in the library lets the CLI, GUI, API and MCP surfaces replay the same sequence
+/// instead of reimplementing the menu-manager lifecycle.
+#[must_use]
+pub fn build_menu_runtime_events(
+    layer_ids: &[u32],
+    item_counts: &BTreeMap<u32, i32>,
+    frames: u32,
+) -> Vec<MenuEvent> {
+    let mut events = Vec::new();
+    for &layer_id in layer_ids {
+        let count = item_counts.get(&layer_id).copied().unwrap_or(0).max(1);
+        for item_index in 0..count {
+            let args = [
+                CallbackArg::Number(layer_id as f64),
+                CallbackArg::Number(f64::from(item_index)),
+            ];
+            events.push(MenuEvent::new(MenuCallback::OnSetupLayer).with_args(args.iter().cloned()));
+            events.push(MenuEvent::new(MenuCallback::OnOpenLayer).with_args(args.iter().cloned()));
+            events.push(MenuEvent::new(MenuCallback::OnEnter).with_args(args));
+        }
+    }
+    for _ in 0..frames {
+        events.push(MenuEvent::new(MenuCallback::PreStep));
+        events.push(MenuEvent::new(MenuCallback::Step));
+        events.push(MenuEvent::new(MenuCallback::PostStep));
+    }
+    events
+}
+
+/// Measurement of an event scenario replayed on a persistent session.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MenuEventReport {
+    /// Number of events supplied by the caller.
+    pub events_requested: usize,
+    /// Number of events whose callback existed, including failed calls.
+    pub events_dispatched: usize,
+    /// Number of callbacks that completed without an error.
+    pub events_succeeded: usize,
+    /// Number of attempted invocations per existing callback.
+    pub callback_invocations: BTreeMap<MenuCallback, usize>,
+    /// Missing callbacks in scenario order, with duplicates preserved.
+    pub missing_callbacks: Vec<MenuCallback>,
+    /// Errors captured without hiding subsequent events.
+    pub callback_errors: Vec<String>,
 }
 
 type IncludeResolver = Rc<dyn Fn(&str) -> Option<Vec<u8>>>;
@@ -565,12 +779,17 @@ impl LuaSession {
         if let Some(context) = context {
             self.set_context(context)?;
         }
-        // Le manager natif installe le layer événementiel comme contexte courant avant d'appeler
-        // OnSetup/OnOpen/OnClose. Les commandes d'objet qui omettent leur layerId relisent alors
-        // ce slot ; le faire ici évite de muter silencieusement le layer 0 dans une session live.
+        // The native manager installs the event layer as current context before every layer
+        // lifecycle callback. Object commands that omit their layer ID then read this slot;
+        // keeping it aligned prevents them from silently mutating layer 0 in a live session.
         if matches!(
             callback,
-            "OnSetupLayer" | "OnOpenLayer" | "OnCloseLayer" | "OnCloseEndLayer"
+            "OnSetupLayer"
+                | "OnOpenLayer"
+                | "OnCloseLayer"
+                | "OnOpenEndLayer"
+                | "OnCloseEndLayer"
+                | "OnUpdateLayer"
         ) && let Some(CallbackArg::Number(layer_id)) = args.first()
             && let Some(state) = &self.menu_state
         {
@@ -594,6 +813,86 @@ impl LuaSession {
             .collect::<Result<MultiValue, LuaError>>()?;
         function.call::<MultiValue>(values)?;
         Ok(true)
+    }
+
+    /// Replays an explicit scenario made only of mapped menu callbacks.
+    ///
+    /// The session must have loaded the script first (for example with
+    /// [`Self::drive_menu_for_frames`]). Missing and failing callbacks are measured in the report
+    /// instead of interrupting the sequence, so an exporter can distinguish an incomplete
+    /// scenario from one that was never executed. The default instruction budget protects the
+    /// caller from a callback waiting indefinitely for engine state.
+    ///
+    /// # Errors
+    /// [`LuaError`] if the instruction-limit hook cannot be installed.
+    pub fn dispatch_menu_events(
+        &mut self,
+        events: &[MenuEvent],
+    ) -> Result<MenuEventReport, LuaError> {
+        self.dispatch_menu_events_with_limit(events, Some(DEFAULT_VFS_INSTRUCTION_LIMIT))
+    }
+
+    /// Scenario-driver variant with a configurable instruction budget.
+    ///
+    /// The budget covers the complete sequence and the hook is always removed before returning,
+    /// including when callbacks fail. `None` disables the limit for scenarios whose termination
+    /// is already guaranteed by the caller.
+    ///
+    /// # Errors
+    /// [`LuaError`] if the instruction-limit hook cannot be installed.
+    pub fn dispatch_menu_events_with_limit(
+        &mut self,
+        events: &[MenuEvent],
+        instruction_limit: Option<u32>,
+    ) -> Result<MenuEventReport, LuaError> {
+        if let Some(limit) = instruction_limit {
+            let executed = std::cell::Cell::new(0_u32);
+            self.lua.set_hook(
+                mlua::HookTriggers::new().every_nth_instruction(10_000),
+                move |_lua, _debug| {
+                    executed.set(executed.get().saturating_add(10_000));
+                    if executed.get() >= limit {
+                        return Err(mlua::Error::RuntimeError(format!(
+                            "execution limit reached ({limit} instructions) — menu scenario probably waiting for the engine"
+                        )));
+                    }
+                    Ok(mlua::VmState::Continue)
+                },
+            )?;
+        }
+
+        let mut report = MenuEventReport {
+            events_requested: events.len(),
+            ..MenuEventReport::default()
+        };
+        for event in events {
+            let callback_name = event.callback.as_str();
+            if !matches!(
+                self.lua.globals().raw_get::<Value>(callback_name),
+                Ok(Value::Function(_))
+            ) {
+                report.missing_callbacks.push(event.callback);
+                continue;
+            }
+
+            report.events_dispatched += 1;
+            *report
+                .callback_invocations
+                .entry(event.callback)
+                .or_default() += 1;
+            match self.call_menu_callback_typed(callback_name, &event.args, event.context.clone()) {
+                Ok(true) => report.events_succeeded += 1,
+                Ok(false) => report.missing_callbacks.push(event.callback),
+                Err(error) => report
+                    .callback_errors
+                    .push(format!("{callback_name}: {error}")),
+            }
+        }
+
+        if instruction_limit.is_some() {
+            self.lua.remove_hook();
+        }
+        Ok(report)
     }
 
     /// Lignes de `print` accumulées depuis le dernier [`Self::take_output`].
@@ -1008,6 +1307,173 @@ mod tests {
         assert_eq!(state.current_layer, 0x77);
         assert!(!state.layers[&0x77].objects[&0x1234].visible);
         assert!(!state.layers.contains_key(&0));
+    }
+
+    #[test]
+    fn typed_menu_callbacks_are_exact_and_unique() {
+        let names = MenuCallback::ALL.map(MenuCallback::as_str);
+        assert_eq!(
+            names,
+            [
+                "PreStep",
+                "Step",
+                "PostStep",
+                "SceneStep",
+                "OnInit",
+                "OnEnter",
+                "OnSubEnter",
+                "OnFunction",
+                "OnBack",
+                "OnSetupLayer",
+                "OnOpenLayer",
+                "OnCloseLayer",
+                "OnOpenEndLayer",
+                "OnCloseEndLayer",
+                "OnUpdateLayer",
+                "MoveFocusDec",
+                "MoveFocusInc",
+                "MoveFocusMtx",
+                "OnChangeFocus",
+                "OnDecideFocus",
+                "OnChangeLayerGroup",
+                "OnMouseMove",
+                "OnMouseLDown",
+                "OnMouseLOn",
+                "OnMouseLUp",
+            ]
+        );
+        assert_eq!(
+            names
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            MenuCallback::ALL.len()
+        );
+    }
+
+    #[test]
+    fn runtime_event_sequence_preserves_layers_items_and_frames() {
+        let item_counts = BTreeMap::from([(0x10, 2)]);
+        let events = build_menu_runtime_events(&[0x10, 0x20], &item_counts, 2);
+
+        assert_eq!(events.len(), 15);
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.callback)
+                .collect::<Vec<_>>(),
+            [
+                MenuCallback::OnSetupLayer,
+                MenuCallback::OnOpenLayer,
+                MenuCallback::OnEnter,
+                MenuCallback::OnSetupLayer,
+                MenuCallback::OnOpenLayer,
+                MenuCallback::OnEnter,
+                MenuCallback::OnSetupLayer,
+                MenuCallback::OnOpenLayer,
+                MenuCallback::OnEnter,
+                MenuCallback::PreStep,
+                MenuCallback::Step,
+                MenuCallback::PostStep,
+                MenuCallback::PreStep,
+                MenuCallback::Step,
+                MenuCallback::PostStep,
+            ]
+        );
+        assert_eq!(
+            events[0].args,
+            [CallbackArg::Number(0x10 as f64), CallbackArg::Number(0.0)]
+        );
+        assert_eq!(
+            events[3].args,
+            [CallbackArg::Number(0x10 as f64), CallbackArg::Number(1.0)]
+        );
+        assert_eq!(
+            events[6].args,
+            [CallbackArg::Number(0x20 as f64), CallbackArg::Number(0.0)]
+        );
+        assert!(events[9..].iter().all(|event| event.args.is_empty()));
+    }
+
+    #[test]
+    fn menu_scenario_replays_typed_events_and_measures_gaps() {
+        let mut s = LuaSession::standard(true).expect("menu session");
+        s.exec(
+            "menu-events",
+            br#"
+                trace = ""
+                function OnOpenEndLayer(layer, index, enabled)
+                    trace = trace .. "O" .. index .. tostring(enabled) .. sceneSlot
+                    funcLuaMenuCommand(0x2A64B198, 0x1234, 0, false)
+                end
+                function OnFunction()
+                    error("function failure")
+                end
+                function OnBack()
+                    trace = trace .. "B"
+                end
+            "#,
+        )
+        .expect("scenario callbacks");
+        let mut context = RuntimeContext::default();
+        context.set_string("sceneSlot", "S");
+        let events = [
+            MenuEvent::new(MenuCallback::OnOpenEndLayer)
+                .with_args([
+                    CallbackArg::Number(0x77 as f64),
+                    CallbackArg::Number(7.0),
+                    CallbackArg::Boolean(true),
+                ])
+                .with_context(context),
+            MenuEvent::new(MenuCallback::OnMouseMove),
+            MenuEvent::new(MenuCallback::OnFunction),
+            MenuEvent::new(MenuCallback::OnBack),
+        ];
+
+        let report = s
+            .dispatch_menu_events_with_limit(&events, None)
+            .expect("scenario driver");
+        assert_eq!(report.events_requested, 4);
+        assert_eq!(report.events_dispatched, 3);
+        assert_eq!(report.events_succeeded, 2);
+        assert_eq!(
+            report.callback_invocations,
+            BTreeMap::from([
+                (MenuCallback::OnBack, 1),
+                (MenuCallback::OnFunction, 1),
+                (MenuCallback::OnOpenEndLayer, 1),
+            ])
+        );
+        assert_eq!(report.missing_callbacks, [MenuCallback::OnMouseMove]);
+        assert_eq!(report.callback_errors.len(), 1);
+        assert!(report.callback_errors[0].contains("function failure"));
+        assert_eq!(s.eval("trace").unwrap(), "O7trueSB");
+
+        let state = s.menu_state().expect("menu state");
+        let state = state.borrow();
+        assert_eq!(state.current_layer, 0x77);
+        assert!(!state.layers[&0x77].objects[&0x1234].visible);
+        assert!(!state.layers.contains_key(&0));
+    }
+
+    #[test]
+    fn menu_scenario_bounds_a_callback_and_removes_the_hook() {
+        let mut s = LuaSession::standard(true).expect("menu session");
+        s.exec(
+            "bounded-events",
+            br#"function Step() while true do end end"#,
+        )
+        .expect("blocking callback");
+        let report = s
+            .dispatch_menu_events_with_limit(&[MenuEvent::new(MenuCallback::Step)], Some(10_000))
+            .expect("driver captures the limit");
+        assert_eq!(report.events_dispatched, 1);
+        assert_eq!(report.events_succeeded, 0);
+        assert_eq!(report.callback_errors.len(), 1);
+        assert!(report.callback_errors[0].contains("execution limit reached"));
+        s.exec("after-event-limit", b"event_driver_survived = true")
+            .expect("VM remains usable after the scenario");
+        assert_eq!(s.eval("event_driver_survived").unwrap(), "true");
     }
 
     #[test]

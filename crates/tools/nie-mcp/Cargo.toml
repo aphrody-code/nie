@@ -1,0 +1,23 @@
+[package]
+name = "nie-mcp"
+description = "Native Rust MCP stdio server for the complete niers tool surface"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "nie-mcp"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+nie-cli = { path = "../nie-cli" }
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -1,10 +1,9 @@
 /**
  * Protocole de contrôle `nie-bridge` — la définition unique, partagée par les deux bouts.
  *
- * `nie-mcp` (serveur MCP, Bun) écoute ; `nie-explorer` (UI Tauri) se connecte et exécute.
- * Les deux importent ce module : une commande ajoutée ici casse la compilation du côté qui
- * ne la gère pas, au lieu de diverger en silence — même raison d'être que les bindings
- * `tauri-specta` entre le Rust et le React de l'explorateur.
+ * `nie-mcp` (serveur MCP natif Rust) écoute ; Inacord (UI Tauri) se connecte et exécute.
+ * Ce module est le contrat TypeScript du client ; sa parité est verrouillée par le test
+ * WebSocket Rust de `nie-cli` et les tests exhaustifs du client.
  *
  * Transport : WebSocket sur la boucle locale, une trame = un message JSON.
  */

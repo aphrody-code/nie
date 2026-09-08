@@ -9,6 +9,8 @@
 
 use steamroom::types::key_value::{KeyValue, KvValue};
 
+use crate::planning::{DepotRecord, DepotSelection, ManifestId, PlanningLimits};
+
 /// Valeur de sentinel : manifest absent / introuvable.
 pub const INVALID_MANIFEST: u64 = 0;
 
@@ -33,37 +35,37 @@ pub fn select_depot_ids(
     arch: Option<&str>,
     language: &str,
 ) -> Vec<u32> {
+    let selection = DepotSelection {
+        explicit_depots: explicit_depots.to_vec(),
+        all_platforms,
+        operating_system: os.to_owned(),
+        architecture: arch.map(str::to_owned),
+        language: language.to_owned(),
+    };
     if !explicit_depots.is_empty() {
-        // Déduplique en conservant l'ordre de première apparition.
-        let mut seen = std::collections::HashSet::new();
-        return explicit_depots
-            .iter()
-            .filter(|&&id| seen.insert(id))
-            .copied()
-            .collect();
+        let limits = PlanningLimits {
+            max_depots: explicit_depots.len(),
+            ..PlanningLimits::default()
+        };
+        return crate::planning::select_depot_ids(&[], &selection, limits).unwrap_or_default();
     }
 
     let KvValue::Children(ref map) = depots.value else {
         return vec![];
     };
-
-    let mut found = Vec::new();
-    for (key, depot) in map {
-        // N'accepter que les entrées dont la clé est un entier (depot ID).
-        let Ok(id) = key.parse::<u32>() else { continue };
-
-        // Un depot sans enfants est un placeholder — ignorer.
-        if !has_children(depot) {
-            continue;
-        }
-
-        if !all_platforms && !is_depot_eligible(depot, os, arch, language) {
-            continue;
-        }
-
-        found.push(id);
-    }
-    found
+    let records: Vec<DepotRecord> = map
+        .iter()
+        .filter_map(|(key, depot)| {
+            key.parse::<u32>()
+                .ok()
+                .map(|id| depot_record_from_kv(id, depot))
+        })
+        .collect();
+    let limits = PlanningLimits {
+        max_depots: records.len(),
+        ..PlanningLimits::default()
+    };
+    crate::planning::select_depot_ids(&records, &selection, limits).unwrap_or_default()
 }
 
 /// Teste l'éligibilité d'un nœud depot vis-à-vis des filtres OS/arch/langue/lowviolence.
@@ -75,45 +77,14 @@ pub fn select_depot_ids(
 /// - `language` non vide → doit correspondre exactement
 /// - `lowviolence` présent et vrai → exclu
 pub fn is_depot_eligible(depot: &KeyValue, os: &str, arch: Option<&str>, language: &str) -> bool {
-    let Some(config) = depot.get("config") else {
-        return true;
+    let selection = DepotSelection {
+        explicit_depots: Vec::new(),
+        all_platforms: false,
+        operating_system: os.to_owned(),
+        architecture: arch.map(str::to_owned),
+        language: language.to_owned(),
     };
-
-    // oslist : liste CSV d'OS autorisés.
-    if let Some(oslist_str) = kv_string(config, "oslist")
-        && !oslist_str.trim().is_empty()
-    {
-        let in_list = oslist_str.split(',').any(|entry| entry.trim() == os);
-        if !in_list {
-            return false;
-        }
-    }
-
-    // osarch : architecture exacte si spécifiée.
-    if let Some(arch_filter) = arch
-        && let Some(osarch_str) = kv_string(config, "osarch")
-        && !osarch_str.trim().is_empty()
-        && osarch_str.trim() != arch_filter
-    {
-        return false;
-    }
-
-    // language : langue exacte.
-    if let Some(lang_str) = kv_string(config, "language")
-        && !lang_str.trim().is_empty()
-        && lang_str.trim() != language
-    {
-        return false;
-    }
-
-    // lowviolence : présent et truthy → exclu.
-    if let Some(lv) = config.get("lowviolence")
-        && kv_as_bool(lv)
-    {
-        return false;
-    }
-
-    true
+    crate::planning::is_depot_eligible(&depot_record_from_kv(0, depot), &selection)
 }
 
 /// Lit le GID du manifest d'un depot pour une branche donnée.
@@ -121,20 +92,7 @@ pub fn is_depot_eligible(depot: &KeyValue, os: &str, arch: Option<&str>, languag
 /// Chemin KV : `depot_child["manifests"][branch]["gid"]`.
 /// Renvoie [`INVALID_MANIFEST`] si la clé est absente ou non parsable.
 pub fn read_manifest_gid(depot_child: &KeyValue, branch: &str) -> u64 {
-    depot_child
-        .get("manifests")
-        .and_then(|m| m.get(branch))
-        .and_then(|b| b.get("gid"))
-        .and_then(|g| {
-            // gid peut être stocké comme String ou UInt64.
-            match &g.value {
-                KvValue::String(s) => s.parse::<u64>().ok(),
-                KvValue::UInt64(v) => Some(*v),
-                KvValue::Int64(v) => u64::try_from(*v).ok(),
-                _ => None,
-            }
-        })
-        .unwrap_or(INVALID_MANIFEST)
+    crate::planning::manifest_id_for_branch(&depot_record_from_kv(0, depot_child), branch)
 }
 
 /// Indique si le depot est proxié vers une autre app (`depotfromapp`).
@@ -142,14 +100,62 @@ pub fn read_manifest_gid(depot_child: &KeyValue, branch: &str) -> u64 {
 /// Renvoie l'app ID cible si le champ `depotfromapp` existe et que `manifests`
 /// est absent (comportement identique au C#). Renvoie `0` sinon.
 pub fn proxied_from_app(depot_child: &KeyValue) -> u32 {
-    // Si le depot a ses propres manifests, il n'est pas un proxy.
-    if depot_child.get("manifests").is_some() {
-        return 0;
+    crate::planning::proxy_app_id(&depot_record_from_kv(0, depot_child)).unwrap_or(0)
+}
+
+/// Convert Steam's host-only KeyValue record into the portable planner model.
+fn depot_record_from_kv(depot_id: u32, depot: &KeyValue) -> DepotRecord {
+    let config = depot.get("config");
+    let operating_systems = config
+        .and_then(|value| kv_string(value, "oslist"))
+        .map(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
+    let architecture = config
+        .and_then(|value| kv_string(value, "osarch"))
+        .map(str::to_owned);
+    let language = config
+        .and_then(|value| kv_string(value, "language"))
+        .map(str::to_owned);
+    let low_violence = config
+        .and_then(|value| value.get("lowviolence"))
+        .is_some_and(kv_as_bool);
+    let manifests = depot
+        .get("manifests")
+        .and_then(|value| match &value.value {
+            KvValue::Children(children) => Some(children),
+            _ => None,
+        })
+        .map(|branches| {
+            branches
+                .iter()
+                .filter_map(|(branch, value)| {
+                    value
+                        .get("gid")
+                        .and_then(kv_as_u64)
+                        .map(|gid| (branch.clone(), ManifestId(gid)))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    DepotRecord {
+        depot_id,
+        has_content: has_children(depot),
+        operating_systems,
+        architecture,
+        language,
+        low_violence,
+        manifests,
+        has_manifest_section: depot.get("manifests").is_some(),
+        proxy_app_id: depot.get("depotfromapp").and_then(kv_as_u32),
     }
-    depot_child
-        .get("depotfromapp")
-        .and_then(kv_as_u32)
-        .unwrap_or(0)
 }
 
 /// Lit le `buildid` d'une branche dans la section `depots`.
@@ -199,6 +205,16 @@ fn kv_as_u32(kv: &KeyValue) -> Option<u32> {
         KvValue::String(s) => s.parse::<u32>().ok(),
         KvValue::Int32(n) => u32::try_from(*n).ok(),
         KvValue::UInt64(n) => u32::try_from(*n).ok(),
+        _ => None,
+    }
+}
+
+/// Interprets a KeyValue leaf as an unsigned manifest identifier.
+fn kv_as_u64(kv: &KeyValue) -> Option<u64> {
+    match &kv.value {
+        KvValue::String(value) => value.parse::<u64>().ok(),
+        KvValue::UInt64(value) => Some(*value),
+        KvValue::Int64(value) => u64::try_from(*value).ok(),
         _ => None,
     }
 }

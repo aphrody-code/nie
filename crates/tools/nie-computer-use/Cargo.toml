@@ -11,15 +11,26 @@ publish = false
 [lints]
 workspace = true
 
+[features]
+default = ["host"]
+# Filesystem/SQLite validation and live process probes are native bindings. The
+# offline image inspector remains available without this feature, including on
+# `wasm32-unknown-unknown`.
+host = ["dep:rusqlite", "nie-re/host", "nie-trace/host"]
+
 [dependencies]
 anyhow.workspace = true
 hex.workspace = true
-rusqlite.workspace = true
+rusqlite = { workspace = true, optional = true }
 sha2.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-nie-re.workspace = true
-nie-trace.workspace = true
+nie-re = { path = "../../forge/nie-re", default-features = false }
+nie-trace = { path = "../../forge/nie-trace", default-features = false }
 
 [dev-dependencies]
 nie-index = { path = "../../forge/nie-index" }
+
+[[example]]
+name = "verify_session"
+required-features = ["host"]

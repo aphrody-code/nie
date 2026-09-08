@@ -16,13 +16,13 @@ import {
 	setSettings,
 } from "@niers/inacord-ui";
 import { useEffect } from "react";
-import { SETTINGS } from "../entrees";
-import { cheminPourEntree, localeDuPrefixe, prefixeDeLocale } from "../routage";
+import { SETTINGS } from "../entries";
+import { localeFromPrefix, pathForEntry, prefixForLocale } from "../routing";
 
 export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () => void }) {
 	// L'URL fait foi : un réglage `locale` qui contredirait la langue servie afficherait
 	// « English » sur une page française.
-	const localeServie = localeDuPrefixe(prefixe);
+	const localeServie = localeFromPrefix(prefixe);
 	useEffect(() => {
 		if (getSettings().locale !== localeServie) setSettings({ locale: localeServie });
 	}, [localeServie]);
@@ -30,9 +30,7 @@ export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () 
 	// `?tab=display` ouvre directement un onglet : un lien profond, et le moyen de prouver au
 	// `--dump-dom` que chaque famille rend bien ses lignes.
 	const tab = new URLSearchParams(window.location.search).get("tab");
-	const initialFamily = SETTING_FAMILIES.find((f) => f.id === tab)?.id as
-		| SettingFamily
-		| undefined;
+	const initialFamily = SETTING_FAMILIES.find((f) => f.id === tab)?.id as SettingFamily | undefined;
 
 	return (
 		<div style={{ position: "fixed", inset: 0 }}>
@@ -43,7 +41,7 @@ export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () 
 					if (!changes.includes("locale")) return;
 					const locale = reglages.locale as Locale;
 					if (locale === localeServie) return;
-					window.location.assign(cheminPourEntree(prefixeDeLocale(locale), SETTINGS));
+					window.location.assign(pathForEntry(prefixForLocale(locale), SETTINGS));
 				}}
 			/>
 		</div>

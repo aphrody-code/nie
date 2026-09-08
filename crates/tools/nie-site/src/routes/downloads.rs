@@ -129,7 +129,11 @@ pub fn choisir(corps: &[u8]) -> Result<Choix, ErreurSite> {
             continue;
         };
         return Ok(Choix {
-            version: r.tag_name.strip_prefix('v').unwrap_or(&r.tag_name).to_owned(),
+            version: r
+                .tag_name
+                .strip_prefix('v')
+                .unwrap_or(&r.tag_name)
+                .to_owned(),
             notes: r.body.clone().unwrap_or_default(),
             pub_date: r.published_at.clone(),
             url_installeur: installeur.browser_download_url.clone(),
@@ -281,12 +285,18 @@ mod tests {
         // preversion, doit vider le choix dans les deux cas : une preversion proposee a toutes
         // les installations est une mise a jour que personne n'a demandee.
         for (avant, apres) in [
-            (r#""published_at":"2026-09-01T10:00:00Z",
-         "draft":false"#, r#""published_at":"2026-09-01T10:00:00Z",
-         "draft":true"#),
-            (r#""published_at":"2026-09-01T10:00:00Z",
-         "draft":false,"prerelease":false"#, r#""published_at":"2026-09-01T10:00:00Z",
-         "draft":false,"prerelease":true"#),
+            (
+                r#""published_at":"2026-09-01T10:00:00Z",
+         "draft":false"#,
+                r#""published_at":"2026-09-01T10:00:00Z",
+         "draft":true"#,
+            ),
+            (
+                r#""published_at":"2026-09-01T10:00:00Z",
+         "draft":false,"prerelease":false"#,
+                r#""published_at":"2026-09-01T10:00:00Z",
+         "draft":false,"prerelease":true"#,
+            ),
         ] {
             let modifie = INDEX.replace(avant, apres);
             assert_ne!(modifie, INDEX, "le remplacement doit mordre");

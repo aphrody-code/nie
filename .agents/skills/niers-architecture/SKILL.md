@@ -25,8 +25,8 @@ runtime dependencies.
 ## Bun ownership
 
 `packages/nie` and `packages/nie-plugin` expose Rust through FFI; `packages/asset-source` and
-`packages/inacord-ui` provide shared contracts/UI; `apps/nie-web`, `apps/inacord`, and `apps/nie-mcp`
-are the web, desktop, and MCP hosts.
+`packages/inacord-ui` provides shared contracts/UI; `apps/nie-web` and `apps/inacord` are the web
+and desktop hosts. `crates/tools/nie-mcp` is the native Rust MCP host.
 
 Before adding a parser or data family, search the owning Rust crate and consult
 `docs/IECODE-MIGRATION.md`. A feature is not complete without a counted test or coverage gate.

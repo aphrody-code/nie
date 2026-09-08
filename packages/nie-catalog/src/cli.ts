@@ -15,7 +15,7 @@
  * ```
  */
 import { catalogue } from "./index.ts";
-import { personnageComplet } from "./synergie.ts";
+import { personnageComplet } from "./synergy.ts";
 
 const [commande, ...reste] = process.argv.slice(2);
 const argument = reste.join(" ");

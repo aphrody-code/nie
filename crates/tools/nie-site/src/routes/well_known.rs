@@ -21,8 +21,8 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 
 use crate::i18n::{Alternative, Langue, alternatives};
-use crate::state::EtatSite;
 use crate::routes::pages::SITE;
+use crate::state::EtatSite;
 
 /// Une route de navigation publiée au plan de site, avant traduction.
 #[derive(Debug, Clone)]
@@ -274,15 +274,15 @@ pub async fn manifeste(uri: axum::http::Uri) -> Response {
         "background_color": crate::routes::pages::COULEUR_THEME,
         "theme_color": crate::routes::pages::COULEUR_THEME,
         "icons": [
-            { "src": "/static/icone-16.png", "sizes": "16x16", "type": "image/png", "purpose": "any" },
-            { "src": "/static/icone-32.png", "sizes": "32x32", "type": "image/png", "purpose": "any" },
-            { "src": "/static/icone-48.png", "sizes": "48x48", "type": "image/png", "purpose": "any" },
-            { "src": "/static/icone-64.png", "sizes": "64x64", "type": "image/png", "purpose": "any" },
-            { "src": "/static/icone-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
-            { "src": "/static/icone-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
-            { "src": "/static/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-            { "src": "/static/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-            { "src": "/static/icone.svg", "type": "image/svg+xml", "purpose": "any maskable" },
+            { "src": "/static/icon-16.png", "sizes": "16x16", "type": "image/png", "purpose": "any" },
+            { "src": "/static/icon-32.png", "sizes": "32x32", "type": "image/png", "purpose": "any" },
+            { "src": "/static/icon-48.png", "sizes": "48x48", "type": "image/png", "purpose": "any" },
+            { "src": "/static/icon-64.png", "sizes": "64x64", "type": "image/png", "purpose": "any" },
+            { "src": "/static/icon-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+            { "src": "/static/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+            { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+            { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+            { "src": "/static/icon.svg", "type": "image/svg+xml", "purpose": "any maskable" },
         ],
     });
     texte(
@@ -378,7 +378,10 @@ mod tests {
             "https://nie.aphrody.com/recherche",
             "https://nie.aphrody.com/menu",
         ] {
-            assert!(!rendu.contains(absente), "{absente} ne doit plus etre annoncee");
+            assert!(
+                !rendu.contains(absente),
+                "{absente} ne doit plus etre annoncee"
+            );
         }
         // Les Options ont leur page, donc leur place au plan — dans les trois langues.
         assert!(rendu.contains("https://nie.aphrody.com/settings"));
@@ -536,7 +539,14 @@ mod tests {
             let v: serde_json::Value = serde_json::from_slice(&corps).expect("json valide");
             assert_eq!(v["lang"], code, "{chemin}");
             assert_eq!(v["start_url"], depart, "{chemin}");
-            assert_eq!(v["icons"].as_array().expect("icones").len(), 9);
+            let icons = v["icons"].as_array().expect("icones");
+            assert_eq!(icons.len(), 9);
+            assert!(
+                icons.iter().all(|icon| icon["src"]
+                    .as_str()
+                    .is_some_and(|source| source.starts_with("/static/icon"))),
+                "{chemin}: every emitted icon path must use the English canonical name"
+            );
             assert_eq!(v["theme_color"], crate::routes::pages::COULEUR_THEME);
         }
     }

@@ -42,7 +42,10 @@ pub struct SkillDto {
 /// convention de résolution dynamique que `nie-game/examples/export_*.rs` (les `.cfg.bin` sont
 /// suffixés par version, ex. `skill_config_4.00.17.00.cfg.bin` : pas de nom fixe possible).
 fn find_path(vfs: &Vfs, pred: impl Fn(&str) -> bool) -> Option<String> {
-    vfs.iter().map(|(p, _)| p.to_string()).filter(|p| pred(p)).min()
+    vfs.iter()
+        .map(|(p, _)| p.to_string())
+        .filter(|p| pred(p))
+        .min()
 }
 
 fn base_name(path: &str) -> &str {
@@ -58,10 +61,14 @@ fn base_name(path: &str) -> &str {
 /// Contrairement au T2B, aucune désambiguïsation de noms n'est nécessaire — le RDBN nomme ses
 /// listes et ses champs, `read_values` en sort des lignes déjà clés/valeurs.
 fn load_rdbn(vfs: &Vfs, pred: impl Fn(&str) -> bool, what: &str) -> Result<Value, String> {
-    let path = find_path(vfs, pred).ok_or_else(|| format!("{what} introuvable dans le VFS monté"))?;
+    let path =
+        find_path(vfs, pred).ok_or_else(|| format!("{what} introuvable dans le VFS monté"))?;
     let bytes = vfs.read(&path).map_err(|e| e.to_string())?;
-    let rdbn = nie_formats::cfgbin::parse(&bytes).map_err(|e| format!("parse RDBN {path} : {e}"))?;
-    Ok(nie_explore::bridge::rdbn_to_json(&nie_formats::cfgbin::read_values(&rdbn, &bytes)))
+    let rdbn =
+        nie_formats::cfgbin::parse(&bytes).map_err(|e| format!("parse RDBN {path} : {e}"))?;
+    Ok(nie_explore::bridge::rdbn_to_json(
+        &nie_formats::cfgbin::read_values(&rdbn, &bytes),
+    ))
 }
 
 /// Parse `skill_config` (+ `skill_text` FR si présent) → `SkillInfo` bruts + textes joints.
@@ -70,7 +77,11 @@ fn load_rdbn(vfs: &Vfs, pred: impl Fn(&str) -> bool, what: &str) -> Result<Value
 fn parse_skills(vfs: &Vfs) -> Result<(Vec<SkillInfo>, SkillTextMaps), String> {
     let config_json = load_rdbn(
         vfs,
-        |p| p.contains("/skill/") && base_name(p).starts_with("skill_config") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/skill/")
+                && base_name(p).starts_with("skill_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "skill_config",
     )?;
     let skills = nie_data::skill::parse_skill_config(&config_json);
@@ -94,15 +105,18 @@ pub fn find_skill(vfs: &Vfs, query: &str) -> Result<Option<SkillInfo>, String> {
     if q.is_empty() {
         return Ok(None);
     }
-    if let Some(exact) = skills.iter().find(|s| s.skill_id_str.eq_ignore_ascii_case(&q)) {
+    if let Some(exact) = skills
+        .iter()
+        .find(|s| s.skill_id_str.eq_ignore_ascii_case(&q))
+    {
         return Ok(Some(exact.clone()));
     }
-    Ok(skills
-        .into_iter()
-        .find(|s| {
-            s.skill_id_str.to_lowercase().contains(&q)
-                || nie_data::skill::join_skill_text(s, &maps).name.is_some_and(|n| n.to_lowercase().contains(&q))
-        }))
+    Ok(skills.into_iter().find(|s| {
+        s.skill_id_str.to_lowercase().contains(&q)
+            || nie_data::skill::join_skill_text(s, &maps)
+                .name
+                .is_some_and(|n| n.to_lowercase().contains(&q))
+    }))
 }
 
 /// Liste toutes les techniques du jeu (`m_skillInfoList` de `skill_config`), noms/descriptions
@@ -122,8 +136,14 @@ pub fn list_skills(vfs: &Vfs) -> Result<Vec<SkillDto>, String> {
                 skill_id_str: s.skill_id_str.clone(),
                 name: text.name,
                 description: text.description,
-                element: element.names().map(|(fr, _, _)| fr.to_string()).unwrap_or_else(|| format!("? ({})", s.element)),
-                category: category.names().map(|(fr, _, _)| fr.to_string()).unwrap_or_else(|| format!("? ({})", s.category)),
+                element: element
+                    .names()
+                    .map(|(fr, _, _)| fr.to_string())
+                    .unwrap_or_else(|| format!("? ({})", s.element)),
+                category: category
+                    .names()
+                    .map(|(fr, _, _)| fr.to_string())
+                    .unwrap_or_else(|| format!("? ({})", s.category)),
                 power_min: s.power_min as i32,
                 power_max: s.power_max as i32,
                 consume_tp: s.consume_tp as i32,
@@ -175,9 +195,11 @@ fn to_indexed_json(siblings: &[CfgEntry]) -> Vec<Value> {
 /// convertit en JSON forme "inagle" **indexée** (cf. [`to_indexed_json`]) — factorisé pour les
 /// modules `nie-data` ci-dessous (item/aura/trophy/quest, config ET texte).
 fn load_t2b(vfs: &Vfs, pred: impl Fn(&str) -> bool, what: &str) -> Result<Value, String> {
-    let path = find_path(vfs, pred).ok_or_else(|| format!("{what} introuvable dans le VFS monté"))?;
+    let path =
+        find_path(vfs, pred).ok_or_else(|| format!("{what} introuvable dans le VFS monté"))?;
     let bytes = vfs.read(&path).map_err(|e| e.to_string())?;
-    let cfg = nie_formats::cfgbin::parse_t2b(&bytes).map_err(|e| format!("parse T2B {path} : {e}"))?;
+    let cfg =
+        nie_formats::cfgbin::parse_t2b(&bytes).map_err(|e| format!("parse T2B {path} : {e}"))?;
     Ok(json!({ "entries": to_indexed_json(&cfg.entries) }))
 }
 
@@ -197,17 +219,24 @@ fn load_text_json(vfs: &Vfs, text_type: &str) -> Result<Value, String> {
 /// `pt`, `zh_hans`, `zh_hant` — les neuf dossiers de `data/common/text/`, relevés sur
 /// l'installation, cf. [`LANGUES`]). Généralise [`load_text_json`], qui forçait `fr`.
 fn load_text_json_lang(vfs: &Vfs, text_type: &str, langue: &str) -> Result<Value, String> {
-    let stem = nie_data::text::text_file_name(text_type)
-        .ok_or_else(|| format!("type de texte inconnu : {text_type} (cf. nie_data::text::TEXT_FILES)"))?;
+    let stem = nie_data::text::text_file_name(text_type).ok_or_else(|| {
+        format!("type de texte inconnu : {text_type} (cf. nie_data::text::TEXT_FILES)")
+    })?;
     let file = format!("{stem}.cfg.bin");
     let dossier = format!("/text/{langue}/");
-    load_t2b(vfs, |p| p.contains(&dossier) && base_name(p) == file, &format!("{file} {langue}"))
+    load_t2b(
+        vfs,
+        |p| p.contains(&dossier) && base_name(p) == file,
+        &format!("{file} {langue}"),
+    )
 }
 
 /// Table de texte FR d'un `text_type` convivial, déjà parsée en `(hashId, texte)` — la forme
 /// qu'attendent tous les `resolve_*`/`find_text` de `nie-data`. Cf. [`load_text_json`].
 fn load_text(vfs: &Vfs, text_type: &str) -> Result<Vec<(nie_data::HashId, String)>, String> {
-    Ok(nie_data::text::parse_text_file(&load_text_json(vfs, text_type)?))
+    Ok(nie_data::text::parse_text_file(&load_text_json(
+        vfs, text_type,
+    )?))
 }
 
 /// Objet (arme/consommable/costume/…) — port applati de `nie_data::item::ItemInfo` + son texte
@@ -228,7 +257,15 @@ pub struct ItemDto {
 
 /// Liste tous les objets du jeu (`item_config`), noms/descriptions FR joints depuis `item_text`.
 pub fn list_items(vfs: &Vfs) -> Result<Vec<ItemDto>, String> {
-    let config = load_t2b(vfs, |p| p.contains("/gamedata/item/") && base_name(p).starts_with("item_config") && base_name(p).ends_with(".cfg.bin"), "item_config")?;
+    let config = load_t2b(
+        vfs,
+        |p| {
+            p.contains("/gamedata/item/")
+                && base_name(p).starts_with("item_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "item_config",
+    )?;
     let items = nie_data::item::parse_all_items(&config);
     let text = load_text(vfs, "item")?;
 
@@ -262,7 +299,15 @@ pub struct AuraDto {
 
 /// Liste tous les Avatar/Keshin (`aura_skill_config`), noms/descriptions FR joints depuis `skill_text`.
 pub fn list_auras(vfs: &Vfs) -> Result<Vec<AuraDto>, String> {
-    let config = load_t2b(vfs, |p| p.contains("/gamedata/") && base_name(p).starts_with("aura_skill_config") && base_name(p).ends_with(".cfg.bin"), "aura_skill_config")?;
+    let config = load_t2b(
+        vfs,
+        |p| {
+            p.contains("/gamedata/")
+                && base_name(p).starts_with("aura_skill_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "aura_skill_config",
+    )?;
     let auras = nie_data::aura::parse_all_aura_cmds(&config);
     let text = load_text(vfs, "skill")?;
 
@@ -301,7 +346,15 @@ pub struct TrophyDto {
 /// Liste tous les succès (`trophy_config`), noms/descriptions FR joints depuis `trophy_text`,
 /// condition de déblocage décodée (story/event-flag/composite/always).
 pub fn list_trophies(vfs: &Vfs) -> Result<Vec<TrophyDto>, String> {
-    let config_json = load_t2b(vfs, |p| p.contains("/gamedata/") && base_name(p).starts_with("trophy_config") && base_name(p).ends_with(".cfg.bin"), "trophy_config")?;
+    let config_json = load_t2b(
+        vfs,
+        |p| {
+            p.contains("/gamedata/")
+                && base_name(p).starts_with("trophy_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "trophy_config",
+    )?;
     let config = nie_data::trophy::parse_trophy_config(&config_json);
     let text = load_text(vfs, "trophy")?;
 
@@ -346,7 +399,15 @@ pub struct QuestDto {
 
 /// Liste toutes les quêtes (`quest_config`), titres FR joints depuis `quest_title_text`.
 pub fn list_quests(vfs: &Vfs) -> Result<Vec<QuestDto>, String> {
-    let config = load_t2b(vfs, |p| p.contains("/gamedata/quest/") && base_name(p).starts_with("quest_config") && base_name(p).ends_with(".cfg.bin"), "quest_config")?;
+    let config = load_t2b(
+        vfs,
+        |p| {
+            p.contains("/gamedata/quest/")
+                && base_name(p).starts_with("quest_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "quest_config",
+    )?;
     let quests = nie_data::quest::parse_quest_config(&config);
     let titles = load_text(vfs, "quest_title")?;
 
@@ -380,10 +441,22 @@ pub struct CharaPickerDto {
 /// le nom). Un `chara_base_id` peut avoir plusieurs `CharaParam` (variantes de tenue/costume) —
 /// toutes sont listées, différenciées par leur `chara_param_id`.
 pub fn list_chara_picker(vfs: &Vfs) -> Result<Vec<CharaPickerDto>, String> {
-    let param_json = load_t2b(vfs, |p| base_name(p).starts_with("chara_param_1") && base_name(p).ends_with(".cfg.bin"), "chara_param")?;
+    let param_json = load_t2b(
+        vfs,
+        |p| base_name(p).starts_with("chara_param_1") && base_name(p).ends_with(".cfg.bin"),
+        "chara_param",
+    )?;
     let params = nie_data::chara_param::parse_all_chara_params(&param_json);
 
-    let base_json = load_t2b(vfs, |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"), "chara_base")?;
+    let base_json = load_t2b(
+        vfs,
+        |p| {
+            p.contains("/character/")
+                && base_name(p).starts_with("chara_base_1")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "chara_base",
+    )?;
     let bases = nie_data::chara_base::parse_all_chara_base(&base_json);
 
     let nouns = nie_data::chara_text::parse_all_nouns(&load_text_json(vfs, "chara")?);
@@ -401,8 +474,10 @@ pub fn list_chara_picker(vfs: &Vfs) -> Result<Vec<CharaPickerDto>, String> {
             Some(CharaPickerDto {
                 chara_param_id: cp.chara_param_id.to_hex(),
                 name,
-                main_position: nie_data::chara_param::position_code_owned(cp.main_position).unwrap_or_else(|| "?".to_string()),
-                sub_position: nie_data::chara_param::position_code_owned(cp.sub_position).unwrap_or_else(|| "—".to_string()),
+                main_position: nie_data::chara_param::position_code_owned(cp.main_position)
+                    .unwrap_or_else(|| "?".to_string()),
+                sub_position: nie_data::chara_param::position_code_owned(cp.sub_position)
+                    .unwrap_or_else(|| "—".to_string()),
             })
         })
         .collect())
@@ -423,7 +498,16 @@ pub struct StatBlockDto {
 
 impl From<nie_core::stats::StatBlock> for StatBlockDto {
     fn from(s: nie_core::stats::StatBlock) -> Self {
-        StatBlockDto { kc: s.kc, cr: s.cr, tc: s.tc, pr: s.pr, ps: s.ps, ag: s.ag, it: s.it, total: s.total() }
+        StatBlockDto {
+            kc: s.kc,
+            cr: s.cr,
+            tc: s.tc,
+            pr: s.pr,
+            ps: s.ps,
+            ag: s.ag,
+            it: s.it,
+            total: s.total(),
+        }
     }
 }
 
@@ -435,8 +519,17 @@ impl From<nie_core::stats::StatBlock> for StatBlockDto {
 /// `GrowthParams::chara_rank`). `play_style` = var[5] du noeud `CHARA_PARAM_INFO` (cf.
 /// `nie_data::playstyle`), lu directement depuis `raw_variables` (absent du struct `CharaParam`
 /// typé — même limitation documentée que `TeamSetup::from_chara_params_and_levels`).
-pub fn calculate_character_stats(vfs: &Vfs, chara_param_id: &str, level: u8, rarity_code: u8) -> Result<StatBlockDto, String> {
-    let param_json = load_t2b(vfs, |p| base_name(p).starts_with("chara_param_1") && base_name(p).ends_with(".cfg.bin"), "chara_param")?;
+pub fn calculate_character_stats(
+    vfs: &Vfs,
+    chara_param_id: &str,
+    level: u8,
+    rarity_code: u8,
+) -> Result<StatBlockDto, String> {
+    let param_json = load_t2b(
+        vfs,
+        |p| base_name(p).starts_with("chara_param_1") && base_name(p).ends_with(".cfg.bin"),
+        "chara_param",
+    )?;
     let params = nie_data::chara_param::parse_all_chara_params(&param_json);
     let cp = params
         .iter()
@@ -466,11 +559,13 @@ pub fn calculate_character_stats(vfs: &Vfs, chara_param_id: &str, level: u8, rar
 pub fn decode_cfgbin(vfs: &Vfs, path: &str) -> Result<Value, String> {
     let bytes = vfs.read(path).map_err(|e| e.to_string())?;
     if nie_formats::cfgbin::is_rdbn(&bytes) {
-        let rdbn = nie_formats::cfgbin::parse(&bytes).map_err(|e| format!("parse RDBN {path} : {e}"))?;
+        let rdbn =
+            nie_formats::cfgbin::parse(&bytes).map_err(|e| format!("parse RDBN {path} : {e}"))?;
         let lists = nie_formats::cfgbin::read_values(&rdbn, &bytes);
         Ok(nie_explore::bridge::rdbn_to_json(&lists))
     } else {
-        let cfg = nie_formats::cfgbin::parse_t2b(&bytes).map_err(|e| format!("parse T2B {path} : {e}"))?;
+        let cfg = nie_formats::cfgbin::parse_t2b(&bytes)
+            .map_err(|e| format!("parse T2B {path} : {e}"))?;
         Ok(nie_explore::bridge::t2b_to_json(&cfg))
     }
 }
@@ -497,7 +592,11 @@ pub struct ShopDto {
 pub fn list_shops(vfs: &Vfs) -> Result<Vec<ShopDto>, String> {
     let config = load_t2b(
         vfs,
-        |p| p.contains("/gamedata/") && base_name(p).starts_with("shop_config") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/gamedata/")
+                && base_name(p).starts_with("shop_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "shop_config",
     )?;
     let shops = nie_data::shop::parse_shop_config(&config);
@@ -550,7 +649,11 @@ pub fn list_stadiums(vfs: &Vfs) -> Result<Vec<StadiumDto>, String> {
         // `SOCCER_OPTION_FIELD_INFO_*` de `soccer/soccer_game_option.cfg.bin` (cf. l'en-tête de
         // `nie_data::stadium`). L'ancien prédicat ne trouvait rien et l'onglet « Stades » de
         // l'encyclopédie affichait « stadium_config introuvable dans le VFS monté ».
-        |p| p.contains("/gamedata/soccer/") && base_name(p).starts_with("soccer_game_option") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/gamedata/soccer/")
+                && base_name(p).starts_with("soccer_game_option")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "soccer_game_option (stades)",
     )?;
     Ok(nie_data::stadium::parse_stadium_config(&config)
@@ -639,9 +742,13 @@ pub fn list_special_tactics(vfs: &Vfs) -> Result<Vec<SpecialTacticsDto>, String>
     // (les deux tables partagent le même schéma `TEXT_INFO`). `tactics_text` est ABSENT de
     // `nie_data::text::TEXT_FILES` — il n'a donc pas de type convivial et garde son prédicat en
     // dur, contrairement au repli `skill` qui passe par [`load_text`].
-    let mut text = load_t2b(vfs, |p| p.contains("/text/fr/") && base_name(p).starts_with("tactics_text"), "tactics_text fr")
-        .map(|j| nie_data::text::parse_text_file(&j))
-        .unwrap_or_default();
+    let mut text = load_t2b(
+        vfs,
+        |p| p.contains("/text/fr/") && base_name(p).starts_with("tactics_text"),
+        "tactics_text fr",
+    )
+    .map(|j| nie_data::text::parse_text_file(&j))
+    .unwrap_or_default();
     if text.is_empty() {
         text = load_text(vfs, "skill").unwrap_or_default();
     }
@@ -693,7 +800,11 @@ pub struct EmblemDto {
 pub fn list_emblems(vfs: &Vfs) -> Result<Vec<EmblemDto>, String> {
     let config = load_rdbn(
         vfs,
-        |p| p.contains("/gamedata/menu/") && base_name(p).starts_with("emblem_resource") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/gamedata/menu/")
+                && base_name(p).starts_with("emblem_resource")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "emblem_resource",
     )?;
     Ok(nie_data::emblems::parse_emblem_resources(&config)
@@ -730,7 +841,11 @@ pub struct GalleryDto {
 pub fn list_gallery(vfs: &Vfs) -> Result<Vec<GalleryDto>, String> {
     let config = load_rdbn(
         vfs,
-        |p| p.contains("/gamedata/gallery/") && base_name(p).starts_with("gallery_config") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/gamedata/gallery/")
+                && base_name(p).starts_with("gallery_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "gallery_config",
     )?;
     use nie_data::unlock_condition::UnlockType as U;
@@ -880,7 +995,11 @@ pub fn list_belong_teams(vfs: &Vfs) -> Result<Vec<BelongTeamDto>, String> {
             team_id: t.belong_team_id.to_hex(),
             name: nie_data::belong_team::resolve_team_name(t, &team_text).map(str::to_string),
             binder_order: t.binder_team_order_type as f64,
-            seasons: SEASONS.iter().filter(|(s, _)| t.appears_in(*s)).map(|(_, l)| (*l).to_string()).collect(),
+            seasons: SEASONS
+                .iter()
+                .filter(|(s, _)| t.appears_in(*s))
+                .map(|(_, l)| (*l).to_string())
+                .collect(),
             emblem_id_v: t.team_emblem_id_v.to_hex(),
             kit_id_v: t.team_kit_v.to_hex(),
         })
@@ -932,7 +1051,11 @@ pub fn list_formations(vfs: &Vfs) -> Result<Vec<FormationDto>, String> {
             placement_count: f.placement_count as f64,
             power_offense: f.power_offense as f64,
             power_defense: f.power_defense as f64,
-            positions: cfg.placements_of(f).iter().map(|p| p.position_id as f64).collect(),
+            positions: cfg
+                .placements_of(f)
+                .iter()
+                .map(|p| p.position_id as f64)
+                .collect(),
         })
         .collect())
 }
@@ -981,8 +1104,14 @@ pub fn list_uniforms(vfs: &Vfs) -> Result<Vec<UniformDto>, String> {
             model_count: r.model_count as f64,
             resolved_count: r.models.len() as f64,
             type_id: r.type_id.map(|t| t as f64),
-            fielder_model_id: r.models.first().map(|m| m.uniform_fielder_model_id_crc.to_hex()),
-            keeper_model_id: r.models.first().map(|m| m.uniform_keeper_model_id_crc.to_hex()),
+            fielder_model_id: r
+                .models
+                .first()
+                .map(|m| m.uniform_fielder_model_id_crc.to_hex()),
+            keeper_model_id: r
+                .models
+                .first()
+                .map(|m| m.uniform_keeper_model_id_crc.to_hex()),
         })
         .collect())
 }
@@ -1043,7 +1172,11 @@ pub fn list_charas(vfs: &Vfs) -> Result<Vec<CharaDto>, String> {
 
     let base_json = load_t2b(
         vfs,
-        |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/character/")
+                && base_name(p).starts_with("chara_base_1")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "chara_base",
     )?;
     let bases = nie_data::chara_base::parse_all_chara_base(&base_json);
@@ -1056,7 +1189,11 @@ pub fn list_charas(vfs: &Vfs) -> Result<Vec<CharaDto>, String> {
         .unwrap_or_default();
     let series = load_rdbn(
         vfs,
-        |p| p.contains("/gamedata/character/") && base_name(p).starts_with("chara_series_config") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/gamedata/character/")
+                && base_name(p).starts_with("chara_series_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "chara_series_config",
     )
     .map(|j| nie_data::chara_series::parse_chara_series_config(&j))
@@ -1066,7 +1203,11 @@ pub fn list_charas(vfs: &Vfs) -> Result<Vec<CharaDto>, String> {
     let teams: HashMap<String, String> = match (
         load_rdbn(
             vfs,
-            |p| p.contains("/gamedata/character/") && base_name(p).starts_with("belong_team_config") && base_name(p).ends_with(".cfg.bin"),
+            |p| {
+                p.contains("/gamedata/character/")
+                    && base_name(p).starts_with("belong_team_config")
+                    && base_name(p).ends_with(".cfg.bin")
+            },
             "belong_team_config",
         ),
         load_text(vfs, "team"),
@@ -1074,7 +1215,8 @@ pub fn list_charas(vfs: &Vfs) -> Result<Vec<CharaDto>, String> {
         (Ok(cfg), Ok(txt)) => nie_data::belong_team::parse_belong_team_config(&cfg)
             .iter()
             .filter_map(|t| {
-                nie_data::belong_team::resolve_team_name(t, &txt).map(|n| (t.belong_team_id.to_hex(), n.to_string()))
+                nie_data::belong_team::resolve_team_name(t, &txt)
+                    .map(|n| (t.belong_team_id.to_hex(), n.to_string()))
             })
             .collect(),
         _ => HashMap::new(),
@@ -1105,15 +1247,23 @@ pub fn list_charas(vfs: &Vfs) -> Result<Vec<CharaDto>, String> {
                 chara_base_id: cp.chara_base_id.to_hex(),
                 internal_code: base.internal_code.clone(),
                 name,
-                description: nie_data::chara_base::resolve_description(base, &descriptions).map(str::to_string),
+                description: nie_data::chara_base::resolve_description(base, &descriptions)
+                    .map(str::to_string),
                 gender: base.gender as f64,
-                element: nie_data::chara_param::element_id_to_names(cp.element)
-                    .map_or_else(|| format!("? ({})", cp.element), |(fr, _, _)| fr.to_string()),
-                main_position: nie_data::chara_param::position_code_owned(cp.main_position).unwrap_or_else(|| "?".to_string()),
-                sub_position: nie_data::chara_param::position_code_owned(cp.sub_position).unwrap_or_else(|| "—".to_string()),
+                element: nie_data::chara_param::element_id_to_names(cp.element).map_or_else(
+                    || format!("? ({})", cp.element),
+                    |(fr, _, _)| fr.to_string(),
+                ),
+                main_position: nie_data::chara_param::position_code_owned(cp.main_position)
+                    .unwrap_or_else(|| "?".to_string()),
+                sub_position: nie_data::chara_param::position_code_owned(cp.sub_position)
+                    .unwrap_or_else(|| "—".to_string()),
                 growth_pattern: cp.growth_pattern as f64,
-                series: nie_data::chara_base::resolve_series_name_fr(base, &series).map(str::to_string),
-                team: base.belong_team_id.and_then(|t| teams.get(&t.to_hex()).cloned()),
+                series: nie_data::chara_base::resolve_series_name_fr(base, &series)
+                    .map(str::to_string),
+                team: base
+                    .belong_team_id
+                    .and_then(|t| teams.get(&t.to_hex()).cloned()),
                 skills: cp
                     .skills
                     .iter()
@@ -1174,7 +1324,11 @@ pub fn list_opponent_teams(vfs: &Vfs) -> Result<Vec<OpponentTeamDto>, String> {
     let teams: HashMap<String, String> = match (
         load_rdbn(
             vfs,
-            |p| p.contains("/gamedata/character/") && base_name(p).starts_with("belong_team_config") && base_name(p).ends_with(".cfg.bin"),
+            |p| {
+                p.contains("/gamedata/character/")
+                    && base_name(p).starts_with("belong_team_config")
+                    && base_name(p).ends_with(".cfg.bin")
+            },
             "belong_team_config",
         ),
         load_text(vfs, "team"),
@@ -1182,7 +1336,8 @@ pub fn list_opponent_teams(vfs: &Vfs) -> Result<Vec<OpponentTeamDto>, String> {
         (Ok(cfg), Ok(txt)) => nie_data::belong_team::parse_belong_team_config(&cfg)
             .iter()
             .filter_map(|t| {
-                nie_data::belong_team::resolve_team_name(t, &txt).map(|n| (t.belong_team_id.to_hex(), n.to_string()))
+                nie_data::belong_team::resolve_team_name(t, &txt)
+                    .map(|n| (t.belong_team_id.to_hex(), n.to_string()))
             })
             .collect(),
         _ => HashMap::new(),
@@ -1238,7 +1393,8 @@ pub fn list_movies(vfs: &Vfs) -> Result<Vec<MovieDto>, String> {
             movie_id: m.movie_id.to_hex(),
             movie_path: m.movie_path.clone(),
             bgm_name: m.bgm_name.to_hex(),
-            has_subtitles: m.subtitle_text_path != nie_data::movie::NONE_SENTINEL && !m.subtitle_text_path.is_empty(),
+            has_subtitles: m.subtitle_text_path != nie_data::movie::NONE_SENTINEL
+                && !m.subtitle_text_path.is_empty(),
             subtitle_text_path: m.subtitle_text_path.clone(),
             staffroll_data_name: m.staffroll_data_name.clone(),
             fade_in: f64::from(m.fede_in_time),
@@ -1271,7 +1427,11 @@ pub struct MusicDto {
 pub fn list_musics(vfs: &Vfs) -> Result<Vec<MusicDto>, String> {
     let config = load_t2b(
         vfs,
-        |p| p.contains("/gamedata/music_app/") && base_name(p).starts_with("music_app_config") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/gamedata/music_app/")
+                && base_name(p).starts_with("music_app_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "music_app_config",
     )?;
     // Table facultative : sans elle, `name` reste `None` — jamais un nom inventé.
@@ -1335,7 +1495,11 @@ pub fn list_dictionary(vfs: &Vfs) -> Result<Vec<DictionaryDto>, String> {
     let noms: HashMap<String, String> = match (
         load_t2b(
             vfs,
-            |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+            |p| {
+                p.contains("/character/")
+                    && base_name(p).starts_with("chara_base_1")
+                    && base_name(p).ends_with(".cfg.bin")
+            },
             "chara_base",
         ),
         load_text_json(vfs, "chara"),
@@ -1366,7 +1530,9 @@ pub fn list_dictionary(vfs: &Vfs) -> Result<Vec<DictionaryDto>, String> {
             DictionaryDto {
                 chara_id: p.chara_id.to_hex(),
                 name: noms.get(&p.chara_id.to_hex()).cloned(),
-                habitat: habitat.and_then(|h| nie_data::text::find_text(&cartes, h.map_name_id)).map(str::to_string),
+                habitat: habitat
+                    .and_then(|h| nie_data::text::find_text(&cartes, h.map_name_id))
+                    .map(str::to_string),
                 habitat_file: habitat.map(|h| h.file_name.clone()),
                 view_dict_no: p.view_dict_no as f64,
                 category: p.category as f64,
@@ -1409,7 +1575,11 @@ pub fn list_exp_table(vfs: &Vfs) -> Result<Vec<ExpLevelDto>, String> {
         .iter()
         .map(|e| {
             cumul += e.need_exp as f64;
-            ExpLevelDto { level: e.level as f64, need_exp: e.need_exp as f64, cumulative: cumul }
+            ExpLevelDto {
+                level: e.level as f64,
+                need_exp: e.need_exp as f64,
+                cumulative: cumul,
+            }
         })
         .collect())
 }
@@ -1446,7 +1616,11 @@ pub fn list_drops(vfs: &Vfs) -> Result<Vec<DropDto>, String> {
     let noms: HashMap<String, String> = match (
         load_t2b(
             vfs,
-            |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+            |p| {
+                p.contains("/character/")
+                    && base_name(p).starts_with("chara_base_1")
+                    && base_name(p).ends_with(".cfg.bin")
+            },
             "chara_base",
         ),
         load_text_json(vfs, "chara"),
@@ -1476,7 +1650,11 @@ pub fn list_drops(vfs: &Vfs) -> Result<Vec<DropDto>, String> {
             chara_id: s.chara_id.to_hex(),
             name: noms.get(&s.chara_id.to_hex()).cloned(),
             weight: s.weight as f64,
-            share_pct: if total > 0.0 { s.weight as f64 * 100.0 / total } else { 0.0 },
+            share_pct: if total > 0.0 {
+                s.weight as f64 * 100.0 / total
+            } else {
+                0.0
+            },
             run_cond: s.run_cond.clone(),
         })
         .collect())
@@ -1514,20 +1692,25 @@ pub fn list_capsule_rates(vfs: &Vfs) -> Result<Vec<CapsuleRateDto>, String> {
                 table_id: table.id.to_hex(),
                 rank: r.rank as f64,
                 rate: r.rate as f64,
-                share_pct: if total > 0.0 { r.rate as f64 * 100.0 / total } else { 0.0 },
+                share_pct: if total > 0.0 {
+                    r.rate as f64 * 100.0 / total
+                } else {
+                    0.0
+                },
             });
         }
     }
     Ok(out)
 }
 
-
 // ─── Index multilingue des noms (traducteur) ─────────────────────────────────────────────────
 
 /// Les langues du jeu, dans l'ordre d'affichage. Relevé sur l'installation Steam :
 /// `data/common/text/` porte `ja`, `fr`, `en`, `de`, `es`, `it`, `pt`, `zh_hans`, `zh_hant`
 /// (plus `common`, `event`, `map`, qui ne sont pas des langues).
-pub const LANGUES: [&str; 9] = ["fr", "en", "ja", "de", "es", "it", "pt", "zh_hans", "zh_hant"];
+pub const LANGUES: [&str; 9] = [
+    "fr", "en", "ja", "de", "es", "it", "pt", "zh_hans", "zh_hant",
+];
 
 /// Un nom dans une langue.
 #[derive(Serialize, specta::Type)]
@@ -1567,7 +1750,11 @@ pub fn list_noms(vfs: &Vfs) -> Result<Vec<NomsDto>, String> {
     // — Personnages : `chara_base` donne le code interne, `chara_text` le nom par langue.
     let bases = load_t2b(
         vfs,
-        |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/character/")
+                && base_name(p).starts_with("chara_base_1")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "chara_base",
     )
     .map(|j| nie_data::chara_base::parse_all_chara_base(&j))
@@ -1576,7 +1763,11 @@ pub fn list_noms(vfs: &Vfs) -> Result<Vec<NomsDto>, String> {
     // — Techniques : `skill_config` donne le code interne (`whs00340`), `skill_text` le nom.
     let skills = load_rdbn(
         vfs,
-        |p| p.contains("/skill/") && base_name(p).starts_with("skill_config") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/skill/")
+                && base_name(p).starts_with("skill_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "skill_config",
     )
     .map(|j| nie_data::skill::parse_skill_config(&j))
@@ -1585,7 +1776,11 @@ pub fn list_noms(vfs: &Vfs) -> Result<Vec<NomsDto>, String> {
     // — Objets : `item_config` donne le code interne, `item_text` le nom.
     let items = load_t2b(
         vfs,
-        |p| p.contains("/gamedata/item/") && base_name(p).starts_with("item_config") && base_name(p).ends_with(".cfg.bin"),
+        |p| {
+            p.contains("/gamedata/item/")
+                && base_name(p).starts_with("item_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
         "item_config",
     )
     .map(|j| nie_data::item::parse_all_items(&j))
@@ -1595,42 +1790,64 @@ pub fn list_noms(vfs: &Vfs) -> Result<Vec<NomsDto>, String> {
         if let Ok(j) = load_text_json_lang(vfs, "chara", langue) {
             let nouns = nie_data::chara_text::parse_all_nouns(&j);
             for b in &bases {
-                let Some(first) = nie_data::chara_base::resolve_first_name(b, &nouns) else { continue };
+                let Some(first) = nie_data::chara_base::resolve_first_name(b, &nouns) else {
+                    continue;
+                };
                 let nom = match nie_data::chara_base::resolve_last_name(b, &nouns) {
                     Some(l) => format!("{first} {l}"),
                     None => first.to_string(),
                 };
-                let cle = if b.internal_code.is_empty() { b.chara_id.to_hex() } else { b.internal_code.clone() };
+                let cle = if b.internal_code.is_empty() {
+                    b.chara_id.to_hex()
+                } else {
+                    b.internal_code.clone()
+                };
                 index
                     .entry(cle)
                     .or_insert_with(|| ("chara".to_string(), Vec::new()))
                     .1
-                    .push(NomLangueDto { langue: langue.to_string(), nom });
+                    .push(NomLangueDto {
+                        langue: langue.to_string(),
+                        nom,
+                    });
             }
         }
 
         if let Ok(j) = load_text_json_lang(vfs, "skill", langue) {
             let maps = nie_data::skill::parse_skill_text(&j);
             for s in &skills {
-                let Some(nom) = nie_data::skill::join_skill_text(s, &maps).name else { continue };
+                let Some(nom) = nie_data::skill::join_skill_text(s, &maps).name else {
+                    continue;
+                };
                 index
                     .entry(s.skill_id_str.clone())
                     .or_insert_with(|| ("skill".to_string(), Vec::new()))
                     .1
-                    .push(NomLangueDto { langue: langue.to_string(), nom });
+                    .push(NomLangueDto {
+                        langue: langue.to_string(),
+                        nom,
+                    });
             }
         }
 
         if let Ok(j) = load_text_json_lang(vfs, "item", langue) {
             let textes = nie_data::text::parse_text_file(&j);
             for it in &items {
-                let Some(nom) = nie_data::item::resolve_name(it, &textes) else { continue };
-                let cle = it.internal_code.clone().unwrap_or_else(|| it.item_id.to_hex());
+                let Some(nom) = nie_data::item::resolve_name(it, &textes) else {
+                    continue;
+                };
+                let cle = it
+                    .internal_code
+                    .clone()
+                    .unwrap_or_else(|| it.item_id.to_hex());
                 index
                     .entry(cle)
                     .or_insert_with(|| ("item".to_string(), Vec::new()))
                     .1
-                    .push(NomLangueDto { langue: langue.to_string(), nom: nom.to_string() });
+                    .push(NomLangueDto {
+                        langue: langue.to_string(),
+                        nom: nom.to_string(),
+                    });
             }
         }
     }
@@ -1650,7 +1867,9 @@ mod tests {
     /// element=1 (Vent), category=1 (Tir) »).
     #[test]
     fn list_skills_sur_le_vrai_jeu() {
-        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let dir = nie_formats::vfs::resolve_game_dir()
+            .to_string_lossy()
+            .into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip list_skills_sur_le_vrai_jeu : jeu absent");
@@ -1660,25 +1879,30 @@ mod tests {
         vfs.init(&data_dir).expect("vfs init");
 
         let skills = list_skills(&vfs).expect("list_skills");
-        assert!(skills.len() > 1000, "attendu > 1000 techniques (2627 dans le dump v4 de référence), obtenu {}", skills.len());
+        assert!(
+            skills.len() > 1000,
+            "attendu > 1000 techniques (2627 dans le dump v4 de référence), obtenu {}",
+            skills.len()
+        );
 
-        let whs00010 = skills.iter().find(|s| s.skill_id_str == "whs00010").expect("whs00010 introuvable");
+        let whs00010 = skills
+            .iter()
+            .find(|s| s.skill_id_str == "whs00010")
+            .expect("whs00010 introuvable");
         assert_eq!(whs00010.power_min, 70);
         assert_eq!(whs00010.power_max, 440);
         assert_eq!(whs00010.element, "Vent");
         assert_eq!(whs00010.category, "Tir");
-        eprintln!(
-            "whs00010 : {} — {:?}",
-            whs00010.skill_id_str,
-            whs00010.name
-        );
+        eprintln!("whs00010 : {} — {:?}", whs00010.skill_id_str, whs00010.name);
     }
 
     /// Charge le VFS réel, ou `None` (skip, pas d'échec) si le jeu est absent de ce poste —
     /// factorisé pour les 4 tests `list_*_sur_le_vrai_jeu` ci-dessous, même convention que
     /// `list_skills_sur_le_vrai_jeu`.
     fn real_vfs_or_skip(test_name: &str) -> Option<Vfs> {
-        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let dir = nie_formats::vfs::resolve_game_dir()
+            .to_string_lossy()
+            .into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip {test_name} : jeu absent");
@@ -1693,9 +1917,15 @@ mod tests {
     /// `docs/PLAN.md` B′3 : « 1767 noms / 324 descriptions fr »).
     #[test]
     fn list_items_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_items_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_items_sur_le_vrai_jeu") else {
+            return;
+        };
         let items = list_items(&vfs).expect("list_items");
-        assert!(items.len() > 1000, "attendu > 1000 objets résolus (1767 de référence), obtenu {}", items.len());
+        assert!(
+            items.len() > 1000,
+            "attendu > 1000 objets résolus (1767 de référence), obtenu {}",
+            items.len()
+        );
         eprintln!("{} objets résolus, ex. : {}", items.len(), items[0].name);
     }
 
@@ -1703,30 +1933,60 @@ mod tests {
     /// `docs/PLAN.md` C2 : « 443/443 auras résolues »).
     #[test]
     fn list_auras_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_auras_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_auras_sur_le_vrai_jeu") else {
+            return;
+        };
         let auras = list_auras(&vfs).expect("list_auras");
-        assert!(auras.len() > 400, "attendu > 400 Avatar/Keshin résolus (443 de référence), obtenu {}", auras.len());
-        eprintln!("{} Avatar/Keshin résolus, ex. : {}", auras.len(), auras[0].name);
+        assert!(
+            auras.len() > 400,
+            "attendu > 400 Avatar/Keshin résolus (443 de référence), obtenu {}",
+            auras.len()
+        );
+        eprintln!(
+            "{} Avatar/Keshin résolus, ex. : {}",
+            auras.len(),
+            auras[0].name
+        );
     }
 
     /// Cf. `nie-game/examples/export_trophies.rs` (référence déjà validée end-to-end,
     /// `docs/PLAN.md` C2 : « 231/231 noms résolus »).
     #[test]
     fn list_trophies_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_trophies_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_trophies_sur_le_vrai_jeu") else {
+            return;
+        };
         let trophies = list_trophies(&vfs).expect("list_trophies");
-        assert!(trophies.len() > 200, "attendu > 200 succès résolus (231 de référence), obtenu {}", trophies.len());
-        eprintln!("{} succès résolus, ex. : {}", trophies.len(), trophies[0].name);
+        assert!(
+            trophies.len() > 200,
+            "attendu > 200 succès résolus (231 de référence), obtenu {}",
+            trophies.len()
+        );
+        eprintln!(
+            "{} succès résolus, ex. : {}",
+            trophies.len(),
+            trophies[0].name
+        );
     }
 
     /// Cf. `nie-game/examples/export_quests.rs` (référence déjà validée end-to-end,
     /// `docs/PLAN.md` C2 : « 182/182 titres fr »).
     #[test]
     fn list_quests_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_quests_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_quests_sur_le_vrai_jeu") else {
+            return;
+        };
         let quests = list_quests(&vfs).expect("list_quests");
-        assert!(quests.len() > 150, "attendu > 150 quêtes résolues (182 de référence), obtenu {}", quests.len());
-        eprintln!("{} quêtes résolues, ex. : {}", quests.len(), quests[0].title);
+        assert!(
+            quests.len() > 150,
+            "attendu > 150 quêtes résolues (182 de référence), obtenu {}",
+            quests.len()
+        );
+        eprintln!(
+            "{} quêtes résolues, ex. : {}",
+            quests.len(),
+            quests[0].title
+        );
     }
 
     /// Cf. `nie-game/examples/export_characters.rs` (référence déjà validée end-to-end,
@@ -1737,14 +1997,41 @@ mod tests {
     /// dans `nie-core`).
     #[test]
     fn chara_picker_et_calcul_stats_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("chara_picker_et_calcul_stats_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("chara_picker_et_calcul_stats_sur_le_vrai_jeu") else {
+            return;
+        };
         let roster = list_chara_picker(&vfs).expect("list_chara_picker");
-        assert!(roster.len() > 5000, "attendu > 5000 personnages résolus (6470 de référence), obtenu {}", roster.len());
-        eprintln!("{} personnages résolus, ex. : {} ({})", roster.len(), roster[0].name, roster[0].main_position);
+        assert!(
+            roster.len() > 5000,
+            "attendu > 5000 personnages résolus (6470 de référence), obtenu {}",
+            roster.len()
+        );
+        eprintln!(
+            "{} personnages résolus, ex. : {} ({})",
+            roster.len(),
+            roster[0].name,
+            roster[0].main_position
+        );
 
-        let stats = calculate_character_stats(&vfs, &roster[0].chara_param_id, 50, 0).expect("calculate_character_stats");
-        assert!(stats.total > 0, "stats nulles pour {} — calcul cassé", roster[0].name);
-        eprintln!("{} Lv50 rang N : total={} (Kc{} Cr{} Tc{} Pr{} Ps{} Ag{} It{})", roster[0].name, stats.total, stats.kc, stats.cr, stats.tc, stats.pr, stats.ps, stats.ag, stats.it);
+        let stats = calculate_character_stats(&vfs, &roster[0].chara_param_id, 50, 0)
+            .expect("calculate_character_stats");
+        assert!(
+            stats.total > 0,
+            "stats nulles pour {} — calcul cassé",
+            roster[0].name
+        );
+        eprintln!(
+            "{} Lv50 rang N : total={} (Kc{} Cr{} Tc{} Pr{} Ps{} Ag{} It{})",
+            roster[0].name,
+            stats.total,
+            stats.kc,
+            stats.cr,
+            stats.tc,
+            stats.pr,
+            stats.ps,
+            stats.ag,
+            stats.it
+        );
     }
 
     /// Écussons : le fichier live (`emblem_resource_0.04.18`, 1336 octets) n'a que **2** lignes
@@ -1752,10 +2039,21 @@ mod tests {
     /// terrain relevée dans `nie_data::emblems`, pas un décodage incomplet.
     #[test]
     fn list_emblems_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_emblems_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_emblems_sur_le_vrai_jeu") else {
+            return;
+        };
         let emblems = list_emblems(&vfs).expect("list_emblems");
-        assert_eq!(emblems.len(), 2, "attendu 2 écussons (gabarit + em010001), obtenu {}", emblems.len());
-        assert_eq!(emblems.iter().filter(|e| e.is_template).count(), 1, "attendu 1 gabarit — sans lui la substitution <resourceID> est impossible");
+        assert_eq!(
+            emblems.len(),
+            2,
+            "attendu 2 écussons (gabarit + em010001), obtenu {}",
+            emblems.len()
+        );
+        assert_eq!(
+            emblems.iter().filter(|e| e.is_template).count(),
+            1,
+            "attendu 1 gabarit — sans lui la substitution <resourceID> est impossible"
+        );
         assert_eq!(emblems[0].base_path, "#/menu/");
         assert!(emblems.iter().any(|e| e.emblem_name == "em010001"));
     }
@@ -1764,9 +2062,16 @@ mod tests {
     /// `nie_data::gallery`), la 1re débloquée par la progression de l'histoire (épisode 1).
     #[test]
     fn list_gallery_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_gallery_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_gallery_sur_le_vrai_jeu") else {
+            return;
+        };
         let gallery = list_gallery(&vfs).expect("list_gallery");
-        assert_eq!(gallery.len(), 360, "attendu 360 illustrations, obtenu {}", gallery.len());
+        assert_eq!(
+            gallery.len(),
+            360,
+            "attendu 360 illustrations, obtenu {}",
+            gallery.len()
+        );
         assert_eq!(gallery[0].img_path, "img_story_ev01_main_0010");
         // La condition d'ouverture est un blob base64 : la décoder est le seul moyen de vérifier
         // que `unlock_condition` est branché et pas court-circuité.
@@ -1778,10 +2083,20 @@ mod tests {
     /// `niers vfs cat` sur le jeu monté).
     #[test]
     fn list_tricks_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_tricks_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_tricks_sur_le_vrai_jeu") else {
+            return;
+        };
         let tricks = list_tricks(&vfs).expect("list_tricks");
-        assert_eq!(tricks.len(), 9, "attendu 9 feintes, obtenu {}", tricks.len());
-        assert!(tricks.iter().all(|t| !t.trick_id_name.is_empty()), "une feinte sans nom interne — parsing RDBN décalé");
+        assert_eq!(
+            tricks.len(),
+            9,
+            "attendu 9 feintes, obtenu {}",
+            tricks.len()
+        );
+        assert!(
+            tricks.iter().all(|t| !t.trick_id_name.is_empty()),
+            "une feinte sans nom interne — parsing RDBN décalé"
+        );
         assert_eq!(tricks[0].trick_id_name, "whs0010");
         assert_eq!(tricks[0].category, "Tir");
     }
@@ -1791,11 +2106,26 @@ mod tests {
     /// indexé de `load_t2b` fait bien matcher `walk_named` (0 entrée = le bug des frères homonymes).
     #[test]
     fn list_activities_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_activities_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_activities_sur_le_vrai_jeu") else {
+            return;
+        };
         let activities = list_activities(&vfs).expect("list_activities");
-        assert_eq!(activities.len(), 13, "attendu 13 activités, obtenu {}", activities.len());
-        let roots: Vec<&str> = activities.iter().filter(|a| a.is_root).map(|a| a.name.as_str()).collect();
-        assert_eq!(roots, ["StoryMode"], "attendu une seule racine `StoryMode`, obtenu {roots:?}");
+        assert_eq!(
+            activities.len(),
+            13,
+            "attendu 13 activités, obtenu {}",
+            activities.len()
+        );
+        let roots: Vec<&str> = activities
+            .iter()
+            .filter(|a| a.is_root)
+            .map(|a| a.name.as_str())
+            .collect();
+        assert_eq!(
+            roots,
+            ["StoryMode"],
+            "attendu une seule racine `StoryMode`, obtenu {roots:?}"
+        );
         assert!(activities.iter().any(|a| a.name == "StoryMode_SubTask_09"));
     }
 
@@ -1804,11 +2134,21 @@ mod tests {
     /// une jointure cassée donnerait 208 lignes et 0 nom, ce que le compte brut ne verrait pas.
     #[test]
     fn list_belong_teams_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_belong_teams_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_belong_teams_sur_le_vrai_jeu") else {
+            return;
+        };
         let teams = list_belong_teams(&vfs).expect("list_belong_teams");
-        assert_eq!(teams.len(), 208, "attendu 208 équipes, obtenu {}", teams.len());
+        assert_eq!(
+            teams.len(),
+            208,
+            "attendu 208 équipes, obtenu {}",
+            teams.len()
+        );
         let named = teams.iter().filter(|t| t.name.is_some()).count();
-        assert_eq!(named, 208, "attendu 208 noms d'équipe résolus, obtenu {named} — jointure team_text cassée");
+        assert_eq!(
+            named, 208,
+            "attendu 208 noms d'équipe résolus, obtenu {named} — jointure team_text cassée"
+        );
         assert_eq!(teams[0].name.as_deref(), Some("Raimon"));
     }
 
@@ -1817,25 +2157,45 @@ mod tests {
     /// pas dans cette version du jeu.
     #[test]
     fn list_formations_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_formations_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_formations_sur_le_vrai_jeu") else {
+            return;
+        };
         let formations = list_formations(&vfs).expect("list_formations");
-        assert_eq!(formations.len(), 115, "attendu 115 formations, obtenu {}", formations.len());
+        assert_eq!(
+            formations.len(),
+            115,
+            "attendu 115 formations, obtenu {}",
+            formations.len()
+        );
         // Les 1073 lignes de `m_SoccerFormPlacementInfoList` sont TOUTES couvertes par les
         // tranches `placementInfo` : une somme inférieure signalerait une tranche débordante
         // (`placements_of` renvoie alors `&[]` en silence).
         let placements: usize = formations.iter().map(|f| f.positions.len()).sum();
-        assert_eq!(placements, 1073, "attendu 1073 placements rattachés au total, obtenu {placements}");
+        assert_eq!(
+            placements, 1073,
+            "attendu 1073 placements rattachés au total, obtenu {placements}"
+        );
     }
 
     /// Uniformes : 627 lignes `m_UniformInfoList` sur 1247 modèles (comptes relevés par
     /// `niers vfs cat` sur `character/uniform_config_1.03.52.00.cfg.bin`).
     #[test]
     fn list_uniforms_sur_le_vrai_jeu() {
-        let Some(vfs) = real_vfs_or_skip("list_uniforms_sur_le_vrai_jeu") else { return };
+        let Some(vfs) = real_vfs_or_skip("list_uniforms_sur_le_vrai_jeu") else {
+            return;
+        };
         let uniforms = list_uniforms(&vfs).expect("list_uniforms");
-        assert_eq!(uniforms.len(), 627, "attendu 627 uniformes, obtenu {}", uniforms.len());
+        assert_eq!(
+            uniforms.len(),
+            627,
+            "attendu 627 uniformes, obtenu {}",
+            uniforms.len()
+        );
         let resolus = uniforms.iter().filter(|u| u.resolved_count > 0.0).count();
-        assert_eq!(resolus, 627, "attendu 627 tranches de modèles résolues (aucune vide), obtenu {resolus}");
+        assert_eq!(
+            resolus, 627,
+            "attendu 627 tranches de modèles résolues (aucune vide), obtenu {resolus}"
+        );
     }
 
     /// Vérifie que le décodeur GÉNÉRIQUE (`decode_cfgbin`) marche sur un large échantillon
@@ -1843,7 +2203,9 @@ mod tests {
     /// (« niers doit couvrir tout nie.exe »), RDBN et T2B mélangés, sans aucun crash/erreur.
     #[test]
     fn decode_cfgbin_sur_un_echantillon_large() {
-        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let dir = nie_formats::vfs::resolve_game_dir()
+            .to_string_lossy()
+            .into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip decode_cfgbin_sur_un_echantillon_large : jeu absent");
@@ -1855,9 +2217,15 @@ mod tests {
         let candidates: Vec<String> = vfs
             .iter()
             .map(|(p, _)| p.to_string())
-            .filter(|p| p.ends_with(".cfg.bin") && (p.contains("/gamedata/") || p.contains("/text/")))
+            .filter(|p| {
+                p.ends_with(".cfg.bin") && (p.contains("/gamedata/") || p.contains("/text/"))
+            })
             .collect();
-        assert!(candidates.len() > 100, "attendu > 100 .cfg.bin dans gamedata/text, obtenu {}", candidates.len());
+        assert!(
+            candidates.len() > 100,
+            "attendu > 100 .cfg.bin dans gamedata/text, obtenu {}",
+            candidates.len()
+        );
 
         // Échantillon déterministe (pas aléatoire) : un fichier sur N, réparti sur tout
         // l'éventail alphabétique plutôt que les N premiers d'un même sous-dossier.
@@ -1867,13 +2235,21 @@ mod tests {
         for path in candidates.iter().step_by(step) {
             match decode_cfgbin(&vfs, path) {
                 Ok(json) => {
-                    assert!(json.get("lists").is_some() || json.get("entries").is_some(), "{path} : forme JSON inattendue");
+                    assert!(
+                        json.get("lists").is_some() || json.get("entries").is_some(),
+                        "{path} : forme JSON inattendue"
+                    );
                     ok += 1;
                 }
                 Err(e) => failed.push((path.clone(), e)),
             }
         }
-        eprintln!("decode_cfgbin : {ok} décodés sans erreur, {} échecs sur {} testés (sur {} candidats)", failed.len(), ok + failed.len(), candidates.len());
+        eprintln!(
+            "decode_cfgbin : {ok} décodés sans erreur, {} échecs sur {} testés (sur {} candidats)",
+            failed.len(),
+            ok + failed.len(),
+            candidates.len()
+        );
         for (p, e) in &failed {
             eprintln!("  échec {p} : {e}");
         }
@@ -1891,7 +2267,9 @@ mod tests {
     /// vide dans l'encyclopédie — un faux vert exactement comme une suite à « 0 passed ».
     #[test]
     fn nouvelles_familles_sur_le_vrai_jeu() {
-        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let dir = nie_formats::vfs::resolve_game_dir()
+            .to_string_lossy()
+            .into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip nouvelles_familles_sur_le_vrai_jeu : jeu absent");
@@ -1901,9 +2279,15 @@ mod tests {
         vfs.init(&data_dir).expect("vfs init");
 
         let charas = list_charas(&vfs).expect("list_charas");
-        assert!(charas.len() > 1000, "attendu > 1000 personnages, obtenu {}", charas.len());
         assert!(
-            charas.iter().any(|c| c.stats.total > 0 && !c.internal_code.is_empty()),
+            charas.len() > 1000,
+            "attendu > 1000 personnages, obtenu {}",
+            charas.len()
+        );
+        assert!(
+            charas
+                .iter()
+                .any(|c| c.stats.total > 0 && !c.internal_code.is_empty()),
             "aucun personnage avec code interne ET stats calculées"
         );
 

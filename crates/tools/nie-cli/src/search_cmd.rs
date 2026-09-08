@@ -17,7 +17,6 @@
 //! Parcours parallèle, respect de `.gitignore`, recherche ligne à ligne sans allocation par
 //! ligne. Rien de maison : le but est d'égaler l'outil de référence, pas de le réécrire.
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -159,12 +158,9 @@ pub fn find(args: &FindArgs) -> Result<usize> {
         println!("{n}");
         return Ok(n);
     }
-    let out = std::io::stdout();
-    let mut w = std::io::BufWriter::new(out.lock());
     for p in &v {
-        writeln!(w, "{p}")?;
+        println!("{p}");
     }
-    w.flush()?;
     Ok(n)
 }
 
@@ -272,11 +268,8 @@ pub fn grep(args: &GrepArgs) -> Result<usize> {
         .clone();
     v.sort_unstable();
     let n = v.len();
-    let stdout = std::io::stdout();
-    let mut w = std::io::BufWriter::new(stdout.lock());
     for line in &v {
-        writeln!(w, "{line}")?;
+        println!("{line}");
     }
-    w.flush()?;
     Ok(n)
 }

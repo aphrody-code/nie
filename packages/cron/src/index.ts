@@ -846,7 +846,7 @@ Bun.serve({
 				// Annoncée par `GET /tasks` et planifiée toutes les 15 min depuis sa
 				// création, mais absente d'ici : `POST /tasks/stats:achillea/run`
 				// répondait 400 « Tâche inconnue » sur une tâche qui tourne toute la
-				// journée. Relevé par `catalogue.test.ts`, qui relie désormais les
+				// journée. Relevé par `catalog.test.ts`, qui relie désormais les
 				// trois listes.
 				"stats:achillea": collecterAudienceAchillea,
 				"stats-achillea": collecterAudienceAchillea,

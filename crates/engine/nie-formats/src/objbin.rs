@@ -165,6 +165,21 @@ pub struct PrimitiveComponent {
     pub number_setting_hashes: Vec<u32>,
     /// Maximums par primitive (`DispMaxValue`) : hash primitif + valeur max.
     pub disp_max_values: Vec<DispMaxEntry>,
+    /// Authoritative primitive-to-dummy-mesh bindings (`DummyMeshOverWrite`).
+    ///
+    /// The OBJBIN stores no vertices or transform here. The target dummy mesh is resolved from
+    /// the object's G4PKM, so consumers must not synthesize geometry when that container is absent.
+    pub dummy_mesh_overrides: Vec<DummyMeshOverride>,
+}
+
+/// Binding between a numeric primitive and a dummy mesh in the object's G4PKM.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct DummyMeshOverride {
+    /// CRC-32 also present in `MenuNumberSettingName`.
+    pub primitive_hash: u32,
+    /// CRC-32 of the dummy mesh that provides the placement/geometry contract.
+    pub dummy_mesh_hash: u32,
 }
 
 /// Valeur maximale d'affichage pour une primitive (`DispMaxValue`).
@@ -316,6 +331,41 @@ impl UnknownComponent {
             })
         })
     }
+
+    /// Interpret the preserved fields of `CMenuCharaModelComponent` without inventing a model id.
+    ///
+    /// This component only configures the render binding. The actual character model is supplied
+    /// by runtime scene/save state and is deliberately absent from this return value.
+    #[must_use]
+    pub fn chara_model_binding(&self) -> Option<CharaModelBinding> {
+        if self.type_name != "CMenuCharaModelComponent" {
+            return None;
+        }
+        let first_int = |key: &str| match self.get(key)?.first()? {
+            PropValue::Int(value) => Some(*value),
+            _ => None,
+        };
+        Some(CharaModelBinding {
+            light_object_data_path: self.str_param("m_lightObjDataPathName").map(str::to_string),
+            menu_camera_name_hash: first_int("m_menuCameraNameCrc").map(|value| value as u32),
+            rotate_self: first_int("m_isRotateSelf").map(|value| value != 0),
+            body_parts: first_int("m_isBodyParts").map(|value| value != 0),
+            use_object_count: first_int("m_useObjectNum"),
+        })
+    }
+}
+
+/// Static render binding declared by `CMenuCharaModelComponent`.
+///
+/// There is intentionally no model path/id: OBJBIN does not carry one for this component.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct CharaModelBinding {
+    pub light_object_data_path: Option<String>,
+    pub menu_camera_name_hash: Option<u32>,
+    pub rotate_self: Option<bool>,
+    pub body_parts: Option<bool>,
+    pub use_object_count: Option<i32>,
 }
 
 // ── Structure interne : entrée brute T2B ─────────────────────────────────────
@@ -861,6 +911,7 @@ fn build_text_component(type_name: &str, mode: i32, props: &[(String, Vec<i32>)]
 fn build_primitive_component(type_name: &str, props: &[(String, Vec<i32>)]) -> PrimitiveComponent {
     let mut number_setting_hashes = Vec::new();
     let mut disp_max_values = Vec::new();
+    let mut dummy_mesh_overrides = Vec::new();
 
     for (key, vals) in props {
         match key.as_str() {
@@ -875,6 +926,12 @@ fn build_primitive_component(type_name: &str, props: &[(String, Vec<i32>)]) -> P
                     max_value: vals[1],
                 });
             }
+            "DummyMeshOverWrite" if vals.len() >= 2 => {
+                dummy_mesh_overrides.push(DummyMeshOverride {
+                    primitive_hash: vals[0] as u32,
+                    dummy_mesh_hash: vals[1] as u32,
+                });
+            }
             _ => {}
         }
     }
@@ -883,6 +940,7 @@ fn build_primitive_component(type_name: &str, props: &[(String, Vec<i32>)]) -> P
         type_name: type_name.to_string(),
         number_setting_hashes,
         disp_max_values,
+        dummy_mesh_overrides,
     }
 }
 
@@ -1300,6 +1358,89 @@ mod tests {
                 text.entries.len(),
                 mesh.unwrap().params.len(),
                 prim.unwrap().disp_max_values.len(),
+            );
+        }
+
+        // mainmenu01 proves the boundary between OBJBIN bindings and renderable geometry.
+        // The numeric component maps four values to four dummy meshes, but its declared G4PKM
+        // (the only source for those meshes/transforms) is absent from this mounted game VFS.
+        {
+            let raw = vfs
+                .read("data/common/gamedata/menu/obj/mainmenu01_01_base_info.objbin")
+                .expect("read mainmenu01_01_base_info.objbin");
+            let obj = parse(&raw).expect("parse mainmenu01_01_base_info");
+            let primitive = obj
+                .components
+                .iter()
+                .find_map(|component| match component {
+                    MenuComponent::Primitive(primitive) => Some(primitive),
+                    _ => None,
+                })
+                .expect("CMenuCreatePrimitiveComponent");
+            assert_eq!(primitive.number_setting_hashes.len(), 4);
+            assert_eq!(primitive.dummy_mesh_overrides.len(), 4);
+            assert_eq!(
+                primitive
+                    .dummy_mesh_overrides
+                    .iter()
+                    .map(|binding| (binding.primitive_hash, binding.dummy_mesh_hash))
+                    .collect::<Vec<_>>(),
+                vec![
+                    (0x951D_0F86, 0xD32F_0318),
+                    (0xFD42_7B4D, 0x0503_2AD3),
+                    (0x0576_CF7B, 0xF296_93E8),
+                    (0x9C7F_9EC1, 0xC37E_8975),
+                ]
+            );
+            assert!(primitive.dummy_mesh_overrides.iter().all(|binding| {
+                primitive
+                    .number_setting_hashes
+                    .contains(&binding.primitive_hash)
+            }));
+            let g4pkm = obj.g4pkm_path.as_deref().expect("SkeletonAnime path");
+            let basename = g4pkm.rsplit('/').next().expect("G4PKM basename");
+            assert!(
+                !vfs.iter()
+                    .any(|(path, _)| path.rsplit('/').next() == Some(basename)),
+                "unexpected geometry container {basename} in the mounted VFS"
+            );
+        }
+
+        // The character component declares camera/light behavior, not a character asset. Keep
+        // this distinction executable so a renderer cannot silently substitute a guessed model.
+        {
+            let raw = vfs
+                .read("data/common/gamedata/menu/obj/mainmenu01_03_chara_status.objbin")
+                .expect("read mainmenu01_03_chara_status.objbin");
+            let obj = parse(&raw).expect("parse mainmenu01_03_chara_status");
+            let binding = obj
+                .components
+                .iter()
+                .find_map(|component| match component {
+                    MenuComponent::Unknown(component) => component.chara_model_binding(),
+                    _ => None,
+                })
+                .expect("CMenuCharaModelComponent binding");
+            assert_eq!(
+                binding,
+                CharaModelBinding {
+                    light_object_data_path: Some("Menu_2dLight".to_string()),
+                    menu_camera_name_hash: Some(0x1764_BF9E),
+                    rotate_self: Some(false),
+                    body_parts: Some(true),
+                    use_object_count: None,
+                }
+            );
+            assert_eq!(
+                obj.components
+                    .iter()
+                    .filter_map(|component| match component {
+                        MenuComponent::Unknown(component) => Some(component.strings()),
+                        _ => None,
+                    })
+                    .flatten()
+                    .collect::<Vec<_>>(),
+                vec!["Menu_2dLight"]
             );
         }
     }

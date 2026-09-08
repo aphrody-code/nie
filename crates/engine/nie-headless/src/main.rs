@@ -42,22 +42,7 @@ use nie_core::{
     match_sim::{TeamSetup, simulate_match},
     stats::StatBlock,
 };
-use nie_formats::{FileFormat, cfgbin, cpk, crilayla, detect};
-
-// ---------------------------------------------------------------------------
-// Détection étendue
-// ---------------------------------------------------------------------------
-
-/// Détecte le format d'un tampon, avec prise en charge du magic RDBN (cfg.bin)
-/// en complément de [`nie_formats::detect`] (qui ne couvre pas encore RDBN).
-fn detect_etendu(donnees: &[u8]) -> FileFormat {
-    let format = detect(donnees);
-    if format == FileFormat::Unknown && cfgbin::is_rdbn(donnees) {
-        FileFormat::CfgBin
-    } else {
-        format
-    }
-}
+use nie_formats::cfgbin;
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -249,7 +234,7 @@ struct Resume {
     /// Taille en octets.
     taille_octets: u64,
     /// Nom court du format détecté (ex. `"CPK"`, `"CRILAYLA"`, `"?"`).
-    format: &'static str,
+    format: String,
     /// Détails supplémentaires, spécifiques au format.
     detail: Value,
 }
@@ -259,14 +244,14 @@ fn cmd_detect(fichier: PathBuf, indent: usize) -> Result<()> {
     let donnees =
         std::fs::read(&fichier).with_context(|| format!("impossible de lire '{chemin_str}'"))?;
 
-    let taille_octets = donnees.len() as u64;
-    let format = detect_etendu(&donnees);
-    let detail = construire_detail(format, &donnees)?;
+    let inspection = nie_headless::inspect_bytes(&donnees)?;
+    let format = inspection.format;
+    let detail = legacy_detection_detail(&format, inspection.detail);
 
     let resume = Resume {
         chemin: chemin_str,
-        taille_octets,
-        format: format.name(),
+        taille_octets: inspection.byte_length as u64,
+        format,
         detail,
     };
 
@@ -284,59 +269,25 @@ fn cmd_detect(fichier: PathBuf, indent: usize) -> Result<()> {
     Ok(())
 }
 
-/// Construit le champ `detail` JSON en fonction du format détecté.
-fn construire_detail(format: FileFormat, donnees: &[u8]) -> Result<Value> {
+/// Keeps the established CLI JSON keys while the reusable library stays English.
+fn legacy_detection_detail(format: &str, detail: Value) -> Value {
     match format {
-        FileFormat::CriLayla => detail_crilayla(donnees),
-        FileFormat::Utf => detail_utf(donnees),
-        FileFormat::Cpk => detail_cpk(donnees),
-        FileFormat::CfgBin => detail_cfgbin(donnees),
-        FileFormat::Hca
-        | FileFormat::Acb
-        | FileFormat::Awb
-        | FileFormat::Usm
-        | FileFormat::G4mg
-        | FileFormat::G4md
-        | FileFormat::G4tx
-        | FileFormat::G4sk
-        | FileFormat::G4pk
-        | FileFormat::G4nv
-        | FileFormat::Unknown => Ok(serde_json::json!({})),
+        "CRILAYLA" => serde_json::json!({
+            "taille_decompresse": detail["decompressedBytes"],
+        }),
+        "@UTF" | "CPK" => serde_json::json!({
+            "nom_table": detail["tableName"],
+            "colonnes": detail["columnCount"],
+            "lignes": detail["rowCount"],
+        }),
+        "cfg.bin" => serde_json::json!({
+            "version": detail["version"],
+            "types": detail["typeCount"],
+            "champs": detail["fieldCount"],
+            "racines": detail["rootCount"],
+        }),
+        _ => serde_json::json!({}),
     }
-}
-
-fn detail_crilayla(donnees: &[u8]) -> Result<Value> {
-    let decompresse =
-        crilayla::decompress(donnees).map_err(|e| anyhow::anyhow!("CRILAYLA : {e}"))?;
-    Ok(serde_json::json!({ "taille_decompresse": decompresse.len() }))
-}
-
-fn detail_utf(donnees: &[u8]) -> Result<Value> {
-    let table = cpk::parse_utf(donnees).map_err(|e| anyhow::anyhow!("@UTF : {e}"))?;
-    Ok(serde_json::json!({
-        "nom_table": table.name,
-        "colonnes":  table.column_count(),
-        "lignes":    table.row_count(),
-    }))
-}
-
-fn detail_cpk(donnees: &[u8]) -> Result<Value> {
-    let header = cpk::parse_cpk(donnees).map_err(|e| anyhow::anyhow!("CPK : {e}"))?;
-    Ok(serde_json::json!({
-        "nom_table": header.utf.name,
-        "colonnes":  header.utf.column_count(),
-        "lignes":    header.utf.row_count(),
-    }))
-}
-
-fn detail_cfgbin(donnees: &[u8]) -> Result<Value> {
-    let rdbn = cfgbin::parse(donnees).map_err(|e| anyhow::anyhow!("RDBN/cfg.bin : {e}"))?;
-    Ok(serde_json::json!({
-        "version": rdbn.header.version,
-        "types":   rdbn.types.len(),
-        "champs":  rdbn.fields.len(),
-        "racines": rdbn.roots.len(),
-    }))
 }
 
 // ---------------------------------------------------------------------------

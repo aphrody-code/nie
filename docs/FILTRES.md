@@ -181,15 +181,15 @@ contrat de source (`source.tsx:39`, `:84`, `:102`) et les vignettes (`lib/thumbs
 ## 3. nie aujourd'hui — `apps/nie-web/src/**` + `crates/tools/nie-site`
 
 > `apps/nie-web/src/legacy/**` **n'est routé par aucune page** — vérifié : la seule mention est un
-> commentaire (`pages/Catalogue.tsx:6`). Ses filtres ne sont pas actifs et ne comptent pas ici.
+> commentaire (`pages/Catalog.tsx`). Ses filtres ne sont pas actifs et ne comptent pas ici.
 
 | Page | Fichier:ligne | Filtres | Tri | Pagination | Recherche |
 |---|---|---|---|---|---|
-| `/` Menu principal | `pages/MenuPrincipal.tsx:152`, `entrees.ts:71-79` | **aucun** | — | — | — |
-| `/explorateur` | `pages/Explorateur.tsx:43-117` | **aucun** — un seul état, `prefixe` (`:43`), fil d'Ariane (`:35-38`). Tout `contenu.dossiers` et `contenu.fichiers` est rendu **sans troncature ni compte** | **aucun** | **aucune** | **aucune** |
-| `/textures`, `/sons`, `/videos` | `pages/Catalogue.tsx:42-297` | **la vue elle-même** (jeu d'extensions figé) | **aucun** | `page`, `PAR_PAGE = 60` en dur (`:42`), Précédent/Suivant | `q` à **soumission explicite** (`saisie` vs `filtre`, `:88-89`), sous-chaîne chemin entier, insensible à la casse |
-| `/modeles` | `pages/Modeles3D.tsx:54-298` | **`famille`** — 6 valeurs servies par `/api/v1/3d` (`:141`, `:203-223`) | **aucun** | `page`, `PAR_PAGE = 24` (`:54`) | `q` à soumission explicite, code **ou** nom |
-| `PetAphrody.tsx`, `Ecran.tsx` | — | aucune vue-liste | — | — | — |
+| `/` Menu principal | `pages/MainMenu.tsx`, `entries.ts` | **aucun** | — | — | — |
+| `/explorateur` | `pages/Explorer.tsx` | **aucun** — un seul état, `prefixe`, fil d'Ariane. Tout `contenu.dossiers` et `contenu.fichiers` est rendu **sans troncature ni compte** | **aucun** | **aucune** | **aucune** |
+| `/textures`, `/sons`, `/videos` | `pages/Catalog.tsx` | **la vue elle-même** (jeu d'extensions figé) | **aucun** | `page`, `DEFAULT_PAGE_SIZE = 60`, Précédent/Suivant | `q` à **soumission explicite**, sous-chaîne chemin entier, insensible à la casse |
+| `/modeles` | `pages/Models3D.tsx` | **`famille`** — 6 valeurs servies par `/api/v1/3d` | **aucun** | `page`, `PAR_PAGE = 24` | `q` à soumission explicite, code **ou** nom |
+| `PetAphrody.tsx`, `SecondaryScreen.tsx` | — | aucune vue-liste | — | — | — |
 
 ### 3.1 Ce que le serveur sait déjà filtrer
 
@@ -407,7 +407,7 @@ Trois restent une **forme** de filtre (glob, sous-arbre, fuzzy) plutôt qu'une d
 ## 7. Ordre de priorité — réordonné sur la mesure du soir
 
 1. **Câbler l'interface de nie sur ce qui est déjà servi.** C'est le premier poste et de loin :
-   32 filtres servis, 3 utilisés. L'explorateur (`Explorateur.tsx:43-117`) n'a aucun champ de
+   32 filtres servis, 3 utilisés. L'explorateur (`Explorer.tsx`) n'a aucun champ de
    recherche alors que `/b?q=` répond ; le catalogue fige `PAR_PAGE = 60` alors que `per_page`
    monte à 200 ; aucun état ne passe par l'URL. **Zéro ligne de serveur.**
 2. ~~Les deux formes de filtre manquantes dans `entites` (#29, #32).~~ **Fait le 2026-09-06** —

@@ -1,5 +1,5 @@
 /**
- * Les URL du gisement **jeu**, avant et après leur passage par `@niers/catalog/jeu`.
+ * Les URL du gisement **jeu**, avant et après leur passage par `@niers/catalog/game`.
  *
  * Ce fichier n'existe que pour une raison : `apps/azalee` sert un site public, et chacune de ces
  * chaînes est une clé de cache chez nginx comme chez les navigateurs. Faire passer les

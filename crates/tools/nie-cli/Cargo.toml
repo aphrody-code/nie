@@ -7,9 +7,13 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 publish = false
+autobins = false
 
 [[bin]]
 name = "niers"
+path = "src/bin.rs"
+
+[lib]
 path = "src/main.rs"
 
 [package.metadata.aphrody-package]
@@ -33,6 +37,9 @@ nie-explore.workspace = true
 nie-viola.workspace = true
 nie-steam.workspace = true
 tokio = { workspace = true }
+futures-util.workspace = true
+tokio-tungstenite.workspace = true
+reqwest.workspace = true
 nie-lua.workspace = true
 nie-save.workspace = true
 nie-wiki.workspace = true
@@ -43,9 +50,12 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 sha2.workspace = true
 hex.workspace = true
+base64.workspace = true
 redis.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+schemars.workspace = true
+rmcp.workspace = true
 rayon.workspace = true
 
 # `niers strings` : géométrie du PE (sections, ImageBase) et décodage de .text.

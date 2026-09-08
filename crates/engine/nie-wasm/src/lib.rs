@@ -140,6 +140,874 @@ pub fn detect_format(bytes: &[u8]) -> String {
     fmt.name().to_owned()
 }
 
+/// Describes one VFS entry with `nie-explore`'s shared format dispatcher.
+///
+/// The JSON result is versioned and always valid, including for unknown input:
+/// `{ "schemaVersion": 1, "path": "...", "recognized": true, "lines": [...] }`.
+/// Parsing stays entirely in WebAssembly; native filesystem search and the instrumented Lua VM
+/// are excluded from this dependency edge.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[must_use]
+pub fn vfs_content_summary(path: &str, bytes: &[u8]) -> String {
+    let summary = nie_explore::describe_content(path, bytes);
+    serde_json::json!({
+        "schemaVersion": 1,
+        "path": path,
+        "recognized": summary.is_some(),
+        "lines": summary.unwrap_or_default(),
+    })
+    .to_string()
+}
+
+fn binary_triage_impl(bytes: &[u8], strings_limit: u32) -> Result<String, String> {
+    let limit = usize::try_from(strings_limit)
+        .unwrap_or(aphrody_re::STRINGS_SAMPLE_LIMIT)
+        .min(256);
+    let report = aphrody_re::triage_bounded(bytes, limit).map_err(|error| error.to_string())?;
+    serde_json::to_string(&report).map_err(|error| error.to_string())
+}
+
+/// Inspects PE/ELF bytes with the shared pure-Rust reverse-engineering engine.
+/// The string sample is capped at 256 entries to keep the browser result bounded.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn binary_triage_json(bytes: &[u8], strings_limit: u32) -> Result<String, JsValue> {
+    binary_triage_impl(bytes, strings_limit).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`binary_triage_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn binary_triage_json(bytes: &[u8], strings_limit: u32) -> Result<String, String> {
+    binary_triage_impl(bytes, strings_limit)
+}
+
+const MAX_ASSEMBLY_SOURCE_BYTES: usize = 16 * 1024;
+const MAX_ASSEMBLY_INSTRUCTIONS: usize = 1024;
+const MAX_ASSEMBLY_OUTPUT_BYTES: usize = 64 * 1024;
+
+fn assemble_x64_impl(source: &str, virtual_address: u64) -> Result<Vec<u8>, String> {
+    if source.len() > MAX_ASSEMBLY_SOURCE_BYTES {
+        return Err(format!(
+            "assembly source exceeds {MAX_ASSEMBLY_SOURCE_BYTES} bytes"
+        ));
+    }
+    let instructions = nie_asm::parse_line(source).map_err(|error| error.to_string())?;
+    if instructions.len() > MAX_ASSEMBLY_INSTRUCTIONS {
+        return Err(format!(
+            "assembly source exceeds {MAX_ASSEMBLY_INSTRUCTIONS} instructions"
+        ));
+    }
+    let bytes = nie_asm::encode_at(&instructions, virtual_address);
+    if bytes.len() > MAX_ASSEMBLY_OUTPUT_BYTES {
+        return Err(format!(
+            "assembly output exceeds {MAX_ASSEMBLY_OUTPUT_BYTES} bytes"
+        ));
+    }
+    Ok(bytes)
+}
+
+/// Assembles bounded x86-64 source with `nie-asm`'s verified MSVC encoding rules.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn assemble_x64(source: &str, virtual_address: u64) -> Result<Vec<u8>, JsValue> {
+    assemble_x64_impl(source, virtual_address).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`assemble_x64`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn assemble_x64(source: &str, virtual_address: u64) -> Result<Vec<u8>, String> {
+    assemble_x64_impl(source, virtual_address)
+}
+
+/// Compares an original and rebuilt executable with `nie-pe`'s byte-exact forge metric.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[must_use]
+pub fn pe_byte_diff_json(reference: &[u8], rebuilt: &[u8], max_ranges: u32) -> String {
+    let report = nie_pe::diff::compare(reference, rebuilt, (max_ranges as usize).min(256));
+    let ranges: Vec<_> = report
+        .ranges
+        .iter()
+        .map(|range| serde_json::json!({ "offset": range.off, "length": range.len }))
+        .collect();
+    serde_json::json!({
+        "schemaVersion": 1,
+        "referenceLength": report.len_ref,
+        "rebuiltLength": report.len_got,
+        "bytesDiffering": report.bytes_differing,
+        "identicalRatio": report.ratio_identical(),
+        "identical": report.is_identical(),
+        "ranges": ranges,
+        "truncated": report.truncated,
+    })
+    .to_string()
+}
+
+fn forge_lift_x64_impl(bytes: &[u8], virtual_address: u64) -> Result<String, String> {
+    let lifted = nie_forge::lift::lift_body_text(bytes, virtual_address).map_err(|blockage| {
+        serde_json::json!({
+            "cause": blockage.cause,
+            "sample": blockage.sample,
+        })
+        .to_string()
+    })?;
+    Ok(serde_json::json!({
+        "schemaVersion": 1,
+        "byteLength": lifted.byte_len,
+        "instructionCount": lifted.instruction_count,
+        "source": lifted.source,
+    })
+    .to_string())
+}
+
+/// Lifts a bounded x86-64 body to `nie-forge`'s byte-exact assembly dialect.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn forge_lift_x64_json(bytes: &[u8], virtual_address: u64) -> Result<String, JsValue> {
+    forge_lift_x64_impl(bytes, virtual_address).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`forge_lift_x64_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn forge_lift_x64_json(bytes: &[u8], virtual_address: u64) -> Result<String, String> {
+    forge_lift_x64_impl(bytes, virtual_address)
+}
+
+const MAX_MINIDUMP_INPUT_BYTES: usize = 128 * 1024 * 1024;
+
+fn minidump_summary_impl(bytes: &[u8]) -> Result<String, String> {
+    if bytes.len() > MAX_MINIDUMP_INPUT_BYTES {
+        return Err(format!(
+            "minidump input exceeds {MAX_MINIDUMP_INPUT_BYTES} bytes"
+        ));
+    }
+    let dump = nie_dump::Minidump::from_bytes(bytes).map_err(|error| error.to_string())?;
+    let summary = dump.summary();
+    Ok(serde_json::json!({
+        "schemaVersion": 1,
+        "moduleCount": summary.module_count,
+        "rangeCount": summary.range_count,
+        "regionCount": summary.region_count,
+        "mappedBytes": summary.mapped_bytes,
+    })
+    .to_string())
+}
+
+/// Parses uploaded Windows minidump bytes and returns metadata without captured memory.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn minidump_summary_json(bytes: &[u8]) -> Result<String, JsValue> {
+    minidump_summary_impl(bytes).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`minidump_summary_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn minidump_summary_json(bytes: &[u8]) -> Result<String, String> {
+    minidump_summary_impl(bytes)
+}
+
+fn ievr_pe_inspect_impl(bytes: &[u8]) -> Result<String, String> {
+    ievr_tools::pe::inspect_bytes_json(bytes).map_err(|error| error.to_string())
+}
+
+/// Produces a bounded detailed PE report with sections, imports, and named exports.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn ievr_pe_inspect_json(bytes: &[u8]) -> Result<String, JsValue> {
+    ievr_pe_inspect_impl(bytes).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`ievr_pe_inspect_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn ievr_pe_inspect_json(bytes: &[u8]) -> Result<String, String> {
+    ievr_pe_inspect_impl(bytes)
+}
+
+const MAX_PDATA_INPUT_BYTES: usize = 64 * 1024 * 1024;
+
+fn pdata_inspect_impl(bytes: &[u8], max_roots: u32) -> Result<String, String> {
+    if bytes.len() > MAX_PDATA_INPUT_BYTES {
+        return Err(format!("PE input exceeds {MAX_PDATA_INPUT_BYTES} bytes"));
+    }
+    let report = nie_re::pdata::inspect_roots(bytes, max_roots as usize)
+        .map_err(|error| error.to_string())?;
+    let roots: Vec<_> = report
+        .sampled_roots
+        .iter()
+        .map(|root| {
+            serde_json::json!({
+                "start": format!("{:#x}", root.start),
+                "end": format!("{:#x}", root.end),
+            })
+        })
+        .collect();
+    Ok(serde_json::json!({
+        "schemaVersion": 1,
+        "entries": report.entries,
+        "rootEntries": report.root_entries,
+        "chainedFragments": report.chained_fragments,
+        "unreadableUnwindEntries": report.unreadable_unwind_entries,
+        "invalidRootEntries": report.invalid_root_entries,
+        "sampledRoots": roots,
+        "sampleTruncated": report.sample_truncated,
+    })
+    .to_string())
+}
+
+/// Inspects a PE `.pdata` table with exact counters and a bounded root sample.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn pdata_inspect_json(bytes: &[u8], max_roots: u32) -> Result<String, JsValue> {
+    pdata_inspect_impl(bytes, max_roots).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`pdata_inspect_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn pdata_inspect_json(bytes: &[u8], max_roots: u32) -> Result<String, String> {
+    pdata_inspect_impl(bytes, max_roots)
+}
+
+fn aob_scan_impl(pattern: &str, bytes: &[u8], max_hits: u32) -> Result<String, String> {
+    let max_hits = usize::try_from(max_hits).map_err(|error| error.to_string())?;
+    let report = nie_trace::scan_bytes_bounded(pattern, bytes, max_hits)
+        .map_err(|error| error.to_string())?;
+    Ok(serde_json::json!({
+        "schemaVersion": 1,
+        "patternBytes": report.pattern_bytes,
+        "scannedBytes": report.scanned_bytes,
+        "offsets": report.offsets,
+        "truncated": report.truncated,
+    })
+    .to_string())
+}
+
+/// Scans uploaded bytes with `nie-trace`'s bounded wildcard AOB engine.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn aob_scan_json(pattern: &str, bytes: &[u8], max_hits: u32) -> Result<String, JsValue> {
+    aob_scan_impl(pattern, bytes, max_hits).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`aob_scan_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn aob_scan_json(pattern: &str, bytes: &[u8], max_hits: u32) -> Result<String, String> {
+    aob_scan_impl(pattern, bytes, max_hits)
+}
+
+fn crc32_benchmark_sample_impl(byte_length: u32) -> Result<String, String> {
+    let report =
+        nie_bench::crc32_sample(byte_length as usize).map_err(|error| error.to_string())?;
+    serde_json::to_string(&report).map_err(|error| error.to_string())
+}
+
+/// Produces the bounded deterministic CRC32 sample shared by all benchmark harnesses.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn crc32_benchmark_sample_json(byte_length: u32) -> Result<String, JsValue> {
+    crc32_benchmark_sample_impl(byte_length).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`crc32_benchmark_sample_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn crc32_benchmark_sample_json(byte_length: u32) -> Result<String, String> {
+    crc32_benchmark_sample_impl(byte_length)
+}
+
+fn offline_image_inspect_impl(bytes: &[u8], request_json: &str) -> Result<String, String> {
+    nie_computer_use::offline_image::inspect_offline_image_json(bytes, request_json)
+        .map_err(|error| error.to_string())
+}
+
+/// Resolves and hashes bounded ranges in a caller-supplied linear `nie.exe` image.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn offline_image_inspect_json(bytes: &[u8], request_json: &str) -> Result<String, JsValue> {
+    offline_image_inspect_impl(bytes, request_json).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`offline_image_inspect_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn offline_image_inspect_json(bytes: &[u8], request_json: &str) -> Result<String, String> {
+    offline_image_inspect_impl(bytes, request_json)
+}
+
+const MAX_KNOWLEDGE_INDEX_JSON_BYTES: usize = 16 * 1024 * 1024;
+
+fn knowledge_search_impl(
+    entries_json: &str,
+    query: &str,
+    max_results: u32,
+) -> Result<String, String> {
+    if entries_json.len() > MAX_KNOWLEDGE_INDEX_JSON_BYTES {
+        return Err(format!(
+            "knowledge index JSON exceeds {MAX_KNOWLEDGE_INDEX_JSON_BYTES} bytes"
+        ));
+    }
+    let entries: Vec<nie_index::memory::KnowledgeEntry> =
+        serde_json::from_str(entries_json).map_err(|error| error.to_string())?;
+    let index = nie_index::memory::MemoryIndex::new(entries).map_err(|error| error.to_string())?;
+    let result = index
+        .search(query, max_results as usize)
+        .map_err(|error| error.to_string())?;
+    serde_json::to_string(&result).map_err(|error| error.to_string())
+}
+
+/// Searches bounded caller-owned `nie.exe` knowledge without SQLite, Redis, or host access.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn knowledge_search_json(
+    entries_json: &str,
+    query: &str,
+    max_results: u32,
+) -> Result<String, JsValue> {
+    knowledge_search_impl(entries_json, query, max_results)
+        .map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`knowledge_search_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn knowledge_search_json(
+    entries_json: &str,
+    query: &str,
+    max_results: u32,
+) -> Result<String, String> {
+    knowledge_search_impl(entries_json, query, max_results)
+}
+
+fn headless_inspect_impl(bytes: &[u8]) -> Result<String, String> {
+    nie_headless::inspect_bytes_json(bytes).map_err(|error| error.to_string())
+}
+
+/// Returns the detailed bounded format report shared with the `nie-headless` CLI.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn headless_inspect_json(bytes: &[u8]) -> Result<String, JsValue> {
+    headless_inspect_impl(bytes).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`headless_inspect_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn headless_inspect_json(bytes: &[u8]) -> Result<String, String> {
+    headless_inspect_impl(bytes)
+}
+
+fn editor_add_object_impl(project_json: &str, object_json: &str) -> Result<String, String> {
+    if object_json.len() > nie_editor::MAX_PROJECT_BYTES {
+        return Err(format!(
+            "scene object JSON exceeds {} bytes",
+            nie_editor::MAX_PROJECT_BYTES
+        ));
+    }
+    let mut session = nie_editor::EditorSession::from_json(project_json.as_bytes())
+        .map_err(|error| error.to_string())?;
+    let object = serde_json::from_str(object_json).map_err(|error| error.to_string())?;
+    session
+        .add_object(object)
+        .map_err(|error| error.to_string())?;
+    let bytes = session
+        .to_json_pretty()
+        .map_err(|error| error.to_string())?;
+    String::from_utf8(bytes).map_err(|error| error.to_string())
+}
+
+/// Adds one validated scene object through the editor's shared bounded session core.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn editor_add_object_json(project_json: &str, object_json: &str) -> Result<String, JsValue> {
+    editor_add_object_impl(project_json, object_json).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`editor_add_object_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn editor_add_object_json(project_json: &str, object_json: &str) -> Result<String, String> {
+    editor_add_object_impl(project_json, object_json)
+}
+
+/// Browser-owned scene editing session with bounded undo/redo history.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct WasmEditorSession {
+    inner: nie_editor::EditorSession,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl WasmEditorSession {
+    /// Opens and validates a bounded scene project.
+    #[wasm_bindgen(constructor)]
+    pub fn new(project_json: &str) -> Result<WasmEditorSession, JsValue> {
+        let inner = nie_editor::EditorSession::from_json(project_json.as_bytes())
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        Ok(WasmEditorSession { inner })
+    }
+
+    /// Serializes the current validated scene project.
+    pub fn project_json(&self) -> Result<String, JsValue> {
+        let bytes = self
+            .inner
+            .to_json_pretty()
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        String::from_utf8(bytes).map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Selects an object index, or clears selection when omitted.
+    pub fn select(&mut self, selected: Option<u32>) -> Result<(), JsValue> {
+        self.inner
+            .select(selected.map(|value| value as usize))
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Adds a validated JSON scene object and returns its index.
+    pub fn add_object_json(&mut self, object_json: &str) -> Result<u32, JsValue> {
+        if object_json.len() > nie_editor::MAX_PROJECT_BYTES {
+            return Err(JsValue::from_str("scene object JSON exceeds project limit"));
+        }
+        let object = serde_json::from_str(object_json)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let index = self
+            .inner
+            .add_object(object)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        u32::try_from(index).map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Duplicates the selected object with a finite validated translation.
+    pub fn duplicate_selected(&mut self, x: f32, y: f32, z: f32) -> Result<u32, JsValue> {
+        let index = self
+            .inner
+            .duplicate_selected([x, y, z])
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        u32::try_from(index).map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Removes the selected object and returns its JSON representation.
+    pub fn remove_selected_json(&mut self) -> Result<String, JsValue> {
+        let removed = self
+            .inner
+            .remove_selected()
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        serde_json::to_string(&removed).map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Restores the previous project state.
+    pub fn undo(&mut self) -> bool {
+        self.inner.undo()
+    }
+
+    /// Restores the next project state after undo.
+    pub fn redo(&mut self) -> bool {
+        self.inner.redo()
+    }
+
+    /// Whether an undo state is available.
+    #[wasm_bindgen(getter)]
+    pub fn can_undo(&self) -> bool {
+        self.inner.can_undo()
+    }
+
+    /// Whether a redo state is available.
+    #[wasm_bindgen(getter)]
+    pub fn can_redo(&self) -> bool {
+        self.inner.can_redo()
+    }
+}
+
+fn character_parts_catalog_impl(bytes: &[u8], source: &str) -> Result<String, String> {
+    let catalog = nie_model_serve::catalog::decode_character_parts_catalog(
+        bytes,
+        source,
+        &nie_model_serve::catalog::CatalogDecodeLimits::default(),
+    )
+    .map_err(|error| error.to_string())?;
+    serde_json::to_string(&catalog).map_err(|error| error.to_string())
+}
+
+/// Decodes a bounded `chara_parts_*.cfg.bin` catalog supplied by the browser.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn character_parts_catalog_json(bytes: &[u8], source: &str) -> Result<String, JsValue> {
+    character_parts_catalog_impl(bytes, source).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`character_parts_catalog_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn character_parts_catalog_json(bytes: &[u8], source: &str) -> Result<String, String> {
+    character_parts_catalog_impl(bytes, source)
+}
+
+fn chara_model_catalog_impl(bytes: &[u8], source: &str) -> Result<String, String> {
+    let catalog = nie_model_serve::catalog::decode_chara_model_catalog(
+        bytes,
+        source,
+        &nie_model_serve::catalog::CatalogDecodeLimits::default(),
+    )
+    .map_err(|error| error.to_string())?;
+    serde_json::to_string(&catalog).map_err(|error| error.to_string())
+}
+
+/// Decodes a bounded `chara_model_*.cfg.bin` catalog supplied by the browser.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn chara_model_catalog_json(bytes: &[u8], source: &str) -> Result<String, JsValue> {
+    chara_model_catalog_impl(bytes, source).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`chara_model_catalog_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn chara_model_catalog_json(bytes: &[u8], source: &str) -> Result<String, String> {
+    chara_model_catalog_impl(bytes, source)
+}
+
+const MAX_ZUKAN_ENTRY_JSON_BYTES: usize = 1024 * 1024;
+const MAX_ZUKAN_CANDIDATES_JSON_BYTES: usize = 8 * 1024 * 1024;
+const MAX_ZUKAN_RESULT_JSON_BYTES: usize = 1024 * 1024;
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ZukanRankEntryInput {
+    name: String,
+    zukan_hash: Option<String>,
+    position: Option<String>,
+    element: Option<String>,
+    stats: Option<nie_zukan::matching::MatchingStats>,
+    game: Option<String>,
+    gender: Option<String>,
+    description: Option<String>,
+}
+
+impl From<ZukanRankEntryInput> for nie_zukan::matching::ZukanMatchEntry {
+    fn from(input: ZukanRankEntryInput) -> Self {
+        Self {
+            nom: input.name,
+            zukan_hash: input.zukan_hash,
+            position: input.position,
+            element: input.element,
+            stats: input.stats,
+            jeu: input.game,
+            genre: input.gender,
+            description: input.description,
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ZukanRankCandidateInput {
+    id: String,
+    name_en: String,
+    name_fr: Option<String>,
+    name_ja: Option<String>,
+    position: String,
+    element: String,
+    gender: Option<String>,
+    rarity_label: String,
+    series: Option<String>,
+    zukan_hash: Option<String>,
+    stats: Option<nie_zukan::matching::MatchingStats>,
+    description_en: Option<String>,
+}
+
+impl From<ZukanRankCandidateInput> for nie_zukan::matching::InagleMatchCandidate {
+    fn from(input: ZukanRankCandidateInput) -> Self {
+        Self {
+            id: input.id,
+            name_en: input.name_en,
+            name_fr: input.name_fr,
+            name_ja: input.name_ja,
+            position: input.position,
+            element: input.element,
+            gender: input.gender,
+            rarity_label: input.rarity_label,
+            series: input.series,
+            zukan_hash: input.zukan_hash,
+            stats: input.stats,
+            description_en: input.description_en,
+        }
+    }
+}
+
+fn zukan_rank_impl(
+    entry_json: &str,
+    candidates_json: &str,
+    max_results: u32,
+) -> Result<String, String> {
+    if entry_json.len() > MAX_ZUKAN_ENTRY_JSON_BYTES {
+        return Err(format!(
+            "Zukan entry JSON exceeds {MAX_ZUKAN_ENTRY_JSON_BYTES} bytes"
+        ));
+    }
+    if candidates_json.len() > MAX_ZUKAN_CANDIDATES_JSON_BYTES {
+        return Err(format!(
+            "Zukan candidate JSON exceeds {MAX_ZUKAN_CANDIDATES_JSON_BYTES} bytes"
+        ));
+    }
+    let entry: ZukanRankEntryInput =
+        serde_json::from_str(entry_json).map_err(|error| error.to_string())?;
+    let candidates: Vec<ZukanRankCandidateInput> =
+        serde_json::from_str(candidates_json).map_err(|error| error.to_string())?;
+    let entry = entry.into();
+    let candidates: Vec<nie_zukan::matching::InagleMatchCandidate> =
+        candidates.into_iter().map(Into::into).collect();
+    let ranked =
+        nie_zukan::matching::rank_candidates_bounded(&entry, &candidates, max_results as usize)
+            .map_err(|error| error.to_string())?;
+    let rows: Vec<_> = ranked
+        .into_iter()
+        .map(|row| {
+            serde_json::json!({
+                "candidateId": row.candidate_id,
+                "score": row.score,
+            })
+        })
+        .collect();
+    let output = serde_json::json!({
+        "schemaVersion": 1,
+        "results": rows,
+    })
+    .to_string();
+    if output.len() > MAX_ZUKAN_RESULT_JSON_BYTES {
+        return Err(format!(
+            "Zukan result JSON exceeds {MAX_ZUKAN_RESULT_JSON_BYTES} bytes"
+        ));
+    }
+    Ok(output)
+}
+
+/// Ranks official-encyclopedia candidates with the shared deterministic matcher.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn zukan_rank_json(
+    entry_json: &str,
+    candidates_json: &str,
+    max_results: u32,
+) -> Result<String, JsValue> {
+    zukan_rank_impl(entry_json, candidates_json, max_results)
+        .map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`zukan_rank_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn zukan_rank_json(
+    entry_json: &str,
+    candidates_json: &str,
+    max_results: u32,
+) -> Result<String, String> {
+    zukan_rank_impl(entry_json, candidates_json, max_results)
+}
+
+fn format_catalog_validate_impl(bytes: &[u8]) -> Result<String, String> {
+    let catalog = nie_seed::format_catalog::parse_format_catalog_bytes(
+        bytes,
+        nie_seed::format_catalog::CatalogLimits::default(),
+    )
+    .map_err(|error| error.to_string())?;
+    serde_json::to_string(&catalog).map_err(|error| error.to_string())
+}
+
+/// Validates and canonicalizes a bounded `iecode`/IEVR format catalog in browser memory.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn format_catalog_validate_json(bytes: &[u8]) -> Result<String, JsValue> {
+    format_catalog_validate_impl(bytes).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`format_catalog_validate_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn format_catalog_validate_json(bytes: &[u8]) -> Result<String, String> {
+    format_catalog_validate_impl(bytes)
+}
+
+const MAX_STEAM_PLANNING_JSON_BYTES: usize = 8 * 1024 * 1024;
+
+fn steam_select_depots_impl(depots_json: &str, selection_json: &str) -> Result<String, String> {
+    if depots_json.len() > MAX_STEAM_PLANNING_JSON_BYTES
+        || selection_json.len() > MAX_STEAM_PLANNING_JSON_BYTES
+    {
+        return Err(format!(
+            "Steam planning JSON exceeds {MAX_STEAM_PLANNING_JSON_BYTES} bytes"
+        ));
+    }
+    let depots: Vec<nie_steam::planning::DepotRecord> =
+        serde_json::from_str(depots_json).map_err(|error| error.to_string())?;
+    let selection: nie_steam::planning::DepotSelection =
+        serde_json::from_str(selection_json).map_err(|error| error.to_string())?;
+    let depot_ids = nie_steam::planning::select_depot_ids(
+        &depots,
+        &selection,
+        nie_steam::planning::PlanningLimits::default(),
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(serde_json::json!({
+        "schemaVersion": 1,
+        "depotIds": depot_ids,
+    })
+    .to_string())
+}
+
+/// Selects Steam depots from caller-supplied metadata without credentials or host access.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn steam_select_depots_json(
+    depots_json: &str,
+    selection_json: &str,
+) -> Result<String, JsValue> {
+    steam_select_depots_impl(depots_json, selection_json).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native test surface for [`steam_select_depots_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn steam_select_depots_json(depots_json: &str, selection_json: &str) -> Result<String, String> {
+    steam_select_depots_impl(depots_json, selection_json)
+}
+
+/// Browser-owned task lifecycle validated by the portable `nie-tasks` core.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct WasmTaskPlan {
+    inner: nie_tasks::TaskPlan,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl WasmTaskPlan {
+    /// Creates a queued task plan with bounded identifiers and labels.
+    #[wasm_bindgen(constructor)]
+    pub fn new(id: &str, label: &str, total: u64) -> Result<WasmTaskPlan, JsValue> {
+        let inner = nie_tasks::TaskPlan::new(id, label, total)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        Ok(WasmTaskPlan { inner })
+    }
+
+    /// Marks the queued task as running.
+    pub fn start(&mut self) -> Result<(), JsValue> {
+        self.inner
+            .start()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Pauses a running task at its next cooperative checkpoint.
+    pub fn pause(&mut self) -> Result<(), JsValue> {
+        self.inner
+            .pause()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Resumes a paused task.
+    pub fn resume(&mut self) -> Result<(), JsValue> {
+        self.inner
+            .resume()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Requests cooperative cancellation.
+    pub fn request_cancel(&mut self) -> Result<(), JsValue> {
+        self.inner
+            .request_cancel()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Records bounded progress.
+    pub fn report(
+        &mut self,
+        done: u64,
+        total: u64,
+        message: Option<String>,
+    ) -> Result<(), JsValue> {
+        self.inner
+            .report(done, total, message)
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Marks the task as completed.
+    pub fn complete(&mut self) -> Result<(), JsValue> {
+        self.inner
+            .complete()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Confirms that a cancellation request reached a checkpoint.
+    pub fn confirm_canceled(&mut self) -> Result<(), JsValue> {
+        self.inner
+            .confirm_canceled()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Marks the task as failed.
+    pub fn fail(&mut self) -> Result<(), JsValue> {
+        self.inner
+            .fail()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Serializes the current phase, progress and available controls.
+    pub fn snapshot_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .snapshot_json()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+}
+
+/// Browser-owned bounded FIFO frontier backed by `nie-queue`'s portable core.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct WasmFrontier {
+    inner: nie_queue::MemoryFrontier,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl WasmFrontier {
+    /// Creates an empty frontier with explicit non-zero capacities.
+    #[wasm_bindgen(constructor)]
+    pub fn new(max_pending: u32, max_seen: u32, max_batch: u32) -> Result<WasmFrontier, JsValue> {
+        let limits = nie_queue::FrontierLimits::new(
+            max_pending as usize,
+            max_seen as usize,
+            max_batch as usize,
+        )
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        Ok(WasmFrontier {
+            inner: nie_queue::MemoryFrontier::new(limits),
+        })
+    }
+
+    /// Pushes one address and returns its stable outcome name.
+    pub fn push(&mut self, address: i64) -> String {
+        match self.inner.push(address) {
+            nie_queue::PushOutcome::Added => "added",
+            nie_queue::PushOutcome::Duplicate => "duplicate",
+            nie_queue::PushOutcome::PendingLimitReached => "pending_limit_reached",
+            nie_queue::PushOutcome::SeenLimitReached => "seen_limit_reached",
+        }
+        .to_owned()
+    }
+
+    /// Pops the oldest pending address while retaining it in deduplication history.
+    pub fn pop(&mut self) -> Option<i64> {
+        self.inner.pop()
+    }
+
+    /// Returns a precision-safe JSON snapshot of the pending addresses and counts.
+    pub fn snapshot_json(&self) -> String {
+        let pending: Vec<String> = self
+            .inner
+            .pending()
+            .map(|address| address.to_string())
+            .collect();
+        serde_json::json!({
+            "schemaVersion": 1,
+            "pending": pending,
+            "pendingCount": self.inner.len(),
+            "seenCount": self.inner.seen_count(),
+        })
+        .to_string()
+    }
+
+    /// Clears both pending work and persistent deduplication history.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+}
+
 // ---------------------------------------------------------------------------
 // crilayla_decompress
 // ---------------------------------------------------------------------------
@@ -895,6 +1763,86 @@ pub fn g4tx_info_json(bytes: &[u8]) -> Result<String, String> {
     serde_json::to_string(&g4tx).map_err(|e| e.to_string())
 }
 
+// ── Static menu layer composition ───────────────────────────────────────────
+
+/// Derives one static menu layer from the exact three Level-5 assets that define it.
+///
+/// The browser owns asynchronous VFS acquisition. This function intentionally receives one
+/// OBJBIN, one G4PKM and one G4TX buffer rather than a synthetic in-memory VFS, then applies the
+/// same pure parser and placement path as the native renderer. Dynamic C++/Lua state is not
+/// implied by this static bind-pose result.
+fn menu_static_layer_json_impl(
+    objbin_bytes: &[u8],
+    g4pkm_bytes: &[u8],
+    g4tx_bytes: &[u8],
+    g4tx_path: &str,
+) -> Result<String, String> {
+    let object = nie_formats::objbin::parse(objbin_bytes).map_err(|error| error.to_string())?;
+    let skeleton = nie_formats::g4pkm::parse(g4pkm_bytes).map_err(|error| error.to_string())?;
+    let container = nie_formats::g4tx::parse(g4tx_bytes).map_err(|error| error.to_string())?;
+    let stem = g4tx_path
+        .rsplit('/')
+        .next()
+        .unwrap_or(g4tx_path)
+        .strip_suffix(".g4tx")
+        .unwrap_or(g4tx_path);
+    let texture = nie_formats::g4tx::select_main_texture(&container, stem)
+        .ok_or_else(|| "G4TX contains no selectable texture".to_owned())?;
+    let width = u32::try_from(texture.width).map_err(|_| "G4TX texture width is negative")?;
+    let height = u32::try_from(texture.height).map_err(|_| "G4TX texture height is negative")?;
+    let positioned = nie_formats::menu::assemble_object(&object, &skeleton, width, height);
+    let draw_type = object
+        .components
+        .iter()
+        .find_map(|component| match component {
+            nie_formats::objbin::MenuComponent::Render(render) => Some(render.draw_type),
+            _ => None,
+        })
+        .unwrap_or_default();
+    let transform = positioned.transform;
+    serde_json::to_string(&serde_json::json!({
+        "schemaVersion": 1,
+        "name": positioned.name,
+        "g4txPath": g4tx_path,
+        "texture": { "name": texture.name, "width": width, "height": height },
+        "drawPriority": positioned.draw_priority,
+        "drawType": draw_type,
+        "transform": {
+            "x": transform.x_px,
+            "y": transform.y_px,
+            "scaleX": transform.scale_x,
+            "scaleY": transform.scale_y,
+            "rot": transform.rot,
+        },
+        "anchor": { "x": 0.5, "y": 0.5 },
+    }))
+    .map_err(|error| error.to_string())
+}
+
+/// Composes one static menu layer from raw OBJBIN, G4PKM and G4TX bytes in WebAssembly.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn menu_static_layer_json(
+    objbin_bytes: &[u8],
+    g4pkm_bytes: &[u8],
+    g4tx_bytes: &[u8],
+    g4tx_path: &str,
+) -> Result<String, JsValue> {
+    menu_static_layer_json_impl(objbin_bytes, g4pkm_bytes, g4tx_bytes, g4tx_path)
+        .map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native counterpart of [`menu_static_layer_json`] used by focused Rust tests.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn menu_static_layer_json(
+    objbin_bytes: &[u8],
+    g4pkm_bytes: &[u8],
+    g4tx_bytes: &[u8],
+    g4tx_path: &str,
+) -> Result<String, String> {
+    menu_static_layer_json_impl(objbin_bytes, g4pkm_bytes, g4tx_bytes, g4tx_path)
+}
+
 /// Feuille de sprites d'un atlas `.g4tx` : régions nommées avec leur rectangle, en JSON.
 ///
 /// `g4tx_info_json` rend la structure brute du conteneur ; celle-ci rend ce qu'une interface
@@ -1265,6 +2213,369 @@ pub fn parse_save_json(bytes: &[u8], filename: &str) -> Result<String, String> {
 // Machine à états d'écran en navigateur (nie-app : GameState + framebuffer CPU)
 // ---------------------------------------------------------------------------
 
+#[cfg(any(target_arch = "wasm32", test))]
+fn parse_lines_json(lines_json: &str) -> Result<Vec<String>, String> {
+    serde_json::from_str(lines_json).map_err(|error| format!("lines: {error}"))
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+const MAX_UPDATE_SECONDS: f32 = 1.0 / 20.0;
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn set_match_input(screen: &mut nie_app::flow::Screen, dx: f32, dy: f32, shoot: bool) {
+    let finite_or_zero = |axis: f32| if axis.is_finite() { axis } else { 0.0 };
+    screen.set_game_input(finite_or_zero(dx), finite_or_zero(dy), shoot);
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn update_screen(screen: &mut nie_app::flow::Screen, dt: f32) {
+    if dt.is_finite() && dt > 0.0 {
+        screen.update(dt.min(MAX_UPDATE_SECONDS));
+    }
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+#[derive(Default)]
+struct FrameBuffer {
+    pixels: Vec<u8>,
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+impl FrameBuffer {
+    fn replace(&mut self, pixels: Vec<u8>) {
+        self.pixels = pixels;
+    }
+
+    fn pointer(&self) -> usize {
+        self.pixels.as_ptr() as usize
+    }
+
+    fn len(&self) -> usize {
+        self.pixels.len()
+    }
+
+    #[cfg(test)]
+    fn pixels(&self) -> &[u8] {
+        &self.pixels
+    }
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn role_name(role: nie_runtime::Role) -> &'static str {
+    match role {
+        nie_runtime::Role::Goalkeeper => "goalkeeper",
+        nie_runtime::Role::Defender => "defender",
+        nie_runtime::Role::Midfielder => "midfielder",
+        nie_runtime::Role::Forward => "forward",
+    }
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn screen_snapshot(screen: &nie_app::flow::Screen) -> Result<String, String> {
+    let value = match screen {
+        nie_app::flow::Screen::Title => serde_json::json!({
+            "schemaVersion": 1,
+            "screen": { "kind": "title" },
+        }),
+        nie_app::flow::Screen::Menu { sel } => serde_json::json!({
+            "schemaVersion": 1,
+            "screen": { "kind": "menu", "selection": sel },
+        }),
+        nie_app::flow::Screen::ModeSelect { sel } => serde_json::json!({
+            "schemaVersion": 1,
+            "screen": { "kind": "modeSelect", "selection": sel },
+        }),
+        nie_app::flow::Screen::Match { world } => {
+            let players: Vec<_> = world
+                .players
+                .iter()
+                .enumerate()
+                .map(|(index, player)| {
+                    serde_json::json!({
+                        "index": index,
+                        "team": player.team,
+                        "role": role_name(player.role),
+                        "position": { "x": player.pos.x, "y": player.pos.y },
+                        "velocity": { "x": player.vel.x, "y": player.vel.y },
+                        "home": { "x": player.home.x, "y": player.home.y },
+                    })
+                })
+                .collect();
+            serde_json::json!({
+                "schemaVersion": 1,
+                "screen": { "kind": "match" },
+                "world": {
+                    "tick": world.tick,
+                    "time": world.time,
+                    "score": world.score,
+                    "controlledPlayer": world.controlled(),
+                    "possessor": world.possessor(),
+                    "input": {
+                        "direction": { "x": world.input.dir.x, "y": world.input.dir.y },
+                        "shoot": world.input.shoot,
+                    },
+                    "ball": {
+                        "position": {
+                            "x": world.ball.pos.x,
+                            "y": world.ball.pos.y,
+                            "z": world.ball.pos.z,
+                        },
+                        "velocity": {
+                            "x": world.ball.vel.x,
+                            "y": world.ball.vel.y,
+                            "z": world.ball.vel.z,
+                        },
+                        "gravity": world.ball.gravity,
+                    },
+                    "players": players,
+                },
+            })
+        }
+        nie_app::flow::Screen::Story {
+            idx,
+            titre,
+            repliques,
+        } => serde_json::json!({
+            "schemaVersion": 1,
+            "screen": {
+                "kind": "story",
+                "index": idx,
+                "eventId": titre,
+                "lineCount": repliques.len(),
+                "awaitingDialogue": repliques.is_empty(),
+            },
+        }),
+        nie_app::flow::Screen::Info { title } => serde_json::json!({
+            "schemaVersion": 1,
+            "screen": { "kind": "info", "title": title },
+        }),
+        nie_app::flow::Screen::Liste { titre, lignes, sel } => serde_json::json!({
+            "schemaVersion": 1,
+            "screen": {
+                "kind": "list",
+                "title": titre,
+                "selection": sel,
+                "lineCount": lignes.len(),
+            },
+        }),
+    };
+
+    serde_json::to_string(&value).map_err(|error| format!("state: {error}"))
+}
+
+// ---------------------------------------------------------------------------
+// Portable camera controller (nie-camera state and interpolation)
+// ---------------------------------------------------------------------------
+
+#[cfg(any(target_arch = "wasm32", test))]
+#[derive(Default)]
+struct CameraTimeline {
+    state: nie_camera::CameraState,
+    transition: Option<nie_camera::ctrl::InterPolate>,
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+impl CameraTimeline {
+    fn transition_to(
+        &mut self,
+        target: nie_camera::CameraState,
+        duration: f32,
+        fade_code: i32,
+    ) -> Result<(), String> {
+        validate_camera_state(&target)?;
+        if !duration.is_finite() || duration < 0.0 {
+            return Err("duration must be a finite non-negative number".to_owned());
+        }
+
+        if duration <= f32::EPSILON {
+            self.state = target;
+            self.transition = None;
+        } else {
+            self.transition = Some(nie_camera::ctrl::InterPolate::new(
+                self.state,
+                target,
+                duration,
+                nie_camera::ctrl::FadeType::from_code(fade_code),
+            ));
+        }
+        Ok(())
+    }
+
+    fn step(&mut self, dt: f32) {
+        if !dt.is_finite() || dt <= 0.0 {
+            return;
+        }
+
+        if let Some(mut transition) = self.transition.take() {
+            self.state = transition.step(dt);
+            if transition.active() {
+                self.transition = Some(transition);
+            }
+        }
+    }
+
+    fn active(&self) -> bool {
+        self.transition.is_some()
+    }
+
+    fn state_json(&self, aspect: f32) -> Result<String, String> {
+        if !aspect.is_finite() || aspect <= 0.0 {
+            return Err("aspect must be a finite positive number".to_owned());
+        }
+
+        validate_camera_state(&self.state)?;
+
+        let (distance, azimuth, altitude) = self.state.orbit();
+        let view_matrix = self.state.view_matrix();
+        let projection_matrix = self.state.projection_matrix(aspect);
+        if ![distance, azimuth, altitude]
+            .into_iter()
+            .chain(view_matrix.into_iter().flatten())
+            .chain(projection_matrix.into_iter().flatten())
+            .all(f32::is_finite)
+        {
+            return Err("camera state produces non-finite derived values".to_owned());
+        }
+        serde_json::to_string(&serde_json::json!({
+            "schemaVersion": 1,
+            "active": self.active(),
+            "position": self.state.pos,
+            "referencePosition": self.state.ref_pos,
+            "fovDegrees": self.state.fov_deg,
+            "rollDegrees": self.state.roll_deg,
+            "nearClip": self.state.near,
+            "farClip": self.state.far,
+            "orbit": {
+                "distance": distance,
+                "azimuthRadians": azimuth,
+                "altitudeRadians": altitude,
+            },
+            "viewMatrix": view_matrix,
+            "projectionMatrix": projection_matrix,
+        }))
+        .map_err(|error| format!("camera state: {error}"))
+    }
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn validate_camera_state(state: &nie_camera::CameraState) -> Result<(), String> {
+    if state
+        .pos
+        .iter()
+        .chain(state.ref_pos.iter())
+        .chain([&state.fov_deg, &state.roll_deg, &state.near, &state.far])
+        .any(|value| !value.is_finite())
+    {
+        return Err("camera values must be finite numbers".to_owned());
+    }
+    if !(0.0 < state.fov_deg && state.fov_deg < 180.0) {
+        return Err("fovDegrees must be between 0 and 180".to_owned());
+    }
+    if state.near <= 0.0 || state.far <= state.near {
+        return Err("clip planes must satisfy 0 < nearClip < farClip".to_owned());
+    }
+
+    let delta = [
+        f64::from(state.ref_pos[0]) - f64::from(state.pos[0]),
+        f64::from(state.ref_pos[1]) - f64::from(state.pos[1]),
+        f64::from(state.ref_pos[2]) - f64::from(state.pos[2]),
+    ];
+    let distance_squared = delta.into_iter().map(|axis| axis * axis).sum::<f64>();
+    if !distance_squared.is_finite()
+        || distance_squared <= f64::from(f32::EPSILON).powi(2)
+        || distance_squared > f64::from(f32::MAX)
+    {
+        return Err("camera position must define a finite, non-zero view direction".to_owned());
+    }
+    let horizontal_squared = delta[0] * delta[0] + delta[2] * delta[2];
+    if horizontal_squared <= f64::from(f32::EPSILON).powi(2) {
+        return Err("camera view direction cannot be parallel to the up axis".to_owned());
+    }
+    if !state
+        .view_matrix()
+        .into_iter()
+        .flatten()
+        .chain(state.projection_matrix(1.0).into_iter().flatten())
+        .all(f32::is_finite)
+    {
+        return Err("camera state produces non-finite matrices".to_owned());
+    }
+    Ok(())
+}
+
+/// Browser camera backed by `nie-camera`'s portable `CameraState` and
+/// `CCameraCtrlInterPolate` controller math.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+#[derive(Default)]
+pub struct WasmCamera {
+    timeline: CameraTimeline,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl WasmCamera {
+    /// Creates a camera with the verified `nie-camera` default state.
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> WasmCamera {
+        WasmCamera::default()
+    }
+
+    /// Starts a deterministic transition to a complete camera state.
+    /// Fade codes mirror `m_FadeType`: 0 linear, 1 ease-in, 2 ease-out, and all
+    /// other observed values (including 6) use the controller's smooth curve.
+    #[allow(clippy::too_many_arguments)]
+    pub fn transition_to(
+        &mut self,
+        position_x: f32,
+        position_y: f32,
+        position_z: f32,
+        reference_x: f32,
+        reference_y: f32,
+        reference_z: f32,
+        fov_degrees: f32,
+        roll_degrees: f32,
+        near_clip: f32,
+        far_clip: f32,
+        duration: f32,
+        fade_code: i32,
+    ) -> Result<(), JsValue> {
+        self.timeline
+            .transition_to(
+                nie_camera::CameraState {
+                    pos: [position_x, position_y, position_z],
+                    ref_pos: [reference_x, reference_y, reference_z],
+                    fov_deg: fov_degrees,
+                    roll_deg: roll_degrees,
+                    near: near_clip,
+                    far: far_clip,
+                },
+                duration,
+                fade_code,
+            )
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    /// Advances the active transition by `dt` seconds. Invalid or non-positive
+    /// deltas are ignored so host clock glitches cannot rewind the controller.
+    pub fn step(&mut self, dt: f32) {
+        self.timeline.step(dt);
+    }
+
+    /// Whether a transition still has time remaining.
+    #[wasm_bindgen(getter)]
+    pub fn active(&self) -> bool {
+        self.timeline.active()
+    }
+
+    /// Serializes camera state, orbit values, and row-major view/projection matrices.
+    pub fn state_json(&self, aspect: f32) -> Result<String, JsValue> {
+        self.timeline
+            .state_json(aspect)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+}
+
 /// Machine à états d'écran interactive, rendue en WebAssembly.
 ///
 /// Écran-titre → menu → match simulé (`nie-runtime` : physique, 22 joueurs, ballon, buts) → mode
@@ -1280,6 +2591,7 @@ pub fn parse_save_json(bytes: &[u8], filename: &str) -> Result<String, String> {
 pub struct WasmGame {
     font: nie_app::Font,
     screen: nie_app::flow::Screen,
+    frame: FrameBuffer,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1294,6 +2606,7 @@ impl WasmGame {
         Ok(WasmGame {
             font,
             screen: nie_app::flow::Screen::new(),
+            frame: FrameBuffer::default(),
         })
     }
 
@@ -1315,14 +2628,60 @@ impl WasmGame {
         self.screen.input(cmd);
     }
 
+    /// Sets the held directional/shoot input consumed by the live `nie-runtime` match world.
+    /// The call is deliberately harmless outside a match, matching `nie_app::flow::Screen`.
+    pub fn set_match_input(&mut self, dx: f32, dy: f32, shoot: bool) {
+        set_match_input(&mut self.screen, dx, dy, shoot);
+    }
+
     /// Avance le temps de `dt` s : la physique du match tourne quand un match est en cours.
     pub fn update(&mut self, dt: f32) {
-        self.screen.update(dt);
+        update_screen(&mut self.screen, dt);
     }
 
     /// Score du match en cours `[domicile, extérieur]` (zéros hors match).
     pub fn score(&self) -> Vec<u32> {
         self.screen.score()
+    }
+
+    /// Index of the home player controlled by the browser, or `undefined` outside a match.
+    pub fn controlled_player(&self) -> Option<u32> {
+        self.screen
+            .controlled_player()
+            .and_then(|index| u32::try_from(index).ok())
+    }
+
+    /// Title of a data-backed screen whose rows the browser may now provide.
+    pub fn info_title(&self) -> Option<String> {
+        self.screen.info_title().map(str::to_owned)
+    }
+
+    /// Whether story mode is waiting for dialogue rows fetched by the browser VFS client.
+    #[wasm_bindgen(getter)]
+    pub fn awaiting_dialogue(&self) -> bool {
+        self.screen.attend_dialogue()
+    }
+
+    /// Replaces the current information screen with real, already-resolved VFS rows.
+    /// `lines_json` must be a JSON array of strings.
+    pub fn provide_list(&mut self, lines_json: &str) -> Result<(), JsValue> {
+        let lines = parse_lines_json(lines_json).map_err(|error| JsValue::from_str(&error))?;
+        self.screen.fournir_liste(lines);
+        Ok(())
+    }
+
+    /// Supplies real story dialogue resolved by the browser VFS client.
+    /// `lines_json` must be a JSON array of strings.
+    pub fn provide_dialogue(&mut self, event_id: &str, lines_json: &str) -> Result<(), JsValue> {
+        let lines = parse_lines_json(lines_json).map_err(|error| JsValue::from_str(&error))?;
+        self.screen.fournir_dialogue(event_id.to_owned(), lines);
+        Ok(())
+    }
+
+    /// Serializes the complete portable screen state for browser renderers and diagnostics.
+    /// Match snapshots contain the live ball, all 22 players, input, clock, score and ownership.
+    pub fn state_json(&self) -> Result<String, JsValue> {
+        screen_snapshot(&self.screen).map_err(|error| JsValue::from_str(&error))
     }
 
     /// `true` si un match est en cours (pour l'overlay de score côté UI).
@@ -1334,6 +2693,23 @@ impl WasmGame {
     /// Rend l'écran courant en framebuffer RGBA8 `W*H*4`.
     pub fn render(&self) -> Vec<u8> {
         self.screen.render(&self.font)
+    }
+
+    /// Renders into Rust-owned WebAssembly memory without copying pixels into a JS array.
+    /// Call [`WasmGame::frame_ptr`] and [`WasmGame::frame_len`] immediately afterwards.
+    pub fn render_frame(&mut self) {
+        self.frame.replace(self.screen.render(&self.font));
+    }
+
+    /// Byte offset of the latest shared RGBA8 frame in `WebAssembly.Memory`.
+    /// The offset is invalidated by the next call to [`WasmGame::render_frame`].
+    pub fn frame_ptr(&self) -> usize {
+        self.frame.pointer()
+    }
+
+    /// Byte length of the latest shared RGBA8 frame.
+    pub fn frame_len(&self) -> usize {
+        self.frame.len()
     }
 }
 
@@ -1379,9 +2755,638 @@ mod tests {
     }
 
     #[test]
+    fn menu_static_layer_json_rejects_invalid_objbin_before_composition() {
+        let error = menu_static_layer_json(b"invalid", b"invalid", b"invalid", "layer.g4tx")
+            .expect_err("invalid OBJBIN must never yield a static layer");
+        assert!(error.contains("objbin"));
+    }
+
+    #[test]
+    fn vfs_content_summary_uses_shared_explorer_dispatch() {
+        let json: serde_json::Value =
+            serde_json::from_str(&vfs_content_summary("data/sound/voice.awb", b"AFS2"))
+                .expect("VFS summary should be valid JSON");
+
+        assert_eq!(json["schemaVersion"], 1);
+        assert_eq!(json["path"], "data/sound/voice.awb");
+        assert_eq!(json["recognized"], true);
+        assert_eq!(
+            json["lines"][0],
+            "format      AWB/AFS2 (banque audio Criware)"
+        );
+    }
+
+    #[test]
+    fn vfs_content_summary_has_an_explicit_unknown_result() {
+        let json: serde_json::Value =
+            serde_json::from_str(&vfs_content_summary("data/unknown.bin", b"unknown"))
+                .expect("unknown VFS summary should still be valid JSON");
+
+        assert_eq!(json["recognized"], false);
+        assert_eq!(json["lines"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn binary_triage_json_exposes_bounded_shared_report() {
+        let bytes = b"not an executable but contains BROWSER_STRING";
+        let json: serde_json::Value = serde_json::from_str(
+            &binary_triage_json(bytes, u32::MAX).expect("unknown bytes should still triage"),
+        )
+        .expect("triage report should be valid JSON");
+
+        assert_eq!(json["format"], "unknown");
+        assert_eq!(json["size"], bytes.len());
+        assert_eq!(json["sha256"].as_str().map(str::len), Some(64));
+        assert!(
+            json["strings_sample"]
+                .as_array()
+                .is_some_and(|rows| rows.len() <= 256)
+        );
+    }
+
+    #[test]
+    fn assemble_x64_uses_msvc_encoding_and_rejects_unbounded_input() {
+        assert_eq!(
+            assemble_x64("mov al, 1 ; ret", 0x1400_0000).expect("valid assembly should encode"),
+            [0xB0, 0x01, 0xC3]
+        );
+        assert!(assemble_x64("not_an_instruction", 0).is_err());
+        assert!(assemble_x64(&" ".repeat(MAX_ASSEMBLY_SOURCE_BYTES + 1), 0).is_err());
+    }
+
+    #[test]
+    fn pe_byte_diff_json_uses_bounded_forge_report() {
+        let json: serde_json::Value =
+            serde_json::from_str(&pe_byte_diff_json(&[1, 2, 3, 4, 5], &[1, 9, 8, 4], 1))
+                .expect("PE diff should serialize");
+        assert_eq!(json["bytesDiffering"], 3);
+        assert_eq!(json["identical"], false);
+        assert_eq!(
+            json["ranges"],
+            serde_json::json!([{ "offset": 1, "length": 2 }])
+        );
+    }
+
+    #[test]
+    fn forge_lift_x64_json_exposes_byte_exact_source_and_blockers() {
+        let json: serde_json::Value = serde_json::from_str(
+            &forge_lift_x64_json(&[0xB0, 0x01, 0xC3], 0x1_4004_d750)
+                .expect("supported body should lift"),
+        )
+        .expect("lift report should be valid JSON");
+        assert_eq!(json["byteLength"], 3);
+        assert_eq!(json["instructionCount"], 2);
+        assert_eq!(json["source"], "mov al, 0x1 ; ret");
+
+        let blocker = forge_lift_x64_json(&[0x66, 0x0F, 0x38, 0xDC, 0xC1, 0xC3], 0x1_4000_0000)
+            .expect_err("unsupported dialect instruction should be reported");
+        let blocker: serde_json::Value =
+            serde_json::from_str(&blocker).expect("blocker should be structured JSON");
+        assert_eq!(blocker["cause"], "aesenc");
+    }
+
+    #[test]
+    fn minidump_summary_json_rejects_untrusted_non_dump_bytes() {
+        let error = minidump_summary_json(b"not a dump")
+            .expect_err("non-minidump bytes must not produce metadata");
+        assert!(error.contains("minidump") || error.contains("MDMP"));
+    }
+
+    #[test]
+    fn ievr_pe_inspect_json_returns_a_bounded_detailed_report() {
+        let pe_offset = 0x80usize;
+        let optional_header_size = 240usize;
+        let headers_size = 0x200usize;
+        let mut bytes = vec![0u8; headers_size + 0x200];
+        bytes[0..2].copy_from_slice(b"MZ");
+        bytes[0x3c..0x40].copy_from_slice(&(pe_offset as u32).to_le_bytes());
+        bytes[pe_offset..pe_offset + 4].copy_from_slice(b"PE\0\0");
+        let coff = pe_offset + 4;
+        bytes[coff..coff + 2].copy_from_slice(&0x8664u16.to_le_bytes());
+        bytes[coff + 2..coff + 4].copy_from_slice(&1u16.to_le_bytes());
+        bytes[coff + 16..coff + 18].copy_from_slice(&(optional_header_size as u16).to_le_bytes());
+        let optional = coff + 20;
+        bytes[optional..optional + 2].copy_from_slice(&0x020bu16.to_le_bytes());
+        bytes[optional + 24..optional + 32].copy_from_slice(&0x1_4000_0000u64.to_le_bytes());
+        bytes[optional + 32..optional + 36].copy_from_slice(&0x1000u32.to_le_bytes());
+        bytes[optional + 36..optional + 40].copy_from_slice(&0x200u32.to_le_bytes());
+        bytes[optional + 60..optional + 64].copy_from_slice(&(headers_size as u32).to_le_bytes());
+        bytes[optional + 68..optional + 70].copy_from_slice(&2u16.to_le_bytes());
+        bytes[optional + 108..optional + 112].copy_from_slice(&16u32.to_le_bytes());
+        let section = optional + optional_header_size;
+        bytes[section..section + 5].copy_from_slice(b".text");
+        bytes[section + 8..section + 12].copy_from_slice(&0x180u32.to_le_bytes());
+        bytes[section + 12..section + 16].copy_from_slice(&0x1000u32.to_le_bytes());
+        bytes[section + 16..section + 20].copy_from_slice(&0x200u32.to_le_bytes());
+        bytes[section + 20..section + 24].copy_from_slice(&(headers_size as u32).to_le_bytes());
+        bytes[section + 36..section + 40].copy_from_slice(&0x6000_0020u32.to_le_bytes());
+
+        let json: serde_json::Value = serde_json::from_str(
+            &ievr_pe_inspect_json(&bytes).expect("synthetic PE should inspect"),
+        )
+        .expect("PE report should be valid JSON");
+        assert_eq!(json["machine"], "AMD64");
+        assert_eq!(json["is64Bit"], true);
+        assert_eq!(json["sections"][0]["name"], ".text");
+    }
+
+    #[test]
+    fn pdata_inspect_json_rejects_a_pe_without_pdata() {
+        let error = pdata_inspect_json(b"not a PE", 16)
+            .expect_err("invalid PE bytes must not produce roots");
+        assert!(error.contains("PE") || error.contains("goblin"));
+    }
+
+    #[test]
+    fn aob_scan_json_reports_overlapping_hits_and_truncation() {
+        let json: serde_json::Value = serde_json::from_str(
+            &aob_scan_json("AA ??", &[0xAA, 1, 0xAA, 2, 0xAA, 3], 2)
+                .expect("bounded AOB scan should succeed"),
+        )
+        .expect("AOB report should be valid JSON");
+        assert_eq!(json["patternBytes"], 2);
+        assert_eq!(json["offsets"], serde_json::json!([0, 2]));
+        assert_eq!(json["truncated"], true);
+    }
+
+    #[test]
+    fn crc32_benchmark_sample_json_uses_the_shared_bounded_generator() {
+        let json: serde_json::Value = serde_json::from_str(
+            &crc32_benchmark_sample_json(64).expect("small benchmark sample should succeed"),
+        )
+        .expect("benchmark sample should be valid JSON");
+        assert_eq!(json["byteLength"], 64);
+        assert_eq!(json["seedHex"], "0x2545f4914f6cdd1d");
+        assert_eq!(json["checksumHex"].as_str().map(str::len), Some(10));
+        assert!(crc32_benchmark_sample_json(u32::MAX).is_err());
+    }
+
+    #[test]
+    fn offline_image_inspect_json_preserves_full_width_addresses() {
+        let json: serde_json::Value = serde_json::from_str(
+            &offline_image_inspect_json(
+                &[0, 1, 2, 3, 4, 5, 6, 7],
+                r#"{"imageBase":"0x140000000","ranges":[{"space":"va","address":"0x140000002","length":3}]}"#,
+            )
+            .expect("bounded offline range should inspect"),
+        )
+        .expect("offline image report should be valid JSON");
+        assert_eq!(json["imageBase"], "0x140000000");
+        assert_eq!(json["ranges"][0]["fileOffset"], "0x2");
+        assert_eq!(json["ranges"][0]["va"], "0x140000002");
+        assert_eq!(json["ranges"][0]["hex"], "020304");
+    }
+
+    #[test]
+    fn knowledge_search_json_keeps_vfs_and_executable_stems_exact() {
+        let entries = serde_json::json!([
+            {
+                "address": "0x140001000",
+                "name": "funcLuaMenuCommand",
+                "subsystem": "mainmenu01",
+                "role": "dispatch G4TX",
+                "anchors": ["data/dx11/menu/mainmenu01.g4tx"],
+                "confidence": 1.0
+            },
+            {
+                "address": "0xffffffffffffffff",
+                "name": "other",
+                "subsystem": "unrelated",
+                "role": null,
+                "anchors": [],
+                "confidence": 0.5
+            }
+        ]);
+        let json: serde_json::Value = serde_json::from_str(
+            &knowledge_search_json(&entries.to_string(), "mainmenu01 G4TX", 8)
+                .expect("bounded knowledge search should succeed"),
+        )
+        .expect("knowledge search should be valid JSON");
+        assert_eq!(json["totalMatches"], 1);
+        assert_eq!(json["hits"][0]["entry"]["name"], "funcLuaMenuCommand");
+        assert_eq!(json["hits"][0]["entry"]["address"], "0x140001000");
+    }
+
+    #[test]
+    fn headless_inspect_json_uses_the_extracted_canonical_detector() {
+        let mut rdbn = vec![0_u8; 0x50];
+        rdbn[0..4].copy_from_slice(b"RDBN");
+        rdbn[4..6].copy_from_slice(&0x50_i16.to_le_bytes());
+        rdbn[6..10].copy_from_slice(&100_i32.to_le_bytes());
+        rdbn[10..12].copy_from_slice(&0x14_i16.to_le_bytes());
+        let json: serde_json::Value = serde_json::from_str(
+            &headless_inspect_json(&rdbn).expect("minimal cfg.bin should inspect"),
+        )
+        .expect("headless inspection should be valid JSON");
+        assert_eq!(json["format"], "cfg.bin");
+        assert_eq!(json["byteLength"], 0x50);
+        assert_eq!(json["detail"]["typeCount"], 0);
+    }
+
+    #[test]
+    fn editor_add_object_json_reuses_the_validated_editor_session() {
+        let project = r#"{"version":1,"objects":[]}"#;
+        let object = serde_json::json!({
+            "name": "mainmenu01-preview",
+            "asset": "data/common/gamedata/menu/obj/mainmenu01_00_background.glb",
+            "position": [0.0, 0.0, 0.0],
+            "yaw": 0.0,
+            "scale": [1.0, 1.0, 1.0],
+            "visible": true
+        });
+        let json: serde_json::Value = serde_json::from_str(
+            &editor_add_object_json(project, &object.to_string())
+                .expect("valid object should be added"),
+        )
+        .expect("edited project should be valid JSON");
+        assert_eq!(json["version"], 1);
+        assert_eq!(json["objects"][0]["name"], "mainmenu01-preview");
+        assert_eq!(
+            json["objects"][0]["asset"],
+            "data/common/gamedata/menu/obj/mainmenu01_00_background.glb"
+        );
+    }
+
+    #[test]
+    fn chara_model_catalog_json_decodes_the_shared_t2b_catalog() {
+        use nie_formats::cfgbin::{CfgEntry, Value};
+
+        let body = CfgEntry {
+            name: "CHARA_BODY_INFO".to_owned(),
+            variables: vec![
+                Value::Int(7),
+                Value::String("_common/c000101/c000101.objbin".to_owned()),
+                Value::Int(0),
+                Value::Int(8),
+                Value::Int(1),
+                Value::Int(0),
+                Value::Int(2),
+            ],
+            children: Vec::new(),
+        };
+        let entries = [CfgEntry {
+            name: "CHARA_BODY_INFO_LIST_BEG".to_owned(),
+            variables: vec![Value::Int(1)],
+            children: vec![body],
+        }];
+        let encoded = nie_formats::cfgbin::encode_t2b(&entries);
+        let json: serde_json::Value = serde_json::from_str(
+            &chara_model_catalog_json(&encoded, "chara_model_0.07.22.cfg.bin")
+                .expect("bounded model catalog should decode"),
+        )
+        .expect("model catalog should be valid JSON");
+        assert_eq!(json["source"], "chara_model_0.07.22.cfg.bin");
+        assert_eq!(json["bodies"]["7"]["type_idx"], 1);
+        assert_eq!(
+            json["bodies"]["7"]["objbin"],
+            "_common/c000101/c000101.objbin"
+        );
+    }
+
+    #[test]
+    fn zukan_rank_json_uses_the_shared_stable_matcher() {
+        let entry = serde_json::json!({
+            "name": "Mark",
+            "position": "GK",
+            "element": "Wind",
+            "game": "Inazuma Eleven",
+        });
+        let candidates = serde_json::json!([
+            {
+                "id": "later",
+                "nameEn": "Mark",
+                "position": "GK",
+                "element": "Wind",
+                "rarityLabel": "Normal",
+                "series": "Inazuma Eleven 2",
+            },
+            {
+                "id": "best",
+                "nameEn": "Mark",
+                "position": "GK",
+                "element": "Wind",
+                "rarityLabel": "Normal",
+                "series": "Inazuma Eleven",
+            },
+        ]);
+        let json: serde_json::Value = serde_json::from_str(
+            &zukan_rank_json(&entry.to_string(), &candidates.to_string(), 2)
+                .expect("matching input should rank"),
+        )
+        .expect("ranking should be valid JSON");
+        assert_eq!(json["results"][0]["candidateId"], "best");
+        assert_eq!(json["results"][1]["candidateId"], "later");
+    }
+
+    #[test]
+    fn format_catalog_validate_json_reuses_the_bounded_seed_parser() {
+        let source = serde_json::json!({
+            "schema_version": 1,
+            "generator": "iecode",
+            "game": "Inazuma Eleven: Victory Road",
+            "format_count": 1,
+            "formats": [{
+                "name": "G4TX",
+                "extensions": ["g4tx"],
+                "magic": "G4TX",
+                "header_size": 96,
+                "fields": [{"offset": 0, "size": 4, "type": "magic", "name": "Magic"}],
+            }],
+        });
+        let json: serde_json::Value = serde_json::from_str(
+            &format_catalog_validate_json(source.to_string().as_bytes())
+                .expect("bounded catalog should validate"),
+        )
+        .expect("catalog should serialize as JSON");
+        assert_eq!(json["schema_version"], 1);
+        assert_eq!(json["formats"][0]["name"], "G4TX");
+        assert_eq!(json["formats"][0]["fields"][0]["type"], "magic");
+    }
+
+    #[test]
+    fn steam_select_depots_json_uses_portable_platform_policy() {
+        let depots = serde_json::json!([
+            {
+                "depotId": 100,
+                "hasContent": true,
+                "operatingSystems": ["windows"],
+                "architecture": "64",
+                "language": "english",
+                "hasManifestSection": true,
+            },
+            {
+                "depotId": 200,
+                "hasContent": true,
+                "operatingSystems": ["linux"],
+                "architecture": "64",
+                "language": "english",
+                "hasManifestSection": true,
+            },
+        ]);
+        let selection = serde_json::json!({
+            "explicitDepots": [],
+            "allPlatforms": false,
+            "operatingSystem": "windows",
+            "architecture": "64",
+            "language": "english",
+        });
+        let json: serde_json::Value = serde_json::from_str(
+            &steam_select_depots_json(&depots.to_string(), &selection.to_string())
+                .expect("portable depot selection should succeed"),
+        )
+        .expect("depot selection should be valid JSON");
+        assert_eq!(json["depotIds"], serde_json::json!([100]));
+    }
+
+    #[test]
     fn init_panic_hook_ne_panique_pas() {
         // En natif, le hook est une no-op wasm ; la fonction ne doit pas paniquer.
         init_panic_hook();
+    }
+
+    #[test]
+    fn camera_snapshot_exposes_verified_state_orbit_and_matrices() {
+        let camera = CameraTimeline::default();
+        let json: serde_json::Value = serde_json::from_str(
+            &camera
+                .state_json(16.0 / 9.0)
+                .expect("default camera should serialize"),
+        )
+        .expect("camera state should be valid JSON");
+
+        assert_eq!(json["schemaVersion"], 1);
+        assert_eq!(json["active"], false);
+        assert_eq!(json["position"], serde_json::json!([0.0, 2.5, 10.0]));
+        assert_eq!(
+            json["referencePosition"],
+            serde_json::json!([0.0, 0.0, 0.0])
+        );
+        assert_eq!(json["fovDegrees"], 45.0);
+        assert_eq!(json["orbit"]["distance"], camera.state.length());
+        let assert_matrix = |actual: &serde_json::Value, expected: [[f32; 4]; 4]| {
+            let rows = actual.as_array().expect("matrix should be an array");
+            assert_eq!(rows.len(), 4);
+            for (actual_row, expected_row) in rows.iter().zip(expected) {
+                let values = actual_row
+                    .as_array()
+                    .expect("matrix row should be an array");
+                assert_eq!(values.len(), 4);
+                for (actual_value, expected_value) in values.iter().zip(expected_row) {
+                    let difference = (actual_value
+                        .as_f64()
+                        .expect("matrix value should be numeric")
+                        - f64::from(expected_value))
+                    .abs();
+                    assert!(difference < 1e-6, "matrix value differs by {difference}");
+                }
+            }
+        };
+        assert_matrix(&json["viewMatrix"], camera.state.view_matrix());
+        assert_matrix(
+            &json["projectionMatrix"],
+            camera.state.projection_matrix(16.0 / 9.0),
+        );
+        assert!(camera.state_json(0.0).is_err());
+        assert!(camera.state_json(f32::NAN).is_err());
+    }
+
+    #[test]
+    fn camera_timeline_uses_deterministic_linear_controller_steps() {
+        let mut camera = CameraTimeline::default();
+        let target = nie_camera::CameraState {
+            pos: [8.0, 6.0, 2.0],
+            ref_pos: [4.0, 2.0, 0.0],
+            fov_deg: 65.0,
+            roll_deg: 20.0,
+            near: 0.2,
+            far: 800.0,
+        };
+        camera
+            .transition_to(target, 2.0, 0)
+            .expect("valid transition should start");
+
+        camera.step(f32::NAN);
+        camera.step(-1.0);
+        assert_eq!(camera.state, nie_camera::CameraState::default());
+        assert!(camera.active());
+
+        camera.step(0.5);
+        assert_eq!(camera.state.pos, [2.0, 3.375, 8.0]);
+        assert_eq!(camera.state.ref_pos, [1.0, 0.5, 0.0]);
+        assert_eq!(camera.state.fov_deg, 50.0);
+        assert_eq!(camera.state.roll_deg, 5.0);
+        assert!(camera.active());
+
+        camera.step(1.5);
+        assert_eq!(camera.state, target);
+        assert!(!camera.active());
+        camera.step(1.0);
+        assert_eq!(camera.state, target);
+    }
+
+    #[test]
+    fn camera_timeline_maps_observed_fade_and_rejects_invalid_states() {
+        let mut camera = CameraTimeline::default();
+        let target = nie_camera::CameraState {
+            pos: [10.0, 2.5, 10.0],
+            ..nie_camera::CameraState::default()
+        };
+        camera
+            .transition_to(target, 4.0, 6)
+            .expect("observed fade code should start");
+        camera.step(1.0);
+        assert_eq!(camera.state.pos[0], 1.5625);
+
+        camera
+            .transition_to(target, 0.0, 0)
+            .expect("zero duration should snap");
+        assert_eq!(camera.state, target);
+        assert!(!camera.active());
+
+        let invalid_fov = nie_camera::CameraState {
+            fov_deg: 180.0,
+            ..target
+        };
+        assert!(camera.transition_to(invalid_fov, 1.0, 0).is_err());
+        let invalid_clip = nie_camera::CameraState {
+            near: 2.0,
+            far: 1.0,
+            ..target
+        };
+        assert!(camera.transition_to(invalid_clip, 1.0, 0).is_err());
+        let coincident = nie_camera::CameraState {
+            ref_pos: target.pos,
+            ..target
+        };
+        assert!(camera.transition_to(coincident, 1.0, 0).is_err());
+        let overflow = nie_camera::CameraState {
+            pos: [3.0e38, 3.0e38, 3.0e38],
+            ..target
+        };
+        assert!(camera.transition_to(overflow, 1.0, 0).is_err());
+        let vertical = nie_camera::CameraState {
+            pos: [0.0, 10.0, 0.0],
+            ref_pos: [0.0, 0.0, 0.0],
+            ..target
+        };
+        assert!(camera.transition_to(vertical, 1.0, 0).is_err());
+        assert!(camera.transition_to(target, f32::INFINITY, 0).is_err());
+    }
+
+    #[test]
+    fn screen_snapshot_starts_with_versioned_title_state() {
+        let screen = nie_app::flow::Screen::new();
+        let json: serde_json::Value = serde_json::from_str(
+            &screen_snapshot(&screen).expect("screen snapshot should serialize"),
+        )
+        .expect("screen snapshot should be valid JSON");
+
+        assert_eq!(json["schemaVersion"], 1);
+        assert_eq!(json["screen"]["kind"], "title");
+        assert!(json.get("world").is_none());
+    }
+
+    #[test]
+    fn shared_frame_buffer_keeps_the_rendered_bytes_in_place() {
+        let mut frame = FrameBuffer::default();
+        assert_eq!(frame.len(), 0);
+
+        frame.replace(vec![0, 64, 128, 255]);
+        assert_ne!(frame.pointer(), 0);
+        assert_eq!(frame.len(), 4);
+        assert_eq!(frame.pixels(), [0, 64, 128, 255]);
+
+        frame.replace(vec![9, 8]);
+        assert_eq!(frame.len(), 2);
+        assert_eq!(frame.pixels(), [9, 8]);
+    }
+
+    #[test]
+    fn screen_bridge_accepts_real_list_and_dialogue_rows() {
+        let lines = parse_lines_json(r#"["Alpha","Beta"]"#).expect("valid line array");
+        assert_eq!(lines, ["Alpha", "Beta"]);
+        assert!(parse_lines_json(r#"{"line":"not an array"}"#).is_err());
+
+        let mut list_screen = nie_app::flow::Screen::new();
+        list_screen.input("CMD_ENTER");
+        list_screen.input("CMD_ENTER");
+        assert!(list_screen.info_title().is_some());
+        list_screen.fournir_liste(lines);
+        let list_json: serde_json::Value = serde_json::from_str(
+            &screen_snapshot(&list_screen).expect("list snapshot should serialize"),
+        )
+        .expect("list snapshot should be valid JSON");
+        assert_eq!(list_json["screen"]["kind"], "list");
+        assert_eq!(list_json["screen"]["lineCount"], 2);
+
+        let mut story_screen = nie_app::flow::Screen::new();
+        story_screen.input("CMD_ENTER");
+        for _ in 0..5 {
+            story_screen.input("CMD_FCS_NEXT");
+        }
+        story_screen.input("CMD_ENTER");
+        story_screen.input("CMD_ENTER");
+        assert!(story_screen.attend_dialogue());
+        story_screen.fournir_dialogue("event_001".into(), vec!["A real line".into()]);
+        let story_json: serde_json::Value = serde_json::from_str(
+            &screen_snapshot(&story_screen).expect("story snapshot should serialize"),
+        )
+        .expect("story snapshot should be valid JSON");
+        assert_eq!(story_json["screen"]["kind"], "story");
+        assert_eq!(story_json["screen"]["eventId"], "event_001");
+        assert_eq!(story_json["screen"]["lineCount"], 1);
+        assert_eq!(story_json["screen"]["awaitingDialogue"], false);
+    }
+
+    #[test]
+    fn match_snapshot_exposes_the_live_runtime_world() {
+        let mut screen = nie_app::flow::Screen::new();
+        screen.input("CMD_ENTER");
+        for _ in 0..5 {
+            screen.input("CMD_FCS_NEXT");
+        }
+        screen.input("CMD_ENTER");
+        screen.input("CMD_FCS_NEXT");
+        screen.input("CMD_ENTER");
+        assert!(screen.in_match());
+
+        set_match_input(&mut screen, f32::NAN, f32::INFINITY, false);
+        update_screen(&mut screen, f32::NAN);
+        let invalid_json: serde_json::Value = serde_json::from_str(
+            &screen_snapshot(&screen).expect("invalid input snapshot should serialize"),
+        )
+        .expect("invalid input snapshot should be valid JSON");
+        assert_eq!(invalid_json["world"]["tick"], 0);
+        assert_eq!(invalid_json["world"]["input"]["direction"]["x"], 0.0);
+        assert_eq!(invalid_json["world"]["input"]["direction"]["y"], 0.0);
+
+        set_match_input(&mut screen, 3.0, 4.0, true);
+        update_screen(&mut screen, 0.125);
+        let json: serde_json::Value = serde_json::from_str(
+            &screen_snapshot(&screen).expect("match snapshot should serialize"),
+        )
+        .expect("match snapshot should be valid JSON");
+
+        assert_eq!(json["screen"]["kind"], "match");
+        assert_eq!(json["world"]["tick"], 1);
+        assert_eq!(json["world"]["time"], MAX_UPDATE_SECONDS);
+        assert_eq!(json["world"]["score"], serde_json::json!([0, 0]));
+        assert_eq!(json["world"]["input"]["direction"]["x"], 3.0);
+        assert_eq!(json["world"]["input"]["direction"]["y"], 4.0);
+        assert_eq!(json["world"]["input"]["shoot"], true);
+        assert!(json["world"]["controlledPlayer"].is_number());
+        let players = json["world"]["players"]
+            .as_array()
+            .expect("players should be an array");
+        assert_eq!(players.len(), 22);
+        assert_eq!(
+            players
+                .iter()
+                .filter(|player| player["role"] == "goalkeeper")
+                .count(),
+            2
+        );
+        assert!(json["world"]["ball"]["position"]["z"].is_number());
     }
 
     #[test]

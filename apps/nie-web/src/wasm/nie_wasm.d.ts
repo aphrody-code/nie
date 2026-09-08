@@ -2,6 +2,114 @@
 /* eslint-disable */
 
 /**
+ * Browser camera backed by `nie-camera`'s portable `CameraState` and
+ * `CCameraCtrlInterPolate` controller math.
+ */
+export class WasmCamera {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Creates a camera with the verified `nie-camera` default state.
+     */
+    constructor();
+    /**
+     * Serializes camera state, orbit values, and row-major view/projection matrices.
+     */
+    state_json(aspect: number): string;
+    /**
+     * Advances the active transition by `dt` seconds. Invalid or non-positive
+     * deltas are ignored so host clock glitches cannot rewind the controller.
+     */
+    step(dt: number): void;
+    /**
+     * Starts a deterministic transition to a complete camera state.
+     * Fade codes mirror `m_FadeType`: 0 linear, 1 ease-in, 2 ease-out, and all
+     * other observed values (including 6) use the controller's smooth curve.
+     */
+    transition_to(position_x: number, position_y: number, position_z: number, reference_x: number, reference_y: number, reference_z: number, fov_degrees: number, roll_degrees: number, near_clip: number, far_clip: number, duration: number, fade_code: number): void;
+    /**
+     * Whether a transition still has time remaining.
+     */
+    readonly active: boolean;
+}
+
+/**
+ * Browser-owned scene editing session with bounded undo/redo history.
+ */
+export class WasmEditorSession {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Adds a validated JSON scene object and returns its index.
+     */
+    add_object_json(object_json: string): number;
+    /**
+     * Duplicates the selected object with a finite validated translation.
+     */
+    duplicate_selected(x: number, y: number, z: number): number;
+    /**
+     * Opens and validates a bounded scene project.
+     */
+    constructor(project_json: string);
+    /**
+     * Serializes the current validated scene project.
+     */
+    project_json(): string;
+    /**
+     * Restores the next project state after undo.
+     */
+    redo(): boolean;
+    /**
+     * Removes the selected object and returns its JSON representation.
+     */
+    remove_selected_json(): string;
+    /**
+     * Selects an object index, or clears selection when omitted.
+     */
+    select(selected?: number | null): void;
+    /**
+     * Restores the previous project state.
+     */
+    undo(): boolean;
+    /**
+     * Whether a redo state is available.
+     */
+    readonly can_redo: boolean;
+    /**
+     * Whether an undo state is available.
+     */
+    readonly can_undo: boolean;
+}
+
+/**
+ * Browser-owned bounded FIFO frontier backed by `nie-queue`'s portable core.
+ */
+export class WasmFrontier {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Creates an empty frontier with explicit non-zero capacities.
+     */
+    constructor(max_pending: number, max_seen: number, max_batch: number);
+    /**
+     * Pops the oldest pending address while retaining it in deduplication history.
+     */
+    pop(): bigint | undefined;
+    /**
+     * Pushes one address and returns its stable outcome name.
+     */
+    push(address: bigint): string;
+    /**
+     * Clears both pending work and persistent deduplication history.
+     */
+    reset(): void;
+    /**
+     * Returns a precision-safe JSON snapshot of the pending addresses and counts.
+     */
+    snapshot_json(): string;
+}
+
+/**
  * Machine à états d'écran interactive, rendue en WebAssembly.
  *
  * Écran-titre → menu → match simulé (`nie-runtime` : physique, 22 joueurs, ballon, buts) → mode
@@ -17,6 +125,23 @@ export class WasmGame {
     free(): void;
     [Symbol.dispose](): void;
     /**
+     * Index of the home player controlled by the browser, or `undefined` outside a match.
+     */
+    controlled_player(): number | undefined;
+    /**
+     * Byte length of the latest shared RGBA8 frame.
+     */
+    frame_len(): number;
+    /**
+     * Byte offset of the latest shared RGBA8 frame in `WebAssembly.Memory`.
+     * The offset is invalidated by the next call to [`WasmGame::render_frame`].
+     */
+    frame_ptr(): number;
+    /**
+     * Title of a data-backed screen whose rows the browser may now provide.
+     */
+    info_title(): string | undefined;
+    /**
      * Commande de menu IEVR (CMD_FCS_*, CMD_ENTER, CMD_BACK…). Le mapping clavier/souris/manette
      * → commande vit côté front ; la FSM (transitions) vit dans `nie_app::flow` (dédup Phase 5).
      */
@@ -27,17 +152,46 @@ export class WasmGame {
      */
     constructor(font_cfg: Uint8Array, font_g4tx: Uint8Array);
     /**
+     * Supplies real story dialogue resolved by the browser VFS client.
+     * `lines_json` must be a JSON array of strings.
+     */
+    provide_dialogue(event_id: string, lines_json: string): void;
+    /**
+     * Replaces the current information screen with real, already-resolved VFS rows.
+     * `lines_json` must be a JSON array of strings.
+     */
+    provide_list(lines_json: string): void;
+    /**
      * Rend l'écran courant en framebuffer RGBA8 `W*H*4`.
      */
     render(): Uint8Array;
+    /**
+     * Renders into Rust-owned WebAssembly memory without copying pixels into a JS array.
+     * Call [`WasmGame::frame_ptr`] and [`WasmGame::frame_len`] immediately afterwards.
+     */
+    render_frame(): void;
     /**
      * Score du match en cours `[domicile, extérieur]` (zéros hors match).
      */
     score(): Uint32Array;
     /**
+     * Sets the held directional/shoot input consumed by the live `nie-runtime` match world.
+     * The call is deliberately harmless outside a match, matching `nie_app::flow::Screen`.
+     */
+    set_match_input(dx: number, dy: number, shoot: boolean): void;
+    /**
+     * Serializes the complete portable screen state for browser renderers and diagnostics.
+     * Match snapshots contain the live ball, all 22 players, input, clock, score and ownership.
+     */
+    state_json(): string;
+    /**
      * Avance le temps de `dt` s : la physique du match tourne quand un match est en cours.
      */
     update(dt: number): void;
+    /**
+     * Whether story mode is waiting for dialogue rows fetched by the browser VFS client.
+     */
+    readonly awaiting_dialogue: boolean;
     /**
      * Hauteur du framebuffer (px).
      */
@@ -53,11 +207,69 @@ export class WasmGame {
 }
 
 /**
+ * Browser-owned task lifecycle validated by the portable `nie-tasks` core.
+ */
+export class WasmTaskPlan {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Marks the task as completed.
+     */
+    complete(): void;
+    /**
+     * Confirms that a cancellation request reached a checkpoint.
+     */
+    confirm_canceled(): void;
+    /**
+     * Marks the task as failed.
+     */
+    fail(): void;
+    /**
+     * Creates a queued task plan with bounded identifiers and labels.
+     */
+    constructor(id: string, label: string, total: bigint);
+    /**
+     * Pauses a running task at its next cooperative checkpoint.
+     */
+    pause(): void;
+    /**
+     * Records bounded progress.
+     */
+    report(done: bigint, total: bigint, message?: string | null): void;
+    /**
+     * Requests cooperative cancellation.
+     */
+    request_cancel(): void;
+    /**
+     * Resumes a paused task.
+     */
+    resume(): void;
+    /**
+     * Serializes the current phase, progress and available controls.
+     */
+    snapshot_json(): string;
+    /**
+     * Marks the queued task as running.
+     */
+    start(): void;
+}
+
+/**
  * Point d'entrée **auto-exécuté à l'instanciation** du module (attribut `start`,
  * best practice wasm-bindgen) : installe le hook de panique sans dépendre d'un
  * appel JS explicite — toute panique reste lisible même si l'hôte oublie l'init.
  */
 export function __wasm_start(): void;
+
+/**
+ * Scans uploaded bytes with `nie-trace`'s bounded wildcard AOB engine.
+ */
+export function aob_scan_json(pattern: string, bytes: Uint8Array, max_hits: number): string;
+
+/**
+ * Assembles bounded x86-64 source with `nie-asm`'s verified MSVC encoding rules.
+ */
+export function assemble_x64(source: string, virtual_address: bigint): Uint8Array;
 
 /**
  * Décode un audio CRI (HCA/ADX/AWB/ACB, octets bruts) en **WAV PCM16**, in-browser.
@@ -76,6 +288,12 @@ export function audio_to_wav(bytes: Uint8Array): Uint8Array;
  * config, hissatsu }, … ] }`, ou lève une `Error` JS si le JSON est invalide.
  */
 export function aura_lookup(aura_config_json: string, skill_config_json: string): string;
+
+/**
+ * Inspects PE/ELF bytes with the shared pure-Rust reverse-engineering engine.
+ * The string sample is capped at 256 entries to keep the browser result bounded.
+ */
+export function binary_triage_json(bytes: Uint8Array, strings_limit: number): string;
 
 /**
  * Calcule le bloc de 7 statistiques d'un personnage à un niveau donné.
@@ -103,6 +321,11 @@ export function aura_lookup(aura_config_json: string, skill_config_json: string)
 export function calculate_stats(main_position: number, sub_position: number, growth_pattern: number, chara_rank: number, play_style: number, level: number): string;
 
 /**
+ * Décode un `*_menu_setting.cfg.bin` en structure de menu directement consommable.
+ */
+export function cfgbin_menu_setting_json(bytes: Uint8Array): string;
+
+/**
  * Parse un fichier cfg.bin (T2B) et retourne son JSON structurel.
  */
 export function cfgbin_parse_json(bytes: Uint8Array): string;
@@ -113,6 +336,16 @@ export function cfgbin_parse_json(bytes: Uint8Array): string;
 export function cfgbin_typed_json(bytes: Uint8Array, filename: string): string;
 
 /**
+ * Decodes a bounded `chara_model_*.cfg.bin` catalog supplied by the browser.
+ */
+export function chara_model_catalog_json(bytes: Uint8Array, source: string): string;
+
+/**
+ * Decodes a bounded `chara_parts_*.cfg.bin` catalog supplied by the browser.
+ */
+export function character_parts_catalog_json(bytes: Uint8Array, source: string): string;
+
+/**
  * Extrait et décompresse un fichier d'un CPK.
  */
 export function cpk_extract_file(cpk_bytes: Uint8Array, cpk_filename: string, entry_json: string): Uint8Array;
@@ -121,6 +354,11 @@ export function cpk_extract_file(cpk_bytes: Uint8Array, cpk_filename: string, en
  * Parse un fichier CPK et retourne son TOC (Table of Contents) au format JSON.
  */
 export function cpk_parse_entries(cpk_bytes: Uint8Array, cpk_filename: string): string;
+
+/**
+ * Produces the bounded deterministic CRC32 sample shared by all benchmark harnesses.
+ */
+export function crc32_benchmark_sample_json(byte_length: number): string;
 
 /**
  * Décompresse un tampon CRILAYLA.
@@ -148,11 +386,26 @@ export function crilayla_decompress(bytes: Uint8Array): Uint8Array;
 export function detect_format(bytes: Uint8Array): string;
 
 /**
+ * Adds one validated scene object through the editor's shared bounded session core.
+ */
+export function editor_add_object_json(project_json: string, object_json: string): string;
+
+/**
  * Encode le score final du match : `minutes * 10000 + secondes`.
  *
  * Expose `nie_core::match_fsm::final_score` (case 7 de `FUN_1412aa4a0`).
  */
 export function final_score(minutes: number, seconds: number): number;
+
+/**
+ * Lifts a bounded x86-64 body to `nie-forge`'s byte-exact assembly dialect.
+ */
+export function forge_lift_x64_json(bytes: Uint8Array, virtual_address: bigint): string;
+
+/**
+ * Validates and canonicalizes a bounded `iecode`/IEVR format catalog in browser memory.
+ */
+export function format_catalog_validate_json(bytes: Uint8Array): string;
 
 /**
  * Parse un fichier G4MD et retourne son JSON descriptif.
@@ -194,6 +447,16 @@ export function g4tx_sprite_sheet_json(bytes: Uint8Array): string;
 export function g4tx_to_png(bytes: Uint8Array): Uint8Array;
 
 /**
+ * Returns the detailed bounded format report shared with the `nie-headless` CLI.
+ */
+export function headless_inspect_json(bytes: Uint8Array): string;
+
+/**
+ * Produces a bounded detailed PE report with sections, imports, and named exports.
+ */
+export function ievr_pe_inspect_json(bytes: Uint8Array): string;
+
+/**
  * Installe le hook de panique `console_error_panic_hook`.
  *
  * Appeler cette fonction UNE FOIS au démarrage (après `await init()`) pour que
@@ -219,6 +482,11 @@ export function is_lua_bytecode(bytes: Uint8Array): boolean;
 export function item_lookup(item_config_json: string): string;
 
 /**
+ * Searches bounded caller-owned `nie.exe` knowledge without SQLite, Redis, or host access.
+ */
+export function knowledge_search_json(entries_json: string, query: string, max_results: number): string;
+
+/**
  * Décode une piste de lip-sync `.p3lip` (visèmes datés) en JSON, in-browser.
  */
 export function lip_to_json(bytes: Uint8Array): string;
@@ -242,9 +510,24 @@ export function lua_bytecode_json(bytes: Uint8Array): string;
 export function match_tick(state: string, is_training: boolean, end_counter: number): string;
 
 /**
+ * Composes one static menu layer from raw OBJBIN, G4PKM and G4TX bytes in WebAssembly.
+ */
+export function menu_static_layer_json(objbin_bytes: Uint8Array, g4pkm_bytes: Uint8Array, g4tx_bytes: Uint8Array, g4tx_path: string): string;
+
+/**
+ * Parses uploaded Windows minidump bytes and returns metadata without captured memory.
+ */
+export function minidump_summary_json(bytes: Uint8Array): string;
+
+/**
  * Assemble une paire G4MD+G4MG (octets bruts) en GLB, in-browser.
  */
 export function model_to_glb(g4md: Uint8Array, g4mg: Uint8Array): Uint8Array;
+
+/**
+ * Resolves and hashes bounded ranges in a caller-supplied linear `nie.exe` image.
+ */
+export function offline_image_inspect_json(bytes: Uint8Array, request_json: string): string;
 
 /**
  * Déchiffre et parse un fichier de sauvegarde IEVR, retourne un JSON résumé.
@@ -265,6 +548,16 @@ export function model_to_glb(g4md: Uint8Array, g4mg: Uint8Array): Uint8Array;
  * est invalide ou la clé ne correspond pas au nom.
  */
 export function parse_save_json(bytes: Uint8Array, filename: string): string;
+
+/**
+ * Inspects a PE `.pdata` table with exact counters and a bounded root sample.
+ */
+export function pdata_inspect_json(bytes: Uint8Array, max_roots: number): string;
+
+/**
+ * Compares an original and rebuilt executable with `nie-pe`'s byte-exact forge metric.
+ */
+export function pe_byte_diff_json(reference: Uint8Array, rebuilt: Uint8Array, max_ranges: number): string;
 
 /**
  * Convertit un code de rareté brut en rang de table de croissance.
@@ -295,6 +588,11 @@ export function single_stat(level: number, stat_lv1: number, stat_lv30: number, 
 export function skill_lookup(skill_config_json: string, skill_text_json: string): string;
 
 /**
+ * Selects Steam depots from caller-supplied metadata without credentials or host access.
+ */
+export function steam_select_depots_json(depots_json: string, selection_json: string): string;
+
+/**
  * Parse une table `@UTF` et retourne son contenu sérialisé en JSON.
  *
  * Le JSON a la structure suivante :
@@ -316,21 +614,50 @@ export function skill_lookup(skill_config_json: string, skill_text_json: string)
  */
 export function utf_table_json(bytes: Uint8Array): string;
 
+/**
+ * Describes one VFS entry with `nie-explore`'s shared format dispatcher.
+ *
+ * The JSON result is versioned and always valid, including for unknown input:
+ * `{ "schemaVersion": 1, "path": "...", "recognized": true, "lines": [...] }`.
+ * Parsing stays entirely in WebAssembly; native filesystem search and the instrumented Lua VM
+ * are excluded from this dependency edge.
+ */
+export function vfs_content_summary(path: string, bytes: Uint8Array): string;
+
+/**
+ * Ranks official-encyclopedia candidates with the shared deterministic matcher.
+ */
+export function zukan_rank_json(entry_json: string, candidates_json: string, max_results: number): string;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly __wbg_wasmcamera_free: (a: number, b: number) => void;
+    readonly __wbg_wasmeditorsession_free: (a: number, b: number) => void;
+    readonly __wbg_wasmfrontier_free: (a: number, b: number) => void;
     readonly __wbg_wasmgame_free: (a: number, b: number) => void;
+    readonly __wbg_wasmtaskplan_free: (a: number, b: number) => void;
+    readonly aob_scan_json: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
+    readonly assemble_x64: (a: number, b: number, c: bigint) => [number, number, number, number];
     readonly audio_to_wav: (a: number, b: number) => [number, number, number, number];
     readonly aura_lookup: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly binary_triage_json: (a: number, b: number, c: number) => [number, number, number, number];
     readonly calculate_stats: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly cfgbin_menu_setting_json: (a: number, b: number) => [number, number, number, number];
     readonly cfgbin_parse_json: (a: number, b: number) => [number, number, number, number];
     readonly cfgbin_typed_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly chara_model_catalog_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly character_parts_catalog_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly cpk_extract_file: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
     readonly cpk_parse_entries: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly crc32_benchmark_sample_json: (a: number) => [number, number, number, number];
     readonly crilayla_decompress: (a: number, b: number) => [number, number, number, number];
     readonly detect_format: (a: number, b: number) => [number, number];
+    readonly editor_add_object_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly final_score: (a: number, b: number) => number;
+    readonly forge_lift_x64_json: (a: number, b: number, c: bigint) => [number, number, number, number];
+    readonly format_catalog_validate_json: (a: number, b: number) => [number, number, number, number];
     readonly g4md_parse_json: (a: number, b: number) => [number, number, number, number];
     readonly g4mg_extract_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly g4pk_parse_json: (a: number, b: number) => [number, number, number, number];
@@ -338,25 +665,76 @@ export interface InitOutput {
     readonly g4tx_named_to_png: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly g4tx_sprite_sheet_json: (a: number, b: number) => [number, number, number, number];
     readonly g4tx_to_png: (a: number, b: number) => [number, number, number, number];
+    readonly headless_inspect_json: (a: number, b: number) => [number, number, number, number];
+    readonly ievr_pe_inspect_json: (a: number, b: number) => [number, number, number, number];
     readonly is_lua_bytecode: (a: number, b: number) => number;
     readonly item_lookup: (a: number, b: number) => [number, number, number, number];
+    readonly knowledge_search_json: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly lip_to_json: (a: number, b: number) => [number, number, number, number];
     readonly lua_bytecode_json: (a: number, b: number) => [number, number, number, number];
     readonly match_tick: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly menu_static_layer_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
+    readonly minidump_summary_json: (a: number, b: number) => [number, number, number, number];
     readonly model_to_glb: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly offline_image_inspect_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly parse_save_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly pdata_inspect_json: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly pe_byte_diff_json: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly rarity_to_growth_rank: (a: number) => number;
     readonly single_stat: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly skill_lookup: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly steam_select_depots_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly utf_table_json: (a: number, b: number) => [number, number, number, number];
+    readonly vfs_content_summary: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly wasmcamera_active: (a: number) => number;
+    readonly wasmcamera_new: () => number;
+    readonly wasmcamera_state_json: (a: number, b: number) => [number, number, number, number];
+    readonly wasmcamera_step: (a: number, b: number) => void;
+    readonly wasmcamera_transition_to: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => [number, number];
+    readonly wasmeditorsession_add_object_json: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmeditorsession_can_redo: (a: number) => number;
+    readonly wasmeditorsession_can_undo: (a: number) => number;
+    readonly wasmeditorsession_duplicate_selected: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasmeditorsession_new: (a: number, b: number) => [number, number, number];
+    readonly wasmeditorsession_project_json: (a: number) => [number, number, number, number];
+    readonly wasmeditorsession_redo: (a: number) => number;
+    readonly wasmeditorsession_remove_selected_json: (a: number) => [number, number, number, number];
+    readonly wasmeditorsession_select: (a: number, b: number) => [number, number];
+    readonly wasmeditorsession_undo: (a: number) => number;
+    readonly wasmfrontier_new: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmfrontier_pop: (a: number) => [number, bigint];
+    readonly wasmfrontier_push: (a: number, b: bigint) => [number, number];
+    readonly wasmfrontier_reset: (a: number) => void;
+    readonly wasmfrontier_snapshot_json: (a: number) => [number, number];
+    readonly wasmgame_awaiting_dialogue: (a: number) => number;
+    readonly wasmgame_controlled_player: (a: number) => number;
+    readonly wasmgame_frame_len: (a: number) => number;
+    readonly wasmgame_frame_ptr: (a: number) => number;
     readonly wasmgame_height: (a: number) => number;
     readonly wasmgame_in_match: (a: number) => number;
+    readonly wasmgame_info_title: (a: number) => [number, number];
     readonly wasmgame_input: (a: number, b: number, c: number) => void;
     readonly wasmgame_new: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasmgame_provide_dialogue: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly wasmgame_provide_list: (a: number, b: number, c: number) => [number, number];
     readonly wasmgame_render: (a: number) => [number, number];
+    readonly wasmgame_render_frame: (a: number) => void;
     readonly wasmgame_score: (a: number) => [number, number];
+    readonly wasmgame_set_match_input: (a: number, b: number, c: number, d: number) => void;
+    readonly wasmgame_state_json: (a: number) => [number, number, number, number];
     readonly wasmgame_update: (a: number, b: number) => void;
     readonly wasmgame_width: (a: number) => number;
+    readonly wasmtaskplan_complete: (a: number) => [number, number];
+    readonly wasmtaskplan_confirm_canceled: (a: number) => [number, number];
+    readonly wasmtaskplan_fail: (a: number) => [number, number];
+    readonly wasmtaskplan_new: (a: number, b: number, c: number, d: number, e: bigint) => [number, number, number];
+    readonly wasmtaskplan_pause: (a: number) => [number, number];
+    readonly wasmtaskplan_report: (a: number, b: bigint, c: bigint, d: number, e: number) => [number, number];
+    readonly wasmtaskplan_request_cancel: (a: number) => [number, number];
+    readonly wasmtaskplan_resume: (a: number) => [number, number];
+    readonly wasmtaskplan_snapshot_json: (a: number) => [number, number, number, number];
+    readonly wasmtaskplan_start: (a: number) => [number, number];
+    readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;

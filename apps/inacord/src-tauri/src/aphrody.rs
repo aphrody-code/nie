@@ -16,10 +16,10 @@ use base64::Engine as _;
 use serde::Serialize;
 
 use nie_aphrody::pixel::{
-    Boite, Image, Masque, Reglages, ReglagesVecteur, comparer, mesurer, planche, tokens_css,
-    vectoriser,
+    comparer, mesurer, planche, tokens_css, vectoriser, Boite, Image, Masque, Reglages,
+    ReglagesVecteur,
 };
-use nie_aphrody::{Pet, assets};
+use nie_aphrody::{assets, Pet};
 
 /// Rend l'erreur telle quelle : l'interface affiche le message du domaine, pas un « échec ».
 fn err(e: impl std::fmt::Display) -> String {
@@ -51,7 +51,9 @@ fn masque_depuis(
             max: teinte_max.unwrap_or(360.0),
             sat: saturation.unwrap_or(0.25),
         }),
-        autre => Err(format!("masque inconnu « {autre} » (alpha, sombre ou teinte)")),
+        autre => Err(format!(
+            "masque inconnu « {autre} » (alpha, sombre ou teinte)"
+        )),
     }
 }
 
@@ -179,7 +181,10 @@ fn mesure_dto(m: &nie_aphrody::pixel::Mesure) -> MesureDto {
             .map(|c| CouleurDto {
                 part_pct: c.part_pct,
                 hex: c.hex.clone(),
-                oklch: format!("oklch({:.4} {:.4} {:.2})", c.oklch[0], c.oklch[1], c.oklch[2]),
+                oklch: format!(
+                    "oklch({:.4} {:.4} {:.2})",
+                    c.oklch[0], c.oklch[1], c.oklch[2]
+                ),
                 teinte_deg: c.hsl[0],
             })
             .collect(),
@@ -193,11 +198,20 @@ fn reglages_depuis(
     masque: Masque,
 ) -> Result<Reglages, String> {
     let boite = match boite {
-        Some(b) if b.len() == 4 => Some(Boite { x0: b[0], y0: b[1], x1: b[2], y1: b[3] }),
+        Some(b) if b.len() == 4 => Some(Boite {
+            x0: b[0],
+            y0: b[1],
+            x1: b[2],
+            y1: b[3],
+        }),
         Some(_) => return Err("la boîte attend exactement 4 valeurs : x0 y0 x1 y1".into()),
         None => None,
     };
-    let mut r = Reglages { masque, boite, ..Reglages::default() };
+    let mut r = Reglages {
+        masque,
+        boite,
+        ..Reglages::default()
+    };
     if let Some(k) = k {
         r.k = k.max(1) as usize;
     }
@@ -229,7 +243,11 @@ pub fn tokens_css_fichier(chemin: &str, prefixe: &str, k: Option<u32>) -> Result
 }
 
 /// Compare deux images du disque.
-pub fn comparer_fichiers(a: &str, b: &str, tolerance: Option<u32>) -> Result<ComparaisonDto, String> {
+pub fn comparer_fichiers(
+    a: &str,
+    b: &str,
+    tolerance: Option<u32>,
+) -> Result<ComparaisonDto, String> {
     let tol = u8::try_from(tolerance.unwrap_or(0).min(255)).unwrap_or(255);
     let c = comparer(&charger(a)?, &charger(b)?, tol).map_err(err)?;
     Ok(ComparaisonDto {
@@ -248,7 +266,10 @@ pub fn vectoriser_fichier(
     mode: &str,
     seuil: Option<u32>,
 ) -> Result<String, String> {
-    let mut r = ReglagesVecteur { masque: masque_depuis(mode, seuil, None, None, None)?, ..ReglagesVecteur::default() };
+    let mut r = ReglagesVecteur {
+        masque: masque_depuis(mode, seuil, None, None, None)?,
+        ..ReglagesVecteur::default()
+    };
     if let Some(k) = k {
         r.k = k.max(1) as usize;
     }
@@ -313,10 +334,12 @@ pub fn pet_frame_png_b64(animation: &str, index: u32) -> Result<String, String> 
     let anim = pet
         .animation(animation)
         .ok_or_else(|| format!("animation « {animation} » absente du pet"))?;
-    let frame = anim
-        .frames
-        .get(index as usize)
-        .ok_or_else(|| format!("frame {index} absente : l'animation en compte {}", anim.frames.len()))?;
+    let frame = anim.frames.get(index as usize).ok_or_else(|| {
+        format!(
+            "frame {index} absente : l'animation en compte {}",
+            anim.frames.len()
+        )
+    })?;
     let rgba = pet.extract(frame).map_err(err)?;
     let (w, h) = (frame.atlas_rect.width, frame.atlas_rect.height);
     let png = assets::encoder_png(&rgba, w, h).map_err(err)?;

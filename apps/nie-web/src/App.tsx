@@ -12,16 +12,16 @@ import "@niers/inacord-ui/shell/game-tokens.css";
 import "@niers/inacord-ui/shell/game-screens.css";
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { ALIAS, AVATAR, EXPLORATEUR, MEDIAS, MENU, SETTINGS, routesReconnues } from "./entrees";
-import { Catalogue } from "./pages/Catalogue";
-import { Chargement } from "./pages/Chargement";
+import { ALIAS, AVATAR, EXPLORER, MEDIA, MENU, SETTINGS, recognizedRoutes } from "./entries";
+import { Catalog } from "./pages/Catalog";
+import { Loading } from "./pages/Loading";
 import { Avatar } from "./pages/Avatar";
-import { EcranSecondaire, Note } from "./pages/Ecran";
-import { Explorateur } from "./pages/Explorateur";
-import { Jeu } from "./pages/Jeu";
-import { MenuPrincipal } from "./pages/MenuPrincipal";
+import { Notice, SecondaryScreen } from "./pages/SecondaryScreen";
+import { Explorateur } from "./pages/Explorer";
+import { Jeu } from "./pages/Game";
+import { MenuPrincipal } from "./pages/MainMenu";
 import { Settings } from "./pages/Settings";
-import { ACCUEIL, cheminPourEntree, entreeDemandee, separerLangue } from "./routage";
+import { HOME, pathForEntry, requestedEntry, splitLanguagePrefix } from "./routing";
 
 /**
  * Coquille de nie.
@@ -45,7 +45,7 @@ export function App() {
  * L'application : une entrée courante, un écran.
  *
  * Il n'y a plus qu'UNE coquille. L'accueil est le menu principal reconstruit, les autres écrans
- * sont le même décor avec la rangée d'entrées réduite à une barre — voir `pages/Ecran.tsx` pour
+ * sont le même décor avec la rangée d'entrées réduite à une barre — voir `pages/SecondaryScreen.tsx` pour
  * ce que cette unification a remplacé.
  */
 function Site() {
@@ -60,28 +60,28 @@ function Site() {
 
 	// Le prefixe de langue de l'URL courante. Il ne change pas pendant la session : changer de
 	// langue est une navigation entiere, servie par nie-site, pas un changement d'etat local.
-	const prefixe = useMemo(() => separerLangue(window.location.pathname).prefixe, []);
+	const prefixe = useMemo(() => splitLanguagePrefix(window.location.pathname).prefix, []);
 
 	// Les entrees reconnues dans l'URL. L'accueil n'en fait PAS partie : il vit a la racine, et
-	// `entreeDemandee` rend `null` pour elle — y ajouter `accueil` creerait un second chemin
+	// `requestedEntry` rend `null` pour elle — y ajouter `home` créerait un second chemin
 	// vers la meme page.
 	// Les ROUTES reconnues, pas les tuiles : `/recherche` et `/donnees` mènent à un mode de
 	// l'explorateur sans figurer au menu.
-	const entrees = useMemo(() => routesReconnues(etat), [etat]);
+	const routes = useMemo(() => recognizedRoutes(etat), [etat]);
 
 	// L'entree courante vit dans l'URL, pas seulement en memoire : sans cela, un lien vers un
 	// catalogue ne mene qu'a l'accueil, le bouton « precedent » quitte le site, et un
 	// rechargement perd ou l'on etait.
 	const [vue, setVueEtat] = useState<string>(() => {
 		const routeServeur = document.getElementById("racine")?.dataset.route;
-		return entreeDemandee(DEPART, window.location, routeServeur) ?? ACCUEIL;
+		return requestedEntry(INITIAL_ROUTES, window.location, routeServeur) ?? HOME;
 	});
 
 	/** Change de vue ET d'URL, sans recharger la page. */
 	const setVue = (suivante: string) => {
 		setVueEtat(suivante);
 		const url = new URL(window.location.href);
-		url.pathname = cheminPourEntree(prefixe, suivante);
+		url.pathname = pathForEntry(prefixe, suivante);
 		window.history.pushState({ vue: suivante }, "", url);
 	};
 
@@ -96,16 +96,15 @@ function Site() {
 	 */
 	const naviguer = React.useCallback(
 		(href: string) => {
-			const route = separerLangue(new URL(href, window.location.origin).pathname).route.replace(
-				/^\//,
-				"",
-			);
-			if (route && DEPART.includes(route)) setVue(route);
+			const route = splitLanguagePrefix(
+				new URL(href, window.location.origin).pathname
+			).route.replace(/^\//, "");
+			if (route && INITIAL_ROUTES.includes(route)) setVue(route);
 			else window.location.assign(href);
 		},
 		// `setVue` est recréé à chaque rendu et ne dépend que de `prefixe` : le suivre ferait
 		// remonter un contexte neuf à chaque frappe, et remonterait tout l'arbre porté.
-		[prefixe],
+		[prefixe]
 	);
 
 	// Le bouton « precedent » doit ramener a la vue precedente, pas sortir du site. Une URL qui
@@ -113,11 +112,11 @@ function Site() {
 	// catalogue.
 	useEffect(() => {
 		const surRetour = () => {
-			setVueEtat(entreeDemandee(entrees, window.location) ?? ACCUEIL);
+			setVueEtat(requestedEntry(routes, window.location) ?? HOME);
 		};
 		window.addEventListener("popstate", surRetour);
 		return () => window.removeEventListener("popstate", surRetour);
-	}, [entrees]);
+	}, [routes]);
 
 	// L'index du VFS se monte EN FOND côté serveur (`EtatSite::monter_vfs_en_fond`) : au premier
 	// appel il répond `en_cours`. Une sonde unique fige donc l'écran d'attente pour toujours —
@@ -153,7 +152,7 @@ function Site() {
 	// L'accueil est le JEU. Il passe AVANT la garde sur le VFS : le moteur wasm embarque sa
 	// logique et sa police, il n'interroge pas l'index du catalogue, et le faire attendre une
 	// capacité dont il ne se sert pas ajouterait un écran vide devant lui.
-	if (vue === ACCUEIL) {
+	if (vue === HOME) {
 		return <Jeu />;
 	}
 
@@ -165,7 +164,7 @@ function Site() {
 		return (
 			// Même raison qu'en dessous : `GameCanvas` prend la hauteur de son parent.
 			<div style={{ position: "fixed", inset: 0 }}>
-				<Chargement etat={etat} panne={Boolean(erreurSource)} />
+				<Loading health={etat} failed={Boolean(erreurSource)} />
 			</div>
 		);
 	}
@@ -199,31 +198,31 @@ function Site() {
 
 	return (
 		<FournisseurNavigation naviguer={naviguer}>
-			<EcranSecondaire vue={vue} onChoisir={setVue} etat={etat}>
-			{erreurSource ? (
-				// Le detail technique de la panne ne s'affiche pas : il ne dit rien a qui consulte
-				// le site, et le seul geste utile — reessayer — ne depend pas de lui.
-				<Note ton="alerte">
-					Le site ne parvient pas à joindre ses ressources. Réessayez dans un instant.
-				</Note>
-			) : !capacites ? (
-				<Note>Chargement…</Note>
-			) : !pret ? (
-				<Note>Le catalogue est en cours de préparation. Il s'affichera dès qu'il sera prêt.</Note>
-			) : vue === AVATAR ? (
-				<Avatar />
-			) : vue === EXPLORATEUR || (ALIAS as readonly string[]).includes(vue) ? (
-				// Les deux URL héritées mènent ici : l'explorateur EST la page de recherche et
-				// de données, son panneau de droite en porte le contenu.
-				<Explorateur />
-			) : (
-				// `/medias` et les quatre URL heritees menent toutes ici. La seconde arrive sur
-				// SA vue ; la premiere, qui n'en designe aucune, ouvre sur les textures — le
-				// catalogue le plus large (54 203 fichiers) et le seul dont la grille montre
-				// quelque chose sans qu'on ait rien reglé.
-				<Catalogue vue={(vue === MEDIAS ? "textures" : vue) as VueCatalogue} />
-			)}
-			</EcranSecondaire>
+			<SecondaryScreen currentView={vue} onSelect={setVue} health={etat}>
+				{erreurSource ? (
+					// Le detail technique de la panne ne s'affiche pas : il ne dit rien a qui consulte
+					// le site, et le seul geste utile — reessayer — ne depend pas de lui.
+					<Notice tone="alerte">
+						Le site ne parvient pas à joindre ses ressources. Réessayez dans un instant.
+					</Notice>
+				) : !capacites ? (
+					<Notice>Chargement…</Notice>
+				) : !pret ? (
+					<Notice>Le catalogue est en cours de préparation. Il s'affichera dès qu'il sera prêt.</Notice>
+				) : vue === AVATAR ? (
+					<Avatar />
+				) : vue === EXPLORER || (ALIAS as readonly string[]).includes(vue) ? (
+					// Les deux URL héritées mènent ici : l'explorateur EST la page de recherche et
+					// de données, son panneau de droite en porte le contenu.
+					<Explorateur />
+				) : (
+					// `/medias` et les quatre URL heritees menent toutes ici. La seconde arrive sur
+					// SA vue ; la premiere, qui n'en designe aucune, ouvre sur les textures — le
+					// catalogue le plus large (54 203 fichiers) et le seul dont la grille montre
+					// quelque chose sans qu'on ait rien reglé.
+					<Catalog view={(vue === MEDIA ? "textures" : vue) as VueCatalogue} />
+				)}
+			</SecondaryScreen>
 		</FournisseurNavigation>
 	);
 }
@@ -235,7 +234,7 @@ function Site() {
  * l'accueil le temps d'un aller-retour réseau, puis basculerait — un saut visible qu'aucune
  * donnée ne justifie.
  */
-const DEPART = routesReconnues(null);
+const INITIAL_ROUTES = recognizedRoutes(null);
 
 /**
  * Période entre deux sondes de `/api/v1/health`, tant que le VFS n'est pas tranché.

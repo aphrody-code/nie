@@ -63,7 +63,11 @@ impl CacheVideo {
     /// remplissage de tampon. Cloner les 300 Mo à chaque fois faisait monter la mémoire de
     /// travail de l'explorateur à 15 Go — l'allocateur de Windows garde ces blocs. Ici on ne
     /// copie que ce qui part sur le fil.
-    pub fn tranche(&self, cle: &str, plage: Option<(u64, u64)>) -> Option<(&'static str, Vec<u8>, u64)> {
+    pub fn tranche(
+        &self,
+        cle: &str,
+        plage: Option<(u64, u64)>,
+    ) -> Option<(&'static str, Vec<u8>, u64)> {
         let mut g = self.0.lock().ok()?;
         let i = g.iter().position(|(k, _, _)| k == cle)?;
         let entree = g.remove(i);
@@ -108,7 +112,7 @@ pub fn decouper(octets: &[u8], plage: Option<(u64, u64)>) -> Vec<u8> {
 ///
 /// Elle vient de deux endroits, et c'est le fait marquant du corpus : **2 films sur 97 seulement**
 /// portent leur son dans leur propre conteneur (les deux logos). Pour tous les autres, il vit
-/// dans la banque `anime_stream`, à côté — cf. [`nie_explore::bande_son`].
+/// dans la banque `anime_stream`, à côté — cf. [`nie_explore::soundtrack`].
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct PisteAudioDto {
     /// Numéro de canal (toujours `0` pour une piste externe).
@@ -212,7 +216,9 @@ fn completer_bande_son(f: &mut FilmDto, vfs: &Vfs) {
     }
     // La durée du film sert de garde-fou : sans elle, une bobine partagée passerait pour la
     // bande-son du film et jouerait le son de quelqu'un d'autre, ou du silence.
-    let Some(p) = nie_explore::bande_son::piste_de_film(vfs, &f.nom, f.duree, None) else { return };
+    let Some(p) = nie_explore::soundtrack::piste_de_film(vfs, &f.nom, f.duree, None) else {
+        return;
+    };
     f.audio.push(PisteAudioDto {
         canal: 0,
         codec: p.codec,
@@ -261,13 +267,23 @@ fn jointure(vfs: &Vfs) -> HashMap<String, (Option<String>, Option<String>)> {
         .collect();
 
     for chemin in chemins {
-        let Ok(octets) = vfs.read(&chemin) else { continue };
-        let Some(root) = nie_formats::cfgbin::rdbn_to_iecode_json(&octets) else { continue };
-        let Some(listes) = root.get("lists").and_then(Value::as_array) else { continue };
+        let Ok(octets) = vfs.read(&chemin) else {
+            continue;
+        };
+        let Some(root) = nie_formats::cfgbin::rdbn_to_iecode_json(&octets) else {
+            continue;
+        };
+        let Some(listes) = root.get("lists").and_then(Value::as_array) else {
+            continue;
+        };
         for liste in listes {
-            let Some(lignes) = liste.get("values").and_then(Value::as_array) else { continue };
+            let Some(lignes) = liste.get("values").and_then(Value::as_array) else {
+                continue;
+            };
             for ligne in lignes {
-                let Some(mp) = ligne.get("moviePath").and_then(Value::as_str) else { continue };
+                let Some(mp) = ligne.get("moviePath").and_then(Value::as_str) else {
+                    continue;
+                };
                 if !mp.ends_with(".usm") {
                     continue;
                 }
@@ -358,7 +374,9 @@ pub fn flux_web_depuis_usm(octets: &[u8], nom: &str) -> Result<(&'static str, Ve
             u.codec.extension()
         ));
     }
-    u.en_conteneur_web().map(|c| (c.mime, c.octets)).map_err(|e| e.to_string())
+    u.en_conteneur_web()
+        .map(|c| (c.mime, c.octets))
+        .map_err(|e| e.to_string())
 }
 
 /// Même chose, quand seul le contenu importe (aperçu base64 borné).
@@ -391,10 +409,11 @@ pub fn wav_bande_son(
         return nie_formats::cri_audio::decode_to_wav(&piste.octets);
     }
     let radical = radical_de(chemin);
-    let externe = nie_explore::bande_son::piste_de_film(vfs, radical, u.duree(), None).ok_or_else(|| {
-        format!("« {radical} » n'a de bande-son ni dans son conteneur ni dans anime_stream")
-    })?;
-    nie_explore::bande_son::wav_de_la_cue(vfs, cache_dir, externe.awb_id)
+    let externe =
+        nie_explore::soundtrack::piste_de_film(vfs, radical, u.duree(), None).ok_or_else(|| {
+            format!("« {radical} » n'a de bande-son ni dans son conteneur ni dans anime_stream")
+        })?;
+    nie_explore::soundtrack::wav_de_la_cue(vfs, cache_dir, externe.awb_id)
 }
 
 // Pas de module de tests ici : `cargo test` dans `src-tauri` ne DÉMARRE pas sur cette machine

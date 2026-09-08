@@ -23,7 +23,7 @@ import {
 	cheminFiche,
 	urlExport,
 	urlImage,
-} from "@niers/catalog/jeu";
+} from "@niers/catalog/game";
 
 import type { CpkDir, CpkFile } from "./shared";
 

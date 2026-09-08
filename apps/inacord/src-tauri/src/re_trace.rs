@@ -42,7 +42,11 @@ pub fn re_trace_find_process() -> Option<ReTraceProcessDto> {
     for name in CANDIDATE_PROCESS_NAMES {
         if let Some(pid) = nie_trace::find_pid_by_name(name) {
             let module_base = nie_trace::find_module_base(pid, "nie").map(|b| format!("0x{b:x}"));
-            return Some(ReTraceProcessDto { pid, process_name: name.to_string(), module_base });
+            return Some(ReTraceProcessDto {
+                pid,
+                process_name: name.to_string(),
+                module_base,
+            });
         }
     }
     None
@@ -112,7 +116,11 @@ pub fn re_trace_read_bytes_b64(pid: i32, addr: String, len: u32) -> Result<Strin
 /// Même plafond que la lecture : 1 Mio par appel.
 #[tauri::command]
 #[specta::specta]
-pub fn re_trace_write_bytes_b64(pid: i32, addr: String, data_b64: String) -> Result<String, String> {
+pub fn re_trace_write_bytes_b64(
+    pid: i32,
+    addr: String,
+    data_b64: String,
+) -> Result<String, String> {
     const MAX_LEN: usize = 1024 * 1024;
     let octets = base64::engine::general_purpose::STANDARD
         .decode(data_b64.as_bytes())
@@ -128,7 +136,10 @@ pub fn re_trace_write_bytes_b64(pid: i32, addr: String, data_b64: String) -> Res
 
 fn parse_addr(s: &str) -> Result<u64, String> {
     let s = s.trim();
-    let (digits, radix) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).map_or((s, 10), |d| (d, 16));
+    let (digits, radix) = s
+        .strip_prefix("0x")
+        .or_else(|| s.strip_prefix("0X"))
+        .map_or((s, 10), |d| (d, 16));
     u64::from_str_radix(digits, radix).map_err(|e| format!("adresse invalide {s:?} : {e}"))
 }
 
@@ -148,7 +159,10 @@ pub struct ReTraceDumpStatsDto {
 /// une plage volatile/refusée est simplement sautée).
 #[tauri::command]
 #[specta::specta]
-pub fn re_trace_dump_module(pid: i32, app: tauri::AppHandle) -> Result<ReTraceDumpStatsDto, String> {
+pub fn re_trace_dump_module(
+    pid: i32,
+    app: tauri::AppHandle,
+) -> Result<ReTraceDumpStatsDto, String> {
     use tauri::Manager;
     let regions = nie_trace::module_regions(pid, "nie", false);
     if regions.is_empty() {
@@ -262,15 +276,22 @@ pub struct ReDumpScanDto {
 /// Lecture seule d'un fichier : aucune attache au process du jeu, aucune écriture mémoire.
 #[tauri::command]
 #[specta::specta]
-pub fn re_dump_scan(chemin_dmp: String, motif: String, limite: u32) -> Result<ReDumpScanDto, String> {
+pub fn re_dump_scan(
+    chemin_dmp: String,
+    motif: String,
+    limite: u32,
+) -> Result<ReDumpScanDto, String> {
     let pattern = nie_dump::Pattern::parse(&motif).map_err(|e| e.to_string())?;
     let limite = match limite {
         0 => DUMP_SCAN_LIMITE_DEFAUT,
         n => n.min(DUMP_SCAN_LIMITE_MAX),
     } as usize;
-    let mut dump = nie_dump::Minidump::open(&chemin_dmp).map_err(|e| format!("{chemin_dmp} : {e}"))?;
+    let mut dump =
+        nie_dump::Minidump::open(&chemin_dmp).map_err(|e| format!("{chemin_dmp} : {e}"))?;
     let mapped_bytes = dump.mapped_bytes() as f64;
-    let hits = dump.scan_limited(&pattern, limite).map_err(|e| e.to_string())?;
+    let hits = dump
+        .scan_limited(&pattern, limite)
+        .map_err(|e| e.to_string())?;
     let tronque = hits.len() >= limite;
     Ok(ReDumpScanDto {
         hits: hits

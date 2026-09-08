@@ -9,14 +9,26 @@
 
 #![forbid(unsafe_code)]
 
+#[cfg(feature = "host")]
 pub mod audio;
-pub mod bande_son;
+#[cfg(feature = "host")]
+pub mod soundtrack;
+#[cfg(feature = "host")]
+#[deprecated(note = "use `nie_explore::soundtrack` instead")]
+pub mod bande_son {
+    pub use crate::soundtrack::*;
+}
 pub mod bridge;
+#[cfg(feature = "host")]
 pub mod cinema;
+#[cfg(feature = "host")]
 pub mod depot;
 pub mod export;
 pub mod folder_roles;
+#[cfg(feature = "host")]
 pub mod listing;
+pub mod menu_modes;
+pub mod menu_layout;
 
 use nie_formats::{
     cfgbin, col, cri_audio, dxbc, g4cm, g4la, g4ma, g4md, g4mt, g4pk, g4sk, g4tx, g4vs, level5,
@@ -183,21 +195,35 @@ pub fn describe_l5_container(
 pub fn describe_content(path: &str, data: &[u8]) -> Option<Vec<String>> {
     if nie_lua::is_lua52_bytecode(data) {
         let mut out = vec!["format      Lua 5.2 bytecode (script moteur .lua.bin)".to_string()];
-        let name = path.rsplit('/').next().unwrap_or(path);
-        match nie_lua::discover_host_calls(data, name) {
-            Ok(calls) => {
-                out.push(format!(
-                    "appels hôte {} (VM stubbée — pas d'exécution de la vraie logique)",
-                    calls.len()
-                ));
-                for c in calls.iter().take(40) {
-                    out.push(format!("  {c}"));
+        #[cfg(feature = "host")]
+        {
+            let name = path.rsplit('/').next().unwrap_or(path);
+            match nie_lua::discover_host_calls(data, name) {
+                Ok(calls) => {
+                    out.push(format!(
+                        "appels hôte {} (VM stubbée — pas d'exécution de la vraie logique)",
+                        calls.len()
+                    ));
+                    for c in calls.iter().take(40) {
+                        out.push(format!("  {c}"));
+                    }
+                    if calls.len() > 40 {
+                        out.push(format!("  … {} de plus", calls.len() - 40));
+                    }
                 }
-                if calls.len() > 40 {
-                    out.push(format!("  … {} de plus", calls.len() - 40));
-                }
+                Err(e) => out.push(format!("  (échec d'introspection : {e})")),
             }
-            Err(e) => out.push(format!("  (échec d'introspection : {e})")),
+        }
+        #[cfg(not(feature = "host"))]
+        match nie_lua::bytecode::parse(data) {
+            Ok(chunk) => {
+                out.push(format!(
+                    "instructions {}  prototypes {}",
+                    chunk.main.total_instructions(),
+                    chunk.main.total_protos()
+                ));
+            }
+            Err(e) => out.push(format!("  (échec du décodage structurel : {e})")),
         }
         return Some(out);
     }

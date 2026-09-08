@@ -2,15 +2,15 @@
 //!
 //! ## Pourquoi ce module existe ici
 //!
-//! Trois façades doivent offrir la même chose au client — `niers find`/`grep` (CLI), le serveur
-//! MCP `niers-game` (`repo_read`/`repo_list`/`repo_find`/`repo_grep`, via `nie-ffi`) et l'app
-//! desktop `nie-explorer` (commandes Tauri). Chacune l'avait implémentée, ou pas du tout :
+//! Three surfaces need the same capability: `niers find`/`grep` (CLI), the native Rust
+//! `niers-game` MCP server (`repo_read` plus the `cli_find`/`cli_grep` bindings), and the Inacord
+//! desktop app (Tauri commands). Each previously had its own partial implementation:
 //!
 //! - `nie-cli/src/search_cmd.rs` portait le moteur `ignore`/`grep-*`, mais mêlé à l'affichage
 //!   texte (`find()` rendait un `usize` et imprimait) : inutilisable par un autre appelant.
-//! - `apps/nie-mcp/src/repo.ts` réimplémentait la lecture confinée en TypeScript, sans
-//!   listing ni recherche.
-//! - `nie-explorer` n'avait rien.
+//! - the retired Bun MCP server reimplemented confined reads in TypeScript without listing or
+//!   search; that implementation was removed in favor of this module;
+//! - the former explorer had no equivalent.
 //!
 //! Le module rassemble la logique et **ne rend que des données** ; le formatage appartient aux
 //! façades. C'est la règle déjà appliquée par [`crate::listing`] et le dispatch d'aperçu de

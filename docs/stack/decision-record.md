@@ -127,7 +127,7 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
   plus stricte gagne — `nie-site` pose la sienne.
 - `apps/nie-web` : hôte Vite de `packages/inacord-ui` avec `web-source.ts`.
   `apps/inacord` : hôte Tauri de la même UI avec `desktop-source.ts` (`api.ts` renommé).
-  Les conventions d'URL viennent de `packages/nie-catalog/src/jeu.ts` (757 lignes, déjà
+  Les conventions d'URL viennent de `packages/nie-catalog/src/game.ts` (757 lignes, déjà
   testé contre `main.rs`), pas d'une réécriture.
 
 ### Le moteur et les clients natifs — inchangés cette semaine
@@ -493,7 +493,7 @@ Or ce layout est précisément ce qui manque : composition statique à **22 des 
 `menu_render_gate.rs:588`). Le blocage n'est pas un format — les motions `g4pkm` ne portent
 **aucune keyframe de position** ; le placement vient de la machine d'état C++ `G4RA` et des
 callbacks Lua `Setup*`, jamais reversés. Carte complète et prochain pas chiffré :
-[`docs/mainmenu01-analyse-visuelle.md`](../mainmenu01-analyse-visuelle.md).
+[`docs/mainmenu01-visual-analysis.md`](../mainmenu01-visual-analysis.md).
 
 **Conséquence pour la semaine.** La DA de nie peut partir sur les couleurs mesurées et sur
 les atlas d'icônes du VFS ; elle ne peut **pas** prétendre reproduire la mise en page de

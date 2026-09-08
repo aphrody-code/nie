@@ -14,7 +14,7 @@
     "docs/game-data/README.md",
     "docs/game-data/lua-analysis.md",
     "docs/vfs/03-menus.md",
-    "docs/mainmenu01-analyse-visuelle.md",
+    "docs/mainmenu01-visual-analysis.md",
     "crates/engine/nie-lua/src/lib.rs",
     "crates/engine/nie-lua/src/menu_host.rs",
     "crates/engine/nie-lua/src/runtime.rs"
@@ -442,7 +442,7 @@
         "tests_passed": 13
       },
       "nie_wasm": "cfgbin_menu_setting_json()",
-      "nie_catalog": "packages/nie-catalog/src/jeu.ts — canonical /typed/<...>_menu_setting.cfg.bin.json URL builder"
+      "nie_catalog": "packages/nie-catalog/src/game.ts — canonical /typed/<...>_menu_setting.cfg.bin.json URL builder"
     }
   },
   "image_dimensions": [
@@ -713,6 +713,6 @@
     "nie-cli": "crates/tools/nie-cli/src/mode_index.rs (niers mode coverage --strict)",
     "nie-ffi": "crates/engine/nie-ffi/src/lib.rs (decodeMenuSetting, vfs.menuSetting)",
     "nie-wasm": "cfgbin_menu_setting_json()",
-    "nie-catalog": "packages/nie-catalog/src/jeu.ts (URLs canoniques /typed/..._menu_setting.cfg.bin.json)"
+    "nie-catalog": "packages/nie-catalog/src/game.ts (URLs canoniques /typed/..._menu_setting.cfg.bin.json)"
   }
 }

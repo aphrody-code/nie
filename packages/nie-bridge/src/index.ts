@@ -1,8 +1,8 @@
 /**
  * `@niers/bridge` — canal de contrôle entre le serveur MCP et l'explorateur.
  *
- * - `@niers/bridge` (ce module) : protocole + client. Isomorphe, utilisable dans la WebView.
- * - `@niers/bridge/server` : serveur, dépend de `Bun.serve`.
+ * Le serveur vit désormais dans `crates/tools/nie-cli/src/mcp/bridge.rs` ; ce paquet
+ * ne conserve que le protocole et le client isomorphe utilisé par la WebView.
  */
 
 export * from "./protocol.ts";

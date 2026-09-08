@@ -18,6 +18,53 @@ pub enum AobError {
     Empty,
 }
 
+/// Maximum accepted UTF-8 byte length for a pattern passed to [`scan_bytes_bounded`].
+pub const MAX_AOB_PATTERN_SOURCE_BYTES: usize = 1_024;
+/// Maximum number of parsed pattern bytes accepted by [`scan_bytes_bounded`].
+pub const MAX_AOB_PATTERN_BYTES: usize = 256;
+/// Maximum haystack size accepted by [`scan_bytes_bounded`] (8 MiB).
+pub const MAX_AOB_SCAN_BYTES: usize = 8 * 1024 * 1024;
+/// Maximum number of offsets returned by [`scan_bytes_bounded`].
+pub const MAX_AOB_SCAN_HITS: usize = 256;
+/// Maximum candidate-byte comparisons admitted by [`scan_bytes_bounded`].
+pub const MAX_AOB_SCAN_COMPARISONS: usize = 64 * 1024 * 1024;
+
+/// A bounded, platform-independent AOB scan result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AobScanReport {
+    /// Number of bytes in the parsed pattern.
+    pub pattern_bytes: usize,
+    /// Number of haystack bytes inspected.
+    pub scanned_bytes: usize,
+    /// Matching byte offsets, in ascending order.
+    pub offsets: Vec<usize>,
+    /// Whether at least one additional match exists beyond `offsets`.
+    pub truncated: bool,
+}
+
+/// Validation failure from [`scan_bytes_bounded`].
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum BoundedAobError {
+    /// The textual pattern is too large to parse safely.
+    #[error("AOB pattern source is {length} bytes; maximum is {max}")]
+    PatternSourceTooLong { length: usize, max: usize },
+    /// The parsed pattern contains too many byte positions.
+    #[error("AOB pattern is {length} bytes; maximum is {max}")]
+    PatternTooLong { length: usize, max: usize },
+    /// The byte buffer is too large for the portable scanner contract.
+    #[error("AOB haystack is {length} bytes; maximum is {max}")]
+    HaystackTooLong { length: usize, max: usize },
+    /// The caller requested too many returned matches.
+    #[error("AOB hit limit is {limit}; maximum is {max}")]
+    HitLimitTooHigh { limit: usize, max: usize },
+    /// The worst-case scan work exceeds the portable CPU budget.
+    #[error("AOB scan needs {comparisons} candidate comparisons; maximum is {max}")]
+    WorkLimitExceeded { comparisons: usize, max: usize },
+    /// The AOB syntax is invalid.
+    #[error(transparent)]
+    Pattern(#[from] AobError),
+}
+
 /// Un motif octet à scanner : `bytes[i]` n'est comparé que si `mask[i]` est vrai.
 ///
 /// Parsé façon Cheat-Engine ; les jetons `??`, `?` ou `*` sont des wildcards.
@@ -101,6 +148,71 @@ impl Pattern {
         }
         out
     }
+}
+
+/// Parse and scan an in-memory byte slice under explicit allocation and CPU bounds.
+///
+/// Offsets are relative to `haystack`. Overlapping matches are retained. To make truncation
+/// observable without returning an unbounded vector, the scanner probes for at most one match
+/// beyond `max_hits` and sets [`AobScanReport::truncated`] accordingly.
+///
+/// # Errors
+///
+/// Returns [`BoundedAobError`] when the pattern, haystack, requested hit count, or worst-case
+/// comparison count exceeds its documented bound, or when `pattern_source` is malformed.
+pub fn scan_bytes_bounded(
+    pattern_source: &str,
+    haystack: &[u8],
+    max_hits: usize,
+) -> Result<AobScanReport, BoundedAobError> {
+    if pattern_source.len() > MAX_AOB_PATTERN_SOURCE_BYTES {
+        return Err(BoundedAobError::PatternSourceTooLong {
+            length: pattern_source.len(),
+            max: MAX_AOB_PATTERN_SOURCE_BYTES,
+        });
+    }
+    if haystack.len() > MAX_AOB_SCAN_BYTES {
+        return Err(BoundedAobError::HaystackTooLong {
+            length: haystack.len(),
+            max: MAX_AOB_SCAN_BYTES,
+        });
+    }
+    if max_hits > MAX_AOB_SCAN_HITS {
+        return Err(BoundedAobError::HitLimitTooHigh {
+            limit: max_hits,
+            max: MAX_AOB_SCAN_HITS,
+        });
+    }
+
+    let pattern = Pattern::parse(pattern_source)?;
+    if pattern.len() > MAX_AOB_PATTERN_BYTES {
+        return Err(BoundedAobError::PatternTooLong {
+            length: pattern.len(),
+            max: MAX_AOB_PATTERN_BYTES,
+        });
+    }
+
+    let candidate_count = haystack
+        .len()
+        .checked_sub(pattern.len())
+        .map_or(0, |remaining| remaining + 1);
+    let comparisons = candidate_count.saturating_mul(pattern.len());
+    if comparisons > MAX_AOB_SCAN_COMPARISONS {
+        return Err(BoundedAobError::WorkLimitExceeded {
+            comparisons,
+            max: MAX_AOB_SCAN_COMPARISONS,
+        });
+    }
+
+    let mut offsets = pattern.find_all(haystack, max_hits.saturating_add(1));
+    let truncated = offsets.len() > max_hits;
+    offsets.truncate(max_hits);
+    Ok(AobScanReport {
+        pattern_bytes: pattern.len(),
+        scanned_bytes: haystack.len(),
+        offsets,
+        truncated,
+    })
 }
 
 // ─── Décodeurs d'opérande ───────────────────────────────────────────────────────────
@@ -208,5 +320,59 @@ mod tests {
         assert_eq!(rip_target(0x1000, 7, 0x10), 0x1017);
         // déplacement négatif.
         assert_eq!(rip_target(0x1000, 7, -0x10), 0x1000 + 7 - 0x10);
+    }
+
+    #[test]
+    fn bounded_scan_reports_offsets_and_truncation() {
+        let report = scan_bytes_bounded("AA ??", &[0xAA, 1, 0xAA, 2, 0xAA, 3], 2).unwrap();
+        assert_eq!(report.pattern_bytes, 2);
+        assert_eq!(report.scanned_bytes, 6);
+        assert_eq!(report.offsets, vec![0, 2]);
+        assert!(report.truncated);
+
+        let complete = scan_bytes_bounded("AA ??", &[0xAA, 1, 0xAA, 2], 2).unwrap();
+        assert_eq!(complete.offsets, vec![0, 2]);
+        assert!(!complete.truncated);
+    }
+
+    #[test]
+    fn bounded_scan_enforces_every_public_limit() {
+        assert!(matches!(
+            scan_bytes_bounded(&"A".repeat(MAX_AOB_PATTERN_SOURCE_BYTES + 1), &[], 1),
+            Err(BoundedAobError::PatternSourceTooLong { .. })
+        ));
+        assert!(matches!(
+            scan_bytes_bounded(&vec!["AA"; MAX_AOB_PATTERN_BYTES + 1].join(" "), &[], 1),
+            Err(BoundedAobError::PatternTooLong { .. })
+        ));
+        assert!(matches!(
+            scan_bytes_bounded("AA", &vec![0; MAX_AOB_SCAN_BYTES + 1], 1),
+            Err(BoundedAobError::HaystackTooLong { .. })
+        ));
+        assert!(matches!(
+            scan_bytes_bounded("AA", &[], MAX_AOB_SCAN_HITS + 1),
+            Err(BoundedAobError::HitLimitTooHigh { .. })
+        ));
+
+        let pattern = vec!["??"; MAX_AOB_PATTERN_BYTES].join(" ");
+        let haystack =
+            vec![0; MAX_AOB_SCAN_COMPARISONS / MAX_AOB_PATTERN_BYTES + MAX_AOB_PATTERN_BYTES];
+        assert!(matches!(
+            scan_bytes_bounded(&pattern, &haystack, 1),
+            Err(BoundedAobError::WorkLimitExceeded { .. })
+        ));
+    }
+
+    #[test]
+    fn bounded_scan_validates_before_allocating_or_scanning() {
+        assert_eq!(
+            scan_bytes_bounded("not-hex", &[], 1),
+            Err(BoundedAobError::Pattern(AobError::BadByte(
+                "not-hex".to_owned()
+            )))
+        );
+        let report = scan_bytes_bounded("AA", &[0xAA], 0).unwrap();
+        assert!(report.offsets.is_empty());
+        assert!(report.truncated);
     }
 }

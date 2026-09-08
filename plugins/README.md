@@ -1,27 +1,17 @@
-# `plugins/` — les extensions publiées
+# Published extensions
 
-Deux extensions, plus le manifeste de marketplace local (`.claude-plugin/`) qui déclare la
-première. Ce sont des **livrables** : elles sont installées par des outils extérieurs au
-dépôt, donc leur contenu (`SKILL.md`, agents, manifestes) est versionné comme du code.
+The directories in this folder are versioned deliverables for external hosts.
 
-| Extension | Pour | Contenu |
+| Extension | Hosts | Contents |
 |---|---|---|
-| [`niers-plugin/`](niers-plugin) | Claude Code et Codex | le serveur MCP `niers-game`, 6 agents (`vfs-scout`, `re-lookup`, `forge-analyst`, `port-scout`, `build-doctor`, `bun-rs`) et 14 skills (terminologie IEVR, formats Level-5, navigation du monorepo, rendu 3D, ponts Rust ↔ Bun) |
-| [`niers-blender/`](niers-blender) | Blender | import des assets G4 (modèles, personnages, maps, animations, caméras, textures) et réexport par patch de la base native plutôt que par reconstruction |
+| [`niers-plugin/`](niers-plugin) | Codex, Claude Code, Antigravity (`agy`) | Host adapters, 17 NIERS skills, and the native Rust `niers-game` MCP declaration |
+| [`niers-blender/`](niers-blender) | Blender | G4 asset import, character/map/animation/camera/texture workflows, and native-base patch export |
 
-## Ce qui a déjà été perdu ici
+`niers-plugin` follows the multi-host layout used by Aphrody's YOLO package: Codex uses
+`.codex-plugin/plugin.json`, Claude Code uses `.claude-plugin/plugin.json` and the local
+marketplace, while `agy` uses the root `plugin.json` and `mcp_config.json`. All hosts execute the
+same portable native Rust MCP server.
 
-Ces fichiers ont disparu du dépôt sans le moindre message le jour où une règle
-`.gitignore` large a couvert le markdown : le plugin, ses 5 agents et ses 5 skills étaient
-un livrable, et un clone frais ne les avait plus. Un fichier ignoré ne produit ni erreur ni
-avertissement — il n'existe simplement pas chez le suivant.
-
-Avant d'ajouter une règle d'exclusion qui touche ce dossier, vérifier **chaque** cas par
-`git check-ignore -v <fichier>`, jamais au raisonnement : la dernière règle qui correspond
-l'emporte, et une ré-inclusion posée avant une règle large ne sert à rien.
-
-## Publier
-
-L'extension Blender est empaquetée en `.zip` par `scripts/release-desktop.sh`, qui la joint
-à la release GitHub. Le plugin Claude Code se déclare par
-`plugins/.claude-plugin/marketplace.json` et se charge depuis le dépôt lui-même.
+Before adding an ignore rule that affects this directory, check every candidate with
+`git check-ignore -v <path>`. These files are product deliverables and must remain present in a
+fresh clone.

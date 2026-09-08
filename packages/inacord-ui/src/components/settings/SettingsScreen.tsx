@@ -35,7 +35,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Settings } from "../../lib/settings";
-import { GLYPHES } from "../../shell/ecran-menu";
+import { GLYPHES } from "../../shell/menu-screen";
 import { useCapacites } from "../../source";
 import { GameCursor } from "../game/GameCursor";
 import { GameHeaderBar } from "../game/GameHeaderBar";
@@ -54,7 +54,7 @@ import {
 } from "./settings-model";
 import { useSettings } from "./use-settings";
 
-/** Le glyphe de chaque onglet — les formes de `ecran-menu`, aucune n'est inventée ici. */
+/** Le glyphe de chaque onglet — les formes de `menu-screen`, aucune n'est inventée ici. */
 const FAMILY_ICON: Record<SettingFamily, ReactNode> = {
 	general: GLYPHES.info,
 	display: GLYPHES.image,

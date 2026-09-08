@@ -1,7 +1,7 @@
 [package]
 name = "nie-editor"
 default-run = "nie-editor"
-description = "Éditeur 3D NIE natif, viewport GPU partagé DirectX 12 / Vulkan / OpenGL"
+description = "Native NIE 3D editor with a shared DirectX 12, Vulkan, or OpenGL viewport"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,6 +11,7 @@ rust-version.workspace = true
 [[bin]]
 name = "nie-editor"
 path = "src/main.rs"
+required-features = ["host"]
 
 [[bin]]
 name = "nie-editor-legacy"
@@ -18,24 +19,24 @@ path = "src/legacy_main.rs"
 required-features = ["legacy-fyrox"]
 
 [features]
-default = []
-legacy-fyrox = ["dep:fyrox", "dep:fyroxed_base", "dep:nie-formats"]
+default = ["host"]
+host = ["dep:clap", "dep:eframe", "nie-render3d/gpu"]
+legacy-fyrox = ["host", "dep:fyrox", "dep:fyroxed_base", "dep:nie-formats"]
 
 [lints]
 workspace = true
 
 [dependencies]
-# Ancien hôte conservé sur demande ; le binaire par défaut emploie le renderer NIE partagé.
+# Legacy host kept on request; the default binary uses the shared NIE renderer.
 fyrox = { version = "1.0.1", optional = true }
 fyroxed_base = { version = "1.0.1", optional = true }
 
-# Assets réels du jeu : montage du VFS CPK + assemblage du modèle (G4MD+G4MG+G4TX).
+# Real game assets: mount the CPK VFS and assemble the model (G4MD+G4MG+G4TX).
 nie-formats = { workspace = true, features = ["textures"], optional = true }
-nie-render3d = { path = "../../engine/nie-render3d", features = ["gpu"] }
-# Version compatible avec l'unique wgpu 29 du moteur.
-eframe = { version = "=0.34.1", default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland"] }
-serde.workspace = true
+nie-render3d = { path = "../../engine/nie-render3d" }
+# Version compatible with the engine's single wgpu 29 dependency.
+eframe = { version = "=0.34.1", default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland"], optional = true }
 serde_json.workspace = true
 
 anyhow.workspace = true
-clap.workspace = true
+clap = { workspace = true, optional = true }

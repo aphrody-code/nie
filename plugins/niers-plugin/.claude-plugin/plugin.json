@@ -1,9 +1,12 @@
 {
+  "$schema": "https://code.claude.com/schema/plugin.json",
   "name": "niers",
-  "version": "0.1.0",
-  "description": "Outillage Claude Code du projet niers : 6 sous-agents et 15 competences — ancrage terminologique IEVR, navigation du monorepo, formats Level-5, forge, VFS et pilotage du jeu. Le serveur MCP niers-game est declare a la racine du depot (.mcp.json), pas ici.",
+  "version": "0.2.0",
+  "description": "Native Rust tools for the NIERS game workspace: Level-5 formats, assets, reverse engineering, Inacord, and the niers-game MCP server.",
   "author": {
-    "name": "Rose Griffon",
-    "email": "yohanpierre15@gmail.com"
-  }
+    "name": "Aphrody Dev"
+  },
+  "category": "developer-tools",
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json"
 }

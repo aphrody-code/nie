@@ -33,8 +33,11 @@ use tracing::{info, warn};
 
 use crate::depot_resolver::{self, INVALID_MANIFEST};
 use crate::options::{
-    CollisionReason, DepotInfo, DownloadResult, ManifestCollision, SteamDownloadOptions,
-    SteamDownloadPhase, SteamDownloadProgress,
+    DepotInfo, DownloadResult, ManifestCollision, SteamDownloadOptions, SteamDownloadPhase,
+    SteamDownloadProgress,
+};
+use crate::planning::{
+    ExistingPath, ExistingPathKind, ManifestEntry, PlanningLimits, plan_manifest_application,
 };
 use crate::session::SteamSession;
 
@@ -594,33 +597,51 @@ impl SteamDepotDownloader {
                     .map_err(|e| anyhow::anyhow!("déchiffrement des noms du manifest : {e}"))?;
             }
 
-            for f in &manifest.files {
-                let is_dir = is_manifest_directory(f.flags);
-                let rel = f.normalized_path();
-                let trimmed = rel.trim_matches('/');
-
-                let reason = if trimmed.is_empty() {
-                    Some(CollisionReason::EmptyPath)
-                } else {
-                    let path = opts.install_dir.join(&rel);
-                    match std::fs::symlink_metadata(&path) {
-                        Ok(md) if md.is_dir() && !is_dir => Some(CollisionReason::DirectoryOnDisk),
-                        Ok(md) if !md.is_dir() && is_dir => Some(CollisionReason::FileOnDisk),
-                        _ => None,
+            let entries: Vec<ManifestEntry> = manifest
+                .files
+                .iter()
+                .map(|file| ManifestEntry {
+                    path: file.normalized_path(),
+                    flags: file.flags,
+                    size: file.size,
+                    chunk_count: file.chunks.len(),
+                })
+                .collect();
+            let existing_paths: Vec<ExistingPath> = entries
+                .iter()
+                .filter_map(|entry| {
+                    let relative = entry.path.trim_matches('/');
+                    if relative.is_empty() {
+                        return None;
                     }
-                };
-
-                if let Some(reason) = reason {
-                    collisions.push(ManifestCollision {
-                        depot_id: plan.depot_id,
-                        path: rel,
-                        flags: f.flags,
-                        size: f.size,
-                        chunk_count: f.chunks.len(),
-                        reason,
-                    });
-                }
-            }
+                    std::fs::symlink_metadata(opts.install_dir.join(&entry.path))
+                        .ok()
+                        .map(|metadata| ExistingPath {
+                            path: entry.path.clone(),
+                            kind: if metadata.is_dir() {
+                                ExistingPathKind::Directory
+                            } else {
+                                ExistingPathKind::File
+                            },
+                        })
+                })
+                .collect();
+            let limits = PlanningLimits {
+                max_manifest_entries: entries.len(),
+                max_existing_paths: existing_paths.len(),
+                max_path_bytes: entries
+                    .iter()
+                    .map(|entry| entry.path.len())
+                    .chain(existing_paths.iter().map(|entry| entry.path.len()))
+                    .max()
+                    .unwrap_or(0),
+                max_collisions: entries.len(),
+                ..PlanningLimits::default()
+            };
+            collisions.extend(
+                plan_manifest_application(plan.depot_id, &entries, &existing_paths, limits)?
+                    .collisions,
+            );
         }
 
         Ok(collisions)
@@ -649,14 +670,12 @@ impl Default for SteamDepotDownloader {
 /// existant. Résultat : `Is a directory (os error 21)`, sans nom de chemin, qui
 /// avorte le depot **entier** dès la première entrée. Diagnostiqué par
 /// [`SteamDepotDownloader::audit_manifest`].
-pub const STEAM_FLAG_DIRECTORY: u32 = 64;
+pub use crate::planning::STEAM_FLAG_DIRECTORY;
 
 /// Vrai si l'entrée de manifest décrit un répertoire (cf. [`STEAM_FLAG_DIRECTORY`]).
 ///
 /// À préférer à `DepotFileFlags::is_directory()`, qui teste le bit `2`.
-pub fn is_manifest_directory(flags: u32) -> bool {
-    flags & STEAM_FLAG_DIRECTORY != 0
-}
+pub use crate::planning::is_manifest_directory;
 
 // ─── Plan interne ─────────────────────────────────────────────────────────────
 

@@ -1,0 +1,106 @@
+/**
+ * Le routage de nie : l'entrée courante vit dans le CHEMIN, pas dans un paramètre.
+ *
+ * ## Pourquoi ce changement
+ *
+ * L'entrée vivait dans `?vue=textures`. Le serveur, lui, annonçait depuis le début quatre URL
+ * distinctes — `/textures`, `/modeles`, `/sons`, `/videos` — avec pour chacune son `<title>`,
+ * sa description, son canonique et son entrée au plan du site. Les deux ne se rencontraient
+ * jamais : `https://nie.aphrody.com/textures` servait les métadonnées des textures et affichait
+ * l'accueil. Quatre URL indexées, un seul contenu rendu, et aucun message d'erreur nulle part.
+ *
+ * Un paramètre de requête n'est de toute façon pas une page distincte pour un moteur, et il ne
+ * se traduit pas : `/ja/textures` doit désigner la version japonaise du catalogue de textures.
+ *
+ * ## La compatibilité `?vue=` a été retirée
+ *
+ * Elle datait de la forme précédente du routage et n'a jamais servi qu'à elle : le site n'est
+ * pas encore public sous cette adresse, aucun lien `?vue=` n'existe hors du dépôt, et la
+ * réécriture qui l'accompagnait ajoutait un effet de bord à chaque rendu de l'application pour
+ * un cas qui ne se produit pas. Une URL inconnue mène à l'accueil, comme n'importe quelle autre.
+ */
+
+/** Les préfixes de langue servis par `nie-site`. Le français est à la racine, sans préfixe. */
+export const LANGUAGE_PREFIXES = ["/en", "/ja"] as const;
+
+/** La langue que sert un préfixe : `""` est le français. */
+export function localeFromPrefix(prefix: string): "fr" | "en" | "ja" {
+	if (prefix === "/en") return "en";
+	if (prefix === "/ja") return "ja";
+	return "fr";
+}
+
+/** Le préfixe qui sert une langue — l'inverse de [`localeFromPrefix`]. */
+export function prefixForLocale(locale: "fr" | "en" | "ja"): string {
+	return locale === "fr" ? "" : `/${locale}`;
+}
+
+/** Ce qu'un chemin dit de la langue et de la route. */
+export interface SplitPath {
+	/** `""` pour le français, `/en` ou `/ja` sinon. */
+	prefix: string;
+	/** La route sans son préfixe de langue, commençant toujours par `/`. */
+	route: string;
+}
+
+/**
+ * Sépare un chemin en préfixe de langue et route nue.
+ *
+ * La comparaison porte sur le SEGMENT entier : sans cela, `/enemy` serait lu comme de l'anglais
+ * et sa route tronquée à `emy`.
+ */
+export function splitLanguagePrefix(path: string): SplitPath {
+	for (const prefix of LANGUAGE_PREFIXES) {
+		if (path === prefix) {
+			return { prefix, route: "/" };
+		}
+		if (path.startsWith(`${prefix}/`)) {
+			return { prefix, route: path.slice(prefix.length) };
+		}
+	}
+	return { prefix: "", route: path === "" ? "/" : path };
+}
+
+/**
+ * L'accueil — le menu principal — n'est pas une entrée comme les autres : il vit à la RACINE.
+ *
+ * Le jeton existe pour que l'état de l'application ait toujours une valeur, y compris sur `/`.
+ * Sans lui, l'accueil serait `null`, et chaque lecture devrait décider ce que `null` veut dire
+ * — ce qui finit toujours par diverger d'un endroit à l'autre.
+ */
+export const HOME = "home";
+
+/**
+ * Le chemin canonique d'une entrée, dans la langue courante.
+ *
+ * L'accueil rend `/` (ou `/ja`) et non `/accueil` : le menu principal EST la racine du site, et
+ * lui donner un second chemin dédoublerait la page d'accueil aux yeux d'un moteur.
+ */
+export function pathForEntry(prefix: string, entry: string): string {
+	if (entry === HOME) return prefix || "/";
+	return `${prefix}/${entry}`;
+}
+
+/**
+ * L'entrée demandée par l'URL courante, ou `null` si l'URL n'en désigne aucune.
+ *
+ * Deux sources, dans cet ordre : le chemin (la forme canonique), puis l'attribut `data-route`
+ * posé par le serveur — qui a déjà fait la séparation, et fait autorité si le chemin a été
+ * réécrit par un proxy.
+ */
+export function requestedEntry(
+	entries: readonly string[],
+	location: { pathname: string },
+	serverRoute?: string | null
+): string | null {
+	const candidates = [
+		splitLanguagePrefix(location.pathname).route.replace(/^\//, ""),
+		(serverRoute ?? "").replace(/^\//, ""),
+	];
+	for (const candidate of candidates) {
+		if (candidate && entries.includes(candidate)) {
+			return candidate;
+		}
+	}
+	return null;
+}

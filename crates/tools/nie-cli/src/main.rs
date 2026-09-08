@@ -2,6 +2,25 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+mod output;
+pub use output::CapturedCommand;
+
+// The CLI is also an in-process library for the native MCP server. These
+// macros preserve normal terminal output while allowing one command running
+// on its dedicated CLI thread to capture its complete response without ever
+// redirecting the process-wide stdout used by MCP JSON-RPC.
+macro_rules! println {
+    () => {{ $crate::output::write_stdout(format_args!(""), true) }};
+    ($($arg:tt)*) => {{ $crate::output::write_stdout(format_args!($($arg)*), true) }};
+}
+macro_rules! eprint {
+    ($($arg:tt)*) => {{ $crate::output::write_stderr(format_args!($($arg)*), false) }};
+}
+macro_rules! eprintln {
+    () => {{ $crate::output::write_stderr(format_args!(""), true) }};
+    ($($arg:tt)*) => {{ $crate::output::write_stderr(format_args!($($arg)*), true) }};
+}
+
 mod avatar_cmd;
 mod decode_cmd;
 mod icons_cmd;
@@ -9,10 +28,12 @@ mod img_cmd;
 mod lua_audit_cmd;
 mod lua_cmd;
 mod lua_run_cmd;
+mod mcp;
 mod mem_lua;
 mod menu_predecode;
 mod mod_cmd;
 mod mode_index;
+mod mode_presentation;
 mod render_cmd;
 mod search_cmd;
 mod seed_ui;
@@ -53,6 +74,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Start the native Model Context Protocol server on stdio.
+    Mcp,
     /// Probe non-destructively the native `nie.exe` or Ghidra Computer Use surface.
     #[command(name = "computer-use")]
     ComputerUse {
@@ -1250,6 +1273,9 @@ enum WikiOp {
         json: bool,
         #[arg(long, env = "NIE_WIKI_DB")]
         db: Option<std::path::PathBuf>,
+        /// Root containing the canonical main, passive and aura skill corpora.
+        #[arg(long, env = "DATA_ROOT")]
+        data_root: Option<std::path::PathBuf>,
     },
     /// Profil d'un item / objet.
     Item {
@@ -1268,6 +1294,9 @@ enum WikiOp {
         json: bool,
         #[arg(long, env = "NIE_WIKI_DB")]
         db: Option<std::path::PathBuf>,
+        /// Root containing `all-gamedata/teams.json`.
+        #[arg(long, env = "DATA_ROOT")]
+        data_root: Option<std::path::PathBuf>,
     },
     /// Compare deux personnages côte à côte (stats interpolées, moveset, diff).
     Compare {
@@ -1282,6 +1311,8 @@ enum WikiOp {
         json: bool,
         #[arg(long, env = "NIE_WIKI_DB")]
         db: Option<std::path::PathBuf>,
+        #[arg(long, env = "DATA_ROOT", default_value = "data")]
+        data_root: std::path::PathBuf,
     },
     /// Recherche multi-tables (characters / skills / items / teams / auras / keshins / souls).
     Search {
@@ -1342,12 +1373,14 @@ enum WikiOp {
         #[arg(long, env = "NIE_WIKI_DB")]
         db: Option<std::path::PathBuf>,
     },
-    /// Diagnostic du miroir SQLite + ping Redis db0/db3.
+    /// Diagnostic du miroir SQLite, Redis, dépôt et processus.
     Status {
         #[arg(long, short = 'j')]
         json: bool,
         #[arg(long, env = "NIE_WIKI_DB")]
         db: Option<std::path::PathBuf>,
+        #[arg(long, env = "REDIS_URL", default_value = "redis://127.0.0.1:6379/0")]
+        redis_url: String,
     },
     /// Commande Redis simple (get / set / del) sur db0 par défaut.
     Redis {
@@ -1369,18 +1402,26 @@ enum WikiOp {
         json: bool,
         #[arg(long, env = "NIE_WIKI_DB")]
         db: Option<std::path::PathBuf>,
+        /// Root containing `all-gamedata/skills.json`.
+        #[arg(long, env = "DATA_ROOT")]
+        data_root: Option<std::path::PathBuf>,
     },
-    /// Recherche dans les sous-titres / dialogues de `inagle_event_subtitles`.
+    /// Recherche dans le corpus narratif canonique.
     Dialogue {
         /// Texte à rechercher (FR / EN / JA).
+        #[arg(default_value = "")]
         query: String,
+        /// Filtre par nom ou identifiant du locuteur.
+        #[arg(long, short = 's')]
+        speaker: Option<String>,
         /// Nombre de résultats max (défaut 10).
         #[arg(long, short = 'n', default_value = "10")]
         limit: usize,
         #[arg(long, short = 'j')]
         json: bool,
-        #[arg(long, env = "NIE_WIKI_DB")]
-        db: Option<std::path::PathBuf>,
+        /// Racine contenant `all-gamedata/story_text_database.json`.
+        #[arg(long, env = "DATA_ROOT")]
+        data_root: Option<std::path::PathBuf>,
     },
 }
 
@@ -1433,118 +1474,49 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             }
         }
 
-        WikiOp::Skill { query: q, json, db } => {
-            let conn = mirror::open(db.as_deref())?;
-
-            // Essai par ID exact d'abord
-            let mut skill = query::get_skill(&conn, &q)?;
-
-            if skill.is_none() {
-                let matches = query::search_skills(&conn, &q)?;
-                if matches.is_empty() {
-                    if json {
-                        println!("[]");
-                    } else {
-                        println!("Aucune technique trouvee pour : \"{}\"", q);
-                    }
-                    return Ok(());
-                }
-                if matches.len() > 1 && !json {
-                    println!("Plusieurs techniques correspondent a \"{}\" :", q);
-                    for m in &matches {
-                        println!(
-                            "  - {} / {} (ID: {})",
-                            m.name_fr.as_deref().unwrap_or("N/A"),
-                            m.name_en.as_deref().unwrap_or("N/A"),
-                            m.id,
-                        );
-                    }
-                    return Ok(());
-                }
-                skill = matches.into_iter().next();
-            }
-
-            let sk = skill.ok_or_else(|| anyhow::anyhow!("skill introuvable"))?;
+        WikiOp::Skill {
+            query: q,
+            json,
+            db: _,
+            data_root,
+        } => {
+            let data_root = data_root
+                .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
+                .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
+            let result = query::lookup_skill_legacy(&data_root, &q)?;
             if json {
-                println!("{}", serde_json::to_string_pretty(&sk)?);
+                println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
-                println!("{}", render::render_skill_profile(&sk));
+                println!("{}", render::render_skill_value(&result, &q));
             }
         }
 
         WikiOp::Item { query: q, json, db } => {
             let conn = mirror::open(db.as_deref())?;
-
-            let mut item = query::get_item(&conn, &q)?;
-
-            if item.is_none() {
-                let matches = query::search_items(&conn, &q)?;
-                if matches.is_empty() {
-                    if json {
-                        println!("[]");
-                    } else {
-                        println!("Aucun item trouve pour : \"{}\"", q);
-                    }
-                    return Ok(());
-                }
-                if matches.len() > 1 && !json {
-                    println!("Plusieurs items correspondent a \"{}\" :", q);
-                    for m in &matches {
-                        println!(
-                            "  - {} / {} (ID: {})",
-                            m.name_fr.as_deref().unwrap_or("N/A"),
-                            m.name_en.as_deref().unwrap_or("N/A"),
-                            m.id,
-                        );
-                    }
-                    return Ok(());
-                }
-                item = matches.into_iter().next();
-            }
-
-            let it = item.ok_or_else(|| anyhow::anyhow!("item introuvable"))?;
+            let result = query::lookup_item_legacy(&conn, &q)?;
             if json {
-                println!("{}", serde_json::to_string_pretty(&it)?);
+                println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
-                println!("{}", render::render_item_profile(&it));
+                println!("{}", render::render_item_value(&result, &q));
             }
         }
 
-        WikiOp::Team { query: q, json, db } => {
+        WikiOp::Team {
+            query: q,
+            json,
+            db,
+            data_root,
+        } => {
             let conn = mirror::open(db.as_deref())?;
-
-            let mut team = query::get_team(&conn, &q)?;
-
-            if team.is_none() {
-                let matches = query::search_teams(&conn, &q)?;
-                if matches.is_empty() {
-                    if json {
-                        println!("[]");
-                    } else {
-                        println!("Aucune equipe trouvee pour : \"{}\"", q);
-                    }
-                    return Ok(());
-                }
-                if matches.len() > 1 && !json {
-                    println!("Plusieurs equipes correspondent a \"{}\" :", q);
-                    for m in &matches {
-                        println!(
-                            "  - {} / {} (ID: {})",
-                            m.name_fr.as_deref().unwrap_or("N/A"),
-                            m.name_en.as_deref().unwrap_or("N/A"),
-                            m.id,
-                        );
-                    }
-                    return Ok(());
-                }
-                team = matches.into_iter().next();
-            }
-
-            let t = team.ok_or_else(|| anyhow::anyhow!("equipe introuvable"))?;
+            let data_root = data_root
+                .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
+                .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
+            let corpus = data_root.join("all-gamedata/teams.json");
+            let result = query::lookup_team_legacy(&conn, &corpus, &q)?;
             if json {
-                println!("{}", serde_json::to_string_pretty(&t)?);
+                println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
-                println!("{}", render::render_team_profile(&t));
+                println!("{}", render::render_team_value(&result, &q));
             }
         }
 
@@ -1555,6 +1527,7 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             level,
             json,
             db,
+            data_root,
         } => {
             anyhow::ensure!(
                 (1..=99).contains(&level),
@@ -1562,7 +1535,7 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
                 level
             );
             let conn = mirror::open(db.as_deref())?;
-            let result = query::compare_characters(&conn, &chara1, &chara2, level)?;
+            let result = query::compare_characters(&conn, &data_root, &chara1, &chara2, level)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
@@ -1673,9 +1646,14 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             }
         }
 
-        WikiOp::Status { json, db } => {
-            let conn = mirror::open(db.as_deref())?;
-            let report = query::status_report(&conn)?;
+        WikiOp::Status {
+            json,
+            db,
+            redis_url,
+        } => {
+            let db_path = mirror::resolve(db.as_deref())?;
+            let conn = mirror::open(Some(&db_path))?;
+            let report = query::status_report(&conn, &db_path, &redis_url)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&report)?);
             } else {
@@ -1692,25 +1670,33 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
         } => {
             let result = query::redis_cmd(&redis_url, &cmd, &key, val.as_deref())?;
             if json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&serde_json::json!({
-                        "cmd": cmd,
-                        "key": key,
-                        "value": result,
-                    }))?
-                );
+                let output = if cmd.eq_ignore_ascii_case("get") {
+                    serde_json::json!({ "key": key, "value": result })
+                } else {
+                    serde_json::json!({ "success": true, "key": key })
+                };
+                println!("{}", serde_json::to_string_pretty(&output)?);
             } else {
-                match &result {
-                    None => println!("(nil)"),
-                    Some(v) => println!("{}", v),
+                match cmd.to_ascii_lowercase().as_str() {
+                    "get" => println!("{}", serde_json::to_string_pretty(&result)?),
+                    "set" => println!("Clé Redis {key} mise à jour avec succès."),
+                    "del" => println!("Clé Redis {key} supprimée avec succès."),
+                    _ => unreachable!("redis_cmd validates the operation"),
                 }
             }
         }
 
-        WikiOp::Audit { json, db } => {
+        WikiOp::Audit {
+            json,
+            db,
+            data_root,
+        } => {
             let conn = mirror::open(db.as_deref())?;
-            let report = query::audit_mirror(&conn)?;
+            let data_root = data_root
+                .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
+                .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
+            let skills = data_root.join("all-gamedata/skills.json");
+            let report = query::audit_mirror(&conn, &skills)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&report)?);
             } else {
@@ -1720,15 +1706,16 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
 
         WikiOp::Dialogue {
             query: q,
+            speaker,
             limit,
             json,
-            db,
+            data_root,
         } => {
-            if q.trim().is_empty() {
-                anyhow::bail!("terme de recherche vide");
-            }
-            let conn = mirror::open(db.as_deref())?;
-            let matches = query::search_dialogues(&conn, &q, limit)?;
+            let data_root = data_root
+                .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
+                .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
+            let database = data_root.join("all-gamedata/story_text_database.json");
+            let matches = query::search_dialogues(&database, &q, speaker.as_deref(), limit)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&matches)?);
             } else {
@@ -1918,10 +1905,31 @@ fn racine_jeu(arg: Option<PathBuf>) -> PathBuf {
 /// plus déroutante, puisque `target/debug/niers.exe` est le binaire qu'on explore au quotidien.
 const PILE_CLI: usize = 64 * 1024 * 1024;
 
-fn main() -> anyhow::Result<()> {
+/// Run the `niers` command-line entry point.
+pub fn main_entry() -> anyhow::Result<()> {
     std::thread::Builder::new()
         .stack_size(PILE_CLI)
         .spawn(run)?
+        .join()
+        .map_err(|_| anyhow::anyhow!("la commande a paniqué"))?
+}
+
+/// Run the CLI with an explicit argument vector.
+///
+/// This is used by thin native bindings such as the standalone `nie-mcp`
+/// executable while keeping command parsing and dispatch in one library.
+pub fn main_entry_with<I, T>(args: I) -> anyhow::Result<()>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString>,
+{
+    let args = args.into_iter().map(Into::into).collect::<Vec<_>>();
+    std::thread::Builder::new()
+        .stack_size(PILE_CLI)
+        .spawn(move || {
+            let cli = Cli::try_parse_from(args)?;
+            dispatch(cli)
+        })?
         .join()
         .map_err(|_| anyhow::anyhow!("la commande a paniqué"))?
 }
@@ -1933,9 +1941,20 @@ fn run() -> anyhow::Result<()> {
             tracing_subscriber::EnvFilter::from_default_env()
                 .add_directive(tracing::Level::WARN.into()),
         )
-        .init();
+        .try_init()
+        .ok();
     let cli = Cli::parse();
+    dispatch(cli)
+}
+
+fn dispatch(cli: Cli) -> anyhow::Result<()> {
     match cli.cmd {
+        Cmd::Mcp => {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()?;
+            runtime.block_on(mcp::serve_stdio())
+        }
         Cmd::ComputerUse {
             surface,
             executable,
@@ -2412,6 +2431,50 @@ fn run() -> anyhow::Result<()> {
             let vfs = open_vfs(game_dir)?;
             video_cmd::run(&op, &vfs)
         }
+    }
+}
+
+/// Execute one CLI command in process and capture its terminal output.
+///
+/// The command runs on the same 64 MiB stack as the standalone binary. The
+/// returned JSON-friendly record is the shared adapter used by every MCP tool;
+/// no child process, shell, Bun runtime, or FFI boundary is involved.
+#[must_use]
+pub fn execute_captured(command: String, args: Vec<String>) -> CapturedCommand {
+    if args.len() > 128 {
+        return CapturedCommand::failed("too many CLI arguments (maximum 128)");
+    }
+    if let Some(argument) = args
+        .iter()
+        .find(|argument| argument.len() > 16 * 1024 || argument.contains('\0'))
+    {
+        return CapturedCommand::failed(format!(
+            "invalid CLI argument ({} bytes; maximum 16384 and NUL is forbidden)",
+            argument.len()
+        ));
+    }
+    let thread = std::thread::Builder::new()
+        .name(format!("niers-cli-{command}"))
+        .stack_size(PILE_CLI)
+        .spawn(move || {
+            output::capture(|| {
+                let argv = std::iter::once("niers".to_owned())
+                    .chain(std::iter::once(command))
+                    .chain(args)
+                    .collect::<Vec<_>>();
+                let result = Cli::try_parse_from(argv)
+                    .map_err(anyhow::Error::from)
+                    .and_then(dispatch);
+                result.map_err(|error| format!("{error:#}"))
+            })
+        });
+
+    match thread {
+        Ok(handle) => match handle.join() {
+            Ok((result, captured)) => CapturedCommand::from_result(result, captured),
+            Err(_) => CapturedCommand::failed("the CLI command panicked"),
+        },
+        Err(error) => CapturedCommand::failed(format!("failed to start CLI thread: {error}")),
     }
 }
 

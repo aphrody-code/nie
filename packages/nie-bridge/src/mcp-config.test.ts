@@ -1,22 +1,22 @@
 import { expect, test } from "bun:test";
-import { MCP_ENTRYPOINT, MCP_SERVER_NAME, mcpConfigFragment, mcpServerEntry } from "./mcp-config.ts";
+import { MCP_SERVER_NAME, mcpConfigFragment, mcpServerEntry } from "./mcp-config.ts";
 
 test("sans racine, le chemin reste relatif — forme versionnable du .mcp.json", () => {
   const entry = mcpServerEntry();
-  expect(entry.command).toBe("bun");
-  expect(entry.args).toEqual(["run", MCP_ENTRYPOINT]);
+  expect(entry.command).toBe("cargo");
+  expect(entry.args).toEqual(["run", "--quiet", "--package", "nie-mcp", "--"]);
   expect(entry.env).toEqual({});
 });
 
 test("avec une racine Windows, le chemin est absolu et séparé par des antislashs", () => {
   const entry = mcpServerEntry({ repoRoot: "C:\\Jeux\\IEVR" });
-  expect(entry.args[1]).toBe("C:\\Jeux\\IEVR\\apps\\nie-mcp\\src\\index.ts");
+  expect(entry.args.slice(2, 4)).toEqual(["--manifest-path", "C:\\Jeux\\IEVR\\Cargo.toml"]);
   expect(entry.env["NIERS_REPO"]).toBe("C:\\Jeux\\IEVR");
 });
 
 test("avec une racine POSIX, le séparateur reste la barre oblique", () => {
   const entry = mcpServerEntry({ repoRoot: "/home/ubuntu/niers/" });
-  expect(entry.args[1]).toBe("/home/ubuntu/niers/apps/nie-mcp/src/index.ts");
+  expect(entry.args.slice(2, 4)).toEqual(["--manifest-path", "/home/ubuntu/niers/Cargo.toml"]);
 });
 
 test("le dossier du jeu passe par l'environnement, et seulement s'il est renseigné", () => {

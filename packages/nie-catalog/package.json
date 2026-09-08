@@ -9,15 +9,18 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./sources": "./src/sources.ts",
+		"./excerpt": "./src/excerpt.ts",
 		"./extrait": "./src/extrait.ts",
 		"./re": "./src/re.ts",
+		"./game": "./src/game.ts",
 		"./jeu": "./src/jeu.ts",
 		"./anime": "./src/anime.ts",
+		"./synergy": "./src/synergy.ts",
 		"./synergie": "./src/synergie.ts"
 	},
 	"scripts": {
 		"typecheck": "bunx tsc --noEmit",
-		"test": "bun test"
+		"test": "bun test --timeout 20000"
 	},
 	"devDependencies": {
 		"typescript": "catalog:",

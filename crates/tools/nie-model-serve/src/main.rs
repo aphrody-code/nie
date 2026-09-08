@@ -68,16 +68,17 @@ use nie_formats::assemble::{
     resolve_crc_to_g4md_path, texture_role_from_name, type_idx_to_glb_name,
 };
 
-mod catalogue;
-use catalogue::{CharaModelCatalog, CharacterPartsCatalog, ResolvedPart};
 use nie_formats::cfgbin;
 #[cfg(test)]
 use nie_formats::cri_audio::{Awb, is_hca};
 use nie_formats::g4tx::parse as parse_g4tx;
 use nie_formats::g4tx_decode;
 use nie_formats::vfs::Vfs;
+use nie_model_serve::catalog::{
+    CatalogLimits, CharaModelCatalog, CharacterPartsCatalog, ResolvedPart,
+};
 
-mod menu;
+use nie_model_serve::menu;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
@@ -426,7 +427,17 @@ impl State {
             warn!("chara_parts absent ou illisible dans le VFS : assemblage modulaire désactivé");
             return CharacterPartsCatalog::default();
         };
-        let catalog = CharacterPartsCatalog::from_entries(&cfg.entries, &path);
+        let catalog = match CharacterPartsCatalog::from_entries_bounded(
+            &cfg.entries,
+            &path,
+            &CatalogLimits::default(),
+        ) {
+            Ok(catalog) => catalog,
+            Err(error) => {
+                warn!("chara_parts rejeté par les limites de catalogue : {error}");
+                return CharacterPartsCatalog::default();
+            }
+        };
         info!(
             "chara_parts : {} tenues, {} chaussures, {} gants ({path})",
             catalog.clothes.len(),
@@ -443,7 +454,17 @@ impl State {
             warn!("chara_model absent ou illisible dans le VFS : squelette et visage devinés");
             return CharaModelCatalog::default();
         };
-        let catalog = CharaModelCatalog::from_entries(&cfg.entries, &path);
+        let catalog = match CharaModelCatalog::from_entries_bounded(
+            &cfg.entries,
+            &path,
+            &CatalogLimits::default(),
+        ) {
+            Ok(catalog) => catalog,
+            Err(error) => {
+                warn!("chara_model rejeté par les limites de catalogue : {error}");
+                return CharaModelCatalog::default();
+            }
+        };
         info!(
             "chara_model : {} fiches, {} corps ({path})",
             catalog.by_code.len(),

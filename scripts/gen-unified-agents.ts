@@ -67,7 +67,7 @@ const unifiedAgentsContent = `# UNIFIED-AGENTS.md — Single Authority & Operati
 
 ### 3.2 Polyglot Architecture
 - **Rust (\`crates/\`):** The primary CLI (\`niers\`), GUI core, WebAssembly, formats, rendering, and RE.
-- **Bun/TypeScript (\`packages/\`, \`apps/\`):** \`packages/inacord-ui\` shared UI, MCP server (\`apps/nie-mcp\`), web serving (\`apps/nie-web\`), and pipelines.
+- **Bun/TypeScript (\`packages/\`, \`apps/\`):** \`packages/inacord-ui\` shared UI, the Inacord WebSocket client contract (\`packages/nie-bridge\`), web serving (\`apps/nie-web\`), and pipelines. The MCP server is native Rust (\`crates/tools/nie-mcp\`).
 - **Rust (\`crates/\`):** Maintained format parsers, game runtime, RE tooling, and the \`niers\` CLI.
 - **Historical IECODE:** C++/.NET sources are maintained only in their dedicated historical repositories; they are not build inputs here.
 

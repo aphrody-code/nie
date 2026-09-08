@@ -41,8 +41,8 @@ export {
 
 // --- L'ecran de menu principal : ses formes, et le rendu d'un layout exporte ---------------
 //
-// Les formes (`ecran-menu`) sont posees par l'appelant en coordonnees du canevas ; le layout
-// (`layout-jeu` + `layout-render`) vient du jeu et n'est jamais reecrit a la main. Les deux se
+// Les formes (`menu-screen`) sont posees par l'appelant en coordonnees du canevas ; le layout
+// (`game-layout` + `layout-render`) vient du jeu et n'est jamais reecrit a la main. Les deux se
 // montent dans le MEME `GameCanvas`, donc dans le meme repere.
 export {
 	Banniere,
@@ -57,9 +57,9 @@ export {
 	NoticeCard,
 	RibbonBand,
 	TileStrip,
-} from "./shell/ecran-menu";
+} from "./shell/menu-screen";
 // La geometrie de l'ecran, MESUREE sur une capture du jeu (`scripts/validation/
-// mesurer-mainmenu.py`). Elle est exportee parce que l'appelant pose les positions : sans elle,
+// measure-mainmenu.py`). Elle est exportee parce que l'appelant pose les positions : sans elle,
 // il les reinventerait, et c'est exactement ce qui a produit un ecran ou tout etait a peu pres
 // au bon endroit sans qu'un seul nombre soit rattachable a une mesure.
 export {
@@ -73,7 +73,7 @@ export {
 	largeurTuile,
 	PENTE_PANNEAU,
 	PENTE_TUILE,
-} from "./shell/geometrie-mainmenu";
+} from "./shell/main-menu-geometry";
 export {
 	auCentreParDefaut,
 	type BilanLayout,
@@ -95,7 +95,7 @@ export {
 	tailleObjet,
 	texteNu,
 	type TransformLayout,
-} from "./shell/layout-jeu";
+} from "./shell/game-layout";
 export {
 	GameCanvas,
 	LayoutRender,

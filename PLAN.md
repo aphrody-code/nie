@@ -1,5 +1,253 @@
 # PLAN — une semaine de bout en bout, du 2026-09-05 au 2026-09-11
 
+## 2026-09-08 amendment — multi-host NIERS plugin
+
+`plugins/niers-plugin` and its checked-in `.agents/plugins/niers-plugin` runtime mirror now use
+the shared 17 skills and the portable native Rust `niers-game` declaration across Codex, Claude
+Code, and Antigravity CLI (`agy`). The three host adapters are `.codex-plugin/plugin.json`,
+`.claude-plugin/plugin.json`, and root `plugin.json`; Claude's local marketplace and `agy`'s
+`mcp_config.json` are retained alongside Codex's `.mcp.json`.
+
+Next measurable action: validate the plugin source and mirror after each manifest or skill change
+and run `bun test packages/mcp/test/plugin.test.ts`.
+
+## Amendement du 2026-09-07 — migration MCP Bun → Rust native clôturée
+
+Le serveur `niers-game` est désormais fourni par `crates/tools/nie-mcp` et par `niers mcp`, sur
+le SDK officiel Rust `rmcp` épinglé au commit déjà validé par `aphrody-mcp`. Sa surface mesurée
+compte **56 outils** : **40 `cli_*`**, soit une liaison in-process pour chacune des 40 commandes
+de premier niveau de `niers` autres que `mcp`, et les **16 noms compatibles** de l’ancien serveur
+Bun. Le test du routeur compare maintenant les outils à l’inventaire Clap réel, au lieu de ne
+vérifier qu’un nombre récité.
+
+La CLI est devenue une cible de bibliothèque à dispatch partagé ; son binaire terminal est une
+liaison mince. La capture stdout/stderr est locale au thread, bornée à 8 Mio et ne redirige
+jamais le stdout global réservé à JSON-RPC. Les opérations bloquantes passent par les workers
+Tokio. Les outils RE ouvrent `NIERS_SQLITE` en lecture seule, valident `Statement::readonly`,
+bornent les résultats et sérialisent les adresses en hexadécimal. Le pont Inacord est lui aussi
+Rust natif : WebSocket limité à `127.0.0.1:8791/bridge`, handshake versionné, une connexion à la
+fois et délai de 5 secondes. `packages/nie-bridge` ne conserve que le contrat et le client
+WebView ; son serveur `Bun.serve`, l’application `apps/nie-mcp`, le SDK TypeScript et Zod ont été
+retirés de ce chemin d’exécution.
+
+Les configurations `.mcp.json`, `.codex/config.toml`, les deux configurations du plugin et
+l’installateur MCP d’Inacord lancent Cargo/`nie-mcp`. La spécification opératoire est
+[`docs/MCP.md`](docs/MCP.md). Mesures rejouées depuis `/home/ubuntu/niers` le 2026-09-07 : tests
+MCP de `nie-cli` **7 passés / 0 échec**, smoke stdio natif **1 passé / 0 échec** (initialisation,
+56 outils, appels succès/erreur, stdout propre), deux clippy stricts à **0 avertissement**,
+`cargo check --workspace --tests` vert sur **41 paquets / 315 cibles déclarées**, contrôle Cargo
+indépendant d’Inacord vert, tests du contrat `nie-bridge` **6 passés / 0 échec**, tests plugin MCP
+**12 passés / 0 échec**, et typecheck Bun **26/26 workspaces**. Les trois probes réels de
+`@niers/catalog` dépassent le délai Bun implicite de 5 secondes ; son script fixe désormais le
+délai à 20 secondes et passe **51 tests / 0 échec / 102 assertions**. La suite racine
+`bun run test` est verte. `docs:check` examine
+**336 Markdown / 235 liens** et retrouve
+son unique lien cassé préexistant dans `docs/re/README.md` vers le corpus absent
+`data/re/00-index/README.md`.
+
+## Amendement du 2026-09-07 — raccordement Rust → site/WebAssembly lancé
+
+Le raccordement n'est plus évalué au nombre de fichiers : `bun run measure:rust-web`, fondé sur
+`cargo metadata --format-version 1`, mesure les fermetures de dépendances du workspace. Sur les
+**41 packages Rust**, `nie-site` en atteint **13**, `nie-wasm` **31**, et leur union **36** ; il
+reste **1 bibliothèque hôte** (`nie-cli`) et **4 bindings/binaires** (`nie-ffi`, `nie-game`,
+`nie-mcp`, `nie-play`) qui ne doivent pas être ajoutés artificiellement au graphe Wasm. Le
+workspace déclare **315 targets** (38 bibliothèques, 28 `bin`, 92 exemples, 156 tests et 1
+benchmark), mesurés dans ce checkout le 2026-09-07 ; l'ancien total de 98 était
+périmé.
+
+Le catalogue structurel des modes de menu vit désormais dans `nie-explore::menu_modes` : la CLI
+et `/api/v1/modes` consomment les mêmes slugs, préfixes VFS, hashes et indicateurs officiels,
+tandis que leurs textes historiques restent dans leurs adaptateurs de présentation. Les gates
+rejouées le 2026-09-07 donnent **2/2** tests de catalogue, **3/3** tests CLI de compatibilité,
+et `cargo check --offline -p nie-site --tests` vert. La prochaine extraction utile reste le
+compilateur de layout asset-agnostique de `nie-game`, pas les bindings hôte.
+
+Le build de `apps/nie-web` reconstruit maintenant `nie-wasm` en release, exécute
+`wasm-bindgen --target web`, publie le module WebAssembly et précompresse le résultat. Le pont du
+navigateur relaie les entrées continues du match et expose l'état Rust complet : 22 joueurs,
+ballon, score, possession, joueur contrôlé et horloge. Le framebuffer de **3 686 400 octets** est
+lu directement dans la mémoire Wasm, avec **0 octet divergent** face à l'ancien chemin copié.
+`WasmCamera`, `vfs_content_summary`, `binary_triage_json`, `assemble_x64`,
+`pe_byte_diff_json`, `forge_lift_x64_json`, `minidump_summary_json`,
+`ievr_pe_inspect_json`, `pdata_inspect_json`, `aob_scan_json`, `zukan_rank_json`,
+`format_catalog_validate_json`, `steam_select_depots_json`, `crc32_benchmark_sample_json`,
+`offline_image_inspect_json`, `knowledge_search_json`, `headless_inspect_json`,
+`editor_add_object_json`, `WasmEditorSession`, `character_parts_catalog_json`,
+`chara_model_catalog_json`, `menu_static_layer_json`, `WasmTaskPlan` et `WasmFrontier`
+raccordent respectivement `nie-camera`, `nie-explore`, `aphrody-re`, `nie-asm`, `nie-pe`,
+`nie-forge`, `nie-dump`, `ievr-tools`, `nie-re`, `nie-trace`, `nie-zukan`, `nie-seed`,
+`nie-steam`, `nie-bench`, `nie-computer-use`, `nie-index`, `nie-headless`, `nie-editor`,
+`nie-model-serve`, `nie-tasks` et `nie-queue`, avec validation des états dégénérés, limites
+explicites et sorties JSON bornées. `menu_static_layer_json` relie exactement un OBJBIN, un
+G4PKM et un G4TX à sa transform statique native ; l'acquisition VFS reste asynchrone côté
+navigateur et le driver C++/Lua n'est pas prétendu portable. Côté site,
+`/api/v1/save/roster` réutilise désormais `nie-save` pour normaliser les
+identifiants de personnages sans changer son contrat HTTP, tandis que `/api/v1/chara` délègue
+ses filtres, facettes, tris et sa pagination à `nie-wiki`. `nie-lua` dispose parallèlement d'un
+driver typé de **25 callbacks** avec budget d'instructions et rapports comptés. La construction
+du scénario standard (layers, items, puis `PreStep`/`Step`/`PostStep`) vit elle aussi dans cette
+bibliothèque : `nie-game` la consomme désormais au lieu d'en garder une copie dans son binaire.
+Gates rejouées dans `/home/ubuntu/niers` les 2026-09-07 et 2026-09-08 : `nie-wasm` **59 passés / 0 échec**,
+`nie-lua` **110 passés / 0 échec / 1 ignoré**, `nie-game` **7 unitaires + 16 intégration
+passés / 0 échec / 2 ignorés**, les clippy ciblés natifs/wasm à **0 avertissement**, tests Web
+**67 passés / 0 échec / 236 assertions**, `nie-wiki` **15 passés / 0 échec**, `nie-site`
+**344 passés / 0 échec / 1 ignoré** et typecheck `nie-web` à **0 erreur**.
+`bun run --filter nie-web build`
+compile **176 modules**, écrit **8 fichiers** précompressés et réduit **2 458,1 Kio → 523,9
+Kio** avec Brotli. Le dernier artefact Wasm pèse **3 796 921 octets** et son SHA-256 vaut
+`40cea238e5618937cf01ca215a7353970eeb2c28ce73d51a8f3be4f6d3f6a892`. Son ABI générée a été
+instanciée dans Bun et les appels réels AOB, G4TX, RDBN, benchmark, image hors-ligne, index,
+édition avec undo, Zukan, Steam, tâche et file mémoire passent ; les catalogues invalides et une
+entrée PE invalide sont rejetés comme prévu. Après correction du filtre VFS, le driver réel charge le seul script
+`main_menu` pertinent et compte **105 événements demandés / 102 dispatchés / 102 réussis**, sans
+erreur de callback. Les trois non-dispatchés (`PreStep`, `Step`, `PostStep`) ne sont pas définis
+par ce script ; les 34×3 callbacks présents réussissent tous. Le chunk exclu
+`victory_road_main_menu_0.00.00.00.lua.bin` mesure 71 octets et ne contient qu'un `RETURN`.
+
+Le layout `mainmenu01` embarqué par le navigateur est à présent l'export du driver runtime
+réel : **30 objets, 22 visibles, 21 sprites, 19 textes affichables, 13 textures, 7 positions
+par défaut et 2 ancrages hors canevas**. `lireLayout` normalise les valeurs scalaires de
+`SetText` et `SetObjectNum`; `MenuPrincipal` monte le calque VFS avec `LayoutRender` sous les
+contrôles accessibles du site. C'est un raccordement mesuré, pas une déclaration de
+pixel-perfect : les 7 positions et les interactions C++/Lua non exportées restent explicitement
+hors preuve.
+
+Le lot de nommage privé migre les dossiers et fichiers Web en anglais sans modifier les stems du
+VFS (`mainmenu01`, `loading01`). Les layouts vivent sous `src/layouts/` — `src/data/` aurait été
+avalé par `.gitignore`. Les payloads sont désormais sous `/static/game/`, les icônes sous
+`/static/icon*`, et `nie-site` garde des alias de lecture pour `/static/jeu/*`,
+`/static/icone*` et les anciens chemins racine. Les routes françaises et DTO déjà publics ne
+sont pas renommés dans ce lot : ils nécessitent leurs propres alias de compatibilité.
+
+La surface historique d'Azalée Tools est maintenant bornée avant absorption : le programme
+Commander expose **24 commandes de premier niveau**, `data` porte **7 sous-commandes**, et le
+serveur headless déclare **41 routes**. La commande
+`bun run --filter @niers/azalee-tools test`, rejouée dans `/home/ubuntu/niers` le 2026-09-07,
+donne **197 passés / 0 échec / 5 ignorés** et son typecheck ciblé donne **0 erreur**. Ces nombres
+restent l'oracle de compatibilité, pas une preuve d'absorption. Le ledger exécutable
+`docs/inacord-unification.json`, vérifié par `bun run measure:inacord-unification`, correspond
+exactement aux **24/24 commandes** : **0 complète, 13 partielles et 11 ouvertes**. Les 13
+partielles ont déjà une bibliothèque `nie-wiki` et un binding `niers wiki`, mais il leur manque
+encore un test de parité croisé ; le serveur natif les rend aussi accessibles par
+`nie-mcp cli_wiki`. Le premier probe réel, `compare 'Mark Evans' 'Axel Blaze' --level 50
+--json` sur `var/miroir/inagle-2026-09-07T10-17-52.sqlite`, confirme que ce binding n'est pas
+encore compatible. Après alignement du contrat JSON, des codes position/élément, de la courbe
+partielle (`lv30` absent ⇒ interpolation directe `lv1 → lv99`), de la déduplication des variantes
+et de la résolution JSON des skills, le premier passage de
+`bun run measure:azalee-compare-parity` était descendu de **125 à 44 chemins divergents**. La
+gate finale ferme ces derniers écarts comme décrit ci-dessous. Elle ne publie que les chemins,
+jamais les valeurs du jeu, et le ledger exige une gate explicitement `passing` à **0 différence**
+avant `complete`.
+`db` est la première ligne fermée : `bun run measure:azalee-db-parity` compare **4 requêtes**
+(schéma, CTE avec `NULL`/entier/texte, PRAGMA) entre Azalée, `niers wiki db` et
+`nie-mcp cli_wiki`, avec **0 différence** ; les **3/3 surfaces** rejettent aussi un CTE de
+mutation. Le port vérifie
+désormais `rusqlite::Statement::readonly` après préparation — y compris pour les CTE et PRAGMA —
+et `nie-wiki` passe **6 tests / 0 échec** avec clippy strict à **0 avertissement**. `--check` reste rouge par
+construction pour les 23 autres commandes et l'ancien outil reste disponible jusqu'à fermeture
+mesurée de chaque ligne. Le ledger compte désormais **1 complète, 12 partielles et 11 ouvertes**.
+`redis` est la deuxième ligne fermée : `bun run measure:azalee-redis-parity`, exécuté contre
+Redis local `redis://127.0.0.1:6379/0` le 2026-09-07, réalise **14 comparaisons** entre Azalée,
+`niers wiki redis` et `nie-mcp cli_wiki` avec **0 différence**. Les objets, tableaux, chaînes,
+valeurs absentes et réponses `set`/`get`/`del` gardent les mêmes types ; **3 contrôles TTL**
+confirment l'expiration de 3 600 secondes. La gate utilise une clé unique et compte **0 clé
+temporaire restante** après son `finally`. Le ledger compte donc **2 complètes, 11 partielles et
+11 ouvertes** ; `--check` reste rouge par construction pour les 22 commandes restantes.
+`dialogue` est la troisième ligne fermée. L'ancien binding Rust interrogeait à tort
+`inagle_event_subtitles`, qui ne porte ni `dialogueId` ni locuteur ; la bibliothèque lit désormais
+le même `all-gamedata/story_text_database.json` que l'oracle Azalée. La commande Rust ajoute le
+filtre `--speaker` par nom ou identifiant et conserve l'ordre du corpus. La gate
+`bun run measure:azalee-dialogue-parity`, rejouée dans `/home/ubuntu/niers` le 2026-09-07,
+compare **4 probes / 7 répliques** via Azalée, `niers wiki dialogue` et `nie-mcp cli_wiki` avec
+**0 sortie divergente**. Le ledger compte maintenant **3 complètes, 10 partielles et 11
+ouvertes** ; `--check` reste rouge pour les 21 commandes restantes.
+`audit` est la quatrième ligne fermée. Le port précédent auditait sept tables de publication,
+mais ce n'était pas le contrat Azalée : l'oracle contrôle les personnages enrichis et le corpus
+complet des techniques. `nie_wiki::query::audit_mirror` combine désormais les colonnes
+normalisées du miroir avec `all-gamedata/skills.json`. La gate
+`bun run measure:azalee-audit-parity`, exécutée sur le snapshot
+`var/miroir/inagle-2026-09-07T10-17-52.sqlite` et le corpus local le 2026-09-07, audite
+**6 166 personnages / 2 697 techniques** et trouve **0 sortie divergente** entre Azalée, CLI
+Rust et MCP. Le ledger atteint **4 complètes, 9 partielles et 11 ouvertes** ; `--check` reste
+rouge pour les 20 commandes restantes. Le probe de `search` a parallèlement établi que son port
+actuel n'est pas compatible : l'oracle classe par uFuzzy les objets enrichis BASARA, personnages,
+techniques, objets, auras et passives, alors que Rust fait encore des `LIKE` SQLite. Cette ligne
+reste explicitement partielle jusqu'à extraction du moteur et de ses données complètes.
+`item` est la cinquième ligne fermée. Un premier probe a rejeté
+`all-gamedata/items.json`, car ce fichier précède l'enrichissement des descriptions et de certains
+noms ; le payload `inagle_items.data` contient en revanche l'objet exact rendu par Azalée.
+`nie_wiki::query::lookup_item_legacy` centralise désormais la résolution par identifiant, la
+recherche localisée, la sélection unique et la liste ambiguë bornée. La gate
+`bun run measure:azalee-item-parity`, rejouée sur le même snapshot le 2026-09-07, couvre
+**4 branches / 17 objets** et mesure **0 sortie divergente** sur Azalée, CLI Rust et MCP. Le
+ledger compte **5 complètes, 8 partielles et 11 ouvertes** ; `--check` reste rouge pour les 19
+commandes restantes. `test-variants` reste ouverte sur preuve contraire : l'oracle traite
+**5 399 personnages de base**, avec **5 251 réussites / 148 échecs**, tandis qu'un regroupement
+du miroir de publication ne produit que **5 269 groupes** et ne peut donc pas remplacer ses
+mappings de construction.
+`team` est la sixième ligne fermée. Le miroir contient les traductions enrichies finales mais pas
+l'ordre de `createTeamsAPI`, tandis que `all-gamedata/teams.json` conserve cet ordre mais précède
+deux corrections de libellés observées dans le probe `Raimon`. La bibliothèque effectue donc une
+jointure explicite : ordre des `teamId` du corpus, payload final de `inagle_teams.data`. La gate
+`bun run measure:azalee-team-parity`, rejouée sur le même snapshot et le corpus local le
+2026-09-07, couvre **4 branches / 7 résultats** avec **0 sortie divergente** entre Azalée, CLI
+Rust et MCP. Le ledger compte **6 complètes, 7 partielles et 11 ouvertes** ; `--check` reste
+rouge pour les 18 commandes restantes.
+`skill` est la septième ligne fermée. `nie_wiki::query::lookup_skill_legacy` possède désormais
+la priorité historique — technique principale, passive, aura — puis la recherche bornée à cinq
+techniques et cinq auras, avec `skillType` ajouté uniquement aux résultats de recherche. Les trois
+corpus canoniques `skills.json`, `passives.json` et `auras.json` ont été vérifiés contre les objets
+enrichis de l'oracle. La gate `bun run measure:azalee-skill-parity`, rejouée le 2026-09-07,
+couvre **7 branches / 10 résultats** avec **0 sortie divergente** entre Azalée, CLI Rust et MCP.
+Le ledger compte **7 complètes, 6 partielles et 11 ouvertes** ; `--check` reste rouge pour les
+17 commandes restantes.
+`status` est la huitième ligne fermée. Le rapport partagé restitue maintenant les cinq sections
+Azalée (`sqlite`, `redis`, `git`, `process`, `system`) avec le même schéma camelCase et les mêmes
+unités. Le probe Redis historique est conservé en lecture seule (`GET status:ping`) ; l'ancien
+port Rust écrivait à tort `niers:status:ping` dans deux bases. La gate
+`bun run measure:azalee-status-parity`, rejouée sur le même snapshot et Redis local le
+2026-09-07, vérifie les **3 surfaces**, compare exactement les valeurs stables, valide le type et
+l'unité des mesures volatiles, puis observe **0 sortie normalisée divergente / 0 mutation Redis**.
+Le ledger compte **8 complètes, 5 partielles et 11 ouvertes** ; `--check` reste rouge pour les
+16 commandes restantes.
+`random-team` est la neuvième ligne fermée. Le payload Rust ne divulgue plus ses champs internes
+`seed`, `position` et `role`, restitue le `playstyle` du staff et renvoie la formation canonique
+`4-4-2` lorsqu'une valeur inconnue est demandée. Les filtres élément/style appliquent maintenant
+le même ordre de repli préférentiel qu'Azalée, uniquement lorsque le vivier filtré ne suffit pas
+à remplir la ligne. La gate `bun run measure:azalee-random-team-parity`, exécutée sur le snapshot
+du 2026-09-07, couvre **5 scénarios / 15 contrats de surface**, contrôle l'appartenance de chaque
+joueur au vivier SQL attendu et mesure **0 échec de contrat / 0 différence CLI-MCP seédée**.
+L'oracle `Math.random` reste volontairement non seédé : ses tirages sont donc prouvés par les
+invariants et les viviers, pas par une égalité artificielle des identifiants. Le ledger compte
+**9 complètes, 4 partielles et 11 ouvertes** ; `--check` reste rouge pour les 15 commandes
+restantes.
+`compare` est la dixième ligne fermée. Le miroir de publication ne conservait ni les groupes de
+personnages de base par nom canonique, ni l'ordre fusionné des variantes, ni les movesets bruts
+corrigés ; tenter de les déduire de ses lignes expliquait les **44 chemins** restants. La
+bibliothèque Rust reconstruit maintenant ces groupes depuis `chara_base`, `chara_param` et les
+textes localisés, trie les variantes comme l'oracle, filtre techniques fantômes et auras, puis
+joint les stats enrichies du miroir et les détails du corpus canonique des techniques. La gate
+rejouée le 2026-09-07 couvre les niveaux **1, 50 et 99** plus la résolution exacte par ID :
+**4 scénarios / 8 comparaisons Azalée-CLI-MCP / 0 chemin divergent**. Le ledger compte désormais
+**10 complètes, 3 partielles et 11 ouvertes** ; `--check` reste rouge pour les 14 commandes
+restantes.
+La gate globale `bun run docs:check` compte maintenant **336 fichiers Markdown** et **235 liens
+internes**, mais reste rouge sur **1 lien** préexistant dans `docs/re/README.md` vers
+`data/re/00-index/README.md`, absent de ce checkout ; ce fichier n'est pas modifié par ce lot.
+
+La fidélité visuelle reste **INCOMPLÈTE**, mais progresse sur le même oracle de 921 600 pixels.
+La capture `nie-game --menu main_menu --from-setting` comparée à `data/menu/main_menu.png` passe
+de **SSIM 0,5266 à 0,5373** (+0,0107), de **11,49 % à 11,73 %** de pixels exactement identiques,
+et de **ΔE moyen 14,26 à 13,98**. La rangée utilise maintenant sa géométrie mesurée, quatre
+glyphes prouvés de l'atlas VFS et le badge exact `logo_dlc_deluxe_edition.g4tx`. Les autres quatre
+glyphes, le logo central, les panneaux, l'avatar, les actions inférieures et la scène 3D restent
+absents ; la prochaine action mesurable est de relier ces familles à leur construction C++ et à
+la scène 3D. L'oracle VFS prouve que les 7 OBJBIN `mainmenu01_00..05` n'ont
+aucun couple G4PKM/G4TX co-localisé ; le layout marque maintenant séparément les chemins G4PKM
+résolus/manquants et les modèles dont l'identifiant reste runtime. Aucune affirmation
+« pixel-perfect » n'est admise avant une hausse chiffrée.
+
 ## Amendement du 2026-09-07 — absorption IECODE clôturée
 
 Le portage des capacités nécessaires est désormais consommable depuis `niers` :
@@ -491,7 +739,7 @@ relisant le code.
 
 | Qui | Quoi | Gate |
 |---|---|---|
-| Fable | `packages/asset-source` : `contract.ts` (`AssetSource` : vfs, texture, model, avatar, audio, video, wiki + `capabilities`), `types.ts`, `desktop-source.ts` (= `api.ts` renommé), `web-source.ts` (fetch vers `/api/v1` et `/assets`), `url-conventions.ts` (ré-export de `nie-catalog/src/jeu.ts`) · `packages/inacord-ui` : les 124 fichiers sans Tauri + modules purs (`galerie`, `traduction`, `filtrage`, `equipe`, `recherche`, `thumbs`, `cinema`, `sources`), les 22 composants passent par `useAssetSource()` · `git mv apps/nie-explorer apps/inacord`, `productName: "Inacord"`, titre de fenêtre `Inacord`, identifiant **conservé**, tous les chemins (`release-desktop.sh`, `packager-bases-explorer.sh`, `justfile`, hooks, `CLAUDE.md`) · **tout `@rosegriffon/*` et toute mention Rose Griffon sortent** d'`inacord-ui`/`apps/inacord` (départ : 13 fichiers, 23 imports, 19 mentions) — Inacord et nie sont `aphrody-dev`, hors Rose Griffon | `rg -l '@tauri-apps' packages/inacord-ui` → **0** ; `rg -il '@rosegriffon/|rose ?griffon' packages/inacord-ui apps/inacord apps/nie-web` → **0** ; `rg -l 'apps/nie-explorer' --glob '!docs/**' --glob '!*.md'` → **0** ; `bun run typecheck` vert ; `cargo check` dans `apps/inacord/src-tauri` vert ; `bun run --filter inacord build` vert |
+| Fable | `packages/asset-source` : `contract.ts` (`AssetSource` : vfs, texture, model, avatar, audio, video, wiki + `capabilities`), `types.ts`, `desktop-source.ts` (= `api.ts` renommé), `web-source.ts` (fetch vers `/api/v1` et `/assets`), `url-conventions.ts` (ré-export de `nie-catalog/src/game.ts`) · `packages/inacord-ui` : les 124 fichiers sans Tauri + modules purs (`galerie`, `traduction`, `filtrage`, `equipe`, `recherche`, `thumbs`, `cinema`, `sources`), les 22 composants passent par `useAssetSource()` · `git mv apps/nie-explorer apps/inacord`, `productName: "Inacord"`, titre de fenêtre `Inacord`, identifiant **conservé**, tous les chemins (`release-desktop.sh`, `packager-bases-explorer.sh`, `justfile`, hooks, `CLAUDE.md`) · **tout `@rosegriffon/*` et toute mention Rose Griffon sortent** d'`inacord-ui`/`apps/inacord` (départ : 13 fichiers, 23 imports, 19 mentions) — Inacord et nie sont `aphrody-dev`, hors Rose Griffon | `rg -l '@tauri-apps' packages/inacord-ui` → **0** ; `rg -il '@rosegriffon/|rose ?griffon' packages/inacord-ui apps/inacord apps/nie-web` → **0** ; `rg -l 'apps/nie-explorer' --glob '!docs/**' --glob '!*.md'` → **0** ; `bun run typecheck` vert ; `cargo check` dans `apps/inacord/src-tauri` vert ; `bun run --filter inacord build` vert |
 | Codex | sécurité **5–6** : `limit_req`/`limit_conn` et `MemoryMax` sur `nie-model-serve` (**go**), jeton fine-grained pour l'updater GitHub · **brouillon** de la découpe du vhost `aphrody.com` (`nie.aphrody.com` → `:8085` sans CSP nginx ; `aphrody.com www` → 308 vers `nie.` ; `cdn.` → `nie-model-serve` :8790 ; les 4 autres hôtes → `:8084` `bxc-site`, inchangés), `nginx -t` sur une copie, **pas de reload** | `nginx -t` vert sur le brouillon ; `curl -sI` des 10 hôtes archivé comme référence « avant » |
 | Astra | relit le diff d'extraction : cherche un import Tauri résiduel, un chemin `apps/nie-explorer` oublié, un composant hors `useAssetSource` · rejoue `typecheck` seul | ses comptes = ceux de Fable ; sinon `block:` |
 

@@ -100,7 +100,7 @@ fn mem_of(i: &iced_x86::Instruction) -> Option<Mem> {
         // `disp32` explicite : `nie.exe` choisit parfois mod=10 (7 octets)
         // la ou mod=01/disp8 (4 octets) suffirait — mesure sur `lift`,
         // cause `encodage:mov` (1 658 corps sur 1 675).
-        disp32: i.memory_displ_size() == 4 && (disp == 0 || i8::try_from(disp).is_ok()),
+        disp32: matches!(i.memory_displ_size(), 4 | 8) && (disp == 0 || i8::try_from(disp).is_ok()),
         rip: None,
     })
 }
@@ -1044,6 +1044,87 @@ pub struct Blockage {
     pub sample: String,
 }
 
+/// Maximum byte length accepted by [`lift_body_text`].
+///
+/// This keeps browser-facing callers from spending unbounded time or memory on
+/// an arbitrary byte buffer while still covering unusually large functions.
+pub const MAX_LIFT_BODY_BYTES: usize = 64 * 1024;
+
+/// Maximum instruction count accepted by [`lift_body_text`].
+pub const MAX_LIFT_BODY_INSTRUCTIONS: usize = 4_096;
+
+/// A byte-exact function body lifted to the repository assembly dialect.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LiftedBody {
+    /// Number of source bytes represented by the assembly.
+    pub byte_len: usize,
+    /// Number of decoded x86-64 instructions.
+    pub instruction_count: usize,
+    /// One-line source accepted by `nie_asm::parse_line`.
+    pub source: String,
+}
+
+/// Lifts a bounded x86-64 body into byte-exact textual assembly.
+///
+/// The function is pure over its inputs and is suitable for a WebAssembly
+/// binding: it performs no filesystem or database access, caps both bytes and
+/// instructions, and reports the same detailed blocker as [`blocking_detail`].
+/// A successful result is guaranteed to parse and re-encode to `bytes` at
+/// `va`.
+///
+/// # Errors
+///
+/// Returns a [`Blockage`] when the input exceeds a bound, its address range
+/// overflows, an instruction is unsupported, or byte-exact re-encoding fails.
+pub fn lift_body_text(bytes: &[u8], va: u64) -> Result<LiftedBody, Blockage> {
+    if bytes.len() > MAX_LIFT_BODY_BYTES {
+        return Err(Blockage {
+            cause: "limit:bytes".into(),
+            sample: format!(
+                "{} bytes exceeds the {} byte limit",
+                bytes.len(),
+                MAX_LIFT_BODY_BYTES
+            ),
+        });
+    }
+    let last_offset = bytes.len().saturating_sub(1) as u64;
+    if va.checked_add(last_offset).is_none() {
+        return Err(Blockage {
+            cause: "address-overflow".into(),
+            sample: format!("body at {va:#x} spans beyond u64::MAX"),
+        });
+    }
+
+    let mut decoder = Decoder::with_ip(64, bytes, va, DecoderOptions::NONE);
+    let mut instruction_count = 0usize;
+    while decoder.can_decode() {
+        let _ = decoder.decode();
+        instruction_count += 1;
+        if instruction_count > MAX_LIFT_BODY_INSTRUCTIONS {
+            return Err(Blockage {
+                cause: "limit:instructions".into(),
+                sample: format!(
+                    "instruction count exceeds the {} instruction limit",
+                    MAX_LIFT_BODY_INSTRUCTIONS
+                ),
+            });
+        }
+    }
+
+    let instructions = lift_body(bytes, va).ok_or_else(|| {
+        blocking_detail(bytes, va).unwrap_or_else(|| Blockage {
+            cause: "unknown".into(),
+            sample: String::new(),
+        })
+    })?;
+    debug_assert_eq!(instructions.len(), instruction_count);
+    Ok(LiftedBody {
+        byte_len: bytes.len(),
+        instruction_count,
+        source: nie_asm::to_line(&instructions),
+    })
+}
+
 /// Analyse un corps et rend le premier obstacle rencontré, s'il y en a un.
 #[must_use]
 pub fn blocking_detail(bytes: &[u8], va: u64) -> Option<Blockage> {
@@ -1172,6 +1253,45 @@ mod tests {
         );
         // Corps relevable : aucune cause.
         assert_eq!(blocking_reason(&[0xB0, 0x01, 0xC3], 0x140_0000), None);
+    }
+
+    #[test]
+    fn bounded_text_lift_is_byte_exact() {
+        let bytes = [0xB0, 0x01, 0xC3];
+        let lifted = lift_body_text(&bytes, 0x1_4004_d750).expect("liftable body");
+        assert_eq!(lifted.byte_len, bytes.len());
+        assert_eq!(lifted.instruction_count, 2);
+        assert_eq!(lifted.source, "mov al, 0x1 ; ret");
+        let parsed = nie_asm::parse_line(&lifted.source).expect("parse lifted source");
+        assert_eq!(nie_asm::encode_at(&parsed, 0x1_4004_d750), bytes);
+    }
+
+    #[test]
+    fn bounded_text_lift_reports_dialect_blockers() {
+        let blockage = lift_body_text(&[0x66, 0x0F, 0x38, 0xDC, 0xC1, 0xC3], 0x1_4000_0000)
+            .expect_err("aesenc remains outside the assembly dialect");
+        assert_eq!(blockage.cause, "aesenc");
+        assert!(blockage.sample.contains("aesenc"), "{}", blockage.sample);
+    }
+
+    #[test]
+    fn bounded_text_lift_rejects_resource_and_address_overflow() {
+        let too_many_bytes = vec![0x90; MAX_LIFT_BODY_BYTES + 1];
+        assert_eq!(
+            lift_body_text(&too_many_bytes, 0).unwrap_err().cause,
+            "limit:bytes"
+        );
+
+        let too_many_instructions = vec![0x90; MAX_LIFT_BODY_INSTRUCTIONS + 1];
+        assert_eq!(
+            lift_body_text(&too_many_instructions, 0).unwrap_err().cause,
+            "limit:instructions"
+        );
+
+        assert_eq!(
+            lift_body_text(&[0x90, 0xC3], u64::MAX).unwrap_err().cause,
+            "address-overflow"
+        );
     }
 
     /// Corps réels de `nie.exe` : relevés puis ré-encodés à l'identique.

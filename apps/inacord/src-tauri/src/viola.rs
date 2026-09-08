@@ -196,7 +196,13 @@ pub fn viola_dump_start(
             );
         };
 
-        match nie_viola::dump_all(&vfs, &PathBuf::from(sortie), &options, &annuler, &rapporteur) {
+        match nie_viola::dump_all(
+            &vfs,
+            &PathBuf::from(sortie),
+            &options,
+            &annuler,
+            &rapporteur,
+        ) {
             Ok(r) => fin(ViolaDumpDoneDto {
                 run_id: id.clone(),
                 extraits: r.extraits as f64,
@@ -282,9 +288,14 @@ pub fn viola_merge(
             None => nie_formats::vfs::resolve_game_dir(),
         };
         let mut vfs = nie_formats::vfs::Vfs::new();
-        vfs.init(racine.join("data")).map_err(|e| format!("VFS : {e}"))?;
+        vfs.init(racine.join("data"))
+            .map_err(|e| format!("VFS : {e}"))?;
         let resolveur = |chemin: &str| vfs.read(chemin).ok();
-        nie_viola::merge_dirs(&chemins, &sortie, &nie_viola::MergeStrategy::Semantique(&resolveur))?
+        nie_viola::merge_dirs(
+            &chemins,
+            &sortie,
+            &nie_viola::MergeStrategy::Semantique(&resolveur),
+        )?
     } else {
         nie_viola::merge_dirs(&chemins, &sortie, &nie_viola::MergeStrategy::Fichier)?
     };
@@ -312,16 +323,16 @@ pub fn viola_merge(
 /// (CRC32), ce qui est la règle des packs CPK.
 #[tauri::command]
 #[specta::specta]
-pub fn viola_crypto(
-    entree: String,
-    sortie: String,
-    cle: Option<String>,
-) -> Result<f64, String> {
+pub fn viola_crypto(entree: String, sortie: String, cle: Option<String>) -> Result<f64, String> {
     let source = PathBuf::from(entree);
     let cle = match cle.filter(|c| !c.trim().is_empty()) {
         Some(hex) => nie_viola::CriwareKey::depuis_hex(&hex)?,
         None => nie_viola::CriwareKey::DuNom(
-            source.file_name().unwrap_or_default().to_string_lossy().to_string(),
+            source
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
         ),
     };
     nie_viola::crypt_file(&source, &PathBuf::from(sortie), &cle).map(|n| n as f64)
@@ -333,7 +344,10 @@ mod tests {
 
     #[test]
     fn la_plateforme_se_convertit_sans_perte() {
-        assert_eq!(nie_viola::Platform::from(ViolaPlatform::Pc).cpk_list_rel(), "data/cpk_list.cfg.bin");
+        assert_eq!(
+            nie_viola::Platform::from(ViolaPlatform::Pc).cpk_list_rel(),
+            "data/cpk_list.cfg.bin"
+        );
         assert_eq!(
             nie_viola::Platform::from(ViolaPlatform::Switch).cpk_list_rel(),
             "romfs/data/cpk_list.cfg.bin"

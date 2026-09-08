@@ -102,7 +102,7 @@ Write-Host "▸ [1/8] bump version → $Version (workspace Cargo + Bun)…"
 Set-FileRegex 'Cargo.toml' '^version = "[0-9]*\.[0-9]*\.[0-9]*"' "version = `"$Version`"" -Multiline
 Set-FileRegex 'package.json' '"version": "[0-9]*\.[0-9]*\.[0-9]*"' "`"version`": `"$Version`""
 foreach ($f in @(
-        'apps/inacord/package.json', 'apps/nie-mcp/package.json',
+        'apps/inacord/package.json',
         'packages/nie/package.json', 'packages/nie-bridge/package.json',
         'packages/nie-plugin/package.json')) {
     if (Test-Path -LiteralPath $f -PathType Leaf) {
@@ -222,7 +222,7 @@ Write-Host "  taille vérifiée : msi=$msiSize nsis=$nsisSize"
 
 Write-Host "▸ [7/8] commit + tag $Tag + push…"
 & git add Cargo.toml Cargo.lock package.json bun.lock `
-    apps/inacord/package.json apps/nie-mcp/package.json apps/inacord/src-tauri/Cargo.toml `
+    apps/inacord/package.json apps/inacord/src-tauri/Cargo.toml `
     apps/inacord/src-tauri/Cargo.lock apps/inacord/src-tauri/tauri.conf.json `
     packages/nie/package.json packages/nie-bridge/package.json packages/nie-plugin/package.json
 Assert-Exit 'git add'

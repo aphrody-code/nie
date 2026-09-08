@@ -1,6 +1,6 @@
 [package]
 name = "nie-index"
-description = "Base de connaissance sqlite de la boucle RE niers (index du savoir fusionné iecode/inagle + RE de nie.exe)"
+description = "Bounded in-memory and host-backed knowledge indexes for nie.exe reverse engineering"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,11 +10,24 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = ["host"]
+host = [
+    "dep:r2d2",
+    "dep:redis",
+    "dep:rusqlite",
+    "dep:serde_json",
+    "dep:tracing",
+]
+
 [dependencies]
-rusqlite.workspace = true
+rusqlite = { workspace = true, optional = true }
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, optional = true }
 thiserror.workspace = true
-tracing.workspace = true
-r2d2.workspace = true
-redis.workspace = true
+tracing = { workspace = true, optional = true }
+r2d2 = { workspace = true, optional = true }
+redis = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true

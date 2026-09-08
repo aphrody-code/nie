@@ -120,14 +120,15 @@ pub async fn forge_report(root: Option<String>) -> Result<ForgeReportDto, String
     // `cover.json` pèse ~40 Mo : le chargement part sur un thread bloquant pour
     // ne pas figer l'IPC.
     tokio::task::spawn_blocking(move || {
-        let store = nie_forge::ForgeStore::load(&root.join("var").join("forge"))
-            .map_err(|e| format!("recouvrement absent ou illisible ({e}) — lancer `nie-forge split`"))?;
+        let store = nie_forge::ForgeStore::load(&root.join("var").join("forge")).map_err(|e| {
+            format!("recouvrement absent ou illisible ({e}) — lancer `nie-forge split`")
+        })?;
         let registry = nie_forge::Registry::load(&root.join("forge").join("registry.json"))
             .map_err(|e| e.to_string())?;
         let asm = nie_forge::AsmSource::load_dir(&root.join("forge").join("asm"))
             .map_err(|e| e.to_string())?;
-        let mut r = nie_forge::Report::build(&store.cover, &registry, &asm)
-            .map_err(|e| e.to_string())?;
+        let mut r =
+            nie_forge::Report::build(&store.cover, &registry, &asm).map_err(|e| e.to_string())?;
         // Les sections-tables (`.pdata`, `.reloc`) sont **regenerees** par
         // `nie-pe`, pas recopiees : elles comptent comme produites, exactement
         // comme dans `nie-forge report`. Omettre cette etape sous-declarait de
@@ -193,11 +194,12 @@ pub async fn forge_blockers(
     let root = resolve_root(root)?;
     let limit = limit.unwrap_or(30) as usize;
     tokio::task::spawn_blocking(move || {
-        let store = nie_forge::ForgeStore::load(&root.join("var").join("forge"))
-            .map_err(|e| format!("recouvrement absent ou illisible ({e}) — lancer `nie-forge split`"))?;
+        let store = nie_forge::ForgeStore::load(&root.join("var").join("forge")).map_err(|e| {
+            format!("recouvrement absent ou illisible ({e}) — lancer `nie-forge split`")
+        })?;
         let exe = root.join("nie.exe");
-        let bytes = std::fs::read(&exe)
-            .map_err(|e| format!("lecture de {} : {e}", exe.display()))?;
+        let bytes =
+            std::fs::read(&exe).map_err(|e| format!("lecture de {} : {e}", exe.display()))?;
         // L'agregation vit dans `nie-forge`, partagee avec `nie-forge lift` :
         // une boucle recopiee des deux cotes finit par diverger sans que rien
         // ne le signale — c'est exactement ce qui etait arrive a la mesure.

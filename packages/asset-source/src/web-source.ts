@@ -116,7 +116,7 @@ export function creerWebSource({ origine = "" }: OptionsWebSource = {}): AssetSo
 		// s'adresse SANS son `.g4tx` (`.g4tx.png` rend 404), un modèle complet vit sous
 		// `/model-full/`, et l'identifiant d'un AWB se passe en `?id=`, pas `?awb=`.
 		//
-		// D'où le branchement sur `@niers/catalog/jeu` plutôt qu'une reconstruction : ces 69
+		// D'où le branchement sur `@niers/catalog/game` plutôt qu'une reconstruction : ces 69
 		// fonctions portent les règles réelles. Écrites de tête, trois de ces quatre URL
 		// étaient fausses, et un 404 sur ces routes ne se rattache jamais spontanément à
 		// l'URL — on cherche le décodage.

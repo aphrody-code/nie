@@ -1,6 +1,320 @@
 /* @ts-self-types="./nie_wasm.d.ts" */
 
 /**
+ * Browser camera backed by `nie-camera`'s portable `CameraState` and
+ * `CCameraCtrlInterPolate` controller math.
+ */
+export class WasmCamera {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmCameraFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmcamera_free(ptr, 0);
+    }
+    /**
+     * Whether a transition still has time remaining.
+     * @returns {boolean}
+     */
+    get active() {
+        const ret = wasm.wasmcamera_active(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Creates a camera with the verified `nie-camera` default state.
+     */
+    constructor() {
+        const ret = wasm.wasmcamera_new();
+        this.__wbg_ptr = ret;
+        WasmCameraFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Serializes camera state, orbit values, and row-major view/projection matrices.
+     * @param {number} aspect
+     * @returns {string}
+     */
+    state_json(aspect) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmcamera_state_json(this.__wbg_ptr, aspect);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Advances the active transition by `dt` seconds. Invalid or non-positive
+     * deltas are ignored so host clock glitches cannot rewind the controller.
+     * @param {number} dt
+     */
+    step(dt) {
+        wasm.wasmcamera_step(this.__wbg_ptr, dt);
+    }
+    /**
+     * Starts a deterministic transition to a complete camera state.
+     * Fade codes mirror `m_FadeType`: 0 linear, 1 ease-in, 2 ease-out, and all
+     * other observed values (including 6) use the controller's smooth curve.
+     * @param {number} position_x
+     * @param {number} position_y
+     * @param {number} position_z
+     * @param {number} reference_x
+     * @param {number} reference_y
+     * @param {number} reference_z
+     * @param {number} fov_degrees
+     * @param {number} roll_degrees
+     * @param {number} near_clip
+     * @param {number} far_clip
+     * @param {number} duration
+     * @param {number} fade_code
+     */
+    transition_to(position_x, position_y, position_z, reference_x, reference_y, reference_z, fov_degrees, roll_degrees, near_clip, far_clip, duration, fade_code) {
+        const ret = wasm.wasmcamera_transition_to(this.__wbg_ptr, position_x, position_y, position_z, reference_x, reference_y, reference_z, fov_degrees, roll_degrees, near_clip, far_clip, duration, fade_code);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+}
+if (Symbol.dispose) WasmCamera.prototype[Symbol.dispose] = WasmCamera.prototype.free;
+
+/**
+ * Browser-owned scene editing session with bounded undo/redo history.
+ */
+export class WasmEditorSession {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmEditorSessionFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmeditorsession_free(ptr, 0);
+    }
+    /**
+     * Adds a validated JSON scene object and returns its index.
+     * @param {string} object_json
+     * @returns {number}
+     */
+    add_object_json(object_json) {
+        const ptr0 = passStringToWasm0(object_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmeditorsession_add_object_json(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] >>> 0;
+    }
+    /**
+     * Whether a redo state is available.
+     * @returns {boolean}
+     */
+    get can_redo() {
+        const ret = wasm.wasmeditorsession_can_redo(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Whether an undo state is available.
+     * @returns {boolean}
+     */
+    get can_undo() {
+        const ret = wasm.wasmeditorsession_can_undo(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Duplicates the selected object with a finite validated translation.
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @returns {number}
+     */
+    duplicate_selected(x, y, z) {
+        const ret = wasm.wasmeditorsession_duplicate_selected(this.__wbg_ptr, x, y, z);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] >>> 0;
+    }
+    /**
+     * Opens and validates a bounded scene project.
+     * @param {string} project_json
+     */
+    constructor(project_json) {
+        const ptr0 = passStringToWasm0(project_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmeditorsession_new(ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0];
+        WasmEditorSessionFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Serializes the current validated scene project.
+     * @returns {string}
+     */
+    project_json() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmeditorsession_project_json(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Restores the next project state after undo.
+     * @returns {boolean}
+     */
+    redo() {
+        const ret = wasm.wasmeditorsession_redo(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Removes the selected object and returns its JSON representation.
+     * @returns {string}
+     */
+    remove_selected_json() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmeditorsession_remove_selected_json(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Selects an object index, or clears selection when omitted.
+     * @param {number | null} [selected]
+     */
+    select(selected) {
+        const ret = wasm.wasmeditorsession_select(this.__wbg_ptr, isLikeNone(selected) ? Number.MAX_SAFE_INTEGER : (selected) >>> 0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Restores the previous project state.
+     * @returns {boolean}
+     */
+    undo() {
+        const ret = wasm.wasmeditorsession_undo(this.__wbg_ptr);
+        return ret !== 0;
+    }
+}
+if (Symbol.dispose) WasmEditorSession.prototype[Symbol.dispose] = WasmEditorSession.prototype.free;
+
+/**
+ * Browser-owned bounded FIFO frontier backed by `nie-queue`'s portable core.
+ */
+export class WasmFrontier {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmFrontierFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmfrontier_free(ptr, 0);
+    }
+    /**
+     * Creates an empty frontier with explicit non-zero capacities.
+     * @param {number} max_pending
+     * @param {number} max_seen
+     * @param {number} max_batch
+     */
+    constructor(max_pending, max_seen, max_batch) {
+        const ret = wasm.wasmfrontier_new(max_pending, max_seen, max_batch);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0];
+        WasmFrontierFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Pops the oldest pending address while retaining it in deduplication history.
+     * @returns {bigint | undefined}
+     */
+    pop() {
+        const ret = wasm.wasmfrontier_pop(this.__wbg_ptr);
+        return ret[0] === 0 ? undefined : ret[1];
+    }
+    /**
+     * Pushes one address and returns its stable outcome name.
+     * @param {bigint} address
+     * @returns {string}
+     */
+    push(address) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmfrontier_push(this.__wbg_ptr, address);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Clears both pending work and persistent deduplication history.
+     */
+    reset() {
+        wasm.wasmfrontier_reset(this.__wbg_ptr);
+    }
+    /**
+     * Returns a precision-safe JSON snapshot of the pending addresses and counts.
+     * @returns {string}
+     */
+    snapshot_json() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmfrontier_snapshot_json(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+}
+if (Symbol.dispose) WasmFrontier.prototype[Symbol.dispose] = WasmFrontier.prototype.free;
+
+/**
  * Machine à états d'écran interactive, rendue en WebAssembly.
  *
  * Écran-titre → menu → match simulé (`nie-runtime` : physique, 22 joueurs, ballon, buts) → mode
@@ -24,6 +338,39 @@ export class WasmGame {
         wasm.__wbg_wasmgame_free(ptr, 0);
     }
     /**
+     * Whether story mode is waiting for dialogue rows fetched by the browser VFS client.
+     * @returns {boolean}
+     */
+    get awaiting_dialogue() {
+        const ret = wasm.wasmgame_awaiting_dialogue(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Index of the home player controlled by the browser, or `undefined` outside a match.
+     * @returns {number | undefined}
+     */
+    controlled_player() {
+        const ret = wasm.wasmgame_controlled_player(this.__wbg_ptr);
+        return ret === Number.MAX_SAFE_INTEGER ? undefined : ret;
+    }
+    /**
+     * Byte length of the latest shared RGBA8 frame.
+     * @returns {number}
+     */
+    frame_len() {
+        const ret = wasm.wasmgame_frame_len(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Byte offset of the latest shared RGBA8 frame in `WebAssembly.Memory`.
+     * The offset is invalidated by the next call to [`WasmGame::render_frame`].
+     * @returns {number}
+     */
+    frame_ptr() {
+        const ret = wasm.wasmgame_frame_ptr(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * Hauteur du framebuffer (px).
      * @returns {number}
      */
@@ -38,6 +385,19 @@ export class WasmGame {
     get in_match() {
         const ret = wasm.wasmgame_in_match(this.__wbg_ptr);
         return ret !== 0;
+    }
+    /**
+     * Title of a data-backed screen whose rows the browser may now provide.
+     * @returns {string | undefined}
+     */
+    info_title() {
+        const ret = wasm.wasmgame_info_title(this.__wbg_ptr);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
     /**
      * Commande de menu IEVR (CMD_FCS_*, CMD_ENTER, CMD_BACK…). Le mapping clavier/souris/manette
@@ -69,6 +429,35 @@ export class WasmGame {
         return this;
     }
     /**
+     * Supplies real story dialogue resolved by the browser VFS client.
+     * `lines_json` must be a JSON array of strings.
+     * @param {string} event_id
+     * @param {string} lines_json
+     */
+    provide_dialogue(event_id, lines_json) {
+        const ptr0 = passStringToWasm0(event_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(lines_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmgame_provide_dialogue(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Replaces the current information screen with real, already-resolved VFS rows.
+     * `lines_json` must be a JSON array of strings.
+     * @param {string} lines_json
+     */
+    provide_list(lines_json) {
+        const ptr0 = passStringToWasm0(lines_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmgame_provide_list(this.__wbg_ptr, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Rend l'écran courant en framebuffer RGBA8 `W*H*4`.
      * @returns {Uint8Array}
      */
@@ -79,6 +468,13 @@ export class WasmGame {
         return v1;
     }
     /**
+     * Renders into Rust-owned WebAssembly memory without copying pixels into a JS array.
+     * Call [`WasmGame::frame_ptr`] and [`WasmGame::frame_len`] immediately afterwards.
+     */
+    render_frame() {
+        wasm.wasmgame_render_frame(this.__wbg_ptr);
+    }
+    /**
      * Score du match en cours `[domicile, extérieur]` (zéros hors match).
      * @returns {Uint32Array}
      */
@@ -87,6 +483,39 @@ export class WasmGame {
         var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
+    }
+    /**
+     * Sets the held directional/shoot input consumed by the live `nie-runtime` match world.
+     * The call is deliberately harmless outside a match, matching `nie_app::flow::Screen`.
+     * @param {number} dx
+     * @param {number} dy
+     * @param {boolean} shoot
+     */
+    set_match_input(dx, dy, shoot) {
+        wasm.wasmgame_set_match_input(this.__wbg_ptr, dx, dy, shoot);
+    }
+    /**
+     * Serializes the complete portable screen state for browser renderers and diagnostics.
+     * Match snapshots contain the live ball, all 22 players, input, clock, score and ownership.
+     * @returns {string}
+     */
+    state_json() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmgame_state_json(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
     }
     /**
      * Avance le temps de `dt` s : la physique du match tourne quand un match est en cours.
@@ -107,12 +536,195 @@ export class WasmGame {
 if (Symbol.dispose) WasmGame.prototype[Symbol.dispose] = WasmGame.prototype.free;
 
 /**
+ * Browser-owned task lifecycle validated by the portable `nie-tasks` core.
+ */
+export class WasmTaskPlan {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmTaskPlanFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmtaskplan_free(ptr, 0);
+    }
+    /**
+     * Marks the task as completed.
+     */
+    complete() {
+        const ret = wasm.wasmtaskplan_complete(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Confirms that a cancellation request reached a checkpoint.
+     */
+    confirm_canceled() {
+        const ret = wasm.wasmtaskplan_confirm_canceled(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Marks the task as failed.
+     */
+    fail() {
+        const ret = wasm.wasmtaskplan_fail(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Creates a queued task plan with bounded identifiers and labels.
+     * @param {string} id
+     * @param {string} label
+     * @param {bigint} total
+     */
+    constructor(id, label, total) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(label, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmtaskplan_new(ptr0, len0, ptr1, len1, total);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0];
+        WasmTaskPlanFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Pauses a running task at its next cooperative checkpoint.
+     */
+    pause() {
+        const ret = wasm.wasmtaskplan_pause(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Records bounded progress.
+     * @param {bigint} done
+     * @param {bigint} total
+     * @param {string | null} [message]
+     */
+    report(done, total, message) {
+        var ptr0 = isLikeNone(message) ? 0 : passStringToWasm0(message, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmtaskplan_report(this.__wbg_ptr, done, total, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Requests cooperative cancellation.
+     */
+    request_cancel() {
+        const ret = wasm.wasmtaskplan_request_cancel(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Resumes a paused task.
+     */
+    resume() {
+        const ret = wasm.wasmtaskplan_resume(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Serializes the current phase, progress and available controls.
+     * @returns {string}
+     */
+    snapshot_json() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmtaskplan_snapshot_json(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Marks the queued task as running.
+     */
+    start() {
+        const ret = wasm.wasmtaskplan_start(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+}
+if (Symbol.dispose) WasmTaskPlan.prototype[Symbol.dispose] = WasmTaskPlan.prototype.free;
+
+/**
  * Point d'entrée **auto-exécuté à l'instanciation** du module (attribut `start`,
  * best practice wasm-bindgen) : installe le hook de panique sans dépendre d'un
  * appel JS explicite — toute panique reste lisible même si l'hôte oublie l'init.
  */
 export function __wasm_start() {
     wasm.__wasm_start();
+}
+
+/**
+ * Scans uploaded bytes with `nie-trace`'s bounded wildcard AOB engine.
+ * @param {string} pattern
+ * @param {Uint8Array} bytes
+ * @param {number} max_hits
+ * @returns {string}
+ */
+export function aob_scan_json(pattern, bytes, max_hits) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(pattern, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.aob_scan_json(ptr0, len0, ptr1, len1, max_hits);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Assembles bounded x86-64 source with `nie-asm`'s verified MSVC encoding rules.
+ * @param {string} source
+ * @param {bigint} virtual_address
+ * @returns {Uint8Array}
+ */
+export function assemble_x64(source, virtual_address) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.assemble_x64(ptr0, len0, virtual_address);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
 }
 
 /**
@@ -170,6 +782,34 @@ export function aura_lookup(aura_config_json, skill_config_json) {
 }
 
 /**
+ * Inspects PE/ELF bytes with the shared pure-Rust reverse-engineering engine.
+ * The string sample is capped at 256 entries to keep the browser result bounded.
+ * @param {Uint8Array} bytes
+ * @param {number} strings_limit
+ * @returns {string}
+ */
+export function binary_triage_json(bytes, strings_limit) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.binary_triage_json(ptr0, len0, strings_limit);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Calcule le bloc de 7 statistiques d'un personnage à un niveau donné.
  *
  * Combine les tables de croissance réelles IEVR embarquées (`nie-core`,
@@ -209,6 +849,32 @@ export function calculate_stats(main_position, sub_position, growth_pattern, cha
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Décode un `*_menu_setting.cfg.bin` en structure de menu directement consommable.
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function cfgbin_menu_setting_json(bytes) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.cfgbin_menu_setting_json(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
     }
 }
 
@@ -253,6 +919,64 @@ export function cfgbin_typed_json(bytes, filename) {
         const ptr1 = passStringToWasm0(filename, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.cfgbin_typed_json(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Decodes a bounded `chara_model_*.cfg.bin` catalog supplied by the browser.
+ * @param {Uint8Array} bytes
+ * @param {string} source
+ * @returns {string}
+ */
+export function chara_model_catalog_json(bytes, source) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.chara_model_catalog_json(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Decodes a bounded `chara_parts_*.cfg.bin` catalog supplied by the browser.
+ * @param {Uint8Array} bytes
+ * @param {string} source
+ * @returns {string}
+ */
+export function character_parts_catalog_json(bytes, source) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.character_parts_catalog_json(ptr0, len0, ptr1, len1);
         var ptr3 = ret[0];
         var len3 = ret[1];
         if (ret[3]) {
@@ -320,6 +1044,30 @@ export function cpk_parse_entries(cpk_bytes, cpk_filename) {
 }
 
 /**
+ * Produces the bounded deterministic CRC32 sample shared by all benchmark harnesses.
+ * @param {number} byte_length
+ * @returns {string}
+ */
+export function crc32_benchmark_sample_json(byte_length) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ret = wasm.crc32_benchmark_sample_json(byte_length);
+        var ptr1 = ret[0];
+        var len1 = ret[1];
+        if (ret[3]) {
+            ptr1 = 0; len1 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Décompresse un tampon CRILAYLA.
  *
  * Retourne les octets décompressés, ou lève une `Error` JS si le format est invalide.
@@ -372,6 +1120,35 @@ export function detect_format(bytes) {
 }
 
 /**
+ * Adds one validated scene object through the editor's shared bounded session core.
+ * @param {string} project_json
+ * @param {string} object_json
+ * @returns {string}
+ */
+export function editor_add_object_json(project_json, object_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(project_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(object_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.editor_add_object_json(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Encode le score final du match : `minutes * 10000 + secondes`.
  *
  * Expose `nie_core::match_fsm::final_score` (case 7 de `FUN_1412aa4a0`).
@@ -382,6 +1159,59 @@ export function detect_format(bytes) {
 export function final_score(minutes, seconds) {
     const ret = wasm.final_score(minutes, seconds);
     return ret >>> 0;
+}
+
+/**
+ * Lifts a bounded x86-64 body to `nie-forge`'s byte-exact assembly dialect.
+ * @param {Uint8Array} bytes
+ * @param {bigint} virtual_address
+ * @returns {string}
+ */
+export function forge_lift_x64_json(bytes, virtual_address) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.forge_lift_x64_json(ptr0, len0, virtual_address);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Validates and canonicalizes a bounded `iecode`/IEVR format catalog in browser memory.
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function format_catalog_validate_json(bytes) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.format_catalog_validate_json(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
 }
 
 /**
@@ -559,6 +1389,58 @@ export function g4tx_to_png(bytes) {
 }
 
 /**
+ * Returns the detailed bounded format report shared with the `nie-headless` CLI.
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function headless_inspect_json(bytes) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.headless_inspect_json(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Produces a bounded detailed PE report with sections, imports, and named exports.
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function ievr_pe_inspect_json(bytes) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.ievr_pe_inspect_json(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Installe le hook de panique `console_error_panic_hook`.
  *
  * Appeler cette fonction UNE FOIS au démarrage (après `await init()`) pour que
@@ -610,6 +1492,36 @@ export function item_lookup(item_config_json) {
         return getStringFromWasm0(ptr2, len2);
     } finally {
         wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Searches bounded caller-owned `nie.exe` knowledge without SQLite, Redis, or host access.
+ * @param {string} entries_json
+ * @param {string} query
+ * @param {number} max_results
+ * @returns {string}
+ */
+export function knowledge_search_json(entries_json, query, max_results) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(entries_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(query, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.knowledge_search_json(ptr0, len0, ptr1, len1, max_results);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
     }
 }
 
@@ -702,6 +1614,67 @@ export function match_tick(state, is_training, end_counter) {
 }
 
 /**
+ * Composes one static menu layer from raw OBJBIN, G4PKM and G4TX bytes in WebAssembly.
+ * @param {Uint8Array} objbin_bytes
+ * @param {Uint8Array} g4pkm_bytes
+ * @param {Uint8Array} g4tx_bytes
+ * @param {string} g4tx_path
+ * @returns {string}
+ */
+export function menu_static_layer_json(objbin_bytes, g4pkm_bytes, g4tx_bytes, g4tx_path) {
+    let deferred6_0;
+    let deferred6_1;
+    try {
+        const ptr0 = passArray8ToWasm0(objbin_bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(g4pkm_bytes, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArray8ToWasm0(g4tx_bytes, wasm.__wbindgen_malloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(g4tx_path, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.menu_static_layer_json(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+        var ptr5 = ret[0];
+        var len5 = ret[1];
+        if (ret[3]) {
+            ptr5 = 0; len5 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred6_0 = ptr5;
+        deferred6_1 = len5;
+        return getStringFromWasm0(ptr5, len5);
+    } finally {
+        wasm.__wbindgen_free(deferred6_0, deferred6_1, 1);
+    }
+}
+
+/**
+ * Parses uploaded Windows minidump bytes and returns metadata without captured memory.
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function minidump_summary_json(bytes) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.minidump_summary_json(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Assemble une paire G4MD+G4MG (octets bruts) en GLB, in-browser.
  * @param {Uint8Array} g4md
  * @param {Uint8Array} g4mg
@@ -719,6 +1692,35 @@ export function model_to_glb(g4md, g4mg) {
     var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
     return v3;
+}
+
+/**
+ * Resolves and hashes bounded ranges in a caller-supplied linear `nie.exe` image.
+ * @param {Uint8Array} bytes
+ * @param {string} request_json
+ * @returns {string}
+ */
+export function offline_image_inspect_json(bytes, request_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(request_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.offline_image_inspect_json(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
 }
 
 /**
@@ -762,6 +1764,57 @@ export function parse_save_json(bytes, filename) {
         return getStringFromWasm0(ptr3, len3);
     } finally {
         wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Inspects a PE `.pdata` table with exact counters and a bounded root sample.
+ * @param {Uint8Array} bytes
+ * @param {number} max_roots
+ * @returns {string}
+ */
+export function pdata_inspect_json(bytes, max_roots) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.pdata_inspect_json(ptr0, len0, max_roots);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Compares an original and rebuilt executable with `nie-pe`'s byte-exact forge metric.
+ * @param {Uint8Array} reference
+ * @param {Uint8Array} rebuilt
+ * @param {number} max_ranges
+ * @returns {string}
+ */
+export function pe_byte_diff_json(reference, rebuilt, max_ranges) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(reference, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(rebuilt, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.pe_byte_diff_json(ptr0, len0, ptr1, len1, max_ranges);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
     }
 }
 
@@ -832,6 +1885,35 @@ export function skill_lookup(skill_config_json, skill_text_json) {
 }
 
 /**
+ * Selects Steam depots from caller-supplied metadata without credentials or host access.
+ * @param {string} depots_json
+ * @param {string} selection_json
+ * @returns {string}
+ */
+export function steam_select_depots_json(depots_json, selection_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(depots_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(selection_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.steam_select_depots_json(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Parse une table `@UTF` et retourne son contenu sérialisé en JSON.
  *
  * Le JSON a la structure suivante :
@@ -871,6 +1953,64 @@ export function utf_table_json(bytes) {
         return getStringFromWasm0(ptr2, len2);
     } finally {
         wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Describes one VFS entry with `nie-explore`'s shared format dispatcher.
+ *
+ * The JSON result is versioned and always valid, including for unknown input:
+ * `{ "schemaVersion": 1, "path": "...", "recognized": true, "lines": [...] }`.
+ * Parsing stays entirely in WebAssembly; native filesystem search and the instrumented Lua VM
+ * are excluded from this dependency edge.
+ * @param {string} path
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function vfs_content_summary(path, bytes) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(path, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vfs_content_summary(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Ranks official-encyclopedia candidates with the shared deterministic matcher.
+ * @param {string} entry_json
+ * @param {string} candidates_json
+ * @param {number} max_results
+ * @returns {string}
+ */
+export function zukan_rank_json(entry_json, candidates_json, max_results) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(entry_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(candidates_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.zukan_rank_json(ptr0, len0, ptr1, len1, max_results);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
     }
 }
 function __wbg_get_imports() {
@@ -922,9 +2062,21 @@ function __wbg_get_imports() {
     };
 }
 
+const WasmCameraFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmcamera_free(ptr, 1));
+const WasmEditorSessionFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmeditorsession_free(ptr, 1));
+const WasmFrontierFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmfrontier_free(ptr, 1));
 const WasmGameFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmgame_free(ptr, 1));
+const WasmTaskPlanFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmtaskplan_free(ptr, 1));
 
 function getArrayU32FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
@@ -962,6 +2114,10 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
 }
 
 function passArray8ToWasm0(arg, malloc) {
@@ -1123,7 +2279,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (module_or_path === undefined) {
-        throw new Error("nie-wasm: module_or_path requis");
+        module_or_path = new URL(/* @vite-ignore */ 'nie_wasm_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

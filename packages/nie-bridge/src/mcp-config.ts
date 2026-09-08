@@ -9,8 +9,8 @@
 /** Nom sous lequel le serveur apparaît chez les clients MCP. */
 export const MCP_SERVER_NAME = "niers-game";
 
-/** Point d'entrée du serveur, relatif à la racine du repo. */
-export const MCP_ENTRYPOINT = "apps/nie-mcp/src/index.ts";
+/** Manifeste du serveur Rust natif, relatif à la racine du repo. */
+export const MCP_ENTRYPOINT = "Cargo.toml";
 
 /** Entrée `mcpServers[...]` telle qu'attendue par Claude Code et Claude Desktop. */
 export interface McpServerEntry {
@@ -42,14 +42,19 @@ export interface McpEntryOptions {
  */
 export function mcpServerEntry(options: McpEntryOptions = {}): McpServerEntry {
   const root = options.repoRoot?.trim() ?? "";
-  const entry = root === "" ? MCP_ENTRYPOINT : joinPath(root, MCP_ENTRYPOINT);
   const env: Record<string, string> = {};
   if (root !== "") env["NIERS_REPO"] = root;
   if (options.gameDir !== undefined && options.gameDir.trim() !== "") env["NIE_GAME_DIR"] = options.gameDir.trim();
   if (options.aphrodyApiUrl !== undefined && options.aphrodyApiUrl.trim() !== "") {
     env["NIE_APHRODY_API_URL"] = options.aphrodyApiUrl.trim().replace(/\/+$/, "");
   }
-  return { type: "stdio", command: "bun", args: ["run", entry], env };
+  const manifestArgs = root === "" ? [] : ["--manifest-path", joinPath(root, MCP_ENTRYPOINT)];
+  return {
+    type: "stdio",
+    command: "cargo",
+    args: ["run", "--quiet", ...manifestArgs, "--package", "nie-mcp", "--"],
+    env,
+  };
 }
 
 /** Objet complet `{ mcpServers: { "niers-game": … } }`, à fusionner dans une config existante. */

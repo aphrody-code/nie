@@ -15,23 +15,34 @@ workspace = true
 # lancé via l'interop pour inspecter le vrai nie.exe natif. Compile aussi sous Linux (backend Wine).
 name = "nie-mem"
 path = "src/bin/nie-mem.rs"
+required-features = ["host"]
 
 [[bin]]
 # Éditeur mémoire live — lit/écrit le vrai nie.exe via le catalogue dérivé du dump (resolve/get/set/
 # watch/scan/patch). Même cross-compile WSL→Windows que nie-mem ; compile aussi sous Linux (Wine).
 name = "nie-edit"
 path = "src/bin/nie-edit.rs"
+required-features = ["host"]
+
+[[test]]
+name = "self_mem"
+path = "tests/self_mem.rs"
+required-features = ["host"]
+
+[features]
+default = ["host"]
+host = ["dep:libc", "dep:windows-sys"]
 
 [dependencies]
 thiserror.workspace = true
 
 # Backend Linux/Wine : process_vm_readv/writev via libc.
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { workspace = true }
+libc = { workspace = true, optional = true }
 
 # Backend Windows natif : OpenProcess/ReadProcessMemory/Toolhelp32/VirtualQueryEx.
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = [
+windows-sys = { version = "0.59", optional = true, features = [
     "Win32_Foundation",
     "Win32_System_Threading",
     "Win32_System_Memory",

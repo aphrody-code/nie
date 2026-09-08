@@ -41,7 +41,7 @@ Pour éviter les doublons et les contradictions entre agents (Claude, Codex, Ast
 - **[MIGRATION-EXPLORATEUR.md](MIGRATION-EXPLORATEUR.md)** : Unification Inacord / nie via `packages/inacord-ui`.
 - **[FILTRES.md](FILTRES.md)** : Matrice des filtres et navigation du catalogue.
 - **[EXPLOITATION.md](EXPLOITATION.md)** & **[SECURITE-BASCULE.md](SECURITE-BASCULE.md)** : Gestion de la production VPS, services systemd, nginx et remédiation sécurité.
-- **[MCP.md](MCP.md)** : Architecture du serveur MCP natif pur Rust (`rmcp`), couverture intégrale de `nie-cli` et plan de remplacement de `apps/nie-mcp`.
+- **[MCP.md](MCP.md)** : Architecture du serveur MCP natif pur Rust (`rmcp`), ses 56 outils, sa sécurité et ses tests de parité.
 - **[FUSION.md](FUSION.md)** : Justification du monorepo unifié pour l'écosystème Inazuma Eleven.
 
 ---

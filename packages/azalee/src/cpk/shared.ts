@@ -17,7 +17,7 @@
  *   - autre → `/raw/<path>` (bytes décompressés bruts du CPK).
  *
  * ⚠ **Aucune de ces URL n'est écrite ici.** La forme des routes appartient à
- * `@niers/catalog/jeu`, la façade du gisement *jeu* : elle est adossée au serveur qui les sert
+ * `@niers/catalog/game`, la façade du gisement *jeu* : elle est adossée au serveur qui les sert
  * (`crates/tools/nie-model-serve/src/main.rs`) et testée contre lui. Ce module ne fait plus que
  * choisir LAQUELLE s'applique à une extension donnée. Ce qui est produit reste identique au
  * caractère près — `shared.test.ts` compare chaque chaîne à sa forme d'avant, écrite en dur.
@@ -30,7 +30,7 @@ import {
 	urlFichier,
 	urlFilm,
 	urlModeleComplet,
-} from "@niers/catalog/jeu";
+} from "@niers/catalog/game";
 
 /** Une ligne de l'index CPK (forme exposée par l'API/lib). */
 export interface CpkFile {

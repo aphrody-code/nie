@@ -1,19 +1,19 @@
 ---
 name: niers-monorepo
-description: Navigation et conventions du dépôt niers — où vit quoi entre les 34 crates Cargo (forge, engine, tools, archive) et les workspaces Bun (packages/*, apps/*), quelle commande de build ou de test lancer, comment ajouter un crate ou un paquet, et quelles règles s'appliquent avant de committer. À charger avant de créer un fichier, choisir un emplacement, lancer un build ou un test, ou committer dans ce dépôt.
+description: Navigation et conventions du dépôt niers — où vit quoi entre les 41 crates Cargo (forge, engine, tools, archive) et les workspaces Bun (packages/*, apps/*), quelle commande de build ou de test lancer, comment ajouter un crate ou un paquet, et quelles règles s'appliquent avant de committer. À charger avant de créer un fichier, choisir un emplacement, lancer un build ou un test, ou committer dans ce dépôt.
 ---
 
 # Monorepo niers — où vit quoi
 
 Deux arbres cohabitent, avec des règles distinctes.
 
-## Cargo — 34 crates rangées par rôle
+## Cargo — 41 crates rangées par rôle
 
 | Dossier | Rôle | Exemples |
 |---|---|---|
 | `crates/forge/*` | Produire le binaire + échafaudage RE | `nie-pe`, `nie-asm`, `nie-forge`, `nie-re`, `nie-index`, `nie-seed`, `nie-queue`, `nie-trace` |
 | `crates/engine/*` | Le moteur | `nie-core`, `nie-formats`, `nie-data`, `nie-ffi`, `nie-render3d`, `nie-runtime` |
-| `crates/tools/*` | Outillage | `nie-cli`, `nie-wiki`, `nie-steam`, `nie-model-serve`, `nie-tasks` |
+| `crates/tools/*` | Outillage | `nie-cli`, `nie-mcp`, `nie-wiki`, `nie-steam`, `nie-model-serve`, `nie-tasks` |
 | `crates/archive/*` | **Hors build**, référence seule | `nie-engine` |
 
 `apps/inacord/src-tauri` est un package Cargo **volontairement hors du workspace** (table
@@ -27,10 +27,9 @@ exclusions sans relire le commentaire.
 | Paquet | Rôle |
 |---|---|
 | `packages/nie` | Bindings Bun FFI de `libnie_ffi` — la porte d'entrée TS vers les crates Rust |
-| `packages/nie-bridge` | Protocole de contrôle partagé entre le serveur MCP et l'explorateur |
+| `packages/nie-bridge` | Contrat et client WebSocket entre le serveur MCP Rust et Inacord |
 | `packages/nie-plugin` | Plugin Bun d'import des formats de jeu (préchargé par `bunfig.toml`) |
 | `apps/inacord` | Explorateur/éditeur Tauri |
-| `apps/nie-mcp` | Serveur MCP `niers-game` |
 
 Règle d'emplacement : **une bibliothèque va dans `packages/`, une application avec un `bin` va
 dans `apps/`**. `tools/` héberge l'outillage hors workspace Bun (addon Blender Python, ce

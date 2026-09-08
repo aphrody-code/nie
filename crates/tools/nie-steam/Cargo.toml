@@ -10,22 +10,39 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = ["host"]
+host = [
+    "dep:anyhow",
+    "dep:base64",
+    "dep:clap",
+    "dep:dirs-next",
+    "dep:regex",
+    "dep:serde_json",
+    "dep:steamroom",
+    "dep:steamroom-client",
+    "dep:tokio",
+    "dep:tracing",
+    "dep:tracing-subscriber",
+    "dep:zip",
+]
+
 [dependencies]
-steamroom = "0.2"
-steamroom-client = "0.2"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync", "time"] }
+steamroom = { version = "0.2", optional = true }
+steamroom-client = { version = "0.2", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync", "time"], optional = true }
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, optional = true }
 thiserror.workspace = true
-anyhow.workspace = true
-tracing.workspace = true
-regex = "1"
-base64 = "0.22"
+anyhow = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+regex = { version = "1", optional = true }
+base64 = { version = "0.22", optional = true }
 # Nécessaire pour TokenStore (default_path) et decompress_if_zipped (manifest CDN).
-dirs-next = "2"
-zip = "2"
-clap = { version = "4", features = ["derive", "color", "env"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dirs-next = { version = "2", optional = true }
+zip = { version = "2", optional = true }
+clap = { version = "4", features = ["derive", "color", "env"], optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"
@@ -33,3 +50,4 @@ tempfile = "3"
 [[bin]]
 name = "nie-steam"
 path = "src/bin/nie_steam.rs"
+required-features = ["host"]

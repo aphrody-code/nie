@@ -517,7 +517,7 @@ fn cmd_split(paths: &Paths) -> anyhow::Result<()> {
     // corps en deux : le relevé rejette les deux moitiés, et l'accuse ensuite
     // de l'encodeur. Le filtre ne retire que ce que le désassembleur infirme.
     let img = PeImage::parse(std::fs::read(&exe)?)?;
-    let (feuilles, verdict) = nie_forge::bornes::valider(&img, &re.sized);
+    let (feuilles, verdict) = nie_forge::boundaries::valider(&img, &re.sized);
     println!(
         "bornes soumises={} retenues={} coupantes={} indecises={} octets_ecartes={}",
         verdict.soumises,
@@ -535,7 +535,7 @@ fn cmd_split(paths: &Paths) -> anyhow::Result<()> {
         .filter_map(|&(va, len)| u32::try_from(va.checked_sub(base)?).ok().map(|r| (r, len)))
         .collect();
     let brut = nie_pe::Cover::split_with(&img, &feuilles_rva)?;
-    let (inline, bilan) = nie_forge::donnees::detecter(&img, &brut);
+    let (inline, bilan) = nie_forge::data::detecter(&img, &brut);
     println!(
         "donnees_inline unites={} octets={} donnees={} code_libere={} sandwichs={}",
         bilan.unites, bilan.octets, bilan.donnees, bilan.code_libere, bilan.sandwichs,

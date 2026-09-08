@@ -1,19 +1,16 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "niers-marketplace",
+  "description": "NIERS native Rust tools for Claude Code, Codex, and Antigravity.",
   "owner": {
-    "name": "Rose Griffon",
-    "email": "yohanpierre15@gmail.com"
-  },
-  "metadata": {
-    "description": "Marketplace local du dépôt niers",
-    "version": "0.1.0"
+    "name": "Aphrody Dev"
   },
   "plugins": [
     {
       "name": "niers",
       "source": "./niers-plugin",
-      "description": "Outillage Claude Code du projet niers : 6 sous-agents et 15 competences — ancrage terminologique IEVR, navigation du monorepo, formats de fichiers Level-5, forge, VFS et pilotage du jeu.",
-      "category": "development"
+      "category": "developer-tools",
+      "description": "Native Rust tooling for NIERS formats, assets, reverse engineering, Inacord, and MCP."
     }
   ]
 }

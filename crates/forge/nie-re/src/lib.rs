@@ -17,23 +17,41 @@
 //!   Réexport du crate `nie-dump` : le code vit à part pour rester consommable par
 //!   `nie-explorer`, que les dépendances de ce crate-ci (rusqlite via `nie-index`, dépôt
 //!   frère `aphrody`) interdisent de lier.
+//!
+//! With `--no-default-features`, the crate exposes the pure-byte [`pdata`]
+//! parser and the pure [`propagate`] graph on native and WebAssembly targets.
+//! SQLite, dump I/O and the remaining native analysis modules are kept behind
+//! the default `host` feature.
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+#[cfg(feature = "host")]
 pub mod adjacency;
+#[cfg(feature = "host")]
 pub mod anchors;
+#[cfg(feature = "host")]
 pub mod disasm;
+#[cfg(feature = "host")]
 pub use nie_dump as dump;
+#[cfg(feature = "host")]
 pub mod funclua;
+#[cfg(feature = "host")]
 pub mod ghidra_import;
+#[cfg(feature = "host")]
 pub mod indexer;
+#[cfg(feature = "host")]
 pub mod loop_db;
 pub mod pdata;
 pub mod propagate;
+#[cfg(feature = "host")]
 pub mod recover;
+#[cfg(feature = "host")]
 pub mod rtti;
+#[cfg(feature = "host")]
 pub mod strref;
+#[cfg(feature = "host")]
 pub mod vtable;
+#[cfg(feature = "host")]
 pub mod vtable_anon;
 
 /// Version du moteur.

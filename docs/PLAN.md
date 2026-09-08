@@ -39,7 +39,8 @@ Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre
 > `bun run typecheck` = **29/29 workspaces, 0 erreur** ; `bun run test` = **exit 0** ;
 > `bun run docs:check` = **303 Markdown, 213 liens internes, 0 échec**. Les éléments non
 > rejouables ou dépendants d’un service externe restent explicitement `INCOMPLET` jusqu’à leur
-> preuve : oracle logique, driver runtime du menu et comparaison pixel réelle.
+> preuve : oracle logique et driver runtime du menu complet. Une comparaison pixel réelle existe
+> désormais (SSIM **0,5266**, 2026-09-07), mais elle confirme que la composition reste incomplète.
 
 > **Forge mise à jour — 2026-09-07.** Le corpus local est disponible et la reconstruction est
 > vérifiée : `cargo run -q -p nie-forge -- build` = **identical=true**, 33 918 464 octets,
@@ -69,7 +70,7 @@ Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre
 | **Données** | familles `cfg.bin` typées et recalculées au bit | 117 modules, **121 familles routées**, 127 fichiers golden |
 | **Logique** | fonctions de gameplay portées **et** validées byte-exact | **43** validations dans la suite oracle — non rejouées le 2026-08-15 ; le binaire cible n'a pas changé (cf. Forge ci-dessus) donc rien n'indique qu'elles soient tombées, mais elles n'ont pas non plus été reconfirmées cette session |
 | **RE** | fonctions classifiées / nommées | **La KB n'est pas la même d'une machine à l'autre — citer la machine avec le chiffre.** Sur la machine Windows le 2026-08-28, `niers coverage --db var/niers.sqlite` donne **87,63 %** (48 503 / 55 351) et **257 nommées** : cette base-là n'a pas les noms du VPS (table `symbol` vide), elle est à réindexer avant d'en tirer quoi que ce soit. Mesures du VPS ci-dessous. Mesure du 2026-08-10 : 93,36 % (49 280 / 52 783) · 6 429 nommées (12,18 %). **Revérifié 2026-08-15** (`niers rebuild` sur le binaire actuellement installé, byte-identique à celui du 2026-08-10) : **91,22 %** classées (97 006 / 106 340) · 6 429 nommées (**6,05 %**, même compte brut sur un dénominateur qui a grossi — le VPS a transité par un AUTRE build entre le 2026-08-14 soir et le 2026-08-15, cf. `docs/RE.md`, ce qui a pu affecter l'indexation entre-temps) |
-| **Rendu** | Δpixel contre capture de référence | gaté sur le driver de menu runtime |
+| **Rendu** | Δpixel contre capture de référence | **SSIM 0,5266**, ΔE moyen 14,26, 11,49 % de pixels exacts sur 921 600 — baseline locale du 2026-09-07, détails et commandes dans [`mainmenu01-visual-analysis.md`](mainmenu01-visual-analysis.md) ; encore gaté sur la composition runtime complète |
 
 Ces chiffres se régénèrent : `nie-forge report`, `niers vfs stats`, `niers vfs formats --parse`,
 `niers coverage`, `uv run scripts/validate_re.py`. La ligne **Formats** n'avait justement aucune
@@ -206,11 +207,18 @@ les fichiers : il est construit à l'exécution par le menu-manager C++, qui lit
 appelle alors `SetSprite`/`SetText`/`SetIconSprite`.
 
 Ce qui existe déjà : le compositeur f32 de `nie-formats::menu`, l'hôte Lua `nie-lua` avec ses
-commandes mappées, l'arbre d'écrans validé (100 % des ~3 300 layers vérifient
+commandes mappées, un driver typé de **25 callbacks** avec budget d'instructions et rapport
+demandé/dispatché/réussi consommé par `nie-game`, l'arbre d'écrans validé (100 % des ~3 300 layers vérifient
 `layer_id == CRC32(name)`), et les données de texte FR complètes.
 
-Ce qui manque : la boucle de build moteur→Lua. C'est la priorité, parce que tout le visuel du menu
-et le contenu des sous-menus en dépendent.
+`nie-game` consomme désormais ce driver par son chemin de construction et publie les compteurs
+d'événements demandés, dispatchés et réussis. Le VFS réel mesure 105/102/102 événements pour le
+seul script `main_menu` pertinent ; les trois callbacks de frame non dispatchés sont absents du
+script. L'autre basename autrefois inclus est un chunk `victory_road_main_menu` vide de 71 octets,
+désormais exclu par préfixe exact. Ce qui manque est donc la recréation des objets produits par le
+menu-manager. C'est la priorité, parce que tout le visuel du menu et le contenu des sous-menus en
+dépendent. La baseline actuelle, mesurée contre `data/menu/main_menu.png`, est SSIM **0,5266** et
+ne doit pas être présentée comme fidèle.
 
 **Les callbacks ne sont plus devinés** (2026-08-27). `OnInit`, `OnSetupLayer` et `OnOpenLayer`
 existent littéralement dans le binaire, aux côtés de **141 chaînes `On*`** dont 12 sur les layers

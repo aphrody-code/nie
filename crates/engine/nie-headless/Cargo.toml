@@ -10,15 +10,20 @@ rust-version.workspace = true
 [[bin]]
 name = "nie-headless"
 path = "src/main.rs"
+required-features = ["host"]
+
+[features]
+default = ["host"]
+host = ["dep:clap", "dep:nie-core", "dep:nie-data"]
 
 [lints]
 workspace = true
 
 [dependencies]
 nie-formats.workspace = true
-nie-data.workspace = true
-nie-core.workspace = true
-clap.workspace = true
+nie-data = { workspace = true, optional = true }
+nie-core = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true

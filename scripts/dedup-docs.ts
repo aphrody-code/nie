@@ -53,7 +53,7 @@ const llmsContent = `# Azalée — Wiki Inazuma Eleven: Victory Road
 writeFileSync("apps/azalee/public/llms.md", llmsContent, "utf-8");
 writeFileSync("apps/azalee/public/llm.md", `# Redirect to llms.md\n\nSee [llms.md](llms.md) for the complete LLM knowledge map.\n`, "utf-8");
 
-// 4. docs/mainmenu01-analyse-visuelle.md -> streamline by linking to docs/DESIGN.md
+// 4. docs/mainmenu01-visual-analysis.md -> streamline by linking to docs/DESIGN.md
 const mainmenuVisual = `# \`mainmenu01\` — Mesures & Analyse Visuelle
 
 Pour l'implémentation complète du rendu pixel-perfect du moteur, voir [DESIGN.md](DESIGN.md).
@@ -67,10 +67,10 @@ Pour l'implémentation complète du rendu pixel-perfect du moteur, voir [DESIGN.
   - Bleu nuit tuiles (7,7%) : \`#2C497C\` (Oklch 0,409 0,093 261°)
   - Bleu icônes (7,1%) : \`#4B8DD5\` (Oklch 0,633 0,128 252°)
 
-Script d'extraction : \`scripts/validation/mesurer-mainmenu.py\`.
-Valeurs figées dans \`packages/inacord-ui/src/shell/geometrie-mainmenu.ts\`.
+Script d'extraction : \`scripts/validation/measure-mainmenu.py\`.
+Valeurs figées dans \`packages/inacord-ui/src/shell/main-menu-geometry.ts\`.
 `;
-writeFileSync("docs/mainmenu01-analyse-visuelle.md", mainmenuVisual, "utf-8");
+writeFileSync("docs/mainmenu01-visual-analysis.md", mainmenuVisual, "utf-8");
 
 // 5. docs/stack/security.md -> reference docs/SECURITE-BASCULE.md
 const stackSecurity = `# Sécurité et Prérequis d'Exposition

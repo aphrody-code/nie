@@ -38,6 +38,7 @@ workspace = true
 #   `image` et `cridecoder` dans un service web. Ces familles-là sont déléguées à l'amont, et
 #   `/api/v1/formats` le dit au lieu de le promettre.
 nie-formats = { path = "../../engine/nie-formats", features = ["serde"] }
+nie-explore = { path = "../../engine/nie-explore", default-features = false }
 
 # Les 93 familles de donnees du jeu, derriere UNE facade : `nie_data::typed::decode_by_key`,
 # deja partagee par `nie-model-serve` (route `/typed`) et `nie-wasm` (decodage in-browser).
@@ -92,6 +93,15 @@ nie-viola = { path = "../../engine/nie-viola" }
 # garantie qu'AUCUN interpreteur n'est lie dans ce service — cf. `routes::lua`, qui refuse
 # d'exposer l'execution et dont un test verifie que la feature `vm` reste eteinte.
 nie-lua = { path = "../../engine/nie-lua", default-features = false }
+
+# Save character identifiers are parsed by the type that owns their byte representation. The
+# site never receives a save file: `/api/v1/save/roster` only normalizes the identifiers already
+# extracted on the client, then resolves them against the read-only mirror.
+nie-save = { path = "../../engine/nie-save" }
+
+# Character catalogue queries belong to the wiki data library. The HTTP route preserves its
+# existing DTO while delegating filtering, faceting, ordering and pagination to this crate.
+nie-wiki = { path = "../nie-wiki" }
 
 # Serveur HTTP. Seul ajout réel au workspace (cf. docs/stack/dependencies.md) : 0.8.9, jamais
 # 0.8.2 (yanked). Syntaxe de route 0.8 : `{param}` et `{*wildcard}` — l'ancienne PANIQUE.

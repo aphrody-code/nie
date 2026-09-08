@@ -2,14 +2,25 @@
 	"name": "@niers/inacord-ui",
 	"version": "0.1.0",
 	"private": true,
-	"type": "module",
 	"description": "L'interface partagee d'Inacord et de nie. Aucun acces direct a l'hote : tout passe par AssetSource.",
+	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
 		"./source": "./src/source.tsx",
 		"./components/*": "./src/components/*.tsx",
 		"./config/*": "./src/config/*.ts",
 		"./lib/*": "./src/lib/*.ts",
+		"./shell/game-layout": "./src/shell/game-layout.ts",
+		"./shell/game-screens.css": "./src/shell/game-screens.css",
+		"./shell/game-tokens.css": "./src/shell/game-tokens.css",
+		"./shell/inacord": "./src/shell/inacord.tsx",
+		"./shell/layout-render": "./src/shell/layout-render.tsx",
+		"./shell/main-menu": "./src/shell/main-menu.tsx",
+		"./shell/main-menu-geometry": "./src/shell/main-menu-geometry.ts",
+		"./shell/menu-screen": "./src/shell/menu-screen.tsx",
+		"./shell/ecran-menu": "./src/shell/ecran-menu.tsx",
+		"./shell/geometrie-mainmenu": "./src/shell/geometrie-mainmenu.ts",
+		"./shell/layout-jeu": "./src/shell/layout-jeu.ts",
 		"./shell/*": "./src/shell/*"
 	},
 	"scripts": {
@@ -53,8 +64,8 @@
 		"vaul": "catalog:"
 	},
 	"devDependencies": {
+		"@types/bun": "catalog:",
 		"@types/react": "catalog:",
-		"typescript": "catalog:",
-		"@types/bun": "catalog:"
+		"typescript": "catalog:"
 	}
 }

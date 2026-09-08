@@ -12,9 +12,8 @@ use rusqlite::Connection;
 
 use crate::{
     model::{
-        AuditReport, AuditTable, CharaProfile, CompareResult, DialogueMatch, ItemProfile,
-        RandomTeam, RandomTeamPlayer, SearchResult, SkillProfile, StatusReport, TeamBuildEntry,
-        TeamProfile,
+        AuditReport, CharaProfile, CompareResult, DialogueMatch, ItemProfile, RandomTeam,
+        RandomTeamPlayer, SearchResult, SkillProfile, StatusReport, TeamBuildEntry, TeamProfile,
     },
     query::skill_name_by_id,
 };
@@ -297,6 +296,57 @@ pub fn render_skill_profile(skill: &SkillProfile) -> String {
     lines.join("\n")
 }
 
+/// Render enriched skill search output while keeping the CLI binding presentation-free.
+pub fn render_skill_value(skill: &serde_json::Value, query: &str) -> String {
+    if let Some(matches) = skill.as_array() {
+        if matches.is_empty() {
+            return format!("Aucune technique trouvée pour : \"{query}\"");
+        }
+        let mut lines = vec![format!(
+            "Plusieurs techniques correspondent à \"{query}\" :"
+        )];
+        for candidate in matches {
+            let name = candidate
+                .get("displayName")
+                .or_else(|| candidate.get("name_FR"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("N/A");
+            let id = ["skillIDStr", "auraId", "passiveId"]
+                .into_iter()
+                .find_map(|field| candidate.get(field).and_then(serde_json::Value::as_str))
+                .unwrap_or("N/A");
+            let kind = candidate
+                .get("skillType")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("skill");
+            lines.push(format!("  - [{kind}] {name} (ID: {id})"));
+        }
+        return lines.join("\n");
+    }
+
+    let field = |names: &[&str]| {
+        names
+            .iter()
+            .find_map(|name| skill.get(name).and_then(serde_json::Value::as_str))
+            .unwrap_or("N/A")
+    };
+    format!(
+        "{}\nID: {}\nAnglais: {}\nJaponais: {}\nDescription: {}",
+        field(&["displayName", "name_FR"]),
+        field(&[
+            "skillIDStr",
+            "passiveIdStr",
+            "auraIdStr",
+            "skillID",
+            "passiveId",
+            "auraId"
+        ]),
+        field(&["name_EN"]),
+        field(&["name_JA"]),
+        field(&["desc_FR", "desc_EN", "desc_JA"])
+    )
+}
+
 // ─── Item ────────────────────────────────────────────────────────────────────
 
 /// Rendu ASCII d'un profil d'item.
@@ -347,6 +397,47 @@ pub fn render_item_profile(item: &ItemProfile) -> String {
     lines.join("\n")
 }
 
+/// Render the enriched legacy item payload without rebuilding its data in the CLI binding.
+pub fn render_item_value(item: &serde_json::Value, query: &str) -> String {
+    if let Some(matches) = item.as_array() {
+        if matches.is_empty() {
+            return format!("Aucun objet trouvé pour : \"{query}\"");
+        }
+        let mut lines = vec![format!("Plusieurs objets correspondent à \"{query}\" :")];
+        for candidate in matches {
+            lines.push(format!(
+                "  - {} (ID: {})",
+                candidate
+                    .get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("N/A"),
+                candidate
+                    .get("id")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("N/A")
+            ));
+        }
+        return lines.join("\n");
+    }
+
+    let field = |pointer: &str| {
+        item.pointer(pointer)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("N/A")
+    };
+    let description = field("/descriptions/fr");
+    format!(
+        "{}\nID: {}\nAnglais: {}\nJaponais: {}\nCode: {}\nCatégorie: {}\nDescription: {}",
+        field("/names/fr"),
+        field("/itemId"),
+        field("/names/en"),
+        field("/names/ja"),
+        field("/internalCode"),
+        field("/category"),
+        description
+    )
+}
+
 // ─── Team ────────────────────────────────────────────────────────────────────
 
 /// Rendu ASCII d'un profil d'équipe.
@@ -391,6 +482,60 @@ pub fn render_team_profile(team: &TeamProfile) -> String {
 
     lines.push(BOT.to_string());
     lines.join("\n")
+}
+
+/// Render an enriched legacy team payload without moving presentation logic into the CLI.
+pub fn render_team_value(team: &serde_json::Value, query: &str) -> String {
+    if let Some(matches) = team.as_array() {
+        if matches.is_empty() {
+            return format!("Aucune équipe trouvée pour : \"{query}\"");
+        }
+        let mut lines = vec![format!("Plusieurs équipes correspondent à \"{query}\" :")];
+        for candidate in matches {
+            lines.push(format!(
+                "  - {} (ID: {})",
+                candidate
+                    .get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("N/A"),
+                candidate
+                    .get("id")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("N/A")
+            ));
+        }
+        return lines.join("\n");
+    }
+
+    let field = |name: &str| {
+        team.get(name)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("N/A")
+    };
+    let kits = team
+        .get("kits")
+        .and_then(serde_json::Value::as_object)
+        .map(|kits| {
+            kits.values()
+                .filter_map(serde_json::Value::as_str)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let seasons = team
+        .get("seasons")
+        .and_then(serde_json::Value::as_object)
+        .map(|seasons| seasons.keys().map(String::as_str).collect::<Vec<_>>())
+        .unwrap_or_default();
+    format!(
+        "{}\nID: {}\nAnglais: {}\nJaponais: {}\nCode: {}\nUniformes: {}\nSaisons: {}",
+        field("name_FR"),
+        field("teamId"),
+        field("name_EN"),
+        field("name_JA"),
+        field("teamIdStr"),
+        kits.join(", "),
+        seasons.join(", ")
+    )
 }
 
 // ─── Utilitaires ─────────────────────────────────────────────────────────────
@@ -600,54 +745,60 @@ pub fn render_search_results(results: &[SearchResult]) -> String {
 /// Rendu ASCII du rapport de statut.
 pub fn render_status(report: &StatusReport) -> String {
     let mut lines = Vec::new();
-    lines.push("=== Diagnostic niers-wiki ===\n".to_string());
+    lines.push("=== Diagnostic de santé Azalée ===\n".to_string());
 
     lines.push("[SQLite]".to_string());
     if report.sqlite.healthy {
-        lines.push("  Statut     : OK".to_string());
+        lines.push("  Statut     : Disponible".to_string());
         lines.push(format!("  Base       : {}", report.sqlite.path));
-        if let Some(mb) = report.sqlite.size_mb {
-            lines.push(format!("  Taille     : {:.2} MB", mb));
-        }
-        if let Some(t) = report.sqlite.table_count {
-            lines.push(format!("  Tables     : {}", t));
-        }
-        if let Some(n) = report.sqlite.characters {
-            lines.push(format!("  Personnages: {}", n));
-        }
-        if let Some(n) = report.sqlite.skills {
-            lines.push(format!("  Skills     : {}", n));
-        }
-        if let Some(n) = report.sqlite.items {
-            lines.push(format!("  Items      : {}", n));
-        }
-        if let Some(n) = report.sqlite.teams {
-            lines.push(format!("  Equipes    : {}", n));
-        }
+        lines.push(format!("  Taille     : {}", report.sqlite.file_size));
+        lines.push(format!("  Tables     : {}", report.sqlite.tables));
+        lines.push(format!("  Personnages: {}", report.sqlite.character_count));
     } else {
-        lines.push("  Statut     : ERREUR".to_string());
+        lines.push("  Statut     : Hors-ligne / Erreur".to_string());
         if let Some(e) = &report.sqlite.error {
             lines.push(format!("  Erreur     : {}", e));
         }
     }
 
-    for (label, rs) in [
-        ("Redis db0", &report.redis_db0),
-        ("Redis db3", &report.redis_db3),
-    ] {
-        lines.push(format!("\n[{}]", label));
-        if rs.healthy {
-            lines.push("  Statut  : OK".to_string());
-            if let Some(ms) = rs.latency_ms {
-                lines.push(format!("  Latence : {:.2} ms", ms));
-            }
-        } else {
-            lines.push("  Statut  : HORS-LIGNE".to_string());
-            if let Some(e) = &rs.error {
-                lines.push(format!("  Erreur  : {}", e));
-            }
+    lines.push("\n[Redis]".to_string());
+    if report.redis.healthy {
+        lines.push("  Statut     : Disponible".to_string());
+        lines.push(format!("  Latence    : {}", report.redis.latency));
+    } else {
+        lines.push("  Statut     : Hors-ligne / Erreur".to_string());
+        if let Some(e) = &report.redis.error {
+            lines.push(format!("  Erreur     : {}", e));
         }
     }
+
+    lines.push("\n[Git / Version]".to_string());
+    lines.push(format!("  Branche    : {}", report.git.branch));
+    lines.push(format!("  Commit     : {}", report.git.commit));
+    lines.push(format!(
+        "  Propre     : {}",
+        if report.git.clean {
+            "Oui"
+        } else {
+            "Modifications locales en cours"
+        }
+    ));
+
+    lines.push("\n[Processus & Système]".to_string());
+    lines.push(format!("  Uptime CLI : {}", report.process.uptime));
+    lines.push(format!(
+        "  Heap Utilisé: {}",
+        report.process.memory.heap_used
+    ));
+    lines.push(format!("  RSS Process: {}", report.process.memory.rss));
+    lines.push(format!(
+        "  OS Mémoire : {} libres / {} total",
+        report.system.free_memory, report.system.total_memory
+    ));
+    lines.push(format!(
+        "  Plateforme : {} ({})",
+        report.system.platform, report.system.arch
+    ));
 
     lines.join("\n")
 }
@@ -656,31 +807,24 @@ pub fn render_status(report: &StatusReport) -> String {
 
 /// Rendu ASCII du rapport d'audit.
 pub fn render_audit(report: &AuditReport) -> String {
-    let mut lines = Vec::new();
-    lines.push("=== Audit du miroir SQLite ===\n".to_string());
-    lines.push(format!(
-        "{:<15} {:>8}  {:>12}  {:>12}  {:>10}",
-        "Table", "Total", "Sans nom FR", "Sans nom EN", "Null data"
-    ));
-    lines.push("─".repeat(65));
-
-    let fmt_row = |label: &str, t: &AuditTable| -> String {
-        format!(
-            "{:<15} {:>8}  {:>12}  {:>12}  {:>10}",
-            label, t.total, t.missing_name_fr, t.missing_name_en, t.null_data
-        )
-    };
-
-    lines.push(fmt_row("characters", &report.characters));
-    lines.push(fmt_row("skills", &report.skills));
-    lines.push(fmt_row("items", &report.items));
-    lines.push(fmt_row("teams", &report.teams));
-    lines.push(fmt_row("auras", &report.auras));
-    lines.push(fmt_row("keshins", &report.keshins));
-    lines.push(fmt_row("souls", &report.souls));
-    lines.push("─".repeat(65));
-
-    lines.join("\n")
+    format!(
+        "Démarrage de l'audit de base de données...\n\n\
+         Diagnostics Characters :\n\
+         - Total Characters : {}\n\
+         - Sans nom FR/EN   : {}\n\
+         - Sans image       : {}\n\
+         - Sans stats       : {}\n\n\
+         Diagnostics Skills/Techniques :\n\
+         - Total Skills     : {}\n\
+         - Sans nom FR/EN   : {}\n\n\
+         Audit complété avec succès !",
+        report.characters.total,
+        report.characters.missing_name_fr_en,
+        report.characters.missing_image,
+        report.characters.missing_stats,
+        report.skills.total,
+        report.skills.missing_name_fr_en,
+    )
 }
 
 // ─── Dialogue ────────────────────────────────────────────────────────────────
@@ -697,16 +841,23 @@ pub fn render_dialogues(matches: &[DialogueMatch], query: &str) -> String {
     )];
     for m in matches {
         lines.push(format!(
-            "[{}  l.{}] (ep: {})",
-            m.event_id, m.line_index, m.episode
+            "[{}] ({} | {})",
+            m.speaker.as_deref().unwrap_or("inconnu"),
+            m.event_id,
+            m.dialogue_id
         ));
-        if let Some(fr) = &m.text_fr {
-            lines.push(format!("  FR: {}", fr));
+        if let Some(text) = &m.text {
+            if let Some(fr) = &text.fr {
+                lines.push(format!("  FR: {}", fr));
+            }
+            if let Some(en) = &text.en {
+                lines.push(format!("  EN: {}", en));
+            }
+            if let Some(ja) = &text.ja {
+                lines.push(format!("  JA: {}", ja));
+            }
         }
-        if let Some(en) = &m.text_en {
-            lines.push(format!("  EN: {}", en));
-        }
-        lines.push("─".repeat(70));
+        lines.push("─".repeat(80));
     }
     lines.join("\n")
 }

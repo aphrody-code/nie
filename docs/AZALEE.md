@@ -225,9 +225,9 @@ le code ne l'est pas.
 3. **`@rosegriffon/azalee` et `inagle` tirent `@aphrody-code/bxc` et `zukan`**, publiés uniquement
    sur GitHub Packages en privé. Leur téléchargement exige un jeton portant `read:packages` —
    scope que `write:packages` **n'implique pas**.
-4. **`zod` 4** chez `@rosegriffon/*` contre **`zod` 3.25.76** en `catalog:mcp` ici. Les importer dans
-   `apps/nie-mcp` rendrait les schémas d'outils MCP inassignables. `nie-explorer` n'a ni `zod` ni le
-   SDK MCP : c'est le seul point d'entrée sûr.
+4. **`zod` 4** chez `@rosegriffon/*` contre les schémas Rust `schemars` du serveur MCP natif.
+   Le serveur n'importe plus aucun schéma TypeScript ; les types éditoriaux restent donc à la
+   frontière de l'UI, sans contaminer `crates/tools/nie-mcp`.
 5. **`next/image`, `next/link`, `next/navigation`** dans 41 des 60 composants wiki. Les deux
    premiers se remplacent trivialement ; le troisième implique de réécrire la logique de filtres,
    entièrement pilotée par l'URL chez azalée.

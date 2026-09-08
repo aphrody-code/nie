@@ -283,7 +283,7 @@ côté Rust.
 
 **Le pont MCP ignore les onglets.** `getState`/`navigate`/`open` ne connaissent qu'un couple
 préfixe/sélection et visent l'onglet actif ; étendre le protocole toucherait `packages/nie-bridge`
-et `apps/nie-mcp`.
+et le serveur Rust `crates/tools/nie-cli/src/mcp/bridge.rs`.
 
 **Pas de lecture d'animation.** Elle suppose d'écrire un exportateur glTF *skinné* en Rust
 (`skins`, `JOINTS_0`/`WEIGHTS_0`, échantillonnage des canaux G4MT) et un échantillonneur public de

@@ -264,7 +264,7 @@ lecture de `data/menu` sur le même corpus `*_setting.cfg.bin`, sans toucher un 
 | `5679b238` | `crates/engine/nie-game` — audit de tous les réglages de menu en une passe VFS |
 | `78eac842`/`08c6db76` | `crates/engine/nie-ffi` — `decodeMenuSetting()`/`vfs.menuSetting()` exposés à Bun, 13 tests |
 | `c720d9b0` | binding WASM — `cfgbin_menu_setting_json()` |
-| `d05f10e7` | `packages/nie-catalog/src/jeu.ts` — constructeur d'URL canonique `/typed/<...>_menu_setting.cfg.bin.json` |
+| `d05f10e7` | `packages/nie-catalog/src/game.ts` — constructeur d'URL canonique `/typed/<...>_menu_setting.cfg.bin.json` |
 
 Les deux pipelines partagent la source (`data/menu`) et divergent volontairement en aval : celui-ci
 produit du **design** (jetons, CSS, composants visuels), celui de Codex produit des **données

@@ -1,15 +1,31 @@
-//! Native Computer Use boundary for the Windows `nie.exe` and Ghidra surfaces.
+//! Bounded Computer Use primitives for offline images and native `nie.exe`/Ghidra surfaces.
 //!
 //! This crate deliberately exposes probes and intent, not arbitrary shell execution. UI
-//! mutation remains delegated to the approved WinClean/Computer Use host.
+//! mutation remains delegated to the approved WinClean/Computer Use host. Build with
+//! `--no-default-features` for the pure-byte WebAssembly surface.
 
+#[cfg(feature = "host")]
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+#[cfg(feature = "host")]
+use anyhow::Context;
+#[cfg(feature = "host")]
+use anyhow::Result;
+#[cfg(feature = "host")]
 use rusqlite::OpenFlags;
+#[cfg(feature = "host")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "host")]
 use sha2::{Digest, Sha256};
+#[cfg(feature = "host")]
 use std::str::FromStr;
+
+pub mod offline_image;
+pub use offline_image::{
+    ImageAddressSpace, ImageInspection, ImageInspectionRequest, ImageRangeRequest,
+    ImageRangeResult, MAX_INSPECTION_OUTPUT_BYTES, MAX_INSPECTION_RANGES, MAX_OFFLINE_IMAGE_BYTES,
+    OfflineImage, inspect_offline_image, inspect_offline_image_json,
+};
 
 /// Complete static reverse-engineering surface, available through Computer Use.
 pub mod re {
@@ -21,11 +37,15 @@ pub mod trace {
     pub use nie_trace::*;
 }
 
+#[cfg(feature = "host")]
 pub const NIE_PROCESS_NAME: &str = "nie.exe";
+#[cfg(feature = "host")]
 pub const MAX_READ_BYTES: usize = 1024 * 1024;
+#[cfg(feature = "host")]
 pub const MAX_SCAN_HITS: usize = 4096;
 
 /// Immutable identity of the executable attached to a static RE session.
+#[cfg(feature = "host")]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ReTarget {
     pub executable: PathBuf,
@@ -38,6 +58,7 @@ pub struct ReTarget {
 }
 
 /// Minimal provenance attached to a session result.
+#[cfg(feature = "host")]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ReProvenance {
     pub executable: PathBuf,
@@ -50,11 +71,13 @@ pub struct ReProvenance {
 }
 
 /// Read-only static session. The executable and SQLite row must have the same hash and size.
+#[cfg(feature = "host")]
 pub struct ReSession {
     target: ReTarget,
     validated_bytes: Vec<u8>,
 }
 
+#[cfg(feature = "host")]
 impl ReSession {
     /// Open a session after validating the executable against the RE database.
     pub fn open(
@@ -175,8 +198,10 @@ impl ReSession {
 }
 
 /// Safe facade over the read-only `nie-re` + `nie-trace` integration.
+#[cfg(feature = "host")]
 pub struct NiersComputerUse;
 
+#[cfg(feature = "host")]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ProcessSnapshot {
     pub process_name: String,
@@ -187,6 +212,7 @@ pub struct ProcessSnapshot {
     pub region_count: usize,
 }
 
+#[cfg(feature = "host")]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LiveHit {
     pub address: u64,
@@ -194,6 +220,7 @@ pub struct LiveHit {
     pub permissions: String,
 }
 
+#[cfg(feature = "host")]
 impl NiersComputerUse {
     #[must_use]
     pub fn find_nie_pid() -> Option<i32> {
@@ -275,6 +302,7 @@ impl NiersComputerUse {
     }
 }
 
+#[cfg(feature = "host")]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Surface {
@@ -282,6 +310,7 @@ pub enum Surface {
     Ghidra,
 }
 
+#[cfg(feature = "host")]
 impl FromStr for Surface {
     type Err = anyhow::Error;
 
@@ -296,6 +325,7 @@ impl FromStr for Surface {
     }
 }
 
+#[cfg(feature = "host")]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ProbeRequest {
     pub surface: Surface,
@@ -305,6 +335,7 @@ pub struct ProbeRequest {
     pub ghidra_url: String,
 }
 
+#[cfg(feature = "host")]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ProbeResult {
     pub surface: Surface,
@@ -313,11 +344,13 @@ pub struct ProbeResult {
     pub detail: String,
 }
 
+#[cfg(feature = "host")]
 fn default_ghidra_url() -> String {
     "http://127.0.0.1:8080/mcp".into()
 }
 
 /// Probe a target without launching, clicking, or writing anything.
+#[cfg(feature = "host")]
 pub fn probe(request: &ProbeRequest) -> Result<ProbeResult> {
     match request.surface {
         Surface::NieExe => {
@@ -363,11 +396,13 @@ pub fn probe(request: &ProbeRequest) -> Result<ProbeResult> {
     }
 }
 
+#[cfg(feature = "host")]
 pub fn probe_json(request: &ProbeRequest) -> Result<String> {
     serde_json::to_string_pretty(&probe(request)?).context("serialize Computer Use probe")
 }
 
 /// Parse the stable CLI spelling and return the JSON probe response.
+#[cfg(feature = "host")]
 pub fn probe_cli(surface: &str, executable: Option<String>, ghidra_url: String) -> Result<String> {
     let request = ProbeRequest {
         surface: surface.parse()?,
@@ -377,7 +412,7 @@ pub fn probe_cli(surface: &str, executable: Option<String>, ghidra_url: String) 
     probe_json(&request)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "host"))]
 mod tests {
     use super::*;
 

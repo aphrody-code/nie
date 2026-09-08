@@ -12,10 +12,10 @@
  * dans une liste écrite à la main.
  *
  * ⚠ Module **client-safe** : constantes et construction d'URL, rien d'autre — et les deux routes
- * d'assemblage viennent de `@niers/catalog/jeu`, qui les tient du serveur.
+ * d'assemblage viennent de `@niers/catalog/game`, qui les tient du serveur.
  */
 
-import { urlModeleChr, urlModeleComplet } from "@niers/catalog/jeu";
+import { urlModeleChr, urlModeleComplet } from "@niers/catalog/game";
 
 /** Identifiant d'une famille de modèles. */
 export type ModelFamily = "chara" | "waza" | "item" | "keshin" | "armd" | "animal";

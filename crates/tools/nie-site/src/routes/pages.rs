@@ -207,7 +207,7 @@ const ENTREES: [Entree; 9] = [
 
 /// Les deux URL héritées des écrans fusionnés : elles mènent à l'explorateur.
 ///
-/// Le bundle les reconnaît (`apps/nie-web/src/entrees.ts`, `ALIAS`) ; le serveur doit donc les
+/// Le bundle les reconnaît (`apps/nie-web/src/entries.ts`, `ALIAS`) ; le serveur doit donc les
 /// reconnaître aussi, sinon il les traite en route inconnue et leur pose un `noindex` que le
 /// client contredit à l'écran.
 const ALIAS: [&str; 2] = ["recherche", "donnees"];
@@ -952,7 +952,14 @@ mod tests {
         // Les deux alias montrent la page de l'explorateur : ils doivent la DESIGNER, sinon
         // trois URL se declarent trois pages pour un seul ecran.
         for alias in ["/recherche", "/donnees"] {
-            let c = construire("https://nie.aphrody.com", alias, Langue::Fr, None, None, None);
+            let c = construire(
+                "https://nie.aphrody.com",
+                alias,
+                Langue::Fr,
+                None,
+                None,
+                None,
+            );
             assert_eq!(c.url, "https://nie.aphrody.com/explorateur", "{alias}");
             assert_eq!(c.titre, "Explorer — nie", "{alias}");
             assert!(!c.noindex, "{alias} est servie");
@@ -1080,7 +1087,8 @@ mod tests {
                 .contains(r#"<link rel="canonical" href="https://nie.aphrody.com/ja/textures">"#)
         );
         assert!(
-            page("/", Langue::Fr).contains(r#"<link rel="canonical" href="https://nie.aphrody.com">"#)
+            page("/", Langue::Fr)
+                .contains(r#"<link rel="canonical" href="https://nie.aphrody.com">"#)
         );
     }
 
@@ -1224,11 +1232,9 @@ mod tests {
         let html = c.render().expect("rendu");
         assert!(html.contains(r#"<link rel="prev" href="/textures?page=6">"#));
         assert!(html.contains(r#"<link rel="next" href="/textures?page=8">"#));
-        assert!(
-            html.contains(
-                r#"<link rel="canonical" href="https://nie.aphrody.com/ja/textures?page=7">"#
-            )
-        );
+        assert!(html.contains(
+            r#"<link rel="canonical" href="https://nie.aphrody.com/ja/textures?page=7">"#
+        ));
         // Les libelles suivent la langue.
         assert!(html.contains("前のページ"));
         assert!(html.contains("54203 件 · 7 / 904 ページ"));

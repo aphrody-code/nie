@@ -14,11 +14,16 @@
 #![allow(clippy::pedantic)]
 
 pub mod format_catalog;
+#[cfg(feature = "host")]
 pub mod formats;
+#[cfg(feature = "host")]
 pub mod inagle;
+#[cfg(feature = "host")]
 pub mod nie_index_json;
+#[cfg(feature = "host")]
 pub mod rtti_classes;
 
+#[cfg(feature = "host")]
 use std::path::Path;
 
 /// Statistiques d'une passe d'ingestion.
@@ -63,6 +68,7 @@ pub fn version() -> &'static str {
 /// Retourne une erreur agrégée si l'une des étapes critiques échoue. L'ingestion du
 /// catalogue JSON et celle d'inagle sont tolérantes : une erreur y est journalisée
 /// sans interrompre la passe.
+#[cfg(feature = "host")]
 pub fn ingest_all(
     db: &mut nie_index::Db,
     binary_id: i64,

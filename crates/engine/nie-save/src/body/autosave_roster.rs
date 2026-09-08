@@ -134,6 +134,34 @@ impl CharaId {
     pub fn raw(self) -> u32 {
         self.0
     }
+
+    /// Parses an identifier produced by a save consumer.
+    ///
+    /// The canonical save-facing form is `0x` followed by eight hexadecimal digits. The web
+    /// and CLI surfaces also accept that hexadecimal value without its prefix and an unsigned
+    /// decimal representation. An unprefixed string is hexadecimal only when it contains
+    /// exactly eight hexadecimal digits; shorter digit-only strings are decimal. This preserves
+    /// the existing public roster contract while keeping its parsing rule beside the save type.
+    #[must_use]
+    pub fn parse_external(raw: &str) -> Option<Self> {
+        let value = raw.trim();
+        if value.is_empty() {
+            return None;
+        }
+
+        let parsed = if let Some(hex) = value
+            .strip_prefix("0x")
+            .or_else(|| value.strip_prefix("0X"))
+        {
+            u32::from_str_radix(hex, 16).ok()?
+        } else if value.len() == 8 && value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            u32::from_str_radix(value, 16).ok()?
+        } else {
+            value.parse::<u32>().ok()?
+        };
+
+        Some(Self(parsed))
+    }
 }
 
 impl core::fmt::Display for CharaId {
@@ -528,6 +556,29 @@ mod tests {
         assert!(r.scalars.is_none());
         assert!(r.owned.is_empty());
         assert_eq!(r.roster_slots, 0);
+    }
+
+    #[test]
+    fn external_character_ids_follow_the_save_surface_contract() {
+        let expected = CharaId(0xF5E1_E7CD);
+        for raw in [
+            "0xF5E1E7CD",
+            "0xf5e1e7cd",
+            "F5E1E7CD",
+            "4125222861",
+            " 0xF5E1E7CD ",
+        ] {
+            assert_eq!(CharaId::parse_external(raw), Some(expected), "{raw}");
+        }
+        assert_eq!(
+            CharaId::parse_external("12345678"),
+            Some(CharaId(0x1234_5678))
+        );
+        assert_eq!(CharaId::parse_external("1234567"), Some(CharaId(1_234_567)));
+
+        for raw in ["", " ", "mark-evans", "0xZZZZ", "-1", "4294967296"] {
+            assert_eq!(CharaId::parse_external(raw), None, "{raw}");
+        }
     }
 
     #[test]

@@ -17,6 +17,7 @@ use goblin::pe::{
         COFF_MACHINE_ARM, COFF_MACHINE_ARM64, COFF_MACHINE_ARMNT, COFF_MACHINE_IA64,
         COFF_MACHINE_X86, COFF_MACHINE_X86_64,
     },
+    options::ParseOptions,
     subsystem::{
         IMAGE_SUBSYSTEM_EFI_APPLICATION, IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER,
         IMAGE_SUBSYSTEM_EFI_ROM, IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER, IMAGE_SUBSYSTEM_NATIVE,
@@ -24,6 +25,49 @@ use goblin::pe::{
         IMAGE_SUBSYSTEM_WINDOWS_GUI, IMAGE_SUBSYSTEM_XBOX,
     },
 };
+use serde::Serialize;
+
+/// Maximum PE image size accepted by the bounded in-memory API (64 MiB).
+pub const MAX_BOUNDED_PE_INPUT_BYTES: usize = 64 * 1024 * 1024;
+/// Maximum JSON document size emitted by the bounded in-memory API (16 MiB).
+pub const MAX_BOUNDED_PE_JSON_BYTES: usize = 16 * 1024 * 1024;
+
+/// Resource limits applied by [`inspect_bytes_bounded_with_limits`].
+///
+/// Values may reduce, but never exceed, the hard ceilings enforced by the
+/// implementation. This keeps caller-provided limits from disabling the
+/// WebAssembly safety envelope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeInspectionLimits {
+    /// Maximum input byte length.
+    pub max_input_bytes: usize,
+    /// Maximum number of PE sections.
+    pub max_sections: usize,
+    /// Maximum number of distinct imported libraries.
+    pub max_import_libraries: usize,
+    /// Maximum total number of imported symbols.
+    pub max_import_symbols: usize,
+    /// Maximum number of named exports.
+    pub max_exports: usize,
+    /// Maximum UTF-8 byte length of any emitted name.
+    pub max_string_bytes: usize,
+    /// Maximum serialized JSON byte length.
+    pub max_json_bytes: usize,
+}
+
+impl Default for PeInspectionLimits {
+    fn default() -> Self {
+        Self {
+            max_input_bytes: MAX_BOUNDED_PE_INPUT_BYTES,
+            max_sections: 256,
+            max_import_libraries: 1_024,
+            max_import_symbols: 16_384,
+            max_exports: 16_384,
+            max_string_bytes: 4_096,
+            max_json_bytes: 4 * 1024 * 1024,
+        }
+    }
+}
 
 // ── public data types ──────────────────────────────────────────────────────
 
@@ -33,7 +77,8 @@ use goblin::pe::{
 /// rather than `"0x8664"`) so callers can display them without further
 /// decoding.  The raw numeric values are preserved in [`SectionInfo`] and
 /// other sub-structures for callers that need them.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PeReport {
     /// Human-readable machine type, e.g. `"AMD64"`, `"I386"`, `"ARM64"`.
     pub machine: String,
@@ -49,11 +94,13 @@ pub struct PeReport {
     /// omitted because they carry no string name).
     pub exports: Vec<String>,
     /// `true` for PE32+ (64-bit), `false` for PE32 (32-bit).
+    #[serde(rename = "is64Bit")]
     pub is_64bit: bool,
 }
 
 /// Metadata for one PE section.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SectionInfo {
     /// Section name decoded from the 8-byte COFF name field (trailing NULs
     /// and spaces stripped).  Long names using the `/offset` COFF string-table
@@ -71,7 +118,8 @@ pub struct SectionInfo {
 }
 
 /// Import information for a single source DLL.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportInfo {
     /// DLL name exactly as recorded in the import descriptor (e.g.
     /// `"KERNEL32.dll"`).
@@ -113,6 +161,121 @@ pub fn inspect(path: &Path) -> anyhow::Result<PeReport> {
 pub fn inspect_bytes(bytes: &[u8]) -> anyhow::Result<PeReport> {
     let pe = PE::parse(bytes).map_err(|e| anyhow::anyhow!("goblin PE::parse failed: {e}"))?;
 
+    Ok(report_from_pe(&pe))
+}
+
+/// Parse PE/COFF bytes under the default WebAssembly-safe resource limits.
+///
+/// Unlike [`inspect_bytes`], this entry point rejects inputs or reports that
+/// exceed fixed limits before copying their strings into the returned report.
+/// It performs no filesystem or platform-specific I/O.
+///
+/// # Errors
+///
+/// Returns an error for malformed PE data or when any resource limit is
+/// exceeded.
+pub fn inspect_bytes_bounded(bytes: &[u8]) -> anyhow::Result<PeReport> {
+    inspect_bytes_bounded_with_limits(bytes, PeInspectionLimits::default())
+}
+
+/// Parse PE/COFF bytes under caller-selected limits capped by hard ceilings.
+///
+/// # Errors
+///
+/// Returns an error for malformed PE data, invalid limits, or a resource-limit
+/// violation.
+pub fn inspect_bytes_bounded_with_limits(
+    bytes: &[u8],
+    limits: PeInspectionLimits,
+) -> anyhow::Result<PeReport> {
+    validate_limits(limits)?;
+    anyhow::ensure!(
+        bytes.len() <= limits.max_input_bytes,
+        "PE input is {} bytes; limit is {} bytes",
+        bytes.len(),
+        limits.max_input_bytes
+    );
+
+    let pe = parse_bounded_pe(bytes)?;
+    validate_parsed_pe(&pe, limits)?;
+    Ok(report_from_pe(&pe))
+}
+
+/// Inspect PE/COFF bytes and serialize the bounded report as JSON.
+///
+/// This is the preferred adapter for a `wasm-bindgen` wrapper because its
+/// input is borrowed bytes and its output is one owned UTF-8 string.
+///
+/// # Errors
+///
+/// Returns an error for malformed data, resource-limit violations, JSON
+/// serialization failure, or an encoded document larger than the configured
+/// default output limit.
+pub fn inspect_bytes_json(bytes: &[u8]) -> anyhow::Result<String> {
+    inspect_bytes_json_with_limits(bytes, PeInspectionLimits::default())
+}
+
+/// Inspect PE/COFF bytes and serialize the report using explicit limits.
+///
+/// # Errors
+///
+/// Returns an error under the same conditions as
+/// [`inspect_bytes_bounded_with_limits`], or if the JSON output exceeds
+/// `limits.max_json_bytes`.
+pub fn inspect_bytes_json_with_limits(
+    bytes: &[u8],
+    limits: PeInspectionLimits,
+) -> anyhow::Result<String> {
+    let report = inspect_bytes_bounded_with_limits(bytes, limits)?;
+    let mut output = BoundedJsonWriter::new(limits.max_json_bytes);
+    serde_json::to_writer(&mut output, &report).map_err(|error| {
+        anyhow::anyhow!("failed to serialize bounded PE report as JSON: {error}")
+    })?;
+    String::from_utf8(output.into_bytes())
+        .map_err(|error| anyhow::anyhow!("PE report JSON was not valid UTF-8: {error}"))
+}
+
+struct BoundedJsonWriter {
+    bytes: Vec<u8>,
+    limit: usize,
+}
+
+impl BoundedJsonWriter {
+    fn new(limit: usize) -> Self {
+        Self {
+            bytes: Vec::with_capacity(limit.min(64 * 1024)),
+            limit,
+        }
+    }
+
+    fn into_bytes(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+impl Write for BoundedJsonWriter {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        let next_len = self
+            .bytes
+            .len()
+            .checked_add(buffer.len())
+            .ok_or_else(|| std::io::Error::other("PE report JSON length overflow"))?;
+        if next_len > self.limit {
+            return Err(std::io::Error::other(format!(
+                "PE report JSON exceeds {} bytes",
+                self.limit
+            )));
+        }
+        self.bytes.extend_from_slice(buffer);
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn report_from_pe(pe: &PE<'_>) -> PeReport {
     let coff = &pe.header.coff_header;
     let machine = machine_name(coff.machine);
 
@@ -198,7 +361,7 @@ pub fn inspect_bytes(bytes: &[u8]) -> anyhow::Result<PeReport> {
     exports.sort_unstable();
     exports.dedup();
 
-    Ok(PeReport {
+    PeReport {
         machine,
         subsystem,
         timestamp,
@@ -206,7 +369,131 @@ pub fn inspect_bytes(bytes: &[u8]) -> anyhow::Result<PeReport> {
         imports,
         exports,
         is_64bit,
-    })
+    }
+}
+
+fn parse_bounded_pe(bytes: &[u8]) -> anyhow::Result<PE<'_>> {
+    let mut options = ParseOptions::default()
+        .with_parse_resources(false)
+        .with_parse_tls_data(false);
+    // These structures are not part of PeReport. Skipping them avoids work
+    // and allocations driven by untrusted directory-table metadata.
+    options.parse_attribute_certificates = false;
+    PE::parse_with_opts(bytes, &options)
+        .map_err(|error| anyhow::anyhow!("goblin PE::parse failed: {error}"))
+}
+
+fn validate_limits(limits: PeInspectionLimits) -> anyhow::Result<()> {
+    const MAX_SECTIONS: usize = 1_024;
+    const MAX_IMPORT_LIBRARIES: usize = 4_096;
+    const MAX_IMPORT_SYMBOLS: usize = 65_536;
+    const MAX_EXPORTS: usize = 65_536;
+    const MAX_STRING_BYTES: usize = 4_096;
+
+    let values = [
+        (
+            "max_input_bytes",
+            limits.max_input_bytes,
+            MAX_BOUNDED_PE_INPUT_BYTES,
+        ),
+        ("max_sections", limits.max_sections, MAX_SECTIONS),
+        (
+            "max_import_libraries",
+            limits.max_import_libraries,
+            MAX_IMPORT_LIBRARIES,
+        ),
+        (
+            "max_import_symbols",
+            limits.max_import_symbols,
+            MAX_IMPORT_SYMBOLS,
+        ),
+        ("max_exports", limits.max_exports, MAX_EXPORTS),
+        (
+            "max_string_bytes",
+            limits.max_string_bytes,
+            MAX_STRING_BYTES,
+        ),
+        (
+            "max_json_bytes",
+            limits.max_json_bytes,
+            MAX_BOUNDED_PE_JSON_BYTES,
+        ),
+    ];
+    for (name, value, hard_maximum) in values {
+        anyhow::ensure!(value > 0, "{name} must be greater than zero");
+        anyhow::ensure!(
+            value <= hard_maximum,
+            "{name} is {value}; hard maximum is {hard_maximum}"
+        );
+    }
+    Ok(())
+}
+
+fn validate_parsed_pe(pe: &PE<'_>, limits: PeInspectionLimits) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        pe.sections.len() <= limits.max_sections,
+        "PE contains {} sections; limit is {}",
+        pe.sections.len(),
+        limits.max_sections
+    );
+
+    let mut libraries = std::collections::BTreeSet::new();
+    for import in &pe.imports {
+        libraries.insert(import.dll);
+        validate_name("import library", import.dll, limits.max_string_bytes)?;
+        validate_name(
+            "import symbol",
+            import.name.as_ref(),
+            limits.max_string_bytes,
+        )?;
+    }
+    anyhow::ensure!(
+        libraries.len() <= limits.max_import_libraries,
+        "PE imports {} libraries; limit is {}",
+        libraries.len(),
+        limits.max_import_libraries
+    );
+    anyhow::ensure!(
+        pe.imports.len() <= limits.max_import_symbols,
+        "PE imports {} symbols; limit is {}",
+        pe.imports.len(),
+        limits.max_import_symbols
+    );
+
+    let named_exports = pe
+        .exports
+        .iter()
+        .filter(|export| export.name.is_some())
+        .count();
+    anyhow::ensure!(
+        named_exports <= limits.max_exports,
+        "PE exports {named_exports} named symbols; limit is {}",
+        limits.max_exports
+    );
+    for export in &pe.exports {
+        if let Some(name) = export.name {
+            validate_name("export symbol", name, limits.max_string_bytes)?;
+        }
+    }
+    for section in &pe.sections {
+        let name = section.real_name.as_deref().unwrap_or_else(|| {
+            std::str::from_utf8(&section.name)
+                .unwrap_or("")
+                .trim_end_matches('\0')
+                .trim_end()
+        });
+        validate_name("section", name, limits.max_string_bytes)?;
+    }
+    Ok(())
+}
+
+fn validate_name(kind: &str, name: &str, max_bytes: usize) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        name.len() <= max_bytes,
+        "PE {kind} name is {} bytes; limit is {max_bytes}",
+        name.len()
+    );
+    Ok(())
 }
 
 // ── PeReport::print_summary ─────────────────────────────────────────────────
@@ -343,6 +630,42 @@ mod tests {
     const DEFAULT_NIE_EXE: &str =
         "C:/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road/nie.exe";
 
+    /// Build a minimal PE32+ image with one `.text` section.
+    fn synthetic_pe() -> Vec<u8> {
+        let pe_offset = 0x80usize;
+        let optional_header_size = 240usize;
+        let headers_size = 0x200usize;
+        let mut bytes = vec![0u8; headers_size + 0x200];
+        bytes[0..2].copy_from_slice(b"MZ");
+        bytes[0x3c..0x40].copy_from_slice(&(pe_offset as u32).to_le_bytes());
+        bytes[pe_offset..pe_offset + 4].copy_from_slice(b"PE\0\0");
+
+        let coff = pe_offset + 4;
+        bytes[coff..coff + 2].copy_from_slice(&0x8664u16.to_le_bytes());
+        bytes[coff + 2..coff + 4].copy_from_slice(&1u16.to_le_bytes());
+        bytes[coff + 16..coff + 18].copy_from_slice(&(optional_header_size as u16).to_le_bytes());
+
+        let optional = coff + 20;
+        bytes[optional..optional + 2].copy_from_slice(&0x020bu16.to_le_bytes());
+        bytes[optional + 24..optional + 32].copy_from_slice(&0x1_4000_0000u64.to_le_bytes());
+        bytes[optional + 32..optional + 36].copy_from_slice(&0x1000u32.to_le_bytes());
+        bytes[optional + 36..optional + 40].copy_from_slice(&0x200u32.to_le_bytes());
+        bytes[optional + 60..optional + 64].copy_from_slice(&(headers_size as u32).to_le_bytes());
+        bytes[optional + 68..optional + 70]
+            .copy_from_slice(&IMAGE_SUBSYSTEM_WINDOWS_GUI.to_le_bytes());
+        bytes[optional + 108..optional + 112].copy_from_slice(&16u32.to_le_bytes());
+
+        let section = optional + optional_header_size;
+        bytes[section..section + 5].copy_from_slice(b".text");
+        bytes[section + 8..section + 12].copy_from_slice(&0x180u32.to_le_bytes());
+        bytes[section + 12..section + 16].copy_from_slice(&0x1000u32.to_le_bytes());
+        bytes[section + 16..section + 20].copy_from_slice(&0x200u32.to_le_bytes());
+        bytes[section + 20..section + 24].copy_from_slice(&(headers_size as u32).to_le_bytes());
+        bytes[section + 36..section + 40].copy_from_slice(&0x6000_0020u32.to_le_bytes());
+        bytes[headers_size..headers_size + 4].copy_from_slice(&[0xCC, 0xC3, 0x90, 0x90]);
+        bytes
+    }
+
     /// Smoke test against the real `nie.exe` binary.
     ///
     /// Skipped unless the `integration` feature is active **or** the env var
@@ -418,5 +741,76 @@ mod tests {
         assert_eq!(subsystem_name(2), "Windows GUI");
         assert_eq!(subsystem_name(3), "Windows CUI (console)");
         assert_eq!(subsystem_name(0xbeef), "Unknown (0xbeef)");
+    }
+
+    #[test]
+    fn bounded_inspection_matches_legacy_report() {
+        let bytes = synthetic_pe();
+        let legacy = inspect_bytes(&bytes).expect("legacy inspection");
+        let bounded = inspect_bytes_bounded(&bytes).expect("bounded inspection");
+
+        assert_eq!(bounded.machine, legacy.machine);
+        assert_eq!(bounded.subsystem, legacy.subsystem);
+        assert_eq!(bounded.is_64bit, legacy.is_64bit);
+        assert_eq!(bounded.sections.len(), 1);
+        assert_eq!(bounded.sections[0].name, ".text");
+    }
+
+    #[test]
+    fn bounded_json_has_stable_camel_case_contract() {
+        let json = inspect_bytes_json(&synthetic_pe()).expect("bounded JSON inspection");
+        let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+
+        assert_eq!(value["machine"], "AMD64");
+        assert_eq!(value["subsystem"], "Windows GUI");
+        assert_eq!(value["is64Bit"], true);
+        assert_eq!(value["sections"][0]["name"], ".text");
+        assert_eq!(value["sections"][0]["virtualAddress"], 0x1000);
+    }
+
+    #[test]
+    fn bounded_inspection_rejects_input_and_name_limit_violations() {
+        let bytes = synthetic_pe();
+        let short_input = PeInspectionLimits {
+            max_input_bytes: bytes.len() - 1,
+            ..PeInspectionLimits::default()
+        };
+        let input_error = inspect_bytes_bounded_with_limits(&bytes, short_input)
+            .expect_err("input limit must be enforced")
+            .to_string();
+        assert!(input_error.contains("PE input is"));
+
+        let short_name = PeInspectionLimits {
+            max_string_bytes: 4,
+            ..PeInspectionLimits::default()
+        };
+        let name_error = inspect_bytes_bounded_with_limits(&bytes, short_name)
+            .expect_err("name limit must be enforced")
+            .to_string();
+        assert!(name_error.contains("section name is 5 bytes"));
+    }
+
+    #[test]
+    fn bounded_json_rejects_output_limit_violation() {
+        let limits = PeInspectionLimits {
+            max_json_bytes: 1,
+            ..PeInspectionLimits::default()
+        };
+        let error = inspect_bytes_json_with_limits(&synthetic_pe(), limits)
+            .expect_err("JSON limit must be enforced")
+            .to_string();
+        assert!(error.contains("PE report JSON exceeds"));
+    }
+
+    #[test]
+    fn caller_cannot_raise_hard_limits() {
+        let limits = PeInspectionLimits {
+            max_input_bytes: MAX_BOUNDED_PE_INPUT_BYTES + 1,
+            ..PeInspectionLimits::default()
+        };
+        let error = inspect_bytes_bounded_with_limits(&[], limits)
+            .expect_err("hard maximum must be enforced")
+            .to_string();
+        assert!(error.contains("hard maximum"));
     }
 }

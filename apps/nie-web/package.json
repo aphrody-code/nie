@@ -2,11 +2,12 @@
 	"name": "nie-web",
 	"version": "0.1.0",
 	"private": true,
+	"description": "WebAssembly host for the nie engine, served by the nie-site crate.",
 	"type": "module",
-	"description": "nie sur le web : l'hote Vite de l'interface partagee avec Inacord, servi par la crate nie-site.",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc -b && vite build && bun --bun scripts/precompresser.ts",
+		"build": "bun run build:wasm && tsc -b && vite build && bun --bun scripts/precompress.ts",
+		"build:wasm": "bun --bun scripts/build-wasm.ts",
 		"preview": "vite preview",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test src/"

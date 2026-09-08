@@ -205,7 +205,7 @@ cargo run -p nie-aphrody --bin pixel -- comparer /tmp/reference.png /tmp/reprodu
 Le premier objectif pixel-perfect est **le menu principal du jeu**. Sa carte mesurée (palette,
 géométrie de la rangée de tuiles, chemins VFS des configs, du Lua, des atlas d'icônes et des
 bannières, classes RTTI candidates, et le blocage nommé) vit dans
-[`docs/mainmenu01-analyse-visuelle.md`](../../../../docs/mainmenu01-analyse-visuelle.md).
+[`docs/mainmenu01-visual-analysis.md`](../../../../docs/mainmenu01-visual-analysis.md).
 
 Trois faits à connaître avant d'y toucher, tous mesurés :
 

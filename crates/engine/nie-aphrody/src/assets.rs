@@ -236,7 +236,7 @@ impl Pet {
     ///
     /// # Errors
     /// Rend [`Error::Invalid`] si la frame est inutilisable ou si un encodage échoue.
-    pub fn assets_de_marque(&self, frame: &Frame, tailles: &[u32]) -> Result<Vec<Fichier>, Error> {
+    pub fn brand_assets(&self, frame: &Frame, tailles: &[u32]) -> Result<Vec<Fichier>, Error> {
         let (source, cote) = self.vignette_carree(frame)?;
         let mut fichiers = Vec::new();
         let mut pour_ico = Vec::new();
@@ -251,7 +251,7 @@ impl Pet {
                 pour_ico.push((t, png.clone()));
             }
             fichiers.push(Fichier {
-                nom: format!("icone-{t}.png"),
+                nom: format!("icon-{t}.png"),
                 octets: png,
             });
         }
@@ -270,7 +270,7 @@ impl Pet {
             .ok_or_else(|| Error::Invalid("aucune taille demandée".into()))?;
         let png_svg = fichiers
             .iter()
-            .find(|f| f.nom == format!("icone-{taille_svg}.png"))
+            .find(|f| f.nom == format!("icon-{taille_svg}.png"))
             .ok_or_else(|| Error::Invalid("icône du SVG introuvable".into()))?
             .octets
             .clone();
@@ -279,26 +279,33 @@ impl Pet {
             octets: assembler_ico(&pour_ico)?,
         });
         fichiers.push(Fichier {
-            nom: "icone.svg".into(),
+            nom: "icon.svg".into(),
             octets: svg_depuis_png(&png_svg, taille_svg, taille_svg, &self.pet.display_name)
                 .into_bytes(),
         });
         fichiers.push(Fichier {
             nom: "site.webmanifest".into(),
-            octets: self.manifeste_web(tailles).into_bytes(),
+            octets: self.web_manifest(tailles).into_bytes(),
         });
         Ok(fichiers)
     }
 
-    /// Le manifeste web, avec les icônes que [`Pet::assets_de_marque`] vient de produire.
+    /// Compatibility alias for [`Pet::brand_assets`].
+    #[deprecated(note = "use brand_assets")]
+    #[must_use = "asset generation errors must be handled"]
+    pub fn assets_de_marque(&self, frame: &Frame, tailles: &[u32]) -> Result<Vec<Fichier>, Error> {
+        self.brand_assets(frame, tailles)
+    }
+
+    /// Le manifeste web, avec les icônes que [`Pet::brand_assets`] vient de produire.
     #[must_use]
-    pub fn manifeste_web(&self, tailles: &[u32]) -> String {
+    pub fn web_manifest(&self, tailles: &[u32]) -> String {
         let icones: Vec<String> = tailles
             .iter()
             .map(|t| {
                 let usage = if *t >= 192 { r#", "purpose": "any maskable""# } else { "" };
                 format!(
-                    r#"    {{ "src": "/icone-{t}.png", "sizes": "{t}x{t}", "type": "image/png"{usage} }}"#
+                    r#"    {{ "src": "/static/icon-{t}.png", "sizes": "{t}x{t}", "type": "image/png"{usage} }}"#
                 )
             })
             .collect();
@@ -319,5 +326,12 @@ impl Pet {
             desc = self.pet.description.replace('"', "'"),
             icones = icones.join(",\n"),
         )
+    }
+
+    /// Compatibility alias for [`Pet::web_manifest`].
+    #[deprecated(note = "use web_manifest")]
+    #[must_use]
+    pub fn manifeste_web(&self, tailles: &[u32]) -> String {
+        self.web_manifest(tailles)
     }
 }

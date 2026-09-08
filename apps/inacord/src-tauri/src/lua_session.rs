@@ -16,25 +16,46 @@
 //! d'une exécution complète. Ici, l'état survit, et le rechargement est explicite — le
 //! `RefreshAll()` d'Overload.
 
+use std::sync::mpsc::{channel, Sender};
 use std::sync::Mutex;
-use std::sync::mpsc::{Sender, channel};
 
 use serde::Serialize;
 
 /// Requête envoyée au thread de session.
 enum Request {
     /// Exécute un chunk sans l'attacher.
-    Exec { name: String, data: Vec<u8>, reply: Sender<Result<Vec<String>, String>> },
+    Exec {
+        name: String,
+        data: Vec<u8>,
+        reply: Sender<Result<Vec<String>, String>>,
+    },
     /// Attache un comportement (le script doit renvoyer une table).
-    Attach { name: String, data: Vec<u8>, reply: Sender<Result<Vec<String>, String>> },
+    Attach {
+        name: String,
+        data: Vec<u8>,
+        reply: Sender<Result<Vec<String>, String>>,
+    },
     /// Diffuse un callback de cycle de vie.
-    Broadcast { callback: String, reply: Sender<Result<u32, String>> },
+    Broadcast {
+        callback: String,
+        reply: Sender<Result<u32, String>>,
+    },
     /// Évalue une expression dans l'état courant.
-    Eval { expression: String, reply: Sender<Result<String, String>> },
+    Eval {
+        expression: String,
+        reply: Sender<Result<String, String>>,
+    },
     /// Pose une valeur globale.
-    SetGlobal { name: String, expression: String, reply: Sender<Result<(), String>> },
+    SetGlobal {
+        name: String,
+        expression: String,
+        reply: Sender<Result<(), String>>,
+    },
     /// Liste les globals.
-    Globals { include_stdlib: bool, reply: Sender<Vec<LuaSessionGlobalDto>> },
+    Globals {
+        include_stdlib: bool,
+        reply: Sender<Vec<LuaSessionGlobalDto>>,
+    },
     /// Recrée la VM et ré-attache les comportements.
     Reload { reply: Sender<Result<(), String>> },
     /// Récupère sortie + journaux accumulés.
@@ -121,9 +142,10 @@ impl LuaSessionHandle {
             })
             .expect("démarrage du thread de session Lua");
 
-        Self { tx: Mutex::new(Some(tx)) }
+        Self {
+            tx: Mutex::new(Some(tx)),
+        }
     }
-
 }
 
 /// Noms de process du jeu, dans l'ordre d'essai — binaire patché EAC (lancé directement) d'abord,
@@ -178,8 +200,8 @@ fn build_session(with_menu_host: bool) -> Result<nie_lua::session::LuaSession, n
         None
     });
 
-    let registry = HostRegistry::standard(Rc::clone(&logs))
-        .with(Box::new(LiveBinder { find_process, read }));
+    let registry =
+        HostRegistry::standard(Rc::clone(&logs)).with(Box::new(LiveBinder { find_process, read }));
 
     nie_lua::session::LuaSession::new(registry, logs, with_menu_host)
 }
@@ -188,11 +210,17 @@ impl LuaSessionHandle {
     fn send<T>(&self, make: impl FnOnce(Sender<T>) -> Request) -> Result<T, String> {
         let (reply_tx, reply_rx) = channel::<T>();
         {
-            let guard = self.tx.lock().map_err(|_| "session Lua empoisonnée".to_string())?;
+            let guard = self
+                .tx
+                .lock()
+                .map_err(|_| "session Lua empoisonnée".to_string())?;
             let tx = guard.as_ref().ok_or("session Lua arrêtée")?;
-            tx.send(make(reply_tx)).map_err(|_| "session Lua arrêtée".to_string())?;
+            tx.send(make(reply_tx))
+                .map_err(|_| "session Lua arrêtée".to_string())?;
         }
-        reply_rx.recv().map_err(|_| "session Lua sans réponse".to_string())
+        reply_rx
+            .recv()
+            .map_err(|_| "session Lua sans réponse".to_string())
     }
 
     /// Exécute un chunk.
@@ -232,7 +260,11 @@ impl LuaSessionHandle {
     /// # Errors
     /// Message lisible si l'expression est invalide.
     pub fn set_global(&self, name: String, expression: String) -> Result<(), String> {
-        self.send(|reply| Request::SetGlobal { name, expression, reply })?
+        self.send(|reply| Request::SetGlobal {
+            name,
+            expression,
+            reply,
+        })?
     }
 
     /// Liste les globals.
@@ -240,7 +272,10 @@ impl LuaSessionHandle {
     /// # Errors
     /// Message lisible si la session est indisponible.
     pub fn globals(&self, include_stdlib: bool) -> Result<Vec<LuaSessionGlobalDto>, String> {
-        self.send(|reply| Request::Globals { include_stdlib, reply })
+        self.send(|reply| Request::Globals {
+            include_stdlib,
+            reply,
+        })
     }
 
     /// Recrée la VM et ré-attache les comportements.
@@ -309,23 +344,40 @@ fn handle(session: &mut nie_lua::session::LuaSession, req: Request) {
         Request::Attach { name, data, reply } => {
             let r = session
                 .attach(&name, &data)
-                .map(|b| b.defined_callbacks().iter().map(|s| (*s).to_string()).collect())
+                .map(|b| {
+                    b.defined_callbacks()
+                        .iter()
+                        .map(|s| (*s).to_string())
+                        .collect()
+                })
                 .map_err(|e| e.to_string());
             let _ = reply.send(r);
         }
         Request::Broadcast { callback, reply } => {
-            let r = session.broadcast(&callback).map(|n| n as u32).map_err(|e| e.to_string());
+            let r = session
+                .broadcast(&callback)
+                .map(|n| n as u32)
+                .map_err(|e| e.to_string());
             let _ = reply.send(r);
         }
         Request::Eval { expression, reply } => {
             let r = session.eval(&expression).map_err(|e| e.to_string());
             let _ = reply.send(r);
         }
-        Request::SetGlobal { name, expression, reply } => {
-            let r = session.set_global(&name, &expression).map_err(|e| e.to_string());
+        Request::SetGlobal {
+            name,
+            expression,
+            reply,
+        } => {
+            let r = session
+                .set_global(&name, &expression)
+                .map_err(|e| e.to_string());
             let _ = reply.send(r);
         }
-        Request::Globals { include_stdlib, reply } => {
+        Request::Globals {
+            include_stdlib,
+            reply,
+        } => {
             let out = session
                 .globals(include_stdlib)
                 .into_iter()
@@ -348,7 +400,10 @@ fn handle(session: &mut nie_lua::session::LuaSession, req: Request) {
                 logs: session
                     .take_logs()
                     .into_iter()
-                    .map(|l| LuaLogDto { level: l.level.label().to_string(), message: l.message })
+                    .map(|l| LuaLogDto {
+                        level: l.level.label().to_string(),
+                        message: l.message,
+                    })
                     .collect(),
             });
         }
@@ -372,7 +427,8 @@ mod tests {
     fn la_session_persiste_entre_deux_appels() {
         let h = LuaSessionHandle::start(false);
         h.eval("compteur = 10".to_string()).expect("eval");
-        h.eval("compteur = compteur + 32".to_string()).expect("eval");
+        h.eval("compteur = compteur + 32".to_string())
+            .expect("eval");
         assert_eq!(h.eval("compteur".to_string()).unwrap(), "42");
     }
 
@@ -385,7 +441,10 @@ mod tests {
                 b"local M = {} function M.OnStart() marqueur = 1 end return M".to_vec(),
             )
             .expect("attachement");
-        assert!(callbacks.contains(&"OnStart".to_string()), "callbacks : {callbacks:?}");
+        assert!(
+            callbacks.contains(&"OnStart".to_string()),
+            "callbacks : {callbacks:?}"
+        );
 
         assert_eq!(h.broadcast("OnStart".to_string()).unwrap(), 1);
         assert_eq!(h.eval("marqueur".to_string()).unwrap(), "1");
@@ -393,14 +452,21 @@ mod tests {
         // Le rechargement repart d'une VM neuve : le global posé par le callback disparaît, mais
         // le comportement est ré-attaché (donc rediffusable).
         h.reload().expect("rechargement");
-        assert_eq!(h.eval("type(rawget(_G, 'marqueur'))".to_string()).unwrap(), "nil");
+        assert_eq!(
+            h.eval("type(rawget(_G, 'marqueur'))".to_string()).unwrap(),
+            "nil"
+        );
         assert_eq!(h.broadcast("OnStart".to_string()).unwrap(), 1);
     }
 
     #[test]
     fn collecte_sortie_et_journaux() {
         let h = LuaSessionHandle::start(false);
-        h.exec("t".to_string(), b"print('ligne') Debug.LogError('grave')".to_vec()).expect("exec");
+        h.exec(
+            "t".to_string(),
+            b"print('ligne') Debug.LogError('grave')".to_vec(),
+        )
+        .expect("exec");
         let drained = h.drain().expect("drain");
         assert_eq!(drained.stdout, vec!["ligne".to_string()]);
         assert_eq!(drained.logs.len(), 1);
@@ -414,7 +480,10 @@ mod tests {
         let h = LuaSessionHandle::start(false);
         h.eval("APPEL_MOTEUR_ABSENT()".to_string()).expect("eval");
         let report = h.api_report().expect("rapport");
-        assert!(report.missing.contains(&"APPEL_MOTEUR_ABSENT".to_string()), "{report:?}");
+        assert!(
+            report.missing.contains(&"APPEL_MOTEUR_ABSENT".to_string()),
+            "{report:?}"
+        );
         assert!(report.provided.contains(&"Debug".to_string()), "{report:?}");
     }
 
@@ -422,7 +491,8 @@ mod tests {
     fn edition_de_valeur_en_session_vivante() {
         let h = LuaSessionHandle::start(false);
         h.eval("pv = 100".to_string()).expect("eval");
-        h.set_global("pv".to_string(), "777".to_string()).expect("set");
+        h.set_global("pv".to_string(), "777".to_string())
+            .expect("set");
         assert_eq!(h.eval("pv".to_string()).unwrap(), "777");
     }
 }

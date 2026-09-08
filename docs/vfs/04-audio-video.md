@@ -215,8 +215,8 @@ volée « tiendrait la connexion une minute »).**
    fichier continue après la ligne lue ici, `main.rs:5680+`).
 4. **Page catalogue "Sons" réécrite par cue** — chaque ligne = un `AudioCue` (`cueId`, `name`,
    `durationSec`, `codec`), groupé par banque ACB pour le contexte, jamais listé au niveau AWB.
-   Données déjà disponibles via `@niers/catalog/jeu` (`AudioBank`/`AudioCue`,
-   `packages/nie-catalog/src/jeu.ts:601-648`) et `packages/azalee/src/cpk/audio.ts`
+   Données déjà disponibles via `@niers/catalog/game` (`AudioBank`/`AudioCue`,
+   `packages/nie-catalog/src/game.ts`) et `packages/azalee/src/cpk/audio.ts`
    (`cpkAudioCueUrl`, adressage par `awbId`/cue-id, pas par rang — déjà correct côté azalee, à
    répliquer côté nie).
 5. **Page "Vidéos" avec statut par film** — 97 films logiques (`common`+`dx11`, jumeaux),

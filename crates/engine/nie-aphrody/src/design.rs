@@ -733,7 +733,7 @@ const EN_TETE_CSS: &str = r"/*
  *
  * ## Deux coquilles, deux ambiances
  *
- * - `--jeu-*` : le menu principal du jeu, que porte Aphrody.
+ * - `--jeu-*` : le menu principal du jeu, que porte nie.
  * - `--inacord-*` : l'application de messagerie du jeu, que porte Inacord — memes teintes,
  *   posees plus sombres et plus desaturees.
  *

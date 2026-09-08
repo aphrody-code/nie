@@ -75,10 +75,16 @@ fn parse_library_paths(vdf: &str) -> Vec<PathBuf> {
     let mut out = Vec::new();
     for line in vdf.lines() {
         let line = line.trim();
-        let Some(rest) = line.strip_prefix("\"path\"") else { continue };
+        let Some(rest) = line.strip_prefix("\"path\"") else {
+            continue;
+        };
         let rest = rest.trim();
-        let Some(start) = rest.find('"') else { continue };
-        let Some(end) = rest[start + 1..].find('"') else { continue };
+        let Some(start) = rest.find('"') else {
+            continue;
+        };
+        let Some(end) = rest[start + 1..].find('"') else {
+            continue;
+        };
         let raw = &rest[start + 1..start + 1 + end];
         out.push(PathBuf::from(raw.replace("\\\\", "\\")));
     }
@@ -145,13 +151,19 @@ pub fn detect_game_dir() -> Option<PathBuf> {
 /// installation (`002AB8F4-USERDATALIVE`, `002AB8F4-SYSTEMLIVE`).
 pub fn userdata_save_candidates() -> Vec<PathBuf> {
     let mut out = Vec::new();
-    let Some(steam_install) = steam_install_path() else { return out };
+    let Some(steam_install) = steam_install_path() else {
+        return out;
+    };
     for lib in candidate_libraries(&steam_install) {
         let userdata = lib.join("userdata");
-        let Ok(accounts) = std::fs::read_dir(&userdata) else { continue };
+        let Ok(accounts) = std::fs::read_dir(&userdata) else {
+            continue;
+        };
         for account in accounts.flatten() {
             let remote = account.path().join(STEAM_APP_ID).join("remote");
-            let Ok(files) = std::fs::read_dir(&remote) else { continue };
+            let Ok(files) = std::fs::read_dir(&remote) else {
+                continue;
+            };
             for f in files.flatten() {
                 let name = f.file_name();
                 let name = name.to_string_lossy();
@@ -173,7 +185,8 @@ pub fn userdata_save_candidates() -> Vec<PathBuf> {
 /// silencieusement retenu juste parce qu'il est le plus récent.
 pub fn pick_best_save(is_valid: impl Fn(&Path) -> bool) -> Option<PathBuf> {
     let mut candidates = userdata_save_candidates();
-    candidates.sort_by_key(|p| std::cmp::Reverse(std::fs::metadata(p).and_then(|m| m.modified()).ok()));
+    candidates
+        .sort_by_key(|p| std::cmp::Reverse(std::fs::metadata(p).and_then(|m| m.modified()).ok()));
     candidates.into_iter().find(|p| is_valid(p))
 }
 
@@ -198,13 +211,22 @@ mod tests {
 }
 "#;
         let paths = parse_library_paths(vdf);
-        assert_eq!(paths, vec![PathBuf::from(r"C:\Program Files (x86)\Steam"), PathBuf::from(r"D:\SteamLibrary")]);
+        assert_eq!(
+            paths,
+            vec![
+                PathBuf::from(r"C:\Program Files (x86)\Steam"),
+                PathBuf::from(r"D:\SteamLibrary")
+            ]
+        );
     }
 
     #[test]
     fn parse_installdir_extrait_le_dossier() {
         let acf = "\"AppState\"\n{\n\t\"appid\"\t\t\"2799860\"\n\t\"installdir\"\t\t\"INAZUMA ELEVEN Victory Road\"\n}\n";
-        assert_eq!(parse_installdir(acf).as_deref(), Some("INAZUMA ELEVEN Victory Road"));
+        assert_eq!(
+            parse_installdir(acf).as_deref(),
+            Some("INAZUMA ELEVEN Victory Road")
+        );
     }
 
     /// Détection de bout en bout sur la VRAIE installation Steam de ce poste (registre +
@@ -215,10 +237,16 @@ mod tests {
     #[test]
     fn detect_game_dir_trouve_le_vrai_jeu_steam() {
         let Some(dir) = detect_game_dir() else {
-            eprintln!("skip detect_game_dir_trouve_le_vrai_jeu_steam : Steam/le jeu absent de ce poste");
+            eprintln!(
+                "skip detect_game_dir_trouve_le_vrai_jeu_steam : Steam/le jeu absent de ce poste"
+            );
             return;
         };
-        assert!(is_valid_install(&dir), "chemin détecté invalide : {}", dir.display());
+        assert!(
+            is_valid_install(&dir),
+            "chemin détecté invalide : {}",
+            dir.display()
+        );
         eprintln!("jeu détecté via Steam : {}", dir.display());
     }
 
@@ -229,12 +257,17 @@ mod tests {
     fn pick_best_save_trouve_une_vraie_sauvegarde_valide() {
         let candidates = userdata_save_candidates();
         if candidates.is_empty() {
-            eprintln!("skip pick_best_save_trouve_une_vraie_sauvegarde_valide : aucune sauvegarde locale");
+            eprintln!(
+                "skip pick_best_save_trouve_une_vraie_sauvegarde_valide : aucune sauvegarde locale"
+            );
             return;
         }
         let best = pick_best_save(|p| nie_save::io::read_save(p).is_ok());
         let Some(best) = best else {
-            panic!("des candidats existent ({}) mais aucun ne déchiffre — régression réelle", candidates.len());
+            panic!(
+                "des candidats existent ({}) mais aucun ne déchiffre — régression réelle",
+                candidates.len()
+            );
         };
         eprintln!("meilleure sauvegarde détectée : {}", best.display());
         assert!(nie_save::io::read_save(&best).is_ok());

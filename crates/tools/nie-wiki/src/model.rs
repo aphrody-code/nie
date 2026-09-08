@@ -73,8 +73,9 @@ pub struct CharaProfile {
     pub team_name: Option<String>,
     pub series: Option<String>,
     pub zukan_hash: Option<String>,
-    /// Stats à lv 1, 50, 99 si disponibles dans `data`.
+    /// Stats at the four game curve breakpoints when present in `data`.
     pub stats_lv1: Option<StatBlock>,
+    pub stats_lv30: Option<StatBlock>,
     pub stats_lv50: Option<StatBlock>,
     pub stats_lv99: Option<StatBlock>,
     /// Skills (skill_id + niveau d'apprentissage) depuis `data`.
@@ -233,6 +234,7 @@ pub struct CompareResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharaCompareSlot {
     pub id: String,
+    #[serde(skip_serializing)]
     pub chara_id: String,
     pub name: String,
     pub position: Option<String>,
@@ -245,10 +247,19 @@ pub struct CharaCompareSlot {
 /// Skill dans un slot de comparaison.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareSkillSlot {
+    #[serde(rename = "learnLevel")]
     pub learn_level: u32,
+    #[serde(rename = "id")]
     pub skill_id: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub power: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub element: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
 }
 
 // ─── Search ──────────────────────────────────────────────────────────────────
@@ -264,68 +275,119 @@ pub struct SearchResult {
 
 // ─── Status ──────────────────────────────────────────────────────────────────
 
-/// Résultat du diagnostic de status.
+/// Legacy-compatible local health report.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatusReport {
     pub sqlite: SqliteStatus,
-    pub redis_db0: RedisStatus,
-    pub redis_db3: RedisStatus,
+    pub redis: RedisStatus,
+    pub git: GitStatus,
+    pub process: ProcessStatus,
+    pub system: SystemStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SqliteStatus {
     pub healthy: bool,
     pub path: String,
-    pub size_mb: Option<f64>,
-    pub table_count: Option<u64>,
-    pub characters: Option<u64>,
-    pub skills: Option<u64>,
-    pub items: Option<u64>,
-    pub teams: Option<u64>,
+    pub file_size: String,
+    pub tables: u64,
+    pub character_count: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RedisStatus {
     pub healthy: bool,
-    pub latency_ms: Option<f64>,
-    pub db: u8,
+    pub latency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+/// Current repository position.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitStatus {
+    pub branch: String,
+    pub commit: String,
+    pub clean: bool,
+}
+
+/// Current process memory values in legacy display units.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessMemoryStatus {
+    pub heap_used: String,
+    pub rss: String,
+}
+
+/// Current process health values.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessStatus {
+    pub uptime: String,
+    pub memory: ProcessMemoryStatus,
+}
+
+/// Host system values in legacy display units.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemStatus {
+    pub total_memory: String,
+    pub free_memory: String,
+    pub platform: String,
+    pub arch: String,
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────
 
-/// Résultat de l'audit de cohérence du miroir.
+/// Legacy-compatible character and skill integrity audit.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditReport {
-    pub characters: AuditTable,
-    pub skills: AuditTable,
-    pub items: AuditTable,
-    pub teams: AuditTable,
-    pub auras: AuditTable,
-    pub keshins: AuditTable,
-    pub souls: AuditTable,
+    pub characters: CharacterAudit,
+    pub skills: SkillAudit,
 }
 
+/// Character integrity counters.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuditTable {
+#[serde(rename_all = "camelCase")]
+pub struct CharacterAudit {
     pub total: u64,
-    pub missing_name_fr: u64,
-    pub missing_name_en: u64,
-    pub null_data: u64,
+    pub missing_name_fr_en: u64,
+    pub missing_image: u64,
+    pub missing_stats: u64,
+}
+
+/// Skill integrity counters.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillAudit {
+    pub total: u64,
+    pub missing_name_fr_en: u64,
 }
 
 // ─── Dialogue ────────────────────────────────────────────────────────────────
 
-/// Un match de dialogue/sous-titre.
+/// One narrative dialogue match.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DialogueMatch {
     pub event_id: String,
-    pub episode: String,
-    pub line_index: i64,
-    pub text_fr: Option<String>,
-    pub text_en: Option<String>,
-    pub text_ja: Option<String>,
+    pub dialogue_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speaker: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<DialogueText>,
+}
+
+/// Multilingual text for one narrative line.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DialogueText {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fr: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub en: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ja: Option<String>,
 }
 
 // ─── RandomTeam ──────────────────────────────────────────────────────────────
@@ -336,6 +398,7 @@ pub struct RandomTeamPlayer {
     pub id: String,
     pub name: String,
     pub element: Option<String>,
+    #[serde(skip)]
     pub position: String,
 }
 
@@ -345,6 +408,8 @@ pub struct RandomTeamCoord {
     pub id: i64,
     pub name: String,
     pub element: Option<String>,
+    pub playstyle: Option<String>,
+    #[serde(skip)]
     pub role: String,
     pub buff: Option<String>,
 }
@@ -352,6 +417,7 @@ pub struct RandomTeamCoord {
 /// L'équipe aléatoire complète.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RandomTeam {
+    #[serde(skip)]
     pub seed: u64,
     pub formation: String,
     pub gk: Vec<RandomTeamPlayer>,

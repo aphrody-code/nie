@@ -37,9 +37,9 @@
 #![warn(missing_docs)]
 
 pub mod asmsrc;
-pub mod bornes;
+pub mod boundaries;
 pub mod cc;
-pub mod donnees;
+pub mod data;
 #[cfg(feature = "redb")]
 pub mod kb;
 pub mod lift;
@@ -49,8 +49,22 @@ pub mod registry;
 pub mod report;
 pub mod store;
 
+/// Deprecated French compatibility surface for [`boundaries`].
+#[deprecated(since = "0.5.9", note = "use `nie_forge::boundaries` instead")]
+pub mod bornes {
+    pub use crate::boundaries::*;
+}
+
+/// Deprecated French compatibility surface for [`data`].
+#[deprecated(since = "0.5.9", note = "use `nie_forge::data` instead")]
+pub mod donnees {
+    pub use crate::data::*;
+}
+
 pub use asmsrc::AsmSource;
-pub use lift::lift_body;
+pub use lift::{
+    LiftedBody, MAX_LIFT_BODY_BYTES, MAX_LIFT_BODY_INSTRUCTIONS, lift_body, lift_body_text,
+};
 #[cfg(feature = "redb")]
 pub use redb::ReNames;
 pub use registry::{MatchStatus, Registry, RegistryEntry};

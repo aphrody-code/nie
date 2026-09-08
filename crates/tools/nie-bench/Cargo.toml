@@ -10,11 +10,18 @@ rust-version.workspace = true
 [[bin]]
 name = "nie-bench"
 path = "src/main.rs"
+required-features = ["host"]
+
+[features]
+default = ["host"]
+host = ["dep:anyhow", "dep:clap"]
 
 [lints]
 workspace = true
 
 [dependencies]
 nie-formats.workspace = true
-anyhow.workspace = true
-clap.workspace = true
+anyhow = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+serde.workspace = true
+thiserror.workspace = true

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 //! `nie-game` — hôte GUI natif wgpu, pilier D1/C4 pixel-perfect de niers.
 //!
 //! ## Modes d'exécution
@@ -50,6 +52,7 @@ use nie_formats::vfs::Vfs;
 use nie_formats::{cfgbin, font, g4pkm, g4tx, g4tx_decode, menu, objbin};
 // Primitives 2D pures centralisées dans nie-formats::raster2d (dédup Phase 2 ; le blend reste local, landmine #5).
 use nie_formats::raster2d::{crop_rgba, scale_nearest};
+use nie_explore::menu_layout::{choose_asset_basename, resolve_asset_basename};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -2159,52 +2162,7 @@ const MENU_LOCALE: &str = "fr";
 /// Les chemins qui contiennent `<LG>` le portent uniquement dans la partie
 /// répertoire — jamais dans le basename lui-même — donc aucun stripping n'est requis.
 fn resolve_vfs_basename(vfs: &Vfs, logical_path: &str, locale: &str) -> Option<String> {
-    let basename = logical_path.rsplit('/').next().filter(|s| !s.is_empty())?;
-
-    // Tous les chemins VFS finissant par `/basename`. Le VFS est indexé par HashMap (ordre
-    // d'itération NON déterministe) → on COLLECTE + TRIE pour un résultat reproductible : un
-    // `.find()` direct choisissait une locale au hasard à chaque run (rendu non déterministe,
-    // fatal pour le gate pixel-perfect byte-exact).
-    let matches: Vec<String> = vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| {
-            p.ends_with(basename)
-                && (p.len() == basename.len()
-                    || p.as_bytes().get(p.len() - basename.len() - 1) == Some(&b'/'))
-        })
-        .collect();
-    choose_vfs_basename(matches, basename, locale)
-}
-
-/// Choisit un chemin parmi des candidats déjà limités au même basename.
-fn choose_vfs_basename(mut matches: Vec<String>, basename: &str, locale: &str) -> Option<String> {
-    matches.sort_unstable();
-
-    // Segment de répertoire juste avant le basename (= tag de locale pour les assets localisés,
-    // ex. `.../title02_01/fr/title02_01.g4tx` → "fr" ; non-localisé → nom du dossier de texture).
-    let parent_seg = |p: &str| -> String {
-        p.get(..p.len() - basename.len() - 1)
-            .and_then(|d| d.rsplit('/').next())
-            .unwrap_or("")
-            .to_string()
-    };
-
-    // Priorité (port de l'ordre iecode `MenuLayoutExporter.RenderSpriteAsync`) :
-    // 1. locale demandée ; 2. non-localisé (parent ≠ tag de locale) ; 3. common ; 4. en ;
-    // 5. à défaut, le 1ᵉʳ par ordre lexicographique (toujours déterministe).
-    if let Some(p) = matches.iter().find(|p| parent_seg(p) == locale) {
-        return Some(p.clone());
-    }
-    if let Some(p) = matches.iter().find(|p| !is_locale_tag(&parent_seg(p))) {
-        return Some(p.clone());
-    }
-    for fb in ["common", "en"] {
-        if let Some(p) = matches.iter().find(|p| parent_seg(p) == fb) {
-            return Some(p.clone());
-        }
-    }
-    matches.into_iter().next()
+    resolve_asset_basename(vfs.iter().map(|(path, _)| path), logical_path, locale)
 }
 
 /// Index borné des chemins consultés par la matrice menu.
@@ -2257,7 +2215,7 @@ impl MenuVfsLookup {
 
     fn resolve_asset(&self, logical_path: &str, locale: &str) -> Option<String> {
         let basename = logical_path.rsplit('/').next().filter(|s| !s.is_empty())?;
-        choose_vfs_basename(self.assets.get(basename)?.clone(), basename, locale)
+        choose_asset_basename(self.assets.get(basename)?.clone(), basename, locale)
     }
 
     fn resolve_objbin(&self, logical_path: &str) -> Option<String> {
@@ -2286,14 +2244,6 @@ fn resolve_menu_path(
     lookup.map_or_else(
         || resolve_vfs_basename(vfs, logical_path, MENU_LOCALE),
         |index| index.resolve_asset(logical_path, MENU_LOCALE),
-    )
-}
-
-/// Tags de locale connus du jeu (sous-dossiers `<LG>` des assets de menu).
-fn is_locale_tag(seg: &str) -> bool {
-    matches!(
-        seg,
-        "de" | "en" | "es" | "fr" | "it" | "pt" | "ja" | "ko" | "zh_hans" | "zh_hant" | "common"
     )
 }
 
@@ -2781,6 +2731,10 @@ struct LayoutObj {
     sprite: serde_json::Value,
     /// Métadonnées d'animation (`open`/`close`) ou `Null`.
     anim: serde_json::Value,
+    /// Numeric primitive bindings declared by OBJBIN, including their G4PKM resolution status.
+    primitive: serde_json::Value,
+    /// Static character render binding. The model id remains runtime-owned when OBJBIN omits it.
+    char_model: serde_json::Value,
     /// Visibilité — défaut `true`, mise à `false` par le runtime Lua (`SetObjectVisible`).
     visible: bool,
     /// Texte affiché — `Null` en statique, renseigné par le runtime (`SetText`/`SetObjectNum`).
@@ -2802,8 +2756,8 @@ impl LayoutObj {
             "sprite": self.sprite,
             "text": self.text,
             "anim": self.anim,
-            "primitive": serde_json::Value::Null,
-            "charModel": serde_json::Value::Null,
+            "primitive": self.primitive,
+            "charModel": self.char_model,
         })
     }
 
@@ -2960,9 +2914,14 @@ fn collect_layout_objects_with_lookup(
             continue;
         };
 
+        let declared_g4pkm = obj.g4pkm_path.as_deref();
+        let resolved_g4pkm = declared_g4pkm.and_then(|path| resolve_menu_path(vfs, lookup, path));
+
         // Métadonnées de composants.
         let (mut draw_priority, mut draw_type, mut camera) = (0i32, 0i32, 0u32);
         let mut anim = Value::Null;
+        let mut primitive = Value::Null;
+        let mut char_model = Value::Null;
         let mut text_labels: Vec<Value> = Vec::new();
         for c in &obj.components {
             match c {
@@ -2991,6 +2950,41 @@ fn collect_layout_objects_with_lookup(
                         }) {
                             text_labels.push(json!({ "slot": e.key, "text": label }));
                         }
+                    }
+                }
+                objbin::MenuComponent::Primitive(component) => {
+                    primitive = json!({
+                        "numberSettingHashes": component.number_setting_hashes
+                            .iter()
+                            .map(|hash| format!("0x{hash:08X}"))
+                            .collect::<Vec<_>>(),
+                        "dummyMeshOverrides": component.dummy_mesh_overrides
+                            .iter()
+                            .map(|binding| json!({
+                                "primitiveHash": format!("0x{:08X}", binding.primitive_hash),
+                                "dummyMeshHash": format!("0x{:08X}", binding.dummy_mesh_hash),
+                            }))
+                            .collect::<Vec<_>>(),
+                        "g4pkmPath": declared_g4pkm,
+                        "resolvedG4pkmPath": resolved_g4pkm.clone(),
+                        "g4pkmPathStatus": if resolved_g4pkm.is_some() {
+                            "resolved"
+                        } else {
+                            "missing"
+                        },
+                    });
+                }
+                objbin::MenuComponent::Unknown(component) => {
+                    if let Some(binding) = component.chara_model_binding() {
+                        char_model = json!({
+                            "lightObjectDataPath": binding.light_object_data_path,
+                            "menuCameraNameHash": binding.menu_camera_name_hash
+                                .map(|hash| format!("0x{hash:08X}")),
+                            "rotateSelf": binding.rotate_self,
+                            "bodyParts": binding.body_parts,
+                            "useObjectCount": binding.use_object_count,
+                            "modelStatus": "runtime-model-id-required",
+                        });
                     }
                 }
                 _ => {}
@@ -3074,6 +3068,8 @@ fn collect_layout_objects_with_lookup(
                 camera,
                 sprite: sprite.clone(),
                 anim: anim.clone(),
+                primitive: primitive.clone(),
+                char_model: char_model.clone(),
                 visible: true,
                 // Le libellé STATIQUE n'appartient qu'au premier emplacement. Les items d'une
                 // liste reçoivent chacun le leur au runtime (`SetText` par index) : recopier le
@@ -3099,6 +3095,8 @@ fn collect_layout_objects_with_lookup(
             camera,
             sprite,
             anim,
+            primitive,
+            char_model,
             visible: true,
             text: if text_labels.is_empty() {
                 Value::Null
@@ -3231,6 +3229,18 @@ fn screen_script_needles(screen: &str) -> Vec<String> {
     }
 }
 
+/// Returns whether a VFS script basename belongs to the selected screen.
+///
+/// Screen routes map to primary script prefixes. Prefix matching is intentional: substring
+/// matching made `main_menu` also execute the distinct 71-byte
+/// `victory_road_main_menu_0.00.00.00.lua.bin` empty chunk.
+fn script_matches_screen(path: &str, prefixes: &[String]) -> bool {
+    let basename = path.rsplit('/').next().unwrap_or(path).to_ascii_lowercase();
+    prefixes
+        .iter()
+        .any(|prefix| basename.starts_with(prefix.as_str()))
+}
+
 /// Charge le dictionnaire CRC32→nom reversé du corpus Lua DÉCOMPILÉ
 /// (`data/re/menu-crc32-dictionary.json`, 160513 entrées, récupéré du VPS 2026-06-16). Les hash de
 /// menu (sprites, nœuds, objets) SONT du CRC32 de noms (vérifié `CRC32("Focus")=0xA30165ED`) → ce
@@ -3279,6 +3289,18 @@ fn load_region_index() -> std::collections::HashMap<String, String> {
     std::collections::HashMap::new()
 }
 
+/// Per-script counters printed by the runtime-layout diagnostic.
+struct ScriptRuntimeReport {
+    name: String,
+    layers: usize,
+    objects: usize,
+    known_calls: usize,
+    events_requested: usize,
+    events_dispatched: usize,
+    events_succeeded: usize,
+    missing_callbacks: usize,
+}
+
 /// Génère le layout d'un écran AU RUNTIME comme `nie.exe` : exécute les vrais scripts Lua de
 /// l'écran via le driver reversé (`OnInit` → `OnSetupLayer` → `OnOpenLayer`, manager `0x14109D190`)
 /// dans la VM Lua 5.2 réelle ([`nie_lua`]), récupère le `MenuState` produit, puis l'applique au
@@ -3301,7 +3323,7 @@ fn cmd_export_layout_runtime(
     use nie_formats::cfgbin::crc32;
     use nie_lua::host::{HostRegistry, LogSink};
     use nie_lua::session::LuaSession;
-    use nie_lua::{HeaderTab, enumerate_header_tabs};
+    use nie_lua::{HeaderTab, MenuCallback, enumerate_header_tabs};
     use serde_json::{Value, json};
 
     let data_dir = game_dir.join("data");
@@ -3331,10 +3353,7 @@ fn cmd_export_layout_runtime(
     let needles = screen_script_needles(screen);
     let scripts: Vec<String> = menu_scripts
         .iter()
-        .filter(|p| {
-            let b = p.rsplit('/').next().unwrap_or(p).to_ascii_lowercase();
-            needles.iter().any(|n| b.contains(n.as_str()))
-        })
+        .filter(|path| script_matches_screen(path, &needles))
         .cloned()
         .collect();
     if scripts.is_empty() {
@@ -3378,7 +3397,13 @@ fn cmd_export_layout_runtime(
     let mut missing_host_calls: BTreeMap<String, usize> = BTreeMap::new();
     let mut missing_host_paths: BTreeMap<String, usize> = BTreeMap::new();
     let mut loaded_includes: BTreeMap<String, usize> = BTreeMap::new();
-    let mut script_reports: Vec<(String, bool, usize, usize, usize)> = Vec::new();
+    let mut script_reports: Vec<ScriptRuntimeReport> = Vec::new();
+    let mut menu_events_requested = 0usize;
+    let mut menu_events_dispatched = 0usize;
+    let mut menu_events_succeeded = 0usize;
+    let mut menu_event_invocations: BTreeMap<String, usize> = BTreeMap::new();
+    let mut callbacks_played: std::collections::BTreeSet<String> =
+        std::collections::BTreeSet::from([MenuCallback::OnInit.as_str().to_string()]);
     // Callbacks que les scripts de l'écran DÉFINISSENT. Le driver n'en joue qu'une partie
     // (`OnInit`, `OnSetupLayer`, `OnOpenLayer`, `OnEnter`, `Step`) ; les autres nomment
     // précisément ce qu'une exécution complète devrait déclencher. Sans cet inventaire, « il
@@ -3409,11 +3434,12 @@ fn cmd_export_layout_runtime(
         // de `nie-lua`, sans reconstruire manuellement une VM instrumentée.
         let logs: LogSink = Rc::new(std::cell::RefCell::new(Vec::new()));
         let registry = HostRegistry::standard(Rc::clone(&logs));
-        let session = LuaSession::with_script_paths(registry, logs, true, script_paths.clone(), {
-            let vfs = Rc::clone(&vfs);
-            move |path| vfs.read(path).ok()
-        })
-        .map_err(|e| anyhow::anyhow!("création session Lua VFS : {e}"))?;
+        let mut session =
+            LuaSession::with_script_paths(registry, logs, true, script_paths.clone(), {
+                let vfs = Rc::clone(&vfs);
+                move |path| vfs.read(path).ok()
+            })
+            .map_err(|e| anyhow::anyhow!("création session Lua VFS : {e}"))?;
         let state = session
             .menu_state()
             .ok_or_else(|| anyhow::anyhow!("session Lua sans MenuState"))?;
@@ -3426,19 +3452,43 @@ fn cmd_export_layout_runtime(
         // Seed la donnée de scène AVANT le pilotage : GetObjectAttr/GetItemButtonNum la lit
         // pendant OnInit (le compte est mis en cache à ce moment-là).
         state.borrow_mut().object_attr.clone_from(&item_counts);
-        let report = match session.drive_menu_for_frames(
-            &bytes,
-            name,
-            &drive_layers,
-            &item_counts,
-            frames,
-        ) {
+        // Keep chunk loading and OnInit in the session lifecycle, then replay every layer/frame
+        // callback through the typed scenario API. This preserves the previous order while making
+        // requested, dispatched and successful events observable to downstream diagnostics.
+        let report = match session.drive_menu_for_frames(&bytes, name, &[], &BTreeMap::new(), 0) {
             Ok(r) => r,
             Err(e) => {
                 warn!("drive_menu {name} : {e}");
                 continue;
             }
         };
+        let events = nie_lua::build_menu_runtime_events(&drive_layers, &item_counts, frames);
+        let event_report = match session.dispatch_menu_events(&events) {
+            Ok(report) => report,
+            Err(error) => {
+                warn!("menu events {name} : {error}");
+                continue;
+            }
+        };
+        // Refresh the existing driver diagnostics after typed events have run. With an already
+        // initialized menu and an empty event set this invokes no lifecycle callback; it only
+        // snapshots callback availability and host-stub paths from the same persistent VM.
+        let diagnostics_report =
+            match session.drive_menu_for_frames(&bytes, name, &[], &BTreeMap::new(), 0) {
+                Ok(report) => report,
+                Err(error) => {
+                    warn!("menu diagnostics {name} : {error}");
+                    continue;
+                }
+            };
+        menu_events_requested += event_report.events_requested;
+        menu_events_dispatched += event_report.events_dispatched;
+        menu_events_succeeded += event_report.events_succeeded;
+        for (callback, count) in &event_report.callback_invocations {
+            let callback = callback.as_str().to_string();
+            callbacks_played.insert(callback.clone());
+            *menu_event_invocations.entry(callback).or_default() += count;
+        }
 
         for include in session.take_loaded_includes() {
             *loaded_includes.entry(include).or_default() += 1;
@@ -3532,19 +3582,21 @@ fn cmd_export_layout_runtime(
             }
         }
         info!(
-            "driver {name} : top_level_ok={} on_init={:?} on_open={} layers={n_layers} \
+            "driver {name} : top_level_ok={} on_init={:?} events={}/{}/{} layers={n_layers} \
              objects={n_objs} known={} unknown={}",
             report.top_level_ok,
             report.on_init,
-            report.on_open,
+            event_report.events_requested,
+            event_report.events_dispatched,
+            event_report.events_succeeded,
             st.known_cmd_log.len(),
             st.unknown_cmd_log.len() + st.unknown_general_cmd_log.len()
         );
-        callbacks_definis.extend(report.callbacks.iter().cloned());
-        for call in &report.missing_host_calls {
+        callbacks_definis.extend(diagnostics_report.callbacks.iter().cloned());
+        for call in &diagnostics_report.missing_host_calls {
             *missing_host_calls.entry(call.clone()).or_default() += 1;
         }
-        for path in &report.missing_host_paths {
+        for path in &diagnostics_report.missing_host_paths {
             *missing_host_paths.entry(path.clone()).or_default() += 1;
         }
         callback_errors.extend(
@@ -3553,13 +3605,22 @@ fn cmd_export_layout_runtime(
                 .iter()
                 .map(|error| format!("{name}: {error}")),
         );
-        script_reports.push((
-            name.to_string(),
-            report.on_open,
-            n_layers,
-            n_objs,
-            st.known_cmd_log.len(),
-        ));
+        callback_errors.extend(
+            event_report
+                .callback_errors
+                .iter()
+                .map(|error| format!("{name}: {error}")),
+        );
+        script_reports.push(ScriptRuntimeReport {
+            name: name.to_string(),
+            layers: n_layers,
+            objects: n_objs,
+            known_calls: st.known_cmd_log.len(),
+            events_requested: event_report.events_requested,
+            events_dispatched: event_report.events_dispatched,
+            events_succeeded: event_report.events_succeeded,
+            missing_callbacks: event_report.missing_callbacks.len(),
+        });
     }
 
     // 5) APPLIQUE le MenuState fusionné au layout via crc32(objbin.name).
@@ -3757,6 +3818,8 @@ fn cmd_export_layout_runtime(
             camera: 0,
             sprite: Value::Null,
             anim: Value::Null,
+            primitive: Value::Null,
+            char_model: Value::Null,
             visible: true,
             text,
             runtime: Value::Object(rt),
@@ -3771,6 +3834,24 @@ fn cmd_export_layout_runtime(
     let json_objects: Vec<Value> = objects.iter().map(LayoutObj::to_json_runtime).collect();
     let n_objects = json_objects.len();
     let n_visible = objects.iter().filter(|o| o.visible).count();
+    let n_primitive_bindings = objects
+        .iter()
+        .filter(|object| !object.primitive.is_null())
+        .count();
+    let n_primitive_g4pkm_paths_resolved = objects
+        .iter()
+        .filter(|object| {
+            object
+                .primitive
+                .get("g4pkmPathStatus")
+                .and_then(Value::as_str)
+                == Some("resolved")
+        })
+        .count();
+    let n_chara_model_bindings = objects
+        .iter()
+        .filter(|object| !object.char_model.is_null())
+        .count();
     let unknown_list: Vec<Value> = unknown_cmds
         .iter()
         .map(|(c, (n, args))| json!({ "cmdId": format!("0x{c:08X}"), "count": n, "args": args }))
@@ -3808,15 +3889,14 @@ fn cmd_export_layout_runtime(
             "loadedIncludes": loaded_includes,
             "callbacksDefinis": callbacks_definis,
             "callbackErrors": callback_errors,
+            "menuEventsRequested": menu_events_requested,
+            "menuEventsDispatched": menu_events_dispatched,
+            "menuEventsSucceeded": menu_events_succeeded,
+            "menuEventInvocations": menu_event_invocations,
             // Ceux que le driver ne joue pas : la cible exacte du travail de navigation restant.
             "callbacksNonJoues": callbacks_definis
                 .iter()
-                .filter(|c| {
-                    !matches!(
-                        c.as_str(),
-                        "OnInit" | "OnSetupLayer" | "OnOpenLayer" | "OnEnter" | "Step"
-                    )
-                })
+                .filter(|callback| !callbacks_played.contains(callback.as_str()))
                 .collect::<Vec<_>>(),
             // Combien d'objets reçoivent une visibilité NOMMÉE par index, et sur combien d'index
             // distincts : dit si les scripts distinguent vraiment les exemplaires d'un gabarit, ou
@@ -3839,6 +3919,12 @@ fn cmd_export_layout_runtime(
             "spritesNamed": n_sprite_named,
             "regionRects": n_region_rect,
             "textsMutated": n_text_mut,
+            "primitiveBindings": n_primitive_bindings,
+            "primitiveG4pkmPathsResolved": n_primitive_g4pkm_paths_resolved,
+            "primitiveG4pkmPathsMissing": n_primitive_bindings
+                .saturating_sub(n_primitive_g4pkm_paths_resolved),
+            "charaModelBindings": n_chara_model_bindings,
+            "charaModelsResolved": 0,
             "knownCmdCalls": total_known,
             "unknownCmds": unknown_list,
             "unknownGeneralCmds": unknown_general_list,
@@ -3852,6 +3938,9 @@ fn cmd_export_layout_runtime(
         "export-layout-runtime: screen={screen_name} objets={n_objects} (sprites statiques={n_sprites}) \
          scripts={} | MenuState: objets={} mutés[matched={n_matched_total} (statique={n_matched} \
          + onglets={n_tabs}) hidden={n_hidden} sprite={n_sprite_mut} text={n_text_mut} listItems={total_list_items}] \
+         | assets: primitive_g4pkm_paths={n_primitive_g4pkm_paths_resolved}/{n_primitive_bindings} \
+         chara_models=0/{n_chara_model_bindings} \
+         | events={menu_events_requested}/{menu_events_dispatched}/{menu_events_succeeded} \
          | cmds connus={total_known} inconnus_menu={} inconnus_generales={} | visibles={n_visible} -> {} ({} octets)",
         scripts.len(),
         merged_objs.len(),
@@ -3860,8 +3949,18 @@ fn cmd_export_layout_runtime(
         out.display(),
         txt.len()
     );
-    for (name, on_open, nl, no, nk) in &script_reports {
-        println!("  · {name} : on_open={on_open} layers={nl} objects={no} known_calls={nk}");
+    for report in &script_reports {
+        println!(
+            "  · {} : events={}/{}/{} missing={} layers={} objects={} known_calls={}",
+            report.name,
+            report.events_requested,
+            report.events_dispatched,
+            report.events_succeeded,
+            report.missing_callbacks,
+            report.layers,
+            report.objects,
+            report.known_calls,
+        );
     }
     if n_matched_total == 0 {
         println!(
@@ -3906,17 +4005,21 @@ fn paint_menu_background(canvas_w: u32, canvas_h: u32) -> Vec<u8> {
 /// 144×96). Repli si l'index `nom→g4tx` (généré par `--build-region-index`) est absent.
 const ICON_LIST_TAB_ATLAS: &str = "#/menu/200_icon/16_icon_list_tab/<LG>/icon_list_tab.g4tx";
 
+/// Shared VFS sprite used by the main-menu entitlement badge.  Unlike the character/team panels,
+/// this is a complete standalone texture and therefore does not require runtime scene data.
+const MAIN_MENU_DELUXE_BADGE: &str = "#/menu/220_img/logo_dlc/logo_dlc_deluxe_edition.g4tx";
+
 /// Onglets de la rangée d'icônes centrale du `main_menu`, dans l'ordre gauche→droite. État
 /// `…01` = variante claire (icône blanche). Le 1ᵉʳ onglet (Match) est l'entrée surlignée du jeu.
 /// L'atlas ne contient QUE le glyphe d'icône (blanc, fond transparent) : la tuile-parallélogramme
 /// bleue est dessinée par le moteur, on la reproduit ici ([`fill_parallelogram`]) par fidélité.
 const MAIN_MENU_ICON_TABS: [&str; 8] = [
-    "icon_list_tab_battle01",
-    "icon_list_tab_training01",
-    "icon_list_tab_equip01",
+    "icon_list_tab_option01",
+    "icon_list_tab_help02",
+    "icon_list_tab_help03",
     "icon_list_tab_quest01",
     "icon_list_tab_kizuna01",
-    "icon_list_tab_tactics01",
+    "icon_list_tab_vroad01",
     "icon_list_tab_town01",
     "icon_list_tab_record01",
 ];
@@ -3987,14 +4090,17 @@ fn lerp_u8(a: u8, b: u8, t: f64) -> u8 {
 /// nombre d'onglets effectivement posés.
 fn paint_main_menu_icon_row(game_dir: &Path, canvas: &mut [u8], (cw, ch): (u32, u32)) -> usize {
     // Rangée : tuiles bleues penchées, glyphe blanc centré (cf. capture réelle).
-    const TILE_W: u32 = 100; // largeur de l'arête inférieure
-    const TILE_H: u32 = 80;
-    const SLANT: i32 = 30; // dessus décalé de 30 px à droite ⇒ parallélogramme penché
-    const ROW_Y: i32 = 386; // y du bord supérieur de la rangée
-    const FIRST_X: i32 = 110; // abscisse du coin inférieur gauche de la 1ʳᵉ tuile
-    const STEP: i32 = 114; // pas horizontal entre tuiles
-    const ICON_W: u32 = 84; // glyphe (atlas 144×96, ratio 1.5) redimensionné
-    const ICON_H: u32 = 56;
+    // Measured on the 1280×720 reference produced from `data/menu/main_menu.png`: the eight
+    // tiles start at x=109, repeat every 135 px and occupy y=383..467.  The VFS glyph regions
+    // are 144×96; 100×67 preserves their 3:2 aspect ratio after the reference downscale.
+    const TILE_W: u32 = 120;
+    const TILE_H: u32 = 84;
+    const SLANT: i32 = 30;
+    const ROW_Y: i32 = 383;
+    const FIRST_X: i32 = 109;
+    const STEP: i32 = 135;
+    const ICON_W: u32 = 100;
+    const ICON_H: u32 = 67;
     // Dégradés : tuile normale (bleu moyen) vs surlignée (1ʳᵉ, plus claire).
     const TILE_TOP: [u8; 3] = [0x4a, 0x8c, 0xd4];
     const TILE_BOT: [u8; 3] = [0x1a, 0x46, 0x96];
@@ -4074,6 +4180,53 @@ fn paint_main_menu_icon_row(game_dir: &Path, canvas: &mut [u8], (cw, ch): (u32, 
     posed
 }
 
+/// Draw the exact Deluxe Edition sprite from the mounted VFS at its measured reference position.
+///
+/// The 360×76 texture is scaled to 239×50 and placed at (41,603) on the canonical canvas. Those
+/// values come from an alpha-weighted search against the 1280×720 reference, not from a guessed
+/// layout. The adjacent ownership check remains absent because it is a separate runtime widget.
+fn paint_main_menu_deluxe_badge(game_dir: &Path, canvas: &mut [u8], (cw, ch): (u32, u32)) -> bool {
+    const TARGET_W: u32 = 239;
+    const TARGET_H: u32 = 50;
+    const TARGET_X: i32 = 41;
+    const TARGET_Y: i32 = 603;
+
+    let Ok((resolved, bytes)) = obtenir_g4tx_bytes(game_dir, MAIN_MENU_DELUXE_BADGE) else {
+        warn!("main_menu: Deluxe Edition VFS sprite is unavailable");
+        return false;
+    };
+    let Ok(parsed) = g4tx::parse(&bytes) else {
+        warn!("main_menu: failed to parse Deluxe Edition sprite at {resolved}");
+        return false;
+    };
+    let stem = resolved
+        .rsplit('/')
+        .next()
+        .unwrap_or(resolved.as_str())
+        .strip_suffix(".g4tx")
+        .unwrap_or("");
+    let Some(tex) = g4tx::select_main_texture(&parsed, stem) else {
+        warn!("main_menu: Deluxe Edition sprite has no decodable main texture");
+        return false;
+    };
+    let Some((source_w, source_h, rgba)) = g4tx_decode::decode_texture_rgba(&bytes, tex) else {
+        warn!("main_menu: failed to decode Deluxe Edition sprite");
+        return false;
+    };
+    let scaled = scale_nearest(&rgba, source_w, source_h, TARGET_W, TARGET_H);
+    if scaled.is_empty() {
+        return false;
+    }
+    blit_over(
+        canvas,
+        (cw, ch),
+        &scaled,
+        (TARGET_W, TARGET_H),
+        (TARGET_X, TARGET_Y),
+    );
+    true
+}
+
 /// Compose l'écran `screen` via le compositeur CPU (référence pixel-perfect) → PNG.
 fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -> Result<()> {
     // RENDU RÉEL par défaut : on compose via la DÉFINITION D'ÉCRAN (`<screen>_setting.cfg.bin`,
@@ -4122,9 +4275,10 @@ fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -
     // fidélité visuelle au vrai jeu (crops statiques de l'atlas `icon_list_tab`, aucun driver Lua).
     if screen == "main_menu" {
         let n = paint_main_menu_icon_row(game_dir, &mut canvas, (1280, 720));
+        let deluxe_badge = paint_main_menu_deluxe_badge(game_dir, &mut canvas, (1280, 720));
         info!(
-            "main_menu : {n}/{} onglets d'icônes posés",
-            MAIN_MENU_ICON_TABS.len()
+            "main_menu : {n}/{} onglets d'icônes posés, badge Deluxe Edition={deluxe_badge}",
+            MAIN_MENU_ICON_TABS.len(),
         );
     }
 
@@ -4923,7 +5077,22 @@ impl AppFenetre {
 
 #[cfg(test)]
 mod tests {
-    use super::{blit_over, crop_rgba, scale_nearest};
+    use super::{
+        blit_over, crop_rgba, scale_nearest, screen_script_needles, script_matches_screen,
+    };
+
+    #[test]
+    fn main_menu_script_selection_excludes_distinct_victory_road_screen() {
+        let prefixes = screen_script_needles("main_menu");
+        assert!(script_matches_screen(
+            "data/common/script/lua/menu/main_menu_1.02.92.00.lua.bin",
+            &prefixes
+        ));
+        assert!(!script_matches_screen(
+            "data/common/script/lua/menu/victory_road_main_menu_0.00.00.00.lua.bin",
+            &prefixes
+        ));
+    }
 
     /// Buffer 4×2 RGBA où chaque pixel encode son index dans le canal R, pour vérifier que
     /// `crop_rgba` extrait exactement le bon sous-rectangle (ligne par ligne, sans débordement).

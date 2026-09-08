@@ -932,10 +932,10 @@ mod tests {
 
     #[test]
     fn run_get_chain_structfield_self() {
-        // rank : chaîne [+0x69A0, +0x5C] — tampon assez grand, pointeur implanté à +0x69A0.
+        // Rank uses the current catalog chain [+0x69C8, +0x5C].
         let mut buf = vec![0u8; 0x6A00];
         let base = buf.as_ptr() as u64;
-        buf[0x69A0..0x69A8].copy_from_slice(&base.to_le_bytes()); // *(base+0x69A0) = base ; +0x5C dans le tampon
+        buf[0x69C8..0x69D0].copy_from_slice(&base.to_le_bytes());
         run_ok(&["get", "rank", "--base", &hexaddr(base), "--pid", &me()]);
     }
 

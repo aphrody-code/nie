@@ -20,7 +20,7 @@
  * film exige le miroir SQLite et vit donc côté serveur (`apps/azalee/lib/cpk/media-names.ts`).
  *
  * Les quatre URL, les fiches (`FilmDto` & co.) et les formateurs viennent de
- * `@niers/catalog/jeu` : c'est le serveur qui décide de la forme des unes et des autres, et les
+ * `@niers/catalog/game` : c'est le serveur qui décide de la forme des unes et des autres, et les
  * réécrire ici en ferait une deuxième vérité, qui dérive en silence.
  */
 
@@ -31,8 +31,8 @@ import {
 	urlCatalogueFilms,
 	urlFicheFilm,
 	urlFilm,
-} from "@niers/catalog/jeu";
-import type { CatalogueVideo, FilmDto } from "@niers/catalog/jeu";
+} from "@niers/catalog/game";
+import type { CatalogueVideo, FilmDto } from "@niers/catalog/game";
 
 import { exportUrl } from "@rosegriffon/azalee/cpk/live";
 
@@ -43,9 +43,9 @@ export type {
 	FilmGamedata,
 	FilmPisteInterne,
 	LangueDto,
-} from "@niers/catalog/jeu";
+} from "@niers/catalog/game";
 
-export { formatDuree, formatOctets, ordreRubrique } from "@niers/catalog/jeu";
+export { formatDuree, formatOctets, ordreRubrique } from "@niers/catalog/game";
 
 /** URL du catalogue complet. */
 export function videoCatalogUrl(): string {

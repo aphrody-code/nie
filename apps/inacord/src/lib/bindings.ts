@@ -1951,7 +1951,7 @@ export type PetEtatDto = {
  * 
  *  Elle vient de deux endroits, et c'est le fait marquant du corpus : **2 films sur 97 seulement**
  *  portent leur son dans leur propre conteneur (les deux logos). Pour tous les autres, il vit
- *  dans la banque `anime_stream`, à côté — cf. [`nie_explore::bande_son`].
+ *  dans la banque `anime_stream`, à côté — cf. [`nie_explore::soundtrack`].
  */
 export type PisteAudioDto = {
 	/**  Numéro de canal (toujours `0` pour une piste externe). */
@@ -2333,4 +2333,3 @@ async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; dat
         return { status: "error", error: e as any };
     }
 }
-

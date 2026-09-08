@@ -120,7 +120,12 @@ pub struct LuaExecResultDto {
 ///
 /// # Errors
 /// Message lisible si la VM ne peut pas être préparée.
-pub fn execute(data: &[u8], chunk_name: &str, with_menu_host: bool, instruction_limit: Option<u32>) -> Result<LuaExecResultDto, String> {
+pub fn execute(
+    data: &[u8],
+    chunk_name: &str,
+    with_menu_host: bool,
+    instruction_limit: Option<u32>,
+) -> Result<LuaExecResultDto, String> {
     let options = nie_lua::runtime::ExecOptions {
         chunk_name: chunk_name.to_string(),
         instruction_limit,
@@ -197,7 +202,11 @@ pub fn globals_after_run(
         mlua_chunk_mode_text()
     };
     // L'échec du script ne doit pas empêcher d'inspecter ce qu'il a posé avant de planter.
-    let _ = lua.load(data).set_name(chunk_name.to_string()).set_mode(mode).exec();
+    let _ = lua
+        .load(data)
+        .set_name(chunk_name.to_string())
+        .set_mode(mode)
+        .exec();
 
     Ok(nie_lua::runtime::list_globals(&lua, include_stdlib)
         .into_iter()
@@ -223,7 +232,12 @@ fn mlua_chunk_mode_text() -> nie_lua::ChunkMode {
 ///
 /// # Errors
 /// Message lisible si la VM ne peut pas être préparée.
-pub fn eval(data: &[u8], chunk_name: &str, expression: &str, with_menu_host: bool) -> Result<String, String> {
+pub fn eval(
+    data: &[u8],
+    chunk_name: &str,
+    expression: &str,
+    with_menu_host: bool,
+) -> Result<String, String> {
     let lua = nie_lua::new_vm();
     let sink = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     nie_lua::runtime::install_print_capture(&lua, sink).map_err(|e| e.to_string())?;
@@ -238,7 +252,11 @@ pub fn eval(data: &[u8], chunk_name: &str, expression: &str, with_menu_host: boo
         } else {
             mlua_chunk_mode_text()
         };
-        let _ = lua.load(data).set_name(chunk_name.to_string()).set_mode(mode).exec();
+        let _ = lua
+            .load(data)
+            .set_name(chunk_name.to_string())
+            .set_mode(mode)
+            .exec();
     }
 
     nie_lua::runtime::eval_expression(&lua, expression).map_err(|e| e.to_string())
@@ -260,7 +278,11 @@ mod tests {
         let info = chunk_info(&dumped).expect("info");
         assert_eq!(info.version, 0x52);
         assert!(info.instructions > 0);
-        assert!(info.strings.iter().any(|s| s == "salut"), "chaînes : {:?}", info.strings);
+        assert!(
+            info.strings.iter().any(|s| s == "salut"),
+            "chaînes : {:?}",
+            info.strings
+        );
 
         let listing = disassemble(&dumped).expect("désassemblage");
         assert!(listing.contains("function main"), "listing :\n{listing}");
@@ -268,7 +290,8 @@ mod tests {
 
     #[test]
     fn execute_capture_la_sortie() {
-        let out = execute(b"print('coucou') return 5", "essai", false, Some(1_000_000)).expect("exec");
+        let out =
+            execute(b"print('coucou') return 5", "essai", false, Some(1_000_000)).expect("exec");
         assert_eq!(out.stdout, vec!["coucou".to_string()]);
         assert_eq!(out.returned, vec!["5".to_string()]);
         assert!(out.error.is_none());
@@ -291,7 +314,10 @@ mod tests {
         )
         .expect("globals");
         let hp = forced.iter().find(|g| g.name == "hp").expect("hp");
-        assert_eq!(hp.value, "999", "la valeur forcée devait survivre au garde `if nil`");
+        assert_eq!(
+            hp.value, "999",
+            "la valeur forcée devait survivre au garde `if nil`"
+        );
     }
 
     #[test]

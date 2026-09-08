@@ -18,8 +18,16 @@
 /// App ID Steam d'Inazuma Eleven: Victory Road (LEVEL5).
 pub const IEVR_STEAM_APP_ID: u32 = 2799860;
 
+/// Platform-neutral depot selection and manifest collision planning.
+pub mod planning;
+
+#[cfg(feature = "host")]
 pub mod depot_resolver;
+#[cfg(feature = "host")]
 pub mod downloader;
+#[cfg(feature = "host")]
 pub mod options;
+#[cfg(feature = "host")]
 pub mod session;
+#[cfg(feature = "host")]
 pub mod token_store;

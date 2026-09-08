@@ -13,15 +13,15 @@
  * ⚠ Module **client-safe** : `fetch` seul. Le rattachement d'une banque à un personnage exige le
  * miroir SQLite et vit donc côté serveur.
  *
- * Les deux URL et les deux fiches (`AudioCue`, `AudioBank`) viennent de `@niers/catalog/jeu` : ce
+ * Les deux URL et les deux fiches (`AudioCue`, `AudioBank`) viennent de `@niers/catalog/game` : ce
  * que le serveur sérialise n'appartient pas à cette bibliothèque, et le décrire une deuxième fois
  * ici ferait diverger le wiki de l'explorateur sans que rien ne le signale.
  */
 
-import { formatDureeCue, urlAudio, urlBanqueSon } from "@niers/catalog/jeu";
-import type { AudioBank } from "@niers/catalog/jeu";
+import { formatDureeCue, urlAudio, urlBanqueSon } from "@niers/catalog/game";
+import type { AudioBank } from "@niers/catalog/game";
 
-export type { AudioBank, AudioCue } from "@niers/catalog/jeu";
+export type { AudioBank, AudioCue } from "@niers/catalog/game";
 
 /**
  * URL de lecture d'un cue précis d'une banque → WAV PCM 16 bits décodé live.
@@ -105,7 +105,7 @@ export function voiceBankCharacterCode(path: string): string | null {
  * Formate une durée de cue en `m:ss` (ou `s,d s` sous la minute).
  *
  * Le nom historique reste : c'est celui qu'importent les pages du wiki. La règle, elle, vit
- * dans `@niers/catalog/jeu` sous `formatDureeCue`, à côté de celle des films — dont elle diffère
+ * dans `@niers/catalog/game` sous `formatDureeCue`, à côté de celle des films — dont elle diffère
  * volontairement (une cue de voix dure une seconde et demie, `0:02` en dirait moins).
  */
 export function formatDuration(sec: number): string {

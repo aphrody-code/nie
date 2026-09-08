@@ -86,7 +86,9 @@ pub struct LiveStatus {
 
 /// Cherche le process du jeu.
 fn pid_du_jeu() -> Option<(i32, &'static str)> {
-    PROCESS.iter().find_map(|n| find_pid_by_name(n).map(|p| (p, *n)))
+    PROCESS
+        .iter()
+        .find_map(|n| find_pid_by_name(n).map(|p| (p, *n)))
 }
 
 /// État du jeu, sans rien lire de sa mémoire au-delà de ses modules.
@@ -170,7 +172,9 @@ pub fn live_find_team(chara_param_id: u32) -> Result<String, String> {
                     .map(u32::from_le_bytes)
             };
             let param = |o: usize| -> Option<u32> {
-                buf.get(o..o + 4).and_then(|s| s.try_into().ok()).map(u32::from_le_bytes)
+                buf.get(o..o + 4)
+                    .and_then(|s| s.try_into().ok())
+                    .map(u32::from_le_bytes)
             };
             let suivant = i + STRIDE as usize;
             let forme_ok = matches!((uniform(i), uniform(suivant)), (Some(a), Some(b)) if a == b && a != 0)
@@ -192,7 +196,9 @@ pub fn live_find_team(chara_param_id: u32) -> Result<String, String> {
             return Ok(format!("0x{:X}", region.start + debut as u64));
         }
     }
-    Err(format!("aucun tableau d'équipe portant 0x{chara_param_id:08X}"))
+    Err(format!(
+        "aucun tableau d'équipe portant 0x{chara_param_id:08X}"
+    ))
 }
 
 /// Lit les membres de l'équipe active à partir de l'adresse donnée.
@@ -248,7 +254,10 @@ fn parse_addr(s: &str) -> Result<u64, String> {
     let r = t
         .strip_prefix("0x")
         .or_else(|| t.strip_prefix("0X"))
-        .map_or_else(|| t.parse::<u64>().ok(), |h| u64::from_str_radix(h, 16).ok());
+        .map_or_else(
+            || t.parse::<u64>().ok(),
+            |h| u64::from_str_radix(h, 16).ok(),
+        );
     r.ok_or_else(|| format!("adresse illisible : {s}"))
 }
 
@@ -319,7 +328,9 @@ pub fn live_write_u32(address: String, value: u32) -> Result<u32, String> {
     let addr = parse_addr(&address)?;
     write_exact(pid, addr, &value.to_le_bytes()).map_err(|e| e.to_string())?;
     let buf = read_exact(pid, addr, 4).map_err(|e| e.to_string())?;
-    Ok(u32::from_le_bytes(buf[..4].try_into().map_err(|_| "relecture courte")?))
+    Ok(u32::from_le_bytes(
+        buf[..4].try_into().map_err(|_| "relecture courte")?,
+    ))
 }
 
 /// Résultat d'un lancement d'outil externe.

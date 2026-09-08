@@ -25,7 +25,7 @@ nie-pe = { path = "../../forge/nie-pe" }
 nie-asm = { path = "../../forge/nie-asm" }
 iced-x86.workspace = true
 anyhow.workspace = true
-clap.workspace = true
+clap = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 # Base de connaissance RE (var/niers.sqlite) : noms de fonctions et bornes .pdata.
@@ -38,7 +38,7 @@ rusqlite = { workspace = true, optional = true }
 default = ["redb"]
 # Lecture de `var/niers.sqlite` (module `redb`). Le binaire `nie-forge` en a besoin ;
 # `nie-explorer` la desactive pour n'embarquer qu'un seul moteur SQLite.
-redb = ["dep:rusqlite"]
+redb = ["dep:clap", "dep:rusqlite"]
 
 [dev-dependencies]
 tempfile.workspace = true

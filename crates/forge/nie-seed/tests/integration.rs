@@ -4,6 +4,7 @@
 //! Ils sont ignorés par défaut pour ne pas bloquer la CI sans données.
 
 #![allow(clippy::pedantic)]
+#![cfg(feature = "host")]
 
 use std::path::Path;
 

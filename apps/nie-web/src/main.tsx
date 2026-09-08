@@ -8,9 +8,9 @@ import "./base.css";
 // ce qui la consomme.
 import "@niers/inacord-ui/shell/game-screens.css";
 
-const racine = document.getElementById("racine");
-if (!racine) throw new Error("#racine absent de index.html");
-createRoot(racine).render(
+const rootElement = document.getElementById("racine");
+if (!rootElement) throw new Error("#racine absent de index.html");
+createRoot(rootElement).render(
 	<StrictMode>
 		<App />
 	</StrictMode>,

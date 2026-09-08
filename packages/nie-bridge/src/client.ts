@@ -2,7 +2,7 @@
  * Côté client du pont — celui que `nie-explorer` embarque.
  *
  * Isomorphe : n'utilise que le `WebSocket` standard, donc fonctionne dans la WebView Tauri
- * comme sous Bun. Le serveur (`./server.ts`), lui, dépend de `Bun.serve`.
+ * comme sous Bun. Le serveur est implémenté nativement dans `nie-cli` avec Tokio.
  *
  * La connexion est opportuniste : si aucun serveur MCP n'écoute, le client réessaie en
  * arrière-plan sans jamais rejeter — l'explorateur doit rester parfaitement utilisable seul.

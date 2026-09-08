@@ -2,6 +2,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use eframe::{egui, egui_wgpu, wgpu};
+use nie_editor::EditorSession;
 use nie_render3d::{
     document::{SceneDocument, SceneObject},
     glb,
@@ -53,12 +54,9 @@ struct Studio {
     /// Dimensions physiques de la vue inscrite auprès d'egui. La texture cible est persistante
     /// entre deux redimensionnements : éviter de la réenregistrer à chaque frame.
     texture_size: Option<[u32; 2]>,
-    document: SceneDocument,
-    undo: Vec<SceneDocument>,
-    redo: Vec<SceneDocument>,
+    session: EditorSession,
     pending_edit: Option<SceneDocument>,
     assets: HashMap<String, glb::Model>,
-    selected: Option<usize>,
     camera: Camera,
     framing: Option<([f32; 3], f32)>,
     asset_path: String,
@@ -82,12 +80,9 @@ impl Studio {
             gpu_model: None,
             texture: None,
             texture_size: None,
-            document: SceneDocument::default(),
-            undo: vec![],
-            redo: vec![],
+            session: EditorSession::default(),
             pending_edit: None,
             assets: HashMap::new(),
-            selected: None,
             camera: Camera::default(),
             framing: None,
             asset_path: String::new(),
@@ -109,15 +104,11 @@ impl Studio {
     }
 
     fn checkpoint(&mut self, before: SceneDocument) {
-        if before == self.document {
-            return;
+        match self.session.commit(before) {
+            Ok(true) => self.dirty = true,
+            Ok(false) => {}
+            Err(error) => self.status = error.to_string(),
         }
-        self.undo.push(before);
-        if self.undo.len() > 100 {
-            self.undo.remove(0);
-        }
-        self.redo.clear();
-        self.dirty = true;
     }
 
     fn import(&mut self, path: &std::path::Path) -> Result<()> {
@@ -126,47 +117,39 @@ impl Studio {
             .with_context(|| format!("asset {}", path.display()))?;
         let key = path.to_string_lossy().into_owned();
         let model = glb::parse(&std::fs::read(&path)?)?;
-        anyhow::ensure!(self.document.objects.len() < 128, "maximum 128 objets");
-        let before = self.document.clone();
-        self.assets.insert(key.clone(), model);
-        self.document.objects.push(SceneObject {
+        self.session.add_object(SceneObject {
             name: path
                 .file_stem()
                 .unwrap_or_default()
                 .to_string_lossy()
                 .into_owned(),
-            asset: key,
+            asset: key.clone(),
             position: [0.; 3],
             yaw: 0.,
             scale: [1.; 3],
             visible: true,
-        });
-        self.selected = Some(self.document.objects.len() - 1);
+        })?;
+        self.assets.insert(key, model);
         self.framing = None;
-        self.checkpoint(before);
+        self.dirty = true;
         self.status = "Modèle importé dans la scène.".into();
         Ok(())
     }
 
     fn open_project(&mut self, path: &std::path::Path) -> Result<()> {
         let bytes = std::fs::read(path)?;
-        anyhow::ensure!(bytes.len() < 1_000_000, "projet trop volumineux");
-        let document: SceneDocument = serde_json::from_slice(&bytes)?;
-        document.validate()?;
+        let session = EditorSession::from_json(&bytes)?;
         let mut assets = HashMap::new();
-        for object in &document.objects {
+        for object in &session.document().objects {
             let asset = path
                 .parent()
                 .unwrap_or(std::path::Path::new("."))
                 .join(&object.asset);
             assets.insert(object.asset.clone(), glb::parse(&std::fs::read(asset)?)?);
         }
-        self.document = document;
+        self.session = session;
         self.assets = assets;
-        self.undo.clear();
-        self.redo.clear();
         self.pending_edit = None;
-        self.selected = None;
         self.framing = None;
         self.dirty = true;
         self.status = "Projet ouvert.".into();
@@ -174,7 +157,7 @@ impl Studio {
     }
 
     fn rebuild(&mut self) -> Result<()> {
-        let model = self.document.compose(|path| {
+        let model = self.session.document().compose(|path| {
             self.assets
                 .get(path)
                 .cloned()
@@ -209,21 +192,16 @@ impl Studio {
                 result = self.import(&PathBuf::from(&self.asset_path));
             }
             if ui
-                .add_enabled(!self.undo.is_empty(), egui::Button::new("Annuler"))
+                .add_enabled(self.session.can_undo(), egui::Button::new("Annuler"))
                 .clicked()
-                && let Some(previous) = self.undo.pop()
             {
-                self.redo
-                    .push(std::mem::replace(&mut self.document, previous));
-                self.dirty = true;
+                self.dirty = self.session.undo();
             }
             if ui
-                .add_enabled(!self.redo.is_empty(), egui::Button::new("Rétablir"))
+                .add_enabled(self.session.can_redo(), egui::Button::new("Rétablir"))
                 .clicked()
-                && let Some(next) = self.redo.pop()
             {
-                self.undo.push(std::mem::replace(&mut self.document, next));
-                self.dirty = true;
+                self.dirty = self.session.redo();
             }
         });
         ui.horizontal(|ui| {
@@ -234,11 +212,7 @@ impl Studio {
             }
             if ui.button("Enregistrer").clicked() {
                 result = (|| {
-                    self.document.validate()?;
-                    std::fs::write(
-                        &self.project_path,
-                        serde_json::to_vec_pretty(&self.document)?,
-                    )?;
+                    std::fs::write(&self.project_path, self.session.to_json_pretty()?)?;
                     self.status = "Projet enregistré.".into();
                     Ok(())
                 })();
@@ -250,21 +224,28 @@ impl Studio {
             }
         });
         ui.separator();
-        let before = self.document.clone();
+        let before = self.session.document().clone();
         egui::Panel::left("hierarchie")
             .default_size(280.)
             .show_inside(ui, |pane| {
                 pane.heading("Scène");
-                for (index, object) in self.document.objects.iter().enumerate() {
+                let mut requested_selection = None;
+                for (index, object) in self.session.document().objects.iter().enumerate() {
                     if pane
-                        .selectable_label(self.selected == Some(index), &object.name)
+                        .selectable_label(self.session.selected() == Some(index), &object.name)
                         .clicked()
                     {
-                        self.selected = Some(index);
+                        requested_selection = Some(index);
                     }
                 }
-                if let Some(index) = self.selected.filter(|i| *i < self.document.objects.len()) {
-                    let object = &mut self.document.objects[index];
+                if let Some(index) = requested_selection {
+                    self.session
+                        .select(Some(index))
+                        .expect("listed object exists");
+                }
+                if let Some(index) = self.session.selected() {
+                    let object_count = self.session.document().objects.len();
+                    let object = &mut self.session.document_mut().objects[index];
                     pane.separator();
                     pane.heading("Inspecteur");
                     pane.text_edit_singleline(&mut object.name);
@@ -286,18 +267,22 @@ impl Studio {
                                 .text(format!("Échelle {}", ["X", "Y", "Z"][axis])),
                         );
                     }
-                    if pane.button("Dupliquer").clicked() && self.document.objects.len() < 128 {
-                        let mut copy = self.document.objects[index].clone();
+                    let duplicate = pane.button("Dupliquer").clicked() && object_count < 128;
+                    let remove = pane.button("Supprimer").clicked();
+                    if duplicate {
+                        let mut copy = object.clone();
                         copy.position[0] += 1.;
-                        self.document.objects.push(copy);
+                        self.session.document_mut().objects.push(copy);
                     }
-                    if pane.button("Supprimer").clicked() {
-                        self.document.objects.remove(index);
-                        self.selected = None;
+                    if remove {
+                        self.session.document_mut().objects.remove(index);
+                        self.session
+                            .select(None)
+                            .expect("clearing selection is valid");
                     }
                 }
             });
-        if before != self.document && ui.input(|input| input.pointer.primary_down()) {
+        if before != *self.session.document() && ui.input(|input| input.pointer.primary_down()) {
             self.pending_edit.get_or_insert(before);
             self.dirty = true;
         } else if !ui.input(|input| input.pointer.primary_down()) {

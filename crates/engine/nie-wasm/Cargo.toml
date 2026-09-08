@@ -35,6 +35,53 @@ nie-app = { path = "../../engine/nie-app" }
 # nie-runtime : le MOTEUR de match (World : physique ballon, 22 joueurs, possession, buts) + rendu
 # top-down → expose `WasmMatch` (le vrai match tourne dans le navigateur). nie-render3d (3D CPU) suit.
 nie-runtime = { path = "../../engine/nie-runtime" }
+# Camera state, projection/view matrices and the verified interpolation controller are pure
+# Rust. Host process memory and SQLite tooling stay excluded from the browser dependency graph.
+nie-camera = { path = "../nie-camera", default-features = false }
+# Shared VFS content dispatcher. Native filesystem search and the Lua VM remain behind
+# nie-explore's disabled `host` feature; browser bytes use the same portable parsers as the CLI.
+nie-explore = { path = "../nie-explore", default-features = false }
+# Pure-Rust PE/ELF triage used to inspect a user-supplied executable entirely in the browser.
+aphrody-re = { path = "../../forge/aphrody-re" }
+# Pure-Rust MSVC-dialect x86-64 assembler used by the browser inspection/forge surface.
+nie-asm = { path = "../../forge/nie-asm", default-features = false }
+# Byte-exact executable comparison from the PE forge, without its optional serde surface.
+nie-pe = { path = "../../forge/nie-pe", default-features = false }
+# Bounded x86-64 lifting and blocker diagnostics from the executable forge. Database-backed
+# reference storage stays outside the browser through the disabled `redb` feature.
+nie-forge = { path = "../../forge/nie-forge", default-features = false }
+# Safe in-memory minidump parsing; the browser wrapper exposes metadata only and never copies
+# captured process memory back into JavaScript.
+nie-dump = { path = "../../forge/nie-dump" }
+# Detailed, bounded PE/COFF section/import/export inspection over uploaded bytes.
+ievr-tools = { path = "../../tools/ievr-tools", default-features = false }
+# Portable `.pdata` inspection; SQLite/Redis propagation and host dump recovery stay disabled.
+nie-re = { path = "../../forge/nie-re", default-features = false }
+# Portable AOB scanning only; live process memory and patching remain behind the host feature.
+nie-trace = { path = "../../forge/nie-trace", default-features = false }
+# Pure official-encyclopedia matching; network, SQLite and CLI dependencies stay host-only.
+nie-zukan = { path = "../../tools/nie-zukan", default-features = false }
+# Validated format-catalog parsing; database/path ingestion remains behind the host feature.
+nie-seed = { path = "../../forge/nie-seed", default-features = false }
+# Portable task lifecycle snapshots; Tokio workers and UUID generation stay host-only.
+nie-tasks = { path = "../../tools/nie-tasks", default-features = false }
+# Deterministic in-memory BFS frontier; the shared Redis backend remains host-only.
+nie-queue = { path = "../../forge/nie-queue", default-features = false }
+# Credential-free depot selection/collision planning; Steam network and filesystem access stay host-only.
+nie-steam = { path = "../../tools/nie-steam", default-features = false }
+# Deterministic, bounded cross-language benchmark samples; clocks and filesystem harnesses stay host-only.
+nie-bench = { path = "../../tools/nie-bench", default-features = false }
+# Bounded offline image address/range inspection; process, SQLite and network probes stay host-only.
+nie-computer-use = { path = "../../tools/nie-computer-use", default-features = false }
+# Deterministic search over caller-owned reverse-engineering knowledge; SQLite and Redis stay host-only.
+nie-index = { path = "../../forge/nie-index", default-features = false }
+# Canonical detailed format inspection extracted from the headless CLI binding.
+nie-headless = { path = "../nie-headless", default-features = false }
+# Portable validated scene editing and bounded undo/redo; native GUI/GPU bindings stay host-only.
+nie-editor = { path = "../../tools/nie-editor", default-features = false }
+# Bounded T2B character/model catalogs extracted from the HTTP binding.
+nie-model-serve = { path = "../../tools/nie-model-serve", default-features = false }
+serde.workspace = true
 serde_json.workspace = true
 # (cridecoder arrive via nie-formats feature `audio-decode` — plus de dép directe)
 

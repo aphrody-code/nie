@@ -28,6 +28,92 @@
 
 use nie_formats::menu::{CompositeSprite, ScreenTransform, compose};
 use serde::Deserialize;
+use std::fmt;
+
+/// Resource limits applied before allocating a canvas or retaining decoded sprite buffers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MenuRenderLimits {
+    /// Maximum number of RGBA pixels in the output canvas.
+    pub max_canvas_pixels: u64,
+    /// Maximum number of objects accepted from one layout.
+    pub max_objects: usize,
+    /// Maximum number of decoded pixels accepted for one sprite.
+    pub max_sprite_pixels: u64,
+}
+
+impl Default for MenuRenderLimits {
+    fn default() -> Self {
+        Self {
+            max_canvas_pixels: 4096 * 4096,
+            max_objects: 16_384,
+            max_sprite_pixels: 4096 * 4096,
+        }
+    }
+}
+
+/// Failure returned by [`render_menu_with_limits`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MenuRenderError {
+    /// The requested canvas exceeds the configured pixel budget.
+    CanvasTooLarge {
+        /// Requested width after the historical zero-to-one normalization.
+        width: u32,
+        /// Requested height after the historical zero-to-one normalization.
+        height: u32,
+        /// Configured pixel budget.
+        max_pixels: u64,
+    },
+    /// The layout contains more objects than the configured budget.
+    TooManyObjects {
+        /// Number of objects in the layout.
+        count: usize,
+        /// Configured object budget.
+        max: usize,
+    },
+    /// A decoded sprite exceeds the configured per-sprite pixel budget.
+    SpriteTooLarge {
+        /// Logical VFS path from the layout.
+        logical_path: String,
+        /// Decoded texture width.
+        width: u32,
+        /// Decoded texture height.
+        height: u32,
+        /// Configured pixel budget.
+        max_pixels: u64,
+    },
+    /// The shared PNG encoder rejected the composed RGBA canvas.
+    EncodeFailed,
+}
+
+impl fmt::Display for MenuRenderError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CanvasTooLarge {
+                width,
+                height,
+                max_pixels,
+            } => write!(
+                formatter,
+                "menu canvas {width}x{height} exceeds {max_pixels} pixels"
+            ),
+            Self::TooManyObjects { count, max } => {
+                write!(formatter, "menu layout has {count} objects; limit is {max}")
+            }
+            Self::SpriteTooLarge {
+                logical_path,
+                width,
+                height,
+                max_pixels,
+            } => write!(
+                formatter,
+                "sprite {logical_path} is {width}x{height}; limit is {max_pixels} pixels"
+            ),
+            Self::EncodeFailed => formatter.write_str("menu PNG encoding failed"),
+        }
+    }
+}
+
+impl std::error::Error for MenuRenderError {}
 
 #[derive(Deserialize)]
 pub struct Layout {
@@ -83,8 +169,40 @@ pub fn render_menu<F>(layout: &Layout, mut load_sprite: F) -> Option<Vec<u8>>
 where
     F: FnMut(&str) -> Option<(u32, u32, Vec<u8>)>,
 {
+    render_menu_with_limits(layout, &MenuRenderLimits::default(), &mut load_sprite).ok()
+}
+
+/// Renders one layout within explicit canvas, object and decoded-sprite budgets.
+///
+/// Invalid or missing sprite payloads retain the server's historical behavior and are skipped;
+/// inputs that exceed a resource budget fail deterministically before composition.
+pub fn render_menu_with_limits<F>(
+    layout: &Layout,
+    limits: &MenuRenderLimits,
+    mut load_sprite: F,
+) -> Result<Vec<u8>, MenuRenderError>
+where
+    F: FnMut(&str) -> Option<(u32, u32, Vec<u8>)>,
+{
     let cw = layout.canvas.w.max(1);
     let ch = layout.canvas.h.max(1);
+    let canvas_pixels = u64::from(cw) * u64::from(ch);
+    let max_canvas_pixels = limits
+        .max_canvas_pixels
+        .min(u64::try_from(usize::MAX / 4).unwrap_or(u64::MAX));
+    if canvas_pixels > max_canvas_pixels {
+        return Err(MenuRenderError::CanvasTooLarge {
+            width: cw,
+            height: ch,
+            max_pixels: max_canvas_pixels,
+        });
+    }
+    if layout.objects.len() > limits.max_objects {
+        return Err(MenuRenderError::TooManyObjects {
+            count: layout.objects.len(),
+            max: limits.max_objects,
+        });
+    }
 
     // Painter's order : drawPriority croissant, stable sur l'index source.
     let mut order: Vec<usize> = (0..layout.objects.len()).collect();
@@ -113,7 +231,22 @@ where
         let Some((tw, th, rgba)) = load_sprite(&sp.logical_path) else {
             continue;
         };
-        if tw == 0 || th == 0 || rgba.len() < (tw as usize * th as usize * 4) {
+        let sprite_pixels = u64::from(tw) * u64::from(th);
+        let max_sprite_pixels = limits
+            .max_sprite_pixels
+            .min(u64::try_from(usize::MAX / 4).unwrap_or(u64::MAX));
+        if sprite_pixels > max_sprite_pixels {
+            return Err(MenuRenderError::SpriteTooLarge {
+                logical_path: sp.logical_path.clone(),
+                width: tw,
+                height: th,
+                max_pixels: max_sprite_pixels,
+            });
+        }
+        let expected_rgba_len = usize::try_from(sprite_pixels)
+            .ok()
+            .and_then(|pixels| pixels.checked_mul(4));
+        if tw == 0 || th == 0 || expected_rgba_len.is_none_or(|expected| rgba.len() < expected) {
             continue;
         }
 
@@ -149,6 +282,7 @@ where
     let canvas = compose(cw, ch, &sprites);
     // PNG encodé via l'encodeur RGBA unique de nie-formats (même source que les routes /tex…).
     nie_formats::g4tx_decode::encode_rgba_to_png(&canvas, cw as usize, ch as usize)
+        .ok_or(MenuRenderError::EncodeFailed)
 }
 
 /// Sprite décodé + transform écran prêt à composer. Détient son buffer RGBA (les
@@ -160,4 +294,112 @@ struct Prepared {
     transform: ScreenTransform,
     anchor_x: f32,
     anchor_y: f32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn object(path: &str) -> Obj {
+        Obj {
+            draw_priority: 0,
+            transform: Transform {
+                x: 0.0,
+                y: 0.0,
+                scale_x: 1.0,
+                scale_y: 1.0,
+                rot: 0.0,
+                anchor_x: 0.0,
+                anchor_y: 0.0,
+            },
+            sprite: Some(Sprite {
+                logical_path: path.to_string(),
+                w: 1.0,
+                h: 1.0,
+            }),
+        }
+    }
+
+    #[test]
+    fn bounded_renderer_encodes_a_small_layout() {
+        let layout = Layout {
+            canvas: Canvas { w: 1, h: 1 },
+            objects: vec![object("mainmenu01/sample.g4tx")],
+        };
+        let png = render_menu_with_limits(&layout, &MenuRenderLimits::default(), |_| {
+            Some((1, 1, vec![10, 20, 30, 255]))
+        })
+        .expect("one-pixel layout should render");
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+    }
+
+    #[test]
+    fn canvas_budget_is_checked_before_loading_sprites() {
+        let layout = Layout {
+            canvas: Canvas { w: 3, h: 2 },
+            objects: vec![object("mainmenu01/sample.g4tx")],
+        };
+        let mut loaded = false;
+        let error = render_menu_with_limits(
+            &layout,
+            &MenuRenderLimits {
+                max_canvas_pixels: 5,
+                ..MenuRenderLimits::default()
+            },
+            |_| {
+                loaded = true;
+                None
+            },
+        )
+        .expect_err("six canvas pixels exceed the five-pixel budget");
+        assert_eq!(
+            error,
+            MenuRenderError::CanvasTooLarge {
+                width: 3,
+                height: 2,
+                max_pixels: 5,
+            }
+        );
+        assert!(!loaded);
+    }
+
+    #[test]
+    fn object_and_sprite_budgets_are_enforced() {
+        let many = Layout {
+            canvas: Canvas { w: 1, h: 1 },
+            objects: vec![object("a"), object("b")],
+        };
+        assert_eq!(
+            render_menu_with_limits(
+                &many,
+                &MenuRenderLimits {
+                    max_objects: 1,
+                    ..MenuRenderLimits::default()
+                },
+                |_| None,
+            ),
+            Err(MenuRenderError::TooManyObjects { count: 2, max: 1 })
+        );
+
+        let one = Layout {
+            canvas: Canvas { w: 1, h: 1 },
+            objects: vec![object("mainmenu01/large.g4tx")],
+        };
+        assert_eq!(
+            render_menu_with_limits(
+                &one,
+                &MenuRenderLimits {
+                    max_sprite_pixels: 3,
+                    ..MenuRenderLimits::default()
+                },
+                |_| Some((2, 2, vec![0; 16])),
+            ),
+            Err(MenuRenderError::SpriteTooLarge {
+                logical_path: "mainmenu01/large.g4tx".to_string(),
+                width: 2,
+                height: 2,
+                max_pixels: 3,
+            })
+        );
+    }
 }

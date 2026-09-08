@@ -38,7 +38,7 @@ parallèle.
 | Le typecheck Bun **échoue sur deux paquets** | `@rosegriffon/mcp` : 5 erreurs `TS2307` (`@rosegriffon/azalee/server` introuvable) · `@rosegriffon/cron` : 3 erreurs `TS2305` (`@aphrody/bxc` sans `detectPii`/`redactPii`/`redactObject`) | `bun run typecheck` |
 | Le reste du typecheck est vert | `inacord`, `nie-web`, `@niers/inacord-ui`, `azalee-tools`, `azalee-web` = 0 | idem |
 | `nie-site` en production sert un binaire **périmé** | `/api/v1/episodes` rend **500** en ligne ; la cause (WAL + `ProtectSystem=strict`) est corrigée dans les sources, le binaire n'a pas été rebâti | session parallèle, 2026-09-06 |
-| nie rend le menu principal | 14 blocs mesurés contre la capture du jeu ; écart ≤ 10 px sur 6 d'entre eux, 392 px sur la rangée (assumé : 5 entrées réelles contre 8 tuiles) | `scripts/validation/mesurer-mainmenu.py` |
+| nie rend le menu principal | 14 blocs mesurés contre la capture du jeu ; écart ≤ 10 px sur 6 d'entre eux, 392 px sur la rangée (assumé : 5 entrées réelles contre 8 tuiles) | `scripts/validation/measure-mainmenu.py` |
 | Le dépôt est poussé | `a25ea27..f683f36 main` — 532 fichiers, `cargo check` vert avant push | 2026-09-06 |
 
 ## 3. Ce qui reste à faire, par ordre de dépendance

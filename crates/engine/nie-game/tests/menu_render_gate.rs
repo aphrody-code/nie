@@ -358,6 +358,70 @@ fn mainmenu_static_text_resolves_in_export() {
     );
 }
 
+/// The first mainmenu01 layers declare numeric dummy meshes and a dynamic character binding, but
+/// the mounted VFS does not contain their G4PKM containers and OBJBIN carries no character id.
+/// Keep that boundary explicit: exporting a guessed transform/model would make a false render.
+#[test]
+fn mainmenu01_dynamic_geometry_boundary_is_reported_from_real_vfs() {
+    let Some(game) = game_dir() else {
+        eprintln!("skip mainmenu01_dynamic_geometry_boundary_is_reported_from_real_vfs: no game");
+        return;
+    };
+    let bin = env!("CARGO_BIN_EXE_nie-game");
+    let out = std::env::temp_dir().join("nie_gate_mainmenu01_dynamic_geometry.json");
+    let output = Command::new(bin)
+        .args(["--game-dir"])
+        .arg(&game)
+        .args(["--menu", "mainmenu01", "--runtime", "--export-layout"])
+        .arg(&out)
+        .env("RUST_LOG", "error")
+        .output()
+        .expect("export mainmenu01 dynamic geometry diagnostics");
+    assert!(
+        output.status.success(),
+        "mainmenu01 export failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let layout: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&out).expect("read layout")).expect("parse layout");
+    let objects = layout["objects"].as_array().expect("objects array");
+    let base_info = objects
+        .iter()
+        .find(|object| object["name"] == "mainmenu01_01_base_info")
+        .expect("mainmenu01_01_base_info");
+    assert_eq!(base_info["primitive"]["g4pkmPathStatus"], "missing");
+    assert_eq!(
+        base_info["primitive"]["dummyMeshOverrides"]
+            .as_array()
+            .expect("dummy mesh bindings")
+            .len(),
+        4
+    );
+    assert_eq!(
+        base_info["primitive"]["g4pkmPath"],
+        "common/menu/100_mainmenu/mainmenu01/mainmenu01_01/mainmenu01_01.g4pkm"
+    );
+    assert!(base_info["primitive"]["resolvedG4pkmPath"].is_null());
+
+    let chara = objects
+        .iter()
+        .find(|object| object["name"] == "mainmenu01_03_chara_status")
+        .expect("mainmenu01_03_chara_status");
+    assert_eq!(
+        chara["charModel"]["modelStatus"],
+        "runtime-model-id-required"
+    );
+    assert_eq!(chara["charModel"]["lightObjectDataPath"], "Menu_2dLight");
+    assert_eq!(chara["charModel"]["menuCameraNameHash"], "0x1764BF9E");
+
+    let summary = &layout["runtimeSummary"];
+    assert!(summary["primitiveBindings"].as_u64().unwrap_or(0) >= 2);
+    assert!(summary["primitiveG4pkmPathsMissing"].as_u64().unwrap_or(0) >= 2);
+    assert!(summary["charaModelBindings"].as_u64().unwrap_or(0) >= 1);
+    assert_eq!(summary["charaModelsResolved"], 0);
+}
+
 /// D1.c-driver (brique b) — le DRIVER Lua RÉEL énumère les **9 onglets de navigation** du `main_menu`
 /// en exécutant les vraies fonctions du script (`GetSortOfTabs`/`GetMenuObjectNameFromTabType`,
 /// `enumerate_header_tabs`). `--menu main_menu --runtime` charge `main_menu_1.lua.bin`, lance OnInit,
@@ -385,6 +449,35 @@ fn mainmenu_runtime_driver_enumerates_9_header_tabs() {
     let txt = std::fs::read_to_string(&out).expect("lire le layout runtime JSON");
     let doc: serde_json::Value = serde_json::from_str(&txt).expect("JSON valide");
     let objs = doc["objects"].as_array().expect("champ objects");
+    let runtime = &doc["runtimeSummary"];
+
+    let requested = runtime["menuEventsRequested"]
+        .as_u64()
+        .expect("menuEventsRequested counter");
+    let dispatched = runtime["menuEventsDispatched"]
+        .as_u64()
+        .expect("menuEventsDispatched counter");
+    let succeeded = runtime["menuEventsSucceeded"]
+        .as_u64()
+        .expect("menuEventsSucceeded counter");
+    assert!(requested > 0, "the runtime must request menu events");
+    assert!(
+        dispatched > 0,
+        "the real main-menu script must dispatch events"
+    );
+    assert!(
+        requested >= dispatched,
+        "missing callbacks may only reduce dispatches"
+    );
+    assert_eq!(dispatched, succeeded, "every dispatched event must succeed");
+    for callback in ["OnSetupLayer", "OnOpenLayer", "OnEnter"] {
+        assert!(
+            runtime["menuEventInvocations"][callback]
+                .as_u64()
+                .is_some_and(|count| count > 0),
+            "typed callback {callback} was not recorded"
+        );
+    }
 
     // Les 9 onglets virtuels du main menu, énumérés depuis la logique RÉELLE du script.
     let tabs: Vec<&str> = objs

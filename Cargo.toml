@@ -47,6 +47,11 @@ parking_lot = "0.12"
 # sérialisation
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+schemars = "1"
+# Official Rust SDK for the Model Context Protocol. Keep the same reviewed
+# revision as the production aphrody-mcp sibling until the native niers MCP
+# compatibility suite authorises an SDK upgrade.
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "cc66e3091e1584f48ee1e0058a2a1201a1d35c81", features = ["server", "transport-io", "macros", "schemars"] }
 
 # base de connaissance + frontière
 rusqlite = { version = "0.37", features = ["bundled"] }
@@ -60,7 +65,10 @@ tracing-subscriber = { version = "=0.3.22", features = ["env-filter"] }
 
 # orchestration de jobs asynchrones (nie-tasks — architecture inspirée de sd-task-system,
 # implémentation originale) : runtime tokio déjà tiré transitivement par tauri (nie-explorer)
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "time"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net"] }
+futures-util = "0.3"
+tokio-tungstenite = "0.29"
+reqwest = { version = "0.13.4", default-features = false, features = ["http2", "rustls", "stream"] }
 async-trait = "0.1"
 uuid = { version = "1", features = ["v4", "serde"] }
 
@@ -88,6 +96,7 @@ aes = { version = "0.8", default-features = false }
 # hash / util
 sha2 = "0.10"
 hex = "0.4"
+base64 = "0.22"
 memmap2 = "0.9"
 rayon = "1"
 hashbrown = "0.14"

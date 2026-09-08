@@ -20,9 +20,8 @@ use std::time::Instant;
 
 use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
+use nie_bench::{fill_xorshift, median};
 
-/// Graine partagée par les quatre harnais.
-const SEED: u64 = 0x2545_F491_4F6C_DD1D;
 /// Tours de chauffe avant mesure.
 const WARMUP: usize = 3;
 /// Mesures conservées pour la médiane.
@@ -68,24 +67,6 @@ enum Cmd {
     },
 }
 
-/// Générateur partagé : xorshift64*, identique dans les quatre harnais.
-fn fill_xorshift(buf: &mut [u8]) {
-    let mut x = SEED;
-    for chunk in buf.chunks_mut(8) {
-        x ^= x >> 12;
-        x ^= x << 25;
-        x ^= x >> 27;
-        let v = x.wrapping_mul(0x2545_F491_4F6C_DD1D).to_le_bytes();
-        chunk.copy_from_slice(&v[..chunk.len()]);
-    }
-}
-
-/// Médiane d'un échantillon de durées (en secondes).
-fn median(mut v: Vec<f64>) -> f64 {
-    v.sort_by(f64::total_cmp);
-    v[v.len() / 2]
-}
-
 fn bench_crc32(mib: usize) {
     let mut buf = vec![0u8; mib * 1024 * 1024];
     fill_xorshift(&mut buf);
@@ -101,7 +82,7 @@ fn bench_crc32(mib: usize) {
         times.push(t.elapsed().as_secs_f64());
         std::hint::black_box(last);
     }
-    let s = median(times);
+    let s = median(times).expect("the benchmark always records seven finite durations");
     println!(
         "lang=rust bench=crc32 mib={mib} median_ms={:.3} mib_s={:.1} checksum=0x{last:08x}",
         s * 1000.0,
@@ -134,7 +115,7 @@ fn bench_crilayla(input: &PathBuf, iters: usize) -> anyhow::Result<()> {
         }
         times.push(t.elapsed().as_secs_f64());
     }
-    let s = median(times);
+    let s = median(times).expect("the benchmark always records seven finite durations");
     let mib = (out_len * iters) as f64 / (1024.0 * 1024.0);
     println!(
         "lang=rust bench=crilayla in={} out={out_len} iters={iters} median_ms={:.3} mib_s={:.1}",
@@ -214,25 +195,5 @@ fn main() -> anyhow::Result<()> {
         }
         Cmd::Crilayla { input, iters } => bench_crilayla(&input, iters),
         Cmd::Sample { cpk, out, max_mib } => make_sample(&cpk, &out, max_mib),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn le_generateur_est_deterministe() {
-        let mut a = [0u8; 64];
-        let mut b = [0u8; 64];
-        fill_xorshift(&mut a);
-        fill_xorshift(&mut b);
-        assert_eq!(a, b, "les quatre harnais doivent voir les mêmes octets");
-        assert!(a.iter().any(|&x| x != 0), "tampon resté nul");
-    }
-
-    #[test]
-    fn la_mediane_prend_la_valeur_centrale() {
-        assert!((median(vec![3.0, 1.0, 2.0]) - 2.0).abs() < f64::EPSILON);
     }
 }

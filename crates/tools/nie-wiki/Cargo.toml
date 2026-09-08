@@ -1,6 +1,6 @@
 [package]
 name = "nie-wiki"
-description = "Exploration game-data IEVR depuis le miroir SQLite (personnages, skills, items, équipes)"
+description = "Explore IEVR game data from the SQLite mirror"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

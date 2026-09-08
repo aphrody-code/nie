@@ -29,8 +29,10 @@
 
 pub mod config;
 pub mod ctrl;
+#[cfg(feature = "host")]
 pub mod db;
 pub mod g4cm;
+#[cfg(feature = "host")]
 pub mod live;
 pub mod map;
 pub mod model;

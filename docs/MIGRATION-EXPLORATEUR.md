@@ -127,7 +127,7 @@ consignés pour la suite :
   `apps/azalee/app/cpk/CpkPackageViewer.tsx:16` sont strictement identiques (copier-coller) **et
   plafonnées au mébioctet** : un CPK de 3 Go s'y affiche « 3072.00 Mo ». `formatBytes` de
   `apps/azalee/components/save/SaveUploader.tsx:35` est une quatrième forme, `formatOctets` de
-  `@niers/catalog/jeu` (réexporté par `packages/azalee/src/cpk/video.ts:48`) une cinquième.
+  `@niers/catalog/game` (réexporté par `packages/azalee/src/cpk/video.ts:48`) une cinquième.
   **La meilleure est `apps/inacord/src/lib/bytes.ts:14`** : elle gère les gibioctets et adapte
   le nombre de décimales. C'est elle qui devrait survivre — mais elle vit dans l'application de
   bureau, donc le web devrait plutôt converger vers `formatOctets` de `@niers/catalog`, déjà

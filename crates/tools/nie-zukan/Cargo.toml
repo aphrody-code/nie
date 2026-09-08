@@ -1,6 +1,6 @@
 [package]
 name = "nie-zukan"
-description = "Ingesteur de l'encyclopédie officielle Level-5 Inagle (zukan.inazuma.jp) — 3 langues (JP/FR/EN), perso/skills/items, croisement avec le miroir inagle"
+description = "Level-5 Inagle encyclopedia ingestion, parsing, and matching"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,18 +10,27 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = ["host"]
+host = [
+    "dep:clap",
+    "dep:reqwest",
+    "dep:rusqlite",
+    "dep:tracing-subscriber",
+]
+
 [dependencies]
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-clap = { version = "4", features = ["derive", "color", "env"] }
-rusqlite.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+clap = { version = "4", features = ["derive", "color", "env"], optional = true }
+rusqlite = { workspace = true, optional = true }
 
 # HTTP + HTML
-reqwest = { version = "0.13", features = ["blocking"] }
+reqwest = { version = "0.13", features = ["blocking"], optional = true }
 scraper = "0.22"
 
 # encodage
@@ -32,3 +41,4 @@ percent-encoding = "2"
 [[bin]]
 name = "nie-zukan"
 path = "src/bin/nie_zukan.rs"
+required-features = ["host"]

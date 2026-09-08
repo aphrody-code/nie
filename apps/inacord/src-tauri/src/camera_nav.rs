@@ -107,7 +107,9 @@ pub fn apercu_camera(vfs: &Vfs, path: &str) -> Result<ApercuCameraDto, String> {
     let mut proprietaire: Vec<Option<usize>> = vec![None; anim.channels.len()];
     for (i, objet) in anim.objects.iter().enumerate() {
         let debut = objet.first_channel as usize;
-        let fin = debut.saturating_add(objet.channel_count as usize).min(anim.channels.len());
+        let fin = debut
+            .saturating_add(objet.channel_count as usize)
+            .min(anim.channels.len());
         for slot in proprietaire.iter_mut().take(fin).skip(debut) {
             *slot = Some(i);
         }
@@ -126,8 +128,12 @@ pub fn apercu_camera(vfs: &Vfs, path: &str) -> Result<ApercuCameraDto, String> {
             .cloned()
             .unwrap_or_else(|| format!("objet{i}"));
 
-        let temps: Vec<f32> =
-            canal.times(&anim).iter().take(MAX_ECHANTILLONS).map(|t| f32::from(*t)).collect();
+        let temps: Vec<f32> = canal
+            .times(&anim)
+            .iter()
+            .take(MAX_ECHANTILLONS)
+            .map(|t| f32::from(*t))
+            .collect();
         for t in &temps {
             frame_min = frame_min.min(*t);
             frame_max = frame_max.max(*t);
@@ -222,8 +228,12 @@ pub fn apercu_navm(vfs: &Vfs, path: &str) -> Result<ApercuNavmDto, String> {
     let navm = nie_formats::navm::parse(&bytes).map_err(|e| format!("parse G4NV {path} : {e}"))?;
 
     let tronque = navm.vertices.len() > MAX_SOMMETS;
-    let sommets: Vec<[f32; 3]> =
-        navm.vertices.iter().take(MAX_SOMMETS).map(|v| v.pos).collect();
+    let sommets: Vec<[f32; 3]> = navm
+        .vertices
+        .iter()
+        .take(MAX_SOMMETS)
+        .map(|v| v.pos)
+        .collect();
 
     let mut bbox_min = [f32::MAX; 3];
     let mut bbox_max = [f32::MIN; 3];

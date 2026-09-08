@@ -10,15 +10,34 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = ["host"]
+# SQLite indexing, dump I/O and full x86 recovery are native tooling. The
+# `.pdata` byte parser and label-propagation graph remain available without
+# this feature, including on `wasm32-unknown-unknown`.
+host = [
+    "dep:aphrody-re",
+    "dep:iced-x86",
+    "dep:nie-dump",
+    "dep:nie-index",
+]
+
 [dependencies]
-nie-index.workspace = true
+nie-index = { workspace = true, optional = true }
 # Réexporté tel quel sous `nie_re::dump` (cf. lib.rs).
-nie-dump.workspace = true
-thiserror.workspace = true
+nie-dump = { workspace = true, optional = true }
 anyhow.workspace = true
 tracing.workspace = true
 # NB : pas de petgraph — PropagationGraph est implémenté à la main (propagate.rs), la frontière BFS vit dans nie-queue/redis.
 hashbrown.workspace = true
 goblin.workspace = true
-iced-x86.workspace = true
-aphrody-re.workspace = true
+iced-x86 = { workspace = true, optional = true }
+aphrody-re = { workspace = true, optional = true }
+
+[[example]]
+name = "dump_census"
+required-features = ["host"]
+
+[[example]]
+name = "dump_scan"
+required-features = ["host"]

@@ -54,7 +54,7 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     };
 
-    let fichiers = match pet.assets_de_marque(frame, TAILLES_FAVICON) {
+    let fichiers = match pet.brand_assets(frame, TAILLES_FAVICON) {
         Ok(f) => f,
         Err(e) => {
             eprintln!("production des assets : {e}");

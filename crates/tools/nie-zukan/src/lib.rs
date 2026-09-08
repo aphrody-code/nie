@@ -4,11 +4,11 @@
 //! # Architecture
 //!
 //! - [`forge`] : encodage/décodage du paramètre `?q=` (bit-invert + base64url + urlencode)
-//! - [`client`] : client HTTP poli (rate-limit, retry, cache disque)
+//! - [`client`] : client HTTP poli (rate-limit, retry, cache disque; `host` feature)
 //! - [`parser`] : parsers HTML → structs typées [`ZukanChara`], [`ZukanSkill`], [`ZukanItem`]
-//! - [`pull`] : orchestration du pull complet (`chara_list` → IDs → `chara_param` + skills + items)
-//! - [`cross`] : croisement avec le miroir `SQLite` inagle (égalité exacte)
-//! - [`appariement`] : appariement FLOU zukan ↔ inagle + audit (port d'inagle)
+//! - [`pull`] : orchestration du pull complet (`chara_list` → IDs → `chara_param` + skills + items; `host` feature)
+//! - [`cross`] : croisement avec le miroir `SQLite` inagle (égalité exacte; `host` feature)
+//! - [`matching`] : appariement FLOU zukan ↔ inagle + audit (portable, bounded entry point)
 
 #![forbid(unsafe_code)]
 #![warn(clippy::pedantic)]
@@ -26,10 +26,18 @@
     clippy::cast_sign_loss
 )]
 
-pub mod appariement;
+pub mod matching;
+/// Compatibility exports for the former French module name.
+#[deprecated(since = "0.5.11", note = "use `matching` instead")]
+pub mod appariement {
+    pub use crate::matching::*;
+}
+#[cfg(feature = "host")]
 pub mod client;
+#[cfg(feature = "host")]
 pub mod cross;
 pub mod forge;
 pub mod models;
 pub mod parser;
+#[cfg(feature = "host")]
 pub mod pull;

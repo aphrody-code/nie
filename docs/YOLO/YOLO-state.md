@@ -1,5 +1,8 @@
 # YOLO-STATE.md — Autonomous Session Execution Log
 
+> **Archive:** this records the retired Bun MCP implementation. The paths and commands below
+> are historical; the current native Rust architecture is documented in [`../MCP.md`](../MCP.md).
+
 > **Autonomous Mandate:** Fully sovereign execution by AI Lead Agents (Codex, Claude, AGY/Gemini).
 > **Targeted Ambitious Goal:** Implement Native VFS Content Extraction (`vfs_cat`) across FFI Rust (`nie-ffi`), TypeScript Bridge (`packages/nie`), and Server MCP (`apps/nie-mcp`), complete with automated end-to-end smoke verification.
 

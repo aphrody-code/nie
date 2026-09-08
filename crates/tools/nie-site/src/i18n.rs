@@ -351,7 +351,10 @@ mod tests {
         // Réciprocité : partir de n'importe quelle langue rend le même groupe.
         for langue in Langue::TOUTES {
             let depuis = Langue::separer(&format!("{}/textures", langue.prefixe()));
-            assert_eq!(alternatives("https://nie.aphrody.com", &depuis.route), liens);
+            assert_eq!(
+                alternatives("https://nie.aphrody.com", &depuis.route),
+                liens
+            );
         }
     }
 }

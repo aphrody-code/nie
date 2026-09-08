@@ -114,6 +114,39 @@ pub fn chemin_sur(relatif: &str) -> Option<PathBuf> {
     Some(sortie)
 }
 
+/// Maps retired public bundle paths to their canonical English location.
+///
+/// The old path remains readable so an already cached JavaScript bundle does not lose its WASM
+/// or font payload during the naming migration. New bundles only emit `static/game/*`.
+#[must_use]
+pub fn canonical_bundle_path(path: PathBuf) -> PathBuf {
+    if let Ok(suffix) = path.strip_prefix("static/jeu") {
+        let mut canonical = PathBuf::from("static/game");
+        canonical.push(suffix);
+        return canonical;
+    }
+
+    let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+        return path;
+    };
+    let Some(suffix) = file_name.strip_prefix("icone") else {
+        return path;
+    };
+    if !suffix.is_empty() && !suffix.starts_with(['-', '.']) {
+        return path;
+    }
+
+    match path.parent() {
+        Some(parent) if parent == Path::new("static") => {
+            PathBuf::from("static").join(format!("icon{suffix}"))
+        }
+        Some(parent) if parent.as_os_str().is_empty() => {
+            PathBuf::from("static").join(format!("icon{suffix}"))
+        }
+        _ => path,
+    }
+}
+
 /// Type de contenu déduit de l'extension. Table volontairement courte : ce sont les seuls
 /// types qu'un bundle produit, et les formats du jeu ont la leur dans [`super::vfs`].
 #[must_use]
@@ -258,7 +291,7 @@ async fn points_d_entree_dans(racine: &Path, dossier: &str) -> (Option<String>, 
 /// Sert un fichier du bundle. Rend `None` quand il n'existe pas : c'est l'appelant qui décide
 /// du repli (la coquille pour une route de navigation, une erreur pour une ressource).
 pub async fn servir(etat: &EtatSite, relatif: &str, entetes: &HeaderMap) -> Option<Response> {
-    let sur = chemin_sur(relatif)?;
+    let sur = canonical_bundle_path(chemin_sur(relatif)?);
     if sur.as_os_str().is_empty() {
         return None;
     }
@@ -404,6 +437,38 @@ mod tests {
         assert_eq!(
             chemin_sur("/assets/app.js").unwrap(),
             Path::new("assets/app.js")
+        );
+    }
+
+    #[test]
+    fn legacy_game_bundle_path_maps_to_english_canonical_path() {
+        assert_eq!(
+            canonical_bundle_path(PathBuf::from("static/jeu/nie_wasm_bg.wasm")),
+            Path::new("static/game/nie_wasm_bg.wasm")
+        );
+        assert_eq!(
+            canonical_bundle_path(PathBuf::from("static/game/nie_wasm_bg.wasm")),
+            Path::new("static/game/nie_wasm_bg.wasm")
+        );
+        assert_eq!(
+            canonical_bundle_path(PathBuf::from("static/jeu")),
+            Path::new("static/game")
+        );
+        assert_eq!(
+            canonical_bundle_path(PathBuf::from("static/other/file.js")),
+            Path::new("static/other/file.js")
+        );
+        assert_eq!(
+            canonical_bundle_path(PathBuf::from("static/icone-192.png")),
+            Path::new("static/icon-192.png")
+        );
+        assert_eq!(
+            canonical_bundle_path(PathBuf::from("icone.svg")),
+            Path::new("static/icon.svg")
+        );
+        assert_eq!(
+            canonical_bundle_path(PathBuf::from("static/icon.svg")),
+            Path::new("static/icon.svg")
         );
     }
 

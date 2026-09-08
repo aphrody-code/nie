@@ -21,15 +21,16 @@ inherit = "all"
 BASH_ENV = ".claude/shell-init.sh"
 
 [mcp_servers.niers-game]
-command = "bun"
+command = "cargo"
 args = [
     "run",
-    "apps/nie-mcp/src/index.ts",
+    "--quiet",
+    "--package",
+    "nie-mcp",
+    "--",
 ]
 
 [mcp_servers.niers-game.env]
-NIERS_REDIS = "redis://127.0.0.1:6379"
-MODEL_SERVE_URL = "http://127.0.0.1:8790"
 NIE_APHRODY_API_URL = "http://127.0.0.1:8085"
 
 # aphrody-mcp — binaire Rust unique (crate google_mcp du depot frere

@@ -160,8 +160,8 @@ un écran.
 | Export de la disposition réelle d'un écran (CLI) | `crates/engine/nie-game/src/main.rs:2537` (`cmd_export_layout`, statique), `:3078` (`cmd_export_layout_runtime`, piloté Lua) |
 | Composition PNG à partir d'un JSON de layout | option `--compose-layout` du même binaire (`nie-game`) |
 | Rendu React d'une disposition exportée | `packages/inacord-ui/src/shell/layout-render.tsx:260` (`LayoutRender`), `:77` (`GameCanvas`), `:50` (`useEchelleCanvas`) |
-| Géométrie spécifique du menu principal | `packages/inacord-ui/src/shell/geometrie-mainmenu.ts` (143 l.) |
-| Layout générique jeu (hors mainmenu) | `packages/inacord-ui/src/shell/layout-jeu.ts` (356 l.) |
+| Géométrie spécifique du menu principal | `packages/inacord-ui/src/shell/main-menu-geometry.ts` (143 l.) |
+| Layout générique jeu (hors mainmenu) | `packages/inacord-ui/src/shell/game-layout.ts` (356 l.) |
 | Arbre de navigation (crc32, layers, commandes) par écran | `crates/tools/nie-model-serve/src/main.rs:5064` et suivantes, port `objbin`/`nie_data::menu_setting` |
 | Décodage `.objbin` (les layers cités par `/menu-tree.json`) | `crates/engine/nie-formats/src/objbin.rs` |
 

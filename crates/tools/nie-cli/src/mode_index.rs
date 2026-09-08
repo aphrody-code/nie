@@ -27,196 +27,16 @@ use nie_formats::vfs::Vfs;
 use nie_lua::bytecode;
 use serde_json::Value as Json;
 
-/// Définition éditoriale d'un mode.
-pub struct ModeDef {
-    /// Identifiant stable, utilisable en URL (`victory-road`).
-    pub slug: &'static str,
-    /// Nom de repli, si le jeu ne fournit pas de libellé pour ce mode.
-    pub label: &'static str,
-    /// Préfixes de noms d'écran/script qui appartiennent à ce mode.
-    pub prefixes: &'static [&'static str],
-    /// Région de l'atlas `mode_base01_atl` qui porte l'icône, si identifiée.
-    pub icon_region: Option<&'static str>,
-    /// Hash `menu_text` du libellé officiel — le nom que le JEU affiche, résolu à l'indexation
-    /// dans les trois locales plutôt que recopié ici.
-    pub text_hash: Option<u32>,
-    /// Vrai si le jeu énumère lui-même ce mode dans ses réglages audio (cf. [`MODES`]).
-    pub official: bool,
-    /// Ce que les fichiers permettent d'affirmer sur l'état du mode.
-    pub note: &'static str,
-    /// Sous-chaîne qui identifie, dans les chaînes de `nie.exe`, les clés de message du mode
-    /// (`vroad_message_*`, `sysmes_vroad_err_*`…). Les tables de texte ne portent que leur
-    /// CRC-32 : sans ce motif, ces messages restent introuvables. `None` = mode dont les
-    /// messages ne sont pas nommés à part.
-    pub key_pattern: Option<&'static str>,
-}
+use crate::mode_presentation::legacy_presentation;
+pub use nie_explore::menu_modes::MODES;
+use nie_explore::menu_modes::{ModeDef, matches_stem};
 
-/// Les modes, chacun adossé à des écrans réels du VFS.
-///
-/// **Les cinq modes marqués `official` ne sont pas un choix éditorial** : le jeu les énumère
-/// lui-même dans `menu_text`, via trois familles de réglages concordantes — « BGM Volume (X) »,
-/// « Character Voice Volume (X) » et « Power List Display (X) ». Cette liste a corrigé la
-/// première version de ce fichier : `Competition Mode` y manquait, et le mode nommé
-/// « Kizuna Station » y était confondu avec le lieu « Bond Town » (FR « Ville Kizuna »), qui est
-/// un libellé distinct.
-///
-/// Les autres entrées sont des écrans utilitaires du menu principal — utiles à cataloguer, mais
-/// que le jeu ne compte pas parmi ses modes.
-///
-/// `icon_region` n'est renseignée que pour les tuiles identifiées **visuellement** sur une
-/// capture du menu ; les autres restent `None` plutôt que devinées.
-pub const MODES: &[ModeDef] = &[
-    ModeDef {
-        slug: "victory-road",
-        label: "Victory Road",
-        prefixes: &[
-            "victory_road",
-            "victory_load",
-            "victory_lode",
-            "fake_vroad",
-            "vroad_",
-            "fade_menu_encount_victory_road",
-        ],
-        icon_region: Some("mode_base04"),
-        text_hash: Some(0x80cd_176b),
-        official: true,
-        note: "Tournoi en ligne en trois phases (inscription, qualifications, classement final). \
-               Les ecrans `fake_vroad_*` sont des MAQUETTES posees sous soccer99_*, sans texture \
-               propre ; le mode lui-meme ne l'est pas : ses assets vivent sous \
-               `menu/75_vroad/` (vroad01..vroad50) et ses 28 ecrans couvrent entree, tournoi \
-               final, classement, recompenses, region, photo et notifications. \
-               `VictoryRoad` est l'orthographe canonique cote code — `nie.exe` porte \
-               BGMVolVictoryRoad / SEVolVictoryRoad / VoiceVolVictoryRoad et 152 symboles \
-               *VictoryRoad* (machines a etats, menus, erreurs reseau `sysmes_vroad_err_*`) ; \
-               `VictoryLoad` n'y figure PAS. `victory_load`, `victory_lode` et `vroad` ne sont \
-               que des variantes cote assets.",
-        key_pattern: Some("vroad"),
-    },
-    ModeDef {
-        slug: "competition",
-        label: "Mode Compétition",
-        prefixes: &[],
-        icon_region: None,
-        text_hash: Some(0x6e14_cca7),
-        official: true,
-        note: "Nomme par `menu_text`, mais AUCUN ecran ne porte ce nom dans le VFS, et le \
-               binaire n'a PAS de cle de reglage a son nom : `nie.exe` porte BGMVol/SEVol/\
-               VoiceVol pour Chronicle, KizunaStation, Story et VictoryRoad — pas pour lui. \
-               Comme les modes en ligne (`lobby`, `ranked`, `bot_match`, tous absents), son \
-               contenu n'est pas dans les fichiers installes.",
-        key_pattern: None,
-    },
-    ModeDef {
-        slug: "story",
-        label: "Histoire",
-        prefixes: &["story_mode"],
-        icon_region: None,
-        text_hash: Some(0x76db_0fff),
-        official: true,
-        note: "Ecran story_mode_top_menu.",
-        key_pattern: Some("story_mode"),
-    },
-    ModeDef {
-        slug: "chronicle",
-        label: "Mode Chronique",
-        prefixes: &["chronicle_mode"],
-        icon_region: Some("mode_base07"),
-        text_hash: Some(0xce37_875a),
-        official: true,
-        note: "Ecrans chronicle_mode_top_menu et chronicle_mode_soccer_vs_menu ; \
-               images dediees sous 220_img/ev_chronicle_img (943 fichiers).",
-        key_pattern: Some("chronicle"),
-    },
-    ModeDef {
-        slug: "kizuna-station",
-        label: "Station Kizuna",
-        prefixes: &["kizuna_town"],
-        icon_region: None,
-        text_hash: Some(0x126c_915e),
-        official: true,
-        note: "Le MODE s'appelle « Station Kizuna » ; le LIEU qu'il ouvre est « Ville Kizuna » \
-               (EN Bond Town), un libelle distinct. Ses ecrans portent le prefixe kizuna_town.",
-        key_pattern: Some("kizuna"),
-    },
-    ModeDef {
-        slug: "chara-edit",
-        label: "Éditeur d'avatar",
-        prefixes: &["chara_edit"],
-        icon_region: None,
-        text_hash: None,
-        official: false,
-        note: "Editeur de personnage joueur (creation d'avatar). 42 ecrans `chara_edit_*_setting` \
-               (menu racine, modele, liste, recette, parts par categorie, 14 grilles de couleur \
-               10x4/12x5/13x5) et 51 scripts `chara_edit_*.lua`. Ses assets d'interface vivent \
-               sous `menu/161_avatar/` (avatar01..avatar03) ; ses modeles et textures de parts \
-               sous `chr/_face/20_EDIT/`. Le catalogue de donnees, lui, est adosse a \
-               `chara_edit_<ver>.cfg.bin` — cf. `niers avatar`. Aucun libelle de mode ne lui est \
-               attribue dans `menu_text` : ce n'est pas une tuile du menu principal mais un \
-               editeur ouvert depuis un autre mode, d'ou `official: false` et `text_hash: None`.",
-        key_pattern: Some("chara_edit"),
-    },
-    ModeDef {
-        slug: "soccer",
-        label: "Match",
-        prefixes: &["soccer_top_menu", "soccer_game_mode"],
-        icon_region: Some("mode_base03"),
-        text_hash: Some(0x848d_75db),
-        official: false,
-        note: "Entree des matchs (crampons + ballon sur la tuile). Le jeu ne le compte pas \
-               parmi les modes de ses reglages audio.",
-        key_pattern: None,
-    },
-    ModeDef {
-        slug: "bb-stadium",
-        label: "BB Stadium",
-        prefixes: &["bb_stadium"],
-        icon_region: Some("mode_base10"),
-        text_hash: None,
-        official: false,
-        note: "Tuile au logo `BB`.",
-        key_pattern: Some("bb_stadium"),
-    },
-    ModeDef {
-        slug: "play-guide",
-        label: "Guide de jeu",
-        prefixes: &["play_guide"],
-        icon_region: Some("mode_base05"),
-        text_hash: None,
-        official: false,
-        note: "Tuile au livre marque d'un point d'exclamation.",
-        key_pattern: Some("play_guide"),
-    },
-    ModeDef {
-        slug: "setting",
-        label: "Paramètres",
-        prefixes: &["setting_top_menu"],
-        icon_region: Some("mode_base06"),
-        text_hash: Some(0x82c9_a2b3),
-        official: false,
-        note: "Tuile a l'engrenage.",
-        key_pattern: None,
-    },
-    ModeDef {
-        slug: "information",
-        label: "Informations",
-        prefixes: &["information_top_menu", "information_"],
-        icon_region: Some("mode_base09"),
-        text_hash: Some(0x1796_88e8),
-        official: false,
-        note: "Tuile au `i`.",
-        key_pattern: None,
-    },
-    ModeDef {
-        slug: "team-dock",
-        label: "Équipe",
-        prefixes: &["team_dock"],
-        icon_region: None,
-        text_hash: Some(0x7aae_281e),
-        official: false,
-        note: "Ecran commun de gestion d'equipe.",
-        key_pattern: Some("team_dock"),
-    },
-];
+fn legacy_text(definition: &ModeDef) -> (&'static str, &'static str) {
+    legacy_presentation(definition.slug).map_or((definition.label, definition.note), |legacy| {
+        debug_assert_eq!(legacy.text_hash, definition.text_hash);
+        (legacy.label, legacy.note)
+    })
+}
 
 /// Retourne les modes auxquels un écran est rattaché par ses préfixes réels.
 ///
@@ -226,7 +46,7 @@ pub const MODES: &[ModeDef] = &[
 fn classify_screen(stem: &str) -> Vec<&'static str> {
     MODES
         .iter()
-        .filter(|def| matches(def, stem))
+        .filter(|def| matches_stem(def, stem))
         .map(|def| def.slug)
         .collect()
 }
@@ -397,9 +217,6 @@ fn walk<'a>(entries: &'a [CfgEntry], f: &mut impl FnMut(&'a CfgEntry)) {
 }
 
 /// Vrai si `stem` relève d'un des préfixes du mode.
-fn matches(def: &ModeDef, stem: &str) -> bool {
-    def.prefixes.iter().any(|p| stem.starts_with(p))
-}
 
 /// Récolte les faits d'un mode depuis le VFS.
 pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
@@ -432,7 +249,7 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
             let base = stem
                 .split_once(char::is_numeric)
                 .map_or(stem, |(a, _)| a.trim_end_matches('_'));
-            if matches(def, stem) || matches(def, base) {
+            if matches_stem(def, stem) || matches_stem(def, base) {
                 facts.lua.insert(path.to_string());
             }
         }
@@ -446,7 +263,7 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
         else {
             continue;
         };
-        if !matches(def, stem) {
+        if !matches_stem(def, stem) {
             continue;
         }
         let Ok(bytes) = vfs.read(&path) else { continue };
@@ -745,7 +562,7 @@ pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> 
 
     Ok(serde_json::json!({
         "slug": def.slug,
-        "label": def.label,
+        "label": legacy_text(def).0,
         "screens": screens,
         "objbins": objbins,
         "textures": textures,
@@ -1015,7 +832,8 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize, usiz
     for def in MODES {
         let f = collect(vfs, def);
         // Le libellé du jeu prime sur le nom de repli ; s'il manque, on garde le nôtre.
-        let label_fr = libelle("fr", def.text_hash).unwrap_or_else(|| def.label.to_string());
+        let (legacy_label, legacy_note) = legacy_text(def);
+        let label_fr = libelle("fr", def.text_hash).unwrap_or_else(|| legacy_label.to_string());
         conn.execute(
             "INSERT INTO mode(slug, label, label_en, label_ja, text_hash, official,
                               icon_atlas, icon_region, screens, layers, focus, note)
@@ -1040,7 +858,7 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize, usiz
                 f.screens.len() as i64,
                 f.layers.len() as i64,
                 f.focus as i64,
-                def.note,
+                legacy_note,
             ],
         )?;
         let mode_id: i64 =
@@ -1206,7 +1024,17 @@ pub fn export_json(db: &nie_index::Db) -> Result<serde_json::Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MODES, classify_screen};
+    use super::{MODES, classify_screen, legacy_text};
+    use crate::mode_presentation::legacy_presentation;
+
+    #[test]
+    fn legacy_cli_presentation_covers_the_shared_catalog() {
+        for definition in MODES {
+            let legacy = legacy_presentation(definition.slug).expect("legacy presentation");
+            assert_eq!(legacy.text_hash, definition.text_hash);
+            assert_eq!(legacy_text(definition), (legacy.label, legacy.note));
+        }
+    }
 
     #[test]
     fn coverage_keeps_empty_prefix_modes_unassigned() {

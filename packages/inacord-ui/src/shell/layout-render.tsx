@@ -18,7 +18,7 @@
  *
  * Il ne corrige aucune position. Sur `mainmenu01`, 24 objets sur 34 sont a la position par
  * defaut et 5 sortent du canevas : le mode `diagnostic` les DESIGNE au lieu de les taire, mais
- * rien ne les deplace. Cf. `layout-jeu.ts` pour la mesure.
+ * rien ne les deplace. Cf. `game-layout.ts` pour la mesure.
  */
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +35,7 @@ import {
 	objetsTries,
 	segmentsTexte,
 	styleObjet,
-} from "./layout-jeu";
+} from "./game-layout";
 
 /**
  * L'echelle courante d'une zone qui doit contenir le canevas, mesuree et non supposee.
