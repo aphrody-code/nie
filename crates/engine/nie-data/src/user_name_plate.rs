@@ -7,7 +7,7 @@
 //!
 //! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/user_name_plate/user_name_plate_config_1.03.50.00.cfg.bin.json`
 //! - 1 liste dans ce fichier :
-//!   - `m_userNamePlateInfoList` — 54 entrées `USER_NAME_PLATE_INFO`, chacune décrivant
+//!   - `m_userNamePlateInfoList` — 142 entrées `USER_NAME_PLATE_INFO`, chacune décrivant
 //!     une plaque de nom débloquable.
 //!
 //! ## Champs observés sur le dump réel
@@ -16,17 +16,17 @@
 //! |------------------------|------------|--------------------------------------------------------------|
 //! | `userNamePlateId`      | hex string | Identifiant hash de la plaque (ex. `"0x0976673C"`)          |
 //! | `userNamePlateNameId`  | hex string | Hash du texte de nom associé (ex. `"0x011D2282"`)           |
-//! | `sortNo`               | integer    | Ordre d'affichage (1..54, séquentiel)                        |
+//! | `sortNo`               | integer    | Ordre d'affichage unique; the first 60 legacy values are sequential |
 //! | `textureFileNameText`  | string     | Chemin VFS du `.g4tx` (ex. `"#/menu/.../nm00001.g4tx"`)     |
 //! | `textureFileNameCrc`   | hex string | CRC32 du chemin de texture                                   |
 //! | `mainTextureNameCrc`   | hex string | CRC32 de la texture principale                               |
 //! | `shadowTextureNameCrc` | hex string | CRC32 de la texture d'ombre                                  |
-//! | `nameFontStyle`        | hex string | Hash du style de police du nom (2 valeurs distinctes)        |
-//! | `flagIndex`            | integer    | Index du flag de progression (0..53, séquentiel)            |
-//! | `enableCond`           | string     | Condition d'activation : base64 opaque, ou `""` (toujours actif) |
+//! | `nameFontStyle`        | hex string | Hash du style de police du nom (8 valeurs distinctes)        |
+//! | `flagIndex`            | integer    | Index 0..59 for legacy rows; 0 for the later grouped rows     |
+//! | `enableCond`           | string     | Condition base64 opaque, or `0xFFFFFFFF` when absent          |
 //!
-//! Note : `enableCond` est une chaîne base64 de données binaires non décodées (condition
-//! d'activation interne), vide pour les plaques actives par défaut (indices 0, 5, 9, 12).
+//! `enableCond` is an opaque base64 condition. The unsigned -1 sentinel is normalized to an
+//! empty string for entries that have no activation condition.
 //!
 //! Le parser inagle (`packages/inagle/src/parsers/nameplate-config.ts`) n'expose qu'un
 //! sous-ensemble des champs (id, nameId, sortNo, image, fontStyle, flagIndex, enableCond) ;
@@ -36,7 +36,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use serde_json::Value;
 
-use crate::cfgbin::{field_hash, field_i64, field_str, list_values};
+use crate::cfgbin::{field_hash, field_i64, field_optional_str, field_str, list_values};
 use crate::hash::HashId;
 
 // ─── UserNamePlateInfo ─────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ pub struct UserNamePlateInfo {
     pub user_name_plate_id: HashId,
     /// `userNamePlateNameId` — hash du texte de nom associé (ex. `0x011D2282`).
     pub user_name_plate_name_id: HashId,
-    /// `sortNo` — ordre d'affichage (1-basé, séquentiel dans le dump).
+    /// `sortNo` — unique display order; not globally sequential.
     pub sort_no: i64,
     /// `textureFileNameText` — chemin VFS du fichier `.g4tx` de la plaque.
     ///
@@ -65,9 +65,9 @@ pub struct UserNamePlateInfo {
     pub main_texture_name_crc: HashId,
     /// `shadowTextureNameCrc` — CRC32 de la texture d'ombre (ex. `0x319BE278`).
     pub shadow_texture_name_crc: HashId,
-    /// `nameFontStyle` — hash du style de police du nom (2 valeurs : `0x66A0930A`, `0x72A1CF45`).
+    /// `nameFontStyle` — hash du style de police du nom.
     pub name_font_style: HashId,
-    /// `flagIndex` — index du flag de progression (0-basé, séquentiel dans le dump).
+    /// `flagIndex` — progression flag index; later grouped entries reuse zero.
     pub flag_index: i64,
     /// `enableCond` — condition d'activation : chaîne base64 opaque (données binaires non
     /// décodées), ou `""` pour les plaques actives par défaut.
@@ -92,7 +92,7 @@ impl UserNamePlateInfo {
             shadow_texture_name_crc: field_hash(v, "shadowTextureNameCrc"),
             name_font_style: field_hash(v, "nameFontStyle"),
             flag_index: field_i64(v, "flagIndex").unwrap_or(0),
-            enable_cond: field_str(v, "enableCond").unwrap_or("").into(),
+            enable_cond: field_optional_str(v, "enableCond").unwrap_or("").into(),
         })
     }
 }
@@ -105,7 +105,7 @@ impl UserNamePlateInfo {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserNamePlateConfig {
-    /// 54 entrées de plaque (`m_userNamePlateInfoList`).
+    /// 142 entrées de plaque (`m_userNamePlateInfoList`).
     pub entries: Vec<UserNamePlateInfo>,
 }
 
@@ -154,7 +154,7 @@ impl UserNamePlateConfig {
 /// Renvoie un [`UserNamePlateConfig`] avec toutes les entrées valides (id non-nul).
 /// Les entrées invalides sont silencieusement ignorées.
 ///
-/// Compte réel : `user_name_plate_config_1.03.50.00.cfg.bin.json` → 54 entrées.
+/// Compte réel : `user_name_plate_config_1.03.50.00.cfg.bin.json` → 142 entrées.
 #[must_use]
 pub fn parse_user_name_plate_config(root: &Value) -> UserNamePlateConfig {
     let entries = if let Some(values) = list_values(root, "m_userNamePlateInfoList") {

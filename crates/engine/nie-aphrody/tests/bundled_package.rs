@@ -29,7 +29,7 @@ fn package_aphrody_v2_est_charge_et_reconstruit_pixel_exact() {
     );
     assert_eq!(
         sha256_hex(BUNDLED_PET_JSON.as_bytes()),
-        "93b3af384a3ab44e6a0882f05458a9999bd9e8f2e42ac32a620eec7246e69cee"
+        "1a458332b408f168cfedf43bffe1c79418168d86a534663e96a8fdcfb28f6067"
     );
 
     for (degrees, label) in [

@@ -9,8 +9,8 @@ Source d'admission :
 
 | Fichier | SHA-256 |
 |---|---|
-| `pet.json` | `93b3af384a3ab44e6a0882f05458a9999bd9e8f2e42ac32a620eec7246e69cee` |
-| `animations.json` | `21fb99f37e862edcc28ffe5c7f3877499d10e52f60e5dcf2b1e008e24f01cc3b` |
+| `pet.json` | `1a458332b408f168cfedf43bffe1c79418168d86a534663e96a8fdcfb28f6067` |
+| `animations.json` | `511da87b80816cedcc83654806e7f363ba392c67e0d4d370728f0a1b6fd51741` |
 | `sprites/spritesheet.png` | `bc48f3e2a4d3086234062b9175d58f2caaec39f6afeb53ab8b222513fe964037` |
 | `sprites/spritesheet.webp` | `93238150de5b86b5977f8409800a91637dfcc3b70b3b0d6d617f6563fa54389b` |
 

@@ -40,7 +40,8 @@ use alloc::vec::Vec;
 use serde_json::Value;
 
 use crate::cfgbin::{
-    Node, field_bool, field_hash, field_i64, field_str, list_values, owned, walk_named,
+    Node, field_bool, field_hash, field_i64, field_optional_str, field_str, list_values, owned,
+    walk_named,
 };
 use crate::hash::HashId;
 
@@ -150,7 +151,7 @@ impl TexBasePath {
 /// `m_BookmarkFolderItemList[0]` :
 /// - `searchWordId = 0x03E43591`, `wordTextId = 0xD21CE615`,
 ///   `descTextId = 0x917DEE71`, `thumbnailTexFileName = "bookmark_img01_s01.g4tx"`,
-///   `isNecessaryStory = true`, `enableCond = ""`.
+///   `isNecessaryStory = true`, `enableCond = 0xFFFFFFFF` (absent).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BookmarkFolderItem {
@@ -166,7 +167,7 @@ pub struct BookmarkFolderItem {
     pub thumbnail_tex_file_name: String,
     /// `isNecessaryStory` — `true` si ce marque-page est lié à la progression scénaristique.
     pub is_necessary_story: bool,
-    /// `enableCond` — condition d'activation (chaîne vide dans tous les cas réels).
+    /// `enableCond` — optional activation condition; the unsigned -1 sentinel means absent.
     pub enable_cond: String,
 }
 
@@ -185,7 +186,7 @@ impl BookmarkFolderItem {
             thumbnail_tex_name: field_hash(v, "thumbnailTexName"),
             thumbnail_tex_file_name: owned(field_str(v, "thumbnailTexFileName").unwrap_or("")),
             is_necessary_story: field_bool(v, "isNecessaryStory").unwrap_or(false),
-            enable_cond: owned(field_str(v, "enableCond").unwrap_or("")),
+            enable_cond: owned(field_optional_str(v, "enableCond").unwrap_or("")),
         })
     }
 }

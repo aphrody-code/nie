@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { AssetSourceProvider } from "@niers/inacord-ui";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Loading, loadingFallbackMessage } from "./Loading";
 
 describe("loading screen evidence boundary", () => {
-	test("keeps unknown and in-progress health on the real layout", () => {
+	test("keeps unknown and in-progress health on the readiness screen", () => {
 		expect(loadingFallbackMessage(null, false)).toBeNull();
 		expect(
 			loadingFallbackMessage({ capacites: { vfs: "en_cours" } } as never, false),
@@ -25,19 +24,13 @@ describe("loading screen evidence boundary", () => {
 		expect(html).not.toContain("/pet/");
 	});
 
-	test("renders only the exported loading01 object in the visual layer", () => {
-		const source = {
-			urlTexture: (path: string) => `/assets/tex/${path}.png`,
-		} as never;
-		const html = renderToStaticMarkup(
-			<AssetSourceProvider source={source}>
-				<Loading health={null} />
-			</AssetSourceProvider>,
-		);
-
-		expect(html).toContain('data-layout="loading01"');
-		expect(html).toContain("loading01_01/loading01_01.g4tx.png");
-		expect(html).not.toContain("/pet/");
-		expect(html).not.toContain("entrées indexées");
+	test("renders a zero-asset readiness surface", () => {
+		const html = renderToStaticMarkup(<Loading health={null} />);
+		expect(html).toContain('role="status"');
+		expect(html).toContain("Chargement des données");
+		expect(html).not.toContain("img");
+		expect(html).not.toContain("video");
+		expect(html).not.toContain("audio");
+		expect(html).not.toContain("canvas");
 	});
 });

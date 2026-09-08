@@ -7,9 +7,11 @@ use axum::{
 use serde::Deserialize;
 use std::sync::{Arc, OnceLock};
 
+/// Optional localization parameters for related assets.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RelatedQuery {
+    /// Preferred locale code.
     pub locale: Option<String>,
 }
 

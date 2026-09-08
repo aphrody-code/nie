@@ -354,11 +354,11 @@ fn real_file_compte_flags() {
 #[test]
 fn real_file_compte_scenes() {
     let Some(cfg) = load_real() else { return };
-    // scene_archive_config_4.00.18.00 : 112 scènes dans m_sceneArchiveDataList
+    // scene_archive_config_4.00.18.00: 113 scenes in m_sceneArchiveDataList.
     assert_eq!(
         cfg.scenes.len(),
-        112,
-        "112 SCENE_ARCHIVE_LIST_DATA dans le dump réel"
+        113,
+        "113 SCENE_ARCHIVE_LIST_DATA dans le dump réel"
     );
 }
 
@@ -467,7 +467,7 @@ fn real_file_flag_num_toujours_1() {
     let tous_un = cfg.scenes.iter().all(|s| s.flag_num == 1);
     assert!(
         tous_un,
-        "flag_num = 1 pour toutes les 112 scènes du dump réel"
+        "flag_num = 1 pour toutes les 113 scènes du dump réel"
     );
 }
 
@@ -478,7 +478,7 @@ fn real_file_is_full_screen_view_toujours_false() {
     let tous_false = cfg.scenes.iter().all(|s| !s.is_full_screen_view);
     assert!(
         tous_false,
-        "is_full_screen_view = false pour toutes les 112 scènes du dump réel"
+        "is_full_screen_view = false pour toutes les 113 scènes du dump réel"
     );
 }
 

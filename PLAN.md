@@ -191,6 +191,60 @@ RIP-relative `movaps` displacement (`0f 29 05 31 c9 26 02`) followed by `ret`, s
 reclassification using `boundaries::valider`; only after that correction may `extractps` be treated
 as a genuine instruction blocker.
 
+Fresh replay on 2026-09-08 confirms the same boundary directly: `nie-forge unit --exe nie.exe
+--va 0x14003e85d` identifies `res.text.3dc5d` at file offset `0x3dc5d` with bytes `26 02 c3`,
+while `xxd` at `0x3dc50` shows the complete preceding sequence `66 0f 6f 05 68 b1 a2 01 0f 29
+05 31 c9 26 02 c3`. The `encodage:add` ranking entry is therefore a false-code artifact and
+remains excluded from encoder work.
+
+The next genuine `extractps` sample was inspected at `fn.14005fb00`: `66 0f 3a 17 c0 00`
+(`extractps eax, xmm0, 0`). It cannot use the existing `SseI` AST, whose destination is an XMM
+register; the bounded implementation must add a general-register destination form, text parsing,
+ModRM/imm8 encoding, lifter mapping and round-trip tests together. No partial enum-only change is
+accepted as progress because it could silently encode the wrong operand class.
+
+### M1 `extractps` general-register form — implemented
+
+`nie-asm` now owns `Insn::Extractps(Reg, Xmm, u8)` with canonical text parsing and exact `66 0f
+3a 17 /r ib` encoding; `nie-forge::lift` maps the iced-x86 register/register/immediate form. The
+new round-trip test and strict gates pass: `nie-asm` 25 library tests, `nie-forge` 34 library
+tests plus 2 integration tests, and zero clippy warnings. A fresh lift changes from 105,231 bodies
+and 22,513,296 bytes to 105,256 bodies and 22,558,778 bytes; blockers fall from 2,012 units /
+1,320,665 bytes to 1,987 units / 1,275,183 bytes, with `extractps` absent from the top five.
+The false `encodage:add` residue remains separately excluded from encoder work.
+
+The exact build was rerun after this batch: `nie-forge build --exe nie.exe` emitted 209,366 Rust
+units / 25,086,251 bytes, rejected 0 units, and produced a 33,918,464-byte `dist/nie.exe` with
+SHA-256 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`; `identical=true`.
+This preserves byte identity but does not close the independent-provenance gap documented below.
+
+### M1 `paddq` SSE form — implemented
+
+`nie-asm` now includes `SseOp::Paddq` (`66 0f d4 /r`) and the text/lifter mappings. Its exact
+round-trip test passes; `nie-asm` has 26 library tests, and strict clippy remains clean. After
+rebuilding the forge binary, a fresh lift reports 105,261 bodies and 22,592,734 bytes, with
+1,982 blockers / 1,241,227 bytes (down from 1,987 / 1,275,183). The first false `encodage:add`
+residue remains unchanged; the next genuine high-mass candidate is the 256-bit `vmovdqu` form.
+
+### M1 `stmxcsr` memory form — implemented
+
+`nie-asm` now includes `Insn::Stmxcsr(Mem)` with exact `0f ae /3` encoding, canonical text
+parsing, and a `nie-forge` lifter mapping. The round-trip test passes; `nie-asm` has 27 library
+tests and both forge/asm clippy gates are clean. After rebuilding the forge binary, the fresh lift
+reports 105,265 bodies and 22,593,058 bytes, with 1,978 blockers / 1,240,903 bytes. The remaining
+top genuine candidate is the 256-bit `vmovdqu` form; `in`/`out`/`sti` entries remain suspected
+false-code until independently validated.
+
+The post-`stmxcsr` exact build also remains byte-identical: 209,375 Rust units and 25,120,531
+produced bytes, zero rejected units, 33,918,464 output bytes, and the reference SHA-256
+`b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c` (`identical=true`).
+
+The `vmovdqu` candidate was independently confirmed: translating the reported VA within
+`fn.14071dac0` locates file offset `0x71cf0a`, whose bytes are `c5 fe 6f 35 4e 1f 19 01`, a
+VEX.256 `vmovdqu ymm6, [1418afa60h]`. This is genuine code, not another boundary residue. The
+remaining implementation must introduce a width-aware YMM operand in the VEX AST and preserve
+`L=1`; a 128-bit alias would encode the wrong instruction and is not acceptable.
+
 #### M2 scene-document foundation — implemented library slice, integration still open
 
 `nie-render3d::document` now adds a backward-compatible version 2 contract beside the unchanged v1
@@ -255,8 +309,9 @@ Historical user steering (2026-09-08) suspended intermediate tests during the bo
 rush. That exception is closed by the engine rebaseline above: every new batch again requires
 incremental narrow verification before integration or commit.
 
-Additional user scope (2026-09-08): preload original title music, system effects and imminent
-screen assets at startup; load other resources on demand. Wire existing Lua capabilities into
+Additional user scope (2026-09-08), superseded for the browser critical path by the later
+performance decision below: preload original title music, system effects and imminent screen
+assets at startup; load other resources on demand. Wire existing Lua capabilities into
 the site and native sprite sheets into shared presentation/CSS. All game/Criware formats must
 ultimately be consumable through native shared decoders using their original VFS identities;
 user-requested export conversion is separate from runtime decoding. Existing metadata-only or
@@ -308,8 +363,9 @@ See [shared-core ownership](docs/architecture/shared-core-surfaces.md).
 
 - [ ] Shared core: resolve current config/Lua/runtime-created objects, fonts/localization,
   geometry, actual player/avatar state and animation playback. Stale settings are not empty UI.
-- [ ] Opening: separate loading ball/text; original USM logo media with actual readiness/end;
-  current autosave resources; PC START artwork, final localized logo and interactive controls.
+- [ ] Opening inspection surfaces: keep original USM logo, autosave and PC START resources
+  available on demand, outside browser startup. The live loading path itself is zero-asset and
+  advances directly to the menu only after measured VFS and database readiness.
 - [ ] Front menu: `title02` / `title_menu_2_setting.cfg.bin`, eleven native actions, correct order,
   focus/labels/panels/counters and verified destinations. Do not reuse the in-game menu identity.
 - [ ] Avatar: all six stages, native model composition, skeletons, materials, colors and stage
@@ -347,6 +403,73 @@ includes command, host, timestamp, revision, artifact hash, expected and measure
 Historical test counts must be rerun before becoming current proof.
 
 ### H22–H24: Git closure and authorized delivery
+
+The sole whole-repository release orchestrator is `scripts/release-all.ts`, exposed as
+`bun run release:all`. Its immutable phase order is `lint → typecheck → tests → Rust clippy →
+build → release/push → deploy → live validation`. Default invocation verifies a clean checkout and
+builds into an isolated staging directory only;
+all publication and production mutation require explicit `--deploy`. That mode freezes and stages
+the candidate tree on `main`, runs every gate/build against it, commits and pushes immediately
+before deployment, and verifies the resulting commit equals `origin/main`. Artifact publication
+is atomic and rollback-protected; meaningful live payloads and interactions close the pipeline.
+This is a delivery mechanism, not a stronger proof level: record the exact gates, counts, host and
+commit, and retain semantic review for residual adapter logic. Each command streams to a redacted
+durable log under `var/log/releases/<run-id>/`, retained on failure. No build writes through the
+live `apps/nie-web/dist` symlink; staged artifacts and rollback binaries stay under `var/releases/`.
+
+The inverse operation is `bun run sync:main`: a dry run unless `--apply` is present. It reconciles
+local `main`, `origin/main`, and the VPS by fast-forward only, refuses dirty or divergent source,
+and never resets or force-pushes. It restores missing release artifacts in either direction only
+from a same-commit manifest with a matching SHA-256, then atomically renames them into place. Every
+command is retained under `var/log/sync-main/<run-id>/` for failure diagnosis.
+
+The 2026-09-08 Cargo modernization pins stable Rust 1.98.1 while retaining the 1.97 MSRV, Edition
+2024 and resolver 3. Inacord now inherits the workspace version, authors, edition, MSRV, license,
+repository and lints instead of remaining the lone Edition 2021 package. Disk-bounded dev/test
+profiles keep line-table backtraces, disable incremental caches and provide an explicit
+`debugging` profile for full symbols. The release lint phase runs all four `cargo deny` checks.
+Compatible lock fixes moved `h2` 0.4.15→0.4.19 (RUSTSEC-2026-0258) and yanked `chacha20`
+0.10.1→0.10.2. The no-fix RSA timing advisory inherited through `steamroom` is explicitly scoped
+to local Steam authentication in `deny.toml`; it remains dependency debt, not a resolved defect.
+
+The same modernization makes the browser artifact a measured target rather than a side effect.
+`nie-explore` host-only VFS modules are excluded from `wasm32-unknown-unknown`; the release
+pipeline now checks and clippies that target explicitly. The `wasm-release` profile uses fat LTO,
+aborting panics and stripped symbols. Its canonical Bun builder creates `web` glue in temporary
+storage, optimizes with Binaryen against the explicit Rust feature set (including SIMD128),
+validates and executes a generated-glue smoke test, rejects binaries above 6 MiB, and publishes
+only after all checks pass. The first measured optimized module on 2026-09-08 was 3,902,874 bytes,
+7% smaller than the post-bindgen input and below the budget.
+
+Two formerly false-green Bun gates are now explicit: Inacord's package invokes
+`bun run --cwd ../nie-web typecheck:desktop` so Bun executes the script rather than interpreting
+the directory as a command, and `nie-web` tests preload the format plugin, Happy DOM globals and
+the mirror test client before DOM suites run. A zero-case or environment-skipped invocation is
+still not evidence; record the non-zero test/assertion totals produced by the release candidate.
+Measured on the repository execution host on 2026-09-08: `bun run --cwd apps/inacord typecheck`
+completed with zero diagnostics, and `bun run --cwd apps/nie-web test` executed 132 tests across
+19 files with 689 `expect()` calls, zero failures and the configured DOM preloads visible in the
+invoked command. These measurements describe the current worktree, not a committed or live build.
+
+The cold workspace test also exposed cross-host and stale-corpus assumptions. Aphrody's byte-hashed
+package descriptors now have explicit LF checkout attributes, so their documented SHA-256 values
+match the Git blobs on Windows and Linux. The vibration decoder accepts JSON numbers such as
+`250.0` only when they are finite exact integers and maps the decoded unsigned -1 resource-path
+sentinel to absence. The shared field helpers now apply that exact-number rule to hashes and
+offset/count pairs, while domain string fields normalize the same sentinel only where absence is
+their contract. Measured corpus corrections cover notices (38 data/6 info and 47/18/3/9/10/13
+post-notice rows), 113 scene archives, 104 soccer effects, 12 team-AI rows, five uniform lists
+(1247/627/1075/540/388), 142 name plates, and the expanded route/trigger tables. The RPG status
+parser accepts both nested and sibling parameter-list layouts. Focused suites through the final
+alphabetical `nie-data` tests and strict `nie-data` clippy pass; the whole release gate must still
+replay that result before publication.
+
+The 2026-09-08 startup performance decision removes video, soundtrack, WASM decoding, bitmap-font
+rendering and secondary-scene preloads from the browser loading path. That path renders a
+zero-asset status surface and advances directly to the menu only when `/api/v1/health` reports a
+non-empty content-backed VFS, a served bundle, and successful schema reads from both the main
+mirror and episode SQLite database. Legacy logo/autosave/start phases remain demand-only
+inspection surfaces and stale browser-history entries cannot restore them into startup.
 
 - [ ] Correct remaining defects, commit all task-owned source/documentation through explicit paths.
 - [ ] Verify committed source/artifact hashes against the tested candidate and update this ledger.
@@ -474,14 +597,16 @@ counts above or accept any reference row.
   unresolved mappings. `options-row` is a reusable row template, not the complete PC Options
   screen; its host preference controls do not establish native game-setting behavior.
 - Original ACB/AWB metadata, exact named-cue selection, embedded/streaming bank identity and
-  HCA loop boundaries now have shared Rust owners and native/Wasm bindings. Startup loads title
-  music and system cues; accepted native object commands select effects through decoded
-  `SoundCmd` hashes. Complex synthesizer execution, unresolved command hashes and ADX loop
-  boundaries remain explicit gaps. No generated artifact equality has been rerun for this code.
+  HCA loop boundaries now have shared Rust owners and native/Wasm bindings. After the menu is
+  visible, the audio owner loads title music and system cues; accepted native object commands
+  select effects through decoded `SoundCmd` hashes. Complex synthesizer execution, unresolved
+  command hashes and ADX loop boundaries remain explicit gaps. No generated artifact equality
+  has been rerun for this code.
 - Original G4TX resources are consumed through Rust/Wasm in the active Explorer inspector.
   The shared bounded loader supports demand priority, deduplication and preloading; native byte
-  retention is bounded. Logo playback reuses desktop clock synchronization and requires both
-  original video and soundtrack resources. Native packet offsets remain unverified.
+  retention is bounded. Logo playback remains a demand-only inspection surface: it reuses desktop
+  clock synchronization and requires both original video and soundtrack resources. Native packet
+  offsets remain unverified.
 - Lua replay is mounted through a shared bounded VFS session and thin site/browser adapters.
   Front-menu callbacks use native layer/item identities. Replay completeness is separate from
   engine, geometry, save-state and visual equivalence.

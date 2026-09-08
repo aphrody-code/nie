@@ -1,21 +1,12 @@
 /**
- * The VFS-backed `loading01` screen.
+ * The zero-asset readiness screen.
  *
- * The rendered loading state contains only the single object exported by
- * `nie-game --runtime --menu loading01 --export-layout`: the 784×136 sprite at the centre of the
- * 1280×720 canvas. Status text remains available to assistive technology, but no mascot, progress
- * value, service count, or locally composed decoration is placed over the game layout.
- *
- * When the VFS is known to be unavailable, its texture cannot be rendered truthfully. That case
- * uses a plain system-colour message instead of presenting an incomplete game screen.
+ * It intentionally requests no VFS texture, font, audio, video, WASM decode, or secondary scene.
+ * The only work on the critical path is the server readiness probe that opens both databases and
+ * waits for the complete VFS index.
  */
 import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
-import { GameCanvas, LayoutRender, lireLayout as readLayout } from "@niers/inacord-ui";
 import type { CSSProperties } from "react";
-import rawLayout from "../layouts/loading01.layout.json";
-
-/** Runtime layout exported from the real `loading01` VFS assets. */
-const LAYOUT = readLayout(rawLayout);
 
 export interface LoadingProps {
 	/** Latest `/api/v1/health` response, or `null` while it has not answered. */
@@ -47,26 +38,16 @@ export function Loading({ health, failed = false }: LoadingProps) {
 		);
 	}
 
-	return (
-		<GameCanvas canvas={LAYOUT.canvas} fond="var(--jeu-ciel-clair)">
-			<LayoutRender layout={LAYOUT} />
-			<span role="status" style={VISUALLY_HIDDEN_STYLE}>
-				Chargement en cours.
-			</span>
-		</GameCanvas>
-	);
+	return <div role="status" style={LOADING_STYLE}>Chargement des données…</div>;
 }
 
-const VISUALLY_HIDDEN_STYLE: CSSProperties = {
-	position: "absolute",
-	width: 1,
-	height: 1,
-	padding: 0,
-	margin: -1,
-	overflow: "hidden",
-	clip: "rect(0, 0, 0, 0)",
-	whiteSpace: "nowrap",
-	border: 0,
+const LOADING_STYLE: CSSProperties = {
+	height: "100%",
+	display: "grid",
+	placeItems: "center",
+	background: "#000",
+	color: "#fff",
+	font: "600 1rem/1.5 system-ui, sans-serif",
 };
 
 const FALLBACK_STYLE: CSSProperties = {

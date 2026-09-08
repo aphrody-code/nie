@@ -4,7 +4,8 @@
 //! tags de bit-flag global activables. Famille non couverte ; port direct (typo Level-5
 //! « enviroment » préservée dans le nom de fichier).
 //!
-//! Vérité terrain : `m_soccerGameMapTagDataList` (28) / `m_soccerGameMapEnvList` (29).
+//! Vérité terrain (corpus 1.02.92.00) : `m_soccerGameMapTagDataList` et
+//! `m_soccerGameMapEnvList` contiennent chacune 32 entrées.
 
 use alloc::vec::Vec;
 use serde_json::Value;

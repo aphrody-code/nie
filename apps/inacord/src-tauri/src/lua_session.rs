@@ -16,8 +16,8 @@
 //! d'une exécution complète. Ici, l'état survit, et le rechargement est explicite — le
 //! `RefreshAll()` d'Overload.
 
-use std::sync::mpsc::{channel, Sender};
 use std::sync::Mutex;
+use std::sync::mpsc::{Sender, channel};
 
 use serde::Serialize;
 

@@ -38,7 +38,7 @@
 //!
 //! - Les champs `condition*` / `cond*` sont des blobs binaires encodés en base64
 //!   (sémantique non décodée ; conservés tels quels comme [`String`]). Le décodeur
-//!   inagle laisse parfois fuiter une sentinelle (caractère U+FFFD + nom de type)
+//!   inagle laisse parfois fuiter une sentinelle (`0xFFFFFFFF` ou caractère U+FFFD + nom de type)
 //!   à la place d'une chaîne vide ; on la normalise en `""` (voir [`clean`]).
 //! - `piecePos` / `piecePosOffset` sont deux `f32` little-endian empaquetés en hex
 //!   (ex. `"000040C00000A0C0"`) ; conservés en hex brut (non décodés faute de source).
@@ -62,10 +62,10 @@ use crate::hash::HashId;
 // ─── Helpers locaux ──────────────────────────────────────────────────────────
 
 /// Normalise une chaîne du dump : la sentinelle inagle (chaîne vide encodée en
-/// `U+FFFD` + nom de type qui fuit) devient `""`. Sinon, la chaîne est conservée.
+/// `0xFFFFFFFF` or `U+FFFD` + leaked type name) becomes `""`.
 #[must_use]
 fn clean(s: &str) -> String {
-    if s.starts_with('\u{FFFD}') {
+    if s == "0xFFFFFFFF" || s.starts_with('\u{FFFD}') {
         String::new()
     } else {
         owned(s)
@@ -608,8 +608,8 @@ impl VsRouteTrigger {
 
 /// Parse un `chronicle_vs_route_config_*.cfg.bin.json` complet (7 listes).
 ///
-/// Vérité terrain : `5.00.30` → 235 unlock, 238 move_routes, 159 events,
-/// 238 pieces, 10 routes, 143 icons, 1 gate. `2.00.16` → 220/222/151/223/8/136/1.
+/// Vérité terrain : `5.00.30` → 246 unlock, 254 move_routes, 180 events,
+/// 254 pieces, 11 routes, 151 icons, 1 gate. `2.00.16` → 220/222/151/223/8/136/1.
 #[must_use]
 pub fn parse_chronicle_vs_route_config(root: &Value) -> ChronicleVsRouteConfig {
     ChronicleVsRouteConfig {
@@ -647,7 +647,7 @@ pub fn parse_opponent_info(root: &Value) -> Vec<VsRouteOpponentInfo> {
 /// Parse un `chronicle_vs_route_trigger_*.cfg.bin.json` (format `entries`).
 ///
 /// Renvoie tous les `DATA_ITEM_N`. Le nœud `DATA_COUNT_0` est ignoré.
-/// Vérité terrain : 63 `DATA_ITEM` (`DATA_COUNT_0.var[0] = 63`).
+/// Vérité terrain : 78 `DATA_ITEM` (`DATA_COUNT_0.var[0] = 78`).
 #[must_use]
 pub fn parse_trigger(root: &Value) -> Vec<VsRouteTrigger> {
     let mut out = Vec::new();

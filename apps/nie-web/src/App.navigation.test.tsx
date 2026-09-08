@@ -28,7 +28,7 @@ beforeEach(() => {
 		}
 		if (url.endsWith("/api/v1/health")) return Response.json({
 			api: "test",
-			capacites: { vfs: "en_cours", vfs_entrees: 0, vfs_dump: false, vfs_contenu: false, gisement: false, bundle: true },
+			capacites: { vfs: "en_cours", vfs_entrees: 0, vfs_dump: false, vfs_contenu: false, gisement: false, anime: false, bundle: true },
 			vues: [],
 		});
 		return new Response(null, { status: 404 });
@@ -103,6 +103,24 @@ describe("game navigation in the mounted host", () => {
 	test("preserves startup for a fresh root", async () => {
 		await mount("/");
 		expect(container.querySelector('[data-opening-phase="loading"]')).not.toBeNull();
+		const requested = (fetchMock.mock.calls as Array<[unknown, ...unknown[]]>).map((call) => String(call[0]));
+		expect(requested.some((url: string) => url.includes("/video/") || url.includes("/runtime/audio"))).toBeFalse();
+	});
+
+	test("opens the menu directly after the VFS and both databases are ready", async () => {
+		fetchMock.mockImplementation(Object.assign(async (input: RequestInfo | URL) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.endsWith("/api/v1/health")) return Response.json({
+				api: "v1",
+				capacites: { vfs: "pret", vfs_entrees: 250_800, vfs_dump: false, vfs_contenu: true, gisement: true, anime: true, bundle: true },
+				vues: [],
+			});
+			return new Response(null, { status: 404 });
+		}, { preconnect: globalThis.fetch.preconnect }));
+		await mount("/");
+		await expectMenu();
+		const requested = (fetchMock.mock.calls as Array<[unknown, ...unknown[]]>).map((call) => String(call[0]));
+		expect(requested.some((url: string) => url.includes("/video/"))).toBeFalse();
 	});
 
 	test("opens the main menu directly through the published alias", async () => {

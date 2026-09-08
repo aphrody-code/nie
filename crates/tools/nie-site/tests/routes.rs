@@ -319,6 +319,7 @@ async fn healthz_ne_nomme_ni_le_service_ni_sa_version() {
     assert_eq!(v["capacites"]["vfs_entrees"], 10);
     assert_eq!(v["capacites"]["vfs_contenu"], false);
     assert_eq!(v["capacites"]["gisement"], false);
+    assert!(v["capacites"]["anime"].is_boolean());
 }
 
 #[tokio::test]

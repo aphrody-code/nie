@@ -260,6 +260,8 @@
 		"typecheck": "bun run --filter '*' typecheck",
 		"lint": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction packages apps",
 		"lint:fix": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction --fix packages apps",
+		"release:all": "bun scripts/release-all.ts",
+		"sync:main": "bun scripts/sync-main.ts",
 		"docs:check": "bun run scripts/docs/check.ts",
 		"check:dependencies": "uv run --no-project python scripts/validation/dependency-owners.py"
 	},

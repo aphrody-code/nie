@@ -40,8 +40,8 @@ fn is_valid_install(dir: &Path) -> bool {
 /// Lit le chemin d'installation de Steam depuis le registre Windows.
 #[cfg(target_os = "windows")]
 fn steam_install_path() -> Option<PathBuf> {
-    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
     use winreg::RegKey;
+    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     if let Ok(key) = hklm.open_subkey(r"SOFTWARE\WOW6432Node\Valve\Steam") {

@@ -26,8 +26,9 @@ describe("opening sequence", () => {
 		expect(JSON.stringify(OPENING_FRAMES)).not.toContain(".png");
 	});
 
-	test("times resource waiting and follows actual completion for native movies", () => {
-		expect(OPENING_FRAMES.loading.durationMs).toBeGreaterThan(0);
+	test("waits for measured resources and follows actual completion for native movies", () => {
+		expect(OPENING_FRAMES.loading.durationMs).toBeNull();
+		expect(OPENING_FRAMES.loading.advanceOn).toBe("resources-ready");
 		expect(OPENING_FRAMES["inazuma-eleven"].advanceOn).toBe("media-ended");
 		expect(OPENING_FRAMES.level5.advanceOn).toBe("media-ended");
 		expect(advanceOpeningPhase("level5", "timeout")).toBe("level5");
@@ -36,20 +37,15 @@ describe("opening sequence", () => {
 		expect(OPENING_FRAMES.start.durationMs).toBeNull();
 	});
 
-	test("ignores confirmation on timed frames and timeouts on interactive frames", () => {
+	test("ignores unrelated events on readiness and interactive frames", () => {
 		expect(advanceOpeningPhase("loading", "confirm")).toBe("loading");
+		expect(advanceOpeningPhase("loading", "timeout")).toBe("loading");
 		expect(advanceOpeningPhase("autosave", "timeout")).toBe("autosave");
 		expect(advanceOpeningPhase("start", "timeout")).toBe("start");
 	});
 
-	test("reaches the reconstructed menu only after both confirmations", () => {
-		let phase = advanceOpeningPhase("loading", "timeout");
-		phase = advanceOpeningPhase(phase, "media-ended");
-		phase = advanceOpeningPhase(phase, "media-ended");
-		expect(phase).toBe("autosave");
-		phase = advanceOpeningPhase(phase, "confirm");
-		expect(phase).toBe("start");
-		phase = advanceOpeningPhase(phase, "confirm");
+	test("reaches the menu directly when every server resource is ready", () => {
+		const phase = advanceOpeningPhase("loading", "resources-ready");
 		expect(phase).toBe("menu");
 		expect(advanceOpeningPhase("menu", "confirm")).toBe("menu");
 	});

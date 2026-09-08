@@ -58,7 +58,7 @@ if [ -z "$PORT" ]; then
 fi
 BASE="http://127.0.0.1:$PORT"
 BUNDLE="${NIE_SITE_STATIC_DIR:-apps/nie-web/dist}"
-BINAIRE="target/release/nie-site"
+BINAIRE="${NIE_SITE_BINARY:-target/release/nie-site}"
 JOURNAL="$(mktemp -t nie-site-e2e-XXXXXX.log)"
 PID=""
 

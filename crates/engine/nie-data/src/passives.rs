@@ -60,7 +60,7 @@ use alloc::vec::Vec;
 
 use serde_json::Value;
 
-use crate::cfgbin::{field_hash, field_i64, field_str, list_values};
+use crate::cfgbin::{field_hash, field_i64, field_optional_str, list_values};
 use crate::hash::HashId;
 
 // ============================================================================
@@ -691,7 +691,7 @@ pub fn parse_lots(root: &Value) -> Vec<TeamPassiveLot> {
         .map(|v| {
             let id = field_hash(v, "id");
             let lot_weight = field_i64(v, "lotWeight").unwrap_or(0);
-            let condition = field_str(v, "condition").unwrap_or("").to_string();
+            let condition = field_optional_str(v, "condition").unwrap_or("").to_string();
             let rarity_enable_flag = v
                 .get("rarityEnableFlag")
                 .and_then(Value::as_i64)

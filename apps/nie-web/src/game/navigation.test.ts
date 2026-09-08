@@ -38,6 +38,10 @@ describe("game route state", () => {
 		for (const state of [null, [], { gameNavigation: "menu" }, { gameNavigation: { version: 2, view: HOME, openingPhase: "menu" } }, { gameNavigation: { version: 1, view: "settings", openingPhase: "menu" } }]) {
 			expect(readGameNavigation(ROUTES, { pathname: "/" }, state).openingPhase).toBe("loading");
 		}
+		for (const stale of ["inazuma-eleven", "level5", "autosave"]) {
+			const state = { gameNavigation: { version: 1, view: HOME, openingPhase: stale } };
+			expect(readGameNavigation(ROUTES, { pathname: "/" }, state).openingPhase).toBe("loading");
+		}
 		expect(readGameNavigation(ROUTES, { pathname: "/" }, { vue: HOME }).openingPhase).toBe("menu");
 	});
 

@@ -64,8 +64,16 @@ function Site() {
 	// le site n'apprendrait jamais que le catalogue est devenu joignable. On resonde tant que
 	// l'état n'est pas tranché, et on s'arrête dès qu'il l'est (`pret` comme `absent`).
 	const vfs = etat?.capacites?.vfs ?? null;
+	const startupReady = Boolean(
+		etat?.capacites.vfs === "pret" &&
+		etat.capacites.vfs_entrees > 0 &&
+		etat.capacites.vfs_contenu &&
+		etat.capacites.gisement &&
+		etat.capacites.anime &&
+		etat.capacites.bundle
+	);
 	useEffect(() => {
-		if (vfs === "pret" || vfs === "absent") return;
+		if (startupReady || vfs === "absent") return;
 		const ac = new AbortController();
 		let minuteur: ReturnType<typeof setTimeout> | undefined;
 		const sonder = () => {
@@ -83,7 +91,7 @@ function Site() {
 			ac.abort();
 			if (minuteur !== undefined) clearTimeout(minuteur);
 		};
-	}, [vfs]);
+	}, [startupReady, vfs]);
 
 	// Le catalogue est-il consultable ? `capacites` vaut `null` tant que la mesure court : on
 	// distingue « on ne sait pas encore » de « rien ne marche », au lieu d'afficher des vues
@@ -100,6 +108,9 @@ function Site() {
 			<Game
 				gamepadSampler={gamepadSampler}
 				phase={openingPhase}
+				startupReady={startupReady}
+				health={etat}
+				startupFailed={vfs === "absent"}
 				onPhaseChange={setOpeningPhase}
 				onOpenAvatar={() => setVue(AVATAR)}
 				onOpenSettings={() => setVue(SETTINGS)}

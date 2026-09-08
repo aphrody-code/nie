@@ -16,10 +16,10 @@ use base64::Engine as _;
 use serde::Serialize;
 
 use nie_aphrody::pixel::{
-    comparer, mesurer, planche, tokens_css, vectoriser, Boite, Image, Masque, Reglages,
-    ReglagesVecteur,
+    Boite, Image, Masque, Reglages, ReglagesVecteur, comparer, mesurer, planche, tokens_css,
+    vectoriser,
 };
-use nie_aphrody::{assets, Pet};
+use nie_aphrody::{Pet, assets};
 
 /// Rend l'erreur telle quelle : l'interface affiche le message du domaine, pas un « échec ».
 fn err(e: impl std::fmt::Display) -> String {

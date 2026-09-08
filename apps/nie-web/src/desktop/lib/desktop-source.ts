@@ -88,6 +88,7 @@ export function creerDesktopSource(racineJeu?: string): AssetSource {
 					vfs_dump: false,
 					vfs_contenu: entrees > 0,
 					gisement: true,
+					anime: true,
 					bundle: false,
 				},
 				vues: (Object.keys(FILTRES) as VueCatalogue[]).map((nom) => ({

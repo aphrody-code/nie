@@ -6,9 +6,9 @@
 //! - Pas de parser inagle connu : le dump `.cfg.bin.json` EST la vérité terrain.
 //! - Format **`lists`** (champs nommés), identique à `banner` / `formation`.
 //! - Deux listes dans ce fichier :
-//!   - `m_updateNoticeDataList` — 26 entrées `UPDATE_NOTICE_DATA` : couple
+//!   - `m_updateNoticeDataList` — 38 entrées `UPDATE_NOTICE_DATA` : couple
 //!     (`textureName`, `textId`) décrivant une page d'écran de notification de mise à jour.
-//!   - `m_updateNoticeInfoList` — 4 entrées `UPDATE_NOTICE_INFO` : un groupe de pages
+//!   - `m_updateNoticeInfoList` — 6 entrées `UPDATE_NOTICE_INFO` : un groupe de pages
 //!     (tranche `[start, count]` dans `m_updateNoticeDataList`) plus sa condition d'activation.
 //!
 //! ## Champs `UPDATE_NOTICE_DATA`
@@ -29,8 +29,8 @@
 //!
 //! ### Partition observée de `updateNoticeData`
 //!
-//! Les 4 tranches partitionnent exactement les 26 entrées de la liste de données :
-//! `[0, 8]`, `[8, 6]`, `[14, 5]`, `[19, 7]` (0+8=8, 8+6=14, 14+5=19, 19+7=26).
+//! The first four historical slices cover 26 entries. Two later slices extend the current dump;
+//! all six are contiguous and cover its 38 data entries exactly.
 //!
 //! ### Note sur `enableCond`
 //!
@@ -135,9 +135,9 @@ impl UpdateNoticeInfo {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UpdateNoticeConfig {
-    /// Pages de notification (`m_updateNoticeDataList`) — 26 entrées dans le dump réel.
+    /// Pages de notification (`m_updateNoticeDataList`) — 38 entrées dans le dump réel.
     pub data: Vec<UpdateNoticeData>,
-    /// Groupes de notification (`m_updateNoticeInfoList`) — 4 entrées dans le dump réel.
+    /// Groupes de notification (`m_updateNoticeInfoList`) — 6 entrées dans le dump réel.
     pub infos: Vec<UpdateNoticeInfo>,
 }
 

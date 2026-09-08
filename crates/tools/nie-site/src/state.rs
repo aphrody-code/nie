@@ -81,6 +81,8 @@ pub struct Capacites {
     pub vfs_cpks: usize,
     /// `true` si le miroir SQLite est présent à l'instant de la mesure.
     pub gisement: bool,
+    /// `true` si le catalogue SQLite des épisodes est présent à l'instant de la mesure.
+    pub anime: bool,
     /// Racine du bundle statique servie, si elle existe.
     pub bundle: bool,
     /// Débit maximal par IP, en requêtes par seconde, ou `None` quand la borne est éteinte.
@@ -270,6 +272,7 @@ impl EtatSite {
             vfs_extensions,
             vfs_cpks,
             gisement: self.gisement.present(),
+            anime: self.anime.present(),
             bundle: self.config.statique.is_dir(),
             debit: self.limiteur.as_ref().map(|l| l.reglage().par_seconde),
         }

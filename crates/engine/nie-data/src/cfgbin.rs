@@ -211,10 +211,29 @@ pub fn field_str<'a>(v: &'a Value, key: &str) -> Option<&'a str> {
     v.get(key).and_then(Value::as_str)
 }
 
-/// Helper : lit un champ entier d'un objet `values[]`.
+/// Reads an optional decoded string and maps the unsigned -1 sentinel to absence.
+#[must_use]
+pub fn field_optional_str<'a>(v: &'a Value, key: &str) -> Option<&'a str> {
+    field_str(v, key).filter(|value| *value != "0xFFFFFFFF")
+}
+
+/// Reads a semantically integral JSON number without truncating fractional values.
+fn exact_i64(value: &Value) -> Option<i64> {
+    if let Some(integer) = value.as_i64() {
+        return Some(integer);
+    }
+    let number = value.as_f64()?;
+    (number.is_finite()
+        && number % 1.0 == 0.0
+        && number >= i64::MIN as f64
+        && number <= i64::MAX as f64)
+        .then_some(number as i64)
+}
+
+/// Helper: reads an integer field, including exact JSON decimals such as `250.0`.
 #[must_use]
 pub fn field_i64(v: &Value, key: &str) -> Option<i64> {
-    v.get(key).and_then(Value::as_i64)
+    v.get(key).and_then(exact_i64)
 }
 
 /// Helper : lit un champ flottant d'un objet `values[]`.
@@ -239,8 +258,8 @@ pub fn field_bool(v: &Value, key: &str) -> Option<bool> {
 #[must_use]
 pub fn field_pair(v: &Value, key: &str) -> Option<[i64; 2]> {
     let arr = v.get(key)?.as_array()?;
-    let offset = arr.first().and_then(Value::as_i64).unwrap_or(0);
-    let count = arr.get(1).and_then(Value::as_i64).unwrap_or(0);
+    let offset = arr.first().and_then(exact_i64).unwrap_or(0);
+    let count = arr.get(1).and_then(exact_i64).unwrap_or(0);
     Some([offset, count])
 }
 
@@ -249,7 +268,9 @@ pub fn field_pair(v: &Value, key: &str) -> Option<[i64; 2]> {
 pub fn field_hash(v: &Value, key: &str) -> HashId {
     match v.get(key) {
         Some(Value::String(s)) => HashId::parse(s).unwrap_or(HashId::ZERO),
-        Some(Value::Number(n)) => n.as_i64().map(HashId::from_i64).unwrap_or(HashId::ZERO),
+        Some(value @ Value::Number(_)) => exact_i64(value)
+            .map(HashId::from_i64)
+            .unwrap_or(HashId::ZERO),
         _ => HashId::ZERO,
     }
 }

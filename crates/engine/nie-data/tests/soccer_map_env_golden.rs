@@ -17,12 +17,16 @@ fn load() -> Option<serde_json::Value> {
 fn env_byte_exact() {
     let Some(root) = load() else { return };
     let cfg = parse_soccer_map_env_config(&root);
-    assert_eq!(cfg.tag_data.len(), 28);
-    assert_eq!(cfg.envs.len(), 29);
+    assert_eq!(cfg.tag_data.len(), 32);
+    assert_eq!(cfg.envs.len(), 32);
     let e = &cfg.envs[0];
     assert_eq!(e.config_id, HashId(0xE35E_00DF));
     assert_eq!(e.hour, 15);
     assert_eq!(e.weather, 1);
+    let last = cfg.envs.last().expect("au moins un environnement");
+    assert_eq!(last.config_id, HashId(0x3251_5B8C));
+    assert_eq!(last.ref_map_tag, [31, 1]);
+    assert_eq!(cfg.tags_of(last), &cfg.tag_data[31..32]);
 }
 #[cfg(feature = "serde")]
 #[test]

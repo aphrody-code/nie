@@ -1,6 +1,7 @@
 /** Layered startup and menu built from VFS assets, shared geometry, and explicit incomplete states. */
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
+import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AVATAR, EXPLORER, MEDIA, SETTINGS, menuEntries } from "../entries";
 import { bindMenuActions } from "../game/menu-actions";
@@ -22,6 +23,9 @@ export interface GameProps {
 	onOpenSettings: () => void;
 	onOpenMedia: () => void;
 	onOpenExplorer: () => void;
+	startupReady?: boolean;
+	health?: SiteHealth | null;
+	startupFailed?: boolean;
 }
 
 /** Runs the VFS/component startup sequence before mounting the layered menu. */
@@ -33,6 +37,9 @@ export function Game({
 	onOpenSettings,
 	onOpenMedia,
 	onOpenExplorer,
+	startupReady = false,
+	health = null,
+	startupFailed = false,
 }: GameProps) {
 	const localGamepadSampler = useRef(createStandardGamepadMenuSampler());
 	const gamepadSampler = suppliedGamepadSampler ?? localGamepadSampler.current;
@@ -50,7 +57,6 @@ export function Game({
 		return (
 			<MainMenu
 				actions={actions}
-				onCancel={() => onPhaseChange("start")}
 				gamepadSampler={gamepadSampler}
 			/>
 		);
@@ -61,6 +67,9 @@ export function Game({
 			phase={phase}
 			onAdvance={advance}
 			gamepadSampler={gamepadSampler}
+			startupReady={startupReady}
+			health={health}
+			startupFailed={startupFailed}
 		/>
 	);
 }
@@ -69,10 +78,16 @@ function OpeningScreen({
 	phase,
 	onAdvance,
 	gamepadSampler,
+	startupReady,
+	health,
+	startupFailed,
 }: {
 	phase: Exclude<OpeningPhase, "menu">;
 	onAdvance: (event: OpeningEvent) => void;
 	gamepadSampler: ReturnType<typeof createStandardGamepadMenuSampler>;
+	startupReady: boolean;
+	health: SiteHealth | null;
+	startupFailed: boolean;
 }) {
 	const frame = OPENING_FRAMES[phase];
 	const movie = frame.advanceOn === "media-ended";
@@ -89,10 +104,14 @@ function OpeningScreen({
 	}, [onAdvance, phase]);
 
 	useEffect(() => {
+		if (phase === "loading" && startupReady) {
+			advanceOnce("resources-ready");
+			return;
+		}
 		if (!ready || movie || frame.durationMs === null) return;
 		const timer = window.setTimeout(() => advanceOnce("timeout"), frame.durationMs);
 		return () => window.clearTimeout(timer);
-	}, [ready, movie, frame.durationMs, advanceOnce]);
+	}, [phase, startupReady, ready, movie, frame.durationMs, advanceOnce]);
 
 	useEffect(() => {
 		if (typeof navigator.getGamepads !== "function") return;
@@ -114,7 +133,7 @@ function OpeningScreen({
 			data-opening-phase={phase}
 			className={`opening-screen opening-screen--${phase}`}
 		>
-			<OpeningVisual phase={phase} onReady={onReady} onEnded={movie ? () => advanceOnce("media-ended") : undefined}
+			<OpeningVisual phase={phase} health={health} failed={startupFailed} onReady={onReady} onEnded={movie ? () => advanceOnce("media-ended") : undefined}
 				onConfirm={frame.advanceOn === "confirm" ? () => advanceOnce("confirm") : undefined} />
 		</section>
 	);

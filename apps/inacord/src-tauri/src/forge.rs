@@ -135,11 +135,11 @@ pub async fn forge_report(root: Option<String>) -> Result<ForgeReportDto, String
         // 1 427 968 octets — 4,2 points — et faisait diverger cet onglet de la
         // CLI. C'est la meme fonction des deux cotes, pour que ca ne puisse
         // plus arriver.
-        // `src-tauri` n'est pas en edition 2024 : pas de let-chain ici.
-        if let Ok(bytes) = std::fs::read(root.join("nie.exe")) {
-            if let Ok(img) = nie_pe::PeImage::parse(bytes) {
-                r.add_emitted_tables(&store.cover, &img);
-            }
+        // Edition 2024 keeps this fallible probe concise without changing its best-effort policy.
+        if let Ok(bytes) = std::fs::read(root.join("nie.exe"))
+            && let Ok(img) = nie_pe::PeImage::parse(bytes)
+        {
+            r.add_emitted_tables(&store.cover, &img);
         }
         Ok(ForgeReportDto {
             root: root.display().to_string(),

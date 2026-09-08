@@ -140,8 +140,16 @@ export const SERIES_LABELS: Record<string, string> = {
 
 // ─── Stats (CharacterStatsPopover) ───────────────────────────────────────────────────────────
 
-/** Stats d'un personnage sous leur forme la plus simple : un libellé, une valeur. */
-export type GameCharacterStats = Record<string, number>;
+/** The seven statistics rendered by the shared character summary. */
+export interface GameCharacterStats {
+  agility: number;
+  control: number;
+  intelligence: number;
+  kick: number;
+  physical: number;
+  pressure: number;
+  technique: number;
+}
 
 // ─── Surlignage de recherche (SearchResultHighlight) ─────────────────────────────────────────
 

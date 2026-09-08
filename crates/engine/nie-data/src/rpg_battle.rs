@@ -793,6 +793,24 @@ pub fn parse_add_status_config(root: &Value) -> RpgBattleAddStatusConfig {
         type_infos.push(RpgBtlAddStatusTypeInfo::from_node(node));
     });
 
+    // Decoders have emitted both shapes over time: PARAM_LIST nodes nested below INFO and
+    // PARAM_LIST nodes adjacent to INFO. Index every list by its numeric suffix so the semantic
+    // relationship does not depend on the transport tree layout.
+    let mut params_by_info: Vec<(String, Vec<RpgBtlAddStatusInfoParam>)> = Vec::new();
+    walk_named(root, "RPG_BTL_ADD_STATUS_INFO_PARAM_LIST_BEG_", |list| {
+        let suffix = list.name().rsplit('_').next().unwrap_or("");
+        let params = list
+            .children()
+            .into_iter()
+            .filter(|child| {
+                child.name().starts_with("RPG_BTL_ADD_STATUS_INFO_PARAM_")
+                    && !child.name().contains("_LIST_")
+            })
+            .map(RpgBtlAddStatusInfoParam::from_node)
+            .collect();
+        params_by_info.push((String::from(suffix), params));
+    });
+
     let mut status_infos: Vec<RpgBtlAddStatusInfo> = Vec::new();
     walk_named(root, "RPG_BTL_ADD_STATUS_INFO_", |node| {
         let name = node.name();
@@ -806,17 +824,11 @@ pub fn parse_add_status_config(root: &Value) -> RpgBattleAddStatusConfig {
         if status_id.is_zero() {
             return;
         }
-        // Collecte des PARAMs depuis les enfants du noeud INFO.
-        let mut params = Vec::new();
-        for list_child in node.children() {
-            for param_child in list_child.children() {
-                let pname = param_child.name();
-                if pname.starts_with("RPG_BTL_ADD_STATUS_INFO_PARAM_") && !pname.contains("_LIST_")
-                {
-                    params.push(RpgBtlAddStatusInfoParam::from_node(param_child));
-                }
-            }
-        }
+        let suffix = name.rsplit('_').next().unwrap_or("");
+        let params = params_by_info
+            .iter()
+            .find(|(candidate, _)| candidate == suffix)
+            .map_or_else(Vec::new, |(_, params)| params.clone());
         status_infos.push(RpgBtlAddStatusInfo { status_id, params });
     });
 

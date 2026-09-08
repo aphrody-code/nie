@@ -6,7 +6,7 @@
 //! - 2 listes dans ce fichier (format `lists`, comme `formation_config`) :
 //!   - `m_sceneArchiveFlags` — 6 entrées `SCENE_ARCHIVE_FLAGS`, chacune portant
 //!     un `activeTempBitFlagCrc` (hash CRC du flag de progression actif).
-//!   - `m_sceneArchiveDataList` — 112 entrées `SCENE_ARCHIVE_LIST_DATA`, chacune
+//!   - `m_sceneArchiveDataList` — 113 entrées `SCENE_ARCHIVE_LIST_DATA`, chacune
 //!     décrivant une scène de l'archive théâtre (cutscenes débloquées au fil de la
 //!     progression), référençant l'événement vidéo (`event_id_text`), sa position sur
 //!     la carte (`map_id`, `map_jump_pos_*`) et sa condition de déblocage (`condition`).
@@ -89,7 +89,7 @@ impl SceneArchiveFlag {
 /// Entrée `SCENE_ARCHIVE_LIST_DATA` — scène débloquable dans l'archive théâtre IEVR.
 ///
 /// Vérité terrain : `scene_archive_config_4.00.18.00.cfg.bin.json`,
-/// liste `m_sceneArchiveDataList`, 112 entrées.
+/// liste `m_sceneArchiveDataList`, 113 entrées.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SceneArchiveData {
@@ -104,7 +104,7 @@ pub struct SceneArchiveData {
     /// `m_sceneArchiveDataList[111].category = 2`.
     pub category: i64,
 
-    /// `flag_num` — numéro de flag de progression associé (= 1 pour toutes les 112 entrées).
+    /// `flag_num` — numéro de flag de progression associé (= 1 pour toutes les 113 entrées).
     pub flag_num: i64,
 
     /// `text_id_title` — hash du texte de titre de la scène.
@@ -259,7 +259,7 @@ impl SceneArchiveData {
 pub struct SceneArchiveConfig {
     /// 6 flags de progression actifs (`m_sceneArchiveFlags`).
     pub flags: Vec<SceneArchiveFlag>,
-    /// 112 scènes débloquables (`m_sceneArchiveDataList`).
+    /// 113 scènes débloquables (`m_sceneArchiveDataList`).
     pub scenes: Vec<SceneArchiveData>,
 }
 
@@ -303,7 +303,7 @@ impl SceneArchiveConfig {
 /// Les entrées avec `id` nul sont silencieusement ignorées.
 ///
 /// Comptes réels : `scene_archive_config_4.00.18.00.cfg.bin.json` →
-/// 6 `SCENE_ARCHIVE_FLAGS` + 112 `SCENE_ARCHIVE_LIST_DATA`.
+/// 6 `SCENE_ARCHIVE_FLAGS` + 113 `SCENE_ARCHIVE_LIST_DATA`.
 #[must_use]
 pub fn parse_scene_archive_config(root: &Value) -> SceneArchiveConfig {
     let flags = if let Some(values) = list_values(root, "m_sceneArchiveFlags") {

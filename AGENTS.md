@@ -89,6 +89,8 @@ Run the narrowest relevant gate and report counts, not only exit codes:
 cargo clippy -p <library-crate> --lib --tests -- -D warnings
 cargo clippy -p <bin-only-crate> --bins --tests -- -D warnings
 cargo check --workspace --tests
+cargo check -p nie-wasm --target wasm32-unknown-unknown --locked
+cargo deny check advisories bans licenses sources
 bun run typecheck
 bun run test
 ```
@@ -98,6 +100,42 @@ explicitly, including its platform dependencies. Use the root Cargo lockfile. Do
 `cargo build --workspace --all-targets` on this machine: disk usage is constrained. Format only
 files changed in the current batch. A page returning HTTP 200 or a test returning zero cases is
 not proof; inspect payloads and count rendered records/links/assertions.
+
+Cargo is pinned to stable 1.98.1, Edition 2024 and resolver 3. Every live workspace member,
+including Inacord, inherits root package metadata and lints. Keep the disk-bounded dev/test
+profiles and use `--profile debugging` only when full symbols are required. Do not weaken
+`deny.toml`: update compatible vulnerable/yanked transitive packages first, and retain an ignored
+advisory only when no fix exists and its unreachable threat model is stated precisely.
+
+The browser module builds with `--profile wasm-release`, not the general release profile. Keep
+native filesystem/database modules out of the `wasm32-unknown-unknown` graph. The canonical
+`apps/nie-web/scripts/build-wasm.ts` must preserve exact `wasm-bindgen` CLI/crate alignment,
+explicit `web` output, `wasm-opt` feature validation, the runtime smoke test, the 6 MiB bound and
+atomic publication. Add the corresponding wasm-target clippy gate for target-specific changes.
+
+The single whole-repository release entrypoint is `scripts/release-all.ts`, exposed as
+`bun run release:all`. Do not create a competing orchestrator. It must preserve the fixed phase
+order `lint → typecheck → tests → Rust clippy → build → release/push → deploy → live validation`.
+Default mode verifies a clean checkout and builds in an isolated staging directory; it performs no
+publication or production mutation. `--deploy`
+is the explicit production boundary: it freezes and stages the candidate on `main`, runs every
+gate and build against that tree, commits and pushes immediately before deployment, then requires
+the pushed commit to equal `origin/main`. Deployment publishes atomically, retains rollback on
+failure, and finishes with meaningful payload and interaction checks. Record the gates actually
+run, counts, host and commit: orchestration does not upgrade `source-delegation` into semantic
+proof. Every command streams to a redacted file under `var/log/releases/<run-id>/`, retained on
+failure. No build may write through the live `apps/nie-web/dist` symlink.
+
+The browser loading path is a readiness gate, not an opening-media sequence. Keep it free of VFS
+textures, video, audio, bitmap-font, WASM-decode and secondary-scene preloads. It may enter the
+menu only after `/api/v1/health` verifies a non-empty content-backed VFS, the static bundle, and
+successful schema reads from both configured SQLite databases. Media inspection stays on demand.
+
+Use `bun run sync:main` for the inverse path. It is dry-run by default; `--apply` permits only
+fast-forward source reconciliation among local `main`, `origin/main`, and the VPS checkout. It
+must refuse divergence, dirty checkouts, reset, and force-push. Restore a missing artifact from
+the side that has it only when a same-commit manifest and SHA-256 verify it, using atomic rename.
+Its command logs belong under `var/log/sync-main/<run-id>/`.
 
 ## Known technical traps
 

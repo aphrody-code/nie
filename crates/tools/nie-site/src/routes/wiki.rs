@@ -82,20 +82,28 @@ pub async fn gallery(
     Ok(Json(page))
 }
 
+/// Query parameters for full-text wiki search.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SearchQuery {
+    /// Search text.
     pub q: String,
+    /// Optional maximum number of results.
     pub limit: Option<usize>,
 }
 
+/// One bounded page of wiki search results.
 #[derive(Serialize)]
 pub struct SearchPage {
+    /// Matching wiki records.
     pub results: Vec<nie_wiki::model::SearchResult>,
+    /// Number of returned records.
     pub count: usize,
+    /// Effective result limit.
     pub limit: usize,
 }
 
+/// Search the read-only wiki mirror.
 pub async fn search(
     State(state): State<EtatSite>,
     Query(input): Query<SearchQuery>,
@@ -125,6 +133,7 @@ pub async fn search(
     }))
 }
 
+/// Return one character card by its stable identifier.
 pub async fn character(
     State(state): State<EtatSite>,
     Path(id): Path<String>,

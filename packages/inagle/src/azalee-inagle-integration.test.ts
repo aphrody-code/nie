@@ -2,26 +2,13 @@ import { expect, test, describe, beforeAll } from "bun:test";
 import { createInagleService } from "./service.js";
 import { DATA_ROOT, FILES } from "./core/paths.js";
 import { join } from "node:path";
-import { readdir, exists } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { Database } from "bun:sqlite";
 
-// Helper to find latest SQLite database
-async function getSqlitePath(): Promise<string> {
-	const dir = "/home/ubuntu/rg/apps/azalee/data/backups";
-	if (!(await exists(dir))) {
-		throw new Error(`Backup directory ${dir} does not exist`);
-	}
-	const files = await readdir(dir);
-	const sqliteFiles = files
-		.filter((f) => f.startsWith("supabase-") && f.endsWith(".sqlite"))
-		.sort((a, b) => b.localeCompare(a));
-
-	if (sqliteFiles.length === 0) {
-		throw new Error("No SQLite backups found in apps/azalee/data/backups");
-	}
-	return join(dir, sqliteFiles[0]);
-}
+// Match the same stable mirror contract used by the site and production units.
+const SQLITE_PATH =
+	process.env.SQLITE_DB_PATH?.trim() ||
+	new URL("../../../var/mirror.sqlite", import.meta.url).pathname;
 
 /**
  * Ces tests exigent le corpus RÉEL du jeu (`<DATA_ROOT>/common/…`, ~50 fichiers
@@ -36,21 +23,25 @@ async function getSqlitePath(): Promise<string> {
  * l'erreur inverse, et la pire des deux : une suite verte qui n'a rien exécuté.
  */
 const CORPUS_PRESENT = existsSync(join(DATA_ROOT, "common"));
-if (!CORPUS_PRESENT) {
+const SQLITE_PRESENT = existsSync(SQLITE_PATH);
+const REAL_DATA_PRESENT = CORPUS_PRESENT && SQLITE_PRESENT;
+if (!REAL_DATA_PRESENT) {
 	console.warn(
-		`⚠ Tests d'intégration inagle SAUTÉS : corpus du jeu absent sous ${DATA_ROOT}. ` +
-			"Poser DATA_PATH sur une copie contenant `common/` pour les exécuter."
+		"Inagle integration tests skipped: " +
+			(!CORPUS_PRESENT ? `game corpus missing under ${DATA_ROOT}; ` : "") +
+			(!SQLITE_PRESENT ? `SQLite mirror missing at ${SQLITE_PATH}; ` : "") +
+			"set DATA_PATH and SQLITE_DB_PATH to run them."
 	);
 }
 
-describe.skipIf(!CORPUS_PRESENT)("Azalée CLI & Inagle Real-World Integration Tests", () => {
+describe.skipIf(!REAL_DATA_PRESENT)("Azalée CLI & Inagle Real-World Integration Tests", () => {
 	let service: any;
 	let sqlitePath: string;
 
 	beforeAll(async () => {
 		// 1. Initialize the Inagle service using real game files
 		service = await createInagleService();
-		sqlitePath = await getSqlitePath();
+		sqlitePath = SQLITE_PATH;
 	}, 120000); // Le parse réel (~50 cfg.bin, 6000+ persos) dépasse le défaut 5s → timeout explicite.
 
 	test("1. Bun File System API - Verify real game config files exist and are readable", async () => {
@@ -138,7 +129,7 @@ describe.skipIf(!CORPUS_PRESENT)("Azalée CLI & Inagle Real-World Integration Te
 		// La CLI est lancée DEPUIS LES SOURCES, pas depuis `/home/ubuntu/.local/bin/azalee` :
 		// ce binaire compilé date du 2026-08-10 et fige un code que le dépôt a corrigé depuis.
 		// Le test vérifiait donc un artefact périmé, et échouait sur des bogues déjà réparés.
-		const cliSource = new URL("../../azalee/src/cli.ts", import.meta.url).pathname;
+		const cliSource = new URL("../../azalee-tools/src/cli.ts", import.meta.url).pathname;
 		const proc = Bun.spawn([process.execPath, cliSource, "test"], {
 			env: { ...process.env, SQLITE_DB_PATH: sqlitePath },
 			stdout: "pipe",

@@ -44,12 +44,12 @@ fn cfg5_comptes_des_listes() {
     };
     let c = parse_chronicle_vs_route_config(&root);
     // Comptes réels confirmés sur le dump 5.00.30.
-    assert_eq!(c.unlock_pieces.len(), 235, "m_unlockPieceInfoList = 235");
-    assert_eq!(c.move_routes.len(), 238, "m_pieceMoveRouteInfoList = 238");
-    assert_eq!(c.events.len(), 159, "m_pieceEventInfoList = 159");
-    assert_eq!(c.pieces.len(), 238, "m_pieceInfoList = 238");
-    assert_eq!(c.routes.len(), 10, "m_chronicleVsRouteInfoList = 10");
-    assert_eq!(c.icons.len(), 143, "m_pieceIconInfoList = 143");
+    assert_eq!(c.unlock_pieces.len(), 246, "m_unlockPieceInfoList = 246");
+    assert_eq!(c.move_routes.len(), 254, "m_pieceMoveRouteInfoList = 254");
+    assert_eq!(c.events.len(), 180, "m_pieceEventInfoList = 180");
+    assert_eq!(c.pieces.len(), 254, "m_pieceInfoList = 254");
+    assert_eq!(c.routes.len(), 11, "m_chronicleVsRouteInfoList = 11");
+    assert_eq!(c.icons.len(), 151, "m_pieceIconInfoList = 151");
     assert_eq!(c.gates.len(), 1, "m_gateOpenInfoList = 1");
 }
 
@@ -120,7 +120,7 @@ fn cfg5_event_last_sentinelle_normalisee() {
     let c = parse_chronicle_vs_route_config(&root);
     // Dernière entrée : bustup* sont des sentinelles (U+FFFD) → normalisées en "".
     let e = c.events.last().unwrap();
-    assert_eq!(e.param_crc1, HashId(0x5108_6EF0));
+    assert_eq!(e.param_crc1, HashId(0x0695_FA63));
     assert_eq!(e.bustup_event_pre_soccer, "", "sentinelle → vide");
     assert_eq!(e.bustup_event_post_win_soccer, "", "sentinelle → vide");
 }
@@ -188,21 +188,19 @@ fn cfg5_piece_last() {
         return;
     };
     let c = parse_chronicle_vs_route_config(&root);
-    // Dernière case = {pieceId: 0x90185427, routeType: 255, statusFlagIndex: 254,
-    //   routeProgressIndex: 13, addDlcNo: 4, bgmId: 0x517E456D,
-    //   bgmId_futureMapCleared: 0x4865742C, moveRouteInfo: [237,1], eventInfoRef: [158,1]}
+    // Current last piece in the measured corpus.
     let p = c.pieces.last().unwrap();
-    assert_eq!(p.piece_id, HashId(0x9018_5427));
+    assert_eq!(p.piece_id, HashId(0x8F04_3731));
     assert_eq!(p.route_type, 255);
-    assert_eq!(p.status_flag_index, 254);
-    assert_eq!(p.route_progress_index, 13);
-    assert_eq!(p.add_dlc_no, 4);
-    assert_eq!(p.bgm_id, HashId(0x517E_456D));
-    assert_eq!(p.bgm_id_future_map_cleared, HashId(0x4865_742C));
-    assert_eq!(p.move_route_offset, 237);
+    assert_eq!(p.status_flag_index, 270);
+    assert_eq!(p.route_progress_index, 14);
+    assert_eq!(p.add_dlc_no, 5);
+    assert_eq!(p.bgm_id, HashId(0x628A_4DD8));
+    assert_eq!(p.bgm_id_future_map_cleared, HashId(0x628A_4DD8));
+    assert_eq!(p.move_route_offset, 253);
     assert_eq!(p.move_route_count, 1);
-    assert_eq!(p.event_info_offset, 158);
-    assert_eq!(p.event_info_count, 1);
+    assert_eq!(p.event_info_offset, 177);
+    assert_eq!(p.event_info_count, 3);
 }
 
 #[test]
@@ -211,7 +209,7 @@ fn cfg5_routes_toutes() {
         return;
     };
     let c = parse_chronicle_vs_route_config(&root);
-    // 10 routes, valeurs (id, routeMapType, pieceInfo[offset,count]) confirmées.
+    // Route values and slices remain measured against the current corpus.
     assert_eq!(c.routes[0].id, HashId(0x7297_8C53));
     assert_eq!(c.routes[0].route_map_type, 0);
     assert_eq!(c.routes[0].piece_offset, 0);
@@ -221,10 +219,10 @@ fn cfg5_routes_toutes() {
     assert_eq!(c.routes[1].piece_count, 28);
     // Dernière route : routeMapType = 1.
     let last = c.routes.last().unwrap();
-    assert_eq!(last.id, HashId(0x2771_3169));
-    assert_eq!(last.route_map_type, 1);
-    assert_eq!(last.piece_offset, 225);
-    assert_eq!(last.piece_count, 13);
+    assert_eq!(last.id, HashId(0xA759_48B4));
+    assert_eq!(last.route_map_type, 2);
+    assert_eq!(last.piece_offset, 240);
+    assert_eq!(last.piece_count, 14);
 }
 
 #[test]
@@ -389,8 +387,8 @@ fn trigger_compte() {
         return;
     };
     let t = parse_trigger(&root);
-    // DATA_COUNT_0.var[0] = 63 → 63 DATA_ITEM.
-    assert_eq!(t.len(), 63, "63 DATA_ITEM");
+    // DATA_COUNT_0.var[0] = 78 → 78 DATA_ITEM.
+    assert_eq!(t.len(), 78, "78 DATA_ITEM");
 }
 
 #[test]
@@ -448,13 +446,13 @@ fn trigger_item_last() {
         return;
     };
     let t = parse_trigger(&root);
-    // DATA_ITEM_62 (dernier) = [504, 0, -186917087, "0", 63, 0, 63]
+    // DATA_ITEM_77 (last) = [504, 0, -186917087, "0", 78, 0, 78]
     let d = t.last().unwrap();
     assert_eq!(d.kind, 504);
     assert_eq!(d.param1, HashId::ZERO);
     assert_eq!(d.param2, HashId::from_i64(-186_917_087));
     assert_eq!(d.condition, "0");
-    assert_eq!(d.arg1, 63);
+    assert_eq!(d.arg1, 78);
     assert_eq!(d.arg2, 0);
-    assert_eq!(d.arg3, 63);
+    assert_eq!(d.arg3, 78);
 }

@@ -8,6 +8,9 @@
 [build]
 # v0 mangling = symboles démanglés lisibles dans les stacktraces et les outils de RE.
 rustflags = ["-C", "symbol-mangling-version=v0"]
+# Keep dep-info paths relative to the workspace so local and CI compiler caches remain reusable
+# when the checkout moves. This does not alter generated binaries.
+dep-info-basedir = "."
 
 # ── Linux natif ───────────────────────────────────────────────────────────────
 # Pas de `-fuse-ld=mold` ici : mold est un gain de confort sur une machine qui l'a installé, mais

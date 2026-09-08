@@ -145,7 +145,7 @@ pub fn emit(img: &PeImage) -> Option<Vec<u8>> {
     let raw = sec.size_raw as usize;
 
     let mut out = Vec::with_capacity(raw);
-    for e in table.chunks_exact(12) {
+    for e in table.as_chunks::<12>().0 {
         let begin = u32::from_le_bytes([e[0], e[1], e[2], e[3]]);
         let end = u32::from_le_bytes([e[4], e[5], e[6], e[7]]);
         let unwind = u32::from_le_bytes([e[8], e[9], e[10], e[11]]);

@@ -11,6 +11,7 @@ use nie_lua::menu_runtime::{ReplayOutput, ReplayRequest};
 
 use crate::{error::ErreurSite, state::EtatSite};
 
+/// Replay a menu snapshot without input events.
 pub async fn snapshot(
     State(state): State<EtatSite>,
     Path(screen): Path<String>,
@@ -18,6 +19,7 @@ pub async fn snapshot(
     run(state, screen, ReplayRequest::default()).await
 }
 
+/// Replay a bounded sequence of input events for one menu screen.
 pub async fn replay(
     State(state): State<EtatSite>,
     Path(screen): Path<String>,

@@ -191,10 +191,10 @@ fn resolve_root(game_dir: Option<&str>) -> PathBuf {
 ///    plausible : l'UI (`check_game_dir`) affichera clairement « introuvable » plutôt que de
 ///    pointer silencieusement vers un dossier qui n'existe sur aucune machine utilisatrice.
 fn resolve_game_dir_native() -> PathBuf {
-    if let Ok(dir) = std::env::var("NIE_GAME_DIR") {
-        if !dir.trim().is_empty() {
-            return PathBuf::from(dir);
-        }
+    if let Ok(dir) = std::env::var("NIE_GAME_DIR")
+        && !dir.trim().is_empty()
+    {
+        return PathBuf::from(dir);
     }
     let cwd = std::env::current_dir().unwrap_or_default();
     if nie_formats::vfs::donnees_disponibles(cwd.join("data")) {
@@ -279,10 +279,10 @@ fn vfs_partage(game_dir: Option<String>, state: &VfsState) -> Result<Arc<Vfs>, S
             .0
             .read()
             .map_err(|_| "verrou VFS empoisonné".to_string())?;
-        if let Some((cached_root, vfs)) = guard.as_ref() {
-            if cached_root == &root {
-                return Ok(Arc::clone(vfs));
-            }
+        if let Some((cached_root, vfs)) = guard.as_ref()
+            && cached_root == &root
+        {
+            return Ok(Arc::clone(vfs));
         }
     }
 
@@ -292,10 +292,10 @@ fn vfs_partage(game_dir: Option<String>, state: &VfsState) -> Result<Arc<Vfs>, S
         .0
         .write()
         .map_err(|_| "verrou VFS empoisonné".to_string())?;
-    if let Some((cached_root, vfs)) = guard.as_ref() {
-        if cached_root == &root {
-            return Ok(Arc::clone(vfs));
-        }
+    if let Some((cached_root, vfs)) = guard.as_ref()
+        && cached_root == &root
+    {
+        return Ok(Arc::clone(vfs));
     }
 
     let data_dir = root.join("data");
@@ -575,12 +575,11 @@ async fn vfs_stats(
     // `if let` imbriqués et non chaînés : ce crate est en édition 2021, où les « let chains »
     // ne compilent pas (contrairement à `nie-formats`, en 2024).
     let root = resolve_root(game_dir.as_deref());
-    if let Ok(guard) = cache.0.lock() {
-        if let Some((racine, stats)) = guard.as_ref() {
-            if racine == &root {
-                return Ok(stats.clone());
-            }
-        }
+    if let Ok(guard) = cache.0.lock()
+        && let Some((racine, stats)) = guard.as_ref()
+        && racine == &root
+    {
+        return Ok(stats.clone());
     }
 
     let stats = vfs_stats_calcul(game_dir, &state).await?;
@@ -879,11 +878,11 @@ fn vfs_extract_to(
         if let Some(parent) = std::path::Path::new(&dest).parent() {
             std::fs::create_dir_all(parent).ok();
         }
-        if vfs.is_dump() {
-            if let Some(source) = vfs.resolve_loose_path(&path) {
-                let n = std::fs::copy(&source, &dest).map_err(|e| e.to_string())?;
-                return Ok(n as u32);
-            }
+        if vfs.is_dump()
+            && let Some(source) = vfs.resolve_loose_path(&path)
+        {
+            let n = std::fs::copy(&source, &dest).map_err(|e| e.to_string())?;
+            return Ok(n as u32);
         }
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
         std::fs::write(&dest, &data).map_err(|e| e.to_string())?;
@@ -1237,10 +1236,10 @@ fn miroir_wiki_sous(racine: &std::path::Path) -> Option<PathBuf> {
 #[specta::specta]
 fn default_wiki_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
     for var in ["NIE_WIKI_DB", "SQLITE_DB_PATH"] {
-        if let Ok(v) = std::env::var(var) {
-            if PathBuf::from(&v).is_file() {
-                return Some(v);
-            }
+        if let Ok(v) = std::env::var(var)
+            && PathBuf::from(&v).is_file()
+        {
+            return Some(v);
         }
     }
     for base in bases_embarquees(&app, "mirror.sqlite") {
@@ -1263,10 +1262,10 @@ fn default_wiki_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<St
 #[tauri::command]
 #[specta::specta]
 fn default_re_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
-    if let Ok(v) = std::env::var("NIE_RE_DB") {
-        if PathBuf::from(&v).is_file() {
-            return Some(v);
-        }
+    if let Ok(v) = std::env::var("NIE_RE_DB")
+        && PathBuf::from(&v).is_file()
+    {
+        return Some(v);
     }
     for base in bases_embarquees(&app, "niers.sqlite") {
         if base.is_file() {
@@ -1289,10 +1288,10 @@ fn default_re_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<Stri
 #[tauri::command]
 #[specta::specta]
 fn default_anime_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
-    if let Ok(v) = std::env::var("NIE_ANIME_DB") {
-        if PathBuf::from(&v).is_file() {
-            return Some(v);
-        }
+    if let Ok(v) = std::env::var("NIE_ANIME_DB")
+        && PathBuf::from(&v).is_file()
+    {
+        return Some(v);
     }
     for base in bases_embarquees(&app, "episodes.db") {
         if base.is_file() {
@@ -2522,7 +2521,7 @@ fn set_titlebar_theme(dark: bool, window: tauri::WebviewWindow) -> Result<(), St
 fn clipboard_write_file_list(paths: Vec<String>) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use clipboard_win::{formats, Clipboard, Setter};
+        use clipboard_win::{Clipboard, Setter, formats};
         let _clip = Clipboard::new_attempts(10)
             .map_err(|e| format!("ouverture du presse-papiers Windows : {e}"))?;
         formats::FileList
@@ -2546,15 +2545,11 @@ fn clipboard_write_file_list(paths: Vec<String>) -> Result<(), String> {
 fn clipboard_read_file_list() -> Option<Vec<String>> {
     #[cfg(target_os = "windows")]
     {
-        use clipboard_win::{formats, Clipboard, Getter};
+        use clipboard_win::{Clipboard, Getter, formats};
         let _clip = Clipboard::new_attempts(10).ok()?;
         let mut out = Vec::new();
         formats::FileList.read_clipboard(&mut out).ok()?;
-        if out.is_empty() {
-            None
-        } else {
-            Some(out)
-        }
+        if out.is_empty() { None } else { Some(out) }
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -2874,7 +2869,9 @@ fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String>
         .status()
         .map_err(|e| format!("échec de lancement de git (introuvable sur le PATH ?) : {e}"))?;
     if !status.success() {
-        return Err(format!("échec du clonage de l'extension Blender niers ({status}) — {NIERS_BLENDER_ADDON_GIT_URL}"));
+        return Err(format!(
+            "échec du clonage de l'extension Blender niers ({status}) — {NIERS_BLENDER_ADDON_GIT_URL}"
+        ));
     }
     if !addon_dir.join("__init__.py").is_file() {
         return Err(format!(
@@ -2935,10 +2932,10 @@ fn open_in_blender(
         // un squelette partagé ou une texture au nom différent se résout, là où l'extraction
         // sélective ci-dessous le laissait manquant. `export_dir` ne sert plus qu'au script
         // de démarrage et au journal d'erreur.
-        if vfs.is_dump() {
-            if let Some(direct) = vfs.resolve_loose_path(&path) {
-                return Ok((export_dir, direct, 0usize));
-            }
+        if vfs.is_dump()
+            && let Some(direct) = vfs.resolve_loose_path(&path)
+        {
+            return Ok((export_dir, direct, 0usize));
         }
 
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
@@ -3625,10 +3622,10 @@ print("NIE_EXPLORER_SCENE_SAVED", {out_blend:?})
     }
 
     let mut warnings = warnings;
-    if let Ok(log) = std::fs::read_to_string(&error_log) {
-        if !log.trim().is_empty() {
-            warnings.push(format!("import partiel — détail :\n{log}"));
-        }
+    if let Ok(log) = std::fs::read_to_string(&error_log)
+        && !log.trim().is_empty()
+    {
+        warnings.push(format!("import partiel — détail :\n{log}"));
     }
 
     Ok(BlenderSceneResultDto {
@@ -3708,7 +3705,7 @@ pub(crate) fn assemble_glb_for_preview(
     vfs: &nie_formats::vfs::Vfs,
     path: &str,
 ) -> Result<(String, Vec<u8>), String> {
-    use nie_formats::assemble::{assemble_generic_model, GenericModelInput, MeshComponent};
+    use nie_formats::assemble::{GenericModelInput, MeshComponent, assemble_generic_model};
 
     let data = vfs.read(path).map_err(|e| e.to_string())?;
 
@@ -3766,7 +3763,7 @@ fn bind_preview_textures(
     g4tx: &[u8],
     stem: &str,
 ) {
-    use nie_formats::assemble::{avatar_texture_name, EmbeddedTexture};
+    use nie_formats::assemble::{EmbeddedTexture, avatar_texture_name};
     let mut seen = std::collections::HashSet::new();
     model.strict_materials = true;
     for primitive in &model.primitives {
@@ -3803,7 +3800,7 @@ fn assemble_glb_from_cpk_entries(
     reader: &CpkReader,
     entry: &CpkEntry,
 ) -> Result<(String, Vec<u8>), String> {
-    use nie_formats::assemble::{assemble_generic_model, GenericModelInput, MeshComponent};
+    use nie_formats::assemble::{GenericModelInput, MeshComponent, assemble_generic_model};
 
     let stem = entry
         .filename
@@ -3864,12 +3861,11 @@ async fn open_in_scene_editor(
     };
 
     let mut candidates: Vec<PathBuf> = Vec::new();
-    // Pas de `let`-chain ici : ce crate est en édition 2021 (contrairement au workspace), qui ne
-    // les accepte pas.
-    if let Ok(current) = std::env::current_exe() {
-        if let Some(dir) = current.parent() {
-            candidates.push(dir.join(exe_name));
-        }
+    // Edition 2024 allows the executable and its parent to be resolved in one guarded branch.
+    if let Ok(current) = std::env::current_exe()
+        && let Some(dir) = current.parent()
+    {
+        candidates.push(dir.join(exe_name));
     }
     for profile in ["release", "debug"] {
         candidates.push(root.join("target").join(profile).join(exe_name));
@@ -3881,18 +3877,21 @@ async fn open_in_scene_editor(
         }
     }
 
-    let editor =
-        candidates
-            .iter()
-            .find(|p| p.is_file())
-            .ok_or_else(|| {
-                format!(
+    let editor = candidates
+        .iter()
+        .find(|p| p.is_file())
+        .ok_or_else(|| {
+            format!(
                 "nie-editor introuvable. Compilez-le avec « cargo build -p nie-editor --release » \
                  (emplacements cherchés : {})",
-                candidates.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ")
+                candidates
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )
-            })?
-            .clone();
+        })?
+        .clone();
 
     let path = path.filter(|path| !path.trim().is_empty());
     let vfs = if path.is_some() {
@@ -4566,8 +4565,8 @@ fn servir_video(
     app: &tauri::AppHandle,
     request: tauri::http::Request<Vec<u8>>,
 ) -> tauri::http::Response<Vec<u8>> {
-    use tauri::http::{Response, StatusCode};
     use tauri::Manager;
+    use tauri::http::{Response, StatusCode};
 
     let echec = |code: StatusCode, message: String| -> Response<Vec<u8>> {
         Response::builder()
@@ -5576,8 +5575,8 @@ pub fn run() {
 #[cfg(all(test, feature = "real-fixtures"))]
 mod real_fixtures_tests {
     use super::{
-        assemble_glb_for_preview, assemble_glb_from_cpk_entries, ensure_niers_blender_addon,
-        CpkReader, Vfs,
+        CpkReader, Vfs, assemble_glb_for_preview, assemble_glb_from_cpk_entries,
+        ensure_niers_blender_addon,
     };
 
     /// `plugins/niers-blender` est vendorisé dans niers : il doit être détecté PRÉSENT sans

@@ -899,9 +899,6 @@ impl PostNoticeBannerIconInfo {
 
 /// Entrée `POST_NOTICE_BANNER_GRAPHICS_TEXT_INFO` — texture de texte graphique de bannière.
 ///
-/// La dernière entrée du dump porte un chemin marqueur opaque (`"\u{FFFD}POST_NOTICE_INFO"`),
-/// artefact de décodage conservé tel quel.
-///
 /// Vérité terrain : `m_PostNoticeBannerGraphicsTextInfo[0]` : `id_crc = 0x2B7725CF`,
 /// `banner_graphics_text_texture_path = "#/menu/220_img/banner_img/banner02_0001.g4tx"`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1052,7 +1049,7 @@ pub struct PostNoticeConfig {
 /// Parse un `post_notice_config_*.cfg.bin.json` complet.
 ///
 /// Vérité terrain : `post_notice_config_1.03.93.00.cfg.bin.json` →
-/// 44 compositions, 16 fonds, 3 badges, 9 icônes, 8 textes graphiques, 9 annonces.
+/// 47 compositions, 18 fonds, 3 badges, 9 icônes, 10 textes graphiques, 13 annonces.
 #[must_use]
 pub fn parse_post_notice_config(root: &Value) -> PostNoticeConfig {
     PostNoticeConfig {

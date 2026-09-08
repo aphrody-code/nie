@@ -11,7 +11,7 @@
 #   crates/tools/   outillage périphérique (CLI, wiki, steam, serveurs, tâches)
 #   crates/archive/ portages conservés en référence, hors build
 #
-# Conventions alignées sur l'écosystème aphrody (nightly-2026-05-17, edition 2024,
+# Conventions alignées sur l'écosystème aphrody (Rust stable 1.98.1, edition 2024,
 # lints RFC 3389, RE pur-Rust goblin+iced-x86). Voir docs/ARCHITECTURE.md.
 [workspace]
 resolver = "3"
@@ -257,6 +257,10 @@ unimplemented = "deny"
 dbg_macro = "deny"
 correctness = { level = "warn", priority = -1 }
 perf = { level = "warn", priority = -1 }
+# Rust 1.98 promotes this style rewrite to warn-by-default. Binary parsers deliberately use
+# `chunks_exact` where ignoring or inspecting the remainder is part of their local contract;
+# migrate those call sites crate-by-crate with format goldens instead of applying a blind rewrite.
+chunks_exact_to_as_chunks = "allow"
 
 [profile.release]
 opt-level = 3
@@ -268,8 +272,33 @@ inherits = "release"
 lto = "thin"
 codegen-units = 16
 
+# Keep line-level backtraces while avoiding the full debug and incremental caches that made the
+# complete workspace test graph exceed this release host's disk. Full symbols remain available
+# explicitly through `cargo build --profile debugging`.
+[profile.dev]
+debug = "line-tables-only"
+incremental = false
+
 # Dev rapide pour la boucle RE : on optimise les DEPENDANCES (iced-x86, goblin, rusqlite,
 # rayon…) à opt-level=2 — la boucle disasm/seed/propagate tourne ~5-10x plus vite en dev —
 # tout en gardant les crates niers à opt-level=0 (compilation rapide à chaque edit).
 [profile.dev.package."*"]
 opt-level = 2
+debug = false
+
+[profile.test]
+debug = "line-tables-only"
+incremental = false
+
+[profile.debugging]
+inherits = "dev"
+debug = "full"
+incremental = true
+
+# Browser production profile: optimize the Rust graph across crate boundaries and make panic
+# behavior explicit. `wasm-bindgen` and `wasm-opt -O3` perform the final ABI/whole-module passes.
+[profile.wasm-release]
+inherits = "release"
+lto = "fat"
+panic = "abort"
+strip = "symbols"

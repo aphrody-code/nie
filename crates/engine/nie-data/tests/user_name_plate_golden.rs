@@ -14,7 +14,7 @@
 //! - `shadowTextureNameCrc` = `"0x319BE278"`
 //! - `nameFontStyle`        = `"0x66A0930A"`
 //! - `flagIndex`            = 0
-//! - `enableCond`           = `""` (active par défaut)
+//! - `enableCond`           = `"0xFFFFFFFF"` (normalized to absence)
 //!
 //! ### m_userNamePlateInfoList[1]
 //! - `userNamePlateId`      = `"0x907F3686"`
@@ -27,7 +27,7 @@
 //! - `textureFileNameText`  = `".../nm00307.g4tx"`
 //! - `nameFontStyle`        = `"0x72A1CF45"`
 //!
-//! ### m_userNamePlateInfoList[53] (dernier)
+//! ### m_userNamePlateInfoList[53] (last record of the legacy sequential group)
 //! - `userNamePlateId`      = `"0x39A13FD2"`
 //! - `userNamePlateNameId`  = `"0x31CA7A6C"`
 //! - `sortNo`               = 54
@@ -37,6 +37,8 @@
 //! - `enableCond`           = `"AAAAABgFNRftNPcACgEoAAYCNDmhP9IyAAAAAXg="`
 
 mod common;
+
+use std::collections::BTreeSet;
 
 use nie_data::hash::HashId;
 use nie_data::user_name_plate::{
@@ -203,7 +205,7 @@ fn load_real() -> Option<UserNamePlateConfig> {
 #[test]
 fn real_file_compte_total() {
     let Some(cfg) = load_real() else { return };
-    assert_eq!(cfg.entries.len(), 54, "54 entrées USER_NAME_PLATE_INFO");
+    assert_eq!(cfg.entries.len(), 142, "142 entrées USER_NAME_PLATE_INFO");
 }
 
 #[test]
@@ -250,7 +252,7 @@ fn real_file_entree18_police_alternative() {
 }
 
 #[test]
-fn real_file_dernier_entree() {
+fn real_file_legacy_entry_53() {
     let Some(cfg) = load_real() else { return };
     let e = &cfg.entries[53];
     assert_eq!(e.user_name_plate_id, HashId(0x39A1_3FD2));
@@ -266,21 +268,31 @@ fn real_file_dernier_entree() {
 }
 
 #[test]
-fn real_file_sort_no_sequentiel() {
+fn real_file_sort_no_unique_and_legacy_prefix_sequential() {
     let Some(cfg) = load_real() else { return };
-    // sortNo = index + 1 sur tout le dump.
-    for (i, e) in cfg.entries.iter().enumerate() {
+    for (i, e) in cfg.entries.iter().take(60).enumerate() {
         assert_eq!(e.sort_no, (i + 1) as i64, "sortNo séquentiel à l'index {i}");
     }
+    let unique: BTreeSet<_> = cfg.entries.iter().map(|entry| entry.sort_no).collect();
+    assert_eq!(
+        unique.len(),
+        cfg.entries.len(),
+        "all sortNo values are unique"
+    );
 }
 
 #[test]
-fn real_file_flag_index_sequentiel() {
+fn real_file_flag_index_legacy_prefix_then_grouped_zero() {
     let Some(cfg) = load_real() else { return };
-    // flagIndex = index sur tout le dump.
-    for (i, e) in cfg.entries.iter().enumerate() {
+    for (i, e) in cfg.entries.iter().take(60).enumerate() {
         assert_eq!(e.flag_index, i as i64, "flagIndex séquentiel à l'index {i}");
     }
+    assert!(
+        cfg.entries
+            .iter()
+            .skip(60)
+            .all(|entry| entry.flag_index == 0)
+    );
 }
 
 #[test]
@@ -294,12 +306,25 @@ fn real_file_find_by_flag_index() {
 #[test]
 fn real_file_polices_distinctes() {
     let Some(cfg) = load_real() else { return };
-    // Deux styles de police observés dans le dump.
-    let a = HashId(0x66A0_930A);
-    let b = HashId(0x72A1_CF45);
+    let expected = [
+        HashId(0x66A0_930A),
+        HashId(0x72A1_CF45),
+        HashId(0x0C05_615F),
+        HashId(0x950C_30E5),
+        HashId(0xE20B_0073),
+        HashId(0x7C6F_95D0),
+        HashId(0x0B68_A546),
+        HashId(0x9261_F4FC),
+    ];
     assert!(
         cfg.entries
             .iter()
-            .all(|e| e.name_font_style == a || e.name_font_style == b)
+            .all(|entry| expected.contains(&entry.name_font_style))
     );
+    let observed: BTreeSet<_> = cfg
+        .entries
+        .iter()
+        .map(|entry| entry.name_font_style)
+        .collect();
+    assert_eq!(observed.len(), expected.len());
 }

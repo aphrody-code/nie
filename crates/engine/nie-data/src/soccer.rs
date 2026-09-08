@@ -497,7 +497,7 @@ pub fn parse_technic_config(root: &Value) -> TechnicConfig {
 /// `soccer_basic_effect_config_1.01.79.00.cfg.bin.json`, `m_soccerBasicEffectInfoList[0]` :
 /// `{ id: "0x83DB0758", funcName: "0xC9D604D4", buildIconType: 6 }`
 ///
-/// 102 entrées au total. `buildIconType=6` pour toutes les entrées du dump réel.
+/// 104 entrées au total. `buildIconType=6` pour toutes les entrées du dump réel.
 /// `funcName` est le hash du nom de la fonction d'effet — référence vers le registre CMD.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -532,7 +532,7 @@ impl ScBasicEffectInfo {
 
 /// Parse un `soccer_basic_effect_config_*.cfg.bin.json`.
 ///
-/// Renvoie les 102 [`ScBasicEffectInfo`] valides (id non-nul).
+/// Renvoie les 104 [`ScBasicEffectInfo`] valides (id non-nul).
 #[must_use]
 pub fn parse_basic_effect_config(root: &Value) -> Vec<ScBasicEffectInfo> {
     extract_list(

@@ -18,11 +18,11 @@
 //! cargo install wasm-bindgen-cli --version "$(grep -oE 'wasm-bindgen = \{ version = "=[0-9.]+"' Cargo.toml | grep -oE '[0-9.]+')"
 //! cargo build -p nie-wasm --target wasm32-unknown-unknown --release
 //! wasm-bindgen target/wasm32-unknown-unknown/release/nie_wasm.wasm \
-//!     --out-dir pkg/ --target bundler
+//!     --out-dir pkg/ --target web
 //!
 //! # Option B — wasm-pack (enchaîne les deux étapes)
 //! cargo install wasm-pack
-//! wasm-pack build crates/engine/nie-wasm --target bundler
+//! wasm-pack build crates/engine/nie-wasm --target web
 //! ```
 //!
 //! `scripts/build-wasm.sh` fait le contrôle d'alignement avant de construire.
@@ -41,7 +41,11 @@
 //! Toutes les fonctions retournant une structure le font en **JSON sérialisé** (`String`),
 //! que le JS désérialise via `JSON.parse`.
 //!
-//! ## Pattern d'import JS (ESM bundler)
+//! The generated `web` target is initialized with an explicit response by the Vite host. For a
+//! direct Bun consumer, generate a separate `nodejs` target; Bun does not implement the Wasm ESM
+//! integration assumed by wasm-bindgen's `bundler` target.
+//!
+//! ## Pattern d'import JS (ESM web)
 //!
 //! ```text
 //! import init, {

@@ -31,13 +31,19 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use serde_json::Value;
 
-use crate::cfgbin::{field_hash, field_i64, field_str, list_values};
+use crate::cfgbin::{field_hash, field_i64, field_optional_str, field_str, list_values};
 use crate::hash::HashId;
 
 /// Lit un champ flottant d'un objet `values[]` (tolère `Int` comme `Float` côté JSON).
 #[inline]
 fn field_f32(v: &Value, key: &str) -> f32 {
     v.get(key).and_then(Value::as_f64).unwrap_or(0.0) as f32
+}
+
+/// Decoded resource paths use the unsigned -1 sentinel when no path is present.
+#[inline]
+fn field_resource_path(v: &Value, key: &str) -> String {
+    field_optional_str(v, key).unwrap_or("").into()
 }
 
 /// Lit un champ tableau d'entiers (`modeItemList`) en `Vec<i64>` (vide si absent).
@@ -273,7 +279,7 @@ impl Vibration {
             small_rate: field_f32(v, "smallRate"),
             b_loop_hold: v.get("bLoopHold").and_then(Value::as_bool).unwrap_or(false),
             priority: field_i64(v, "priority").unwrap_or(0),
-            wav_path: field_str(v, "wavPath").unwrap_or("").into(),
+            wav_path: field_resource_path(v, "wavPath"),
         })
     }
 }

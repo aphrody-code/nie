@@ -76,6 +76,18 @@ pub async fn health(
     State(etat): State<EtatSite>,
     Query(demande): Query<DemandeSante>,
 ) -> Json<SanteApi> {
+    // Opening both read-only databases here makes this route a real readiness oracle: the
+    // browser cannot leave loading based on file existence alone. Connections remain cached by
+    // `Gisement` and are reopened automatically after an atomic mirror swap.
+    let mirror = std::sync::Arc::clone(&etat.gisement);
+    let anime = std::sync::Arc::clone(&etat.anime);
+    let (mirror_ready, anime_ready) =
+        tokio::task::spawn_blocking(move || (mirror.warm().is_ok(), anime.warm().is_ok()))
+            .await
+            .unwrap_or((false, false));
+    let mut capabilities = etat.capacites();
+    capabilities.gisement = mirror_ready;
+    capabilities.anime = anime_ready;
     let index = etat.index().ok();
     let vues = VUES
         .into_iter()
@@ -97,7 +109,7 @@ pub async fn health(
     };
     Json(SanteApi {
         api: "v1",
-        capacites: etat.capacites(),
+        capacites: capabilities,
         vues,
         extensions,
         cpks,

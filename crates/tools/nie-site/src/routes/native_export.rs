@@ -20,11 +20,15 @@ fn limiter() -> &'static Arc<tokio::sync::Semaphore> {
     LIMIT.get_or_init(|| Arc::new(tokio::sync::Semaphore::new(2)))
 }
 
+/// Optional parameters controlling native asset export.
 #[derive(Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ExportQuery {
+    /// Requested output format.
     pub format: Option<String>,
+    /// Optional waveform identifier for audio containers.
     pub waveform_id: Option<u16>,
+    /// Optional audio channel to export.
     pub audio_channel: Option<u8>,
 }
 

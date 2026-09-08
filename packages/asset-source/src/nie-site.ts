@@ -87,7 +87,10 @@ export interface Capacites {
 	vfs_entrees: number;
 	vfs_dump: boolean;
 	vfs_contenu: boolean;
+	/** The read-only game-data mirror opened and its schema was read successfully. */
 	gisement: boolean;
+	/** The read-only episode database opened and its schema was read successfully. */
+	anime: boolean;
 	bundle: boolean;
 }
 

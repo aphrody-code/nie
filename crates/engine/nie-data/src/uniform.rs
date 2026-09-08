@@ -14,11 +14,11 @@
 //!
 //! | Liste                       | Type RDBN              | Lignes | Sémantique                              |
 //! |-----------------------------|------------------------|--------|------------------------------------------|
-//! | `m_UniformModelInfoList`    | `UNIFORM_MODEL_INFO`   | 760    | CRC des modèles (fielder/keeper/director/manager + variantes de manches) |
-//! | `m_UniformInfoList`         | `UNIFORM_INFO`         | 384    | Uniformes nommés : `nameId` + tranche `modelInfo=[start,count]` |
-//! | `m_UniformExModelInfoList`  | `UNIFORM_EX_MODEL_INFO`| 751    | Modèles étendus (ex-models fielder/keeper × 3, face icon…) |
-//! | `m_UniformExInfoList`       | `UNIFORM_EX_INFO`      | 378    | Uniformes étendus nommés (+ `tmpFlagIdCrc`) |
-//! | `m_CharaUniformExInfoList`  | `CHARA_UNIFORM_EX_INFO`| 234    | Tenues étendues par personnage : `charaId` + tranche `uniformInfo=[start,count]` |
+//! | `m_UniformModelInfoList`    | `UNIFORM_MODEL_INFO`   | 1247   | CRC des modèles (fielder/keeper/director/manager + variantes de manches) |
+//! | `m_UniformInfoList`         | `UNIFORM_INFO`         | 627    | Uniformes nommés : `nameId` + tranche `modelInfo=[start,count]` |
+//! | `m_UniformExModelInfoList`  | `UNIFORM_EX_MODEL_INFO`| 1075   | Modèles étendus (ex-models fielder/keeper × 3, face icon…) |
+//! | `m_UniformExInfoList`       | `UNIFORM_EX_INFO`      | 540    | Uniformes étendus nommés (+ `tmpFlagIdCrc`) |
+//! | `m_CharaUniformExInfoList`  | `CHARA_UNIFORM_EX_INFO`| 388    | Tenues étendues par personnage : `charaId` + tranche `uniformInfo=[start,count]` |
 //!
 //! Les champs sont majoritairement des CRC 32 bits ([`HashId`]) plus quelques entiers
 //! (`typeId`, `shoesModelAttr`, `uniformNgModelAttr`) et un booléen (`shoesModelIdLocked`).
@@ -365,7 +365,7 @@ impl CharaUniformExInfo {
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UniformConfig {
-    /// `m_UniformModelInfoList` — modèles de maillots (760 entrées dans le dump réel).
+    /// `m_UniformModelInfoList` — modèles de maillots (1247 entrées dans le dump réel).
     pub models: Vec<UniformModelInfo>,
     /// `m_UniformInfoList` — uniformes nommés (384 entrées).
     pub uniforms: Vec<UniformInfo>,
@@ -451,7 +451,7 @@ impl UniformConfig {
 ///
 /// Port 1:1 d'inagle `parseContent` (uniform-config.ts l.80-141) : chaque liste est
 /// itérée et convertie ; les listes absentes donnent un vecteur vide. Aucun filtrage —
-/// toutes les lignes sont conservées (comptes réels 760/384/751/378/234).
+/// toutes les lignes sont conservées (comptes réels 1247/627/1075/540/388).
 #[must_use]
 pub fn parse_uniform_config(root: &Value) -> UniformConfig {
     let models = list_values(root, "m_UniformModelInfoList")

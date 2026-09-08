@@ -31,6 +31,7 @@ export function readGameNavigation(
 	const saved = historyRecord(record.gameNavigation);
 	if (
 		saved.version === 1 && saved.view === HOME &&
+		(saved.openingPhase === "loading" || saved.openingPhase === "start" || saved.openingPhase === "menu") &&
 		(OPENING_PHASES as readonly unknown[]).includes(saved.openingPhase)
 	) {
 		return { view: HOME, openingPhase: saved.openingPhase as OpeningPhase };

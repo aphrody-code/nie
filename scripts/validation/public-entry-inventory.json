@@ -2376,7 +2376,7 @@
       "entry": "raw_cpk_video_preview_b64",
       "capability": "raw-cpk-video-preview-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/usm.rs",
+      "owner": "crates/engine/nie-explore/src/cinema/browser_video.rs",
       "rationale": "raw_cpk_video_preview_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2389,7 +2389,7 @@
         ],
         [
           "apps/inacord/src-tauri/src/video.rs",
-          "use nie_formats::usm"
+          "nie_explore::native_video::web_video_stream("
         ]
       ]
     },
@@ -2832,7 +2832,7 @@
       "entry": "vfs_video_preview_b64",
       "capability": "vfs-video-preview-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/usm.rs",
+      "owner": "crates/engine/nie-explore/src/cinema/browser_video.rs",
       "rationale": "vfs_video_preview_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2845,7 +2845,7 @@
         ],
         [
           "apps/inacord/src-tauri/src/video.rs",
-          "use nie_formats::usm"
+          "nie_explore::native_video::web_video_stream("
         ]
       ]
     },
@@ -2863,23 +2863,39 @@
         ],
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "video::catalogue("
+          "with_vfs("
         ],
         [
-          "apps/inacord/src-tauri/src/video.rs",
-          "fn catalogue"
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn with_vfs"
         ],
         [
-          "apps/inacord/src-tauri/src/video.rs",
-          "jointure("
+          "apps/inacord/src-tauri/src/lib.rs",
+          "vfs_partage("
         ],
         [
-          "apps/inacord/src-tauri/src/video.rs",
-          "fn jointure"
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_partage"
         ],
         [
-          "apps/inacord/src-tauri/src/video.rs",
-          "nie_formats::cfgbin::rdbn_to_iecode_json"
+          "apps/inacord/src-tauri/src/lib.rs",
+          "resolve_root("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn resolve_root"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "resolve_game_dir_native("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn resolve_game_dir_native"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::vfs::donnees_disponibles"
         ]
       ]
     },

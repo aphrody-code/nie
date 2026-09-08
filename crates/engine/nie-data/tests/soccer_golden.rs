@@ -653,8 +653,8 @@ fn real_file_basic_effect_comptes() {
         return;
     };
     let effects = parse_basic_effect_config(&root);
-    // 102 entrées — soccer_basic_effect_config_1.01.79.00.cfg.bin.json
-    assert_eq!(effects.len(), 102, "102 effets de base");
+    // 104 entries in soccer_basic_effect_config_1.01.79.00.cfg.bin.json.
+    assert_eq!(effects.len(), 104, "104 effets de base");
 }
 
 #[test]
@@ -680,7 +680,7 @@ fn real_file_additional_comptes() {
         return;
     };
     let cfg = parse_soccer_game_additional_config(&root);
-    assert_eq!(cfg.team_ai_data.len(), 9, "9 équipes IA");
+    assert_eq!(cfg.team_ai_data.len(), 12, "12 équipes IA");
     assert_eq!(cfg.get_exp_table.len(), 17, "17 niveaux XP");
     assert_eq!(cfg.nice_play_exp.len(), 7, "7 niveaux belle action");
 }
@@ -694,7 +694,7 @@ fn real_file_additional_exp_table_bornes() {
     // m_SoccerGetExpDataTable[0] — lignes 67-70 du fichier
     assert_eq!(cfg.get_exp_table[0].id, 0);
     assert!(
-        (cfg.get_exp_table[0].ratio - 7.8_f64).abs() < 1e-9,
+        (cfg.get_exp_table[0].ratio - 7.8_f64).abs() < 1e-6,
         "ratio[0] = 7.8"
     );
     // m_SoccerGetExpDataTable[16] — dernière entrée

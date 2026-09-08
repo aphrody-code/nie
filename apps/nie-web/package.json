@@ -13,7 +13,7 @@
 		"build:wasm": "bun --bun scripts/build-wasm.ts",
 		"preview": "vite preview",
 		"typecheck": "bunx tsc --noEmit",
-		"test": "bun test src/",
+		"test": "bun test --preload ../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts --preload ../../packages/azalee-tools/test/preload.ts src/",
 		"typecheck:desktop": "bunx tsc --noEmit -p tsconfig.desktop.json"
 	},
 	"dependencies": {

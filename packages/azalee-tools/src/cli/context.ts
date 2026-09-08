@@ -21,33 +21,35 @@ import { resolveMirrorPath } from "../config";
 
 /** Palette ANSI utilisée par les commandes (chaînes vides si couleur coupée). */
 export interface AnsiPalette {
-	reset: string;
-	green: string;
-	yellow: string;
-	blue: string;
-	magenta: string;
-	cyan: string;
-	red: string;
-	bold: string;
+  reset: string;
+  green: string;
+  yellow: string;
+  blue: string;
+  magenta: string;
+  cyan: string;
+  red: string;
+  bold: string;
 }
 
 /**
  * Couleur active : uniquement sur un vrai terminal et hors `NO_COLOR`
  * (https://no-color.org). Un pipe ou une redirection produit donc du texte nu.
  */
-export const isColorEnabled: boolean = Boolean(process.stdout.isTTY && !process.env.NO_COLOR);
+export const isColorEnabled: boolean = Boolean(
+  process.stdout.isTTY && !process.env.NO_COLOR,
+);
 
 const ansi = (code: string): string => (isColorEnabled ? code : "");
 
 export const colors: AnsiPalette = {
-	reset: ansi("\x1b[0m"),
-	green: ansi("\x1b[32m"),
-	yellow: ansi("\x1b[33m"),
-	blue: ansi("\x1b[34m"),
-	magenta: ansi("\x1b[35m"),
-	cyan: ansi("\x1b[36m"),
-	red: ansi("\x1b[31m"),
-	bold: ansi("\x1b[1m"),
+  reset: ansi("\x1b[0m"),
+  green: ansi("\x1b[32m"),
+  yellow: ansi("\x1b[33m"),
+  blue: ansi("\x1b[34m"),
+  magenta: ansi("\x1b[35m"),
+  cyan: ansi("\x1b[36m"),
+  red: ansi("\x1b[31m"),
+  bold: ansi("\x1b[1m"),
 };
 
 // ─── Contrat de sortie `--json` ──────────────────────────────────────
@@ -63,33 +65,37 @@ const originalError = console.error;
  * Idempotent, sans effet quand `json` est faux.
  */
 export function suppressLogs(json: boolean): void {
-	if (json) {
-		console.log = () => {};
-		console.warn = () => {};
-		console.error = () => {};
-	}
+  if (json) {
+    console.log = () => {};
+    console.warn = () => {};
+    console.error = () => {};
+  }
 }
 
 /** Restaure les `console.*` d'origine juste avant d'émettre la réponse. */
 export function restoreLogs(json: boolean): void {
-	if (json) {
-		console.log = originalLog;
-		console.warn = originalWarn;
-		console.error = originalError;
-	}
+  if (json) {
+    console.log = originalLog;
+    console.warn = originalWarn;
+    console.error = originalError;
+  }
 }
 
 /**
  * Émet une erreur selon le mode courant : objet `{ error }` sur stdout en
  * `--json`, ligne rouge sur stderr sinon. Restaure les logs au passage.
  */
-export function reportError(json: boolean | undefined, message: string, humanLine: string): void {
-	restoreLogs(Boolean(json));
-	if (json) {
-		console.log(JSON.stringify({ error: message }));
-	} else {
-		console.error(humanLine);
-	}
+export function reportError(
+  json: boolean | undefined,
+  message: string,
+  humanLine: string,
+): void {
+  restoreLogs(Boolean(json));
+  if (json) {
+    console.log(JSON.stringify({ error: message }));
+  } else {
+    console.error(humanLine);
+  }
 }
 
 // ─── Entrées ─────────────────────────────────────────────────────────
@@ -100,13 +106,13 @@ export function reportError(json: boolean | undefined, message: string, humanLin
  * chaîne vide si aucune source n'est disponible.
  */
 export async function getOrReadInput(arg: string | undefined): Promise<string> {
-	if (arg !== undefined && arg !== null && arg.trim() !== "") {
-		return arg;
-	}
-	if (!process.stdin.isTTY) {
-		return await Bun.stdin.text();
-	}
-	return "";
+  if (arg !== undefined && arg !== null && arg.trim() !== "") {
+    return arg;
+  }
+  if (!process.stdin.isTTY) {
+    return await Bun.stdin.text();
+  }
+  return "";
 }
 
 // ─── Rendu tabulaire ─────────────────────────────────────────────────
@@ -120,47 +126,60 @@ export type TableRow = Record<string, unknown>;
  * 3 points) pour rester lisibles dans un terminal 80 colonnes.
  */
 export function renderAsciiTable(rows: readonly TableRow[]): string {
-	if (!rows || rows.length === 0) return "Aucun résultat (0 ligne).";
-	const keys = Object.keys(rows[0]);
+  if (!rows || rows.length === 0) return "Aucun résultat (0 ligne).";
+  const keys = Object.keys(rows[0]);
 
-	const stringifiedRows = rows.map((row) => {
-		const newRow: Record<string, string> = {};
-		for (const key of keys) {
-			const val = row[key];
-			if (val === null || val === undefined) {
-				newRow[key] = "NULL";
-			} else if (typeof val === "object") {
-				newRow[key] = JSON.stringify(val);
-			} else {
-				newRow[key] = String(val);
-			}
-			if (newRow[key].length > 45) {
-				newRow[key] = newRow[key].substring(0, 42) + "...";
-			}
-		}
-		return newRow;
-	});
+  const stringifiedRows = rows.map((row) => {
+    const newRow: Record<string, string> = {};
+    for (const key of keys) {
+      const val = row[key];
+      if (val === null || val === undefined) {
+        newRow[key] = "NULL";
+      } else if (typeof val === "object") {
+        newRow[key] = JSON.stringify(val);
+      } else {
+        newRow[key] = String(val);
+      }
+      if (newRow[key].length > 45) {
+        newRow[key] = newRow[key].substring(0, 42) + "...";
+      }
+    }
+    return newRow;
+  });
 
-	const colWidths = keys.map((k) => Math.max(k.length, ...stringifiedRows.map((r) => r[k].length)));
+  const colWidths = keys.map((k) =>
+    Math.max(k.length, ...stringifiedRows.map((r) => r[k].length)),
+  );
 
-	const topBorder = "┌─" + colWidths.map((w) => "─".repeat(w)).join("─┬─") + "─┐";
-	const headerLine = "│ " + keys.map((k, i) => k.padEnd(colWidths[i])).join(" │ ") + " │";
-	const midBorder = "├─" + colWidths.map((w) => "─".repeat(w)).join("─┼─") + "─┤";
-	const bottomBorder = "└─" + colWidths.map((w) => "─".repeat(w)).join("─┴─") + "─┘";
+  const topBorder =
+    "┌─" + colWidths.map((w) => "─".repeat(w)).join("─┬─") + "─┐";
+  const headerLine =
+    "│ " + keys.map((k, i) => k.padEnd(colWidths[i])).join(" │ ") + " │";
+  const midBorder =
+    "├─" + colWidths.map((w) => "─".repeat(w)).join("─┼─") + "─┤";
+  const bottomBorder =
+    "└─" + colWidths.map((w) => "─".repeat(w)).join("─┴─") + "─┘";
 
-	const formattedRows = stringifiedRows.map(
-		(r) => "│ " + keys.map((k, i) => r[k].padEnd(colWidths[i])).join(" │ ") + " │",
-	);
+  const formattedRows = stringifiedRows.map(
+    (r) =>
+      "│ " + keys.map((k, i) => r[k].padEnd(colWidths[i])).join(" │ ") + " │",
+  );
 
-	return [topBorder, headerLine, midBorder, ...formattedRows, bottomBorder].join("\n");
+  return [
+    topBorder,
+    headerLine,
+    midBorder,
+    ...formattedRows,
+    bottomBorder,
+  ].join("\n");
 }
 
 // ─── Postgres (Bun.SQL) ──────────────────────────────────────────────
 
 /** Résultat d'une requête Postgres, calqué sur la surface `pg` historique. */
 export interface PgQueryResult<Row = TableRow> {
-	rows: Row[];
-	rowCount: number;
+  rows: Row[];
+  rowCount: number;
 }
 
 /**
@@ -169,23 +188,29 @@ export interface PgQueryResult<Row = TableRow> {
  * l'ancien client `pg`.
  */
 export interface PgClient {
-	connect(): Promise<void>;
-	query<Row = TableRow>(text: string, params?: unknown[]): Promise<PgQueryResult<Row>>;
-	end(): Promise<void>;
+  connect(): Promise<void>;
+  query<Row = TableRow>(
+    text: string,
+    params?: unknown[],
+  ): Promise<PgQueryResult<Row>>;
+  end(): Promise<void>;
 }
 
 export function createPgClient(connectionString: string): PgClient {
-	const sql = new SQL({ url: connectionString, max: 1 });
-	return {
-		async connect(): Promise<void> {},
-		async query<Row = TableRow>(text: string, params: unknown[] = []): Promise<PgQueryResult<Row>> {
-			const rows = (await sql.unsafe(text, params)) as Row[];
-			return { rows, rowCount: rows.length };
-		},
-		async end(): Promise<void> {
-			await sql.end();
-		},
-	};
+  const sql = new SQL({ url: connectionString, max: 1 });
+  return {
+    async connect(): Promise<void> {},
+    async query<Row = TableRow>(
+      text: string,
+      params: unknown[] = [],
+    ): Promise<PgQueryResult<Row>> {
+      const rows = (await sql.unsafe(text, params)) as Row[];
+      return { rows, rowCount: rows.length };
+    },
+    async end(): Promise<void> {
+      await sql.end();
+    },
+  };
 }
 
 // ─── SQLite (miroir `inagle_*`) ──────────────────────────────────────
@@ -196,12 +221,12 @@ export function createPgClient(connectionString: string): PgClient {
  * une seule implémentation partagée par le CLI, l'API et le wiki web.
  */
 export function getSqlitePath(): string | null {
-	return resolveMirrorPath();
+  return resolveMirrorPath();
 }
 
 /** Ouvre le miroir en lecture seule. Lève si le chemin est invalide. */
 export function openReadonlyDatabase(dbPath: string): Database {
-	return new Database(dbPath, { readonly: true });
+  return new Database(dbPath, { readonly: true });
 }
 
 // ─── Sous-processus ──────────────────────────────────────────────────
@@ -210,12 +235,20 @@ export function openReadonlyDatabase(dbPath: string): Database {
  * Exécute une commande et renvoie sa sortie standard. Lève avec le contenu de
  * stderr en cas de code de retour non nul.
  */
-export function runCapture(cmd: string[], options: { cwd?: string } = {}): string {
-	const res = Bun.spawnSync(cmd, { cwd: options.cwd, stdout: "pipe", stderr: "pipe" });
-	if (res.exitCode !== 0) {
-		throw new Error(res.stderr?.toString().trim() || `échec: ${cmd.join(" ")}`);
-	}
-	return res.stdout.toString();
+export function runCapture(
+  cmd: string[],
+  options: { cwd?: string; env?: Record<string, string | undefined> } = {},
+): string {
+  const res = Bun.spawnSync(cmd, {
+    cwd: options.cwd,
+    env: options.env,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  if (res.exitCode !== 0) {
+    throw new Error(res.stderr?.toString().trim() || `échec: ${cmd.join(" ")}`);
+  }
+  return res.stdout.toString();
 }
 
 /**
@@ -226,6 +259,6 @@ export function runCapture(cmd: string[], options: { cwd?: string } = {}): strin
  * `BuildMessage`), dont le `String()` préfixerait le nom de classe.
  */
 export function errorMessage(e: unknown): string {
-	const message = (e as { message?: unknown } | null | undefined)?.message;
-	return typeof message === "string" ? message : String(e);
+  const message = (e as { message?: unknown } | null | undefined)?.message;
+  return typeof message === "string" ? message : String(e);
 }

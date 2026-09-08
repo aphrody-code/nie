@@ -7,14 +7,19 @@ use serde_json::{Value, json};
 
 static RANKING_SLOTS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
+/// Inputs for bounded encyclopedia candidate ranking.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RankRequest {
+    /// Official encyclopedia entry to match.
     pub entry: Value,
+    /// Candidate records to rank.
     pub candidates: Value,
+    /// Maximum number of ranked results.
     pub max_results: u32,
 }
 
+/// Return the shared encyclopedia matching contract.
 pub async fn contract() -> Json<Value> {
     Json(json!({
         "input": {"entry": "official encyclopedia entry", "candidates": "candidate array", "maxResults": "integer"},
@@ -28,6 +33,7 @@ pub async fn contract() -> Json<Value> {
     }))
 }
 
+/// Rank supplied candidates against an encyclopedia entry.
 pub async fn rank(Json(request): Json<RankRequest>) -> Result<Json<Value>, ErreurSite> {
     let permit = RANKING_SLOTS
         .try_acquire()

@@ -9,7 +9,7 @@ export const OPENING_PHASES = [
 ] as const;
 
 export type OpeningPhase = (typeof OPENING_PHASES)[number];
-export type OpeningEvent = "timeout" | "media-ended" | "confirm";
+export type OpeningEvent = "resources-ready" | "timeout" | "media-ended" | "confirm";
 
 /** Original logo movies; both native video and soundtrack are required by the browser host. */
 export const OPENING_LOGO_MOVIES = {
@@ -43,8 +43,8 @@ export const OPENING_FRAMES: Readonly<Record<Exclude<OpeningPhase, "menu">, Open
 	loading: {
 		surface: "loading-layout",
 		alt: "Chargement en cours",
-		durationMs: 1_200,
-		advanceOn: "timeout",
+		durationMs: null,
+		advanceOn: "resources-ready",
 	},
 	"inazuma-eleven": {
 		surface: "title-logo",
@@ -76,6 +76,9 @@ export const OPENING_FRAMES: Readonly<Record<Exclude<OpeningPhase, "menu">, Open
 
 /** Advances only when the event matches the native interaction model for the current frame. */
 export function advanceOpeningPhase(phase: OpeningPhase, event: OpeningEvent): OpeningPhase {
+	// Startup media must never sit between readiness and the user. The legacy logo, notice and
+	// title frames remain callable test/inspection surfaces, but browser startup skips them.
+	if (phase === "loading") return event === "resources-ready" ? "menu" : phase;
 	const index = OPENING_PHASES.indexOf(phase);
 	if (index < 0 || phase === "menu") return "menu";
 	const frame = OPENING_FRAMES[phase];

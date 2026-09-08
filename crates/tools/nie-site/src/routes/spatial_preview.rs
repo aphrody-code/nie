@@ -58,6 +58,7 @@ async fn project<T: Send + 'static>(
     Ok(Json(report))
 }
 
+/// Return a bounded camera preview decoded from a VFS path.
 pub async fn camera(
     State(state): State<EtatSite>,
     Path(path): Path<String>,
@@ -65,6 +66,7 @@ pub async fn camera(
     project(state, path, nie_explore::spatial_preview::camera).await
 }
 
+/// Return a bounded navigation-mesh preview decoded from a VFS path.
 pub async fn navmesh(
     State(state): State<EtatSite>,
     Path(path): Path<String>,

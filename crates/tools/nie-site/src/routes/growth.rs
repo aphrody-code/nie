@@ -18,25 +18,37 @@ const fn last_level() -> u8 {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InterpolationQuery {
+    /// Stat value at level 1.
     pub lv1: u16,
+    /// Stat value at level 30.
     pub lv30: u16,
+    /// Stat value at level 50.
     pub lv50: u16,
+    /// Stat value at level 99.
     pub lv99: u16,
+    /// First level to include.
     #[serde(default = "first_level")]
     pub from: u8,
+    /// Last level to include.
     #[serde(default = "last_level")]
     pub to: u8,
 }
 
+/// One interpolated stat value.
 #[derive(Debug, Serialize)]
 pub struct InterpolatedStat {
+    /// Character level.
     pub level: u8,
+    /// Calculated stat value.
     pub value: u16,
 }
 
+/// Bounded interpolation result returned by the route.
 #[derive(Debug, Serialize)]
 pub struct InterpolationResponse {
+    /// Validated interpolation input.
     pub input: InterpolationQuery,
+    /// One calculated point for each requested level.
     pub points: Vec<InterpolatedStat>,
 }
 

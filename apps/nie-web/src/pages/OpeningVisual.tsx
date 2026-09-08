@@ -1,11 +1,13 @@
 /** Opening presentation consumes native VFS media and engine-owned scene metadata. */
 import { GameCanvas, useAssetSource } from "@niers/inacord-ui";
 import { type NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
 import { OPENING_LOGO_MOVIES, type OpeningPhase } from "../game/opening-sequence";
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 import { NativeText } from "./NativeText";
+import { Loading } from "./Loading";
 import { NativeSceneLayers } from "@niers/inacord-ui/shell/native-scene-layers";
 
 export interface OpeningVisualProps {
@@ -13,9 +15,12 @@ export interface OpeningVisualProps {
 	onReady?: () => void;
 	onEnded?: () => void;
 	onConfirm?: () => void;
+	health?: SiteHealth | null;
+	failed?: boolean;
 }
 
-export function OpeningVisual({ phase, onReady, onEnded, onConfirm }: OpeningVisualProps) {
+export function OpeningVisual({ phase, onReady, onEnded, onConfirm, health = null, failed = false }: OpeningVisualProps) {
+	if (phase === "loading") return <Loading health={health} failed={failed} />;
 	if (phase === "inazuma-eleven" || phase === "level5") {
 		return <NativeMoviePlayer key={phase} path={OPENING_LOGO_MOVIES[phase]} onReady={onReady} onEnded={onEnded} />;
 	}

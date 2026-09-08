@@ -28,8 +28,8 @@ fn load_real() -> Option<PostNoticeConfig> {
 #[test]
 fn comptes_listes() {
     let Some(cfg) = load_real() else { return };
-    assert_eq!(cfg.banner_imgs.len(), 44, "m_PostNoticeBannerImgInfoList");
-    assert_eq!(cfg.banner_bgs.len(), 16, "m_PostNoticeBannerBgInfoList");
+    assert_eq!(cfg.banner_imgs.len(), 47, "m_PostNoticeBannerImgInfoList");
+    assert_eq!(cfg.banner_bgs.len(), 18, "m_PostNoticeBannerBgInfoList");
     assert_eq!(
         cfg.banner_badges.len(),
         3,
@@ -38,10 +38,10 @@ fn comptes_listes() {
     assert_eq!(cfg.banner_icons.len(), 9, "m_PostNoticeBannerIconInfoList");
     assert_eq!(
         cfg.banner_graphics_texts.len(),
-        8,
+        10,
         "m_PostNoticeBannerGraphicsTextInfo"
     );
-    assert_eq!(cfg.infos.len(), 9, "m_PostNoticeInfoList");
+    assert_eq!(cfg.infos.len(), 13, "m_PostNoticeInfoList");
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn badges_et_icones() {
 }
 
 #[test]
-fn graphics_text_marqueur_final() {
+fn graphics_text_seasonal_sample() {
     let Some(cfg) = load_real() else { return };
     let g0 = &cfg.banner_graphics_texts[0];
     assert_eq!(g0.id_crc, HashId(0x2B77_25CF));
@@ -107,13 +107,16 @@ fn graphics_text_marqueur_final() {
         g0.banner_graphics_text_texture_path,
         "#/menu/220_img/banner_img/banner02_0001.g4tx"
     );
-    // dernier [7] : chemin marqueur opaque (caractère de remplacement U+FFFD)
+    // The seasonal record is an exact-integer regression oracle for numeric hashes.
     let g7 = &cfg.banner_graphics_texts[7];
     assert_eq!(g7.id_crc, HashId(0xFAB5_9E86));
-    assert_eq!(g7.banner_graphics_text_texture_name_crc, HashId::ZERO);
+    assert_eq!(
+        g7.banner_graphics_text_texture_name_crc,
+        HashId(0xF1AE_6783)
+    );
     assert_eq!(
         g7.banner_graphics_text_texture_path,
-        "\u{FFFD}POST_NOTICE_INFO"
+        "#/menu/220_img/banner_img/<LG>/gtxt_banner01_seasonal01.g4tx"
     );
 }
 
@@ -121,28 +124,28 @@ fn graphics_text_marqueur_final() {
 fn post_notice_info_echantillons() {
     let Some(cfg) = load_real() else { return };
     let n0 = &cfg.infos[0];
-    assert_eq!(n0.id_crc, HashId(0x3A54_9FEC));
-    assert_eq!(n0.flag_no, 19);
+    assert_eq!(n0.id_crc, HashId(0x6C0E_386A));
+    assert_eq!(n0.flag_no, 40);
     assert!(!n0.is_advance_notice);
-    assert_eq!(n0.banner_img_id_crc, HashId(0x7D86_C4C6));
-    assert_eq!(n0.banner_graphics_text_id_crc, HashId(0x7D2D_8249));
+    assert_eq!(n0.banner_img_id_crc, HashId(0x7718_E9CC));
+    assert_eq!(n0.banner_graphics_text_id_crc, HashId(0x33AE_7EB9));
     assert_eq!(n0.banner_title_text_font_style_type, 1);
-    assert_eq!(n0.detail_window_main_txt_id_crc, HashId(0x75B5_144B));
+    assert_eq!(n0.detail_window_main_txt_id_crc, HashId(0x23EF_B3CD));
     assert!(n0.is_use_utc);
     assert_eq!(n0.valid_cond, "POST_NOTICE_INFO");
 
-    // [3] : valid_cond opaque tronqué "O", time bornes renseignées
-    let n3 = &cfg.infos[3];
-    assert_eq!(n3.id_crc, HashId(0x7F65_CDF8));
-    assert_eq!(n3.banner_overview_two_line_text_font_style_type, 3);
-    assert_eq!(n3.start_enable_time, 2025);
-    assert_eq!(n3.end_enable_time, 11);
-    assert_eq!(n3.valid_cond, "O");
+    // The stable ID moved to index 7 as the corpus grew; its opaque condition is preserved.
+    let n7 = &cfg.infos[7];
+    assert_eq!(n7.id_crc, HashId(0x7F65_CDF8));
+    assert_eq!(n7.banner_overview_two_line_text_font_style_type, 3);
+    assert_eq!(n7.start_enable_time, 2025);
+    assert_eq!(n7.end_enable_time, 11);
+    assert_eq!(n7.valid_cond, "O");
 
-    // dernier [8]
-    let n8 = &cfg.infos[8];
-    assert_eq!(n8.id_crc, HashId(0x916B_ACD4));
-    assert_eq!(n8.flag_no, 2);
-    assert_eq!(n8.banner_title_text_id_crc, HashId(0x68BB_F6EB));
-    assert_eq!(n8.detail_window_title_txt_id_crc, HashId(0x7873_CF46));
+    // Last record [12].
+    let n12 = &cfg.infos[12];
+    assert_eq!(n12.id_crc, HashId(0x916B_ACD4));
+    assert_eq!(n12.flag_no, 2);
+    assert_eq!(n12.banner_title_text_id_crc, HashId(0x68BB_F6EB));
+    assert_eq!(n12.detail_window_title_txt_id_crc, HashId(0x7873_CF46));
 }

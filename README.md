@@ -217,6 +217,7 @@ Verified on an RTX 4070: D3D12, Vulkan and the software rasteriser produce captu
 ```bash
 cargo clippy -p <crate> --lib --tests    # must be 0 warnings before any commit
 cargo test --workspace                   # takes several minutes
+cargo deny check advisories bans licenses sources
 uv run scripts/validate_re.py            # byte-exact regression suite vs the real binary
 
 bun install && bun run build:ffi         # build libnie_ffi first — the Bun plugin preloads it
@@ -226,8 +227,51 @@ bun run typecheck && bun run test
 Workspace lints deny `todo!`, `unimplemented!` and `dbg!`. Game crates are `#![forbid(unsafe_code)]`.
 Python goes through `uv run`, never a bare `python`.
 
+The workspace pins Rust 1.98.1 with Edition 2024 and resolver 3. Package metadata, dependencies
+and lints are inherited from the root manifest, including the Inacord host. Dev and test builds
+keep line-table backtraces but disable full debug and incremental caches to bound `target/` on
+constrained hosts; `cargo build --profile debugging` is the explicit full-symbol path. The
+release gate enforces `deny.toml`: yanked or vulnerable dependencies fail, licenses and sources
+are allowlisted, and the one no-fix transitive RSA advisory carries a scoped rationale.
+
+Browser WebAssembly uses the dedicated `wasm-release` profile (fat LTO, aborting panics and
+stripped symbols). `bun run --cwd apps/nie-web build:wasm` pins the `wasm-bindgen` CLI to the
+workspace crate, generates the `web` target in temporary storage, runs `wasm-opt -O3` with the
+explicit Rust/browser feature set, validates and smoke-tests the resulting module, enforces a
+6 MiB budget, then replaces the tracked glue and binary atomically. Direct Bun consumers need a
+separate `nodejs` target; the browser/Vite artifact remains `web` with explicit initialization.
+
 Tests backed by the game's JSON dumps resolve their corpus from `NIE_GAMEDATA_JSON` and **announce
 on stderr when they skip** — a golden that silently does nothing is a false green.
+
+### Whole-repository release orchestration
+
+The repository has one ordered release entrypoint: `scripts/release-all.ts`, exposed as
+`bun run release:all`. It executes `lint → typecheck → tests → Rust clippy → build →
+release/push → deploy → live validation`, in that order.
+
+Default mode verifies a clean checkout and builds into an isolated staging directory, then stops.
+It may create local build artifacts, but it must not release, push, deploy, restart services, or
+otherwise mutate production. Production mutation
+requires explicit `--deploy`. That mode freezes and stages the candidate tree on `main`, runs all
+verification and build phases against that immutable candidate, then creates the release commit
+and pushes it immediately before deployment. It verifies that the resulting commit exactly
+matches `origin/main`, publishes artifacts atomically with rollback on failure, and finally runs
+the meaningful live checks.
+
+Passing the orchestrator proves only the gates it actually ran on the reported host and commit.
+Live validation inspects meaningful response bodies and interactions, not merely HTTP status or
+service activity. Source-delegation evidence still does not prove that adapters contain no
+residual portable logic. Every command also streams to a redacted file under
+`var/log/releases/<run-id>/`; that directory is retained and reported on success or failure. Site
+and Rust artifacts are built under `var/releases/*.staging`, never through the live
+`apps/nie-web/dist` symlink, and the prior bundle and binaries are preserved for rollback.
+
+The inverse entrypoint is `bun run sync:main`. It is a read-only dry run by default; add
+`--apply` to reconcile `main` with `origin/main` and the VPS using fast-forward operations only.
+It never resets or force-pushes. Missing release artifacts move in either direction only when the
+same-commit `var/releases/<commit>/manifest.json` names them and their SHA-256 matches; replacement
+is atomic. Each command is recorded under `var/log/sync-main/<run-id>/`.
 
 Further reading: [`PLAN.md`](PLAN.md) (the canonical active plan and gate ledger) ·
 [`docs/FORGE.md`](docs/FORGE.md) (producing the binary) ·
@@ -268,6 +312,12 @@ to WebAssembly, driven by the keyboard, drawn into a canvas. Be exact about what
 built at runtime by the C++ menu-manager driving Lua through `funcLuaMenuCommand`, a loop that
 is not ported. What the page proves is that the ported logic runs in a browser; it does not
 prove fidelity, and nothing in this repository should claim otherwise.
+
+Browser startup has one gate only: a zero-asset loading surface polls `/api/v1/health` until the
+content-backed VFS is non-empty, both read-only SQLite schemas have opened successfully, and the
+bundle is available. It then enters the menu directly. Video, soundtrack, bitmap-font, WASM decode
+and secondary-scene preloads are deliberately outside that critical path; media remains available
+on demand in its catalogue.
 
 The catalogues (`/textures`, `/modeles`, `/sons`, `/videos`, `/explorateur`) are still served
 with their own metadata, reachable from `/menu`, and deliberately absent from the sitemap: the

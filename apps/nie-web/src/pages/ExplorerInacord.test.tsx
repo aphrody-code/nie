@@ -19,7 +19,7 @@ const rootContent: ContenuDossier = {
 const source: AssetSource = {
 	hote: "test",
 	capacites: async () => ({ vfs: true, texture: true, modele: false, avatar: false, audio: false, video: false, wiki: false, ecriture: false, disque: false, outils: false }),
-	sante: async () => ({ api: "ok", capacites: { vfs: "pret", vfs_entrees: 2, vfs_dump: true, vfs_contenu: true, gisement: false, bundle: true }, vues: [] }),
+	sante: async () => ({ api: "ok", capacites: { vfs: "pret", vfs_entrees: 2, vfs_dump: true, vfs_contenu: true, gisement: false, anime: false, bundle: true }, vues: [] }),
 	parcourir: async (prefixe) => prefixe === "data/common" ? rootContent : { prefixe, dossiers: [], fichiers: [], total: 0 },
 	catalogue: async () => ({ elements: [], page: 1, per_page: 10, total: 0, pages: 0 }),
 	urlFichier: (path) => `/f/${path}`,

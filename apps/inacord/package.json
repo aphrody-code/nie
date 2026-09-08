@@ -4,10 +4,10 @@
 	"version": "0.5.11",
 	"type": "module",
 	"scripts": {
-		"dev": "bun --cwd ../nie-web run dev:desktop",
-		"build": "bun --cwd ../nie-web run build:desktop",
-		"preview": "bun --cwd ../nie-web run preview:desktop",
-		"typecheck": "bun --cwd ../nie-web run typecheck:desktop",
+		"dev": "bun run --cwd ../nie-web dev:desktop",
+		"build": "bun run --cwd ../nie-web build:desktop",
+		"preview": "bun run --cwd ../nie-web preview:desktop",
+		"typecheck": "bun run --cwd ../nie-web typecheck:desktop",
 		"tauri": "tauri"
 	},
 	"dependencies": {

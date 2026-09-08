@@ -53,6 +53,26 @@ impl Gisement {
         self.chemin.is_file()
     }
 
+    /// Open the database read-only and force SQLite to read its schema.
+    ///
+    /// This is the readiness boundary used before the browser leaves its loading screen.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Indisponible` when the database is absent, unreadable, or has no readable schema.
+    pub fn warm(&self) -> Result<(), ErreurSite> {
+        self.lire(|connection| {
+            let tables: i64 =
+                connection.query_row("SELECT count(*) FROM sqlite_schema", [], |row| row.get(0))?;
+            if tables == 0 {
+                return Err(ErreurSite::Indisponible(
+                    "database schema is empty".to_owned(),
+                ));
+            }
+            Ok(())
+        })
+    }
+
     /// Exécute une lecture sur la connexion, en la (r)ouvrant si nécessaire.
     ///
     /// Bloquant : à n'appeler que depuis `spawn_blocking`.
@@ -156,6 +176,7 @@ mod tests {
     fn gisement_absent_est_indisponible() {
         let g = Gisement::nouveau("/nonexistent/mirror.sqlite");
         assert!(!g.present());
+        assert!(g.warm().is_err());
         let e = g.lire(|_| Ok(())).unwrap_err();
         assert_eq!(e.statut().as_u16(), 503);
     }

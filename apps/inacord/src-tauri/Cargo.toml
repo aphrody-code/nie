@@ -1,14 +1,18 @@
 # Desktop host in the root Cargo workspace. SQLite sessions use the shared nie-explore rusqlite owner.
-# Preserve edition 2021 and existing feature choices; bindings remain a development-only binary.
 [package]
 name = "inacord"
-description = "Explorateur/éditeur du VFS (CPK) d'Inazuma Eleven: Victory Road — UI native Windows (Fluent/Mica)"
-version = "0.5.11"
-authors = ["niers"]
-edition = "2021"
+description = "Native desktop host for browsing and editing the Inazuma Eleven: Victory Road VFS"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 # Tauri invokes cargo run; select the application rather than the development binaries.
 default-run = "inacord"
 
+[lints]
+workspace = true
 
 [lib]
 name = "inacord_lib"

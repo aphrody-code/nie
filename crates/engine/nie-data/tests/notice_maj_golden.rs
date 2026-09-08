@@ -12,18 +12,19 @@
 //!
 //! ## Vérifications champ par champ (fichier → valeur confirmée)
 //!
-//! ### m_updateNoticeDataList (26 entrées)
+//! ### m_updateNoticeDataList (38 entrées)
 //! - `[0]`  = { textureName: "0xAB293174", textId: "0x29F4B231" }
 //! - `[2]`  = { textureName: "0xDC2E01E2", textId: "0x6AEDC5B5" }
-//! - `[25]` = { textureName: "0xDC2E01E2", textId: "0x1FB66B97" } (dernier)
+//! - `[25]` = { textureName: "0xDC2E01E2", textId: "0x1FB66B97" }
 //!
-//! ### m_updateNoticeInfoList (4 entrées)
+//! ### m_updateNoticeInfoList (6 entrées)
 //! - `[0]` = updateId 0x647E0ABB, globalBitFlagId 0x00C0E385, data [0, 8], enableCond "AAAAABgF...AAAAAXk="
 //! - `[1]` = updateId 0xFD775B01, globalBitFlagId 0xEF0288BB, data [8, 6]
 //! - `[2]` = updateId 0x8A706B97, globalBitFlagId 0x0DDE93C2, data [14, 5]
 //! - `[3]` = updateId 0x1414FE34, globalBitFlagId 0xE21CF8FC, data [19, 7]
 //!
-//! Les 4 tranches partitionnent exactement les 26 entrées : 0+8=8, 8+6=14, 14+5=19, 19+7=26.
+//! The first four historical slices cover 26 entries; two later slices extend the current dump
+//! to 38. The generic partition test proves that all six slices remain contiguous.
 
 mod common;
 
@@ -145,9 +146,9 @@ fn load_real() -> Option<UpdateNoticeConfig> {
 #[test]
 fn real_file_comptes() {
     let Some(cfg) = load_real() else { return };
-    // 26 pages dans m_updateNoticeDataList, 4 groupes dans m_updateNoticeInfoList.
-    assert_eq!(cfg.data.len(), 26, "26 entrées UPDATE_NOTICE_DATA");
-    assert_eq!(cfg.infos.len(), 4, "4 entrées UPDATE_NOTICE_INFO");
+    // 38 pages in m_updateNoticeDataList, 6 groups in m_updateNoticeInfoList.
+    assert_eq!(cfg.data.len(), 38, "38 UPDATE_NOTICE_DATA entries");
+    assert_eq!(cfg.infos.len(), 6, "6 UPDATE_NOTICE_INFO entries");
 }
 
 #[test]
@@ -169,7 +170,7 @@ fn real_file_data2() {
 #[test]
 fn real_file_data_dernier() {
     let Some(cfg) = load_real() else { return };
-    // m_updateNoticeDataList[25] (dernier)
+    // m_updateNoticeDataList[25], the end of the first four historical groups.
     let d = &cfg.data[25];
     assert_eq!(d.texture_name, HashId(0xDC2E_01E2), "textureName[25]");
     assert_eq!(d.text_id, HashId(0x1FB6_6B97), "textId[25]");
@@ -196,7 +197,7 @@ fn real_file_info0() {
 #[test]
 fn real_file_info_tranches() {
     let Some(cfg) = load_real() else { return };
-    // Les 4 tranches [start, count] observées dans le dump réel.
+    // The first four historical [start, count] slices in the real dump.
     let attendu = [
         (HashId(0x647E_0ABB), 0_i64, 8_i64),
         (HashId(0xFD77_5B01), 8, 6),
@@ -214,7 +215,7 @@ fn real_file_info_tranches() {
 #[test]
 fn real_file_tranches_partitionnent() {
     let Some(cfg) = load_real() else { return };
-    // start[0]=0 ; chaque groupe suit le précédent ; la fin couvre les 26 pages.
+    // start[0]=0; every group follows the previous one and the final slice covers all 38 pages.
     let mut attendu_start = 0_i64;
     for info in &cfg.infos {
         assert_eq!(info.data_start, attendu_start, "tranches contiguës");
@@ -230,9 +231,9 @@ fn real_file_tranches_partitionnent() {
 #[test]
 fn real_file_pages_of_resout() {
     let Some(cfg) = load_real() else { return };
-    // Le dernier groupe [19, 7] résout 7 pages, la première étant data[19].
-    let dernier = &cfg.infos[3];
-    let pages = cfg.pages_of(dernier);
+    // The fourth historical group [19, 7] resolves 7 pages starting at data[19].
+    let fourth = &cfg.infos[3];
+    let pages = cfg.pages_of(fourth);
     assert_eq!(pages.len(), 7);
     assert_eq!(pages[0], cfg.data[19]);
     assert_eq!(pages[6], cfg.data[25]);

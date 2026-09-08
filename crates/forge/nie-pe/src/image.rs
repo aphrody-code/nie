@@ -575,8 +575,8 @@ pub mod tables {
             }
             out.extend_from_slice(&page.to_le_bytes());
             out.extend_from_slice(&(size as u32).to_le_bytes());
-            for e in table[pos + 8..pos + size].chunks_exact(2) {
-                let v = u16::from_le_bytes([e[0], e[1]]);
+            for entry in table[pos + 8..pos + size].as_chunks::<2>().0 {
+                let v = u16::from_le_bytes(*entry);
                 out.extend_from_slice(&v.to_le_bytes());
             }
             pos += size;

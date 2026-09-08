@@ -34,7 +34,7 @@
 //! - `thumbnailTexName` = "0x269EB7CF" (fichier JSON ligne 22)
 //! - `thumbnailTexFileName` = "bookmark_img01_s01.g4tx" (fichier JSON ligne 23)
 //! - `isNecessaryStory` = true (fichier JSON ligne 24)
-//! - `enableCond` = "" (fichier JSON ligne 25)
+//! - `enableCond` = `0xFFFFFFFF`, normalized to absence
 //!
 //! ### info_bookmark_config : m_InfoBookmarkDataList[0]
 //! - `bookmarkId` = "0x2E2C6020" (fichier JSON ligne 519)

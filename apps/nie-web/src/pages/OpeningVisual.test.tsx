@@ -4,9 +4,6 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Game } from "./Game";
 import { OpeningVisual } from "./OpeningVisual";
-import * as bridge from "../game/bridge";
-import * as nativeFont from "../game/native-font";
-import loadingScene from "../../../../crates/engine/nie-formats/src/menu_scenes/loading.json";
 
 const source = {
 	urlVideo: (path: string) => `/assets/video/${path}.mp4`,
@@ -70,39 +67,21 @@ async function click(label: string) {
 }
 
 describe("native opening movies", () => {
-	test("loading consumes shared geometry and waits for both bitmap text and the ball", async () => {
-		const settings = (window as unknown as { happyDOM: { settings: { enableImageFileLoading: boolean } } }).happyDOM.settings;
-		const imageLoading = settings.enableImageFileLoading;
-		settings.enableImageFileLoading = false;
-		const complete = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "complete");
-		Object.defineProperty(HTMLImageElement.prototype, "complete", { configurable: true, get: () => false });
-		const scene = structuredClone(loadingScene);
-		scene.layers[0]!.rect.x = 1200;
-		const presentation = spyOn(bridge, "loadMenuPresentation").mockResolvedValue(scene);
-		const font = spyOn(nativeFont, "nativeTextRaster").mockResolvedValue({ width: 1, height: 1, rgba: new Uint8Array([255, 255, 255, 255]) });
-		const context = spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ putImageData() {} } as never);
-		const imageData = Object.getOwnPropertyDescriptor(globalThis, "ImageData");
-		Object.defineProperty(globalThis, "ImageData", { configurable: true, value: class { constructor(public data: Uint8ClampedArray, public width: number, public height: number) {} } });
-		let ready = 0;
-		try {
-			await mount(<OpeningVisual phase="loading" onReady={() => ready++} />);
-			expect(presentation).toHaveBeenCalledWith("loading");
-			expect(font).toHaveBeenCalled();
-			expect(context).toHaveBeenCalled();
-			expect(container.innerHTML).toContain("data-native-region");
-			const ball = container.querySelector<HTMLImageElement>("[data-native-region=load_ball01]")!;
-			expect(ball.style.left).toBe("1200px");
-			expect(container.querySelector("[data-native-text]")).not.toBeNull();
-			expect(ready).toBe(0);
-			await dispatch(ball, "load");
-			expect(ready).toBe(1);
-		} finally {
-			presentation.mockRestore(); font.mockRestore(); context.mockRestore();
-			if (complete) Object.defineProperty(HTMLImageElement.prototype, "complete", complete);
-			settings.enableImageFileLoading = imageLoading;
-			if (imageData) Object.defineProperty(globalThis, "ImageData", imageData);
-			else Reflect.deleteProperty(globalThis, "ImageData");
-		}
+	test("loading renders no media or native asset request", async () => {
+		await mount(<OpeningVisual phase="loading" />);
+		expect(container.textContent).toContain("Chargement des données");
+		expect(container.querySelector("video, audio, img, canvas")).toBeNull();
+		const requestedUrls = (fetchMock.mock.calls as Array<[unknown, ...unknown[]]>).map((call) => String(call[0]));
+		expect(requestedUrls.some((url: string) => url.includes("/assets/"))).toBeFalse();
+	});
+
+	test("data readiness skips every media frame and advances directly to the menu", async () => {
+		const phases: string[] = [];
+		await mount(<Game phase="loading" startupReady health={null}
+			onPhaseChange={(phase) => phases.push(phase)} onOpenAvatar={() => {}}
+			onOpenSettings={() => {}} onOpenMedia={() => {}} onOpenExplorer={() => {}} />);
+		expect(phases).toEqual(["menu"]);
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 	test("waits for both ready tracks and successful playback after rejected autoplay", async () => {
 		let ready = 0, ended = 0;

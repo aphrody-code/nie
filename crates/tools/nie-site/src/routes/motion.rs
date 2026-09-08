@@ -9,6 +9,7 @@ use nie_explore::motion::MotionClips;
 
 static INSPECTION_SLOTS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
+/// Return decoded motion clips associated with a VFS model path.
 pub async fn clips(
     State(state): State<EtatSite>,
     Path(path): Path<String>,

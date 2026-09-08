@@ -27,6 +27,7 @@ pub mod database;
 pub mod depot;
 pub mod export;
 pub mod folder_roles;
+#[cfg(feature = "host")]
 pub mod game_data;
 pub mod geometry;
 #[cfg(feature = "host")]
@@ -34,9 +35,11 @@ pub mod listing;
 #[cfg(feature = "host")]
 pub mod mcp_vfs;
 pub mod menu_audio;
+#[cfg(feature = "host")]
 pub mod menu_icons;
 /// Compatibility facade; menu layout ownership lives in `nie_formats::menu`.
 pub mod menu_layout;
+#[cfg(feature = "host")]
 pub mod menu_mode_analysis;
 pub mod menu_modes;
 pub mod menu_predecode;
@@ -47,6 +50,7 @@ pub mod native_video;
 pub mod related;
 pub mod search_query;
 pub mod spatial_preview;
+#[cfg(feature = "host")]
 pub mod uniform_map;
 pub mod vfs_policy;
 pub mod vn;

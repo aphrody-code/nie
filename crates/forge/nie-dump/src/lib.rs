@@ -427,8 +427,10 @@ impl Minidump {
             checked_span(name_data_rva, nlen, source_len)?;
             let name_bytes = read_at(source, name_data_rva, nlen)?;
             let units: Vec<u16> = name_bytes
-                .chunks_exact(2)
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|chunk| u16::from_le_bytes(*chunk))
                 .collect();
             let full = String::from_utf16_lossy(&units);
             let name = full.rsplit(['\\', '/']).next().unwrap_or(&full).to_string();
@@ -726,8 +728,8 @@ impl Minidump {
             if self.read_into(r.file_off, &mut buf).is_none() {
                 continue;
             }
-            for chunk in buf.chunks_exact(8) {
-                let q = u64::from_le_bytes(chunk.try_into().unwrap());
+            for chunk in buf.as_chunks::<8>().0 {
+                let q = u64::from_le_bytes(*chunk);
                 if q >= vtable_lo && q < vtable_hi {
                     *counts.entry(q).or_insert(0) += 1;
                 }
