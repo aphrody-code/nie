@@ -665,10 +665,14 @@ The SQLite registry and its SQLx-compatible migration history now live in
 retains its public `sqlite_*` command names while all writable local state reaches the shared
 owner. The move preserved the eight existing registry/migration tests, which pass together with
 strict `nie-sql` clippy. The Inacord Cargo check passes with one pre-existing warning in
-`nie-render3d/glb.rs` outside this batch. The next source batch adds thin trusted-server adapters
-and proves a PostgreSQL migration against a disposable server without changing public command/API
-names. This decision preserves the existing data push, backup, API and source tree instead of
-creating parallel mechanisms.
+`nie-render3d/glb.rs` outside this batch. `nie-sql::postgres_migrations` now provides an explicit
+PostgreSQL manifest, validates ordering and SHA-384 checksums, refuses dirty/unknown/divergent
+history, and records each transaction with the same `_sqlx_migrations` compatibility shape. It
+never attaches write access to `PostgresReadOnly`. Its static planning and SQLite-adjacent suite
+passes 10 tests with strict clippy; a disposable PostgreSQL server is still needed to prove the
+runner against a live backend before this migration service is declared operational. Thin
+trusted-server adapters must retain public command/API names. This decision preserves the existing
+data push, backup, API and source tree instead of creating parallel mechanisms.
 
 The read driver is implemented: SQLite uses an OS read-only handle; PostgreSQL uses parameterized
 `tokio-postgres` queries, certificate-verifying Rustls with native roots by default, an explicit
