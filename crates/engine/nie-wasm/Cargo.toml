@@ -18,71 +18,71 @@ workspace = true
 # Features : `textures` = décodeur G4TX/DDS partagé (`nie_formats::g4tx_decode`) ;
 # `audio-decode` = décodeur audio HCA/ADX/AWB/ACB partagé (`cri_audio::decode_to_wav`).
 # `image_dds`/`png`/`cridecoder` arrivent transitivement (pur Rust, compatibles wasm32).
-nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode"] }
+nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode"], default-features = true }
 # nie-core (calcul de stats/growth + machine à états de match) et nie-data (lookup
 # skill/aura/item) avec la feature `serde` pour sérialiser les résultats en JSON côté
 # navigateur. Déclarés en path direct : ces deux crates ne sont pas (encore) dans la
 # `[workspace.dependencies]` racine.
-nie-core = { path = "../../engine/nie-core", features = ["serde"] }
-nie-data = { path = "../../engine/nie-data", features = ["serde"] }
+nie-core = { workspace = true, features = ["serde"] }
+nie-data = { workspace = true, features = ["serde"] }
 nie-save = { workspace = true, features = ["serde"] }
 # Decodeur de bytecode Lua 5.2 SANS la VM : `default-features = false` retire mlua (Lua
 # vendored en C), qui ne se construit pas pour wasm32. Le module `bytecode` est pur Rust.
-nie-lua = { path = "../../engine/nie-lua", default-features = false }
+nie-lua.workspace = true
 # nie-app : le JEU jouable (FSM GameState + rendu CPU framebuffer). Cœur wasm-safe
 # (l'I/O assets est gatée hors wasm) → expose `WasmGame` pour le canvas navigateur.
-nie-app = { path = "../../engine/nie-app" }
+nie-app.workspace = true
 # `nie-runtime` provides the deterministic local match simulation and top-down renderer exposed by
 # `WasmMatch`; it is not the native executable's match engine. `nie-render3d` follows separately.
-nie-runtime = { path = "../../engine/nie-runtime" }
+nie-runtime.workspace = true
 # Camera state, projection/view matrices and the verified interpolation controller are pure
 # Rust. Host process memory and SQLite tooling stay excluded from the browser dependency graph.
-nie-camera = { path = "../nie-camera", default-features = false }
+nie-camera.workspace = true
 # Shared VFS content dispatcher. Native filesystem search and the Lua VM remain behind
 # nie-explore's disabled `host` feature; browser bytes use the same portable parsers as the CLI.
-nie-explore = { path = "../nie-explore", default-features = false }
+nie-explore.workspace = true
 # Pure-Rust PE/ELF triage used to inspect a user-supplied executable entirely in the browser.
-aphrody-re = { path = "../../forge/aphrody-re" }
+aphrody-re.workspace = true
 # Pure-Rust MSVC-dialect x86-64 assembler used by the browser inspection/forge surface.
-nie-asm = { path = "../../forge/nie-asm", default-features = false }
+nie-asm.workspace = true
 # Byte-exact executable comparison from the PE forge, without its optional serde surface.
-nie-pe = { path = "../../forge/nie-pe", default-features = false }
+nie-pe.workspace = true
 # Bounded x86-64 lifting and blocker diagnostics from the executable forge. Database-backed
 # reference storage stays outside the browser through the disabled `redb` feature.
-nie-forge = { path = "../../forge/nie-forge", default-features = false }
+nie-forge.workspace = true
 # Safe in-memory minidump parsing; the browser wrapper exposes metadata only and never copies
 # captured process memory back into JavaScript.
-nie-dump = { path = "../../forge/nie-dump" }
+nie-dump.workspace = true
 # Detailed, bounded PE/COFF section/import/export inspection over uploaded bytes.
-ievr-tools = { path = "../../tools/ievr-tools", default-features = false }
+ievr-tools.workspace = true
 # Portable `.pdata` inspection; SQLite/Redis propagation and host dump recovery stay disabled.
-nie-re = { path = "../../forge/nie-re", default-features = false }
+nie-re.workspace = true
 # Portable AOB scanning only; live process memory and patching remain behind the host feature.
-nie-trace = { path = "../../forge/nie-trace", default-features = false }
+nie-trace.workspace = true
 # Pure official-encyclopedia matching; network, SQLite and CLI dependencies stay host-only.
-nie-zukan = { path = "../../tools/nie-zukan", default-features = false }
+nie-zukan.workspace = true
 # Validated format-catalog parsing; database/path ingestion remains behind the host feature.
-nie-seed = { path = "../../forge/nie-seed", default-features = false }
+nie-seed.workspace = true
 # Portable task lifecycle snapshots; Tokio workers and UUID generation stay host-only.
-nie-tasks = { path = "../../tools/nie-tasks", default-features = false }
+nie-tasks.workspace = true
 # Deterministic in-memory BFS frontier; the shared Redis backend remains host-only.
-nie-queue = { path = "../../forge/nie-queue", default-features = false }
+nie-queue.workspace = true
 # Credential-free depot selection/collision planning; Steam network and filesystem access stay host-only.
-nie-steam = { path = "../../tools/nie-steam", default-features = false }
+nie-steam.workspace = true
 # Deterministic, bounded cross-language benchmark samples; clocks and filesystem harnesses stay host-only.
-nie-bench = { path = "../../tools/nie-bench", default-features = false }
+nie-bench.workspace = true
 # Bounded offline image address/range inspection; process, SQLite and network probes stay host-only.
-nie-computer-use = { path = "../../tools/nie-computer-use", default-features = false }
+nie-computer-use.workspace = true
 # Deterministic search over caller-owned reverse-engineering knowledge; SQLite and Redis stay host-only.
-nie-index = { path = "../../forge/nie-index", default-features = false }
+nie-index.workspace = true
 # Canonical detailed format inspection extracted from the headless CLI binding.
-nie-headless = { path = "../nie-headless", default-features = false }
+nie-headless.workspace = true
 # Portable validated scene editing and bounded undo/redo; native GUI/GPU bindings stay host-only.
-nie-editor = { path = "../../tools/nie-editor", default-features = false }
+nie-editor.workspace = true
 # Bounded T2B character/model catalogs extracted from the HTTP binding.
-nie-model-serve = { path = "../../tools/nie-model-serve", default-features = false }
-serde.workspace = true
-serde_json.workspace = true
+nie-model-serve.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
 # (cridecoder arrive via nie-formats feature `audio-decode` — plus de dép directe)
 
 # wasm-bindgen est épinglé à une version EXACTE dans le Cargo.toml racine : le CLI
@@ -98,8 +98,8 @@ parking_lot.workspace = true
 # getrandom avec feature "js" : requis si une dep transitive l'utilise sur wasm32.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
-nie-render3d = { path = "../nie-render3d", features = ["webgpu"], optional = true }
-web-sys = { version = "0.3", features = ["HtmlCanvasElement"], optional = true }
+nie-render3d = { workspace = true, optional = true, features = ["webgpu"] }
+web-sys = { workspace = true, optional = true, features = ["HtmlCanvasElement"] }
 
 [features]
 default = []

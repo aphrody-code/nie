@@ -37,8 +37,8 @@ workspace = true
 # - `textures`, `images` et `audio-decode` restent ÉTEINTES : elles tireraient `image_dds`,
 #   `image` et `cridecoder` dans un service web. Ces familles-là sont déléguées à l'amont, et
 #   `/api/v1/formats` le dit au lieu de le promettre.
-nie-formats = { path = "../../engine/nie-formats", features = ["serde"] }
-nie-explore = { path = "../../engine/nie-explore", default-features = false }
+nie-formats = { workspace = true, features = ["serde"], default-features = true }
+nie-explore.workspace = true
 
 # Les 93 familles de donnees du jeu, derriere UNE facade : `nie_data::typed::decode_by_key`,
 # deja partagee par `nie-model-serve` (route `/typed`) et `nie-wasm` (decodage in-browser).
@@ -49,7 +49,7 @@ nie-explore = { path = "../../engine/nie-explore", default-features = false }
 #
 # `serde` est REQUISE : `typed` est gate `#![cfg(feature = "serde")]` en entier, et sans elle
 # le module n'existe pas — l'appel ne compile pas, il ne degrade pas.
-nie-data = { path = "../../engine/nie-data", features = ["serde", "std"] }
+nie-data = { workspace = true, features = ["serde", "std"] }
 
 # La logique de JEU pure : courbe de statistiques a trois segments, tables de croissance
 # reelles, comparaison des variantes d'un personnage, builds BASARA. Ecrite, testee, et servie
@@ -67,67 +67,60 @@ nie-data = { path = "../../engine/nie-data", features = ["serde", "std"] }
 #   `match` vers une chaine choisie — un champ public ne se serialise pas par son nom interne.
 #   L'eteindre est donc une garantie, pas une economie : le derive ne peut pas etre invoque
 #   par erreur.
-nie-core = { path = "../../engine/nie-core" }
+nie-core.workspace = true
 
 # Le pet Aphrody : atlas, animations et poses de regard, embarques au build par
 # `include_bytes!`. Le site ne fait que republier ce package — il n'en garde aucune copie.
 # Il porte aussi `assets::encoder_png`, le seul encodeur PNG du site (cf. `routes::modeles3d`).
-nie-aphrody = { path = "../../engine/nie-aphrody" }
+nie-aphrody.workspace = true
 # Les surfaces et jetons typés du jeu : la SSR doit partager exactement la même source que
 # `packages/inacord-ui`, pas recopier une couleur ou un angle dans ses templates.
-nie-ui = { path = "../../engine/nie-ui" }
+nie-ui.workspace = true
 
 # Le rendu 3D du moteur : `glb::parse` + `render::render`, le rasteriseur CPU a z-buffer qui
 # sert de verite terrain aux goldens. C'est ce que l'amont ne sait PAS faire — il assemble des
 # GLB, il n'en fait pas d'image. Features par defaut (`gpu` eteinte) : le site rend en
 # logiciel, et tirer wgpu dans un service sans pilote graphique n'aurait aucun sens.
-nie-render3d = { path = "../../engine/nie-render3d" }
+nie-render3d.workspace = true
 # Pour son SEUL selecteur de chemins (`nie_viola::Filtre`) : la syntaxe glob du jeu, portee de
 # `DumpService.GlobToRegex` et deja testee. La reecrire ici donnerait une seconde syntaxe, qui
 # divergerait de celle des presets de dump au premier motif tordu.
-nie-viola = { path = "../../engine/nie-viola" }
+nie-viola.workspace = true
 
 # Shared bytecode decoding and bounded trusted-VFS menu replay. Arbitrary evaluation is not routed.
-nie-lua = { path = "../../engine/nie-lua", default-features = false, features = ["vm"] }
+nie-lua = { workspace = true, features = ["vm"] }
 
 # Save character identifiers are parsed by the type that owns their byte representation. The
 # site never receives a save file: `/api/v1/save/roster` only normalizes the identifiers already
 # extracted on the client, then resolves them against the read-only mirror.
-nie-save = { path = "../../engine/nie-save" }
+nie-save.workspace = true
 
 # Character catalogue queries belong to the wiki data library. The HTTP route preserves its
 # existing DTO while delegating filtering, faceting, ordering and pagination to this crate.
-nie-wiki = { path = "../nie-wiki" }
+nie-wiki.workspace = true
 # Portable existing encyclopedia matcher; no network ingestion feature.
-nie-zukan = { path = "../nie-zukan", default-features = false }
+nie-zukan.workspace = true
 
 # Serveur HTTP. Seul ajout réel au workspace (cf. docs/stack/dependencies.md) : 0.8.9, jamais
 # 0.8.2 (yanked). Syntaxe de route 0.8 : `{param}` et `{*wildcard}` — l'ancienne PANIQUE.
-axum = { version = "0.8.9", default-features = false, features = [
-    "http1",
-    "json",
-    "query",
-    "tokio",
-    "matched-path",
-    "original-uri",
-] }
+axum = { workspace = true, features = ["http1", "json", "query", "tokio", "matched-path", "original-uri"] }
 # `net`/`signal`/`fs`/`io-util` s'ajoutent aux features du workspace (rt, rt-multi-thread,
 # sync, macros, time) : les features cargo sont additives.
-tokio = { workspace = true, features = ["net", "signal", "fs", "io-util"] }
-tower = { version = "0.5.3", features = ["util", "limit"] }
-tower-http = { version = "0.6.11", features = ["trace", "timeout"] }
-http-body-util = "0.1.4"
-bytes = "1.12.1"
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net", "signal", "fs", "io-util"] }
+tower = { workspace = true, features = ["util", "limit"] }
+tower-http = { workspace = true, features = ["trace", "timeout"] }
+http-body-util.workspace = true
+bytes.workspace = true
 
 # Templates compilés. `askama_axum` est mort et il n'existe pas de feature `with-axum` :
 # on rend en `String` et on construit la réponse à la main (cf. `routes::pages`).
-askama = "0.16.1"
+askama.workspace = true
 
 # Cache asynchrone à TTL et poids. Plancher 0.12.16 : en deçà, `EvictionPolicy::lru()`
 # pouvait figer l'éviction définitivement.
-moka = { version = "0.12.16", features = ["future"] }
+moka = { workspace = true, features = ["future"] }
 # ETag fort : blake3 est ~3× plus rapide que sha2 sur les gros corps, et `to_hex()` n'alloue pas.
-blake3 = "1.8.7"
+blake3.workspace = true
 
 # Client vers nie-model-serve. Localhost en clair : aucune pile TLS n'entre dans la crate
 # (nginx termine le TLS). `default-features = false` ⇒ ni native-tls ni rustls.
@@ -137,21 +130,21 @@ blake3 = "1.8.7"
 # ce qui se lit comme une panne de reseau au lieu d'un binaire sans autorite de
 # certification. Racines webpki plutot que celles du systeme : elles sont dans le
 # binaire, donc insensibles a `ProtectSystem=strict` et a une derive du magasin local.
-reqwest = { version = "0.13.4", default-features = false, features = ["http2", "rustls"] }
+reqwest = { workspace = true, features = ["http2", "rustls"] }
 
 # Lecture seule des gisements (var/mirror.sqlite). Version du lock (0.37) : le bump vers 0.40
 # est un lot de workspace, pas une décision de cette crate.
-rusqlite.workspace = true
+rusqlite = { workspace = true, features = ["bundled"] }
 parking_lot.workspace = true
 
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
 thiserror.workspace = true
 anyhow.workspace = true
-clap.workspace = true
+clap = { workspace = true, features = ["derive", "color", "env"] }
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
 tempfile.workspace = true
-criterion = "0.8"
+criterion.workspace = true

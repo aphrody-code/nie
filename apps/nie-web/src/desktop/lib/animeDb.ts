@@ -1,5 +1,5 @@
 // Catalogue des épisodes de la série — le quatrième gisement (`anime`, cf. `docs/FUSION.md`),
-// lu depuis `data/anime/episodes.db` par `tauri-plugin-sql`, exactement comme le miroir du wiki
+// lu depuis `data/anime/episodes.db` par `shared SQLite owner`, exactement comme le miroir du wiki
 // (`wikiDb.ts`) et la base de reverse (`reDb.ts`).
 //
 // ## D'où vient cette base
@@ -13,7 +13,7 @@
 // `@aphrody/ietv-client` (le client REST) vise un serveur `/api/ietv` : il reste la bonne porte
 // pour un bot ou un site, pas pour une application qui doit fonctionner hors ligne. Le schéma lu
 // ici est celui qu'écrit `IETVCache`, donc les deux chemins servent les mêmes données.
-import Database from "@tauri-apps/plugin-sql";
+import Database from "./sqlite";
 
 import { api } from "./api";
 
@@ -135,7 +135,7 @@ export interface LotCatalogue {
 let promesseDb: Promise<Database> | null = null;
 let cheminOuvert: string | null = null;
 
-/** sqlx veut des `/`, pas des `\` — même conversion que `wikiDb`/`reDb`. */
+/** SQLite paths use normalized `/` separators — même conversion que `wikiDb`/`reDb`. */
 function uriSqlite(chemin: string): string {
   return `sqlite:${chemin.replace(/\\/g, "/")}`;
 }

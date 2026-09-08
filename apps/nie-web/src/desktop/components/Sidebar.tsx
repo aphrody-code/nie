@@ -12,6 +12,8 @@
 // Le rendu d'un item reprend `SpaceItem.tsx` : `rounded-md`, icône 16 px, libellé tronqué,
 // actif = `bg-accent`.
 import { useTheme } from "next-themes";
+import { useState } from "react";
+import { NativeToolSurface } from "@niers/inacord-ui/shell/native-tool-surface.tsx";
 
 import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
@@ -61,6 +63,8 @@ export function Sidebar({
   const t = useT();
   const { resolvedTheme, setTheme } = useTheme();
   const dark = resolvedTheme !== "light";
+  const [focusedItem, setFocusedItem] = useState<string | null>(null);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   return (
     // Panneau à plat : plus de carte interne (`rounded-2xl bg-sidebar/65`) ni de double marge —
@@ -91,14 +95,21 @@ export function Sidebar({
                       onClick={item.onClick ?? (() => onSelect(item.id))}
                       onContextMenu={item.onContextMenu}
                       onAuxClick={item.onAuxClick}
+                      onFocus={() => setFocusedItem(item.id)}
+                      onBlur={() => setFocusedItem(null)}
+                      onPointerEnter={() => setHoveredItem(item.id)}
+                      onPointerLeave={() => setHoveredItem(null)}
+                      onPointerCancel={() => setHoveredItem(null)}
+                      aria-current={active ? "page" : undefined}
                       title={item.title ?? item.label}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium transition-colors",
+                        "native-tool-navigation-row flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium transition-colors",
                         active
                           ? "bg-accent text-white"
                           : "text-sidebar-ink-dull hover:bg-sidebar-selected/20 hover:text-sidebar-ink",
                       )}
                     >
+                      <NativeToolSurface active={active || focusedItem === item.id || hoveredItem === item.id} />
                       <span className={cn("shrink-0", !active && item.iconClassName)}>
                         <Icon name={item.icon} size={16} />
                       </span>

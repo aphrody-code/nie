@@ -15,18 +15,19 @@ path = "src/main.rs"
 workspace = true
 
 [dependencies]
+nie-core.workspace = true
 anyhow.workspace = true
-clap.workspace = true
-serde_json.workspace = true
-serde.workspace = true
-png = "0.18"
-bcdec_rs = "0.2.0"
-wgpu = { version = "=29.0.3", optional = true }
-pollster = { version = "0.4", optional = true }
-bytemuck = { version = "1", features = ["derive"], optional = true }
+clap = { workspace = true, features = ["derive", "color", "env"] }
+serde_json = { workspace = true, default-features = true }
+serde = { workspace = true, features = ["derive"] }
+png.workspace = true
+bcdec_rs.workspace = true
+wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+bytemuck = { workspace = true, optional = true, features = ["derive"] }
 
 [dev-dependencies]
-nie-formats = { path = "../../engine/nie-formats" }
+nie-formats = { workspace = true, default-features = true }
 
 # Rendu GPU (wgpu) du viewport — optionnel : les consommateurs headless (golden CPU, CLI turntable)
 # ne doivent pas tirer wgpu/pollster. Version de wgpu ALIGNÉE sur `nie-game` (=29.0.3), l'autre hôte
@@ -38,4 +39,4 @@ gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
 webgpu = ["gpu", "wgpu/webgpu", "dep:web-sys"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = { version = "0.3", features = ["HtmlCanvasElement"], optional = true }
+web-sys = { workspace = true, optional = true, features = ["HtmlCanvasElement"] }

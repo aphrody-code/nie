@@ -21,7 +21,7 @@ workspace = true
 # ici — c'est `nie_lua::bytecode` pur Rust, sans mlua ni tree-sitter (cf. le Cargo.toml de
 # nie-formats) — et c'est déjà la base commune de nie-core/nie-render3d/nie-game : nie-formats
 # reste le seul poids ajouté, pas un poids nouveau pour l'écosystème.
-nie-formats.workspace = true
+nie-formats = { workspace = true, default-features = true }
 
 [dev-dependencies]
 # Cross-check UNIQUEMENT (pas de dépendance de la bibliothèque publiée) : `nie_aphrody::design`
@@ -32,10 +32,10 @@ nie-formats.workspace = true
 # une hypothèse. En dev-dependency : le poids de resvg/usvg/tiny-skia/image-compare que porte
 # nie-aphrody (sa chaîne image → SVG → raster, sans rapport avec la lecture d'un jeton) ne
 # retombe JAMAIS sur un consommateur de la bibliothèque (nie-render3d, nie-game, nie-core).
-nie-aphrody = { workspace = true }
+nie-aphrody.workspace = true
 # Lecture de `data/menu/manifest.json` dans les tests de `screens` UNIQUEMENT : la bibliothèque
 # publiée n'a pas besoin de parser du JSON, elle porte l'inventaire en constantes.
-serde_json.workspace = true
+serde_json = { workspace = true, default-features = true }
 
 [[bin]]
 name = "game_screens_css"

@@ -28,15 +28,15 @@ workspace = true
 
 [dependencies]
 # Legacy host kept on request; the default binary uses the shared NIE renderer.
-fyrox = { version = "1.0.1", optional = true }
-fyroxed_base = { version = "1.0.1", optional = true }
+fyrox = { workspace = true, optional = true }
+fyroxed_base = { workspace = true, optional = true }
 
 # Real game assets: mount the CPK VFS and assemble the model (G4MD+G4MG+G4TX).
-nie-formats = { workspace = true, features = ["textures"], optional = true }
-nie-render3d = { path = "../../engine/nie-render3d" }
+nie-formats = { workspace = true, optional = true, features = ["textures"], default-features = true }
+nie-render3d.workspace = true
 # Version compatible with the engine's single wgpu 29 dependency.
-eframe = { version = "=0.34.1", default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland"], optional = true }
-serde_json.workspace = true
+eframe = { workspace = true, optional = true, features = ["default_fonts", "wgpu", "x11", "wayland"] }
+serde_json = { workspace = true, default-features = true }
 
 anyhow.workspace = true
-clap = { workspace = true, optional = true }
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }

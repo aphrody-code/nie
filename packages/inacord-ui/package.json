@@ -28,17 +28,20 @@
 		"./avatar/avatar-editor.css": "./src/avatar/avatar-editor.css",
 		"./avatar/request": "./src/avatar/request.ts",
 		"./shell/menu-screen": "./src/shell/menu-screen.tsx",
+		"./shell/native-scene-layers": "./src/shell/native-scene-layers.tsx",
 		"./shell/ecran-menu": "./src/shell/ecran-menu.tsx",
 		"./shell/geometrie-mainmenu": "./src/shell/geometrie-mainmenu.ts",
 		"./shell/layout-jeu": "./src/shell/layout-jeu.ts",
-		"./shell/*": "./src/shell/*"
+		"./shell/*": "./src/shell/*",
+		"./three/*": "./src/three/*.tsx",
+		"./three/character-renderer": "./src/three/character-renderer.ts"
 	},
 	"scripts": {
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
 		"@rosegriffon/ui": "workspace:*",
-		"@base-ui/react": "^1.7.0",
+		"@base-ui/react": "catalog:",
 		"@niers/asset-source": "workspace:*",
 		"@niers/game": "workspace:*",
 		"@radix-ui/react-accordion": "catalog:",
@@ -72,13 +75,15 @@
 		"recharts": "catalog:",
 		"sonner": "catalog:",
 		"tailwind-merge": "catalog:",
-		"vaul": "catalog:"
+		"vaul": "catalog:",
+		"three": "catalog:"
 	},
 	"devDependencies": {
 		"@types/bun": "catalog:",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
 		"react-dom": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"@types/three": "catalog:"
 	}
 }

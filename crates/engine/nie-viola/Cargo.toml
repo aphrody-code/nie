@@ -14,11 +14,11 @@ workspace = true
 # `nie-formats` porte les formats (CPK, cfg.bin, VFS) et reste no_std/wasm-compatible : c'est
 # précisément pourquoi l'orchestration parallèle (rayon) et le mappage mémoire (memmap2) vivent
 # ici et non là-bas — les y ajouter casserait `nie-wasm`.
-nie-formats.workspace = true
+nie-formats = { workspace = true, default-features = true }
 rayon.workspace = true
 memmap2.workspace = true
 # Le manifeste de reprise du dump (une liste de noms de packs), le journal des échecs, et le
 # manifeste de mod — qui est un format de fichier public, donc décrit par des types plutôt que
 # par du parsing manuel.
-serde_json.workspace = true
-serde.workspace = true
+serde_json = { workspace = true, default-features = true }
+serde = { workspace = true, features = ["derive"] }

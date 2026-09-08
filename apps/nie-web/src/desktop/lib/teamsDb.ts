@@ -1,5 +1,5 @@
-// Compositions d'équipe enregistrées **localement** — `tauri-plugin-sql`, table `teams` de
-// `mods.db` (migration v4), dans `BaseDirectory::AppData`.
+// Compositions d'équipe enregistrées **localement** — `shared SQLite owner`, table `teams` de
+// `mods.db` (migration v4), dans `the application config directory`.
 //
 // ## Pourquoi une table, et pas la session du wiki
 //
@@ -16,7 +16,7 @@
 //
 // Ce qui n'est PAS ici : le format d'échange. Une composition se partage par le code de
 // `@niers/game/game/team-code`, identique à celui des URLs du wiki — cf. `equipe.ts`.
-import Database from "@tauri-apps/plugin-sql";
+import Database from "./sqlite";
 
 import type { TeamMember } from "@niers/game/game/team-types";
 

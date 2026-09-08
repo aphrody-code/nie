@@ -22,21 +22,23 @@ pub mod bridge;
 #[cfg(feature = "host")]
 pub mod cinema;
 #[cfg(feature = "host")]
+pub mod database;
+#[cfg(feature = "host")]
 pub mod depot;
 pub mod export;
 pub mod folder_roles;
 #[cfg(feature = "host")]
 pub mod listing;
+pub mod menu_audio;
 /// Compatibility facade; menu layout ownership lives in `nie_formats::menu`.
 pub mod menu_layout;
-pub mod menu_audio;
+pub mod menu_modes;
 pub mod motion;
-pub mod spatial_preview;
 pub mod native_audio;
 pub mod native_metadata;
-pub mod related;
 pub mod native_video;
-pub mod menu_modes;
+pub mod related;
+pub mod spatial_preview;
 
 use nie_formats::{
     cfgbin, col, cri_audio, dxbc, g4cm, g4la, g4ma, g4md, g4mt, g4pk, g4sk, g4tx, g4vs, level5,

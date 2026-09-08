@@ -17,7 +17,7 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
-nie-cli = { path = "../nie-cli" }
+nie-cli.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
+serde_json = { workspace = true, default-features = true }

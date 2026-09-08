@@ -1,35 +1,19 @@
-# Package Cargo autonome, volontairement HORS du workspace racine (`members = ["crates/*"]`) :
-# une table [workspace] vide l'indique explicitement à Cargo (sinon il remonte l'arborescence
-# et réclame d'être ajouté aux membres). Les crates niers sont réutilisées via chemins relatifs
-# (cf. [dependencies] ci-dessous), pas via l'espace de travail.
-[workspace]
-
+# Desktop host in the root Cargo workspace. SQLite sessions use the shared nie-explore rusqlite owner.
+# Preserve edition 2021 and existing feature choices; bindings remain a development-only binary.
 [package]
 name = "inacord"
 description = "Explorateur/éditeur du VFS (CPK) d'Inazuma Eleven: Victory Road — UI native Windows (Fluent/Mica)"
 version = "0.5.11"
 authors = ["niers"]
 edition = "2021"
-# Deux binaires vivent ici : l'application et `export-bindings`. `tauri dev` lance
-# `cargo run` SANS `--bin`, ce qui echouait en « could not determine which binary to run »
-# avant meme d'ouvrir la fenetre. `required-features` sur `export-bindings` ne suffit pas :
-# cargo compte les cibles declarees, pas celles que les features activent.
+# Tauri invokes cargo run; select the application rather than the development binaries.
 default-run = "inacord"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "inacord_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-# `export-bindings` est un OUTIL DE DEVELOPPEMENT, pas un livrable. Sans cette declaration il est
-# construit par defaut, et le bundler Tauri empaquete alors le mauvais binaire : la 0.5.0 a produit
-# un MSI de 446 Ko contenant `export-bindings.exe` (182 Ko) au lieu de l'application (34 Mo), avec
-# une signature minisign parfaitement valide. `required-features` le sort du build par defaut ;
-# il reste lancable par `cargo run --bin export-bindings --features dev-bindings`.
 [[bin]]
 name = "inacord"
 path = "src/main.rs"
@@ -37,224 +21,72 @@ path = "src/main.rs"
 [[bin]]
 name = "export-bindings"
 path = "src/bin/export-bindings.rs"
+# Keep this utility out of default application bundles.
 required-features = ["dev-bindings"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build.workspace = true
 
 [features]
-# Construit `export-bindings` (regeneration de `src/lib/bindings.ts`). Hors build par defaut :
-# voir la note au-dessus de [[bin]].
 dev-bindings = []
-# Gate les tests d'assemblage GLB sur le vrai
-# `data/` du jeu (57 Go, © Level-5, gitignored, absent du clone public) — même convention que
-# `real-fixtures` (nie-formats), `real-saves` (nie-save), `real-audio` (nie-model-serve).
-# Lancer : cargo test -p nie-explorer --lib --features real-fixtures
 real-fixtures = []
 
 [dependencies]
-# Feature `specta` : implémente `specta::Type` (marqueur "argument à ignorer côté JS") pour les
-# types injectés par Tauri (`State`, `AppHandle`…) — c'est ce qui permet à `tauri-specta` de
-# générer des bindings TS sans que `state: tauri::State<VfsState>` apparaisse dans la signature
-# exportée (vérifié dans le Cargo.toml de `tauri-specta` : `tauri = { features = ["specta"] }`).
-tauri = { version = "2", features = ["specta"] }
-tauri-plugin-opener = "2"
-tauri-plugin-dialog = "2"
-tauri-plugin-window-state = "2"
-tauri-plugin-clipboard-manager = "2"
-tauri-plugin-fs = "2"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-anyhow = "1"
-base64 = "0.22"
-# Décompresse les bases livrées avec l'application (`resources/db/*.sqlite.gz` → `$APPDATA/db/`,
-# cf. `installer_bases_embarquees`). gzip plutôt que zstd : le format que `gzip` produit déjà sur
-# les deux postes (aucun `zstd` installé ici), et un décodeur pur Rust sans dépendance native —
-# donc rien qui puisse entrer en conflit de lien avec le `sqlx-sqlite` du bloc d'exclusions.
-flate2 = "1"
-# Client HTTP synchrone minimal — résolveur distant azalee (GraphQL/REST), désactivé tant que
-# l'URL n'est pas renseignée côté UI (Paramètres). Pas de runtime async requis (appel bloquant
-# dans un `tauri::command`, exécuté hors thread UI par Tauri).
-ureq = { version = "2", default-features = false, features = ["tls", "json"] }
+tauri = { workspace = true, features = ["specta"] }
+tauri-plugin-opener.workspace = true
+tauri-plugin-dialog.workspace = true
+tauri-plugin-window-state.workspace = true
+tauri-plugin-clipboard-manager.workspace = true
+tauri-plugin-fs.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
+anyhow.workspace = true
+base64.workspace = true
+flate2.workspace = true
+ureq = { workspace = true, features = ["tls", "json"] }
 
-# Génère les bindings TypeScript de `src/lib/api.ts` depuis les VRAIES signatures Rust des
-# commandes (`#[specta::specta]`) — remplace le miroir manuel `invoke<T>("cmd", {...})` qui
-# pouvait diverger silencieusement de `lib.rs` à chaque commande ajoutée/modifiée sans que rien
-# ne le signale côté compilation.
-specta = { version = "2.0.0-rc.25", features = ["serde_json"] }
-tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
-specta-typescript = "0.0.12"
+specta = { workspace = true, features = ["serde_json"] }
+tauri-specta = { workspace = true, features = ["derive", "typescript"] }
+specta-typescript.workspace = true
 
-# Journalisation PERSISTANTE. Sur un build release Windows aucune console n'est attachee :
-# `eprintln!` n'ecrit nulle part, et une utilisatrice qui signale une anomalie n'a aucun fichier
-# a joindre. `tauri-plugin-log` ecrit dans `%APPDATA%\dev.niers.explorer\logs\` (cible `LogDir`)
-# ET relaie `console.*` du front. `log` est la facade : tout le code Rust ecrit `log::warn!` /
-# `log::error!`, jamais `eprintln!` (cf. `installer_bases_embarquees`).
-tauri-plugin-log = "2.9.1"
-# Version d'OS / architecture / locale — cout quasi nul, valeur diagnostique dans un rapport
-# d'anomalie et le panneau Parametres. Cote JS : `@tauri-apps/plugin-os`.
-tauri-plugin-os = "2.3.2"
-log = "0.4.34"
-# Schema `niers://` — ouvrir un titre depuis le wiki azalee. ATTENTION Windows : ce plugin exige
-# que `tauri-plugin-single-instance` soit enregistre AVANT lui dans la chaine `.plugin(...)`
-# (sans quoi une seconde instance se lance au lieu de transmettre l'URL), et l'enregistrement du
-# schema aupres du systeme se fait a l'INSTALLATION (MSI/NSIS) — jamais en `tauri dev`.
-tauri-plugin-deep-link = "2.4.10"
+tauri-plugin-log.workspace = true
+tauri-plugin-os.workspace = true
+log.workspace = true
+tauri-plugin-deep-link.workspace = true
 
-# Forward-ouverture "Ouvrir avec" Explorer → instance déjà lancée (argv[1] = chemin du fichier).
-# Updater : vérifie/télécharge/installe les nouvelles versions (desktop uniquement — pas de cible
-# mobile dans ce projet). `tauri-plugin-process` fournit `relaunch()` après installation (requis
-# côté JS par `@tauri-apps/plugin-updater`, cf. doc officielle du plugin updater).
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
-tauri-plugin-single-instance = "2"
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
+tauri-plugin-single-instance.workspace = true
+tauri-plugin-updater.workspace = true
+tauri-plugin-process.workspace = true
 
-# Crates niers réutilisées telles quelles (mêmes décodeurs que `niers vfs`, cf. CLAUDE.md
-# anti-doublon) — chemins relatifs depuis apps/inacord/src-tauri/, hors du workspace
-# racine (members = ["crates/*"]), donc pinnées ici plutôt que via [workspace.dependencies].
-#
-# Inventaire COMPLET des 26 crates `crates/*` face à ce binaire (audit 2026-08-08, cf. `docs/
-# PLAN.md` §3octies) : ce qui suit est la liste de TOUT ce qui est chargeable en dépendance
-# Cargo directe (a un `src/lib.rs`, aucun conflit de lien natif). Les crates absentes de ce
-# fichier le sont pour une raison Cargo dure, listée à la fin — jamais un oubli.
-nie-formats = { path = "../../../crates/engine/nie-formats", features = ["serde", "textures", "images", "audio-decode"] }
-nie-explore = { path = "../../../crates/engine/nie-explore" }
-# Saves IEVR (Lives, CRC32-keyed XOR) : décrypt/inspection/ré-encryptage → onglet Sauvegardes.
-nie-save = { path = "../../../crates/engine/nie-save", features = ["serde"] }
-# Modèles de données de jeu (skills/auras/chara_param/items…) — chargée pour un futur navigateur
-# de données 100 % hors-ligne (sans miroir wiki), pas encore câblée dans une commande.
-nie-data = { path = "../../../crates/engine/nie-data", features = ["serde", "std"] }
-# Pet Aphrody (la mascotte de l'app) ET la chaine pixel-perfect : mesure, comparaison SSIM,
-# vectorisation, planche de sprites. La crate ne depend d'AUCUN specta — les DTO vivent dans
-# `src/aphrody.rs`, comme pour `export.rs` : ce backend est une facade, pas un second moteur.
-nie-aphrody = { path = "../../../crates/engine/nie-aphrody" }
-# Logique de jeu reversée (ballon/IA/état de match) — chargée pour de futurs outils de mod
-# gameplay, pas encore câblée dans une commande.
-nie-core = { path = "../../../crates/engine/nie-core" }
-# RE en direct (lecture mémoire ReadProcessMemory native Windows) — chargée mais SANS commande
-# exposée : EAC est présent sur cette installation, on n'attache pas au process au runtime
-# de l'app de modding par défaut (cf. `docs/`).
-nie-trace = { path = "../../../crates/forge/nie-trace" }
-# Frontière BFS (redis) — chargée pour un futur outil RE intégré, pas encore câblée.
-nie-queue = { path = "../../../crates/forge/nie-queue" }
-# La FORGE (recouvrement, registre, rapport de production) — onglet « Forge » de la vue RE.
-# `default-features = false` retire `redb`, seul module a dependre de `rusqlite` : sans cela le
-# `links = "sqlite3"` entrerait en conflit avec le `sqlx-sqlite` de tauri-plugin-sql et le crate
-# serait inliable (meme raison que l'exclusion de `nie-index` plus bas). Verifie par
-# `cargo tree -i libsqlite3-sys` : une seule occurrence, via sqlx-sqlite.
-nie-forge = { path = "../../../crates/forge/nie-forge", default-features = false }
-# Recouvrement PE (`UnitKind`) — deja tire par `nie-forge`, declare pour nommer les types.
-nie-pe = { path = "../../../crates/forge/nie-pe" }
-# Minidump `.dmp` HORS LIGNE : parsing + scan AOB (`re_dump_scan`, cf. `src/re_trace.rs`). Le
-# scan porte sur un fichier déjà capturé — aucune attache au process vivant. Extrait de `nie-re`
-# précisément pour être liable ici : sa seule dépendance est `thiserror` (ni rusqlite, ni le
-# dépôt frère `aphrody`), cf. l'exclusion de `nie-re` plus bas.
-nie-dump = { path = "../../../crates/forge/nie-dump" }
-# Opérations de modding (dump/pack/merge/crypto Criware) — appelées EN PROCESS. Aucune dépendance
-# sqlite, donc aucun conflit avec le `sqlx-sqlite` de `tauri-plugin-sql` (cf. bloc d'exclusions).
-nie-viola = { path = "../../../crates/engine/nie-viola" }
-# Types géométriques POD partagés (Vec2/Vec3) — déjà tiré transitivement via nie-core/
-# nie-formats (dédup Phase 2), déclaré ici en direct pour un accès sans détour depuis les
-# futures commandes de mod gameplay (placement/formation).
-nie-geom = { path = "../../../crates/engine/nie-geom" }
-# Cœur du jeu (GameState + trait Renderer) : PAS de wgpu/winit ici (nie-game, le hôte GPU, est
-# un binaire séparé qui consomme nie-app — aucun conflit avec le WebView2 de Tauri). Chargée
-# pour un futur onglet « prévisualiser un match/dialogue » rendu en framebuffer CPU, embarqué
-# sans dépendre d'un process externe.
-nie-app = { path = "../../../crates/engine/nie-app" }
-# VM Lua 5.2 RÉELLE du jeu (mlua/PUC-Rio 5.2.4 vendored) — dépendance désormais DIRECTE : l'onglet
-# Lua ne se contente plus de décrire un `.lua.bin`, il le décode (`bytecode`), l'exécute et en
-# inspecte les valeurs (`runtime`). Passer par `nie-explore` ne donnait accès qu'à
-# `describe_content`, qui ne fait qu'une reconnaissance de signature.
-nie-lua = { path = "../../../crates/engine/nie-lua" }
-# Zip de `plugins/niers-blender` pour `bpy.ops.preferences.addon_install` (exige un vrai .zip, pas un
-# dossier) — même version que `nie-steam` (décompression de manifestes CDN), pas de nouvelle
-# version introduite dans le workspace.
-zip = "2"
-# Corbeille Windows RÉELLE (`IFileOperation`/`SHFileOperationW` sous le capot) — même crate que
-# cosmic-files (`trash.rs` amont, lu en détail 2026-08-08 « lis vraiment le code de cosmic ») :
-# `removeStagedFile`/`deleteModWorkspace` (mods) faisaient un `remove()` PERMANENT
-# (`@tauri-apps/plugin-fs`, `std::fs::remove_file` sous le capot) sur du vrai travail
-# utilisatrice (fichiers de mod édités) — aucun rattrapage possible en cas de clic accidentel.
-trash = "5"
-# Moteur de match top-down (World : physique ballon, 22 joueurs, buts) — chargée pour un futur
-# onglet « simuler un match » embarqué (aujourd'hui : `nie-runtime`/`nie-match3d` en CLI headless
-# séparée uniquement).
-nie-runtime = { path = "../../../crates/engine/nie-runtime" }
-# Téléchargement/dump natif de depots Steam (port du `Steam/` C# d'iecode sur `steamroom`) —
-# chargée pour un futur onglet « vérifier/récupérer le dépôt IEVR », pas encore câblée dans une
-# commande. Dépendance `tokio` (runtime async) : compatible avec l'exécuteur bloquant des
-# commandes `tauri::command` existantes (appelée depuis un thread dédié, jamais le thread UI).
-nie-steam = { path = "../../../crates/tools/nie-steam" }
-# Orchestration de job annulable/pausable avec progression (architecture inspirée sd-task-system,
-# implémentation originale) — remplace le scan VFS synchrone opaque de `vfs_all_entries` par un
-# job chunké annulable, avec progression relayée par événement Tauri (`vfs-index-progress`,
-# cf. `vfs_index_scan_start`/`vfsIndexDb.reindex`).
-nie-tasks = { path = "../../../crates/tools/nie-tasks" }
-async-trait = "0.1"
-uuid = { version = "1", features = ["v4"] }
-tokio = { version = "1", features = ["rt"] }
-#
-# Exclusions Cargo dures — PAS des oublis, chacune vérifiée (`cargo metadata`/lecture directe
-# du Cargo.toml de chaque crate, 2026-08-08) :
-# - `nie-wiki`/`nie-re`/`nie-index`/`nie-seed`/`nie-zukan`/`nie-model-serve` : dépendent
-#   (directement ou via nie-index) de `rusqlite` (libsqlite3-sys 0.35, `links = "sqlite3"`) →
-#   conflit de lien natif avec le `sqlx-sqlite` de tauri-plugin-sql (libsqlite3-sys 0.30.1,
-#   vérifié par `cargo tree -i libsqlite3-sys` : une seule occurrence, via sqlx-sqlite), Cargo
-#   interdit deux copies d'une lib `links`. Le miroir wiki est donc interrogé côté frontend via
-#   tauri-plugin-sql (mêmes requêtes SQL que `nie-wiki::query`, copiées dans `src/lib/wikiDb.ts`)
-#   — un seul moteur SQLite dans TOUT le binaire. `nie-re` traîne EN PLUS `aphrody-re`, dont le
-#   `path` sort de ce dépôt (`../aphrody/crates/aphrody-re`) : un clone de niers seul ne
-#   résoudrait même pas le manifeste. C'est pourquoi le scan AOB de minidump ne passe PAS par une
-#   feature Cargo de `nie-re` (une dépendance optionnelle non activée entre quand même dans la
-#   résolution du graphe) mais par `nie-dump`, crate extraite qui ne dépend que de `thiserror` —
-#   `cargo tree -e no-dev` depuis ici ne contient ni `rusqlite` ni `aphrody-re`.
-# - `nie-game`/`nie-headless`/`nie-play`/`nie-cli` : PAS de `src/lib.rs`, uniquement des `[[bin]]`
-#   → aucun cible `lib` à lier, Cargo refuse ces crates comme `[dependencies]` quelle que soit
-#   leur envie d'être réutilisées (contrainte dure, pas un choix). `nie-game` shippe en plus
-#   wgpu/winit (2ᵉ contexte GPU natif dans un process WebView2) — même sans le blocage `[lib]`,
-#   pas souhaitable à embarquer.
-# - `nie-ffi` : `[lib] crate-type = ["cdylib"]` **sans** `"rlib"` → ne produit aucun artefact
-#   linkable par un autre crate Rust (c'est une frontière FFI pour Bun/JS, pas une lib Rust
-#   consommable) ; de toute façon redondante (n'expose rien que nie-formats/nie-core n'exposent
-#   déjà en direct).
-# - `nie-wasm` : `wasm-bindgen` compile nativement mais la sortie n'a de sens que sur
-#   `wasm32-unknown-unknown` (glue JS) ; ses crates utiles (`nie-app`/`nie-runtime`/`nie-core`/
-#   `nie-data`/`nie-save`/`nie-formats`) sont désormais TOUTES chargées ci-dessus en direct —
-#   dépendre de `nie-wasm` en plus serait un doublon, pas un gain.
-# - `nie-engine` : exclue du workspace Cargo lui-même (`exclude` racine) — portage RE non
-#   validé, conservé en lecture seule comme carte de référence uniquement (cf. `docs/PLAN.md`
-#   §3quinquies/§6 dédup Phase 0). Ne JAMAIS en dépendre tant qu'il n'est pas re-validé byte-exact.
-# - `nie-lua` (VM Lua 5.2 réelle) : pas de dépendance directe nécessaire — déjà tirée
-#   transitivement via `nie-explore` (`describe_content` l'appelle pour le bytecode `.lua.bin`).
-#
-# IECODE Core/CLI was the historical reference; current implementations live in the Rust crates.
-# de portage externe (cf. `docs/PLAN.md` intro « le moyen ≠ la fin »), PAS une crate Cargo — un
-# projet .NET ne se « package » pas comme dépendance Rust. Utilisée en cross-vérification
-# manuelle lors du portage d'encodeurs (`cpk_encode`/`g4tx_encode`, cf. `apps/inacord/
-# ROADMAP.md` §1.1/§1.2 et le commit `8eccadc`), jamais exécutée ni embarquée par ce binaire.
+nie-formats = { workspace = true, features = ["serde", "textures", "images", "audio-decode"], default-features = true }
+nie-explore = { workspace = true, default-features = true }
+nie-save = { workspace = true, features = ["serde"] }
+nie-data = { workspace = true, features = ["serde", "std"] }
+nie-aphrody.workspace = true
+nie-core.workspace = true
+nie-trace = { workspace = true, default-features = true }
+nie-queue = { workspace = true, default-features = true }
+nie-forge.workspace = true
+nie-pe = { workspace = true, default-features = true }
+nie-dump.workspace = true
+nie-viola.workspace = true
+nie-geom.workspace = true
+nie-app.workspace = true
+nie-lua = { workspace = true, default-features = true }
+zip.workspace = true
+trash.workspace = true
+nie-runtime.workspace = true
+nie-steam = { workspace = true, default-features = true }
+nie-tasks = { workspace = true, default-features = true }
+async-trait.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+tokio = { workspace = true, features = ["rt"] }
 
-# `winreg` : lecture registre `HKLM\...\Valve\Steam` pour la VRAIE détection du dossier de jeu.
 [target.'cfg(target_os = "windows")'.dependencies]
-winreg = "0.52"
-# Presse-papiers FICHIERS natif Windows (CF_HDROP réel — ce que Ctrl+C dans l'Explorateur écrit,
-# ce que Ctrl+V dans l'Explorateur/toute autre appli sait lire). Recherche 2026-08-08 (« inspire-
-# toi de cosmic-files pour... les interactions OS/filesystem ») : l'ancien presse-papiers de
-# nie-explorer (`@tauri-apps/plugin-clipboard-manager`, `writeText`/`readText`) ne portait QUE du
-# texte — coller un chemin copié depuis l'Explorateur marchait par accident (le presse-papiers
-# CONTIENT aussi `text/plain` en pratique), mais Ctrl+C depuis nie-explorer n'écrivait JAMAIS un
-# CF_HDROP réel : impossible de coller un fichier "copié" ici dans l'Explorateur Windows.
-# `clipboard-win` : wrapper sûr autour de `OpenClipboard`/`SetClipboardData`/`GetClipboardData`
-# CF_HDROP (liste de chemins, format natif Windows — l'équivalent exact de `text/uri-list`/
-# `x-special/gnome-copied-files` que cosmic-files pose sur le presse-papiers X11/Wayland, cf.
-# `crates/clipboard.rs` du dépôt amont, ClipboardCopy/ClipboardPaste).
-clipboard-win = { version = "5", features = ["std"] }
+winreg.workspace = true
+clipboard-win = { workspace = true, features = ["std"] }
 
-# Vérification RÉELLE des familles de l'encyclopédie sur le jeu monté — outil de développement,
-# comme `export-bindings` : `cargo test` ne démarre pas dans ce crate sur le poste Windows
-# (STATUS_ENTRYPOINT_NOT_FOUND), ce binaire est la seule façon d'y exécuter les `list_*`.
 [[bin]]
 name = "verif-familles"
 path = "src/bin/verif-familles.rs"

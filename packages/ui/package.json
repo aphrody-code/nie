@@ -65,7 +65,7 @@
 		"input-otp": "catalog:",
 		"lucide-react": "catalog:",
 		"next-themes": "catalog:",
-		"qrcode-generator": "^2.0.4",
+		"qrcode-generator": "catalog:",
 		"react-day-picker": "catalog:",
 		"react-hook-form": "catalog:",
 		"react-resizable-panels": "catalog:",

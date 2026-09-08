@@ -3,7 +3,7 @@
 // (adresse de vtable réelle) et ~250 000 xrefs, produites par `nie-re` (bornes `.pdata`,
 // récupération des feuilles, RTTI, tables funcLua, références de chaînes, propagation de
 // labels ; cf. `crates/forge/nie-re` et `docs/RE.md`). Interrogée EXACTEMENT
-// comme le miroir wiki (`wikiDb.ts`) : `tauri-plugin-sql` directement depuis le frontend — même
+// comme le miroir wiki (`wikiDb.ts`) : `shared SQLite owner` directement depuis le frontend — même
 // raison qu'eux (rusqlite de `nie-re`/`nie-index` entre en conflit de lien natif avec le
 // `sqlx-sqlite` du plugin dans CE binaire, cf. `src-tauri/Cargo.toml`).
 //
@@ -11,7 +11,7 @@
 // est câblée séparément (`api.reTrace*`, cf. `src-tauri/src/re_trace.rs` + onglet « Live » de
 // `ReToolsView`), décision utilisatrice tranchée (lecture seule, jamais de patch EAC/écriture
 // sur un process vivant).
-import Database from "@tauri-apps/plugin-sql";
+import Database from "./sqlite";
 import { api } from "@/lib/api";
 
 export interface FunctionRow {
@@ -284,7 +284,7 @@ export const reDb = {
 
   /**
    * Renomme une fonction (§5 roadmap « édition des labels ») — écrit DIRECTEMENT dans
-   * `niers.sqlite` via `tauri-plugin-sql` (même mécanisme de lecture que `searchFunctions`, la
+   * `niers.sqlite` via `shared SQLite owner` (même mécanisme de lecture que `searchFunctions`, la
    * base n'est PAS ouverte en lecture seule). `name_source` passe à `'user-edit'` : distingue un
    * nom entré manuellement dans l'app des sources RE existantes (`'vtable-struct'`/`'ghidra'`/
    * `'pdb'`, cf. `docs/PLAN.md` E2) — même discipline de provenance que le reste du projet

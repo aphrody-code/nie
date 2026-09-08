@@ -1,4 +1,4 @@
-/** Thin WebAssembly host for the same renderer used by the native editor. */
+/** Thin WebAssembly host for the Rust game reconstruction renderer. */
 import { WebGpuViewer } from "../wasm/nie_wasm.js";
 import { ensureWasm } from "./bridge";
 

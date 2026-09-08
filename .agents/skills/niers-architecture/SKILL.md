@@ -68,6 +68,14 @@ adapter roles; they are not another game engine.
 
 ## Host convergence and migration boundaries
 
+The application 3D editor has one presentation owner: `packages/inacord-ui/src/three/Viewport3D.tsx`.
+Inacord editor and VFS/CPK previews delegate to it through compatibility adapters. Keep its
+multi-asset scene, picking, outliner, statistics, TRS gizmos, grid, wireframe and camera controls.
+`ModelViewerSurface` in the same directory owns gallery/detail preview lifecycle; its retained
+model-viewer backend preserves local compressed-model decoders. Do not create another editor
+or duplicate a preview lifecycle to add a host. The Rust reconstruction renderer remains a
+distinct backend until its rendering and editing contracts reach measured parity.
+
 The canonical frontend lives in `apps/nie-web`; the existing Inacord source is currently under
 `src/desktop`. Extract its shell, view registry and inspectors into shared presentation with
 injectable services. Native adapters retain filesystem, process and memory operations; web

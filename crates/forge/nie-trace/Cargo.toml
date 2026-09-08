@@ -42,10 +42,4 @@ libc = { workspace = true, optional = true }
 
 # Backend Windows natif : OpenProcess/ReadProcessMemory/Toolhelp32/VirtualQueryEx.
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", optional = true, features = [
-    "Win32_Foundation",
-    "Win32_System_Threading",
-    "Win32_System_Memory",
-    "Win32_System_Diagnostics_ToolHelp",
-    "Win32_System_Diagnostics_Debug",
-] }
+windows-sys = { workspace = true, optional = true, features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_Memory", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Diagnostics_Debug"] }

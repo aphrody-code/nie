@@ -17,6 +17,6 @@ default = ["host"]
 host = ["dep:redis", "dep:thiserror", "dep:tracing"]
 
 [dependencies]
-redis = { workspace = true, optional = true }
+redis = { workspace = true, optional = true, features = ["r2d2"] }
 thiserror = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }

@@ -20,8 +20,8 @@ host = ["dep:anyhow", "dep:clap"]
 workspace = true
 
 [dependencies]
-nie-formats.workspace = true
+nie-formats = { workspace = true, default-features = true }
 anyhow = { workspace = true, optional = true }
-clap = { workspace = true, optional = true }
-serde.workspace = true
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
+serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true

@@ -21,7 +21,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
-import { b64ToBytes } from "@/lib/bytes";
+/** Host transport decoding only; native model assembly stays in the Rust owner. */
+export interface Viewport3DServices {
+  decodeBase64: (base64: string) => Uint8Array;
+}
 
 /** Un asset chargé dans la scène. Plusieurs coexistent — cf. en-tête. */
 export interface ViewportAsset {
@@ -62,6 +65,7 @@ export interface NodeTransform {
 }
 
 export interface Viewport3DProps {
+  services: Viewport3DServices;
   /** Assets composant la scène, dans l'ordre d'affichage. Vide = viewport vide. */
   assets: ViewportAsset[];
   /** Identifiant du noeud à mettre en surbrillance (depuis l'outliner). */
@@ -163,6 +167,7 @@ function frameObjects(
 }
 
 export function Viewport3D({
+  services,
   assets,
   selectedId,
   onSelect,
@@ -193,6 +198,8 @@ export function Viewport3D({
   onSceneLoadedRef.current = onSceneLoaded;
   const wireframeRef = useRef(wireframe);
   wireframeRef.current = wireframe;
+  const servicesRef = useRef(services);
+  servicesRef.current = services;
 
   // Signature de la scène : l'identité du tableau `assets` change à chaque rendu du parent, pas son
   // contenu. Le GLB d'une clé donnée ne change jamais — les clés suffisent donc à décider.
@@ -382,7 +389,7 @@ export function Viewport3D({
       // et démonte l'arbre React entier — c'est-à-dire une fenêtre blanche pour un seul modèle
       // illisible. Le rappel d'erreur asynchrone ne suffit donc PAS.
       try {
-        const bytes = b64ToBytes(asset.glbB64);
+        const bytes = servicesRef.current.decodeBase64(asset.glbB64);
         // `slice()` : `parse` veut un ArrayBuffer, et celui d'un Uint8Array issu du décodage peut être
         // plus grand que la vue (offset non nul).
         const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;

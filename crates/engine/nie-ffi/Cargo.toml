@@ -22,10 +22,10 @@ nie-data = { workspace = true, features = ["serde"] }
 # G4md, LipSync, MevbinDocument, MenuObject, CpkHeader, G4pk — requis par nie_decode_json.
 # Feature `textures` = décodeur G4TX/DDS → RGBA8/PNG partagé (`nie_formats::g4tx_decode`),
 # utilisé par nie_g4tx_to_png (le DDS/BCn vit désormais dans nie-formats).
-nie-formats = { workspace = true, features = ["serde", "textures"] }
-serde_json.workspace = true
+nie-formats = { workspace = true, features = ["serde", "textures"], default-features = true }
+serde_json = { workspace = true, default-features = true }
 # `image` : encodage PNG des atlas de glyphes (make_glyph_png) + décodage dans les tests.
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { workspace = true, features = ["png"] }
 # `nie-runtime` : le moteur de match jouable (World/step/kickoff), exposé au bloc `nie_world_*`.
 # C'est ce qui permet à un runtime extérieur — la lib Python `niepy`, donc Ren'Py — de faire
 # TOURNER la simulation, et pas seulement de lire des assets.

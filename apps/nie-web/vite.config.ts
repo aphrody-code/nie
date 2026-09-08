@@ -1,34 +1,47 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type ConfigEnv, type UserConfig } from "vite";
+import { fileURLToPath } from "node:url";
 
-/**
- * Hote web de nie. Le bundle est servi par la crate `nie-site` (Axum), qui
- * lit `apps/nie-web/dist` : ne pas changer `outDir` sans changer
- * `NIE_SITE_STATIC_DIR` cote Rust.
- *
- * `nie-site` sert ses fichiers empreintes en `immutable` et sait rendre un
- * `.br`/`.zst` pre-compresse a cote du fichier ; la compression a la volee est
- * volontairement absente des deux cotes.
- */
-/*
- * Tailwind v4 est ici pour UNE raison, et elle est mesurée : `packages/inacord-ui` expose
- * 37 primitives (`data-grid`, `tree-rows`, `tabs`, `split-pane`, `tooltip`…) écrites en classes
- * Tailwind, et cet hôte n'en utilisait AUCUNE — il n'importait que les jetons CSS. Les monter
- * sans Tailwind ne lève aucune erreur : les composants se rendent, sans un seul style. C'est le
- * mode d'échec le plus coûteux du dépôt (« une page peut rendre son titre et être un 500 »).
- */
-export default defineConfig({
-	plugins: [react(), tailwindcss()],
-	build: { outDir: "dist", sourcemap: true, assetsDir: "static" },
-	server: {
-		port: 5175,
-		// En dev, tout ce qui n'est pas le bundle part vers nie-site.
-		proxy: Object.fromEntries(
-			["/api", "/f", "/b", "/assets", "/healthz"].map((p) => [
-				p,
-				{ target: "http://127.0.0.1:8085", changeOrigin: true },
-			]),
-		),
-	},
-});
+/** One frontend build owner; host adapters retain their native services and resources. */
+export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
+	const desktop = mode === "desktop";
+	const host = process.env.TAURI_DEV_HOST;
+	return {
+		root: fileURLToPath(new URL(".", import.meta.url)),
+		plugins: [react(), tailwindcss(), {
+			name: "nie-host-document",
+			transformIndexHtml(html: string) {
+				return desktop
+					? html.replace("<title>nie</title>", "<title>Inacord</title>").replace('<link rel="icon" href="/static/favicon.ico" />', "")
+					: html;
+			},
+		}],
+		publicDir: desktop ? fileURLToPath(new URL("../inacord/public", import.meta.url)) : "public",
+		resolve: {
+			dedupe: ["react", "react-dom"],
+			alias: {
+				"#nie-host": fileURLToPath(new URL(desktop ? "./src/desktop/DesktopHost.tsx" : "./src/BrowserHost.tsx", import.meta.url)),
+				"@": fileURLToPath(new URL("./src/desktop", import.meta.url)),
+			},
+		},
+		clearScreen: !desktop,
+		// Keep the existing site output stable; Tauri consumes the desktop artifact.
+		build: { outDir: desktop ? "dist-desktop" : "dist", sourcemap: true, assetsDir: "static" },
+		server: {
+			port: desktop ? 1420 : 5175,
+			strictPort: desktop,
+			host: desktop ? host || false : undefined,
+			hmr: desktop && host ? { protocol: "ws", host, port: 1421 } : undefined,
+			watch: { ignored: ["**/src-tauri/**"] },
+			proxy: Object.fromEntries(
+				["/api", "/f", "/b", "/assets", "/healthz"].map(path => [
+					path,
+					{ target: "http://127.0.0.1:8085", changeOrigin: true },
+				]),
+			),
+		},
+	};
+}
+
+export default defineConfig(createFrontendConfig);

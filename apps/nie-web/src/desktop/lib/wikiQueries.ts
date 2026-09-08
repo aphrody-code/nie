@@ -2,7 +2,7 @@
 // **pur** : aucune importation Tauri, aucune connexion. `wikiDb.ts` l'exécute, ce module ne fait
 // que décrire les requêtes et la forme des lignes.
 //
-// Cette séparation n'est pas cosmétique : `@tauri-apps/plugin-sql` n'existe qu'à l'intérieur de
+// Cette séparation n'est pas cosmétique : `./sqlite` n'existe qu'à l'intérieur de
 // la webview, donc tout module qui l'importe est invérifiable hors application. En gardant le SQL
 // ici, la vérification (`verification-migration.ts`) rejoue EXACTEMENT les requêtes que
 // l'application envoie, sur le vrai miroir — c'est ce qui distingue « la vue compile » de « la

@@ -7,11 +7,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
 use base64::Engine as _;
+use nie_explore::database::Migration;
 use nie_formats::cpk::{CpkEntry, CpkReader};
 use nie_formats::vfs::Vfs;
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
-use tauri_plugin_sql::{Migration, MigrationKind};
 
 mod aphrody;
 mod camera_nav;
@@ -24,6 +24,7 @@ mod lua_tools;
 mod mcp;
 mod re_trace;
 mod scene_editor;
+mod sqlite;
 mod steam;
 mod video;
 mod viola;
@@ -33,8 +34,8 @@ use re_trace::{
     re_trace_module_regions, re_trace_read_bytes_b64, re_trace_write_bytes_b64,
 };
 
-/// Migrations SQLite du workspace de mods (`tauri-plugin-sql`, base `mods.db` dans
-/// `BaseDirectory::AppData` — jamais dans le dossier du jeu). Un mod = un ensemble de fichiers
+/// Migrations SQLite du workspace de mods (shared rusqlite owner, `mods.db` in
+/// the application config directory — jamais dans le dossier du jeu). Un mod = un ensemble de fichiers
 /// VFS remplacés par une copie éditée par l'utilisatrice ; `nie-formats` n'a pas d'encodeur CPK,
 /// donc ce registre ne modifie RIEN en place — il organise des copies destinées à l'export.
 fn mods_migrations() -> Vec<Migration> {
@@ -42,7 +43,6 @@ fn mods_migrations() -> Vec<Migration> {
         Migration {
             version: 1,
             description: "mods + mod_files + recent_paths",
-            kind: MigrationKind::Up,
             sql: r#"
                 CREATE TABLE mods (
                     id          TEXT PRIMARY KEY,
@@ -81,7 +81,6 @@ fn mods_migrations() -> Vec<Migration> {
             // un chemin sans rapport (faux positif).
             version: 2,
             description: "vfs_files (index complet du VFS pour résolution précise par code)",
-            kind: MigrationKind::Up,
             sql: r#"
                 CREATE TABLE vfs_files (
                     path TEXT PRIMARY KEY,
@@ -114,7 +113,6 @@ fn mods_migrations() -> Vec<Migration> {
             // rester « en cours ».
             version: 3,
             description: "jobs (journal durable des opérations longues)",
-            kind: MigrationKind::Up,
             sql: r#"
                 CREATE TABLE jobs (
                     id         TEXT PRIMARY KEY,
@@ -143,7 +141,6 @@ fn mods_migrations() -> Vec<Migration> {
             // que le code de partage reste interchangeable entre les deux surfaces.
             version: 4,
             description: "teams (compositions d'équipe locales, sans session)",
-            kind: MigrationKind::Up,
             sql: r"
                 CREATE TABLE teams (
                     id           TEXT PRIMARY KEY,
@@ -1197,10 +1194,8 @@ fn save_export(dest: String, state: tauri::State<SaveState>) -> Result<u32, Stri
     Ok(bytes.len() as u32)
 }
 
-// La recherche chara/waza (miroir wiki) est faite CÔTÉ FRONTEND via tauri-plugin-sql
-// (`src/lib/wikiDb.ts`, mêmes requêtes SQL que `nie-wiki::query::search_characters`/
-// `search_skills`) — pas de commande Rust ici : `nie-wiki` (rusqlite) est volontairement HORS
-// de ce binaire (conflit de lien natif `sqlite3` avec `sqlx-sqlite`, cf. Cargo.toml).
+// Existing frontend wiki queries use the shared rusqlite compatibility facade.
+// Typed native wiki operations remain available from the nie-wiki library.
 
 /// Racines où chercher les artefacts du **dépôt** (miroir wiki, base RE), dans l'ordre : la
 /// racine du jeu (une installation peut porter son propre `var/`), puis le répertoire courant et
@@ -1470,7 +1465,7 @@ fn dernier_sqlite(dir: &std::path::Path, prefixe: &str) -> Option<PathBuf> {
 }
 
 /// Scanne la totalité du VFS (~255 800 entrées) — utilisé par `vfsIndexDb.reindex` (frontend)
-/// pour matérialiser un index SQL persistant (`vfs_files`, table gérée par `tauri-plugin-sql`)
+/// pour matérialiser un index SQL persistant (`vfs_files`, table managed by the shared SQLite owner)
 /// permettant une résolution EXACTE par code interne (segment de chemin), plus précise que le
 /// `.contains()` substring en mémoire de [`vfs_related`] (qui peut matcher un code interne
 /// apparaissant par hasard ailleurs dans un chemin non lié).
@@ -1665,10 +1660,17 @@ fn vfs_related(
     state: tauri::State<VfsState>,
 ) -> Result<Vec<EntryDto>, String> {
     with_vfs(game_dir, &state, |vfs| {
-        Ok(nie_explore::related::legacy_search(vfs, &needle, limit.max(1) as usize)
-            .into_iter().map(|(path, size, cpk)| EntryDto {
-                name: path.rsplit('/').next().unwrap_or(&path).to_owned(), path, size, cpk,
-            }).collect())
+        Ok(
+            nie_explore::related::legacy_search(vfs, &needle, limit.max(1) as usize)
+                .into_iter()
+                .map(|(path, size, cpk)| EntryDto {
+                    name: path.rsplit('/').next().unwrap_or(&path).to_owned(),
+                    path,
+                    size,
+                    cpk,
+                })
+                .collect(),
+        )
     })
 }
 
@@ -2712,7 +2714,8 @@ fn regen_bindings_ts() {
     specta_builder()
         .export(
             specta_typescript::Typescript::default(),
-            "../src/lib/bindings.ts",
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../nie-web/src/desktop/lib/bindings.ts"),
         )
         .expect("échec de l'export des bindings TypeScript (tauri-specta)");
 }
@@ -4261,18 +4264,22 @@ fn vfs_motion_clips(
         let report = nie_explore::motion::clips(vfs, &path)?;
         Ok(MotionClipsDto {
             archives: report.archives,
-            clips: report.clips.into_iter().map(|clip| MotionClipDto {
-                archive: clip.archive,
-                motion_file: clip.motion_file,
-                name: clip.name,
-                crc32: clip.crc32,
-                start_frame: clip.start_frame,
-                end_frame: clip.end_frame,
-                frame_count: clip.frame_count,
-                fps: clip.fps,
-                additive: clip.additive,
-                target_count: clip.target_count,
-            }).collect(),
+            clips: report
+                .clips
+                .into_iter()
+                .map(|clip| MotionClipDto {
+                    archive: clip.archive,
+                    motion_file: clip.motion_file,
+                    name: clip.name,
+                    crc32: clip.crc32,
+                    start_frame: clip.start_frame,
+                    end_frame: clip.end_frame,
+                    frame_count: clip.frame_count,
+                    fps: clip.fps,
+                    additive: clip.additive,
+                    target_count: clip.target_count,
+                })
+                .collect(),
             notice: report.notice,
         })
     })
@@ -5164,6 +5171,10 @@ async fn aphrody_pixel_planche(
 /// jamais signalé par le compilateur.
 fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+        sqlite::sqlite_load,
+        sqlite::sqlite_select,
+        sqlite::sqlite_execute,
+        sqlite::sqlite_close,
         aphrody_pet_etat,
         aphrody_pet_frame_png_b64,
         aphrody_pixel_mesurer,
@@ -5326,59 +5337,51 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     ])
 }
 
-/// Réécrit `src/lib/bindings.ts` depuis les signatures Rust, sans lancer l'application.
+/// Export desktop command bindings without starting a Tauri window.
 ///
-/// Même export que celui fait au démarrage en dev, mais utilisable seul (`cargo run --bin
-/// export-bindings`) : quand on ajoute une commande, le frontend doit pouvoir la typer sans
-/// avoir à ouvrir une fenêtre Tauri, ni recopier sa signature à la main dans `api.ts`.
-///
-/// Le thread à pile large (64 Mio) est indispensable ici pour la même raison qu'en dev : la
-/// réflexion de types de `specta` déborde la pile par défaut sur ce jeu de commandes.
+/// The CLI and development startup share this generator. Keep the existing 64 MiB
+/// worker stack for the command graph, and publish only a fully serialized file.
 #[cfg(debug_assertions)]
 pub fn export_bindings() -> Result<(), String> {
     std::thread::Builder::new()
+        .name("binding-export".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(|| {
-            specta_builder()
-                .export(
-                    specta_typescript::Typescript::default(),
-                    "../src/lib/bindings.ts",
-                )
-                .map_err(|e| e.to_string())
+            let started = std::time::Instant::now();
+            eprintln!("Binding export: collecting native command types");
+            // JSON values cross IPC unchanged. Name their recursive wire type instead of
+            // repeatedly expanding Specta's inline `Value::Null` enum during formatting.
+            let builder = specta_builder().semantic_types(
+                specta_typescript::semantic::Configuration::empty().define::<serde_json::Value>(
+                    |_| specta_typescript::define("JsonValue").into(),
+                    Some(specta_typescript::semantic::Transform::identity()),
+                    Some(specta_typescript::semantic::Transform::identity()),
+                ),
+            );
+            eprintln!("Binding export: collected types in {:?}; serializing", started.elapsed());
+            let destination = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../nie-web/src/desktop/lib/bindings.ts");
+            let temporary = destination.with_extension(format!("pending-{}.ts", std::process::id()));
+            let exporter = specta_typescript::Typescript::default().header(
+                "export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };",
+            );
+            let result = builder.export(exporter, &temporary)
+                .map_err(|error| error.to_string())
+                .and_then(|()| std::fs::rename(&temporary, &destination).map_err(|error| error.to_string()));
+            if result.is_err() { let _ = std::fs::remove_file(&temporary); }
+            if result.is_ok() { eprintln!("Binding export: completed in {:?}", started.elapsed()); }
+            result
         })
-        .map_err(|e| format!("échec de lancement du thread d'export specta : {e}"))?
+        .map_err(|error| format!("Binding export worker could not start: {error}"))?
         .join()
-        .map_err(|_| "le thread d'export specta a paniqué".to_string())?
+        .map_err(|_| "Binding export worker panicked".to_owned())?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Régénère `src/lib/bindings.ts` à CHAQUE lancement en dev — jamais en release (pas de
-    // dépendance à `specta-typescript`/écriture disque dans le binaire distribué). Le frontend
-    // importe ce fichier généré directement (cf. `src/lib/api.ts`), donc toute commande
-    // ajoutée/modifiée ici se reflète côté TS au prochain `cargo tauri dev`, sans étape manuelle.
-    //
-    // Lancé sur un THREAD DÉDIÉ à pile large (64 Mio) : trouvé par test réel (pas supposé) — la
-    // réflexion de types de `specta` sur ~29 commandes (dont plusieurs `serde_json::Value`,
-    // récursif : `Object`/`Array` se référencent eux-mêmes) fait un vrai `STATUS_STACK_OVERFLOW`
-    // sur la pile principale par défaut (thread `main`, crash silencieux avant même la création
-    // de la fenêtre). Même remède que [`vfs_audio_preview_b64`] pour `cridecoder` : une pile
-    // dédiée plus large suffit largement, ce n'est pas une récursion infinie (le process ne
-    // boucle pas indéfiniment, il complète normalement une fois la pile élargie).
+    // Development export uses the same atomic, instrumented generator as the CLI binding.
     #[cfg(debug_assertions)]
-    std::thread::Builder::new()
-        .stack_size(64 * 1024 * 1024)
-        .spawn(|| {
-            specta_builder()
-                .export(
-                    specta_typescript::Typescript::default(),
-                    "../src/lib/bindings.ts",
-                )
-                .expect("échec de l'export des bindings TypeScript (tauri-specta)");
-        })
-        .expect("échec de lancement du thread d'export specta")
-        .join()
-        .expect("le thread d'export specta a paniqué");
+    export_bindings().expect("Native TypeScript binding export failed");
 
     let specta = specta_builder();
 
@@ -5454,11 +5457,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_fs::init())
-        .plugin(
-            tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:mods.db", mods_migrations())
-                .build(),
-        )
+        .manage(sqlite::SqlState::default())
         // `nievideo://localhost/<chemin VFS>` — la piste vidéo d'un `.usm`, remuxée en MP4 et
         // servie avec le support des requêtes `Range`. C'est ce qui permet à un `<video>` de
         // démarrer et de se déplacer instantanément dans une cinématique de 300 Mo, là où le

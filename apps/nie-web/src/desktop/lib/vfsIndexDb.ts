@@ -1,10 +1,10 @@
 // Index SQL persistant de la TOTALITÉ du VFS (~255 800 fichiers) — table `vfs_files` (migration
-// v2, `mods.db`, `tauri-plugin-sql`). Objectif : PRÉCISION. `vfs_related` (commande Rust) fait un
+// v2, `mods.db`, `shared SQLite owner`). Objectif : PRÉCISION. `vfs_related` (commande Rust) fait un
 // `.contains()` substring en mémoire sur le code interne — un code peut apparaître par hasard
 // ailleurs dans un chemin sans rapport (faux positif). Ici, `code` (basename sans extension) est
 // une colonne indexée et interrogée par ÉGALITÉ ou par suffixe de variante exact
 // (`code = ? OR code LIKE ?||'_%'`), pas par sous-chaîne libre.
-import Database from "@tauri-apps/plugin-sql";
+import Database from "./sqlite";
 import { listen } from "@tauri-apps/api/event";
 import { api, type VfsEntry } from "./api";
 

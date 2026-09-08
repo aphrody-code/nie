@@ -40,22 +40,22 @@ workspace = true
 [dependencies]
 # Features : `textures` = décodeur G4TX/DDS partagé (`nie_formats::g4tx_decode`) ;
 # `audio-decode` = décodeur audio HCA/ADX/AWB/ACB partagé (`cri_audio::decode_to_wav`).
-nie-formats = { path = "../../engine/nie-formats", default-features = false, features = ["std", "serde", "textures"] }
+nie-formats = { workspace = true, features = ["std", "serde", "textures"] }
 # Parseurs typés des familles game-data (formation, skill, item, mission…) :
 # alimentent la route `/typed` qui décode un cfg.bin en structures de jeu nommées.
-nie-data = { path = "../../engine/nie-data", features = ["serde"], optional = true }
+nie-data = { workspace = true, optional = true, features = ["serde"] }
 # Vue « dossier » du VFS, rôles de dossiers et table des formats d'export : la MÊME logique que
 # celle qu'utilise l'app desktop (`vfs_ls`), exposée ici en JSON pour que l'explorateur web
 # d'azalée lise le vrai VFS au lieu d'un index SQLite figé régénéré à la main.
-nie-explore = { path = "../../engine/nie-explore", optional = true }
+nie-explore = { workspace = true, optional = true, default-features = true }
 # (cridecoder arrive via nie-formats feature `audio-decode` — plus de dép directe)
 anyhow = { workspace = true, optional = true }
-serde.workspace = true
-serde_json = { workspace = true, optional = true }
-rusqlite = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true, default-features = true }
+rusqlite = { workspace = true, optional = true, features = ["bundled"] }
 tracing = { workspace = true, optional = true }
-tracing-subscriber = { workspace = true, optional = true }
-clap = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true, features = ["env-filter"] }
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
 # Empreinte SHA-256 du GLB servi, citée dans chaque rapport d'assemblage.
 sha2 = { workspace = true, optional = true }
 
@@ -70,4 +70,4 @@ required-features = ["host"]
 [dev-dependencies]
 # Example `probe_g4tx_dds` réfère l'enum `ImageFormat` en direct (le décodage applicatif
 # passe par nie_formats::g4tx_decode, mais cette cible de dev nomme l'enum).
-image_dds = { version = "0.7", default-features = false }
+image_dds.workspace = true

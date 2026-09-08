@@ -22,20 +22,22 @@ host = [
 [dependencies]
 anyhow.workspace = true
 thiserror.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
 tracing.workspace = true
-tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
-clap = { version = "4", features = ["derive", "color", "env"], optional = true }
-rusqlite = { workspace = true, optional = true }
+# Central pin narrows ^0.3 to =0.3.22; the existing unified lock already selects 0.3.22.
+tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
+rusqlite = { workspace = true, optional = true, features = ["bundled"] }
 
 # HTTP + HTML
-reqwest = { version = "0.13", features = ["blocking"], optional = true }
-scraper = "0.22"
+# Central minimum narrows ^0.13 to ^0.13.4; the existing unified lock already selects 0.13.4.
+reqwest = { workspace = true, default-features = true, features = ["blocking"], optional = true }
+scraper.workspace = true
 
 # encodage
-base64 = "0.22"
-percent-encoding = "2"
+base64.workspace = true
+percent-encoding.workspace = true
 # Crate 100 % SYNCHRONE (reqwest::blocking + std::thread::sleep) — pas de runtime async.
 
 [[bin]]

@@ -21,18 +21,18 @@ path = "src/main.rs"
 required-features = ["redb"]
 
 [dependencies]
-nie-pe = { path = "../../forge/nie-pe" }
-nie-asm = { path = "../../forge/nie-asm" }
+nie-pe = { workspace = true, default-features = true }
+nie-asm = { workspace = true, default-features = true }
 iced-x86.workspace = true
 anyhow.workspace = true
-clap = { workspace = true, optional = true }
-serde.workspace = true
-serde_json.workspace = true
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
 # Base de connaissance RE (var/niers.sqlite) : noms de fonctions et bornes .pdata.
 # OPTIONNELLE : `rusqlite` porte `links = "sqlite3"`, que Cargo interdit de dupliquer. Sans
 # cela, `nie-explorer` (qui lie `sqlx-sqlite` via tauri-plugin-sql) ne peut pas lier ce crate
 # du tout — or il n'a besoin que du recouvrement, du registre et du rapport, tous purs.
-rusqlite = { workspace = true, optional = true }
+rusqlite = { workspace = true, optional = true, features = ["bundled"] }
 
 [features]
 default = ["redb"]

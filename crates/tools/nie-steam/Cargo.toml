@@ -28,24 +28,25 @@ host = [
 ]
 
 [dependencies]
-steamroom = { version = "0.2", optional = true }
-steamroom-client = { version = "0.2", optional = true }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync", "time"], optional = true }
-serde.workspace = true
-serde_json = { workspace = true, optional = true }
+steamroom = { workspace = true, optional = true }
+steamroom-client = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["rt-multi-thread", "macros", "fs", "sync", "time"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true, default-features = true }
 thiserror.workspace = true
 anyhow = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
-regex = { version = "1", optional = true }
-base64 = { version = "0.22", optional = true }
+regex = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
 # Nécessaire pour TokenStore (default_path) et decompress_if_zipped (manifest CDN).
-dirs-next = { version = "2", optional = true }
-zip = { version = "2", optional = true }
-clap = { version = "4", features = ["derive", "color", "env"], optional = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+dirs-next = { workspace = true, optional = true }
+zip = { workspace = true, optional = true }
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
+# Central pin narrows ^0.3 to =0.3.22; the existing unified lock already selects 0.3.22.
+tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile.workspace = true
 
 [[bin]]
 name = "nie-steam"

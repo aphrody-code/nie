@@ -11,7 +11,14 @@
 		"./text": "./src/text/index.ts",
 		"./text/*": "./src/text/*.ts"
 	},
-	"scripts": { "typecheck": "bunx tsc --noEmit" },
-	"dependencies": { "wanakana": "catalog:" },
-	"devDependencies": { "typescript": "catalog:", "@types/bun": "catalog:" }
+	"scripts": {
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"wanakana": "catalog:"
+	},
+	"devDependencies": {
+		"typescript": "catalog:",
+		"@types/bun": "catalog:"
+	}
 }

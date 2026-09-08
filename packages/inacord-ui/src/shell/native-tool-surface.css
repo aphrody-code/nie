@@ -1,0 +1,24 @@
+/* Native colors remain in the decoded resource; no sampled or invented palette. */
+.native-tool-surface {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	user-select: none;
+}
+
+.native-tool-navigation-row {
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+}
+
+.native-tool-navigation-row > .native-tool-surface {
+	z-index: -1;
+}
+
+.native-tool-navigation-row:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}

@@ -21,15 +21,15 @@ host = ["dep:rusqlite", "nie-re/host", "nie-trace/host"]
 [dependencies]
 anyhow.workspace = true
 hex.workspace = true
-rusqlite = { workspace = true, optional = true }
+rusqlite = { workspace = true, optional = true, features = ["bundled"] }
 sha2.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-nie-re = { path = "../../forge/nie-re", default-features = false }
-nie-trace = { path = "../../forge/nie-trace", default-features = false }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
+nie-re.workspace = true
+nie-trace.workspace = true
 
 [dev-dependencies]
-nie-index = { path = "../../forge/nie-index" }
+nie-index = { workspace = true, default-features = true }
 
 [[example]]
 name = "verify_session"

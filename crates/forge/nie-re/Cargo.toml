@@ -23,7 +23,7 @@ host = [
 ]
 
 [dependencies]
-nie-index = { workspace = true, optional = true }
+nie-index = { workspace = true, optional = true, default-features = true }
 # Réexporté tel quel sous `nie_re::dump` (cf. lib.rs).
 nie-dump = { workspace = true, optional = true }
 anyhow.workspace = true

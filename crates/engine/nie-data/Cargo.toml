@@ -14,8 +14,8 @@ workspace = true
 # serde_json en mode no_std+alloc (parse des dumps cfg.bin.json) — pas de std requis.
 # Version alignée sur la racine (Cargo.lock = 1.0.150) ; on ne peut pas hériter du workspace
 # tout en désactivant default-features, d'où la déclaration directe.
-serde_json = { version = "1", default-features = false, features = ["alloc"] }
-serde = { workspace = true, optional = true }
+serde_json = { workspace = true, features = ["alloc"] }
+serde = { workspace = true, optional = true, features = ["derive"] }
 
 [features]
 default = []

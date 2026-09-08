@@ -12,18 +12,18 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
-serde_json.workspace = true
-nie-formats = { path = "../../engine/nie-formats", features = ["serde"] }
-nie-render3d = { path = "../../engine/nie-render3d" }
-nie-core = { path = "../../engine/nie-core" }
-nie-data = { path = "../../engine/nie-data", features = ["serde", "std"] }
+serde_json = { workspace = true, default-features = true }
+nie-formats = { workspace = true, features = ["serde"], default-features = true }
+nie-render3d.workspace = true
+nie-core.workspace = true
+nie-data = { workspace = true, features = ["serde", "std"] }
 # Moteur de match (World : physique ballon, 22 joueurs, buts) pour la FSM interactive `flow::Screen`
 # (relocalisée depuis nie-wasm, Phase 5). Lib seulement (pas les bins ffmpeg) → wasm-compatible.
-nie-runtime = { path = "../../engine/nie-runtime" }
+nie-runtime.workspace = true
 # `Vec2` traverse l'API du moteur (direction de l'entrée de jeu) : le type doit être nommable ici.
-nie-geom = { path = "../../engine/nie-geom" }
-bcdec_rs = "0.2.0"
+nie-geom.workspace = true
+bcdec_rs.workspace = true
 
 [dev-dependencies]
 # Encodage PNG des exemples (rendu 3D de match) — pas une dependance de la bibliotheque.
-png = "0.18"
+png.workspace = true

@@ -1,8 +1,8 @@
-// Registre local des mods — `tauri-plugin-sql`, base `mods.db` dans `BaseDirectory::AppData`
+// Registre local des mods — `shared SQLite owner`, base `mods.db` dans `the application config directory`
 // (jamais dans le dossier du jeu). Un mod = un ensemble de copies de remplacement pour des
 // chemins VFS donnés ; `nie-formats` n'a pas d'encodeur CPK, donc ce registre n'écrit RIEN en
 // place — il organise des fichiers destinés à un export explicite (cf. `ModsView`).
-import Database from "@tauri-apps/plugin-sql";
+import Database from "./sqlite";
 
 export interface ModRow {
   id: string;

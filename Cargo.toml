@@ -15,7 +15,10 @@
 # lints RFC 3389, RE pur-Rust goblin+iced-x86). Voir docs/ARCHITECTURE.md.
 [workspace]
 resolver = "3"
-members = ["crates/forge/*", "crates/engine/*", "crates/tools/*"]
+members = ["crates/forge/*", "crates/engine/*", "crates/tools/*", "apps/inacord/src-tauri"]
+# Headless commands retain their existing default selection. Desktop is an explicit
+# member (`cargo check -p inacord`) and participates in --workspace gates.
+default-members = ["crates/forge/*", "crates/engine/*", "crates/tools/*"]
 # nie-engine = portage RE du moteur Level-5 (~15k LOC, 434 // EXTERN:) consommé par AUCUNE crate vivante.
 # Hors build/test workspace, conservé comme RÉFÉRENCE de portage en lecture seule (cf. docs/PLAN.md).
 exclude = ["crates/archive/nie-engine"]
@@ -30,53 +33,53 @@ rust-version = "1.97"
 
 [workspace.dependencies]
 # erreurs : thiserror par-crate, anyhow en propagation, miette pour le CLI
-anyhow = "1"
-byteorder = "1"
-thiserror = "2"
+anyhow = { version = "1" }
+byteorder = { version = "1" }
+thiserror = { version = "2" }
 miette = { version = "7", features = ["fancy"] }
 
 # wasm / navigateur
 wasm-bindgen = { version = "=0.2.125" }
-wasm-bindgen-futures = "0.4"
+wasm-bindgen-futures = { version = "0.4" }
 console_error_panic_hook = { version = "0.1" }
 getrandom = { version = "0.2" }
-web-time = "1.1"
-parking_lot = "0.12"
+web-time = { version = "1.1" }
+parking_lot = { version = "0.12" }
 
 
 # sérialisation
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-schemars = "1"
+serde = { version = "1" }
+serde_json = { version = "1", default-features = false }
+schemars = { version = "1" }
 # Official Rust SDK for the Model Context Protocol. Keep the same reviewed
 # revision as the production aphrody-mcp sibling until the native niers MCP
 # compatibility suite authorises an SDK upgrade.
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "cc66e3091e1584f48ee1e0058a2a1201a1d35c81", features = ["server", "transport-io", "macros", "schemars"] }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "cc66e3091e1584f48ee1e0058a2a1201a1d35c81" }
 
 # base de connaissance + frontière
-rusqlite = { version = "0.37", features = ["bundled"] }
-redis = { version = "0.27", features = ["r2d2"] }
-r2d2 = "0.8"
+rusqlite = { version = "0.37" }
+redis = { version = "0.27" }
+r2d2 = { version = "0.8" }
 
 # CLI / logging (conventions aphrody)
-clap = { version = "4", features = ["derive", "color", "env"] }
-tracing = "0.1"
-tracing-subscriber = { version = "=0.3.22", features = ["env-filter"] }
+clap = { version = "4" }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "=0.3.22" }
 
 # orchestration de jobs asynchrones (nie-tasks — architecture inspirée de sd-task-system,
 # implémentation originale) : runtime tokio déjà tiré transitivement par tauri (nie-explorer)
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net"] }
-futures-util = "0.3"
-tokio-tungstenite = "0.29"
-reqwest = { version = "0.13.4", default-features = false, features = ["http2", "rustls", "stream"] }
-async-trait = "0.1"
-uuid = { version = "1", features = ["v4", "serde"] }
+tokio = { version = "1" }
+futures-util = { version = "0.3" }
+tokio-tungstenite = { version = "0.29" }
+reqwest = { version = "0.13.4", default-features = false }
+async-trait = { version = "0.1" }
+uuid = { version = "1" }
 
 # RE pur-Rust : goblin PE/ELF + iced-x86 désassembleur
-goblin = "0.10"
-iced-x86 = "1.21"
+goblin = { version = "0.10" }
+iced-x86 = { version = "1.21" }
 # Vues typées sans copie sur les en-têtes ELF/PE (module `headers` d'aphrody-re).
-zerocopy = { version = "0.8", features = ["derive"] }
+zerocopy = { version = "0.8" }
 # Triage PE / disasm / strings / entropy. Crate INTERNALISÉ le 2026-08-15 : il
 # vivait dans `../aphrody`, hors du dépôt, et une dépendance de chemin vers un
 # répertoire voisin faisait dépendre la compilation de niers d'un arbre qui n'est
@@ -94,42 +97,42 @@ cridecoder = { version = "0.2.3", default-features = false }
 aes = { version = "0.8", default-features = false }
 
 # hash / util
-sha2 = "0.10"
-hex = "0.4"
-base64 = "0.22"
-memmap2 = "0.9"
-rayon = "1"
-hashbrown = "0.14"
+sha2 = { version = "0.10" }
+hex = { version = "0.4" }
+base64 = { version = "0.22" }
+memmap2 = { version = "0.9" }
+rayon = { version = "1" }
+hashbrown = { version = "0.14" }
 
 # Recherche de fichiers et de contenu — le moteur de ripgrep/fd, pris en bibliothèque.
 # `ignore` fournit le parcours parallèle qui respecte .gitignore ; `grep-*` la recherche
 # ligne à ligne. Les prendre plutôt que réécrire un walk maison : ce sont les mêmes
 # briques que les outils de référence, et elles sont d'un seul auteur (BurntSushi).
-ignore = "0.4"
-globset = "0.4"
-grep-searcher = "0.1"
-grep-regex = "0.1"
+ignore = { version = "0.4" }
+globset = { version = "0.4" }
+grep-searcher = { version = "0.1" }
+grep-regex = { version = "0.1" }
 
 # RE en direct (runtime) : lecture mémoire d'un nie.exe sous Wine via process_vm_readv(2).
 # FFI Linux-only, isolé dans le seul crate nie-trace (cf. son lib.rs).
-libc = "0.2"
+libc = { version = "0.2" }
 
 # crates internes
 # forge : production du binaire
-nie-pe = { path = "crates/forge/nie-pe" }
-nie-asm = { path = "crates/forge/nie-asm" }
-nie-forge = { path = "crates/forge/nie-forge" }
-nie-index = { path = "crates/forge/nie-index" }
-nie-trace = { path = "crates/forge/nie-trace" }
-nie-re = { path = "crates/forge/nie-re" }
+nie-pe = { path = "crates/forge/nie-pe", default-features = false }
+nie-asm = { path = "crates/forge/nie-asm", default-features = false }
+nie-forge = { path = "crates/forge/nie-forge", default-features = false }
+nie-index = { path = "crates/forge/nie-index", default-features = false }
+nie-trace = { path = "crates/forge/nie-trace", default-features = false }
+nie-re = { path = "crates/forge/nie-re", default-features = false }
 # Minidump (.dmp) : parsing + scan AOB. Extrait de nie-re pour n'avoir AUCUNE dépendance
 # (hors thiserror) — c'est ce qui le rend liable par nie-explorer, contrairement à nie-re.
 nie-dump = { path = "crates/forge/nie-dump" }
-nie-queue = { path = "crates/forge/nie-queue" }
-nie-seed = { path = "crates/forge/nie-seed" }
-nie-formats = { path = "crates/engine/nie-formats" }
-nie-explore = { path = "crates/engine/nie-explore" }
-nie-headless = { path = "crates/engine/nie-headless" }
+nie-queue = { path = "crates/forge/nie-queue", default-features = false }
+nie-seed = { path = "crates/forge/nie-seed", default-features = false }
+nie-formats = { path = "crates/engine/nie-formats", default-features = false }
+nie-explore = { path = "crates/engine/nie-explore", default-features = false }
+nie-headless = { path = "crates/engine/nie-headless", default-features = false }
 nie-save = { path = "crates/engine/nie-save" }
 nie-wiki = { path = "crates/tools/nie-wiki" }
 nie-core = { path = "crates/engine/nie-core" }
@@ -137,9 +140,9 @@ nie-data = { path = "crates/engine/nie-data" }
 # PAS de `nie-engine` ici : la crate est `exclude` du workspace (cf. plus haut) et aucune crate
 # vivante ne la consomme. La déclarer invitait un `nie-engine.workspace = true` qui aurait ramené
 # dans le build un portage conservé en lecture seule.
-nie-model-serve = { path = "crates/tools/nie-model-serve" }
-nie-zukan = { path = "crates/tools/nie-zukan" }
-nie-lua = { path = "crates/engine/nie-lua" }
+nie-model-serve = { path = "crates/tools/nie-model-serve", default-features = false }
+nie-zukan = { path = "crates/tools/nie-zukan", default-features = false }
+nie-lua = { path = "crates/engine/nie-lua", default-features = false }
 nie-app = { path = "crates/engine/nie-app" }
 nie-render3d = { path = "crates/engine/nie-render3d" }
 nie-aphrody = { path = "crates/engine/nie-aphrody" }
@@ -151,7 +154,7 @@ nie-ui = { path = "crates/engine/nie-ui" }
 # c'est ce qui rend la simulation pilotable depuis Python (`niepy`) et donc depuis Ren'Py.
 nie-runtime = { path = "crates/engine/nie-runtime" }
 nie-viola = { path = "crates/engine/nie-viola" }
-nie-steam = { path = "crates/tools/nie-steam" }
+nie-steam = { path = "crates/tools/nie-steam", default-features = false }
 
 # chaîne « image → SVG → raster » (skill pixel-perfect, crate nie-aphrody).
 # Choix mesurés le 2026-09-05, avec les rejets et leur raison :
@@ -161,18 +164,84 @@ nie-steam = { path = "crates/tools/nie-steam" }
 # plus clap 2 et pyo3. La vectorisation, elle, n'a tiré AUCUNE dépendance : suivre le
 # contour d'un masque puis le simplifier tient dans `nie_aphrody::pixel`, et rend des chemins
 # lisibles là où un traceur générique en rend des milliers.
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
-image-compare = "0.5"
-palette = { version = "0.7", default-features = false, features = ["std"] }
+image = { version = "0.25", default-features = false }
+image-compare = { version = "0.5" }
+palette = { version = "0.7", default-features = false }
 resvg = { version = "0.48", default-features = false }
 usvg = { version = "0.48", default-features = false }
-tiny-skia = "0.12"
+tiny-skia = { version = "0.12" }
 
 # tests CLI (dev-dep commune)
-assert_cmd = "2"
-tempfile = "3"
+assert_cmd = { version = "2" }
+tempfile = { version = "3" }
 
 # Lints workspace (RFC 3389, hérités via [lints] workspace = true dans chaque crate)
+
+# Existing host and library dependencies, centralized without changing their version requirements.
+askama = { version = "0.16.1" }
+axum = { version = "0.8.9", default-features = false }
+bcdec_rs = { version = "0.2.0" }
+blake3 = { version = "1.8.7" }
+bytemuck = { version = "1" }
+bytes = { version = "1.12.1" }
+clipboard-win = { version = "5" }
+criterion = { version = "0.8" }
+dirs-next = { version = "2" }
+eframe = { version = "=0.34.1", default-features = false }
+flate2 = { version = "1" }
+fyrox = { version = "1.0.1" }
+fyroxed_base = { version = "1.0.1" }
+googletest = { version = "0.14" }
+http-body-util = { version = "0.1.4" }
+ievr-tools = { path = "crates/tools/ievr-tools", default-features = false }
+image_dds = { version = "0.7", default-features = false }
+log = { version = "0.4.34" }
+mlua = { version = "0.11" }
+moka = { version = "0.12.16" }
+nie-bench = { path = "crates/tools/nie-bench", default-features = false }
+nie-camera = { path = "crates/engine/nie-camera", default-features = false }
+nie-cli = { path = "crates/tools/nie-cli" }
+nie-computer-use = { path = "crates/tools/nie-computer-use", default-features = false }
+nie-editor = { path = "crates/tools/nie-editor", default-features = false }
+nie-geom = { path = "crates/engine/nie-geom" }
+nie-tasks = { path = "crates/tools/nie-tasks", default-features = false }
+percent-encoding = { version = "2" }
+png = { version = "0.18" }
+pollster = { version = "0.4" }
+rand = { version = "0.8" }
+regex = { version = "1" }
+scraper = { version = "0.22" }
+specta = { version = "2.0.0-rc.25" }
+specta-typescript = { version = "0.0.12" }
+steamroom = { version = "0.2" }
+steamroom-client = { version = "0.2" }
+tauri = { version = "2" }
+tauri-build = { version = "2" }
+tauri-plugin-clipboard-manager = { version = "2" }
+tauri-plugin-deep-link = { version = "2.4.10" }
+tauri-plugin-dialog = { version = "2" }
+tauri-plugin-fs = { version = "2" }
+tauri-plugin-log = { version = "2.9.1" }
+tauri-plugin-opener = { version = "2" }
+tauri-plugin-os = { version = "2.3.2" }
+tauri-plugin-process = { version = "2" }
+tauri-plugin-single-instance = { version = "2" }
+tauri-plugin-updater = { version = "2" }
+tauri-plugin-window-state = { version = "2" }
+tauri-specta = { version = "2.0.0-rc.25" }
+tower = { version = "0.5.3" }
+tower-http = { version = "0.6.11" }
+trash = { version = "5" }
+tree-sitter = { version = "0.26" }
+tree-sitter-lua = { version = "0.5" }
+ureq = { version = "2", default-features = false }
+web-sys = { version = "0.3" }
+wgpu = { version = "=29.0.3" }
+windows-sys = { version = "0.59" }
+winit = { version = "0.30" }
+winreg = { version = "0.52" }
+zip = { version = "2" }
+
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
 unused_must_use = "deny"

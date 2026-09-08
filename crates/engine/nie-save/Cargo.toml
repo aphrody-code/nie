@@ -11,9 +11,9 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-nie-formats.workspace = true
+nie-formats = { workspace = true, default-features = true }
 thiserror.workspace = true
-serde = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["derive"] }
 
 [features]
 default = []

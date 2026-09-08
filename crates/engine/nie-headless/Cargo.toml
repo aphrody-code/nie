@@ -20,15 +20,15 @@ host = ["dep:clap", "dep:nie-core", "dep:nie-data"]
 workspace = true
 
 [dependencies]
-nie-formats.workspace = true
+nie-formats = { workspace = true, default-features = true }
 nie-data = { workspace = true, optional = true }
 nie-core = { workspace = true, optional = true }
-clap = { workspace = true, optional = true }
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
 anyhow.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
 
 [dev-dependencies]
 assert_cmd.workspace = true
-tempfile = "3"
-serde_json.workspace = true
+tempfile.workspace = true
+serde_json = { workspace = true, default-features = true }

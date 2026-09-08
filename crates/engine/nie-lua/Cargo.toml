@@ -13,12 +13,12 @@ workspace = true
 [dependencies]
 # VM Lua 5.2 = celle exacte du moteur Level-5 « Lives » (PUC-Rio 5.2.4 vendored).
 # Charge directement le bytecode .lua.bin du jeu (mlua, MIT).
-mlua = { version = "0.11", features = ["lua52", "vendored"], optional = true }
+mlua = { workspace = true, optional = true, features = ["lua52", "vendored"] }
 thiserror.workspace = true
 
 # Sérialisation des types de `bytecode` : un chunk décodé doit pouvoir sortir en
 # JSON (`niers decode` sur un `.lua.bin`), pas seulement en désassemblage texte.
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 
 # Analyse statique des sources Lua décompilées : AST concret, sans exécuter le code.
 # `tree-sitter-lua` 0.5 n'expose que `LanguageFn` (via `tree-sitter-language`) et se
@@ -26,11 +26,11 @@ serde.workspace = true
 # écart d'ABI de grammaire se manifeste par un `set_language` qui échoue à l'exécution.
 # Optionnelles (feature `analysis`) : ce sont les seules dépendances C hors mlua, et
 # `nie-formats` ne veut que le décodeur de bytecode, pur Rust.
-tree-sitter = { version = "0.26", optional = true }
-tree-sitter-lua = { version = "0.5", optional = true }
+tree-sitter = { workspace = true, optional = true }
+tree-sitter-lua = { workspace = true, optional = true }
 
 [dev-dependencies]
-nie-formats = { workspace = true }
+nie-formats = { workspace = true, default-features = true }
 
 [features]
 # La VM (mlua, Lua 5.2 vendored en C) — activée par défaut : tous les consommateurs actuels

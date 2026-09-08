@@ -1,0 +1,31 @@
+@import "./game-tokens.css";
+
+/* Host role bindings to the existing nie-aphrody generated character palette.
+ * Source: nie-aphrody/src/design.rs and its measured Aphrody sprite atlas.
+ * These are authoring-tool roles, not measurements of native PC menu colors.
+ * Light mode and user-selected alternate palettes retain their existing overrides.
+ */
+:root:not(.light):not(.noir-theme):not(.midnight-theme):not(.slate-theme):not(.nord-theme):not(.mocha-theme) {
+	--color-accent: var(--inacord-accent);
+	--color-accent-faint: var(--jeu-accent-cyan);
+	--color-accent-deep: var(--jeu-plaque-bleu);
+	--color-app: var(--jeu-fond-abysse);
+	--color-app-box: var(--inacord-panneau);
+	--color-app-dark-box: var(--inacord-panneau);
+	--color-app-darker-box: var(--jeu-fond-abysse);
+	--color-app-light-box: var(--inacord-panneau-clair);
+	--color-app-overlay: var(--inacord-panneau);
+	--color-app-input: var(--inacord-panneau);
+	--color-app-button: var(--inacord-panneau);
+	--color-app-selected: var(--inacord-panneau-clair);
+	--color-app-hover: var(--inacord-panneau-clair);
+	--color-sidebar: var(--jeu-fond-abysse);
+	--color-sidebar-box: var(--inacord-panneau);
+	--color-sidebar-selected: var(--inacord-panneau-clair);
+	--color-menu: var(--inacord-panneau);
+	--color-menu-hover: var(--inacord-panneau-clair);
+	--color-menu-selected: var(--inacord-panneau-clair);
+	--color-ink: var(--jeu-texte-vif);
+	--color-sidebar-ink: var(--jeu-texte-vif);
+	--color-menu-ink: var(--jeu-texte-vif);
+}

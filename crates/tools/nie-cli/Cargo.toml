@@ -25,37 +25,38 @@ supported-os = ["linux", "macos", "windows"]
 workspace = true
 
 [dependencies]
-nie-index.workspace = true
-nie-seed.workspace = true
-nie-queue.workspace = true
-nie-re.workspace = true
-nie-trace.workspace = true
-nie-computer-use = { path = "../nie-computer-use" }
+nie-index = { workspace = true, default-features = true }
+nie-seed = { workspace = true, default-features = true }
+nie-queue = { workspace = true, default-features = true }
+nie-re = { workspace = true, default-features = true }
+nie-trace = { workspace = true, default-features = true }
+nie-computer-use = { workspace = true, default-features = true }
 nie-data = { workspace = true, features = ["serde", "std"] }
-nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode", "images"] }
-nie-explore.workspace = true
+nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode", "images"], default-features = true }
+nie-explore = { workspace = true, default-features = true }
 nie-viola.workspace = true
-nie-steam.workspace = true
-tokio = { workspace = true }
+nie-steam = { workspace = true, default-features = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net"] }
 futures-util.workspace = true
 tokio-tungstenite.workspace = true
-reqwest.workspace = true
-nie-lua.workspace = true
+reqwest = { workspace = true, features = ["http2", "rustls", "stream"] }
+nie-lua = { workspace = true, default-features = true }
 nie-save.workspace = true
 nie-wiki.workspace = true
+nie-zukan.workspace = true
 nie-render3d = { workspace = true, features = ["gpu"] }
-clap.workspace = true
+clap = { workspace = true, features = ["derive", "color", "env"] }
 anyhow.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 sha2.workspace = true
 hex.workspace = true
 base64.workspace = true
-redis.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+redis = { workspace = true, features = ["r2d2"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
 schemars.workspace = true
-rmcp.workspace = true
+rmcp = { workspace = true, features = ["server", "transport-io", "macros", "schemars"] }
 rayon.workspace = true
 
 # `niers strings` : géométrie du PE (sections, ImageBase) et décodage de .text.
@@ -64,16 +65,9 @@ iced-x86.workspace = true
 
 # pré-décodage sprites menu (g4tx -> DDS -> RGBA -> PNG)
 # default-features=false pour exclure `encode` (intel_tex_2 / C++ ISPC = linker error)
-image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"] }
-image = { version = "0.25", default-features = false, features = [
-    "png",
-    "jpeg",
-    "webp",
-    "gif",
-    "bmp",
-    "tiff",
-] }
-png = "0.18"
+image_dds = { workspace = true, features = ["ddsfile", "image"] }
+image = { workspace = true, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
+png.workspace = true
 
 # `niers find` / `niers grep` : recherche de fichiers et de contenu sur le disque.
 ignore.workspace = true

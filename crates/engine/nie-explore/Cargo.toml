@@ -20,26 +20,30 @@ host = [
     "dep:grep-regex",
     "dep:grep-searcher",
     "dep:ignore",
+    "dep:rusqlite",
+    "dep:sha2",
     "nie-lua/vm",
     "nie-lua/analysis",
 ]
 
 [dependencies]
+rusqlite = { workspace = true, optional = true, features = ["bundled", "column_decltype"] }
+sha2 = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 globset = { workspace = true, optional = true }
 grep-regex = { workspace = true, optional = true }
 grep-searcher = { workspace = true, optional = true }
 ignore = { workspace = true, optional = true }
-nie-formats = { workspace = true, features = ["serde", "textures", "images", "audio-decode"] }
+nie-formats = { workspace = true, features = ["serde", "textures", "images", "audio-decode"], default-features = true }
 # Introspection best-effort des scripts `.lua.bin` (VM Lua 5.2 réelle, mlua vendored) —
 # stubs tous les globals hôtes et collecte ceux référencés, sans jamais exécuter la vraie
 # logique moteur (cf. `nie_lua::discover_host_calls`).
-nie-lua = { path = "../../engine/nie-lua", default-features = false }
+nie-lua.workspace = true
 # Pont générique T2B/RDBN → JSON (forme "entries"/"lists" des dumps inagle) qui débloque LES
 # ~100 parseurs spécialisés de nie-data (chara_base/chara_text/skill/growth/item/aura/…) contre
 # les octets VFS LIVE, sans dump externe : ils consomment tous la même forme `&serde_json::Value`.
-nie-data = { path = "../../engine/nie-data", features = ["serde", "std"] }
+nie-data = { workspace = true, features = ["serde", "std"] }
 # Le catalogue des cinématiques (`cinema`) est un DTO partagé par la CLI, le serveur HTTP et
 # la page /videos d'azalée : il doit se sérialiser à l'identique des trois côtés.
 serde = { workspace = true, features = ["derive"] }
-serde_json = { version = "1", default-features = false, features = ["std"] }
+serde_json = { workspace = true, features = ["std"] }

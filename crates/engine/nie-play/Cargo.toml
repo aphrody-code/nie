@@ -16,10 +16,10 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
-clap.workspace = true
-png = "0.18"
-nie-app = { path = "../../engine/nie-app" }
-nie-formats = { path = "../../engine/nie-formats" }
-nie-core = { path = "../../engine/nie-core" }
-nie-runtime = { path = "../../engine/nie-runtime" }
-rusqlite.workspace = true
+clap = { workspace = true, features = ["derive", "color", "env"] }
+png.workspace = true
+nie-app.workspace = true
+nie-formats = { workspace = true, default-features = true }
+nie-core.workspace = true
+nie-runtime.workspace = true
+rusqlite = { workspace = true, features = ["bundled"] }

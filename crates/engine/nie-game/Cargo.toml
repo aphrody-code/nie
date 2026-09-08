@@ -16,38 +16,38 @@ path = "src/main.rs"
 
 [dependencies]
 # Feature `textures` = décodeur G4TX/DDS → RGBA8/PNG partagé (`nie_formats::g4tx_decode`).
-nie-formats = { workspace = true, features = ["textures"] }
+nie-formats = { workspace = true, features = ["textures"], default-features = true }
 # VM Lua 5.2 réelle : exécute les vrais scripts de menu du jeu pour générer le layout au runtime
 # (driver reversé OnInit/OnSetupLayer/OnOpenLayer → MenuState), comme nie.exe. API safe seulement.
-nie-lua = { workspace = true }
+nie-lua = { workspace = true, default-features = true }
 # Modèles de données + résolveur de texte universel : résout les libellés STATIQUES de menu
 # (`TextComponent.hashes` → `menu_text`) pour l'export de layout (cf. DESIGN.md §7).
-nie-data = { workspace = true }
+nie-data.workspace = true
 # Le CŒUR du jeu : machine à états d'écrans (`flow::Screen`), rendu abstrait et police. `--play`
 # se contente de la brancher sur une fenêtre — même FSM que le front web, aucune réimplémentation.
-nie-app = { workspace = true }
+nie-app.workspace = true
 # Le type `Model` traverse l'API de `nie_app::match3d` (vue 3D du match) : nommable ici.
-nie-render3d = { path = "../../engine/nie-render3d" }
-anyhow = { workspace = true }
-clap = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-wgpu = "=29.0.3"
-winit = "0.30"
-pollster = "0.4"
-bytemuck = { version = "1", features = ["derive"] }
+nie-render3d.workspace = true
+anyhow.workspace = true
+clap = { workspace = true, features = ["derive", "color", "env"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+wgpu.workspace = true
+winit.workspace = true
+pollster.workspace = true
+bytemuck = { workspace = true, features = ["derive"] }
 # Encodage PNG des captures/exports (le décodage DDS/BCn est passé dans nie-formats).
-png = "0.18"
+png.workspace = true
 # Export du layout de menu (JSON contrat `@rose-griffon/menu-render` pour azalee).
-serde = { workspace = true }
-serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
 # Dump exhaustif des packs (example dump_packs) : parallélisme CPU par-CPK (rayon),
 # accès mmap RAM-borné (memmap2), garde-fou disque via statvfs (libc, Linux/WSL).
-rayon = { workspace = true }
-memmap2 = { workspace = true }
-libc = { workspace = true }
+rayon.workspace = true
+memmap2.workspace = true
+libc.workspace = true
 
 [dev-dependencies]
 # Example `dump_g4tx` + test `menu_render_gate` réfèrent les variantes `ImageFormat` en direct
 # (le décodage applicatif passe par nie_formats::g4tx_decode, mais ces cibles de dev nomment l'enum).
-image_dds = { version = "0.7", default-features = false }
+image_dds.workspace = true

@@ -1,10 +1,5 @@
-// Recherche chara/waza sur le miroir wiki (`supabase-*.sqlite`, table `inagle_characters` /
-// `inagle_skills`) — via `tauri-plugin-sql` directement (pas de commande Rust : `nie-wiki`
-// dépend de `rusqlite`, qui entre en conflit de lien natif avec le `sqlx-sqlite` du plugin
-// dans CE binaire, cf. `src-tauri/Cargo.toml`). Les requêtes SQL ci-dessous sont copiées
-// TELLES QUELLES depuis `crates/tools/nie-wiki/src/query.rs` (`search_characters`/`search_skills`)
-// — même vérité SQL, juste un moteur d'exécution différent.
-import Database from "@tauri-apps/plugin-sql";
+// Existing wiki queries executed through the shared native SQLite compatibility facade.
+import Database from "./sqlite";
 import { japaneseToRomaji } from "@niers/game/text";
 
 import { dedoublonnerParNom, type EntreeNoms } from "@/lib/traduction";
@@ -58,7 +53,7 @@ function sanitizeFilter(input: string): string {
   return input.replace(/[%,().*\\]/g, "");
 }
 
-/** URI sqlite pour un chemin de fichier arbitraire (sqlx veut des `/`, pas des `\`). */
+/** URI sqlite pour un chemin de fichier arbitraire (the SQLite path facade accepts normalized `/` separators). */
 function toSqliteUri(path: string): string {
   return `sqlite:${path.replace(/\\/g, "/")}`;
 }

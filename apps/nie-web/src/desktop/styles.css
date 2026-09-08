@@ -1,8 +1,11 @@
 @import "tailwindcss";
-@source "../../../packages/inacord-ui/src";
-@source "../../../packages/ui/src/components";
+/* The common Vite root is nie-web; explicitly retain classes from this host adapter. */
+@source ".";
+@source "../../../../packages/inacord-ui/src";
+@source "../../../../packages/ui/src/components";
 @import "tw-animate-css";
 @import "./sprites.css";
+@import "../../../../packages/inacord-ui/src/shell/inacord-tool-theme.css";
 
 /* `dark` est le thème PAR DÉFAUT (comme spacedrive : `tokens/src/css/theme.css` EST la palette
  * sombre, `themes/light.css` n'est qu'un override) — la variante Tailwind `dark:` reste posée par
@@ -40,11 +43,9 @@
     font-display: optional;
 }
 
-/* ── Design tokens — PORTAGE LITTÉRAL de var/spaceui/packages/tokens/src/css/theme.css ──────
- * Valeurs recopiées telles quelles (hue 235, accent hsl(208,100%,57%)) : c'est LA source de
- * vérité du look spacedrive. Ne pas « ajuster au goût » — toute divergence ici se voit sur
- * chaque écran. Seules additions : la pile de polices (cf. ci-dessus) et `--color-chrome-border`
- * (frameless Windows, absent de spacedrive qui garde `decorations: true`). */
+/* Compatibility tokens for mature tools. The default palette is bound to the
+ * shared game-derived roles by inacord-tool-theme.css. Alternate palettes and
+ * existing semantic class names remain available to every tool component. */
 @theme {
     /* Accent */
     --color-accent: hsl(208, 100%, 57%);

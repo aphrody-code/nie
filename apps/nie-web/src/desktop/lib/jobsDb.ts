@@ -1,6 +1,6 @@
 // Journal DURABLE des opérations longues (§8 ROADMAP — « job system durable inspiré spacedrive »,
 // point noté comme prochaine étape concrète). Table `jobs` de `mods.db` (migration v3,
-// `tauri-plugin-sql` — pas de nouvelle dépendance `rusqlite`, cf. la contrainte de lien natif
+// `shared SQLite owner` — pas de nouvelle dépendance `rusqlite`, cf. la contrainte de lien natif
 // documentée dans `Cargo.toml`).
 //
 // Ce que ça change concrètement : la progression d'une réindexation (~255 800 fichiers, plusieurs
@@ -13,7 +13,7 @@
 // interrompu est marqué `interrupted` au démarrage suivant et doit être relancé à la main. La
 // reprise demanderait de rendre chaque tâche redémarrable à partir d'un point de contrôle
 // persisté, ce qui n'est pas le cas aujourd'hui.
-import Database from "@tauri-apps/plugin-sql";
+import Database from "./sqlite";
 import { useSyncExternalStore } from "react";
 
 export type JobStatus = "running" | "done" | "error" | "canceled" | "interrupted";

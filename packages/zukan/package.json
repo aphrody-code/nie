@@ -14,8 +14,8 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@aphrody/bxc": "0.9.6",
-		"cheerio": "^1.2.0"
+		"@aphrody/bxc": "catalog:",
+		"cheerio": "catalog:"
 	},
 	"devDependencies": {
 		"typescript": "catalog:",

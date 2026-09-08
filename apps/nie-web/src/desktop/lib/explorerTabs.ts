@@ -11,7 +11,6 @@ import {
   openTab,
   restoreExplorerTabs,
   updateTab,
-  type ExplorerTab,
   type ExplorerTabPatch,
   type ExplorerTabsState,
 } from "@niers/inacord-ui/explorer/explorer-tabs";

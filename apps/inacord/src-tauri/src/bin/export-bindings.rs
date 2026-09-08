@@ -1,17 +1,16 @@
-//! Régénère `src/lib/bindings.ts` depuis les signatures Rust, sans ouvrir de fenêtre.
+//! Generate desktop frontend bindings from Rust without opening a window.
 //!
-//! `cargo run --bin export-bindings` depuis `apps/inacord/src-tauri`.
+//! `cargo run -p inacord --bin export-bindings --features dev-bindings` from the repository root.
 //!
-//! `export_bindings` est gaté `#[cfg(debug_assertions)]` — la réflexion specta n'a rien à faire
-//! dans un binaire distribué. Ce binaire doit donc l'être aussi, sinon `cargo build --release`
-//! échoue à le lier et fait tomber toute la release avec lui.
+//! Reflection is development tooling. Release builds keep this binary callable
+//! only to report that generation requires a debug build.
 
 #[cfg(debug_assertions)]
 fn main() {
     match inacord_lib::export_bindings() {
-        Ok(()) => println!("bindings TypeScript régénérés : ../src/lib/bindings.ts"),
-        Err(e) => {
-            eprintln!("échec de l'export des bindings : {e}");
+        Ok(()) => println!("Generated apps/nie-web/src/desktop/lib/bindings.ts"),
+        Err(error) => {
+            eprintln!("Binding export failed: {error}");
             std::process::exit(1);
         }
     }
@@ -19,9 +18,6 @@ fn main() {
 
 #[cfg(not(debug_assertions))]
 fn main() {
-    eprintln!(
-        "export-bindings n'existe qu'en profil debug — relancer sans --release \
-         (la génération des bindings est un outil de développement, pas un livrable)."
-    );
+    eprintln!("export-bindings requires a debug build; rerun without --release.");
     std::process::exit(1);
 }

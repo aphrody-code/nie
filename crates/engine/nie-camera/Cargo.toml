@@ -23,13 +23,13 @@ default = ["host"]
 host = ["dep:anyhow", "dep:clap", "dep:nie-index", "dep:nie-trace", "dep:sha2"]
 
 [dependencies]
-nie-formats = { path = "../../engine/nie-formats" }
-nie-data = { path = "../../engine/nie-data", features = ["std"] }
-nie-trace = { path = "../../forge/nie-trace", optional = true }
-nie-index = { path = "../../forge/nie-index", optional = true }
+nie-formats = { workspace = true, default-features = true }
+nie-data = { workspace = true, features = ["std"] }
+nie-trace = { workspace = true, optional = true, default-features = true }
+nie-index = { workspace = true, optional = true, default-features = true }
 sha2 = { workspace = true, optional = true }
 thiserror.workspace = true
 anyhow = { workspace = true, optional = true }
-serde = { workspace = true }
-serde_json.workspace = true
-clap = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
