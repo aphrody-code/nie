@@ -105,13 +105,19 @@ erreur de callback. Les trois non-dispatchés (`PreStep`, `Step`, `PostStep`) ne
 par ce script ; les 34×3 callbacks présents réussissent tous. Le chunk exclu
 `victory_road_main_menu_0.00.00.00.lua.bin` mesure 71 octets et ne contient qu'un `RETURN`.
 
-Le layout `mainmenu01` embarqué par le navigateur est à présent l'export du driver runtime
-réel : **30 objets, 22 visibles, 21 sprites, 19 textes affichables, 13 textures, 7 positions
-par défaut et 2 ancrages hors canevas**. `lireLayout` normalise les valeurs scalaires de
-`SetText` et `SetObjectNum`; `MenuPrincipal` monte le calque VFS avec `LayoutRender` sous les
-contrôles accessibles du site. C'est un raccordement mesuré, pas une déclaration de
-pixel-perfect : les 7 positions et les interactions C++/Lua non exportées restent explicitement
-hors preuve.
+L'export runtime `mainmenu01` consommable par le navigateur compte **30 objets, 22 visibles, 21
+sprites, 19 textes affichables, 13 textures, 7 positions par défaut et 2 ancrages hors
+canevas**. `lireLayout` normalise les valeurs scalaires de `SetText` et `SetObjectNum`. Le
+composant actuellement servi (`apps/nie-web/src/pages/MainMenu.tsx`) reconstruit toutefois la
+composition en React à partir des textures VFS et ne monte plus `LayoutRender` : l'export est
+l'oracle de convergence, pas encore la surface visible. Les deux commandes menu inconnues du
+script principal ont été reliées aux handlers du `nie.exe` local puis portées dans `nie-lua` :
+le même scénario passe de **126 connues / 2 inconnues / 9 objets mutés / 25 correspondances** à
+**128 connues / 0 inconnue / 10 objets mutés / 26 correspondances**, avec **105 événements
+demandés / 102 dispatchés / 102 réussis** inchangés. Les 15 commandes générales encore inconnues,
+les 7 positions et le transfert de cet état C++/Lua au renderer restent hors preuve. Gate rejouée
+dans `/home/ubuntu/niers` le 2026-09-08 : `nie-lua` **112 passés / 0 échec / 1 ignoré**, Clippy
+strict **0 avertissement**.
 
 Le lot de nommage privé migre les dossiers et fichiers Web en anglais sans modifier les stems du
 VFS (`mainmenu01`, `loading01`). Les layouts vivent sous `src/layouts/` — `src/data/` aurait été

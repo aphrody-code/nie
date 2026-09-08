@@ -22,12 +22,39 @@ visibles**, **21 sprites**, **19 valeurs de texte affichables**, **13 textures d
 directes établies par `SetText` et `SetObjectNum` sont normalisées par `lireLayout()` afin que le
 même rendu fonctionne dans nie-web et Inacord.
 
-Le menu navigateur monte ce calque VFS sous ses contrôles applicatifs via `LayoutRender`; les
-textures sont donc demandées à la source d'assets de l'hôte, sans copie dans `public/`. Le
-calque est exclu de l'arbre d'accessibilité et ne capte aucun geste : les contrôles accessibles
-restent ceux du site. Les 7 placements par défaut et les interactions C++/Lua non exportées
-restent des limites connues ; cette intégration ne les présente pas comme une fidélité
-pixel-perfect.
+Cet export reste l'oracle runtime du navigateur, mais le composant actuellement servi
+(`apps/nie-web/src/pages/MainMenu.tsx`) reconstruit encore la composition en React à partir des
+textures VFS. Il ne monte plus `LayoutRender`. Les 7 placements par défaut et la traduction des
+mutations C++/Lua vers le renderer restent donc des limites connues ; cette intégration ne les
+présente pas comme une fidélité pixel-perfect.
+
+## Couverture des commandes runtime du menu principal (2026-09-08)
+
+Le script VFS exact `main_menu_1.02.92.00.lua.bin` émettait encore deux commandes menu inconnues.
+La table de dispatch du `nie.exe` local les relie aux handlers `0x140CCC800` et `0x140CE84A0` :
+
+- `0x555E4093` est appelé par le wrapper Lua exact `MAIN_MENU.SetUseSaveButton`. Le handler
+  résout le layer et le composant de guide, écrit le booléen à `+0xED` et son dirty flag à
+  `+0xEF` ;
+- `0xE57428CF` résout `(objectId, value, index, layerId)`, écrit l'entier à `object+0x124` puis
+  invalide `object+0x168`. Aucun wrapper nommé n'est livré pour cette commande : le modèle Rust
+  conserve donc le nom neutre `native_field_0x124_by_index` au lieu d'inventer sa sémantique.
+
+Après portage dans `nie-lua`, le même export compte **105 événements demandés / 102 dispatchés /
+102 réussis**, **128 commandes menu connues**, **0 commande menu inconnue**, **10 objets mutés**
+et **26 correspondances runtime**. La baseline précédente donnait respectivement 126, 2, 9 et
+25. Les **15 identifiants de commandes générales** encore inconnus sont une frontière distincte
+et restent visibles dans `runtimeSummary.unknownGeneralCmds`.
+
+Mesure rejouée depuis `/home/ubuntu/niers` le 2026-09-08 :
+
+```text
+cargo run -p nie-game --release -- --menu main_menu --from-setting --runtime --export-layout /tmp/mainmenu-runtime-after.json --screen-name mainmenu01
+cargo test -p nie-lua --lib
+cargo clippy -p nie-lua --lib --tests -- -D warnings
+```
+
+La suite `nie-lua` rend **112 tests passés / 0 échec / 1 ignoré** et Clippy **0 avertissement**.
 
 ## Synthèse des mesures d'angle et de géométrie (2026-09-06)
 

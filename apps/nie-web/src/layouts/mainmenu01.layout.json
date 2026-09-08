@@ -49,7 +49,10 @@
       "name": "mainmenu90_00_background",
       "parent": null,
       "primitive": null,
-      "runtime": null,
+      "runtime": {
+        "matched": true,
+        "objHash": "0x15E5C370"
+      },
       "sprite": {
         "h": 1100,
         "logicalPath": "dx11/menu/100_mainmenu/mainmenu90/mainmenu90_00/mainmenu90_00.g4tx",
@@ -1215,7 +1218,7 @@
     "decodedScripts": 1,
     "distinctVisibilityIndexes": 9,
     "headerTabsAdded": 9,
-    "knownCmdCalls": 126,
+    "knownCmdCalls": 128,
     "knownCmdsByName": {
       "ApplyGlobalConfig(=>true)": 1,
       "ApplyReturn1(=>1)": 1,
@@ -1234,15 +1237,17 @@
       "SetNodeSprite": 4,
       "SetNodeSpriteEnabled": 2,
       "SetNodeValue": 1,
+      "SetObjectField0x124": 1,
       "SetObjectFlag": 1,
       "SetObjectVisible": 49,
       "SetPartVisible": 9,
       "SetSelectedIndex": 1,
       "SetSprite": 2,
       "SetSubNodeEnabled": 1,
-      "SetText": 4
+      "SetText": 4,
+      "SetUseSaveButton": 1
     },
-    "layersTouched": 8,
+    "layersTouched": 9,
     "listItemsRecorded": 0,
     "loadedIncludes": {
       "LUA_MAIN_MENU_INC": 1,
@@ -1267,9 +1272,9 @@
     },
     "objectsHidden": 8,
     "objectsHiddenByMerge": 1,
-    "objectsInMenuState": 9,
-    "objectsMatched": 16,
-    "objectsMatchedTotal": 25,
+    "objectsInMenuState": 10,
+    "objectsMatched": 17,
+    "objectsMatchedTotal": 26,
     "objectsWithIndexedVisibility": 8,
     "primitiveBindings": 1,
     "primitiveG4pkmPathsMissing": 0,
@@ -1281,18 +1286,7 @@
     "spritesMutated": 13,
     "spritesNamed": 2,
     "textsMutated": 11,
-    "unknownCmds": [
-      {
-        "args": "2645952753, 1138543975, false",
-        "cmdId": "0x555E4093",
-        "count": 1
-      },
-      {
-        "args": "367379312, 1",
-        "cmdId": "0xE57428CF",
-        "count": 1
-      }
-    ],
+    "unknownCmds": [],
     "unknownGeneralCmds": [
       {
         "args": "347870658, 1598948986",

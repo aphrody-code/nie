@@ -298,8 +298,9 @@ enchaînaient ; **le premier est levé** :
    Résultat : `layers=2 objects=9`, **60 commandes** émises (contre 1), dont `SetIconSprite`,
    `SetNodeSprite`, `SetText`, `SetNodeParam`, `SetObjectVisible`, `SetChildVisible`,
    `SetListItemValues`. Quatre objets portent un hash de sprite, deux un texte. **Le menu
-   construit** — il reste à brancher le renderer et à résoudre 2 cmdIds inconnus
-   (`0x555E4093`, `0xE57428CF`).
+   construit**. À cette mesure, il restait à brancher le renderer et à résoudre 2 cmdIds
+   inconnus (`0x555E4093`, `0xE57428CF`) ; ces deux cmdIds menu sont portés dans `nie-lua`
+   depuis le 2026-09-08, mais le branchement du renderer reste ouvert.
 
 **La méthode généralise** — 6 écrans essayés, 6 construisent (balayage des 2 628 `menu_layer`) :
 

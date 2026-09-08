@@ -68,6 +68,19 @@ pub struct MenuObjectState {
     pub visible: bool,
     /// Actif / interactif (`SetObjectActive` / `SetButtonEnabled`). Défaut : `true`.
     pub active: bool,
+    /// Whether the main-menu button-guide component uses its save button.
+    ///
+    /// `MAIN_MENU.SetUseSaveButton` emits `0x555E4093(layerId, objectId, enabled)`.
+    /// The native handler at `0x140CCC800` writes the boolean to the resolved
+    /// subcomponent at `+0xED` and marks it dirty at `+0xEF`.
+    pub use_save_button: Option<bool>,
+    /// Reverse-confirmed native object field at `+0x124`, keyed by object instance.
+    ///
+    /// Command `0xE57428CF(objectId, value, [index], [layerId])` writes this value
+    /// and clears the cache/dirty word at `+0x168`. Its higher-level name is not
+    /// present in the shipped Lua, so the state deliberately keeps the offset-based
+    /// name instead of inventing product semantics.
+    pub native_field_0x124_by_index: BTreeMap<i32, i32>,
     /// Hash de texture du sprite (`SetSprite` / `SetIconTexture`). Pour `SetIconSprite` c'est le
     /// hash du CHEMIN g4tx (`GetTexturePath…()`), à apparier avec [`Self::sprite_region_hash`].
     pub sprite_texture_hash: Option<u32>,
@@ -135,6 +148,8 @@ impl MenuObjectState {
             name: None,
             visible: true,
             active: true,
+            use_save_button: None,
+            native_field_0x124_by_index: BTreeMap::new(),
             sprite_texture_hash: None,
             sprite_cell_id: None,
             sprite_region_hash: None,
@@ -310,6 +325,13 @@ impl MenuState {
 // le layerId : c'est l'objId pour les commandes d'objet, le layerId pour les commandes de layer).
 // — setters (mutent l'état rendu par le menu) —
 const CMD_SET_OBJECT_VISIBLE: u32 = 0x2A64_B198; // (objId, index, visible, [layerId])
+// `MAIN_MENU.SetUseSaveButton` closure in main_menu_inc_3.00.01.00.lua.bin.
+// Handler 0x140CCC800: resolve explicit layer + object subcomponent, write bool [sub+0xED],
+// mark dirty [sub+0xEF].
+const CMD_SET_USE_SAVE_BUTTON: u32 = 0x555E_4093; // (layerId, objId, enabled)
+// Handler 0x140CE84A0: FindObject(layer, objId, index), write DWORD [obj+0x124]=value,
+// then clear DWORD [obj+0x168]. The shipped Lua does not expose a wrapper name.
+const CMD_SET_OBJECT_FIELD_0X124: u32 = 0xE574_28CF; // (objId, value, [index], [layerId])
 const CMD_GENERAL_GET_TEXT: u32 = 0xF2C1_3584; // funcLuaCommand(textId) -> string
 // Build `nie.exe` présent sur le VFS local : le handler 0x140CA60C0 est appelé par ce hash
 // (lecture d'un ou deux IDs puis push d'une chaîne). L'ancien hash reste accepté pour les
@@ -785,6 +807,8 @@ const ARG_GUARDED_RETURN1: &[u32] = &[
 pub fn command_name(cmd_id: u32) -> Option<&'static str> {
     Some(match cmd_id {
         CMD_SET_OBJECT_VISIBLE => "SetObjectVisible",
+        CMD_SET_USE_SAVE_BUTTON => "SetUseSaveButton",
+        CMD_SET_OBJECT_FIELD_0X124 => "SetObjectField0x124",
         CMD_SET_SPRITE => "SetSprite",
         CMD_SET_TEXT => "SetText",
         CMD_SET_COLOR => "SetColor",
@@ -1371,6 +1395,46 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
     }
 
     match cmd_id {
+        // ── MAIN_MENU.SetUseSaveButton(layerId, objId, enabled) ────────────
+        // The explicit layer is the first argument for this one command. This is
+        // confirmed by both the Lua wrapper and handler 0x140CCC800.
+        CMD_SET_USE_SAVE_BUTTON => {
+            if args.len() < 3 {
+                return 0.0;
+            }
+            let layer = lua_to_u32(args.first());
+            let obj_id = lua_to_u32(args.get(1));
+            let enabled = lua_to_bool(args.get(2), false);
+            state
+                .known_cmd_log
+                .push(("SetUseSaveButton".to_string(), layer));
+            state.layer(layer).obj(obj_id).use_save_button = Some(enabled);
+            return 1.0;
+        }
+
+        // ── SetObjectField0x124(objId, value, [index], [layerId]) ──────────
+        // Handler 0x140CE84A0 writes the integer verbatim and invalidates +0x168.
+        // Keep the native offset in the model until a shipped wrapper or consumer
+        // proves the product-level meaning of the field.
+        CMD_SET_OBJECT_FIELD_0X124 => {
+            if args.len() < 2 {
+                return 0.0;
+            }
+            let obj_id = lua_to_u32(args.first());
+            let value = lua_to_i32(args.get(1));
+            let index = lua_to_i32(args.get(2));
+            let layer = target_layer(state, args, 3);
+            state
+                .known_cmd_log
+                .push(("SetObjectField0x124".to_string(), layer));
+            state
+                .layer(layer)
+                .obj(obj_id)
+                .native_field_0x124_by_index
+                .insert(index, value);
+            return 1.0;
+        }
+
         // ── SetObjectVisible(objId, index, visible, [layerId]) ──────────────
         CMD_SET_OBJECT_VISIBLE => {
             let obj_id = lua_to_u32(args.first());
@@ -2635,11 +2699,78 @@ mod dispatch_tests {
     /// `command_name` couvre les cmdId résiduels nouvellement reversés.
     #[test]
     fn command_names_cover_residual_set() {
+        assert_eq!(
+            command_name(CMD_SET_USE_SAVE_BUTTON),
+            Some("SetUseSaveButton")
+        );
+        assert_eq!(
+            command_name(CMD_SET_OBJECT_FIELD_0X124),
+            Some("SetObjectField0x124")
+        );
         assert_eq!(command_name(0x214D_A123), Some("SetIconSprite"));
         assert_eq!(command_name(0xCAE6_622C), Some("SetPartEnabled"));
         assert_eq!(command_name(0xC1DE_BA99), Some("SetItemCount"));
         assert_eq!(command_name(0xD72B_5ED5), Some("SetNodeParam"));
         assert_eq!(command_name(0x2581_DC5C), Some("ObjectAction"));
+    }
+
+    #[test]
+    fn main_menu_native_commands_preserve_confirmed_mutations() {
+        let (lua, state) = host();
+        let command = menu_cmd(&lua);
+
+        let save_result = command
+            .call::<f64>((
+                f64::from(CMD_SET_USE_SAVE_BUTTON),
+                2_645_952_753.0_f64,
+                1_138_543_975.0_f64,
+                false,
+            ))
+            .unwrap();
+        let field_result = command
+            .call::<f64>((
+                f64::from(CMD_SET_OBJECT_FIELD_0X124),
+                367_379_312.0_f64,
+                1.0_f64,
+            ))
+            .unwrap();
+
+        assert_eq!(save_result, 1.0);
+        assert_eq!(field_result, 1.0);
+        let state = state.borrow();
+        assert_eq!(
+            state.layers[&2_645_952_753].objects[&1_138_543_975].use_save_button,
+            Some(false)
+        );
+        assert_eq!(
+            state.layers[&0].objects[&367_379_312].native_field_0x124_by_index[&0],
+            1
+        );
+        assert!(state.unknown_cmd_log.is_empty());
+    }
+
+    #[test]
+    fn main_menu_native_commands_reject_short_argument_lists() {
+        let (lua, state) = host();
+        let command = menu_cmd(&lua);
+
+        assert_eq!(
+            command
+                .call::<f64>((
+                    f64::from(CMD_SET_USE_SAVE_BUTTON),
+                    2_645_952_753.0_f64,
+                    1_138_543_975.0_f64,
+                ))
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            command
+                .call::<f64>((f64::from(CMD_SET_OBJECT_FIELD_0X124), 367_379_312.0_f64,))
+                .unwrap(),
+            0.0
+        );
+        assert!(state.borrow().layers.is_empty());
     }
 
     /// SetIconSprite(objId, h1, …) — registre l'objet dans le layer courant et retient h1 comme
