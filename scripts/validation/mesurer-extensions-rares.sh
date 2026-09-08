@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Identifie les fichiers des extensions RARES du VFS (§ 9.2 de docs/PLAN-SITE-ULTIME.md).
+# Identify files with rare VFS extensions for the canonical PLAN.md evidence gate.
 #
 # La gate `100 %` du plan exige qu'aucun des 255 308 fichiers ne reste non classé. Les
 # extensions de moins de 15 fichiers en concentrent l'essentiel : 15 extensions, 48 entrées

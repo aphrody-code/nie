@@ -4,12 +4,7 @@
     "AGENTS.md",
     "apps/azalee/AGENTS.md"
   ],
-  "planAppendices": [
-    "docs/PLAN-SITE-ULTIME.md",
-    "docs/PLAN.md",
-    "docs/PLAN-SESSION-3D.md",
-    "docs/UNIFIED-PLAN.md"
-  ],
+  "planAppendices": [],
   "stalePatterns": [
     "Next.js 15",
     "mode urgence/YOLO",

@@ -4,7 +4,7 @@
 > (écran START « COMMENCER ») et `menu.png` (menu principal) — d'*Inazuma Eleven: Victory Road*
 > (`nie.exe`, moteur Level-5 « Lives ») réimplémenté en Rust.
 >
-> Cap et état : `docs/PLAN.md` (pilier Rendu). Stack : `docs/STACK.md`.
+> Cap et état : [`../PLAN.md`](../PLAN.md) (priorités P0 à P2). Stack : `docs/STACK.md`.
 > Boucle RE : `docs/RE.md`.
 > Règle d'or : **aucun « FAIT » sans validation end-to-end sur le réel** (byte-exact vs
 > iecode/inagle, pixel-exact vs capture du vrai jeu). Chaque affirmation factuelle cite un
@@ -874,7 +874,7 @@ réellement (la capture de référence du jeu) pour transformer le gate en *preu
 
 ### Le gate conçu (FAIT sur le papier, NON_FAIT en code)
 
-`docs/STACK.md:20` (ligne « Gate pixel-diff » du tableau) et `docs/PLAN.md` (pilier Rendu)
+`docs/STACK.md:20` (ligne « Gate pixel-diff » du tableau) et `PLAN.md` (priorités P0 à P2)
 définissent le même gate à deux étages :
 
 1. **Égalité octet d'abord** — hash (`sha2`/`blake3`) du **RGBA8 dé-paddé**. C'est désigné comme « la
@@ -920,7 +920,7 @@ donc l'**équivalence du pipeline CPU↔GPU** — un filet de régression intern
 ### Capture de référence : la vérité manquante (partiellement résolue)
 
 La vérité = une frame du vrai `nie.exe`. Sans elle, **aucun SSIM n'est calculable**
-(`docs/PLAN.md` : « nécessite une capture de référence du vrai jeu — aucune mesure SSIM encore,
+(`PLAN.md` : une fidélité pixel-perfect exige une comparaison reproductible,
 pas de prétention pixel-perfect »). Options évaluées :
 
 - **(a) Screenshot WSLg/Windows du jeu lancé directement** — **FAISABLE et déjà fait**. Le jeu tourne
@@ -980,7 +980,7 @@ Spec proposée, alignée sur `STACK.md:20` :
 - **L'égalité octet vs un screenshot du jeu est IMPOSSIBLE** pour l'écran composé : (1) mismatch de
   résolution + resampling, (2) **rasterizer différent** (GPU réel du jeu vs wgpu/lavapipe niers : AA,
   filtrage, arrondis ≠ bit-à-bit), (3) contenu dynamique. L'étage octet reste la preuve pour les
-  **formats/données** (cf. `docs/PLAN.md`) et pour le **déterminisme interne** de niers, **pas** face
+  **formats/données** (cf. `PLAN.md`) et pour le **déterminisme interne** de niers, **pas** face
   au screenshot. La phrase « égalité octet = vraie preuve d'identité » (`STACK.md:20`) ne vaut donc
   que contre un golden produit par niers, pas contre la réf jeu.
 - **Le SSIM est le gate réaliste vs le jeu, mais inatteignable aujourd'hui** car le rendu est
@@ -989,7 +989,7 @@ Spec proposée, alignée sur `STACK.md:20` :
   absent du VFS ») et widgets texte ignorés (« pas de g4tx_path ») (`/tmp/mainmenu.log`). SSIM actuel
   ≈ 0.
 - **Aucun harnais golden n'est câblé** (ni test, ni dép, ni nextest installé).
-- `docs/PLAN.md` classe le pilier **Rendu** comme gaté sur le driver de menu (Δpixel non mesuré).
+- `PLAN.md` classe le rendu du menu natif dans les priorités P0 à P2 (Δpixel non mesuré).
 
 → **État du gate aujourd'hui : filet de régression interne (CPU==GPU via `--verify` + déterminisme),
 PAS une preuve d'identité au jeu.** La preuve pixel-perfect reste **NON_FAIT** ; son déblocage exige,
@@ -998,7 +998,7 @@ geler une frame de référence déterministe (état de sauvegarde contrôlé) à
 
 ## 11. Plan d'exécution (vagues gatées)
 
-> S'insère dans le pilier Rendu de `docs/PLAN.md`. Chaque vague = livrable réel + **gate vérifiable**.
+> S'insère dans les priorités de rendu de `PLAN.md`. Chaque vague = livrable réel + **gate vérifiable**.
 > Ordre choisi pour maximiser le signal visible : les deux premières vagues (placement + sélection de
 > texture) débloquent à elles seules la majorité des sprites **statiques** de `title02`.
 
@@ -1073,4 +1073,3 @@ trajectoire la plus courte vers une première preuve SSIM.
   **NON_FAIT** ; son déblocage suit l'ordre D1.a → D1.f.
 - `mainmenu01` dépend de sous-systèmes lourds (Lua + 3D + primitives + police) : son gate arrive
   **après** celui de `title02`. Ne pas confondre « écran cartographié » et « écran rendu identique ».
-

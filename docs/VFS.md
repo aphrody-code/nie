@@ -26,7 +26,7 @@ d'abord dans **deux** lots. Une découpe ne se déclare pas complète, elle se *
 
 ## 2. La matrice, par volume de fichiers
 
-Cinq états, parce que trois ne suffisaient pas. Le plan (`PLAN-SITE-ULTIME.md` § 4) en connaît
+Cinq états, parce que trois ne suffisaient pas. Le plan historique de couverture en connaissait
 trois — `servi` / `interne` / `manquant` — mais la mesure a fait apparaître deux cas que ces
 trois écrasaient :
 
@@ -238,4 +238,3 @@ The exhaustive audit then decoded and executed 1 197/1 197 scripts with 0 decode
 1 053 252 decoded instructions, 21 661 713 live instructions, 76 include families, 0 missing
 includes, and 0 missing host invocations. These are local/VPS-backed measurements, not claims
 that the ignored game payload belongs in Git.
-

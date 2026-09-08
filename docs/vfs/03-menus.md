@@ -211,7 +211,7 @@ plafond de réponse, cache et ETag) et rend le JSON construit par `nie-model-ser
 reconstruit pas la table. Une requête directe vers `/menu-tree.json` reste une page de fallback
 HTML et n'est pas l'API menu.
 
-## 6. Tableau de couverture (matrice `docs/PLAN-SITE-ULTIME.md` §4)
+## 6. Tableau de couverture historique
 
 | Famille | État | Détail |
 |---|---|---|

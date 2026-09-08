@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mesure les FILTRES que l'API de nie applique reellement — lot 8 de docs/PLAN-SITE-ULTIME.md.
+# Measure the filters that the nie API actually applies (canonical PLAN.md evidence gate).
 #
 #   scripts/validation/mesurer-filtres.sh [base]
 #

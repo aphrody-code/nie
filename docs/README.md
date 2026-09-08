@@ -1,20 +1,19 @@
-# Documentation niers — Architecture & Index Unifié
+# niers documentation index
 
-> **Dépôt :** `aphrody-code/nie` (projet `niers`)  
-> **Mission :** Réécriture pixel-perfect et byte-exact de *Inazuma Eleven: Victory Road* (`nie.exe`) en Rust natif.  
-> **Contrat Commercial :** Accord N° RG-L5-VR-2026-001 (Rose Griffon / LEVEL-5 Inc.).
+The repository has one active execution plan: [`../PLAN.md`](../PLAN.md). Technical documents
+under `docs/` provide evidence and specifications; they do not define competing priorities.
+Superseded plans are preserved in the dated
+[`archive/plans/`](archive/plans/2026-09-08/README.md) directory.
 
 ---
 
-## 1. Références Maîtresses & Règle Unique
-
-Pour éviter les doublons et les contradictions entre agents (Claude, Codex, Astra/AGY), la documentation est articulée autour des documents de référence suivants :
+## 1. Canonical references
 
 | Document | Rôle & Contenu |
 | :--- | :--- |
 | **[../AGENTS.md](../AGENTS.md)** | **Instructions opérationnelles courtes pour tous les agents** : hiérarchie des sources, architecture, gates Cargo/Bun, sécurité et pièges d'environnement (VFS, FFI, Windows). |
+| **[../PLAN.md](../PLAN.md)** | **Only active roadmap and gate ledger.** Architecture ownership, priorities, measured state and durable decisions. |
 | **[HOSTS-AND-PORTS.md](HOSTS-AND-PORTS.md)** | **Hôtes, ports et DNS — MESURÉS.** Qui répond quoi sur ce VPS. Fait autorité contre tout plan qui dirait autre chose. |
-| **[UNIFIED-PLAN.md](UNIFIED-PLAN.md)** | **Feuille de route & Plans unifiés** : synthèse du cap ultime (`manquant = 0`), des 7 blocs prioritaires actifs, de la bascule Vercel/nie.aphrody.com et de la forge byte-exacte. |
 | **[AUDIT-USAGE-GEMINI-FLASH.md](AUDIT-USAGE-GEMINI-FLASH.md)** | **Analyse des quotas & capacité de travail** : mesure des 307 623 lignes Rust, calcul de l'overhead agy-cli et projection d'autonomie avec Gemini 3.8 Flash (Thinking Low). |
 
 ---
@@ -25,7 +24,7 @@ Pour éviter les doublons et les contradictions entre agents (Claude, Codex, Ast
 - **[STACK.md](STACK.md)** : Architecture runtime du moteur, intégration Lua 5.2 et boucle principale.
 - **[DESIGN.md](DESIGN.md)** & **[DESIGN-UI.md](DESIGN-UI.md)** : Rendu pixel-perfect des écrans Start, Menu et HUD (mesures directes sur les captures de `data/menu/`).
 - **[AVATAR.md](AVATAR.md)** : Spécifications complètes de l'éditeur d'avatar (`chara_edit`).
-- **[PLAN-SESSION-3D.md](PLAN-SESSION-3D.md)** : Pipeline de rendu 3D serveur et intégration `nie-render3d`.
+- **[../PLAN.md](../PLAN.md#p3--inacord-product-unification)** : active 3D and Inacord delivery priorities.
 - **[BENCHMARKS.md](BENCHMARKS.md)** : Mesures comparatives de performance (Rust vs C++ vs C#).
 
 ### 2.2 Reverse Engineering, Binaire & Formats

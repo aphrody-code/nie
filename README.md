@@ -232,8 +232,8 @@ on stderr when they skip** — a golden that silently does nothing is a false gr
 Further reading: [`PLAN.md`](PLAN.md) (the canonical active plan and gate ledger) ·
 [`docs/FORGE.md`](docs/FORGE.md) (producing the binary) ·
 [`docs/RE.md`](docs/RE.md) (the target and the loop) ·
-[`docs/FORMATS.md`](docs/FORMATS.md) (file formats) ·
-[`apps/inacord/ROADMAP.md`](apps/inacord/ROADMAP.md) (desktop app).
+[`docs/FORMATS.md`](docs/FORMATS.md) (file formats). The Inacord desktop/mobile roadmap is now
+part of the canonical [`PLAN.md`](PLAN.md).
 
 ## Reverse-engineering bridge
 
@@ -250,13 +250,10 @@ only the orchestration boundary is scheduled for migration, with provenance and 
 
 ## Roadmap
 
-**The cap.** One site that exposes *everything* this repository can do — measured, not claimed:
-[`docs/PLAN-SITE-ULTIME.md`](docs/PLAN-SITE-ULTIME.md). Its single instrument is a coverage
-matrix in which every capability is `servi`, `interne` (with a written reason) or `manquant`;
-the master gate is `manquant = 0`. Starting measurement: 41 `niers` subcommands and 155 Tauri
-commands against ~14 API paths — the repository can do roughly ten times what it exposes. The
-plan order (cap, deadline, execution, long term, frozen decisions) is in
-[`docs/README.md`](docs/README.md).
+**The cap.** One site that exposes the repository's verified capabilities and one unified
+Inacord suite, measured rather than claimed. Scope, priorities and completion gates live only in
+[`PLAN.md`](PLAN.md); superseded roadmaps are retained under
+[`docs/archive/plans/`](docs/archive/plans/2026-09-08/README.md).
 
 
 **nie** (`nie.aphrody.com`) is the site, served by a `crates/tools/nie-site` crate — Axum

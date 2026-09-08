@@ -30,7 +30,7 @@ Formalized by the `yolo` skill (`.agents/skills/yolo/SKILL.md`, pinned to `aphro
 
 ## Autonomous migration protocol — `nie-web` & the Inacord Rust workspace
 
-Target and starting point: [`docs/TARGET-ARCHITECTURE.md`](docs/TARGET-ARCHITECTURE.md). Read it
+Target and starting point: [`PLAN.md`](PLAN.md). Read its architecture and ownership section
 before creating a crate — `inacord-api` and `inacord-core` already exist under other names.
 
 1. **`nie-web` = `nie.exe` in WebAssembly.** Isolate the engine loop and the graphics/audio

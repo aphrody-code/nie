@@ -216,7 +216,7 @@ dédié n'a été trouvé pour `ptlb`/`clobin`/`linb`/`g4tg`
 pas couverts par la couche 3D** et n'ont aujourd'hui aucune route dédiée : ni assemblage, ni
 export brut.
 
-## 6. Tableau de couverture (matrice `docs/PLAN-SITE-ULTIME.md` § 4)
+## 6. Tableau de couverture historique
 
 | Ce que ça sert | État | Détail mesuré |
 |---|---|---|

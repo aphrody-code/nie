@@ -2,7 +2,7 @@
 
 > **Objectif du projet, formulé sans ambiguïté :** un moteur de jeu complet en Rust, et une chaîne
 > qui **génère** `nie.exe` **identique à l'original au byte près**.
-> Le jeu jouable (`docs/PLAN.md`) reste la finalité fonctionnelle ; la forge en est la **mesure**.
+> Le jeu jouable ([`../PLAN.md`](../PLAN.md)) reste la finalité fonctionnelle ; la forge en est la **mesure**.
 > Tant qu'un octet du binaire n'est pas produit par du code du dépôt, ce qu'il contient n'est pas
 > compris — juste recopié.
 

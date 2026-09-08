@@ -96,7 +96,7 @@ catalogue audio. Exemple de granularité extrême déjà documenté : `waza_stre
 (cue `bg00010`, `cueId 10100`, 63,121 s, HCA 48 kHz stéréo, en boucle — vérifié en direct,
 `/audio-info/data/common/sound_asset/bgm_title.acb`).
 
-**Défaut déjà recensé** (`docs/PLAN-SITE-ULTIME.md` § « pièges d'édition » / § catalogage) : la
+**Défaut recensé dans le plan historique de couverture** (archivé sous `docs/archive/plans/`) : la
 page « Sons » de nie catalogue aujourd'hui par fichier physique (`.awb` listé comme un son),
 ce qui masque la structure réelle. Le bon niveau est le **cue**, adressé par `cueId` (l'identifiant
 AFS2 stable), jamais par rang de fichier — cf. §7.
@@ -177,7 +177,7 @@ budget total dimensionné (le remux MPEG-2 échoue vite ; le remux H.264 des 97 
 plusieurs dizaines de secondes chacun — le commentaire du code lui-même dit qu'un calcul à la
 volée « tiendrait la connexion une minute »).**
 
-## 6. Tableau de couverture (matrice `docs/PLAN-SITE-ULTIME.md` § 4)
+## 6. Tableau de couverture historique
 
 | Capacité | État | Preuve / raison |
 |---|---|---|

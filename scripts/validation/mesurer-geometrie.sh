@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Mesure la couverture réelle des huit familles géométriques servies par `nie-site`
-# (`/api/v1/formats/decode/{chemin}`, lot 9.1 de `docs/PLAN-SITE-ULTIME.md`).
+# (`/api/v1/formats/decode/{chemin}`, a canonical PLAN.md evidence gate).
 #
 # Ce que ce script prouve, et pourquoi il existe : un décodeur câblé mais jamais interrogé ne
 # prouve rien. Il échantillonne l'inventaire VFS figé, interroge le service, et rend pour chaque

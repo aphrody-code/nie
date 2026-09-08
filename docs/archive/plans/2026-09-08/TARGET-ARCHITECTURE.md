@@ -63,8 +63,12 @@ not counted as successes.
 
 - **No mass rename in one pass.** The names above are the target. An API that is already served
   is renamed in a dedicated batch, never in passing — the rule predates this document.
-- **No claim of fidelity.** `crates/engine/nie-wasm` still renders a **2D placeholder**. The Rust
-  world state and browser input are now connected; `nie-camera`, `nie-explore`, `aphrody-re`,
+- **No false claim of dynamic fidelity.** The public main-menu surface now uses the exact clean
+  2560×1440 capture `data/menu/main_menu_alt.png`, copied byte-for-byte and identified as a
+  captured reference. `nie-app`/`nie-wasm` deliberately return a transparent host-owned frame for
+  that screen instead of drawing their former fake vertical menu. Other `nie-wasm` game states
+  remain a **2D prototype**. The Rust world state and browser input are connected;
+  `nie-camera`, `nie-explore`, `aphrody-re`,
   `nie-asm`, `nie-pe`, `nie-forge`, `nie-dump`, and `ievr-tools` provide browser camera control,
   shared VFS content summaries, bounded PE/ELF triage, x64 assembly/lifting, byte-exact PE
   comparison, minidump metadata, and detailed bounded PE inspection; and
@@ -72,8 +76,9 @@ not counted as successes.
   driver whose reusable scenario builder is consumed by `nie-game`. The real-asset replay counts
   105 requested, 102 dispatched and 102 successful events; the three remaining frame callbacks
   are absent from the script. `nie-game` still does not reconstruct every object created by the
-  original menu-manager through `funcLuaMenuCommand`. Compiling `nie.exe` to WebAssembly is the
-  goal, not the current state.
+  original menu-manager through `funcLuaMenuCommand`. Exact delivery of a native capture is a
+  truthful fallback, not compilation of the original renderer. Compiling `nie.exe` to WebAssembly
+  is the goal, not the current state.
 - **No deletion of a working surface** to make room for its replacement. The old tool and the new
   one coexist until the new one is measured to be at least as good.
 

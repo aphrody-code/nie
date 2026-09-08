@@ -18,7 +18,7 @@ const tracked = Bun.spawnSync(["git", "ls-files", "*.md"])
   .stdout.toString()
   .trim()
   .split(/\r?\n/)
-  .filter((path) => path.length > 0 && existsSync(resolve(root, path)));
+  .filter((path) => path.length > 0 && !path.startsWith("docs/archive/") && existsSync(resolve(root, path)));
 
 function requireFile(path: string, reason: string) {
   if (!existsSync(resolve(root, path))) failures.push(`${path}: ${reason}`);

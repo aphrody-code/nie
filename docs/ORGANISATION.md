@@ -102,12 +102,13 @@ l'utilisateur puisque c'est une suppression.
 
 ### Les noms de `docs/`
 
-Codex écrit `docs/getting-started.md` ; niers écrit `docs/PLAN.md`. Le kebab-case minuscule
+Codex écrit `docs/getting-started.md` ; niers écrit le plan canonique racine `PLAN.md`. Le kebab-case minuscule
 est la convention la plus répandue, mais renommer 22 documents cités par `CLAUDE.md`,
 `AGENTS.md`, les plugins et le code n'apporte que de la cohérence de casse, contre un coût
 de rupture réel pour les deux agents et tous les liens existants. **Écart assumé** : la
 convention de ce dépôt est MAJUSCULES pour un document, kebab pour un sous-sujet
-(`modele-de-match.md`). Elle ne change pas sans une raison meilleure que l'esthétique.
+(`modele-de-match.md`). Elle ne change pas sans une raison meilleure que l'esthétique. Les plans
+remplacés utilisent des noms explicites sous `docs/archive/plans/`.
 
 ### Le workspace Rust n'est pas déplacé dans `rust/`
 

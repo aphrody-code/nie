@@ -234,7 +234,7 @@ Le générique `.cfg.bin` (RDBN + T2B) fonctionne **déjà** sur tout ce domaine
 spécifique : `input`, `system`, `camera`, `action`, `craft` et tout `gamedata` sont décodables
 via cette seule route générique, typée ou non selon `nie-data` (§3).
 
-## 6. Matrice de couverture (§4 `docs/PLAN-SITE-ULTIME.md`)
+## 6. Matrice de couverture historique
 
 | Format / famille | État | Raison / route |
 |---|---|---|

@@ -40,7 +40,7 @@
 
 ---
 
-## 4. Reste à Faire vs Plan (`PLAN.md` & `CODEX-JOUR-UNIQUE.md`)
+## 4. Reste à faire face au plan canonique (`../PLAN.md`)
 
 | Bloc du Plan | Intitulé & Périmètre | Turns Estimés | Coût Token Estimé |
 | :--- | :--- | :--- | :--- |

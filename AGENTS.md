@@ -34,9 +34,9 @@ documents linked there; do not duplicate large specifications here.
 `nie-web` is the **WebAssembly build of `nie.exe`**; Inacord is **one Rust suite** — Desktop,
 Mobile, CLI, library, MCP, Blender plugin — absorbing the legacy Azalée tools, the current
 Inacord inherited from `nie-explorer`, and every Rust crate (core, data, VFS, decoders). The
-component table, and what already exists for each, is in
-[`docs/TARGET-ARCHITECTURE.md`](docs/TARGET-ARCHITECTURE.md). Read it before creating a crate:
-several targets already exist under another name.
+component table, and what already exists for each, is in the architecture and ownership section
+of [`PLAN.md`](PLAN.md). Read it before creating a crate: several targets already exist under
+another name.
 
 **A CLI is a binding, never a home.** Logic goes in a library crate; the CLI binary, the GUI,
 the mobile app, the API handler and the MCP tool are five thin callers of one function. The
