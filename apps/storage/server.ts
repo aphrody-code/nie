@@ -24,7 +24,16 @@ const DATABASE_URL = process.env.DATABASE_URL ?? "";
 if (!JWT_SECRET) throw new Error("[rg-storage] SUPABASE_JWT_SECRET manquant");
 if (!DATABASE_URL) throw new Error("[rg-storage] DATABASE_URL manquant");
 
-const sql = new SQL(DATABASE_URL);
+const configuredPoolMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10);
+const poolMax = configuredPoolMax > 0 ? Math.min(configuredPoolMax, 20) : 4;
+
+const sql = new SQL({
+	url: DATABASE_URL,
+	max: poolMax,
+	idleTimeout: 30,
+	maxLifetime: 1_800,
+	connectionTimeout: 10,
+});
 
 const CORS: Record<string, string> = {
 	"access-control-allow-origin": "*",

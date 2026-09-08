@@ -21,14 +21,18 @@ export const getDatabaseURL = (): string => {
 
 let _pgPool: Pool | null = null;
 
+const configuredPoolMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10);
+const poolMax = configuredPoolMax > 0 ? Math.min(configuredPoolMax, 20) : 4;
+
 /** Pool Postgres direct partagé (singleton lazy) — réutiliser ce pool, ne jamais en créer un par requête. */
 export function getPgPool(): Pool {
 	if (!_pgPool) {
 		_pgPool = new Pool({
 			connectionString: getDatabaseURL(),
+			application_name: "azalee-web",
 			connectionTimeoutMillis: 5_000,
 			idleTimeoutMillis: 30_000,
-			max: 10,
+			max: poolMax,
 		});
 	}
 	return _pgPool;

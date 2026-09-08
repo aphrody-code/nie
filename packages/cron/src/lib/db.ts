@@ -15,4 +15,13 @@ if (!databaseUrl) {
 	);
 }
 
-export const sql = new SQL(databaseUrl);
+const configuredPoolMax = Number.parseInt(Bun.env.DATABASE_POOL_MAX ?? "", 10);
+const poolMax = configuredPoolMax > 0 ? Math.min(configuredPoolMax, 20) : 4;
+
+export const sql = new SQL({
+	url: databaseUrl,
+	max: poolMax,
+	idleTimeout: 30,
+	maxLifetime: 1_800,
+	connectionTimeout: 10,
+});

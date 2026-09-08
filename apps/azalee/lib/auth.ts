@@ -5,9 +5,9 @@ import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { bearer } from "better-auth/plugins";
 import { agentAuth } from "@better-auth/agent-auth";
-import { Pool } from "pg";
 import { logAudit } from "@/lib/audit";
 import { ADMIN_ROLES } from "@/lib/auth-roles";
+import { getPgPool } from "@/lib/db/pg";
 import { getIPIntelligence } from "@/lib/ip-intelligence";
 import { getPublicOrigin } from "@/lib/site-url";
 import { sendEmail } from "@/src/lib/email";
@@ -21,30 +21,7 @@ import {
 
 export { ensureUserProfile } from "@rosegriffon/auth";
 
-const getDatabaseURL = () => {
-	const url = process.env.DATABASE_URL;
-	if (!url || url.startsWith("eyJ2Ijo") || url === "undefined" || url === "null") {
-		// Aucun repli, et surtout pas une chaine de connexion en dur.
-		//
-		// Il y en avait une ici : identifiants complets du Postgres de production, en clair dans
-		// la source, utilisee des que la variable manquait ou arrivait sous forme de blob chiffre
-		// Vercel. Deux consequences, et la seconde est la pire : le secret vit dans l'historique
-		// git de tout clone du depot, et un deploiement mal configure se connectait quand meme —
-		// donc sans jamais signaler qu'il lui manquait sa configuration.
-		//
-		// Mieux vaut un demarrage qui echoue et se lit qu'une authentification qui marche par
-		// accident sur des identifiants que personne ne croit utiliser.
-		throw new Error(
-			"DATABASE_URL absente ou invalide. Better Auth ne peut pas ouvrir sa connexion " +
-				"Postgres : renseigner la variable dans la configuration du deploiement.",
-		);
-	}
-	return url;
-};
-
-const pool = new Pool({
-	connectionString: getDatabaseURL(),
-});
+const pool = getPgPool();
 
 // Service-role Supabase client for hooks
 const supabaseAdmin = createSupabaseServiceClient();
