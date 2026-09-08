@@ -125,6 +125,12 @@ export {
 // Ils consomment les classes `game-*` de `shell/game-screens.css`, engendree depuis Rust.
 export * from "./components/game";
 export { AuraCard, type AuraCardImage, type AuraCardProps } from "./components/wiki/wiki/AuraCard";
+export {
+	ElementIcon,
+	type ElementIconImage,
+	type ElementIconProps,
+	type ElementIconSize,
+} from "./components/wiki/wiki/ElementIcon";
 
 // --- L'ecran des Options : les reglages d'Inacord, dans l'ecran du jeu ----------------------
 //

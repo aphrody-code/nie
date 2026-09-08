@@ -1,35 +1,23 @@
 "use client";
 
 import Image from "next/image";
+import {
+	ElementIcon as SharedElementIcon,
+	type ElementIconProps as SharedElementIconProps,
+} from "@niers/inacord-ui";
 import { getSkillIconUrl } from "@rosegriffon/azalee/images";
-import { cn } from "@/lib/utils";
 
-interface ElementIconProps {
-	element: string;
-	size?: "sm" | "md" | "lg";
-	className?: string;
-}
+export type ElementIconProps = Omit<SharedElementIconProps, "resolveIcon" | "renderImage">;
 
-const SIZES = {
-	lg: 32,
-	md: 24,
-	sm: 16,
-};
-
-export function ElementIcon({ element, size = "md", className }: ElementIconProps) {
-	const px = SIZES[size];
-	const iconUrl = getSkillIconUrl(element);
-
-	if (!iconUrl) {
-		return null;
-	}
-
+/** Azalée adapter: it owns CDN resolution and Next image optimization. */
+export function ElementIcon(props: ElementIconProps) {
 	return (
-		<div
-			className={cn("relative inline-flex items-center justify-center", className)}
-			style={{ height: px, width: px }}
-		>
-			<Image src={iconUrl} alt={element} width={px} height={px} className="object-contain" />
-		</div>
+		<SharedElementIcon
+			{...props}
+			resolveIcon={getSkillIconUrl}
+			renderImage={({ src, alt, width, height, className }) => (
+				<Image src={src} alt={alt} width={width} height={height} className={className} />
+			)}
+		/>
 	);
 }
