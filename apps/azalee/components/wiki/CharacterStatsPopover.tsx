@@ -1,7 +1,6 @@
 "use client";
 
 import type { GameCharacterStats } from "@rosegriffon/inagle";
-import { BarChart3 } from "lucide-react";
 import {
   Button,
   Popover,
@@ -9,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@rosegriffon/ui";
 import { CharacterStatsContent } from "@niers/inacord-ui/components/wiki/wiki/CharacterStatsContent";
+import { CharacterStatsTriggerContent } from "@niers/inacord-ui/components/wiki/wiki/CharacterStatsTriggerContent";
 
 interface CharacterStatsPopoverProps {
   stats: GameCharacterStats;
@@ -31,8 +31,7 @@ export function CharacterStatsPopover({
           size="icon"
           className="size-11 sm:size-8 text-on-surface-variant hover:text-primary"
         >
-          <BarChart3 className="size-4" />
-          <span className="sr-only">Stats de {name}</span>
+          <CharacterStatsTriggerContent name={name} />
         </Button>
       </PopoverTrigger>
       <PopoverContent
