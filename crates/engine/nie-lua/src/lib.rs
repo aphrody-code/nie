@@ -28,6 +28,7 @@
 pub use mlua::ChunkMode;
 
 pub mod bytecode;
+pub mod inspection;
 pub mod menu_scene;
 pub mod menu_state;
 pub use menu_state::{MenuLayerState, MenuListItem, MenuObjectState, MenuState};
