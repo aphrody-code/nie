@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use nie_formats::cfgbin::CfgEntry;
 use nie_formats::vfs::Vfs;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use crate::bridge::t2b_value_to_json;
 
@@ -69,6 +69,28 @@ pub fn load_t2b(
     let parsed = nie_formats::cfgbin::parse_t2b(&bytes)
         .map_err(|error| format!("parse T2B {path} : {error}"))?;
     Ok(json!({ "entries": indexed_entries_json(&parsed.entries) }))
+}
+
+/// Decode one cfg.bin path already mounted in `vfs`.
+///
+/// The result preserves the canonical bridge shape used by the typed `nie-data`
+/// parsers: RDBN files become `{ "lists": [...] }`, while T2B files become
+/// `{ "entries": [...] }`.  Hosts may expose this value through their own IPC
+/// or HTTP transport, but format detection and error context belong here so
+/// every caller reads exactly the same VFS bytes.
+pub fn decode_cfgbin(vfs: &Vfs, path: &str) -> Result<Value, String> {
+    let bytes = vfs.read(path).map_err(|error| error.to_string())?;
+    if nie_formats::cfgbin::is_rdbn(&bytes) {
+        let parsed = nie_formats::cfgbin::parse(&bytes)
+            .map_err(|error| format!("parse RDBN {path}: {error}"))?;
+        Ok(crate::bridge::rdbn_to_json(
+            &nie_formats::cfgbin::read_values(&parsed, &bytes),
+        ))
+    } else {
+        let parsed = nie_formats::cfgbin::parse_t2b(&bytes)
+            .map_err(|error| format!("parse T2B {path}: {error}"))?;
+        Ok(crate::bridge::t2b_to_json(&parsed))
+    }
 }
 
 /// Load one localized text family as indexed JSON.

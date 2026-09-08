@@ -20,7 +20,6 @@ use nie_explore::game_data::{
 };
 use nie_formats::vfs::Vfs;
 use serde::Serialize;
-use serde_json::Value;
 use std::collections::HashMap;
 
 /// Technique (hissatsu) — port applati de `nie_data::skill::SkillInfo` + son texte joint
@@ -475,20 +474,10 @@ pub fn calculate_character_stats(
 /// TOUS les fichiers de configuration du jeu (plusieurs centaines sous `data/common/gamedata/`
 /// et `data/common/text/`), pas seulement les modules `nie-data` câblés individuellement avec un
 /// DTO typé (`list_skills` ci-dessus) — cf. demande utilisatrice « niers doit couvrir tout
-/// nie.exe ». Générique : réutilise le pont déjà vérifié `nie_explore::bridge`, aucun nouveau
-/// parseur par format.
-pub fn decode_cfgbin(vfs: &Vfs, path: &str) -> Result<Value, String> {
-    let bytes = vfs.read(path).map_err(|e| e.to_string())?;
-    if nie_formats::cfgbin::is_rdbn(&bytes) {
-        let rdbn =
-            nie_formats::cfgbin::parse(&bytes).map_err(|e| format!("parse RDBN {path} : {e}"))?;
-        let lists = nie_formats::cfgbin::read_values(&rdbn, &bytes);
-        Ok(nie_explore::bridge::rdbn_to_json(&lists))
-    } else {
-        let cfg = nie_formats::cfgbin::parse_t2b(&bytes)
-            .map_err(|e| format!("parse T2B {path} : {e}"))?;
-        Ok(nie_explore::bridge::t2b_to_json(&cfg))
-    }
+/// nie.exe ». Générique : délègue au pont canonique `nie_explore::game_data`, sans parseur
+/// dupliqué dans l'hôte Tauri.
+pub fn decode_cfgbin(vfs: &Vfs, path: &str) -> Result<serde_json::Value, String> {
+    nie_explore::game_data::decode_cfgbin(vfs, path)
 }
 
 // ─── Modules nie-data supplémentaires (§4.1 ROADMAP) ─────────────────────────────────────────
