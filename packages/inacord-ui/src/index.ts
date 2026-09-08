@@ -159,8 +159,18 @@ export {
 export {
 	type ListDensity,
 	type Locale,
+	type GameLocale,
+	GAME_LOCALES,
 	SETTINGS_DEFAULTS,
 	SETTINGS_STORAGE_KEY,
 	setSettings,
 	type ThemeMode,
 } from "./lib/settings";
+export {
+	type NativeTextMatches,
+	type NativeTextOccurrence,
+	type NativeTextResolver,
+	fetchNativeText,
+	uniqueNativeText,
+	useNativeText,
+} from "./lib/native-text";

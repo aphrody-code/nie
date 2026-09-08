@@ -557,7 +557,7 @@ publication was performed.
 ## Native text and game-data surface — 2026-09-08
 
 The browser media surface now exposes a text explorer backed directly by the existing
-`/api/v1/text` owner. It lists the measured families available in the current URL language,
+`/api/v1/text` owner. It lists the measured families available in the selected game VFS language,
 loads a selected family through the paginated native decoder, filters within that family, and
 shows each rendered text with its hash and source VFS file. It therefore exercises the real
 `data/common/text` corpus without adding a JavaScript copy, collapsing repeated hashes, or
@@ -569,6 +569,15 @@ Its narrow parser gate passed 14 tests. The browser TypeScript check passed afte
 surface. Mapping every game-data table to a text-family/hash remains progressive work: new
 relations must be established by the owning decoder and native schema, then made visible through
 the shared resolver; they must not be guessed from filename prefixes.
+
+`packages/inacord-ui` now owns the native-text contract. It resolves only an exact measured
+`(gameLocale, family, hash)` reference through the VFS endpoint, keeps the source VFS file and
+does not silently select among repeated hash occurrences. `gameLocale` is separate from the
+three public page-route locales: it supports all nine measured game locale identifiers (`de`,
+`en`, `es`, `fr`, `it`, `ja`, `pt`, `zh_hans`, `zh_hant`) for native resources. Browser names and
+the shared gallery use that resource locale. The surrounding Inacord authoring shell still has
+authored tool text; it must not be presented as native game localization until a proven VFS or
+game-data text reference replaces it.
 
 ## Cross-surface shared-code proof — 2026-09-08
 

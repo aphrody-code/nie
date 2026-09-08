@@ -59,6 +59,10 @@ adapter roles; they are not another game engine.
   stadiums, keshins, items and story moments. Resolve media-folder labels from verified native
   text-CFG relations in the user's language. Backend VFS paths and database keys stay unchanged.
   Unsupported joins remain explicit; a hand-written category label is not native localization.
+- The shared native-text contract addresses a label by the measured `(VFS locale, family, hash)`
+  tuple and retains source-file provenance and hash ambiguity. Do not use a UI fallback string as
+  a translated game label. The shell URL locales and game VFS locales are distinct: all measured
+  VFS languages are selectable for game text without claiming a translated host route exists.
 - `packages/inacord-ui/src/gallery` owns the shared gallery. Retain Inacord file/conversion/
   preview capabilities and Azalee data/filter/card capabilities through host adapters. Counts
   and pagination must use the same deduplicated resource inventory, not summed source totals.

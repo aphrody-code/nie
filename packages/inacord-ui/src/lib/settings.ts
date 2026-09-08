@@ -1,7 +1,21 @@
 // Paramètres persistés (localStorage — pas de plugin-store nécessaire pour ces quelques valeurs).
 import { useSyncExternalStore } from "react";
 
+/** Language of the host shell and its URL. The public site currently serves these routes. */
 export type Locale = "fr" | "en" | "ja";
+
+/**
+ * A language measured in the game's VFS text catalogue.
+ *
+ * This is deliberately distinct from {@link Locale}: a VFS locale such as `zh_hant`
+ * selects decoded game resources; it does not imply that the surrounding web shell has
+ * a translated route. Hosts must obtain the available set from `/api/v1/text` and never
+ * substitute an authored translation for a missing game string.
+ */
+export type GameLocale = "de" | "en" | "es" | "fr" | "it" | "ja" | "pt" | "zh_hans" | "zh_hant";
+
+/** Known locale identifiers used by the shipped text tree. Availability remains VFS-measured. */
+export const GAME_LOCALES: readonly GameLocale[] = ["de", "en", "es", "fr", "it", "ja", "pt", "zh_hans", "zh_hant"];
 
 /** Variante de palette sombre — mêmes noms et mêmes valeurs que les thèmes de
  * `var/spaceui/packages/tokens/src/css/themes/*.css`. `spacedrive` = la palette de base
@@ -47,6 +61,8 @@ export interface Settings {
   modelServiceUrl: string;
   /** Langue de l'interface. */
   locale: Locale;
+  /** Language used when resolving text, menu and system resources from the game VFS. */
+  gameLocale: GameLocale;
   /** Échelle de la taille de police de base (agit sur `html { font-size }`, tout le reste est en rem). */
   fontScale: number;
   /** Zoom global de l'interface (CSS `zoom`, WebView2/Chromium). */
@@ -86,6 +102,7 @@ const DEFAULTS: Settings = {
   azaleeUrl: "",
   modelServiceUrl: "",
   locale: "fr",
+  gameLocale: "fr",
   fontScale: 1,
   uiZoom: 1,
   accentTheme: "spacedrive",
@@ -101,6 +118,7 @@ function load(): Settings {
     // des tokens spaceui) n'existe plus — sans ce garde, une valeur persistée pointerait vers une
     // classe CSS inexistante et l'app resterait sur la palette de base sans jamais s'en expliquer.
     if (!ACCENT_THEMES.includes(merged.accentTheme)) merged.accentTheme = DEFAULTS.accentTheme;
+    if (!GAME_LOCALES.includes(merged.gameLocale)) merged.gameLocale = DEFAULTS.gameLocale;
     return merged;
   } catch {
     return DEFAULTS;

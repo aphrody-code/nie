@@ -48,6 +48,7 @@ describe("le modèle des réglages", () => {
 		expect(web.every((d) => d.portable)).toBe(true);
 		expect(web.map((d) => d.id)).toEqual([
 			"locale",
+			"gameLocale",
 			"listDensity",
 			"reducedMotion",
 			"theme",

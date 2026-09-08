@@ -24,7 +24,9 @@
 import type { CapacitesSource } from "@niers/asset-source";
 import {
 	ACCENT_THEMES,
+	GAME_LOCALES,
 	type AccentTheme,
+	type GameLocale,
 	type ListDensity,
 	type Locale,
 	type Settings,
@@ -100,6 +102,9 @@ export const LOCALE_OPTIONS: readonly SettingOption<Locale>[] = [
 	{ value: "ja", label: "日本語" },
 ];
 
+/** Identifiers are native VFS locale folders; availability is checked by the host catalogue. */
+export const GAME_LOCALE_OPTIONS: readonly SettingOption<GameLocale>[] = GAME_LOCALES.map((value) => ({ value, label: value }));
+
 const THEME_OPTIONS: readonly SettingOption<ThemeMode>[] = [
 	{ value: "system", label: "Système" },
 	{ value: "light", label: "Clair" },
@@ -138,6 +143,16 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 		label: "Langue du texte",
 		description: "Change la langue de l'interface. Sur le web, la page est rechargée dans sa langue.",
 		options: LOCALE_OPTIONS,
+		default: "fr",
+		portable: true,
+	},
+	{
+		id: "gameLocale",
+		family: "general",
+		kind: "choice",
+		label: "Langue des ressources du jeu",
+		description: "Choisit la locale VFS des textes menu, system et game data. Seules les entrées réellement présentes sont rendues.",
+		options: GAME_LOCALE_OPTIONS,
 		default: "fr",
 		portable: true,
 	},

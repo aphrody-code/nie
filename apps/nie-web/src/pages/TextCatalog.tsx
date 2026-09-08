@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { splitLanguagePrefix } from "../routing";
+import { useSettings } from "@niers/inacord-ui/lib/settings";
 
 type TextFamily = { family: string; languages: string[]; files: number; lines: number };
 type TextCatalog = { languages: { language: string; lines: number }[]; families: TextFamily[]; files: number; lines: number };
@@ -8,8 +8,8 @@ type TextPage = { files: string[]; q: string | null; total_unfiltered: number; r
 
 /** Native text-CFG browser: it reads the measured server catalogue and never mirrors strings in JS. */
 export function TextCatalog() {
-	const locale = splitLanguagePrefix(window.location.pathname).prefix === "/en" ? "en"
-		: splitLanguagePrefix(window.location.pathname).prefix === "/ja" ? "ja" : "fr";
+	const { gameLocale } = useSettings();
+	const locale = gameLocale;
 	const [catalog, setCatalog] = useState<TextCatalog | null>(null);
 	const [family, setFamily] = useState<string | null>(null);
 	const [query, setQuery] = useState("");

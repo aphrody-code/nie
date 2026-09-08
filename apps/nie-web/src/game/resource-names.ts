@@ -23,8 +23,8 @@ export function resourceCode(path: string): string {
  return path.split("/").pop()!.replace(/\.[^.]+$/, "");
 }
 export function useResourceNames(paths: string[]) {
- const { locale } = useSettings();
- return useResolvedNames(resolveResourceNames, "wiki-http", locale, paths.map(resourceCode));
+ const { gameLocale } = useSettings();
+ return useResolvedNames(resolveResourceNames, "wiki-http", gameLocale, paths.map(resourceCode));
 }
 export function resourceLabel(path: string, names: Map<string, ResolvedName>): string {
  const code = resourceCode(path);

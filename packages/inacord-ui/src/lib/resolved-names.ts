@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
-import type { Locale } from "./settings";
+import type { GameLocale, Locale } from "./settings";
 
 export interface ResolvedName {
   /** Exact database identity, when supplied by the owning data resolver. */
@@ -8,7 +8,8 @@ export interface ResolvedName {
   name: string;
   extra: string | null;
 }
-export type NameResolver = (source: string, codes: string[], locale: Locale) => Promise<Map<string, ResolvedName>>;
+/** Resolves names in the selected game-resource locale, not the host-shell locale. */
+export type NameResolver = (source: string, codes: string[], locale: GameLocale) => Promise<Map<string, ResolvedName>>;
 
 /** One cache per host resolver. Source and locale remain part of every lookup identity. */
 function createStore() {
@@ -25,10 +26,10 @@ function createStore() {
 }
 const stores = new WeakMap<NameResolver, ReturnType<typeof createStore>>();
 const emptyResolver: NameResolver = async () => new Map();
-const keyOf = (source: string, locale: Locale, code: string) => JSON.stringify([source, locale, code]);
+const keyOf = (source: string, locale: GameLocale, code: string) => JSON.stringify([source, locale, code]);
 
 /** Batched resolution with notification of every mounted consumer sharing an in-flight query. */
-export function useResolvedNames(optionalResolver: NameResolver | undefined, source: string, locale: Locale, codes: string[]) {
+export function useResolvedNames(optionalResolver: NameResolver | undefined, source: string, locale: GameLocale, codes: string[]) {
   const resolver = optionalResolver ?? emptyResolver;
   let store = stores.get(resolver);
   if (!store) { store = createStore(); stores.set(resolver, store); }
@@ -71,8 +72,9 @@ export function nameWithId(name: string | null | undefined, id: string): string 
   return label && label !== id ? `${label} · ${id}` : id;
 }
 
-export function localizedName(row: { name_fr: string | null; name_en: string | null; name_ja: string | null }, locale: Locale, id: string) {
-  return [row[`name_${locale}`], row.name_en, row.name_fr, row.name_ja].find(name => name?.trim())?.trim() ?? id;
+export function localizedName(row: { name_fr: string | null; name_en: string | null; name_ja: string | null }, locale: GameLocale, id: string) {
+	const column = locale === "fr" || locale === "en" || locale === "ja" ? `name_${locale}` : undefined;
+	return [column ? row[column] : null, row.name_en, row.name_fr, row.name_ja].find(name => name?.trim())?.trim() ?? id;
 }
 
 const KIND_LABELS: Record<Locale, Record<ResolvedName["kind"], string>> = {

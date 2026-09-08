@@ -396,7 +396,7 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
   }, [categorie, sousDossier, enrichissements, settings.gameDir, services]);
 
   const codes = useMemo(() => items.map(item => resourceCode(item.chemin)), [items]);
-  const names = useResolvedNames(services.resolveNames, services.nameSource ?? "", settings.locale, codes);
+  const names = useResolvedNames(services.resolveNames, services.nameSource ?? "", settings.gameLocale, codes);
   const namedItems = items.map(item => {
     const name = names.get(resourceCode(item.chemin));
     return name ? { ...item, titre: nameWithId(name.name, name.id ?? resourceCode(item.chemin)) } : item;
