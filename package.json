@@ -253,6 +253,8 @@
 		"measure:azalee-status-parity": "bun --bun scripts/validation/measure-azalee-status-parity.ts",
 		"measure:azalee-team-parity": "bun --bun scripts/validation/measure-azalee-team-parity.ts",
 		"measure:rust-web": "bun --bun scripts/validation/measure-rust-web-coverage.ts",
+		"validate:shared-capabilities": "bun --bun scripts/validation/validate-shared-capabilities.ts",
+		"generate:public-entry-inventory": "bun --bun scripts/validation/generate-public-entry-inventory.ts",
 		"build": "bun run --filter '*' build",
 		"test": "bun run --filter '*' test",
 		"typecheck": "bun run --filter '*' typecheck",

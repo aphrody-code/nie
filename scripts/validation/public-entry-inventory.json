@@ -1,0 +1,2995 @@
+{
+  "schema": "niers.public-entry-inventory/v1",
+  "generatedFrom": {
+    "cli": "Cmd",
+    "mcp": "#[tool(name)]",
+    "inacord": "tauri_specta::collect_commands!",
+    "site": "declarer_routes! + explicit post routes"
+  },
+  "entries": [
+    {
+      "surface": "cli",
+      "entry": "ComputerUse",
+      "capability": "computeruse",
+      "classification": "host_only",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "ComputerUse requires a local process, executable, or memory boundary."
+    },
+    {
+      "surface": "cli",
+      "entry": "Mod",
+      "capability": "mod",
+      "classification": "portable",
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "Mod delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Viola",
+      "capability": "viola",
+      "classification": "portable",
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "Viola delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Format",
+      "capability": "format",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "Format delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Decode",
+      "capability": "decode",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "Decode delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "RefreshTypedJson",
+      "capability": "refreshtypedjson",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "RefreshTypedJson delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Steam",
+      "capability": "steam",
+      "classification": "portable",
+      "owner": "crates/tools/nie-steam/src/lib.rs",
+      "rationale": "Steam delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Info",
+      "capability": "info",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Info delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Locales",
+      "capability": "locales",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Locales delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Convert",
+      "capability": "convert",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "Convert delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Render",
+      "capability": "render",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "Render delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Lua",
+      "capability": "lua",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "Lua delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "LuaRun",
+      "capability": "luarun",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "LuaRun delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "LuaAudit",
+      "capability": "luaaudit",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "LuaAudit delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Seed",
+      "capability": "seed",
+      "classification": "portable",
+      "owner": "crates/forge/nie-seed/src/lib.rs",
+      "rationale": "Seed delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "SeedUi",
+      "capability": "seedui",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "SeedUi delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Strings",
+      "capability": "strings",
+      "classification": "portable",
+      "owner": "crates/forge/nie-re/src/lib.rs",
+      "rationale": "Strings delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Find",
+      "capability": "find",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Find delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Grep",
+      "capability": "grep",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Grep delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Img",
+      "capability": "img",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "Img delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Mode",
+      "capability": "mode",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
+      "rationale": "Mode delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Icons",
+      "capability": "icons",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_icons.rs",
+      "rationale": "Icons delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Avatar",
+      "capability": "avatar",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Avatar delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Coverage",
+      "capability": "coverage",
+      "classification": "portable",
+      "owner": "crates/forge/nie-re/src/lib.rs",
+      "rationale": "Coverage delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Queue",
+      "capability": "queue",
+      "classification": "portable",
+      "owner": "crates/forge/nie-queue/src/lib.rs",
+      "rationale": "Queue delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Propagate",
+      "capability": "propagate",
+      "classification": "portable",
+      "owner": "crates/forge/nie-re/src/lib.rs",
+      "rationale": "Propagate delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Rtti",
+      "capability": "rtti",
+      "classification": "portable",
+      "owner": "crates/forge/nie-re/src/lib.rs",
+      "rationale": "Rtti delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Index",
+      "capability": "index",
+      "classification": "portable",
+      "owner": "crates/forge/nie-index/src/lib.rs",
+      "rationale": "Index delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Disasm",
+      "capability": "disasm",
+      "classification": "portable",
+      "owner": "crates/forge/nie-re/src/lib.rs",
+      "rationale": "Disasm delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Pdata",
+      "capability": "pdata",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Pdata delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Rebuild",
+      "capability": "rebuild",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Rebuild delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Recover",
+      "capability": "recover",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Recover delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Save",
+      "capability": "save",
+      "classification": "portable",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "Save delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Wiki",
+      "capability": "wiki",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "Wiki delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "UniformMap",
+      "capability": "uniformmap",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "UniformMap delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Textures",
+      "capability": "textures",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "Textures delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "MenuPredecode",
+      "capability": "menupredecode",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "MenuPredecode delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Mem",
+      "capability": "mem",
+      "classification": "host_only",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Mem requires a local process, executable, or memory boundary."
+    },
+    {
+      "surface": "cli",
+      "entry": "Vfs",
+      "capability": "vfs",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "Vfs delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Vn",
+      "capability": "vn",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Vn delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "cli",
+      "entry": "Video",
+      "capability": "video",
+      "classification": "portable",
+      "owner": "crates/tools/nie-cli/src/main.rs",
+      "rationale": "Video delegates portable domain work to its named library owner."
+    },
+    {
+      "surface": "mcp",
+      "entry": "wiki_character_card",
+      "capability": "wiki-character-card",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool wiki_character_card is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "wiki_search",
+      "capability": "wiki-search",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool wiki_search is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "zukan_rank",
+      "capability": "zukan-rank",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool zukan_rank is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "aphrody_api_health",
+      "capability": "aphrody-api-health",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool aphrody_api_health is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "vfs_list",
+      "capability": "vfs-list",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool vfs_list is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "vfs_search",
+      "capability": "vfs-search",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool vfs_search is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "vfs_stat",
+      "capability": "vfs-stat",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool vfs_stat is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "vfs_cat",
+      "capability": "vfs-cat",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool vfs_cat is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "asset_get",
+      "capability": "asset-get",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool asset_get is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "re_query",
+      "capability": "re-query",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool re_query is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "re_function",
+      "capability": "re-function",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool re_function is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "re_coverage",
+      "capability": "re-coverage",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool re_coverage is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "repo_read",
+      "capability": "repo-read",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool repo_read is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "explorer_status",
+      "capability": "explorer-status",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool explorer_status is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "explorer_navigate",
+      "capability": "explorer-navigate",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool explorer_navigate is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "explorer_open",
+      "capability": "explorer-open",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool explorer_open is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "explorer_tab",
+      "capability": "explorer-tab",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool explorer_tab is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "explorer_toast",
+      "capability": "explorer-toast",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool explorer_toast is an in-process transport adapter."
+    },
+    {
+      "surface": "mcp",
+      "entry": "game_launch",
+      "capability": "game-launch",
+      "classification": "transport",
+      "owner": "crates/tools/nie-cli/src/mcp.rs",
+      "rationale": "MCP tool game_launch is an in-process transport adapter."
+    },
+    {
+      "surface": "inacord",
+      "entry": "sqlite::sqlite_load",
+      "capability": "sqlite-sqlite-load",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/database.rs",
+      "rationale": "sqlite::sqlite_load is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "sqlite::sqlite_select",
+      "capability": "sqlite-sqlite-select",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/database.rs",
+      "rationale": "sqlite::sqlite_select is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "sqlite::sqlite_execute",
+      "capability": "sqlite-sqlite-execute",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/database.rs",
+      "rationale": "sqlite::sqlite_execute is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "sqlite::sqlite_close",
+      "capability": "sqlite-sqlite-close",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/database.rs",
+      "rationale": "sqlite::sqlite_close is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "aphrody_pet_etat",
+      "capability": "aphrody-pet-etat",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "aphrody_pet_etat is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "aphrody_pet_frame_png_b64",
+      "capability": "aphrody-pet-frame-png-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "aphrody_pet_frame_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "aphrody_pixel_mesurer",
+      "capability": "aphrody-pixel-mesurer",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "aphrody_pixel_mesurer is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "aphrody_pixel_tokens_css",
+      "capability": "aphrody-pixel-tokens-css",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "aphrody_pixel_tokens_css is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "aphrody_pixel_comparer",
+      "capability": "aphrody-pixel-comparer",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "aphrody_pixel_comparer is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "aphrody_pixel_vectoriser",
+      "capability": "aphrody-pixel-vectoriser",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "aphrody_pixel_vectoriser is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "aphrody_pixel_planche",
+      "capability": "aphrody-pixel-planche",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "aphrody_pixel_planche is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "default_game_dir",
+      "capability": "default-game-dir",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "default_game_dir requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "check_game_dir",
+      "capability": "check-game-dir",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "check_game_dir requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "default_wiki_db",
+      "capability": "default-wiki-db",
+      "classification": "host_only",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "default_wiki_db requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "default_re_db",
+      "capability": "default-re-db",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "default_re_db requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "default_anime_db",
+      "capability": "default-anime-db",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "default_anime_db requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "preload_vfs",
+      "capability": "preload-vfs",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "preload_vfs requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_ls",
+      "capability": "vfs-ls",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_ls is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_find",
+      "capability": "vfs-find",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_find is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_find_paged",
+      "capability": "vfs-find-paged",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_find_paged is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_stats",
+      "capability": "vfs-stats",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_stats is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_entry_meta",
+      "capability": "vfs-entry-meta",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_entry_meta is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_describe",
+      "capability": "vfs-describe",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_describe is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_read_b64",
+      "capability": "vfs-read-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_read_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_texture_png_b64",
+      "capability": "vfs-texture-png-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_texture_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_texture_thumb_png_b64",
+      "capability": "vfs-texture-thumb-png-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_texture_thumb_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_texture_list",
+      "capability": "vfs-texture-list",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_texture_list is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_texture_named_png_b64",
+      "capability": "vfs-texture-named-png-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_texture_named_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_texture_named_thumb_png_b64",
+      "capability": "vfs-texture-named-thumb-png-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_texture_named_thumb_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_extract_to",
+      "capability": "vfs-extract-to",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_extract_to is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_export_formats",
+      "capability": "vfs-export-formats",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_export_formats is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_export_default_name",
+      "capability": "vfs-export-default-name",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_export_default_name is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_export_as",
+      "capability": "vfs-export-as",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_export_as is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_export_many",
+      "capability": "vfs-export-many",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_export_many is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_write_b64",
+      "capability": "vfs-write-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_write_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_write_loose_override_b64",
+      "capability": "vfs-write-loose-override-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_write_loose_override_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "save_bytes_b64",
+      "capability": "save-bytes-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "save_bytes_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_related",
+      "capability": "vfs-related",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_related is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_all_entries",
+      "capability": "vfs-all-entries",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_all_entries is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_index_scan_start",
+      "capability": "vfs-index-scan-start",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_index_scan_start is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_index_scan_cancel",
+      "capability": "vfs-index-scan-cancel",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_index_scan_cancel is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_index_scan_take",
+      "capability": "vfs-index-scan-take",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_index_scan_take is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_skills",
+      "capability": "game-data-skills",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_skills is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_items",
+      "capability": "game-data-items",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_items is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_auras",
+      "capability": "game-data-auras",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_auras is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_trophies",
+      "capability": "game-data-trophies",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_trophies is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_quests",
+      "capability": "game-data-quests",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_quests is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_shops",
+      "capability": "game-data-shops",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_shops is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_stadiums",
+      "capability": "game-data-stadiums",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_stadiums is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_passives",
+      "capability": "game-data-passives",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_passives is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_special_tactics",
+      "capability": "game-data-special-tactics",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_special_tactics is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_emblems",
+      "capability": "game-data-emblems",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_emblems is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_gallery",
+      "capability": "game-data-gallery",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_gallery is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_tricks",
+      "capability": "game-data-tricks",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_tricks is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_activities",
+      "capability": "game-data-activities",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_activities is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_belong_teams",
+      "capability": "game-data-belong-teams",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_belong_teams is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_formations",
+      "capability": "game-data-formations",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_formations is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_uniforms",
+      "capability": "game-data-uniforms",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_uniforms is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_chara_picker",
+      "capability": "game-data-chara-picker",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_chara_picker is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_charas",
+      "capability": "game-data-charas",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_charas is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_opponent_teams",
+      "capability": "game-data-opponent-teams",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_opponent_teams is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_movies",
+      "capability": "game-data-movies",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_movies is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_musics",
+      "capability": "game-data-musics",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_musics is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_dictionary",
+      "capability": "game-data-dictionary",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_dictionary is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_exp_table",
+      "capability": "game-data-exp-table",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_exp_table is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_drops",
+      "capability": "game-data-drops",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_drops is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_capsule_rates",
+      "capability": "game-data-capsule-rates",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_capsule_rates is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_noms",
+      "capability": "game-data-noms",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_noms is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "game_data_calculate_stats",
+      "capability": "game-data-calculate-stats",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "game_data_calculate_stats is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_decode_cfgbin",
+      "capability": "vfs-decode-cfgbin",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_decode_cfgbin is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_decode_cfgbin_typed",
+      "capability": "vfs-decode-cfgbin-typed",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_decode_cfgbin_typed is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_apercu_camera",
+      "capability": "vfs-apercu-camera",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_apercu_camera is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_apercu_navmesh",
+      "capability": "vfs-apercu-navmesh",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_apercu_navmesh is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_cache_stats",
+      "capability": "vfs-cache-stats",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_cache_stats is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_cache_vider",
+      "capability": "vfs-cache-vider",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_cache_vider is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "encode_cfgbin_config",
+      "capability": "encode-cfgbin-config",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "encode_cfgbin_config is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "list_packs_dir",
+      "capability": "list-packs-dir",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "list_packs_dir requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "open_raw_cpk",
+      "capability": "open-raw-cpk",
+      "classification": "host_only",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "open_raw_cpk requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "raw_cpk_describe",
+      "capability": "raw-cpk-describe",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "raw_cpk_describe is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "raw_cpk_read_b64",
+      "capability": "raw-cpk-read-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "raw_cpk_read_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "raw_cpk_extract_to",
+      "capability": "raw-cpk-extract-to",
+      "classification": "host_only",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "raw_cpk_extract_to requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "raw_cpk_extract_all",
+      "capability": "raw-cpk-extract-all",
+      "classification": "host_only",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "raw_cpk_extract_all requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "raw_cpk_audio_preview_b64",
+      "capability": "raw-cpk-audio-preview-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "raw_cpk_audio_preview_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "raw_cpk_video_preview_b64",
+      "capability": "raw-cpk-video-preview-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "raw_cpk_video_preview_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "copy_disk_file_to_appdata",
+      "capability": "copy-disk-file-to-appdata",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "copy_disk_file_to_appdata requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "disk_file_exists",
+      "capability": "disk-file-exists",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "disk_file_exists requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "stage_texture_replacement",
+      "capability": "stage-texture-replacement",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "stage_texture_replacement is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "export_mod_as_cpk",
+      "capability": "export-mod-as-cpk",
+      "classification": "host_only",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "export_mod_as_cpk requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "set_titlebar_theme",
+      "capability": "set-titlebar-theme",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "set_titlebar_theme requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "take_pending_open",
+      "capability": "take-pending-open",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "take_pending_open requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "describe_disk_file",
+      "capability": "describe-disk-file",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "describe_disk_file requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "read_disk_file_b64",
+      "capability": "read-disk-file-b64",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "read_disk_file_b64 requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "open_in_blender",
+      "capability": "open-in-blender",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "open_in_blender requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "install_niers_blender_addon",
+      "capability": "install-niers-blender-addon",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "install_niers_blender_addon requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "blender_preview_png_b64",
+      "capability": "blender-preview-png-b64",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "blender_preview_png_b64 requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "blender_open_scene",
+      "capability": "blender-open-scene",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "blender_open_scene requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "blender_build_skill_scene",
+      "capability": "blender-build-skill-scene",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "blender_build_skill_scene requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "remote_search_chara",
+      "capability": "remote-search-chara",
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "remote_search_chara is a remote-service transport adapter."
+    },
+    {
+      "surface": "inacord",
+      "entry": "remote_search_waza",
+      "capability": "remote-search-waza",
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "remote_search_waza is a remote-service transport adapter."
+    },
+    {
+      "surface": "inacord",
+      "entry": "remote_cpk_search",
+      "capability": "remote-cpk-search",
+      "classification": "transport",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "remote_cpk_search is a remote-service transport adapter."
+    },
+    {
+      "surface": "inacord",
+      "entry": "remote_resolve_roster",
+      "capability": "remote-resolve-roster",
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "remote_resolve_roster is a remote-service transport adapter."
+    },
+    {
+      "surface": "inacord",
+      "entry": "model_service_avatar_catalog",
+      "capability": "model-service-avatar-catalog",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "model_service_avatar_catalog is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "resolve_avatar_composition",
+      "capability": "resolve-avatar-composition",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "resolve_avatar_composition is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "model_service_avatar_glb_b64",
+      "capability": "model-service-avatar-glb-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "model_service_avatar_glb_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "model_service_menu_png_b64",
+      "capability": "model-service-menu-png-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "model_service_menu_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "default_save_path",
+      "capability": "default-save-path",
+      "classification": "host_only",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "default_save_path requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "save_open",
+      "capability": "save-open",
+      "classification": "portable",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "save_open is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "save_list_blobs",
+      "capability": "save-list-blobs",
+      "classification": "portable",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "save_list_blobs is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "save_blob_hex_b64",
+      "capability": "save-blob-hex-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "save_blob_hex_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "save_export",
+      "capability": "save-export",
+      "classification": "portable",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "save_export is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "write_text_file",
+      "capability": "write-text-file",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "write_text_file requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_video_preview_b64",
+      "capability": "vfs-video-preview-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_video_preview_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "video_catalog",
+      "capability": "video-catalog",
+      "classification": "portable",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "video_catalog is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "video_info",
+      "capability": "video-info",
+      "classification": "portable",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "video_info is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "video_precharger",
+      "capability": "video-precharger",
+      "classification": "portable",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "video_precharger is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "open_in_scene_editor",
+      "capability": "open-in-scene-editor",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "open_in_scene_editor requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_chunk_info",
+      "capability": "lua-chunk-info",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_chunk_info is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_disassemble",
+      "capability": "lua-disassemble",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_disassemble is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_execute",
+      "capability": "lua-execute",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_execute is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_globals",
+      "capability": "lua-globals",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_globals is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_eval",
+      "capability": "lua-eval",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_eval is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_list_scripts",
+      "capability": "lua-list-scripts",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_list_scripts is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_exec",
+      "capability": "lua-session-exec",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_exec is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_attach",
+      "capability": "lua-session-attach",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_attach is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_broadcast",
+      "capability": "lua-session-broadcast",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_broadcast is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_eval",
+      "capability": "lua-session-eval",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_eval is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_set_global",
+      "capability": "lua-session-set-global",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_set_global is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_globals",
+      "capability": "lua-session-globals",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_globals is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_reload",
+      "capability": "lua-session-reload",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_reload is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_drain",
+      "capability": "lua-session-drain",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_drain is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "lua_session_api_report",
+      "capability": "lua-session-api-report",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "lua_session_api_report is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_glb_bytes_b64",
+      "capability": "vfs-glb-bytes-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_glb_bytes_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_motion_clips",
+      "capability": "vfs-motion-clips",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_motion_clips is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "raw_cpk_glb_bytes_b64",
+      "capability": "raw-cpk-glb-bytes-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "raw_cpk_glb_bytes_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_audio_preview_b64",
+      "capability": "vfs-audio-preview-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_audio_preview_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_audio_cues",
+      "capability": "vfs-audio-cues",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_audio_cues is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "vfs_audio_cue_wav_b64",
+      "capability": "vfs-audio-cue-wav-b64",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "vfs_audio_cue_wav_b64 is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "clipboard_write_file_list",
+      "capability": "clipboard-write-file-list",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "clipboard_write_file_list requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "clipboard_read_file_list",
+      "capability": "clipboard-read-file-list",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "clipboard_read_file_list requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "trash_appdata_files",
+      "capability": "trash-appdata-files",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "trash_appdata_files requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "forge::forge_report",
+      "capability": "forge-forge-report",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "forge::forge_report requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "forge::forge_blockers",
+      "capability": "forge-forge-blockers",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "forge::forge_blockers requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "re_trace_find_process",
+      "capability": "re-trace-find-process",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "re_trace_find_process requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "re_trace_module_regions",
+      "capability": "re-trace-module-regions",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "re_trace_module_regions requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "re_trace_read_bytes_b64",
+      "capability": "re-trace-read-bytes-b64",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "re_trace_read_bytes_b64 requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "re_trace_write_bytes_b64",
+      "capability": "re-trace-write-bytes-b64",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "re_trace_write_bytes_b64 requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "re_trace_dump_module",
+      "capability": "re-trace-dump-module",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "re_trace_dump_module requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "re_dump_open",
+      "capability": "re-dump-open",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "re_dump_open requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "re_dump_scan",
+      "capability": "re-dump-scan",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "re_dump_scan requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "mcp::mcp_status",
+      "capability": "mcp-mcp-status",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "mcp::mcp_status requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "mcp::mcp_install",
+      "capability": "mcp-mcp-install",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "mcp::mcp_install requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "viola::viola_dump_start",
+      "capability": "viola-viola-dump-start",
+      "classification": "portable",
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "viola::viola_dump_start is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "viola::viola_cancel",
+      "capability": "viola-viola-cancel",
+      "classification": "portable",
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "viola::viola_cancel is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "viola::viola_pack",
+      "capability": "viola-viola-pack",
+      "classification": "portable",
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "viola::viola_pack is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "viola::viola_merge",
+      "capability": "viola-viola-merge",
+      "classification": "portable",
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "viola::viola_merge is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "viola::viola_crypto",
+      "capability": "viola-viola-crypto",
+      "classification": "portable",
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "viola::viola_crypto is an IPC adapter expected to delegate to the named portable owner."
+    },
+    {
+      "surface": "inacord",
+      "entry": "live_mod::live_status",
+      "capability": "live-mod-live-status",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "live_mod::live_status requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "live_mod::live_find_team",
+      "capability": "live-mod-live-find-team",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "live_mod::live_find_team requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "live_mod::live_read_team",
+      "capability": "live-mod-live-read-team",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "live_mod::live_read_team requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "live_mod::live_write_member",
+      "capability": "live-mod-live-write-member",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "live_mod::live_write_member requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "live_mod::live_scan_u32",
+      "capability": "live-mod-live-scan-u32",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "live_mod::live_scan_u32 requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "live_mod::live_write_u32",
+      "capability": "live-mod-live-write-u32",
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "live_mod::live_write_u32 requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "inacord",
+      "entry": "live_mod::launch_save_editor",
+      "capability": "live-mod-launch-save-editor",
+      "classification": "host_only",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "live_mod::launch_save_editor requires native process, window, executable, or game-installation access."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /healthz",
+      "capability": "get-healthz",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/health.rs",
+      "rationale": "GET /healthz is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /robots.txt",
+      "capability": "get-robots-txt",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/well_known.rs",
+      "rationale": "GET /robots.txt is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /llms.txt",
+      "capability": "get-llms-txt",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/well_known.rs",
+      "rationale": "GET /llms.txt is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /llms-full.txt",
+      "capability": "get-llms-full-txt",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/well_known.rs",
+      "rationale": "GET /llms-full.txt is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /manifest.webmanifest",
+      "capability": "get-manifest-webmanifest",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/well_known.rs",
+      "rationale": "GET /manifest.webmanifest is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /en/manifest.webmanifest",
+      "capability": "get-en-manifest-webmanifest",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/well_known.rs",
+      "rationale": "GET /en/manifest.webmanifest is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /ja/manifest.webmanifest",
+      "capability": "get-ja-manifest-webmanifest",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/well_known.rs",
+      "rationale": "GET /ja/manifest.webmanifest is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /sitemap.xml",
+      "capability": "get-sitemap-xml",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/well_known.rs",
+      "rationale": "GET /sitemap.xml is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /downloads/inacord/latest.json",
+      "capability": "get-downloads-inacord-latest-json",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/downloads.rs",
+      "rationale": "GET /downloads/inacord/latest.json is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /feed.atom",
+      "capability": "get-feed-atom",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/feed.rs",
+      "rationale": "GET /feed.atom is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/health",
+      "capability": "get-api-v1-health",
+      "classification": "transport",
+      "owner": "crates/tools/nie-wiki/src/catalog.rs",
+      "rationale": "GET /api/v1/health is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/chara",
+      "capability": "get-api-v1-chara",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/catalog.rs",
+      "rationale": "GET /api/v1/chara delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/api_v1.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/{vue}",
+      "capability": "get-api-v1-vue",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/catalog.rs",
+      "rationale": "GET /api/v1/{vue} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/api_v1.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /f/{*chemin}",
+      "capability": "get-f-chemin",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/vfs.rs",
+      "rationale": "GET /f/{*chemin} is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /b",
+      "capability": "get-b",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/vfs.rs",
+      "rationale": "GET /b is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /b/{*prefixe}",
+      "capability": "get-b-prefixe",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/vfs.rs",
+      "rationale": "GET /b/{*prefixe} is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/episodes",
+      "capability": "get-api-v1-episodes",
+      "classification": "portable",
+      "owner": "crates/tools/nie-site/src/routes/episodes.rs",
+      "rationale": "GET /api/v1/episodes delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/episodes.rs",
+        "nie_site"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /assets/{*chemin}",
+      "capability": "get-assets-chemin",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/assets.rs",
+      "rationale": "GET /assets/{*chemin} is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /pet/aphrody.json",
+      "capability": "get-pet-aphrody-json",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "GET /pet/aphrody.json delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/aphrody.rs",
+        "nie_aphrody"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /pet/atlas.webp",
+      "capability": "get-pet-atlas-webp",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "GET /pet/atlas.webp delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/aphrody.rs",
+        "nie_aphrody"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /pet/aphrody.svg",
+      "capability": "get-pet-aphrody-svg",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "GET /pet/aphrody.svg delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/aphrody.rs",
+        "nie_aphrody"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /pet/frame/{animation}/{fichier}",
+      "capability": "get-pet-frame-animation-fichier",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "GET /pet/frame/{animation}/{fichier} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/aphrody.rs",
+        "nie_aphrody"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/aphrody",
+      "capability": "get-api-v1-aphrody",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "GET /api/v1/aphrody delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/aphrody.rs",
+        "nie_aphrody"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/aphrody/diagnostic",
+      "capability": "get-api-v1-aphrody-diagnostic",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "GET /api/v1/aphrody/diagnostic delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/aphrody.rs",
+        "nie_aphrody"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/aphrody/palette",
+      "capability": "get-api-v1-aphrody-palette",
+      "classification": "portable",
+      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "rationale": "GET /api/v1/aphrody/palette delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/aphrody.rs",
+        "nie_aphrody"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/3d",
+      "capability": "get-api-v1-3d",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "GET /api/v1/3d delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/modeles3d.rs",
+        "nie_render3d"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/3d/modeles",
+      "capability": "get-api-v1-3d-modeles",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "GET /api/v1/3d/modeles delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/modeles3d.rs",
+        "nie_render3d"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/3d/modeles/{famille}/{code}",
+      "capability": "get-api-v1-3d-modeles-famille-code",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "GET /api/v1/3d/modeles/{famille}/{code} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/modeles3d.rs",
+        "nie_render3d"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/3d/modeles/{famille}/{code}/analyse",
+      "capability": "get-api-v1-3d-modeles-famille-code-analyse",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "GET /api/v1/3d/modeles/{famille}/{code}/analyse delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/modeles3d.rs",
+        "nie_render3d"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /model/{famille}/{fichier}",
+      "capability": "get-model-famille-fichier",
+      "classification": "portable",
+      "owner": "crates/engine/nie-render3d/src/lib.rs",
+      "rationale": "GET /model/{famille}/{fichier} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/modeles3d.rs",
+        "nie_render3d"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/lua",
+      "capability": "get-api-v1-lua",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "GET /api/v1/lua delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/lua/scripts",
+      "capability": "get-api-v1-lua-scripts",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "GET /api/v1/lua/scripts delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/lua/scripts/{*chemin}",
+      "capability": "get-api-v1-lua-scripts-chemin",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "GET /api/v1/lua/scripts/{*chemin} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/lua/desassemblage/{*chemin}",
+      "capability": "get-api-v1-lua-desassemblage-chemin",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "GET /api/v1/lua/desassemblage/{*chemin} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/menu/runtime/{screen}",
+      "capability": "get-api-v1-menu-runtime-screen",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/menu_runtime.rs",
+      "rationale": "GET /api/v1/menu/runtime/{screen} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/menu_runtime.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/runtime/audio",
+      "capability": "get-api-v1-runtime-audio",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_audio.rs",
+      "rationale": "GET /api/v1/runtime/audio delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/menu_audio.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/menu/screens",
+      "capability": "get-api-v1-menu-screens",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/menu.rs",
+      "rationale": "GET /api/v1/menu/screens delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/menu.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/menu/screens/{stem}",
+      "capability": "get-api-v1-menu-screens-stem",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/menu.rs",
+      "rationale": "GET /api/v1/menu/screens/{stem} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/menu.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/menu/settings/{screen}",
+      "capability": "get-api-v1-menu-settings-screen",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/menu.rs",
+      "rationale": "GET /api/v1/menu/settings/{screen} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/menu.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/menu/layout/{screen}",
+      "capability": "get-api-v1-menu-layout-screen",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/menu.rs",
+      "rationale": "GET /api/v1/menu/layout/{screen} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/menu.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/formats",
+      "capability": "get-api-v1-formats",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "GET /api/v1/formats delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/formats.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/formats/decode/{*chemin}",
+      "capability": "get-api-v1-formats-decode-chemin",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "GET /api/v1/formats/decode/{*chemin} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/formats.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/export/formats/{*path}",
+      "capability": "get-api-v1-export-formats-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/export.rs",
+      "rationale": "GET /api/v1/export/formats/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/native_export.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/export/file/{*path}",
+      "capability": "get-api-v1-export-file-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/export.rs",
+      "rationale": "GET /api/v1/export/file/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/native_export.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/resources/related/{*path}",
+      "capability": "get-api-v1-resources-related-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/related.rs",
+      "rationale": "GET /api/v1/resources/related/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/related.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/search",
+      "capability": "get-api-v1-wiki-search",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/search delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/gallery",
+      "capability": "get-api-v1-wiki-gallery",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/gallery delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/names",
+      "capability": "get-api-v1-wiki-names",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/names delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/characters/{id}",
+      "capability": "get-api-v1-wiki-characters-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/characters/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/zukan/rank",
+      "capability": "get-api-v1-zukan-rank",
+      "classification": "portable",
+      "owner": "crates/tools/nie-zukan/src/lib.rs",
+      "rationale": "GET /api/v1/zukan/rank delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/zukan.rs",
+        "nie_zukan"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/motion/clips/{*path}",
+      "capability": "get-api-v1-motion-clips-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/motion.rs",
+      "rationale": "GET /api/v1/motion/clips/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/motion.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/preview/camera/{*path}",
+      "capability": "get-api-v1-preview-camera-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/spatial_preview.rs",
+      "rationale": "GET /api/v1/preview/camera/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/spatial_preview.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/preview/navmesh/{*path}",
+      "capability": "get-api-v1-preview-navmesh-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/spatial_preview.rs",
+      "rationale": "GET /api/v1/preview/navmesh/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/spatial_preview.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/growth/interpolate",
+      "capability": "get-api-v1-growth-interpolate",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "GET /api/v1/growth/interpolate delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/growth.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect",
+      "capability": "get-api-v1-inspect",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect/spritesheet/{*path}",
+      "capability": "get-api-v1-inspect-spritesheet-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect/spritesheet/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect/font/{*path}",
+      "capability": "get-api-v1-inspect-font-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect/font/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect/menu/{*path}",
+      "capability": "get-api-v1-inspect-menu-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect/menu/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect/companion",
+      "capability": "get-api-v1-inspect-companion",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect/companion delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect/texture-chunk/{*path}",
+      "capability": "get-api-v1-inspect-texture-chunk-path",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect/texture-chunk/{*path} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect/color",
+      "capability": "get-api-v1-inspect-color",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect/color delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect/compare",
+      "capability": "get-api-v1-inspect-compare",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect/compare delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/inspect/plate",
+      "capability": "get-api-v1-inspect-plate",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "GET /api/v1/inspect/plate delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/recherche",
+      "capability": "get-api-v1-recherche",
+      "classification": "portable",
+      "owner": "crates/tools/nie-site/src/routes/recherche.rs",
+      "rationale": "GET /api/v1/recherche delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/recherche.rs",
+        "nie_site"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/donnees",
+      "capability": "get-api-v1-donnees",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "GET /api/v1/donnees delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/donnees.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/donnees/familles",
+      "capability": "get-api-v1-donnees-familles",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "GET /api/v1/donnees/familles delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/donnees.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/donnees/famille/{cle}",
+      "capability": "get-api-v1-donnees-famille-cle",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "GET /api/v1/donnees/famille/{cle} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/donnees.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/donnees/{*chemin}",
+      "capability": "get-api-v1-donnees-chemin",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "GET /api/v1/donnees/{*chemin} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/donnees.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/passives",
+      "capability": "get-api-v1-passives",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/passives.rs",
+      "rationale": "GET /api/v1/passives delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/passives.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/passives/{kind}",
+      "capability": "get-api-v1-passives-kind",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/passives.rs",
+      "rationale": "GET /api/v1/passives/{kind} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/passives.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/playstyles",
+      "capability": "get-api-v1-playstyles",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/playstyle.rs",
+      "rationale": "GET /api/v1/playstyles delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/playstyles.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/playstyles/{id}",
+      "capability": "get-api-v1-playstyles-id",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/playstyle.rs",
+      "rationale": "GET /api/v1/playstyles/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/playstyles.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/conditions",
+      "capability": "get-api-v1-conditions",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/unlock_condition.rs",
+      "rationale": "GET /api/v1/conditions delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/conditions.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/conditions/{blob}",
+      "capability": "get-api-v1-conditions-blob",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/unlock_condition.rs",
+      "rationale": "GET /api/v1/conditions/{blob} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/conditions.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/icons",
+      "capability": "get-api-v1-icons",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
+      "rationale": "GET /api/v1/icons delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/screens.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/icons/{name}",
+      "capability": "get-api-v1-icons-name",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
+      "rationale": "GET /api/v1/icons/{name} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/screens.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/modes",
+      "capability": "get-api-v1-modes",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
+      "rationale": "GET /api/v1/modes delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/screens.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/modes/{slug}",
+      "capability": "get-api-v1-modes-slug",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
+      "rationale": "GET /api/v1/modes/{slug} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/screens.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/screens",
+      "capability": "get-api-v1-screens",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
+      "rationale": "GET /api/v1/screens delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/screens.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/screens/missing",
+      "capability": "get-api-v1-screens-missing",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
+      "rationale": "GET /api/v1/screens/missing delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/screens.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/screens/{screen}",
+      "capability": "get-api-v1-screens-screen",
+      "classification": "portable",
+      "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
+      "rationale": "GET /api/v1/screens/{screen} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/screens.rs",
+        "nie_explore"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/text",
+      "capability": "get-api-v1-text",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/text.rs",
+      "rationale": "GET /api/v1/text delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/text.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/text/search",
+      "capability": "get-api-v1-text-search",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/text.rs",
+      "rationale": "GET /api/v1/text/search delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/text.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/text/{language}/{family}",
+      "capability": "get-api-v1-text-language-family",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/text.rs",
+      "rationale": "GET /api/v1/text/{language}/{family} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/text.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/text/{language}/{family}/{hash}",
+      "capability": "get-api-v1-text-language-family-hash",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/text.rs",
+      "rationale": "GET /api/v1/text/{language}/{family}/{hash} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/text.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/text/translate",
+      "capability": "get-api-v1-text-translate",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/text.rs",
+      "rationale": "GET /api/v1/text/translate delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/text.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/entites",
+      "capability": "get-api-v1-entites",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/entities.rs",
+      "rationale": "GET /api/v1/entites delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/entites.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/entites/{table}",
+      "capability": "get-api-v1-entites-table",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/entities.rs",
+      "rationale": "GET /api/v1/entites/{table} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/entites.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/entites/{table}/{id}",
+      "capability": "get-api-v1-entites-table-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/entities.rs",
+      "rationale": "GET /api/v1/entites/{table}/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/entites.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/regles",
+      "capability": "get-api-v1-regles",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "GET /api/v1/regles delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/regles.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/regles/stats",
+      "capability": "get-api-v1-regles-stats",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "GET /api/v1/regles/stats delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/regles.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/regles/comparaison",
+      "capability": "get-api-v1-regles-comparaison",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "GET /api/v1/regles/comparaison delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/regles.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/regles/rarete",
+      "capability": "get-api-v1-regles-rarete",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "GET /api/v1/regles/rarete delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/regles.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/regles/builds",
+      "capability": "get-api-v1-regles-builds",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "GET /api/v1/regles/builds delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/regles.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/team/synergy",
+      "capability": "get-api-v1-team-synergy",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "GET /api/v1/team/synergy delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/team.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/save/roster",
+      "capability": "get-api-v1-save-roster",
+      "classification": "portable",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "GET /api/v1/save/roster delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/save.rs",
+        "nie_save"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /couverture",
+      "capability": "get-couverture",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/couverture.rs",
+      "rationale": "GET /couverture is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/couverture",
+      "capability": "get-api-v1-couverture",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/couverture.rs",
+      "rationale": "GET /api/v1/couverture is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/regles/comparaison",
+      "capability": "post-api-v1-regles-comparaison",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "POST /api/v1/regles/comparaison delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/regles.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/team/synergy",
+      "capability": "post-api-v1-team-synergy",
+      "classification": "portable",
+      "owner": "crates/engine/nie-core/src/lib.rs",
+      "rationale": "POST /api/v1/team/synergy delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/team.rs",
+        "nie_core"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/save/roster",
+      "capability": "post-api-v1-save-roster",
+      "classification": "portable",
+      "owner": "crates/engine/nie-save/src/lib.rs",
+      "rationale": "POST /api/v1/save/roster delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/save.rs",
+        "nie_save"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/inspect/compare",
+      "capability": "post-api-v1-inspect-compare",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "POST /api/v1/inspect/compare delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/inspect/plate",
+      "capability": "post-api-v1-inspect-plate",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "POST /api/v1/inspect/plate delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/inspect.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/menu/runtime/{screen}",
+      "capability": "post-api-v1-menu-runtime-screen",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/menu_runtime.rs",
+      "rationale": "POST /api/v1/menu/runtime/{screen} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/menu_runtime.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/zukan/rank",
+      "capability": "post-api-v1-zukan-rank",
+      "classification": "portable",
+      "owner": "crates/tools/nie-zukan/src/lib.rs",
+      "rationale": "POST /api/v1/zukan/rank delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/zukan.rs",
+        "nie_zukan"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "FALLBACK {*path}",
+      "capability": "fallback-path",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/static_files.rs",
+      "rationale": "Static bundle fallback is HTTP transport."
+    }
+  ]
+}
