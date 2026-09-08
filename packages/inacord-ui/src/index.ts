@@ -136,6 +136,11 @@ export {
 	type SearchHighlightPart,
 	type SearchResultHighlightProps,
 } from "./components/wiki/wiki/SearchResultHighlight";
+export {
+	FilterChipGroup,
+	type FilterChipGroupProps,
+	type FilterChipOption,
+} from "./components/wiki/wiki/FilterChipGroup";
 
 // --- L'ecran des Options : les reglages d'Inacord, dans l'ecran du jeu ----------------------
 //
