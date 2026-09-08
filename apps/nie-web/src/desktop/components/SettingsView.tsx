@@ -14,6 +14,8 @@ import {
   setSettings,
   useSettings,
   type AccentTheme,
+  GAME_LOCALES,
+  type GameLocale,
   type Locale,
 } from "@niers/inacord-ui/lib/settings";
 import { useT, LOCALE_LABELS } from "@/lib/i18n";
@@ -269,6 +271,20 @@ export function SettingsView() {
                     <SelectItem key={l} value={l}>
                       {LOCALE_LABELS[l]}
                     </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t("settings.game_language")}</Label>
+              <Select value={settings.gameLocale} onValueChange={(v) => setSettings({ gameLocale: v as GameLocale })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GAME_LOCALES.map((locale) => (
+                    <SelectItem key={locale} value={locale}>{locale}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

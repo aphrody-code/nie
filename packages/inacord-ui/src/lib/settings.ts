@@ -1,6 +1,6 @@
 // Paramètres persistés (localStorage — pas de plugin-store nécessaire pour ces quelques valeurs).
 import { useSyncExternalStore } from "react";
-import { GAME_LOCALES, isGameLocale, type GameLocale } from "@niers/asset-source";
+import { isGameLocale, type GameLocale } from "@niers/asset-source";
 
 /** Language of the host shell and its URL. The public site currently serves these routes. */
 export type Locale = "fr" | "en" | "ja";

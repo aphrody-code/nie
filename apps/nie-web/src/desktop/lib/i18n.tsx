@@ -48,6 +48,7 @@ const fr: Dict = {
 
   "settings.appearance": "Apparence",
   "settings.language": "Langue",
+  "settings.game_language": "Langue des ressources du jeu",
   "settings.theme": "Thème",
   "settings.theme.light": "Clair",
   "settings.theme.dark": "Sombre",
@@ -94,6 +95,7 @@ const en: Dict = {
 
   "settings.appearance": "Appearance",
   "settings.language": "Language",
+  "settings.game_language": "Game resource language",
   "settings.theme": "Theme",
   "settings.theme.light": "Light",
   "settings.theme.dark": "Dark",
@@ -140,6 +142,7 @@ const ja: Dict = {
 
   "settings.appearance": "外観",
   "settings.language": "言語",
+  "settings.game_language": "ゲームリソースの言語",
   "settings.theme": "テーマ",
   "settings.theme.light": "ライト",
   "settings.theme.dark": "ダーク",
