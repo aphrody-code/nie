@@ -2,18 +2,9 @@
 
 import type { Skill } from "@rosegriffon/inagle";
 import {
-	AlertCircle,
 	ArrowLeft,
 	CircleDot,
-	Dumbbell,
-	Hourglass,
 	Play,
-	ShoppingBag,
-	Sparkles,
-	Store,
-	Timer,
-	TrendingUp,
-	Users,
 	Zap,
 } from "lucide-react";
 import Image from "next/image";
@@ -28,6 +19,7 @@ import type { SkillVideoVariant } from "@/components/wiki/SkillVideoPlayer";
 import { getSkillIconUrl, getSkillImageUrl } from "@rosegriffon/azalee/images";
 import { japaneseToRomaji } from "@rosegriffon/azalee/text/japanese-romaji";
 import { SHOP_FR } from "@rosegriffon/azalee/text/translations";
+import { SkillDetailInfo } from "@niers/inacord-ui";
 
 // Translation maps for community sheet data
 const SKILL_TYPE_FR: Record<string, string> = {
@@ -196,12 +188,26 @@ export function SkillDetail({
 					/>
 
 					{/* Description Box */}
-					<DescriptionBox
-						skill={skill}
-						desc={desc}
-						descEN={descEN}
-						descJA={descJA}
-						sheetData={sheetData}
+					<SkillDetailInfo
+						powerMin={skill.power_min}
+						powerMax={skill.power_max}
+						foulRate={skill.foulRate}
+						duration={sheetData?.duration}
+						evolution={
+							(skill as any).evolutionType ??
+							(skill.growthType !== undefined ? skill.growthSpeed : null)
+						}
+						partnerCount={skill.partnerCount}
+						recastTime={skill.recastTime}
+						internalId={(skill as any).internalCode || skill.skillIDStr}
+						description={desc}
+						descriptionEnglish={descEN}
+						descriptionJapanese={descJA}
+						effects={sheetData?.effects}
+						recipes={(skill as any).exchangeRecipes ?? null}
+						shops={skill.shops?.fr || []}
+						additionalShop={sheetData?.shop ? SHOP_FR[sheetData.shop] || sheetData.shop : null}
+						tags={skill.tags}
 					/>
 				</div>
 
@@ -388,199 +394,6 @@ function MetaRow({
 					variantLabel={variantCount > 1 ? activeVariant?.label : undefined}
 				/>
 			</div>
-		</div>
-	);
-}
-
-function DescriptionBox({
-	skill,
-	desc,
-	descEN,
-	descJA,
-	sheetData,
-}: {
-	skill: Skill;
-	desc: string;
-	descEN?: string;
-	descJA?: string;
-	sheetData?: CommunitySheetData;
-}) {
-	// Collect all shops (from skill + sheetData) and deduplicate
-	const existingShops = new Set((skill.shops?.fr || []).map((s: string) => s.toLowerCase()));
-	const sheetShop = sheetData?.shop ? SHOP_FR[sheetData.shop] || sheetData.shop : null;
-	const sheetShopIsNew = sheetShop && !existingShops.has(sheetShop.toLowerCase());
-
-	return (
-		<div className="bg-surface-container-high/50 hover:bg-surface-container-high transition-colors rounded-xl p-4 cursor-default">
-			<div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-bold text-on-surface mb-4">
-				<span className="inline-flex items-center gap-1.5">
-					<Dumbbell size={16} className="text-primary" aria-hidden="true" />
-					{skill.power_min}-{skill.power_max} Puissance
-				</span>
-				{skill.foulRate !== undefined && skill.foulRate > 0 && (
-					<span className="inline-flex items-center gap-1.5">
-						<AlertCircle size={16} className="text-tertiary" aria-hidden="true" />
-						{skill.foulRate}% Faute
-					</span>
-				)}
-				{sheetData?.duration != null && (
-					<span className="inline-flex items-center gap-1.5">
-						<Hourglass size={16} className="text-on-surface-variant" aria-hidden="true" />
-						{sheetData.duration} sec.
-					</span>
-				)}
-				{(() => {
-					const evolution =
-						(skill as any).evolutionType ??
-						(skill.growthType !== undefined ? skill.growthSpeed : null);
-					return evolution ? (
-						<span className="inline-flex items-center gap-1.5">
-							<TrendingUp size={16} className="text-secondary" aria-hidden="true" />
-							{evolution} Évolution
-						</span>
-					) : null;
-				})()}
-				{skill.partnerCount !== undefined && skill.partnerCount > 0 && (
-					<span className="inline-flex items-center gap-1.5">
-						<Users size={16} className="text-on-surface-variant" aria-hidden="true" />
-						{skill.partnerCount + 1} Joueurs
-					</span>
-				)}
-				{skill.recastTime !== undefined && skill.recastTime > 0 && (
-					<span className="inline-flex items-center gap-1.5">
-						<Timer size={16} className="text-on-surface-variant" aria-hidden="true" />
-						{skill.recastTime} Recharge
-					</span>
-				)}
-				<span className="opacity-40 font-mono font-normal">
-					#{(skill as any).internalCode || skill.skillIDStr}
-				</span>
-			</div>
-
-			{/* Description FR */}
-			<div className="text-on-surface-variant text-sm whitespace-pre-line leading-relaxed mb-2">
-				{desc || "Aucune description disponible."}
-			</div>
-
-			{/* Description EN */}
-			{descEN && descEN !== desc && (
-				<div className="text-on-surface-variant/60 text-xs whitespace-pre-line leading-relaxed mb-2 italic">
-					{descEN}
-				</div>
-			)}
-
-			{/* Description JA */}
-			{descJA && (
-				<div className="text-on-surface-variant/50 text-xs whitespace-pre-line leading-relaxed mb-4 font-light">
-					{descJA}
-				</div>
-			)}
-
-			{/* Effects from community sheet */}
-			{sheetData?.effects && sheetData.effects.length > 0 && (
-				<div className="border-t border-outline-variant/20 pt-3 mt-3 mb-2">
-					<div className="flex items-center gap-1.5 mb-2">
-						<Sparkles size={16} className="text-tertiary" aria-hidden="true" />
-						<span className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">
-							Effets
-						</span>
-					</div>
-					<ul className="list-disc list-inside text-sm space-y-1">
-						{sheetData.effects.map((eff: string, i: number) => (
-							<li key={i} className="text-on-surface-variant font-medium">
-								{eff}
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
-
-			{/* Obtention — Exchange Recipes or Shops */}
-			{(() => {
-				const recipes = (skill as any).exchangeRecipes as Array<{
-					shop: string;
-					costs: Array<{ name: string; code: string; quantity: number }>;
-				}> | null;
-				if (recipes && recipes.length > 0) {
-					return (
-						<div className="border-t border-outline-variant/20 pt-3 mt-3">
-							<div className="flex items-center gap-1.5 mb-2">
-								<Store size={16} className="text-secondary" aria-hidden="true" />
-								<span className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">
-									Obtention
-								</span>
-							</div>
-							<div className="space-y-2">
-								{recipes.map((recipe, i) => (
-									<div
-										key={i}
-										className="p-2 rounded-lg bg-surface-container-high/50 border border-outline-variant/10"
-									>
-										<div className="text-[10px] font-bold text-on-surface-variant/60 uppercase mb-1">
-											{recipe.shop}
-										</div>
-										<div className="flex flex-wrap gap-1.5">
-											{recipe.costs.map((cost, j) => (
-												<span
-													key={j}
-													className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-[11px] font-bold border border-primary/20"
-												>
-													<span className="text-on-surface font-black">{cost.quantity}x</span>
-													{cost.name}
-												</span>
-											))}
-										</div>
-									</div>
-								))}
-							</div>
-						</div>
-					);
-				}
-				if ((skill.shops?.fr?.length ?? 0) > 0 || sheetShopIsNew) {
-					return (
-						<div className="border-t border-outline-variant/20 pt-3 mt-3">
-							<div className="flex items-center gap-1.5 mb-2">
-								<Store size={16} className="text-secondary" aria-hidden="true" />
-								<span className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">
-									Obtention
-								</span>
-							</div>
-							<div className="flex flex-wrap gap-2">
-								{skill.shops?.fr?.map((shop: string, i: number) => (
-									<span
-										key={`shop-${i}`}
-										className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary-container/30 text-secondary text-xs font-bold"
-									>
-										<ShoppingBag size={14} aria-hidden="true" />
-										{shop}
-									</span>
-								))}
-								{sheetShopIsNew && (
-									<span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary-container/30 text-secondary text-xs font-bold">
-										<ShoppingBag size={14} aria-hidden="true" />
-										{sheetShop}
-									</span>
-								)}
-							</div>
-						</div>
-					);
-				}
-				return null;
-			})()}
-
-			{/* Tags */}
-			{skill.tags && skill.tags.length > 0 && (
-				<div className="flex flex-wrap gap-2 mt-3">
-					{skill.tags.map((tag: string, i: number) => (
-						<span
-							key={`tag-${i}`}
-							className="px-2 py-1 rounded bg-tertiary-container/30 text-tertiary text-xs font-bold uppercase tracking-wide"
-						>
-							#{tag.replaceAll(/\s+/g, "")}
-						</span>
-					))}
-				</div>
-			)}
 		</div>
 	);
 }

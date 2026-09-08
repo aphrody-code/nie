@@ -148,6 +148,12 @@ export {
 	type MovesetSkill,
 	type MovesetSkillLink,
 } from "./components/wiki/wiki/MovesetList";
+export {
+	SkillDetailInfo,
+	type SkillDetailInfoProps,
+	type SkillDetailRecipe,
+	type SkillDetailRecipeCost,
+} from "./components/wiki/wiki/SkillDetailInfo";
 
 // --- L'ecran des Options : les reglages d'Inacord, dans l'ecran du jeu ----------------------
 //
