@@ -2938,7 +2938,11 @@ fn collect_layout_objects_with_lookup(
                             Value::Null
                         }
                     };
-                    anim = json!({ "open": hx(a.mot_open_hash), "close": hx(a.mot_close_hash) });
+                    anim = json!({
+                        "open": hx(a.mot_open_hash),
+                        "loop": hx(a.mot_loop_hash),
+                        "close": hx(a.mot_close_hash),
+                    });
                 }
                 objbin::MenuComponent::Text(tc) => {
                     // Résolution des libellés STATIQUES : pour chaque slot, le 1ᵉʳ hash présent

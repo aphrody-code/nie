@@ -1,20 +1,16 @@
-//! Assemblage de layout de menu : combine `objbin` (l'objet) + `g4pkm` (les transforms 2D)
-//! + dimensions `g4tx` (le sprite) en objets positionnés sur le canvas écran 1280×720.
+//! Menu layout composition from `objbin` objects, `g4pkm` transforms and `g4tx` dimensions.
 //!
-//! Port du cœur de `IECODE.Core/Cdn/MenuLayoutExporter.cs` (`ReadBoneTransformAsync` +
-//! `PickBestPoseForSprite` + `BuildObjectAsync`), sans la couche I/O ni la résolution de
-//! texte/locale (laissée à l'appelant). Le résultat est **correct par construction** : les
-//! positions sont les poses g4pkm déjà validées byte-exact (cf. `g4pkm.rs`), converties en
-//! pixels écran.
+//! Compatibility port of `IECODE.Core/Cdn/MenuLayoutExporter.cs` placement selection,
+//! without I/O or locale resolution. Selected poses are converted to a 1280×720 canvas;
+//! their provenance distinguishes asset poses from ancestor fallback heuristics.
 //!
-//! ## Portée
+//! ## Scope
 //!
-//! Cible les éléments de menu **statiques** : leur position visible EST la bind pose du
-//! squelette g4pkm. Les éléments **animés** (glissement d'entrée) ont une bind pose
-//! hors-écran ; leur position finale dépend des keyframes runtime (absentes des fichiers,
-//! cf. `g4pkm.rs` caveat) — non couverts ici.
+//! This module selects static poses; it does not sample animation. Real loading assets
+//! contain G4MT/G4MA keys. Their G4RA target bindings and native state transitions must be
+//! resolved before those keys can establish the visible animated placement.
 //!
-//! Compatible `no_std + alloc`.
+//! Compatible with `no_std + alloc`.
 
 extern crate alloc;
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};

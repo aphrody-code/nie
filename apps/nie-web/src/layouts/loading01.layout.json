@@ -8,7 +8,8 @@
   "objects": [
     {
       "anim": {
-        "close": "0xA15F1DEE",
+        "close": "0xB9EA6D99",
+        "loop": "0xA15F1DEE",
         "open": "0x5FEC8E4E"
       },
       "camera": "0x02D8FB06",

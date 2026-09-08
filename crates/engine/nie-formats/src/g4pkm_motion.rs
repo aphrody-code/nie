@@ -1,25 +1,14 @@
-//! Pose finale d'un objet-menu après la motion d'ouverture (fallback d'ancêtre).
+//! Ancestor-based placement fallback for menu objects.
 //!
-//! Port Rust fidèle de `IECODE.Core/Formats/Menu/G4pkmMotion.cs`
-//! (`GetMotionFinalPose` + `FindPlacementBoneIndex`, lignes 84-192).
+//! Compatibility port of `G4pkmMotion.cs` placement selection. This module does
+//! not sample animation or establish the actual final pose. When placement is
+//! off-screen it selects an on-screen ancestor while preserving leaf scale.
 //!
-//! ## Pourquoi ce module (et ce que ce N'EST PAS)
+//! Real motion keys do exist: loading01 G4MT includes translation, scale, and
+//! Euler channels. Faithful playback additionally requires the G4RA resource
+//! binding and state transitions, which this fallback does not decode.
 //!
-//! La position **visible** d'un widget de menu n'est PAS sa bind pose g4pkm : la plupart des
-//! éléments ont une bind pose **hors-écran** (template caché, ex. `_pos_scl_base01` à `tx=1873`)
-//! et glissent à l'écran via une animation d'ouverture. **Ces keyframes de position d'os
-//! n'existent PAS dans les fichiers** (RE iecode confirmée) : les blocs G4MA/G4MT du G4PKM ne
-//! contiennent que des animations de **matériau** (alpha fade, décalage UV) ; le slide-in est
-//! piloté par le moteur C++ (machine d'état G4RA). Il n'y a donc **aucun interpolateur de
-//! keyframes à porter**.
-//!
-//! La meilleure approximation **disponible dans les fichiers** de la position finale est une
-//! **heuristique d'ancêtre** : si le bone de placement est hors-écran, on remonte la hiérarchie
-//! jusqu'au premier ancêtre **dans l'écran** (en pratique `_pos_base01`, toujours à l'origine =
-//! centre écran), en **conservant la scale** du bone feuille hors-écran. C'est exactement ce que
-//! fait `GetMotionFinalPose` côté iecode.
-//!
-//! Compatible `no_std + alloc`.
+//! Compatible with `no_std + alloc`.
 
 extern crate alloc;
 use alloc::string::String;

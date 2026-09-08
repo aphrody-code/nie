@@ -275,13 +275,17 @@ fn lerp4(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
 }
 
 impl Motion {
-    /// Décode structurellement un conteneur G4MT/G4MA/G4TP. `None` si la structure ne correspond
-    /// pas (offsets hors limites, magic inattendu — utiliser [`parse`] pour distinguer « pas un
-    /// G4MT » d'« un G4MT dont le corps est corrompu »).
+    /// Decode the shared G4MT/G4MA motion structure. Unsupported containers and
+    /// invalid offsets return `None`; resource bindings remain a caller concern.
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn parse(data: &[u8]) -> Option<Motion> {
-        let header = level5::parse_header(data, MAGIC, "G4MT").ok()?;
+        let magic = match data.get(..4)? {
+            b"G4MT" => MAGIC,
+            b"G4MA" => u32::from_le_bytes(*b"G4MA"),
+            _ => return None,
+        };
+        let header = level5::parse_header(data, magic, "motion").ok()?;
         let header_words = u16_at(data, 0x0A)? as usize;
         if header_words * 4 != header.header_size as usize {
             return None;
@@ -780,6 +784,11 @@ mod tests {
             .unwrap();
         assert_eq!(&local.scale[..2], &[2.0, 3.0]);
         assert_eq!(local.scale[2], 6.0);
+        // G4MA uses the same structural tables, while arbitrary magic is rejected.
+        buf[..4].copy_from_slice(b"G4MA");
+        assert!(Motion::parse(&buf).is_some());
+        buf[..4].copy_from_slice(b"G4TP");
+        assert!(Motion::parse(&buf).is_none());
         motion.clips[0].flags = 1;
         assert!(
             motion

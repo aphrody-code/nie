@@ -423,3 +423,27 @@ Six actual Wasm states matched the native saved snapshots. Evidence:
 `var/validation/editor-operations/{states,wasm-parity}.json` and
 `var/releases/editor-operations-candidate/manifest.json`. This is a bounded object-operation
 migration; the remaining editor capabilities in P3 are still outstanding.
+
+### Verified animation slots and material-motion structure
+
+The native `CMenuAnimation` constructor (`FUN_140559e70`) initializes its three slots with
+the hashes of `in`, `loop` and `out`; `FUN_14055a0a0` confirms the opening-to-loop transition.
+The OBJBIN parser now exposes the second slot as `mot_loop_hash` and reads closing from the
+third slot. The old third-slot `mot_select_hash` remains a compatibility alias with no asserted
+selection semantics. Native and HTTP exports include `anim.loop`; the two tracked layouts were
+regenerated using their existing recipes. Their geometry and runtime state remain unchanged.
+
+The existing motion-table decoder also accepts G4MA's shared structural header. An actual Rust
+probe of local loading assets found 8 G4MT clips and 3 G4MA clips, all at 30 FPS with nonempty
+target lists. Neither material/Euler interpolation nor G4RA target bindings are claimed solved;
+no speculative playback was added. The prior assertion that animation keys were absent from
+these assets was removed. Native sources and private measurements are in
+`data/re/30-ghidra/exports/decompiled-c/nie.exe.c` and
+`var/reports/loading-g4ra-20260908/`; the raw game payloads are not committed.
+
+Measured on `vps-203bea89`, 2026-09-08: formats 303 tests passed, scoped formats/game clippy
+passed, menu HTTP unit tests 6 passed, Web tests 99 passed with 344 assertions. Actual generated
+Wasm retained native equality for 8 scenes, 61 layers and 76 objects and rejected 3 invalid
+inputs. Its SHA256 is `f3c32e0492a056832461889f1c0c96cd177d900755ccd80876bd3c6af8e3ffdd`.
+Build and integration logs are under `var/animation-*.log`. Production publication of this
+animation-contract batch follows the pushed commit and its staged browser gate.

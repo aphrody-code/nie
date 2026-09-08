@@ -119,17 +119,21 @@ pub struct RenderComponent {
     pub camera_name_hash: u32,
 }
 
-/// `CMenuAnimation` — animations d'ouverture / fermeture / sélection.
+/// Native menu animation slots: opening, looping, and closing.
+/// `FUN_140559e70` initializes these at offsets 0x60, 0x64, and 0x68;
+/// `FUN_14055a0a0` transitions from opening to looping on completion.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct AnimationComponent {
-    /// Nom RTTI (`"CMenuAnimation"`).
+    /// RTTI name (`"CMenuAnimation"`).
     pub type_name: String,
-    /// Hash CRC-32 de la motion d'ouverture (`m_nameMotOpen`).
+    /// First hash in the three-slot `m_nameMotOpen` property.
     pub mot_open_hash: u32,
-    /// Hash CRC-32 de la motion de fermeture.
+    /// Second hash: motion repeated after opening completes.
+    pub mot_loop_hash: u32,
+    /// Third hash: closing motion.
     pub mot_close_hash: u32,
-    /// Hash CRC-32 de la motion de sélection.
+    /// Legacy third-slot alias; no selection semantics are established.
     pub mot_select_hash: u32,
 }
 
@@ -864,7 +868,7 @@ fn build_render_component(type_name: &str, props: &[(String, Vec<i32>)]) -> Rend
 fn build_animation_component(type_name: &str, props: &[(String, Vec<i32>)]) -> AnimationComponent {
     let mut mot_open = 0u32;
     let mut mot_close = 0u32;
-    let mut mot_select = 0u32;
+    let mut mot_loop = 0u32;
 
     for (key, vals) in props {
         if vals.is_empty() {
@@ -873,10 +877,10 @@ fn build_animation_component(type_name: &str, props: &[(String, Vec<i32>)]) -> A
         if key == "m_nameMotOpen" {
             mot_open = vals[0] as u32;
             if vals.len() > 1 {
-                mot_close = vals[1] as u32;
+                mot_loop = vals[1] as u32;
             }
             if vals.len() > 2 {
-                mot_select = vals[2] as u32;
+                mot_close = vals[2] as u32;
             }
         }
     }
@@ -885,7 +889,8 @@ fn build_animation_component(type_name: &str, props: &[(String, Vec<i32>)]) -> A
         type_name: type_name.to_string(),
         mot_open_hash: mot_open,
         mot_close_hash: mot_close,
-        mot_select_hash: mot_select,
+        mot_loop_hash: mot_loop,
+        mot_select_hash: mot_close,
     }
 }
 
@@ -1067,6 +1072,35 @@ fn normalize_g4tx_path(path: Option<String>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn animation_property_uses_native_open_loop_close_order() {
+        let component = build_animation_component(
+            "CMenuAnimation",
+            &[(
+                "m_nameMotOpen".into(),
+                vec![
+                    0x5FEC8E4Eu32 as i32,
+                    0xA15F1DEEu32 as i32,
+                    0xB9EA6D99u32 as i32,
+                ],
+            )],
+        );
+        assert_eq!(component.mot_open_hash, 0x5FEC8E4E);
+        assert_eq!(component.mot_loop_hash, 0xA15F1DEE);
+        assert_eq!(component.mot_close_hash, 0xB9EA6D99);
+        assert_eq!(component.mot_select_hash, component.mot_close_hash);
+        let partial =
+            build_animation_component("CMenuAnimation", &[("m_nameMotOpen".into(), vec![7, 8])]);
+        assert_eq!(
+            (
+                partial.mot_open_hash,
+                partial.mot_loop_hash,
+                partial.mot_close_hash
+            ),
+            (7, 8, 0)
+        );
+    }
 
     // ── Tests is_objb (non-gated) ────────────────────────────────────────────
 

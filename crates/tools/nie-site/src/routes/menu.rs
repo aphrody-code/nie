@@ -357,6 +357,7 @@ fn build_static_layout(
                     };
                     anim = json!({
                         "open": hash(animation.mot_open_hash),
+                        "loop": hash(animation.mot_loop_hash),
                         "close": hash(animation.mot_close_hash),
                     });
                 }
