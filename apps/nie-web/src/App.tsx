@@ -18,7 +18,7 @@ import { Loading } from "./pages/Loading";
 import { Avatar } from "./pages/Avatar";
 import { Notice, SecondaryScreen } from "./pages/SecondaryScreen";
 import { Explorateur } from "./pages/Explorer";
-import { Jeu } from "./pages/Game";
+import { Game } from "./pages/Game";
 import { MenuPrincipal } from "./pages/MainMenu";
 import { Settings } from "./pages/Settings";
 import { HOME, pathForEntry, requestedEntry, splitLanguagePrefix } from "./routing";
@@ -154,7 +154,7 @@ function Site() {
 	// Match/Victory Road instead of exposing its temporary dark menu as the site's identity.
 	if (vue === HOME) {
 		return playing ? (
-			<Jeu />
+			<Game />
 		) : (
 			<div style={{ position: "fixed", inset: 0, background: "var(--jeu-ciel-clair)" }}>
 				<MenuPrincipal

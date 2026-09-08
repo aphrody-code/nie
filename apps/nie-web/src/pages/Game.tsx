@@ -25,6 +25,12 @@
  * `crates/engine/nie-wasm/src/lib.rs`. Aucune fidélité au rendu du jeu n'est affirmée ici, et
  * aucun texte de cette page n'en promet.
  */
+import {
+	GameCanvas,
+	LayoutRender,
+	lireLayout as readLayout,
+	type LayoutJeu as GameLayout,
+} from "@niers/inacord-ui";
 import { useEffect, useRef, useState } from "react";
 import {
 	canvasDisplaySize,
@@ -36,12 +42,145 @@ import {
 	simulationTiming,
 } from "../game/bridge";
 
-/** L'état du chargement : ni un booléen, ni une chaîne libre. */
-type Etat = "chargement" | "pret" | "panne";
+/** Real game cinematic, remuxed to MP4 by `nie-model-serve` for browser playback. */
+const LOADING_VIDEO = "/assets/video/data/common/movie/Chronicle_Title_fr_01.usm";
+/** Runtime export of the real `title_menu` / `title00` START screen. */
+const TITLE_LAYOUT_URL = "/api/v1/menu/layout/title_menu";
 
-export function Jeu() {
+type OpeningPhase = "video" | "title" | "game";
+type LoadState = "loading" | "ready" | "failed";
+
+/** Runs the real VFS opening sequence before handing control to the Rust/WASM game. */
+export function Game() {
+	const [phase, setPhase] = useState<OpeningPhase>("video");
+
+	if (phase === "video") return <LoadingVideo onComplete={() => setPhase("title")} />;
+	if (phase === "title") return <TitleScreen onStart={() => setPhase("game")} />;
+	return <InteractiveGame startImmediately />;
+}
+
+function LoadingVideo({ onComplete }: { onComplete: () => void }) {
+	const [failed, setFailed] = useState(false);
+	return (
+		<div style={FULL_SCREEN_STYLE}>
+			<video
+				aria-label="Vidéo d'ouverture d'Inazuma Eleven Victory Road"
+				autoPlay
+				muted
+				playsInline
+				preload="auto"
+				src={LOADING_VIDEO}
+				onEnded={onComplete}
+				onError={() => setFailed(true)}
+				style={{ width: "100%", height: "100%", objectFit: "contain" }}
+			/>
+			<button type="button" onClick={onComplete} style={SKIP_BUTTON_STYLE}>
+				{failed ? "Ouvrir l'écran START" : "Passer à l'écran START"}
+			</button>
+		</div>
+	);
+}
+
+function TitleScreen({ onStart }: { onStart: () => void }) {
+	const [layout, setLayout] = useState<GameLayout | null>(null);
+	const [failed, setFailed] = useState(false);
+
+	useEffect(() => {
+		const controller = new AbortController();
+		void fetch(TITLE_LAYOUT_URL, {
+			headers: { accept: "application/json" },
+			signal: controller.signal,
+		})
+			.then(async (response) => {
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				return readLayout(await response.json());
+			})
+			.then(setLayout)
+			.catch((error: unknown) => {
+				if (!(error instanceof DOMException && error.name === "AbortError")) setFailed(true);
+			});
+		return () => controller.abort();
+	}, []);
+
+	useEffect(() => {
+		const accept = (event: KeyboardEvent) => {
+			if (event.key !== "Enter" && event.key !== " ") return;
+			event.preventDefault();
+			onStart();
+		};
+		window.addEventListener("keydown", accept);
+		return () => window.removeEventListener("keydown", accept);
+	}, [onStart]);
+
+	if (layout === null) {
+		return (
+			<div style={FULL_SCREEN_STYLE}>
+				<Message>{failed ? "Écran START indisponible." : "Chargement de l'écran START…"}</Message>
+			</div>
+		);
+	}
+
+	const opening = openingTitleLayout(layout);
+	return (
+		<div style={FULL_SCREEN_STYLE}>
+			<GameCanvas canvas={opening.canvas} fond="#080a14">
+				<LayoutRender layout={opening} />
+				<button type="button" aria-label="COMMENCER" onClick={onStart} style={START_BUTTON_STYLE} />
+			</GameCanvas>
+		</div>
+	);
+}
+
+/**
+ * Keeps the two title sprites that are complete screen elements. Other runtime objects are
+ * whole atlases or still depend on Lua-injected transforms, so drawing them would be false.
+ */
+export function openingTitleLayout(layout: GameLayout): GameLayout {
+	const objects = layout.objects
+		.filter((object) => object.name === "title00_03_title_logo" || object.name === "title00_04_gamestart")
+		.map((object) => ({
+			...object,
+			transform:
+				object.name === "title00_03_title_logo"
+					? { ...object.transform, x: 640, y: 270, scaleX: 0.5, scaleY: 0.5 }
+					: { ...object.transform, x: 640, y: 630, scaleX: 2 / 3, scaleY: 2 / 3 },
+		}));
+	return { ...layout, objects };
+}
+
+const FULL_SCREEN_STYLE = {
+	position: "fixed",
+	inset: 0,
+	display: "grid",
+	placeItems: "center",
+	background: "#080a14",
+	overflow: "hidden",
+} as const;
+
+const SKIP_BUTTON_STYLE = {
+	position: "absolute",
+	right: "1.25rem",
+	bottom: "1.25rem",
+	padding: "0.6rem 1rem",
+	border: "1px solid #6bbdff",
+	background: "rgb(8 10 20 / 82%)",
+	color: "#eef3ff",
+	cursor: "pointer",
+} as const;
+
+const START_BUTTON_STYLE = {
+	position: "absolute",
+	inset: 0,
+	width: "100%",
+	height: "100%",
+	border: 0,
+	background: "transparent",
+	cursor: "pointer",
+} as const;
+
+function InteractiveGame({ startImmediately = false }: { startImmediately?: boolean }) {
 	const canevas = useRef<HTMLCanvasElement | null>(null);
-	const [etat, setEtat] = useState<Etat>("chargement");
+	const [etat, setEtat] = useState<LoadState>("loading");
 	const [score, setScore] = useState<[number, number] | null>(null);
 	const [displaySize, setDisplaySize] = useState<DisplaySize | null>(null);
 
@@ -78,12 +217,13 @@ export function Jeu() {
 					return;
 				}
 				game = p;
+				if (startImmediately) p.input("CMD_ENTER");
 				const el = canevas.current;
 				const ctx = el?.getContext("2d") ?? null;
 				if (el === null || ctx === null) {
 					p.dispose();
 					game = null;
-					setEtat("panne");
+					setEtat("failed");
 					return;
 				}
 				el.width = p.width;
@@ -92,7 +232,7 @@ export function Jeu() {
 					setDisplaySize(canvasDisplaySize(p.width, p.height, window.innerWidth, window.innerHeight));
 				};
 				resizeCanvas();
-				setEtat("pret");
+				setEtat("ready");
 				window.addEventListener("keydown", surTouche);
 				window.addEventListener("keyup", surRelache);
 				window.addEventListener("blur", clearHeldKeys);
@@ -123,7 +263,7 @@ export function Jeu() {
 			} catch {
 				// Le détail ne dit rien à qui ouvre la page, et le seul geste utile — recharger —
 				// n'en dépend pas.
-				if (vivant) setEtat("panne");
+				if (vivant) setEtat("failed");
 			}
 		})();
 
@@ -137,7 +277,7 @@ export function Jeu() {
 			game?.dispose();
 			game = null;
 		};
-	}, []);
+	}, [startImmediately]);
 
 	return (
 		<div
@@ -162,11 +302,11 @@ export function Jeu() {
 					width: displaySize === null ? "100%" : `${displaySize.width}px`,
 					height: displaySize === null ? "auto" : `${displaySize.height}px`,
 					imageRendering: "pixelated",
-					visibility: etat === "pret" ? "visible" : "hidden",
+					visibility: etat === "ready" ? "visible" : "hidden",
 				}}
 			/>
-			{etat === "chargement" ? <Message>Chargement…</Message> : null}
-			{etat === "panne" ? <Message>Le jeu n'a pas pu démarrer. Rechargez la page.</Message> : null}
+			{etat === "loading" ? <Message>Chargement…</Message> : null}
+			{etat === "failed" ? <Message>Le jeu n'a pas pu démarrer. Rechargez la page.</Message> : null}
 			{score === null ? null : (
 				<p
 					aria-live="polite"
