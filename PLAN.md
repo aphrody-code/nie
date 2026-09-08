@@ -1,228 +1,206 @@
-# NIERS execution plan — native PC screen reconstruction
+# NIERS — Complete interface delivery in 24 hours
 
-Rebased on 2026-09-08 from the PC screenshots and fresh live browser evidence. This is the
-only active execution plan. The complete previous ledger, including its latest deployment
-record, is retained in [pre-fidelity-rebase.md](docs/archive/plans/2026-09-08/pre-fidelity-rebase.md)
-as historical evidence, not current instructions or proof of visual fidelity.
+## Outcome and execution clock
 
-## Required outcome
+This is the sole active execution plan. Execution started on 2026-09-08 at 14:22 UTC
+on `vps-203bea89`, from commit `2b7e814a9d773566f0cc0401ebf5e26100b1a0cd`.
+The target is 2026-09-09 at 14:22 UTC: 24 consecutive hours, not an automatic pass.
+Source: `hostname`, `date -u +%FT%TZ`, `git rev-parse HEAD`, measured on the execution host.
 
-Reconstruct the menu, website and WebAssembly runtime from the real PC game's VFS resources,
-formats, configuration, Lua/native state and measured geometry. Compare the live result against
-every corresponding reference in `data/menu`. Return must reach the previous screen or main
-menu without restarting loading or the opening sequence.
+User steering (2026-09-08): focus on implementation now. Suspend intermediate tests, browser
+launches and capture runs; perform validation at the end. This overrides the per-family gate
+schedule below without changing completion thresholds or authorizing unverified success claims.
 
-Completion includes native icons, button sheets and states, backgrounds at their correct
-resolution, game fonts, full navigation and synchronized native/Wasm state. A passing parser
-suite, an attractive partial interface or successful HTTP requests cannot substitute for it.
+Additional user scope (2026-09-08): preload original title music, system effects and imminent
+screen assets at startup; load other resources on demand. Wire existing Lua capabilities into
+the site and native sprite sheets into shared presentation/CSS. All game/Criware formats must
+ultimately be consumable through native shared decoders using their original VFS identities;
+user-requested export conversion is separate from runtime decoding. Existing metadata-only or
+partial parsers do not count as complete playback/rendering support. This is an added project
+obligation, not evidence that every format is already supported.
 
-## Core-first execution contract
+Deliver all 38 PC reference states in `data/menu/screen-inventory.json`, including all six
+avatar stages, with native resources, faithful presentation, working interface interactions
+and shared native/WebAssembly behavior. No omitted references, placeholder substitutes,
+fabricated game state, unrelated destinations, WIP commits or uncommitted task-owned work.
+Compilation, HTTP availability and global image similarity alone never establish completion.
 
-The durable target is one shared implementation consumed by every surface: site, CLI, desktop and
-mobile apps, MCP, HTTP/API handlers, WASM and future services. The dependency direction and proof
-rules are documented in [`docs/architecture/shared-core-surfaces.md`](docs/architecture/shared-core-surfaces.md).
-`nie-formats`, `nie-lua`, `nie-data` and `nie-explore` own domain behavior; `asset-source` owns
-host-neutral resource access; `inacord-ui` owns portable presentation and reducers. Each surface is
-a thin adapter with explicit capability gating. No new route, command, app or service may create a
-second listing, decoder, state machine, geometry implementation or copied asset contract.
+Full engine reconstruction, exhaustive reverse engineering, new mobile/product surfaces and
+gameplay beyond these interfaces remain project obligations outside this delivery window.
+Their absence must not be hidden behind fake successful actions. Historical evidence remains
+in [the previous ledger](docs/archive/plans/2026-09-08/pre-fidelity-rebase.md); it is not an
+active plan or current proof.
 
-Every batch must therefore follow: extract/test core → preserve compatibility facades → migrate
-all current consumers → add future bindings → run adapter, interaction, cross-target and visual
-gates → commit one coherent source/documentation batch. The Explorer page is complete only when
-the site and Inacord mount the same shared surface and their matched captures pass the recorded
-element-level comparison; partial resemblance remains open work.
+## Ownership and reuse
 
-## Corrected screen identity
+Four concurrent lanes: shared Rust/resources, shared presentation, browser integration and
+independent audit. Each lane claims exclusive file scope before edits. The browser integrator
+owns `PLAN.md`, integration and commits. Audit never certifies its own implementation.
 
-The three attached images are website captures with browser chrome. The original PC screens
-are in `data/menu`, as explicitly confirmed by the user.
+Reuse the existing navigation/history, opening state machine, avatar resolver/editor, native
+scene descriptions, `nie-render3d`, shared Explorer, VFS decoders and bitmap fonts. Verify
+existing capabilities before replacing them. Keep one library owner per capability:
+`nie-formats`/`nie-lua`/`nie-data` for domain behavior, `nie-explore` for catalogue/media,
+`asset-source` for host-neutral resources, `inacord-ui` for portable presentation and reducers.
+Web, native, HTTP, CLI and MCP remain thin adapters. Preserve public routes, signatures and
+compatibility facades until all consumers have migrated with evidence.
+See [shared-core ownership](docs/architecture/shared-core-surfaces.md).
 
-| PC reference | Actual screen | Required source |
-|---|---|---|
-| `Capture d'écran 2026-09-08 124431.png` | Black loading, bottom-right football and French label | Loading regions, native font and motion |
-| `Capture d'écran 2026-09-08 124446.png` | Franchise emblem on white | `data/common/movie/IE_15th.usm` |
-| `Capture d'écran 2026-09-08 124451.png` | LEVEL5 symbol and wordmark | `data/common/movie/L5logo.usm` |
-| `Capture d'écran 2026-09-08 124504.png` | Autosave notice and textured OK control | Current background, save symbol, localized text and button resources |
-| `Capture d'écran 2026-09-08 124519.png` | START, field and two foreground characters | `title00_01_st` regions and final `title00_03_02` logo |
-| `main_menu_alt.png` | Front selection menu, eight upper and three lower tiles | **`title02` and `title_menu_2_setting.cfg.bin`** |
-| `options.png` | Original Options | Native settings state and layout |
-| `avatar_edit_*.png` | Avatar creation steps | Native editor layout, model state and navigation |
-| Remaining named PNGs | Individual game screens and filters | Pair by identity before implementation/scoring |
+## Execution schedule
 
-The previous plan incorrectly associated the front selection reference with `mainmenu01` and
-`main_menu`. The public renderer used a `mainmenu90` background, a Switch 2 logo and four generic
-website controls. Native `title02_10_my_team_banner`, `title02_11_avatar_banner`,
-`title02_07_victory_counter` and `title00_07` match the actual reference. Prior in-game `main_menu`
-work remains useful for its own screen; its gates do not establish front-menu fidelity.
+### H0–H2: establish trustworthy gates
 
-New opening screenshots are 1922×1113 including Windows chrome. Their game client is
-`x=1,y=32,w=1920,h=1080`. Record that crop explicitly. The 2560×1440 main-menu reference is
-proportionally normalized to 1920×1080. Never distort game content or silently exclude mismatches.
-Keep unmasked scores even when a second report excludes a capture-tool notification.
+- [ ] Build one acceptance row per inventory reference: identity, resource provenance,
+  reproduction inputs, locale, viewport, save/model state, animation time, element regions,
+  owner and evidence directory. Unknown observations remain explicit failing requirements.
+- [ ] Replace obsolete four-button browser expectations with native action identities.
+- [ ] Extend traversal and capture coverage to all 38 references and six avatar stages.
+- [ ] Fail on missing captures/resources, unmatched states, empty assertions and visual errors.
+- [ ] Extend existing native/Wasm scene, presentation and animation equality fixtures; do not
+  build replacement decoders or parallel comparison engines.
 
-## Fresh live baseline
+### H2–H16: complete screen families in parallel
 
-Measured on `vps-203bea89`, `/home/ubuntu/niers`, 2026-09-08, by
-`scripts/validation/live-fidelity-audit.ts`. Exact procedures and outputs:
-`var/outputs/fidelity-audit-20260908/{AUDIT.md,oracle-manifest.json,metric-summary.json,roi-metrics.json}`
-and `live-settled-light/`. These are private comparison evidence, never runtime assets.
+- [ ] Shared core: resolve current config/Lua/runtime-created objects, fonts/localization,
+  geometry, actual player/avatar state and animation playback. Stale settings are not empty UI.
+- [ ] Opening: separate loading ball/text; original USM logo media with actual readiness/end;
+  current autosave resources; PC START artwork, final localized logo and interactive controls.
+- [ ] Front menu: `title02` / `title_menu_2_setting.cfg.bin`, eleven native actions, correct order,
+  focus/labels/panels/counters and verified destinations. Do not reuse the in-game menu identity.
+- [ ] Avatar: all six stages, native model composition, skeletons, materials, colors and stage
+  continuity through existing resolver/renderer and shared web/Inacord presentation.
+- [ ] Secondary screens: Options (`setting_menu`), controls (`keyconfig_setting_menu`), every
+  inventory menu/filter/dialog. Implement shared rows/tabs/selection controls once.
+- [ ] Browser: Return, Escape, Back/Forward, reload, direct entry, loading/failure navigation,
+  pointer cancellation, keyboard focus, touch, gamepad and held-button guards.
+- [ ] Audit each completed family: implement → verify → audit → correct → coherent commit.
+  Record reproducible discrepancies and reassign available lanes to the critical path.
 
-| Matched screen | Global grayscale SSIM | RGB mean absolute delta / 255 |
-|---|---:|---:|
-| Loading | 0.000245 | 237.950706 |
-| Franchise emblem | 0.912269 | 25.938324 |
-| LEVEL5 | 0.961737 | 5.674104 |
-| Autosave | 0.867045 | 19.809831 |
-| START | 0.619437 | 74.048838 |
-| Front menu | 0.557843 | 70.643163 |
+### H16–H22: integrate and validate
 
-Blank surroundings inflate the logo scores: focal-region SSIM is 0.458809 for the franchise
-and 0.643392 for LEVEL5. All screens fail fidelity. Sixty successful requests and no failures
-prove availability only. No browser font faces loaded and opening text used `system-ui`.
-Avatar's header Return reproduced `/` with phase `loading`; Escape did nothing. Autosave's
-button was 68 pixels too low; its warning color/wrapping, background, spinner and typography
-differed. START's native artwork was absent.
+H16–H20: cross-screen integration and defect correction. H20–H22: full candidate matrix.
+No scope trimming, new substitutes or lowered thresholds to fit the clock.
 
-## Ownership
+- [ ] 38/38 matched references, six avatar stages, no skipped rows or missing state provenance.
+- [ ] Correct assets, text, visibility, focus, model composition and native action identities.
+- [ ] Static element position/size errors ≤1 pixel at normalized 1920×1080.
+- [ ] Global and static-region grayscale SSIM ≥0.99; RGB mean absolute error ≤2/255
+  (equivalently ≤2 on raw 8-bit channels). These are prospective acceptance thresholds.
+- [ ] Predeclare dynamic regions and compare at matched state/time; retain unmasked scores.
+  No post-failure masks or threshold reductions. SSIM is not proof of pixel identity.
+- [ ] Every enabled action tested with applicable inputs; every secondary route tested for
+  Return/Escape/history/reload and readiness/failure behavior.
+- [ ] Native/Wasm state equality against generated Wasm; rendered time samples for animation.
+- [ ] No screenshot-backed screens, substituted native fonts/artwork, diagnostics or identity leaks.
 
-| Library/host | Responsibility |
-|---|---|
-| `nie-formats` | VFS, cfg.bin, OBJBIN, G4TX regions, G4PKM/G4SK, motion, bitmap fonts, portable scene data |
-| `nie-lua` | Bounded Lua 5.2 execution, observed native inputs, lossless menu state and scene compiler |
-| `nie-ui` | Measured visual evidence and geometry |
-| `nie-explore` | Reusable host media/catalogue adapters |
-| `nie-wasm` | Thin browser ABI over shared libraries |
-| `packages/asset-source` | Host-neutral VFS bytes and decoded asset access |
-| `packages/inacord-ui` | Shared scene presentation and input reducers |
-| `apps/nie-web` | Browser lifecycle, route/history and input bindings |
-| `nie-game`, `nie-site`, `nie-model-serve` | Native render and HTTP bindings |
+Run narrow Cargo tests/clippy, portable Wasm checks and affected Bun tests/typechecks. Run the
+independent Tauri gate when that host changes. Count tests/assertions; zero cases cannot pass.
+No `cargo build --workspace --all-targets`; format changed files only. Each evidence record
+includes command, host, timestamp, revision, artifact hash, expected and measured results.
+Historical test counts must be rerun before becoming current proof.
 
-One library owns each capability. No copied geometry per host, no TypeScript format reimplementation,
-and no business logic in CLI/MCP/HTTP glue. Preserve compatibility facades until all consumers
-migrate. Generic `nie-app` gameplay and `nie-aphrody` character state remain separate. Preserve
-CRC and axis-convention differences. Screenshots are oracles only, never full-screen UI assets.
+### H22–H24: Git closure and authorized delivery
 
-## Execution order
+- [ ] Correct remaining defects, commit all task-owned source/documentation through explicit paths.
+- [ ] Verify committed source/artifact hashes against the tested candidate and update this ledger.
+- [ ] Preserve the five pre-existing untracked opening captures and all unrelated user changes.
+  Clean handoff means zero uncommitted task-owned work, never deleting user files.
+- [ ] Distinguish committed, pushed and live-verified delivery. Push/deploy only within explicit
+  publication authorization; deploy the exact pushed commit through the existing workflow,
+  repeat live interaction/visual checks and retain rollback evidence.
 
-### 1. Complete the comparison corpus
+The deadline never converts a failed gate into success. An unresolved in-scope failure means
+the one-day target was missed; retain evidence and continue correction without declaring done.
 
-- [x] Separate website captures from the five PC opening references.
-- [x] Capture fresh live opening, front menu and Avatar; inspect requests, dimensions, fonts and Return.
-- [x] Correct the front-menu source identity to `title02`.
-- [x] Inventory every `data/menu` screen and map current cfg/Lua/objects, including missing pairings.
-  `data/menu/screen-inventory.json` pairs all 38 captures (sha256, dimensions, opening client crop);
-  `docs/game-data/menu-screen-inventory.md` records the reproduction commands and the two
-  manifest corrections (`main_menu_alt` = `title02`, five opening captures added).
-- [ ] Reproduce each state with fixed viewport, locale, input device and observed scene/save state.
-- [ ] Retain hashes, reproducible candidate/live commands, global and per-element comparisons.
+## Reference and evidence rules
 
-### 2. Repair navigation and state ownership
+The five opening references include Windows chrome: crop `x=1,y=32,w=1920,h=1080` from
+1922×1113. Normalize 2560×1440 references proportionally; never distort or silently crop.
+Screenshots are comparison oracles only. Keep game payloads, captures and bulk measurements
+private in `var/`, outside commits and public bundles.
 
-- [ ] Own the opening phase at the router/history boundary; subpage unmounts must not reset it.
-- [ ] Cold `/` may start the opening; explicit Return and `/menu` enter the menu directly.
-- [ ] Verify Return, Escape, browser Back/Forward, reload and direct entry on every secondary route.
-- [ ] Keep Return reachable during VFS readiness/failure and catalogue loading.
-- [ ] Preserve nested-dialog/consumed-key behavior, focus and held-input guards.
+Resource identities and stale-recipe evidence are recorded in
+[the screen inventory notes](docs/game-data/menu-screen-inventory.md). The previous live
+baseline at `var/outputs/fidelity-audit-20260908` failed every measured opening/front screen.
+Its RGB deltas are raw 0–255 values, not normalized fractions. No historical score proves the
+current candidate. Retain native fonts, axes and CRC conventions when migrating callers.
 
-### 3. Rebuild opening from real resources
+## Acceptance ledger
 
-- [ ] Place loading's separate football and native French text on black at measured coordinates.
-- [ ] Play the two original USM logos. Their MPEG-2 streams need bounded host browser conversion;
-  preserve frame rate/dimensions and advance on actual media readiness/completion.
-- [ ] Compose START from named field, character, effect and final-logo regions, native input glyphs
-  and independent interactive controls. Do not use beta or Switch 2 variants.
-- [ ] Resolve current autosave resources. The old `title_auto_save_info_menu_setting` references
-  five absent OBJBIN files and exports zero objects here: it is a failed recipe, not an empty screen.
-  Measured: **89 of 475** settings reference only absent OBJBIN files, **427** referenced names are
-  absent from the entire VFS, and **1549** shipped `menu/obj/` files are referenced by no setting
-  (`var/outputs/menu-inventory/objbin-reference-audit.json`). The stale layer list is corpus-wide,
-  so autosave must be composed from runtime-created objects, not from this setting's layers.
-- [ ] Render native bitmap fonts and localized text; verify French accents, bearings, spacing and wraps.
-- [ ] Bind decoded animation targets and interpolation. G4RA structural equality alone is not playback.
+Inventory command: `bun -e 'const x=await Bun.file("data/menu/screen-inventory.json").json();
+console.log(x.entries.map(e=>[e.file,e.screen,e.visual_subscreen].join(" | ")).join("\\n"))'`.
+Measured 2026-09-08 on `vps-203bea89`: 38 entries. Every row starts OPEN until independent
+visual, interaction, provenance and artifact evidence passes. Evidence belongs under
+`var/outputs/interface-delivery/<reference-stem>/`; details must include locale, viewport,
+inputs, scene/save/model state, time and measured element regions.
 
-### 4. Rebuild the front selection scene
+| Reference | Native identity / state | Owner | Acceptance |
+|---|---|---|---|
+| Capture d'écran 2026-09-08 124431.png | loading01 | shared resources + browser | OPEN |
+| Capture d'écran 2026-09-08 124446.png | movie_ie_15th | shared resources + browser | OPEN |
+| Capture d'écran 2026-09-08 124451.png | movie_l5logo | shared resources + browser | OPEN |
+| Capture d'écran 2026-09-08 124504.png | title_auto_save_info_menu | shared resources + browser | OPEN |
+| Capture d'écran 2026-09-08 124519.png | title00 | shared resources + browser | OPEN |
+| avatar_edit_clothes.png | kizuna_town_avatar_menu / chara_edit_clothes | shared presentation | OPEN |
+| avatar_edit_hair.png | kizuna_town_avatar_menu / chara_edit_hair | shared presentation | OPEN |
+| avatar_edit_name.png | kizuna_town_avatar_menu / chara_edit_name | shared presentation | OPEN |
+| avatar_edit_stats.png | kizuna_town_avatar_menu / chara_edit_stats | shared presentation | OPEN |
+| avatar_edit_style.png | kizuna_town_avatar_menu / chara_edit_style | shared presentation | OPEN |
+| avatar_edit_top.png | kizuna_town_avatar_menu / avatar_edit_root | shared presentation | OPEN |
+| bank_character_detail.png | chara_bank_menu / character_detail | shared presentation + browser | OPEN |
+| character_detail_hamano.png | chara_bank_menu / character_detail | shared presentation + browser | OPEN |
+| chronicle_map.png | chronicle_mode_top_menu / chronicle_map | shared presentation + browser | OPEN |
+| chronicle_mode.png | chronicle_mode_top_menu | shared presentation + browser | OPEN |
+| chronicle_shop.png | shop_menu / chronicle_shop | shared presentation + browser | OPEN |
+| controls.png | keyconfig_setting_menu / controller_settings | shared presentation + browser | OPEN |
+| event_calendar.png | advent_calendar_menu | shared presentation + browser | OPEN |
+| filters_appearance.png | chara_bank_menu / filter_appearance | shared presentation + browser | OPEN |
+| filters_bonus.png | chara_bank_menu / filter_bonus | shared presentation + browser | OPEN |
+| filters_elements.png | chara_bank_menu / filter_elements | shared presentation + browser | OPEN |
+| filters_foot.png | chara_bank_menu / filter_foot | shared presentation + browser | OPEN |
+| filters_position.png | chara_bank_menu / filter_position | shared presentation + browser | OPEN |
+| filters_rarity.png | chara_bank_menu / filter_rarity | shared presentation + browser | OPEN |
+| filters_team.png | chara_bank_menu / filter_team | shared presentation + browser | OPEN |
+| filters_team_role.png | chara_bank_menu / filter_team_role | shared presentation + browser | OPEN |
+| formation_presets.png | soccer_formation_menu / formation_preset_selector | shared presentation + browser | OPEN |
+| formation_select.png | soccer_formation_menu | shared presentation + browser | OPEN |
+| main_menu.png | main_menu | shared presentation + browser | OPEN |
+| main_menu_alt.png | title_menu_2 | shared presentation + browser | OPEN |
+| options.png | setting_menu | shared presentation + browser | OPEN |
+| pause_controls.png | pause_menu | shared presentation + browser | OPEN |
+| player_roster.png | chara_bank_menu / character_roster | shared presentation + browser | OPEN |
+| player_skill_tree.png | ability_learning_board_menu | shared presentation + browser | OPEN |
+| player_universe.png | players_universe_menu | shared presentation + browser | OPEN |
+| shop.png | shop_menu | shared presentation + browser | OPEN |
+| story_mode.png | story_mode_top_menu | shared presentation + browser | OPEN |
+| trophy_gallery.png | gallery_menu | shared presentation + browser | OPEN |
 
-- [ ] Export `title_menu_2_setting.cfg.bin`, current Lua and all runtime-created objects.
-- [ ] Use all eleven `title00_07` native icons and textured bases, focus and shadow regions.
-- [ ] Derive upper/lower order and action identity from config/Lua/text, not icon interpretation.
-- [ ] Resolve region geometry from meshes/locators. Do not treat material top-left transforms as
-  centered sprites or paint an entire atlas as one object.
-- [ ] Compose logo, information band, avatar/team panels, counters and lower actions independently.
-- [ ] Connect proven native actions to actual destinations. Never route story/play/save to unrelated
-  website tools. Expose unresolved commands as unavailable; do not fabricate successful actions.
-- [ ] Supply actual player/team/save state. Never copy statistics, versions or entitlements from a capture.
-- [ ] Validate the same scene through native and actual generated WebAssembly paths.
-- [ ] Compare object identity, visibility, transforms, text, focus and transitions; reject malformed data.
+## Measured batch ledger
 
-### 5. Reconstruct secondary interfaces and complete the flow
+Execution baseline inspected; no current fidelity acceptance claimed. Append measured batch
+results here with commands, counts and commit references after verification.
 
-- [ ] User priority (2026-09-08): make the avatar page match the six `data/menu/avatar_edit_*`
-  references. Recover the post-migration Azalée editor, converge its behavior with Inacord's
-  editor and `chara_edit`, and expose shared Rust assembly/state/rendering through `nie-web`
-  and `nie-site`. Reuse `nie-render3d` and existing editor capabilities; eliminate duplicated
-  model/face/skeleton selection logic only after all callers use the shared owner.
-- [ ] Match Options rows, switches, selection and Return to `data/menu/options.png`.
-- [ ] Reconstruct avatar style/name/stats/hair/clothes/top steps with native layout and live model
-  composition. A preset catalogue or generic form does not satisfy avatar interface parity.
-- [ ] Pair and reconstruct every remaining requested menu/filter screen.
-- [ ] Exercise pointer hover/press/release/cancel, keyboard, touch and standard gamepad for every
-  enabled action; verify focus, disabled states and multiple aspect ratios.
+### Shared loading and input batch — 2026-09-08
 
-### 6. Verify and publish coherent batches
+Measured on `vps-203bea89`, 14:25–14:31 UTC, against the execution-baseline worktree:
 
-- [ ] Run narrow tests, clippy, typecheck, component tests and portable Wasm checks.
-- [ ] Inspect the bundle for screenshot-backed screens, generic icons, substituted fonts, developer
-  diagnostics and machine identity in reconstructed game surfaces.
-- [ ] Traverse a staged browser candidate, inspect real payloads and non-zero interaction assertions.
-- [ ] Record candidate-versus-PC differences even when all implementation tests pass.
-- [ ] Commit/push only coherent complete source scopes, preserving concurrent and user changes.
-- [ ] Deploy the exact pushed commit through the established service workflow; verify live responses,
-  assets, interactions and screenshots; retain hashes and rollback evidence.
-
-## Completion gates
-
-The entire objective stays active until every requirement above is independently verified. Each
-screen requires matched PC/candidate/live evidence, actual asset/state provenance, interaction
-assertions and reproducible visual metrics. Geometry, native fonts and states must match at the
-element level as well as globally. Explicitly list remaining differences and dynamic regions.
-Do not lower success to an attractive partial menu or infer fidelity from blank-dominated SSIM.
-
-Use the narrow gates appropriate to changed scopes and record counts:
-
-```text
-cargo test -p <changed-library> --lib
-cargo clippy -p <changed-library> --lib --tests -- -D warnings
-cargo clippy -p <changed-binary> --bins --tests -- -D warnings
-cargo check -p <portable-library> --target wasm32-unknown-unknown
-bun run typecheck                         # apps/nie-web
-bun test apps/nie-web/src <changed-shared-tests>
-git diff --check -- <owned-source-paths>
-```
-
-Format changed files only. No `cargo build --workspace --all-targets`. Zero tests is not a pass.
-Preserve existing `data/menu` edits and copyrighted captures; keep game payloads, screenshots and
-bulk measurements out of source commits and the public bundle. Private evidence stays in `var/`.
-
-## Retained project obligations
-
-Inacord unification, editor parity, shared ownership convergence, function-level RE and byte-exact
-engine reconstruction remain project requirements. The archived ledger retains their evidence.
-They do not displace this interface objective or authorize deleting consumers, adding dependencies
-or changing deployment configuration.
-
-## Current batch
-
-Fresh live comparison is complete; every original-screen fidelity gate remains open. Parallel work
-covers route/history repair, actual `title02` composition, original opening media and independent
-visual audit. Append measured candidate results after running them; source edits are not deployments.
-
-### Measured batch record — 2026-09-08
-
-- Shared avatar resolver: 13 Rust tests, 56 compositions, 304 native `partId` links and 38
-  presets verified; `nie-data` clippy and wasm/no-std checks pass.
-- Browser avatar editor: 8 tests and 35 assertions pass. The six native scene descriptions are
-  loaded from WASM and the same mounted model viewport is retained while changing stages.
-- WebGPU model shader: strict Naga validation now passes after moving `textureSample` into uniform
-  control flow. The generated WASM was rebuilt with `webgpu` enabled.
-- Remaining gates: compare all six avatar captures in the real browser, prove native model pose,
-  skinning, colors and recipe semantics against the PC runtime, and finish secondary-screen parity.
+- Shared loading now uses the existing Rust scene ABI; browser geometry duplication removed.
+  Scene metadata validation rejects unusable focus/masks, empty provenance and invalid colors.
+- Avatar name/height focus and gamepad height adjustment are interactive; the persistent host
+  sampler preserves held-button edges across menu/avatar mounts. Secondary and Explorer Escape
+  honor editable fields, consumed events and modal dialogs before returning directly to menu.
+- `cargo test -p nie-formats --lib --features serde`: 329 passed, 0 failed, 1 ignored.
+  Focused presentation suite: 8 passed. Clippy (`--lib --tests --features serde -- -D warnings`)
+  and portable wasm32 check pass. The ignored test is not evidence of a passing assertion.
+- `bun apps/nie-web/scripts/build-wasm.ts` succeeds. Existing native presentation equality gate:
+  10 distinct scenes, 6 real-font multilingual runs, 4 invalid inputs rejected. Three additional
+  CLI negative fixtures (missing loading, duplicate scene, missing loading text) each exit 1.
+  Wasm SHA256: `ae34d528dd1bffe505dd49439ccb56b8412342e202624611020b4b4f73db3847`.
+- `bun run typecheck` in `apps/nie-web`: pass, zero diagnostics. Combined targeted Bun run:
+  41 tests / 286 assertions / zero failures across opening, mounted navigation, secondary shell,
+  Explorer, native menu, avatar, acceptance policy and image metrics.
+- Candidate native-menu traversal: 57 checks pass, 2 fail (favicon 404 and 10 missing native
+  destinations). Visual gate: global SSIM 0.804719379, raw RGB MAE 27.932512539/255; FAIL.
+  Element coverage remains unmeasured. Private evidence: `var/outputs/interface-delivery/`.
+- No screen is accepted from these engineering gates. Loading motion/localization provenance,
+  secondary screen implementations, avatar native registration and visual/model parity remain open.

@@ -66,6 +66,40 @@ async function expectMenu(path = "/") {
 }
 
 describe("game navigation in the mounted host", () => {
+	test("a held gamepad confirm does not activate the remounted menu after Avatar Return", async () => {
+		const pad = { index: 0, id: "route-transition", connected: true, mapping: "standard", axes: [0, 0], buttons: [{ pressed: false }, { pressed: false }] } as unknown as Gamepad;
+		const original = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+		Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => [pad] });
+		const callbacks = new Map<number, FrameRequestCallback>();
+		let nextId = 0;
+		const raf = spyOn(window, "requestAnimationFrame").mockImplementation(callback => { callbacks.set(++nextId, callback); return nextId; });
+		const cancel = spyOn(window, "cancelAnimationFrame").mockImplementation(id => { callbacks.delete(id); });
+		const tick = async () => {
+			const frame = [...callbacks.values()]; callbacks.clear();
+			await act(async () => { for (const callback of frame) callback(0); });
+		};
+		try {
+			await mount("/menu");
+			await act(async () => container.querySelector<HTMLButtonElement>('[data-host-action="avatar"] button')!.focus());
+			(pad.buttons[0] as { pressed: boolean }).pressed = true;
+			await tick();
+			expect(window.location.pathname).toBe("/avatar");
+			await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+			await expectMenu();
+			await tick();
+			await expectMenu();
+			(pad.buttons[0] as { pressed: boolean }).pressed = false;
+			await tick();
+			(pad.buttons[0] as { pressed: boolean }).pressed = true;
+			await tick();
+			expect(window.location.pathname).toBe("/settings");
+		} finally {
+			await act(async () => root?.unmount()); root = null;
+			raf.mockRestore(); cancel.mockRestore();
+			if (original) Object.defineProperty(navigator, "getGamepads", original);
+			else Reflect.deleteProperty(navigator, "getGamepads");
+		}
+	});
 	test("preserves startup for a fresh root", async () => {
 		await mount("/");
 		expect(container.querySelector('[data-opening-phase="loading"]')).not.toBeNull();
@@ -92,7 +126,7 @@ describe("game navigation in the mounted host", () => {
 	test("every direct secondary route keeps an immediate menu return while resources load", async () => {
 		for (const route of ["medias", "avatar", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
 			await mount(`/${route}`);
-			await click("header > button");
+			await click('header > button, [data-avatar-control="back"], .inacord-explorer-sidebar button[title="Éditeur"]');
 			await expectMenu();
 			await act(async () => root?.unmount());
 			root = createRoot(container);
@@ -119,6 +153,57 @@ describe("game navigation in the mounted host", () => {
 		await expectMenu();
 	});
 
+	test("Escape returns every direct secondary route to the menu while resources load", async () => {
+		for (const route of ["medias", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
+			await mount(`/${route}`);
+			await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+			await expectMenu();
+			await act(async () => root?.unmount());
+			root = createRoot(container);
+		}
+	});
+
+	test("secondary Escape preserves modal, editable, consumed and modified input", async () => {
+		for (const route of ["medias", "explorateur"]) {
+			await mount(`/${route}`);
+			for (const role of ["dialog", "alertdialog"]) {
+				const dialog = document.createElement("div");
+				dialog.setAttribute("role", role);
+				dialog.setAttribute("aria-modal", "true");
+				container.append(dialog);
+				await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+				expect(window.location.pathname).toBe(`/${route}`);
+				dialog.remove();
+			}
+			const input = document.createElement("input");
+			container.append(input);
+			await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+			expect(window.location.pathname).toBe(`/${route}`);
+			input.remove();
+			for (const modifier of ["altKey", "ctrlKey", "metaKey", "repeat"]) {
+				await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true, [modifier]: true })));
+				expect(window.location.pathname).toBe(`/${route}`);
+			}
+			const consumed = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+			consumed.preventDefault();
+			await act(async () => window.dispatchEvent(consumed));
+			expect(window.location.pathname).toBe(`/${route}`);
+			await act(async () => root?.unmount());
+			root = createRoot(container);
+		}
+	});
+
+	test("Explorer Escape dismisses display options before returning to the menu", async () => {
+		await mount("/explorateur");
+		await click('[aria-label="Options d\'affichage"]');
+		expect(container.querySelector(".nie-web-explorer-view-popover")).not.toBeNull();
+		await act(async () => container.querySelector(".nie-web-explorer-view-popover button")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+		expect(window.location.pathname).toBe("/explorateur");
+		expect(container.querySelector(".nie-web-explorer-view-popover")).toBeNull();
+		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+		await expectMenu();
+	});
+
 	test("Avatar Escape returns to menu while nested dialogs and consumed events retain control", async () => {
 		await mount("/avatar");
 		const dialog = document.createElement("div");
@@ -128,6 +213,15 @@ describe("game navigation in the mounted host", () => {
 		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
 		expect(window.location.pathname).toBe("/avatar");
 		dialog.remove();
+		dialog.setAttribute("role", "alertdialog");
+		container.append(dialog);
+		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+		expect(window.location.pathname).toBe("/avatar");
+		dialog.remove();
+		for (const modifier of ["altKey", "ctrlKey", "metaKey", "repeat"]) {
+			await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true, [modifier]: true })));
+			expect(window.location.pathname).toBe("/avatar");
+		}
 		const consumed = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
 		consumed.preventDefault();
 		await act(async () => window.dispatchEvent(consumed));

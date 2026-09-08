@@ -87,12 +87,8 @@ nie-render3d = { path = "../../engine/nie-render3d" }
 # divergerait de celle des presets de dump au premier motif tordu.
 nie-viola = { path = "../../engine/nie-viola" }
 
-# Le decodeur de bytecode Lua 5.2 — le format des 1 199 `.lua.bin` du jeu.
-# `default-features = false` coupe `vm` (mlua, Lua 5.2 en C) ET `analysis` (tree-sitter) : il
-# ne reste que `nie_lua::bytecode`, pur Rust. Ce n'est pas une economie de build, c'est la
-# garantie qu'AUCUN interpreteur n'est lie dans ce service — cf. `routes::lua`, qui refuse
-# d'exposer l'execution et dont un test verifie que la feature `vm` reste eteinte.
-nie-lua = { path = "../../engine/nie-lua", default-features = false }
+# Shared bytecode decoding and bounded trusted-VFS menu replay. Arbitrary evaluation is not routed.
+nie-lua = { path = "../../engine/nie-lua", default-features = false, features = ["vm"] }
 
 # Save character identifiers are parsed by the type that owns their byte representation. The
 # site never receives a save file: `/api/v1/save/roster` only normalizes the identifiers already

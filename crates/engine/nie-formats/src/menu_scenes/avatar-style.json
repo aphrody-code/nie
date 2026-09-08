@@ -259,7 +259,7 @@
     {
       "id": "_bar_gauge_base01",
       "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_13/avatar01_13.g4tx",
-      "region": "bar_gauge_base01",
+      "region": "edit_bar_gauge_base01",
       "rect": {
         "x": 1445,
         "y": 654,
@@ -270,7 +270,7 @@
       "provenance": {
         "source": "data/common/menu/161_avatar/avatar01/avatar01_13/avatar01_13.g4pkm",
         "record": "_bar_gauge_base01",
-        "method": "Native raw material offset attached at 1565,660 using the matching avatar01_10 locator; Y negated once."
+        "method": "Native raw material offset attached at 1565,660 using the matching avatar01_10 locator; Y negated once. G4MD material slot 2 is bar_gauge_base01_mat_01; paired to the shipped edit_bar_gauge_base01 atlas region (0,32,240,12) by base-layer role and exact dimensions. The material name without edit_ is not an atlas region; G4TP linkage remains undecoded."
       }
     }
   ],

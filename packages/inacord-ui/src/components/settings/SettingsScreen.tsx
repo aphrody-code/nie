@@ -1,5 +1,6 @@
 /**
- * L'écran des Options — celui du jeu, avec les réglages d'Inacord dedans.
+ * Shared host settings behavior with an optional native Options row template.
+ * Host controls do not represent the PC game's unresolved setting effects.
  *
  * ## Ce qu'il montre
  *
@@ -35,6 +36,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Settings } from "../../lib/settings";
+import type { NativeMenuScene } from "../../shell/native-title-menu";
 import { GLYPHES } from "../../shell/menu-screen";
 import { useCapacites } from "../../source";
 import { GameCursor } from "../game/GameCursor";
@@ -68,8 +70,11 @@ export function SettingsScreen({
 	onApply,
 	backLabel = "Retour",
 	initialFamily,
+	nativeScene,
 }: {
 	title?: string;
+	/** Optional native row template; host setting identities and behavior are preserved. */
+	nativeScene?: NativeMenuScene;
 	/** L'onglet ouvert à l'arrivée — un lien profond (`?tab=display`) ; sinon le premier. */
 	initialFamily?: SettingFamily;
 	/** Échap, ou le bouton de retour. */
@@ -206,11 +211,11 @@ export function SettingsScreen({
 	}));
 
 	return (
-		// La géométrie de l'écran, mesurée sur `options.png` (2560×1440) : les lignes vont de
-		// x=480 à x=2080, soit 62,5 % de la largeur ; la bande d'onglets en fait 46 %. Le
-		// bandeau, la barre de description et les guides prennent toute la largeur.
+		// Compatibility host layout. The optional native scene supplies row artwork only;
+		// these percentages are not decoded native attachment transforms.
 		<div
 			className="game-screen game-screen--settings"
+			data-settings-owner="host" data-native-scene={nativeScene?.id}
 			style={{
 				display: "flex",
 				flexDirection: "column",
@@ -240,6 +245,7 @@ export function SettingsScreen({
 				{current ? (
 					<SettingList
 						label={current.label}
+						nativeScene={nativeScene}
 						style={{ width: "62.5%" }}
 						definitions={definitions}
 						values={settings}

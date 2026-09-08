@@ -6,6 +6,7 @@
  */
 import type React from "react";
 import type { Settings } from "../../lib/settings";
+import type { NativeMenuScene } from "../../shell/native-title-menu";
 import { SettingChoiceList, SettingRow } from "./SettingRow";
 import type { SettingDefinition, SettingId } from "./settings-model";
 
@@ -19,6 +20,7 @@ export function SettingList({
 	onFocus,
 	onChange,
 	onOpen,
+	nativeScene,
 }: {
 	/** Le nom de la famille, pour les technologies d'assistance. */
 	label: string;
@@ -31,6 +33,7 @@ export function SettingList({
 	onFocus: (index: number) => void;
 	onChange: <K extends SettingId>(id: K, value: Settings[K]) => void;
 	onOpen: () => void;
+	nativeScene?: NativeMenuScene;
 }) {
 	// Le pouce de la barre : la part visible de la liste. Tout tient à l'écran ici, il est
 	// donc plein — la variable existe pour le jour où la liste défilera.
@@ -48,6 +51,7 @@ export function SettingList({
 						<SettingRow
 							key={def.id}
 							def={def}
+							nativeScene={nativeScene}
 							value={values[def.id]}
 							focused={focused}
 							onFocus={() => onFocus(index)}

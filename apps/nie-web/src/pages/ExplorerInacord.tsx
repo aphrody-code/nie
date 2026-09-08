@@ -167,6 +167,18 @@ export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 
 	useEffect(() => {
 		function onShortcut(event: KeyboardEvent) {
+			if (event.defaultPrevented) return;
+			if (event.key === "Escape") {
+				if (!onHome || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+				const target = event.target;
+				if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]')) return;
+				if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"]')) return;
+				if (target instanceof Element && target.closest('[role="dialog"], [role="alertdialog"]') && !target.closest('.nie-web-explorer-view-popover')) return;
+				event.preventDefault();
+				if (viewOptions) { setViewOptions(false); return; }
+				onHome();
+				return;
+			}
 			if (!(event.ctrlKey || event.metaKey)) return;
 			if (event.key.toLowerCase() === "t") {
 				event.preventDefault();
@@ -181,7 +193,7 @@ export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 		}
 		window.addEventListener("keydown", onShortcut);
 		return () => window.removeEventListener("keydown", onShortcut);
-	}, [activeTab.prefix]);
+	}, [activeTab.prefix, onHome, viewOptions]);
 
 	const folders = useMemo(
 		() => (content?.dossiers ?? []).map((path) => ({ path: childPath(activeTab.prefix, path), name: path.split("/").at(-1) ?? path })),

@@ -691,7 +691,9 @@ pub fn acb_cues(data: &[u8]) -> Result<Vec<AcbCue>, FormatError> {
             synth_table
                 .as_ref()
                 .and_then(|st| match st.get(ref_index as usize, "ReferenceItems") {
-                    Some(UtfValue::Bytes(b)) if b.len() >= 4 => {
+                    // Multiple references describe a synth, not one playable waveform.
+                    // Leave those unresolved instead of silently discarding all but the first.
+                    Some(UtfValue::Bytes(b)) if b.len() == 4 => {
                         let kind = u16::from_be_bytes([b[0], b[1]]);
                         let idx = u16::from_be_bytes([b[2], b[3]]);
                         (kind == 1).then_some(idx as usize)
@@ -724,8 +726,8 @@ pub fn acb_cues(data: &[u8]) -> Result<Vec<AcbCue>, FormatError> {
                             "MemoryAwbId"
                         },
                     )
-                    .filter(|&v| v != 65535)
-                    .map(|v| v as u16);
+                    .and_then(|v| u16::try_from(v).ok())
+                    .filter(|&v| v != u16::MAX);
                     (
                         entier(t, w, "EncodeType").map(|v| v as u8),
                         entier(t, w, "NumChannels").map(|v| v as u8),
@@ -855,6 +857,48 @@ pub fn is_hca(data: &[u8]) -> bool {
 /// (`SoundPlayManager.DecryptionKey`). Valeur hex : `0x00D2997C0DC5EE72`.
 #[cfg(feature = "audio-decode")]
 pub const IEVR_HCA_KEY: u64 = 59_278_503_195_307_634;
+
+/// Loop boundaries in decoded sample frames, after encoder-delay removal.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct AudioLoopPoints {
+    pub start_sample: u64,
+    /// Exclusive end of the loop.
+    pub end_sample: u64,
+    pub sample_rate: u32,
+}
+
+/// Extract HCA loop points from the existing decoder's native header metadata.
+/// No audio frame decoding or encryption-key inference is needed for this header.
+#[cfg(feature = "audio-decode")]
+pub fn hca_loop_points(raw: &[u8]) -> Result<Option<AudioLoopPoints>, String> {
+    let decoder = cridecoder::HcaDecoder::from_reader(std::io::Cursor::new(raw))
+        .map_err(|error| format!("HCA header: {error}"))?;
+    let info = decoder.info();
+    if !info.loop_enabled {
+        return Ok(None);
+    }
+    let block_samples = info.samples_per_block as u64;
+    let delay = u64::from(info.encoder_delay);
+    // Inverse of cridecoder's HCA encoder loop-header construction: end block is
+    // inclusive; end padding and encoder delay are excluded from the decoded loop.
+    let start_sample = (u64::from(info.loop_start_block) * block_samples
+        + u64::from(info.loop_start_delay))
+        .checked_sub(delay).ok_or("HCA loop begins before decoded audio")?;
+    let end_sample = ((u64::from(info.loop_end_block) + 1) * block_samples)
+        .checked_sub(u64::from(info.loop_end_padding))
+        .and_then(|value| value.checked_sub(delay))
+        .ok_or("Invalid HCA loop end")?;
+    let total_samples = (u64::from(info.block_count) * block_samples)
+        .checked_sub(delay)
+        .and_then(|value| value.checked_sub(u64::from(info.encoder_padding)))
+        .ok_or("Invalid HCA sample count")?;
+    if start_sample >= end_sample || end_sample > total_samples || info.sampling_rate == 0 {
+        return Err("HCA loop exceeds decoded sample boundaries".into());
+    }
+    Ok(Some(AudioLoopPoints { start_sample, end_sample, sample_rate: info.sampling_rate }))
+}
 
 /// Décode un flux HCA Criware chiffré (ciph_type=56) en PCM 16-bit entrelacé,
 /// renvoie `(samples, channels, sample_rate)`.

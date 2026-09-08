@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { NativeAvatarEditor, type AvatarNameFields } from "@niers/inacord-ui/avatar/NativeAvatarEditor";
 import { INITIAL_AVATAR_STATE, type AvatarCatalog, type AvatarComposition, type AvatarState } from "@niers/inacord-ui/avatar/contract";
 import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import type { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { RustModelViewport } from "@niers/inacord-ui/shell/rust-model-viewport";
 import { avatarModelUrl, resolveAvatar } from "../game/avatar-runtime";
 import { loadMenuPresentation } from "../game/bridge";
@@ -35,7 +36,7 @@ function storedDraft(): { state: AvatarState; nameFields: AvatarNameFields } {
 	return { state: { ...INITIAL_AVATAR_STATE }, nameFields: { ...EMPTY_NAMES } };
 }
 
-export function Avatar({ onBack }: { onBack: () => void }) {
+export function Avatar({ onBack, gamepadSampler }: { onBack: () => void; gamepadSampler?: ReturnType<typeof createStandardGamepadMenuSampler> }) {
 	const [draft] = useState(storedDraft);
 	const [state, setState] = useState<AvatarState>(draft.state);
 	const [nameFields, setNameFields] = useState<AvatarNameFields>(draft.nameFields);
@@ -54,7 +55,8 @@ export function Avatar({ onBack }: { onBack: () => void }) {
 	}, [stage, onBack]);
 	useEffect(() => {
 		const key = (event: KeyboardEvent) => {
-			if (event.key !== "Escape" || event.defaultPrevented || event.repeat || document.querySelector('[role="dialog"][aria-modal="true"],dialog[open]')) return;
+			if (event.key !== "Escape" || event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+			if (document.querySelector('[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"], dialog[open]')) return;
 			event.preventDefault(); back();
 		};
 		window.addEventListener("keydown", key);
@@ -106,6 +108,7 @@ export function Avatar({ onBack }: { onBack: () => void }) {
 		{compositionError ? <button type="button" onClick={() => { setState({ ...INITIAL_AVATAR_STATE }); setNameFields({ ...EMPTY_NAMES }); }}>Réinitialiser les choix</button> : null}
 	</section>;
 	return <NativeAvatarEditor catalog={catalog} state={state} onStateChange={setState}
+		gamepadSampler={gamepadSampler}
 		onBack={back} stage={stage} onStageChange={setStage} scene={scenes[stage]}
 		nameFields={nameFields} onNameFieldsChange={setNameFields}
 		renderText={nativeText}

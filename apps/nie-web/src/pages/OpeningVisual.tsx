@@ -1,15 +1,17 @@
 /** Opening presentation consumes native VFS media and engine-owned scene metadata. */
 import { GameCanvas, useAssetSource } from "@niers/inacord-ui";
-import { nativeAssetUrl, type NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { type NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
 import type { OpeningPhase } from "../game/opening-sequence";
 import { NativeText } from "./NativeText";
+import { NativeSceneLayers } from "@niers/inacord-ui/shell/native-scene-layers";
 
 export interface OpeningVisualProps {
 	phase: Exclude<OpeningPhase, "menu">;
 	onReady?: () => void;
 	onEnded?: () => void;
+	onConfirm?: () => void;
 }
 
 const LOGO_MOVIES = {
@@ -17,13 +19,11 @@ const LOGO_MOVIES = {
 	level5: "data/common/movie/L5logo.usm",
 } as const;
 
-export function OpeningVisual({ phase, onReady, onEnded }: OpeningVisualProps) {
+export function OpeningVisual({ phase, onReady, onEnded, onConfirm }: OpeningVisualProps) {
 	if (phase === "inazuma-eleven" || phase === "level5") {
 		return <NativeLogoMovie path={LOGO_MOVIES[phase]} onReady={onReady} onEnded={onEnded} />;
 	}
-	if (phase === "start") return <NativeStart onReady={onReady} />;
-	if (phase === "loading") return <NativeLoading onReady={onReady} />;
-	return <AutosaveNotice onReady={onReady} />;
+	return <NativeOpeningScene key={phase} id={phase} onReady={onReady} onConfirm={onConfirm} />;
 }
 
 function NativeLogoMovie({ path, onReady, onEnded }: { path: string; onReady?: () => void; onEnded?: () => void }) {
@@ -54,77 +54,61 @@ function NativeLogoMovie({ path, onReady, onEnded }: { path: string; onReady?: (
 	);
 }
 
-function NativeStart({ onReady, id = "start", children }: { onReady?: () => void; id?: "start" | "autosave"; children?: ReactNode }) {
-	const source = useAssetSource();
+
+function NativeOpeningScene({ onReady, id, onConfirm }: {
+	onReady?: () => void; id: "loading" | "start" | "autosave"; onConfirm?: () => void;
+}) {
 	const [scene, setScene] = useState<NativeMenuScene | null>(null);
 	const [failed, setFailed] = useState(false);
 	const [attempt, setAttempt] = useState(0);
-	const loaded = useRef(new Set<string>());
+	const fail = useCallback(() => setFailed(true), []);
 	useEffect(() => {
 		let active = true;
-		loaded.current.clear();
-		loadMenuPresentation(id).then((value) => {
-			if (active) setScene(value);
-		}).catch(() => { if (active) setFailed(true); });
+		loadMenuPresentation(id).then(value => { if (active) setScene(value); }).catch(() => { if (active) setFailed(true); });
 		return () => { active = false; };
 	}, [id, attempt]);
-	if (failed) return <p role="alert">Les ressources de l’écran ne sont pas disponibles. <button type="button" onClick={() => { setFailed(false); setScene(null); setAttempt(value => value + 1); }}>Réessayer</button></p>;
+	if (failed) return <p role="alert">Les ressources de l\u2019\u00E9cran ne sont pas disponibles. <button type="button"
+		onClick={() => { setFailed(false); setScene(null); setAttempt(value => value + 1); }}>R\u00E9essayer</button></p>;
 	if (!scene) return <div aria-busy="true" aria-label="Chargement des ressources" />;
-	return (
-		<GameCanvas canvas={{ w: scene.canvas.width, h: scene.canvas.height }} fond={scene.background}>
-			<div data-native-scene={id} data-runtime-completeness="partial">
-				{scene.layers.map((layer) => <img
-					key={layer.id}
-					alt=""
-					data-native-region={layer.region}
-					data-vfs-path={layer.assetPath}
-					src={nativeAssetUrl(source, layer.assetPath, layer.region) ?? undefined}
-					draggable={false}
-					onLoad={() => {
-						loaded.current.add(layer.id);
-						if (loaded.current.size === scene.layers.length) onReady?.();
-					}}
-					onError={() => setFailed(true)}
-					style={{ position: "absolute", left: layer.rect.x, top: layer.rect.y, width: layer.rect.w, height: layer.rect.h, zIndex: layer.drawOrder }}
-				/>)}
-			</div>
-			{children}
-		</GameCanvas>
-	);
+	return <OpeningSceneContent key={attempt} scene={scene} onReady={onReady} onError={fail} onConfirm={onConfirm} />;
 }
 
-/** Region and corner measured from the PC client, separate from its localized label. */
-function NativeLoading({ onReady }: { onReady?: () => void }) {
+/** Scene coordinates govern both visible artwork and hit targets, including letterboxed hosts. */
+function OpeningSceneContent({ scene, onReady, onError, onConfirm }: {
+	scene: NativeMenuScene; onReady?: () => void; onError: () => void; onConfirm?: () => void;
+}) {
 	const source = useAssetSource();
-	const [failed, setFailed] = useState(false);
-	const [attempt, setAttempt] = useState(0);
-	const ready = useRef(new Set<string>());
-	const markReady = useCallback((part: string) => { ready.current.add(part); if (ready.current.size === 2) onReady?.(); }, [onReady]);
-	const fontReady = useCallback(() => markReady("font"), [markReady]);
-	const fail = useCallback(() => setFailed(true), []);
-	const path = "data/dx11/menu/11_loading/loading01/loading01_01/loading01_01.g4tx";
-	return (
-		<GameCanvas canvas={{ w: 1920, h: 1080 }} fond="#000000">
-			<div key={attempt} className="opening-native-loading" data-runtime-completeness="partial">
-				<img alt="" src={nativeAssetUrl(source, path, "load_ball01") ?? undefined} onLoad={() => markReady("ball")} onError={fail} />
-				<NativeText text="CHARGEMENT EN COURS…" height={48} width={420} onReady={fontReady} onError={fail} />
-			</div>
-			{failed ? <div className="opening-resource-error" role="alert">Les ressources n’ont pas pu être chargées. <button type="button" onClick={() => { ready.current.clear(); setFailed(false); setAttempt(value => value + 1); }}>Réessayer</button></div> : null}
-		</GameCanvas>
-	);
+	const [layersReady, setLayersReady] = useState(false);
+	const [readyTexts, setReadyTexts] = useState<ReadonlySet<string>>(() => new Set());
+	const action = useRef<HTMLButtonElement>(null);
+	const markLayersReady = useCallback(() => setLayersReady(true), []);
+	const markTextReady = useCallback((id: string) => setReadyTexts(previous => previous.has(id) ? previous : new Set([...previous, id])), []);
+	const ready = layersReady && (scene.texts ?? []).every(text => readyTexts.has(text.id));
+	useEffect(() => { if (ready) { onReady?.(); action.current?.focus({ preventScroll: true }); } }, [ready, onReady]);
+	return <GameCanvas canvas={{ w: scene.canvas.width, h: scene.canvas.height }} fond={scene.background}>
+		<div data-native-scene={scene.id} data-native-scene-ready={ready} data-runtime-completeness="partial">
+			<NativeSceneLayers scene={scene} source={source} onReady={markLayersReady} onError={onError} />
+			{scene.slots?.filter(slot => slot.id === "saving-ribbon").map(slot => <div key={slot.id}
+				className="opening-autosave__stripe" aria-hidden="true"
+				style={{ left: slot.rect.x, top: slot.rect.y, width: slot.rect.w, height: slot.rect.h }} />)}
+			{scene.texts?.map(text => <OpeningText key={text.id} text={text} onReady={markTextReady} onError={onError} />)}
+			{scene.controls.filter(control => control.hostActionId === "confirm").map(control => <button key={control.id}
+				ref={action} type="button" aria-label={control.label} data-native-control={control.id}
+				disabled={!ready || !onConfirm} onClick={onConfirm}
+				onKeyDown={event => { if (event.repeat && (event.key === "Enter" || event.key === " ")) event.preventDefault(); }}
+				className={"opening-screen__action opening-screen__action--" + scene.id}
+				style={{ left: control.rect.x, top: control.rect.y, width: control.rect.w, height: control.rect.h }} />)}
+		</div>
+	</GameCanvas>;
 }
 
-function AutosaveNotice({ onReady }: { onReady?: () => void }) {
-	return (
-		<NativeStart id="autosave" onReady={onReady}>
-		<div className="opening-autosave" data-runtime-completeness="partial">
-			<p><NativeText text="Ce jeu dispose d'une fonction de sauvegarde automatique." color={0x161ddbff} height={71} width={870} /></p>
-			<p><NativeText text="Cette icône s'affichera à l'écran lors d'une sauvegarde." color={0x161ddbff} height={71} width={810} /></p>
-			<div className="opening-autosave__stripe"><NativeText text="Sauvegarde en cours" height={60} width={289} /></div>
-			<strong><NativeText text="[AVERTISSEMENT]" color={0xfa4c51ff} height={71} width={290} /></strong>
-			<p className="opening-autosave__warning"><NativeText text="Si la console est éteinte ou que le jeu est fermé pendant la sauvegarde," color={0xfa4c51ff} height={71} width={1044} /></p>
-			<p className="opening-autosave__warning"><NativeText text="le fichier peut être corrompu." color={0xfa4c51ff} height={71} width={417} /></p>
-		</div>
-		</NativeStart>
-	);
+function OpeningText({ text, onReady, onError }: {
+	text: NonNullable<NativeMenuScene["texts"]>[number]; onReady: (id: string) => void; onError: () => void;
+}) {
+	const ready = useCallback(() => onReady(text.id), [onReady, text.id]);
+	return <div data-native-text={text.id} style={{ position: "absolute", pointerEvents: "none", left: text.rect.x,
+		top: text.rect.y, width: text.rect.w, height: text.rect.h, zIndex: text.drawOrder }}>
+		<NativeText text={text.text} color={(((text.color ?? 0xffffff) << 8) | 255) >>> 0}
+			height={text.rect.h} width={text.rect.w} onReady={ready} onError={onError} />
+	</div>;
 }

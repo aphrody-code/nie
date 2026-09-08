@@ -38,6 +38,8 @@ pub mod runtime;
 #[cfg(feature = "vm")]
 pub mod session;
 #[cfg(feature = "vm")]
+pub mod menu_runtime;
+#[cfg(feature = "vm")]
 pub use runtime::RuntimeContext;
 #[cfg(feature = "vm")]
 pub use session::{

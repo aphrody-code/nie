@@ -17,6 +17,8 @@ pub mod inspect;
 pub mod level5;
 pub mod lua;
 pub mod menu;
+pub mod menu_audio;
+pub mod menu_runtime;
 pub mod modeles3d;
 pub mod pages;
 pub mod passives;

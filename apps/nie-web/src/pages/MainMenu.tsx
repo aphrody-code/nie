@@ -7,12 +7,12 @@ import {
 	type MenuIntent,
 	type MenuInteractionItem,
 } from "@niers/inacord-ui/shell/menu-interaction";
-import {
-	nativeAssetUrl,
-	type NativeMenuScene,
-} from "@niers/inacord-ui/shell/native-title-menu.ts";
+import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu.ts";
+import { NativeSceneLayers, type NativeSceneAssetState } from "@niers/inacord-ui/shell/native-scene-layers";
+import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
+import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
 import "./main-menu.css";
 
 export interface MainMenuAction {
@@ -30,6 +30,60 @@ export interface MainMenuProps {
 	gamepadSampler?: ReturnType<typeof createStandardGamepadMenuSampler>;
 }
 
+// title_menu_2_setting.cfg.bin layer IDs; title_menu_2 Lua native item order is
+// recorded in the compiled title scene provenance. These are callback identities,
+// not nativeActionHash values or an alternative geometry/focus model.
+const TITLE_LAYERS = [
+	{ id: 2250456639, items: [1, 2, 7, 3, 9, 4, 11, 10] },
+	{ id: 3873872512, items: [6, 5, 8] },
+] as const;
+const TITLE_OBJECT = "data/common/gamedata/menu/obj/title00_07_item_button.objbin";
+const AVATAR_OBJECT = "data/common/gamedata/menu/obj/title02_11_avatar_banner.objbin";
+function nativeBinding(id: string) {
+	if (id === "avatar") return { layer: 1526508152, index: 0, objectPath: AVATAR_OBJECT };
+	for (const layer of TITLE_LAYERS) {
+		const index = layer.items.findIndex(item => id === `title-item-${item}`);
+		if (index >= 0) return { layer: layer.id, index, objectPath: TITLE_OBJECT };
+	}
+	return null;
+}
+
+interface TitleObservation {
+	result: MenuRuntimeResult | null;
+	state: "loading" | "observed" | "partial" | "unavailable";
+	enter: (id: string) => Promise<void>;
+}
+
+function ObservedMainMenu(props: MainMenuProps & { scene: NativeMenuScene }) {
+	const runtime = useMemo(() => createMenuRuntime("title_menu_2", {
+		locale: "fr", itemCounts: { 2250456639: 8, 3873872512: 3 },
+	}), []);
+	const [result, setResult] = useState<MenuRuntimeResult | null>(null);
+	const [state, setState] = useState<TitleObservation["state"]>("loading");
+	const mounted = useRef(false);
+	const receive = useCallback((value: MenuRuntimeResult) => {
+		if (!mounted.current) return;
+		setResult(value);
+		setState(value.complete ? "observed" : "partial");
+	}, []);
+	useEffect(() => {
+		mounted.current = true;
+		void runtime.replay([]).then(receive, () => { if (mounted.current) setState("unavailable"); });
+		return () => { mounted.current = false; runtime.abort(); };
+	}, [runtime, receive]);
+	const enter = useCallback(async (id: string) => {
+		const binding = nativeBinding(id);
+		if (!binding || !runtime.snapshot?.callbacks.includes("OnEnter")) {
+			if (mounted.current) setState("partial");
+			return;
+		}
+		// menu_host.rs passes (layerId, zero-based itemIndex) to OnEnter.
+		try { receive(await runtime.dispatch({ callback: "OnEnter", args: [binding.layer, binding.index] })); }
+		catch { if (mounted.current) setState("unavailable"); }
+	}, [runtime, receive]);
+	return <NativeMainMenu {...props} observation={{ result, state, enter }} />;
+}
+
 /** The browser supplies destinations; the engine supplies the native scene and control identities. */
 export function MainMenu(props: MainMenuProps) {
 	const [scene, setScene] = useState<NativeMenuScene | null>(null);
@@ -42,21 +96,33 @@ export function MainMenu(props: MainMenuProps) {
 		);
 		return () => { mounted = false; };
 	}, []);
+	useEffect(() => {
+		if (scene || !props.onCancel) return;
+		const cancel = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+			event.preventDefault(); props.onCancel?.();
+		};
+		window.addEventListener("keydown", cancel);
+		return () => window.removeEventListener("keydown", cancel);
+	}, [scene, props.onCancel]);
 	if (!scene) return (
 		<section className="runtime-main-menu" aria-label="Menu principal" aria-busy={!failed}>
 			{failed ? <p role="alert">Le menu est indisponible.</p> : null}
+			{props.onCancel ? <button type="button" onClick={props.onCancel}>Retour</button> : null}
 		</section>
 	);
-	return <NativeMainMenu scene={scene} {...props} />;
+	return <ObservedMainMenu scene={scene} {...props} />;
 }
 
 /** Presentation of a compiled scene, also used for deterministic host-binding checks. */
-export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler }: MainMenuProps & { scene: NativeMenuScene }) {
+export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler, observation }: MainMenuProps & { scene: NativeMenuScene; observation?: TitleObservation }) {
 	const source = useAssetSource();
 	const boundActions = useMemo(() => scene.controls.map((control) => {
 		const host = actions.find((action) => action.id === control.hostActionId);
-		return { ...control, disabled: !host || Boolean(host.disabled), onActivate: host?.onActivate };
-	}), [scene, actions]);
+		const binding = nativeBinding(control.id);
+		const nativeLayer = binding && observation?.result?.complete ? observation.result.scene.layers[binding.layer] : undefined;
+		return { ...control, disabled: !host || Boolean(host.disabled) || nativeLayer?.enabled === false || nativeLayer?.visible === false, onActivate: host?.onActivate };
+	}), [scene, actions, observation?.result]);
 	const items = useMemo<MenuInteractionItem[]>(() => boundActions.map((action) => ({
 		id: action.id,
 		disabled: action.disabled,
@@ -65,14 +131,15 @@ export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler }: Mai
 	const [focusedId, setFocusedId] = useState(() => initialMenuState(items).focusedId);
 	const focusState = useRef(initialMenuState(items));
 	const [pressedId, setPressedId] = useState<string | null>(null);
-	const [failedAssets, setFailedAssets] = useState(false);
-	const [loadedLayers, setLoadedLayers] = useState<ReadonlySet<string>>(() => new Set());
+	const [assetState, setAssetState] = useState<NativeSceneAssetState>("loading");
 	const [canvasReady, setCanvasReady] = useState(false);
 	const onCanvasReady = useCallback(() => setCanvasReady(true), []);
 	const localGamepadSampler = useRef(createStandardGamepadMenuSampler());
 	const sampler = gamepadSampler ?? localGamepadSampler.current;
 	const menuRoot = useRef<HTMLElement | null>(null);
 	const activationPending = useRef(false);
+	const alive = useRef(true);
+	useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
 	useEffect(() => {
 		focusState.current = initialMenuState(items, focusState.current.focusedId);
@@ -83,13 +150,25 @@ export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler }: Mai
 		const action = boundActions.find((candidate) => candidate.id === id);
 		if (!action || action.disabled || activationPending.current) return;
 		activationPending.current = true;
-		try { action.onActivate?.(); }
-		finally { queueMicrotask(() => { activationPending.current = false; }); }
-	}, [boundActions]);
+		const binding = nativeBinding(action.id);
+		if (binding) emitNativeCommand(binding.objectPath, "CMD_ENTER");
+		const finish = () => {
+			try { if (alive.current) action.onActivate?.(); }
+			finally { queueMicrotask(() => { activationPending.current = false; }); }
+		};
+		if (observation) void observation.enter(action.id).then(finish, finish);
+		else finish();
+	}, [boundActions, observation]);
 
 	const applyIntent = useCallback((intent: MenuIntent) => {
 		if (activationPending.current) return;
 		const update = reduceMenuInteraction(items, focusState.current, intent);
+		if (update.state.focusedId && update.state.focusedId !== focusState.current.focusedId) {
+			const binding = nativeBinding(update.state.focusedId);
+			const previous = items.findIndex(item => item.id === focusState.current.focusedId);
+			const next = items.findIndex(item => item.id === update.state.focusedId);
+			if (binding) emitNativeCommand(binding.objectPath, next < previous ? "CMD_FCS_BACK" : "CMD_FCS_NEXT");
+		}
 		focusState.current = update.state;
 		setFocusedId(update.state.focusedId);
 		if (update.activatedId) activate(update.activatedId);
@@ -138,28 +217,12 @@ export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler }: Mai
 		return () => window.cancelAnimationFrame(frame);
 	}, [applyIntent, sampler]);
 
-	const visibleLayers = scene.layers.filter((layer) => layer.visibleWhen !== "focused" || layer.actionId === focusedId);
-	const assetState = failedAssets ? "failed" : visibleLayers.every((layer) => loadedLayers.has(layer.id)) ? "ready" : "loading";
 	return (
 		<section ref={menuRoot} aria-label="Menu principal" data-render-source="vfs-layers"
-			data-scene-id={scene.id} data-runtime-completeness="partial" className="runtime-main-menu">
+			data-scene-id={scene.id} data-runtime-completeness="partial" data-lua-observation={observation?.state ?? "unmounted"} className="runtime-main-menu">
 			<GameCanvas canvas={{ w: scene.canvas.width, h: scene.canvas.height }} fond={scene.background ?? "transparent"} onReady={onCanvasReady}>
-				{visibleLayers.map((layer) => {
-					const selected = layer.actionId === focusedId;
-					const region = selected && layer.focusedRegion ? layer.focusedRegion : layer.region;
-					const url = nativeAssetUrl(source, layer.assetPath, region);
-					const mask = layer.maskRegion ? nativeAssetUrl(source, layer.assetPath, layer.maskRegion) : null;
-					return url ? <img key={layer.id} src={url} alt="" aria-hidden="true" draggable={false}
-						data-native-layer={layer.id} data-native-region={region}
-						className="runtime-main-menu__layer"
-						style={{ left: layer.rect.x, top: layer.rect.y, width: layer.rect.w, height: layer.rect.h,
-							zIndex: layer.drawOrder, transform: layer.rotationDeg ? `rotate(${layer.rotationDeg}deg)` : undefined,
-							maskImage: mask ? `url("${mask}")` : undefined, maskSize: mask ? "100% 100%" : undefined,
-							maskMode: mask ? layer.maskMode : undefined,
-							maskRepeat: mask ? "no-repeat" : undefined }}
-						onLoad={() => setLoadedLayers((loaded) => new Set([...loaded, layer.id]))}
-						onError={() => setFailedAssets(true)} /> : null;
-				})}
+				<NativeSceneLayers scene={scene} source={source} focusedId={focusedId}
+					className="runtime-main-menu__layer" onStateChange={setAssetState} />
 				{boundActions.map((action) => <div key={action.id} data-menu-target={action.id}
 					data-host-action={action.hostActionId} data-native-action={action.nativeActionHash}
 					className="runtime-main-menu__control"

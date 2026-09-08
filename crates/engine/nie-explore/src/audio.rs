@@ -207,14 +207,7 @@ pub fn cues(raw: &[u8], awb: Option<&[u8]>) -> Vec<Cue> {
 /// cue-id » d'un échec de décodage : la première est une erreur d'appelant, la seconde un
 /// problème de contenu.
 pub fn decoder_cue(awb: &[u8], awb_id: u16) -> Result<Vec<u8>, String> {
-    let banque = cri_audio::Awb::parse(awb).map_err(|e| format!("AWB illisible : {e}"))?;
-    let rang = banque.index_of_id(awb_id).ok_or_else(|| {
-        format!(
-            "cue-id {awb_id} absent de la banque ({} entrées)",
-            banque.entries.len()
-        )
-    })?;
-    cri_audio::decode_awb_entry(awb, Some(rang))
+    crate::native_audio::cue_to_wav(awb, awb_id)
 }
 
 /// Nom de fichier proposé pour une piste : celui du cue, jamais celui de la banque.

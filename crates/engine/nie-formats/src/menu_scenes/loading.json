@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "loading",
+  "canvas": { "width": 1920, "height": 1080 },
+  "background": "#000000",
+  "layers": [
+    {
+      "id": "loading-ball",
+      "assetPath": "data/dx11/menu/11_loading/loading01/loading01_01/loading01_01.g4tx",
+      "region": "load_ball01",
+      "rect": { "x": 1392, "y": 976, "w": 56, "h": 56 },
+      "drawOrder": 0,
+      "provenance": {
+        "source": "data/dx11/menu/11_loading/loading01/loading01_01/loading01_01.g4tx",
+        "record": "load_ball01",
+        "method": "Named region retained from OpeningVisual.tsx NativeLoading. Placement retained from opening.css PC-client measurement x1392,y976; comparison oracle data/menu/Capture d'écran 2026-09-08 124431.png uses client crop x1,y32,w1920,h1080."
+      }
+    }
+  ],
+  "controls": [],
+  "texts": [
+    {
+      "id": "loading-label",
+      "text": "CHARGEMENT EN COURS…",
+      "rect": { "x": 1472, "y": 980, "w": 420, "h": 48 },
+      "drawOrder": 1,
+      "color": 16777215,
+      "provenance": {
+        "source": "data/common/font/font/font_def/font.cfg.bin",
+        "record": "OpeningVisual.tsx NativeLoading label",
+        "method": "Text and raster dimensions retained from NativeLoading; placement projects the existing 24-pixel flex gap and vertical centering beside the 56-pixel football. The French PC reference is the text comparison oracle; no localized resource key has yet been recovered."
+      }
+    }
+  ],
+  "provenance": {
+    "source": "apps/nie-web/src/pages/OpeningVisual.tsx",
+    "record": "NativeLoading;apps/nie-web/src/pages/opening.css",
+    "method": "Consolidation of the existing measured browser composition into the shared native/Wasm scene owner; does not establish visual parity."
+  },
+  "unresolved": [
+    "Native football rotation and animation timestamp are not sampled.",
+    "The localized resource key, native text placement and final raster scaling require matched PC comparison; the existing browser values are retained explicitly."
+  ]
+}

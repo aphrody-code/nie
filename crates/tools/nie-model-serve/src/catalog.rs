@@ -523,6 +523,28 @@ impl CharacterPartsCatalog {
             .find(|r| r.profile == profile)
             .or_else(|| family.rows.iter().find(|r| r.profile == 0))
             .unwrap_or(head);
+        Some(Self::resolve_clothes_row(family, row, profile))
+    }
+
+    /// Resolve companions for an exact uniform model already selected by the avatar resolver.
+    /// Ambiguous or absent model rows fail rather than substituting another morphology.
+    pub fn resolve_clothes_model(&self, crc: u32, model: &str) -> Option<Vec<ResolvedPart>> {
+        let family = self.clothes.get(&crc)?;
+        let model = relative(model);
+        let mut matches = family.rows.iter().filter(|row| row.uniform.g4md == model);
+        let row = matches.next()?;
+        if matches.next().is_some() {
+            return None;
+        }
+        Some(Self::resolve_clothes_row(family, row, row.profile))
+    }
+
+    fn resolve_clothes_row(
+        family: &Family<ClothesRow>,
+        row: &ClothesRow,
+        profile: i32,
+    ) -> Vec<ResolvedPart> {
+        let head = &family.rows[0];
         let mut out = Vec::with_capacity(4);
         let make = |role: &'static str, part: &PartRef, inherited: Option<&PartRef>| ResolvedPart {
             role,
@@ -547,7 +569,7 @@ impl CharacterPartsCatalog {
         if let Some(p) = &row.armband {
             out.push(make("armband", p, head.armband.as_ref()));
         }
-        Some(out)
+        out
     }
 
     /// Résout des chaussures (`shoes`) ou des gants (`gloves`) par CRC et profil.

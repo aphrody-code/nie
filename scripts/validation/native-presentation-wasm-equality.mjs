@@ -14,7 +14,15 @@ const native = JSON.parse(readFileSync(report, 'utf8'));
 assert.equal(native.schemaVersion, 1);
 const wasm = readFileSync(new URL('../../apps/nie-web/public/static/game/nie_wasm_bg.wasm', import.meta.url));
 initSync({ module: wasm });
-assert(native.scenes.length >= 3 && native.texts.length >= 5, 'Non-zero scene and multilingual text corpus required');
+const expectedSceneIds = [
+    'loading', 'start', 'autosave', 'title-menu', 'avatar-top', 'avatar-style',
+    'avatar-hair', 'avatar-clothes', 'avatar-stats', 'avatar-name', 'options-row',
+];
+assert(Array.isArray(native.scenes) && Array.isArray(native.texts), 'Scene and text arrays required');
+assert.deepEqual(native.scenes.map(scene => scene.id).sort(), expectedSceneIds.toSorted(),
+    'Exactly eleven unique presentations, including the Options row template, are required');
+assert(native.texts.length >= 6 && native.texts.some(text => text.text === 'CHARGEMENT EN COURS…'),
+    'Multilingual text corpus must include the rendered loading label');
 for (const scene of native.scenes) {
     assert.deepEqual(JSON.parse(menu_presentation_json(scene.id)), scene);
 }

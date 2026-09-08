@@ -2,13 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { useAssetSource } from "../source";
 import { GameCanvas } from "../shell/layout-render";
 import { createStandardGamepadMenuSampler, initialMenuState, keyboardMenuIntent, reduceMenuInteraction, type MenuInteractionItem, type MenuIntent } from "../shell/menu-interaction";
-import { nativeAssetUrl, type NativeMenuScene, type NativeSceneRect } from "../shell/native-title-menu";
+import { NativeSceneLayers, type NativeSceneAssetState } from "../shell/native-scene-layers";
+import type { NativeMenuScene, NativeSceneRect } from "../shell/native-title-menu";
+import { NativeSprite } from "../shell/native-sprite";
 import type { AvatarCatalog, AvatarPart, AvatarState } from "./contract";
 import "./avatar-editor.css";
 
 export type AvatarStage = "style" | "body" | "hair" | "clothes" | "stats" | "name";
 export interface AvatarNameFields { name: string; nickname: string; uniformName: string; shirtNumber: string; }
 export interface NativeAvatarEditorProps {
+	/** Keep the host sampler across route transitions to consume held buttons only once. */
+	gamepadSampler?: ReturnType<typeof createStandardGamepadMenuSampler>;
 	catalog: AvatarCatalog; state: AvatarState; onStateChange: (state: AvatarState) => void;
 	onBack: () => void; stage: AvatarStage; onStageChange: (stage: AvatarStage) => void;
 	scene: NativeMenuScene; model: ReactNode;
@@ -23,7 +27,7 @@ const fieldNames = ["name", "nickname", "uniformName", "shirtNumber"] as const;
 const position = (r: NativeSceneRect): CSSProperties => ({ left: r.x, top: r.y, width: r.w, height: r.h });
 
 /** Host-neutral interactive view; all placement is supplied by the engine scene. */
-export function NativeAvatarEditor({ catalog, state, onStateChange, onBack, stage, onStageChange, scene, model, nameFields, onNameFieldsChange, renderText }: NativeAvatarEditorProps) {
+export function NativeAvatarEditor({ catalog, state, onStateChange, onBack, stage, onStageChange, scene, model, nameFields, onNameFieldsChange, renderText, gamepadSampler }: NativeAvatarEditorProps) {
 	const source = useAssetSource();
 	const root = useRef<HTMLElement>(null);
 	const [categoryIndex, setCategoryIndex] = useState(0);
@@ -31,7 +35,9 @@ export function NativeAvatarEditor({ catalog, state, onStateChange, onBack, stag
 	const [bodyPage, setBodyPage] = useState(0);
 	const [focused, setFocused] = useState<string | null>(null);
 	const [assetFailed, setAssetFailed] = useState(false);
-	const sampler = useRef(createStandardGamepadMenuSampler());
+	const [sceneAssets, setSceneAssets] = useState<{ stage: AvatarStage; sceneId: string; state: NativeSceneAssetState } | null>(null);
+	const localSampler = useRef(createStandardGamepadMenuSampler());
+	const sampler = gamepadSampler ?? localSampler.current;
 	const category = FACE_CATEGORIES[categoryIndex] ?? 1;
 	const filteredParts = useCallback((type: number) => (catalog.categories.find(c => c.faceSettingType === type)?.parts ?? [])
 		.filter(part => !part.gender || part.gender === state.gender + 1), [catalog, state.gender]);
@@ -84,46 +90,54 @@ export function NativeAvatarEditor({ catalog, state, onStateChange, onBack, stag
 		}
 	}, [enabled, onBack, onStageChange, stage, state, onStateChange, partForAction]);
 	const applyIntent = useCallback((intent: MenuIntent) => {
+		if (navigation.current.focusedId === "height" && intent.type === "move" && (intent.direction === "left" || intent.direction === "right")) {
+			const height = Math.max(0, Math.min(14, (state.height ?? 7) + (intent.direction === "right" ? 1 : -1)));
+			if (height !== state.height) onStateChange({ ...state, height });
+			return;
+		}
 		const result = reduceMenuInteraction(items, navigation.current, intent); navigation.current = result.state; setFocused(result.state.focusedId);
 		if (result.activatedId) activate(result.activatedId); if (result.cancelled) onBack();
-	}, [items, activate, onBack]);
+	}, [items, activate, onBack, state, onStateChange]);
 	useEffect(() => { setCategoryIndex(0); setPage(0); setAssetFailed(false); navigation.current = initialMenuState(items, `stage-${stage}`); setFocused(navigation.current.focusedId); }, [stage, scene.id]);
 	useEffect(() => { navigation.current = initialMenuState(items, navigation.current.focusedId); }, [items]);
-	useEffect(() => { if (focused) root.current?.querySelector<HTMLButtonElement>(`button[data-avatar-control="${focused}"]`)?.focus({ preventScroll: true }); }, [focused]);
+	useEffect(() => { if (focused) root.current?.querySelector<HTMLElement>(`[data-avatar-control="${focused}"]`)?.focus({ preventScroll: true }); }, [focused]);
 	useEffect(() => {
 		if (typeof navigator.getGamepads !== "function") return;
-		let frame = 0; const sample = () => { for (const intent of sampler.current.sample(navigator.getGamepads())) applyIntent(intent); frame = requestAnimationFrame(sample); };
+		let frame = 0; const sample = () => { for (const intent of sampler.sample(navigator.getGamepads())) applyIntent(intent); frame = requestAnimationFrame(sample); };
 		frame = requestAnimationFrame(sample); return () => cancelAnimationFrame(frame);
-	}, [applyIntent]);
+	}, [applyIntent, sampler]);
 	const slot = (id: string) => scene.slots?.find(s => s.id === id);
 	const dynamicIcon = (id: string, part: AvatarPart) => {
 		const target = slot(`${id}-icon`), atlas = part.icone?.match(/^(icon_ava_(?:face\d{2}|body\d{2}|uniform\d{2}|gender\d{2}))_/i)?.[1];
 		if (!target || !atlas || !part.icone) return null;
-		const url = nativeAssetUrl(source, `data/dx11/menu/200_icon/21_icon_avatar/${atlas}.g4tx`, part.icone);
-		return url ? <img key={`${id}-icon`} className="native-avatar-editor__image" src={url} alt="" draggable={false} data-native-region={part.icone} data-avatar-part={part.id} style={{ ...position(target.rect), zIndex: 250 }} onError={() => setAssetFailed(true)} /> : null;
+		return <NativeSprite key={`${id}-icon`} source={source} assetPath={`data/dx11/menu/200_icon/21_icon_avatar/${atlas}.g4tx`}
+			region={part.icone} rect={target.rect} drawOrder={250} className="native-avatar-editor__image"
+			partId={part.id} onError={() => setAssetFailed(true)} />;
 	};
 	const number = (id: string, part: AvatarPart) => {
 		const target = slot(`${id}-number`); return target ? <div key={`${id}-number`} className="native-avatar-editor__text" style={{ ...position(target.rect), zIndex: 510 }}>{renderText(String(part.itemNo).padStart(2, "0"), { color: 0x686b70, height: target.rect.h, width: target.rect.w })}</div> : null;
 	};
 	const modelSlot = slot("model");
+	const activeLayerIds = new Set(scene.layers.filter(layer => {
+		const selected = Boolean(layer.actionId && selectedParts.has(layer.actionId));
+		return layer.id.endsWith("-check") || layer.actionId?.startsWith("stage-") ? selected : selected || focused === layer.actionId;
+	}).map(layer => layer.id));
+	const sceneAssetFailed = sceneAssets?.stage === stage && sceneAssets.sceneId === scene.id && sceneAssets.state === "failed";
 	return <section ref={root} className="native-avatar-editor" aria-label="Éditeur d’avatar" data-avatar-stage={stage} data-scene-id={scene.id} data-render-source="vfs-layers"
 		onKeyDown={event => {
-			if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.key === "Escape") return;
+			if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+			if (event.key === "Escape") {
+				if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]')) return;
+				event.preventDefault(); event.stopPropagation(); if (!event.repeat) applyIntent({ type: "cancel" }); return;
+			}
 			if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || (event.target instanceof HTMLElement && event.target.tagName === "CANVAS")) return;
 			const intent = keyboardMenuIntent(event.key); if (!intent) return;
 			event.preventDefault(); event.stopPropagation(); if (!event.repeat || intent.type !== "activate") applyIntent(intent);
 		}}>
 		<GameCanvas canvas={{ w: scene.canvas.width, h: scene.canvas.height }} fond={scene.background ?? "transparent"}>
-			{scene.layers.map(layer => {
-				const selected = Boolean(layer.actionId && selectedParts.has(layer.actionId));
-				const active = layer.id.endsWith("-check") || layer.actionId?.startsWith("stage-") ? selected : selected || focused === layer.actionId;
-				if (layer.visibleWhen === "focused" && !active) return null;
-				const region = active && layer.focusedRegion ? layer.focusedRegion : layer.region, url = nativeAssetUrl(source, layer.assetPath, region); if (!url) return null;
-				const mask = layer.maskRegion ? nativeAssetUrl(source, layer.assetPath, layer.maskRegion) : null;
-				return <img key={layer.id} className="native-avatar-editor__image" src={url} alt="" aria-hidden="true" draggable={false} data-native-layer={layer.id} data-native-region={region}
-					style={{ ...position(layer.rect), zIndex: layer.drawOrder, transform: layer.rotationDeg ? `rotate(${layer.rotationDeg}deg)` : undefined,
-						maskImage: mask ? `url("${mask}")` : undefined, maskMode: layer.maskMode, maskSize: "100% 100%", maskRepeat: "no-repeat" }} onError={() => setAssetFailed(true)} />;
-			})}
+			<NativeSceneLayers key={`${stage}:${scene.id}`} scene={scene} source={source} activeLayerIds={activeLayerIds}
+				className="native-avatar-editor__image"
+				onStateChange={assetState => setSceneAssets({ stage, sceneId: scene.id, state: assetState })} />
 			{modelSlot ? <div className="native-avatar-editor__model" style={{ ...position(modelSlot.rect), zIndex: 100 }}>{model}</div> : null}
 			{stage === "body" ? visibleBodies.flatMap((part, i) => [dynamicIcon(`body-slot-${i}`, part), number(`body-slot-${i}`, part)]) : null}
 			{stage === "hair" ? visibleParts.flatMap((part, i) => [dynamicIcon(`part-slot-${i}`, part), number(`part-slot-${i}`, part)]) : null}
@@ -141,15 +155,15 @@ export function NativeAvatarEditor({ catalog, state, onStateChange, onBack, stag
 						<div className="native-avatar-editor__text native-avatar-editor__field-text" style={{ ...position(rect), zIndex: 715 }}>
 							{renderText(nameFields[field], { color: 0x087fff, height: rect.h, width: rect.w })}
 						</div>
-						<input className="native-avatar-editor__name" aria-label={control.label} data-avatar-field={field} style={position(rect)} value={nameFields[field]} inputMode={field === "shirtNumber" ? "numeric" : "text"} onFocus={() => setFocused(field)} onChange={event => onNameFieldsChange({ ...nameFields, [field]: event.target.value })} />
+						<input className="native-avatar-editor__name" aria-label={control.label} data-avatar-field={field} data-avatar-control={field} style={position(rect)} value={nameFields[field]} inputMode={field === "shirtNumber" ? "numeric" : "text"} onFocus={() => applyIntent({ type: "focus", id: field })} onChange={event => onNameFieldsChange({ ...nameFields, [field]: event.target.value })} />
 					</div>;
 				}
-				if (control.id === "height") return <input key="height" type="range" className="native-avatar-editor__height" data-avatar-control="height" aria-label={control.label} style={position(control.rect)} min={0} max={14} step={1} value={state.height ?? 7} onChange={event => onStateChange({ ...state, height: Number(event.target.value) })} />;
+				if (control.id === "height") return <input key="height" type="range" className="native-avatar-editor__height" data-avatar-control="height" aria-label={control.label} style={position(control.rect)} min={0} max={14} step={1} value={state.height ?? 7} onFocus={() => applyIntent({ type: "focus", id: "height" })} onChange={event => onStateChange({ ...state, height: Number(event.target.value) })} />;
 				const option = partForAction(control.id), label = option ? `${control.label} — ${option.part.itemNo}` : control.label;
 				return <button key={control.id} type="button" className="native-avatar-editor__control" data-avatar-control={control.id} style={position(control.rect)} aria-label={label} aria-pressed={selectedParts.has(control.id)} disabled={control.disabled} aria-disabled={control.disabled} title={control.disabled ? `${label} — indisponible` : label}
 					onPointerEnter={() => { if (!control.disabled) applyIntent({ type: "focus", id: control.id }); }} onFocus={() => { if (!control.disabled && navigation.current.focusedId !== control.id) applyIntent({ type: "focus", id: control.id }); }} onClick={() => activate(control.id)} />;
 			})}
-			{assetFailed ? <p className="native-avatar-editor__error" role="alert">Certaines ressources visuelles sont indisponibles.</p> : null}
+			{assetFailed || sceneAssetFailed ? <p className="native-avatar-editor__error" role="alert">Certaines ressources visuelles sont indisponibles.</p> : null}
 		</GameCanvas>
 	</section>;
 }

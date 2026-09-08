@@ -8,6 +8,8 @@
  * grille à deux colonnes (`game-screens.css`), et un troisième enfant la casserait.
  */
 import type { Settings } from "../../lib/settings";
+import type { NativeMenuScene } from "../../shell/native-title-menu";
+import { NativeSettingsSurface } from "./NativeSettingsSurface";
 import { GameCursor } from "../game/GameCursor";
 import { cycleValue, formatValue, type SettingDefinition, type SettingId } from "./settings-model";
 
@@ -18,6 +20,7 @@ export function SettingRow<K extends SettingId>({
 	onFocus,
 	onChange,
 	onOpen,
+	nativeScene,
 }: {
 	def: SettingDefinition<K>;
 	value: Settings[K];
@@ -26,15 +29,17 @@ export function SettingRow<K extends SettingId>({
 	onChange: (value: Settings[K]) => void;
 	/** Enter sur la ligne : ouvre la liste d'un choix, bascule un interrupteur. */
 	onOpen: () => void;
+	nativeScene?: NativeMenuScene;
 }) {
 	const cyclable = def.kind !== "text";
 	const hasList = def.kind === "choice";
 	return (
 		<li
-			className={`game-setting-row${focused ? " game-setting-row--focused" : ""}`}
+			className={`game-setting-row${focused ? " game-setting-row--focused" : ""}${nativeScene ? " game-setting-row--native" : ""}`}
 			data-setting={def.id}
 			aria-current={focused ? "true" : undefined}
 		>
+			{nativeScene ? <NativeSettingsSurface scene={nativeScene} focused={focused} /> : null}
 			<button
 				type="button"
 				className="game-setting-row__label"

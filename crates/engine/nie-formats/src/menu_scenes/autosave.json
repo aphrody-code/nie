@@ -172,5 +172,142 @@
     "Secondary moving sports glyphs and the blue saving ribbon material/tint are not yet reconstructed.",
     "Native saving animation per-pentagon alpha and timing are not yet sampled.",
     "Localized text is rendered by the shared native-font path; the scene contains no rasterized text or full-screen capture."
+  ],
+  "texts": [
+    {
+      "id": "autosave-description",
+      "text": "Ce jeu dispose d'une fonction de sauvegarde automatique.",
+      "rect": {
+        "x": 525,
+        "y": 302.4,
+        "w": 870,
+        "h": 71
+      },
+      "color": 1449435,
+      "drawOrder": 60,
+      "provenance": {
+        "source": "apps/nie-web/src/pages/opening.css",
+        "record": "autosave-description",
+        "method": "Migrated existing host placement to the shared 1920x1080 scene. Native text keys and exact element-level placement remain unverified; no new fidelity claim."
+      }
+    },
+    {
+      "id": "autosave-instruction",
+      "text": "Cette icône s'affichera à l'écran lors d'une sauvegarde.",
+      "rect": {
+        "x": 555,
+        "y": 374.76,
+        "w": 810,
+        "h": 71
+      },
+      "color": 1449435,
+      "drawOrder": 60,
+      "provenance": {
+        "source": "apps/nie-web/src/pages/opening.css",
+        "record": "autosave-instruction",
+        "method": "Migrated existing host placement to the shared 1920x1080 scene. Native text keys and exact element-level placement remain unverified; no new fidelity claim."
+      }
+    },
+    {
+      "id": "saving-label",
+      "text": "Sauvegarde en cours",
+      "rect": {
+        "x": 815.5,
+        "y": 464.046,
+        "w": 289,
+        "h": 60
+      },
+      "color": 16777215,
+      "drawOrder": 60,
+      "provenance": {
+        "source": "apps/nie-web/src/pages/opening.css",
+        "record": "saving-label",
+        "method": "Migrated existing host placement to the shared 1920x1080 scene. Native text keys and exact element-level placement remain unverified; no new fidelity claim."
+      }
+    },
+    {
+      "id": "warning-heading",
+      "text": "[AVERTISSEMENT]",
+      "rect": {
+        "x": 815,
+        "y": 604.8,
+        "w": 290,
+        "h": 71
+      },
+      "color": 16403537,
+      "drawOrder": 60,
+      "provenance": {
+        "source": "apps/nie-web/src/pages/opening.css",
+        "record": "warning-heading",
+        "method": "Migrated existing host placement to the shared 1920x1080 scene. Native text keys and exact element-level placement remain unverified; no new fidelity claim."
+      }
+    },
+    {
+      "id": "warning-line-1",
+      "text": "Si la console est éteinte ou que le jeu est fermé pendant la sauvegarde,",
+      "rect": {
+        "x": 438,
+        "y": 677.16,
+        "w": 1044,
+        "h": 71
+      },
+      "color": 16403537,
+      "drawOrder": 60,
+      "provenance": {
+        "source": "apps/nie-web/src/pages/opening.css",
+        "record": "warning-line-1",
+        "method": "Migrated existing host placement to the shared 1920x1080 scene. Native text keys and exact element-level placement remain unverified; no new fidelity claim."
+      }
+    },
+    {
+      "id": "warning-line-2",
+      "text": "le fichier peut être corrompu.",
+      "rect": {
+        "x": 751.5,
+        "y": 749.52,
+        "w": 417,
+        "h": 71
+      },
+      "color": 16403537,
+      "drawOrder": 60,
+      "provenance": {
+        "source": "apps/nie-web/src/pages/opening.css",
+        "record": "warning-line-2",
+        "method": "Migrated existing host placement to the shared 1920x1080 scene. Native text keys and exact element-level placement remain unverified; no new fidelity claim."
+      }
+    },
+    {
+      "id": "confirm-label",
+      "text": "OK",
+      "rect": {
+        "x": 932,
+        "y": 840,
+        "w": 56,
+        "h": 64
+      },
+      "color": 16777215,
+      "drawOrder": 101,
+      "provenance": {
+        "source": "apps/nie-web/src/pages/opening.css",
+        "record": "confirm-label",
+        "method": "Migrated existing host placement to the shared 1920x1080 scene. Native text keys and exact element-level placement remain unverified; no new fidelity claim."
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "saving-ribbon",
+      "rect": {
+        "x": 240,
+        "y": 450.036,
+        "w": 1440,
+        "h": 88.02
+      },
+      "provenance": {
+        "source": "apps/nie-web/src/pages/opening.css",
+        "record": "opening-autosave__stripe",
+        "method": "Migrated existing host placement to the shared 1920x1080 scene. Native text keys and exact element-level placement remain unverified; no new fidelity claim."
+      }
+    }
   ]
 }

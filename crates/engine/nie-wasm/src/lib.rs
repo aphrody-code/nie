@@ -86,6 +86,14 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+pub mod native_audio;
+pub use native_audio::{audio_bank_cue_to_wav, audio_bank_json, audio_cue_to_wav};
+
+pub mod native_video;
+pub use native_video::{
+    usm_audio_track_wav, usm_elementary_video_bytes, usm_metadata_json, usm_video_track_bytes,
+};
+
 #[cfg(all(target_arch = "wasm32", feature = "webgpu"))]
 pub mod web_viewer;
 

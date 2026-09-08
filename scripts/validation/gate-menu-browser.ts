@@ -31,15 +31,6 @@ async function waitFor(source: string, timeout = 15000): Promise<void> {
 }
 const phase = () => evaluate('document.querySelector("[data-opening-phase]")?.getAttribute("data-opening-phase") ?? (document.querySelector("[data-menu-target]") ? "menu" : "other")');
 const focus = () => evaluate('document.activeElement?.closest("[data-menu-target]")?.getAttribute("data-menu-target") ?? null');
-async function enterMenu(): Promise<void> {
-	await browser("open", origin!);
-	await waitFor('!!document.querySelector("[data-opening-phase=autosave]")');
-	await browser("press", "Enter");
-	await waitFor('!!document.querySelector("[data-opening-phase=start]")');
-	await browser("press", "Enter");
-	await waitFor('!!document.querySelector("[data-menu-target]")');
-	await Bun.sleep(300);
-}
 
 
 async function touch(selector: string): Promise<void> {
@@ -65,77 +56,93 @@ async function touch(selector: string): Promise<void> {
 	} finally {socket.close();}
 }
 
+
 await mkdir(output, { recursive: true });
+const expected = await Bun.file(new URL("../../crates/engine/nie-formats/src/menu_scenes/title-menu.json", import.meta.url)).json();
+const destinations: Record<string, string> = { settings: "/settings", avatar: "/avatar" };
+const selector = (id: string) => '[data-menu-target="' + id + '"] button';
 try {
-	await browser("--args", "--no-sandbox", "open", origin);
+	await browser("--headed", "--webgpu", "--args", "--no-sandbox", "open", origin);
 	await browser("set", "viewport", "1920", "1080");
-	await waitFor('!!document.querySelector("[data-opening-phase=autosave]")');
-	await evaluate('window.__menuDelayStyle=document.createElement("style");window.__menuDelayStyle.textContent=".runtime-main-menu{display:none!important}";document.head.append(window.__menuDelayStyle);true');
-	await evaluate(`window.__menuPad={mapping:"standard",connected:true,index:0,buttons:Array.from({length:17},()=>({pressed:false,value:0})),axes:[0,0]};Object.defineProperty(navigator,"getGamepads",{configurable:true,value:()=>[window.__menuPad]});true`);
-	await evaluate("window.__menuPad.buttons[0]={pressed:true,value:1};true");
-	await waitFor('!!document.querySelector("[data-opening-phase=start]")');
-	await Bun.sleep(400);
-	check("held gamepad A advances autosave only once", await phase(), "start");
-	await evaluate("window.__menuPad.buttons[0]={pressed:false,value:0};true");
-	await Bun.sleep(100);
-	await evaluate("window.__menuPad.buttons[0]={pressed:true,value:1};true");
+	await browser("open", new URL("/menu", origin).href);
 	await waitFor('!!document.querySelector("[data-menu-target]")');
-	await Bun.sleep(400);
-	check("held gamepad A does not activate a menu destination", await phase(), "menu");
-	await evaluate("window.__menuPad.buttons[0]={pressed:false,value:0};true");
-	await Bun.sleep(100);
-	check("unmeasured hidden canvas does not force focus", await focus(), null);
-	await evaluate("window.__menuDelayStyle.remove();true");
-	await waitFor('document.activeElement?.closest("[data-menu-target]")?.getAttribute("data-menu-target") === "media"',2000);
-	check("initial menu focus after canvas measurement", await focus(), "media");
-	await browser("press", "ArrowRight");
-	await waitFor('document.activeElement?.closest("[data-menu-target]")?.getAttribute("data-menu-target") === "avatar"', 2000);
-	check("keyboard right focus", await focus(), "avatar");
-	await evaluate("window.__menuPad.axes=[1,0];true");
-	await waitFor('document.activeElement?.closest("[data-menu-target]")?.getAttribute("data-menu-target") === "explorer"', 2000);
-	check("gamepad analog right focus", await focus(), "explorer");
-	await evaluate("window.__menuPad.axes=[0,0];true");
-	await browser("hover", '[data-menu-target="settings"] button');
-	await waitFor('document.activeElement?.closest("[data-menu-target]")?.getAttribute("data-menu-target") === "settings"', 2000);
-	check("pointer hover synchronizes focus", await focus(), "settings");
-	const pointer = await evaluate('(()=>{const r=document.querySelector("[data-menu-target=settings] button").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
-	await browser("mouse", "move", String(Math.round(pointer.x)), String(Math.round(pointer.y)));
-	await browser("mouse", "down");
-	check("pointer down marks pressed tile", await evaluate('document.querySelectorAll(".runtime-main-menu__tile--pressed").length'), 1);
-	await browser("mouse", "move", "1", "1");
-	await browser("mouse", "up");
-	check("pointer release outside clears pressed state", await evaluate('document.querySelectorAll(".runtime-main-menu__tile--pressed").length'), 0);
-	await browser("press", "Escape");
-	check("keyboard cancel returns to START", await phase(), "start");
-	await browser("press", "Enter");
-	await waitFor('!!document.querySelector("[data-menu-target]")');
-	await waitFor('Array.from(document.images).every(i=>i.complete && i.naturalWidth>0)');
-	await Bun.sleep(500);
-	const images = await evaluate('Array.from(document.images).map(i=>({src:i.currentSrc,width:i.naturalWidth,height:i.naturalHeight,renderedWidth:i.getBoundingClientRect().width,renderedHeight:i.getBoundingClientRect().height}))');
-	check("nonzero visible image count", images.filter((i: any) => i.renderedWidth > 0 && i.renderedHeight > 0).length > 0, true);
-	check("images use individual VFS texture responses", images.every((i: any) => new URL(i.src).pathname.startsWith("/assets/tex/")), true);
-	check("no reference capture in DOM", await evaluate('Array.from(document.images).some(i=>/main-menu-reference|main_menu_alt|opening\\/.*\\.png/.test(i.currentSrc))'), false);
-	await browser("screenshot", resolve(output, "capture.png"));
-	const destinations: Record<string, string> = {};
-	const expectedDestinations: Record<string, string> = { media: "/medias", avatar: "/avatar", explorer: "/explorateur", settings: "/settings" };
-	for (const id of ["media", "avatar", "explorer", "settings"]) {
-		if (id !== "media") await enterMenu();
-		if (id === "media") await touch(`[data-menu-target="${id}"] button`);
-		else await browser("click", `[data-menu-target="${id}"] button`);
-		await waitFor('!document.querySelector("[data-menu-target]")');
-		destinations[id] = await evaluate("location.pathname");
-		check(`${id} opens its destination`, destinations[id], expectedDestinations[id]);
+	const controls = await evaluate('Array.from(document.querySelectorAll("[data-menu-target]")).map(e=>({id:e.dataset.menuTarget,hash:e.dataset.nativeAction??null,host:e.dataset.hostAction??null,disabled:e.querySelector("button").disabled}))');
+	check("native controls match the compiled inventory in order", JSON.stringify(controls.map((c:any)=>c.id)), JSON.stringify(expected.controls.map((c:any)=>c.id)));
+	check("eleven native tiles and avatar banner", controls.length, 12);
+	for (const item of expected.controls) {
+		const actual = controls.find((c:any)=>c.id===item.id);
+		check(item.id + " native action hash", actual?.hash, item.nativeActionHash == null ? null : String(item.nativeActionHash));
+		check(item.id + " host binding", actual?.host, item.hostActionId ?? null);
+		check(item.id + " enabled only with real host destination", actual?.disabled, !Object.hasOwn(destinations, item.hostActionId ?? ""));
 	}
+	const enabled = expected.controls.filter((c:any)=>Object.hasOwn(destinations,c.hostActionId ?? ""));
+	check("nonzero implemented native actions", enabled.length > 0, true);
+	await waitFor('document.querySelector(".runtime-main-menu__asset-state")?.dataset.state !== "loading"');
+	check("all visible native resources loaded", await evaluate('document.querySelector(".runtime-main-menu__asset-state")?.dataset.state'), "ready");
+	for (const [index, item] of enabled.entries()) {
+		await browser("open", new URL("/menu", origin).href);
+		await waitFor('!!document.querySelector("[data-menu-target]")');
+		await browser("hover", selector(item.id));
+		await waitFor('document.activeElement?.closest("[data-menu-target]")?.dataset.menuTarget === ' + JSON.stringify(item.id));
+		check(item.id + " hover updates keyboard focus", await focus(), item.id);
+		const point=await evaluate('(()=>{const r=document.querySelector('+JSON.stringify(selector(item.id))+').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
+		await browser("mouse", "move", String(Math.round(point.x)), String(Math.round(point.y)));
+		await browser("mouse", "down");
+		check(item.id + " pointer pressed state", await evaluate('document.querySelector('+JSON.stringify(selector(item.id))+').dataset.state'), "pressed");
+		await browser("mouse", "move", "1", "1");
+		await browser("mouse", "up");
+		check(item.id + " outside release cancels activation", await phase(), "menu");
+		check(item.id + " pressed state cleared", await evaluate('document.querySelectorAll("[data-menu-target] button[data-state=pressed]").length'), 0);
+		if (index === 0) await touch(selector(item.id)); else await browser("click", selector(item.id));
+		await waitFor('location.pathname === '+JSON.stringify(destinations[item.hostActionId]));
+		check(item.id + " correct native destination", await evaluate("location.pathname"), destinations[item.hostActionId]);
+		await browser("press", "Escape");
+		await waitFor('!!document.querySelector("[data-menu-target]")');
+		check(item.id + " Escape returns without opening replay", await phase(), "menu");
+		await browser("back");
+		await waitFor('location.pathname === '+JSON.stringify(destinations[item.hostActionId]));
+		check(item.id + " history restores destination", await evaluate("location.pathname"), destinations[item.hostActionId]);
+		await browser("forward");
+		await waitFor('!!document.querySelector("[data-menu-target]")');
+		check(item.id + " history returns directly to menu", await phase(), "menu");
+	}
+
+	const avatar = enabled.find((item:any)=>item.hostActionId === "avatar");
+	if (avatar) {
+		await browser("open", new URL("/menu", origin).href);
+		await waitFor('!!document.querySelector("[data-menu-target]")');
+		await browser("hover", selector(avatar.id));
+		await waitFor('document.activeElement?.closest("[data-menu-target]")?.dataset.menuTarget === '+JSON.stringify(avatar.id));
+		await evaluate('window.__menuPad={mapping:"standard",connected:true,index:0,id:"delivery",buttons:Array.from({length:17},()=>({pressed:false,value:0})),axes:[0,0]};Object.defineProperty(navigator,"getGamepads",{configurable:true,value:()=>[window.__menuPad]});true');
+		await evaluate('window.__menuPad.buttons[0]={pressed:true,value:1};true');
+		await waitFor('document.querySelector("[data-avatar-stage]")?.dataset.avatarStage === "style"');
+		await Bun.sleep(250);
+		check("held gamepad confirm enters avatar only once",await evaluate('document.querySelector("[data-avatar-stage]")?.dataset.avatarStage'),"style");
+		await evaluate('window.__menuPad.buttons[0]={pressed:false,value:0};true');
+		await Bun.sleep(100);
+		await evaluate('window.__menuPad.buttons[1]={pressed:true,value:1};true');
+		await waitFor('!!document.querySelector("[data-menu-target]")');
+		await Bun.sleep(250);
+		check("held gamepad cancel returns once without reaching START",await phase(),"menu");
+		await evaluate('window.__menuPad.buttons[1]={pressed:false,value:0};true');
+	}
+	await waitFor('document.querySelector(".runtime-main-menu__asset-state")?.dataset.state === "ready"');
+	await browser("screenshot", resolve(output, "capture.png"));
 	const requests = (await browser("network", "requests")).requests ?? [];
-	const failedRequests = requests.filter((r: any) => r.status >= 400 || r.failed || r.failureText).map((r: any) => ({url:r.url,status:r.status,error:r.failureText}));
-	check("no failed requests during traversal", failedRequests.length, 0);
-	const report = { schemaVersion: 1, measuredAt: new Date().toISOString(), origin, viewport: [1920,1080], gamepad: "synthetic standard mapping via navigator.getGamepads", touch: "Chromium Input.dispatchTouchEvent for media destination", checks, passed: checks.filter(c=>c.passed).length, failed: checks.filter(c=>!c.passed).length, images, destinations, requestCount: requests.length, failedRequests };
-	await Bun.write(resolve(output, "browser-report.json"), `${JSON.stringify(report,null,2)}\n`);
-	console.log(JSON.stringify(report,null,2));
-	if (report.failed) process.exitCode=1;
-} catch (error) {
-	await Bun.write(resolve(output, "browser-report.json"), `${JSON.stringify({schemaVersion:1, measuredAt:new Date().toISOString(), origin, checks, fatal:String(error)},null,2)}\n`);
+	const failedRequests = requests.filter((r:any)=>r.status>=400||r.failed||r.failureText).map((r:any)=>({url:r.url,status:r.status,error:r.failureText}));
+	check("nonzero requests", requests.length > 0, true);
+	check("no failed requests", failedRequests.length, 0);
+	const unbound = expected.controls.filter((c:any)=>!Object.hasOwn(destinations,c.hostActionId ?? "")).map((c:any)=>c.id);
+	// A correct disabled state is not a completed native action.
+	check("all in-scope native destinations implemented", unbound.length, 0);
+	const report={schemaVersion:2,measuredAt:new Date().toISOString(),origin,viewport:[1920,1080],checks,
+		passed:checks.filter(c=>c.passed).length,failed:checks.filter(c=>!c.passed).length,
+		controls,unboundNativeActions:unbound,requests:requests.length,failedRequests,
+		fidelityClaim:"none; complete corpus visual and state evidence required"};
+	await Bun.write(resolve(output,"browser-report.json"),JSON.stringify(report,null,2)+"\n");
+	console.log(JSON.stringify({passed:report.passed,failed:report.failed,unboundNativeActions:unbound,output},null,2));
+	if(report.failed) process.exitCode=1;
+} catch(error) {
+	await Bun.write(resolve(output,"browser-report.json"),JSON.stringify({schemaVersion:2,measuredAt:new Date().toISOString(),origin,checks,fatal:String(error)},null,2)+"\n");
 	throw error;
-} finally {
-	await browser("close");
-}
+} finally { await browser("close"); }

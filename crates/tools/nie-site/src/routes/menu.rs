@@ -186,7 +186,7 @@ fn t2b_siblings_to_iecode(siblings: &[cfgbin::CfgEntry]) -> Vec<Value> {
 }
 
 /// Charge le dictionnaire de textes statiques de la locale publiée par le layout.
-fn load_menu_text(vfs: &Vfs, locale: &str) -> Vec<(nie_data::hash::HashId, String)> {
+pub(super) fn load_menu_text(vfs: &Vfs, locale: &str) -> Vec<(nie_data::hash::HashId, String)> {
     let needle = format!("/text/{locale}/");
     let Some(path) = vfs.iter().map(|(path, _)| path.to_string()).find(|path| {
         path.contains(&needle) && path.rsplit('/').next() == Some("menu_text.cfg.bin")

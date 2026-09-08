@@ -45,24 +45,35 @@ impl BitmapFont {
         Ok(Self { atlas_bgra: pixels, metrics })
     }
 
-    /// Render one bounded line. Unknown characters fail explicitly instead of losing accents.
+    /// Render bounded lines with native cell spacing. Unknown glyphs fail explicitly.
     pub fn render(&self, text: &str, color: [u8; 4]) -> Result<TextRaster, String> {
         if text.chars().count() > 512 { return Err("text exceeds glyph limit".into()); }
-        let mut pen = 0i32;
         let mut left = 0i32;
         let mut right = 0i32;
-        for ch in text.chars() {
-            let glyph = self.metrics.glyph_char(ch).ok_or_else(|| format!("missing native glyph U+{:04X}", ch as u32))?;
-            let start = pen + i32::from(glyph.bearing_x);
-            left = left.min(start);
-            right = right.max(start + i32::from(glyph.width));
-            pen += i32::from(glyph.advance);
+        let lines: Vec<_> = text.split('\n').collect();
+        for line in &lines {
+            let mut pen = 0i32;
+            for ch in line.chars() {
+                let glyph = self.metrics.glyph_char(ch).ok_or_else(|| format!("missing native glyph U+{:04X}", ch as u32))?;
+                let start = pen + i32::from(glyph.bearing_x);
+                left = left.min(start);
+                right = right.max(start + i32::from(glyph.width));
+                pen += i32::from(glyph.advance);
+            }
+            right = right.max(pen);
         }
-        let width = (right.max(pen) - left).max(1) as u32;
+        let width = (right - left).max(1) as u32;
         if width > 16384 { return Err("text exceeds raster width limit".into()); }
-        let height = u32::from(self.metrics.dims.cell_height);
+        let cell_height = u32::from(self.metrics.dims.cell_height);
+        let height = cell_height * lines.len() as u32;
+        if height > 16384 || u64::from(width) * u64::from(height) > 16 * 1024 * 1024 {
+            return Err("text exceeds raster dimensions limit".into());
+        }
         let mut rgba = vec![0; width as usize * height as usize * 4];
-        font::draw_text(&self.atlas_bgra, self.metrics.atlas_width, &self.metrics, text, &mut rgba, width * 4, -left, i32::from(self.metrics.dims.ascent), color);
+        for (index, line) in lines.iter().enumerate() {
+            let baseline = index as i32 * cell_height as i32 + i32::from(self.metrics.dims.ascent);
+            font::draw_text(&self.atlas_bgra, self.metrics.atlas_width, &self.metrics, line, &mut rgba, width * 4, -left, baseline, color);
+        }
         Ok(TextRaster { width, height, rgba })
     }
 }
@@ -92,6 +103,30 @@ mod tests {
         assert!(font.render("x", [255; 4]).unwrap_err().contains("U+0078"));
         assert!(font.render(&"é".repeat(513), [255; 4]).is_err());
         assert!(BitmapFont::from_bytes(b"invalid", b"invalid").is_err());
+    }
+
+    #[test]
+    fn multiline_text_keeps_line_widths_bearings_and_empty_lines() {
+        let font = synthetic_font();
+        let raster = font.render("é\néé", [4, 8, 12, 255]).unwrap();
+        assert_eq!((raster.width, raster.height), (5, 2));
+        assert_eq!(&raster.rgba[..4], &[4, 8, 12, 211]);
+        assert_eq!(&raster.rgba[20..24], &[4, 8, 12, 211]);
+        assert_eq!(&raster.rgba[28..32], &[4, 8, 12, 211]);
+        let blank_lines = font.render("\né\n", [4, 8, 12, 255]).unwrap();
+        assert_eq!((blank_lines.width, blank_lines.height), (3, 3));
+        assert!(blank_lines.rgba[..12].iter().all(|v| *v == 0));
+        assert_eq!(&blank_lines.rgba[12..16], &[4, 8, 12, 211]);
+        assert!(blank_lines.rgba[24..].iter().all(|v| *v == 0));
+        assert!(font.render("é\nx", [255; 4]).unwrap_err().contains("U+0078"));
+    }
+
+    #[test]
+    fn multiline_raster_dimensions_are_bounded_before_allocation() {
+        let mut font = synthetic_font();
+        font.metrics.dims.cell_height = 512;
+        assert!(font.render(&"\n".repeat(32), [255; 4]).unwrap_err().contains("dimensions limit"));
+        assert!(font.render(&"\n".repeat(513), [255; 4]).unwrap_err().contains("glyph limit"));
     }
 
     #[test]

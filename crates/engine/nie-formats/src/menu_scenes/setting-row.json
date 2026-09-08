@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "options-row",
+  "canvas": { "width": 1216, "height": 76 },
+  "layers": [
+    {
+      "id": "setting-row",
+      "assetPath": "data/dx11/menu/108_option/option01/option01_02/option01_02.g4tx",
+      "region": "option_list_base02_off",
+      "focusedRegion": "option_list_base02_on",
+      "actionId": "setting-row",
+      "rect": { "x": 0, "y": 0, "w": 1216, "h": 76 },
+      "drawOrder": 0,
+      "provenance": {
+        "source": "data/dx11/menu/108_option/option01/option01_02/option01_02.g4tx",
+        "record": "option_list_base02_off:0,0,1216,76; option_list_base02_on:0,160,1216,76",
+        "method": "Named G4TX region dimensions at native texel scale. Reusable row template; host fitting is not a recovered setting_menu screen transform."
+      }
+    }
+  ],
+  "controls": [],
+  "unresolved": [
+    "This scene is the native row template, not the full PC Options screen.",
+    "setting_menu option01_01 list attachment transforms and active tab instances are not resolved by the current runtime export.",
+    "Host preference families and values retain their own identities; native PC setting effects are not mapped to unrelated host preferences."
+  ]
+}

@@ -104,6 +104,7 @@ pub const CHEMINS_HORS_GET: &[&str] = &[
     "/api/v1/save/roster",
     "/api/v1/inspect/compare",
     "/api/v1/inspect/plate",
+    "/api/v1/menu/runtime/{screen}",
 ];
 
 // Le site ne prend **aucune écriture** : ni base, ni disque, ni état. C'est la garantie que la
@@ -172,6 +173,8 @@ declarer_routes! {
     "/api/v1/lua/scripts" => crate::routes::lua::scripts,
     "/api/v1/lua/scripts/{*chemin}" => crate::routes::lua::script,
     "/api/v1/lua/desassemblage/{*chemin}" => crate::routes::lua::desassemblage,
+    "/api/v1/menu/runtime/{screen}" => crate::routes::menu_runtime::snapshot,
+    "/api/v1/runtime/audio" => crate::routes::menu_audio::startup,
     // L'arbre de navigation est construit par `nie-model-serve` depuis les vrais
     // `_setting.cfg.bin`. Le site le relaie sous son API, par le même proxy borné que les
     // assets, sans recopier ni réimplémenter le catalogue.
@@ -357,6 +360,8 @@ pub fn routeur(etat: EtatSite) -> Router {
         // et ni l'une ni l'autre n'écrit quoi que ce soit.
         .route(CHEMINS_HORS_GET[3], post(crate::routes::inspect::compare))
         .route(CHEMINS_HORS_GET[4], post(crate::routes::inspect::plate))
+        .route(CHEMINS_HORS_GET[5], post(crate::routes::menu_runtime::replay)
+            .layer(axum::extract::DefaultBodyLimit::max(128 * 1024)))
         .fallback(crate::routes::static_files::statique)
         // Les couches s'empilent de la plus INTERNE à la plus externe, et l'ordre est ici un
         // choix, pas une habitude :
@@ -455,8 +460,9 @@ mod tests {
                 "/api/v1/save/roster",
                 "/api/v1/inspect/compare",
                 "/api/v1/inspect/plate",
+                "/api/v1/menu/runtime/{screen}",
             ],
-            "cinq routes sortent du GET, et les cinq CALCULENT : aucune n'écrit ni base ni disque"
+            "all non-GET routes compute isolated responses without persistent writes"
         );
         // Et son chemin est bien déclaré par la macro : sans cela, `chemins()` ne le compterait
         // pas et la matrice de couverture rétrograderait la capacité qu'il sert.

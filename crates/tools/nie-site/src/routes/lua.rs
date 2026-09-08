@@ -1,45 +1,6 @@
-//! La couche Lua du dépôt, servie par nie — `/api/v1/lua/*`.
-//!
-//! ## Ce que le jeu met dans un `.lua.bin`, et ce qu'on en sert
-//!
-//! La logique de menus, de scènes et de règles d'`nie.exe` n'est pas dans le binaire : elle
-//! est compilée en **bytecode Lua 5.2 PUC-Rio** et rangée dans le VFS
-//! (1 199 fichiers mesurés sur ce montage, sous `data/common/script/lua/` et
-//! `data/common/gamedata/`). `nie-lua` sait deux choses très différentes de ces octets :
-//!
-//! | Étage | Ce qu'il fait | Exposé ici |
-//! |---|---|---|
-//! | `nie_lua::bytecode` | **décode** le chunk : en-tête, prototypes, constantes, instructions | oui |
-//! | `nie_lua::runtime` / `session` / `menu_host` | **exécute** le chunk dans une vraie VM | **non** |
-//!
-//! ## Ce que ce module refuse d'exposer, et pourquoi
-//!
-//! `execute_with_include`, `run_menu`, `drive_menu`, `install_menu_host`, `LuaSession::eval`,
-//! `set_global` et `discover_host_calls` **exécutent du code**. `discover_host_calls` en
-//! particulier ressemble à de l'analyse, mais son procédé est de poser une métatable sur `_G`
-//! puis d'appeler la fonction principale du script : c'est un interpréteur, avec un
-//! `Lua::unsafe_new` (requis pour charger un chunk binaire) sous le capot. Rien de tout cela
-//! n'a sa place derrière une URL publique, quand bien même l'entrée serait bornée au VFS —
-//! un chargeur de bytecode arbitraire est une primitive d'exécution, pas un décodeur.
-//!
-//! Ce refus n'est pas seulement une politique : il est **structurel**. `nie-site` déclare
-//! `nie-lua` avec `default-features = false`, ce qui coupe `vm` (mlua, Lua 5.2 en C) et
-//! `analysis` (tree-sitter). Aucun interpréteur n'est lié dans ce processus ; il ne s'agit
-//! donc pas d'une route qu'on aurait « oublié » d'écrire, mais d'une capacité absente du
-//! binaire. C'est ce que [`capacites`] rapporte, mesuré, plutôt qu'affirmé.
-//!
-//! Conséquence assumée : les onglets d'en-tête (`enumerate_header_tabs`) et la surface d'API
-//! hôte réelle ne sont pas servis, parce qu'ils ne s'obtiennent qu'en faisant tourner le
-//! script. Ce que ce module rend à la place est **statique** et vérifiable : les globaux lus
-//! et écrits sont extraits des instructions `GETTABUP`/`SETTABUP` sur l'upvalue `_ENV`, ce qui
-//! est la définition même d'un accès à une variable globale en Lua 5.2.
-//!
-//! ## Deux espaces, et pourquoi le désassemblage n'est pas un suffixe
-//!
-//! Le chemin VFS est un **joker terminal** (`{*chemin}`) : axum ne peut rien router après lui,
-//! et `/scripts/{*chemin}/desassemblage` ne compile pas comme une route. Le désassemblage a
-//! donc son propre préfixe, `/api/v1/lua/desassemblage/{*chemin}`. Il rend du texte, pas du
-//! JSON — c'est un listing de la forme de `luac -l -l`, fait pour être lu.
+//! Static Lua bytecode routes remain compatible. Trusted VFS menus additionally use
+//! the shared bounded replay owner at `/api/v1/menu/runtime/{screen}`.
+//! Arbitrary source evaluation, globals and host diagnostics are not public routes.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -72,13 +33,8 @@ pub const TAILLE_MAX: usize = 8 * 1024 * 1024;
 /// jeu, mais il change — une journée, jamais `immutable`.
 pub const CONTROLE: &str = "public, max-age=86400, stale-while-revalidate=604800";
 
-/// Vrai si un interpréteur Lua est lié dans ce processus.
-///
-/// Il ne l'est pas, et ce n'est pas une opinion : `nie-site/Cargo.toml` déclare `nie-lua` avec
-/// `default-features = false`, ce qui coupe la feature `vm` (mlua, Lua 5.2 en C). Seul
-/// `nie_lua::bytecode` est lié. La constante existe pour que `/api/v1/lua` puisse le **dire**
-/// au client plutôt que de le laisser deviner de l'absence de route.
-pub const VM_LIEE: bool = false;
+/// Whether the native menu VM is linked; arbitrary evaluation remains unavailable.
+pub const VM_LIEE: bool = true;
 
 /// Nombre maximal d'analyses simultanées, faute de connaître le parallélisme de la machine.
 const ANALYSES_SIMULTANEES_DEFAUT: usize = 4;
@@ -239,9 +195,9 @@ pub fn capacites_liste() -> Vec<Capacite> {
         },
         Capacite {
             nom: "pilotage_de_menu",
-            etat: "refuse",
-            route: None,
-            raison: Some("drive_menu/run_menu font tourner le script dans une VM"),
+            etat: "servi",
+            route: Some("/api/v1/menu/runtime/{screen}"),
+            raison: None,
         },
         Capacite {
             nom: "onglets_d_entete",
@@ -913,13 +869,12 @@ mod tests {
         assert_eq!(s[1].octets, 12);
     }
 
-    /// Le contrat qui compte le plus de ce module : aucune capacité d'exécution n'est servie.
+    /// Arbitrary execution stays unavailable while bounded menu replay is routed.
     #[test]
-    fn aucune_execution_n_est_exposee() {
+    fn only_bounded_menu_replay_is_exposed() {
         let liste = capacites_liste();
         for interdite in [
             "execution",
-            "pilotage_de_menu",
             "onglets_d_entete",
             "surface_d_api_hote",
         ] {
@@ -931,8 +886,9 @@ mod tests {
             assert!(c.route.is_none(), "{interdite} ne doit porter aucune route");
             assert!(c.raison.is_some(), "{interdite} doit dire pourquoi");
         }
-        // Vérifié à la COMPILATION : si `nie-lua` reprenait un jour ses features par défaut et
-        // que quelqu'un basculait `VM_LIEE`, le crate ne construirait plus.
-        const { assert!(!VM_LIEE) };
+        const { assert!(VM_LIEE) };
+        let runtime = liste.iter().find(|capability| capability.nom == "pilotage_de_menu").unwrap();
+        assert_eq!(runtime.etat, "servi");
+        assert_eq!(runtime.route, Some("/api/v1/menu/runtime/{screen}"));
     }
 }

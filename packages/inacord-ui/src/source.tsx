@@ -48,22 +48,32 @@ export function AssetSourceProvider({
 
 	useEffect(() => {
 		let vivant = true;
+		const abort = new AbortController();
+		let timer: ReturnType<typeof setTimeout> | undefined;
 		setCapacites(null);
 		setErreur(null);
-		source
-			.capacites()
-			.then((c) => {
-				if (vivant) setCapacites(c);
-			})
-			.catch((e: unknown) => {
+		const measure = async () => {
+			let retry = false;
+			try {
+				const measured = await source.capacites();
 				if (!vivant) return;
-				// Une source qui ne répond pas ne sait rien faire — et le dire explicitement vaut
-				// mieux que laisser chaque composant découvrir l'absence par son propre échec.
+				setCapacites(measured);
+				setErreur(null);
+				// A background VFS mount must refresh every consumer, not only the host's health UI.
+				if (!measured.vfs) retry = (await source.sante(abort.signal)).capacites.vfs === "en_cours";
+			} catch (error: unknown) {
+				if (!vivant) return;
 				setCapacites({ ...AUCUNE_CAPACITE });
-				setErreur(e instanceof Error ? e.message : String(e));
-			});
+				setErreur(error instanceof Error ? error.message : String(error));
+				retry = true;
+			}
+			if (vivant && retry) timer = setTimeout(() => void measure(), 2000);
+		};
+		void measure();
 		return () => {
 			vivant = false;
+			abort.abort();
+			if (timer !== undefined) clearTimeout(timer);
 		};
 	}, [source]);
 

@@ -1,5 +1,6 @@
 /**
- * `/settings` — l'écran des Options du jeu, avec les réglages d'Inacord dedans.
+ * Host settings, with optional native Options row assets. Native PC setting effects
+ * and screen placement remain separate from these existing host preferences.
  *
  * La page ne dessine rien : `SettingsScreen` vient du paquet partagé et demande lui-même à
  * l'hôte ce qu'il sait faire. Ce qui reste ici est ce qui appartient à CET hôte : la langue.
@@ -15,11 +16,22 @@ import {
 	getSettings,
 	setSettings,
 } from "@niers/inacord-ui";
-import { useEffect } from "react";
+import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import { useEffect, useState } from "react";
+import { loadMenuPresentation } from "../game/bridge";
 import { SETTINGS } from "../entries";
 import { localeFromPrefix, pathForEntry, prefixForLocale } from "../routing";
 
 export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () => void }) {
+	const [nativeScene, setNativeScene] = useState<NativeMenuScene>();
+	const [nativeState, setNativeState] = useState<"loading" | "ready" | "unavailable">("loading");
+	useEffect(() => {
+		let mounted = true;
+		void loadMenuPresentation("options-row").then(scene => {
+			if (mounted) { setNativeScene(scene); setNativeState("ready"); }
+		}, () => { if (mounted) setNativeState("unavailable"); });
+		return () => { mounted = false; };
+	}, []);
 	// L'URL fait foi : un réglage `locale` qui contredirait la langue servie afficherait
 	// « English » sur une page française.
 	const localeServie = localeFromPrefix(prefixe);
@@ -33,8 +45,10 @@ export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () 
 	const initialFamily = SETTING_FAMILIES.find((f) => f.id === tab)?.id as SettingFamily | undefined;
 
 	return (
-		<div style={{ position: "fixed", inset: 0 }}>
+		<div style={{ position: "fixed", inset: 0 }} data-native-presentation={nativeState}>
 			<SettingsScreen
+				title="Réglages Inacord"
+				nativeScene={nativeScene}
 				initialFamily={initialFamily}
 				onBack={onRetour}
 				onApply={(reglages, changes) => {

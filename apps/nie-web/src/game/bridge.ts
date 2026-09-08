@@ -52,7 +52,7 @@ export async function ensureWasm(): Promise<void> {
 }
 
 /** The engine owns screen identity and geometry; the browser supplies only the host. */
-export async function loadMenuPresentation(id: "start" | "autosave" | "title-menu" | "avatar-top" | "avatar-style" | "avatar-hair" | "avatar-clothes" | "avatar-stats" | "avatar-name"): Promise<NativeMenuScene> {
+export async function loadMenuPresentation(id: "loading" | "start" | "autosave" | "title-menu" | "options-row" | "avatar-top" | "avatar-style" | "avatar-hair" | "avatar-clothes" | "avatar-stats" | "avatar-name"): Promise<NativeMenuScene> {
 	await ensureWasm();
 	return JSON.parse(menu_presentation_json(id)) as NativeMenuScene;
 }

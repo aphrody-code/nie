@@ -4,9 +4,13 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Game } from "./Game";
 import { OpeningVisual } from "./OpeningVisual";
+import * as bridge from "../game/bridge";
+import * as nativeFont from "../game/native-font";
+import loadingScene from "../../../../crates/engine/nie-formats/src/menu_scenes/loading.json";
 
 const source = {
 	urlVideo: (path: string) => `/assets/video/${path}.mp4`,
+	urlTexture: () => undefined,
 	capacites: () => new Promise(() => {}),
 } as never;
 const environment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -57,6 +61,33 @@ async function click(label: string) {
 }
 
 describe("native opening movies", () => {
+	test("loading consumes shared geometry and waits for both bitmap text and the ball", async () => {
+		const scene = structuredClone(loadingScene);
+		scene.layers[0]!.rect.x = 1200;
+		const presentation = spyOn(bridge, "loadMenuPresentation").mockResolvedValue(scene);
+		const font = spyOn(nativeFont, "nativeTextRaster").mockResolvedValue({ width: 1, height: 1, rgba: new Uint8Array([255, 255, 255, 255]) });
+		const context = spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ putImageData() {} } as never);
+		const imageData = Object.getOwnPropertyDescriptor(globalThis, "ImageData");
+		Object.defineProperty(globalThis, "ImageData", { configurable: true, value: class { constructor(public data: Uint8ClampedArray, public width: number, public height: number) {} } });
+		let ready = 0;
+		try {
+			await mount(<OpeningVisual phase="loading" onReady={() => ready++} />);
+			expect(presentation).toHaveBeenCalledWith("loading");
+			expect(font).toHaveBeenCalled();
+			expect(context).toHaveBeenCalled();
+			expect(container.innerHTML).toContain("data-native-region");
+			const ball = container.querySelector<HTMLImageElement>("[data-native-region=load_ball01]")!;
+			expect(ball.style.left).toBe("1200px");
+			expect(container.querySelector("[data-native-text]")).not.toBeNull();
+			expect(ready).toBe(0);
+			await dispatch(ball, "load");
+			expect(ready).toBe(1);
+		} finally {
+			presentation.mockRestore(); font.mockRestore(); context.mockRestore();
+			if (imageData) Object.defineProperty(globalThis, "ImageData", imageData);
+			else Reflect.deleteProperty(globalThis, "ImageData");
+		}
+	});
 	test("survives rejected autoplay and a rejected manual retry until playback resumes", async () => {
 		let ready = 0,
 			ended = 0;

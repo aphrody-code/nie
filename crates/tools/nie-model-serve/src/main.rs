@@ -2415,7 +2415,26 @@ fn decode_awb_first_entry(data: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>
     decode_awb_entry(data, vfs_path, None)
 }
 
-/// Décode **une** entrée d'un AWB en WAV. `which` = index (`?cue=N`) ; `None` = la plus volumineuse.
+/// Explicit selectors must never invoke the legacy default-track search.
+fn decode_selected_waveform(
+    bytes: &[u8],
+    awb_id: Option<u16>,
+    entry_index: Option<usize>,
+) -> Result<Vec<u8>, String> {
+    let id = match awb_id {
+        Some(id) => id,
+        None => {
+            let index = entry_index.ok_or("Missing waveform selector")?;
+            let awb = nie_formats::cri_audio::Awb::parse(bytes)
+                .map_err(|error| error.to_string())?;
+            let entry = awb.entries.get(index).ok_or("Waveform index is absent from the AWB")?;
+            u16::try_from(entry.cue_id).map_err(|_| "Waveform ID exceeds supported range")?
+        }
+    };
+    nie_explore::native_audio::cue_to_wav(bytes, id)
+}
+
+/// Legacy default selection, retained for callers without an explicit waveform selector.
 fn decode_awb_entry(data: &[u8], vfs_path: &str, which: Option<usize>) -> anyhow::Result<Vec<u8>> {
     nie_formats::cri_audio::decode_awb_entry(data, which)
         .map_err(|e| anyhow::anyhow!("AWB {vfs_path}: {e}"))
@@ -3036,7 +3055,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 111;
+const AVATAR_CACHE_VERSION: u32 = 112;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -3341,12 +3360,8 @@ fn get_or_build_avatar_glb(
                 entree.push(planche);
             }
         }
-        // Les YEUX. Aucune planche de `_facetex` n'en porte le tracé — vingt variantes mesurées à
-        // 0,000 % d'encre — et aucune combinaison de leurs masques ne peut le produire. La couche
-        // est donc RECONSTITUÉE (cf. `image_out::dessiner_yeux`), à la demande explicite de
-        // l'auteur du projet, et posée sur la maille du visage dont le dépliage couvre tout le
-        // carré. Son emprise, elle, est mesurée sur une planche du jeu.
-        // Un PNG par rang de matériau, dans l'ordre des rangs.
+        // Compose only the decoded native layers for each material slot. Unresolved eye
+        // bindings remain visible in the result; procedural artwork is not substituted.
         let visages_composes: Vec<(usize, Vec<u8>)> = par_slot
             .into_iter()
             .filter_map(|(slot, couches)| {
@@ -3379,6 +3394,7 @@ fn get_or_build_avatar_glb(
         // avec quel `c000X01_edit` : c'est un appariement mesuré, qui vit dans nie-formats. Si
         // l'appelant fournit lui-même une pièce d'uniforme, on ne touche à rien.
         let mut effectifs: Vec<(String, String)> = specs.to_vec();
+        let mut skin_textures = BTreeMap::new();
         if let Some(sk) = squelette
             .as_deref()
             .filter(|_| !specs.iter().any(|(d, _)| est_uniforme(d)))
@@ -3402,9 +3418,33 @@ fn get_or_build_avatar_glb(
                     nie_formats::assemble::AVATAR_SHOES_DIR.to_string(),
                     nie_formats::assemble::AVATAR_SHOES.to_string(),
                 ));
-                // Les mains ne sont PAS montées : livrées en pose de bind, bras en croix, elles
-                // flottent à 45 cm des manches et triplent la boîte englobante, ce qui ruine le
-                // cadrage. Le détail de la mesure est dans `AVATAR_HANDS`.
+                // The native clothing row carries the exposed skin (neck, arms and hands)
+                // separately from the shirt mesh. Resolve that exact companion by the chosen
+                // body geometry, not by a guessed skin-family number or glove substitution.
+                let uniform_model = format!(
+                    "_uniform/{}/{corps}.g4md",
+                    nie_formats::assemble::AVATAR_BODY_DIR
+                );
+                let native_parts = state
+                    .chara_parts
+                    .resolve_clothes_model(cfgbin::crc32(TENUE_HAUT.as_bytes()), &uniform_model)
+                    .with_context(|| {
+                        format!("avatar clothing recipe missing or ambiguous for {uniform_model}")
+                    })?;
+                for skin in native_parts.into_iter().filter(|part| part.role == "skin") {
+                    let relative = skin
+                        .g4md
+                        .strip_prefix("_uniform/")
+                        .and_then(|path| path.strip_suffix(".g4md"))
+                        .context("avatar skin recipe has an unsupported model path")?;
+                    let (directory, name) = relative
+                        .rsplit_once('/')
+                        .context("avatar skin recipe has no model directory")?;
+                    let texture = skin.g4tx.context("avatar skin recipe has no texture")?;
+                    let key = (directory.to_owned(), name.to_owned());
+                    skin_textures.insert(key.clone(), format!("data/dx11/chr/{texture}"));
+                    effectifs.push(key);
+                }
             } else {
                 warn!("squelette {sk} sans corps apparié : l'avatar sortira sans corps");
             }
@@ -3415,6 +3455,7 @@ fn get_or_build_avatar_glb(
             if dossier == "_bodySK" {
                 continue;
             }
+            let native_skin = skin_textures.get(&(dossier.clone(), nom.clone()));
             // Les deux racines sont ESSAYÉES, pas devinées. Classer sur « le dossier commence par
             // un souligné » était faux : 124 dossiers de `20_EDIT` n'en ont pas (les codes de
             // personnage `c0001010`…), si bien que la pièce était cherchée dans `_uniform/`,
@@ -3428,12 +3469,17 @@ fn get_or_build_avatar_glb(
                 let mg = vfs.read(&format!("{b}.g4mg")).ok()?;
                 Some((b.clone(), md, mg))
             }) else {
+                if native_skin.is_some() {
+                    bail!("native avatar skin model unavailable: {dossier}/{nom}");
+                }
                 debug!("pièce d'avatar illisible sous les deux racines : {dossier}/{nom}");
                 continue;
             };
             let uniforme = base.contains("/_uniform/");
 
-            let candidats = if uniforme {
+            let candidats = if let Some(texture) = native_skin {
+                vec![texture.clone()]
+            } else if uniforme {
                 let tenue = if dossier.starts_with('s') {
                     TENUE_CHAUSSURES
                 } else {
@@ -3446,6 +3492,9 @@ fn get_or_build_avatar_glb(
                 nie_formats::assemble::avatar_texture_candidates(dossier, nom)
             };
             let g4tx = candidats.iter().find_map(|c| vfs.read(c).ok());
+            if native_skin.is_some() && g4tx.is_none() {
+                bail!("native avatar skin texture unavailable: {dossier}/{nom}");
+            }
 
             let component = match dossier.as_ref() {
                 "_facebase" => MeshComponent::Face,
@@ -3516,23 +3565,41 @@ fn get_or_build_avatar_glb(
                     let png = [Some(vise), repli.as_deref()]
                         .into_iter()
                         .flatten()
-                        .find_map(|nom_planche| match teinte_piece {
-                            Some(rgb) => nie_formats::image_out::g4tx_vignette_teintee(
-                                tx,
-                                nom_planche,
-                                AVATAR_TEX_MAX,
-                                nie_formats::image_out::ImageOut::Png,
-                                rgb,
-                            )
-                            .ok(),
-                            None => nie_formats::image_out::g4tx_vignette_nommee(
-                                tx,
-                                nom_planche,
-                                AVATAR_TEX_MAX,
-                                nie_formats::image_out::ImageOut::Png,
-                            )
-                            .ok(),
+                        .find_map(|nom_planche| {
+                            if native_skin.is_some() {
+                                let (w, h, mut rgba) =
+                                    g4tx_decode::decode_named_to_rgba(tx, nom_planche)?;
+                                let (mw, mh, mask) = g4tx_decode::decode_named_to_rgba(
+                                    tx,
+                                    &format!("{nom_planche}msk"),
+                                )?;
+                                if !tint_skin_mask(&mut rgba, w, h, &mask, mw, mh, teintes[0].rgb) {
+                                    return None;
+                                }
+                                g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize)
+                            } else {
+                                match teinte_piece {
+                                    Some(rgb) => nie_formats::image_out::g4tx_vignette_teintee(
+                                        tx,
+                                        nom_planche,
+                                        AVATAR_TEX_MAX,
+                                        nie_formats::image_out::ImageOut::Png,
+                                        rgb,
+                                    )
+                                    .ok(),
+                                    None => nie_formats::image_out::g4tx_vignette_nommee(
+                                        tx,
+                                        nom_planche,
+                                        AVATAR_TEX_MAX,
+                                        nie_formats::image_out::ImageOut::Png,
+                                    )
+                                    .ok(),
+                                }
+                            }
                         });
+                    if native_skin.is_some() && png.is_none() {
+                        bail!("native avatar skin texture or tint mask unresolved: {mat}");
+                    }
                     // Le conteneur `_facebase.g4tx` ne porte que des vignettes 32×32 : quand des
                     // compositions sont disponibles, ce sont elles qui habillent le visage. Le
                     // n-ième matériau reçoit le n-ième dépliage ; s'il y a moins de compositions
@@ -3592,51 +3659,9 @@ fn get_or_build_avatar_glb(
 
     model.embedded_textures = textures;
 
-    // Les YEUX, posés en géométrie. Les fichiers n'en portent aucun tracé : deux quads placés à
-    // la position 3D relevée sur la maille `parts_eye_10` reçoivent une texture reconstituée, ce
-    // qui affranchit du dépliage du visage — dont aucun calage n'a abouti.
-    {
-        let iris = teintes[1].rgb;
-        let png = nie_formats::image_out::encoder_rgba(
-            &nie_formats::image_out::dessiner_oeil(128, iris),
-            128,
-            128,
-            nie_formats::image_out::ImageOut::Png,
-        );
-        if let Ok(png_bytes) = png {
-            model
-                .primitives
-                .extend(nie_formats::assemble::quads_yeux(1.0));
-
-            // Les MAINS, posées elles aussi en géométrie : la pièce du jeu attend un skinning que
-            // la palette d'os manquante interdit d'appliquer.
-            let peau = teintes[0].rgb;
-            let pixels: Vec<u8> = [peau[0], peau[1], peau[2], 255].repeat(64);
-            if let Ok(png_main) = nie_formats::image_out::encoder_rgba(
-                &pixels,
-                8,
-                8,
-                nie_formats::image_out::ImageOut::Png,
-            ) {
-                model
-                    .primitives
-                    .extend(nie_formats::assemble::boites_mains(1.0));
-                model.embedded_textures.push(EmbeddedTexture {
-                    component: MeshComponent::Generic,
-                    name: "avatar_hand".to_string(),
-                    png_bytes: png_main,
-                });
-            }
-            model.embedded_textures.push(EmbeddedTexture {
-                component: MeshComponent::Generic,
-                name: "avatar_eye".to_string(),
-                png_bytes,
-            });
-        }
-    }
-
-    // La POSE DES BRAS, appliquée au-delà du seuil mesuré qui isole le bras du torse.
-    nie_formats::assemble::poser_bras(&mut model.primitives, 1.0);
+    // Keep native geometry in its authored rest pose until the actual animation is applied.
+    // Synthetic eye quads, box hands and positional arm bending hide missing native bindings
+    // and break the joint between the independently authored shirt and exposed-skin meshes.
 
     // Les HABITS — col, manches, ourlet. Leurs parts ne portent aucune maille ni texture, rien
     // qu'un nom de découpe : la coupe du maillot est donc ajustée géométriquement.
@@ -4478,6 +4503,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             "wav" => {
                 let awb_id: Option<u16> = param(query, "id").and_then(|v| v.parse().ok());
                 let cue: Option<usize> = param(query, "cue").and_then(|v| v.parse().ok());
+                if (param(query, "id").is_some() && awb_id.is_none())
+                    || (param(query, "cue").is_some() && cue.is_none())
+                {
+                    respond_text(&mut stream, 400, "Bad Request", "Invalid waveform selector");
+                    return;
+                }
                 if awb_id.is_none() && cue.is_none() {
                     decode_audio_to_wav(&data, &vfs_path)
                         .or_else(|_| match resoudre_awb(&state, &vfs_path, &data) {
@@ -4490,13 +4521,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     match resoudre_awb(&state, &vfs_path, &data) {
                         None => Err("aucune banque AWB résolue".to_string()),
                         Some((awb, _)) => {
-                            let rang = match awb_id {
-                                None => cue,
-                                Some(id) => nie_formats::cri_audio::Awb::parse(&awb)
-                                    .ok()
-                                    .and_then(|a| a.index_of_id(id)),
-                            };
-                            decode_awb_entry(&awb, &vfs_path, rang).map_err(|e| e.to_string())
+                            decode_selected_waveform(&awb, awb_id, cue)
                         }
                     }
                 }
@@ -5622,6 +5647,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         // le publie (`awbId`) : c'est la forme stable, le rang dépendant de l'ordre du fichier.
         let cue: Option<usize> = param(query, "cue").and_then(|v| v.parse().ok());
         let awb_id: Option<u16> = param(query, "id").and_then(|v| v.parse().ok());
+        if (param(query, "id").is_some() && awb_id.is_none())
+            || (param(query, "cue").is_some() && cue.is_none())
+        {
+            respond_text(&mut stream, 400, "Bad Request", "Invalid waveform selector");
+            return;
+        }
         let bytes = {
             let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
@@ -5639,33 +5670,8 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                             "{vfs_path} : pas de banque AWB, `?cue=`/`?id=` sans objet"
                         )),
                         Some((awb_bytes, _)) => {
-                            let rang = match awb_id {
-                                None => cue,
-                                Some(id) => match nie_formats::cri_audio::Awb::parse(&awb_bytes) {
-                                    Ok(a) => match a.index_of_id(id) {
-                                        Some(i) => Some(i),
-                                        None => {
-                                            respond_text(
-                                                &mut stream,
-                                                404,
-                                                "Not Found",
-                                                &format!("cue-id {id} absent de la banque"),
-                                            );
-                                            return;
-                                        }
-                                    },
-                                    Err(e) => {
-                                        respond_text(
-                                            &mut stream,
-                                            500,
-                                            "Internal Server Error",
-                                            &format!("AWB illisible : {e}"),
-                                        );
-                                        return;
-                                    }
-                                },
-                            };
-                            decode_awb_entry(&awb_bytes, &vfs_path, rang)
+                            decode_selected_waveform(&awb_bytes, awb_id, cue)
+                                .map_err(anyhow::Error::msg)
                         }
                     }
                 } else {
@@ -5673,7 +5679,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 };
                 let result = result.or_else(|e| {
                     let msg = e.to_string();
-                    if msg.contains("ACB sans AWB") {
+                    if cue.is_none() && awb_id.is_none() && msg.contains("ACB sans AWB") {
                         // AWB externe : même chemin, extension .awb
                         let awb_path = if vfs_path.ends_with(".acb") {
                             format!("{}.awb", &vfs_path[..vfs_path.len() - 4])

@@ -10,9 +10,11 @@ import {
 import "@niers/inacord-ui/shell/game-tokens.css";
 // Les classes `game-*` des écrans du jeu (Options, filtres), engendrées depuis les captures.
 import "@niers/inacord-ui/shell/game-screens.css";
+import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { useEffect, useMemo, useState } from "react";
 import { ALIAS, AVATAR, EXPLORER, MEDIA, SETTINGS, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
+import { StartupResources } from "./game/StartupResources";
 import { Catalog } from "./pages/Catalog";
 import { Avatar } from "./pages/Avatar";
 import { Notice, SecondaryScreen } from "./pages/SecondaryScreen";
@@ -35,6 +37,7 @@ export function App() {
 
 /** One current route and opening state; returning from a tool resumes its main menu. */
 function Site() {
+	const gamepadSampler = useMemo(() => createStandardGamepadMenuSampler(), []);
 	const capacites = useCapacites();
 	const erreurSource = useErreurSource();
 	const [etat, setEtat] = useState<SanteApi | null>(null);
@@ -90,7 +93,9 @@ function Site() {
 	// Route changes may unmount Game, but the opening state belongs to this persistent host.
 	if (vue === HOME) {
 		return (
+			<><StartupResources titleActive={openingPhase === "start" || openingPhase === "menu"} />
 			<Game
+				gamepadSampler={gamepadSampler}
 				phase={openingPhase}
 				onPhaseChange={setOpeningPhase}
 				onOpenAvatar={() => setVue(AVATAR)}
@@ -98,21 +103,23 @@ function Site() {
 				onOpenMedia={() => setVue(MEDIA)}
 				onOpenExplorer={() => setVue(EXPLORER)}
 			/>
+			</>
 		);
 	}
 
 	// Settings and the secondary shell keep their Return controls available during VFS startup.
 	if (vue === SETTINGS) {
-		return <Settings prefixe={prefixe} onRetour={() => setVue(HOME)} />;
+		return <><StartupResources titleActive={false} /><Settings prefixe={prefixe} onRetour={() => setVue(HOME)} /></>;
 	}
 	if (vue === AVATAR) {
-		return <Avatar onBack={() => setVue(HOME)} />;
+		return <><StartupResources titleActive={false} /><Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} /></>;
 	}
 	if (vue === EXPLORER || (ALIAS as readonly string[]).includes(vue)) {
-		return <ExplorerInacord onHome={() => setVue(HOME)} />;
+		return <><StartupResources titleActive={false} /><ExplorerInacord onHome={() => setVue(HOME)} /></>;
 	}
 
 	return (
+		<><StartupResources titleActive={false} />
 		<FournisseurNavigation naviguer={naviguer}>
 			<SecondaryScreen currentView={vue} onSelect={setVue} health={etat}>
 				{erreurSource ? (
@@ -136,6 +143,7 @@ function Site() {
 				)}
 			</SecondaryScreen>
 		</FournisseurNavigation>
+		</>
 	);
 }
 
