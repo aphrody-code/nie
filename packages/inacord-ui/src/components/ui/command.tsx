@@ -37,12 +37,15 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  commandProps,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, "children"> & {
   title?: string
   description?: string
   className?: string
   showCloseButton?: boolean
+  /** Props for the cmdk root, such as `shouldFilter: false` for remote search. */
+  commandProps?: React.ComponentProps<typeof CommandPrimitive>
   children: React.ReactNode
 }) {
   // Les enfants DOIVENT être enveloppés dans `<Command>` : `CommandInput`/`CommandList`/
@@ -63,7 +66,7 @@ function CommandDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Command>{children}</Command>
+        <Command {...commandProps}>{children}</Command>
       </DialogContent>
     </Dialog>
   )

@@ -1,24 +1,15 @@
 "use client";
 
-import { Lightbulb, Search, SearchX } from "lucide-react";
+import { Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { searchGlobal } from "@/app/actions/search";
 import type { EnhancedSearchResult } from "@/app/actions/search";
-import {
-	Button,
-	Skeleton,
-	CommandDialog,
-	CommandEmpty,
-	CommandGroup,
-	CommandInput,
-	CommandItem,
-	CommandList,
-} from "@rosegriffon/ui";
+import { Button } from "@rosegriffon/ui";
+import { GlobalSearchDialog } from "@niers/inacord-ui/components/wiki/wiki/GlobalSearchDialog";
 import { SearchResultRow } from "@/components/wiki/SearchResultRow";
 import { TYPE_LABELS_PLURAL } from "@rosegriffon/azalee/search/search-ui-config";
 import type { SearchContext } from "@rosegriffon/azalee/search/smart-search";
-import { cn } from "@/lib/utils";
 
 /**
  * Detect search context from current pathname
@@ -55,22 +46,6 @@ function useSearchContext(): SearchContext {
 	}
 
 	return "global";
-}
-
-/**
- * Group results by type for organized display
- */
-function groupResultsByType(results: EnhancedSearchResult[]) {
-	const groups: Record<string, EnhancedSearchResult[]> = {};
-
-	for (const result of results) {
-		if (!groups[result.type]) {
-			groups[result.type] = [];
-		}
-		groups[result.type].push(result);
-	}
-
-	return groups;
 }
 
 export function GlobalSearch({
@@ -155,94 +130,21 @@ export function GlobalSearch({
 		command();
 	}, []);
 
-	const groupedResults = React.useMemo(() => groupResultsByType(results), [results]);
-	const hasSuggestion = results.length === 1 && results[0].type === "suggestion";
-
 	const SearchDialog = (
-		<CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
-			<CommandInput
-				placeholder="Rechercher personnages, techniques, auras, équipes..."
-				value={query}
-				onValueChange={setQuery}
-			/>
-			<CommandList>
-				{query.length >= 2 && !isSearching && results.length === 0 && (
-					<CommandEmpty>
-						<div className="py-6 text-center">
-							<SearchX
-								size={36}
-								aria-hidden="true"
-								className="text-[var(--md-sys-color-on-surface-variant)] mb-2"
-							/>
-							<p className="text-sm text-[var(--md-sys-color-on-surface-variant)]">
-								Aucun résultat pour &quot;{query}&quot;
-							</p>
-						</div>
-					</CommandEmpty>
-				)}
-
-				{isSearching && (
-					<div className="px-2 py-3 space-y-2">
-						{[...Array(3)].map((_, i) => (
-							<div key={i} className="flex items-center gap-3 p-2">
-								<Skeleton className="size-5 rounded-md" />
-								<div className="flex-1 space-y-2">
-									<Skeleton className="h-4 w-3/4" />
-									<Skeleton className="h-3 w-1/2" />
-								</div>
-							</div>
-						))}
-					</div>
-				)}
-
-				{hasSuggestion && (
-					<div className="px-4 py-6 text-center">
-						<Lightbulb
-							size={30}
-							aria-hidden="true"
-							className="text-[var(--md-sys-color-primary)] mb-2"
-						/>
-						<p className="text-sm text-[var(--md-sys-color-on-surface-variant)] mb-2">
-							Vouliez-vous dire...
-						</p>
-						<Button
-							variant="outline"
-							onClick={() => setQuery(results[0].title)}
-							className="rounded-full"
-						>
-							{results[0].title}
-						</Button>
-					</div>
-				)}
-
-				{!hasSuggestion &&
-					Object.entries(groupedResults).map(([type, items]) => (
-						<CommandGroup
-							key={type}
-							heading={TYPE_LABELS_PLURAL[type] || type}
-							className="[&_[cmdk-group-heading]]:text-[var(--md-sys-color-primary)] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:uppercase"
-						>
-							{items.map((result) => (
-								<CommandItem
-									key={`${result.type}-${result.id}`}
-									value={`${result.title} ${result.subtitle}`}
-									onSelect={() => {
-										runCommand(() => router.push(result.url));
-									}}
-									className={cn(
-										"!p-0 rounded-xl",
-										"data-[selected=true]:bg-[var(--md-sys-color-secondary-container)]/20",
-										"transition-all duration-[var(--md-sys-motion-duration-short2)]",
-										"ease-[var(--md-sys-motion-easing-standard)]"
-									)}
-								>
-									<SearchResultRow result={result} query={query} onClick={() => {}} compact />
-								</CommandItem>
-							))}
-						</CommandGroup>
-					))}
-			</CommandList>
-		</CommandDialog>
+		<GlobalSearchDialog
+			open={open}
+			onOpenChange={setOpen}
+			query={query}
+			onQueryChange={setQuery}
+			results={results}
+			isSearching={isSearching}
+			onSelectResult={(result) => runCommand(() => router.push(result.url))}
+			renderResult={(result) => <SearchResultRow result={result} query={query} onClick={() => {}} compact />}
+			groupLabel={(type) => TYPE_LABELS_PLURAL[type] || type}
+			placeholder="Rechercher personnages, techniques, auras, équipes..."
+			noResultsLabel={(searchQuery) => <>Aucun résultat pour &quot;{searchQuery}&quot;</>}
+			suggestionLabel="Vouliez-vous dire..."
+		/>
 	);
 
 	if (isMobileHero || isHero) {
