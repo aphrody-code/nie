@@ -11,10 +11,9 @@
  *
  * ## Ce que l'export donne, et ce qu'il ne donne PAS
  *
- * Le layout runtime de `mainmenu01` compte 30 objets : 7 portent encore exactement la position
- * (640, 360), c'est-a-dire le centre par defaut, et 2 points d'ancrage sortent du canevas
- * 1280×720. Les autres placements viennent du driver Lua exécuté par `nie-game`; les 7 restants
- * restent explicitement mesurés comme incomplets.
+ * Current exports identify placement provenance explicitly. A centered bind pose is not proof
+ * of missing geometry; unresolved objects carry null source transforms and are not painted.
+ * Ancestor fallback remains a labelled heuristic rather than native runtime placement proof.
  *
  * Ce module ne corrige rien et n'invente rien : il rend ce que la donnee dit, et
  * [`bilanLayout`] COMPTE l'ecart pour qu'il soit dit plutot que subi. Une interface qui
@@ -65,6 +64,8 @@ export interface SlotTexte {
 /** Un objet du layout. */
 export interface ObjetLayout {
 	name: string;
+	/** Missing on legacy exports; explicit unresolved objects must not be painted. */
+	placementSource?: "unresolved" | "g4pkm-pose" | "g4pkm-ancestor-fallback" | "attach-locator";
 	/** Ordre de peinture. Croissant = dessine par-dessus, cf. [`objetsTries`]. */
 	drawPriority: number;
 	visible: boolean;
@@ -234,8 +235,10 @@ export interface BilanLayout {
 	muets: number;
 	/** Objets dont le point d'ancrage sort du canevas. */
 	horsCanvas: number;
-	/** Objets restes sur le centre exact, c'est-a-dire jamais positionnes par l'export. */
+	/** Objects at the exact canvas center; this alone does not imply unresolved placement. */
 	auCentre: number;
+	/** Visible objects explicitly lacking placement evidence in a current export. */
+	unresolvedVisiblePlacements: number;
 	/** Textures distinctes referencees, par leur chemin VFS complet. */
 	textures: string[];
 }
@@ -254,8 +257,13 @@ export function bilanLayout(layout: LayoutJeu): BilanLayout {
 	let muets = 0;
 	let horsCanvas = 0;
 	let auCentre = 0;
+	let unresolvedVisiblePlacements = 0;
 	for (const objet of layout.objects) {
 		if (objet.visible) visibles += 1;
+		if (objet.placementSource === "unresolved") {
+			if (objet.visible) unresolvedVisiblePlacements += 1;
+			continue;
+		}
 		if (tailleObjet(objet) !== null) {
 			avecSprite += 1;
 			if (objet.sprite) textures.add(cheminVfsSprite(objet.sprite.logicalPath));
@@ -273,6 +281,7 @@ export function bilanLayout(layout: LayoutJeu): BilanLayout {
 		muets,
 		horsCanvas,
 		auCentre,
+		unresolvedVisiblePlacements,
 		textures: [...textures].sort(),
 	};
 }
@@ -355,17 +364,21 @@ export function lireLayout(valeur: unknown): LayoutJeu {
 	if (!Array.isArray(brut.objects)) {
 		throw new Error("layout : `objects` absent ou n'est pas un tableau");
 	}
-	for (const [i, objet] of brut.objects.entries()) {
-		if (!objet || typeof objet.name !== "string" || !objet.transform) {
-			throw new Error(`layout : l'objet ${i} n'a ni nom ni transformation`);
-		}
-	}
 	const objects = brut.objects.map((object, index) => {
 		const candidate = object as ObjetLayout & { text?: unknown };
-		if (!candidate || typeof candidate.name !== "string" || !candidate.transform) {
+		if (!candidate || typeof candidate.name !== "string" || (!candidate.transform && candidate.placementSource !== "unresolved")) {
 			throw new Error(`layout : l'objet ${index} n'a ni nom ni transformation`);
 		}
-		return { ...candidate, text: normalizeLayoutText(candidate.text) };
+		if (candidate.placementSource !== undefined && !["unresolved", "g4pkm-pose", "g4pkm-ancestor-fallback", "attach-locator"].includes(candidate.placementSource)) {
+			throw new Error(`layout : unknown placement source for object ${index}`);
+		}
+		return {
+			...candidate,
+			// Internal compatibility shape only; unresolved objects are excluded from painting
+			// and geometry metrics. The source JSON keeps their transform explicitly null.
+			transform: candidate.transform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rot: 0, anchorX: 0, anchorY: 0 },
+			text: normalizeLayoutText(candidate.text),
+		};
 	});
 	return {
 		screen: typeof brut.screen === "string" ? brut.screen : "?",

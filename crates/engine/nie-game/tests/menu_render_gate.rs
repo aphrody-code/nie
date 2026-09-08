@@ -462,6 +462,17 @@ fn mainmenu_runtime_driver_enumerates_9_header_tabs() {
         9,
         "le driver doit énumérer 9 onglets (mode normal), trouvé : {tabs:?}"
     );
+    for object in objs
+        .iter()
+        .filter(|object| object["runtime"]["virtual"] == true)
+    {
+        assert!(
+            object["transform"].is_null(),
+            "unresolved tabs must not acquire invented coordinates"
+        );
+        assert_eq!(object["placementSource"], "unresolved");
+    }
+    assert!(runtime["unresolvedVisiblePlacements"].as_u64().unwrap() >= 9);
     // Les 9 types d'onglets attendus (ordre `GetSortOfTabs`, mode normal).
     for ty in [10, 20, 30, 40, 50, 60, 70, 80, 90] {
         let name = format!("mainmenu_header_tab_{ty}");

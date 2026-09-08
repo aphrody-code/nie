@@ -3,7 +3,7 @@
     "h": 720,
     "w": 1280
   },
-  "generatedBy": "runtime-lua",
+  "generatedBy": "static-assets",
   "locale": "fr",
   "objects": [
     {
@@ -17,6 +17,7 @@
       "drawType": 3,
       "name": "loading01_01_fade_loading",
       "parent": null,
+      "placementSource": "g4pkm-pose",
       "primitive": null,
       "runtime": null,
       "sprite": {
@@ -38,16 +39,28 @@
       "visible": true
     }
   ],
+  "runtimeScenes": {},
   "runtimeSummary": {
+    "ancestorFallbackPlacements": 0,
     "callbackErrors": [],
     "callbacksDefinis": [],
     "callbacksNonJoues": [],
+    "charaModelBindings": 0,
+    "charaModelsResolved": 0,
+    "decodeErrors": 0,
+    "decodedInstructions": 0,
+    "decodedScripts": 0,
     "distinctVisibilityIndexes": 0,
     "headerTabsAdded": 0,
     "knownCmdCalls": 0,
     "knownCmdsByName": {},
     "layersTouched": 0,
     "listItemsRecorded": 0,
+    "loadedIncludes": {},
+    "menuEventInvocations": {},
+    "menuEventsDispatched": 0,
+    "menuEventsRequested": 0,
+    "menuEventsSucceeded": 0,
     "missingHostCalls": {},
     "missingHostPaths": {},
     "objectsHidden": 0,
@@ -56,13 +69,18 @@
     "objectsMatched": 0,
     "objectsMatchedTotal": 0,
     "objectsWithIndexedVisibility": 0,
+    "observedNativeFields": 0,
+    "primitiveBindings": 0,
+    "primitiveG4pkmPathsMissing": 0,
+    "primitiveG4pkmPathsResolved": 0,
     "regionRects": 0,
     "scripts": [],
     "spritesMutated": 0,
     "spritesNamed": 0,
     "textsMutated": 0,
     "unknownCmds": [],
-    "unknownGeneralCmds": []
+    "unknownGeneralCmds": [],
+    "unresolvedVisiblePlacements": 0
   },
   "screen": "loading01"
 }

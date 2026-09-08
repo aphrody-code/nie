@@ -836,7 +836,7 @@ pub fn install_menu_host(lua: &Lua) -> mlua::Result<Rc<RefCell<MenuState>>> {
             let observed = state
                 .borrow()
                 .observed_native
-                .resolve_general_command(cmd_id);
+                .resolve_general_command_with_key(cmd_id, lua_to_u32_or_none(args.get(1)));
             if let Some(observed) = observed {
                 let value = match observed {
                     crate::menu_state::ObservedMenuQueryValue::Boolean(value) => {
@@ -2207,12 +2207,53 @@ mod dispatch_tests {
     }
 
     #[test]
+    fn observed_flag_getters_preserve_lua_types_and_category_identity() {
+        use crate::menu_state::{ObservedMenuFlags, ObservedMenuNativeState};
+        let (lua, state) = host();
+        state
+            .borrow_mut()
+            .set_observed_native_state(ObservedMenuNativeState {
+                category_0_flags: Some(ObservedMenuFlags {
+                    descriptors: BTreeMap::from([(42, Some(5119))]),
+                    values: BTreeMap::from([(5119, true)]),
+                }),
+                category_1_values: Some(ObservedMenuFlags {
+                    descriptors: BTreeMap::from([(42, Some(639))]),
+                    values: BTreeMap::from([(639, 255)]),
+                }),
+                category_5_flags: Some(ObservedMenuFlags {
+                    descriptors: BTreeMap::from([(42, None)]),
+                    values: BTreeMap::new(),
+                }),
+                ..Default::default()
+            });
+        let result: (bool, u8, bool) = lua.load("return funcLuaCommand(0x381D0910, 42), funcLuaCommand(0xA50C0747, 42), funcLuaCommand(0x88154DF4, 42)").eval().unwrap();
+        assert_eq!(result, (true, 255, false));
+        assert_eq!(state.borrow().known_cmd_log.len(), 3);
+        assert!(state.borrow().unknown_general_cmd_log.is_empty());
+    }
+
+    #[test]
+    fn unobserved_flags_stay_diagnostic_even_with_other_categories_observed() {
+        use crate::menu_state::ObservedMenuFlags;
+        let (lua, state) = host();
+        state.borrow_mut().observed_native.category_5_flags = Some(ObservedMenuFlags {
+            descriptors: BTreeMap::from([(42, Some(5))]),
+            values: BTreeMap::new(),
+        });
+        lua.load("funcLuaCommand(0x381D0910, 42); funcLuaCommand(0xA50C0747, 42); funcLuaCommand(0x88154DF4, 42); funcLuaCommand(0x88154DF4); funcLuaCommand(0x88154DF4, 43)").exec().unwrap();
+        assert_eq!(state.borrow().unknown_general_cmd_log.len(), 5);
+        assert!(state.borrow().known_cmd_log.is_empty());
+    }
+
+    #[test]
     fn observed_native_queries_keep_lua_boolean_and_numeric_types() {
         let (lua, state) = host();
         state.borrow_mut().observed_native = crate::menu_state::ObservedMenuNativeState {
             context_69c8_field_2cac6f: Some(2),
             context_69a8_field_9f10: None,
             context_69a8_field_9f13: Some(255),
+            ..Default::default()
         };
         let values: (bool, u8, u8, u8) = lua.load(
             "return funcLuaCommand(0x1953DBC1), funcLuaCommand(0xB314C568), funcLuaCommand(0xEF7BC853), funcLuaCommand(0xDD5C4CD4)"

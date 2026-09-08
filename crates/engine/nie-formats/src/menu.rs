@@ -22,6 +22,54 @@ use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 use crate::g4pkm::{G4pkmLayout, Transform2D};
 use crate::objbin::{MenuComponent, MenuObject};
 
+/// Evidence used for an exported object's placement, not a native-rendering parity claim.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PlacementSource {
+    #[default]
+    Unresolved,
+    G4pkmPose,
+    G4pkmAncestorFallback,
+    AttachLocator,
+}
+
+impl PlacementSource {
+    /// Legacy layouts retain numeric transforms; explicit unknown sources are not drawable.
+    #[must_use]
+    pub fn allows_rendering(source: Option<&str>, has_transform: bool) -> bool {
+        has_transform
+            && matches!(
+                source,
+                None | Some("g4pkm-pose" | "g4pkm-ancestor-fallback" | "attach-locator")
+            )
+    }
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unresolved => "unresolved",
+            Self::G4pkmPose => "g4pkm-pose",
+            Self::G4pkmAncestorFallback => "g4pkm-ancestor-fallback",
+            Self::AttachLocator => "attach-locator",
+        }
+    }
+
+    #[must_use]
+    pub const fn has_placement(self) -> bool {
+        !matches!(self, Self::Unresolved)
+    }
+
+    /// Distinguish the existing ancestor heuristic from a file's selected bind pose.
+    #[must_use]
+    pub fn from_g4pkm(layout: &G4pkmLayout) -> Self {
+        if layout.bones.is_empty() {
+            Self::Unresolved
+        } else if crate::g4pkm_motion::motion_final_pose(layout, false).used_ancestor_fallback {
+            Self::G4pkmAncestorFallback
+        } else {
+            Self::G4pkmPose
+        }
+    }
+}
+
 /// Read-only source of menu assets.
 ///
 /// Implementations may be backed by a native VFS, a browser cache, or an in-memory
@@ -698,6 +746,29 @@ fn sample_bilinear(rgba: &[u8], tw: u32, th: u32, u: f32, v: f32) -> (f32, f32, 
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn placement_evidence_never_renders_missing_or_unresolved_transforms() {
+        use super::PlacementSource;
+        for source in [
+            None,
+            Some("g4pkm-pose"),
+            Some("attach-locator"),
+            Some("g4pkm-ancestor-fallback"),
+        ] {
+            assert!(PlacementSource::allows_rendering(source, true));
+            assert!(!PlacementSource::allows_rendering(source, false));
+        }
+        assert!(!PlacementSource::allows_rendering(Some("unresolved"), true));
+        assert!(!PlacementSource::allows_rendering(Some("invented"), true));
+        let empty = crate::g4pkm::G4pkmLayout {
+            bones: alloc::vec![],
+            world_pose_by_name: alloc::collections::BTreeMap::new(),
+        };
+        assert_eq!(
+            PlacementSource::from_g4pkm(&empty),
+            PlacementSource::Unresolved
+        );
+    }
     use super::*;
     use crate::g4pkm::G4pkmBone;
     use alloc::collections::BTreeMap;

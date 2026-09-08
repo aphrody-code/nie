@@ -278,7 +278,9 @@ export function LayoutRender({
 	const construire = urlTexture ?? source.urlTexture;
 
 	const objets = useMemo(() => {
-		const retenus = visiblesSeules ? layout.objects.filter((o) => o.visible) : layout.objects;
+		const retenus = layout.objects.filter((object) =>
+			object.placementSource !== "unresolved" && (!visiblesSeules || object.visible),
+		);
 		return objetsTries(retenus);
 	}, [layout, visiblesSeules]);
 

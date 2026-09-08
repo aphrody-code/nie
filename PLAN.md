@@ -348,3 +348,47 @@ The focus correction `6b2375f618f8e402c84570b0fa73e0874d56178e` is deployed and 
 150 requests and zero failures. Its visual report records SSIM 0.5578690454315838 and RGB mean
 absolute delta 70.70361963091564/255, with no excluded regions. The private release manifest marks
 the release validated and retains its rollback artifacts.
+
+### Placement evidence and observed flag queries (2026-09-08)
+
+`nie-formats::menu::PlacementSource` identifies attachment locators, selected G4PKM poses,
+ancestor fallback heuristics, and unresolved placement. Native runtime exports retain observed
+virtual header tabs but no longer invent a horizontal row or coordinates for them. Unknown
+transforms are null; both native paint passes and the shared browser renderer exclude them.
+Legacy numeric layouts remain readable. A centered asset pose is not labelled unresolved merely
+because it is centered. Loading exports with no executed scripts now identify `static-assets`.
+
+The already tracked Web metadata was regenerated from the same verified recipes, using the freshly
+built `target/debug/nie-game` on `vps-203bea89` in `/home/ubuntu/niers`:
+
+```text
+--game-dir /home/ubuntu/niers --menu main_menu --from-setting --runtime --screen-name mainmenu01 --export-layout apps/nie-web/src/layouts/mainmenu01.layout.json
+--game-dir /home/ubuntu/niers --menu loading01 --runtime --export-layout apps/nie-web/src/layouts/loading01.layout.json
+```
+
+The main menu retains 30 objects, 22 requested visible: 12 attachment-locator placements,
+7 G4PKM poses, 2 explicitly heuristic ancestor fallbacks, and 9 unresolved virtual tabs. Loading
+retains its single G4PKM pose. All 22 pre-existing non-null transforms across both files are
+unchanged. The browser/native unresolved-visible counters agree (menu 9, loading 0); drawable
+text drops from 19 to 10 because the 9 unresolved tabs no longer paint guessed positions.
+
+Three additional binary-proven general flag getters accept observed category storage. Omitted
+hashes mean unobserved lookup; explicit null means the native lookup found no descriptor. Missing
+indexed values remain unresolved. Native category bounds, Boolean/Byte return types and
+out-of-range-descriptor fallback to observed index zero are preserved. Input deserialization has
+explicit resource bounds and rejects duplicate keys. No synthetic maps are supplied to baseline
+runtime exports.
+
+Measured gates for this batch: formats 302 tests passed; Lua 124 tests passed with 1 ignored;
+portable Lua 11 passed with 1 ignored; native render gate 14 passed with 2 ignored; explicit
+unresolved sprite/text paint regression 1 passed; Web/shared-input tests 99 passed with 344
+assertions; Web typecheck passed. Scoped formats/game/Lua clippy and portable Lua checks passed.
+Generated Wasm equals native state for 8 scenes, 61 layers and 76 objects; 3 invalid inputs are
+rejected. Wasm SHA256: `313d1adaa823a6695b82adbb5316879b22f53d91685ad36541a74b2962bb223a`.
+The renderer's native placement/fidelity completion gates remain unmet; provenance makes the
+missing geometry measurable instead of replacing it with invented coordinates.
+
+The staged browser gate passed 18 checks with 150 requests and zero failures. Compared with the
+validated previous production capture, `var/outputs/menu-visual/placement-regression/report.json`
+records SSIM 1, RGB delta 0 and zero changed pixels. Against the game reference, the renderer
+remains at SSIM 0.5578690454315838. Reports and captures stay under `var/outputs/menu-visual/`.

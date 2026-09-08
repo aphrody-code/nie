@@ -1001,6 +1001,15 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
             .with_context(|| format!("layout JSON invalide : {}", chemin.display()))?;
         objs.extend(doc["objects"].as_array().cloned().unwrap_or_default());
     }
+    // Apply the same placement gate before either sprite decoding or text rasterization.
+    objs.retain(|object| {
+        menu::PlacementSource::allows_rendering(
+            object
+                .get("placementSource")
+                .map(|source| source.as_str().unwrap_or("")),
+            object["transform"].is_object(),
+        )
+    });
 
     // Cache (octets, parse) par chemin g4tx logique.
     let mut cache: std::collections::HashMap<String, Option<(Vec<u8>, g4tx::G4tx)>> =
@@ -2733,14 +2742,14 @@ fn cmd_menu_matrix(game_dir: &Path, out: &Path) -> Result<()> {
 
 /// Un objet de layout de menu en cours de construction (placement statique + overrides runtime).
 ///
-/// Les champs `visible`/`text`/`runtime` ne sont pris en compte que par la sérialisation runtime
-/// ([`LayoutObj::to_json_runtime`]) ; la sérialisation statique ([`LayoutObj::to_json`]) émet
-/// exactement le schéma `MenuLayout` historique (contrat azalee inchangé).
+/// Both serializers include placement provenance; unresolved transforms are explicitly null.
+/// Runtime serialization additionally preserves visibility and observed Lua mutations.
 struct LayoutObj {
     /// Nom de l'objbin (clé du join crc32 avec le `MenuState`).
     name: String,
     /// Transform écran (placement motion-fallback D1.a).
     transform: serde_json::Value,
+    placement_source: menu::PlacementSource,
     draw_priority: i32,
     draw_type: i32,
     camera: u32,
@@ -2761,12 +2770,13 @@ struct LayoutObj {
 }
 
 impl LayoutObj {
-    /// Sérialise au schéma `MenuLayout` historique (azalee) — strictement les champs d'origine.
+    /// Export the layout with explicit placement evidence, including unresolved objects.
     fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
             "name": self.name,
             "parent": serde_json::Value::Null,
             "transform": self.transform,
+            "placementSource": self.placement_source.as_str(),
             "drawPriority": self.draw_priority,
             "drawType": self.draw_type,
             "camera": format!("0x{:08X}", self.camera),
@@ -2982,10 +2992,8 @@ fn collect_layout_objects_with_lookup(
         }
 
         // Placement (motion-fallback) + sprite (texture non-dummy), si assets résolus.
-        let mut transform = json!({
-            "x": 640.0, "y": 360.0, "scaleX": 1.0, "scaleY": 1.0,
-            "rot": 0.0, "anchorX": 0.5, "anchorY": 0.5
-        });
+        let mut transform = Value::Null;
+        let mut placement_source = menu::PlacementSource::Unresolved;
         let mut sprite = Value::Null;
 
         // g4tx explicite (param `Texture`) OU dérivé co-localisé du g4pkm (cas mainmenu01, cf.
@@ -3016,10 +3024,13 @@ fn collect_layout_objects_with_lookup(
             if let Some(tex) = g4tx::select_main_texture(&parsed, base) {
                 let (w, h) = (tex.width.max(0) as u32, tex.height.max(0) as u32);
                 let st = menu::place_on_canvas(&skel, w, h);
-                transform = json!({
+                if !skel.bones.is_empty() {
+                    placement_source = menu::PlacementSource::from_g4pkm(&skel);
+                    transform = json!({
                     "x": st.x_px, "y": st.y_px, "scaleX": st.scale_x, "scaleY": st.scale_y,
                     "rot": st.rot, "anchorX": 0.5, "anchorY": 0.5
-                });
+                    });
+                }
                 // logicalPath = chemin VFS sans `data/` ; pngUrl = `/<logical>` en `.png`.
                 let logical = g4tx_vfs
                     .strip_prefix("data/")
@@ -3048,11 +3059,15 @@ fn collect_layout_objects_with_lookup(
             .unwrap_or_default();
         for (i, (x, y)) in poses_attache.iter().enumerate() {
             let mut t = transform.clone();
+            if t.is_null() {
+                t = json!({"scaleX": 1.0, "scaleY": 1.0, "rot": 0.0, "anchorX": 0.5, "anchorY": 0.5});
+            }
             t["x"] = json!(x);
             t["y"] = json!(y);
             objects.push(LayoutObj {
                 name: obj.name.clone(),
                 transform: t,
+                placement_source: menu::PlacementSource::AttachLocator,
                 draw_priority,
                 draw_type,
                 camera,
@@ -3080,6 +3095,7 @@ fn collect_layout_objects_with_lookup(
         objects.push(LayoutObj {
             name: obj.name,
             transform,
+            placement_source,
             draw_priority,
             draw_type,
             camera,
@@ -3689,30 +3705,15 @@ fn cmd_export_layout_runtime(
         o.runtime = Value::Object(rt);
     }
 
-    // 5b) ONGLETS D'EN-TÊTE VIRTUELS : les 9 onglets du main_menu sont des sous-items absents de
-    //     l'objbin (cf. MEMORY menu-rendering-data-trilogy + main_menu_1.02.92.00). Issus de la
-    //     VRAIE logique du script (GetSortOfTabs -> GetMenuObjectNameFromTabType -> GetTabTextIdCRC),
-    //     on les AJOUTE comme objets de layout (légitime : ce sont les vrais onglets). Placement
-    //     dérivé : barre horizontale en haut (transform exact non disponible côté objbin).
+    // Keep observed runtime-created tabs in the scene, but do not invent their placement.
+    // Their native locator/transform and paint priority have not been resolved.
     let static_hashes: std::collections::HashSet<u32> =
         objects.iter().map(|o| crc32(o.name.as_bytes())).collect();
-    let n_tab_total = header_tabs.len();
     let mut n_tabs = 0usize;
     for (hash, tab) in &header_tabs {
         if static_hashes.contains(hash) {
             continue; // déjà présent dans l'objbin (n'arrive pas pour le main_menu) -> pas de doublon
         }
-        // Position dérivée selon l'ORDRE VISUEL de l'onglet (tab.index = ordre GetSortOfTabs).
-        let frac = if n_tab_total > 1 {
-            tab.index as f64 / (n_tab_total as f64 - 1.0)
-        } else {
-            0.0
-        };
-        let x = 180.0 + frac * 920.0;
-        let transform = json!({
-            "x": x, "y": 44.0, "scaleX": 1.0, "scaleY": 1.0,
-            "rot": 0.0, "anchorX": 0.5, "anchorY": 0.5
-        });
         let text = if tab.text_id != 0 {
             Value::String(format!("0x{:08X}", tab.text_id))
         } else {
@@ -3729,8 +3730,9 @@ fn cmd_export_layout_runtime(
         }
         objects.push(LayoutObj {
             name: format!("mainmenu_header_tab_{:02}", tab.tab_type),
-            transform,
-            draw_priority: 1000, // au-dessus du fond/contenu (en-tête au premier plan)
+            transform: Value::Null,
+            placement_source: menu::PlacementSource::Unresolved,
+            draw_priority: 0, // Storage ordering only: unresolved objects are not rendered.
             draw_type: 0,
             camera: 0,
             sprite: Value::Null,
@@ -3743,7 +3745,7 @@ fn cmd_export_layout_runtime(
         });
         n_tabs += 1;
     }
-    // Re-tri back-to-front (les onglets injectés à priorité 1000 vont au premier plan).
+    // Preserve deterministic storage order; unresolved objects are excluded by renderers.
     objects.sort_by_key(|o| o.draw_priority);
     let n_matched_total = n_matched + n_tabs;
 
@@ -3786,11 +3788,13 @@ fn cmd_export_layout_runtime(
         "screen": screen_name,
         "locale": MENU_LOCALE,
         "canvas": { "w": 1280, "h": 720 },
-        "generatedBy": "runtime-lua",
+        "generatedBy": if script_reports.is_empty() { "static-assets" } else { "runtime-lua" },
         "runtimeScenes": runtime_scenes,
         "objects": json_objects,
         "runtimeSummary": {
             "observedNativeFields": observed_native.map_or(0, |state| state.observed_field_count()),
+            "unresolvedVisiblePlacements": objects.iter().filter(|object| object.visible && !object.placement_source.has_placement()).count(),
+            "ancestorFallbackPlacements": objects.iter().filter(|object| object.placement_source == menu::PlacementSource::G4pkmAncestorFallback).count(),
             "scripts": script_names,
             "decodedScripts": decoded_scripts,
             "decodeErrors": decode_errors,
@@ -3882,12 +3886,13 @@ fn cmd_export_layout_runtime(
         );
     }
     if n_matched_total == 0 {
-        println!(
-            "  NOTE honnête : 0 objet muté par le runtime. Le chemin driver -> MenuState -> layout \
-             est CÂBLÉ et exécute les vrais scripts, mais `GetItemButtonNum` (fonction DU script) \
-             lit l'état scène/save C++ que niers ne fournit pas encore => OnSetupLayer crée 0 objet. \
-             Couche données runtime à compléter pour 100% comme nie.exe (cf. DESIGN.md §13)."
-        );
+        if script_reports.is_empty() {
+            println!("  No scripts executed; exported static asset state only.");
+        } else {
+            println!(
+                "  No runtime objects matched the layout; unresolved inputs remain in runtimeSummary."
+            );
+        }
     }
     Ok(())
 }

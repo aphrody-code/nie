@@ -320,11 +320,12 @@ describe("lireLayout", () => {
 describe("bilanLayout sur mainmenu01", () => {
 	const bilan = bilanLayout(LAYOUT);
 
-	test("le runtime compte 30 objets, 21 sprites et 19 valeurs de texte", () => {
+	test("runtime retains 30 objects and excludes 9 unresolved tabs from drawable text", () => {
 		expect(bilan.total).toBe(30);
 		expect(bilan.visibles).toBe(22);
 		expect(bilan.avecSprite).toBe(21);
-		expect(bilan.avecTexte).toBe(19);
+		expect(bilan.avecTexte).toBe(10);
+		expect(bilan.unresolvedVisiblePlacements).toBe(9);
 	});
 
 	test("le runtime ne garde aucun objet visible muet", () => {

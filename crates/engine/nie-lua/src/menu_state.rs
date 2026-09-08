@@ -217,6 +217,116 @@ impl MenuState {
     }
 }
 
+/// Sparse native observations: an absent descriptor key is unobserved, while an
+/// explicit `null` descriptor proves that native lookup found no entry. Values
+/// are indexed separately so missing saved data never becomes an invented zero.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(bound(deserialize = "T: serde::Deserialize<'de>"))]
+pub struct ObservedMenuFlags<T, const CAPACITY: usize> {
+    #[serde(default, deserialize_with = "deserialize_flag_descriptors")]
+    pub descriptors: BTreeMap<u32, Option<u16>>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_flag_values::<_, T, CAPACITY>"
+    )]
+    pub values: BTreeMap<u16, T>,
+}
+
+fn deserialize_bounded_flag_map<'de, D, K, V, F>(
+    deserializer: D,
+    capacity: usize,
+    valid_key: F,
+) -> Result<BTreeMap<K, V>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    K: serde::Deserialize<'de> + Ord,
+    V: serde::Deserialize<'de>,
+    F: Fn(&K) -> bool,
+{
+    struct MapVisitor<K, V, F> {
+        capacity: usize,
+        valid_key: F,
+        marker: std::marker::PhantomData<(K, V)>,
+    }
+    impl<'de, K, V, F> serde::de::Visitor<'de> for MapVisitor<K, V, F>
+    where
+        K: serde::Deserialize<'de> + Ord,
+        V: serde::Deserialize<'de>,
+        F: Fn(&K) -> bool,
+    {
+        type Value = BTreeMap<K, V>;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("a bounded map of observed native flags")
+        }
+        fn visit_map<A: serde::de::MapAccess<'de>>(
+            self,
+            mut access: A,
+        ) -> Result<Self::Value, A::Error> {
+            let mut result = BTreeMap::new();
+            while let Some((key, value)) = access.next_entry::<K, V>()? {
+                if result.len() >= self.capacity || !(self.valid_key)(&key) {
+                    return Err(serde::de::Error::custom(
+                        "observed flag map exceeds its native/input bounds",
+                    ));
+                }
+                if result.insert(key, value).is_some() {
+                    return Err(serde::de::Error::custom("duplicate observed flag key"));
+                }
+            }
+            Ok(result)
+        }
+    }
+    deserializer.deserialize_map(MapVisitor {
+        capacity,
+        valid_key,
+        marker: std::marker::PhantomData,
+    })
+}
+
+fn deserialize_flag_descriptors<'de, D>(
+    deserializer: D,
+) -> Result<BTreeMap<u32, Option<u16>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    // Input resource bound, not a claim about native hash-table capacity.
+    deserialize_bounded_flag_map(deserializer, 65_536, |_: &u32| true)
+}
+
+fn deserialize_flag_values<'de, D, T, const CAPACITY: usize>(
+    deserializer: D,
+) -> Result<BTreeMap<u16, T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    deserialize_bounded_flag_map(deserializer, CAPACITY, |index: &u16| {
+        usize::from(*index) < CAPACITY
+    })
+}
+
+impl<T: Copy + Default, const CAPACITY: usize> ObservedMenuFlags<T, CAPACITY> {
+    fn resolve(&self, key: u32) -> Option<T> {
+        if key == 0 {
+            // Native descriptor lookup rejects zero hashes before accessing its table.
+            return Some(T::default());
+        }
+        match self.descriptors.get(&key)? {
+            None => Some(T::default()),
+            Some(index) => {
+                // All three native getters read index zero for an out-of-range descriptor.
+                let index = if usize::from(*index) < CAPACITY {
+                    *index
+                } else {
+                    0
+                };
+                self.values.get(&index).copied()
+            }
+        }
+    }
+}
+
 /// Native menu inputs observed by a host; absent values remain unresolved.
 ///
 /// The offsets deliberately retain native names: the handlers prove these loads,
@@ -235,6 +345,18 @@ pub struct ObservedMenuNativeState {
     pub context_69a8_field_9f10: Option<u8>,
     /// Byte at `*(context + 0x69a8) + 0x9f13`.
     pub context_69a8_field_9f13: Option<u8>,
+    /// Category 0 bit storage at `*(context + 0x69b8) + 8` (5120 bits).
+    /// Command 0x381D0910 → handler 0x140c5d260 → getter 0x140e88ee0.
+    /// Dispatch pair verified at binary file offset 0x1cb74a0.
+    pub category_0_flags: Option<ObservedMenuFlags<bool, 5120>>,
+    /// Category 1 byte storage at `*(context + 0x69b8) + 0x288` (640 bytes).
+    /// Command 0xA50C0747 → handler 0x140c5d1f0 → getter 0x140e89310.
+    /// Dispatch pair verified at binary file offset 0x1cb74b0.
+    pub category_1_values: Option<ObservedMenuFlags<u8, 640>>,
+    /// Category 5 bit storage at `*(context + 0x69b8) + 0x19560` (256 bits).
+    /// Command 0x88154DF4 → handler 0x140c5d110 → getter 0x140e8b850.
+    /// Dispatch pair verified at binary file offset 0x1cb74d0.
+    pub category_5_flags: Option<ObservedMenuFlags<bool, 256>>,
 }
 
 /// Typed Lua result for an observed native-state query.
@@ -255,6 +377,25 @@ impl ObservedMenuNativeState {
         .iter()
         .filter(|value| value.is_some())
         .count()
+            + usize::from(self.category_0_flags.is_some())
+            + usize::from(self.category_1_values.is_some())
+            + usize::from(self.category_5_flags.is_some())
+    }
+
+    /// Resolve observed keyed flags without requiring unrelated native mode bytes.
+    /// Descriptor absence is resolved only when explicitly observed as `null`.
+    pub fn resolve_general_command_with_key(
+        &self,
+        command_id: u32,
+        key: Option<u32>,
+    ) -> Option<ObservedMenuQueryValue> {
+        use ObservedMenuQueryValue::{Boolean, Byte};
+        match command_id {
+            0x381D_0910 => self.category_0_flags.as_ref()?.resolve(key?).map(Boolean),
+            0xA50C_0747 => self.category_1_values.as_ref()?.resolve(key?).map(Byte),
+            0x8815_4DF4 => self.category_5_flags.as_ref()?.resolve(key?).map(Boolean),
+            _ => self.resolve_general_command(command_id),
+        }
     }
 
     /// Resolve only commands whose complete read/branch behavior is known.
@@ -287,6 +428,133 @@ mod observed_native_tests {
     use super::*;
 
     #[test]
+    fn flag_queries_distinguish_unobserved_missing_and_saved_false() {
+        use ObservedMenuQueryValue::Boolean;
+        let mut state = ObservedMenuNativeState::default();
+        assert_eq!(
+            state.resolve_general_command_with_key(0x8815_4DF4, Some(42)),
+            None
+        );
+        let mut flags = ObservedMenuFlags::<bool, 256>::default();
+        flags.descriptors.insert(42, None);
+        state.category_5_flags = Some(flags);
+        assert_eq!(
+            state.resolve_general_command_with_key(0x8815_4DF4, Some(42)),
+            Some(Boolean(false))
+        );
+        let flags = state.category_5_flags.as_mut().unwrap();
+        flags.descriptors.insert(42, Some(7));
+        assert_eq!(
+            state.resolve_general_command_with_key(0x8815_4DF4, Some(42)),
+            None
+        );
+        state
+            .category_5_flags
+            .as_mut()
+            .unwrap()
+            .values
+            .insert(7, false);
+        assert_eq!(
+            state.resolve_general_command_with_key(0x8815_4DF4, Some(42)),
+            Some(Boolean(false))
+        );
+        state
+            .category_5_flags
+            .as_mut()
+            .unwrap()
+            .values
+            .insert(7, true);
+        assert_eq!(
+            state.resolve_general_command_with_key(0x8815_4DF4, Some(42)),
+            Some(Boolean(true))
+        );
+        assert_eq!(
+            state.resolve_general_command_with_key(0x8815_4DF4, Some(43)),
+            None
+        );
+        assert_eq!(
+            state.resolve_general_command_with_key(0x8815_4DF4, None),
+            None
+        );
+    }
+
+    #[test]
+    fn flag_categories_do_not_alias_or_require_a_mode_byte() {
+        use ObservedMenuQueryValue::{Boolean, Byte};
+        let state = ObservedMenuNativeState {
+            category_0_flags: Some(ObservedMenuFlags {
+                descriptors: BTreeMap::from([(42, Some(1))]),
+                values: BTreeMap::from([(1, true)]),
+            }),
+            category_1_values: Some(ObservedMenuFlags {
+                descriptors: BTreeMap::from([(42, Some(2))]),
+                values: BTreeMap::from([(2, 255)]),
+            }),
+            category_5_flags: Some(ObservedMenuFlags {
+                descriptors: BTreeMap::from([(42, Some(3))]),
+                values: BTreeMap::from([(3, false)]),
+            }),
+            ..Default::default()
+        };
+        assert_eq!(
+            state.resolve_general_command_with_key(0x381D_0910, Some(42)),
+            Some(Boolean(true))
+        );
+        assert_eq!(
+            state.resolve_general_command_with_key(0xA50C_0747, Some(42)),
+            Some(Byte(255))
+        );
+        assert_eq!(
+            state.resolve_general_command_with_key(0x8815_4DF4, Some(42)),
+            Some(Boolean(false))
+        );
+        assert_eq!(state.observed_field_count(), 3);
+    }
+
+    #[test]
+    fn descriptor_bounds_use_observed_index_zero_without_defaulting_missing_storage() {
+        fn check<const CAPACITY: usize>() {
+            let last = (CAPACITY - 1) as u16;
+            let mut flags = ObservedMenuFlags::<u8, CAPACITY> {
+                descriptors: BTreeMap::from([
+                    (1, Some(last)),
+                    (2, Some(CAPACITY as u16)),
+                    (3, Some(u16::MAX)),
+                ]),
+                values: BTreeMap::from([(last, 255)]),
+            };
+            assert_eq!(flags.resolve(1), Some(255));
+            assert_eq!(flags.resolve(2), None);
+            assert_eq!(flags.resolve(3), None);
+            flags.values.insert(0, 42);
+            assert_eq!(flags.resolve(2), Some(42));
+            assert_eq!(flags.resolve(3), Some(42));
+            assert_eq!(flags.resolve(0), Some(0));
+        }
+        check::<256>();
+        check::<640>();
+        check::<5120>();
+    }
+
+    #[test]
+    fn observed_flag_deserialization_rejects_out_of_bounds_and_duplicate_entries() {
+        use serde::de::value::{Error, MapDeserializer};
+        let valid = MapDeserializer::<_, Error>::new([(255u16, true)].into_iter());
+        assert_eq!(
+            deserialize_flag_values::<_, bool, 256>(valid)
+                .unwrap()
+                .get(&255),
+            Some(&true)
+        );
+        let invalid = MapDeserializer::<_, Error>::new([(256u16, true)].into_iter());
+        assert!(deserialize_flag_values::<_, bool, 256>(invalid).is_err());
+        let duplicate = MapDeserializer::<_, Error>::new([(1u16, true), (1, false)].into_iter());
+        assert!(deserialize_flag_values::<_, bool, 256>(duplicate).is_err());
+        let excessive = MapDeserializer::<_, Error>::new((0..65_537u32).map(|key| (key, ())));
+        assert!(deserialize_flag_descriptors(excessive).is_err());
+    }
+
+    #[test]
     fn native_queries_preserve_unsigned_bytes_and_both_state_branches() {
         use ObservedMenuQueryValue::{Boolean, Byte};
         for native_byte in [0, 1, 2, 3, u8::MAX] {
@@ -294,6 +562,7 @@ mod observed_native_tests {
                 context_69c8_field_2cac6f: Some(native_byte),
                 context_69a8_field_9f10: Some(200),
                 context_69a8_field_9f13: Some(255),
+                ..Default::default()
             };
             assert_eq!(
                 observed.resolve_general_command(0x1953_DBC1),
