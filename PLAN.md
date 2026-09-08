@@ -553,3 +553,27 @@ The Rust gallery query passed 4 tests and name query passed 5 tests, including i
 isolation and malformed-value errors. Native wiki clippy passed after the final correction;
 site compilation passed with existing warnings, not a clean site clippy result. No browser or
 publication was performed.
+
+## Cross-surface shared-code proof — 2026-09-08
+
+The requested invariant is that portable domain behavior has one library owner consumed by the
+site/backend, CLI, Inacord and MCP. Transport and OS integration remain explicit adapters; sharing
+their Axum, Clap, MCP or Tauri plumbing would be neither meaningful nor safe. The first executable
+source audit is `crates/tools/audit-shared-surfaces.sh`; its strict mode is the completion gate and
+currently fails, so full convergence is not claimed.
+
+The audit proves that the standalone `nie-mcp` executable enters the importable `nie-cli` library
+in-process and that both surfaces share command parsing and dispatch. It also records shared engine
+dependencies across the other hosts. Independent adversarial inspection found concrete remaining
+violations: duplicated icon/mode aggregation between CLI and site, copied T2B conversion and joined
+game-data policy in the Tauri host, a generic SQLite query engine owned by an HTTP route, a divergent
+TypeScript GLB decoder, and geometry/atlas aggregation owned by site routes. Host-only filesystem,
+process, clipboard, updater and mutation operations are separately classified and are not required
+on the public site.
+
+Acceptance requires a canonical capability manifest, one importable owner for every portable row,
+thin adapter tests for each exposed surface, and normalized fixture equality across CLI, HTTP,
+Tauri, MCP and Wasm where applicable. The strict audit must reach zero failed invariants and the
+applicable non-zero Cargo/Bun/interaction gates must pass. The next extraction target is the copied
+T2B conversion in `apps/inacord/src-tauri/src/game_data.rs`, followed by the route-owned SQLite
+query engine and the browser GLB decoder.

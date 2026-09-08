@@ -57,3 +57,47 @@ explicit instead of choosing an unrelated file by substring or basename.
 Catalogue state now subscribes to the shared browser location snapshot and its query writes
 preserve the host history state. Explorer links also use the host router and restore folder
 selection on history traversal. These source fixes still require final interaction validation.
+
+## Source-level sharing audit
+
+The requested universal statement (site/backend, CLI, Inacord and MCP share **all** code) is not
+currently true. The strongest source evidence is narrower:
+
+- Browser and desktop share the mount entry and build owner: `apps/nie-web/src/main.tsx` imports
+  `#nie-host`; `BrowserHost.tsx` mounts the browser application while
+  `desktop/DesktopHost.tsx` mounts the retained Inacord application. This proves build/entry
+  convergence, not a common application shell or common feature registry: the two host modules
+  still import different `App` implementations.
+- Tauri command registration and generated TypeScript bindings do have one list:
+  `apps/inacord/src-tauri/src/lib.rs::specta_builder`. Runtime registration and
+  `apps/nie-web/src/desktop/lib/bindings.ts` generation consume that list. This proves consistency
+  inside the desktop IPC surface; it does not prove that HTTP, CLI or MCP expose the same commands.
+- Core calls are genuinely shared where adapters invoke library owners. Examples include
+  `nie_explore::listing::{ls_paged,find,find_paged}`, `nie_explore::related::legacy_search`,
+  `nie_explore::spatial_preview`, `nie_core::growth::calculate_stats`, `nie_viola`, `nie_trace`,
+  `nie_save` and `nie_formats`. The table above records the corresponding HTTP surface where one
+  exists.
+- The MCP server is not an independent complete surface: `crates/tools/nie-mcp` is a package
+  wrapper, while the tool implementations and router live in `crates/tools/nie-cli/src/mcp.rs`.
+  That is direct CLI/MCP code sharing, but it says nothing about commands absent from that router
+  or from the site.
+
+### Current counterexamples to complete sharing
+
+| Counterexample | Source evidence | Required convergence |
+| --- | --- | --- |
+| Separate browser and desktop application trees | `apps/nie-web/src/BrowserHost.tsx` imports `./App`; `apps/nie-web/src/desktop/DesktopHost.tsx` imports `./App` in the desktop directory. | Extract one application shell/view registry into shared presentation and inject host capabilities. |
+| Desktop game-data orchestration and DTOs | `apps/inacord/src-tauri/src/game_data.rs` implements the joins and flattened IPC DTOs for skills, items, characters, teams, movies, music, dictionary, drops and other families. | Move reusable joins/DTO contracts to `nie-data`/`nie-explore`; leave only IPC conversion in Tauri, then bind the same functions from site/CLI/MCP. |
+| Explicitly copied conversion | `game_data.rs::t2b_value_to_json` documents that `nie_explore::bridge::t2b_value_to_json` is private and therefore reproduced locally. | Make the shared conversion public (or expose a higher-level shared operation) and delete the copy. |
+| Desktop-only save and mutation lifecycle | `apps/inacord/src-tauri/src/lib.rs` owns `SaveState`, save open/blob/export commands, loose override writes and disk destinations. | Separate portable save/mod operations into `nie-save`/`nie-explore`; retain file pickers and destination writes as explicit native capabilities. |
+| Desktop-only raw archive session | `RawCpkState` and `raw_cpk_*` commands in `apps/inacord/src-tauri/src/lib.rs` keep an open archive and implement extraction/preview lifecycle. | Extract reusable session/read/export operations; keep native destination selection as an adapter. |
+| Desktop-only media catalogue orchestration | `apps/inacord/src-tauri/src/video.rs` and the `video_*` commands assemble catalogue, preload and playback data around shared format/soundtrack primitives. | Give catalogue and media resolution a library owner used by HTTP/CLI/MCP as well as Tauri. |
+| Native-only process/tool integration | `re_trace.rs`, `live_mod.rs`, `scene_editor.rs`, Blender commands, clipboard, trash and MCP installation require local OS/process authority. | Keep these as native host capabilities; do not claim public-site parity or expose unsafe mutations merely to equalize surfaces. |
+| Site routes without mounted desktop consumers | Wiki cards/search, optional export, declared relationships, motion clips and growth interpolation are registered by `nie-site`, but the inspected frontend packages have no consumers for several of them. | Add host-neutral contracts and actual shared-UI consumers, followed by adapter and interaction tests. |
+
+Consequently, the machine-verifiable completion proof cannot be a route/command name count. A
+valid proof must map each portable capability to one library function and show tests from every
+applicable adapter (HTTP, CLI, MCP, Tauri and Wasm), while separately marking OS-only capabilities.
+It must also prove that both host builds mount the same feature registry and run non-zero
+interaction tests. Until those conditions hold, this file is an inventory of proven sharing and
+explicit counterexamples, not a parity certificate.
