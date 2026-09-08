@@ -1,9 +1,10 @@
 //! One read-only SQL contract for local SQLite mirrors and PostgreSQL services.
 //!
-//! The crate intentionally owns neither schemas nor migrations. A host passes an
-//! explicit database URL and a query that has been accepted as read-only. SQLite
-//! uses a read-only file handle and PostgreSQL uses a parameterized, asynchronous
-//! `tokio-postgres` client whose session is marked read-only by the server.
+//! The crate owns reusable migration runners but never a product schema. A host
+//! supplies its explicit schema migrations and database URL; read callers supply
+//! a query that has already been accepted as read-only. SQLite uses a read-only
+//! file handle and PostgreSQL uses a parameterized, asynchronous `tokio-postgres`
+//! client whose session is marked read-only by the server.
 
 #![forbid(unsafe_code)]
 
