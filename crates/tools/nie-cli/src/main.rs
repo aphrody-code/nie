@@ -154,6 +154,21 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// Inventorie les tags de langue réellement présents et leurs ressources VFS localisées.
+    ///
+    /// Les langues proviennent uniquement de `common/text/<locale>` ; les textures, polices et
+    /// fichiers Criware sont ensuite comptés quand ils portent ce même segment de chemin.
+    Locales {
+        /// Racine du jeu (défaut : résolution automatique).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Nombre de chemins VFS conservés par catégorie et par langue (0 = aucun échantillon).
+        #[arg(long, default_value_t = 3)]
+        samples: usize,
+        /// Sortie JSON plutôt qu'un résumé lisible.
+        #[arg(long)]
+        json: bool,
+    },
     /// Convertit un asset du jeu vers un format d'échange.
     ///
     /// `decode` rend la représentation canonique d'un fichier (JSON, ou PNG pour une texture) ;
@@ -2029,6 +2044,11 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         }
         Cmd::Steam { op } => steam_cmd(op),
         Cmd::Info { game_dir, json } => info_cmd(game_dir, json),
+        Cmd::Locales {
+            game_dir,
+            samples,
+            json,
+        } => locales_cmd(game_dir, samples, json),
         Cmd::Convert {
             src,
             to,
@@ -4028,6 +4048,39 @@ lancable    oui — les 5 composants sont la"
             "
 lancable    NON — {manquants} composant(s) manquant(s)"
         );
+    }
+    Ok(())
+}
+
+/// Reports only locale tags and resource paths that are present in the mounted VFS.
+///
+/// The shared classifier derives tags from `common/text`, then sees whether the same exact tag
+/// appears in menu textures, font resources, and Criware containers. It deliberately does not
+/// turn an `<LG>` template into a path unless the resulting resource is indexed by the VFS.
+fn locales_cmd(game_dir: Option<PathBuf>, samples: usize, json: bool) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+    let report =
+        nie_formats::locale::discover_locale_assets(vfs.iter().map(|(path, _)| path), samples);
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        return Ok(());
+    }
+
+    if report.locales.is_empty() {
+        println!("locales  aucune langue prouvée par data/common/text dans ce VFS");
+        return Ok(());
+    }
+    for locale in report.locales {
+        println!("{}", locale.locale);
+        for (kind, count) in locale.kinds {
+            println!("  {kind:<8} {count}");
+            if let Some(paths) = locale.samples.get(&kind) {
+                for path in paths {
+                    println!("    {path}");
+                }
+            }
+        }
     }
     Ok(())
 }

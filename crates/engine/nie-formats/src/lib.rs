@@ -109,6 +109,8 @@ pub mod imgmetric;
 pub mod level5;
 #[cfg(feature = "std")]
 pub mod lip;
+/// VFS-derived locale discovery for text, textures, fonts, and Criware assets.
+pub mod locale;
 #[cfg(feature = "std")]
 pub mod menu;
 /// Portable, measured VFS presentations shared by native and browser hosts.
