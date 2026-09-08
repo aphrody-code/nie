@@ -137,6 +137,12 @@ define_cli_tools!(
         "Inspect the game installation, executable fingerprint, VFS mount, and launch chain."
     ),
     (
+        CliLocales,
+        "cli_locales",
+        "locales",
+        "Inventory the locale tags and localized VFS resources present in the game installation."
+    ),
+    (
         CliConvert,
         "cli_convert",
         "convert",
@@ -469,58 +475,12 @@ fn query_re_rows(
     sql: &str,
     limit: usize,
 ) -> anyhow::Result<(Vec<Value>, bool, Vec<String>)> {
-    use nie_index::rusqlite::types::ValueRef;
-
-    nie_wiki::query::check_readonly_sql(sql)?;
-    let mut statement = connection.prepare(sql)?;
-    anyhow::ensure!(
-        statement.readonly(),
-        "SQLite rejected the query as non-read-only"
-    );
-    let columns = statement
-        .column_names()
-        .into_iter()
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
-    let mut cursor = statement.query([])?;
-    let mut rows = Vec::new();
-    let mut truncated = false;
-    while let Some(row) = cursor.next()? {
-        if rows.len() >= limit {
-            truncated = true;
-            break;
-        }
-        let mut object = serde_json::Map::new();
-        for (index, column) in columns.iter().enumerate() {
-            let value = match row.get_ref(index)? {
-                ValueRef::Null => Value::Null,
-                ValueRef::Integer(value) if is_address_column(column) => {
-                    Value::String(format!("0x{value:x}"))
-                }
-                ValueRef::Integer(value)
-                    if (-(1_i64 << 53) + 1..=(1_i64 << 53) - 1).contains(&value) =>
-                {
-                    Value::Number(value.into())
-                }
-                ValueRef::Integer(value) => Value::String(value.to_string()),
-                ValueRef::Real(value) => serde_json::Number::from_f64(value)
-                    .map(Value::Number)
-                    .unwrap_or(Value::Null),
-                ValueRef::Text(value) => Value::String(String::from_utf8_lossy(value).into_owned()),
-                ValueRef::Blob(value) => Value::String(format!("<blob {} bytes>", value.len())),
-            };
-            object.insert(column.clone(), value);
-        }
-        rows.push(Value::Object(object));
-    }
-    Ok((rows, truncated, columns))
-}
-
-fn is_address_column(column: &str) -> bool {
-    matches!(
-        column,
-        "vaddr" | "from_addr" | "to_addr" | "addr" | "base_addr" | "va" | "target_addr"
-    )
+    let page = nie_wiki::query::exec_readonly_sql_page(
+        connection,
+        sql,
+        nie_wiki::query::SqliteQueryOptions::re_database(limit),
+    )?;
+    Ok((page.rows, page.truncated, page.columns))
 }
 
 fn safe_vfs_path(path: &str) -> Result<&str, String> {
@@ -1032,8 +992,12 @@ impl NiersMcpServer {
         let limit = request.limit.unwrap_or(50).clamp(1, 1_000);
         blocking_json(move || {
             let connection = open_re_database()?;
-            let (rows, truncated, columns) = query_re_rows(&connection, &request.sql, limit)?;
-            Ok(json!({ "rows": rows, "truncated": truncated, "columns": columns }))
+            let page = nie_wiki::query::exec_readonly_sql_page(
+                &connection,
+                &request.sql,
+                nie_wiki::query::SqliteQueryOptions::re_database(limit),
+            )?;
+            Ok(json!({ "rows": page.rows, "truncated": page.truncated, "columns": page.columns }))
         })
         .await
     }
@@ -1356,14 +1320,14 @@ mod tests {
         use clap::CommandFactory as _;
 
         let tools = NiersMcpServer::all_tools().list_all();
-        assert_eq!(tools.len(), 56);
+        assert_eq!(tools.len(), 60);
         let commands = crate::Cli::command()
             .get_subcommands()
             .map(clap::Command::get_name)
             .filter(|name| *name != "mcp")
             .map(str::to_owned)
             .collect::<Vec<_>>();
-        assert_eq!(commands.len(), 40);
+        assert_eq!(commands.len(), 41);
         for command in commands {
             let tool_name = format!("cli_{}", command.replace('-', "_"));
             assert!(
@@ -1396,31 +1360,6 @@ mod tests {
         assert!(safe_vfs_path("data/../file.g4tx").is_err());
         assert_eq!(vfs_extension("data/example.cfg.bin"), ".cfg.bin");
         assert_eq!(vfs_extension("data/example.lua"), ".lua");
-    }
-
-    #[test]
-    fn re_queries_are_read_only_bounded_and_address_safe() {
-        let connection = nie_index::rusqlite::Connection::open_in_memory().expect("memory DB");
-        connection
-            .execute_batch(
-                "CREATE TABLE sample (vaddr INTEGER, name TEXT, big INTEGER);\
-                 INSERT INTO sample VALUES\
-                   (5368709120, 'first', 9007199254740992),\
-                   (5368709121, 'second', 2);",
-            )
-            .expect("fixture schema");
-        let (rows, truncated, columns) = query_re_rows(
-            &connection,
-            "SELECT vaddr, name, big FROM sample ORDER BY vaddr",
-            1,
-        )
-        .expect("read-only query");
-        assert_eq!(columns, ["vaddr", "name", "big"]);
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0]["vaddr"], "0x140000000");
-        assert_eq!(rows[0]["big"], "9007199254740992");
-        assert!(truncated);
-        assert!(query_re_rows(&connection, "DELETE FROM sample", 1).is_err());
     }
 
     #[tokio::test]
