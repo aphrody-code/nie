@@ -54,21 +54,6 @@ pub struct LocaleAssetReport {
     pub locales: Vec<LocaleAssets>,
 }
 
-fn text_locale(path: &str) -> Option<&str> {
-    let mut segments = path.split('/');
-    match (
-        segments.next(),
-        segments.next(),
-        segments.next(),
-        segments.next(),
-    ) {
-        (Some("data"), Some("common"), Some("text"), Some(locale)) if !locale.is_empty() => {
-            Some(locale)
-        }
-        _ => None,
-    }
-}
-
 fn kind_for(path: &str, locale: &str) -> LocalizedAssetKind {
     if path.starts_with("data/common/text/")
         && path
