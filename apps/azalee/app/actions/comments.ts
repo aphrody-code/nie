@@ -4,6 +4,14 @@ import { getServerSession } from "@/lib/auth-helpers";
 import { isAdminRole } from "@/lib/auth-roles";
 import { getPgPool } from "@/lib/db/pg";
 import { createClient } from "@/lib/supabase/server";
+import {
+	commentReactionArticleId,
+	countRepliesByParentId,
+	normalizeCommentContent,
+	normalizeCommentIdentifier,
+	sortComments,
+	type CommentSortOrder,
+} from "@niers/inacord-ui/lib/comments";
 
 export interface Comment {
 	id: string;
@@ -46,8 +54,9 @@ export interface Reply {
  */
 export async function getComments(
 	articleId: string,
-	sortBy: "newest" | "oldest" | "popular" = "newest"
+	sortBy: CommentSortOrder = "newest"
 ): Promise<Comment[]> {
+	articleId = normalizeCommentIdentifier(articleId, "article");
 	const supabase = await createClient();
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const client = supabase as any;
@@ -88,16 +97,13 @@ export async function getComments(
 		.select("parent_id")
 		.in("parent_id", commentIds);
 
-	const replyCountMap = new Map<string, number>();
-	if (repliesData) {
-		for (const row of repliesData as Array<{ parent_id: string }>) {
-			replyCountMap.set(row.parent_id, (replyCountMap.get(row.parent_id) || 0) + 1);
-		}
-	}
+	const replyCountMap = countRepliesByParentId(
+		(repliesData ?? []).map((row: { parent_id: string | null }) => ({ parentId: row.parent_id }))
+	);
 
 	// Récupérer les likes (article_reactions avec reaction_type = 'comment_like'
 	// Et article_id formaté comme `comment:{commentId}`)
-	const commentRefIds = commentIds.map((id) => `comment:${id}`);
+	const commentRefIds = commentIds.map(commentReactionArticleId);
 
 	const { data: likesData } = await client
 		.from("article_reactions")
@@ -133,7 +139,7 @@ export async function getComments(
 				avatar_url: string | null;
 			} | null;
 		}) => {
-			const ref = `comment:${c.id}`;
+			const ref = commentReactionArticleId(c.id);
 			return {
 				author: {
 					avatar_url: c.profiles?.avatar_url ?? null,
@@ -155,23 +161,22 @@ export async function getComments(
 		}
 	);
 
-	if (sortBy === "popular") {
-		// Épinglés en premier, puis tri par likes décroissant
-		comments.sort((a, b) => {
-			if (a.is_pinned !== b.is_pinned) {
-				return a.is_pinned ? -1 : 1;
-			}
-			return b.likes - a.likes;
-		});
-	}
-
-	return comments;
+	return sortComments(
+		comments.map((comment) => ({
+			comment,
+			createdAt: comment.created_at,
+			isPinned: comment.is_pinned,
+			likes: comment.likes,
+		})),
+		sortBy
+	).map(({ comment }) => comment);
 }
 
 /**
  * Récupère les réponses à un commentaire spécifique.
  */
 export async function getReplies(parentId: string): Promise<Reply[]> {
+	parentId = normalizeCommentIdentifier(parentId);
 	const supabase = await createClient();
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const client = supabase as any;
@@ -240,8 +245,13 @@ export async function createComment(
 		throw new Error("Non authentifié");
 	}
 
-	const trimmed = content.trim();
-	if (trimmed.length === 0 || trimmed.length > 2000) {
+	articleId = normalizeCommentIdentifier(articleId, "article");
+	if (parentId !== undefined) parentId = normalizeCommentIdentifier(parentId);
+
+	let trimmed: string;
+	try {
+		trimmed = normalizeCommentContent(content);
+	} catch {
 		throw new Error("Le commentaire doit contenir entre 1 et 2000 caractères");
 	}
 
@@ -336,8 +346,11 @@ export async function updateComment(commentId: string, content: string): Promise
 		throw new Error("Non authentifié");
 	}
 
-	const trimmed = content.trim();
-	if (trimmed.length === 0 || trimmed.length > 2000) {
+	commentId = normalizeCommentIdentifier(commentId);
+	let trimmed: string;
+	try {
+		trimmed = normalizeCommentContent(content);
+	} catch {
 		throw new Error("Le commentaire doit contenir entre 1 et 2000 caractères");
 	}
 
@@ -431,6 +444,7 @@ export async function deleteComment(commentId: string): Promise<void> {
 		throw new Error("Non authentifié");
 	}
 
+	commentId = normalizeCommentIdentifier(commentId);
 	const userId = session.user.id;
 	const supabase = await createClient();
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -477,6 +491,7 @@ export async function pinComment(commentId: string): Promise<{ is_pinned: boolea
 		throw new Error("Non authentifié");
 	}
 
+	commentId = normalizeCommentIdentifier(commentId);
 	const userId = session.user.id;
 	const supabase = await createClient();
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -523,6 +538,7 @@ export async function pinComment(commentId: string): Promise<{ is_pinned: boolea
  * Lecture Postgres DIRECTE (bypass le Data API PostgREST — cf. lib/db/pg.ts).
  */
 export async function getCommentCount(articleId: string): Promise<number> {
+	articleId = normalizeCommentIdentifier(articleId, "article");
 	const pool = getPgPool();
 
 	try {
@@ -544,12 +560,15 @@ export async function getCommentCount(articleId: string): Promise<number> {
  * Lecture Postgres DIRECTE (bypass le Data API PostgREST — cf. lib/db/pg.ts).
  */
 export async function getCommentCounts(articleIds: string[]): Promise<Record<string, number>> {
-	if (articleIds.length === 0) {
+	const normalizedArticleIds = articleIds.map((articleId) =>
+		normalizeCommentIdentifier(articleId, "article")
+	);
+	if (normalizedArticleIds.length === 0) {
 		return {};
 	}
 
 	const result: Record<string, number> = {};
-	for (const id of articleIds) {
+	for (const id of normalizedArticleIds) {
 		result[id] = 0;
 	}
 
@@ -558,7 +577,7 @@ export async function getCommentCounts(articleIds: string[]): Promise<Record<str
 	try {
 		const { rows } = await pool.query<{ article_id: string }>(
 			"SELECT article_id FROM article_comments WHERE article_id = ANY($1)",
-			[articleIds]
+			[normalizedArticleIds]
 		);
 
 		for (const row of rows) {
@@ -583,12 +602,13 @@ export async function toggleCommentLike(
 		throw new Error("Non authentifié");
 	}
 
+	commentId = normalizeCommentIdentifier(commentId);
 	const userId = session.user.id;
 	const supabase = await createClient();
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const client = supabase as any;
 
-	const reactionArticleId = `comment:${commentId}`;
+	const reactionArticleId = commentReactionArticleId(commentId);
 
 	const { data: existing } = await client
 		.from("article_reactions")
