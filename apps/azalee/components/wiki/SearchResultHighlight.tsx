@@ -4,32 +4,15 @@
  * Material Design 3 component for highlighting matched portions of text
  */
 
+import {
+	SearchResultHighlight as SharedSearchResultHighlight,
+	type SearchResultHighlightProps as SharedSearchResultHighlightProps,
+} from "@niers/inacord-ui";
 import { highlightMatches } from "@rosegriffon/azalee/search/fuzzy-match";
-import { cn } from "@/lib/utils";
 
-interface SearchResultHighlightProps {
-	text: string;
-	query: string;
-	className?: string;
-}
+export type SearchResultHighlightProps = Omit<SharedSearchResultHighlightProps, "highlightMatches">;
 
-export function SearchResultHighlight({ text, query, className }: SearchResultHighlightProps) {
-	const parts = highlightMatches(text, query);
-
-	return (
-		<span className={cn("inline", className)}>
-			{parts.map((part, index) =>
-				part.highlight ? (
-					<mark
-						key={index}
-						className="bg-[var(--md-sys-color-tertiary-container)] text-[var(--md-sys-color-on-tertiary-container)] rounded-sm px-0.5 font-semibold"
-					>
-						{part.text}
-					</mark>
-				) : (
-					<span key={index}>{part.text}</span>
-				)
-			)}
-		</span>
-	);
+/** Azalée adapter: it keeps the public wiki fuzzy-match policy. */
+export function SearchResultHighlight(props: SearchResultHighlightProps) {
+	return <SharedSearchResultHighlight {...props} highlightMatches={highlightMatches} />;
 }

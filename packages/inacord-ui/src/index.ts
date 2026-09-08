@@ -131,6 +131,11 @@ export {
 	type ElementIconProps,
 	type ElementIconSize,
 } from "./components/wiki/wiki/ElementIcon";
+export {
+	SearchResultHighlight,
+	type SearchHighlightPart,
+	type SearchResultHighlightProps,
+} from "./components/wiki/wiki/SearchResultHighlight";
 
 // --- L'ecran des Options : les reglages d'Inacord, dans l'ecran du jeu ----------------------
 //
