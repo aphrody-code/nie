@@ -554,6 +554,22 @@ isolation and malformed-value errors. Native wiki clippy passed after the final 
 site compilation passed with existing warnings, not a clean site clippy result. No browser or
 publication was performed.
 
+## Native text and game-data surface — 2026-09-08
+
+The browser media surface now exposes a text explorer backed directly by the existing
+`/api/v1/text` owner. It lists the measured families available in the current URL language,
+loads a selected family through the paginated native decoder, filters within that family, and
+shows each rendered text with its hash and source VFS file. It therefore exercises the real
+`data/common/text` corpus without adding a JavaScript copy, collapsing repeated hashes, or
+claiming that every game-data relation is named.
+
+`nie-data::text` currently documents 45 canonical text family names. The text API publishes
+the actual discovered language/family corpus and keeps duplicate hash occurrences distinct.
+Its narrow parser gate passed 14 tests. The browser TypeScript check passed after adding the
+surface. Mapping every game-data table to a text-family/hash remains progressive work: new
+relations must be established by the owning decoder and native schema, then made visible through
+the shared resolver; they must not be guessed from filename prefixes.
+
 ## Cross-surface shared-code proof — 2026-09-08
 
 The requested invariant is that portable domain behavior has one library owner consumed by the

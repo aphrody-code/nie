@@ -1,5 +1,6 @@
 import { useResourceNames, resourceLabel } from "../game/resource-names";
 import { WebGallery } from "./WebGallery";
+import { TextCatalog } from "./TextCatalog";
 /**
  * Les quatre catalogues du jeu — textures, modèles, sons, vidéos — portés du wiki vers nie.
  *
@@ -236,6 +237,7 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 	const params = new URL(location, "http://localhost").searchParams;
 	const requested = params.get("vue");
 	const gallery = params.get("display") === "gallery";
+	const text = params.get("display") === "text";
 	const view = VIEWS.some(item => item.view === requested) ? requested as CatalogView : route;
 
 	/**
@@ -287,11 +289,27 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 				</TabsList>
 			</Tabs>
 
-			{view === "textures" && <button type="button" className="mb-3 rounded-full border px-4 py-2" aria-pressed={gallery}
- onClick={() => { const url = new URL(window.location.href); if (gallery) url.searchParams.delete("display"); else url.searchParams.set("display", "gallery"); writeBrowserHistory(url, window.history.state, "push"); }}>
- {gallery ? "Afficher les fichiers" : "Afficher la galerie"}
- </button>}
- {view === "textures" && gallery ? <WebGallery /> : view === "modeles" ? <Models3D /> : <VfsCatalog key={view} view={view} />}
+			{view === "textures" && <div className="mb-3 flex gap-2">
+				<button type="button" className="rounded-full border px-4 py-2" aria-pressed={gallery}
+					onClick={() => {
+						const url = new URL(window.location.href);
+						if (gallery) url.searchParams.delete("display");
+						else url.searchParams.set("display", "gallery");
+						writeBrowserHistory(url, window.history.state, "push");
+					}}>
+					{gallery ? "Afficher les fichiers" : "Afficher la galerie"}
+				</button>
+				<button type="button" className="rounded-full border px-4 py-2" aria-pressed={text}
+					onClick={() => {
+						const url = new URL(window.location.href);
+						if (text) url.searchParams.delete("display");
+						else url.searchParams.set("display", "text");
+						writeBrowserHistory(url, window.history.state, "push");
+					}}>
+					{text ? "Afficher les fichiers" : "Explorer les textes"}
+				</button>
+			</div>}
+			{view === "textures" && text ? <TextCatalog /> : view === "textures" && gallery ? <WebGallery /> : view === "modeles" ? <Models3D /> : <VfsCatalog key={view} view={view} />}
 		</>
 	);
 }
