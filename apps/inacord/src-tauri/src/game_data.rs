@@ -15,11 +15,12 @@
 //! bridge), à étendre au besoin.
 
 use nie_data::skill::{SkillInfo, SkillTextMaps};
-use nie_explore::bridge::t2b_value_to_json;
-use nie_formats::cfgbin::CfgEntry;
+use nie_explore::game_data::{
+    base_name, load_rdbn, load_t2b, load_text, load_text_json, load_text_json_lang,
+};
 use nie_formats::vfs::Vfs;
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::collections::HashMap;
 
 /// Technique (hissatsu) — port applati de `nie_data::skill::SkillInfo` + son texte joint
@@ -42,17 +43,6 @@ pub struct SkillDto {
 /// Premier chemin VFS (ordre alphabétique) dont le nom de fichier satisfait `pred` — même
 /// convention de résolution dynamique que `nie-game/examples/export_*.rs` (les `.cfg.bin` sont
 /// suffixés par version, ex. `skill_config_4.00.17.00.cfg.bin` : pas de nom fixe possible).
-fn find_path(vfs: &Vfs, pred: impl Fn(&str) -> bool) -> Option<String> {
-    vfs.iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| pred(p))
-        .min()
-}
-
-fn base_name(path: &str) -> &str {
-    path.rsplit('/').next().unwrap_or(path)
-}
-
 /// Charge un `.cfg.bin` **RDBN** du VFS (chemin résolu dynamiquement, cf. [`find_path`]) et le
 /// convertit en JSON forme "inagle" `{"lists":[…]}` via le pont déjà vérifié
 /// [`nie_explore::bridge::rdbn_to_json`] — symétrique de [`load_t2b`].
@@ -61,17 +51,6 @@ fn base_name(path: &str) -> &str {
 /// `parse_skills` uniquement, ce qui obligeait chaque nouvelle famille à le redupliquer.
 /// Contrairement au T2B, aucune désambiguïsation de noms n'est nécessaire — le RDBN nomme ses
 /// listes et ses champs, `read_values` en sort des lignes déjà clés/valeurs.
-fn load_rdbn(vfs: &Vfs, pred: impl Fn(&str) -> bool, what: &str) -> Result<Value, String> {
-    let path =
-        find_path(vfs, pred).ok_or_else(|| format!("{what} introuvable dans le VFS monté"))?;
-    let bytes = vfs.read(&path).map_err(|e| e.to_string())?;
-    let rdbn =
-        nie_formats::cfgbin::parse(&bytes).map_err(|e| format!("parse RDBN {path} : {e}"))?;
-    Ok(nie_explore::bridge::rdbn_to_json(
-        &nie_formats::cfgbin::read_values(&rdbn, &bytes),
-    ))
-}
-
 /// Parse `skill_config` (+ `skill_text` FR si présent) → `SkillInfo` bruts + textes joints.
 /// Factorisé depuis [`list_skills`] pour être réutilisé par [`find_skill`] (résolution par nom/ID
 /// pour le pont Blender, cf. `blender_build_skill_scene` dans `lib.rs`) sans reparser deux fois.
@@ -165,35 +144,9 @@ pub fn list_skills(vfs: &Vfs) -> Result<Vec<SkillDto>, String> {
 /// parsés sans erreur). Port fidèle du `to_iecode` local dupliqué dans CHAQUE
 /// `nie-game/examples/export_{items,auras,trophies,quests}.rs` (déjà validé end-to-end sur le
 /// vrai jeu) — factorisé ici une fois pour toutes plutôt que redupliqué une 5ᵉ fois.
-fn to_indexed_json(siblings: &[CfgEntry]) -> Vec<Value> {
-    let mut counts: HashMap<&str, usize> = HashMap::new();
-    siblings
-        .iter()
-        .map(|e| {
-            let idx = counts.entry(e.name.as_str()).or_insert(0);
-            let name = format!("{}_{}", e.name, *idx);
-            *idx += 1;
-            json!({
-                "name": name,
-                "variables": e.variables.iter().map(t2b_value_to_json).collect::<Vec<_>>(),
-                "children": to_indexed_json(&e.children),
-            })
-        })
-        .collect()
-}
-
 /// Charge un `.cfg.bin` T2B du VFS (chemin résolu dynamiquement, cf. [`find_path`]) et le
 /// convertit en JSON forme "inagle" **indexée** (cf. [`to_indexed_json`]) — factorisé pour les
 /// modules `nie-data` ci-dessous (item/aura/trophy/quest, config ET texte).
-fn load_t2b(vfs: &Vfs, pred: impl Fn(&str) -> bool, what: &str) -> Result<Value, String> {
-    let path =
-        find_path(vfs, pred).ok_or_else(|| format!("{what} introuvable dans le VFS monté"))?;
-    let bytes = vfs.read(&path).map_err(|e| e.to_string())?;
-    let cfg =
-        nie_formats::cfgbin::parse_t2b(&bytes).map_err(|e| format!("parse T2B {path} : {e}"))?;
-    Ok(json!({ "entries": to_indexed_json(&cfg.entries) }))
-}
-
 /// Charge la table de texte FR d'un `text_type` convivial (`"skill"`, `"item"`, `"team"`, …) sous
 /// sa forme JSON indexée.
 ///
@@ -202,34 +155,11 @@ fn load_t2b(vfs: &Vfs, pred: impl Fn(&str) -> bool, what: &str) -> Result<Value,
 /// recodait auparavant son propre prédicat en dur (`p.contains("/fr/") &&
 /// base_name(p).starts_with("skill_text")`, déjà dupliqué 5 fois), au risque de coller à un nom
 /// approximatif ; ici un type inconnu échoue franchement au lieu de chercher un fichier inexistant.
-fn load_text_json(vfs: &Vfs, text_type: &str) -> Result<Value, String> {
-    load_text_json_lang(vfs, text_type, "fr")
-}
-
 /// Table de texte d'un `text_type` dans une LANGUE donnée (`fr`, `en`, `ja`, `de`, `es`, `it`,
 /// `pt`, `zh_hans`, `zh_hant` — les neuf dossiers de `data/common/text/`, relevés sur
 /// l'installation, cf. [`LANGUES`]). Généralise [`load_text_json`], qui forçait `fr`.
-fn load_text_json_lang(vfs: &Vfs, text_type: &str, langue: &str) -> Result<Value, String> {
-    let stem = nie_data::text::text_file_name(text_type).ok_or_else(|| {
-        format!("type de texte inconnu : {text_type} (cf. nie_data::text::TEXT_FILES)")
-    })?;
-    let file = format!("{stem}.cfg.bin");
-    let dossier = format!("/text/{langue}/");
-    load_t2b(
-        vfs,
-        |p| p.contains(&dossier) && base_name(p) == file,
-        &format!("{file} {langue}"),
-    )
-}
-
 /// Table de texte FR d'un `text_type` convivial, déjà parsée en `(hashId, texte)` — la forme
 /// qu'attendent tous les `resolve_*`/`find_text` de `nie-data`. Cf. [`load_text_json`].
-fn load_text(vfs: &Vfs, text_type: &str) -> Result<Vec<(nie_data::HashId, String)>, String> {
-    Ok(nie_data::text::parse_text_file(&load_text_json(
-        vfs, text_type,
-    )?))
-}
-
 /// Objet (arme/consommable/costume/…) — port applati de `nie_data::item::ItemInfo` + son texte
 /// joint (`item_text.cfg.bin`, mêmes noms ET descriptions), pour l'IPC/l'export TS. N'inclut que
 /// les objets à nom résolu (comme `nie-game/examples/export_items.rs`, roster réel).

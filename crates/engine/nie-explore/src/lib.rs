@@ -27,6 +27,7 @@ pub mod database;
 pub mod depot;
 pub mod export;
 pub mod folder_roles;
+pub mod game_data;
 pub mod geometry;
 #[cfg(feature = "host")]
 pub mod listing;
