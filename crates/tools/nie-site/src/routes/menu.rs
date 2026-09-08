@@ -193,9 +193,13 @@ pub(super) fn load_menu_text(vfs: &Vfs, locale: &str) -> Vec<(nie_data::hash::Ha
     }) else {
         return Vec::new();
     };
+    if !vfs.find(&path).is_some_and(|entry| entry.file_size <= 4 * 1024 * 1024) {
+        return Vec::new();
+    }
     let Ok(bytes) = vfs.read(&path) else {
         return Vec::new();
     };
+    if bytes.len() > 4 * 1024 * 1024 { return Vec::new(); }
     let Ok(file) = cfgbin::parse_t2b(&bytes) else {
         return Vec::new();
     };

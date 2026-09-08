@@ -11,6 +11,8 @@ interface PaginationControlsProps {
 	currentPage: number;
 	totalPages: number;
 	baseUrl: string;
+	onPageChange?: (page: number) => void;
+	disabled?: boolean;
 	previousLabel?: React.ReactNode;
 	nextLabel?: React.ReactNode;
 	pageLabel?: (current: number, total: number) => React.ReactNode;
@@ -27,6 +29,8 @@ export function PaginationControls({
 	currentPage,
 	totalPages,
 	baseUrl,
+	onPageChange,
+	disabled = false,
 	previousLabel = "Précédent",
 	nextLabel = "Suivant",
 	pageLabel = defaultPageLabel,
@@ -47,6 +51,22 @@ export function PaginationControls({
 
 	const isFirst = currentPage <= 1;
 	const isLast = currentPage >= totalPages;
+
+	// Controlled hosts keep their own query contract and loading state; link callers retain
+	// the existing URL-based behavior below.
+	if (onPageChange) return (
+		<nav aria-label="Pagination" className="flex w-full flex-wrap items-center justify-between gap-4">
+			<Button variant="outline" size="sm" disabled={disabled || isFirst}
+				onClick={() => onPageChange(Math.max(1, currentPage - 1))}>
+				<ChevronLeft className="size-4" />{previousLabel}
+			</Button>
+			<p className="text-sm text-muted-foreground" aria-live="polite">{pageLabel(currentPage, totalPages)}</p>
+			<Button variant="outline" size="sm" disabled={disabled || isLast}
+				onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}>
+				{nextLabel}<ChevronRight className="size-4" />
+			</Button>
+		</nav>
+	);
 
 	// `disabled` sur un `<Button asChild>` atterrit sur un `<a>`, où l'attribut
 	// n'existe pas et où `:disabled` ne matche jamais : les deux boutons

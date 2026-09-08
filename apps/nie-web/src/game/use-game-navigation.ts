@@ -9,6 +9,7 @@ import {
 	type GameNavigationState,
 } from "./navigation";
 import type { OpeningPhase } from "./opening-sequence";
+import { writeBrowserHistory, type NavigationOptions } from "@niers/inacord-ui/lib/browser-navigation";
 
 /** One screen state survives route unmounts, history traversal, and page reloads. */
 export function useGameNavigation(routes: readonly string[], serverRoute?: string | null) {
@@ -25,7 +26,7 @@ export function useGameNavigation(routes: readonly string[], serverRoute?: strin
 		const persist = () => {
 			const url = new URL(window.location.href);
 			url.pathname = pathForEntry(splitLanguagePrefix(url.pathname).prefix, current.current.view);
-			window.history.replaceState(gameNavigationHistory(window.history.state, current.current), "", url);
+			writeBrowserHistory(url, gameNavigationHistory(window.history.state, current.current));
 		};
 		// Canonicalize the legacy `/menu` alias without restarting the startup sequence.
 		persist();
@@ -42,29 +43,31 @@ export function useGameNavigation(routes: readonly string[], serverRoute?: strin
 		return () => window.removeEventListener("popstate", restore);
 	}, [routes, update]);
 
-	const navigate = useCallback((view: string, href?: URL) => {
+	const navigate = useCallback((view: string, href?: URL, options?: NavigationOptions) => {
 		const next = gameNavigationTarget(view);
 		const location = new URL(window.location.href);
 		const url = href ? new URL(href) : gameNavigationUrl(location, next.view);
 		url.pathname = pathForEntry(splitLanguagePrefix(url.pathname).prefix, next.view);
-		if (url.href === location.href) {
-			window.history.replaceState(gameNavigationHistory(window.history.state, next), "", url);
+		if (options?.replace || url.href === location.href) {
+			writeBrowserHistory(url, gameNavigationHistory(window.history.state, next));
 		} else {
-			window.history.pushState(gameNavigationHistory(null, next), "", url);
+			writeBrowserHistory(url, gameNavigationHistory(null, next), "push");
 		}
 		update(next);
+		if (options?.scroll !== false && url.pathname !== location.pathname) window.scrollTo(0, 0);
 	}, [update]);
 
-	const navigateLink = useCallback((href: string) => {
+	const navigateLink = useCallback((href: string, options?: NavigationOptions) => {
 		const target = internalGameLink(href, new URL(window.location.href), routes);
-		if (target) navigate(target.view, target.url);
+		if (target) navigate(target.view, target.url, options);
+		else if (options?.replace) window.location.replace(href);
 		else window.location.assign(href);
 	}, [navigate, routes]);
 
 	const setOpeningPhase = useCallback((openingPhase: OpeningPhase) => {
 		if (current.current.view !== HOME) return;
 		const next = { ...current.current, openingPhase };
-		window.history.replaceState(gameNavigationHistory(window.history.state, next), "");
+		writeBrowserHistory(undefined, gameNavigationHistory(window.history.state, next));
 		update(next);
 	}, [update]);
 

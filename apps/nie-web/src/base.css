@@ -37,23 +37,11 @@ body {
 	padding: 2rem 1rem;
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════════════════
- * Tailwind, et la passerelle vers les primitives partagées.
- *
- * ## Pourquoi Tailwind entre ici
- *
- * `packages/inacord-ui` expose 37 primitives — `data-grid`, `tree-rows`, `tabs`, `split-pane`,
- * `tooltip`, `command`… — écrites en classes Tailwind et déjà éprouvées par Inacord. Cet hôte
- * n'en utilisait AUCUNE : il n'importait que les jetons CSS, et chaque écran redessinait ses
- * champs en style inline. Les monter sans Tailwind ne lève aucune erreur — les composants se
- * rendent, sans un seul style. C'est le mode d'échec le plus coûteux du dépôt.
- *
- * `@source` est obligatoire : Tailwind v4 ne scanne que le paquet courant, et sans lui les
- * classes des primitives ne sont jamais générées. Le symptôme serait le même — des composants
- * nus, et rien qui le dise.
- * ══════════════════════════════════════════════════════════════════════════════════════════ */
+/* Scan both shared UI owners. Inacord compatibility entries reexport identical primitives
+ * from packages/ui, so scanning only the facade files would omit their rendered classes. */
 @import "tailwindcss";
 @source "../../../packages/inacord-ui/src";
+@source "../../../packages/ui/src/components";
 
 /* ── La passerelle : les variables de shadcn, dans la DA du jeu ────────────────────────────
  *

@@ -62,7 +62,8 @@ impl ReplayRequest {
             return Err("Unsupported menu locale".into());
         }
         if self.events.len() > MAX_EVENTS || self.item_counts.len() > 256
-            || self.item_counts.values().any(|count| !(0..=256).contains(count)) {
+            || self.item_counts.values().any(|count| !(0..=256).contains(count))
+            || self.item_counts.values().map(|count| i64::from(*count)).sum::<i64>() > 512 {
             return Err("Menu replay exceeds input limits".into());
         }
         self.events.iter().map(|event| {

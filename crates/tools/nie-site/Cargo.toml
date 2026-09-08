@@ -98,6 +98,8 @@ nie-save = { path = "../../engine/nie-save" }
 # Character catalogue queries belong to the wiki data library. The HTTP route preserves its
 # existing DTO while delegating filtering, faceting, ordering and pagination to this crate.
 nie-wiki = { path = "../nie-wiki" }
+# Portable existing encyclopedia matcher; no network ingestion feature.
+nie-zukan = { path = "../nie-zukan", default-features = false }
 
 # Serveur HTTP. Seul ajout réel au workspace (cf. docs/stack/dependencies.md) : 0.8.9, jamais
 # 0.8.2 (yanked). Syntaxe de route 0.8 : `{param}` et `{*wildcard}` — l'ancienne PANIQUE.

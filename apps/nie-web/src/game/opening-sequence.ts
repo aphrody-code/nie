@@ -11,6 +11,12 @@ export const OPENING_PHASES = [
 export type OpeningPhase = (typeof OPENING_PHASES)[number];
 export type OpeningEvent = "timeout" | "media-ended" | "confirm";
 
+/** Original logo movies; both native video and soundtrack are required by the browser host. */
+export const OPENING_LOGO_MOVIES = {
+	"inazuma-eleven": "data/common/movie/IE_15th.usm",
+	level5: "data/common/movie/L5logo.usm",
+} as const;
+
 /** Maps the confirm button from a browser gamepad using the standard mapping. */
 export function openingEventForStandardGamepadButton(buttonIndex: number): OpeningEvent | null {
 	return buttonIndex === 0 ? "confirm" : null;

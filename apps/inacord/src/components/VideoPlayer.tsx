@@ -35,9 +35,7 @@ import { Slider } from "@niers/inacord-ui/components/ui/slider";
 import { api } from "@/lib/api";
 import type { FilmDto } from "@/lib/bindings";
 import { cn } from "@niers/inacord-ui/lib/utils";
-
-/** Dérive tolérée entre l'image et le son, en secondes, avant recalage. */
-const DERIVE_MAX = 0.25;
+import { synchronizeMediaClock } from "@niers/inacord-ui/lib/media-sync";
 
 /** Délai d'inactivité avant escamotage des contrôles, en millisecondes. */
 const DELAI_MASQUAGE = 2600;
@@ -328,8 +326,7 @@ export function VideoPlayer({
       onProgression?.(v.currentTime, v.duration || 0);
       const a = audioRef.current;
       if (a && !a.paused) {
-        const derive = a.currentTime - v.currentTime;
-        if (Math.abs(derive) > DERIVE_MAX) a.currentTime = v.currentTime;
+        synchronizeMediaClock(v, a);
       }
       if (v.buffered.length > 0) setTampon(v.buffered.end(v.buffered.length - 1));
     };

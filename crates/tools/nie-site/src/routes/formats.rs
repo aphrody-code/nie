@@ -1,40 +1,8 @@
-//! La couche « formats Level-5 » du dépôt, servie par nie — `/api/v1/formats/*`.
+//! Native format metadata served through existing shared parsers.
 //!
-//! ## Ce que cette crate décode elle-même, et ce qu'elle délègue
-//!
-//! `nie-formats` sait lire une trentaine de formats du jeu, et la frontière ne passe pas où on
-//! l'attend : ce sont les **features** qui décident, pas la difficulté du format. Ses décodeurs
-//! de textures, d'images et d'audio sont derrière `textures`, `images` et `audio-decode`, que
-//! `nie-site` n'active pas — les tirer amènerait `image_dds`, `image` et `cridecoder` dans un
-//! service web. Ses parseurs géométriques, eux, sont derrière `std`, une feature **par défaut**
-//! que le site liait déjà : ils étaient présents dans le binaire, personne ne les appelait.
-//!
-//! Il en résulte une frontière nette, et [`capacites`] la **mesure** au lieu de la promettre :
-//!
-//! | Famille | Qui décode | Où |
-//! |---|---|---|
-//! | `cfg.bin` (RDBN et T2B) | cette crate, en process | `/api/v1/formats/decode/{chemin}` |
-//! | `lua.bin` (bytecode Lua 5.2) | cette crate, en process | `/api/v1/lua` (cf. [`super::lua`]) |
-//! | les 9 familles géométriques, 83 753 fichiers | cette crate, en process | `/api/v1/formats/decode/{chemin}` (cf. [`super::geometrie`]) |
-//! | textures, modèles, audio, vidéo | `nie-model-serve`, en amont | `/assets/…` (cf. [`super::assets`]) |
-//! | octets bruts, sans décodage | le VFS | `/f/{chemin}` (cf. [`super::vfs`]) |
-//!
-//! Annoncer ici un décodage de texture aurait été une capacité inventée : elle aurait répondu
-//! `500` sur chaque appel, et un `500` n'apprend rien à l'appelant. Une capacité absente se
-//! **dit**, avec la route qui la porte réellement.
-//!
-//! ## `cfg.bin` : deux formats derrière une seule extension
-//!
-//! Un `.cfg.bin` est soit du **RDBN** (des listes de lignes typées), soit du **T2B** (un arbre
-//! d'entrées) — c'est le magic qui tranche, jamais le chemin. Le décodage passe par
-//! `nie_formats::cfgbin::to_iecode_json`, qui aiguille sur `is_rdbn` et rend la forme
-//! canonique `{lists}` ou `{entries}`. C'est la forme que lisent tous les parseurs de
-//! `nie-data` — à ne pas confondre avec `niers decode`, qui rend la structure BRUTE
-//! (`header`/`types`/`fields`) et dont un consommateur typé lit zéro élément en annonçant un
-//! succès.
-//!
-//! Le format effectivement reconnu est rendu dans la réponse, en jeton choisi (`rdbn` / `t2b`),
-//! jamais par un `format!("{:?}")` sur un type interne.
+//! Config output preserves the canonical iecode `{lists}` / `{entries}` contract.
+//! Native media metadata delegates to nie-explore; textures and assembled models retain
+//! their existing asset routes. Metadata inspection does not imply waveform/video playback.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -89,7 +57,7 @@ async fn jeton_decodage() -> Result<tokio::sync::SemaphorePermit<'static>, Erreu
 /// Il ne porte **pas** les neuf familles géométriques : leur source unique est
 /// [`super::geometrie::FAMILLES`], et [`familles`] fusionne les deux. Recopier une liste, c'est
 /// s'engager à la mettre à jour deux fois.
-const FAMILLES_PROPRES: [(&str, bool, &str, &str); 7] = [
+const FAMILLES_PROPRES: [(&str, bool, &str, &str); 4] = [
     (
         ".cfg.bin",
         true,
@@ -108,19 +76,6 @@ const FAMILLES_PROPRES: [(&str, bool, &str, &str); 7] = [
     // une extension ne peut avoir qu'une ligne — deux donneraient deux comptes du même corpus.
     // Le maillage **assemblé** reste servi en GLB par `/api/v1/3d` et `/model/…` : décoder la
     // géométrie d'un fichier et assembler un modèle jouable sont deux services distincts.
-    (
-        ".acb",
-        false,
-        "/assets/audio-info/{chemin}",
-        "application/json",
-    ),
-    (
-        ".awb",
-        false,
-        "/assets/audio-info/{chemin}",
-        "application/json",
-    ),
-    (".usm", false, "/f/{chemin}", "application/octet-stream"),
 ];
 
 /// Toutes les familles annoncées : celles de ce module, les neuf géométriques, et les cinq
@@ -141,6 +96,7 @@ pub fn familles() -> Vec<(&'static str, bool, &'static str, &'static str)> {
     };
     FAMILLES_PROPRES
         .into_iter()
+        .chain(nie_explore::native_metadata::SUFFIXES.into_iter().map(en_process))
         .chain(
             super::geometrie::FAMILLES
                 .into_iter()
@@ -643,10 +599,15 @@ pub async fn decode(
         )));
     }
 
+    if index.taille(&chemin).is_some_and(|size| size as usize > super::geometrie::TAILLE_MAX_RESUME) {
+        return Err(ErreurSite::Demande("Resource exceeds the metadata source size budget".into()));
+    }
+
     let vfs = etat.vfs()?;
     let a_lire = chemin.clone();
-    let octets = tokio::task::spawn_blocking(move || vfs.read(&a_lire))
-        .await?
+    let permit = jeton_decodage().await?;
+    let (read, permit) = tokio::task::spawn_blocking(move || (vfs.read(&a_lire), permit)).await?;
+    let octets = read
         .map_err(|e| {
             tracing::debug!(erreur = %e, "lecture VFS impossible");
             ErreurSite::Introuvable("fichier indexe mais illisible sur ce montage".to_owned())
@@ -705,8 +666,8 @@ pub async fn decode(
         None
     };
 
-    let _jeton = jeton_decodage().await?;
     let corps = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
         let v = match (famille, forme_geom, forme_cfg) {
             (Some(f), Some(forme), _) => serde_json::to_value(super::geometrie::decoder(
                 &chemin,
@@ -731,6 +692,12 @@ pub async fn decode(
             // Ni suffixe connu, ni magic connu : le dernier recours, qui identifie au lieu de
             // refuser. Il rend un `cfg.bin` déguisé, un conteneur Level-5 nommé, ou une erreur
             // qui DIT ce qu'elle a vu.
+            _ if nie_explore::native_metadata::recognizes(&octets) => {
+                if !matches!(demande.forme.as_deref(), None | Some("resume") | Some("complet")) {
+                    return Err(ErreurSite::Demande("native metadata supports forme=resume or complet".to_owned()));
+                }
+                serde_json::to_value(identifier(&chemin, &octets)?)
+            }
             _ => serde_json::to_value(identifier(&chemin, &octets)?),
         }
         .map_err(|e| ErreurSite::Interne(format!("reponse non serialisable: {e}")))?;
@@ -755,6 +722,16 @@ pub async fn decode(
 ///
 /// `Demande` quand rien n'identifie le fichier.
 pub fn identifier(chemin: &str, octets: &[u8]) -> Result<serde_json::Value, ErreurSite> {
+    if nie_explore::native_metadata::recognizes(octets) {
+        let metadata = nie_explore::native_metadata::inspect(chemin, octets).map_err(|error| {
+            tracing::debug!(%error, "native container metadata unavailable");
+            ErreurSite::Demande("native container metadata unavailable".to_owned())
+        })?;
+        return Ok(serde_json::json!({
+            "chemin": chemin, "octets": octets.len(),
+            "format": metadata["format"], "donnees": metadata,
+        }));
+    }
     if let Ok(d) = decoder(chemin, octets) {
         return serde_json::to_value(d)
             .map_err(|e| ErreurSite::Interne(format!("reponse non serialisable: {e}")));
@@ -790,20 +767,6 @@ pub fn identifier(chemin: &str, octets: &[u8]) -> Result<serde_json::Value, Erre
             "shader": d,
         }));
     }
-    // CriWare : `@UTF` est la table de métadonnées de toute la pile audio (ACB, AWB, ACF). Le
-    // site ne décode pas l'audio — ces features sont éteintes, cf. la doc de module — mais
-    // **nommer** un format qu'on ne décode pas est une information, et « inconnu » n'en est
-    // pas une. Le seul `.acf` du VFS (`sound.acf`, la configuration du moteur audio) tombe ici.
-    if octets.starts_with(b"@UTF") {
-        return Ok(serde_json::json!({
-            "chemin": chemin,
-            "octets": octets.len(),
-            "format": "criware_utf",
-            "produit": "table @UTF CriWare, corps non interprete par ce service",
-            "decodage": "delegue",
-            "route": "/assets/audio-info/{chemin}",
-        }));
-    }
     let tete: String = octets
         .iter()
         .take(8)
@@ -825,18 +788,15 @@ mod tests {
         let table = familles();
         assert_eq!(
             table.len(),
-            21,
-            "7 familles propres + 9 geometriques + 5 de level5"
+            23,
+            "4 local families + 5 native media metadata + 9 geometry + 5 level5"
         );
         for (suffixe, _, route, sortie) in &table {
             assert!(suffixe.starts_with('.'), "{suffixe}");
             assert!(route.starts_with('/'), "{route}");
             assert!(sortie.contains('/'), "{sortie}");
         }
-        // Seize familles sont decodees ici : les deux de ce module (`cfg.bin` via `std`,
-        // `lua.bin` via `lua`), les neuf geometriques et les cinq de `level5`, toutes derriere
-        // `std`. Les cinq autres exigeraient `textures` / `images` / `audio-decode`, qui
-        // restent eteintes — et aucune dependance n'a ete ajoutee pour ce lot-ci non plus.
+        // Metadata support is distinct from playable asset output.
         let en_process: Vec<&str> = table
             .iter()
             .filter_map(|&(s, p, ..)| p.then_some(s))
@@ -844,7 +804,7 @@ mod tests {
         assert_eq!(
             en_process,
             vec![
-                ".cfg.bin", ".lua.bin", ".g4pk", ".g4mg", ".objbin", ".g4pkm", ".g4cm", ".col",
+                ".cfg.bin", ".lua.bin", ".acb", ".awb", ".acf", ".utf", ".usm", ".g4pk", ".g4mg", ".objbin", ".g4pkm", ".g4cm", ".col",
                 ".g4sk", ".mevbin", ".g4mt", ".p3lip", ".g4nv", ".g4ma", ".g4vs", ".g4la",
             ]
         );

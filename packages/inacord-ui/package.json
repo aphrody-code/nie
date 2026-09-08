@@ -37,6 +37,7 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
+		"@rosegriffon/ui": "workspace:*",
 		"@base-ui/react": "^1.7.0",
 		"@niers/asset-source": "workspace:*",
 		"@niers/game": "workspace:*",

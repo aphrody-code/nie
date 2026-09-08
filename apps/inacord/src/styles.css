@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../../../packages/inacord-ui/src";
+@source "../../../packages/ui/src/components";
 @import "tw-animate-css";
 @import "./sprites.css";
 

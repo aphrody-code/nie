@@ -1,6 +1,2 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+/** Keep the existing utility entry while sharing the canonical class merger. */
+export { cn } from "@rosegriffon/ui/lib/utils";

@@ -3,7 +3,8 @@ import { GameCanvas, useAssetSource } from "@niers/inacord-ui";
 import { type NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
-import type { OpeningPhase } from "../game/opening-sequence";
+import { OPENING_LOGO_MOVIES, type OpeningPhase } from "../game/opening-sequence";
+import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 import { NativeText } from "./NativeText";
 import { NativeSceneLayers } from "@niers/inacord-ui/shell/native-scene-layers";
 
@@ -14,45 +15,13 @@ export interface OpeningVisualProps {
 	onConfirm?: () => void;
 }
 
-const LOGO_MOVIES = {
-	"inazuma-eleven": "data/common/movie/IE_15th.usm",
-	level5: "data/common/movie/L5logo.usm",
-} as const;
-
 export function OpeningVisual({ phase, onReady, onEnded, onConfirm }: OpeningVisualProps) {
 	if (phase === "inazuma-eleven" || phase === "level5") {
-		return <NativeLogoMovie path={LOGO_MOVIES[phase]} onReady={onReady} onEnded={onEnded} />;
+		return <NativeMoviePlayer key={phase} path={OPENING_LOGO_MOVIES[phase]} onReady={onReady} onEnded={onEnded} />;
 	}
 	return <NativeOpeningScene key={phase} id={phase} onReady={onReady} onConfirm={onConfirm} />;
 }
 
-function NativeLogoMovie({ path, onReady, onEnded }: { path: string; onReady?: () => void; onEnded?: () => void }) {
-	const source = useAssetSource();
-	const [failed, setFailed] = useState(false);
-	const [paused, setPaused] = useState(false);
-	const [attempt, setAttempt] = useState(0);
-	const movie = useRef<HTMLVideoElement>(null);
-	const url = source.urlVideo?.(path);
-	return (
-		<div className="opening-native-movie" data-vfs-path={path}>
-			{url && !failed ? <video
-				key={attempt}
-				ref={movie}
-				src={url}
-				autoPlay
-				muted
-				playsInline
-				preload="auto"
-				onCanPlay={() => { onReady?.(); void movie.current?.play().catch(() => setPaused(true)); }}
-				onEnded={onEnded}
-				onError={() => { setFailed(true); setPaused(false); }}
-				onPause={(event) => setPaused(!event.currentTarget.ended)}
-				onPlaying={() => setPaused(false)}
-			/> : <div role="alert">La vidéo du jeu n’est pas disponible. <button type="button" onClick={() => { setFailed(false); setPaused(false); setAttempt(value => value + 1); }}>Réessayer</button></div>}
-			{paused && !failed ? <button type="button" onClick={() => { void movie.current?.play().catch(() => setPaused(true)); }}>Reprendre</button> : null}
-		</div>
-	);
-}
 
 
 function NativeOpeningScene({ onReady, id, onConfirm }: {

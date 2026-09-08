@@ -17,6 +17,7 @@
 #![allow(clippy::pedantic)]
 
 pub mod catalog;
+pub mod cards;
 pub mod mirror;
 pub mod model;
 pub mod query;

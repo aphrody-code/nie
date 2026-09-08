@@ -1,37 +1,7 @@
-//! Aperçus exploitables des caméras de cinématique (`.g4cm`) et des navmesh (`.g4nv`).
-//!
-//! Les décodeurs de `nie-formats` rendent la structure **complète** du fichier : en-tête,
-//! compteurs, canaux, sommets, coins, arêtes, et jusqu'aux octets de rembourrage — tout ce
-//! qu'il faut pour réencoder à l'octet près. C'est la bonne granularité pour la forge, pas
-//! pour une vue : envoyer ça tel quel à l'IPC noierait l'utile sous le fidèle.
-//!
-//! Ce module aplatit chaque format en ce qui se dessine :
-//!
-//! - une caméra devient des **pistes** `(objet, canal, temps → valeur)`, prêtes à tracer ;
-//! - un navmesh devient des **triangles** et des **arêtes** en coordonnées monde, avec sa
-//!   boîte englobante, prêts à projeter en plan.
-//!
-//! Ce qui n'est pas résolu est signalé, jamais deviné : un canal dont le flux n'est pas `f32`
-//! (encodage 2 octets non élucidé) sort avec `resolu = false` et sans valeurs, plutôt qu'avec
-//! des nombres inventés qui auraient l'air d'une trajectoire.
+//! Desktop compatibility DTOs over shared native spatial previews.
 
 use nie_formats::vfs::Vfs;
 use serde::Serialize;
-
-/// Plafond de sommets renvoyés pour un navmesh.
-///
-/// Les navmesh du jeu tiennent largement en dessous (quelques milliers de sommets) ; le
-/// plafond protège l'IPC d'un fichier aberrant plutôt qu'il ne tronque un cas normal. Quand il
-/// mord, `tronque` passe à `true` — l'affichage doit le dire, pas laisser croire à un maillage
-/// complet.
-const MAX_SOMMETS: usize = 60_000;
-
-/// Plafond d'échantillons par piste de caméra, même raison.
-const MAX_ECHANTILLONS: usize = 20_000;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Caméra (`.g4cm`)
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Une piste d'animation : un canal d'un objet, échantillonné dans le temps.
 #[derive(Serialize, specta::Type)]
@@ -78,117 +48,23 @@ pub struct ApercuCameraDto {
     pub canaux_resolus: u32,
 }
 
-/// Nom lisible d'un canal.
-///
-/// Les variantes non nommées sortent en hexadécimal plutôt que sous une étiquette inventée :
-/// un canal inconnu doit rester visiblement inconnu dans l'interface.
-fn nom_canal(kind: nie_formats::g4cm::ChannelKind) -> String {
-    use nie_formats::g4cm::ChannelKind as K;
-    match kind {
-        K::PosX => "PosX".into(),
-        K::PosY => "PosY".into(),
-        K::PosZ => "PosZ".into(),
-        K::RefX => "RefX".into(),
-        K::RefY => "RefY".into(),
-        K::RefZ => "RefZ".into(),
-        K::Fov => "Fov".into(),
-        autre => format!("{autre:?}"),
-    }
-}
-
-/// Décode un `.g4cm` du VFS et l'aplatit en pistes traçables.
+/// Compatibility adapter preserving the desktop IPC schema.
 pub fn apercu_camera(vfs: &Vfs, path: &str) -> Result<ApercuCameraDto, String> {
-    let bytes = vfs.read(path).map_err(|e| e.to_string())?;
-    let anim = nie_formats::g4cm::parse(&bytes).map_err(|e| format!("parse G4CM {path} : {e}"))?;
-
-    // Un canal ne porte pas le nom de son objet : c'est l'objet qui déclare l'intervalle de
-    // canaux qui lui appartient (`first_channel` + `channel_count`). On inverse donc la
-    // relation une fois, plutôt que de rechercher l'objet à chaque canal.
-    let mut proprietaire: Vec<Option<usize>> = vec![None; anim.channels.len()];
-    for (i, objet) in anim.objects.iter().enumerate() {
-        let debut = objet.first_channel as usize;
-        let fin = debut
-            .saturating_add(objet.channel_count as usize)
-            .min(anim.channels.len());
-        for slot in proprietaire.iter_mut().take(fin).skip(debut) {
-            *slot = Some(i);
-        }
-    }
-
-    let mut pistes = Vec::with_capacity(anim.channels.len());
-    let (mut frame_min, mut frame_max) = (f32::MAX, f32::MIN);
-    let mut resolus = 0_u32;
-
-    for (i, canal) in anim.channels.iter().enumerate() {
-        let objet = proprietaire
-            .get(i)
-            .copied()
-            .flatten()
-            .and_then(|k| anim.names.get(k))
-            .cloned()
-            .unwrap_or_else(|| format!("objet{i}"));
-
-        let temps: Vec<f32> = canal
-            .times(&anim)
-            .iter()
-            .take(MAX_ECHANTILLONS)
-            .map(|t| f32::from(*t))
-            .collect();
-        for t in &temps {
-            frame_min = frame_min.min(*t);
-            frame_max = frame_max.max(*t);
-        }
-
-        let valeurs: Vec<f32> = canal
-            .track
-            .values()
-            .map(|v| v.iter().take(MAX_ECHANTILLONS).copied().collect())
-            .unwrap_or_default();
-        let resolu = canal.track.values().is_some();
-        if resolu {
-            resolus += 1;
-        }
-
-        pistes.push(PisteCameraDto {
-            objet,
-            canal: nom_canal(canal.kind),
-            resolu,
-            temps,
-            valeurs,
-        });
-    }
-
-    // Garde sur les bornes : elles partent de `f32::MAX`/`f32::MIN`, et une caméra dont aucune
-    // piste ne porte d'échantillon les laisserait à ces valeurs — un axe de temps allant de
-    // 3.4e38 à -3.4e38, qui écrase toute courbe sur une ligne plate. Tester `pistes.is_empty()`
-    // ne suffit pas : des pistes peuvent exister sans le moindre temps.
-    if frame_min > frame_max {
-        frame_min = 0.0;
-        frame_max = 0.0;
-    }
-
+    let bytes = vfs.read(path).map_err(|error| error.to_string())?;
+    let report = nie_explore::spatial_preview::camera(&bytes)?;
     Ok(ApercuCameraDto {
-        objets: anim.names.clone(),
-        clips: anim
-            .clips
-            .iter()
-            .map(|c| ClipCameraDto {
-                debut: u32::from(c.start),
-                fin: u32::from(c.end),
-                index: u32::from(c.index),
-            })
-            .collect(),
-        canaux: anim.channels.len() as u32,
-        canaux_resolus: resolus,
-        pistes,
-        frame_min,
-        frame_max,
+        objets: report.objects,
+        clips: report.clips.into_iter().map(|clip| ClipCameraDto {
+            debut: clip.start, fin: clip.end, index: clip.index,
+        }).collect(),
+        pistes: report.tracks.into_iter().map(|track| PisteCameraDto {
+            objet: track.object, canal: track.channel, resolu: track.resolved,
+            temps: track.times, valeurs: track.values,
+        }).collect(),
+        frame_min: report.frame_min, frame_max: report.frame_max,
+        canaux: report.channels, canaux_resolus: report.resolved_channels,
     })
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Navmesh (`.g4nv`)
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Une arête du graphe de navigation, en indices de sommets.
 #[derive(Serialize, specta::Type)]
@@ -222,67 +98,16 @@ pub struct ApercuNavmDto {
     pub tronque: bool,
 }
 
-/// Décode un `.g4nv` du VFS et l'aplatit en géométrie projetable.
+/// Compatibility adapter preserving the desktop IPC schema.
 pub fn apercu_navm(vfs: &Vfs, path: &str) -> Result<ApercuNavmDto, String> {
-    let bytes = vfs.read(path).map_err(|e| e.to_string())?;
-    let navm = nie_formats::navm::parse(&bytes).map_err(|e| format!("parse G4NV {path} : {e}"))?;
-
-    let tronque = navm.vertices.len() > MAX_SOMMETS;
-    let sommets: Vec<[f32; 3]> = navm
-        .vertices
-        .iter()
-        .take(MAX_SOMMETS)
-        .map(|v| v.pos)
-        .collect();
-
-    let mut bbox_min = [f32::MAX; 3];
-    let mut bbox_max = [f32::MIN; 3];
-    for p in &sommets {
-        for axe in 0..3 {
-            bbox_min[axe] = bbox_min[axe].min(p[axe]);
-            bbox_max[axe] = bbox_max[axe].max(p[axe]);
-        }
-    }
-    if sommets.is_empty() {
-        bbox_min = [0.0; 3];
-        bbox_max = [0.0; 3];
-    }
-
-    // `corners` porte trois index de sommet par polygone, adressés par `first_corner`. Un
-    // polygone dont les coins sortent de la table est ignoré plutôt que rendu à moitié : un
-    // triangle incomplet se dessinerait comme une bavure au milieu de la carte.
-    let borne = sommets.len() as u32;
-    let mut triangles = Vec::with_capacity(navm.polygons.len());
-    for poly in &navm.polygons {
-        let d = poly.first_corner as usize;
-        let Some(coins) = navm.corners.get(d..d.saturating_add(3)) else {
-            continue;
-        };
-        if coins.iter().all(|c| *c < borne) {
-            triangles.push([coins[0], coins[1], coins[2]]);
-        }
-    }
-
-    let aretes = navm
-        .edges
-        .iter()
-        .filter(|e| e.vert_a < borne && e.vert_b < borne)
-        .map(|e| AreteNavmDto {
-            a: e.vert_a,
-            b: e.vert_b,
-            cout: e.cost,
-            // `u32::MAX` marque l'absence de second polygone : l'arête borde le vide.
-            bord: e.poly_a == u32::MAX || e.poly_b == u32::MAX,
-        })
-        .collect();
-
+    let bytes = vfs.read(path).map_err(|error| error.to_string())?;
+    let report = nie_explore::spatial_preview::navmesh(&bytes)?;
     Ok(ApercuNavmDto {
-        polygones: navm.polygons.len() as u32,
-        sommets,
-        triangles,
-        aretes,
-        bbox_min,
-        bbox_max,
-        tronque,
+        sommets: report.vertices, triangles: report.triangles,
+        aretes: report.edges.into_iter().map(|edge| AreteNavmDto {
+            a: edge.a, b: edge.b, cout: edge.cost, bord: edge.boundary,
+        }).collect(),
+        bbox_min: report.bbox_min, bbox_max: report.bbox_max,
+        polygones: report.polygons, tronque: report.truncated,
     })
 }

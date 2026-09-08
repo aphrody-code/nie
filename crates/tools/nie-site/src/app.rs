@@ -105,6 +105,7 @@ pub const CHEMINS_HORS_GET: &[&str] = &[
     "/api/v1/inspect/compare",
     "/api/v1/inspect/plate",
     "/api/v1/menu/runtime/{screen}",
+    "/api/v1/zukan/rank",
 ];
 
 // Le site ne prend **aucune écriture** : ni base, ni disque, ni état. C'est la garantie que la
@@ -186,6 +187,16 @@ declarer_routes! {
     "/api/v1/menu/layout/{screen}" => crate::routes::menu::layout,
     "/api/v1/formats" => crate::routes::formats::capacites,
     "/api/v1/formats/decode/{*chemin}" => crate::routes::formats::decode,
+    "/api/v1/export/formats/{*path}" => crate::routes::native_export::formats,
+    "/api/v1/export/file/{*path}" => crate::routes::native_export::file,
+    "/api/v1/resources/related/{*path}" => crate::routes::related::related,
+    "/api/v1/wiki/search" => crate::routes::wiki::search,
+    "/api/v1/wiki/characters/{id}" => crate::routes::wiki::character,
+    "/api/v1/zukan/rank" => crate::routes::zukan::contract,
+    "/api/v1/motion/clips/{*path}" => crate::routes::motion::clips,
+    "/api/v1/preview/camera/{*path}" => crate::routes::spatial_preview::camera,
+    "/api/v1/preview/navmesh/{*path}" => crate::routes::spatial_preview::navmesh,
+    "/api/v1/growth/interpolate" => crate::routes::growth::interpolate,
     // Les modules de `nie-formats` que le decodage generique n'atteint pas : ils prennent une
     // structure DEJA lue (un atlas, un canvas RGBA, deux images a comparer) et n'ont donc rien
     // a voir avec `decode/{chemin}`, qui part des octets d'un fichier. Sept inspecteurs, tous
@@ -362,6 +373,8 @@ pub fn routeur(etat: EtatSite) -> Router {
         .route(CHEMINS_HORS_GET[4], post(crate::routes::inspect::plate))
         .route(CHEMINS_HORS_GET[5], post(crate::routes::menu_runtime::replay)
             .layer(axum::extract::DefaultBodyLimit::max(128 * 1024)))
+        .route(CHEMINS_HORS_GET[6], post(crate::routes::zukan::rank)
+            .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024)))
         .fallback(crate::routes::static_files::statique)
         // Les couches s'empilent de la plus INTERNE à la plus externe, et l'ordre est ici un
         // choix, pas une habitude :
@@ -461,6 +474,7 @@ mod tests {
                 "/api/v1/inspect/compare",
                 "/api/v1/inspect/plate",
                 "/api/v1/menu/runtime/{screen}",
+                "/api/v1/zukan/rank",
             ],
             "all non-GET routes compute isolated responses without persistent writes"
         );

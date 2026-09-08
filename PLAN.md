@@ -204,3 +204,36 @@ Measured on `vps-203bea89`, 14:25–14:31 UTC, against the execution-baseline wo
   Element coverage remains unmeasured. Private evidence: `var/outputs/interface-delivery/`.
 - No screen is accepted from these engineering gates. Loading motion/localization provenance,
   secondary screen implementations, avatar native registration and visual/model parity remain open.
+
+### Source implementation after the code-only steering — 2026-09-08
+
+These entries describe source changes awaiting final gates. They do not replace the historical
+counts above or accept any reference row.
+
+- Native sprite regions, focus variants and masks use the shared `NativeSprite`/scene-layer
+  owner. [Sprite documentation](docs/game-data/native-ui-sprites.md) records source names and
+  unresolved mappings. `options-row` is a reusable row template, not the complete PC Options
+  screen; its host preference controls do not establish native game-setting behavior.
+- Original ACB/AWB metadata, exact named-cue selection, embedded/streaming bank identity and
+  HCA loop boundaries now have shared Rust owners and native/Wasm bindings. Startup loads title
+  music and system cues; accepted native object commands select effects through decoded
+  `SoundCmd` hashes. Complex synthesizer execution, unresolved command hashes and ADX loop
+  boundaries remain explicit gaps. No generated artifact equality has been rerun for this code.
+- Original G4TX resources are consumed through Rust/Wasm in the active Explorer inspector.
+  The shared bounded loader supports demand priority, deduplication and preloading; native byte
+  retention is bounded. Logo playback reuses desktop clock synchronization and requires both
+  original video and soundtrack resources. Native packet offsets remain unverified.
+- Lua replay is mounted through a shared bounded VFS session and thin site/browser adapters.
+  Front-menu callbacks use native layer/item identities. Replay completeness is separate from
+  engine, geometry, save-state and visual equivalence.
+- [Desktop/site capability inventory](docs/architecture/desktop-site-capabilities.md) records
+  existing owners and the added Criware metadata, optional export, growth interpolation,
+  declared resource relationships and motion-inspection routes. Complete Azalee joined-data,
+  service and desktop behavior parity is not claimed.
+- Git observation: `9365ea7e` appeared during concurrent work (source: `git log`/`git status`
+  on the execution host). The integrator and its agents did not create that commit. It also
+  tracks the five opening captures that were untracked at execution start. Preserve the current
+  history and user files; no publication of those captures is authorized by this task.
+- Final work still includes rebuilding generated Wasm/bindings, verifying native/Wasm and
+  desktop contracts, running the release matrix, correcting failures and committing the
+  remaining task-owned changes. The 38-row acceptance ledger remains OPEN.

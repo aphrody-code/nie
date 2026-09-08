@@ -28,7 +28,13 @@ async fn run(state: EtatSite, screen: String, request: ReplayRequest) -> Result<
     let output = tokio::task::spawn_blocking(move || -> Result<ReplayOutput, ErreurSite> {
         let _permit = permit;
         let config = format!("data/common/gamedata/menu/cfg/{screen}_setting.cfg.bin");
+        if !vfs.find(&config).is_some_and(|entry| entry.file_size <= 1024 * 1024) {
+            return Err(ErreurSite::Demande("Menu definition unavailable within its size budget".into()));
+        }
         let bytes = vfs.read(&config).map_err(|_| ErreurSite::Introuvable("Menu unavailable".into()))?;
+        if bytes.len() > 1024 * 1024 {
+            return Err(ErreurSite::Demande("Menu definition exceeds its size budget".into()));
+        }
         let root = nie_formats::cfgbin::to_iecode_json(&bytes)
             .ok_or_else(|| ErreurSite::Indisponible("Menu definition unavailable".into()))?;
         let setting = nie_data::menu_setting::parse(&root);
@@ -42,7 +48,10 @@ async fn run(state: EtatSite, screen: String, request: ReplayRequest) -> Result<
         let script = nie_lua::resolve_script_path(&screen, &by_name, &by_logical)
             .filter(|path| path.starts_with("data/common/script/lua/menu/"))
             .cloned().ok_or_else(|| ErreurSite::Introuvable("Menu script unavailable".into()))?;
-        nie_lua::menu_runtime::replay(paths, move |path| vfs.read(path).ok(), &script, &layers, localized_text, request)
+        nie_lua::menu_runtime::replay(paths, move |path| {
+            vfs.find(path).filter(|entry| entry.file_size as usize <= nie_lua::menu_runtime::MAX_SCRIPT_BYTES)?;
+            vfs.read(path).ok()
+        }, &script, &layers, localized_text, request)
             .map_err(|error| {
                 tracing::debug!(%error, "menu replay unavailable");
                 ErreurSite::Indisponible("Menu runtime unavailable".into())

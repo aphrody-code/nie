@@ -11,7 +11,7 @@ import "@niers/inacord-ui/shell/game-tokens.css";
 // Les classes `game-*` des écrans du jeu (Options, filtres), engendrées depuis les captures.
 import "@niers/inacord-ui/shell/game-screens.css";
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ALIAS, AVATAR, EXPLORER, MEDIA, SETTINGS, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
@@ -89,11 +89,14 @@ function Site() {
 	// distingue « on ne sait pas encore » de « rien ne marche », au lieu d'afficher des vues
 	// vides pendant la premiere seconde.
 	const pret = Boolean(capacites?.vfs);
+	const withHost = (content: ReactNode) => <FournisseurNavigation naviguer={naviguer}>
+		<StartupResources titleActive={vue === HOME && (openingPhase === "start" || openingPhase === "menu")} />
+		{content}
+	</FournisseurNavigation>;
 
 	// Route changes may unmount Game, but the opening state belongs to this persistent host.
 	if (vue === HOME) {
-		return (
-			<><StartupResources titleActive={openingPhase === "start" || openingPhase === "menu"} />
+		return withHost(
 			<Game
 				gamepadSampler={gamepadSampler}
 				phase={openingPhase}
@@ -103,24 +106,21 @@ function Site() {
 				onOpenMedia={() => setVue(MEDIA)}
 				onOpenExplorer={() => setVue(EXPLORER)}
 			/>
-			</>
 		);
 	}
 
 	// Settings and the secondary shell keep their Return controls available during VFS startup.
 	if (vue === SETTINGS) {
-		return <><StartupResources titleActive={false} /><Settings prefixe={prefixe} onRetour={() => setVue(HOME)} /></>;
+		return withHost(<Settings prefixe={prefixe} onRetour={() => setVue(HOME)} />);
 	}
 	if (vue === AVATAR) {
-		return <><StartupResources titleActive={false} /><Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} /></>;
+		return withHost(<Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} />);
 	}
 	if (vue === EXPLORER || (ALIAS as readonly string[]).includes(vue)) {
-		return <><StartupResources titleActive={false} /><ExplorerInacord onHome={() => setVue(HOME)} /></>;
+		return withHost(<ExplorerInacord onHome={() => setVue(HOME)} />);
 	}
 
-	return (
-		<><StartupResources titleActive={false} />
-		<FournisseurNavigation naviguer={naviguer}>
+	return withHost(
 			<SecondaryScreen currentView={vue} onSelect={setVue} health={etat}>
 				{erreurSource ? (
 					// Le detail technique de la panne ne s'affiche pas : il ne dit rien a qui consulte
@@ -142,8 +142,6 @@ function Site() {
 					<Catalog view={(vue === MEDIA ? "textures" : vue) as VueCatalogue} />
 				)}
 			</SecondaryScreen>
-		</FournisseurNavigation>
-		</>
 	);
 }
 

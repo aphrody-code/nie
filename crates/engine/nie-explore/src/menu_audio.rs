@@ -108,7 +108,11 @@ pub fn startup(vfs: &nie_formats::vfs::Vfs) -> Result<StartupAudio, String> {
         if u64::from(entry.file_size) > MAX_BANK_BYTES as u64 {
             return Err(format!("Startup audio bank exceeds size limit: {path}"));
         }
-        vfs.read(path).map_err(|error| format!("{path}: {error}"))
+        let bytes = vfs.read(path).map_err(|error| format!("{path}: {error}"))?;
+        if bytes.len() > MAX_BANK_BYTES {
+            return Err(format!("Startup audio bank exceeds size limit: {path}"));
+        }
+        Ok(bytes)
     };
     let title_bytes = read(TITLE_BANK)?;
     let system_bytes = read(SYSTEM_BANK)?;

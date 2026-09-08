@@ -45,6 +45,8 @@ import {
 	useCapacites as useCapabilities,
 } from "@niers/inacord-ui";
 import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
+import { ExplorerEntries, ExplorerSurface } from "@niers/inacord-ui/explorer/explorer-surface";
+import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-controls";
 import { useEffect, useMemo, useState } from "react";
 import { entryLabel } from "../entries";
 import { agree, Notice, readableSize, ViewTitle } from "./SecondaryScreen";
@@ -90,7 +92,7 @@ function filterStateFromUrl(): FilterState {
 		pageSize: PAGE_SIZES.includes(pageSize as (typeof PAGE_SIZES)[number])
 			? pageSize
 			: DEFAULT_PAGE_SIZE,
-		page: Number.isFinite(page) && page >= 1 ? page : 1,
+		page: Number.isSafeInteger(page) && page >= 1 ? page : 1,
 	};
 }
 
@@ -307,6 +309,7 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 	const [pages, setPages] = useState(0);
 	const [error, setError] = useState(false);
 	const [loaded, setLoaded] = useState(false);
+	const [requestAttempt, setRequestAttempt] = useState(0);
 	// `saisie` suit le champ, `etat.q` ce qui a ete envoye : sans ce decalage, chaque frappe
 	// declencherait une requete sur 143 246 chemins.
 	const [input, setInput] = useState(initial.q);
@@ -352,16 +355,13 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 				if (!ac.signal.aborted) setError(true);
 			});
 		return () => ac.abort();
-	}, [source, capabilities?.vfs, view, state, page, filter, ext, sort, order, pageSize]);
+	}, [source, capabilities?.vfs, view, state, page, filter, ext, sort, order, pageSize, requestAttempt]);
 
 	const title = entryLabel(view);
 
 	if (!capabilities) return <Notice>Chargement…</Notice>;
 	if (!capabilities.vfs || !source.catalogue) {
 		return <Notice>Le catalogue est en cours de préparation. Il s'affichera dès qu'il sera prêt.</Notice>;
-	}
-	if (error) {
-		return <Notice tone="alerte">Ce catalogue n'a pas pu être chargé. Réessayez dans un instant.</Notice>;
 	}
 
 	return (
@@ -378,11 +378,19 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 			    Reprise de `data/menu/bank_character_detail.png` (« X Chercher par nom de joueur »).
 			    L'extension, le tri et la taille de page — les trois réglages que le serveur sert,
 			    plafonnés à 200 — vivent dans le dialogue FILTRES, comme dans la Banque du jeu. */}
-			<div
+			<ExplorerSurface
+				error={error ? <>Ce catalogue n’a pas pu être chargé. <button type="button"
+					onClick={() => setRequestAttempt(value => value + 1)}>Réessayer</button></> : undefined}
+				status={<PaginationControls currentPage={page} totalPages={pages}
+					baseUrl={window.location.pathname} disabled={!loaded || error}
+					onPageChange={nextPage => setState(current => ({ ...current, page: nextPage }))}
+					pageLabel={(current, totalPages) => `Page ${current} sur ${totalPages.toLocaleString("fr")}`} />}
+				toolbar={<div
 				className="game-description-bar"
 				style={{
 					display: "flex",
 					flexWrap: "wrap",
+					width: "100%",
 					alignItems: "center",
 					gap: "var(--jeu-espace-m)",
 					margin: "var(--jeu-espace-m) 0",
@@ -420,7 +428,7 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 						Effacer
 					</button>
 				) : null}
-			</div>
+			</div>}>
 
 			{describeFilters(panelFamilies, filterValue).length > 0 ? (
 				<p style={{ margin: "0 0 var(--jeu-espace-s)", fontSize: "0.9rem", fontWeight: 700 }}>
@@ -460,23 +468,14 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 				</div>
 			) : null}
 
-			{!loaded ? (
+			{error ? null : !loaded ? (
 				<Notice>Chargement…</Notice>
 			) : entries.length === 0 ? (
 				<Notice>Aucun élément ne correspond à cette recherche.</Notice>
 			) : (
-				<ul
-					style={{
-						display: "grid",
-						gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-						gap: "var(--jeu-espace-m)",
-						listStyle: "none",
-						margin: "var(--jeu-espace-l) 0",
-						padding: 0,
-					}}
-				>
+				<ExplorerEntries viewMode="grid" gridSize={160} ariaLabel={title}>
 					{entries.map((entry) => (
-						<li key={entry.chemin}>
+						<div role="listitem" key={entry.chemin}>
 							{/* Pour les sons, le conteneur n'est PAS un lien : un clic sur « lire »
 							    declencherait la navigation au lieu de la lecture. */}
 							<a
@@ -562,41 +561,16 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 									</div>
 								</div>
 							</a>
-						</li>
+						</div>
 					))}
-				</ul>
+				</ExplorerEntries>
 			)}
 
 			{view === "sons" && bankPath ? (
 				<AudioBankPanel path={bankPath} onClose={() => setBankPath(null)} />
 			) : null}
 
-			{pages > 1 ? (
-				<nav
-					aria-label="Pagination"
-					style={{ display: "flex", alignItems: "center", gap: "var(--jeu-espace-m)" }}
-				>
-					<button
-						type="button"
-						disabled={page <= 1}
-						onClick={() => setState((current) => ({ ...current, page: current.page - 1 }))}
-						style={BUTTON_STYLE}
-					>
-						Précédent
-					</button>
-					<span aria-live="polite" style={{ fontWeight: 700 }}>
-						Page {page} sur {pages.toLocaleString("fr")}
-					</span>
-					<button
-						type="button"
-						disabled={page >= pages}
-						onClick={() => setState((current) => ({ ...current, page: current.page + 1 }))}
-						style={BUTTON_STYLE}
-					>
-						Suivant
-					</button>
-				</nav>
-			) : null}
+			</ExplorerSurface>
 		</section>
 	);
 }

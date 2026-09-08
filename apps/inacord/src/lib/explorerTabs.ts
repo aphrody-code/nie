@@ -9,6 +9,7 @@ import {
   goForward,
   makeTab,
   openTab,
+  restoreExplorerTabs,
   updateTab,
   type ExplorerTab,
   type ExplorerTabPatch,
@@ -64,45 +65,15 @@ function load(): ExplorerTabsState {
   }
   if (!raw) return freshState();
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return freshState();
-    const src = (parsed as { tabs?: unknown }).tabs;
-    if (!Array.isArray(src)) return freshState();
-    const tabs: ExplorerTab[] = [];
-    for (const t of src) {
-      if (!t || typeof t !== "object") continue;
-      const o = t as Record<string, unknown>;
-      if (typeof o.prefix !== "string") continue;
-      const id = typeof o.id === "string" && o.id ? o.id : newTabId();
-      if (tabs.some((x) => x.id === id)) continue;
-      const history = Array.isArray(o.history) && o.history.every((h) => typeof h === "string")
-        ? (o.history as string[])
-        : [o.prefix];
-      const rawIndex = typeof o.historyIndex === "number" ? o.historyIndex : history.length - 1;
-      const historyIndex = Math.min(Math.max(0, Math.trunc(rawIndex)), Math.max(0, history.length - 1));
-      tabs.push({
-        id,
-        prefix: o.prefix,
-        selected: typeof o.selected === "string" ? o.selected : null,
-        ...(typeof o.query === "string" ? { query: o.query } : {}),
-        ...(typeof o.ext === "string" ? { ext: o.ext } : {}),
-        ...(o.sortKey === "name" || o.sortKey === "size" ? { sortKey: o.sortKey } : {}),
-        ...(o.viewMode === "list" || o.viewMode === "grid" ? { viewMode: o.viewMode } : {}),
-        ...(typeof o.gridSize === "number" && Number.isFinite(o.gridSize) ? { gridSize: o.gridSize } : {}),
-        history: history.length > 0 ? history : [o.prefix],
-        historyIndex,
-      });
-    }
-    if (tabs.length === 0) return freshState();
+    const restored = restoreExplorerTabs(JSON.parse(raw), newTabId);
+    if (!restored) return freshState();
     // Le compteur d'ids doit dépasser tout id restauré, sinon `newTabId` recréerait une clé déjà
     // présente (deux onglets indistinguables côté React et côté actions).
-    for (const t of tabs) {
+    for (const t of restored.tabs) {
       const n = /^tab-(\d+)$/.exec(t.id);
       if (n) idSeq = Math.max(idSeq, Number(n[1]));
     }
-    const wanted = (parsed as { activeId?: unknown }).activeId;
-    const activeId = typeof wanted === "string" && tabs.some((t) => t.id === wanted) ? wanted : tabs[0]!.id;
-    return { tabs, activeId };
+    return restored;
   } catch {
     return freshState();
   }

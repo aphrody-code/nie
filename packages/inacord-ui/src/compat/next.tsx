@@ -20,6 +20,8 @@
  * garde sa manière.
  */
 import * as React from "react";
+import { browserLocationSnapshot, subscribeBrowserLocation, type NavigationOptions } from "../lib/browser-navigation";
+export type { NavigationOptions } from "../lib/browser-navigation";
 
 /**
  * L'hôte décide comment on navigue.
@@ -29,7 +31,7 @@ import * as React from "react";
  * `<a>` ordinaire, qui est correct partout.
  */
 const ContexteNavigation = React.createContext<{
-	naviguer?: (href: string) => void;
+	naviguer?: (href: string, options?: NavigationOptions) => void;
 } | null>(null);
 
 /** Installe la navigation de l'hôte pour tous les composants portés. */
@@ -37,7 +39,7 @@ export function FournisseurNavigation({
 	naviguer,
 	children,
 }: {
-	naviguer: (href: string) => void;
+	naviguer: (href: string, options?: NavigationOptions) => void;
 	children: React.ReactNode;
 }) {
 	const valeur = React.useMemo(() => ({ naviguer }), [naviguer]);
@@ -56,8 +58,9 @@ export function Link({
 	href,
 	children,
 	prefetch: _prefetch,
-	replace: _replace,
-	scroll: _scroll,
+	replace,
+	scroll,
+	onClick,
 	...props
 }: React.ComponentProps<"a"> & {
 	href: string;
@@ -69,9 +72,10 @@ export function Link({
 	const ctx = React.useContext(ContexteNavigation);
 	return (
 		<a
+			{...props}
 			href={href}
 			onClick={(e) => {
-				props.onClick?.(e);
+				onClick?.(e);
 				// Un clic modifié (Ctrl, ⌘, milieu) appartient au navigateur : l'intercepter
 				// empêcherait d'ouvrir dans un onglet, sans message d'erreur.
 				if (
@@ -82,14 +86,15 @@ export function Link({
 					e.shiftKey ||
 					e.altKey ||
 					e.button !== 0 ||
-					href.startsWith("http")
+					(props.target !== undefined && props.target !== "_self") ||
+					props.download !== undefined ||
+					new URL(href, window.location.href).origin !== window.location.origin
 				) {
 					return;
 				}
 				e.preventDefault();
-				ctx.naviguer(href);
+				ctx.naviguer(href, { replace, scroll });
 			}}
-			{...props}
 		>
 			{children}
 		</a>
@@ -149,11 +154,14 @@ export function useRouter() {
 	const ctx = React.useContext(ContexteNavigation);
 	return React.useMemo(
 		() => ({
-			push: (href: string) => {
-				if (ctx?.naviguer) ctx.naviguer(href);
+			push: (href: string, options?: NavigationOptions) => {
+				if (ctx?.naviguer) ctx.naviguer(href, options);
 				else window.location.assign(href);
 			},
-			replace: (href: string) => window.location.replace(href),
+			replace: (href: string, options?: NavigationOptions) => {
+				if (ctx?.naviguer) ctx.naviguer(href, { ...options, replace: true });
+				else window.location.replace(href);
+			},
 			back: () => window.history.back(),
 			forward: () => window.history.forward(),
 			// Sans serveur à re-interroger, « rafraîchir » est un rechargement. C'est le
@@ -168,12 +176,12 @@ export function useRouter() {
 
 /** Le chemin courant, sans le préfixe de langue ni la query. */
 export function usePathname(): string {
-	return typeof window === "undefined" ? "/" : window.location.pathname;
+	const location = React.useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, () => "/");
+	return new URL(location, "http://localhost").pathname;
 }
 
 /** Les paramètres de l'URL courante, en lecture. */
 export function useSearchParams(): URLSearchParams {
-	return new URLSearchParams(
-		typeof window === "undefined" ? "" : window.location.search,
-	);
+	const location = React.useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, () => "/");
+	return new URL(location, "http://localhost").searchParams;
 }

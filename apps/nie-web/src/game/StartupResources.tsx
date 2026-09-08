@@ -6,6 +6,9 @@ import { nativeAssetUrl } from "@niers/inacord-ui/shell/native-title-menu";
 import { useEffect, useRef, useState } from "react";
 import { loadMenuPresentation } from "./bridge";
 import { nativeTextRaster } from "./native-font";
+import { NativeResources } from "./native-resources";
+import { acquireOpeningMedia } from "./opening-media";
+import { OPENING_LOGO_MOVIES } from "./opening-sequence";
 
 /** Persistent startup owner: decoding is native, host fetches are bounded and disposable. */
 export function StartupResources({ titleActive }: { titleActive: boolean }) {
@@ -20,7 +23,10 @@ export function StartupResources({ titleActive }: { titleActive: boolean }) {
 	useEffect(() => {
 		if (!resourcesReady) return;
 		const abort = new AbortController();
-		const audio = new NativeAudioPlayer(source, setAudioState);
+		const nativeResources = new NativeResources(source);
+		let audio: NativeAudioPlayer;
+		try { audio = new NativeAudioPlayer(source, setAudioState, (cue, priority) => nativeResources.audioCue(cue.bank, cue.name, priority)); }
+		catch { nativeResources.dispose(); setAudioState("failed"); return; }
 		player.current = audio;
 		audio.setMusicEnabled(active.current);
 		audio.setHidden(document.hidden);
@@ -50,6 +56,7 @@ export function StartupResources({ titleActive }: { titleActive: boolean }) {
 			document.removeEventListener("visibilitychange", visibility);
 			window.removeEventListener(NATIVE_COMMAND_EVENT, command);
 			audio.dispose();
+			nativeResources.dispose();
 			if (player.current === audio) player.current = null;
 		};
 	}, [source, attempt, resourcesReady]);
@@ -59,7 +66,9 @@ export function StartupResources({ titleActive }: { titleActive: boolean }) {
 	useEffect(() => {
 		if (!resourcesReady) return;
 		const resources = new ResourceLoader(3, 0);
+		const media = acquireOpeningMedia(source);
 		let disposed = false;
+		void Promise.allSettled(Object.values(OPENING_LOGO_MOVIES).map(path => media.load(path, "preload")));
 		// Loading, notices and title share the existing Rust scene/font caches. Preload only
 		// imminent surfaces; avatar, other menus and their models remain demand-loaded.
 		void Promise.allSettled((["loading", "autosave", "start", "title-menu"] as const).map(async (id) => {
@@ -78,7 +87,7 @@ export function StartupResources({ titleActive }: { titleActive: boolean }) {
 				...(scene.texts ?? []).map((text) => nativeTextRaster(source, text.text, ((text.color ?? 0xffffff) * 256 + 255) >>> 0)),
 			]);
 		}));
-		return () => { disposed = true; resources.dispose(); };
+		return () => { disposed = true; resources.dispose(); media.dispose(); };
 	}, [source, resourcesReady]);
 
 	if (!titleActive || (audioState !== "blocked" && audioState !== "failed")) return null;

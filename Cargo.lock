@@ -5245,6 +5245,7 @@ dependencies = [
  "nie-ui",
  "nie-viola",
  "nie-wiki",
+ "nie-zukan",
  "parking_lot",
  "reqwest",
  "rusqlite",

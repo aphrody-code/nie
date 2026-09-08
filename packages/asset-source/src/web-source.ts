@@ -127,6 +127,7 @@ export function creerWebSource({ origine = "" }: OptionsWebSource = {}): AssetSo
 		urlAudio: (cheminVfs: string, awbId?: number | null) =>
 			abs(`/assets${cheminAudio(cheminVfs, awbId)}`),
 		urlVideo: (cheminVfs: string) => abs(`/assets${cheminFilm(cheminVfs)}`),
+		urlVideoAudio: (cheminVfs: string) => abs(`/assets${cheminFilm(cheminVfs)}?track=audio`),
 
 		// Le redimensionnement est fait par l'amont (`?w=`), pas par le navigateur : télécharger
 		// une texture de plusieurs mégaoctets pour l'afficher en 96 px gâche la bande passante

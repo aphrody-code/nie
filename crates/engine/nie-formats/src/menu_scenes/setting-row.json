@@ -18,7 +18,18 @@
       }
     }
   ],
-  "controls": [],
+  "controls": [
+    {
+      "id": "setting-row",
+      "label": "Setting row",
+      "rect": { "x": 0, "y": 0, "w": 1216, "h": 76 },
+      "provenance": {
+        "source": "data/dx11/menu/108_option/option01/option01_02/option01_02.g4tx",
+        "record": "option_list_base02_off/on",
+        "method": "Focus target for the reusable native row template; host preference behavior is supplied by the existing setting control."
+      }
+    }
+  ],
   "unresolved": [
     "This scene is the native row template, not the full PC Options screen.",
     "setting_menu option01_01 list attachment transforms and active tab instances are not resolved by the current runtime export.",

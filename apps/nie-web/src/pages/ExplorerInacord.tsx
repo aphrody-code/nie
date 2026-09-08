@@ -1,5 +1,6 @@
 import type { ContenuDossier, EntreeVfs } from "@niers/asset-source";
 import { useAssetSource } from "@niers/inacord-ui";
+import { NativeTexturePreview } from "../game/NativeTexturePreview";
 import {
 	ExplorerBreadcrumbs,
 	ExplorerEntries,
@@ -22,11 +23,13 @@ import {
 	goForward,
 	makeTab,
 	openTab,
+	restoreExplorerTabs,
 	updateTab,
 	type ExplorerTab,
 	type ExplorerTabsState,
 } from "@niers/inacord-ui/explorer/explorer-tabs";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
 
 const STORAGE_KEY = "nie:explorer:tabs";
 const PAGE_SIZE = 200;
@@ -92,8 +95,13 @@ function tabsFromLocation(): ExplorerTabsState {
 	const prefix = params.get("d") ?? "data/common";
 	const selected = params.get("a");
 	try {
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as ExplorerTabsState | null;
-		if (stored?.tabs.length && stored.tabs.some((tab) => tab.id === stored.activeId)) return stored;
+		let sequence = 0;
+		const stored = restoreExplorerTabs(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null"), () => `explorer-restored-${++sequence}`);
+		if (stored) {
+			// An explicit URL wins over the previous session's active folder and selection.
+			if (params.has("d") || params.has("a")) return updateTab(stored, stored.activeId, { prefix, selected });
+			return stored;
+		}
 	} catch {
 		// Corrupt browser state is discarded in favor of the URL/default tab.
 	}
@@ -107,7 +115,7 @@ function writeLocation(tab: ExplorerTab) {
 	else url.searchParams.delete("d");
 	if (tab.selected) url.searchParams.set("a", tab.selected);
 	else url.searchParams.delete("a");
-	window.history.replaceState(window.history.state, "", url);
+	writeBrowserHistory(url, window.history.state);
 }
 
 function tabLabel(tab: { prefix: string }): string {
@@ -136,7 +144,7 @@ export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 		setTabsState((state) => updateTab(state, state.activeId, patch));
 
 	useEffect(() => {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(tabsState));
+		try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tabsState)); } catch { /* Navigation remains available without storage. */ }
 		writeLocation(activeTab);
 	}, [tabsState, activeTab]);
 
@@ -314,6 +322,6 @@ function FileIcon({ file, source, grid }: { file: EntreeVfs; source: ReturnType<
 function FileInspector({ file, mode }: { file: EntreeVfs; mode: "preview" | "properties" }) {
 	const source = useAssetSource();
 	if (mode === "properties") return <dl className="inacord-explorer-properties"><dt>Chemin</dt><dd>{file.chemin}</dd><dt>Taille</dt><dd>{formatBytes(file.taille)}</dd><dt>Pack</dt><dd>{file.cpk ?? "—"}</dd></dl>;
-	if (/\.g4tx$/i.test(file.chemin) && source.urlTexture) return <img className="inacord-explorer-preview" src={source.urlTexture(file.chemin)} alt={file.chemin.split("/").at(-1)} />;
+	if (/\.g4tx$/i.test(file.chemin)) return <NativeTexturePreview source={source} path={file.chemin} className="inacord-explorer-preview" alt={file.chemin.split("/").at(-1)} />;
 	return <div className="inacord-explorer-file-preview"><MaterialIcon name="description" /><strong>{file.chemin.split("/").at(-1)}</strong><span>{formatBytes(file.taille)}</span><a href={source.urlFichier(file.chemin)}>Ouvrir le fichier</a></div>;
 }

@@ -189,6 +189,9 @@ export interface AssetSource {
 	/** L'URL d'une vidéo transcodée. */
 	urlVideo?(cheminVfs: string): string;
 
+	/** Native internal or externally resolved movie soundtrack, selected by the Rust movie owner. */
+	urlVideoAudio?(cheminVfs: string): string;
+
 	/**
 	 * Une vignette prête à poser dans un `<img src>`.
 	 *

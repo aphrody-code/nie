@@ -1654,9 +1654,8 @@ fn vfs_index_scan_take(
     serde_json::from_value(value).map_err(|e| e.to_string())
 }
 
-/// Chemins VFS dont le nom (sans extension) est CONTENU dans `needle`, insensible à la casse —
-/// substring en mémoire, fallback historique tant que l'index SQL ([`vfs_all_entries`] +
-/// `vfsIndexDb`) n'a pas été construit côté frontend.
+/// Compatibility search for VFS paths containing `needle`, case-sensitive, sorted by path.
+/// This historical substring policy is not a decoded resource dependency relationship.
 #[tauri::command]
 #[specta::specta]
 fn vfs_related(
@@ -1666,19 +1665,10 @@ fn vfs_related(
     state: tauri::State<VfsState>,
 ) -> Result<Vec<EntryDto>, String> {
     with_vfs(game_dir, &state, |vfs| {
-        let mut hits: Vec<EntryDto> = vfs
-            .iter()
-            .filter(|(p, _)| p.contains(&needle))
-            .map(|(path, entry)| EntryDto {
-                path: path.to_string(),
-                name: path.rsplit('/').next().unwrap_or(path).to_string(),
-                size: entry.file_size,
-                cpk: entry.cpk_filename.clone(),
-            })
-            .collect();
-        hits.sort_by(|a, b| a.path.cmp(&b.path));
-        hits.truncate(limit.max(1) as usize);
-        Ok(hits)
+        Ok(nie_explore::related::legacy_search(vfs, &needle, limit.max(1) as usize)
+            .into_iter().map(|(path, size, cpk)| EntryDto {
+                name: path.rsplit('/').next().unwrap_or(&path).to_owned(), path, size, cpk,
+            }).collect())
     })
 }
 
@@ -4268,118 +4258,22 @@ fn vfs_motion_clips(
 ) -> Result<MotionClipsDto, String> {
     let root = resolve_root(game_dir.as_deref());
     with_vfs(Some(root.display().to_string()), &state, |vfs| {
-        let (dir_prefix, base, stem) = split_vfs_path(&path);
-
-        // Une `.g4pk` désignée nommément ne se fait pas remplacer par ses sœurs : l'utilisateur a
-        // demandé CETTE animation.
-        let archives: Vec<String> = if base.to_ascii_lowercase().ends_with(".g4pk") {
-            vec![path.clone()]
-        } else {
-            let mut hits: Vec<String> = vfs
-                .iter()
-                .filter_map(|(p, _)| p.strip_prefix(dir_prefix).map(|rest| (p, rest)))
-                .filter(|(_, rest)| !rest.contains('/'))
-                .filter(|(_, rest)| {
-                    let lower = rest.to_ascii_lowercase();
-                    let Some(name) = lower.strip_suffix(".g4pk") else {
-                        return false;
-                    };
-                    let stem_lower = stem.to_ascii_lowercase();
-                    // `_` obligatoire après le radical : sans lui, `c0001` happerait `c000101`.
-                    name == stem_lower
-                        || name
-                            .strip_prefix(&stem_lower)
-                            .is_some_and(|s| s.starts_with('_'))
-                })
-                .map(|(p, _)| p.to_string())
-                .collect();
-            hits.sort();
-            hits
-        };
-
-        if archives.is_empty() {
-            return Ok(MotionClipsDto {
-                archives,
-                clips: Vec::new(),
-                notice: Some(format!(
-                    "aucune archive « {stem}*.g4pk » dans {} — présent : {}",
-                    if dir_prefix.is_empty() {
-                        "la racine du VFS"
-                    } else {
-                        dir_prefix
-                    },
-                    summarize_names(&vfs_dir_filenames(vfs, dir_prefix)),
-                )),
-            });
-        }
-
-        let mut clips = Vec::new();
-        let mut skipped: Vec<String> = Vec::new();
-        for archive in &archives {
-            let data = match vfs.read(archive) {
-                Ok(d) => d,
-                Err(e) => {
-                    skipped.push(format!("{archive} (lecture : {e})"));
-                    continue;
-                }
-            };
-            let pk = match nie_formats::g4pk::parse(&data) {
-                Ok(pk) => pk,
-                Err(e) => {
-                    skipped.push(format!("{archive} (G4PK : {e})"));
-                    continue;
-                }
-            };
-            let mut found_motion = false;
-            for file in pk
-                .files
-                .iter()
-                .filter(|f| f.name.to_ascii_lowercase().ends_with(".g4mt"))
-            {
-                found_motion = true;
-                let Some(bytes) = data.get(file.offset..file.offset + file.size) else {
-                    skipped.push(format!("{archive}/{} (bornes hors archive)", file.name));
-                    continue;
-                };
-                let Some(motion) = nie_formats::g4mt::Motion::parse(bytes) else {
-                    skipped.push(format!("{archive}/{} (G4MT illisible)", file.name));
-                    continue;
-                };
-                for clip in &motion.clips {
-                    clips.push(MotionClipDto {
-                        archive: archive.clone(),
-                        motion_file: file.name.clone(),
-                        name: clip.name.clone(),
-                        crc32: f64::from(clip.crc32),
-                        start_frame: f64::from(clip.start_frame),
-                        end_frame: f64::from(clip.end_frame),
-                        frame_count: f64::from(clip.frame_count()),
-                        fps: f64::from(clip.fps),
-                        additive: clip.is_additive(),
-                        target_count: motion.target_indices(clip).len() as f64,
-                    });
-                }
-            }
-            if !found_motion {
-                skipped.push(format!("{archive} (aucun sous-fichier .g4mt)"));
-            }
-        }
-
-        let notice = if skipped.is_empty() {
-            None
-        } else if clips.is_empty() {
-            Some(format!("aucun clip lisible — {}", skipped.join(" ; ")))
-        } else {
-            Some(format!(
-                "{} archive(s) écartée(s) : {}",
-                skipped.len(),
-                skipped.join(" ; ")
-            ))
-        };
+        let report = nie_explore::motion::clips(vfs, &path)?;
         Ok(MotionClipsDto {
-            archives,
-            clips,
-            notice,
+            archives: report.archives,
+            clips: report.clips.into_iter().map(|clip| MotionClipDto {
+                archive: clip.archive,
+                motion_file: clip.motion_file,
+                name: clip.name,
+                crc32: clip.crc32,
+                start_frame: clip.start_frame,
+                end_frame: clip.end_frame,
+                frame_count: clip.frame_count,
+                fps: clip.fps,
+                additive: clip.additive,
+                target_count: clip.target_count,
+            }).collect(),
+            notice: report.notice,
         })
     })
 }

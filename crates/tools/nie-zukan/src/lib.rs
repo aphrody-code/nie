@@ -26,6 +26,7 @@
     clippy::cast_sign_loss
 )]
 
+pub mod api;
 pub mod matching;
 /// Compatibility exports for the former French module name.
 #[deprecated(since = "0.5.11", note = "use `matching` instead")]

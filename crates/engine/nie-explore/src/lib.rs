@@ -30,8 +30,11 @@ pub mod listing;
 /// Compatibility facade; menu layout ownership lives in `nie_formats::menu`.
 pub mod menu_layout;
 pub mod menu_audio;
+pub mod motion;
+pub mod spatial_preview;
 pub mod native_audio;
 pub mod native_metadata;
+pub mod related;
 pub mod native_video;
 pub mod menu_modes;
 
