@@ -500,6 +500,7 @@ pub enum SseOp {
     Punpckhdq,
     Paddw,
     Paddd,
+    Paddq,
     Psubw,
     Psubd,
     Pminsw,
@@ -823,6 +824,7 @@ impl SseOp {
             Self::Punpckhdq => (P66, 0x6A, None),
             Self::Paddw => (P66, 0xFD, None),
             Self::Paddd => (P66, 0xFE, None),
+            Self::Paddq => (P66, 0xD4, None),
             Self::Psubw => (P66, 0xF9, None),
             Self::Psubd => (P66, 0xFA, None),
             Self::Pminsw => (P66, 0xEA, None),
@@ -1035,6 +1037,8 @@ pub enum Insn {
     Cmov(Cond, Size, Reg, Rm),
     /// SSE à immédiat : `shufps xmm0, xmm1, 0x4e` (`0F C6 /r ib`)
     SseI(SseOp, Xmm, XmmRm, u8),
+    /// Extrait un élément d'un registre XMM vers un registre général (`66 0F 3A 17 /r ib`).
+    Extractps(Reg, Xmm, u8),
     /// Conversion `xmm ← r/m entier` (`cvtsi2ss`/`cvtsi2sd`)
     CvtToXmm(CvtOp, Xmm, Rm, Size),
     /// Conversion `r entier ← xmm/m` (`cvttss2si`, `cvtsd2si`…)
@@ -1049,6 +1053,8 @@ pub enum Insn {
     MovzxRm(Size, Size, Reg, Rm),
     /// `movsx r, r/m8|16` — idem
     MovsxRm(Size, Size, Reg, Rm),
+    /// Store MXCSR to a 32-bit memory operand (`0F AE /3`).
+    Stmxcsr(Mem),
     /// Instruction sans opérande (`cdqe`, `cdq`, `cqo`, `cwde`, `leave`)
     NoOperand(NoOp),
     /// `setcc r/m8` — forme générale, mémoire comprise
@@ -1811,6 +1817,11 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
                 op.three_byte(),
             );
         }
+        Insn::Extractps(dst, src, imm) => {
+            out.push(0x66);
+            rex(out, false, src.hi(), 0, dst.hi());
+            out.extend_from_slice(&[0x0F, 0x3A, 0x17, 0xC0 | (src.lo() << 3) | dst.lo(), imm]);
+        }
         Insn::CvtToXmm(op, dst, src, size) => {
             let (prefix, opcode) = op.encoding();
             let base = out.len();
@@ -1930,6 +1941,7 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             let opcode = if src_size == Size::B { 0xBE } else { 0xBF };
             movx_form(out, src_size, dst_size, opcode, r, rm, at);
         }
+        Insn::Stmxcsr(m) => rm_form(out, Size::D, &[0x0F, 0xAE], 3, 0, Rm::M(m), at, &[]),
         Insn::CvtToReg(op, dst, src, size) => {
             let (prefix, opcode) = op.encoding();
             let base = out.len();
@@ -2332,6 +2344,28 @@ mod tests {
             vec![0x48, 0xB8, 0xF0, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12]
         );
         assert_eq!(encode(&[Insn::Int3]), vec![0xCC]);
+    }
+
+    #[test]
+    fn extractps_registre_general_avec_immediat() {
+        let insn = Insn::Extractps(Reg::Rax, Xmm(0), 0);
+        assert_eq!(encode(&[insn]), vec![0x66, 0x0F, 0x3A, 0x17, 0xC0, 0x00]);
+        assert_eq!(text::parse_insn("extractps eax, xmm0, 0").unwrap(), insn);
+        assert_eq!(insn.to_text(), "extractps eax, xmm0, 0x0");
+    }
+
+    #[test]
+    fn paddq_sse_encode_et_parse() {
+        let insn = Insn::Sse(SseOp::Paddq, Xmm(4), XmmRm::X(Xmm(7)));
+        assert_eq!(encode(&[insn]), vec![0x66, 0x0F, 0xD4, 0xE7]);
+        assert_eq!(text::parse_insn("paddq xmm4, xmm7").unwrap(), insn);
+    }
+
+    #[test]
+    fn stmxcsr_mem_encode_et_parse() {
+        let insn = Insn::Stmxcsr(Mem::base_disp(Reg::Rsp, 0x58));
+        assert_eq!(encode(&[insn]), vec![0x0F, 0xAE, 0x5C, 0x24, 0x58]);
+        assert_eq!(text::parse_insn("stmxcsr [rsp+0x58]").unwrap(), insn);
     }
 
     #[test]

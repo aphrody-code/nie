@@ -318,7 +318,7 @@ fn split_sized_mem(s: &str) -> Option<(Size, Mem)> {
 }
 
 /// Table des mnemoniques SSE supportes.
-const SSES: [(&str, SseOp); 105] = [
+const SSES: [(&str, SseOp); 106] = [
     ("movaps", SseOp::Movaps),
     ("movapd", SseOp::Movapd),
     ("movups", SseOp::Movups),
@@ -392,6 +392,7 @@ const SSES: [(&str, SseOp); 105] = [
     ("punpckhdq", SseOp::Punpckhdq),
     ("paddw", SseOp::Paddw),
     ("paddd", SseOp::Paddd),
+    ("paddq", SseOp::Paddq),
     ("psubw", SseOp::Psubw),
     ("psubd", SseOp::Psubd),
     ("pminsw", SseOp::Pminsw),
@@ -904,6 +905,11 @@ impl Insn {
                 xmm_text(d),
                 xmmrm_text(s)
             ),
+            Self::Extractps(d, s, i) => format!(
+                "extractps {}, {}, {i:#x}",
+                reg_name(d, Size::D),
+                xmm_text(s)
+            ),
             Self::CvtToXmm(op, d, s, sz) => {
                 format!("{} {}, {}", cvt_name(op), xmm_text(d), rm_text(s, sz))
             }
@@ -931,6 +937,7 @@ impl Insn {
             Self::MovsxRm(src, dst, r, rm) => {
                 format!("movsx {}, {}", reg_name(r, dst), rm_text(rm, src))
             }
+            Self::Stmxcsr(m) => format!("stmxcsr {}", mem_text(m)),
             Self::NoOperand(o) => noop_name(o).to_string(),
             Self::SetccRm(c, rm) => format!("set{} {}", cond_name(c), rm_text(rm, Size::B)),
             Self::Shift1(op, s, rm) => {
@@ -1021,6 +1028,13 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     if let Some((_, o)) = NOOPS.iter().find(|(n, _)| *n == mnem) {
         return Ok(Insn::NoOperand(*o));
     }
+    if mnem == "stmxcsr" {
+        let (rm, _) = parse_rm(args).ok_or_else(err)?;
+        return match rm {
+            Rm::M(m) => Ok(Insn::Stmxcsr(m)),
+            Rm::R(_) => Err(err()),
+        };
+    }
     if let Some((_, o)) = BITOPS.iter().find(|(n, _)| *n == mnem) {
         let (d, s) = two()?;
         let (rm, sz) = parse_rm(&d).ok_or_else(err)?;
@@ -1087,6 +1101,21 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
             *op,
             xmm_of(&d).ok_or_else(err)?,
             parse_xmmrm(&s).ok_or_else(err)?,
+        ));
+    }
+    if mnem == "extractps" {
+        let parts: Vec<&str> = args.split(',').map(str::trim).collect();
+        if parts.len() != 3 {
+            return Err(err());
+        }
+        let (dst, size) = reg_of(parts[0]).ok_or_else(err)?;
+        if size != Size::D {
+            return Err(err());
+        }
+        return Ok(Insn::Extractps(
+            dst,
+            xmm_of(parts[1]).ok_or_else(err)?,
+            u8::try_from(parse_int(parts[2]).ok_or_else(err)?).map_err(|_| err())?,
         ));
     }
     if let Some((_, op)) = VEXES.iter().find(|(n, _)| *n == mnem) {

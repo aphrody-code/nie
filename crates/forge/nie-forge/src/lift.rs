@@ -312,6 +312,7 @@ fn sse_of(m: Mnemonic) -> Option<SseOp> {
         Mnemonic::Punpckhdq => SseOp::Punpckhdq,
         Mnemonic::Paddw => SseOp::Paddw,
         Mnemonic::Paddd => SseOp::Paddd,
+        Mnemonic::Paddq => SseOp::Paddq,
         Mnemonic::Psubw => SseOp::Psubw,
         Mnemonic::Psubd => SseOp::Psubd,
         Mnemonic::Pminsw => SseOp::Pminsw,
@@ -665,6 +666,23 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             xmm_of(i.op_register(1))?,
         ));
     }
+    // `extractps r32, xmm, imm8` : destination registre general, distincte des
+    // formes `SseI` dont la destination est toujours un XMM.
+    if i.mnemonic() == Mnemonic::Extractps
+        && i.op_kind(0) == OpKind::Register
+        && i.op_kind(1) == OpKind::Register
+        && i.op_kind(2) == OpKind::Immediate8
+    {
+        let (dst, size) = reg_of(i.op_register(0))?;
+        if size != Size::D {
+            return None;
+        }
+        return Some(Insn::Extractps(
+            dst,
+            xmm_of(i.op_register(1))?,
+            i.immediate8(),
+        ));
+    }
     // SSE à immédiat (`shufps xmm0, xmm1, 0x4e`).
     if let Some(op) = sse_of(i.mnemonic())
         && i.op_count() == 3
@@ -749,6 +767,7 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
     }
 
     match i.mnemonic() {
+        Mnemonic::Stmxcsr if i.op_kind(0) == OpKind::Memory => Some(Insn::Stmxcsr(mem_of(i)?)),
         Mnemonic::Ret => match i.op_count() {
             0 => Some(Insn::Ret),
             1 => Some(Insn::RetImm(i.immediate16())),
