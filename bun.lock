@@ -658,7 +658,7 @@
     "esbuild",
   ],
   "overrides": {
-    "@aphrody-code/bxc": "npm:@aphrody/bxc@^0.9.6",
+    "@aphrody-code/bxc": "npm:@aphrody/bxc@^0.9.10",
     "@aphrody-code/canvas": "npm:@aphrody/canvas@0.1.99",
     "@aphrody-code/challonge": "npm:@aphrody/challonge@^0.1.6",
     "@aphrody-code/fut": "npm:@aphrody/fut@^0.1.5",
@@ -671,11 +671,11 @@
     "kysely": "0.28.17",
   },
   "catalog": {
-    "@aphrody-code/bxc": "^0.6.0",
+    "@aphrody-code/bxc": "^0.9.10",
     "@aphrody-code/canvas": "0.1.99-fork.4",
     "@aphrody-code/x": "^1.0.6",
     "@aphrody-code/zukan": "^0.1.2",
-    "@aphrody/bxc": "0.9.6",
+    "@aphrody/bxc": "0.9.10",
     "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@base-ui/react": "^1.7.0",
     "@better-auth/agent-auth": "^0.5.1",
@@ -904,15 +904,15 @@
 
     "@alloc/quick-lru": ["@alloc/quick-lru@5.3.0", "", {}, "sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA=="],
 
-    "@aphrody-code/bxc": ["@aphrody/bxc@0.9.6", "", { "dependencies": { "@aphrody/animesama": "0.2.1", "@aphrody/challonge": "0.2.1", "@aphrody/frames": "0.2.1", "@aphrody/fut": "0.2.1", "@aphrody/ietv": "0.2.1", "@aphrody/ietv-client": "1.1.1", "@aphrody/voiranime": "0.2.1", "@aphrody/wonderbot": "0.2.1", "@aphrody/worldbeyblade": "0.2.1", "@aphrody/x": "1.2.1", "@aphrody/xai": "1.1.1", "@aphrody/xcom": "0.2.1", "@aphrody/zukan": "0.2.1", "@bogeychan/elysia-logger": "^0.1.10", "@elysiajs/cors": "^1.4.2", "@elysiajs/swagger": "^1.3.1", "@libsql/client": "^0.17.4", "@modelcontextprotocol/sdk": "^1.30.0", "@mozilla/readability": "^0.6.0", "bottleneck": "^2.19.5", "class-validator": "^0.15.1", "drizzle-orm": "^0.45.2", "elysia": "^1.4.30", "graphql": "^16.14.2", "graphql-yoga": "^5.22.0", "lru-cache": "^11.5.2", "p-limit": "^7.3.2", "p-queue": "^9.3.3", "p-retry": "^8.0.1", "reflect-metadata": "^0.2.2", "type-graphql": "^2.0.0-rc.3", "zod": "^4.5.4" }, "bin": { "bxc": "bin/bxc.mjs" } }, "sha512-FIw/+Bz7kGJ2XATB4bszx5pFE0cUvfxDmleCFAUMeFDkzciPwPlFxCJcGo2tRfh/y2vRXQbVUXUjdCLohnaUtQ=="],
+    "@aphrody-code/bxc": ["@aphrody/bxc@0.9.10", "", { "dependencies": { "@aphrody/animesama": "0.2.1", "@aphrody/challonge": "0.2.1", "@aphrody/frames": "0.2.1", "@aphrody/fut": "0.2.1", "@aphrody/voiranime": "0.2.1", "@aphrody/worldbeyblade": "0.2.1", "@aphrody/x": "1.2.3", "@aphrody/xai": "1.1.3", "@bogeychan/elysia-logger": "^0.1.10", "@elysiajs/cors": "^1.4.2", "@elysiajs/swagger": "^1.3.1", "@libsql/client": "^0.17.4", "@modelcontextprotocol/sdk": "^1.30.0", "@mozilla/readability": "^0.6.0", "bottleneck": "^2.19.5", "class-validator": "^0.15.1", "drizzle-orm": "^0.45.2", "elysia": "^1.4.30", "graphql": "^16.14.2", "graphql-yoga": "^5.22.0", "lru-cache": "^11.5.2", "p-limit": "^7.3.2", "p-queue": "^9.3.3", "p-retry": "^8.0.1", "reflect-metadata": "^0.2.2", "type-graphql": "^2.0.0-rc.3", "zod": "^4.5.4" }, "bin": { "bxc": "bin/bxc.mjs" } }, "sha512-7OQ1Vt4goGRKl4ZPyzo9xeBEMLy02Qwwai2KCxsHDf8+B2YX7b8CoPHy+O27gMaCFwruWmJtf/DZPUrvJSBOUw=="],
 
-    "@aphrody-code/x": ["@aphrody/x@1.2.1", "", { "dependencies": { "zod": "^4.4.3" } }, "sha512-sMdkkGdmu9GihQNou8lm7AXWQiNB9RAnB8GPyu2h15ZAoKvj0nkzg2ytaGEgmmwxJ9XICmfQbz0DhWk6SDoqkA=="],
+    "@aphrody-code/x": ["@aphrody/x@1.2.3", "", { "dependencies": { "zod": "^4.4.3" } }, "sha512-vHHIJpqhW6rf0UEmzayOSYsnxJ462zvkfsgBTi7ckC6UcjHM1okVHnYdxZuM8G5GGzVuUMi9FynkA/yaurXQmg=="],
 
     "@aphrody-code/zukan": ["@aphrody/zukan@workspace:packages/zukan"],
 
     "@aphrody/animesama": ["@aphrody/animesama@0.2.1", "", {}, "sha512-bZPYIgvSvZ5PEmUGppgZLv/X1i5kiJfbxAt5IGlsBvUaMMPRYRQ8wWra6+0OO+VrsS6h0eXSrCxCebPaPKbtYA=="],
 
-    "@aphrody/bxc": ["@aphrody/bxc@0.9.6", "", { "dependencies": { "@aphrody/animesama": "0.2.1", "@aphrody/challonge": "0.2.1", "@aphrody/frames": "0.2.1", "@aphrody/fut": "0.2.1", "@aphrody/ietv": "0.2.1", "@aphrody/ietv-client": "1.1.1", "@aphrody/voiranime": "0.2.1", "@aphrody/wonderbot": "0.2.1", "@aphrody/worldbeyblade": "0.2.1", "@aphrody/x": "1.2.1", "@aphrody/xai": "1.1.1", "@aphrody/xcom": "0.2.1", "@aphrody/zukan": "0.2.1", "@bogeychan/elysia-logger": "^0.1.10", "@elysiajs/cors": "^1.4.2", "@elysiajs/swagger": "^1.3.1", "@libsql/client": "^0.17.4", "@modelcontextprotocol/sdk": "^1.30.0", "@mozilla/readability": "^0.6.0", "bottleneck": "^2.19.5", "class-validator": "^0.15.1", "drizzle-orm": "^0.45.2", "elysia": "^1.4.30", "graphql": "^16.14.2", "graphql-yoga": "^5.22.0", "lru-cache": "^11.5.2", "p-limit": "^7.3.2", "p-queue": "^9.3.3", "p-retry": "^8.0.1", "reflect-metadata": "^0.2.2", "type-graphql": "^2.0.0-rc.3", "zod": "^4.5.4" }, "bin": { "bxc": "bin/bxc.mjs" } }, "sha512-FIw/+Bz7kGJ2XATB4bszx5pFE0cUvfxDmleCFAUMeFDkzciPwPlFxCJcGo2tRfh/y2vRXQbVUXUjdCLohnaUtQ=="],
+    "@aphrody/bxc": ["@aphrody/bxc@0.9.10", "", { "dependencies": { "@aphrody/animesama": "0.2.1", "@aphrody/challonge": "0.2.1", "@aphrody/frames": "0.2.1", "@aphrody/fut": "0.2.1", "@aphrody/voiranime": "0.2.1", "@aphrody/worldbeyblade": "0.2.1", "@aphrody/x": "1.2.3", "@aphrody/xai": "1.1.3", "@bogeychan/elysia-logger": "^0.1.10", "@elysiajs/cors": "^1.4.2", "@elysiajs/swagger": "^1.3.1", "@libsql/client": "^0.17.4", "@modelcontextprotocol/sdk": "^1.30.0", "@mozilla/readability": "^0.6.0", "bottleneck": "^2.19.5", "class-validator": "^0.15.1", "drizzle-orm": "^0.45.2", "elysia": "^1.4.30", "graphql": "^16.14.2", "graphql-yoga": "^5.22.0", "lru-cache": "^11.5.2", "p-limit": "^7.3.2", "p-queue": "^9.3.3", "p-retry": "^8.0.1", "reflect-metadata": "^0.2.2", "type-graphql": "^2.0.0-rc.3", "zod": "^4.5.4" }, "bin": { "bxc": "bin/bxc.mjs" } }, "sha512-7OQ1Vt4goGRKl4ZPyzo9xeBEMLy02Qwwai2KCxsHDf8+B2YX7b8CoPHy+O27gMaCFwruWmJtf/DZPUrvJSBOUw=="],
 
     "@aphrody/challonge": ["@aphrody/challonge@0.2.1", "", {}, "sha512-RAkQhsESDI42dselveROED5zQ2TSIvsT45X0juM2KO15ix/OjzrVDQg71o/fcT+1IkljvHaZV+Jtj27zZu5IVg=="],
 
@@ -930,11 +930,9 @@
 
     "@aphrody/worldbeyblade": ["@aphrody/worldbeyblade@0.2.1", "", { "dependencies": { "cheerio": "^1.2.0" } }, "sha512-DPsrNVwr4YZsDMBS37jXTaFnvREOHq8NKrO3Jz/nyr0O685gtY/ZSX4o9KbPGEEKTe3m5amBTgToovhBjfm0tw=="],
 
-    "@aphrody/x": ["@aphrody/x@1.2.1", "", { "dependencies": { "zod": "^4.4.3" } }, "sha512-sMdkkGdmu9GihQNou8lm7AXWQiNB9RAnB8GPyu2h15ZAoKvj0nkzg2ytaGEgmmwxJ9XICmfQbz0DhWk6SDoqkA=="],
+    "@aphrody/x": ["@aphrody/x@1.2.3", "", { "dependencies": { "zod": "^4.4.3" } }, "sha512-vHHIJpqhW6rf0UEmzayOSYsnxJ462zvkfsgBTi7ckC6UcjHM1okVHnYdxZuM8G5GGzVuUMi9FynkA/yaurXQmg=="],
 
-    "@aphrody/xai": ["@aphrody/xai@1.1.1", "", { "dependencies": { "@aphrody/x": "1.2.1" } }, "sha512-nnncgBF3dUKNC8jXsNfcqn0b/X1zmIGOVV8B5PL8hYD3xuw1chiU0eJf87mKWSgKwjcFC3dKvYlFpq33MD6raw=="],
-
-    "@aphrody/xcom": ["@aphrody/xcom@0.2.1", "", {}, "sha512-vdwtNF1Zastb6XsPv8+REFOEZqOGIjPMRV6nUwOlj6gRjplpEw65WNpy2hx5sOk92qGyKiIAwQ0ju9wnyz0bbQ=="],
+    "@aphrody/xai": ["@aphrody/xai@1.1.3", "", { "dependencies": { "@aphrody/x": "1.2.3" } }, "sha512-qcySn95kul9hiSYlpkSMthY3Qm/ZqQlq2v6Sl5r6xLmU/M9D+fb6D9CkEZHtYRCIvscBQBWpIGDeOXzs3LDJUw=="],
 
     "@aphrody/zukan": ["@aphrody/zukan@workspace:packages/zukan"],
 
@@ -3311,22 +3309,6 @@
     "zod-to-json-schema": ["zod-to-json-schema@3.25.2", "", { "peerDependencies": { "zod": "^3.25.28 || ^4" } }, "sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA=="],
 
     "zustand": ["zustand@5.0.15", "", { "peerDependencies": { "@types/react": ">=18.0.0", "immer": ">=9.0.6", "react": ">=18.0.0", "use-sync-external-store": ">=1.2.0" }, "optionalPeers": ["@types/react", "immer", "react", "use-sync-external-store"] }, "sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A=="],
-
-    "@aphrody-code/bxc/@aphrody/ietv": ["@aphrody/ietv@0.2.1", "", { "dependencies": { "mediabunny": "^1.55.5" }, "peerDependencies": { "@mediabunny/server": "^1.55.5", "hls.js": "^1.7.1", "media-chrome": "^4.19.2" }, "optionalPeers": ["@mediabunny/server", "hls.js", "media-chrome"] }, "sha512-eBFGTDWNKAWov7swdP59fxP7lRLVsTOMkmdRSYLsP47JiSDD5GPzKlpC7efUr71biEPBx0AiduHOZp3z+HMNrA=="],
-
-    "@aphrody-code/bxc/@aphrody/ietv-client": ["@aphrody/ietv-client@1.1.1", "", {}, "sha512-CeNYFmE2dqQ9dYQCHTSb8Q86OEfw81Offkn1yiyjLPDeZZP9onC6K0JZ62+0ka681SKbg5vlyx10ZS+V1J1Uaw=="],
-
-    "@aphrody-code/bxc/@aphrody/wonderbot": ["@aphrody/wonderbot@0.2.1", "", { "dependencies": { "@aphrody/ietv": "0.2.1", "discord.js": "^14.26.4" } }, "sha512-Bzm5NDDIimajdkONkRDDVPZSV8NsyR3KuxLrb3HRTTDxMgZNVVNz+Ez9W8EOea7eKwVQiwuzWo6Gjn9JMn6xxw=="],
-
-    "@aphrody-code/bxc/@aphrody/zukan": ["@aphrody/zukan@0.2.1", "", { "dependencies": { "cheerio": "^1.2.0" } }, "sha512-H3qdnNYYCxZAj+OLoqMbEv2Gyy1KDlZpI/TLQXyknpw6mNRMCVwar8FiEUv8Jb8V8xrjqAm9xpd1db1iG6Xt+A=="],
-
-    "@aphrody/bxc/@aphrody/ietv": ["@aphrody/ietv@0.2.1", "", { "dependencies": { "mediabunny": "^1.55.5" }, "peerDependencies": { "@mediabunny/server": "^1.55.5", "hls.js": "^1.7.1", "media-chrome": "^4.19.2" }, "optionalPeers": ["@mediabunny/server", "hls.js", "media-chrome"] }, "sha512-eBFGTDWNKAWov7swdP59fxP7lRLVsTOMkmdRSYLsP47JiSDD5GPzKlpC7efUr71biEPBx0AiduHOZp3z+HMNrA=="],
-
-    "@aphrody/bxc/@aphrody/ietv-client": ["@aphrody/ietv-client@1.1.1", "", {}, "sha512-CeNYFmE2dqQ9dYQCHTSb8Q86OEfw81Offkn1yiyjLPDeZZP9onC6K0JZ62+0ka681SKbg5vlyx10ZS+V1J1Uaw=="],
-
-    "@aphrody/bxc/@aphrody/wonderbot": ["@aphrody/wonderbot@0.2.1", "", { "dependencies": { "@aphrody/ietv": "0.2.1", "discord.js": "^14.26.4" } }, "sha512-Bzm5NDDIimajdkONkRDDVPZSV8NsyR3KuxLrb3HRTTDxMgZNVVNz+Ez9W8EOea7eKwVQiwuzWo6Gjn9JMn6xxw=="],
-
-    "@aphrody/bxc/@aphrody/zukan": ["@aphrody/zukan@0.2.1", "", { "dependencies": { "cheerio": "^1.2.0" } }, "sha512-H3qdnNYYCxZAj+OLoqMbEv2Gyy1KDlZpI/TLQXyknpw6mNRMCVwar8FiEUv8Jb8V8xrjqAm9xpd1db1iG6Xt+A=="],
 
     "@aphrody/fut/p-queue": ["p-queue@8.1.1", "", { "dependencies": { "eventemitter3": "^5.0.1", "p-timeout": "^6.1.2" } }, "sha512-aNZ+VfjobsWryoiPnEApGGmf5WmNsCo9xu8dfaYamG5qaLP7ClhLN6NgsFe6SwJ2UbLEBK5dv9x8Mn5+RVhMWQ=="],
 

@@ -5,7 +5,7 @@
 //! Famille non couverte ; port direct.
 //!
 //! Vérité terrain : `data/common/gamedata/soccer/soccer_opponent_info_0.00.00.cfg.bin.json`
-//! (`m_soccerOpponentInfoList`, 154 entrées : `category`, `battleId`, `sortOrder`, `cond1..4`).
+//! (`m_soccerOpponentInfoList`, 155 entrées : `category`, `battleId`, `sortOrder`, `cond1..4`).
 
 use alloc::vec::Vec;
 use serde_json::Value;

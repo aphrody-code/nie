@@ -15,7 +15,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use serde_json::Value;
 
-use crate::cfgbin::{field_hash, field_i64, field_str, list_values};
+use crate::cfgbin::{field_hash, field_i64, field_optional_str, list_values};
 use crate::hash::HashId;
 
 /// Entrée `m_trialTakeOverInfoList` — un élément de report d'essai complet.
@@ -44,7 +44,7 @@ impl TrialTakeOverInfo {
             id,
             flag_no: field_i64(v, "flagNo").unwrap_or(0),
             item_id: field_hash(v, "itemId"),
-            condition: field_str(v, "condition").unwrap_or("").into(),
+            condition: field_optional_str(v, "condition").unwrap_or("").into(),
         })
     }
 
@@ -146,5 +146,17 @@ mod tests {
         assert_eq!(cfg.take_over[1].flag_no, 4);
         assert_eq!(cfg.take_over[1].condition, "AAAA");
         assert_eq!(cfg.part_take_over[0].id, HashId(0x26EA_0F62));
+    }
+
+    #[test]
+    fn sentinel_condition_is_empty() {
+        let value = json!({
+            "id": "0x46896BAB",
+            "flagNo": 0,
+            "itemId": "0x00000000",
+            "condition": "0xFFFFFFFF"
+        });
+        let info = TrialTakeOverInfo::from_value(&value).expect("valid entry");
+        assert!(info.condition.is_empty());
     }
 }

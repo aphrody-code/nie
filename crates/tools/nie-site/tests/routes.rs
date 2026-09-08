@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 85] = [
+    let instances: [(&str, &[u16]); 100] = [
         ("/healthz", &[200]),
         ("/robots.txt", &[200]),
         ("/sitemap.xml", &[200]),
@@ -138,6 +138,8 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/api/v1/lua/scripts", &[200]),
         ("/api/v1/lua/scripts/data/x.lua.bin", &[404]),
         ("/api/v1/lua/desassemblage/data/x.lua.bin", &[404]),
+        ("/api/v1/menu/runtime/mainmenu01", &[404, 503]),
+        ("/api/v1/runtime/audio", &[404, 503]),
         // Menus : l'arbre est relayé vers l'amont, tandis que le layout statique lit le VFS
         // local. Dans cet état synthétique, l'amont est fermé et aucun setting n'est monté.
         ("/api/v1/menu/screens", &[502]),
@@ -149,6 +151,18 @@ async fn toutes_les_routes_declarees_repondent() {
         // Une famille geometrique, pour que le routage du lot 9.1 soit dans cette garde-la
         // aussi : absente de l'index de test, donc 404 — mais routee.
         ("/api/v1/formats/decode/data/x.g4pk", &[404]),
+        ("/api/v1/export/formats/data/x.cfg.bin", &[404, 503]),
+        ("/api/v1/export/file/data/x.cfg.bin", &[404, 503]),
+        ("/api/v1/resources/related/data/x.cfg.bin", &[404, 503]),
+        ("/api/v1/wiki/search", &[200, 400, 503]),
+        ("/api/v1/wiki/gallery", &[200, 400, 503]),
+        ("/api/v1/wiki/names", &[200, 400, 503]),
+        ("/api/v1/wiki/characters/0", &[404, 503]),
+        ("/api/v1/zukan/rank", &[200]),
+        ("/api/v1/motion/clips/data/x.g4mot", &[404, 503]),
+        ("/api/v1/preview/camera/data/x.cfg.bin", &[404, 503]),
+        ("/api/v1/preview/navmesh/data/x.g4nav", &[404, 503]),
+        ("/api/v1/growth/interpolate", &[200, 400]),
         // La recherche globale : l'index de test est monte, donc 200 avec un total.
         ("/api/v1/recherche", &[200]),
         // Les donnees typees : les capacites repondent sans VFS ; un chemin absent de l'index
@@ -199,6 +213,7 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/api/v1/inspect/spritesheet/data/x.g4tx", &[400, 404, 503]),
         ("/api/v1/inspect/font/data/x.cfg.bin", &[400, 404, 503]),
         ("/api/v1/inspect/menu/data/x.objbin", &[400, 404, 503]),
+        ("/api/v1/inspect/companion", &[200, 400]),
         (
             "/api/v1/inspect/texture-chunk/data/x.g4tx",
             &[400, 404, 503],
@@ -238,7 +253,7 @@ async fn toutes_les_routes_declarees_repondent() {
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 84, "le routeur monte 84 routes");
+    assert_eq!(declarees.len(), 99, "le routeur monte 99 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -270,7 +285,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 85, "85 instances interrogees pour 84 routes");
+    assert_eq!(vus, 100, "100 instances interrogees pour 99 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).

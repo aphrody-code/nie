@@ -20,9 +20,9 @@ fn load() -> Option<serde_json::Value> {
 fn placements_et_resolution() {
     let Some(root) = load() else { return };
     let cfg = parse_soccer_placement_config(&root);
-    assert_eq!(cfg.chara_placements.len(), 2269);
-    assert_eq!(cfg.categories.len(), 798);
-    assert_eq!(cfg.placements.len(), 398);
+    assert_eq!(cfg.chara_placements.len(), 2333);
+    assert_eq!(cfg.categories.len(), 853);
+    assert_eq!(cfg.placements.len(), 407);
     let c0 = &cfg.chara_placements[0];
     assert_eq!(c0.chara_parameter_id, HashId(0xA5F3_2308));
     assert_eq!(c0.pos_x, -10);
@@ -34,6 +34,9 @@ fn placements_et_resolution() {
     let cats = cfg.categories_of(p);
     assert!(!cats.is_empty());
     assert!(!cfg.charas_of(&cats[0]).is_empty());
+    let last = cfg.placements.last().expect("au moins un placement");
+    assert_eq!(last.placement_id, HashId(0x7E00_CEC3));
+    assert_eq!(last.category_data, [851, 2]);
 }
 
 #[cfg(feature = "serde")]
@@ -53,6 +56,6 @@ fn dispatch_typed() {
     assert_eq!(label, "soccer_placement");
     assert_eq!(
         json["chara_placements"].as_array().map(Vec::len),
-        Some(2269)
+        Some(2333)
     );
 }

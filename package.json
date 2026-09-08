@@ -9,11 +9,11 @@
 			"apps/*"
 		],
 		"catalog": {
-			"@aphrody-code/bxc": "^0.6.0",
+			"@aphrody-code/bxc": "^0.9.10",
 			"@aphrody-code/canvas": "0.1.99-fork.4",
 			"@aphrody-code/x": "^1.0.6",
 			"@aphrody-code/zukan": "^0.1.2",
-			"@aphrody/bxc": "0.9.6",
+			"@aphrody/bxc": "0.9.10",
 			"@asteasolutions/zod-to-openapi": "^8.5.0",
 			"@base-ui/react": "^1.7.0",
 			"@better-auth/agent-auth": "^0.5.1",
@@ -271,7 +271,7 @@
 		"pg": "catalog:"
 	},
 	"overrides": {
-		"@aphrody-code/bxc": "npm:@aphrody/bxc@^0.9.6",
+		"@aphrody-code/bxc": "npm:@aphrody/bxc@^0.9.10",
 		"@aphrody-code/canvas": "npm:@aphrody/canvas@0.1.99",
 		"@aphrody-code/challonge": "npm:@aphrody/challonge@^0.1.6",
 		"@aphrody-code/fut": "npm:@aphrody/fut@^0.1.5",

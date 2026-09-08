@@ -12,7 +12,7 @@
       "id": "vfs-format-inspection",
       "owner": "crates/engine/nie-explore/src/lib.rs",
       "surfaces": {
-        "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/Cargo.toml","nie-explore.workspace = true"],["crates/tools/nie-site/src/routes/formats.rs","nie_explore::"]]},
+        "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/Cargo.toml","nie-explore = { workspace = true"],["crates/tools/nie-site/src/routes/formats.rs","nie_explore::"]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/Cargo.toml","nie-explore ="]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
         "inacord": {"kind":"adapter","evidence":[["apps/inacord/src-tauri/Cargo.toml","nie-explore = { workspace = true"]]},

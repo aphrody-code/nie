@@ -38,7 +38,7 @@ workspace = true
 #   `image` et `cridecoder` dans un service web. Ces familles-là sont déléguées à l'amont, et
 #   `/api/v1/formats` le dit au lieu de le promettre.
 nie-formats = { workspace = true, features = ["serde"], default-features = true }
-nie-explore.workspace = true
+nie-explore = { workspace = true, features = ["host"] }
 
 # Les 93 familles de donnees du jeu, derriere UNE facade : `nie_data::typed::decode_by_key`,
 # deja partagee par `nie-model-serve` (route `/typed`) et `nie-wasm` (decodage in-browser).

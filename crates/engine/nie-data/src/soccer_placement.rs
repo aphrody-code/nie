@@ -5,7 +5,7 @@
 //! référencent des *placements de perso* (position/rotation). Tranches `[offset,count]` imbriquées.
 //!
 //! Vérité terrain : `soccer_chara_placement_1.01.97.00.cfg.bin.json` —
-//! `m_charaPlacementData` (2269) / `m_placementCategory` (798) / `m_placementData` (398).
+//! `m_charaPlacementData` (2333) / `m_placementCategory` (853) / `m_placementData` (407).
 
 use alloc::vec::Vec;
 use serde_json::Value;

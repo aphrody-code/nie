@@ -493,6 +493,7 @@ export function registerTestCommand(program: Command): void {
               [BXC_PATH, "detect", `${url}`, "--json"],
               BXC_RUN_OPTIONS,
             );
+            if (!stdout.trim()) throw new Error("empty bxc output");
           } catch {
             // bxc absent : on rejoue l'essentiel du contrat en HTTP direct.
             const res = await fetch(url);
@@ -531,6 +532,7 @@ export function registerTestCommand(program: Command): void {
               [BXC_PATH, "recon", `${url}`, "--json"],
               BXC_RUN_OPTIONS,
             );
+            if (!stdout.trim()) throw new Error("empty bxc output");
           } catch {
             const res = await fetch(url);
             const html = await res.text();
@@ -582,6 +584,7 @@ export function registerTestCommand(program: Command): void {
               [BXC_PATH, "recon", `${url}/contact`, "--json"],
               BXC_RUN_OPTIONS,
             );
+            if (!stdout.trim()) throw new Error("empty bxc output");
           } catch {
             const res = await fetch(`${url}/contact`);
             const html = await res.text();
