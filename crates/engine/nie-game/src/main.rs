@@ -3141,52 +3141,7 @@ fn collect_item_counts(vfs: &Vfs, screen: &str) -> std::collections::BTreeMap<u3
 
 // ── Export de layout AU RUNTIME (driver Lua réel, comme nie.exe) ──────────────
 
-/// État runtime fusionné d'un objet de menu (issu du `MenuState` Lua), pour le join crc32.
-struct MergedObj {
-    /// Visibilité — `false` si un script a appelé `SetObjectVisible(.., false)`.
-    visible: bool,
-    /// Visibilité par instance, quand la commande a nommé un index. Un écran réplique un même
-    /// gabarit une fois par item ; sans cette carte, les exemplaires partagent un seul booléen et
-    /// s'affichent ou disparaissent en bloc.
-    visible_par_index: std::collections::BTreeMap<i32, bool>,
-    /// Visibilité des parts adressées par hash (commande Kizuna dédiée).
-    part_visible: std::collections::BTreeMap<u32, bool>,
-    /// Couleurs RGBA flottantes des parts adressées par hash (commande Kizuna dédiée).
-    part_color_rgba: std::collections::BTreeMap<u32, [f32; 4]>,
-    /// Arguments bruts des mutations Kizuna texture/paramètres/flags.
-    part_texture_args: std::collections::BTreeMap<u32, Vec<u32>>,
-    part_param_args: std::collections::BTreeMap<u32, Vec<u32>>,
-    part_flag_args: std::collections::BTreeMap<u32, Vec<u32>>,
-    /// Hash de texture/chemin g4tx du sprite (`SetSprite`/`SetIconSprite` arg1).
-    sprite_hash: Option<u32>,
-    /// Cell index written by `SetSprite`; unlike `sprite_hash`, this is not a CRC32 path.
-    sprite_cell_id: Option<u32>,
-    /// Hash de la région/texture dans l'atlas (`SetIconSprite` arg2). Paire (chemin, région).
-    sprite_region: Option<u32>,
-    /// Texte affiché (`SetText`).
-    text: Option<String>,
-    /// Valeur numérique (`SetObjectNum`).
-    number: Option<i32>,
-}
-
-impl Default for MergedObj {
-    fn default() -> Self {
-        Self {
-            visible: true,
-            visible_par_index: std::collections::BTreeMap::new(),
-            part_visible: std::collections::BTreeMap::new(),
-            part_color_rgba: std::collections::BTreeMap::new(),
-            part_texture_args: std::collections::BTreeMap::new(),
-            part_param_args: std::collections::BTreeMap::new(),
-            part_flag_args: std::collections::BTreeMap::new(),
-            sprite_hash: None,
-            sprite_cell_id: None,
-            sprite_region: None,
-            text: None,
-            number: None,
-        }
-    }
-}
+use nie_lua::menu_scene::CompiledMenuObject as MergedObj;
 
 /// Aiguillage écran → préfixe de script `.lua.bin` (vérité terrain MEMORY.md / DESIGN.md §13).
 ///
@@ -3351,6 +3306,7 @@ fn cmd_export_layout_runtime(
     let vfs = Rc::new(vfs);
     // 4) DRIVE chaque script dans sa propre VM (état propre), fusionne les MenuState.
     let mut merged_objs: BTreeMap<u32, MergedObj> = BTreeMap::new();
+    let mut runtime_scenes = BTreeMap::new();
     // Objets qu'au moins un calque déclare visibles — sert à mesurer ce que la conjonction efface.
     let mut vus_visibles: std::collections::HashSet<u32> = std::collections::HashSet::new();
     let mut merged_layers: BTreeMap<u32, bool> = BTreeMap::new();
@@ -3499,6 +3455,10 @@ fn cmd_export_layout_runtime(
         for (nom, _) in &st.known_cmd_log {
             *known_by_name.entry(nom.clone()).or_insert(0usize) += 1;
         }
+        runtime_scenes.insert(
+            name.to_string(),
+            nie_lua::menu_scene::MenuScene::from_state(&st),
+        );
         // Fusion déterministe (itération BTreeMap ordonnée) : visibilité ET-combinée, premiers
         // sprite/text/number gagnants.
         for (lid, layer) in &st.layers {
@@ -3513,44 +3473,7 @@ fn cmd_export_layout_runtime(
                     vus_visibles.insert(*oid);
                 }
                 let m = merged_objs.entry(*oid).or_default();
-                m.visible = m.visible && o.visible;
-                for (idx, v) in &o.visible_par_index {
-                    m.visible_par_index.entry(*idx).or_insert(*v);
-                }
-                for (part, v) in &o.part_visible {
-                    m.part_visible.entry(*part).or_insert(*v);
-                }
-                for (part, rgba) in &o.part_color_rgba {
-                    m.part_color_rgba.entry(*part).or_insert(*rgba);
-                }
-                for (part, args) in &o.part_texture_args {
-                    m.part_texture_args
-                        .entry(*part)
-                        .or_insert_with(|| args.clone());
-                }
-                for (part, args) in &o.part_param_args {
-                    m.part_param_args
-                        .entry(*part)
-                        .or_insert_with(|| args.clone());
-                }
-                for (part, args) in &o.part_flag_args {
-                    m.part_flag_args
-                        .entry(*part)
-                        .or_insert_with(|| args.clone());
-                }
-                if m.sprite_hash.is_none() {
-                    m.sprite_hash = o.sprite_texture_hash;
-                    m.sprite_region = o.sprite_region_hash;
-                }
-                if m.sprite_cell_id.is_none() {
-                    m.sprite_cell_id = o.sprite_cell_id;
-                }
-                if m.text.is_none() {
-                    m.text = o.text.clone();
-                }
-                if m.number.is_none() {
-                    m.number = o.number;
-                }
+                m.merge(o);
             }
         }
         info!(
@@ -3842,6 +3765,7 @@ fn cmd_export_layout_runtime(
         "locale": MENU_LOCALE,
         "canvas": { "w": 1280, "h": 720 },
         "generatedBy": "runtime-lua",
+        "runtimeScenes": runtime_scenes,
         "objects": json_objects,
         "runtimeSummary": {
             "scripts": script_names,

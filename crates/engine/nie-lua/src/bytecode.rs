@@ -757,6 +757,7 @@ mod tests {
     ///
     /// Ce test ne dépend d'aucun asset du jeu — il vérifie le décodeur contre la MÊME
     /// implémentation Lua que celle du moteur (PUC-Rio 5.2.4 vendored), donc contre la vérité.
+    #[cfg(feature = "vm")]
     #[test]
     fn decode_un_chunk_produit_par_la_vm() {
         let lua = crate::new_vm();
@@ -798,6 +799,7 @@ mod tests {
         assert!(listing.contains("function main"), "listing :\n{listing}");
     }
 
+    #[cfg(feature = "vm")]
     #[test]
     fn listing_resout_les_sauts_depuis_le_pc_et_les_arites_lua() {
         let lua = crate::new_vm();
@@ -863,6 +865,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "vm")]
     #[test]
     fn rejette_un_en_tete_lua_incoherent_sans_paniquer() {
         let lua = crate::new_vm();

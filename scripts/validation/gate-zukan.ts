@@ -30,6 +30,7 @@
 
 import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { grayscaleSsim as ssimGris } from "./image-metrics";
 
 const RACINE = resolve(import.meta.dir, "..", "..");
 const REFS = join(RACINE, "var", "outputs", "zukan-reference");
@@ -255,90 +256,6 @@ async function grisBrut(chemin: string, cote: number): Promise<Uint8Array> {
 		throw new Error(`${chemin} : ${buf.length} octets pour ${cote}×${cote} attendus`);
 	}
 	return buf;
-}
-
-/** Convolution séparable par un noyau 1D, en float. */
-function convoluer(src: Float64Array, w: number, h: number, noyau: Float64Array): Float64Array {
-	const r = (noyau.length - 1) / 2;
-	const tmp = new Float64Array(w * h);
-	const out = new Float64Array(w * h);
-	for (let y = 0; y < h; y++) {
-		for (let x = 0; x < w; x++) {
-			let s = 0;
-			for (let k = -r; k <= r; k++) {
-				const xx = Math.min(w - 1, Math.max(0, x + k));
-				s += src[y * w + xx]! * noyau[k + r]!;
-			}
-			tmp[y * w + x] = s;
-		}
-	}
-	for (let y = 0; y < h; y++) {
-		for (let x = 0; x < w; x++) {
-			let s = 0;
-			for (let k = -r; k <= r; k++) {
-				const yy = Math.min(h - 1, Math.max(0, y + k));
-				s += tmp[yy * w + x]! * noyau[k + r]!;
-			}
-			out[y * w + x] = s;
-		}
-	}
-	return out;
-}
-
-/**
- * SSIM (Wang et al. 2004) : fenêtre gaussienne 11×11 σ=1,5, C1=(0,01·255)², C2=(0,03·255)².
- *
- * Écrit ici parce que `compare -metric SSIM` de l'ImageMagick 7.1.2 de cette machine NE CALCULE
- * PAS de SSIM : sur deux images IDENTIQUES il rend `0 (0)` là où un SSIM vaut 1, et il rend la
- * même valeur pour SSIM et pour DSSIM (qui devraient être complémentaires). Il retombe en silence
- * sur une métrique de différence. Un score « SSIM » lu de cette commande serait un chiffre faux
- * présenté comme une mesure — exactement ce qu'il ne faut pas produire.
- */
-function ssimGris(a: Uint8Array, b: Uint8Array, cote: number): number {
-	const n = cote * cote;
-	const fa = new Float64Array(n);
-	const fb = new Float64Array(n);
-	for (let i = 0; i < n; i++) {
-		fa[i] = a[i]!;
-		fb[i] = b[i]!;
-	}
-	const sigma = 1.5;
-	const rayon = 5;
-	const noyau = new Float64Array(2 * rayon + 1);
-	let somme = 0;
-	for (let k = -rayon; k <= rayon; k++) {
-		const v = Math.exp(-(k * k) / (2 * sigma * sigma));
-		noyau[k + rayon] = v;
-		somme += v;
-	}
-	for (let i = 0; i < noyau.length; i++) noyau[i]! /= somme;
-
-	const faa = new Float64Array(n);
-	const fbb = new Float64Array(n);
-	const fab = new Float64Array(n);
-	for (let i = 0; i < n; i++) {
-		faa[i] = fa[i]! * fa[i]!;
-		fbb[i] = fb[i]! * fb[i]!;
-		fab[i] = fa[i]! * fb[i]!;
-	}
-	const mua = convoluer(fa, cote, cote, noyau);
-	const mub = convoluer(fb, cote, cote, noyau);
-	const saa = convoluer(faa, cote, cote, noyau);
-	const sbb = convoluer(fbb, cote, cote, noyau);
-	const sab = convoluer(fab, cote, cote, noyau);
-
-	const c1 = (0.01 * 255) ** 2;
-	const c2 = (0.03 * 255) ** 2;
-	let total = 0;
-	for (let i = 0; i < n; i++) {
-		const ma = mua[i]!;
-		const mb = mub[i]!;
-		const va = saa[i]! - ma * ma;
-		const vb = sbb[i]! - mb * mb;
-		const cab = sab[i]! - ma * mb;
-		total += ((2 * ma * mb + c1) * (2 * cab + c2)) / ((ma * ma + mb * mb + c1) * (va + vb + c2));
-	}
-	return total / n;
 }
 
 async function ssim(a: string, b: string): Promise<number> {

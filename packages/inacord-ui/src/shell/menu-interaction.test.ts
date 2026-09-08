@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { BOITES, ECART_TUILE, LARGEUR_TUILE } from "./main-menu-geometry";
 import {
+	createStandardGamepadMenuSampler,
+	type StandardMenuGamepad,
 	initialMenuState,
 	keyboardMenuIntent,
 	type MenuInteractionItem,
@@ -81,5 +83,66 @@ describe("menu interaction model", () => {
 		expect(standardGamepadButtonMenuIntent(12)).toEqual({ type: "move", direction: "up" });
 		expect(standardGamepadButtonMenuIntent(15)).toEqual({ type: "move", direction: "right" });
 		expect(standardGamepadButtonMenuIntent(8)).toBeNull();
+	});
+});
+
+describe("standard gamepad sampling", () => {
+	function pad(pressed: number[] = [], axes: number[] = [0, 0]): StandardMenuGamepad {
+		return {
+			index: 0, id: "controller", connected: true, mapping: "standard", axes,
+			buttons: Array.from({ length: 16 }, (_, index) => ({ pressed: pressed.includes(index) })),
+		};
+	}
+
+	test("held confirmation cannot cross screens and release rearms it", () => {
+		const sampler = createStandardGamepadMenuSampler();
+		expect(sampler.sample([pad([0])])).toEqual([{ type: "activate" }]);
+		expect(sampler.sample([pad([0])])).toEqual([]);
+		expect(sampler.sample([pad()])).toEqual([]);
+		expect(sampler.sample([pad([0])])).toEqual([{ type: "activate" }]);
+	});
+
+	test("deduplicates d-pad and stick and selects the dominant axis", () => {
+		const sampler = createStandardGamepadMenuSampler();
+		expect(sampler.sample([pad([15], [0.9, 0.7])])).toEqual([{ type: "move", direction: "right" }]);
+		expect(sampler.sample([pad([], [0.9, 0.7])])).toEqual([]);
+		expect(sampler.sample([pad([], [0.1, -0.8])])).toEqual([{ type: "move", direction: "up" }]);
+		expect(sampler.sample([pad([], [0.5, -0.5])])).toEqual([]);
+	});
+
+	test("reconnect and explicit reset remove stale held state", () => {
+		const sampler = createStandardGamepadMenuSampler();
+		sampler.sample([pad([0])]);
+		expect(sampler.sample([null])).toEqual([]);
+		expect(sampler.sample([pad([0])])).toEqual([{ type: "activate" }]);
+		sampler.reset();
+		expect(sampler.sample([pad([0])])).toEqual([{ type: "activate" }]);
+	});
+
+	test("ignores disconnected, nonstandard and nonfinite axes", () => {
+		const sampler = createStandardGamepadMenuSampler();
+		expect(sampler.sample([{ ...pad([0]), connected: false }])).toEqual([]);
+		expect(sampler.sample([{ ...pad([0]), mapping: "" }])).toEqual([]);
+		expect(sampler.sample([pad([], [NaN, Infinity])])).toEqual([]);
+	});
+
+	test("tracks independent controllers without duplicate actions", () => {
+		const sampler = createStandardGamepadMenuSampler();
+		expect(sampler.sample([pad([0]), { ...pad([0]), index: 1 }])).toEqual([{ type: "activate" }]);
+		expect(sampler.sample([pad([0]), { ...pad([0]), index: 1 }])).toEqual([]);
+		expect(sampler.sample([pad([0]), { ...pad([1]), index: 1 }])).toEqual([{ type: "cancel" }]);
+	});
+
+	test("moves focus before simultaneous confirmation", () => {
+		const sampler = createStandardGamepadMenuSampler();
+		const intents = sampler.sample([pad([0, 15])]);
+		let state = initialMenuState(measuredItems);
+		let activated: string | null = null;
+		for (const intent of intents) {
+			const update = reduceMenuInteraction(measuredItems, state, intent);
+			state = update.state;
+			activated = update.activatedId ?? activated;
+		}
+		expect(activated).toBe("primary-2");
 	});
 });

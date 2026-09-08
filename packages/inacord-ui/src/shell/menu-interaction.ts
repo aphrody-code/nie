@@ -187,3 +187,61 @@ export function standardGamepadButtonMenuIntent(buttonIndex: number): MenuIntent
 			return null;
 	}
 }
+
+/** Minimal browser-independent view of a connected standard controller. */
+export interface StandardMenuGamepad {
+	index: number;
+	id: string;
+	mapping: string;
+	connected: boolean;
+	buttons: readonly { pressed: boolean }[];
+	axes: readonly number[];
+}
+
+/**
+ * Samples semantic rising edges. Keep one sampler across screen transitions so a held
+ * confirm cannot activate the next screen. Disconnects discard controller history.
+ * Analog navigation uses a host input dead zone, not a claim about native game timing.
+ */
+export function createStandardGamepadMenuSampler() {
+	let previous = new Map<string, Set<string>>();
+	return {
+		reset(): void {
+			previous.clear();
+		},
+		sample(gamepads: readonly (StandardMenuGamepad | null)[]): MenuIntent[] {
+			const next = new Map<string, Set<string>>();
+			const emitted = new Map<string, MenuIntent>();
+			for (const pad of gamepads) {
+				if (!pad?.connected || pad.mapping !== "standard") continue;
+				const identity = `${pad.index}:${pad.id}`;
+				const active = new Map<string, MenuIntent>();
+				const add = (intent: MenuIntent | null) => {
+					if (intent) active.set(intent.type === "move" ? intent.direction : intent.type, intent);
+				};
+				for (let index = 0; index < pad.buttons.length; index++) {
+					if (pad.buttons[index]?.pressed) add(standardGamepadButtonMenuIntent(index));
+				}
+				const x = pad.axes[0] ?? 0;
+				const y = pad.axes[1] ?? 0;
+				if (Number.isFinite(x) && Number.isFinite(y)) {
+					if (Math.abs(x) >= Math.abs(y) && Math.abs(x) > 0.5) {
+						add({ type: "move", direction: x < 0 ? "left" : "right" });
+					} else if (Math.abs(y) > 0.5) {
+						add({ type: "move", direction: y < 0 ? "up" : "down" });
+					}
+				}
+				const held = previous.get(identity);
+				for (const [key, intent] of active) {
+					if (!held?.has(key)) emitted.set(key, intent);
+				}
+				next.set(identity, new Set(active.keys()));
+			}
+			previous = next;
+			// Navigate before confirming when a stick/d-pad and face button rise together.
+			return [...emitted.values()].sort(
+				(a, b) => Number(a.type !== "move") - Number(b.type !== "move"),
+			);
+		},
+	};
+}

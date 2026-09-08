@@ -1843,6 +1843,28 @@ pub fn menu_static_layer_json(
     menu_static_layer_json_impl(objbin_bytes, g4pkm_bytes, g4tx_bytes, g4tx_path)
 }
 
+/// Compile an observed Lua menu state into the same lossless scene used by the native host.
+/// This does not execute Lua or infer missing assets and transforms.
+fn menu_runtime_scene_json_impl(state_json: &str) -> Result<String, String> {
+    let state: nie_lua::MenuState =
+        serde_json::from_str(state_json).map_err(|error| error.to_string())?;
+    serde_json::to_string(&nie_lua::menu_scene::MenuScene::from_state(&state))
+        .map_err(|error| error.to_string())
+}
+
+/// Portable scene compiler over caller-supplied, observed Lua menu state.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn menu_runtime_scene_json(state_json: &str) -> Result<String, JsValue> {
+    menu_runtime_scene_json_impl(state_json).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native counterpart of the browser scene ABI for cross-surface contract tests.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn menu_runtime_scene_json(state_json: &str) -> Result<String, String> {
+    menu_runtime_scene_json_impl(state_json)
+}
+
 /// Feuille de sprites d'un atlas `.g4tx` : régions nommées avec leur rectangle, en JSON.
 ///
 /// `g4tx_info_json` rend la structure brute du conteneur ; celle-ci rend ce qu'une interface
@@ -2733,6 +2755,40 @@ impl WasmGame {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn menu_runtime_scene_matches_native_compiler_without_losing_layer_state() {
+        let mut state = nie_lua::MenuState::default();
+        let object = state.layer(10).obj(20);
+        object.visible = false;
+        object.active = false;
+        object.scale = Some(1.25);
+        object.sprite_cell_id = Some(7);
+        object.use_save_button = Some(true);
+        object.native_field_0x124_by_index.insert(3, 99);
+        object.sub_item(0).params.insert(15, 25);
+        state.layer(11).obj(20).text = Some("Separate layer".into());
+        state.groups.insert(30, false);
+        let expected = nie_lua::menu_scene::MenuScene::from_state(&state);
+        let input = serde_json::to_string(&state).unwrap();
+        let output = menu_runtime_scene_json(&input).unwrap();
+        let actual: nie_lua::menu_scene::MenuScene = serde_json::from_str(&output).unwrap();
+        assert_eq!(actual, expected);
+        assert_eq!(actual.layers.len(), 2);
+        assert_eq!(
+            actual.layers[&10].objects[&20].sub_items[&0].params[&15],
+            25
+        );
+        assert!(actual.layers[&11].objects[&20].visible);
+        assert_eq!(serde_json::to_string(&expected).unwrap(), output);
+    }
+
+    #[test]
+    fn menu_runtime_scene_rejects_missing_or_invalid_observed_state() {
+        assert!(menu_runtime_scene_json("{}").is_err());
+        assert!(menu_runtime_scene_json("null").is_err());
+        assert!(menu_runtime_scene_json("invalid").is_err());
+    }
 
     #[test]
     fn detect_format_utf() {

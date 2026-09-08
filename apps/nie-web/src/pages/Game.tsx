@@ -1,16 +1,18 @@
 /** Layered startup and menu built from VFS assets, shared geometry, and explicit incomplete states. */
 import { useAssetSource } from "@niers/inacord-ui";
+import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AVATAR, EXPLORER, MEDIA, SETTINGS, menuEntries } from "../entries";
+import { bindMenuActions } from "../game/menu-actions";
 import {
 	advanceOpeningPhase,
 	OPENING_FRAMES,
-	openingEventForStandardGamepadButton,
 	TITLE_LOGO_VFS_PATH,
 	type OpeningEvent,
 	type OpeningPhase,
 } from "../game/opening-sequence";
 import { Loading } from "./Loading";
-import { MainMenu, type MainMenuAction } from "./MainMenu";
+import { MainMenu } from "./MainMenu";
 import "./opening.css";
 
 export interface GameProps {
@@ -28,40 +30,59 @@ export function Game({
 	onOpenExplorer,
 }: GameProps) {
 	const [phase, setPhase] = useState<OpeningPhase>("loading");
+	const gamepadSampler = useRef(createStandardGamepadMenuSampler());
 	const advance = useCallback((event: OpeningEvent) => {
 		setPhase((current) => advanceOpeningPhase(current, event));
 	}, []);
 
 	if (phase === "menu") {
-		const actions: MainMenuAction[] = [
-			{ id: "media", label: "Médias", glyph: "image", onActivate: onOpenMedia },
-			{ id: "avatar", label: "Avatar", glyph: "ballon", onActivate: onOpenAvatar },
-			{ id: "explorer", label: "Explorer", glyph: "arbre", onActivate: onOpenExplorer },
-			{ id: "settings", label: "Options", glyph: "engrenage", onActivate: onOpenSettings },
-		];
+		const actions = bindMenuActions(menuEntries(null), {
+			[MEDIA]: { id: "media", onActivate: onOpenMedia },
+			[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },
+			[EXPLORER]: { id: "explorer", onActivate: onOpenExplorer },
+			[SETTINGS]: { id: "settings", onActivate: onOpenSettings },
+		});
 		return (
-			<MainMenu actions={actions} onCancel={() => setPhase("start")} />
+			<MainMenu
+				actions={actions}
+				onCancel={() => setPhase("start")}
+				gamepadSampler={gamepadSampler.current}
+			/>
 		);
 	}
-	return <OpeningScreen key={phase} phase={phase} onAdvance={advance} />;
+	return (
+		<OpeningScreen
+			key={phase}
+			phase={phase}
+			onAdvance={advance}
+			gamepadSampler={gamepadSampler.current}
+		/>
+	);
 }
 
 function OpeningScreen({
 	phase,
 	onAdvance,
+	gamepadSampler,
 }: {
 	phase: Exclude<OpeningPhase, "menu">;
 	onAdvance: (event: OpeningEvent) => void;
+	gamepadSampler: ReturnType<typeof createStandardGamepadMenuSampler>;
 }) {
 	const frame = OPENING_FRAMES[phase];
 	const action = useRef<HTMLButtonElement | null>(null);
-	const gamepadHeld = useRef(new Set<number>());
+	const advanced = useRef(false);
+	const advanceOnce = useCallback((event: OpeningEvent) => {
+		if (advanced.current) return;
+		advanced.current = true;
+		onAdvance(event);
+	}, [onAdvance]);
 
 	useEffect(() => {
 		if (frame.durationMs === null) return;
-		const timer = window.setTimeout(() => onAdvance("timeout"), frame.durationMs);
+		const timer = window.setTimeout(() => advanceOnce("timeout"), frame.durationMs);
 		return () => window.clearTimeout(timer);
-	}, [frame.durationMs, onAdvance]);
+	}, [frame.durationMs, advanceOnce]);
 
 	useEffect(() => {
 		if (frame.durationMs !== null) return;
@@ -69,27 +90,17 @@ function OpeningScreen({
 	}, [frame.durationMs]);
 
 	useEffect(() => {
-		if (frame.durationMs !== null || typeof navigator.getGamepads !== "function") return;
+		if (typeof navigator.getGamepads !== "function") return;
 		let animationFrame = 0;
 		const poll = () => {
-			const gamepad = Array.from(navigator.getGamepads()).find(
-				(candidate) => candidate?.connected && candidate.mapping === "standard",
-			);
-			if (gamepad) {
-				for (const [index, button] of gamepad.buttons.entries()) {
-					if (button.pressed && !gamepadHeld.current.has(index)) {
-						const event = openingEventForStandardGamepadButton(index);
-						if (event) onAdvance(event);
-					}
-					if (button.pressed) gamepadHeld.current.add(index);
-					else gamepadHeld.current.delete(index);
-				}
+			for (const intent of gamepadSampler.sample(navigator.getGamepads())) {
+				if (intent.type === "activate" && frame.durationMs === null) advanceOnce("confirm");
 			}
 			animationFrame = window.requestAnimationFrame(poll);
 		};
 		animationFrame = window.requestAnimationFrame(poll);
 		return () => window.cancelAnimationFrame(animationFrame);
-	}, [frame.durationMs, onAdvance]);
+	}, [frame.durationMs, advanceOnce, gamepadSampler]);
 
 	return (
 		<section
@@ -104,7 +115,10 @@ function OpeningScreen({
 					ref={action}
 					type="button"
 					aria-label={frame.actionLabel}
-					onClick={() => onAdvance("confirm")}
+					onClick={() => advanceOnce("confirm")}
+					onKeyDown={(event) => {
+						if (event.repeat && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+					}}
 					className={`opening-screen__action opening-screen__action--${phase}`}
 				>
 					{phase === "autosave" ? "OK" : "COMMENCER"}

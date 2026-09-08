@@ -3,9 +3,9 @@
  *
  * ## Pourquoi ce fichier existe
  *
- * The list used to be duplicated between routing and a handcrafted game menu. The latter was
- * removed because it mixed real VFS textures with invented player data. This module now serves
- * only the explicit catalogue navigation routes.
+ * Owns explicit host navigation routes and their presentation. Routing, the secondary shell,
+ * and the reconstructed menu bind this catalogue to their navigation callbacks. These host
+ * destinations do not claim to implement the native game's menu-command catalogue.
  *
  * ## Ce qui n'est PAS ici
  *
@@ -99,7 +99,7 @@ export function entryLabel(route: string): string {
 }
 
 /**
- * Les routes que l'application reconnaît — le menu n'en montre que deux.
+ * Routes recognized by the host, including compatibility aliases.
  *
  * `/recherche` et `/donnees` mènent à l'explorateur ; `/textures`, `/modeles`, `/sons` et
  * `/videos` mènent aux médias, sur leur vue. Aucune n'est une tuile, et toutes restent
@@ -111,11 +111,8 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
 }
 
 /**
- * Les entrées du menu : les médias, l'explorateur, puis les Options.
- *
- * L'ordre vient du serveur quand il a répondu — c'est lui qui décide de la place d'un
- * catalogue. L'explorateur ferme toujours la marche : il ne parcourt pas un catalogue mais
- * l'arborescence, et le serveur ne le publie pas comme une vue.
+ * Implemented host destinations in their display order. Health is retained in the public
+ * signature for existing consumers; it does not currently supply native action availability.
  */
 export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
 	return [MEDIA, AVATAR, EXPLORER, SETTINGS].map((route) => ({

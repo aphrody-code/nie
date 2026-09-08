@@ -10,12 +10,15 @@
  * Write a variant only when it is smaller than the original.
  */
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants, zstdCompressSync } from "node:zlib";
 
 // `URL.pathname` returns `/C:/Users/...` on Windows. `fileURLToPath` is portable.
-const DIST = fileURLToPath(new URL("../dist", import.meta.url));
+// A staged release must be compressed before it replaces the live bundle.
+const DIST = process.argv[2]
+	? resolve(process.argv[2])
+	: fileURLToPath(new URL("../dist", import.meta.url));
 
 /** Extensions that normally benefit from compression. Images are already compressed. */
 const TARGET_EXTENSIONS = [".js", ".css", ".html", ".json", ".svg", ".map", ".txt"];

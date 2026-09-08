@@ -38,4 +38,16 @@ describe("reconstructed main menu", () => {
 		expect(css).toContain("runtime-menu-enter");
 		expect(css).toContain("prefers-reduced-motion: reduce");
 	});
+
+	test("keeps unavailable actions disabled and initially focuses the first available action", () => {
+		const source = { urlTexture: (path: string) => `/assets/tex/${path}.png` } as never;
+		const html = renderToStaticMarkup(
+			<AssetSourceProvider source={source}>
+				<MainMenu actions={ACTIONS.map((action, index) => ({ ...action, disabled: index === 0 }))} />
+			</AssetSourceProvider>,
+		);
+		expect(html).toMatch(/data-menu-target="media"[^]*?<button[^>]*disabled=""/);
+		expect(html).toMatch(/data-menu-target="avatar"[^]*?<button[^>]*aria-current="true"/);
+		expect(html.match(/aria-current="true"/g)).toHaveLength(1);
+	});
 });

@@ -1624,6 +1624,32 @@ export function match_tick(state, is_training, end_counter) {
 }
 
 /**
+ * Portable scene compiler over caller-supplied, observed Lua menu state.
+ * @param {string} state_json
+ * @returns {string}
+ */
+export function menu_runtime_scene_json(state_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(state_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.menu_runtime_scene_json(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Composes one static menu layer from raw OBJBIN, G4PKM and G4TX bytes in WebAssembly.
  * @param {Uint8Array} objbin_bytes
  * @param {Uint8Array} g4pkm_bytes

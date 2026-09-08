@@ -249,3 +249,46 @@ report. A service being `active` or a page returning 200 is insufficient.
 - VFS and formats: [`docs/VFS.md`](docs/VFS.md), [`docs/FORMATS.md`](docs/FORMATS.md)
 - MCP contract: [`docs/MCP.md`](docs/MCP.md)
 - IECODE provenance: [`docs/IECODE-MIGRATION.md`](docs/IECODE-MIGRATION.md)
+
+## Active batch evidence — portable menu scene and shared input (2026-09-08)
+
+Measured on host `vps-203bea89`, checkout `/home/ubuntu/niers`:
+
+- `nie-lua` now owns portable `MenuState`, a versioned lossless `MenuScene`, and the existing
+  object-hash merge compatibility projection previously embedded in `nie-game`. Native exports
+  retain layer identity in `runtimeScenes`; `nie-wasm::menu_runtime_scene_json` uses the same
+  library compiler. This does not resolve missing native transforms or execute Lua in Wasm.
+- One shared standard-gamepad sampler retains held-button state across opening/menu transitions,
+  handles analog navigation, disconnects and multiple controllers, and applies movement before
+  simultaneous confirmation. Menu activation now respects removal/disable, unmount cleanup,
+  reduced motion, and one pending callback. Host destinations consume the existing route
+  catalogue; native command availability remains unresolved.
+- `scripts/validation/image-metrics.ts` owns Gaussian SSIM for both menu and model comparisons.
+  `gate-menu.ts` records dimensions, proportional normalization, RGB deltas and explicit dynamic
+  exclusions. Reference images and generated reports stay outside the public bundle.
+- Precompression accepts a staging directory; `scripts/e2e-site.sh --no-build` honors
+  `NIE_SITE_STATIC_DIR` so release validation does not replace live assets.
+
+| Command / source | Measured result |
+|---|---|
+| `cargo test -p nie-lua --lib` | 114 passed, 0 failed, 1 ignored |
+| `cargo test -p nie-lua --no-default-features --lib` | 5 passed, 0 failed, 1 ignored |
+| `cargo test -p nie-game --tests` | 23 passed, 0 failed, 2 ignored |
+| `cargo test -p nie-wasm --lib` | 64 passed, 0 failed |
+| Generated Wasm ABI versus native compiler | 8 scenes, 61 layers, 76 objects equal; 3 invalid states rejected |
+| Scoped Lua/game/Wasm clippy and Lua/Wasm wasm32 checks | passed |
+| `cargo fmt --all -- --check` | passed |
+| `bun test apps/nie-web/src packages/inacord-ui/src/shell/menu-interaction.test.ts scripts/validation/image-metrics.test.ts` | 101 passed, 0 failed, 338 assertions |
+| `bun run typecheck` in `apps/nie-web` | passed |
+| `NIE_SITE_STATIC_DIR=/home/ubuntu/niers/var/releases/menu-batch/bundle scripts/e2e-site.sh --no-build` | 66 checks passed, 0 failed, 0 skipped; 255308 VFS entries |
+| `var/outputs/menu-visual/baseline/report.json` | SSIM 0.5576746728; RGB mean absolute delta 70.78096/255; 99.5601% changed pixels |
+| `bun scripts/validation/gate-menu-browser.ts http://127.0.0.1:18085 var/outputs/menu-visual/final-staged` | 17 passed, 0 failed; 151 requests, 0 failed; 2 VFS images; all 4 destinations |
+| `var/outputs/menu-visual/final-staged/report.json` | SSIM 0.5576746727661485; RGB mean absolute delta 70.7809553433642/255; changed fraction 0.995600887345679 |
+
+The reference is 2560×1440, normalized proportionally to the actual 1920×1080 browser viewport;
+no dynamic region is excluded. This measured partial renderer does **not** satisfy the fidelity
+completion gate. A real main-menu run still reports 14 unknown general commands and 3 absent
+callbacks (78 requested, 75 dispatched and successful); menu-command unknown count is zero.
+Local command-handler mappings and decompiled bodies exist for the 14 general commands and are
+the next evidence source. Loading metadata names animation hashes but does not provide decoded
+motion curves. Production publication and final browser results are recorded after validation.

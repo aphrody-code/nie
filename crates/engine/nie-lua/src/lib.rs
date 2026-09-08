@@ -28,6 +28,9 @@
 pub use mlua::ChunkMode;
 
 pub mod bytecode;
+pub mod menu_scene;
+pub mod menu_state;
+pub use menu_state::{MenuLayerState, MenuListItem, MenuObjectState, MenuState};
 #[cfg(feature = "vm")]
 pub mod host;
 #[cfg(feature = "vm")]
@@ -57,8 +60,8 @@ pub use static_analysis::{
 pub mod menu_host;
 #[cfg(feature = "vm")]
 pub use menu_host::{
-    DriveReport, HeaderTab, MenuLayerState, MenuListItem, MenuObjectState, MenuState, drive_menu,
-    drive_menu_for_frames, enumerate_header_tabs, install_menu_host, run_menu,
+    DriveReport, HeaderTab, drive_menu, drive_menu_for_frames, enumerate_header_tabs,
+    install_menu_host, run_menu,
 };
 
 #[cfg(feature = "vm")]
@@ -419,7 +422,7 @@ pub fn discover_host_calls(data: &[u8], name: &str) -> Result<Vec<String>, LuaEr
     Ok(names)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "vm"))]
 mod tests {
     use super::*;
 
