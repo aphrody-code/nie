@@ -8,6 +8,7 @@ bun.lockb
 
 # Runtime logs (heartbeat mailbox files are intentionally tracked)
 var/log/
+var/run/
 
 # Turbo cache
 .turbo/

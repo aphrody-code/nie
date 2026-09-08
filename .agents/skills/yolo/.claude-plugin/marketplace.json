@@ -1,0 +1,36 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "yolo",
+  "description": "Sovereign Universal Autonomous Agent Engine, Polyglot AST Detector, and 60-Skill Marketplace for Claude Code, Antigravity, and Codex.",
+  "owner": {
+    "name": "aphrody-code",
+    "email": "noreply@aphrody-code.dev",
+    "url": "https://github.com/aphrody-code/YOLO"
+  },
+  "plugins": [
+    {
+      "name": "yolo",
+      "source": ".",
+      "category": "developer-tools",
+      "homepage": "https://github.com/aphrody-code/YOLO",
+      "author": {
+        "name": "aphrody-code",
+        "email": "noreply@aphrody-code.dev",
+        "url": "https://github.com/aphrody-code/YOLO"
+      },
+      "description": "Sovereign Universal Autonomous Execution Engine & Polyglot Agent Harness. Includes 60 specialized skills covering full-YOLO autonomous loops, Rust 2026 systems, Material Design 3, reverse engineering forensics, and cross-platform daemons.",
+      "keywords": [
+        "yolo",
+        "autonomous",
+        "multi-agent",
+        "skills",
+        "skills-sh",
+        "antigravity",
+        "codex",
+        "claude-code",
+        "rust",
+        "polyglot"
+      ]
+    }
+  ]
+}

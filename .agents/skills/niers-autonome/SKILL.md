@@ -29,7 +29,7 @@ sur les résultats.
 ## Boucle
 
 ```
-lire l'état (docs/PLAN.md, docs/FORGE.md, apps/nie-explorer/ROADMAP.md, git log)
+lire l'état (PLAN.md, docs/FORGE.md, git log)
   → choisir la cible la mieux chiffrée
   → implémenter
   → vérifier (clippy 0 warning, cargo test, bun run typecheck, bun run test)

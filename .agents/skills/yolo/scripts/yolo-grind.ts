@@ -75,6 +75,7 @@ function parseOpenTasks(planPath: string): string[] {
     .map(l => l.replace(/^[\-*\s\[\]⏳]+/, "").replace(/^TODO:\s*/i, "").trim());
 }
 
+const dryRun = process.argv.slice(2).includes("--dry-run");
 const root = process.cwd();
 const env = detectPolyglot(root);
 const activeStacks = env.detectedLanguages.length > 0 
@@ -90,8 +91,10 @@ console.log(`📋 Plan File: ${env.planFile ?? "None (Standalone / Direct Goal)"
 console.log(`🛠️ Active Stacks: ${activeStacks.length > 0 ? activeStacks.join(", ") : "Polyglot / Universal"}`);
 console.log("==================================================================");
 
-mkdirSync(".coord", { recursive: true });
-mkdirSync("var/log", { recursive: true });
+if (!dryRun) {
+  mkdirSync(".coord", { recursive: true });
+  mkdirSync("var/log", { recursive: true });
+}
 
 const tasks = env.planFile ? parseOpenTasks(env.planFile) : [];
 console.log(`🎯 Actionable Tasks Found: ${tasks.length}`);
@@ -111,7 +114,11 @@ if (gates.length === 0) gates.push("git status");
 const validationCmd = gates.join(" && ");
 console.log(`🛡️ Validation Gate: ${validationCmd}`);
 
-const timestamp = new Date().toISOString();
-writeFileSync(".coord/heartbeat.txt", `${timestamp} - YOLO+ Polyglot Tick - ${tasks[0] ?? "Continuous maintenance"}\n`);
+if (dryRun) {
+  console.log("[dry-run] No coordination or log files were written.");
+} else {
+  const timestamp = new Date().toISOString();
+  writeFileSync(".coord/heartbeat.txt", `${timestamp} - YOLO+ Polyglot Tick - ${tasks[0] ?? "Continuous maintenance"}\n`);
+}
 
 console.log("✅ Polyglot environment validated. Ready for autonomous multi-agent dispatch.");

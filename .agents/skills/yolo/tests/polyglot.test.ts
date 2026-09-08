@@ -126,4 +126,45 @@ describe("Polyglot Structural Code Parser", () => {
     expect(res.declarations.classes).toContain("AgentHost");
     expect(res.imports).toContain("System");
   });
+
+  test("keeps C and C++ preprocessor directives out of comment metrics", () => {
+    const res = PolyglotDetector.parseCode("main.c", [
+      "#include <stdio.h>",
+      "/* an inline block comment */ int main() {",
+      "  return 0; // trailing comment",
+      "}"
+    ].join("\n"));
+
+    expect(res.imports).toContain("stdio.h");
+    expect(res.declarations.functions).toContain("main");
+    expect(res.codeLines).toBe(4);
+    expect(res.commentLines).toBe(0);
+    expect(res.blankLines).toBe(0);
+  });
+
+  test("does not swallow code after a multi-line comment", () => {
+    const res = PolyglotDetector.parseCode("values.ts", [
+      "/* start",
+      " * details",
+      " */ export const answer = 42;"
+    ].join("\n"));
+
+    expect(res.declarations.constants).toContain("answer");
+    expect(res.codeLines).toBe(1);
+    expect(res.commentLines).toBe(2);
+  });
+
+  test("handles single-quoted Python docstrings across lines", () => {
+    const res = PolyglotDetector.parseCode("runner.py", [
+      "''' module documentation",
+      "continues here",
+      "'''",
+      "def run():",
+      "    return True"
+    ].join("\n"));
+
+    expect(res.declarations.functions).toContain("run");
+    expect(res.codeLines).toBe(2);
+    expect(res.commentLines).toBe(3);
+  });
 });

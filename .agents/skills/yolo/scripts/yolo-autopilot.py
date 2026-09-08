@@ -119,10 +119,11 @@ def main():
     print("=" * 66)
 
     coord_dir = cwd / ".coord"
-    coord_dir.mkdir(exist_ok=True)
     heartbeat_file = coord_dir / "heartbeat.txt"
     log_file = cwd / "var" / "log" / "yolo_autopilot.jsonl"
-    log_file.parent.mkdir(parents=True, exist_ok=True)
+    if not args.dry_run:
+        coord_dir.mkdir(exist_ok=True)
+        log_file.parent.mkdir(parents=True, exist_ok=True)
 
     tick = 0
     while True:
@@ -138,8 +139,9 @@ def main():
         print(f"\n--- Tick {tick} | {timestamp} ---")
         print(f"🎯 Target Task: {current_task}")
 
-        with open(heartbeat_file, "w", encoding="utf-8") as hf:
-            hf.write(f"{timestamp} - Tick {tick} - {current_task}\n")
+        if not args.dry_run:
+            with open(heartbeat_file, "w", encoding="utf-8") as hf:
+                hf.write(f"{timestamp} - Tick {tick} - {current_task}\n")
 
         prompt = (
             f"You are a sovereign polyglot lead developer in full YOLO mode across all languages (C#, C++, C, Assembly, Rust, Bun/TS, Python/uv, Go, Web HTML/CSS, JSON, Markdown, Pseudocode). "
@@ -149,15 +151,15 @@ def main():
         )
 
         cli_cmd = None
-        for candidate in ["claude", "gemini", "agy"]:
+        for candidate in ["agy", "claude", "gemini"]:
             path_found = shutil.which(candidate)
             if path_found:
-                if candidate == "claude":
+                if candidate == "agy":
+                    cli_cmd = [path_found, "-p", prompt, "--dangerously-skip-permissions", "--model", "gemini-3.8-flash-low"]
+                elif candidate == "claude":
                     cli_cmd = [path_found, "-p", prompt, "--dangerously-skip-permissions"]
                 elif candidate == "gemini":
                     cli_cmd = [path_found, "--prompt", prompt]
-                elif candidate == "agy":
-                    cli_cmd = [path_found, "-p", prompt, "--dangerously-skip-permissions"]
                 break
 
         lead_output = ""
@@ -180,8 +182,9 @@ def main():
             "stacks": detected_stacks,
             "output_sample": lead_output
         }
-        with open(log_file, "a", encoding="utf-8") as lf:
-            lf.write(json.dumps(log_entry) + "\n")
+        if not args.dry_run:
+            with open(log_file, "a", encoding="utf-8") as lf:
+                lf.write(json.dumps(log_entry) + "\n")
 
         if args.once:
             break

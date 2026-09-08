@@ -271,6 +271,122 @@ export const LANGUAGE_REGISTRY: LanguageDefinition[] = [
   }
 ];
 
+type BlockComment = {
+  kind: "c" | "python";
+  delimiter: "*/" | "\"\"\"" | "'''";
+};
+
+interface CommentState {
+  block: BlockComment | null;
+}
+
+const C_STYLE_COMMENT_LANGUAGES = new Set([
+  "assembly",
+  "c",
+  "cpp",
+  "csharp",
+  "go",
+  "java",
+  "javascript",
+  "kotlin",
+  "rust",
+  "swift",
+  "typescript"
+]);
+
+const HASH_COMMENT_LANGUAGES = new Set(["dockerfile", "python", "shell", "toml", "yaml"]);
+
+function stripComments(rawLine: string, languageId: string, state: CommentState): string {
+  let code = "";
+  let sawComment = false;
+  let quote: "'" | '"' | "`" | null = null;
+  let escaped = false;
+  let index = 0;
+
+  // Python docstrings are comments for structural metrics when they occupy a
+  // statement line. Quoted strings elsewhere must remain code.
+  const trimmed = rawLine.trimStart();
+  if (state.block === null && languageId === "python" && (trimmed.startsWith("\"\"\"") || trimmed.startsWith("'''"))) {
+    const delimiter: '"""' | "'''" = trimmed.startsWith('"""') ? '"""' : "'''";
+    const closingIndex = trimmed.indexOf(delimiter, 3);
+    sawComment = true;
+    if (closingIndex === -1) {
+      state.block = { kind: "python", delimiter };
+      return "";
+    }
+    return trimmed.slice(closingIndex + 3).trim();
+  }
+
+  while (index < rawLine.length) {
+    if (state.block !== null) {
+      sawComment = true;
+      const closing = state.block.delimiter;
+      const closingIndex = rawLine.indexOf(closing, index);
+      if (closingIndex === -1) return code;
+      index = closingIndex + closing.length;
+      state.block = null;
+      continue;
+    }
+
+    const character = rawLine[index]!;
+    const next = rawLine.slice(index, index + 2);
+
+    if (quote !== null) {
+      code += character;
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === quote) {
+        quote = null;
+      }
+      index++;
+      continue;
+    }
+
+    if (character === "'" || character === '"' || (character === "`" && (languageId === "typescript" || languageId === "javascript"))) {
+      quote = character;
+      code += character;
+      index++;
+      continue;
+    }
+
+    if (C_STYLE_COMMENT_LANGUAGES.has(languageId) && next === "/*") {
+      sawComment = true;
+      state.block = { kind: "c", delimiter: "*/" };
+      index += 2;
+      continue;
+    }
+
+    if (HASH_COMMENT_LANGUAGES.has(languageId) && character === "#") {
+      sawComment = true;
+      break;
+    }
+
+    if (languageId === "assembly" && character === ";") {
+      sawComment = true;
+      break;
+    }
+
+    if (languageId === "sql" && next === "--") {
+      sawComment = true;
+      break;
+    }
+
+    if (C_STYLE_COMMENT_LANGUAGES.has(languageId) && next === "//") {
+      sawComment = true;
+      break;
+    }
+
+    code += character;
+    index++;
+  }
+
+  // The caller needs to distinguish a comment-only line from a code line.
+  // Attach the marker without changing the public API or parser input.
+  return sawComment && code.trim() === "" ? "" : code;
+}
+
 export class PolyglotDetector {
   /**
    * Fast detection of file type & language from path and optional raw content.
@@ -310,7 +426,8 @@ export class PolyglotDetector {
     // Stage 4: Content heuristics
     if (content) {
       const trimmed = content.trim();
-      if (trimmed.startsWith("<!DOCTYPE html") || trimmed.startsWith("<html")) {
+      const lowerTrimmed = trimmed.toLowerCase();
+      if (lowerTrimmed.startsWith("<!doctype html") || lowerTrimmed.startsWith("<html")) {
         return LANGUAGE_REGISTRY.find(l => l.id === "html")!;
       }
       if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
@@ -343,7 +460,7 @@ export class PolyglotDetector {
     let blankLines = 0;
     let commentLines = 0;
     let codeLines = 0;
-    let inBlockComment = false;
+    const commentState: CommentState = { block: null };
 
     const imports: string[] = [];
     const classes: string[] = [];
@@ -354,35 +471,14 @@ export class PolyglotDetector {
     // Language-specific patterns
     for (let i = 0; i < lines.length; i++) {
       const rawLine = lines[i]!;
-      const line = rawLine.trim();
+      const line = stripComments(rawLine, lang.id, commentState).trim();
 
-      if (!line) {
+      if (!line && commentState.block === null && !rawLine.trim()) {
         blankLines++;
         continue;
       }
 
-      // Multi-line comment tracking
-      if (inBlockComment) {
-        commentLines++;
-        if (line.includes("*/") || (lang.id === "python" && line.includes('"""'))) {
-          inBlockComment = false;
-        }
-        continue;
-      }
-
-      if (line.startsWith("/*") || (lang.id === "python" && line.startsWith('"""') && !line.slice(3).includes('"""'))) {
-        inBlockComment = true;
-        commentLines++;
-        continue;
-      }
-
-      // Single-line comment checks
-      if (
-        line.startsWith("//") ||
-        line.startsWith("#") ||
-        line.startsWith(";") ||
-        line.startsWith("--")
-      ) {
+      if (!line) {
         commentLines++;
         continue;
       }

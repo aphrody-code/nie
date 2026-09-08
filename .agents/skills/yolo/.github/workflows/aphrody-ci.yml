@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# Managed by aphrody-git.
+name: Aphrody ecosystem CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  aphrody:
+    uses: aphrody-code/aphrody/.github/workflows/aphrody-reusable-ci.yml@7394f2e57c9be15f464dbf9277f38a305cc89d74

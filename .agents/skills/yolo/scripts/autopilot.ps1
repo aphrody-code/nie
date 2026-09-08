@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # PowerShell Universal Autopilot Loop
 # Cross-engine & cross-repo background daemon for autonomous agent pairs (Claude Code + Gemini CLI / Antigravity)
 # Saves PID to var/run/autopilot.pid, heartbeats to .coord/heartbeat.txt (or var/heartbeat.txt), logs to var/log/autopilot.jsonl
@@ -6,14 +7,19 @@ param(
     [int]$Interval = 60,
     [int]$MaxTicks = 0,
     [switch]$Once,
+    [switch]$DryRun,
     [string]$PlanPath = ""
 )
 
-# 1. Resolve repo root
+# 1. Resolve repo root. Prefer the caller's repository so this runner can be
+# invoked from another project via an absolute script path.
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$repoRoot = (Get-Item (Join-Path $scriptPath "..")).FullName
+$repoRoot = (Get-Location).Path
 if (-not (Test-Path (Join-Path $repoRoot ".git"))) {
-    $repoRoot = (Get-Item (Join-Path $scriptPath "..\..")).FullName
+    $repoRoot = (Get-Item (Join-Path $scriptPath "..")).FullName
+    if (-not (Test-Path (Join-Path $repoRoot ".git"))) {
+        $repoRoot = (Get-Item (Join-Path $scriptPath "..\..")).FullName
+    }
 }
 Set-Location $repoRoot
 
@@ -24,14 +30,18 @@ if (-not (Test-Path $coordDir)) {
     $coordDir = Join-Path $repoRoot "var"
 }
 
-New-Item -ItemType Directory -Force -Path $runDir | Out-Null
-New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-New-Item -ItemType Directory -Force -Path $coordDir | Out-Null
+if (-not $DryRun) {
+    New-Item -ItemType Directory -Force -Path $runDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $coordDir | Out-Null
+}
 
 # Write current PID
 $pidFile = Join-Path $runDir "autopilot.pid"
 $MyProcessId = $PID
-$MyProcessId | Out-File -FilePath $pidFile -Encoding utf8 -Force
+if (-not $DryRun) {
+    $MyProcessId | Out-File -FilePath $pidFile -Encoding utf8 -Force
+}
 
 $logFile = Join-Path $logDir "autopilot.jsonl"
 $heartbeatFile = Join-Path $coordDir "heartbeat.txt"
@@ -78,7 +88,8 @@ while ($true) {
                 $idx = $line.IndexOf("⏳")
                 if ($idx -lt 0) { $idx = $line.IndexOf("[ ]") }
                 if ($idx -ge 0) {
-                    $rawTask = $line.Substring($idx + 3)
+                    $markerLength = if ($line.Contains("⏳")) { 1 } else { 3 }
+                    $rawTask = $line.Substring($idx + $markerLength)
                     $task = $rawTask.Replace('`', '').Trim()
                     if ($task.StartsWith("]")) { $task = $task.Substring(1).Trim() }
                     break
@@ -91,7 +102,9 @@ while ($true) {
     Write-Host "Active Task: $task"
 
     # Write Heartbeat
-    "$timestamp - Tick $tick - $task" | Out-File -FilePath $heartbeatFile -Encoding utf8 -Force
+    if (-not $DryRun) {
+        "$timestamp - Tick $tick - $task" | Out-File -FilePath $heartbeatFile -Encoding utf8 -Force
+    }
 
     # Detect test commands
     $verifyCmd = "git status"
@@ -108,39 +121,55 @@ while ($true) {
     # 1. Lead Developer Lane (Claude Code / Antigravity / Agent)
     Write-Host "Executing Lead Developer Lane..."
     $claudeOutput = ""
-    try {
+    if ($DryRun) {
+        $claudeOutput = "Dry run: lead dispatch skipped."
+    } else {
+      try {
         $prompt = "You are an autonomous developer agent operating in full YOLO mode. Implement this task end-to-end: '$task'. Modify files as needed. Verify that '$verifyCmd' passes cleanly. Create a clean atomic git commit. Zero confirmation pauses."
         
         $claudeRes = Start-Job -ScriptBlock {
             param($p, $root)
             Set-Location $root
-            if (Get-Command "claude" -ErrorAction SilentlyContinue) {
+            if (Get-Command "agy" -ErrorAction SilentlyContinue) {
+                agy -p $p --dangerously-skip-permissions --model gemini-3.8-flash-low
+            } elseif (Get-Command "claude" -ErrorAction SilentlyContinue) {
                 claude -p $p --dangerously-skip-permissions
             } elseif (Get-Command "gemini" -ErrorAction SilentlyContinue) {
                 gemini --prompt $p
             } else {
-                Write-Host "No autonomous CLI found (claude/gemini) on PATH."
+                Write-Host "No autonomous CLI found (agy/claude/gemini) on PATH."
             }
         } -ArgumentList $prompt, $repoRoot
         
         $waitRes = Wait-Job $claudeRes -Timeout 300
-        $claudeOutput = Receive-Job $claudeRes
-        Remove-Job $claudeRes
-    }
-    catch {
-        $claudeOutput = "Err: $_"
+        if ($null -eq $waitRes) {
+            Stop-Job $claudeRes -ErrorAction SilentlyContinue
+            $claudeOutput = "Err: Timeout after 300s"
+        } else {
+            $claudeOutput = Receive-Job $claudeRes
+        }
+        Remove-Job $claudeRes -Force -ErrorAction SilentlyContinue
+      }
+      catch {
+          $claudeOutput = "Err: $_"
+      }
     }
 
     # 2. Independent Auditor Lane (Gemini / Antigravity CLI)
     Write-Host "Executing Independent Auditor Lane..."
     $geminiOutput = ""
-    try {
+    if ($DryRun) {
+        $geminiOutput = "Dry run: audit dispatch skipped."
+    } else {
+      try {
         $auditPrompt = "Perform an independent review of the most recent git commit in this repository ($repoRoot). Check security, architecture, code quality, and potential regressions. Output a concise JSON summary with status 'PASS' or 'FAIL'."
         
         $geminiRes = Start-Job -ScriptBlock {
             param($ap, $root)
             Set-Location $root
-            if (Get-Command "gemini" -ErrorAction SilentlyContinue) {
+            if (Get-Command "agy" -ErrorAction SilentlyContinue) {
+                agy -p $ap --dangerously-skip-permissions --model gemini-3.8-flash-low
+            } elseif (Get-Command "gemini" -ErrorAction SilentlyContinue) {
                 gemini --prompt $ap
             } elseif (Get-Command "claude" -ErrorAction SilentlyContinue) {
                 claude -p $ap --dangerously-skip-permissions
@@ -150,11 +179,17 @@ while ($true) {
         } -ArgumentList $auditPrompt, $repoRoot
         
         $waitGemini = Wait-Job $geminiRes -Timeout 300
-        $geminiOutput = Receive-Job $geminiRes
-        Remove-Job $geminiRes
-    }
-    catch {
-        $geminiOutput = "Err: $_"
+        if ($null -eq $waitGemini) {
+            Stop-Job $geminiRes -ErrorAction SilentlyContinue
+            $geminiOutput = "Err: Timeout after 300s"
+        } else {
+            $geminiOutput = Receive-Job $geminiRes
+        }
+        Remove-Job $geminiRes -Force -ErrorAction SilentlyContinue
+      }
+      catch {
+          $geminiOutput = "Err: $_"
+      }
     }
 
     # Log entry
@@ -165,10 +200,12 @@ while ($true) {
         lead = "$claudeOutput"
         auditor = "$geminiOutput"
     } | ConvertTo-Json -Compress
-    $logEntry | Out-File -FilePath $logFile -Encoding utf8 -Append
+    if (-not $DryRun) {
+        $logEntry | Out-File -FilePath $logFile -Encoding utf8 -Append
+    }
 
     # Mark the task completed in plan if applicable
-    if ($PlanPath -and (Test-Path $PlanPath) -and ($task -ne "Continuous autonomous maintenance & verification")) {
+    if (-not $DryRun -and $PlanPath -and (Test-Path $PlanPath) -and ($task -ne "Continuous autonomous maintenance & verification")) {
         $content = Get-Content $PlanPath
         $newContent = @()
         $marked = $false

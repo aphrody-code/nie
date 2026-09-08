@@ -89,8 +89,9 @@
       "role": "subagent",
       "transport": "cli",
       "binary": "agy",
-      "invocation": "agy -p \"<prompt>\" --dangerously-skip-permissions",
-      "description": "Antigravity CLI harness."
+      "model": "gemini-3.8-flash-low",
+      "invocation": "agy -p \"<prompt>\" --dangerously-skip-permissions --model gemini-3.8-flash-low",
+      "description": "Antigravity CLI (agy) autonomous agent harness powered by Gemini 3.8 Flash."
     }
   ],
   "skills": [
