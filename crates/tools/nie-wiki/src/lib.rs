@@ -19,6 +19,7 @@
 pub mod cards;
 pub mod catalog;
 pub mod entities;
+pub mod episodes;
 pub mod gallery;
 pub mod mirror;
 pub mod model;

@@ -3770,28 +3770,14 @@ fn uniform_map(game_dir: &std::path::Path, out: &std::path::Path) -> anyhow::Res
     let mut f = std::fs::File::create(out)
         .with_context(|| format!("création manifeste {}", out.display()))?;
 
-    let mut count = 0usize;
-    for (path, entry) in vfs.iter() {
-        let lower = path.to_lowercase();
-        if !lower.ends_with(".g4md") && !lower.ends_with(".g4mg") {
-            continue;
-        }
-        // Nom sans extension pour le CRC (selon l'usage dans g4.rs)
-        let stem = path.rsplit('/').next().unwrap_or(path);
-        let stem_no_ext = stem.rfind('.').map(|i| &stem[..i]).unwrap_or(stem);
-        let crc = nie_formats::cpk::crc32_nie(stem_no_ext.as_bytes());
-        let line = serde_json::json!({
-            "crc": crc,
-            "crc_hex": format!("0x{crc:08X}"),
-            "path": path,
-            "cpk": entry.cpk_filename,
-        });
-        writeln!(f, "{line}")?;
-        count += 1;
+    let entries = nie_explore::uniform_map::build(&vfs);
+    for entry in &entries {
+        writeln!(f, "{}", serde_json::to_string(entry)?)?;
     }
 
     eprintln!(
-        "uniform-map: {count} fichiers .g4md/.g4mg indexés → {}",
+        "uniform-map: {} fichiers .g4md/.g4mg indexés → {}",
+        entries.len(),
         out.display()
     );
     Ok(())

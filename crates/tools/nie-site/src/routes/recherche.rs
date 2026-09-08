@@ -126,24 +126,19 @@ pub const FACET_VALEURS_MAX: usize = 60;
 /// rendrait une réponse sans le champ demandé, et le client croirait que le VFS ne porte
 /// aucune valeur pour lui.
 fn champs_demandes(brut: Option<&str>) -> Result<Vec<crate::vfs_index::Champ>, ErreurSite> {
-    let mut champs = Vec::new();
-    for nom in brut
-        .unwrap_or_default()
-        .split(',')
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    {
-        let champ = crate::vfs_index::Champ::depuis(nom).ok_or_else(|| {
-            ErreurSite::Demande(format!(
-                "`facets={nom}` : seuls {} se comptent sur le VFS",
-                crate::vfs_index::Champ::NOMS.join(" et ")
-            ))
-        })?;
-        if !champs.contains(&champ) {
-            champs.push(champ);
-        }
-    }
-    Ok(champs)
+    nie_explore::search_query::parse_facet_fields(brut)
+        .map(|fields| {
+            fields
+                .into_iter()
+                .map(|field| match field {
+                    nie_explore::search_query::FacetField::Extension => {
+                        crate::vfs_index::Champ::Ext
+                    }
+                    nie_explore::search_query::FacetField::Cpk => crate::vfs_index::Champ::Cpk,
+                })
+                .collect()
+        })
+        .map_err(ErreurSite::Demande)
 }
 
 /// `GET /api/v1/recherche` — cherche dans tout le VFS.
