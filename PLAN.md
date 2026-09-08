@@ -573,11 +573,19 @@ the shared resolver; they must not be guessed from filename prefixes.
 `packages/inacord-ui` now owns the native-text contract. It resolves only an exact measured
 `(gameLocale, family, hash)` reference through the VFS endpoint, keeps the source VFS file and
 does not silently select among repeated hash occurrences. `gameLocale` is separate from the
-three public page-route locales: it supports all nine measured game locale identifiers (`de`,
-`en`, `es`, `fr`, `it`, `ja`, `pt`, `zh_hans`, `zh_hant`) for native resources. Browser names and
+three public page-route locales: it supports all VFS locale identifiers used by game resources
+(`de`, `en`, `es`, `fr`, `it`, `ja`, `ko`, `pt`, `zh_hans`, `zh_hant`). Text availability remains
+measured independently because a locale can have localized assets without a corresponding text
+family. Browser names and
 the shared gallery use that resource locale. The surrounding Inacord authoring shell still has
 authored tool text; it must not be presented as native game localization until a proven VFS or
 game-data text reference replaces it.
+
+The same locale rule applies to non-text resources. The shared asset-source contract now exposes
+the Rust VFS companion resolver for declared logical paths, including `<LG>` texture/font paths.
+It returns the exact selected VFS path or `null`; client CSS and JavaScript do not construct a
+locale directory or silently substitute a French asset. Existing fixed-path consumers remain
+migration work until their native declaration is routed through this resolver.
 
 ## Cross-surface shared-code proof — 2026-09-08
 

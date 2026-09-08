@@ -74,6 +74,9 @@ adapter roles; they are not another game engine.
   menu resource. Missing icon mappings remain explicit work, not guessed substitutions.
 - Load resources on demand with shared caching; preload startup music, SFX, fonts and required
   assets through the existing loader. Keep navigation usable during loading and errors.
+- Localized textures, fonts and other declared companions use the native VFS companion resolver
+  with the selected game locale. A host may fall back only when that resolver returns a concrete
+  common/non-localized VFS path; it must never reconstruct locale directories in CSS or JS.
 - Expose supported native formats as first-class resource types through common decoders and
   adapters. Conversion/export is an explicit optional operation, not a separate mandatory import
   pipeline. Browser codec or OS limitations require real adapters and honest capability results.

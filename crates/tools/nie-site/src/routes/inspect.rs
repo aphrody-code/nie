@@ -1043,6 +1043,56 @@ pub fn resolve_companion(index: &IndexVfs, logical: &str, locale: &str) -> Optio
     candidates.first().map(|p| (*p).to_owned())
 }
 
+/// Query for resolving one declared game-resource path through the native locale policy.
+#[derive(Debug, Deserialize)]
+pub struct CompanionQuery {
+    /// Logical path carried by a game object, optionally with `<LG>`.
+    pub logical: String,
+    /// Requested VFS locale. The resolver keeps the requested value verbatim.
+    pub locale: String,
+}
+
+/// Provenance of a locale-aware companion resolution.
+#[derive(Debug, Serialize)]
+pub struct ResolvedCompanion {
+    /// Logical path declared by the native resource.
+    pub logical: String,
+    /// Requested VFS locale.
+    pub locale: String,
+    /// Exact VFS path selected by the native resolver, when one exists.
+    pub resolved: Option<String>,
+}
+
+/// `GET /api/v1/inspect/companion?logical=…&locale=…`.
+///
+/// This exposes the same resolver already used by menu-object inspection so texture, font and
+/// other localized companions do not grow browser-side path guessing. `resolved: null` means
+/// the VFS did not prove a companion for this request.
+pub async fn companion(
+    State(state): State<EtatSite>,
+    Query(query): Query<CompanionQuery>,
+) -> Result<Json<ResolvedCompanion>, ErreurSite> {
+    if query.logical.len() > 1_024 || query.locale.len() > 32 || query.locale.trim().is_empty() {
+        return Err(ErreurSite::Demande(
+            "invalid companion resolution request".to_owned(),
+        ));
+    }
+    let index = state.index()?;
+    let logical = query.logical;
+    let locale = query.locale;
+    let lookup_logical = logical.clone();
+    let lookup_locale = locale.clone();
+    let resolved = tokio::task::spawn_blocking(move || {
+        resolve_companion(&index, &lookup_logical, &lookup_locale)
+    })
+    .await?;
+    Ok(Json(ResolvedCompanion {
+        logical,
+        locale,
+        resolved,
+    }))
+}
+
 /// Un compagnon d'objet de menu, tel que la réponse le rapporte.
 #[derive(Debug, Clone, Serialize)]
 pub struct Companion {
@@ -2281,6 +2331,7 @@ mod tests {
             .route("/api/v1/inspect/spritesheet/{*path}", get(spritesheet))
             .route("/api/v1/inspect/font/{*path}", get(font_metrics))
             .route("/api/v1/inspect/menu/{*path}", get(menu))
+            .route("/api/v1/inspect/companion", get(companion))
             .route("/api/v1/inspect/texture-chunk/{*path}", get(texture_chunk))
             .route("/api/v1/inspect/color", get(color))
             .route("/api/v1/inspect/compare", get(compare_contract))

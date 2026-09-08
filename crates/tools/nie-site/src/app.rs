@@ -208,6 +208,7 @@ declarer_routes! {
     "/api/v1/inspect/spritesheet/{*path}" => crate::routes::inspect::spritesheet,
     "/api/v1/inspect/font/{*path}" => crate::routes::inspect::font_metrics,
     "/api/v1/inspect/menu/{*path}" => crate::routes::inspect::menu,
+    "/api/v1/inspect/companion" => crate::routes::inspect::companion,
     "/api/v1/inspect/texture-chunk/{*path}" => crate::routes::inspect::texture_chunk,
     "/api/v1/inspect/color" => crate::routes::inspect::color,
     "/api/v1/inspect/compare" => crate::routes::inspect::compare_contract,

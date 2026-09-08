@@ -11,4 +11,12 @@
 export * from "./contract";
 export { ResourceLoader } from "./resource-loader";
 export { creerWebSource, type OptionsWebSource } from "./web-source";
+export {
+	type NativeAssetResolution,
+	type NativeAssetResolver,
+	type GameLocale,
+	GAME_LOCALES,
+	isGameLocale,
+	fetchNativeAsset,
+} from "./native-locale";
 export type { Capacites, Fichier, Page, SanteApi, VueCatalogue } from "./nie-site";
