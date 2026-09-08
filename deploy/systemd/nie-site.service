@@ -43,6 +43,10 @@ Environment=NIE_CPK_CACHE_BUDGET_GIB=6
 
 Restart=always
 RestartSec=5s
+# La vitrine et ses espaces VFS restent prioritaires face aux décodages et tâches
+# IA/batch en cas de contention. Poids relatifs, sans quota ni réservation rigide.
+CPUWeight=1000
+IOWeight=1000
 # Plafond mémoire : au-delà, systemd tue le service plutôt que de laisser earlyoom choisir
 # une victime au hasard sur une machine qui porte 18 autres services.
 MemoryMax=10G
