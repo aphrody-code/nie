@@ -1,3 +1,4 @@
+import { mergeGalleryRecords, filterGalleryRecords, countGalleryRecords } from "./gallery-collection";
 import type { BaseCharacter, Item, Skill, Team } from "@rosegriffon/inagle";
 import { ElementNames } from "@rosegriffon/inagle/core/types";
 import changeAuraSkills from "../data/change-aura-skills.json";
@@ -131,16 +132,6 @@ export const GALLERY_CATEGORIES: ReadonlyArray<{ value: string; label: string; i
 	{ value: "telop_waza", label: "Techniques", icon: "bolt" },
 ];
 
-/** Catégories alimentées par le manifeste menu (et non par la table DB `inagle_gallery`). */
-const MENU_GALLERY_CATEGORIES = new Set([
-	"gallery_img2",
-	"ev_pic",
-	"stadium",
-	"vsroute_map",
-	"hlp",
-	"telop_waza",
-]);
-
 const GALLERY_CATEGORY_VALUES = new Set(GALLERY_CATEGORIES.map((c) => c.value));
 
 /** Catégorie d'un `img_path` (2e token `img_<cat>_…`), `other` par défaut. */
@@ -205,32 +196,29 @@ function menuManifestToItem(it: MenuGalleryManifestItem): GalleryItem {
 	};
 }
 
-/**
- * Sélectionne les items menu pour une page : filtre par catégorie (`menu` = toutes
- * les catégories menu confondues) puis par recherche texte (titre/file insensible
- * à la casse). Renvoie le sous-ensemble paginé + le total filtré.
- */
-function getMenuGalleryPage(params: {
-	category?: string;
-	q?: string;
-	from: number;
-	to: number;
-}): { data: GalleryItem[]; total: number } {
-	const q = params.q?.trim().toLowerCase();
-	let pool: ReadonlyArray<MenuGalleryManifestItem> = MENU_MANIFEST_ITEMS;
-
-	if (params.category && params.category !== "menu") {
-		pool = pool.filter((it) => it.category === params.category);
-	}
-	if (q) {
-		pool = pool.filter(
-			(it) => it.title.toLowerCase().includes(q) || it.file.toLowerCase().includes(q)
-		);
-	}
-
-	const total = pool.length;
-	const page = pool.slice(params.from, params.to + 1).map(menuManifestToItem);
-	return { data: page, total };
+/** Read every SQL page before merging, so list and facet counts share one inventory. */
+async function loadGalleryCollection(): Promise<GalleryItem[]> {
+ const supabase = await createClient();
+ const rows: GalleryItem[] = [];
+ const pageSize = 500;
+ let offset = 0;
+ while (true) {
+  const { data, count, error } = await supabase.from("inagle_gallery")
+   .select("*", { count: "exact" })
+   .order("flg_no", { ascending: true, nullsFirst: false })
+   .order("id", { ascending: true })
+   .range(offset, offset + pageSize - 1);
+  if (error) throw new Error("Gallery metadata could not be loaded", { cause: error });
+  if (!data?.length) {
+   if (count !== null && offset < count) throw new Error("Gallery metadata page is incomplete");
+   break;
+  }
+  rows.push(...data.map(galleryRowToItem));
+  offset += data.length;
+  if (count !== null && offset >= count) break;
+  if (count === null && data.length < pageSize) break;
+ }
+ return mergeGalleryRecords(rows, MENU_MANIFEST_ITEMS.map(menuManifestToItem));
 }
 
 // Helpers — returns all matching element IDs (Void maps to both 0 and 5)
@@ -2740,78 +2728,20 @@ export const wikiService = {
 		return base;
 	},
 
-	/**
-	 * Galerie d'illustrations in-game (`inagle_gallery`, 360 lignes). Chaque entrée
-	 * porte un `img_path` qui résout vers une illustration live du dump dx11
-	 * (`menu/220_img/gallery_img2/`, couverture 360/360 vérifiée). Catégorisé par le
-	 * 2e token du `img_path` (`img_<cat>_…` → story / special / other / chronicle / kizuna).
-	 */
-	async getGalleryList(params: {
-		page?: number;
-		limit?: number;
-		q?: string;
-		category?: string;
-	}): Promise<ListResult<GalleryItem>> {
-		const page = params.page || 1;
-		const limit = params.limit || 48;
-		const from = (page - 1) * limit;
-		const to = from + limit - 1;
+	/** One deduplicated inventory for SQL metadata, manifest resources and category facets. */
+ async getGalleryList(params: {
+  page?: number; limit?: number; q?: string; category?: string;
+ }): Promise<ListResult<GalleryItem>> {
+  const page = Number.isFinite(params.page) ? Math.max(1, Math.floor(params.page!)) : 1;
+  const limit = Number.isFinite(params.limit) ? Math.max(1, Math.min(500, Math.floor(params.limit!))) : 48;
+  const items = filterGalleryRecords(await loadGalleryCollection(), params.category, params.q);
+  const offset = (page - 1) * limit;
+  return { data: items.slice(offset, offset + limit), total: items.length, page, limit };
+ },
 
-		// Catégories menu (`gallery_img2`, `ev_pic`, `stadium`, …) ou `menu` (toutes) →
-		// servies depuis le manifeste statique, pas la table DB `inagle_gallery`.
-		if (params.category && (params.category === "menu" || MENU_GALLERY_CATEGORIES.has(params.category))) {
-			const { data, total } = getMenuGalleryPage({
-				category: params.category,
-				q: params.q,
-				from,
-				to,
-			});
-			return { data, total, page, limit };
-		}
-
-		const supabase = await createClient();
-
-		let query = supabase.from("inagle_gallery").select("*", { count: "exact" });
-
-		// Catégorie = préfixe `img_<category>_` du `img_path` (filtre serveur via LIKE).
-		if (params.category && GALLERY_CATEGORIES.some((c) => c.value === params.category)) {
-			query = query.ilike("img_path", `img_${sanitizeFilter(params.category)}_%`);
-		}
-		if (params.q) {
-			query = query.ilike("img_path", `%${sanitizeFilter(params.q)}%`);
-		}
-
-		const { data, count, error } = await query
-			.order("flg_no", { ascending: true, nullsFirst: false })
-			.range(from, to);
-
-		if (error) {
-			console.error("Error fetching gallery:", error);
-			return { data: [], total: 0, page, limit };
-		}
-
-		const results = (data as any[]).map((row) => galleryRowToItem(row));
-
-		return { data: results, total: count || 0, page, limit };
-	},
-
-	/** Compte les illustrations par catégorie (pour les chips de filtre). */
-	async getGalleryCategoryCounts(): Promise<Record<string, number>> {
-		const supabase = await createClient();
-		const { data } = await supabase.from("inagle_gallery").select("img_path");
-		const counts: Record<string, number> = { all: 0 };
-		for (const row of (data as any[]) || []) {
-			counts.all += 1;
-			const cat = galleryCategoryOf(row.img_path);
-			counts[cat] = (counts[cat] || 0) + 1;
-		}
-		// Catégories menu = manifeste statique (servi live par le CDN).
-		for (const it of MENU_MANIFEST_ITEMS) {
-			counts.all += 1;
-			counts[it.category] = (counts[it.category] || 0) + 1;
-		}
-		return counts;
-	},
+ async getGalleryCategoryCounts(): Promise<Record<string, number>> {
+  return countGalleryRecords(await loadGalleryCollection());
+ },
 
 	async getTweets(limit: number = 20): Promise<any[]> {
 		const supabase = await createClient();

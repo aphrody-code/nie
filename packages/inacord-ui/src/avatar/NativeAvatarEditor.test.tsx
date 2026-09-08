@@ -139,13 +139,13 @@ describe("native avatar editor bindings", () => {
 		test("moves keyboard focus into a name field and cancels from that field once", async () => {
 			let back = 0;
 			await mount("name", names, { onBack: () => back++, scene: {
-				id: "avatar-name", canvas: { width: 1920, height: 1080 }, layers: [], controls: [
-					{ id: "stage-name", label: "Name", rect: { x: 0, y: 0, w: 100, h: 50 } },
-					{ id: "name", label: "Name field", rect: { x: 0, y: 100, w: 100, h: 50 } },
+				schemaVersion: 1, unresolved: [], id: "avatar-name", canvas: { width: 1920, height: 1080 }, layers: [], controls: [
+					{ id: "stage-name", label: "Name", rect: { x: 0, y: 0, w: 100, h: 50 }, provenance: { source: "test", record: "stage-name", method: "fixture" } },
+					{ id: "name", label: "Name field", rect: { x: 0, y: 100, w: 100, h: 50 }, provenance: { source: "test", record: "name", method: "fixture" } },
 				],
 			} });
 			await act(async () => button("stage-name").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })));
-			const input = container?.querySelector<HTMLInputElement>('[data-avatar-field="name"]');
+			const input = container!.querySelector<HTMLInputElement>('[data-avatar-field="name"]');
 			expect(document.activeElement).toBe(input);
 			const escape = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
 			await act(async () => input?.dispatchEvent(escape));
@@ -163,7 +163,7 @@ describe("native avatar editor bindings", () => {
 			const cancel = spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
 			try {
 				await mount("body", body, { state: { ...INITIAL_AVATAR_STATE, height: 14 }, onStateChange: state => updates.push(state) });
-				const input = container?.querySelector<HTMLInputElement>('[data-avatar-control="height"]');
+				const input = container!.querySelector<HTMLInputElement>('[data-avatar-control="height"]');
 				await act(async () => input?.focus());
 				await act(async () => frame(0));
 				expect(updates).toHaveLength(0);
@@ -183,7 +183,7 @@ describe("native avatar editor bindings", () => {
 
 		test("preserves text-field arrow keys for editing", async () => {
 			await mount("name", names);
-			const input = container?.querySelector<HTMLInputElement>('[data-avatar-field="name"]');
+			const input = container!.querySelector<HTMLInputElement>('[data-avatar-field="name"]');
 			await act(async () => input?.focus());
 			const arrow = new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true });
 			await act(async () => input?.dispatchEvent(arrow));

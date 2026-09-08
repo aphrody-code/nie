@@ -1253,6 +1253,21 @@ enum QueueOp {
 
 #[derive(Subcommand)]
 enum WikiOp {
+    /// Print an exact joined character card as JSON using the shared wiki library.
+    Card {
+        id: String,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Rank supplied encyclopedia candidates without network access or database writes.
+    ZukanRank {
+        #[arg(long)]
+        entry: std::path::PathBuf,
+        #[arg(long)]
+        candidates: std::path::PathBuf,
+        #[arg(long, default_value_t = 10)]
+        max_results: u32,
+    },
     /// Profil complet d'un personnage (stats, techniques, auras).
     Chara {
         /// Nom, ID ou code interne du personnage (ex: "Mark", "0x99A1C150", "c01000010").
@@ -1428,6 +1443,39 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
     use nie_wiki::{mirror, query, render};
 
     match op {
+        WikiOp::Card { id, db } => {
+            anyhow::ensure!(!id.is_empty() && id.len() <= 256, "Invalid character ID");
+            let conn = mirror::open(db.as_deref())
+                .map_err(|_| anyhow::anyhow!("Wiki data is unavailable"))?;
+            let card = nie_wiki::cards::character(&conn, &id)
+                .map_err(|_| anyhow::anyhow!("Character card could not be read"))?
+                .ok_or_else(|| anyhow::anyhow!("Character was not found"))?;
+            println!("{}", serde_json::to_string_pretty(&card)?);
+        }
+        WikiOp::ZukanRank {
+            entry,
+            candidates,
+            max_results,
+        } => {
+            fn bounded_json(path: &std::path::Path, limit: usize) -> anyhow::Result<String> {
+                use std::io::Read;
+                let file = std::fs::File::open(path)
+                    .map_err(|_| anyhow::anyhow!("Ranking input could not be opened"))?;
+                let mut bytes = Vec::new();
+                file.take(limit as u64 + 1)
+                    .read_to_end(&mut bytes)
+                    .map_err(|_| anyhow::anyhow!("Ranking input could not be read"))?;
+                anyhow::ensure!(bytes.len() <= limit, "Ranking input exceeds its byte limit");
+                String::from_utf8(bytes)
+                    .map_err(|_| anyhow::anyhow!("Ranking input must be UTF-8 JSON"))
+            }
+            let entry = bounded_json(&entry, nie_zukan::api::MAX_ZUKAN_ENTRY_JSON_BYTES)?;
+            let candidates =
+                bounded_json(&candidates, nie_zukan::api::MAX_ZUKAN_CANDIDATES_JSON_BYTES)?;
+            let output = nie_zukan::api::rank_json(&entry, &candidates, max_results)
+                .map_err(anyhow::Error::msg)?;
+            println!("{output}");
+        }
         // ─── Commandes existantes ────────────────────────────────────────────
         WikiOp::Chara { query: q, json, db } => {
             let conn = mirror::open(db.as_deref())?;

@@ -181,6 +181,44 @@ pub struct Motion {
     data_offset: usize,
 }
 
+/// Format-neutral keyframe emitted by [`Motion::decode_clip`].
+///
+/// This is intentionally expressed with the already decoded G4SK [`crate::g4sk::LocalTrs`]
+/// rather than depending on `nie-runtime`.  `nie-runtime` depends on the renderer, which owns
+/// the format crate, so adding that dependency here would create a Cargo cycle.  Runtime callers
+/// can map `bone_index` to `nie-runtime::animation::BoneId` and `LocalTrs` to `BonePose` in
+/// their binding crate, without making this parser claim semantics that belong to playback.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DecodedMotionKeyframe {
+    /// Time relative to the beginning of the clip, in seconds (`frame / fps`).
+    pub time_seconds: f32,
+    /// Local transform, with quaternion components ordered `(x, y, z, w)`.
+    pub pose: crate::g4sk::LocalTrs,
+}
+
+/// One resolved G4MT target track, suitable for conversion to a runtime bone track.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DecodedMotionTrack {
+    /// Index in the caller-provided skeleton (`target_to_bone`).
+    pub bone_index: usize,
+    /// Keyframes in strictly increasing source-key order.
+    pub keyframes: Vec<DecodedMotionKeyframe>,
+}
+
+/// Explicit, format-neutral result of decoding one G4MT clip.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DecodedMotionClip {
+    /// Source clip name, retained for editor/runtime diagnostics.
+    pub name: String,
+    /// Clip duration in seconds, derived from its declared frame range and FPS.
+    pub duration_seconds: f32,
+    /// Tracks whose target hashes resolved through `target_to_bone`.
+    pub tracks: Vec<DecodedMotionTrack>,
+}
+
 fn find_name_table(data: &[u8], start: usize, count: usize) -> Option<(usize, Vec<String>)> {
     if count == 0 {
         return Some((start, Vec::new()));
@@ -451,6 +489,85 @@ impl Motion {
         out.sort_unstable();
         out.dedup();
         out
+    }
+
+    /// Decode one non-additive clip into local TRS tracks resolved against a caller-owned
+    /// skeleton.
+    ///
+    /// `target_to_bone[target_index]` supplies the skeleton index for each target hash (the
+    /// result of [`resolve_targets`]); `rest_poses` supplies one G4SK local pose per skeleton
+    /// bone.  Source key times are retained exactly as frame numbers and converted to seconds
+    /// using the clip's declared FPS.  A missing mapping, missing rest pose, unsupported channel,
+    /// zero FPS, additive clip, or malformed sample returns `None` rather than fabricating a
+    /// track.  Unresolved targets are omitted deliberately: a caller can inspect the mapping and
+    /// report them without assigning an arbitrary bone.
+    #[must_use]
+    pub fn decode_clip(
+        &self,
+        data: &[u8],
+        clip: &Clip,
+        target_to_bone: &[Option<usize>],
+        rest_poses: &[crate::g4sk::LocalTrs],
+    ) -> Option<DecodedMotionClip> {
+        if clip.is_additive() || clip.fps == 0 || target_to_bone.len() < self.target_hashes.len() {
+            return None;
+        }
+        let fps = f32::from(clip.fps);
+        let start = clip.start_frame;
+        let end = clip.end_frame;
+        let mut tracks = Vec::new();
+        for target in self.target_indices(clip) {
+            let Some(Some(bone_index)) = target_to_bone.get(target as usize) else {
+                continue;
+            };
+            let bone_index = *bone_index;
+            let &rest = rest_poses.get(bone_index)?;
+            let info = self
+                .target_infos
+                .get(
+                    clip.target_info_start as usize
+                        ..clip.target_info_start as usize + clip.target_info_count as usize,
+                )?
+                .iter()
+                .find(|info| info.target_index == target)?;
+            let channels = self.channels.get(
+                info.channel_start as usize
+                    ..info.channel_start as usize + info.channel_count as usize,
+            )?;
+            let mut source_frames = Vec::new();
+            for channel in channels {
+                let keys = self.keys.get(
+                    channel.key_start as usize
+                        ..channel.key_start as usize + channel.key_count as usize,
+                )?;
+                source_frames.extend(keys.iter().copied());
+            }
+            source_frames.sort_unstable();
+            source_frames.dedup();
+            source_frames.retain(|&frame| frame >= start && frame <= end);
+            if source_frames.is_empty() {
+                continue;
+            }
+            let keyframes = source_frames
+                .into_iter()
+                .map(|frame| {
+                    self.sample_local_trs(data, clip, target, f32::from(frame), rest)
+                        .map(|pose| DecodedMotionKeyframe {
+                            time_seconds: f32::from(frame - start) / fps,
+                            pose,
+                        })
+                })
+                .collect::<Option<Vec<_>>>()?;
+            tracks.push(DecodedMotionTrack {
+                bone_index,
+                keyframes,
+            });
+        }
+        Some(DecodedMotionClip {
+            name: clip.name.clone(),
+            duration_seconds: f32::from(end - start) / fps,
+            tracks,
+        })
     }
 
     fn rotation_channel(&self, clip: &Clip, target_index: u16) -> Option<&RawChannel> {
@@ -958,6 +1075,23 @@ mod tests {
         assert_eq!(local.quat, q_mid);
         assert_eq!(local.translation, rest.translation);
         assert_eq!(local.scale, rest.scale);
+
+        // The format-owned adapter preserves source key timing and resolved bone identity while
+        // leaving the final `nie-runtime::animation` type conversion to the binding crate.
+        let decoded = motion
+            .decode_clip(&buf, clip, &[Some(0)], &[rest])
+            .expect("format-neutral runtime mapping");
+        assert_eq!(decoded.name, "clip");
+        assert!((decoded.duration_seconds - 1.0 / 60.0).abs() < 1e-7);
+        assert_eq!(decoded.tracks.len(), 1);
+        assert_eq!(decoded.tracks[0].bone_index, 0);
+        assert_eq!(decoded.tracks[0].keyframes.len(), 2);
+        assert_eq!(decoded.tracks[0].keyframes[0].time_seconds, 0.0);
+        assert!((decoded.tracks[0].keyframes[1].time_seconds - 1.0 / 60.0).abs() < 1e-7);
+        assert_eq!(
+            decoded.tracks[0].keyframes[0].pose.translation,
+            rest.translation
+        );
         assert!(
             motion
                 .sample_local_trs(&buf, clip, 0, f32::NAN, rest)

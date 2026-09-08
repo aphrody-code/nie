@@ -1,9 +1,9 @@
 //! Read-only candidate ranking using the existing native encyclopedia matcher.
 
+use crate::error::ErreurSite;
 use axum::Json;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use crate::error::ErreurSite;
 
 static RANKING_SLOTS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
@@ -29,16 +29,23 @@ pub async fn contract() -> Json<Value> {
 }
 
 pub async fn rank(Json(request): Json<RankRequest>) -> Result<Json<Value>, ErreurSite> {
-    let permit = RANKING_SLOTS.try_acquire().map_err(|_| ErreurSite::Indisponible("Candidate ranking is busy".into()))?;
+    let permit = RANKING_SLOTS
+        .try_acquire()
+        .map_err(|_| ErreurSite::Indisponible("Candidate ranking is busy".into()))?;
     let output = tokio::task::spawn_blocking(move || {
         let _permit = permit;
         nie_zukan::api::rank_json(
-            &request.entry.to_string(), &request.candidates.to_string(), request.max_results,
+            &request.entry.to_string(),
+            &request.candidates.to_string(),
+            request.max_results,
         )
-    }).await.map_err(|error| {
+    })
+    .await
+    .map_err(|error| {
         tracing::error!(%error, "candidate ranking task failed");
         ErreurSite::Interne("Candidates could not be ranked".into())
-    })?.map_err(ErreurSite::Demande)?;
+    })?
+    .map_err(ErreurSite::Demande)?;
     let value = serde_json::from_str(&output).map_err(|error| {
         tracing::error!(%error, "candidate ranking response failed");
         ErreurSite::Interne("Candidates could not be ranked".into())

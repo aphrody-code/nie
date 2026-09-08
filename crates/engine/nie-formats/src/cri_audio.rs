@@ -885,7 +885,8 @@ pub fn hca_loop_points(raw: &[u8]) -> Result<Option<AudioLoopPoints>, String> {
     // inclusive; end padding and encoder delay are excluded from the decoded loop.
     let start_sample = (u64::from(info.loop_start_block) * block_samples
         + u64::from(info.loop_start_delay))
-        .checked_sub(delay).ok_or("HCA loop begins before decoded audio")?;
+    .checked_sub(delay)
+    .ok_or("HCA loop begins before decoded audio")?;
     let end_sample = ((u64::from(info.loop_end_block) + 1) * block_samples)
         .checked_sub(u64::from(info.loop_end_padding))
         .and_then(|value| value.checked_sub(delay))
@@ -897,7 +898,11 @@ pub fn hca_loop_points(raw: &[u8]) -> Result<Option<AudioLoopPoints>, String> {
     if start_sample >= end_sample || end_sample > total_samples || info.sampling_rate == 0 {
         return Err("HCA loop exceeds decoded sample boundaries".into());
     }
-    Ok(Some(AudioLoopPoints { start_sample, end_sample, sample_rate: info.sampling_rate }))
+    Ok(Some(AudioLoopPoints {
+        start_sample,
+        end_sample,
+        sample_rate: info.sampling_rate,
+    }))
 }
 
 /// Décode un flux HCA Criware chiffré (ciph_type=56) en PCM 16-bit entrelacé,

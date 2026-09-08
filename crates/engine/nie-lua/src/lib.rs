@@ -34,11 +34,11 @@ pub use menu_state::{MenuLayerState, MenuListItem, MenuObjectState, MenuState};
 #[cfg(feature = "vm")]
 pub mod host;
 #[cfg(feature = "vm")]
+pub mod menu_runtime;
+#[cfg(feature = "vm")]
 pub mod runtime;
 #[cfg(feature = "vm")]
 pub mod session;
-#[cfg(feature = "vm")]
-pub mod menu_runtime;
 #[cfg(feature = "vm")]
 pub use runtime::RuntimeContext;
 #[cfg(feature = "vm")]

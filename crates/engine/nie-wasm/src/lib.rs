@@ -665,7 +665,11 @@ pub fn chara_model_catalog_json(bytes: &[u8], source: &str) -> Result<String, St
     chara_model_catalog_impl(bytes, source)
 }
 
-fn zukan_rank_impl(entry_json: &str, candidates_json: &str, max_results: u32) -> Result<String, String> {
+fn zukan_rank_impl(
+    entry_json: &str,
+    candidates_json: &str,
+    max_results: u32,
+) -> Result<String, String> {
     nie_zukan::api::rank_json(entry_json, candidates_json, max_results)
 }
 
@@ -1670,7 +1674,8 @@ fn avatar_composition_json_impl(catalog_json: &str, state_json: &str) -> Result<
         .map_err(|e| e.to_string())?;
     let state = serde_json::from_str::<nie_data::avatar::AvatarState>(state_json)
         .map_err(|e| e.to_string())?;
-    let composition = nie_data::avatar::resolve_avatar(&catalog, &state).map_err(|e| e.to_string())?;
+    let composition =
+        nie_data::avatar::resolve_avatar(&catalog, &state).map_err(|e| e.to_string())?;
     serde_json::to_string(&composition).map_err(|e| e.to_string())
 }
 
@@ -2573,23 +2578,34 @@ pub struct WasmBitmapFont {
 impl WasmBitmapFont {
     #[wasm_bindgen(constructor)]
     pub fn new(config: &[u8], texture: &[u8]) -> Result<WasmBitmapFont, JsValue> {
-        Ok(Self { font: nie_formats::bitmap_font::BitmapFont::from_bytes(config, texture)
-            .map_err(|e| JsValue::from_str(&e))?, width: 0, height: 0 })
+        Ok(Self {
+            font: nie_formats::bitmap_font::BitmapFont::from_bytes(config, texture)
+                .map_err(|e| JsValue::from_str(&e))?,
+            width: 0,
+            height: 0,
+        })
     }
 
     /// Color is packed RGBA, independent of host endianness.
     pub fn render(&mut self, text: &str, color: u32) -> Result<Vec<u8>, JsValue> {
-        let frame = self.font.render(text, color.to_be_bytes()).map_err(|e| JsValue::from_str(&e))?;
+        let frame = self
+            .font
+            .render(text, color.to_be_bytes())
+            .map_err(|e| JsValue::from_str(&e))?;
         self.width = frame.width;
         self.height = frame.height;
         Ok(frame.rgba)
     }
 
     #[wasm_bindgen(getter)]
-    pub fn width(&self) -> u32 { self.width }
+    pub fn width(&self) -> u32 {
+        self.width
+    }
 
     #[wasm_bindgen(getter)]
-    pub fn height(&self) -> u32 { self.height }
+    pub fn height(&self) -> u32 {
+        self.height
+    }
 }
 
 /// Machine à états d'écran interactive, rendue en WebAssembly.

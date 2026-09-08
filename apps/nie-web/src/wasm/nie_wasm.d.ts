@@ -330,6 +330,21 @@ export function aob_scan_json(pattern: string, bytes: Uint8Array, max_hits: numb
 export function assemble_x64(source: string, virtual_address: bigint): Uint8Array;
 
 /**
+ * Decode a named cue from original ACB and, when streaming, external AWB bytes.
+ */
+export function audio_bank_cue_to_wav(acb_bytes: Uint8Array, external_awb_bytes: Uint8Array, cue_name: string): Uint8Array;
+
+/**
+ * Inspect original ACB bytes without waveform conversion.
+ */
+export function audio_bank_json(bank: string, bytes: Uint8Array): string;
+
+/**
+ * Decode one exact AFS2 waveform ID from original AWB bytes.
+ */
+export function audio_cue_to_wav(bytes: Uint8Array, awb_id: number): Uint8Array;
+
+/**
  * Décode un audio CRI (HCA/ADX/AWB/ACB, octets bruts) en **WAV PCM16**, in-browser.
  */
 export function audio_to_wav(bytes: Uint8Array): Uint8Array;
@@ -671,6 +686,27 @@ export function skill_lookup(skill_config_json: string, skill_text_json: string)
 export function steam_select_depots_json(depots_json: string, selection_json: string): string;
 
 /**
+ * Decode one explicit native USM audio channel to WAV, without selecting a default track.
+ */
+export function usm_audio_track_wav(original_name: string, bytes: Uint8Array, channel: number): Uint8Array;
+
+/**
+ * Export the original elementary video stream, including MPEG-2, without transcoding.
+ */
+export function usm_elementary_video_bytes(original_name: string, bytes: Uint8Array): Uint8Array;
+
+/**
+ * Inspect original USM bytes without retaining full demuxed video frames.
+ */
+export function usm_metadata_json(original_name: string, bytes: Uint8Array): string;
+
+/**
+ * Remux only the video track as its native codec's web container; inspect metadata for MIME
+ * and use the explicit audio-track binding separately. This is not a silent movie substitute.
+ */
+export function usm_video_track_bytes(original_name: string, bytes: Uint8Array): Uint8Array;
+
+/**
  * Parse une table `@UTF` et retourne son contenu sérialisé en JSON.
  *
  * Le JSON a la structure suivante :
@@ -720,6 +756,9 @@ export interface InitOutput {
     readonly __wbg_webgpuviewer_free: (a: number, b: number) => void;
     readonly aob_scan_json: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly assemble_x64: (a: number, b: number, c: bigint) => [number, number, number, number];
+    readonly audio_bank_cue_to_wav: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+    readonly audio_bank_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly audio_cue_to_wav: (a: number, b: number, c: number) => [number, number, number, number];
     readonly audio_to_wav: (a: number, b: number) => [number, number, number, number];
     readonly aura_lookup: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly avatar_composition_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
@@ -768,6 +807,10 @@ export interface InitOutput {
     readonly single_stat: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly skill_lookup: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly steam_select_depots_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly usm_audio_track_wav: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
+    readonly usm_elementary_video_bytes: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly usm_metadata_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly usm_video_track_bytes: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly utf_table_json: (a: number, b: number) => [number, number, number, number];
     readonly vfs_content_summary: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmbitmapfont_height: (a: number) => number;

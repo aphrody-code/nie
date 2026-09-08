@@ -37,13 +37,21 @@ pub fn usm_video_track_bytes(original_name: &str, bytes: &[u8]) -> Result<Vec<u8
 /// Decode one explicit native USM audio channel to WAV, without selecting a default track.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn usm_audio_track_wav(original_name: &str, bytes: &[u8], channel: u8) -> Result<Vec<u8>, JsValue> {
+pub fn usm_audio_track_wav(
+    original_name: &str,
+    bytes: &[u8],
+    channel: u8,
+) -> Result<Vec<u8>, JsValue> {
     audio_track(original_name, bytes, channel).map_err(|error| JsValue::from_str(&error))
 }
 
 /// Native counterpart of the same audio-track binding.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn usm_audio_track_wav(original_name: &str, bytes: &[u8], channel: u8) -> Result<Vec<u8>, String> {
+pub fn usm_audio_track_wav(
+    original_name: &str,
+    bytes: &[u8],
+    channel: u8,
+) -> Result<Vec<u8>, String> {
     audio_track(original_name, bytes, channel)
 }
 

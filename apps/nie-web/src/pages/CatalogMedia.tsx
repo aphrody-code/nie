@@ -77,7 +77,8 @@ export function CatalogMoviePreview({ path }: { path: string }) {
 		let active = true;
 		setMetadata(null); setFailed(false); setPlaying(false);
 		resources.videoMetadata(path).then(value => { if (active) setMetadata(value); })
-			.catch(() => { if (active) setFailed(true); });
+			.catch(() => { if (active) setFailed(true); })
+			.finally(() => resources.dispose());
 		return () => { active = false; resources.dispose(); };
 	}, [source, path, inspect, attempt]);
 	if (!inspect) return <button type="button" onClick={() => setInspect(true)}>Inspecter la vidéo</button>;

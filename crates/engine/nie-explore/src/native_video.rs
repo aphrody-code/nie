@@ -32,7 +32,9 @@ pub fn metadata(original_name: &str, bytes: &[u8]) -> Result<String, String> {
     let unsupported = match info.codec {
         CodecVideo::Mpeg2 => Some("MPEG-2 has no portable browser decoder in this binding"),
         CodecVideo::Inconnu => Some("The native video codec is unresolved"),
-        _ if info.entete.alpha != 0 => Some("The native alpha track is not preserved by the web remuxer"),
+        _ if info.entete.alpha != 0 => {
+            Some("The native alpha track is not preserved by the web remuxer")
+        }
         _ => None,
     };
     serde_json::to_string(&serde_json::json!({
@@ -75,15 +77,19 @@ pub fn metadata(original_name: &str, bytes: &[u8]) -> Result<String, String> {
 }
 
 fn demux(original_name: &str, bytes: &[u8]) -> Result<usm::Usm, String> {
-    usm::demuxer_nomme(bytes, original_file_name(original_name)?)
-        .map_err(|error| error.to_string())
+    usm::demuxer_nomme(bytes, original_file_name(original_name)?).map_err(|error| error.to_string())
 }
 
 pub fn video_track(original_name: &str, bytes: &[u8]) -> Result<Vec<u8>, String> {
     let movie = demux(original_name, bytes)?;
     match movie.codec {
-        CodecVideo::Mpeg2 => return Err("MPEG-2 browser playback is unsupported; original elementary bytes remain available".to_owned()),
-        CodecVideo::Inconnu => return Err("Cannot remux an unresolved native video codec".to_owned()),
+        CodecVideo::Mpeg2 => return Err(
+            "MPEG-2 browser playback is unsupported; original elementary bytes remain available"
+                .to_owned(),
+        ),
+        CodecVideo::Inconnu => {
+            return Err("Cannot remux an unresolved native video codec".to_owned());
+        }
         CodecVideo::H264 | CodecVideo::Vp9 => {}
     }
     if movie.entete.alpha != 0 {
@@ -91,13 +97,18 @@ pub fn video_track(original_name: &str, bytes: &[u8]) -> Result<Vec<u8>, String>
     }
     // The shared method selects mp4::muxer_h264_avec or webm::muxer_vp9 and preserves
     // its native frame-rate/display-size decisions. No codec interpretation lives here.
-    movie.en_conteneur_web().map(|container| container.octets)
+    movie
+        .en_conteneur_web()
+        .map(|container| container.octets)
         .map_err(|error| error.to_string())
 }
 
 pub fn audio_track(original_name: &str, bytes: &[u8], channel: u8) -> Result<Vec<u8>, String> {
     let movie = demux(original_name, bytes)?;
-    let track = movie.pistes.iter().find(|track| track.canal == channel)
+    let track = movie
+        .pistes
+        .iter()
+        .find(|track| track.canal == channel)
         .ok_or_else(|| format!("USM audio channel {channel} is absent"))?;
     // Exact channel selection: absence/unsupported audio never selects another soundtrack.
     nie_formats::cri_audio::decode_to_wav(&track.octets)
@@ -110,4 +121,3 @@ pub fn elementary_video(original_name: &str, bytes: &[u8]) -> Result<Vec<u8>, St
     }
     Ok(movie.flux_brut())
 }
-

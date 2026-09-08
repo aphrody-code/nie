@@ -16,6 +16,11 @@
 
 pub mod render;
 
+pub use nie_core::animation::{
+    AnimationClip, AnimationError, BoneId, BonePose, BoneTrack, Keyframe, PoseFrame, Rotation,
+    SkeletonId,
+};
+
 use nie_core::BALL_GRAVITY;
 
 // Vecteurs : SOURCE UNIQUE `nie_geom` (dédup Phase 2). Alias V2/V3 pour préserver le code local.

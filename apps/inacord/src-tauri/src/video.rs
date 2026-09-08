@@ -409,8 +409,8 @@ pub fn wav_bande_son(
         return nie_formats::cri_audio::decode_to_wav(&piste.octets);
     }
     let radical = radical_de(chemin);
-    let externe =
-        nie_explore::soundtrack::piste_de_film(vfs, radical, u.duree(), None).ok_or_else(|| {
+    let externe = nie_explore::soundtrack::piste_de_film(vfs, radical, u.duree(), None)
+        .ok_or_else(|| {
             format!("« {radical} » n'a de bande-son ni dans son conteneur ni dans anime_stream")
         })?;
     nie_explore::soundtrack::wav_de_la_cue(vfs, cache_dir, externe.awb_id)

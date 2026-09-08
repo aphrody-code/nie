@@ -1,3 +1,4 @@
+import { WebGallery } from "./WebGallery";
 /**
  * Les quatre catalogues du jeu — textures, modèles, sons, vidéos — portés du wiki vers nie.
  *
@@ -47,10 +48,12 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
 import { ExplorerEntries, ExplorerSurface } from "@niers/inacord-ui/explorer/explorer-surface";
 import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-controls";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
 import { entryLabel } from "../entries";
 import { agree, Notice, readableSize, ViewTitle } from "./SecondaryScreen";
 import { Modeles3D as Models3D } from "./Models3D";
+import { CatalogAudioBank, CatalogMoviePreview } from "./CatalogMedia";
 
 /**
  * Tailles de page proposées. Le serveur borne à **200** (`config.rs:27`) : proposer davantage
@@ -78,8 +81,8 @@ type FilterState = {
 };
 
 /** Lit l'état depuis l'URL courante. Une valeur illisible retombe sur son défaut. */
-function filterStateFromUrl(): FilterState {
-	const params = new URLSearchParams(window.location.search);
+function filterStateFromUrl(search = window.location.search): FilterState {
+	const params = new URLSearchParams(search);
 	const pageSize = Number(params.get("par_page"));
 	const page = Number(params.get("page"));
 	return {
@@ -118,7 +121,7 @@ function writeUrl(state: FilterState) {
 		if (value) url.searchParams.set(key, value);
 		else url.searchParams.delete(key);
 	}
-	window.history.replaceState(window.history.state, "", url);
+	if (url.href !== window.location.href) writeBrowserHistory(url, window.history.state, "replace");
 }
 
 /**
@@ -228,12 +231,11 @@ const VIEWS: { view: CatalogView; label: string }[] = [
  * démonte un composant et en monte un autre — aucun état ne fuit d'une vue vers la suivante.
  */
 export function Catalog({ view: route }: { view: CatalogView }) {
-	// La vue vient de l'URL — le paramètre d'abord, la route ensuite, pour que `/sons` mène
-	// bien aux sons. Elle vit en état parce que le sélecteur la change sans naviguer.
-	const [view, setViewState] = useState<CatalogView>(() => {
-		const requested = new URLSearchParams(window.location.search).get("vue");
-		return VIEWS.some((item) => item.view === requested) ? (requested as CatalogView) : route;
-	});
+	const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
+	const params = new URL(location, "http://localhost").searchParams;
+	const requested = params.get("vue");
+	const gallery = params.get("display") === "gallery";
+	const view = VIEWS.some(item => item.view === requested) ? requested as CatalogView : route;
 
 	/**
 	 * Change de vue, et n'emporte AUCUN filtre.
@@ -243,10 +245,9 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 	 * changent de sens en chemin.
 	 */
 	const setView = (nextView: CatalogView) => {
-		setViewState(nextView);
 		const url = new URL(window.location.href);
 		url.search = `vue=${nextView}`;
-		window.history.replaceState(window.history.state, "", url);
+		if (url.href !== window.location.href) writeBrowserHistory(url, window.history.state, "replace");
 	};
 
 	return (
@@ -285,7 +286,11 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 				</TabsList>
 			</Tabs>
 
-			{view === "modeles" ? <Models3D /> : <VfsCatalog key={view} view={view} />}
+			{view === "textures" && <button type="button" className="mb-3 rounded-full border px-4 py-2" aria-pressed={gallery}
+ onClick={() => { const url = new URL(window.location.href); if (gallery) url.searchParams.delete("display"); else url.searchParams.set("display", "gallery"); writeBrowserHistory(url, window.history.state, "push"); }}>
+ {gallery ? "Afficher les fichiers" : "Afficher la galerie"}
+ </button>}
+ {view === "textures" && gallery ? <WebGallery /> : view === "modeles" ? <Models3D /> : <VfsCatalog key={view} view={view} />}
 		</>
 	);
 }
@@ -293,8 +298,10 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 function VfsCatalog({ view }: { view: CatalogView }) {
 	const source = useAssetSource();
 	const capabilities = useCapabilities();
-	const initial = useMemo(filterStateFromUrl, []);
-	const [state, setState] = useState<FilterState>(initial);
+	const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
+	const state = useMemo(() => filterStateFromUrl(new URL(location, "http://localhost").search), [location]);
+	// The URL owns submitted filters. Reading notifications never writes back an older render.
+	const setState = (update: (current: FilterState) => FilterState) => writeUrl(update(filterStateFromUrl()));
 	const { page, q: filter, ext, sort, order, pageSize } = state;
 	// Changer de vue remet TOUT à zéro — page comprise : garder la page 900 en passant d'un
 	// catalogue de 904 pages à un catalogue de 4 afficherait un vide que rien n'expliquerait,
@@ -312,7 +319,8 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 	const [requestAttempt, setRequestAttempt] = useState(0);
 	// `saisie` suit le champ, `etat.q` ce qui a ete envoye : sans ce decalage, chaque frappe
 	// declencherait une requete sur 143 246 chemins.
-	const [input, setInput] = useState(initial.q);
+	const [input, setInput] = useState(state.q);
+	useEffect(() => { setInput(state.q); }, [state.q]);
 	const [panelOpen, setPanelOpen] = useState(false);
 	const [bankPath, setBankPath] = useState<string | null>(null);
 	const panelFamilies = useMemo(() => catalogFamilies(view), [view]);
@@ -329,7 +337,6 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 		const ac = new AbortController();
 		setLoaded(false);
 		setError(false);
-		writeUrl(state);
 		source
 			.catalogue(view, {
 				page,
@@ -476,19 +483,7 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 				<ExplorerEntries viewMode="grid" gridSize={160} ariaLabel={title}>
 					{entries.map((entry) => (
 						<div role="listitem" key={entry.chemin}>
-							{/* Pour les sons, le conteneur n'est PAS un lien : un clic sur « lire »
-							    declencherait la navigation au lieu de la lecture. */}
-							<a
-								onClick={(event) => {
-									if (view !== "sons") return;
-									event.preventDefault();
-									setBankPath(entry.chemin);
-								}}
-								href={
-									view === "sons" || view === "videos"
-										? undefined
-										: source.urlFichier(entry.chemin)
-								}
+							<div
 								style={{
 									display: "block",
 									background: "#fff",
@@ -500,33 +495,10 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 									boxShadow: "var(--jeu-ombre-tuile)",
 								}}
 							>
-								{/* La vignette est produite par l'hôte : URL HTTP ici, `data:` sur le
-								    desktop. `loading="lazy"` évite de décoder 60 images d'un coup. */}
-								{view === "videos" && source.urlVideo ? (
-									// Meme raison que pour l'audio : `preload="none"`, sinon ouvrir la page
-									// tirerait 60 videos. `playsInline` evite que Safari mobile ne passe en
-									// plein ecran des la lecture, ce qui sort l'utilisateur du catalogue.
-									// biome-ignore lint/a11y/useMediaCaption: une cinematique du jeu n'a pas
-									// de piste de sous-titres separee, et en inventer une serait faux.
-									<video
-										controls
-										preload="none"
-										playsInline
-										src={source.urlVideo(entry.chemin)}
-										style={{ width: "100%", aspectRatio: "16/9", background: "var(--jeu-nuit-profonde)" }}
-									/>
-								) : view === "sons" && source.urlAudio ? (
-									// `preload="none"` : 60 lecteurs sur une page ne doivent pas declencher
-									// 60 telechargements. Le navigateur n'ira chercher les octets qu'au
-									// premier clic sur « lire ».
-									// biome-ignore lint/a11y/useMediaCaption: un effet sonore du jeu n'a pas
-									// de piste de sous-titres, et en inventer une serait faux.
-									<audio
-										controls
-										preload="none"
-										src={source.urlAudio(entry.chemin)}
-										style={{ width: "100%", height: 32 }}
-									/>
+								{view === "videos" ? (
+									<CatalogMoviePreview key={entry.chemin} path={entry.chemin} />
+								) : view === "sons" ? (
+									<button type="button" onClick={() => setBankPath(entry.chemin)}>Choisir une cue</button>
 								) : view === "textures" && source.urlTexture ? (
 									<img
 										src={source.urlTexture(entry.chemin)}
@@ -560,61 +532,18 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 										{readableSize(entry.taille)}
 									</div>
 								</div>
-							</a>
+								<a href={source.urlFichier(entry.chemin)}>Ouvrir le fichier original</a>
+							</div>
 						</div>
 					))}
 				</ExplorerEntries>
 			)}
 
 			{view === "sons" && bankPath ? (
-				<AudioBankPanel path={bankPath} onClose={() => setBankPath(null)} />
+				<CatalogAudioBank key={bankPath} path={bankPath} onClose={() => setBankPath(null)} />
 			) : null}
 
 			</ExplorerSurface>
-		</section>
-	);
-}
-
-type Cue = { index: number; name: string | null; codec: string; durationSec: number; awbId: number | null };
-type Bank = { cueCount: number; name: string | null; externalAwb: string | null; cues: Cue[] };
-
-/** Rend le contenu d'une banque : l'ACB décrit et chaque cue devient jouable. */
-function AudioBankPanel({ path, onClose }: { path: string; onClose: () => void }) {
-	const source = useAssetSource();
-	const [bank, setBank] = useState<Bank | null>(null);
-	const [error, setError] = useState(false);
-	const [loading, setLoading] = useState(true);
-	useEffect(() => {
-		const ac = new AbortController();
-		setLoading(true);
-		setError(false);
-		const url = `/assets/audio-info/${path.split("/").map(encodeURIComponent).join("/")}`;
-		fetch(url, { signal: ac.signal, headers: { accept: "application/json" } })
-			.then((response) =>
-				response.ok ? response.json() : Promise.reject(new Error(String(response.status)))
-			)
-			.then((value: Bank) => setBank(value))
-			.catch(() => {
-				if (!ac.signal.aborted) setError(true);
-			})
-			.finally(() => {
-				if (!ac.signal.aborted) setLoading(false);
-			});
-		return () => ac.abort();
-	}, [path]);
-	return (
-		<section style={{ marginTop: "var(--jeu-espace-l)", padding: "var(--jeu-espace-l)", background: "rgb(255 255 255 / 82%)", boxShadow: "var(--jeu-ombre-panneau)" }} aria-live="polite">
-			<div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-				<ViewTitle detail={bank ? agree(bank.cueCount, "cue") : undefined}>Banque audio</ViewTitle>
-				<button type="button" onClick={onClose} className="game-button-secondary" style={BUTTON_STYLE}>Fermer</button>
-			</div>
-			{loading ? <Notice>Lecture du catalogue ACB…</Notice> : error ? <Notice tone="alerte">Cette banque ne peut pas être cataloguée pour le moment.</Notice> : bank ? <>
-				<p style={{ fontWeight: 700 }}>{bank.name ?? path}{bank.externalAwb ? ` · AWB associé : ${bank.externalAwb}` : ""}</p>
-				<ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 6 }}>
-					{bank.cues.slice(0, 80).map((cue) => <li key={`${cue.index}-${cue.awbId}`} style={{ display: "grid", gridTemplateColumns: "4rem minmax(0, 1fr) auto", gap: 10, alignItems: "center", padding: 7, background: "var(--jeu-surface-craie)" }}><span>#{cue.index}</span><span title={cue.name ?? undefined} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{cue.name ?? "Cue sans nom"} · {cue.codec} · {cue.durationSec.toFixed(2)} s</span>{source.urlAudio ? <audio controls preload="none" src={source.urlAudio(path, cue.awbId)} style={{ width: 210, height: 30 }} /> : null}</li>)}
-				</ul>
-				{bank.cues.length > 80 ? <p style={{ fontWeight: 700 }}>Les 80 premières cues sont affichées sur {bank.cueCount}.</p> : null}
-			</> : <Notice tone="alerte">Cette banque ne peut pas être cataloguée pour le moment.</Notice>}
 		</section>
 	);
 }

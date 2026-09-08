@@ -53,13 +53,16 @@ jobs:
           cargo --version
           command -v mold    || { echo 'mold absent'; exit 1; }
           test -d ../aphrody || { echo 'dépendance path ../aphrody absente'; exit 1; }
+          # Desktop is a root workspace member; its Linux system libraries are required.
+          pkg-config --exists gtk+-3.0 webkit2gtk-4.1 || { echo 'Desktop GTK/WebKit system libraries absent'; exit 1; }
+          test -f Cargo.lock && test ! -f apps/inacord/src-tauri/Cargo.lock || { echo 'Expected one root Cargo.lock'; exit 1; }
           df -h / | tail -1
 
       - name: Clippy — 0 warning attendu sur toutes les cibles
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
       - name: Tests des crates du cœur (sans données sous copyright)
         run: cargo test -p nie-core -p nie-pe -p nie-asm -p nie-forge --locked
 
       - name: Build wasm (portabilité des crates du jeu)
-        run: cargo build -p nie-wasm --target wasm32-unknown-unknown --release
+        run: cargo build -p nie-wasm --target wasm32-unknown-unknown --release --locked

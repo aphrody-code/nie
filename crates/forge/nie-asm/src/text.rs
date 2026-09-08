@@ -689,7 +689,13 @@ impl Insn {
             Self::MovRegImm32(r, i) => format!("mov {}, {i:#x}", reg_name(r, Size::D)),
             Self::MovRegImm64(r, i) => format!("movabs {}, {i:#x}", reg_name(r, Size::Q)),
             Self::MovRR(s, a, b) => format!("mov {}, {}", reg_name(a, s), reg_name(b, s)),
+            Self::MovRRRex(a, b) => {
+                format!("mov.r {}, {}", reg_name(a, Size::D), reg_name(b, Size::D))
+            }
             Self::MovRRm(s, a, b) => format!("mov.d {}, {}", reg_name(a, s), reg_name(b, s)),
+            Self::MovRRmRex(a, b) => {
+                format!("mov.d.r {}, {}", reg_name(a, Size::D), reg_name(b, Size::D))
+            }
             Self::Load(s, r, m) => format!("mov {}, {}", reg_name(r, s), mem_text(m)),
             Self::Store(s, m, r) => format!("mov {}, {}", mem_text(m), reg_name(r, s)),
             Self::StoreImm32(s, m, i) => {
@@ -1371,8 +1377,15 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
                 if sz != sz2 {
                     return Err(err());
                 }
-                return Ok(if dir {
+                if rexp && (sz != Size::D || r.num() >= 8 || b.num() >= 8) {
+                    return Err(err());
+                }
+                return Ok(if (dir, rexp) == (true, true) {
+                    Insn::MovRRmRex(r, b)
+                } else if dir {
                     Insn::MovRRm(sz, r, b)
+                } else if rexp {
+                    Insn::MovRRRex(r, b)
                 } else {
                     Insn::MovRR(sz, r, b)
                 });
@@ -1605,6 +1618,20 @@ mod tests_prefixes {
             crate::encode(&[parse_insn("mov rbp, rsp").expect("dialecte")]),
             vec![0x48, 0x8B, 0xEC]
         );
+    }
+
+    #[test]
+    fn mov_rex_nul_et_direction_font_l_aller_retour_textuel() {
+        for (texte, octets) in [
+            ("mov.r ecx, esi", vec![0x40, 0x8B, 0xCE]),
+            ("mov.d.r ecx, esi", vec![0x40, 0x89, 0xF1]),
+        ] {
+            let instruction = parse_insn(texte).expect("dialecte");
+            assert_eq!(crate::encode(&[instruction]), octets, "{texte}");
+            assert_eq!(instruction.to_text(), texte);
+        }
+        assert!(parse_insn("mov.r rax, rcx").is_err());
+        assert!(parse_insn("mov.r r8d, ecx").is_err());
     }
 
     /// MSVC émet un REX.W superflu sur `jmp rax` — le suffixe `.r` le demande.

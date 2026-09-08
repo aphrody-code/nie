@@ -16,8 +16,9 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
-pub mod catalog;
 pub mod cards;
+pub mod catalog;
+pub mod gallery;
 pub mod mirror;
 pub mod model;
 pub mod query;

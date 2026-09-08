@@ -114,4 +114,3 @@ pub fn rank_json(
     }
     Ok(output)
 }
-

@@ -15,9 +15,14 @@ pub fn recognizes(bytes: &[u8]) -> bool {
 
 fn utf_metadata(bytes: &[u8], depth: usize, budget: &mut usize) -> Result<Value, String> {
     let table = parse_utf(bytes).map_err(|error| error.to_string())?;
-    let count = table.rows.iter().try_fold(0usize, |count, row| count.checked_add(row.len()))
+    let count = table
+        .rows
+        .iter()
+        .try_fold(0usize, |count, row| count.checked_add(row.len()))
         .ok_or("Native table cell count overflow")?;
-    *budget = budget.checked_sub(count).ok_or("Native table metadata exceeds its cell budget")?;
+    *budget = budget
+        .checked_sub(count)
+        .ok_or("Native table metadata exceeds its cell budget")?;
     let mut rows = Vec::with_capacity(table.rows.len());
     for row in &table.rows {
         let mut values = Vec::with_capacity(row.len());
@@ -37,8 +42,10 @@ fn utf_metadata(bytes: &[u8], depth: usize, budget: &mut usize) -> Result<Value,
         }
         rows.push(values);
     }
-    Ok(json!({ "name": table.name, "columns": table.columns, "rows": rows,
-        "rowCount": table.rows.len(), "columnCount": table.columns.len() }))
+    Ok(
+        json!({ "name": table.name, "columns": table.columns, "rows": rows,
+        "rowCount": table.rows.len(), "columnCount": table.columns.len() }),
+    )
 }
 
 /// Inspect ACB cues, AFS2 entry tables, generic UTF/ACF tables or named USM metadata.
@@ -46,7 +53,8 @@ fn utf_metadata(bytes: &[u8], depth: usize, budget: &mut usize) -> Result<Value,
 pub fn inspect(original_path: &str, bytes: &[u8]) -> Result<Value, String> {
     if bytes.starts_with(b"AFS2") {
         let decoded = nie_formats::decode::decode(bytes).ok_or("Invalid native AWB container")?;
-        let table: Value = serde_json::from_slice(&decoded.json).map_err(|error| error.to_string())?;
+        let table: Value =
+            serde_json::from_slice(&decoded.json).map_err(|error| error.to_string())?;
         return Ok(json!({ "format": "awb", "table": table, "waveformsDecoded": false }));
     }
     if bytes.starts_with(b"CRID") {
@@ -56,8 +64,8 @@ pub fn inspect(original_path: &str, bytes: &[u8]) -> Result<Value, String> {
     }
     if bytes.starts_with(b"@UTF") {
         let root = parse_utf(bytes).map_err(|error| error.to_string())?;
-        let is_acb = root.column_index("CueTable").is_some()
-            && root.column_index("CueNameTable").is_some();
+        let is_acb =
+            root.column_index("CueTable").is_some() && root.column_index("CueNameTable").is_some();
         let mut budget = MAX_CELLS;
         let table = utf_metadata(bytes, 0, &mut budget)?;
         if is_acb {
@@ -65,7 +73,11 @@ pub fn inspect(original_path: &str, bytes: &[u8]) -> Result<Value, String> {
             // Preserve its decoded table instead of turning missing cue resolution into
             // an assertion that the entire native container is unreadable.
             let cues = crate::native_audio::bank_cues(original_path, bytes).ok();
-            let cue_resolution = if cues.is_some() { "resolved" } else { "unavailable" };
+            let cue_resolution = if cues.is_some() {
+                "resolved"
+            } else {
+                "unavailable"
+            };
             return Ok(json!({ "format": "acb", "table": table, "cues": cues,
                 "cueResolution": cue_resolution,
                 "waveformsDecoded": false, "complexSynthExecutionSupported": false }));

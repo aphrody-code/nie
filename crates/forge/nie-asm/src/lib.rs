@@ -890,13 +890,17 @@ pub enum Insn {
     MovRegImm32(Reg, u32),
     /// `mov r64, imm64` (REX.W + `B8+rd`)
     MovRegImm64(Reg, u64),
-    /// `mov r, r` — MSVC encode `8B /r`
+    /// `mov r, r` — MSVC encode `8B /r`.
     MovRR(Size, Reg, Reg),
+    /// `mov r32, r32` — `8B /r` précédé d'un préfixe REX nul explicite.
+    MovRRRex(Reg, Reg),
     /// `mov r, r` **encodé dans l'autre sens** : `89 /r` (`88 /r` en 8 bits).
     ///
     /// Même remarque que pour [`Insn::AluRRm`] : `mov rbp, rsp` s'écrit
     /// `48 89 E5` dans une partie de `nie.exe`, `48 8B EC` sous MSVC.
     MovRRm(Size, Reg, Reg),
+    /// Direction `89 /r` avec un préfixe REX nul explicite.
+    MovRRmRex(Reg, Reg),
     /// `mov r, [mem]` (`8B /r`)
     Load(Size, Reg, Mem),
     /// `mov [mem], r` (`89 /r`)
@@ -1274,8 +1278,13 @@ fn mem_form(out: &mut Vec<u8>, size: Size, opcode: u8, reg: Reg, m: Mem, at: u64
 
 /// Instruction registre↔registre (`mod=11`).
 fn reg_form(out: &mut Vec<u8>, size: Size, opcode: u8, reg: Reg, rm: Reg) {
+    reg_form_forced(out, size, opcode, reg, rm, false);
+}
+
+/// Instruction registre↔registre (`mod=11`), avec préfixe REX nul optionnel.
+fn reg_form_forced(out: &mut Vec<u8>, size: Size, opcode: u8, reg: Reg, rm: Reg, force_rex: bool) {
     opsize(out, size);
-    let force = needs_rex8(size, reg) || needs_rex8(size, rm);
+    let force = force_rex || needs_rex8(size, reg) || needs_rex8(size, rm);
     rex_forced(out, size.rex_w(), reg.hi(), 0, rm.hi(), force);
     out.push(opcode);
     out.push(0xC0 | (reg.lo() << 3) | rm.lo());
@@ -1395,6 +1404,9 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
                 src,
             );
         }
+        Insn::MovRRRex(dst, src) => {
+            reg_form_forced(out, Size::D, 0x8B, dst, src, true);
+        }
         Insn::MovRRm(size, dst, src) => {
             reg_form(
                 out,
@@ -1403,6 +1415,9 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
                 src,
                 dst,
             );
+        }
+        Insn::MovRRmRex(dst, src) => {
+            reg_form_forced(out, Size::D, 0x89, src, dst, true);
         }
         Insn::Load(size, r, m) => {
             mem_form(

@@ -7,8 +7,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ErreurSite;
 
-const fn first_level() -> u8 { 1 }
-const fn last_level() -> u8 { 99 }
+const fn first_level() -> u8 {
+    1
+}
+const fn last_level() -> u8 {
+    99
+}
 
 /// Four original stat anchors and a bounded, inclusive level interval.
 #[derive(Debug, Deserialize, Serialize)]

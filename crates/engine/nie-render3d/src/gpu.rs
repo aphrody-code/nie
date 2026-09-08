@@ -1009,7 +1009,9 @@ mod tests {
             wgpu::naga::valid::Capabilities::empty(),
         )
         .validate(&module)
-        .expect("model shader must satisfy derivative uniformity without device-specific exemptions");
+        .expect(
+            "model shader must satisfy derivative uniformity without device-specific exemptions",
+        );
         assert_eq!(module.entry_points.len(), 2);
     }
 

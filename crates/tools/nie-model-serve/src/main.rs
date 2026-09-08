@@ -2425,9 +2425,12 @@ fn decode_selected_waveform(
         Some(id) => id,
         None => {
             let index = entry_index.ok_or("Missing waveform selector")?;
-            let awb = nie_formats::cri_audio::Awb::parse(bytes)
-                .map_err(|error| error.to_string())?;
-            let entry = awb.entries.get(index).ok_or("Waveform index is absent from the AWB")?;
+            let awb =
+                nie_formats::cri_audio::Awb::parse(bytes).map_err(|error| error.to_string())?;
+            let entry = awb
+                .entries
+                .get(index)
+                .ok_or("Waveform index is absent from the AWB")?;
             u16::try_from(entry.cue_id).map_err(|_| "Waveform ID exceeds supported range")?
         }
     };
@@ -4520,9 +4523,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     nom_force = Some(nom_de_cue(&data, &vfs_path, awb_id, cue));
                     match resoudre_awb(&state, &vfs_path, &data) {
                         None => Err("aucune banque AWB résolue".to_string()),
-                        Some((awb, _)) => {
-                            decode_selected_waveform(&awb, awb_id, cue)
-                        }
+                        Some((awb, _)) => decode_selected_waveform(&awb, awb_id, cue),
                     }
                 }
             }
@@ -5669,10 +5670,8 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                         None => Err(anyhow::anyhow!(
                             "{vfs_path} : pas de banque AWB, `?cue=`/`?id=` sans objet"
                         )),
-                        Some((awb_bytes, _)) => {
-                            decode_selected_waveform(&awb_bytes, awb_id, cue)
-                                .map_err(anyhow::Error::msg)
-                        }
+                        Some((awb_bytes, _)) => decode_selected_waveform(&awb_bytes, awb_id, cue)
+                            .map_err(anyhow::Error::msg),
                     }
                 } else {
                     decode_audio_to_wav(&raw, &vfs_path)

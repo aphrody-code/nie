@@ -30,7 +30,9 @@ pub struct AudioCue {
 impl AudioCue {
     fn from_native(bank: &str, cue: AcbCue) -> Result<Self, String> {
         let waveform_bank = if cue.streaming {
-            let stem = bank.strip_suffix(".acb").ok_or("Streaming ACB requires its original .acb path")?;
+            let stem = bank
+                .strip_suffix(".acb")
+                .ok_or("Streaming ACB requires its original .acb path")?;
             format!("{stem}.awb")
         } else {
             bank.to_owned()
@@ -63,8 +65,7 @@ pub fn bank_cues(bank: &str, bytes: &[u8]) -> Result<Vec<AudioCue>, String> {
     if cues.is_empty() || cues.len() > MAX_CUES {
         return Err(format!("Invalid audio cue count: {bank}"));
     }
-    cues
-        .into_iter()
+    cues.into_iter()
         .map(|cue| AudioCue::from_native(bank, cue))
         .collect()
 }
@@ -73,8 +74,16 @@ pub fn bank_cues(bank: &str, bytes: &[u8]) -> Result<Vec<AudioCue>, String> {
 /// Codec decoding and archive encryption subkeys remain owned by `nie-formats`.
 pub fn cue_to_wav(bytes: &[u8], awb_id: u16) -> Result<Vec<u8>, String> {
     let awb = cri_audio::Awb::parse(bytes).map_err(|error| error.to_string())?;
-    let index = awb.index_of_id(awb_id).ok_or("Waveform ID is absent from the AWB")?;
-    if awb.entries.iter().filter(|entry| entry.cue_id == u32::from(awb_id)).count() != 1 {
+    let index = awb
+        .index_of_id(awb_id)
+        .ok_or("Waveform ID is absent from the AWB")?;
+    if awb
+        .entries
+        .iter()
+        .filter(|entry| entry.cue_id == u32::from(awb_id))
+        .count()
+        != 1
+    {
         return Err("Waveform ID is ambiguous in the AWB".into());
     }
     let payload = awb.entry_bytes(bytes, &awb.entries[index]);
@@ -87,9 +96,15 @@ pub fn cue_to_wav(bytes: &[u8], awb_id: u16) -> Result<Vec<u8>, String> {
 }
 
 /// Inspect one exact HCA waveform's loop header. Unsupported codecs remain unresolved.
-pub fn cue_loop_points(bytes: &[u8], awb_id: u16) -> Result<Option<cri_audio::AudioLoopPoints>, String> {
+pub fn cue_loop_points(
+    bytes: &[u8],
+    awb_id: u16,
+) -> Result<Option<cri_audio::AudioLoopPoints>, String> {
     let awb = cri_audio::Awb::parse(bytes).map_err(|error| error.to_string())?;
-    let mut entries = awb.entries.iter().filter(|entry| entry.cue_id == u32::from(awb_id));
+    let mut entries = awb
+        .entries
+        .iter()
+        .filter(|entry| entry.cue_id == u32::from(awb_id));
     let entry = entries.next().ok_or("Waveform ID is absent from the AWB")?;
     if entries.next().is_some() {
         return Err("Waveform ID is ambiguous in the AWB".into());

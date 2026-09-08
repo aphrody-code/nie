@@ -3,6 +3,27 @@
 Source inventory, 2026-09-08. Implementation status below is source inspection, not a
 record of passing build, browser, or deployment gates. The active gate ledger is `PLAN.md`.
 
+The frontend now has one `apps/nie-web/src/main.tsx` entry and Vite configuration. The
+`#nie-host` alias selects `BrowserHost` or the existing Inacord `DesktopHost`; desktop output
+is `apps/nie-web/dist-desktop`. This consolidates entry/build ownership while preserving
+different host shells. It does not establish equal navigation, UI coverage or runtime parity.
+
+Root Cargo workspace integration is a separate migration. Release scripts now consume one
+root lockfile and shared target directory, honoring `CARGO_TARGET_DIR` and
+`CARGO_BUILD_TARGET`. Source evidence of the SQLite blocker is root `rusqlite 0.37.0` /
+`libsqlite3-sys 0.35.0` versus the former desktop `tauri-plugin-sql 2.4.0` /
+`sqlx-sqlite 0.8.6` / `libsqlite3-sys 0.30.1`. Both native dependencies declare the same
+SQLite linkage. Reusing the existing rusqlite owner requires completing the desktop SQL
+compatibility migration and validating the unified root lock; release-script changes alone
+do not prove Cargo resolution or desktop behavior.
+
+HTTP registration and user-interface consumption are separate milestones. Source inspection
+of `apps/nie-web`, `packages/inacord-ui` and `packages/asset-source` found no consumers of the
+new wiki-card/search, optional-export, related-resource, or growth-interpolation HTTP endpoints.
+These entries document callable backend bindings, not completed browser flows. The related
+endpoint therefore does not yet establish automatic companion preloading. Existing browser
+Wasm calls may use the same native owners without calling these HTTP routes.
+
 | Desktop or Azalee capability | Existing shared owner | Site binding | Remaining distinction |
 | --- | --- | --- | --- |
 | VFS browse and original bytes | `nie-formats::vfs` | `/b`, `/f/{path}` | Desktop filesystem destinations are host operations. |
@@ -19,6 +40,7 @@ record of passing build, browser, or deployment gates. The active gate ledger is
 | Joined Inagle character cards and learned skills | `nie-wiki::cards` using existing `query` joins | `/api/v1/wiki/characters/{id}` | Exact character ID; unknown skills and absent native anchors remain explicit. Raw merged mirror blobs are not public card fields. |
 | CLI cross-family wiki search | `nie-wiki::query::search_all` | `/api/v1/wiki/search?q=...` | Existing per-family search limits are preserved; this is not an exhaustive paginated catalogue. |
 | Camera and navmesh previews | `nie-explore::spatial_preview` | `/api/v1/preview/camera/{path}`, `/api/v1/preview/navmesh/{path}` | Extracted desktop projections, not runtime scene playback. |
+| Zukan candidate ranking | `nie-zukan::api` | GET/POST `/api/v1/zukan/rank` and existing Wasm binding | Ranking suggestions are not confirmed character identities. HTTP accepts a bounded request; the browser can retain its shared-owner Wasm path. |
 | Azalee save roster resolution | Existing site save resolver | `/api/v1/save/roster` | Identifiers are resolved without uploading a complete local save. |
 
 Remaining portable gaps include joined video catalogue DTO parity. Desktop save/mod staging,
@@ -31,3 +53,7 @@ Related-resource responses expose only indexed logical game paths. Consumers may
 resolved, readable `declared` references. They must not reinterpret `namingCandidates` as confirmed
 material, texture, animation or font bindings. Missing and unresolved relationships remain
 explicit instead of choosing an unrelated file by substring or basename.
+
+Catalogue state now subscribes to the shared browser location snapshot and its query writes
+preserve the host history state. Explorer links also use the host router and restore folder
+selection on history traversal. These source fixes still require final interaction validation.

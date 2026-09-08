@@ -96,7 +96,11 @@ pub fn familles() -> Vec<(&'static str, bool, &'static str, &'static str)> {
     };
     FAMILLES_PROPRES
         .into_iter()
-        .chain(nie_explore::native_metadata::SUFFIXES.into_iter().map(en_process))
+        .chain(
+            nie_explore::native_metadata::SUFFIXES
+                .into_iter()
+                .map(en_process),
+        )
         .chain(
             super::geometrie::FAMILLES
                 .into_iter()
@@ -599,19 +603,23 @@ pub async fn decode(
         )));
     }
 
-    if index.taille(&chemin).is_some_and(|size| size as usize > super::geometrie::TAILLE_MAX_RESUME) {
-        return Err(ErreurSite::Demande("Resource exceeds the metadata source size budget".into()));
+    if index
+        .taille(&chemin)
+        .is_some_and(|size| size as usize > super::geometrie::TAILLE_MAX_RESUME)
+    {
+        return Err(ErreurSite::Demande(
+            "Resource exceeds the metadata source size budget".into(),
+        ));
     }
 
     let vfs = etat.vfs()?;
     let a_lire = chemin.clone();
     let permit = jeton_decodage().await?;
     let (read, permit) = tokio::task::spawn_blocking(move || (vfs.read(&a_lire), permit)).await?;
-    let octets = read
-        .map_err(|e| {
-            tracing::debug!(erreur = %e, "lecture VFS impossible");
-            ErreurSite::Introuvable("fichier indexe mais illisible sur ce montage".to_owned())
-        })?;
+    let octets = read.map_err(|e| {
+        tracing::debug!(erreur = %e, "lecture VFS impossible");
+        ErreurSite::Introuvable("fichier indexe mais illisible sur ce montage".to_owned())
+    })?;
     // La famille définitive : le suffixe s'il disait quelque chose, le **magic** sinon.
     let famille = geom.or_else(|| {
         if cfg {
@@ -804,8 +812,9 @@ mod tests {
         assert_eq!(
             en_process,
             vec![
-                ".cfg.bin", ".lua.bin", ".acb", ".awb", ".acf", ".utf", ".usm", ".g4pk", ".g4mg", ".objbin", ".g4pkm", ".g4cm", ".col",
-                ".g4sk", ".mevbin", ".g4mt", ".p3lip", ".g4nv", ".g4ma", ".g4vs", ".g4la",
+                ".cfg.bin", ".lua.bin", ".acb", ".awb", ".acf", ".utf", ".usm", ".g4pk", ".g4mg",
+                ".objbin", ".g4pkm", ".g4cm", ".col", ".g4sk", ".mevbin", ".g4mt", ".p3lip",
+                ".g4nv", ".g4ma", ".g4vs", ".g4la",
             ]
         );
         assert_eq!(features(), vec!["std", "lua"]);

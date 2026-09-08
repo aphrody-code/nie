@@ -906,6 +906,76 @@ export function assemble_x64(source, virtual_address) {
 }
 
 /**
+ * Decode a named cue from original ACB and, when streaming, external AWB bytes.
+ * @param {Uint8Array} acb_bytes
+ * @param {Uint8Array} external_awb_bytes
+ * @param {string} cue_name
+ * @returns {Uint8Array}
+ */
+export function audio_bank_cue_to_wav(acb_bytes, external_awb_bytes, cue_name) {
+    const ptr0 = passArray8ToWasm0(acb_bytes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(external_awb_bytes, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(cue_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ret = wasm.audio_bank_cue_to_wav(ptr0, len0, ptr1, len1, ptr2, len2);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v4 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v4;
+}
+
+/**
+ * Inspect original ACB bytes without waveform conversion.
+ * @param {string} bank
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function audio_bank_json(bank, bytes) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(bank, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.audio_bank_json(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Decode one exact AFS2 waveform ID from original AWB bytes.
+ * @param {Uint8Array} bytes
+ * @param {number} awb_id
+ * @returns {Uint8Array}
+ */
+export function audio_cue_to_wav(bytes, awb_id) {
+    const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.audio_cue_to_wav(ptr0, len0, awb_id);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+
+/**
  * Décode un audio CRI (HCA/ADX/AWB/ACB, octets bruts) en **WAV PCM16**, in-browser.
  * @param {Uint8Array} bytes
  * @returns {Uint8Array}
@@ -2199,6 +2269,97 @@ export function steam_select_depots_json(depots_json, selection_json) {
 }
 
 /**
+ * Decode one explicit native USM audio channel to WAV, without selecting a default track.
+ * @param {string} original_name
+ * @param {Uint8Array} bytes
+ * @param {number} channel
+ * @returns {Uint8Array}
+ */
+export function usm_audio_track_wav(original_name, bytes, channel) {
+    const ptr0 = passStringToWasm0(original_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.usm_audio_track_wav(ptr0, len0, ptr1, len1, channel);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
+ * Export the original elementary video stream, including MPEG-2, without transcoding.
+ * @param {string} original_name
+ * @param {Uint8Array} bytes
+ * @returns {Uint8Array}
+ */
+export function usm_elementary_video_bytes(original_name, bytes) {
+    const ptr0 = passStringToWasm0(original_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.usm_elementary_video_bytes(ptr0, len0, ptr1, len1);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
+ * Inspect original USM bytes without retaining full demuxed video frames.
+ * @param {string} original_name
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function usm_metadata_json(original_name, bytes) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(original_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.usm_metadata_json(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Remux only the video track as its native codec's web container; inspect metadata for MIME
+ * and use the explicit audio-track binding separately. This is not a silent movie substitute.
+ * @param {string} original_name
+ * @param {Uint8Array} bytes
+ * @returns {Uint8Array}
+ */
+export function usm_video_track_bytes(original_name, bytes) {
+    const ptr0 = passStringToWasm0(original_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.usm_video_track_bytes(ptr0, len0, ptr1, len1);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
  * Parse une table `@UTF` et retourne son contenu sérialisé en JSON.
  *
  * Le JSON a la structure suivante :
@@ -3363,12 +3524,12 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, getArrayU8FromWasm0(arg2, arg3), arg4, arg5);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1314, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1202, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2f159c89263ab8ec___convert__closures_____invoke___wasm_bindgen_2f159c89263ab8ec___JsValue______true_);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1368, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1256, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2f159c89263ab8ec___convert__closures_____invoke___wasm_bindgen_2f159c89263ab8ec___JsValue__core_fc1ee4111c772ded___result__Result_____wasm_bindgen_2f159c89263ab8ec___JsError___true_);
             return ret;
         },

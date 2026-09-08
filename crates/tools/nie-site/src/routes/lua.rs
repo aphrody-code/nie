@@ -873,11 +873,7 @@ mod tests {
     #[test]
     fn only_bounded_menu_replay_is_exposed() {
         let liste = capacites_liste();
-        for interdite in [
-            "execution",
-            "onglets_d_entete",
-            "surface_d_api_hote",
-        ] {
+        for interdite in ["execution", "onglets_d_entete", "surface_d_api_hote"] {
             let c = liste
                 .iter()
                 .find(|c| c.nom == interdite)
@@ -887,7 +883,10 @@ mod tests {
             assert!(c.raison.is_some(), "{interdite} doit dire pourquoi");
         }
         const { assert!(VM_LIEE) };
-        let runtime = liste.iter().find(|capability| capability.nom == "pilotage_de_menu").unwrap();
+        let runtime = liste
+            .iter()
+            .find(|capability| capability.nom == "pilotage_de_menu")
+            .unwrap();
         assert_eq!(runtime.etat, "servi");
         assert_eq!(runtime.route, Some("/api/v1/menu/runtime/{screen}"));
     }

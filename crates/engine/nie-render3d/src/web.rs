@@ -92,7 +92,10 @@ mod browser {
         }
 
         /// Preserve the native menu behind the avatar instead of clearing it to black.
-        pub async fn with_transparency(canvas: HtmlCanvasElement, transparent: bool) -> Result<Self> {
+        pub async fn with_transparency(
+            canvas: HtmlCanvasElement,
+            transparent: bool,
+        ) -> Result<Self> {
             let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
             descriptor.backends = wgpu::Backends::BROWSER_WEBGPU;
             let instance = wgpu::Instance::new(descriptor);

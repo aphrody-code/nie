@@ -11,8 +11,10 @@ pub const SYSTEM_BANK: &str = "data/common/sound_asset/common.acb";
 /// Native cue name for title music, independent of its AWB entry identifier.
 pub const TITLE_CUE: &str = "bg00010";
 
+#[cfg(not(target_arch = "wasm32"))]
 const MAX_BANK_BYTES: usize = 8 * 1024 * 1024;
 
+#[cfg(not(target_arch = "wasm32"))]
 const COMMAND_OBJECTS: [&str; 4] = [
     "data/common/gamedata/menu/obj/title00_04_gamestart.objbin",
     "data/common/gamedata/menu/obj/title00_07_item_button.objbin",
@@ -77,22 +79,25 @@ pub fn add_object_commands(
         };
         for entry in sound.entries {
             let hash = u32::from_ne_bytes(entry.param.to_ne_bytes());
-            let matches: Vec<_> = manifest.system.iter().filter(|cue| {
-                nie_formats::cfgbin::crc32(cue.name.as_bytes()) == hash
-            }).collect();
-            if let [cue] = matches.as_slice() {
-                if cue.awb_id.is_some() {
-                    manifest.commands.push(AudioCommand {
-                        object_path: object_path.to_owned(),
-                        command: entry.command,
-                        bank: cue.bank.clone(),
-                        cue_name: cue.name.clone(),
-                    });
-                    continue;
-                }
+            let matches: Vec<_> = manifest
+                .system
+                .iter()
+                .filter(|cue| nie_formats::cfgbin::crc32(cue.name.as_bytes()) == hash)
+                .collect();
+            if let [cue] = matches.as_slice()
+                && cue.awb_id.is_some()
+            {
+                manifest.commands.push(AudioCommand {
+                    object_path: object_path.to_owned(),
+                    command: entry.command,
+                    bank: cue.bank.clone(),
+                    cue_name: cue.name.clone(),
+                });
+                continue;
             }
             manifest.unresolved.push(format!(
-                "Unresolved native SoundCmd: {object_path} {} parameter {hash}", entry.command
+                "Unresolved native SoundCmd: {object_path} {} parameter {hash}",
+                entry.command
             ));
         }
     }
@@ -100,6 +105,7 @@ pub fn add_object_commands(
 }
 
 /// Read the two native metadata banks with an indexed size bound before allocating their bytes.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn startup(vfs: &nie_formats::vfs::Vfs) -> Result<StartupAudio, String> {
     let read = |path: &str| {
         let entry = vfs
@@ -122,13 +128,19 @@ pub fn startup(vfs: &nie_formats::vfs::Vfs) -> Result<StartupAudio, String> {
         let embedded = if acb.embedded_awb.is_empty() {
             None
         } else {
-            Some(nie_formats::cri_audio::Awb::parse(&acb.embedded_awb)
-                .map_err(|error| error.to_string())?)
+            Some(
+                nie_formats::cri_audio::Awb::parse(&acb.embedded_awb)
+                    .map_err(|error| error.to_string())?,
+            )
         };
         for cue in std::iter::once(&manifest.title).chain(manifest.system.iter()) {
-            if cue.bank == bank && !cue.streaming
+            if cue.bank == bank
+                && !cue.streaming
                 && let Some(id) = cue.awb_id
-                && embedded.as_ref().and_then(|awb| awb.index_of_id(id)).is_none()
+                && embedded
+                    .as_ref()
+                    .and_then(|awb| awb.index_of_id(id))
+                    .is_none()
             {
                 return Err(format!("Native embedded waveform unavailable: {bank} {id}"));
             }
@@ -141,7 +153,10 @@ pub fn startup(vfs: &nie_formats::vfs::Vfs) -> Result<StartupAudio, String> {
             && cue.streaming
             && (vfs.find(&cue.waveform_bank).is_none() || !vfs.is_readable(&cue.waveform_bank))
         {
-            return Err(format!("Native waveform bank unavailable: {}", cue.waveform_bank));
+            return Err(format!(
+                "Native waveform bank unavailable: {}",
+                cue.waveform_bank
+            ));
         }
     }
     for path in COMMAND_OBJECTS {
@@ -152,12 +167,18 @@ pub fn startup(vfs: &nie_formats::vfs::Vfs) -> Result<StartupAudio, String> {
             read(&manifest.title.waveform_bank)?
         } else {
             nie_formats::cri_audio::acb_parse(&title_bytes)
-                .map_err(|error| error.to_string())?.embedded_awb
+                .map_err(|error| error.to_string())?
+                .embedded_awb
         };
-        let id = manifest.title.awb_id.ok_or("Native title waveform is unresolved")?;
+        let id = manifest
+            .title
+            .awb_id
+            .ok_or("Native title waveform is unresolved")?;
         manifest.title.loop_points = crate::native_audio::cue_loop_points(&waveform, id)?;
         if manifest.title.loop_points.is_none() {
-            manifest.unresolved.push("Title music loop points are unavailable in the native waveform header.".into());
+            manifest.unresolved.push(
+                "Title music loop points are unavailable in the native waveform header.".into(),
+            );
         }
     }
     Ok(manifest)

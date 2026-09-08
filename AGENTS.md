@@ -23,7 +23,8 @@ documents linked there; do not duplicate large specifications here.
   source; `/etc` holds the installed copy and drifts. Reconcile against the machine
   (`ss -ltnp`, `diff` against `/etc`) before editing one, and never install from an agent
   session — `cp` into `/etc`, `daemon-reload`, `nginx -t` and `reload` are production acts.
-- `apps/nie-web`: Vite browser host; `apps/inacord`: Tauri desktop host.
+- `apps/nie-web`: common Vite frontend, including the desktop adapter in `src/desktop`;
+  `apps/inacord`: Tauri host and compatibility entrypoints.
 - `packages/inacord-ui` and `packages/asset-source`: shared UI and asset-source contracts.
 - `apps/azalee`: Next.js App Router wiki backed by Supabase Cloud.
 - `data/` and `var/`: game assets and measurements; do not commit copyrighted game dumps or
@@ -92,7 +93,8 @@ bun run typecheck
 bun run test
 ```
 
-For `apps/inacord/src-tauri`, run its independent Cargo gate from that directory. Do not run
+For the desktop workspace member `apps/inacord/src-tauri`, run `cargo check -p inacord`
+explicitly, including its platform dependencies. Use the root Cargo lockfile. Do not run
 `cargo build --workspace --all-targets` on this machine: disk usage is constrained. Format only
 files changed in the current batch. A page returning HTTP 200 or a test returning zero cases is
 not proof; inspect payloads and count rendered records/links/assertions.

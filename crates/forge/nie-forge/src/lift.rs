@@ -446,7 +446,7 @@ fn un_maybe_locked(i: &iced_x86::Instruction, op: UnOp) -> Option<Insn> {
 /// indirects, déjà 64 bits en mode long) : la forge doit reproduire l'octet, il
 /// faut donc le lire plutôt que le déduire de la longueur — celle-ci ne tranche
 /// pas dès que le registre de base est `r8`-`r15`.
-fn has_rex_w(raw: &[u8]) -> bool {
+fn rex_prefix(raw: &[u8]) -> Option<u8> {
     let mut k = 0usize;
     while let Some(&b) = raw.get(k) {
         if matches!(
@@ -456,9 +456,13 @@ fn has_rex_w(raw: &[u8]) -> bool {
             k += 1;
             continue;
         }
-        return (0x40..=0x4F).contains(&b) && (b & 0x08) != 0;
+        return (0x40..=0x4F).contains(&b).then_some(b);
     }
-    false
+    None
+}
+
+fn has_rex_w(raw: &[u8]) -> bool {
+    rex_prefix(raw).is_some_and(|byte| byte & 0x08 != 0)
 }
 
 /// Premier octet d'opcode, prefixes herites et REX sautes.
@@ -945,11 +949,19 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
                     return None;
                 }
                 let mr = if sa == Size::B { 0x88 } else { 0x89 };
-                Some(if i.op_code().op_code() == mr {
-                    Insn::MovRRm(sa, a, b)
-                } else {
-                    Insn::MovRR(sa, a, b)
-                })
+                let force_rex =
+                    sa == Size::D && rex_prefix(raw) == Some(0x40) && a.num() < 8 && b.num() < 8;
+                Some(
+                    if (i.op_code().op_code() == mr, force_rex) == (true, true) {
+                        Insn::MovRRmRex(a, b)
+                    } else if i.op_code().op_code() == mr {
+                        Insn::MovRRm(sa, a, b)
+                    } else if force_rex {
+                        Insn::MovRRRex(a, b)
+                    } else {
+                        Insn::MovRR(sa, a, b)
+                    },
+                )
             }
             (OpKind::Register, OpKind::Immediate8) => {
                 let (r, sz) = reg_of(i.op_register(0))?;
@@ -1231,6 +1243,10 @@ mod tests {
         // `mov rax, rcx` encode en `89` (sens r/m <- registre) : desormais dans
         // le dialecte, via le suffixe `.d`.
         assert_eq!(blocking_reason(&[0x48, 0x89, 0xC8, 0xC3], 0x140_0000), None);
+        // Préfixe REX nul explicite sur MOV 32 bits : il est sémantiquement
+        // superflu, mais doit survivre à l'aller-retour byte-exact.
+        assert_eq!(blocking_reason(&[0x40, 0x8B, 0xCE, 0xC3], 0x140_0000), None);
+        assert_eq!(blocking_reason(&[0x40, 0x89, 0xF1, 0xC3], 0x140_0000), None);
         // `movss xmm0, [rcx] ; ret` : desormais DANS le dialecte.
         assert_eq!(
             blocking_reason(&[0xF3, 0x0F, 0x10, 0x01, 0xC3], 0x140_0000),

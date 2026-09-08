@@ -6,7 +6,6 @@ const MAX_VERTICES: usize = 60_000;
 
 const MAX_SAMPLES: usize = 20_000;
 
-
 #[derive(Debug, Serialize)]
 pub struct CameraTrack {
     pub object: String,
@@ -102,7 +101,11 @@ pub fn camera(bytes: &[u8]) -> Result<CameraPreview, String> {
             channel: channel_name(channel.kind),
             resolved,
             times,
-            truncated: channel.times(&anim).len() > MAX_SAMPLES || channel.track.values().is_some_and(|values| values.len() > MAX_SAMPLES),
+            truncated: channel.times(&anim).len() > MAX_SAMPLES
+                || channel
+                    .track
+                    .values()
+                    .is_some_and(|values| values.len() > MAX_SAMPLES),
             values,
         });
     }
@@ -123,14 +126,14 @@ pub fn camera(bytes: &[u8]) -> Result<CameraPreview, String> {
                 index: u32::from(c.index),
             })
             .collect(),
-        channels: u32::try_from(anim.channels.len()).map_err(|_| "Camera channel count exceeds supported range")?,
+        channels: u32::try_from(anim.channels.len())
+            .map_err(|_| "Camera channel count exceeds supported range")?,
         resolved_channels: resolved_count,
         tracks,
         frame_min,
         frame_max,
     })
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct NavigationEdge {
@@ -177,7 +180,8 @@ pub fn navmesh(bytes: &[u8]) -> Result<NavigationPreview, String> {
         bbox_max = [0.0; 3];
     }
 
-    let vertex_limit = u32::try_from(vertices.len()).map_err(|_| "Navigation vertex count exceeds supported range")?;
+    let vertex_limit = u32::try_from(vertices.len())
+        .map_err(|_| "Navigation vertex count exceeds supported range")?;
     let mut triangles = Vec::with_capacity(navm.polygons.len());
     for poly in &navm.polygons {
         let d = poly.first_corner as usize;
@@ -204,7 +208,8 @@ pub fn navmesh(bytes: &[u8]) -> Result<NavigationPreview, String> {
     let omitted_triangles = navm.polygons.len() - triangles.len();
     let omitted_edges = navm.edges.len() - edges.len();
     Ok(NavigationPreview {
-        polygons: u32::try_from(navm.polygons.len()).map_err(|_| "Navigation polygon count exceeds supported range")?,
+        polygons: u32::try_from(navm.polygons.len())
+            .map_err(|_| "Navigation polygon count exceeds supported range")?,
         vertices,
         triangles,
         edges,

@@ -1,7 +1,7 @@
 "use client";
 
 import { Image } from "../../../compat/next";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Icon } from "../../../components/wiki/ui/Icon";
 import { cn } from "../../../lib/utils";
 
@@ -19,6 +19,10 @@ export interface GalleryCardProps {
 	priority?: boolean;
 	/** Ouvre l'illustration en plein écran (lightbox). */
 	onOpen?: () => void;
+	onDoubleClick?: () => void;
+	/** Native hosts supply their bounded thumbnail component without duplicating the card. */
+	thumbnail?: ReactNode;
+	metadata?: ReactNode;
 }
 
 /**
@@ -37,19 +41,22 @@ export function GalleryCard({
 	className,
 	priority = false,
 	onOpen,
+	onDoubleClick,
+	thumbnail,
+	metadata,
 }: GalleryCardProps) {
-	const [imgError, setImgError] = useState(false);
-	const prefetchedRef = useRef(false);
-	const hasImage = !!thumb && !imgError;
+	const [failedSource, setFailedSource] = useState<string | null>(null);
+	const prefetchedRef = useRef<string | null>(null);
+	const hasImage = !!thumb && failedSource !== thumb;
 
 	// Préchargement au survol : crée une <img> détachée pour amorcer le cache navigateur
 	// avec la GRANDE variante (w=1600) que le lightbox affichera — ouverture instantanée.
 	const prefetch = () => {
 		const target = full ?? thumb;
-		if (prefetchedRef.current || !target) {
+		if (prefetchedRef.current === target || !target) {
 			return;
 		}
-		prefetchedRef.current = true;
+		prefetchedRef.current = target;
 		const img = new window.Image();
 		img.src = target;
 	};
@@ -58,6 +65,7 @@ export function GalleryCard({
 		<button
 			type="button"
 			onClick={onOpen}
+			onDoubleClick={onDoubleClick}
 			onMouseEnter={prefetch}
 			onFocus={prefetch}
 			aria-label={`Ouvrir l'illustration : ${title}`}
@@ -70,7 +78,7 @@ export function GalleryCard({
 			)}
 		>
 			<div className="relative aspect-video w-full overflow-hidden bg-surface-container-high">
-				{hasImage ? (
+				{thumbnail ?? (hasImage ? (
 					<Image
 						src={thumb as string}
 						alt={title}
@@ -80,13 +88,13 @@ export function GalleryCard({
 						unoptimized
 						priority={priority}
 						loading={priority ? "eager" : "lazy"}
-						onError={() => setImgError(true)}
+						onError={() => setFailedSource(thumb)}
 					/>
 				) : (
 					<div className="flex size-full items-center justify-center">
 						<Icon name={categoryIcon} size={40} className="text-on-surface-variant/25" />
 					</div>
-				)}
+				))}
 				{categoryLabel && (
 					<span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-surface/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface backdrop-blur-sm">
 						<Icon name={categoryIcon} size={12} />
@@ -98,6 +106,7 @@ export function GalleryCard({
 				<h3 className="line-clamp-1 text-xs font-bold leading-tight text-on-surface transition-colors group-hover:text-primary">
 					{title}
 				</h3>
+				{metadata}
 			</div>
 		</button>
 	);

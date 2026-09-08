@@ -54,15 +54,30 @@ pub fn apercu_camera(vfs: &Vfs, path: &str) -> Result<ApercuCameraDto, String> {
     let report = nie_explore::spatial_preview::camera(&bytes)?;
     Ok(ApercuCameraDto {
         objets: report.objects,
-        clips: report.clips.into_iter().map(|clip| ClipCameraDto {
-            debut: clip.start, fin: clip.end, index: clip.index,
-        }).collect(),
-        pistes: report.tracks.into_iter().map(|track| PisteCameraDto {
-            objet: track.object, canal: track.channel, resolu: track.resolved,
-            temps: track.times, valeurs: track.values,
-        }).collect(),
-        frame_min: report.frame_min, frame_max: report.frame_max,
-        canaux: report.channels, canaux_resolus: report.resolved_channels,
+        clips: report
+            .clips
+            .into_iter()
+            .map(|clip| ClipCameraDto {
+                debut: clip.start,
+                fin: clip.end,
+                index: clip.index,
+            })
+            .collect(),
+        pistes: report
+            .tracks
+            .into_iter()
+            .map(|track| PisteCameraDto {
+                objet: track.object,
+                canal: track.channel,
+                resolu: track.resolved,
+                temps: track.times,
+                valeurs: track.values,
+            })
+            .collect(),
+        frame_min: report.frame_min,
+        frame_max: report.frame_max,
+        canaux: report.channels,
+        canaux_resolus: report.resolved_channels,
     })
 }
 
@@ -103,11 +118,21 @@ pub fn apercu_navm(vfs: &Vfs, path: &str) -> Result<ApercuNavmDto, String> {
     let bytes = vfs.read(path).map_err(|error| error.to_string())?;
     let report = nie_explore::spatial_preview::navmesh(&bytes)?;
     Ok(ApercuNavmDto {
-        sommets: report.vertices, triangles: report.triangles,
-        aretes: report.edges.into_iter().map(|edge| AreteNavmDto {
-            a: edge.a, b: edge.b, cout: edge.cost, bord: edge.boundary,
-        }).collect(),
-        bbox_min: report.bbox_min, bbox_max: report.bbox_max,
-        polygones: report.polygons, tronque: report.truncated,
+        sommets: report.vertices,
+        triangles: report.triangles,
+        aretes: report
+            .edges
+            .into_iter()
+            .map(|edge| AreteNavmDto {
+                a: edge.a,
+                b: edge.b,
+                cout: edge.cost,
+                bord: edge.boundary,
+            })
+            .collect(),
+        bbox_min: report.bbox_min,
+        bbox_max: report.bbox_max,
+        polygones: report.polygons,
+        tronque: report.truncated,
     })
 }

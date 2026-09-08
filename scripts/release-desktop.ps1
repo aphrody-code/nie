@@ -27,6 +27,19 @@ $PSNativeCommandUseErrorActionPreference = $false
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $Root
 
+# Resolve Cargo output before entering the Tauri host directory.
+$DesktopTargetDir = if ($env:CARGO_TARGET_DIR) {
+    [System.IO.Path]::GetFullPath($env:CARGO_TARGET_DIR, $Root)
+} else { Join-Path $Root 'target' }
+$env:CARGO_TARGET_DIR = $DesktopTargetDir
+$DesktopTarget = $env:CARGO_BUILD_TARGET
+if ($DesktopTarget -and $DesktopTarget.EndsWith('.json')) {
+    $DesktopTarget = [System.IO.Path]::GetFileNameWithoutExtension($DesktopTarget)
+}
+$DesktopReleaseDir = if ($DesktopTarget) {
+    Join-Path (Join-Path $DesktopTargetDir $DesktopTarget) 'release'
+} else { Join-Path $DesktopTargetDir 'release' }
+
 function Write-Err([string] $Message) { [Console]::Error.WriteLine($Message) }
 
 function Assert-Exit([string] $Etape) {
@@ -118,25 +131,12 @@ if ($LASTEXITCODE -ne 0) {
     & cargo update --workspace
     Assert-Exit 'cargo update --workspace'
 }
-Push-Location 'apps/inacord/src-tauri'
-try {
-    & cargo update --workspace --offline *> $null
-    if ($LASTEXITCODE -ne 0) {
-        & cargo update --workspace
-        Assert-Exit 'cargo update --workspace (src-tauri)'
-    }
-} finally { Pop-Location }
 & bun install
 Assert-Exit 'bun install'
 
-Write-Host '▸ [3/8] sanity check (cargo check workspace + src-tauri)…'
+Write-Host '▸ [3/8] sanity check (shared Cargo workspace)…'
 & cargo check --workspace
 Assert-Exit 'cargo check --workspace'
-Push-Location 'apps/inacord/src-tauri'
-try {
-    & cargo check
-    Assert-Exit 'cargo check (src-tauri)'
-} finally { Pop-Location }
 
 Write-Host '▸ [4/8] zip extension Blender (plugins/niers-blender, hors __pycache__)…'
 $manifeste = Get-Content -LiteralPath 'plugins/niers-blender/blender_manifest.toml'
@@ -156,7 +156,8 @@ Copy-Item -LiteralPath 'plugins/niers-blender' -Destination (Join-Path $ZipStage
 Get-ChildItem -LiteralPath $ZipStage -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue |
     ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
 
-$BlenderZip = Join-Path $Root "apps/inacord/src-tauri/target/release/bundle/niers-$BlenderVersion.zip"
+New-Item -ItemType Directory -Force -Path (Join-Path $DesktopReleaseDir 'bundle') | Out-Null
+$BlenderZip = Join-Path $DesktopReleaseDir "bundle/niers-$BlenderVersion.zip"
 # `zip` n'existe pas sur une install Windows standard (ni Git Bash, ni MSYS ne le fournissent) :
 # Compress-Archive est ici natif, c'est déjà ce que le .sh appelait en repli.
 Compress-Archive -Path (Join-Path $ZipStage 'niers') -DestinationPath $BlenderZip -Force
@@ -190,7 +191,7 @@ try {
     $env:TAURI_SIGNING_PRIVATE_KEY = $cleAvant
 }
 
-$Bundle = 'apps/inacord/src-tauri/target/release/bundle'
+$Bundle = Join-Path $DesktopReleaseDir 'bundle'
 $Msi = Join-Path $Bundle "msi/Inacord_${Version}_x64_en-US.msi"
 $Nsis = Join-Path $Bundle "nsis/Inacord_${Version}_x64-setup.exe"
 foreach ($f in @($Msi, "$Msi.sig", $Nsis, "$Nsis.sig")) {
@@ -223,7 +224,7 @@ Write-Host "  taille vérifiée : msi=$msiSize nsis=$nsisSize"
 Write-Host "▸ [7/8] commit + tag $Tag + push…"
 & git add Cargo.toml Cargo.lock package.json bun.lock `
     apps/inacord/package.json apps/inacord/src-tauri/Cargo.toml `
-    apps/inacord/src-tauri/Cargo.lock apps/inacord/src-tauri/tauri.conf.json `
+    apps/inacord/src-tauri/tauri.conf.json `
     packages/nie/package.json packages/nie-bridge/package.json packages/nie-plugin/package.json
 Assert-Exit 'git add'
 

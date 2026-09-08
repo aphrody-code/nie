@@ -1,5 +1,5 @@
 import type { ContenuDossier, EntreeVfs } from "@niers/asset-source";
-import { useAssetSource } from "@niers/inacord-ui";
+import { useAssetSource, useRouter } from "@niers/inacord-ui";
 import { NativeTexturePreview } from "../game/NativeTexturePreview";
 import {
 	ExplorerBreadcrumbs,
@@ -30,6 +30,7 @@ import {
 } from "@niers/inacord-ui/explorer/explorer-tabs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
+import { splitLanguagePrefix } from "../routing";
 
 const STORAGE_KEY = "nie:explorer:tabs";
 const PAGE_SIZE = 200;
@@ -111,8 +112,8 @@ function tabsFromLocation(): ExplorerTabsState {
 
 function writeLocation(tab: ExplorerTab) {
 	const url = new URL(window.location.href);
-	if (tab.prefix) url.searchParams.set("d", tab.prefix);
-	else url.searchParams.delete("d");
+	// An empty folder is the VFS root, distinct from an unspecified default folder.
+	url.searchParams.set("d", tab.prefix);
 	if (tab.selected) url.searchParams.set("a", tab.selected);
 	else url.searchParams.delete("a");
 	writeBrowserHistory(url, window.history.state);
@@ -129,6 +130,8 @@ export interface ExplorerInacordProps {
 /** Full-viewport web adapter over the same Explorer presentation and reducers as Inacord. */
 export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 	const source = useAssetSource();
+	const router = useRouter();
+	const routePath = useRef(window.location.pathname);
 	const [tabsState, setTabsState] = useState(tabsFromLocation);
 	const activeTab = tabsState.tabs.find((tab) => tab.id === tabsState.activeId) ?? tabsState.tabs[0]!;
 	const [content, setContent] = useState<ContenuDossier | null>(null);
@@ -145,8 +148,23 @@ export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 
 	useEffect(() => {
 		try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tabsState)); } catch { /* Navigation remains available without storage. */ }
-		writeLocation(activeTab);
+		if (window.location.pathname === routePath.current) writeLocation(activeTab);
 	}, [tabsState, activeTab]);
+
+	useEffect(() => {
+		const restoreLocation = () => {
+			if (window.location.pathname !== routePath.current) return;
+			const params = new URLSearchParams(window.location.search);
+			const prefix = params.get("d") ?? "data/common";
+			const selected = params.get("a");
+			setTabsState(state => {
+				const tab = state.tabs.find(candidate => candidate.id === state.activeId);
+				return tab?.prefix === prefix && tab.selected === selected ? state : updateTab(state, state.activeId, { prefix, selected });
+			});
+		};
+		window.addEventListener("popstate", restoreLocation);
+		return () => window.removeEventListener("popstate", restoreLocation);
+	}, []);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -216,6 +234,10 @@ export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 		patchActive({ prefix, selected: null });
 	}
 
+	function navigateTool(route: string) {
+		router.push(`${splitLanguagePrefix(window.location.pathname).prefix}/${route}`);
+	}
+
 	function select(path: string, event: React.MouseEvent) {
 		const ordered = entries.map((entry) => entry.path);
 		setCursor(path);
@@ -261,7 +283,7 @@ export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 	const mainSections = [
 		{ items: [{ id: "home", label: "Éditeur", icon: <MaterialIcon name="deployed_code" />, onClick: onHome }, { id: "explorer", label: "Explorateur", icon: <MaterialIcon name="folder_open" /> }, { id: "search", label: "Recherche", icon: <MaterialIcon name="search" />, onClick: () => document.querySelector<HTMLInputElement>('.inacord-explorer-filters__query')?.focus() }] },
 		{ label: "DONNÉES", items: [{ id: "data", label: "Données", icon: <MaterialIcon name="database" />, onClick: () => navigate("data") }, { id: "packs", label: "CPK brut", icon: <MaterialIcon name="deployed_code" />, onClick: () => navigate("data/packs") }, { id: "saves", label: "Sauvegardes", icon: <MaterialIcon name="save" />, onClick: () => navigate("data") }] },
-		{ label: "OUTILS", items: [{ id: "media", label: "Galerie", icon: <MaterialIcon name="gallery_thumbnail" />, onClick: () => window.location.assign("/medias") }, { id: "models", label: "Modèles", icon: <MaterialIcon name="view_in_ar" />, onClick: () => window.location.assign("/modeles") }, { id: "textures", label: "Textures", icon: <MaterialIcon name="image" />, onClick: () => window.location.assign("/textures") }] },
+		{ label: "OUTILS", items: [{ id: "media", label: "Galerie", icon: <MaterialIcon name="gallery_thumbnail" />, onClick: () => navigateTool("medias") }, { id: "models", label: "Modèles", icon: <MaterialIcon name="view_in_ar" />, onClick: () => navigateTool("modeles") }, { id: "textures", label: "Textures", icon: <MaterialIcon name="image" />, onClick: () => navigateTool("textures") }] },
 		{ label: "EMPLACEMENTS", items: [{ id: "root", label: "Racine", icon: <MaterialIcon name="hard_drive" />, onClick: () => navigate("") }, { id: "common", label: "Modèles/anim (common)", icon: <MaterialIcon name="view_in_ar" />, onClick: () => navigate("data/common") }] },
 		{ label: "RÉCENTS", items: tabsState.tabs.slice().reverse().map((tab) => ({ id: `recent-${tab.id}`, label: tabLabel(tab), icon: <MaterialIcon name="schedule" />, onClick: () => setTabsState((state) => activateTab(state, tab.id)) })) },
 	];

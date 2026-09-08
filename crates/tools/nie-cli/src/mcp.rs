@@ -368,6 +368,27 @@ struct QueryRequest {
     limit: Option<usize>,
 }
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct WikiCardRequest {
+    id: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct WikiSearchRequest {
+    query: String,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ZukanRankRequest {
+    entry: Value,
+    candidates: Value,
+    max_results: u32,
+}
+
 #[derive(Debug, Default, serde::Deserialize, schemars::JsonSchema)]
 struct FunctionRequest {
     name: Option<String>,
@@ -657,6 +678,76 @@ async fn fetch_model_asset_from(request: AssetRequest, base: &str) -> Compatibil
 
 #[tool_router(router = compatibility_router)]
 impl NiersMcpServer {
+    #[tool(
+        name = "wiki_character_card",
+        description = "Read an exact character card with native stat anchors, learned skills and auras from the configured wiki mirror. No network access or writes."
+    )]
+    async fn wiki_character_card(
+        &self,
+        Parameters(request): Parameters<WikiCardRequest>,
+    ) -> CompatibilityResult {
+        blocking_json(move || {
+            anyhow::ensure!(
+                !request.id.is_empty() && request.id.len() <= 256,
+                "Invalid character ID"
+            );
+            let conn = nie_wiki::mirror::open(None)
+                .map_err(|_| anyhow::anyhow!("Wiki data is unavailable"))?;
+            let card = nie_wiki::cards::character(&conn, &request.id)
+                .map_err(|_| anyhow::anyhow!("Character card could not be read"))?
+                .ok_or_else(|| anyhow::anyhow!("Character was not found"))?;
+            Ok(serde_json::to_value(card)?)
+        })
+        .await
+    }
+
+    #[tool(
+        name = "wiki_search",
+        description = "Search characters, techniques and items using the shared read-only wiki query owner."
+    )]
+    async fn wiki_search(
+        &self,
+        Parameters(request): Parameters<WikiSearchRequest>,
+    ) -> CompatibilityResult {
+        blocking_json(move || {
+            let limit = request.limit.unwrap_or(20);
+            anyhow::ensure!(
+                (1..=100).contains(&limit),
+                "Require limit between 1 and 100"
+            );
+            anyhow::ensure!(
+                !request.query.trim().is_empty() && request.query.len() <= 256,
+                "Invalid search query"
+            );
+            let conn = nie_wiki::mirror::open(None)
+                .map_err(|_| anyhow::anyhow!("Wiki data is unavailable"))?;
+            let result = nie_wiki::query::search_all(&conn, &request.query, limit)
+                .map_err(|_| anyhow::anyhow!("Wiki search could not be completed"))?;
+            Ok(serde_json::to_value(result)?)
+        })
+        .await
+    }
+
+    #[tool(
+        name = "zukan_rank",
+        description = "Rank supplied official-encyclopedia entries against supplied candidates with the shared bounded native matcher. Suggestions only; no identity assignment, network request or write."
+    )]
+    async fn zukan_rank(
+        &self,
+        Parameters(request): Parameters<ZukanRankRequest>,
+    ) -> CompatibilityResult {
+        blocking_json(move || {
+            let output = nie_zukan::api::rank_json(
+                &request.entry.to_string(),
+                &request.candidates.to_string(),
+                request.max_results,
+            )
+            .map_err(anyhow::Error::msg)?;
+            Ok(serde_json::from_str(&output)?)
+        })
+        .await
+    }
+
     #[tool(
         name = "aphrody_api_health",
         description = "Report the health of the native niers MCP process and its in-process CLI binding."

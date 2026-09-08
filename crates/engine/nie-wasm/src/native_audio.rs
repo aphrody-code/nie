@@ -26,8 +26,7 @@ pub fn audio_bank_json(bank: &str, bytes: &[u8]) -> Result<String, String> {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn audio_cue_to_wav(bytes: &[u8], awb_id: u16) -> Result<Vec<u8>, JsValue> {
-    nie_explore::native_audio::cue_to_wav(bytes, awb_id)
-        .map_err(|error| JsValue::from_str(&error))
+    nie_explore::native_audio::cue_to_wav(bytes, awb_id).map_err(|error| JsValue::from_str(&error))
 }
 
 /// Native counterpart using the same shared waveform implementation.

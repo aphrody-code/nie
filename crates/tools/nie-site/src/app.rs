@@ -191,6 +191,7 @@ declarer_routes! {
     "/api/v1/export/file/{*path}" => crate::routes::native_export::file,
     "/api/v1/resources/related/{*path}" => crate::routes::related::related,
     "/api/v1/wiki/search" => crate::routes::wiki::search,
+    "/api/v1/wiki/gallery" => crate::routes::wiki::gallery,
     "/api/v1/wiki/characters/{id}" => crate::routes::wiki::character,
     "/api/v1/zukan/rank" => crate::routes::zukan::contract,
     "/api/v1/motion/clips/{*path}" => crate::routes::motion::clips,
@@ -371,10 +372,16 @@ pub fn routeur(etat: EtatSite) -> Router {
         // et ni l'une ni l'autre n'écrit quoi que ce soit.
         .route(CHEMINS_HORS_GET[3], post(crate::routes::inspect::compare))
         .route(CHEMINS_HORS_GET[4], post(crate::routes::inspect::plate))
-        .route(CHEMINS_HORS_GET[5], post(crate::routes::menu_runtime::replay)
-            .layer(axum::extract::DefaultBodyLimit::max(128 * 1024)))
-        .route(CHEMINS_HORS_GET[6], post(crate::routes::zukan::rank)
-            .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024)))
+        .route(
+            CHEMINS_HORS_GET[5],
+            post(crate::routes::menu_runtime::replay)
+                .layer(axum::extract::DefaultBodyLimit::max(128 * 1024)),
+        )
+        .route(
+            CHEMINS_HORS_GET[6],
+            post(crate::routes::zukan::rank)
+                .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024)),
+        )
         .fallback(crate::routes::static_files::statique)
         // Les couches s'empilent de la plus INTERNE à la plus externe, et l'ordre est ici un
         // choix, pas une habitude :

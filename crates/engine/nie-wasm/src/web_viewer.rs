@@ -47,7 +47,11 @@ impl WebGpuViewer {
 
     /// Avatar canvas composited over the native menu's independent VFS layers.
     pub async fn create_transparent(canvas: HtmlCanvasElement) -> Result<WebGpuViewer, JsValue> {
-        Ok(Self { inner: WebViewer::with_transparency(canvas, true).await.map_err(js_error)? })
+        Ok(Self {
+            inner: WebViewer::with_transparency(canvas, true)
+                .await
+                .map_err(js_error)?,
+        })
     }
 
     /// Charge/remplace un modèle GLB normalisé (positions monde, textures PNG embarquées).

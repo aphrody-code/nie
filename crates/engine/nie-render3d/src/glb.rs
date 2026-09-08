@@ -1,10 +1,12 @@
 //! Parseur **GLB** (glTF binaire 2.0) minimal — extrait la géométrie (positions/normales/UV/indices)
-//! **et les textures** (PNG embarqués) des primitives de mesh. Cible : les GLB produits par
-//! `nie_formats::assemble::to_glb_embedded` (positions déjà en espace monde) ; on ignore donc les
-//! transforms de nœuds. La chaîne matériau→texture est résolue
+//! **et les textures** (PNG embarqués) des primitives de mesh. Les transforms glTF des nœuds et le
+//! skinning de la pose de liaison sont cuits dans les sommets au chargement : les consommateurs
+//! historiques gardent donc leur API `Model`/`Primitive`, tout en recevant de la géométrie monde.
+//! La chaîne matériau→texture est résolue
 //! (`primitive.material → materials[].baseColorTexture → textures[].source → images[]`).
 
 use anyhow::{Context, Result, bail};
+use nie_core::animation::{BoneId, BonePose, PoseFrame, Rotation, SkeletonId};
 use serde_json::Value;
 
 /// Une texture décodée en RGBA8 (atlas du modèle : corps, visage, uniforme…).
@@ -95,10 +97,199 @@ fn material_image(root: &Value, mat_idx: usize) -> Option<usize> {
     Some(src)
 }
 
+type Mat4 = [[f32; 4]; 4];
+
+/// A matrix accepted by the CPU skinning adapter (row-major affine convention).
+pub type SkinMatrix = [[f32; 4]; 4];
+
+/// One joint in a format-neutral CPU skinning binding.
+///
+/// This is deliberately separate from [`Model`] and [`Primitive`].  Existing callers that only
+/// need the historical bind-pose geometry therefore keep compiling unchanged, while loaders that
+/// retain skin metadata can opt into [`apply_pose_cpu`].  `inverse_bind` must be the inverse of
+/// the joint's world matrix in the bind pose; `bind_local` is the local matrix used when a pose
+/// does not contain this bone.
+#[derive(Debug, Clone, Copy)]
+pub struct SkinJoint {
+    pub bone: BoneId,
+    pub parent: Option<usize>,
+    pub bind_local: SkinMatrix,
+    pub inverse_bind: SkinMatrix,
+}
+
+/// Vertex attributes required by the CPU skinning adapter (up to eight influences).
+#[derive(Debug, Clone, Copy)]
+pub struct SkinVertex {
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub joints: [u16; 8],
+    pub weights: [f32; 8],
+}
+
+/// A mesh plus its skeleton binding, independent of any file format.
+#[derive(Debug, Clone)]
+pub struct CpuSkinnedMesh {
+    pub skeleton: SkeletonId,
+    pub joints: Vec<SkinJoint>,
+    pub vertices: Vec<SkinVertex>,
+}
+
+/// Result of applying one local [`PoseFrame`] to a CPU-skinned mesh.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SkinnedVertex {
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+}
+
+fn identity() -> Mat4 {
+    [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+fn mat_mul(a: &Mat4, b: &Mat4) -> Mat4 {
+    let mut out = [[0.0; 4]; 4];
+    for (r, row) in out.iter_mut().enumerate() {
+        for (c, cell) in row.iter_mut().enumerate() {
+            *cell = (0..4).map(|k| a[r][k] * b[k][c]).sum();
+        }
+    }
+    out
+}
+
+fn transform(m: &Mat4, p: [f32; 3]) -> [f32; 3] {
+    [
+        m[0][0] * p[0] + m[0][1] * p[1] + m[0][2] * p[2] + m[0][3],
+        m[1][0] * p[0] + m[1][1] * p[1] + m[1][2] * p[2] + m[1][3],
+        m[2][0] * p[0] + m[2][1] * p[1] + m[2][2] * p[2] + m[2][3],
+    ]
+}
+
+fn transform_direction(m: &Mat4, p: [f32; 3]) -> [f32; 3] {
+    [
+        m[0][0] * p[0] + m[0][1] * p[1] + m[0][2] * p[2],
+        m[1][0] * p[0] + m[1][1] * p[1] + m[1][2] * p[2],
+        m[2][0] * p[0] + m[2][1] * p[1] + m[2][2] * p[2],
+    ]
+}
+
+fn normalize(v: [f32; 3]) -> [f32; 3] {
+    let l = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    if l > 1e-8 {
+        [v[0] / l, v[1] / l, v[2] / l]
+    } else {
+        v
+    }
+}
+
+/// glTF stores matrices column-major, while the renderer uses row-major affine matrices.
+fn matrix_from_gltf(values: &[f32]) -> Mat4 {
+    let mut m = [[0.0; 4]; 4];
+    for r in 0..4 {
+        for c in 0..4 {
+            m[r][c] = values[c * 4 + r];
+        }
+    }
+    m
+}
+
+#[allow(clippy::collapsible_if)]
+fn node_local(node: &Value) -> Mat4 {
+    if let Some(values) = node["matrix"].as_array() {
+        if values.len() == 16 {
+            let mut v = [0.0; 16];
+            for (i, value) in values.iter().enumerate() {
+                v[i] = value.as_f64().unwrap_or(0.0) as f32;
+            }
+            return matrix_from_gltf(&v);
+        }
+    }
+    let mut m = identity();
+    let t = node["translation"]
+        .as_array()
+        .map(|a| {
+            [
+                a.first().and_then(Value::as_f64).unwrap_or(0.0) as f32,
+                a.get(1).and_then(Value::as_f64).unwrap_or(0.0) as f32,
+                a.get(2).and_then(Value::as_f64).unwrap_or(0.0) as f32,
+            ]
+        })
+        .unwrap_or([0.0; 3]);
+    let s = node["scale"]
+        .as_array()
+        .map(|a| {
+            [
+                a.first().and_then(Value::as_f64).unwrap_or(1.0) as f32,
+                a.get(1).and_then(Value::as_f64).unwrap_or(1.0) as f32,
+                a.get(2).and_then(Value::as_f64).unwrap_or(1.0) as f32,
+            ]
+        })
+        .unwrap_or([1.0; 3]);
+    let q = node["rotation"]
+        .as_array()
+        .map(|a| {
+            [
+                a.first().and_then(Value::as_f64).unwrap_or(0.0) as f32,
+                a.get(1).and_then(Value::as_f64).unwrap_or(0.0) as f32,
+                a.get(2).and_then(Value::as_f64).unwrap_or(0.0) as f32,
+                a.get(3).and_then(Value::as_f64).unwrap_or(1.0) as f32,
+            ]
+        })
+        .unwrap_or([0.0, 0.0, 0.0, 1.0]);
+    let [x, y, z, w] = q;
+    m[0][0] = (1.0 - 2.0 * (y * y + z * z)) * s[0];
+    m[0][1] = (2.0 * (x * y - z * w)) * s[1];
+    m[0][2] = (2.0 * (x * z + y * w)) * s[2];
+    m[1][0] = (2.0 * (x * y + z * w)) * s[0];
+    m[1][1] = (1.0 - 2.0 * (x * x + z * z)) * s[1];
+    m[1][2] = (2.0 * (y * z - x * w)) * s[2];
+    m[2][0] = (2.0 * (x * z - y * w)) * s[0];
+    m[2][1] = (2.0 * (y * z + x * w)) * s[1];
+    m[2][2] = (1.0 - 2.0 * (x * x + y * y)) * s[2];
+    m[0][3] = t[0];
+    m[1][3] = t[1];
+    m[2][3] = t[2];
+    m
+}
+
+fn node_world(
+    index: usize,
+    nodes: &[Value],
+    cache: &mut [Option<Mat4>],
+    state: &mut [bool],
+) -> Result<Mat4> {
+    if let Some(m) = cache[index] {
+        return Ok(m);
+    }
+    if state[index] {
+        bail!("cycle de nœuds glTF");
+    }
+    state[index] = true;
+    let parent = nodes.iter().enumerate().find_map(|(i, n)| {
+        n["children"]
+            .as_array()?
+            .iter()
+            .any(|c| c.as_u64() == Some(index as u64))
+            .then_some(i)
+    });
+    let local = node_local(&nodes[index]);
+    let world = match parent {
+        Some(p) => mat_mul(&node_world(p, nodes, cache, state)?, &local),
+        None => local,
+    };
+    state[index] = false;
+    cache[index] = Some(world);
+    Ok(world)
+}
+
 /// Parse un buffer GLB complet (géométrie + textures embarquées).
 ///
 /// # Errors
 /// Si le magic n'est pas « glTF », si les chunks JSON/BIN manquent, ou si le glTF est malformé.
+#[allow(clippy::collapsible_if)]
 pub fn parse(data: &[u8]) -> Result<Model> {
     if data.len() < 12 || &data[0..4] != b"glTF" {
         bail!("pas un GLB (magic 'glTF' absent)");
@@ -203,23 +394,148 @@ pub fn parse(data: &[u8]) -> Result<Model> {
         }
     }
 
+    // Résout les transforms de nœuds une fois. Un mesh sans nœud reste une instance identité,
+    // ce qui conserve le comportement des GLB historiques produits par `assemble`.
+    let nodes = root["nodes"].as_array().cloned().unwrap_or_default();
+    let mut node_worlds = vec![None; nodes.len()];
+    let mut node_state = vec![false; nodes.len()];
+    let mut mesh_instances: Vec<(usize, Mat4, Option<usize>)> = Vec::new();
+    for (ni, node) in nodes.iter().enumerate() {
+        if let Some(mesh) = node["mesh"].as_u64() {
+            let world = node_world(ni, &nodes, &mut node_worlds, &mut node_state)?;
+            mesh_instances.push((
+                mesh as usize,
+                world,
+                node["skin"].as_u64().map(|s| s as usize),
+            ));
+        }
+    }
+    if mesh_instances.is_empty() {
+        mesh_instances.extend(
+            (0..root["meshes"].as_array().map_or(0, Vec::len)).map(|i| (i, identity(), None)),
+        );
+    }
+
+    // Matrices de skin de la pose de liaison : jointWorld * inverseBind. Elles ne sont
+    // calculées que si le GLB contient réellement un skin exploitable.
+    let mut skin_matrices: Vec<Vec<Mat4>> = Vec::new();
+    let empty_nodes = Vec::new();
+    for skin in root["skins"].as_array().unwrap_or(&Vec::new()) {
+        let joints = skin["joints"].as_array().unwrap_or(&empty_nodes);
+        let ibm = skin["inverseBindMatrices"]
+            .as_u64()
+            .map(|a| read_floats(a as usize, 16))
+            .transpose()?;
+        let mut matrices = Vec::with_capacity(joints.len());
+        for (i, joint) in joints.iter().enumerate() {
+            let joint_idx = joint.as_u64().context("indice de joint hors limites")? as usize;
+            let world = nodes
+                .get(joint_idx)
+                .map(|_| node_world(joint_idx, &nodes, &mut node_worlds, &mut node_state))
+                .transpose()?
+                .unwrap_or_else(identity);
+            let bind = ibm
+                .as_ref()
+                .and_then(|v| v.get(i * 16..i * 16 + 16))
+                .map(matrix_from_gltf)
+                .unwrap_or_else(identity);
+            matrices.push(mat_mul(&world, &bind));
+        }
+        skin_matrices.push(matrices);
+    }
+
     let mut primitives = Vec::new();
     let empty = Vec::new();
-    for mesh in root["meshes"].as_array().unwrap_or(&empty) {
+    for (mesh_idx, node_transform, skin_idx) in mesh_instances {
+        let Some(mesh) = root["meshes"]
+            .as_array()
+            .and_then(|meshes| meshes.get(mesh_idx))
+        else {
+            bail!("mesh de nœud hors limites")
+        };
         for prim in mesh["primitives"].as_array().unwrap_or(&empty) {
             let attrs = &prim["attributes"];
             let Some(pos_acc) = attrs["POSITION"].as_u64() else {
                 continue;
             };
             let pf = read_floats(pos_acc as usize, 3)?;
-            let positions: Vec<[f32; 3]> = pf.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
-            let normals: Vec<[f32; 3]> = match attrs["NORMAL"].as_u64() {
+            let mut positions: Vec<[f32; 3]> =
+                pf.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
+            let mut normals: Vec<[f32; 3]> = match attrs["NORMAL"].as_u64() {
                 Some(a) => read_floats(a as usize, 3)?
                     .chunks_exact(3)
                     .map(|c| [c[0], c[1], c[2]])
                     .collect(),
                 None => Vec::new(),
             };
+            if let Some(si) = skin_idx.and_then(|i| skin_matrices.get(i)) {
+                let joint_sets = ["JOINTS_0", "JOINTS_1"];
+                let weight_sets = ["WEIGHTS_0", "WEIGHTS_1"];
+                let joints: Vec<Vec<f32>> = joint_sets
+                    .iter()
+                    .filter_map(|key| attrs[*key].as_u64().map(|a| read_floats(a as usize, 4)))
+                    .collect::<Result<_>>()?;
+                let weights: Vec<Vec<f32>> = weight_sets
+                    .iter()
+                    .filter_map(|key| attrs[*key].as_u64().map(|a| read_floats(a as usize, 4)))
+                    .collect::<Result<_>>()?;
+                if !joints.is_empty() && joints.len() == weights.len() {
+                    for (vi, p) in positions.iter_mut().enumerate() {
+                        let mut skinned = [0.0; 3];
+                        let mut total = 0.0;
+                        for (js, ws) in joints.iter().zip(&weights) {
+                            for k in 0..4 {
+                                let w = ws.get(vi * 4 + k).copied().unwrap_or(0.0);
+                                let ji = js.get(vi * 4 + k).copied().unwrap_or(0.0) as usize;
+                                if w > 0.0 {
+                                    if let Some(m) = si.get(ji) {
+                                        let q = transform(m, *p);
+                                        for c in 0..3 {
+                                            skinned[c] += q[c] * w;
+                                        }
+                                        total += w;
+                                    }
+                                }
+                            }
+                        }
+                        if total > 1e-6 {
+                            *p = [skinned[0] / total, skinned[1] / total, skinned[2] / total];
+                        }
+                    }
+                    for (vi, n) in normals.iter_mut().enumerate() {
+                        let mut skinned = [0.0; 3];
+                        let mut total = 0.0;
+                        for (js, ws) in joints.iter().zip(&weights) {
+                            for k in 0..4 {
+                                let w = ws.get(vi * 4 + k).copied().unwrap_or(0.0);
+                                let ji = js.get(vi * 4 + k).copied().unwrap_or(0.0) as usize;
+                                if w > 0.0 {
+                                    if let Some(m) = si.get(ji) {
+                                        let q = transform_direction(m, *n);
+                                        for c in 0..3 {
+                                            skinned[c] += q[c] * w;
+                                        }
+                                        total += w;
+                                    }
+                                }
+                            }
+                        }
+                        if total > 1e-6 {
+                            *n = normalize([
+                                skinned[0] / total,
+                                skinned[1] / total,
+                                skinned[2] / total,
+                            ]);
+                        }
+                    }
+                }
+            }
+            for p in &mut positions {
+                *p = transform(&node_transform, *p);
+            }
+            for n in &mut normals {
+                *n = normalize(transform_direction(&node_transform, *n));
+            }
             let uv: Vec<[f32; 2]> = match attrs["TEXCOORD_0"].as_u64() {
                 Some(a) => read_floats(a as usize, 2)?
                     .chunks_exact(2)
@@ -264,19 +580,26 @@ mod tests {
     use super::*;
 
     fn fixture(root: Value) -> Vec<u8> {
+        fixture_bin(root, vec![0; 12])
+    }
+
+    fn fixture_bin(root: Value, mut bin: Vec<u8>) -> Vec<u8> {
         let mut json = serde_json::to_vec(&root).unwrap();
         while !json.len().is_multiple_of(4) {
             json.push(b' ');
         }
+        while !bin.len().is_multiple_of(4) {
+            bin.push(0);
+        }
         let mut data = b"glTF".to_vec();
         data.extend_from_slice(&2u32.to_le_bytes());
-        data.extend_from_slice(&((12 + 8 + json.len() + 8 + 12) as u32).to_le_bytes());
+        data.extend_from_slice(&((12 + 8 + json.len() + 8 + bin.len()) as u32).to_le_bytes());
         data.extend_from_slice(&(json.len() as u32).to_le_bytes());
         data.extend_from_slice(&0x4E4F_534Au32.to_le_bytes());
         data.extend(json);
-        data.extend_from_slice(&12u32.to_le_bytes());
+        data.extend_from_slice(&(bin.len() as u32).to_le_bytes());
         data.extend_from_slice(&0x004E_4942u32.to_le_bytes());
-        data.extend_from_slice(&[0; 12]);
+        data.extend_from_slice(&bin);
         data
     }
 
@@ -307,5 +630,59 @@ mod tests {
     fn rejette_non_glb() {
         assert!(parse(b"pas un glb").is_err());
         assert!(parse(b"glTF").is_err()); // magic mais trop court
+    }
+
+    #[test]
+    fn applique_transform_de_noeud_sur_une_instance_de_mesh() {
+        let root = serde_json::json!({
+            "accessors": [{"bufferView": 0, "componentType": 5126, "count": 1, "type": "VEC3"}],
+            "bufferViews": [{"byteLength": 12}],
+            "meshes": [{"primitives": [{"attributes": {"POSITION": 0}}]}],
+            "nodes": [{"mesh": 0, "translation": [2.0, 3.0, 4.0]}]
+        });
+        let mut bin = Vec::new();
+        for value in [1.0_f32, 2.0, 3.0] {
+            bin.extend_from_slice(&value.to_le_bytes());
+        }
+        let model = parse(&fixture_bin(root, bin)).unwrap();
+        assert_eq!(model.primitives[0].positions, [[3.0, 5.0, 7.0]]);
+    }
+
+    #[test]
+    fn applique_skin_de_pose_de_liaison_avant_le_transform_du_noeud() {
+        let root = serde_json::json!({
+            "accessors": [
+                {"bufferView": 0, "componentType": 5126, "count": 1, "type": "VEC3"},
+                {"bufferView": 1, "componentType": 5121, "count": 1, "type": "VEC4"},
+                {"bufferView": 2, "componentType": 5126, "count": 1, "type": "VEC4"},
+                {"bufferView": 3, "componentType": 5126, "count": 1, "type": "MAT4"}
+            ],
+            "bufferViews": [
+                {"byteOffset": 0, "byteLength": 12},
+                {"byteOffset": 12, "byteLength": 4},
+                {"byteOffset": 16, "byteLength": 16},
+                {"byteOffset": 32, "byteLength": 64}
+            ],
+            "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "JOINTS_0": 1, "WEIGHTS_0": 2}}]}],
+            "nodes": [
+                {"mesh": 0, "skin": 0, "translation": [1.0, 0.0, 0.0]},
+                {"translation": [2.0, 0.0, 0.0]}
+            ],
+            "skins": [{"joints": [1], "inverseBindMatrices": 3}]
+        });
+        let mut bin = Vec::new();
+        for value in [1.0_f32, 0.0, 0.0] {
+            bin.extend_from_slice(&value.to_le_bytes());
+        }
+        bin.extend_from_slice(&[0, 0, 0, 0]);
+        bin.extend_from_slice(&1.0_f32.to_le_bytes());
+        bin.extend_from_slice(&[0; 12]);
+        for value in [
+            1.0_f32, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ] {
+            bin.extend_from_slice(&value.to_le_bytes());
+        }
+        let model = parse(&fixture_bin(root, bin)).unwrap();
+        assert_eq!(model.primitives[0].positions, [[4.0, 0.0, 0.0]]);
     }
 }

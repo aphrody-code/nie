@@ -21,6 +21,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Resolve the shared Cargo output once, before Tauri changes the working directory.
+DESKTOP_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
+case "$DESKTOP_TARGET_DIR" in
+    /*|[A-Za-z]:*) ;;
+    *) DESKTOP_TARGET_DIR="$ROOT/$DESKTOP_TARGET_DIR" ;;
+esac
+export CARGO_TARGET_DIR="$DESKTOP_TARGET_DIR"
+DESKTOP_TARGET="${CARGO_BUILD_TARGET:-}"
+if [[ "$DESKTOP_TARGET" == *.json ]]; then DESKTOP_TARGET="$(basename "${DESKTOP_TARGET%.json}")"; fi
+DESKTOP_RELEASE_DIR="$DESKTOP_TARGET_DIR${DESKTOP_TARGET:+/$DESKTOP_TARGET}/release"
+
 VERSION="${1:-}"
 SHIP_AZALEE=0
 for arg in "$@"; do [ "$arg" = "--ship-azalee" ] && SHIP_AZALEE=1; done
@@ -60,12 +71,10 @@ sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$VERSION\"/" ap
 
 echo "▸ [2/8] sync lockfiles (Cargo.lock + bun.lock)…"
 cargo update --workspace --offline 2>/dev/null || cargo update --workspace
-(cd apps/inacord/src-tauri && cargo update --workspace --offline 2>/dev/null || cargo update --workspace)
 bun install
 
-echo "▸ [3/8] sanity check (cargo check workspace + src-tauri)…"
+echo "▸ [3/8] sanity check (shared Cargo workspace)…"
 cargo check --workspace
-(cd apps/inacord/src-tauri && cargo check)
 
 echo "▸ [4/8] zip extension Blender (plugins/niers-blender, hors __pycache__)…"
 BLENDER_VERSION="$(grep -m1 '^version' plugins/niers-blender/blender_manifest.toml | sed -E 's/.*"([0-9.]+)".*/\1/')"
@@ -73,7 +82,8 @@ ZIP_STAGE="$(mktemp -d)"
 mkdir -p "$ZIP_STAGE/niers"   # racine = nom de MODULE Python (le dossier source a un tiret)
 cp -r plugins/niers-blender/. "$ZIP_STAGE/niers/"
 find "$ZIP_STAGE" -iname "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-BLENDER_ZIP="$ROOT/apps/inacord/src-tauri/target/release/bundle/niers-$BLENDER_VERSION.zip"
+mkdir -p "$DESKTOP_RELEASE_DIR/bundle"
+BLENDER_ZIP="$DESKTOP_RELEASE_DIR/bundle/niers-$BLENDER_VERSION.zip"
 # `zip` n'existe pas sur une install Windows standard (ni Git Bash, ni MSYS ne le fournissent) :
 # repli sur Compress-Archive, présent partout où PowerShell l'est. Sans ce repli, la release
 # s'arrêtait ici alors que tout le reste était prêt.
@@ -105,7 +115,7 @@ echo "▸ [6/8] build desktop signé (msi + nsis, minisign)…"
 	export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}"
 	bun run tauri build
 )
-BUNDLE="apps/inacord/src-tauri/target/release/bundle"
+BUNDLE="$DESKTOP_RELEASE_DIR/bundle"
 MSI="$BUNDLE/msi/Inacord_${VERSION}_x64_en-US.msi"
 NSIS="$BUNDLE/nsis/Inacord_${VERSION}_x64-setup.exe"
 for f in "$MSI" "$MSI.sig" "$NSIS" "$NSIS.sig"; do
@@ -136,7 +146,7 @@ echo "  taille verifiee : msi=$msi_size nsis=$nsis_size"
 echo "▸ [7/8] commit + tag $TAG + push…"
 git add Cargo.toml Cargo.lock package.json bun.lock \
         apps/inacord/package.json apps/inacord/src-tauri/Cargo.toml \
-        apps/inacord/src-tauri/Cargo.lock apps/inacord/src-tauri/tauri.conf.json \
+        apps/inacord/src-tauri/tauri.conf.json \
         packages/nie/package.json packages/nie-bridge/package.json packages/nie-plugin/package.json
 # Le bump peut avoir deja ete committe (relance apres un echec plus loin dans le pipeline) :
 # un `git commit` sans rien a committer sort en erreur et, avec `set -e`, tue la release juste

@@ -17,14 +17,14 @@ pub async fn startup(State(state): State<EtatSite>) -> Result<Json<StartupAudio>
         let _permit = permit;
         nie_explore::menu_audio::startup(&vfs)
     })
-        .await
-        .map_err(|error| {
-            tracing::error!(%error, "startup audio metadata task failed");
-            ErreurSite::Interne("Audio resources could not be loaded".into())
-        })?
-        .map_err(|error| {
-            tracing::debug!(%error, "startup audio metadata unavailable");
-            ErreurSite::Indisponible("Audio resources are unavailable".into())
-        })?;
+    .await
+    .map_err(|error| {
+        tracing::error!(%error, "startup audio metadata task failed");
+        ErreurSite::Interne("Audio resources could not be loaded".into())
+    })?
+    .map_err(|error| {
+        tracing::debug!(%error, "startup audio metadata unavailable");
+        ErreurSite::Indisponible("Audio resources are unavailable".into())
+    })?;
     Ok(Json(manifest))
 }
