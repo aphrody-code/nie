@@ -10,6 +10,11 @@
 pub mod sqlite_registry;
 pub use sqlite_registry::{DatabaseRegistry, ExecuteResult, Migration};
 
+/// PostgreSQL-only writable migration service.  Its migration SQL is explicit
+/// about the backend, while [`Migration`] remains the established SQLite
+/// registry contract used by native hosts.
+pub mod postgres_migrations;
+
 use rusqlite::{
     Connection, OpenFlags, params_from_iter,
     types::{Value as SqliteValue, ValueRef},
