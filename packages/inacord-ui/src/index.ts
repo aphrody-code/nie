@@ -141,6 +141,13 @@ export {
 	type FilterChipGroupProps,
 	type FilterChipOption,
 } from "./components/wiki/wiki/FilterChipGroup";
+export {
+	MovesetList,
+	type MovesetElementImage,
+	type MovesetListProps,
+	type MovesetSkill,
+	type MovesetSkillLink,
+} from "./components/wiki/wiki/MovesetList";
 
 // --- L'ecran des Options : les reglages d'Inacord, dans l'ecran du jeu ----------------------
 //
