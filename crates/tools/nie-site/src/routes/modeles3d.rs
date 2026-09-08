@@ -88,28 +88,6 @@ pub const RACINE_CHR: &str = "data/common/chr";
 /// fiches.
 pub const TABLE_CHARA: &str = super::api_v1::TABLE_CHARA;
 
-/// La sous-requête qui rend les codes d'assemblage de la famille `perso`, une ligne du miroir
-/// par variante. Écrite **une fois** : le compte de `/api/v1/3d` et la page de
-/// `/api/v1/3d/modeles` doivent porter sur exactement le même ensemble, faute de quoi le
-/// catalogue annoncerait un total qu'il ne sait pas parcourir.
-///
-/// Deux clauses, chacune payée d'un défaut mesuré le 2026-09-06 :
-///
-/// - `instr(internal_code, '_')` rend `0` quand le souligné est absent, et `substr(x, 1, -1)`
-///   rendrait la chaîne vide : sans le `CASE`, tous les personnages **sans variante**
-///   disparaissaient du catalogue ;
-/// - `LIKE 'c%'` : `inagle_characters` ne porte pas que des personnages. Sur 5 721 codes
-///   distincts, 66 commencent par `n`, `e`, `s`, `k`, `a` ou `i` — des animaux (`an…`) et des
-///   entrées hors modèle. `/model-full` n'accepte que `c`, `k` et `ka`, et le catalogue
-///   proposait donc des vignettes qui répondaient toutes `404`. Les keshin ont leur propre
-///   famille, lue sur le VFS et vérifiée : cette liste-ci est celle des `c…`, et rien d'autre.
-const SOURCE_PERSO: &str = "SELECT CASE WHEN instr(internal_code, '_') > 0 \
-     THEN substr(internal_code, 1, instr(internal_code, '_') - 1) \
-     ELSE internal_code END AS code, \
-     coalesce(nullif(name_fr, ''), nullif(name_en, ''), nullif(name_ja, '')) AS nom \
-     FROM \"inagle_characters\" \
-     WHERE internal_code IS NOT NULL AND internal_code <> '' AND internal_code LIKE 'c%'";
-
 /// Côté d'un aperçu quand la requête n'en demande pas. 320 px : la taille d'une carte de la
 /// grille sur un écran à densité double, donc le cas majoritaire, donc celui qui doit être en
 /// cache.
@@ -480,49 +458,14 @@ fn page_perso(
     motif: Option<&str>,
 ) -> Result<Page<Modele>, ErreurSite> {
     gisement.lire(|c| {
-        let source = SOURCE_PERSO;
-        // Le motif est comparé au code ET au nom, comme le filtre des autres familles. `?1`
-        // vaut `%%` quand aucun motif n'est demandé : `LIKE '%%'` retient tout, ce qui évite
-        // deux requêtes distinctes pour une seule différence de clause.
-        let motif_sql = motif.map_or_else(|| "%".to_owned(), |m| format!("%{m}%"));
-        let filtre = "WHERE lower(s.code) LIKE ?1 OR lower(coalesce(s.nom, '')) LIKE ?1";
-
-        let total: i64 = c.query_row(
-            &format!(
-                "SELECT count(*) FROM (SELECT s.code FROM ({source}) s {filtre} GROUP BY s.code)"
-            ),
-            rusqlite::params![&motif_sql],
-            |r| r.get(0),
-        )?;
-
-        // `min(s.nom)` : plusieurs lignes partagent un code et peuvent porter des noms
-        // différents (variantes de tenue). Le minimum lexicographique est arbitraire mais
-        // STABLE — un `GROUP BY` sans agrégat rendrait une ligne au hasard, donc un nom qui
-        // change d'une requête à l'autre.
-        let mut stmt = c.prepare(&format!(
-            "SELECT s.code, min(s.nom) FROM ({source}) s {filtre} \
-             GROUP BY s.code ORDER BY s.code LIMIT ?2 OFFSET ?3"
-        ))?;
-        let lignes = stmt
-            .query_map(
-                rusqlite::params![&motif_sql, i64::from(p.per_page), p.offset() as i64],
-                |r| {
-                    let code: String = r.get(0)?;
-                    let nom: Option<String> = r.get(1)?;
-                    Ok((code, nom))
-                },
-            )?
-            .collect::<Result<Vec<_>, _>>()?;
-        let elements = lignes
+        let page = nie_wiki::models::character_model_page(c, p.per_page, p.offset(), motif)?;
+        let elements = page
+            .entries
             .into_iter()
-            .filter(|(code, _)| code_valide(code))
-            .map(|(code, nom)| Modele::nouveau(Famille::Perso, code, nom, None))
+            .filter(|entry| code_valide(&entry.code))
+            .map(|entry| Modele::nouveau(Famille::Perso, entry.code, entry.name, None))
             .collect();
-        Ok(Page::nouvelle(
-            elements,
-            p,
-            usize::try_from(total).unwrap_or(0),
-        ))
+        Ok(Page::nouvelle(elements, p, page.total))
     })
 }
 
@@ -536,14 +479,7 @@ pub async fn capacites(State(etat): State<EtatSite>) -> Json<Capacites3d> {
     let gisement = Arc::clone(&etat.gisement);
     let total_perso = tokio::task::spawn_blocking(move || {
         gisement
-            .lire(|c| {
-                let n: i64 = c.query_row(
-                    &format!("SELECT count(DISTINCT s.code) FROM ({SOURCE_PERSO}) s"),
-                    [],
-                    |r| r.get(0),
-                )?;
-                Ok(usize::try_from(n).unwrap_or(0))
-            })
+            .lire(|c| Ok(nie_wiki::models::count_character_models(c)?))
             .ok()
     })
     .await
@@ -769,37 +705,17 @@ fn identite_perso(
     code: &str,
 ) -> Result<Option<IdentiteModele>, ErreurSite> {
     gisement.lire(|c| {
-        // `internal_code = ?1 OR internal_code LIKE ?1 || '\_%'` : le code d'assemblage est un
-        // PRÉFIXE, et le `_` de SQL est un joker d'un caractère. Sans l'échappement, `c0100001`
-        // ramènerait aussi `c01000010` — un personnage voisin, silencieusement.
-        let mut stmt = c.prepare(&format!(
-            "SELECT name_fr, name_en, name_ja, element, position, series, count(*) \
-             FROM \"{TABLE_CHARA}\" \
-             WHERE internal_code = ?1 OR internal_code LIKE ?1 || '\\_%' ESCAPE '\\'"
-        ))?;
-        let ligne = stmt.query_row(rusqlite::params![code], |r| {
-            let variantes: i64 = r.get(6)?;
-            Ok((
-                IdentiteModele {
-                    nom_fr: r.get(0)?,
-                    nom_en: r.get(1)?,
-                    nom_ja: r.get(2)?,
-                    element: r.get(3)?,
-                    position: r.get(4)?,
-                    serie: r.get(5)?,
-                    variantes: usize::try_from(variantes).unwrap_or(0),
-                },
-                variantes,
-            ))
-        });
-        match ligne {
-            // `count(*)` sur un ensemble vide rend une ligne à 0 : c'est ce zéro, et non
-            // l'absence de ligne, qui dit que le code est inconnu.
-            Ok((_, 0)) => Ok(None),
-            Ok((identite, _)) => Ok(Some(identite)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(e.into()),
-        }
+        Ok(
+            nie_wiki::models::character_model_identity(c, code)?.map(|identity| IdentiteModele {
+                nom_fr: identity.name_fr,
+                nom_en: identity.name_en,
+                nom_ja: identity.name_ja,
+                element: identity.element,
+                position: identity.position,
+                serie: identity.series,
+                variantes: identity.variants,
+            }),
+        )
     })
 }
 
@@ -1227,19 +1143,8 @@ mod tests {
 
     #[test]
     fn la_source_perso_vise_la_bonne_table_et_ne_retient_que_les_c() {
-        // La table est en dur dans la constante (un `const` ne s'interpole pas) : ce test est
-        // ce qui empêche les deux de diverger le jour où le miroir renomme sa table.
         assert_eq!(TABLE_CHARA, "inagle_characters");
-        assert!(SOURCE_PERSO.contains(TABLE_CHARA));
-        assert!(
-            SOURCE_PERSO.contains("LIKE 'c%'"),
-            "les 66 codes non-`c` du miroir (an…, n…, e…) ne sont pas assemblables par \
-             /model-full : les proposer produisait autant de vignettes en 404"
-        );
-        assert!(!SOURCE_PERSO.contains('*'), "jamais SELECT *");
-        // Un seul `?` nulle part : les paramètres sont posés par les appelants, et une
-        // sous-requête qui en porterait décalerait leur numérotation.
-        assert!(!SOURCE_PERSO.contains('?'));
+        assert_eq!(TABLE_CHARA, nie_wiki::models::CHARACTER_TABLE);
     }
 
     #[test]

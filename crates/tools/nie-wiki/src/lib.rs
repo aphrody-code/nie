@@ -22,6 +22,7 @@ pub mod entities;
 pub mod gallery;
 pub mod mirror;
 pub mod model;
+pub mod models;
 pub mod names;
 pub mod query;
 pub mod render;
