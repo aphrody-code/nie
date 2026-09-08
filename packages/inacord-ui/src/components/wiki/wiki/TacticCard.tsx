@@ -3,8 +3,15 @@
 import { Map } from "lucide-react";
 import { Image } from "../../../compat/next";
 import { Link } from "../../../compat/next";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "../../../lib/utils";
+
+export interface TacticCardImage {
+	src: string;
+	alt: string;
+	className: string;
+	onError: () => void;
+}
 
 export interface TacticCardProps {
 	id: string;
@@ -13,6 +20,8 @@ export interface TacticCardProps {
 	image?: string | null;
 	categoryLabel?: string;
 	className?: string;
+	/** Hosts retain their image implementation and resource pipeline. */
+	renderImage?: (image: TacticCardImage) => ReactNode;
 }
 
 /**
@@ -27,6 +36,7 @@ export function TacticCard({
 	image,
 	categoryLabel = "Tactique",
 	className,
+	renderImage,
 }: TacticCardProps) {
 	const [imgError, setImgError] = useState(false);
 	const hasImage = !!image && !imgError;
@@ -43,15 +53,24 @@ export function TacticCard({
 		>
 			<div className="relative flex aspect-[24/5] w-full items-center justify-center overflow-hidden bg-surface-container-high">
 				{hasImage ? (
-					<Image
-						src={image as string}
-						alt={name}
-						fill
-						sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-						className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
-						unoptimized
-						onError={() => setImgError(true)}
-					/>
+					renderImage ? (
+						renderImage({
+							src: image as string,
+							alt: name,
+							className: "object-contain p-2 transition-transform duration-300 group-hover:scale-105",
+							onError: () => setImgError(true),
+						})
+					) : (
+						<Image
+							src={image as string}
+							alt={name}
+							fill
+							sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+							className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+							unoptimized
+							onError={() => setImgError(true)}
+						/>
+					)
 				) : (
 					<Map size={32} className="text-on-surface-variant/25" aria-hidden="true" />
 				)}
