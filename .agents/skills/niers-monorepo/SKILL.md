@@ -27,7 +27,8 @@ Archived plans are historical evidence, not instructions.
 | `packages/nie` | Rust FFI consumption from Bun |
 | `packages/nie-plugin` | Bun game-file import adapter |
 | `packages/nie-bridge` | Existing automation/control transport contract |
-| `apps/azalee` and existing wiki packages | Wiki/service consumers and compatibility surfaces; migrate through shared owners |
+| `apps/azalee` | Separate public news, article and pure-wiki site; owns editorial UI, auth, publishing and host routes |
+| `packages/azalee` | Portable Azalee news/wiki/community domain rules |
 | `data/`, `var/` | Private game resources, measurements and generated evidence; preserve user content |
 
 The Inacord UI is the primary application surface, retaining all its features. Its principal
@@ -41,8 +42,8 @@ A shared build entry alone does not prove that every desktop capability works in
   `workspace = true`, retaining role-specific features, optional flags and target conditions.
 - Root `Cargo.lock` includes Tauri. Do not recreate a nested desktop workspace or lockfile.
   Default members retain the headless selection; explicitly select `inacord` for desktop gates.
-- SQLite sessions belong to `nie-explore`; Tauri commands are adapters. Do not reintroduce a
-  parallel SQL plugin stack to bypass the shared database owner.
+- SQLite and PostgreSQL sessions and migration runners belong to `nie-sql`; `nie-explore` and
+  Tauri compatibility facades are adapters. Do not reintroduce a parallel SQL plugin stack.
 - Root `package.json` owns Bun workspaces and dependency catalogs. Local dependencies use
   `workspace:*`; external dependencies use `catalog:` or a declared named catalog. Peer
   requirements remain compatibility contracts. Keep one root `bun.lock`.
