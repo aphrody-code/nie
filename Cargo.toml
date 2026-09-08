@@ -132,6 +132,7 @@ nie-queue = { path = "crates/forge/nie-queue", default-features = false }
 nie-seed = { path = "crates/forge/nie-seed", default-features = false }
 nie-formats = { path = "crates/engine/nie-formats", default-features = false }
 nie-explore = { path = "crates/engine/nie-explore", default-features = false }
+nie-sql = { path = "crates/engine/nie-sql" }
 nie-headless = { path = "crates/engine/nie-headless", default-features = false }
 nie-save = { path = "crates/engine/nie-save" }
 nie-wiki = { path = "crates/tools/nie-wiki" }

@@ -6349,6 +6349,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-sql"
+version = "0.5.11"
+dependencies = [
+ "rusqlite",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "nie-steam"
 version = "0.5.11"
 dependencies = [

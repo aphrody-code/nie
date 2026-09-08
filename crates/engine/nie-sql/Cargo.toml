@@ -1,0 +1,19 @@
+[package]
+name = "nie-sql"
+description = "Shared read-only SQL boundary for NIE hosts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rusqlite = { workspace = true, features = ["bundled", "column_decltype"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
