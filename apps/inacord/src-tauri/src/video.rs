@@ -28,10 +28,8 @@
 //! ne la transporte, et l'encoder en AAC demanderait un encodeur C et dégraderait une piste
 //! qu'on vient de décoder sans perte. Le lecteur les resynchronise (cf. `VideoPlayer.tsx`).
 
-use std::collections::HashMap;
 use std::sync::Mutex;
 
-use nie_formats::usm::{self, langue_de, nom_fichier_de, radical_de, rubrique_de};
 use nie_formats::vfs::Vfs;
 use serde::{Deserialize, Serialize};
 
@@ -180,126 +178,43 @@ pub struct CatalogueVideoDto {
     pub rubriques: Vec<String>,
 }
 
-/// Complète une fiche avec ce que l'inspection révèle.
-fn completer(f: &mut FilmDto, u: &usm::Apercu) {
-    f.codec = Some(u.codec.nom().to_string());
-    f.lisible = Some(u.codec.lisible_par_navigateur());
-    f.largeur = Some(u.entete.largeur_affichee.max(u.entete.largeur));
-    f.hauteur = Some(u.entete.hauteur_affichee.max(u.entete.hauteur));
-    f.images = Some(u.images);
-    f.cadence = u.entete.images_par_seconde();
-    f.duree = u.duree();
-    f.chiffre = Some(u.dechiffre);
-    f.nom_origine = u.nom.clone();
-    f.audio = u
-        .pistes
-        .iter()
-        .map(|p| PisteAudioDto {
-            canal: p.canal,
-            codec: p.codec.nom().to_string(),
-            frequence: p.frequence,
-            canaux: p.canaux,
-            octets: p.taille as u32,
-            source: "conteneur".to_string(),
-        })
-        .collect();
-}
-
-/// Ajoute la bande-son EXTERNE d'un film à sa fiche, quand son conteneur n'en porte pas.
-///
-/// Ne lit que la cue sheet (35 Kio), jamais l'archive de 654 Mo : le catalogue doit rester
-/// instantané. Le film garde `audio` vide s'il n'a de son nulle part — l'interface le dit alors,
-/// au lieu de monter un `<audio>` qui échouerait.
-fn completer_bande_son(f: &mut FilmDto, vfs: &Vfs) {
-    if !f.audio.is_empty() {
-        return;
-    }
-    // La durée du film sert de garde-fou : sans elle, une bobine partagée passerait pour la
-    // bande-son du film et jouerait le son de quelqu'un d'autre, ou du silence.
-    let Some(p) = nie_explore::soundtrack::piste_de_film(vfs, &f.nom, f.duree, None) else {
-        return;
-    };
-    f.audio.push(PisteAudioDto {
-        canal: 0,
-        codec: p.codec,
-        frequence: p.frequence,
-        canaux: p.canaux,
-        octets: 0,
-        source: p.cue,
-    });
-}
-
-/// Fiche « rapide » : ce que l'index du VFS suffit à dire, sans lire un octet du conteneur.
-fn fiche_rapide(chemin: &str, octets: u32) -> FilmDto {
-    let rad = radical_de(chemin);
-    FilmDto {
-        chemin: chemin.to_string(),
-        nom: rad.to_string(),
-        rubrique: rubrique_de(rad),
-        langue: langue_de(rad).map(str::to_string),
-        octets,
-        codec: None,
-        lisible: None,
-        largeur: None,
-        hauteur: None,
-        images: None,
-        cadence: None,
-        duree: None,
-        audio: Vec::new(),
-        chiffre: None,
-        nom_origine: None,
-        bgm: None,
-        sous_titres: None,
-    }
-}
-
-/// Ce que le `gamedata` dit de chaque film, indexé par `moviePath` (`common/movie/x.usm`).
-fn jointure(vfs: &Vfs) -> HashMap<String, (Option<String>, Option<String>)> {
-    use serde_json::Value;
-    let mut out = HashMap::new();
-    let chemins: Vec<String> = vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| {
-            p.contains("gamedata/movie/movie_playing_config")
-                || p.contains("gamedata/event/event_movie_config")
-        })
-        .collect();
-
-    for chemin in chemins {
-        let Ok(octets) = vfs.read(&chemin) else {
-            continue;
-        };
-        let Some(root) = nie_formats::cfgbin::rdbn_to_iecode_json(&octets) else {
-            continue;
-        };
-        let Some(listes) = root.get("lists").and_then(Value::as_array) else {
-            continue;
-        };
-        for liste in listes {
-            let Some(lignes) = liste.get("values").and_then(Value::as_array) else {
-                continue;
-            };
-            for ligne in lignes {
-                let Some(mp) = ligne.get("moviePath").and_then(Value::as_str) else {
-                    continue;
-                };
-                if !mp.ends_with(".usm") {
-                    continue;
-                }
-                let bgm = ligne
-                    .get("bgmName")
-                    .map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_string));
-                let st = ligne
-                    .get("subtitleTextPath")
-                    .and_then(Value::as_str)
-                    .filter(|s| !s.is_empty() && *s != "0xFFFFFFFF")
-                    .map(str::to_string);
-                out.entry(mp.to_string()).or_insert((bgm, st));
-            }
+impl From<nie_explore::native_video::MovieInfo> for FilmDto {
+    fn from(movie: nie_explore::native_video::MovieInfo) -> Self {
+        Self {
+            chemin: movie.path,
+            nom: movie.name,
+            rubrique: movie.section,
+            langue: movie.locale,
+            octets: movie.byte_length,
+            codec: movie.codec,
+            lisible: movie.browser_playable,
+            largeur: movie.width,
+            hauteur: movie.height,
+            images: movie.frame_count,
+            cadence: movie.frame_rate,
+            duree: movie.duration_seconds,
+            audio: movie
+                .audio_tracks
+                .into_iter()
+                .map(|track| PisteAudioDto {
+                    canal: track.channel,
+                    codec: track.codec,
+                    frequence: track.sample_rate,
+                    canaux: track.channels,
+                    octets: track.byte_length,
+                    source: if track.source == "container" {
+                        "conteneur".to_owned()
+                    } else {
+                        track.source
+                    },
+                })
+                .collect(),
+            chiffre: movie.decrypted,
+            nom_origine: movie.original_name,
+            bgm: movie.background_music,
+            sous_titres: movie.subtitle_path,
         }
     }
-    out
 }
 
 /// Construit le catalogue **sans** démultiplexer : instantané, complété ensuite par
@@ -309,32 +224,11 @@ fn jointure(vfs: &Vfs) -> HashMap<String, (Option<String>, Option<String>)> {
 ///
 /// Aucune : un VFS vide rend un catalogue vide.
 pub fn catalogue(vfs: &Vfs) -> CatalogueVideoDto {
-    let mut entrees: Vec<(String, u32)> = vfs
-        .iter()
-        .filter(|(p, _)| p.starts_with("data/common/movie") && p.ends_with(".usm"))
-        .map(|(p, e)| (p.to_string(), e.file_size))
-        .collect();
-    entrees.sort_by(|a, b| a.0.cmp(&b.0));
-
-    let liens = jointure(vfs);
-    let films: Vec<FilmDto> = entrees
-        .into_iter()
-        .map(|(chemin, octets)| {
-            let mut f = fiche_rapide(&chemin, octets);
-            let cle = chemin.strip_prefix("data/").unwrap_or(&chemin);
-            if let Some((bgm, st)) = liens.get(cle) {
-                f.bgm = bgm.clone();
-                f.sous_titres = st.clone();
-            }
-            f
-        })
-        .collect();
-
-    // Les chapitres d'abord dans leur ordre naturel, puis les rubriques nommées.
-    let mut rubriques: Vec<String> = films.iter().map(|f| f.rubrique.clone()).collect();
-    rubriques.sort();
-    rubriques.dedup();
-    CatalogueVideoDto { films, rubriques }
+    let catalogue = nie_explore::native_video::movie_catalog(vfs);
+    CatalogueVideoDto {
+        films: catalogue.movies.into_iter().map(FilmDto::from).collect(),
+        rubriques: catalogue.sections,
+    }
 }
 
 /// Démultiplexe un film et rend sa fiche complète.
@@ -343,15 +237,7 @@ pub fn catalogue(vfs: &Vfs) -> CatalogueVideoDto {
 ///
 /// Chemin absent du VFS, ou conteneur qui ne se démultiplexe pas (même déchiffré).
 pub fn info_film(vfs: &Vfs, chemin: &str) -> Result<FilmDto, String> {
-    let brut = vfs.read(chemin).map_err(|e| e.to_string())?;
-    // `inspecter` et NON `demuxer_nomme` : la fiche n'a besoin d'aucune image. Retenir le film
-    // entier coûtait jusqu'à 312 Mo et 38 081 allocations par appel — mesuré, l'explorateur
-    // montait à 15 Go de mémoire de travail en enrichissant son catalogue.
-    let u = usm::inspecter(&brut, nom_fichier_de(chemin)).map_err(|e| e.to_string())?;
-    let mut f = fiche_rapide(chemin, brut.len() as u32);
-    completer(&mut f, &u);
-    completer_bande_son(&mut f, vfs);
-    Ok(f)
+    nie_explore::native_video::movie_info(vfs, chemin).map(FilmDto::from)
 }
 
 /// Emballe la piste vidéo d'un `.usm` dans son conteneur web, **sans réencodage ni processus
@@ -362,21 +248,7 @@ pub fn info_film(vfs: &Vfs, chemin: &str) -> Result<FilmDto, String> {
 /// Conteneur illisible, ou codec que le navigateur ne décode pas (MPEG-2) : le message le dit
 /// explicitement plutôt que de produire un fichier que rien n'ouvrira.
 pub fn flux_web_depuis_usm(octets: &[u8], nom: &str) -> Result<(&'static str, Vec<u8>), String> {
-    let u = usm::demuxer_nomme(octets, nom).map_err(|e| e.to_string())?;
-    if u.images.is_empty() {
-        return Err("aucun flux vidéo dans ce fichier".to_string());
-    }
-    if !u.codec.lisible_par_navigateur() {
-        return Err(format!(
-            "codec {} : aucun navigateur ne le décode — utilisez Extraire pour obtenir le flux \
-             élémentaire .{}",
-            u.codec.nom(),
-            u.codec.extension()
-        ));
-    }
-    u.en_conteneur_web()
-        .map(|c| (c.mime, c.octets))
-        .map_err(|e| e.to_string())
+    nie_explore::native_video::web_video_stream(octets, nom)
 }
 
 /// Même chose, quand seul le contenu importe (aperçu base64 borné).
@@ -404,16 +276,7 @@ pub fn wav_bande_son(
     chemin: &str,
     octets: &[u8],
 ) -> Result<Vec<u8>, String> {
-    let u = usm::demuxer_nomme(octets, nom_fichier_de(chemin)).map_err(|e| e.to_string())?;
-    if let Some(piste) = u.pistes.first() {
-        return nie_formats::cri_audio::decode_to_wav(&piste.octets);
-    }
-    let radical = radical_de(chemin);
-    let externe = nie_explore::soundtrack::piste_de_film(vfs, radical, u.duree(), None)
-        .ok_or_else(|| {
-            format!("« {radical} » n'a de bande-son ni dans son conteneur ni dans anime_stream")
-        })?;
-    nie_explore::soundtrack::wav_de_la_cue(vfs, cache_dir, externe.awb_id)
+    nie_explore::native_video::movie_audio_wav(vfs, cache_dir, chemin, octets)
 }
 
 // Pas de module de tests ici : `cargo test` dans `src-tauri` ne DÉMARRE pas sur cette machine
