@@ -25,6 +25,12 @@
 
 # --- Les textures du jeu -----------------------------------------------------------------
 location ^~ /dx11/ {
+    # Compatibilite avec les anciennes URL du dump pre-extrait. Les illustrations
+    # a texture unique y etaient nommees `<conteneur>_<texture>.png`, donc avec un
+    # basename repete. Le CPK ne porte que le premier : redirection canonique pour
+    # que les liens deja publies restent valides sur les deux hotes CDN.
+    rewrite ^(/dx11/menu/220_img/gallery_img2/)(img_.+)_\2\.png$ $1$2.png permanent;
+
     # Vignette redimensionnee quand `?w=` est present : le service :8805 lit la source et
     # cache le webp. Sans `?w=`, le service direct ci-dessous reste inchange.
     if ($arg_w) {
