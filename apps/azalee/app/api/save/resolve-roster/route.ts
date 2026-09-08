@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { normalizeRosterIdentifiers } from "@rosegriffon/azalee/game/roster-identifiers";
+import type { ResolvedChara } from "@rosegriffon/azalee/game/roster-resolver";
 
 /**
  * Résolution serveur des IDs du roster d'une sauvegarde IEVR → noms réels.
@@ -19,16 +21,6 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Personnage résolu depuis le miroir (sous-ensemble servi au client). */
-interface ResolvedChara {
-	id: string;
-	name: string | null;
-	baseSlug: string | null;
-	element: string | null;
-	position: string | null;
-	rarity: string | null;
-}
-
 interface ResolveBody {
 	ids?: unknown;
 }
@@ -36,38 +28,6 @@ interface ResolveBody {
 // Borne dure : une save IEVR expose ~4500 IDs uniques. On plafonne à 8000 pour
 // éviter un abus (le tableau est dédupliqué et tronqué avant la requête).
 const MAX_IDS = 8000;
-
-/**
- * Normalise un ID en hex string canonique `0xXXXXXXXX` (majuscules, 8 nibbles),
- * ou null si invalide. Le wasm `nie-save` émet les IDs en `number` (u32 décimal,
- * ex. 4125419981) ; le miroir les stocke en hex string (`0xF5E1E7CD`). On accepte
- * les deux formes en entrée pour rester robuste à la source.
- */
-function normalizeId(raw: unknown): string | null {
-	if (typeof raw === "number") {
-		if (!Number.isInteger(raw) || raw < 0 || raw > 0xffff_ffff) {
-			return null;
-		}
-		return `0x${raw.toString(16).toUpperCase().padStart(8, "0")}`;
-	}
-	if (typeof raw !== "string") {
-		return null;
-	}
-	const trimmed = raw.trim();
-	// Forme hex (`0xF5E1E7CD` ou `F5E1E7CD`).
-	const hex = trimmed.match(/^(?:0x)?([0-9a-fA-F]{1,8})$/);
-	if (hex) {
-		return `0x${hex[1].toUpperCase().padStart(8, "0")}`;
-	}
-	// Forme décimale (`4125419981`) — repli si l'ID arrive en string décimale.
-	if (/^\d+$/.test(trimmed)) {
-		const n = Number(trimmed);
-		if (Number.isInteger(n) && n >= 0 && n <= 0xffff_ffff) {
-			return `0x${n.toString(16).toUpperCase().padStart(8, "0")}`;
-		}
-	}
-	return null;
-}
 
 export async function POST(req: Request): Promise<Response> {
 	let body: ResolveBody;
@@ -81,19 +41,9 @@ export async function POST(req: Request): Promise<Response> {
 		return Response.json({ error: "`ids` doit être un tableau." }, { status: 400 });
 	}
 
-	// Normalise + dédoublonne (en préservant l'ordre d'apparition).
-	const seen = new Set<string>();
-	const ids: string[] = [];
-	for (const raw of body.ids) {
-		const id = normalizeId(raw);
-		if (id && !seen.has(id)) {
-			seen.add(id);
-			ids.push(id);
-			if (ids.length >= MAX_IDS) {
-				break;
-			}
-		}
-	}
+	// La logique de normalisation est portable (CLI, Tauri et hôte web) ; cette
+	// route ne garde que la limite de transport et l'adaptateur Supabase.
+	const ids = normalizeRosterIdentifiers(body.ids, MAX_IDS);
 
 	if (ids.length === 0) {
 		return Response.json({ resolved: [], matched: 0, total: 0 });

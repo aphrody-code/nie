@@ -8,6 +8,7 @@ export * from "./formations";
 export * from "./gender";
 export * from "./item-categories";
 export * from "./personality";
+export * from "./roster-identifiers";
 export * from "./roster-resolver";
 export * from "./skills-cutin";
 export * from "./stats-interpolation";
