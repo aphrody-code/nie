@@ -41,6 +41,9 @@ use serde_json::Value;
 
 use crate::soundtrack;
 
+mod browser_video;
+pub use browser_video::{BrowserVideo, browser_video_container};
+
 /// Dossier VFS de référence des films.
 ///
 /// `data/dx11/movie` porte les mêmes 97 noms dans une variante à plus haut débit ; c'est

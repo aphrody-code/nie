@@ -22,9 +22,9 @@
 //! ```
 //!
 //! ⚠ **Le point de code est la colonne 2, PAS la 1** : la col[1] est un id de groupe
-//! partagé (ex. 65 pour 'A' ET pour des variantes CJK 50048+) ; seule la col[2] est unique
-//! par glyphe (validé : col2==65 → glyphe 'A' à atlasX=1157 w=38 adv=39 ; col2==50048+ =
-//! glyphes CJK). Clé = (font, col[2]).
+//! shared across entries; column 2 is the glyph key (`65` identifies `A` at x=1157,
+//! width=38, advance=39). Non-ASCII keys may be packed UTF-8 bytes: `0xC380` identifies
+//! `À`, not a CJK Unicode point. The lookup key is `(font, column 2)`.
 //!
 //! Preuves (cp police 0 → width/advance) : `A` 38/39, `W` 47/48, `i` 7/12, `m` 38/46,
 //! `0` 31/38, `!` 7/11, espace 1/16. `atlasX` ∈ [1,4090] ⊂ 4096 ; `atlasY` ∈ [1,1973] ⊂
@@ -34,9 +34,11 @@
 //!
 //! L'atlas `font.g4tx` contient un payload DDS **non compressé BGRA8** (32 bpp, format
 //! DDS R mask=`0x00ff0000`, G=`0x0000ff00`, B=`0x000000ff`, A=`0xff000000`). Les
-//! pixels sont stockés `[B, G, R, A]` par octet. Le canal **A** (octet 3) est le masque
-//! du glyphe — validé sur le glyphe `A` : A=251 à la ligne relative 20, colonne 0.
-//! Les canaux B/G/R sont ≈ 251 là où le glyphe est opaque (anticrénelage blanc).
+//! Pixels contain **four independent coverage masks**, not a colored glyph. `CHR.page`
+//! selects R, G, B, A (0, 1, 2, 3), hence BGRA byte indices **[2, 1, 0, 3]**.
+//! Verified against the native `font_def` atlas on 2026-09-08: `A`, French accents and
+//! `土` use R; `木` uses G; `語` uses B; `金` uses A. Reading only A at the coordinates
+//! of `A` instead draws an unrelated CJK glyph. Coordinates need no repacking.
 //!
 //! Voir [`glyph_blitter`] pour la primitive de rendu.
 
@@ -67,7 +69,7 @@ pub struct GlyphMetric {
     pub bearing_x: i16,
     /// Avance horizontale du curseur après ce glyphe, en pixels.
     pub advance: u16,
-    /// Page d'atlas (0..=3) — l'atlas de police peut comporter plusieurs couches (CJK).
+    /// Independent coverage plane: 0=R, 1=G, 2=B, 3=A in the native BGRA8 atlas.
     pub page: u8,
 }
 
@@ -125,6 +127,17 @@ impl FontMetrics {
     pub fn glyph_char(&self, c: char) -> Option<&GlyphMetric> {
         self.glyph(c as u32)
             .or_else(|| self.glyph(cle_empaquetee(c)))
+    }
+
+    /// Total advance of the main-font glyphs, using the same lookup as [`draw_text`].
+    /// Missing characters contribute no advance. This excludes ink bearings and kerning.
+    #[must_use]
+    pub fn measure_text(&self, text: &str) -> u32 {
+        text.chars()
+            .filter_map(|c| self.glyph_char(c))
+            .fold(0u32, |width, glyph| {
+                width.saturating_add(u32::from(glyph.advance))
+            })
     }
 
     /// Métrique d'un point de code dans une police donnée (0 ou 1).
@@ -320,20 +333,17 @@ pub fn parse_metrics(cfg: &CfgBinFile) -> FontMetrics {
 ///
 /// `atlas` doit pointer sur les **pixels bruts mip0** du DDS contenu dans `font.g4tx` :
 /// octets à partir de `G4txTexture::data_offset + 128` (4 magic + 124 en-tête DDS,
-/// sans extension DX10). Chaque pixel occupe 4 octets `[B, G, R, A]` (canal A = masque
-/// du glyphe, validé sur l'atlas réel). `atlas_w` est la largeur en pixels (ex. 4096).
+/// without the DX10 extension). Each pixel stores four independent masks `[B, G, R, A]`;
+/// `metric.page` chooses the mask. `atlas_w` is the atlas width in pixels (e.g. 4096).
 ///
 /// ## Rendu
 ///
 /// Pour chaque pixel du rectangle `[metric.x, metric.y, metric.x+metric.width,
 /// metric.y+cell_height]` dans l'atlas :
-/// - Si le canal A de l'atlas est nul → pixel sauté (transparent).
-/// - Sinon : écriture dans le canevas en RGBA8 à `(dst_x + col, dst_y + row)` :
-///   `[color[0], color[1], color[2], atlas_A * color[3] / 255]`.
-///
-/// Le compositage est une opération **src-over** simplifiée (le pixel source remplace le
-/// pixel destination). Pour les pixels transparents de l'atlas, le canevas est inchangé.
-/// Cette sémantique suffit pour le rendu de texte sur fond transparent.
+/// `metric.page` selects the coverage channel (R/G/B/A for pages 0/1/2/3).
+/// Coverage is multiplied by `color[3]`, then the tinted glyph is composited source-over
+/// the straight-alpha RGBA canvas. Transparent source pixels leave the canvas unchanged.
+/// Invalid planes and pixels outside either image are ignored, without wrapping rows.
 ///
 /// ## Paramètres
 ///
@@ -352,10 +362,9 @@ pub fn parse_metrics(cfg: &CfgBinFile) -> FontMetrics {
 /// ```rust
 /// use nie_formats::font::{GlyphMetric, glyph_blitter};
 ///
-/// // Atlas 4×4 BGRA8 : pixel opaque à (col=2, row=1), A=200.
+/// // Atlas 4×4 BGRA8: page 0 uses the red mask at (col=2, row=1), R=200.
 /// let mut atlas = [0u8; 4 * 4 * 4];
-/// // index = (row=1 * atlas_w=4 + col=2) * 4 + 3 = 6*4+3 = 27
-/// atlas[27] = 200;
+/// atlas[(4 + 2) * 4 + 2] = 200;
 ///
 /// let metric = GlyphMetric {
 ///     font: 0, base: 0, codepoint: 65,
@@ -380,58 +389,56 @@ pub fn glyph_blitter(
     dst_y: i32,
     color: [u8; 4],
 ) {
-    let atlas_stride = atlas_w as usize * 4;
+    let Some(&mask_channel) = [2usize, 1, 0, 3].get(usize::from(metric.page)) else {
+        return;
+    };
+    let Some(atlas_stride) = (atlas_w as usize).checked_mul(4) else {
+        return;
+    };
     let cv_stride = canvas_stride as usize;
-    let h = cell_height as i32;
-    let w = metric.width as i32;
-    let ax = metric.x as i32;
-    let ay = metric.y as i32;
+    if atlas_stride == 0 || cv_stride == 0 || !cv_stride.is_multiple_of(4) || color[3] == 0 {
+        return;
+    }
+    let atlas_height = atlas.len() / atlas_stride;
+    let canvas_height = canvas.len() / cv_stride;
+    let canvas_width = cv_stride / 4;
 
-    for row in 0..h {
-        let canvas_row = dst_y + row;
-        if canvas_row < 0 {
-            continue;
-        }
-        let atlas_row = ay + row;
-        if atlas_row < 0 {
+    for row in 0..i64::from(cell_height) {
+        let canvas_row = i64::from(dst_y) + row;
+        let atlas_row = i64::from(metric.y) + row;
+        if canvas_row < 0 || canvas_row >= canvas_height as i64 || atlas_row >= atlas_height as i64
+        {
             continue;
         }
         let atlas_row_off = atlas_row as usize * atlas_stride;
         let canvas_row_off = canvas_row as usize * cv_stride;
 
-        for col in 0..w {
-            let canvas_col = dst_x + col;
-            if canvas_col < 0 {
-                continue;
-            }
-            let atlas_col = ax + col;
-            if atlas_col < 0 {
+        for col in 0..i64::from(metric.width) {
+            let canvas_col = i64::from(dst_x) + col;
+            let atlas_col = i64::from(metric.x) + col;
+            if canvas_col < 0
+                || canvas_col >= canvas_width as i64
+                || atlas_col >= i64::from(atlas_w)
+            {
                 continue;
             }
 
-            // Octet 3 du pixel BGRA8 = canal alpha (masque du glyphe).
             let a_off = atlas_row_off + atlas_col as usize * 4;
-            let atlas_alpha = match atlas.get(a_off + 3) {
-                Some(&v) => v,
-                None => continue,
-            };
-            if atlas_alpha == 0 {
+            let coverage = u32::from(atlas[a_off + mask_channel]);
+            let source_alpha = coverage * u32::from(color[3]) / 255;
+            if source_alpha == 0 {
                 continue;
             }
-
-            // Alpha de sortie : produit de l'alpha du glyphe et de la couleur de teinte.
-            let out_a = (atlas_alpha as u32 * color[3] as u32 / 255) as u8;
-
             let c_off = canvas_row_off + canvas_col as usize * 4;
-            let canvas_slice = match canvas.get_mut(c_off..c_off + 4) {
-                Some(s) => s,
-                None => continue,
-            };
-            // Écriture src-over simplifiée (source remplace destination).
-            canvas_slice[0] = color[0]; // R
-            canvas_slice[1] = color[1]; // G
-            canvas_slice[2] = color[2]; // B
-            canvas_slice[3] = out_a; // A
+            let destination = &mut canvas[c_off..c_off + 4];
+            let destination_weight = u32::from(destination[3]) * (255 - source_alpha);
+            let alpha_weight = source_alpha * 255 + destination_weight;
+            for channel in 0..3 {
+                let weighted_color = u32::from(color[channel]) * source_alpha * 255
+                    + u32::from(destination[channel]) * destination_weight;
+                destination[channel] = ((weighted_color + alpha_weight / 2) / alpha_weight) as u8;
+            }
+            destination[3] = ((alpha_weight + 127) / 255) as u8;
         }
     }
 }
@@ -460,14 +467,17 @@ pub fn draw_text(
     pen_y: i32,
     color: [u8; 4],
 ) -> i32 {
-    let mut pen_x = pen_x_start;
+    let mut advance = 0i32;
     let cell_height = metrics.dims.cell_height;
     let ascent = metrics.dims.ascent as i32;
     for ch in text.chars() {
-        let cp = ch as u32;
-        let Some(m) = metrics.glyph(cp) else { continue };
-        let dst_x = pen_x + m.bearing_x as i32;
-        let dst_y = pen_y - ascent;
+        let Some(m) = metrics.glyph_char(ch) else {
+            continue;
+        };
+        let dst_x = pen_x_start
+            .saturating_add(advance)
+            .saturating_add(i32::from(m.bearing_x));
+        let dst_y = pen_y.saturating_sub(ascent);
         glyph_blitter(
             atlas,
             atlas_w,
@@ -479,17 +489,15 @@ pub fn draw_text(
             dst_y,
             color,
         );
-        pen_x += m.advance as i32;
+        advance = advance.saturating_add(i32::from(m.advance));
     }
-    pen_x - pen_x_start
+    advance
 }
 
 // ============================================================================
-// LatinAtlas — rendu de texte Latin par EDGE-SCAN (2026-06-20).
-// L'atlas `font.g4tx` REPACKE les glyphes (X non résolu via les métriques col3). MAIS la rangée
-// physique ASCII range les glyphes en ORDRE DE CODEPOINT CONTIGU depuis '!' (0x21) — vérifié
-// visuellement. On edge-scan l'alpha de cette rangée → spans (x0,x1) par colonne lumineuse → le
-// k-ième span = codepoint 0x21+k. Permet le rendu de texte Latin arbitraire sans le repacking.
+// Legacy LatinAtlas edge-scan compatibility API. Native CHR coordinates are valid;
+// the historical repacking diagnosis came from reading A instead of the selected plane.
+// New consumers should use FontMetrics and draw_text for complete native glyph coverage.
 // ============================================================================
 
 /// Premier codepoint de la rangée physique ASCII (`!`).
@@ -754,10 +762,9 @@ mod tests {
     /// et l'écrire à la bonne position du canevas.
     #[test]
     fn glyph_blitter_synthetic() {
-        // Atlas 4×4 BGRA8 (64 octets), tout à zéro sauf (col=2, row=1) → A=200.
+        // Page 0 selects the red coverage byte of the BGRA8 atlas.
         let mut atlas = [0u8; 4 * 4 * 4];
-        // Offset pixel (col=2, row=1) : (row=1, col=2) → index=(1*4+2)*4+3.
-        atlas[(6) * 4 + 3] = 200;
+        atlas[6 * 4 + 2] = 200;
 
         // Glyphe : x=2, y=1, width=1, cell_height=2.
         let metric = GlyphMetric {
@@ -804,7 +811,7 @@ mod tests {
     #[test]
     fn glyph_blitter_color_alpha_modulation() {
         let mut atlas = [0u8; 4 * 4];
-        atlas[3] = 200; // pixel (0,0), A=200
+        atlas[2] = 200; // Pixel (0,0), page 0 coverage=200.
 
         let metric = GlyphMetric {
             font: 0,
@@ -841,7 +848,7 @@ mod tests {
     /// Synthétique : pixels hors canevas sont ignorés sans panique.
     #[test]
     fn glyph_blitter_clip_out_of_bounds() {
-        let atlas = [0u8, 0, 0, 255]; // 1×1 pixel opaque
+        let atlas = [0u8, 0, 255, 0]; // Page 0, one opaque pixel.
         let metric = GlyphMetric {
             font: 0,
             base: 0,
@@ -899,13 +906,299 @@ mod tests {
         assert_eq!(advance, 10 + 12, "avance totale A+B");
     }
 
-    /// Golden gated sur le VRAI `font.cfg.bin` + `font.g4tx` (skip si jeu absent).
-    /// Valide le layout des colonnes INF ET le blit d'un glyphe réel depuis l'atlas.
-    ///
-    /// Pixels testés (validés sur l'atlas réel 2026-06-16) :
-    /// - Glyphe `A` (U+0041) : atlas (x=1157, y=1, w=38), police 0, cell_height=71.
-    /// - Ligne relative 20 (atlas row 21), colonne relative 0 : alpha = 251.
-    /// - Ligne relative 19 (atlas row 20), colonne relative 34 : alpha = 47.
+    fn mask_metric(page: u8) -> GlyphMetric {
+        GlyphMetric {
+            font: 0,
+            base: 0,
+            codepoint: 65,
+            x: 0,
+            y: 0,
+            width: 1,
+            bearing_x: 0,
+            advance: 1,
+            page,
+        }
+    }
+
+    #[test]
+    fn glyph_blitter_selects_each_independent_plane() {
+        let atlas = [17, 53, 109, 211];
+        for (page, coverage) in [(0, 109), (1, 53), (2, 17), (3, 211)] {
+            let mut canvas = [0; 4];
+            glyph_blitter(
+                &atlas,
+                1,
+                &mask_metric(page),
+                1,
+                &mut canvas,
+                4,
+                0,
+                0,
+                [20, 40, 60, 255],
+            );
+            assert_eq!(canvas, [20, 40, 60, coverage], "page {page}");
+        }
+        let mut canvas = [9; 4];
+        glyph_blitter(
+            &atlas,
+            1,
+            &mask_metric(4),
+            1,
+            &mut canvas,
+            4,
+            0,
+            0,
+            [255; 4],
+        );
+        assert_eq!(
+            canvas, [9; 4],
+            "an invalid plane must not use an arbitrary mask"
+        );
+    }
+
+    #[test]
+    fn glyph_blitter_composites_straight_alpha_without_erasing() {
+        let atlas = [0, 0, 128, 0];
+        let mut canvas = [0, 0, 255, 255];
+        glyph_blitter(
+            &atlas,
+            1,
+            &mask_metric(0),
+            1,
+            &mut canvas,
+            4,
+            0,
+            0,
+            [255, 0, 0, 255],
+        );
+        assert_eq!(canvas, [128, 0, 127, 255]);
+        let before = canvas;
+        glyph_blitter(
+            &atlas,
+            1,
+            &mask_metric(0),
+            1,
+            &mut canvas,
+            4,
+            0,
+            0,
+            [255, 0, 0, 0],
+        );
+        assert_eq!(canvas, before, "transparent tint preserves the destination");
+        canvas = [0, 0, 255, 128];
+        glyph_blitter(
+            &atlas,
+            1,
+            &mask_metric(0),
+            1,
+            &mut canvas,
+            4,
+            0,
+            0,
+            [255, 0, 0, 255],
+        );
+        assert_eq!(canvas, [170, 0, 85, 192]);
+    }
+
+    #[test]
+    fn glyph_blitter_clips_rows_and_extreme_coordinates() {
+        let atlas = [255; 2 * 2 * 4];
+        let mut metric = mask_metric(0);
+        metric.width = 2;
+        let mut canvas = [0; 2 * 2 * 4];
+        glyph_blitter(&atlas, 2, &metric, 1, &mut canvas, 8, 1, 0, [255; 4]);
+        assert_eq!(&canvas[4..8], &[255; 4]);
+        assert_eq!(
+            &canvas[8..],
+            &[0; 8],
+            "right clipping cannot wrap onto the next row"
+        );
+        metric.x = 1;
+        canvas.fill(0);
+        glyph_blitter(&atlas, 2, &metric, 1, &mut canvas, 8, 0, 0, [255; 4]);
+        assert_eq!(&canvas[..4], &[255; 4]);
+        assert_eq!(
+            &canvas[4..],
+            &[0; 12],
+            "atlas clipping cannot sample the next row"
+        );
+        metric.x = 0;
+        canvas.fill(0);
+        glyph_blitter(&atlas, 2, &metric, 2, &mut canvas, 8, -1, -1, [255; 4]);
+        assert_eq!(&canvas[..4], &[255; 4]);
+        assert_eq!(&canvas[4..], &[0; 12]);
+        for (x, y) in [(i32::MAX, 0), (0, i32::MAX), (i32::MIN, i32::MIN)] {
+            canvas.fill(0);
+            glyph_blitter(&atlas, 2, &metric, 2, &mut canvas, 8, x, y, [255; 4]);
+            assert_eq!(
+                canvas, [0; 16],
+                "extreme coordinates must clip without overflow"
+            );
+        }
+        for stride in [0, 3] {
+            glyph_blitter(&atlas, 2, &metric, 2, &mut canvas, stride, 0, 0, [255; 4]);
+            assert_eq!(canvas, [0; 16]);
+        }
+    }
+
+    #[test]
+    fn draw_text_resolves_packed_accents_and_preserves_advance_at_large_origins() {
+        let cfg = CfgBinFile {
+            format: crate::cfgbin::Format::T2b,
+            entries: alloc::vec![
+                inf([0, 1, 1, 0, 2, 2, 1, 0]),
+                chr([0, 0, 0xc3a9, 0, 0, 1, 0, 2, 0]),
+                chr([0, 0, 0xc593, 1, 0, 1, 0, 3, 1])
+            ],
+        };
+        let metrics = parse_metrics(&cfg);
+        let atlas = [0, 0, 71, 0, 0, 149, 0, 0];
+        let mut canvas = [0; 5 * 4];
+        assert!(metrics.glyph('é' as u32).is_none());
+        assert_eq!(metrics.measure_text("éœ🦀"), 5);
+        assert_eq!(
+            draw_text(&atlas, 2, &metrics, "éœ🦀", &mut canvas, 20, 0, 1, [255; 4]),
+            5
+        );
+        assert_eq!(canvas[3], 71, "accented glyph uses its packed UTF-8 key");
+        assert_eq!(
+            canvas[11], 149,
+            "ligature advances to x=2 and selects page 1"
+        );
+        canvas.fill(0);
+        assert_eq!(
+            draw_text(
+                &atlas,
+                2,
+                &metrics,
+                "éœ",
+                &mut canvas,
+                20,
+                i32::MAX,
+                i32::MIN,
+                [255; 4]
+            ),
+            5
+        );
+        assert_eq!(canvas, [0; 20]);
+    }
+
+    /// Explicit native fixture gate; missing files fail instead of producing a zero-evidence pass.
+    /// Set NIE_FONT_FIXTURE_DIR to a private directory containing font.cfg.bin and font.g4tx.
+    #[test]
+    #[ignore = "requires private native font_def fixtures via NIE_FONT_FIXTURE_DIR"]
+    fn native_font_french_fixture() {
+        let root = std::path::PathBuf::from(
+            std::env::var_os("NIE_FONT_FIXTURE_DIR").expect("NIE_FONT_FIXTURE_DIR"),
+        );
+        let cfg = crate::cfgbin::parse_t2b(
+            &std::fs::read(root.join("font.cfg.bin")).expect("native font.cfg.bin"),
+        )
+        .unwrap();
+        let metrics = parse_metrics(&cfg);
+        let bytes = std::fs::read(root.join("font.g4tx")).expect("native font.g4tx");
+        let tx = crate::g4tx::parse(&bytes).unwrap();
+        let texture = &tx.textures[0];
+        assert!(texture.is_dds);
+        assert_eq!((texture.width, texture.height), (4096, 2048));
+        assert_eq!(
+            &bytes[texture.data_offset..texture.data_offset + 4],
+            b"DDS "
+        );
+        assert_eq!(
+            &bytes[texture.data_offset + 92..texture.data_offset + 96],
+            &0x00ff0000u32.to_le_bytes()
+        );
+        let atlas = &bytes[texture.data_offset + 128..texture.data_offset + 128 + 4096 * 2048 * 4];
+        for (character, page, nonzero, crc) in [
+            ('A', 0, 544, 0x2fe85c8f),
+            ('é', 0, 562, 0x629fb3c5),
+            ('è', 0, 563, 0x6fd14490),
+            ('ê', 0, 594, 0x2b891693),
+            ('ë', 0, 580, 0x534df495),
+            ('à', 0, 544, 0xc94cea62),
+            ('â', 0, 573, 0x3105315b),
+            ('ç', 0, 523, 0x71558f85),
+            ('î', 0, 255, 0x3edb94bf),
+            ('ï', 0, 240, 0xd6e5b759),
+            ('ô', 0, 539, 0x7c8d33db),
+            ('ù', 0, 427, 0x79cb2ac8),
+            ('û', 0, 457, 0xe5b9db8b),
+            ('ü', 0, 443, 0x8c291f1e),
+            ('œ', 0, 686, 0x541a8596),
+            ('Œ', 0, 771, 0xeb55f105),
+            ('’', 0, 84, 0xd6da3025),
+            ('…', 0, 165, 0x1b4b3b15),
+            ('土', 0, 600, 0x870a388c),
+            ('木', 1, 700, 0x01f0983e),
+            ('語', 2, 1057, 0x2fac919b),
+            ('金', 3, 995, 0xae61c469),
+        ] {
+            let glyph = metrics.glyph_char(character).expect("native character");
+            assert_eq!(glyph.page, page, "{character}");
+            let mut canvas = alloc::vec![0; usize::from(glyph.width) * usize::from(metrics.dims.cell_height) * 4];
+            glyph_blitter(
+                atlas,
+                4096,
+                glyph,
+                metrics.dims.cell_height,
+                &mut canvas,
+                u32::from(glyph.width) * 4,
+                0,
+                0,
+                [255; 4],
+            );
+            let mask: Vec<u8> = canvas.chunks_exact(4).map(|pixel| pixel[3]).collect();
+            assert_eq!(
+                mask.iter().filter(|&&alpha| alpha != 0).count(),
+                nonzero,
+                "{character}"
+            );
+            assert_eq!(
+                crate::cfgbin::crc32(&mask),
+                crc,
+                "{character} native coverage"
+            );
+        }
+        for character in "ÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸàâæçéèêëîïôœùûüÿ’…".chars()
+        {
+            assert!(
+                metrics.glyph_char(character).is_some(),
+                "missing {character}"
+            );
+        }
+        for (text, expected_width) in [
+            (
+                "Ce jeu dispose d'une fonction de sauvegarde automatique.",
+                1529,
+            ),
+            (
+                "Cette icône s'affichera à l'écran lors d'une sauvegarde.",
+                1435,
+            ),
+            ("Chargement...", 359),
+        ] {
+            assert_eq!(metrics.measure_text(text), expected_width);
+            let mut canvas = alloc::vec![0; (expected_width as usize + 8) * 71 * 4];
+            assert_eq!(
+                draw_text(
+                    atlas,
+                    4096,
+                    &metrics,
+                    text,
+                    &mut canvas,
+                    (expected_width + 8) * 4,
+                    4,
+                    46,
+                    [255; 4]
+                ),
+                expected_width as i32
+            );
+            assert!(canvas.chunks_exact(4).filter(|pixel| pixel[3] > 0).count() > 1000);
+        }
+    }
+
+    /// Native metric fixture (skips when the game is absent).
     #[test]
     fn real_font_metrics_match() {
         let dir = crate::vfs::resolve_game_dir()
@@ -955,11 +1248,7 @@ mod tests {
         }
     }
 
-    /// Golden gated : blit du glyphe `A` depuis l'atlas réel, vérifie des pixels connus.
-    ///
-    /// Pixels testés (mesurés sur `font.g4tx` réel, 2026-06-16) :
-    /// - Canvas [20][0].alpha = 251  (atlas BGRA8 [row=21,col=1157], A=251)
-    /// - Canvas [19][34].alpha = 47  (atlas BGRA8 [row=20,col=1191], A=47)
+    /// Native A mask, measured on 2026-09-08: page 0, red coverage, 544 nonzero pixels.
     #[test]
     fn real_glyph_blitter_a() {
         let dir = crate::vfs::resolve_game_dir()
@@ -1016,24 +1305,14 @@ mod tests {
             [255, 255, 255, 255],
         );
 
-        // Pixel [row=20, col=0] : alpha attendu = 251 (mesuré sur l'atlas réel).
-        let off_20_0 = 20 * canvas_w * 4;
+        assert_eq!(canvas[(21 * canvas_w + 15) * 4 + 3], 47);
         assert_eq!(
-            canvas[off_20_0 + 3],
-            251,
-            "alpha row=20 col=0 doit être 251"
-        );
-
-        // Pixel [row=19, col=34] : alpha attendu = 47.
-        let off_19_34 = (19 * canvas_w + 34) * 4;
-        assert_eq!(
-            canvas[off_19_34 + 3],
-            47,
-            "alpha row=19 col=34 doit être 47"
+            canvas.chunks_exact(4).filter(|pixel| pixel[3] != 0).count(),
+            544
         );
 
         // La zone supérieure [0..19] doit être entièrement nulle (blank rows).
-        for row in 0..19 {
+        for row in 0..21 {
             for col in 0..38 {
                 let off = (row * canvas_w + col) * 4;
                 assert_eq!(
@@ -1058,13 +1337,7 @@ mod tests {
             [255, 255, 255, 255],
         );
         assert_eq!(advance, 39, "avance du glyphe A");
-        // draw_text calcule dst_x = pen_x + bearing_x = 0 + 1 = 1 pour 'A' (bearing_x=1).
-        // Avec pen_y=46, dst_y = 46 - 46 = 0. Le pixel [row=20][col=0+1=1] doit avoir alpha=251.
-        let off_draw_row20_col1 = (20 * canvas_w + 1) * 4;
-        assert_eq!(
-            canvas2[off_draw_row20_col1 + 3],
-            251,
-            "draw_text : pixel [20][1] alpha=251 (bearing_x=1)"
-        );
+        // A has bearing_x=1, so the same red-mask pixel is shifted one column.
+        assert_eq!(canvas2[(21 * canvas_w + 16) * 4 + 3], 47);
     }
 }

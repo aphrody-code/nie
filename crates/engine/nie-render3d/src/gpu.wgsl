@@ -53,13 +53,10 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     let lambert = abs(dot(n, normalize(camera.light.xyz)));
     let lit = 0.35 + 0.65 * lambert;
 
-    var base: vec4<f32>;
-    if (in.has_texture > 0.5) {
-        base = textureSample(atlas, atlas_sampler, in.uv);
-    } else {
-        // Repli argile — même gris neutre que le CPU pour les primitives sans atlas.
-        base = vec4<f32>(0.72, 0.72, 0.74, 1.0);
-    }
+    // Implicit texture derivatives require uniform control flow across a fragment quad.
+    // Untextured primitives bind the shared white atlas, so sampling is always valid.
+    let sampled = textureSample(atlas, atlas_sampler, in.uv);
+    let base = select(vec4<f32>(0.72, 0.72, 0.74, 1.0), sampled, in.has_texture > 0.5);
 
     // Cutout : un fragment quasi transparent est rejeté au lieu d'être mélangé. Les atlas du jeu
     // utilisent l'alpha comme masque (cheveux, cils), pas comme translucidité — le mélanger

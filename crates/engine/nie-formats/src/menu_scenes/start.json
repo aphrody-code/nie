@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "start",
+  "canvas": { "width": 1920, "height": 1080 },
+  "background": "#ffffff",
+  "layers": [
+    {
+      "id": "field",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_01_st/title00_01_st.g4tx",
+      "region": "bg_sky01_st",
+      "rect": { "x": -360, "y": -60, "w": 2640, "h": 1200 },
+      "drawOrder": 0,
+      "provenance": { "source": "data/menu/Capture d'écran 2026-09-08 124519.png", "record": "bg_sky01_st:0,0,5280,2400", "method": "Measured half-scale opaque-edge fit; client crop 1,32,1920,1080; title-template-matches.json 2026-09-08" }
+    },
+    {
+      "id": "foreground-left",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_01_st/title00_01_st.g4tx",
+      "region": "bg_chr02_st",
+      "rect": { "x": 320, "y": 69, "w": 1004, "h": 1192 },
+      "drawOrder": 1,
+      "provenance": { "source": "data/menu/Capture d'écran 2026-09-08 124519.png", "record": "bg_chr02_st:0,3608,2008,2384", "method": "Measured half-scale opaque-edge fit; client crop 1,32,1920,1080; title-template-matches.json 2026-09-08" }
+    },
+    {
+      "id": "foreground-right",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_01_st/title00_01_st.g4tx",
+      "region": "bg_chr01_st",
+      "rect": { "x": 1254, "y": -192, "w": 880, "h": 996 },
+      "drawOrder": 2,
+      "provenance": { "source": "data/menu/Capture d'écran 2026-09-08 124519.png", "record": "bg_chr01_st:2012,3608,1760,1992", "method": "Measured half-scale opaque-edge fit; client crop 1,32,1920,1080; title-template-matches.json 2026-09-08" }
+    },
+    {
+      "id": "title-logo",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_03_02/fr/title00_03_02.g4tx",
+      "region": "logo02",
+      "rect": { "x": 56, "y": 442, "w": 800, "h": 600 },
+      "drawOrder": 10,
+      "provenance": { "source": "data/menu/Capture d'écran 2026-09-08 124519.png", "record": "title00_03_02:1600,1200", "method": "Measured half-scale opaque-edge fit; client crop 1,32,1920,1080; title-template-matches.json 2026-09-08" }
+    }
+  ],
+  "controls": [],
+  "unresolved": ["Native field lighting and edge effects", "Native input glyph and font rendering", "Native START strip", "Native transitions and animation"]
+}

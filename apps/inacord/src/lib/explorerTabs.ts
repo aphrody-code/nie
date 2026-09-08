@@ -1,146 +1,43 @@
-// Onglets de l'Explorateur — même patron que `lib/places.ts` : un état module-level, un jeu de
-// réducteurs PURS, et `useSyncExternalStore` pour l'abonnement React. Aucun React dans la logique
-// ci-dessous : les réducteurs sont testables et réutilisables tels quels.
-//
-// L'Explorateur n'avait qu'UN état de navigation (`{prefix, selected}` dans `App.tsx`) : ouvrir un
-// dossier depuis la barre latérale écrasait le contexte de travail précédent, et tout l'état de
-// présentation (filtre, tri, vue, taille de vignette) repartait de zéro à chaque aller-retour.
-// Chaque onglet porte donc son propre contexte complet ET son propre historique arrière/avant.
 import { useSyncExternalStore } from "react";
+import {
+  activateTab,
+  canGoBack,
+  canGoForward,
+  closeTab,
+  cycleTab,
+  goBack,
+  goForward,
+  makeTab,
+  openTab,
+  updateTab,
+  type ExplorerTab,
+  type ExplorerTabPatch,
+  type ExplorerTabsState,
+} from "@niers/inacord-ui/explorer/explorer-tabs";
 
-export type ExplorerSortKey = "name" | "size";
-export type ExplorerViewMode = "list" | "grid";
-
-export interface ExplorerTab {
-  /** Identité stable de l'onglet — clé React et cible des actions, jamais réutilisée. */
-  id: string;
-  prefix: string;
-  selected: string | null;
-  /** Recherche VFS en cours dans cet onglet. */
-  query?: string;
-  /** Filtre d'extension du champ dédié. */
-  ext?: string;
-  sortKey?: ExplorerSortKey;
-  viewMode?: ExplorerViewMode;
-  gridSize?: number;
-  /** Préfixes visités, du plus ancien au plus récent — pile arrière/avant de CET onglet. */
-  history: string[];
-  /** Position courante dans `history` ; tout ce qui suit est la pile « avant ». */
-  historyIndex: number;
-}
-
-export interface ExplorerTabsState {
-  tabs: ExplorerTab[];
-  activeId: string;
-}
-
-/** Champs modifiables d'un onglet — `id`/`history` appartiennent au réducteur, pas à l'appelant. */
-export type ExplorerTabPatch = Partial<Omit<ExplorerTab, "id" | "history" | "historyIndex">>;
+export {
+  activateTab,
+  canGoBack,
+  canGoForward,
+  closeTab,
+  cycleTab,
+  goBack,
+  goForward,
+  makeTab,
+  openTab,
+  updateTab,
+};
+export type {
+  ExplorerSortKey,
+  ExplorerTab,
+  ExplorerTabPatch,
+  ExplorerTabsState,
+  ExplorerViewMode,
+} from "@niers/inacord-ui/explorer/explorer-tabs";
 
 const STORAGE_KEY = "nie-explorer:tabs";
-/** Au-delà, l'historique d'un onglet est tronqué par la tête — une pile infinie ne sert personne
- * et gonflerait le `localStorage` à chaque navigation. */
-const HISTORY_MAX = 64;
 /** Préfixe du premier onglet — l'Explorateur s'ouvrait déjà là avant les onglets. */
 const DEFAULT_PREFIX = "data";
-
-// ── Réducteurs purs ──────────────────────────────────────────────────────────────────────────
-
-/** Onglet neuf, historique amorcé sur son préfixe initial. */
-export function makeTab(id: string, prefix: string, selected: string | null = null): ExplorerTab {
-  return { id, prefix, selected, history: [prefix], historyIndex: 0 };
-}
-
-/** Ajoute un onglet après l'onglet actif (comme un navigateur), activé sauf `activate: false`. */
-export function openTab(
-  state: ExplorerTabsState,
-  id: string,
-  prefix: string,
-  selected: string | null = null,
-  activate = true,
-): ExplorerTabsState {
-  const tab = makeTab(id, prefix, selected);
-  const at = state.tabs.findIndex((t) => t.id === state.activeId);
-  const tabs = [...state.tabs];
-  tabs.splice(at === -1 ? tabs.length : at + 1, 0, tab);
-  return { tabs, activeId: activate ? id : state.activeId };
-}
-
-/** Ferme un onglet. Le DERNIER ne se ferme jamais : sans onglet, l'Explorateur n'a plus rien à
- * afficher — le fermer laisserait une vue vide sans moyen d'en rouvrir un. */
-export function closeTab(state: ExplorerTabsState, id: string): ExplorerTabsState {
-  if (state.tabs.length <= 1) return state;
-  const at = state.tabs.findIndex((t) => t.id === id);
-  if (at === -1) return state;
-  const tabs = state.tabs.filter((t) => t.id !== id);
-  if (id !== state.activeId) return { tabs, activeId: state.activeId };
-  const neighbour = tabs[Math.min(at, tabs.length - 1)];
-  return { tabs, activeId: neighbour ? neighbour.id : tabs[0]!.id };
-}
-
-export function activateTab(state: ExplorerTabsState, id: string): ExplorerTabsState {
-  if (id === state.activeId || !state.tabs.some((t) => t.id === id)) return state;
-  return { tabs: state.tabs, activeId: id };
-}
-
-/** Active l'onglet à `delta` positions du courant, en boucle (Ctrl+Tab / Ctrl+Maj+Tab). */
-export function cycleTab(state: ExplorerTabsState, delta: number): ExplorerTabsState {
-  const at = state.tabs.findIndex((t) => t.id === state.activeId);
-  if (at === -1 || state.tabs.length < 2) return state;
-  const n = state.tabs.length;
-  const next = state.tabs[(((at + delta) % n) + n) % n]!;
-  return { tabs: state.tabs, activeId: next.id };
-}
-
-/** Applique un patch à un onglet. Un changement de `prefix` empile l'historique et purge la pile
- * « avant » — sémantique d'un navigateur : naviguer depuis un point de l'historique abandonne la
- * branche qui suivait. */
-export function updateTab(state: ExplorerTabsState, id: string, patch: ExplorerTabPatch): ExplorerTabsState {
-  const at = state.tabs.findIndex((t) => t.id === id);
-  if (at === -1) return state;
-  const prev = state.tabs[at]!;
-  const next: ExplorerTab = { ...prev, ...patch };
-  if (patch.prefix !== undefined && patch.prefix !== prev.prefix) {
-    const kept = prev.history.slice(0, prev.historyIndex + 1);
-    kept.push(patch.prefix);
-    const trimmed = kept.length > HISTORY_MAX ? kept.slice(kept.length - HISTORY_MAX) : kept;
-    next.history = trimmed;
-    next.historyIndex = trimmed.length - 1;
-  }
-  const tabs = [...state.tabs];
-  tabs[at] = next;
-  return { tabs, activeId: state.activeId };
-}
-
-export function canGoBack(tab: ExplorerTab): boolean {
-  return tab.historyIndex > 0;
-}
-
-export function canGoForward(tab: ExplorerTab): boolean {
-  return tab.historyIndex < tab.history.length - 1;
-}
-
-/** Recule d'un cran — ne réempile RIEN (sinon l'arrière deviendrait un aller simple). */
-export function goBack(state: ExplorerTabsState, id: string): ExplorerTabsState {
-  return travel(state, id, -1);
-}
-
-export function goForward(state: ExplorerTabsState, id: string): ExplorerTabsState {
-  return travel(state, id, +1);
-}
-
-function travel(state: ExplorerTabsState, id: string, delta: number): ExplorerTabsState {
-  const at = state.tabs.findIndex((t) => t.id === id);
-  if (at === -1) return state;
-  const prev = state.tabs[at]!;
-  const idx = prev.historyIndex + delta;
-  if (idx < 0 || idx >= prev.history.length) return state;
-  const tabs = [...state.tabs];
-  tabs[at] = { ...prev, prefix: prev.history[idx]!, selected: null, historyIndex: idx };
-  return { tabs, activeId: state.activeId };
-}
-
-// ── Store module-level ───────────────────────────────────────────────────────────────────────
 
 let idSeq = 0;
 

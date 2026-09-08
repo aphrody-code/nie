@@ -246,6 +246,27 @@ const POIDS_VIGNETTE = 512 * 1024;
 
 const MO = 1024 * 1024;
 
+/**
+ * Whether the current filters require the indexed, recursive search endpoint.
+ *
+ * Every valid filter exposed while "everywhere" is enabled must keep that scope. Previously,
+ * extension-only and size-only searches silently fell back to the direct-folder endpoint.
+ * Invalid partial numeric input must not launch an unfiltered recursive request.
+ */
+export function shouldUseGlobalSearch(
+	state: Pick<Etat, "partout" | "q" | "ext" | "glob" | "cpk" | "minMo" | "maxMo">,
+): boolean {
+	return Boolean(
+		state.partout &&
+			(state.q.trim() ||
+				state.ext.trim() ||
+				state.glob.trim() ||
+				state.cpk.trim() ||
+				octetsDe(state.minMo) !== undefined ||
+				octetsDe(state.maxMo) !== undefined),
+	);
+}
+
 function etatDeLUrl(): Etat {
 	const p = new URLSearchParams(window.location.search);
 	return {
@@ -376,7 +397,7 @@ export function Explorateur() {
 		setErreur(false);
 		ecrireUrl(etat);
 
-		if (partout && (q.trim() || glob.trim() || cpk.trim())) {
+		if (shouldUseGlobalSearch(etat)) {
 			// Portée « partout » : l'index entier, borné au dossier courant. `prefixe=` existe
 			// pour ça — sans lui, chercher ferait perdre sa place au lecteur.
 			const p = new URLSearchParams({ per_page: "200", tri, ordre });

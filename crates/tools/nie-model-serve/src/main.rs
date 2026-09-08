@@ -2589,52 +2589,99 @@ fn audio_info_json(vfs_path: &str, raw: &[u8]) -> serde_json::Value {
     })
 }
 
-/// Réencapsule un flux H.264 Annex-B brut en MP4 fragmenté (lisible directement
-/// par un `<video>` navigateur) via ffmpeg en remux sans réencodage (`-c copy`).
-///
-/// Le H.264 brut sorti du démux USM n'a ni conteneur ni timing -> on lui impose
-/// 60 fps (cadence réelle des films IEVR) et on produit un MP4 `frag_keyframe`
-/// (sortie séquentielle compatible pipe). Renvoie `None` si ffmpeg est absent ou
-/// échoue -> l'appelant retombe alors sur le H.264 brut (téléchargement).
+/// Compatibility export binding over the shared browser-container library.
 fn mux_h264_to_mp4(usm_brut: &[u8], nom_fichier: &str) -> Result<Vec<u8>, String> {
     conteneur_web(usm_brut, nom_fichier).map(|(_, octets)| octets)
 }
 
-/// Emballe la piste vidéo d'un `.usm` dans son conteneur web, et rend `(type MIME, octets)`.
-///
-/// H.264 → MP4, VP9 → WebM, MPEG-2 → erreur explicite. Aucun réencodage, aucun sous-processus.
+/// Thin HTTP binding: the cinema library owns lossless remux and bounded MPEG-2 encoding.
 fn conteneur_web(usm_brut: &[u8], nom_fichier: &str) -> Result<(&'static str, Vec<u8>), String> {
-    let u = nie_formats::usm::demuxer_nomme(usm_brut, nom_fichier).map_err(|e| e.to_string())?;
-    if !u.codec.lisible_par_navigateur() {
-        return Err(format!(
-            "codec {} : aucun navigateur ne le décode, servir le flux élémentaire",
-            u.codec.nom()
-        ));
-    }
-    u.en_conteneur_web()
-        .map(|c| (c.mime, c.octets))
-        .map_err(|e| e.to_string())
+    cinema::browser_video_container(usm_brut, nom_fichier).map(|video| (video.mime, video.bytes))
 }
 
-/// Remuxe avec cache disque, clé = nom du film + taille du conteneur.
-///
-/// Un film de chapitre pèse jusqu'à 300 Mo et son démultiplexage coûte plusieurs secondes :
-/// sans cache, chaque `seek` du lecteur qui relance une requête `Range` sur un intervalle non
-/// encore tamponné refait tout le travail. La taille entre dans la clé pour qu'une mise à jour
-/// du jeu invalide l'entrée d'elle-même ; l'extension y entre aussi, parce que le conteneur
-/// dépend du codec (`.mp4` ou `.webm`) et qu'un cache qui les confondrait servirait l'un pour
-/// l'autre.
+/// Thin JSON transport over the same resource resolver used by WebAssembly and Tauri.
+fn resolve_avatar_payload(catalog: &[u8], state: &str) -> Result<Vec<u8>, String> {
+    if catalog.len() > 2 * 1024 * 1024 || state.len() > 64 * 1024 {
+        return Err("Avatar composition input exceeds its size limit".to_string());
+    }
+    let catalog = serde_json::from_slice::<nie_data::avatar::AvatarCatalog>(catalog)
+        .map_err(|error| error.to_string())?;
+    let state = serde_json::from_str::<nie_data::avatar::AvatarState>(state)
+        .map_err(|error| error.to_string())?;
+    let composition =
+        nie_data::avatar::resolve_avatar(&catalog, &state).map_err(|error| error.to_string())?;
+    serde_json::to_vec(&composition).map_err(|error| error.to_string())
+}
+
+fn avatar_json_response(status: u16, body: &[u8]) -> Vec<u8> {
+    let reason = match status {
+        200 => "OK",
+        400 => "Bad Request",
+        _ => "Service Unavailable",
+    };
+    let mut response = format!("HTTP/1.1 {status} {reason}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\nCross-Origin-Resource-Policy: cross-origin\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n", body.len()).into_bytes();
+    response.extend_from_slice(body);
+    response
+}
+
+/// Cache identity includes original bytes and the conversion contract, never only their length.
+fn video_cache_key(vfs_path: &str, bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut digest = Sha256::new();
+    digest.update(b"browser-video-v2\0");
+    digest.update(vfs_path.as_bytes());
+    digest.update([0]);
+    digest.update(bytes);
+    format!("video_v2_{:x}", digest.finalize())
+}
+
+/// Readers can see only a complete container, including when two requests finish together.
+fn write_video_cache(destination: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
+    let mut temporary = destination.to_path_buf();
+    let mut file = None;
+    for _ in 0..32 {
+        let id = NEXT_FILE.fetch_add(1, Ordering::Relaxed);
+        temporary.set_extension(format!("{}-{id}.partial", std::process::id()));
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+        {
+            Ok(opened) => {
+                file = Some(opened);
+                break;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    let mut file = file.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            "Cannot reserve video cache temporary file",
+        )
+    })?;
+    let result = file.write_all(bytes);
+    drop(file);
+    let result = result.and_then(|()| fs::rename(&temporary, destination));
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+
+/// Cache the shared browser container so Range requests do not repeat remuxing or encoding.
 fn video_mp4_cache(
     state: &State,
     vfs_path: &str,
     brut: &[u8],
 ) -> Result<(&'static str, Vec<u8>), String> {
     let nom = vfs_path.rsplit('/').next().unwrap_or(vfs_path);
-    let radical = nom.strip_suffix(".usm").unwrap_or(nom);
+    let key = video_cache_key(vfs_path, brut);
     for (ext, mime) in [("mp4", "video/mp4"), ("webm", "video/webm")] {
-        let cache = state
-            .cache_dir
-            .join(format!("video_{radical}_{}.{ext}", brut.len()));
+        let cache = state.cache_dir.join(format!("{key}.{ext}"));
         if cache.exists()
             && let Ok(octets) = fs::read(&cache)
             && !octets.is_empty()
@@ -2645,13 +2692,20 @@ fn video_mp4_cache(
     }
     let (mime, octets) = conteneur_web(brut, nom)?;
     let ext = if mime == "video/webm" { "webm" } else { "mp4" };
-    let cache = state
-        .cache_dir
-        .join(format!("video_{radical}_{}.{ext}", brut.len()));
-    if let Err(e) = fs::write(&cache, &octets) {
+    let cache = state.cache_dir.join(format!("{key}.{ext}"));
+    if let Err(e) = write_video_cache(&cache, &octets) {
         warn!("écriture cache vidéo {} échouée : {e}", cache.display());
     }
     Ok((mime, octets))
+}
+
+/// A transient encoder failure must not become an immutable, unsupported video response.
+fn video_unavailable_response() -> Vec<u8> {
+    let body = "La vidéo est temporairement indisponible. Réessayez dans un instant.";
+    format!(
+        "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nCache-Control: no-store\r\nRetry-After: 2\r\nAccess-Control-Allow-Origin: *\r\nCross-Origin-Resource-Policy: cross-origin\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    ).into_bytes()
 }
 
 // ── Catalogue des cinématiques (page /videos d'azalée, page Cinéma de l'explorateur) ──────────
@@ -4771,6 +4825,42 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // Bounded GET binding; existing catalogue and asset download routes remain compatible.
+    if path == "/avatar/resolve.json" {
+        use std::io::Read as _;
+        let Some(avatar_state) = param(query, "state").filter(|value| value.len() <= 64 * 1024)
+        else {
+            let _ = stream.write_all(&avatar_json_response(
+                400,
+                br#"{"error":"Invalid avatar selection"}"#,
+            ));
+            return;
+        };
+        let catalog_path = std::env::var("NIE_AVATAR_CATALOG")
+            .unwrap_or_else(|_| "var/avatar-resolved.json".to_string());
+        let catalog = fs::File::open(catalog_path).and_then(|file| {
+            let mut bytes = Vec::new();
+            file.take(2 * 1024 * 1024 + 1)
+                .read_to_end(&mut bytes)
+                .map(|_| bytes)
+        });
+        let response = match catalog {
+            Ok(bytes) => match resolve_avatar_payload(&bytes, &avatar_state) {
+                Ok(body) => avatar_json_response(200, &body),
+                Err(error) => {
+                    debug!("avatar composition rejected: {error}");
+                    avatar_json_response(400, br#"{"error":"Invalid avatar selection"}"#)
+                }
+            },
+            Err(_) => avatar_json_response(
+                503,
+                br#"{"error":"Avatar catalogue is temporarily unavailable"}"#,
+            ),
+        };
+        let _ = stream.write_all(&response);
+        return;
+    }
+
     // `/avatar/catalog.json` — le catalogue résolu de l'éditeur d'avatar.
     //
     // Le fichier est **produit par `niers avatar export`**, pas recalculé ici : la résolution
@@ -5677,12 +5767,6 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 }
             },
         };
-        let nom = chemin_reel
-            .rsplit('/')
-            .next()
-            .unwrap_or(&chemin_reel)
-            .to_string();
-
         // `?info=1` — la fiche du film : métadonnées, bande-son, et ce que coûte le remux.
         if param(query, "info").is_some() {
             let json = fiche_video(&state, &chemin_reel);
@@ -5721,26 +5805,8 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         match video_mp4_cache(&state, &chemin_reel, &brut) {
             Ok((mime, octets)) => respond_ranged(&mut stream, mime, &octets, range_header),
             Err(e) => {
-                // Codec que le navigateur ne décode pas (MPEG-2 des deux logos) : on sert le
-                // flux élémentaire plutôt qu'un MP4 mensonger, et on le dit dans le type MIME.
-                match nie_formats::usm::demuxer_nomme(&brut, &nom) {
-                    Ok(u) if !u.images.is_empty() => {
-                        let ct = match u.codec {
-                            nie_formats::usm::CodecVideo::Mpeg2 => "video/mpeg",
-                            nie_formats::usm::CodecVideo::Vp9 => "video/webm",
-                            _ => "application/octet-stream",
-                        };
-                        info!(
-                            "{chemin_reel} : {e} — flux {} servi tel quel",
-                            u.codec.nom()
-                        );
-                        respond_ranged(&mut stream, ct, &u.flux_brut(), range_header);
-                    }
-                    _ => {
-                        warn!("vidéo {chemin_reel} : {e}");
-                        respond_text(&mut stream, 500, "Internal Server Error", &e);
-                    }
-                }
+                warn!("video {chemin_reel}: {e}");
+                let _ = stream.write_all(&video_unavailable_response());
             }
         }
         return;
@@ -6409,6 +6475,93 @@ fn audit_models(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn avatar_http_binding_rejects_oversized_inputs_and_never_caches_user_selections() {
+        assert!(super::resolve_avatar_payload(&[], &" ".repeat(64 * 1024 + 1)).is_err());
+        assert!(super::resolve_avatar_payload(&vec![0; 2 * 1024 * 1024 + 1], "{}").is_err());
+        let body = br#"{"pieces":[{"directory":"_facebase","name":"face"}],"faceLayers":["00_face/base"]}"#;
+        let response = String::from_utf8(super::avatar_json_response(200, body)).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(response.contains("Cache-Control: no-store\r\n"));
+        assert!(response.ends_with(std::str::from_utf8(body).unwrap()));
+    }
+
+    #[test]
+    #[ignore = "Requires NIE_AVATAR_CATALOG pointing to the real resolved catalogue"]
+    fn avatar_http_binding_matches_shared_native_composition() {
+        let catalog = std::fs::read(std::env::var("NIE_AVATAR_CATALOG").unwrap()).unwrap();
+        let body =
+            super::resolve_avatar_payload(&catalog, r#"{"gender":1,"morphology":0,"height":7}"#)
+                .unwrap();
+        let composition: nie_data::avatar::AvatarComposition =
+            serde_json::from_slice(&body).unwrap();
+        assert_eq!(composition.morphology, "female");
+        assert!(composition.pieces.len() >= 4);
+        assert_eq!(composition.face_layers.len(), 6);
+        let direct = nie_data::avatar::resolve_avatar(
+            &serde_json::from_slice(&catalog).unwrap(),
+            &nie_data::avatar::AvatarState {
+                gender: 1,
+                height: Some(7),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(composition, direct);
+    }
+
+    #[test]
+    fn video_cache_distinguishes_equal_length_content_and_vfs_paths() {
+        let first = super::video_cache_key("data/common/movie/intro.usm", b"first");
+        let second = super::video_cache_key("data/common/movie/intro.usm", b"other");
+        let variant = super::video_cache_key("data/dx11/movie/intro.usm", b"first");
+        assert_ne!(first, second);
+        assert_ne!(first, variant);
+        assert_eq!(
+            first,
+            super::video_cache_key("data/common/movie/intro.usm", b"first")
+        );
+        assert!(!first.contains("intro"));
+    }
+
+    #[test]
+    fn video_cache_publishes_complete_bytes_and_removes_failed_temporaries() {
+        let directory =
+            std::env::temp_dir().join(format!("nie-video-cache-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let destination = directory.join("film.mp4");
+        super::write_video_cache(&destination, b"complete container").unwrap();
+        assert_eq!(std::fs::read(&destination).unwrap(), b"complete container");
+        let blocked = directory.join("directory.mp4");
+        std::fs::create_dir_all(&blocked).unwrap();
+        assert!(super::write_video_cache(&blocked, b"cannot replace a directory").is_err());
+        let temporary_count = std::fs::read_dir(&directory)
+            .unwrap()
+            .filter(|entry| {
+                entry
+                    .as_ref()
+                    .unwrap()
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "partial")
+            })
+            .count();
+        assert_eq!(temporary_count, 0);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn video_failures_are_retryable_without_cache_or_unsupported_success_payloads() {
+        let response = String::from_utf8(super::video_unavailable_response()).unwrap();
+        assert!(response.starts_with("HTTP/1.1 503 Service Unavailable\r\n"));
+        assert!(response.contains("Cache-Control: no-store\r\n"));
+        assert!(response.contains("Retry-After: 2\r\n"));
+        assert!(!response.contains("immutable"));
+        assert!(!response.contains("video/mpeg"));
+        let (headers, body) = response.split_once("\r\n\r\n").unwrap();
+        assert!(headers.contains(&format!("Content-Length: {}\r\n", body.len())));
+    }
+
     #[test]
     fn skin_mask_preserves_cloth_and_alpha_at_different_resolutions() {
         let mut rgba = vec![

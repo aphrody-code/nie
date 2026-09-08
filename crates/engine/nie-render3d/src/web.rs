@@ -20,7 +20,7 @@ const PRESENT: &str = r"
 }
 @fragment fn fs(@builtin(position) p: vec4<f32>) -> @location(0) vec4<f32> {
     let c = textureLoad(image, vec2<i32>(p.xy), 0);
-    return vec4(c.rgb * c.a, 1.);
+    return vec4(c.rgb * c.a, c.a);
 }";
 
 /// Caméra absolue : angles en radians, distance en rayons du modèle. Rejette NaN/infini.
@@ -88,6 +88,11 @@ mod browser {
         /// Initialise un device dédié compatible avec le canvas, exclusivement BrowserWebGpu.
         /// Les dimensions initiales viennent des attributs width/height du canvas.
         pub async fn new(canvas: HtmlCanvasElement) -> Result<Self> {
+            Self::with_transparency(canvas, false).await
+        }
+
+        /// Preserve the native menu behind the avatar instead of clearing it to black.
+        pub async fn with_transparency(canvas: HtmlCanvasElement, transparent: bool) -> Result<Self> {
             let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
             descriptor.backends = wgpu::Backends::BROWSER_WEBGPU;
             let instance = wgpu::Instance::new(descriptor);
@@ -141,11 +146,14 @@ mod browser {
                     )
                 })
                 .context("surface WebGPU sans format RGBA/BGRA unorm compatible")?;
-            config.alpha_mode = wgpu::CompositeAlphaMode::Opaque;
-            ensure!(
-                caps.alpha_modes.contains(&config.alpha_mode),
-                "surface opaque non supportée"
-            );
+            config.alpha_mode = if transparent {
+                wgpu::CompositeAlphaMode::PreMultiplied
+            } else {
+                wgpu::CompositeAlphaMode::Opaque
+            };
+            // wgpu 29's BrowserWebGpu backend advertises only Opaque in capabilities,
+            // but configure explicitly supports PreMultiplied. Validate configure itself
+            // below; rejecting the incomplete capability list blocks every avatar canvas.
             let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
             surface.configure(&device, &config);
             let lost = Arc::new(Mutex::new(None));
@@ -386,7 +394,7 @@ mod browser {
                         depth_slice: None,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                             store: wgpu::StoreOp::Store,
                         },
                     })],

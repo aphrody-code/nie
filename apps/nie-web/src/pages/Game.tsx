@@ -1,5 +1,4 @@
 /** Layered startup and menu built from VFS assets, shared geometry, and explicit incomplete states. */
-import { useAssetSource } from "@niers/inacord-ui";
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AVATAR, EXPLORER, MEDIA, SETTINGS, menuEntries } from "../entries";
@@ -7,15 +6,17 @@ import { bindMenuActions } from "../game/menu-actions";
 import {
 	advanceOpeningPhase,
 	OPENING_FRAMES,
-	TITLE_LOGO_VFS_PATH,
 	type OpeningEvent,
 	type OpeningPhase,
 } from "../game/opening-sequence";
-import { Loading } from "./Loading";
 import { MainMenu } from "./MainMenu";
+import { OpeningVisual } from "./OpeningVisual";
+import { NativeText } from "./NativeText";
 import "./opening.css";
 
 export interface GameProps {
+	phase: OpeningPhase;
+	onPhaseChange: (phase: OpeningPhase) => void;
 	onOpenAvatar: () => void;
 	onOpenSettings: () => void;
 	onOpenMedia: () => void;
@@ -24,16 +25,17 @@ export interface GameProps {
 
 /** Runs the VFS/component startup sequence before mounting the layered menu. */
 export function Game({
+	phase,
+	onPhaseChange,
 	onOpenAvatar,
 	onOpenSettings,
 	onOpenMedia,
 	onOpenExplorer,
 }: GameProps) {
-	const [phase, setPhase] = useState<OpeningPhase>("loading");
 	const gamepadSampler = useRef(createStandardGamepadMenuSampler());
 	const advance = useCallback((event: OpeningEvent) => {
-		setPhase((current) => advanceOpeningPhase(current, event));
-	}, []);
+		onPhaseChange(advanceOpeningPhase(phase, event));
+	}, [phase, onPhaseChange]);
 
 	if (phase === "menu") {
 		const actions = bindMenuActions(menuEntries(null), {
@@ -45,7 +47,7 @@ export function Game({
 		return (
 			<MainMenu
 				actions={actions}
-				onCancel={() => setPhase("start")}
+				onCancel={() => onPhaseChange("start")}
 				gamepadSampler={gamepadSampler.current}
 			/>
 		);
@@ -70,6 +72,9 @@ function OpeningScreen({
 	gamepadSampler: ReturnType<typeof createStandardGamepadMenuSampler>;
 }) {
 	const frame = OPENING_FRAMES[phase];
+	const movie = frame.advanceOn === "media-ended";
+	const [ready, setReady] = useState(false);
+	const onReady = useCallback(() => setReady(true), []);
 	const action = useRef<HTMLButtonElement | null>(null);
 	const advanced = useRef(false);
 	const advanceOnce = useCallback((event: OpeningEvent) => {
@@ -79,28 +84,28 @@ function OpeningScreen({
 	}, [onAdvance]);
 
 	useEffect(() => {
-		if (frame.durationMs === null) return;
+		if (!ready || movie || frame.durationMs === null) return;
 		const timer = window.setTimeout(() => advanceOnce("timeout"), frame.durationMs);
 		return () => window.clearTimeout(timer);
-	}, [frame.durationMs, advanceOnce]);
+	}, [ready, movie, frame.durationMs, advanceOnce]);
 
 	useEffect(() => {
-		if (frame.durationMs !== null) return;
+		if (frame.advanceOn !== "confirm") return;
 		action.current?.focus({ preventScroll: true });
-	}, [frame.durationMs]);
+	}, [frame.advanceOn]);
 
 	useEffect(() => {
 		if (typeof navigator.getGamepads !== "function") return;
 		let animationFrame = 0;
 		const poll = () => {
 			for (const intent of gamepadSampler.sample(navigator.getGamepads())) {
-				if (intent.type === "activate" && frame.durationMs === null) advanceOnce("confirm");
+				if (intent.type === "activate" && frame.advanceOn === "confirm") advanceOnce("confirm");
 			}
 			animationFrame = window.requestAnimationFrame(poll);
 		};
 		animationFrame = window.requestAnimationFrame(poll);
 		return () => window.cancelAnimationFrame(animationFrame);
-	}, [frame.durationMs, advanceOnce, gamepadSampler]);
+	}, [frame.advanceOn, advanceOnce, gamepadSampler]);
 
 	return (
 		<section
@@ -109,7 +114,7 @@ function OpeningScreen({
 			data-opening-phase={phase}
 			className={`opening-screen opening-screen--${phase}`}
 		>
-			<OpeningVisual phase={phase} />
+			<OpeningVisual phase={phase} onReady={onReady} onEnded={movie ? () => advanceOnce("media-ended") : undefined} />
 			{frame.actionLabel ? (
 				<button
 					ref={action}
@@ -121,53 +126,9 @@ function OpeningScreen({
 					}}
 					className={`opening-screen__action opening-screen__action--${phase}`}
 				>
-					{phase === "autosave" ? "OK" : "COMMENCER"}
+					<NativeText text={phase === "autosave" ? "OK" : "COMMENCER"} color={phase === "autosave" ? 0xffffffff : 0x005affff} height={phase === "autosave" ? 64 : 88} width={phase === "autosave" ? 56 : 432} />
 				</button>
 			) : null}
 		</section>
-	);
-}
-
-function OpeningVisual({ phase }: { phase: Exclude<OpeningPhase, "menu"> }) {
-	if (phase === "loading") return <Loading health={null} />;
-	if (phase === "level5") {
-		return (
-			<div className="opening-brand" aria-label="LEVEL5">
-				<span>LEVEL5</span>
-			</div>
-		);
-	}
-	if (phase === "autosave") {
-		return (
-			<div className="opening-autosave">
-				<p>Ce jeu dispose d’une fonction de sauvegarde automatique.</p>
-				<p>Cette icône s’affichera à l’écran lors d’une sauvegarde.</p>
-				<div className="opening-autosave__stripe">
-					<span className="opening-autosave__spinner" aria-hidden="true" />
-					Sauvegarde en cours
-				</div>
-				<strong>[AVERTISSEMENT]</strong>
-				<p>Si le jeu est fermé pendant la sauvegarde, le fichier peut être corrompu.</p>
-			</div>
-		);
-	}
-	return <TitleLogo />;
-}
-
-function TitleLogo() {
-	const source = useAssetSource();
-	const [failed, setFailed] = useState(false);
-	const src = source.urlTexture?.(TITLE_LOGO_VFS_PATH) ?? null;
-	return (
-		<div className="opening-title">
-			{src && !failed ? (
-				<img
-					src={src}
-					alt="Inazuma Eleven: Victory Road"
-					className="opening-title__logo"
-					onError={() => setFailed(true)}
-				/>
-			) : null}
-		</div>
 	);
 }

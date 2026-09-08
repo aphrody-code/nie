@@ -1,0 +1,523 @@
+{
+  "schemaVersion": 1,
+  "id": "avatar-style",
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "layers": [
+    {
+      "id": "_edit_body01_line01",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4tx",
+      "region": "edit_line01",
+      "rect": {
+        "x": 1237,
+        "y": 234,
+        "w": 8,
+        "h": 28
+      },
+      "drawOrder": 10,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_edit_body01_line01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "_edit_body01_line02",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4tx",
+      "region": "edit_line01",
+      "rect": {
+        "x": 1237,
+        "y": 596,
+        "w": 8,
+        "h": 28
+      },
+      "drawOrder": 11,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_edit_body01_line02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-slot-0-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "body_list01",
+      "rect": {
+        "x": 1309,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "drawOrder": 12,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_body_list01",
+        "method": "Native raw material offset attached at 1395,415 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "body-slot-0-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "body_list01_ol",
+      "rect": {
+        "x": 1309,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_body_list01_ol",
+        "method": "Native raw material offset attached at 1395,415 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "body-slot-0",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "body-slot-0-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1423,
+        "y": 294,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1395,415 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "body-slot-0",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "body-slot-1-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "body_list01",
+      "rect": {
+        "x": 1479,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "drawOrder": 15,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_body_list01",
+        "method": "Native raw material offset attached at 1565,415 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "body-slot-1-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "body_list01_ol",
+      "rect": {
+        "x": 1479,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_body_list01_ol",
+        "method": "Native raw material offset attached at 1565,415 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "body-slot-1",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "body-slot-1-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1593,
+        "y": 294,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1565,415 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "body-slot-1",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "body-slot-2-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "body_list01",
+      "rect": {
+        "x": 1649,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "drawOrder": 18,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_body_list01",
+        "method": "Native raw material offset attached at 1735,415 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "body-slot-2-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "body_list01_ol",
+      "rect": {
+        "x": 1649,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_body_list01_ol",
+        "method": "Native raw material offset attached at 1735,415 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "body-slot-2",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "body-slot-2-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1763,
+        "y": 294,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1735,415 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "body-slot-2",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "body-prev",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4tx",
+      "region": "arrow01_l",
+      "rect": {
+        "x": 1241,
+        "y": 389,
+        "w": 32,
+        "h": 52
+      },
+      "drawOrder": 21,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4pkm",
+        "record": "_arrow01_l",
+        "method": "Native raw material offset attached at 1565,415 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "body-next",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4tx",
+      "region": "arrow01_r",
+      "rect": {
+        "x": 1861,
+        "y": 389,
+        "w": 32,
+        "h": 52
+      },
+      "drawOrder": 22,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4pkm",
+        "record": "_arrow01_r",
+        "method": "Native raw material offset attached at 1565,415 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "_edit_bar_base01_off",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_13/avatar01_13.g4tx",
+      "region": "edit_bar_base01_off",
+      "rect": {
+        "x": 1353,
+        "y": 630,
+        "w": 424,
+        "h": 60
+      },
+      "drawOrder": 23,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_13/avatar01_13.g4pkm",
+        "record": "_edit_bar_base01_off",
+        "method": "Native raw material offset attached at 1565,660 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "_bar_gauge_base01",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_13/avatar01_13.g4tx",
+      "region": "bar_gauge_base01",
+      "rect": {
+        "x": 1445,
+        "y": 654,
+        "w": 240,
+        "h": 12
+      },
+      "drawOrder": 24,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_13/avatar01_13.g4pkm",
+        "record": "_bar_gauge_base01",
+        "method": "Native raw material offset attached at 1565,660 using the matching avatar01_10 locator; Y negated once."
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "body-slot-0",
+      "label": "Physionomie 1",
+      "hostActionId": "body-slot-0",
+      "rect": {
+        "x": 1309,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4pkm",
+        "record": "_atc_body01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-slot-1",
+      "label": "Physionomie 2",
+      "hostActionId": "body-slot-1",
+      "rect": {
+        "x": 1479,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4pkm",
+        "record": "_atc_body02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-slot-2",
+      "label": "Physionomie 3",
+      "hostActionId": "body-slot-2",
+      "rect": {
+        "x": 1649,
+        "y": 285,
+        "w": 172,
+        "h": 260
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4pkm",
+        "record": "_atc_body03",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-prev",
+      "label": "Physionomies précédentes",
+      "hostActionId": "body-prev",
+      "rect": {
+        "x": 1241,
+        "y": 389,
+        "w": 32,
+        "h": 52
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4pkm",
+        "record": "_arrow01_l",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-next",
+      "label": "Physionomies suivantes",
+      "hostActionId": "body-next",
+      "rect": {
+        "x": 1861,
+        "y": 389,
+        "w": 32,
+        "h": 52
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_11/avatar01_11.g4pkm",
+        "record": "_arrow01_r",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "height",
+      "label": "Taille",
+      "hostActionId": "height",
+      "rect": {
+        "x": 1445,
+        "y": 654,
+        "w": 240,
+        "h": 12
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_13/avatar01_13.g4pkm",
+        "record": "_bar_gauge_base01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    }
+  ],
+  "texts": [
+    {
+      "id": "current-stage",
+      "text": "Physionomie",
+      "rect": {
+        "x": 710,
+        "y": 126,
+        "w": 500,
+        "h": 44
+      },
+      "drawOrder": 500,
+      "color": 16777215,
+      "provenance": {
+        "source": "data/menu/avatar_edit_top.png",
+        "record": "current header label",
+        "method": "Text bound to native chara_edit_menu labels; PC label rectangle normalized by0.75. Native header motion attachment remains unresolved."
+      }
+    },
+    {
+      "id": "panel-heading",
+      "text": "Physionomie",
+      "rect": {
+        "x": 1256,
+        "y": 218,
+        "w": 336,
+        "h": 56
+      },
+      "drawOrder": 500,
+      "color": 557055,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_text_body01_01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "height-heading",
+      "text": "Taille",
+      "rect": {
+        "x": 1256,
+        "y": 576,
+        "w": 336,
+        "h": 56
+      },
+      "drawOrder": 500,
+      "color": 557055,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_text_body01_02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "body-slot-0-icon",
+      "rect": {
+        "x": 1319,
+        "y": 287,
+        "w": 152,
+        "h": 256
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-slot-0-number",
+      "rect": {
+        "x": 1320,
+        "y": 295,
+        "w": 30,
+        "h": 40
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_num_body_list01_dmy",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-slot-1-icon",
+      "rect": {
+        "x": 1489,
+        "y": 287,
+        "w": 152,
+        "h": 256
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-slot-1-number",
+      "rect": {
+        "x": 1490,
+        "y": 295,
+        "w": 30,
+        "h": 40
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_num_body_list01_dmy",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-slot-2-icon",
+      "rect": {
+        "x": 1659,
+        "y": 287,
+        "w": 152,
+        "h": 256
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "body-slot-2-number",
+      "rect": {
+        "x": 1660,
+        "y": 295,
+        "w": 30,
+        "h": 40
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_12/avatar01_12.g4pkm",
+        "record": "_num_body_list01_dmy",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    }
+  ],
+  "provenance": {
+    "source": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+    "record": "chara_edit_style",
+    "method": "Current VFS assets and mesh placements paired with data/menu/avatar_edit_style.png (2560x1440 normalized by 0.75). Screenshots are comparison oracles only."
+  },
+  "unresolved": [
+    "Body cards are a paged view of the actual gender-filtered category17 catalogue, not three invented body types.",
+    "Native height input range and gauge cursor metadata must be supplied by the shared avatar state."
+  ]
+}

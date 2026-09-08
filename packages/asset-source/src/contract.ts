@@ -53,6 +53,8 @@ export type EntreeVfs = Fichier;
 export interface ContenuDossier {
 	prefixe: string;
 	dossiers: string[];
+	/** Recursive file counts keyed by the full path of each direct child folder. */
+	folderCounts?: Record<string, number>;
 	fichiers: EntreeVfs[];
 	/** Nombre de fichiers retenus par le filtre. Absent : l'hôte ne le compte pas. */
 	total?: number;

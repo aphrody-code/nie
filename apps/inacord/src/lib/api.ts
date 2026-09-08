@@ -11,6 +11,7 @@
 //    composants qui font déjà `try { await api.foo() } catch (e) { toast.error(String(e)) }`.
 // 2. Convertir `gameDir?: string` (ergonomie historique de l'UI, chaîne vide = auto-détection)
 //    vers `string | null` (forme exacte attendue par les bindings générés).
+import type { AvatarCatalog, AvatarComposition, AvatarState } from "@niers/inacord-ui/avatar/contract";
 import {
   commands,
   type ActivityDto,
@@ -185,6 +186,8 @@ async function unwrap<T>(p: Promise<{ status: "ok"; data: unknown } | { status: 
 export const api = {
   /** Pipeline 3D de `nie-model-serve` : le montage Rust reste la source de vérité. */
   modelServiceAvatarCatalog: (baseUrl: string) => unwrap<unknown>(commands.modelServiceAvatarCatalog(baseUrl)),
+  resolveAvatarComposition: (catalog: AvatarCatalog, state: AvatarState) =>
+    unwrap<AvatarComposition>(commands.resolveAvatarComposition(JSON.stringify(catalog), JSON.stringify(state))),
   modelServiceAvatarGlbB64: (baseUrl: string, modelPath: string) =>
     unwrap<string>(commands.modelServiceAvatarGlbB64(baseUrl, modelPath)),
   modelServiceMenuPngB64: (baseUrl: string, screen: string) =>

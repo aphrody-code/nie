@@ -24,8 +24,8 @@
 import type { SanteApi as SiteHealth } from "@niers/asset-source";
 import { biseau as bevel, GLYPHES, IconTile, TileStrip } from "@niers/inacord-ui";
 import type { ReactNode } from "react";
-import { useMemo } from "react";
-import { menuEntries } from "../entries";
+import { useEffect, useMemo } from "react";
+import { AVATAR, menuEntries } from "../entries";
 import { HOME } from "../routing";
 
 /** La hauteur des tuiles de la barre. Assez pour l'icône et son libellé, pas plus. */
@@ -52,6 +52,19 @@ export function SecondaryScreen({
 	children: ReactNode;
 }) {
 	const entries = useMemo(() => menuEntries(health), [health]);
+	useEffect(() => {
+		if (currentView !== AVATAR) return;
+		const cancel = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+			const target = event.target;
+			if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="alertdialog"]')) return;
+			if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]')) return;
+			event.preventDefault();
+			onSelect(HOME);
+		};
+		window.addEventListener("keydown", cancel);
+		return () => window.removeEventListener("keydown", cancel);
+	}, [currentView, onSelect]);
 	return (
 		<div
 			style={{

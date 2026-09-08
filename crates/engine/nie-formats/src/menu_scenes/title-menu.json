@@ -1,0 +1,1242 @@
+{
+  "schemaVersion": 1,
+  "id": "title-menu",
+  "canvas": {
+    "width": 1280,
+    "height": 720
+  },
+  "layers": [
+    {
+      "id": "background",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_00/title02_00.g4tx",
+      "region": "bg_title02_01",
+      "rect": {
+        "x": -240,
+        "y": -40,
+        "w": 1760,
+        "h": 800
+      },
+      "drawOrder": 0,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_00/title02_00.g4pkm",
+        "record": "_bg_title01",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "background-symbols",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_00/title02_00.g4tx",
+      "region": "bg_title02_02",
+      "rect": {
+        "x": -240,
+        "y": -40,
+        "w": 1760,
+        "h": 800
+      },
+      "drawOrder": 1,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_00/title02_00.g4pkm",
+        "record": "_bg_title02",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "background-right",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_00/title02_00.g4tx",
+      "region": "bg_title02",
+      "rect": {
+        "x": 986.6666666666666,
+        "y": -40,
+        "w": 533.3333333333334,
+        "h": 800
+      },
+      "drawOrder": 2,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_00/title02_00.g4pkm",
+        "record": "_bg_title03_r",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "background-left",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_00/title02_00.g4tx",
+      "region": "bg_title02",
+      "rect": {
+        "x": 293.3333333333333,
+        "y": 760,
+        "w": 533.3333333333334,
+        "h": 800
+      },
+      "drawOrder": 3,
+      "rotationDeg": 180,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_00/title02_00.g4pkm",
+        "record": "_bg_title03_l",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "background-particles",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_00/title02_00.g4tx",
+      "region": "bg_title02_par",
+      "rect": {
+        "x": 30.666666666666668,
+        "y": 11.333333333333334,
+        "w": 1237.3333333333333,
+        "h": 690.6666666666666
+      },
+      "drawOrder": 4,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_00/title02_00.g4pkm",
+        "record": "_bg_title01_par",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "title-logo",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_01/fr/title02_01.g4tx",
+      "region": "logo02",
+      "rect": {
+        "x": 430.6666666666667,
+        "y": -18.666666666666668,
+        "w": 426.6666666666667,
+        "h": 320
+      },
+      "drawOrder": 100,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_01/title02_01.g4pkm",
+        "record": "_logo01",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "avatar-panel",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_11/fr/title02_11.g4tx",
+      "region": "avatar_base03",
+      "rect": {
+        "x": -154,
+        "y": 157.33333333333334,
+        "w": 685.3333333333334,
+        "h": 192
+      },
+      "drawOrder": 200,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_11/title02_11.g4pkm",
+        "record": "_avatar_base03",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "avatar-title",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_11/fr/title02_11.g4tx",
+      "region": "gtxt_avatar01",
+      "rect": {
+        "x": 48,
+        "y": 282,
+        "w": 293.3333333333333,
+        "h": 53.333333333333336
+      },
+      "drawOrder": 201,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_11/title02_11.g4pkm",
+        "record": "_gtxt_avatar01",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "avatar-focus",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_11/fr/title02_11.g4tx",
+      "region": "avatar_base01_ol",
+      "rect": {
+        "x": -145.33333333333334,
+        "y": 152,
+        "w": 680,
+        "h": 189.33333333333334
+      },
+      "drawOrder": 202,
+      "actionId": "avatar",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_11/title02_11.g4pkm",
+        "record": "_avatar_base01_ol",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "team-panel",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_10/fr/title02_10.g4tx",
+      "region": "myteam_base02",
+      "rect": {
+        "x": 751.3333333333334,
+        "y": 157.33333333333334,
+        "w": 682.6666666666666,
+        "h": 192
+      },
+      "drawOrder": 200,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_10/title02_10.g4pkm",
+        "record": "_myteam_base02_b",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "team-title",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_10/fr/title02_10.g4tx",
+      "region": "gtxt_myteam01",
+      "rect": {
+        "x": 916.6666666666666,
+        "y": 282,
+        "w": 320,
+        "h": 53.333333333333336
+      },
+      "drawOrder": 201,
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_10/title02_10.g4pkm",
+        "record": "_gtxt_myteam01",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice."
+      }
+    },
+    {
+      "id": "title-item-1-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 101.06666666666666,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-1",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn01; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-1-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base01_off",
+      "rect": {
+        "x": 107.46666666666665,
+        "y": 382.6666666666667,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-1",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base01_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn01; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-1-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn01",
+      "rect": {
+        "x": 107.46666666666665,
+        "y": 382.6666666666667,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-1",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn01; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-1-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 101.06666666666666,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-1",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn01; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-2-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 231.19999999999996,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-2",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn02; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-2-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base02_off",
+      "rect": {
+        "x": 237.6,
+        "y": 382.6666666666667,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-2",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base02_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn02; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-2-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn02",
+      "rect": {
+        "x": 237.6,
+        "y": 382.6666666666667,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-2",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn02; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-2-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 231.19999999999996,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-2",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn02; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-7-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 361.3333333333333,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-7",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn03; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-7-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base07_off",
+      "rect": {
+        "x": 367.7333333333333,
+        "y": 382.6666666666667,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-7",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base07_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn03; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-7-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn07",
+      "rect": {
+        "x": 367.7333333333333,
+        "y": 382.6666666666667,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-7",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn03; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-7-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 361.3333333333333,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-7",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn03; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-3-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 491.4666666666667,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-3",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn04; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-3-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base03_off",
+      "rect": {
+        "x": 497.8666666666666,
+        "y": 382.6666666666667,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-3",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base03_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn04; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-3-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn03",
+      "rect": {
+        "x": 497.8666666666666,
+        "y": 382.6666666666667,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-3",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn04; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-3-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 491.4666666666667,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-3",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn04; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-9-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 621.6,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-9",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn05; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-9-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base09_off",
+      "rect": {
+        "x": 628,
+        "y": 382.6666666666667,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-9",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base09_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn05; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-9-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn09",
+      "rect": {
+        "x": 628,
+        "y": 382.6666666666667,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-9",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn05; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-9-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 621.6,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-9",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn05; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-4-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 751.7333333333332,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-4",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn06; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-4-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base04_off",
+      "rect": {
+        "x": 758.1333333333333,
+        "y": 382.6666666666667,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-4",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base04_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn06; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-4-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn04",
+      "rect": {
+        "x": 758.1333333333333,
+        "y": 382.6666666666667,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-4",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn06; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-4-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 751.7333333333332,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-4",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn06; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-11-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 881.8666666666667,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-11",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn07; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-11-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base11_off",
+      "rect": {
+        "x": 888.2666666666668,
+        "y": 382.6666666666667,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-11",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base11_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn07; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-11-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn11",
+      "rect": {
+        "x": 888.2666666666668,
+        "y": 382.6666666666667,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-11",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn07; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-11-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 881.8666666666667,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-11",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn07; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-10-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 1012,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-10",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn08; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-10-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base10_off",
+      "rect": {
+        "x": 1018.4000000000001,
+        "y": 382.6666666666667,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-10",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base10_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn08; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-10-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn10",
+      "rect": {
+        "x": 1018.4000000000001,
+        "y": 382.6666666666667,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-10",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn08; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-10-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 1012,
+        "y": 374.1333333333334,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-10",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn08; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-6-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 425.86666666666673,
+        "y": 524.1333333333333,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-6",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn11; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-6-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base06_off",
+      "rect": {
+        "x": 432.2666666666667,
+        "y": 532.6666666666666,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-6",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base06_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn11; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-6-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn06",
+      "rect": {
+        "x": 432.2666666666667,
+        "y": 532.6666666666666,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-6",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn11; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-6-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 425.86666666666673,
+        "y": 524.1333333333333,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-6",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn11; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-5-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 556,
+        "y": 524.1333333333333,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-5",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn12; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-5-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base05_off",
+      "rect": {
+        "x": 562.4,
+        "y": 532.6666666666666,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-5",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base05_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn12; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-5-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn05",
+      "rect": {
+        "x": 562.4,
+        "y": 532.6666666666666,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-5",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn12; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-5-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 556,
+        "y": 524.1333333333333,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-5",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn12; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-8-shadow",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_shadow01",
+      "rect": {
+        "x": 686.1333333333332,
+        "y": 524.1333333333333,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 300,
+      "actionId": "title-item-8",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn13; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-8-base",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_base08_off",
+      "rect": {
+        "x": 692.5333333333333,
+        "y": 532.6666666666666,
+        "w": 209.0666666666667,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 301,
+      "actionId": "title-item-8",
+      "maskRegion": "btn_base01_msk",
+      "focusedRegion": "btn_base08_on",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn13; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]. Mask btn_base01_msk stores coverage in RGB (opaque alpha), so luminance selects its white area."
+      },
+      "maskMode": "luminance"
+    },
+    {
+      "id": "title-item-8-icon",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "icon_btn08",
+      "rect": {
+        "x": 692.5333333333333,
+        "y": 532.6666666666666,
+        "w": 155.73333333333335,
+        "h": 85.33333333333333
+      },
+      "drawOrder": 302,
+      "actionId": "title-item-8",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn13; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    },
+    {
+      "id": "title-item-8-focus",
+      "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
+      "region": "btn_focus01",
+      "rect": {
+        "x": 686.1333333333332,
+        "y": 524.1333333333333,
+        "w": 168.53333333333333,
+        "h": 102.40000000000002
+      },
+      "drawOrder": 303,
+      "actionId": "title-item-8",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_02/title02_02.g4pkm",
+        "record": "_atc_btn13; title00_07: _btn_base01_off, _icon_btn01, _btn_shadow01, _btn_focus01",
+        "method": "Native locator x,-y and scale 0.8; tile raw sprite offsets scaled by locator then divided by 1.5. data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin upper [1,2,7,3,9,4,11,10], lower [6,5,8]."
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "title-item-1",
+      "label": "Mode Histoire",
+      "nativeActionHash": 296576821,
+      "rect": {
+        "x": 125.59999999999998,
+        "y": 382.6666666666667,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 1; label hash 2262995099; action hash 296576821",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-2",
+      "label": "Mode Chronique",
+      "nativeActionHash": 130186018,
+      "rect": {
+        "x": 255.73333333333332,
+        "y": 382.6666666666667,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 2; label hash 3405712242; action hash 130186018",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-7",
+      "label": "Station Kizuna",
+      "nativeActionHash": 2071851632,
+      "rect": {
+        "x": 385.8666666666666,
+        "y": 382.6666666666667,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 7; label hash 309104990; action hash 2071851632",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-3",
+      "label": "Mode Compétition",
+      "nativeActionHash": 2477753773,
+      "rect": {
+        "x": 516,
+        "y": 382.6666666666667,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 3; label hash 2803560265; action hash 2477753773",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-9",
+      "label": "Stade BB",
+      "nativeActionHash": 3009621826,
+      "rect": {
+        "x": 646.1333333333333,
+        "y": 382.6666666666667,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 9; label hash 2764242897; action hash 3009621826",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-4",
+      "label": "Victory Road",
+      "nativeActionHash": 127937052,
+      "rect": {
+        "x": 776.2666666666668,
+        "y": 382.6666666666667,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 4; label hash 2160924523; action hash 127937052",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-11",
+      "label": "Marché",
+      "nativeActionHash": 1806468555,
+      "rect": {
+        "x": 906.4000000000001,
+        "y": 382.6666666666667,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 11; label hash 605995789; action hash 1806468555",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-10",
+      "label": "Sauvegarder",
+      "nativeActionHash": 1432763102,
+      "rect": {
+        "x": 1036.5333333333335,
+        "y": 382.6666666666667,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 10; label hash 1008104139; action hash 1432763102",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-6",
+      "label": "Guide joueur",
+      "nativeActionHash": 1188921684,
+      "rect": {
+        "x": 450.40000000000003,
+        "y": 532.6666666666666,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 6; label hash 882201751; action hash 1188921684",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-5",
+      "label": "Options",
+      "nativeActionHash": 1518731440,
+      "hostActionId": "settings",
+      "rect": {
+        "x": 580.5333333333333,
+        "y": 532.6666666666666,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 5; label hash 355747446; action hash 1518731440",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "title-item-8",
+      "label": "Informations",
+      "nativeActionHash": 695801987,
+      "rect": {
+        "x": 710.6666666666666,
+        "y": 532.6666666666666,
+        "w": 119.46666666666668,
+        "h": 85.33333333333333
+      },
+      "provenance": {
+        "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+        "record": "item 8; label hash 1080589229; action hash 695801987",
+        "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "avatar",
+      "label": "Créer avatar",
+      "hostActionId": "avatar",
+      "rect": {
+        "x": -90.66666666666667,
+        "y": 158.66666666666666,
+        "w": 570.6666666666666,
+        "h": 175.33333333333334
+      },
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_11/title02_11.g4pkm",
+        "record": "_touch_btn01",
+        "method": "G4PKM raw sprite bind-pose x,-y,width,height divided by 1.5; top-left convention cross-checked against data/menu/main_menu_alt.png. Parent composition is not applied twice. Label observed in title_menu_2 Lua runtime SetText."
+      }
+    }
+  ],
+  "provenance": {
+    "source": "data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin",
+    "record": "title02; title00_07_item_button_upper x8; title00_07_item_button_lower x3",
+    "method": "VFS G4TX named regions, G4PKM raw sprite/locator poses and localized Lua hashes. Reference is a comparison oracle only."
+  },
+  "unresolved": [
+    "Native G4RA timing, selection expansion and instance-specific Lua projection remain incomplete.",
+    "Team roster, victory totals, save state, notices, edition/store availability and other dynamic native state are not reconstructed.",
+    "Only Options and Create avatar have implemented host bindings; remaining native actions are unavailable.",
+    "Sprite bind-pose convention is cross-checked against the PC reference, not yet replayed by the full native animation runtime."
+  ]
+}

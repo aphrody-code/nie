@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "id": "autosave",
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "layers": [
+    {
+      "id": "dialog-background",
+      "assetPath": "data/dx11/menu/10_win/win04/win04_01/win04_01.g4tx",
+      "region": "win_base01",
+      "rect": {
+        "x": -360,
+        "y": 0,
+        "w": 2640,
+        "h": 1080
+      },
+      "drawOrder": 0,
+      "provenance": {
+        "source": "data/common/menu/10_win/win04/win04_01/win04_01.g4pkm",
+        "record": "_win_base01",
+        "method": "Native raw width2640 and x-360. Fullscreen resize y0,height1080 measured in data/menu/Capture d'écran 2026-09-08 124504.png, game client crop1,32,1920,1080; generic bind pose y220,height640 is resized by unresolved native window state. Gradient colors come from native8x640 region."
+      }
+    },
+    {
+      "id": "dialog-background-illustration",
+      "assetPath": "data/dx11/menu/10_win/win04/win04_01/win04_01.g4tx",
+      "region": "win_base_illust01",
+      "rect": {
+        "x": -360,
+        "y": 0,
+        "w": 2640,
+        "h": 1080
+      },
+      "drawOrder": 1,
+      "provenance": {
+        "source": "data/common/menu/10_win/win04/win04_01/win04_01.g4pkm",
+        "record": "_win_base_illust01_dmy01",
+        "method": "Native raw x-360,y0,width2640,height1080. Giant footballs, shoes and disk match data/menu/Capture d'écran 2026-09-08 124504.png; source alpha retained without invented tint."
+      }
+    },
+    {
+      "id": "confirm-button",
+      "assetPath": "data/dx11/menu/20_cmn/cmn03/cmn03_03/cmn03_03.g4tx",
+      "region": "cmd_press_btn_base_on01",
+      "rect": {
+        "x": 772,
+        "y": 830,
+        "w": 376,
+        "h": 84
+      },
+      "drawOrder": 100,
+      "actionId": "confirm",
+      "provenance": {
+        "source": "data/common/menu/20_cmn/cmn03/cmn03_03/cmn03_03.g4pkm",
+        "record": "_cmd_press_btn_base_on01",
+        "method": "Native raw offset-188,-42 and size376x84; button anchor960,872 measured in data/menu/Capture d'écran 2026-09-08 124504.png after crop1,32,1920,1080. Native touch356x64 at782,840; padding and shadow remain source pixels. Native general-window resize/attachment state is not replayed."
+      }
+    },
+    {
+      "id": "saving-pentagon-1",
+      "assetPath": "data/dx11/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4tx",
+      "region": "icon_saving01",
+      "rect": {
+        "x": 780,
+        "y": 468,
+        "w": 52,
+        "h": 48
+      },
+      "drawOrder": 51,
+      "provenance": {
+        "source": "data/common/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4pkm",
+        "record": "_icon_saviing01",
+        "method": "Native source size104x96,raw sprite52x48. Combined ring anchor measured in data/menu/Capture d'écran 2026-09-08 124504.png after crop1,32,1920,1080. Native per-pentagon temporal opacity remains unresolved; these layers expose the true static source geometry."
+      }
+    },
+    {
+      "id": "saving-pentagon-2",
+      "assetPath": "data/dx11/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4tx",
+      "region": "icon_saving02",
+      "rect": {
+        "x": 780,
+        "y": 468,
+        "w": 52,
+        "h": 48
+      },
+      "drawOrder": 52,
+      "provenance": {
+        "source": "data/common/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4pkm",
+        "record": "_icon_saviing02",
+        "method": "Native source size104x96,raw sprite52x48. Combined ring anchor measured in data/menu/Capture d'écran 2026-09-08 124504.png after crop1,32,1920,1080. Native per-pentagon temporal opacity remains unresolved; these layers expose the true static source geometry."
+      }
+    },
+    {
+      "id": "saving-pentagon-3",
+      "assetPath": "data/dx11/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4tx",
+      "region": "icon_saving03",
+      "rect": {
+        "x": 780,
+        "y": 468,
+        "w": 52,
+        "h": 48
+      },
+      "drawOrder": 53,
+      "provenance": {
+        "source": "data/common/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4pkm",
+        "record": "_icon_saviing03",
+        "method": "Native source size104x96,raw sprite52x48. Combined ring anchor measured in data/menu/Capture d'écran 2026-09-08 124504.png after crop1,32,1920,1080. Native per-pentagon temporal opacity remains unresolved; these layers expose the true static source geometry."
+      }
+    },
+    {
+      "id": "saving-pentagon-4",
+      "assetPath": "data/dx11/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4tx",
+      "region": "icon_saving04",
+      "rect": {
+        "x": 780,
+        "y": 468,
+        "w": 52,
+        "h": 48
+      },
+      "drawOrder": 54,
+      "provenance": {
+        "source": "data/common/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4pkm",
+        "record": "_icon_saviing04",
+        "method": "Native source size104x96,raw sprite52x48. Combined ring anchor measured in data/menu/Capture d'écran 2026-09-08 124504.png after crop1,32,1920,1080. Native per-pentagon temporal opacity remains unresolved; these layers expose the true static source geometry."
+      }
+    },
+    {
+      "id": "saving-pentagon-5",
+      "assetPath": "data/dx11/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4tx",
+      "region": "icon_saving05",
+      "rect": {
+        "x": 780,
+        "y": 468,
+        "w": 52,
+        "h": 48
+      },
+      "drawOrder": 55,
+      "provenance": {
+        "source": "data/common/menu/20_cmn/cmn01/cmn01_20/cmn01_20.g4pkm",
+        "record": "_icon_saviing05",
+        "method": "Native source size104x96,raw sprite52x48. Combined ring anchor measured in data/menu/Capture d'écran 2026-09-08 124504.png after crop1,32,1920,1080. Native per-pentagon temporal opacity remains unresolved; these layers expose the true static source geometry."
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "confirm",
+      "label": "OK — continuer",
+      "hostActionId": "confirm",
+      "rect": {
+        "x": 782,
+        "y": 840,
+        "w": 356,
+        "h": 64
+      },
+      "provenance": {
+        "source": "data/common/menu/20_cmn/cmn03/cmn03_03/cmn03_03.g4pkm",
+        "record": "_touch_cmd_btn01",
+        "method": "Native dimensions356x64 and centered offset-178,-32; final anchor960,872 measured in data/menu/Capture d'écran 2026-09-08 124504.png after client crop."
+      }
+    }
+  ],
+  "provenance": {
+    "source": "data/common/gamedata/menu/cfg/general_window_setting.cfg.bin",
+    "record": "general_win;general_win_one_btn;general_win_auto_save",
+    "method": "Current VFS objects replace stale title_auto_save_info_menu_setting references. data/menu/Capture d'écran 2026-09-08 124504.png is a comparison oracle only."
+  },
+  "unresolved": [
+    "The general dialog resize/attachment commands are not replayed; final control and gradient geometry use the explicitly recorded PC measurement.",
+    "Secondary moving sports glyphs and the blue saving ribbon material/tint are not yet reconstructed.",
+    "Native saving animation per-pentagon alpha and timing are not yet sampled.",
+    "Localized text is rendered by the shared native-font path; the scene contains no rasterized text or full-screen capture."
+  ]
+}

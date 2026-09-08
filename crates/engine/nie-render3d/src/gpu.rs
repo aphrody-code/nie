@@ -1001,6 +1001,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn model_shader_passes_strict_webgpu_validation() {
+        let module = wgpu::naga::front::wgsl::parse_str(include_str!("gpu.wgsl"))
+            .expect("model shader must parse");
+        wgpu::naga::valid::Validator::new(
+            wgpu::naga::valid::ValidationFlags::all(),
+            wgpu::naga::valid::Capabilities::empty(),
+        )
+        .validate(&module)
+        .expect("model shader must satisfy derivative uniformity without device-specific exemptions");
+        assert_eq!(module.entry_points.len(), 2);
+    }
+
+    #[test]
     fn selection_backend_est_stricte() {
         assert_eq!(
             "dx12".parse::<Backend>().unwrap().backends(),

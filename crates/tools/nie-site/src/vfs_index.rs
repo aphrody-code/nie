@@ -25,7 +25,7 @@
 //! croissantes, donc testables par dichotomie, et un tri par taille se sert de la permutation
 //! déjà calculée au lieu de retrier à chaque requête.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
 
@@ -369,6 +369,9 @@ pub struct Dossier {
     pub prefixe: String,
     /// Sous-dossiers directs, chemins complets, triés.
     pub dossiers: Vec<String>,
+    /// Recursive file count for each direct child folder, keyed by its full VFS path.
+    /// Kept separate from `dossiers` so existing API consumers retain the stable string list.
+    pub folder_counts: BTreeMap<String, usize>,
     /// Fichiers directs de la page demandée.
     pub fichiers: Vec<Fichier>,
     /// Nombre total de fichiers directs **retenus par le filtre**, toutes pages confondues.
@@ -1070,7 +1073,7 @@ impl IndexVfs {
         let debut = self
             .chemins
             .partition_point(|c| c.as_str() < base_chemin.as_str());
-        let mut dossiers = BTreeSet::new();
+        let mut folder_counts = BTreeMap::<String, usize>::new();
         let mut directs: Vec<u32> = Vec::new();
         for i in debut..self.chemins.len() {
             let chemin = &self.chemins[i];
@@ -1080,7 +1083,9 @@ impl IndexVfs {
             match reste.split_once('/') {
                 Some((segment, _)) => {
                     if !segment.is_empty() {
-                        dossiers.insert(format!("{base_chemin}{segment}"));
+                        *folder_counts
+                            .entry(format!("{base_chemin}{segment}"))
+                            .or_default() += 1;
                     }
                 }
                 None => directs.push(u32::try_from(i).unwrap_or(u32::MAX)),
@@ -1089,13 +1094,14 @@ impl IndexVfs {
         let total_sans_filtre = directs.len();
         let (fichiers, total_fichiers) = self.trancher(&directs, r);
 
-        let mut dossiers: Vec<String> = dossiers.into_iter().collect();
+        let mut dossiers: Vec<String> = folder_counts.keys().cloned().collect();
         if let Some(m) = &f.q {
             dossiers.retain(|d| d.to_lowercase().contains(m.as_str()));
         }
         if f.impossible {
             dossiers.clear();
         }
+        folder_counts.retain(|path, _| dossiers.binary_search(path).is_ok());
         if r.ordre == Ordre::Desc {
             dossiers.reverse();
         }
@@ -1103,6 +1109,7 @@ impl IndexVfs {
         Dossier {
             prefixe,
             dossiers,
+            folder_counts,
             fichiers,
             total_fichiers,
             total_fichiers_sans_filtre: total_sans_filtre,
@@ -1215,6 +1222,7 @@ mod tests {
         let d = idx.dossier_filtre("data/dx11/tex", &r);
         assert_eq!(d.total_fichiers, 2);
         assert_eq!(d.dossiers, vec!["data/dx11/tex/sub".to_owned()]);
+        assert_eq!(d.folder_counts.get("data/dx11/tex/sub"), Some(&1));
         assert_eq!(d.fichiers[0].nom, "a.g4tx");
         assert_eq!(d.fichiers[0].taille, 10);
         assert_eq!(d.fichiers[0].cpk.as_deref(), Some("dx11.cpk"));
@@ -1222,6 +1230,7 @@ mod tests {
         let r = idx.resoudre(None, &dem()).paginer(0, 50);
         let racine = idx.dossier_filtre("", &r);
         assert_eq!(racine.dossiers, vec!["data".to_owned()]);
+        assert_eq!(racine.folder_counts.get("data"), Some(&8));
         assert_eq!(racine.total_fichiers, 0);
     }
 

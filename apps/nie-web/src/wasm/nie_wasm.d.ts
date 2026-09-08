@@ -2,6 +2,21 @@
 /* eslint-disable */
 
 /**
+ * Thin bitmap-text ABI over the shared native font decoder.
+ */
+export class WasmBitmapFont {
+    free(): void;
+    [Symbol.dispose](): void;
+    constructor(config: Uint8Array, texture: Uint8Array);
+    /**
+     * Color is packed RGBA, independent of host endianness.
+     */
+    render(text: string, color: number): Uint8Array;
+    readonly height: number;
+    readonly width: number;
+}
+
+/**
  * Browser camera backed by `nie-camera`'s portable `CameraState` and
  * `CCameraCtrlInterPolate` controller math.
  */
@@ -261,6 +276,43 @@ export class WasmTaskPlan {
 }
 
 /**
+ * Viewer canvas WebGPU partagé avec NIE natif. `free()` est généré par wasm-bindgen.
+ */
+export class WebGpuViewer {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * JSON d'identité mesurée. Le navigateur peut anonymiser nom/vendor/device.
+     */
+    backend_info(): string;
+    /**
+     * Initialise une surface WebGPU compatible avec le canvas ; échec sans fallback.
+     */
+    static create(canvas: HTMLCanvasElement): Promise<WebGpuViewer>;
+    /**
+     * Avatar canvas composited over the native menu's independent VFS layers.
+     */
+    static create_transparent(canvas: HTMLCanvasElement): Promise<WebGpuViewer>;
+    /**
+     * Charge/remplace un modèle GLB normalisé (positions monde, textures PNG embarquées).
+     */
+    load_glb(bytes: Uint8Array): void;
+    /**
+     * Angles absolus en radians ; distance positive en rayons. NaN/infini rejetés.
+     */
+    orbit(yaw: number, pitch: number, distance: number): void;
+    /**
+     * Présente via la texture GPU partagée ; false demande de réessayer à la prochaine frame.
+     */
+    render(): boolean;
+    /**
+     * Backing store en pixels entiers strictement positifs, sans changer le CSS.
+     */
+    resize(width: number, height: number): void;
+}
+
+/**
  * Point d'entrée **auto-exécuté à l'instanciation** du module (attribut `start`,
  * best practice wasm-bindgen) : installe le hook de panique sans dépendre d'un
  * appel JS explicite — toute panique reste lisible même si l'hôte oublie l'init.
@@ -294,6 +346,11 @@ export function audio_to_wav(bytes: Uint8Array): Uint8Array;
  * config, hissatsu }, … ] }`, ou lève une `Error` JS si le JSON est invalide.
  */
 export function aura_lookup(aura_config_json: string, skill_config_json: string): string;
+
+/**
+ * Resolve avatar selections through the shared Rust data owner, without host URL logic.
+ */
+export function avatar_composition_json(catalog_json: string, state_json: string): string;
 
 /**
  * Inspects PE/ELF bytes with the shared pure-Rust reverse-engineering engine.
@@ -521,6 +578,11 @@ export function match_tick(state: string, is_training: boolean, end_counter: num
 export function menu_animation_bindings_json(bytes: Uint8Array): string;
 
 /**
+ * Compile a measured native screen through the shared portable scene owner.
+ */
+export function menu_presentation_json(id: string): string;
+
+/**
  * Portable scene compiler over caller-supplied, observed Lua menu state.
  */
 export function menu_runtime_scene_json(state_json: string): string;
@@ -649,15 +711,18 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly __wbg_wasmbitmapfont_free: (a: number, b: number) => void;
     readonly __wbg_wasmcamera_free: (a: number, b: number) => void;
     readonly __wbg_wasmeditorsession_free: (a: number, b: number) => void;
     readonly __wbg_wasmfrontier_free: (a: number, b: number) => void;
     readonly __wbg_wasmgame_free: (a: number, b: number) => void;
     readonly __wbg_wasmtaskplan_free: (a: number, b: number) => void;
+    readonly __wbg_webgpuviewer_free: (a: number, b: number) => void;
     readonly aob_scan_json: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly assemble_x64: (a: number, b: number, c: bigint) => [number, number, number, number];
     readonly audio_to_wav: (a: number, b: number) => [number, number, number, number];
     readonly aura_lookup: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly avatar_composition_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly binary_triage_json: (a: number, b: number, c: number) => [number, number, number, number];
     readonly calculate_stats: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly cfgbin_menu_setting_json: (a: number, b: number) => [number, number, number, number];
@@ -690,6 +755,7 @@ export interface InitOutput {
     readonly lua_bytecode_json: (a: number, b: number) => [number, number, number, number];
     readonly match_tick: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly menu_animation_bindings_json: (a: number, b: number) => [number, number, number, number];
+    readonly menu_presentation_json: (a: number, b: number) => [number, number, number, number];
     readonly menu_runtime_scene_json: (a: number, b: number) => [number, number, number, number];
     readonly menu_static_layer_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
     readonly minidump_summary_json: (a: number, b: number) => [number, number, number, number];
@@ -704,6 +770,10 @@ export interface InitOutput {
     readonly steam_select_depots_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly utf_table_json: (a: number, b: number) => [number, number, number, number];
     readonly vfs_content_summary: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly wasmbitmapfont_height: (a: number) => number;
+    readonly wasmbitmapfont_new: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasmbitmapfont_render: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly wasmbitmapfont_width: (a: number) => number;
     readonly wasmcamera_active: (a: number) => number;
     readonly wasmcamera_new: () => number;
     readonly wasmcamera_state_json: (a: number, b: number) => [number, number, number, number];
@@ -753,13 +823,26 @@ export interface InitOutput {
     readonly wasmtaskplan_resume: (a: number) => [number, number];
     readonly wasmtaskplan_snapshot_json: (a: number) => [number, number, number, number];
     readonly wasmtaskplan_start: (a: number) => [number, number];
+    readonly webgpuviewer_backend_info: (a: number) => [number, number];
+    readonly webgpuviewer_create: (a: any) => any;
+    readonly webgpuviewer_create_transparent: (a: any) => any;
+    readonly webgpuviewer_load_glb: (a: number, b: number, c: number) => [number, number];
+    readonly webgpuviewer_orbit: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly webgpuviewer_render: (a: number) => [number, number, number];
+    readonly webgpuviewer_resize: (a: number, b: number, c: number) => [number, number];
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly wasm_bindgen_2f159c89263ab8ec___convert__closures_____invoke___wasm_bindgen_2f159c89263ab8ec___JsValue__core_fc1ee4111c772ded___result__Result_____wasm_bindgen_2f159c89263ab8ec___JsError___true_: (a: number, b: number, c: any) => [number, number];
+    readonly wasm_bindgen_2f159c89263ab8ec___convert__closures_____invoke___js_sys_13033440e13f1b12___Function_fn_wasm_bindgen_2f159c89263ab8ec___JsValue_____wasm_bindgen_2f159c89263ab8ec___sys__Undefined___js_sys_13033440e13f1b12___Function_fn_wasm_bindgen_2f159c89263ab8ec___JsValue_____wasm_bindgen_2f159c89263ab8ec___sys__Undefined_______true_: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen_2f159c89263ab8ec___convert__closures_____invoke___wasm_bindgen_2f159c89263ab8ec___JsValue______true_: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_exn_store: (a: number) => void;
+    readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_destroy_closure: (a: number, b: number) => void;
     readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_start: () => void;
 }

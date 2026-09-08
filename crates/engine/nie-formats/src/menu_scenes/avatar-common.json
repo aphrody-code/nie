@@ -1,0 +1,668 @@
+{
+  "schemaVersion": 1,
+  "id": "avatar-common",
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "layers": [
+    {
+      "id": "background",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_00/avatar01_00.g4tx",
+      "region": "bg01",
+      "rect": {
+        "x": -360,
+        "y": 0,
+        "w": 2640,
+        "h": 1080
+      },
+      "drawOrder": 10,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_00/avatar01_00.g4pkm",
+        "record": "_bg01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "background-silhouettes",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_00/avatar01_00.g4tx",
+      "region": "bg_pattern01",
+      "rect": {
+        "x": -896,
+        "y": 176,
+        "w": 3712,
+        "h": 640
+      },
+      "drawOrder": 11,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_00/avatar01_00.g4pkm",
+        "record": "_bg_pattern01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "edit-panel",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4tx",
+      "region": "edit_win_base01",
+      "rect": {
+        "x": 1191,
+        "y": 177,
+        "w": 788,
+        "h": 804
+      },
+      "drawOrder": 12,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_edit_win_base01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "header",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02/fr/mainmenu90_02.g4tx",
+      "region": "header_base02",
+      "rect": {
+        "x": -360,
+        "y": 0,
+        "w": 2640,
+        "h": 196
+      },
+      "drawOrder": 300,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_header_base02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "header-mode",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02/fr/mainmenu90_02.g4tx",
+      "region": "mode_base08",
+      "rect": {
+        "x": -62,
+        "y": -1,
+        "w": 248,
+        "h": 124
+      },
+      "drawOrder": 302,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_mode_base_dmy01; mode_base08 (native pink tower)",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "header-avatar",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02/fr/mainmenu90_02.g4tx",
+      "region": "icon_header_avatar01",
+      "rect": {
+        "x": 158,
+        "y": -2,
+        "w": 180,
+        "h": 124
+      },
+      "drawOrder": 303,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_icon_header_main_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "stage-style-base",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_base01",
+      "rect": {
+        "x": 872,
+        "y": 4,
+        "w": 176,
+        "h": 132
+      },
+      "drawOrder": 305,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon01",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-style",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "stage-style-icon",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_avatar01_off",
+      "rect": {
+        "x": 896,
+        "y": 26,
+        "w": 128,
+        "h": 88
+      },
+      "drawOrder": 306,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon01",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-style",
+      "focusedRegion": "icon_menu_avatar01_on"
+    },
+    {
+      "id": "stage-style-arrow",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_arrow01",
+      "rect": {
+        "x": 1008,
+        "y": 44,
+        "w": 32,
+        "h": 52
+      },
+      "drawOrder": 307,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon01",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-body-base",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_base01",
+      "rect": {
+        "x": 1002,
+        "y": 4,
+        "w": 176,
+        "h": 132
+      },
+      "drawOrder": 305,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon02",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-body",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "stage-body-icon",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_avatar02_off",
+      "rect": {
+        "x": 1026,
+        "y": 26,
+        "w": 128,
+        "h": 88
+      },
+      "drawOrder": 306,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon02",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-body",
+      "focusedRegion": "icon_menu_avatar02_on"
+    },
+    {
+      "id": "stage-body-arrow",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_arrow01",
+      "rect": {
+        "x": 1138,
+        "y": 44,
+        "w": 32,
+        "h": 52
+      },
+      "drawOrder": 307,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon02",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-hair-base",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_base01",
+      "rect": {
+        "x": 1132,
+        "y": 4,
+        "w": 176,
+        "h": 132
+      },
+      "drawOrder": 305,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon03",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-hair",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "stage-hair-icon",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_avatar03_off",
+      "rect": {
+        "x": 1156,
+        "y": 26,
+        "w": 128,
+        "h": 88
+      },
+      "drawOrder": 306,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon03",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-hair",
+      "focusedRegion": "icon_menu_avatar03_on"
+    },
+    {
+      "id": "stage-hair-arrow",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_arrow01",
+      "rect": {
+        "x": 1268,
+        "y": 44,
+        "w": 32,
+        "h": 52
+      },
+      "drawOrder": 307,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon03",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-clothes-base",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_base01",
+      "rect": {
+        "x": 1262,
+        "y": 4,
+        "w": 176,
+        "h": 132
+      },
+      "drawOrder": 305,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon04",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-clothes",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "stage-clothes-icon",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_avatar04_off",
+      "rect": {
+        "x": 1286,
+        "y": 26,
+        "w": 128,
+        "h": 88
+      },
+      "drawOrder": 306,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon04",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-clothes",
+      "focusedRegion": "icon_menu_avatar04_on"
+    },
+    {
+      "id": "stage-clothes-arrow",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_arrow01",
+      "rect": {
+        "x": 1398,
+        "y": 44,
+        "w": 32,
+        "h": 52
+      },
+      "drawOrder": 307,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon04",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-stats-base",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_base01",
+      "rect": {
+        "x": 1392,
+        "y": 4,
+        "w": 176,
+        "h": 132
+      },
+      "drawOrder": 305,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon05",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-stats",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "stage-stats-icon",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_avatar05_off",
+      "rect": {
+        "x": 1416,
+        "y": 26,
+        "w": 128,
+        "h": 88
+      },
+      "drawOrder": 306,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon05",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-stats",
+      "focusedRegion": "icon_menu_avatar05_on"
+    },
+    {
+      "id": "stage-stats-arrow",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_arrow01",
+      "rect": {
+        "x": 1528,
+        "y": 44,
+        "w": 32,
+        "h": 52
+      },
+      "drawOrder": 307,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon05",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-name-base",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_base01",
+      "rect": {
+        "x": 1522,
+        "y": 4,
+        "w": 176,
+        "h": 132
+      },
+      "drawOrder": 305,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon06",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-name",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "stage-name-icon",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4tx",
+      "region": "icon_menu_avatar06_off",
+      "rect": {
+        "x": 1546,
+        "y": 26,
+        "w": 128,
+        "h": 88
+      },
+      "drawOrder": 306,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon06",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      },
+      "actionId": "stage-name",
+      "focusedRegion": "icon_menu_avatar06_on"
+    },
+    {
+      "id": "back",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu01/mainmenu01_10/mainmenu01_10.g4tx",
+      "region": "back_base01",
+      "rect": {
+        "x": 35,
+        "y": 992,
+        "w": 136,
+        "h": 68
+      },
+      "drawOrder": 600,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu01/mainmenu01_10/mainmenu01_10.g4pkm",
+        "record": "_back_base01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      },
+      "actionId": "back"
+    },
+    {
+      "id": "next",
+      "assetPath": "data/dx11/menu/100_mainmenu/mainmenu01/mainmenu01_12/mainmenu01_12.g4tx",
+      "region": "next_base01",
+      "rect": {
+        "x": 1583,
+        "y": 993,
+        "w": 304,
+        "h": 68
+      },
+      "drawOrder": 600,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu01/mainmenu01_12/mainmenu01_12.g4pkm",
+        "record": "_next_base01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      },
+      "actionId": "next"
+    }
+  ],
+  "controls": [
+    {
+      "id": "stage-style",
+      "label": "Style",
+      "hostActionId": "stage-style",
+      "rect": {
+        "x": 905,
+        "y": 30,
+        "w": 110,
+        "h": 80
+      },
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon01",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-body",
+      "label": "Physionomie",
+      "hostActionId": "stage-body",
+      "rect": {
+        "x": 1035,
+        "y": 30,
+        "w": 110,
+        "h": 80
+      },
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon02",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-hair",
+      "label": "Visage et coupe de cheveux",
+      "hostActionId": "stage-hair",
+      "rect": {
+        "x": 1165,
+        "y": 30,
+        "w": 110,
+        "h": 80
+      },
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon03",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-clothes",
+      "label": "Habits",
+      "hostActionId": "stage-clothes",
+      "rect": {
+        "x": 1295,
+        "y": 30,
+        "w": 110,
+        "h": 80
+      },
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon04",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-stats",
+      "label": "Stats",
+      "hostActionId": "stage-stats",
+      "rect": {
+        "x": 1425,
+        "y": 30,
+        "w": 110,
+        "h": 80
+      },
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon05",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "stage-name",
+      "label": "Nom",
+      "hostActionId": "stage-name",
+      "rect": {
+        "x": 1555,
+        "y": 30,
+        "w": 110,
+        "h": 80
+      },
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_atc_icon06",
+        "method": "Native locator spacing130 and material offsets from mainmenu90_02_2.g4pkm. Common X translation+654 measured against all six PC references; MenuRateSetting offset01/02/03 runtime interpolation is unresolved."
+      }
+    },
+    {
+      "id": "back",
+      "label": "Retour",
+      "hostActionId": "back",
+      "rect": {
+        "x": 35,
+        "y": 992,
+        "w": 136,
+        "h": 68
+      },
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu01/mainmenu01_10/mainmenu01_10.g4pkm",
+        "record": "_back_base01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "next",
+      "label": "Suivant",
+      "hostActionId": "next",
+      "rect": {
+        "x": 1583,
+        "y": 993,
+        "w": 304,
+        "h": 68
+      },
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu01/mainmenu01_12/mainmenu01_12.g4pkm",
+        "record": "_next_base01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    }
+  ],
+  "texts": [
+    {
+      "id": "header-title",
+      "text": "Éditeur d'avatar",
+      "rect": {
+        "x": 192,
+        "y": 48,
+        "w": 500,
+        "h": 88
+      },
+      "drawOrder": 500,
+      "color": 16777215,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02/mainmenu90_02.g4pkm",
+        "record": "_text_sub_title02; native text 1D32DB18",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "next-label",
+      "text": "Suivant",
+      "rect": {
+        "x": 1648,
+        "y": 994,
+        "w": 192,
+        "h": 64
+      },
+      "drawOrder": 500,
+      "color": 557055,
+      "provenance": {
+        "source": "data/common/menu/100_mainmenu/mainmenu01/mainmenu01_12/mainmenu01_12.g4pkm",
+        "record": "_text_btn02; native text 6D5F5829",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "model",
+      "rect": {
+        "x": 340,
+        "y": 185,
+        "w": 840,
+        "h": 810
+      },
+      "provenance": {
+        "source": "data/menu/avatar_edit_top.png",
+        "record": "avatar preview bounds",
+        "method": "Measured available preview viewport in the PC reference at scale0.75. Camera, skinning and pose remain live renderer state; no avatar image is used."
+      }
+    },
+    {
+      "id": "footer-guides",
+      "rect": {
+        "x": 350,
+        "y": 998,
+        "w": 1100,
+        "h": 52
+      },
+      "provenance": {
+        "source": "data/menu/avatar_edit_top.png",
+        "record": "input guide row",
+        "method": "Measured PC reference at scale0.75; native input glyph mapping is unresolved."
+      }
+    }
+  ],
+  "provenance": {
+    "source": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+    "record": "avatar_edit_common",
+    "method": "Current VFS assets and mesh placements paired with data/menu/avatar_edit_common.png (2560x1440 normalized by 0.75). Screenshots are comparison oracles only."
+  },
+  "unresolved": [
+    "The native header uses a moving multi-part mask and shadow material; its MenuRateSetting masks and current-stage notch are not yet replayed.",
+    "Background particles and floating sports glyph opacity/motion are unresolved and omitted.",
+    "The 3D viewport rectangle is measured; native per-stage camera and pose must come from runtime state.",
+    "PC keyboard and mouse glyphs, share-code input and expression/model toggles require their native bindings."
+  ]
+}

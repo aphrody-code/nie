@@ -6,6 +6,7 @@ import {
 	initialMenuState,
 	keyboardMenuIntent,
 	type MenuInteractionItem,
+	type MenuInteractionState,
 	moveMenuFocus,
 	reduceMenuInteraction,
 	standardGamepadButtonMenuIntent,
@@ -136,7 +137,7 @@ describe("standard gamepad sampling", () => {
 	test("moves focus before simultaneous confirmation", () => {
 		const sampler = createStandardGamepadMenuSampler();
 		const intents = sampler.sample([pad([0, 15])]);
-		let state = initialMenuState(measuredItems);
+		let state: MenuInteractionState = initialMenuState(measuredItems);
 		let activated: string | null = null;
 		for (const intent of intents) {
 			const update = reduceMenuInteraction(measuredItems, state, intent);

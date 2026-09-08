@@ -1656,6 +1656,7 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                             "valeur": l.recipe_no,
                             "couleur": l.color_value,
                             "part": cfg.part(l.parts_id).map(|p| p.resource_name_str1.clone()),
+                            "partId": (!l.parts_id.is_zero()).then(|| l.parts_id.to_hex_x8()),
                         })).collect::<Vec<_>>(),
                     })
                 })

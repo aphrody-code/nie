@@ -21,7 +21,8 @@
  * enverrait à `nie-model-serve`, qui n'en sait rien. `/static/` est servi par le bundle
  * lui-même, avec sa pré-compression et son cache — c'est là qu'ils vivent.
  */
-import init, { WasmGame } from "../wasm/nie_wasm.js";
+import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import init, { WasmGame, menu_presentation_json } from "../wasm/nie_wasm.js";
 
 const WASM_URL = "/static/game/nie_wasm_bg.wasm";
 const FONT_CFG_URL = "/static/game/font.cfg.bin.gz";
@@ -31,7 +32,7 @@ let initPromise: Promise<void> | null = null;
 let wasmMemory: WebAssembly.Memory | null = null;
 
 /** Charge le module wasm une seule fois, même si deux écrans le demandent en même temps. */
-async function ensureWasm(): Promise<void> {
+export async function ensureWasm(): Promise<void> {
 	if (initPromise === null) {
 		initPromise = (async () => {
 			// This public file is not content-hashed. Force ETag revalidation so an immutable
@@ -48,6 +49,12 @@ async function ensureWasm(): Promise<void> {
 		if (initPromise === pending) initPromise = null;
 		throw error;
 	}
+}
+
+/** The engine owns screen identity and geometry; the browser supplies only the host. */
+export async function loadMenuPresentation(id: "start" | "autosave" | "title-menu" | "avatar-top" | "avatar-style" | "avatar-hair" | "avatar-clothes" | "avatar-stats" | "avatar-name"): Promise<NativeMenuScene> {
+	await ensureWasm();
+	return JSON.parse(menu_presentation_json(id)) as NativeMenuScene;
 }
 
 /**

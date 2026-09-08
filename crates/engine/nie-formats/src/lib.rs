@@ -41,6 +41,10 @@
 // racine, pas seulement dans les modules qui le déclarent chacun de leur côté.
 extern crate alloc;
 
+/// Reusable bitmap text from native cfg/G4TX assets.
+#[cfg(feature = "textures")]
+pub mod bitmap_font;
+
 /// Assemblage GLB d'un personnage (feature `std` : I/O fichiers + `HashMap`).
 #[cfg(feature = "std")]
 pub mod assemble;
@@ -107,6 +111,9 @@ pub mod level5;
 pub mod lip;
 #[cfg(feature = "std")]
 pub mod menu;
+/// Portable, measured VFS presentations shared by native and browser hosts.
+#[cfg(all(feature = "std", feature = "serde"))]
+pub mod menu_presentation;
 #[cfg(feature = "std")]
 pub mod mevbin;
 /// Muxeur MP4/AVC pur Rust (H.264 Annex-B → `ftyp`/`moov`/`mdat`) — remplace l'appel `ffmpeg`.

@@ -5083,6 +5083,31 @@ async fn model_service_avatar_catalog(base_url: String) -> Result<RawJson, Strin
     .map_err(|e| format!("tâche catalogue interrompue : {e}"))?
 }
 
+/// Resolve editor selections through the same pure library as the WebAssembly and HTTP hosts.
+#[tauri::command]
+#[specta::specta]
+async fn resolve_avatar_composition(
+    catalog_json: String,
+    state_json: String,
+) -> Result<RawJson, String> {
+    if catalog_json.len() > 2 * 1024 * 1024 || state_json.len() > 16 * 1024 {
+        return Err("Avatar composition input exceeds its size limit".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let catalog = serde_json::from_str::<nie_data::avatar::AvatarCatalog>(&catalog_json)
+            .map_err(|error| format!("Invalid avatar catalogue: {error}"))?;
+        let state = serde_json::from_str::<nie_data::avatar::AvatarState>(&state_json)
+            .map_err(|error| format!("Invalid avatar state: {error}"))?;
+        let composition = nie_data::avatar::resolve_avatar(&catalog, &state)
+            .map_err(|error| error.to_string())?;
+        serde_json::to_value(composition)
+            .map(RawJson)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| format!("Avatar composition task interrupted: {error}"))?
+}
+
 /// Récupère un avatar GLB assemblé par le serveur. La route reste bornée à `/model-avatar/` : le
 /// réglage de service ne devient pas un proxy HTTP généraliste.
 #[tauri::command]
@@ -5343,6 +5368,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         remote_cpk_search,
         remote_resolve_roster,
         model_service_avatar_catalog,
+        resolve_avatar_composition,
         model_service_avatar_glb_b64,
         model_service_menu_png_b64,
         default_save_path,

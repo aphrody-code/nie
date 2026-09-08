@@ -16,6 +16,22 @@ Completion includes native icons, button sheets and states, backgrounds at their
 resolution, game fonts, full navigation and synchronized native/Wasm state. A passing parser
 suite, an attractive partial interface or successful HTTP requests cannot substitute for it.
 
+## Core-first execution contract
+
+The durable target is one shared implementation consumed by every surface: site, CLI, desktop and
+mobile apps, MCP, HTTP/API handlers, WASM and future services. The dependency direction and proof
+rules are documented in [`docs/architecture/shared-core-surfaces.md`](docs/architecture/shared-core-surfaces.md).
+`nie-formats`, `nie-lua`, `nie-data` and `nie-explore` own domain behavior; `asset-source` owns
+host-neutral resource access; `inacord-ui` owns portable presentation and reducers. Each surface is
+a thin adapter with explicit capability gating. No new route, command, app or service may create a
+second listing, decoder, state machine, geometry implementation or copied asset contract.
+
+Every batch must therefore follow: extract/test core → preserve compatibility facades → migrate
+all current consumers → add future bindings → run adapter, interaction, cross-target and visual
+gates → commit one coherent source/documentation batch. The Explorer page is complete only when
+the site and Inacord mount the same shared surface and their matched captures pass the recorded
+element-level comparison; partial resemblance remains open work.
+
 ## Corrected screen identity
 
 The three attached images are website captures with browser chrome. The original PC screens
@@ -140,6 +156,11 @@ CRC and axis-convention differences. Screenshots are oracles only, never full-sc
 
 ### 5. Reconstruct secondary interfaces and complete the flow
 
+- [ ] User priority (2026-09-08): make the avatar page match the six `data/menu/avatar_edit_*`
+  references. Recover the post-migration Azalée editor, converge its behavior with Inacord's
+  editor and `chara_edit`, and expose shared Rust assembly/state/rendering through `nie-web`
+  and `nie-site`. Reuse `nie-render3d` and existing editor capabilities; eliminate duplicated
+  model/face/skeleton selection logic only after all callers use the shared owner.
 - [ ] Match Options rows, switches, selection and Return to `data/menu/options.png`.
 - [ ] Reconstruct avatar style/name/stats/hair/clothes/top steps with native layout and live model
   composition. A preset catalogue or generic form does not satisfy avatar interface parity.
@@ -194,3 +215,14 @@ or changing deployment configuration.
 Fresh live comparison is complete; every original-screen fidelity gate remains open. Parallel work
 covers route/history repair, actual `title02` composition, original opening media and independent
 visual audit. Append measured candidate results after running them; source edits are not deployments.
+
+### Measured batch record — 2026-09-08
+
+- Shared avatar resolver: 13 Rust tests, 56 compositions, 304 native `partId` links and 38
+  presets verified; `nie-data` clippy and wasm/no-std checks pass.
+- Browser avatar editor: 8 tests and 35 assertions pass. The six native scene descriptions are
+  loaded from WASM and the same mounted model viewport is retained while changing stages.
+- WebGPU model shader: strict Naga validation now passes after moving `textureSample` into uniform
+  control flow. The generated WASM was rebuilt with `webgpu` enabled.
+- Remaining gates: compare all six avatar captures in the real browser, prove native model pose,
+  skinning, colors and recipe semantics against the PC runtime, and finish secondary-screen parity.

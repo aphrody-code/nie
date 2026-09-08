@@ -1,0 +1,874 @@
+{
+  "schemaVersion": 1,
+  "id": "avatar-clothes",
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "layers": [
+    {
+      "id": "_edit_uniform01_line01",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4tx",
+      "region": "edit_line01",
+      "rect": {
+        "x": 1237,
+        "y": 243,
+        "w": 8,
+        "h": 28
+      },
+      "drawOrder": 10,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_edit_uniform01_line01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-row-0",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4tx",
+      "region": "dress_preset_base01",
+      "rect": {
+        "x": 1357,
+        "y": 267,
+        "w": 416,
+        "h": 140
+      },
+      "drawOrder": 11,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_dress_preset_base01",
+        "method": "Native raw material offset attached at 1565,337 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-category-0",
+      "assetPath": "data/dx11/menu/200_icon/21_icon_avatar/icon_avacate.g4tx",
+      "region": "icon_avacate_fashion_01_off",
+      "rect": {
+        "x": 1248,
+        "y": 297,
+        "w": 80,
+        "h": 80
+      },
+      "drawOrder": 12,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_icon_avacate01_off_dmy",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-19-0-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l",
+      "rect": {
+        "x": 1367,
+        "y": 277,
+        "w": 120,
+        "h": 120
+      },
+      "drawOrder": 13,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l",
+        "method": "Native raw material offset attached at 1427,337 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-19-0-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l_ol",
+      "rect": {
+        "x": 1363,
+        "y": 273,
+        "w": 128,
+        "h": 128
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l_ol",
+        "method": "Native raw material offset attached at 1427,337 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-19-0",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-19-0-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1437,
+        "y": 278,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1427,337 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-19-0",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-19-1-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l",
+      "rect": {
+        "x": 1505,
+        "y": 277,
+        "w": 120,
+        "h": 120
+      },
+      "drawOrder": 16,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l",
+        "method": "Native raw material offset attached at 1565,337 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-19-1-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l_ol",
+      "rect": {
+        "x": 1501,
+        "y": 273,
+        "w": 128,
+        "h": 128
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l_ol",
+        "method": "Native raw material offset attached at 1565,337 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-19-1",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-19-1-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1575,
+        "y": 278,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1565,337 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-19-1",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "_edit_uniform01_line02",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4tx",
+      "region": "edit_line01",
+      "rect": {
+        "x": 1237,
+        "y": 420,
+        "w": 8,
+        "h": 28
+      },
+      "drawOrder": 19,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_edit_uniform01_line02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-row-1",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4tx",
+      "region": "dress_preset_base01",
+      "rect": {
+        "x": 1357,
+        "y": 445,
+        "w": 416,
+        "h": 140
+      },
+      "drawOrder": 20,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_dress_preset_base01",
+        "method": "Native raw material offset attached at 1565,515 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-category-1",
+      "assetPath": "data/dx11/menu/200_icon/21_icon_avatar/icon_avacate.g4tx",
+      "region": "icon_avacate_fashion_02_off",
+      "rect": {
+        "x": 1248,
+        "y": 475,
+        "w": 80,
+        "h": 80
+      },
+      "drawOrder": 21,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_icon_avacate01_off_dmy",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-20-0-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l",
+      "rect": {
+        "x": 1367,
+        "y": 455,
+        "w": 120,
+        "h": 120
+      },
+      "drawOrder": 22,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l",
+        "method": "Native raw material offset attached at 1427,515 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-20-0-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l_ol",
+      "rect": {
+        "x": 1363,
+        "y": 451,
+        "w": 128,
+        "h": 128
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l_ol",
+        "method": "Native raw material offset attached at 1427,515 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-20-0",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-20-0-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1437,
+        "y": 456,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1427,515 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-20-0",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-20-1-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l",
+      "rect": {
+        "x": 1505,
+        "y": 455,
+        "w": 120,
+        "h": 120
+      },
+      "drawOrder": 25,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l",
+        "method": "Native raw material offset attached at 1565,515 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-20-1-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l_ol",
+      "rect": {
+        "x": 1501,
+        "y": 451,
+        "w": 128,
+        "h": 128
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l_ol",
+        "method": "Native raw material offset attached at 1565,515 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-20-1",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-20-1-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1575,
+        "y": 456,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1565,515 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-20-1",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "_edit_uniform01_line03",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4tx",
+      "region": "edit_line01",
+      "rect": {
+        "x": 1237,
+        "y": 598,
+        "w": 8,
+        "h": 28
+      },
+      "drawOrder": 28,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_edit_uniform01_line03",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-row-2",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4tx",
+      "region": "dress_preset_base01",
+      "rect": {
+        "x": 1357,
+        "y": 623,
+        "w": 416,
+        "h": 140
+      },
+      "drawOrder": 29,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_dress_preset_base01",
+        "method": "Native raw material offset attached at 1565,693 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-category-2",
+      "assetPath": "data/dx11/menu/200_icon/21_icon_avatar/icon_avacate.g4tx",
+      "region": "icon_avacate_fashion_03_off",
+      "rect": {
+        "x": 1248,
+        "y": 653,
+        "w": 80,
+        "h": 80
+      },
+      "drawOrder": 30,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_icon_avacate01_off_dmy",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-21-0-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l",
+      "rect": {
+        "x": 1367,
+        "y": 633,
+        "w": 120,
+        "h": 120
+      },
+      "drawOrder": 31,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l",
+        "method": "Native raw material offset attached at 1427,693 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-21-0-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l_ol",
+      "rect": {
+        "x": 1363,
+        "y": 629,
+        "w": 128,
+        "h": 128
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l_ol",
+        "method": "Native raw material offset attached at 1427,693 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-21-0",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-21-0-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1437,
+        "y": 634,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1427,693 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-21-0",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-21-1-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l",
+      "rect": {
+        "x": 1505,
+        "y": 633,
+        "w": 120,
+        "h": 120
+      },
+      "drawOrder": 34,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l",
+        "method": "Native raw material offset attached at 1565,693 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-21-1-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l_ol",
+      "rect": {
+        "x": 1501,
+        "y": 629,
+        "w": 128,
+        "h": 128
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l_ol",
+        "method": "Native raw material offset attached at 1565,693 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-21-1",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-21-1-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1575,
+        "y": 634,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1565,693 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-21-1",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-21-2-base",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l",
+      "rect": {
+        "x": 1643,
+        "y": 633,
+        "w": 120,
+        "h": 120
+      },
+      "drawOrder": 37,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l",
+        "method": "Native raw material offset attached at 1703,693 using the matching avatar01_10 locator; Y negated once."
+      }
+    },
+    {
+      "id": "clothing-21-2-focus",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "type_icon_list01_l_ol",
+      "rect": {
+        "x": 1639,
+        "y": 629,
+        "w": 128,
+        "h": 128
+      },
+      "drawOrder": 260,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_type_icon_list01_l_ol",
+        "method": "Native raw material offset attached at 1703,693 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-21-2",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-21-2-check",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4tx",
+      "region": "edit_check01",
+      "rect": {
+        "x": 1713,
+        "y": 634,
+        "w": 52,
+        "h": 40
+      },
+      "drawOrder": 270,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_check01",
+        "method": "Native raw material offset attached at 1703,693 using the matching avatar01_10 locator; Y negated once."
+      },
+      "actionId": "clothing-21-2",
+      "visibleWhen": "focused"
+    },
+    {
+      "id": "clothing-note",
+      "assetPath": "data/dx11/menu/161_avatar/avatar01/avatar01_46/avatar01_46.g4tx",
+      "region": "memo_base02",
+      "rect": {
+        "x": 1227,
+        "y": 780,
+        "w": 676,
+        "h": 172
+      },
+      "drawOrder": 40,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_46/avatar01_46.g4pkm",
+        "record": "_memo_base02",
+        "method": "Native raw material offset attached at 1565,866 using the matching avatar01_10 locator; Y negated once."
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "clothing-19-0",
+      "label": "Col 1",
+      "hostActionId": "clothing-19-0",
+      "rect": {
+        "x": 1367,
+        "y": 277,
+        "w": 120,
+        "h": 120
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_atc_large01_01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-19-1",
+      "label": "Col 2",
+      "hostActionId": "clothing-19-1",
+      "rect": {
+        "x": 1505,
+        "y": 277,
+        "w": 120,
+        "h": 120
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_atc_large01_02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-20-0",
+      "label": "Manches 1",
+      "hostActionId": "clothing-20-0",
+      "rect": {
+        "x": 1367,
+        "y": 455,
+        "w": 120,
+        "h": 120
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_atc_large01_01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-20-1",
+      "label": "Manches 2",
+      "hostActionId": "clothing-20-1",
+      "rect": {
+        "x": 1505,
+        "y": 455,
+        "w": 120,
+        "h": 120
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_atc_large01_02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-21-0",
+      "label": "Ourlet 1",
+      "hostActionId": "clothing-21-0",
+      "rect": {
+        "x": 1367,
+        "y": 633,
+        "w": 120,
+        "h": 120
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_atc_large01_01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-21-1",
+      "label": "Ourlet 2",
+      "hostActionId": "clothing-21-1",
+      "rect": {
+        "x": 1505,
+        "y": 633,
+        "w": 120,
+        "h": 120
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_atc_large01_02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-21-2",
+      "label": "Ourlet 3",
+      "hostActionId": "clothing-21-2",
+      "rect": {
+        "x": 1643,
+        "y": 633,
+        "w": 120,
+        "h": 120
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_20/avatar01_20.g4pkm",
+        "record": "_atc_large01_03",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    }
+  ],
+  "texts": [
+    {
+      "id": "current-stage",
+      "text": "Habits",
+      "rect": {
+        "x": 710,
+        "y": 126,
+        "w": 500,
+        "h": 44
+      },
+      "drawOrder": 500,
+      "color": 16777215,
+      "provenance": {
+        "source": "data/menu/avatar_edit_top.png",
+        "record": "current header label",
+        "method": "Text bound to native chara_edit_menu labels; PC label rectangle normalized by0.75. Native header motion attachment remains unresolved."
+      }
+    },
+    {
+      "id": "clothing-heading-0",
+      "text": "Col",
+      "rect": {
+        "x": 1256,
+        "y": 227,
+        "w": 336,
+        "h": 56
+      },
+      "drawOrder": 500,
+      "color": 557055,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_text_uniform01_01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-heading-1",
+      "text": "Manches",
+      "rect": {
+        "x": 1256,
+        "y": 404,
+        "w": 336,
+        "h": 56
+      },
+      "drawOrder": 500,
+      "color": 557055,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_text_uniform01_02",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-heading-2",
+      "text": "Ourlet",
+      "rect": {
+        "x": 1256,
+        "y": 582,
+        "w": 336,
+        "h": 56
+      },
+      "drawOrder": 500,
+      "color": 557055,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_10/avatar01_10.g4pkm",
+        "record": "_text_uniform01_03",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-note-label",
+      "text": "Certains maillots ne\ncorrespondent pas aux styles d'habits.",
+      "rect": {
+        "x": 1284,
+        "y": 784,
+        "w": 564,
+        "h": 168
+      },
+      "drawOrder": 500,
+      "color": 557055,
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_46/avatar01_46.g4pkm",
+        "record": "_text_memo01; native text5370BC9C",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "clothing-19-0-icon",
+      "rect": {
+        "x": 1377,
+        "y": 287,
+        "w": 100,
+        "h": 100
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-19-1-icon",
+      "rect": {
+        "x": 1515,
+        "y": 287,
+        "w": 100,
+        "h": 100
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-20-0-icon",
+      "rect": {
+        "x": 1377,
+        "y": 465,
+        "w": 100,
+        "h": 100
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-20-1-icon",
+      "rect": {
+        "x": 1515,
+        "y": 465,
+        "w": 100,
+        "h": 100
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-21-0-icon",
+      "rect": {
+        "x": 1377,
+        "y": 643,
+        "w": 100,
+        "h": 100
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-21-1-icon",
+      "rect": {
+        "x": 1515,
+        "y": 643,
+        "w": 100,
+        "h": 100
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    },
+    {
+      "id": "clothing-21-2-icon",
+      "rect": {
+        "x": 1653,
+        "y": 643,
+        "w": 100,
+        "h": 100
+      },
+      "provenance": {
+        "source": "data/common/menu/161_avatar/avatar01/avatar01_21/avatar01_21.g4pkm",
+        "record": "_edit_parts_dmy01",
+        "method": "Native raw G4PKM material rectangle; Y negated once, no accumulated parent transform."
+      }
+    }
+  ],
+  "provenance": {
+    "source": "data/common/gamedata/menu/cfg/chara_edit_menu_setting.cfg.bin",
+    "record": "chara_edit_clothes",
+    "method": "Current VFS assets and mesh placements paired with data/menu/avatar_edit_clothes.png (2560x1440 normalized by 0.75). Screenshots are comparison oracles only."
+  },
+  "unresolved": [
+    "Clothing availability depends on native morphology and uniform rules. Native restrictions must not be inferred from a reference screenshot."
+  ]
+}

@@ -65,7 +65,7 @@ export const SETTINGS = "settings";
 /** L'éditeur d'avatar, alimenté par les tables `chara_edit` du VFS. */
 export const AVATAR = "avatar";
 
-/** Legacy route retained only so `/menu` can redirect to the game startup at `/`. */
+/** Published alias that enters the main menu at `/` without replaying startup. */
 export const MENU = "menu";
 
 /** Une entrée du menu : sa route, son libellé, son pictogramme. */

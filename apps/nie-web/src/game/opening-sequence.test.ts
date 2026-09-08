@@ -26,10 +26,12 @@ describe("opening sequence", () => {
 		expect(JSON.stringify(OPENING_FRAMES)).not.toContain(".png");
 	});
 
-	test("times only the loading and logo frames", () => {
+	test("times resource waiting and follows actual completion for native movies", () => {
 		expect(OPENING_FRAMES.loading.durationMs).toBeGreaterThan(0);
-		expect(OPENING_FRAMES["inazuma-eleven"].durationMs).toBeGreaterThan(0);
-		expect(OPENING_FRAMES.level5.durationMs).toBeGreaterThan(0);
+		expect(OPENING_FRAMES["inazuma-eleven"].advanceOn).toBe("media-ended");
+		expect(OPENING_FRAMES.level5.advanceOn).toBe("media-ended");
+		expect(advanceOpeningPhase("level5", "timeout")).toBe("level5");
+		expect(advanceOpeningPhase("level5", "confirm")).toBe("level5");
 		expect(OPENING_FRAMES.autosave.durationMs).toBeNull();
 		expect(OPENING_FRAMES.start.durationMs).toBeNull();
 	});
@@ -42,8 +44,8 @@ describe("opening sequence", () => {
 
 	test("reaches the reconstructed menu only after both confirmations", () => {
 		let phase = advanceOpeningPhase("loading", "timeout");
-		phase = advanceOpeningPhase(phase, "timeout");
-		phase = advanceOpeningPhase(phase, "timeout");
+		phase = advanceOpeningPhase(phase, "media-ended");
+		phase = advanceOpeningPhase(phase, "media-ended");
 		expect(phase).toBe("autosave");
 		phase = advanceOpeningPhase(phase, "confirm");
 		expect(phase).toBe("start");
@@ -60,8 +62,6 @@ describe("opening sequence", () => {
 
 	test("ships opening motion with an explicit reduced-motion path", async () => {
 		const css = await Bun.file(new URL("../pages/opening.css", import.meta.url)).text();
-		expect(css).toContain("opening-surface-in");
-		expect(css).toContain("opening-logo-in");
 		expect(css).toContain(":hover");
 		expect(css).toContain(":focus-visible");
 		expect(css).toContain(":active");

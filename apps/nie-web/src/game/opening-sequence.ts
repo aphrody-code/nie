@@ -9,7 +9,7 @@ export const OPENING_PHASES = [
 ] as const;
 
 export type OpeningPhase = (typeof OPENING_PHASES)[number];
-export type OpeningEvent = "timeout" | "confirm";
+export type OpeningEvent = "timeout" | "media-ended" | "confirm";
 
 /** Maps the confirm button from a browser gamepad using the standard mapping. */
 export function openingEventForStandardGamepadButton(buttonIndex: number): OpeningEvent | null {
@@ -18,13 +18,14 @@ export function openingEventForStandardGamepadButton(buttonIndex: number): Openi
 
 /** Localized title-logo texture verified in the mounted VFS. */
 export const TITLE_LOGO_VFS_PATH =
-	"data/dx11/menu/220_img/logo_title/fr/logo_title_switch2_edition.g4tx";
+	"data/dx11/menu/50_title/title00/title00_03_02/fr/title00_03_02.g4tx";
 
 export interface OpeningFrame {
 	surface: "loading-layout" | "title-logo" | "level5-mark" | "autosave-notice" | "start-screen";
 	alt: string;
-	/** Null means that the game waits for explicit confirmation. */
+	/** Only host resource waiting has a timer; logo films end on their native media event. */
 	durationMs: number | null;
+	advanceOn: OpeningEvent;
 	actionLabel?: string;
 }
 
@@ -37,27 +38,32 @@ export const OPENING_FRAMES: Readonly<Record<Exclude<OpeningPhase, "menu">, Open
 		surface: "loading-layout",
 		alt: "Chargement en cours",
 		durationMs: 1_200,
+		advanceOn: "timeout",
 	},
 	"inazuma-eleven": {
 		surface: "title-logo",
 		alt: "Logo Inazuma Eleven",
-		durationMs: 2_000,
+		durationMs: null,
+		advanceOn: "media-ended",
 	},
 	level5: {
 		surface: "level5-mark",
 		alt: "Logo LEVEL5",
-		durationMs: 2_000,
+		durationMs: null,
+		advanceOn: "media-ended",
 	},
 	autosave: {
 		surface: "autosave-notice",
 		alt: "Avertissement de sauvegarde automatique",
 		durationMs: null,
+		advanceOn: "confirm",
 		actionLabel: "OK — continuer",
 	},
 	start: {
 		surface: "start-screen",
 		alt: "Écran START d’Inazuma Eleven: Victory Road",
 		durationMs: null,
+		advanceOn: "confirm",
 		actionLabel: "COMMENCER",
 	},
 };
@@ -67,6 +73,5 @@ export function advanceOpeningPhase(phase: OpeningPhase, event: OpeningEvent): O
 	const index = OPENING_PHASES.indexOf(phase);
 	if (index < 0 || phase === "menu") return "menu";
 	const frame = OPENING_FRAMES[phase];
-	const expects = frame.durationMs === null ? "confirm" : "timeout";
-	return event === expects ? (OPENING_PHASES[index + 1] ?? "menu") : phase;
+	return event === frame.advanceOn ? (OPENING_PHASES[index + 1] ?? "menu") : phase;
 }

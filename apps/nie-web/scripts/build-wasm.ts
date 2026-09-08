@@ -55,6 +55,8 @@ await run("cargo", [
 	"--locked",
 	"-p",
 	"nie-wasm",
+	"--features",
+	"webgpu",
 	"--target",
 	"wasm32-unknown-unknown",
 	"--release",

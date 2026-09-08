@@ -46,6 +46,11 @@ required-features = ["serde", "std"]
 # `required-features`, le harnais saute le test ET dit pourquoi.
 
 [[test]]
+name = "avatar_resolve_golden"
+path = "tests/avatar_resolve_golden.rs"
+required-features = ["serde"]
+
+[[test]]
 name = "ai_type_golden"
 path = "tests/ai_type_golden.rs"
 required-features = ["serde", "std"]

@@ -78,6 +78,7 @@ export function creerWebSource({ origine = "" }: OptionsWebSource = {}): AssetSo
 		async parcourir(prefixe: string, options: OptionsParcours = {}): Promise<ContenuDossier> {
 			const brut = await lire<{
 				dossiers?: string[];
+				folder_counts?: Record<string, number>;
 				fichiers?: EntreeVfs[];
 				total_fichiers?: number;
 				total_fichiers_sans_filtre?: number;
@@ -88,6 +89,7 @@ export function creerWebSource({ origine = "" }: OptionsWebSource = {}): AssetSo
 			return {
 				prefixe,
 				dossiers: brut.dossiers ?? [],
+				folderCounts: brut.folder_counts ?? {},
 				fichiers: brut.fichiers ?? [],
 				total: brut.total_fichiers,
 				totalSansFiltre: brut.total_fichiers_sans_filtre,

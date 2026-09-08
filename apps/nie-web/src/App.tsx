@@ -10,17 +10,16 @@ import {
 import "@niers/inacord-ui/shell/game-tokens.css";
 // Les classes `game-*` des écrans du jeu (Options, filtres), engendrées depuis les captures.
 import "@niers/inacord-ui/shell/game-screens.css";
-import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { ALIAS, AVATAR, EXPLORER, MEDIA, MENU, SETTINGS, recognizedRoutes } from "./entries";
+import { ALIAS, AVATAR, EXPLORER, MEDIA, SETTINGS, recognizedRoutes } from "./entries";
+import { useGameNavigation } from "./game/use-game-navigation";
 import { Catalog } from "./pages/Catalog";
-import { Loading } from "./pages/Loading";
 import { Avatar } from "./pages/Avatar";
 import { Notice, SecondaryScreen } from "./pages/SecondaryScreen";
-import { Explorateur } from "./pages/Explorer";
+import { ExplorerInacord } from "./pages/ExplorerInacord";
 import { Game } from "./pages/Game";
 import { Settings } from "./pages/Settings";
-import { HOME, pathForEntry, requestedEntry, splitLanguagePrefix } from "./routing";
+import { HOME, splitLanguagePrefix } from "./routing";
 
 /** Hosts the real startup/game at root and the shared catalogue UI on explicit tool routes. */
 export function App() {
@@ -34,7 +33,7 @@ export function App() {
 	);
 }
 
-/** One current route, one screen. The homepage always starts the native capture sequence. */
+/** One current route and opening state; returning from a tool resumes its main menu. */
 function Site() {
 	const capacites = useCapacites();
 	const erreurSource = useErreurSource();
@@ -49,69 +48,13 @@ function Site() {
 	// langue est une navigation entiere, servie par nie-site, pas un changement d'etat local.
 	const prefixe = useMemo(() => splitLanguagePrefix(window.location.pathname).prefix, []);
 
-	// Les entrees reconnues dans l'URL. L'accueil n'en fait PAS partie : il vit a la racine, et
-	// `requestedEntry` rend `null` pour elle — y ajouter `home` créerait un second chemin
-	// vers la meme page.
-	// Les ROUTES reconnues, pas les tuiles : `/recherche` et `/donnees` mènent à un mode de
-	// l'explorateur sans figurer au menu.
-	const routes = useMemo(() => recognizedRoutes(etat), [etat]);
-
-	// L'entree courante vit dans l'URL, pas seulement en memoire : sans cela, un lien vers un
-	// catalogue ne mene qu'a l'accueil, le bouton « precedent » quitte le site, et un
-	// rechargement perd ou l'on etait.
-	const [vue, setVueEtat] = useState<string>(() => {
-		const routeServeur = document.getElementById("racine")?.dataset.route;
-		return requestedEntry(INITIAL_ROUTES, window.location, routeServeur) ?? HOME;
-	});
-
-	// `/menu` used to expose a handcrafted React screen containing placeholder values. Keep the
-	// published URL as a compatibility alias, but canonicalize it to the real startup sequence.
-	useEffect(() => {
-		if (vue !== MENU) return;
-		setVueEtat(HOME);
-		window.history.replaceState({ vue: HOME }, "", pathForEntry(prefixe, HOME));
-	}, [prefixe, vue]);
-
-	/** Change de vue ET d'URL, sans recharger la page. */
-	const setVue = (suivante: string) => {
-		setVueEtat(suivante);
-		const url = new URL(window.location.href);
-		url.pathname = pathForEntry(prefixe, suivante);
-		window.history.pushState({ vue: suivante }, "", url);
-	};
-
-	/**
-	 * La navigation que les composants portés du wiki utilisent.
-	 *
-	 * Ils appelaient `next/link`, qui n'existe pas ici : l'adaptateur du paquet partagé rend un
-	 * vrai `<a href>` et ne détourne le clic simple **que** si l'hôte sait faire mieux. Cet
-	 * hôte sait : il change d'écran sans recharger. Un chemin qui ne désigne aucune entrée
-	 * connue est laissé au navigateur — le détourner mènerait à un écran vide au lieu d'une
-	 * page servie.
-	 */
-	const naviguer = React.useCallback(
-		(href: string) => {
-			const route = splitLanguagePrefix(
-				new URL(href, window.location.origin).pathname
-			).route.replace(/^\//, "");
-			if (route && INITIAL_ROUTES.includes(route)) setVue(route);
-			else window.location.assign(href);
-		},
-		// `setVue` est recréé à chaque rendu et ne dépend que de `prefixe` : le suivre ferait
-		// remonter un contexte neuf à chaque frappe, et remonterait tout l'arbre porté.
-		[prefixe]
-	);
-
-	// Le bouton « precedent » doit ramener a la vue precedente, pas sortir du site. Une URL qui
-	// ne designe aucune entree est l'accueil — c'est aussi ce qui ramene au menu depuis un
-	// catalogue.
-	useEffect(() => {
-		const surRetour = () => {
-			setVueEtat(requestedEntry(routes, window.location) ?? HOME);
-		};
-		window.addEventListener("popstate", surRetour);
-		return () => window.removeEventListener("popstate", surRetour);
-	}, [routes]);
+	const {
+		view: vue,
+		openingPhase,
+		setOpeningPhase,
+		navigate: setVue,
+		navigateLink: naviguer,
+	} = useGameNavigation(INITIAL_ROUTES, document.getElementById("racine")?.dataset.route);
 
 	// L'index du VFS se monte EN FOND côté serveur (`EtatSite::monter_vfs_en_fond`) : au premier
 	// appel il répond `en_cours`. Une sonde unique fige donc l'écran d'attente pour toujours —
@@ -144,11 +87,12 @@ function Site() {
 	// vides pendant la premiere seconde.
 	const pret = Boolean(capacites?.vfs);
 
-	// The root and legacy `/menu` alias both enter the captured startup sequence. START leads to
-	// the canonical menu reference; the prototype WASM menu is not part of the public path.
-	if (vue === HOME || vue === MENU) {
+	// Route changes may unmount Game, but the opening state belongs to this persistent host.
+	if (vue === HOME) {
 		return (
 			<Game
+				phase={openingPhase}
+				onPhaseChange={setOpeningPhase}
 				onOpenAvatar={() => setVue(AVATAR)}
 				onOpenSettings={() => setVue(SETTINGS)}
 				onOpenMedia={() => setVue(MEDIA)}
@@ -157,23 +101,15 @@ function Site() {
 		);
 	}
 
-	// Tant que le serveur n'a pas tranché sur son VFS, les écrans qui en DÉPENDENT montrent
-	// l'écran d'attente du jeu plutôt qu'un menu dont aucune entrée ne mènerait à quelque
-	// chose. La panne, elle, est un état tranché : elle s'affiche dans le même écran, avec
-	// l'humeur correspondante.
-	if (vfs === null || vfs === "en_cours") {
-		return (
-			// Même raison qu'en dessous : `GameCanvas` prend la hauteur de son parent.
-			<div style={{ position: "fixed", inset: 0 }}>
-				<Loading health={etat} failed={Boolean(erreurSource)} />
-			</div>
-		);
-	}
-
-	// Settings remains directly addressable. Leaving it returns to the canonical game root,
-	// never to the removed handcrafted menu.
+	// Settings and the secondary shell keep their Return controls available during VFS startup.
 	if (vue === SETTINGS) {
 		return <Settings prefixe={prefixe} onRetour={() => setVue(HOME)} />;
+	}
+	if (vue === AVATAR) {
+		return <Avatar onBack={() => setVue(HOME)} />;
+	}
+	if (vue === EXPLORER || (ALIAS as readonly string[]).includes(vue)) {
+		return <ExplorerInacord onHome={() => setVue(HOME)} />;
 	}
 
 	return (
@@ -185,18 +121,12 @@ function Site() {
 					<Notice tone="alerte">
 						Le site ne parvient pas à joindre ses ressources. Réessayez dans un instant.
 					</Notice>
-				) : !capacites ? (
+				) : !capacites || vfs === null || vfs === "en_cours" ? (
 					<Notice>Chargement…</Notice>
 				) : !pret ? (
 					<Notice>
 						Le catalogue est en cours de préparation. Il s'affichera dès qu'il sera prêt.
 					</Notice>
-				) : vue === AVATAR ? (
-					<Avatar />
-				) : vue === EXPLORER || (ALIAS as readonly string[]).includes(vue) ? (
-					// Les deux URL héritées mènent ici : l'explorateur EST la page de recherche et
-					// de données, son panneau de droite en porte le contenu.
-					<Explorateur />
 				) : (
 					// `/medias` et les quatre URL heritees menent toutes ici. La seconde arrive sur
 					// SA vue ; la premiere, qui n'en designe aucune, ouvre sur les textures — le

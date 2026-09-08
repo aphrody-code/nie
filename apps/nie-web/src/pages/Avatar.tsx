@@ -1,131 +1,113 @@
-import { useEffect, useMemo, useState } from "react";
-import { Notice, ViewTitle } from "./SecondaryScreen";
+/** Native avatar host: shared UI, Rust resource decisions and the native editor's renderer. */
+import { useCallback, useEffect, useState } from "react";
+import { NativeAvatarEditor, type AvatarNameFields } from "@niers/inacord-ui/avatar/NativeAvatarEditor";
+import { INITIAL_AVATAR_STATE, type AvatarCatalog, type AvatarComposition, type AvatarState } from "@niers/inacord-ui/avatar/contract";
+import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import { RustModelViewport } from "@niers/inacord-ui/shell/rust-model-viewport";
+import { avatarModelUrl, resolveAvatar } from "../game/avatar-runtime";
+import { loadMenuPresentation } from "../game/bridge";
+import { createNativeViewer } from "../game/native-viewer";
+import { NativeText } from "./NativeText";
 
-type Part = { id: string; itemNo: number; resource: string; modeles?: string[]; modeles2?: string[]; icone?: string | null };
-type Category = { faceSettingType: number; prefixe: string; parts: Part[]; couleurs?: string[] };
-type Catalogue = { source: string; categories: Category[]; couleursRgb?: Record<string, { rgb: string; alpha: number }>; modelesDeBase: { morphologies: string[] }; presets?: unknown[] };
-type Legacy = { parts?: unknown[]; colors?: unknown[]; voices?: unknown[] };
-type Famille<T> = { donnees: T; octets: number; chemin: string };
+const STAGES = ["style", "body", "hair", "clothes", "stats", "name"] as const;
+type Stage = typeof STAGES[number];
+const SCENES = { style: "avatar-top", body: "avatar-style", hair: "avatar-hair", clothes: "avatar-clothes", stats: "avatar-stats", name: "avatar-name" } as const;
+const DRAFT_KEY = "nie.avatar.draft.v1";
+const EMPTY_NAMES: AvatarNameFields = { name: "", nickname: "", uniformName: "", shirtNumber: "0" };
+// Scene text colors are RGB; the native bitmap-font ABI accepts packed RGBA.
+const nativeText = (text: string, options?: { color?: number; height?: number; width?: number }) => <NativeText text={text} {...options} color={(((options?.color ?? 0xffffff) << 8) | 255) >>> 0} />;
+type AvatarScenes = Record<Stage, NativeMenuScene>;
 
-const CDN = "/assets";
-const NOMS: Record<number, string> = {
-  1: "Visages prédéfinis", 2: "Forme du visage", 3: "Peau", 4: "Coiffure", 5: "Frange",
-  6: "Yeux", 7: "Pupilles", 8: "Reflets", 9: "Nez", 10: "Bouche", 11: "Sourcils",
-  12: "Oreilles", 13: "Marques du visage", 14: "Accessoires", 16: "Genre", 17: "Morphologie",
-  18: "Poitrine", 19: "Col", 20: "Manches", 21: "Ourlet",
-};
-
-/** Atelier issu de l'ancien éditeur Azalée, réadmis sur les contrats de nie-site. */
-export function Avatar() {
-  const [catalogue, setCatalogue] = useState<Catalogue | null>(null);
-  const [legacy, setLegacy] = useState<Famille<Legacy> | null>(null);
-  const [categorie, setCategorie] = useState(1);
-  const [choix, setChoix] = useState<Record<number, string>>({});
-  const [morphologie, setMorphologie] = useState(0);
-  const [taille, setTaille] = useState(7);
-  const [erreur, setErreur] = useState(false);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    lire<Catalogue>(CDN + "/avatar/catalog.json", ac.signal)
-      .then(setCatalogue)
-      .catch(() => lire<Famille<Legacy>>("/api/v1/donnees/famille/chara_edit", ac.signal)
-        .then(setLegacy)
-        .catch(() => { if (!ac.signal.aborted) setErreur(true); }));
-    return () => ac.abort();
-  }, []);
-
-  const categories = catalogue?.categories ?? [];
-  const active = categories.find((c) => c.faceSettingType === categorie) ?? categories[0];
-  const url = useMemo(() => catalogue ? composeAvatarUrl(catalogue, choix, morphologie, taille) : null, [catalogue, choix, morphologie, taille]);
-  const presetCount = Array.isArray(catalogue?.presets) ? catalogue.presets.length : null;
-
-  if (erreur) return <section><ViewTitle>Éditeur d’avatar</ViewTitle><Notice tone="alerte">Les données de l’atelier ne sont pas disponibles pour le moment.</Notice></section>;
-  if (!catalogue && !legacy) return <section><ViewTitle>Éditeur d’avatar</ViewTitle><Notice>Chargement du catalogue de pièces…</Notice></section>;
-  if (!catalogue) return <LegacyView data={legacy!} />;
-
-  return (
-    <section aria-labelledby="titre-avatar">
-      <ViewTitle detail={totalParts(categories) + " pièces · " + totalColors(categories) + " couleurs"}><span id="titre-avatar">Éditeur d’avatar</span></ViewTitle>
-      <p style={{ margin: "0 0 var(--jeu-espace-l)", fontWeight: 700 }}>
-        Catalogue résolu depuis les fichiers du jeu : {presetCount === null ? null : <>{presetCount} visages prédéfinis et </>}{catalogue.modelesDeBase.morphologies.length} morphologies.
-      </p>
-      <div style={layout}>
-        <div>
-          <div role="tablist" aria-label="Familles de l’avatar" style={tabs}>
-            {categories.map((c) => <button key={c.faceSettingType} type="button" role="tab" aria-selected={c.faceSettingType === active?.faceSettingType} onClick={() => setCategorie(c.faceSettingType)} style={bouton(c.faceSettingType === active?.faceSettingType)}>{NOMS[c.faceSettingType] ?? ("Pièces " + c.faceSettingType)} ({c.parts.length})</button>)}
-          </div>
-          <div style={panneau}>
-            <h3 style={titrePanneau}>{NOMS[active?.faceSettingType ?? 0] ?? active?.prefixe}</h3>
-            <div style={grille}>
-              {(active?.parts ?? []).slice(0, 120).map((part) => {
-                const choisi = choix[active!.faceSettingType] === part.id;
-                const image = vignette(part.icone);
-                return <button key={part.id} type="button" aria-pressed={choisi} onClick={() => setChoix((v) => ({ ...v, [active!.faceSettingType]: part.id }))} style={{ ...tuile, borderColor: choisi ? "var(--jeu-accent-azur)" : "transparent" }}>
-                  {image ? <img src={image} alt="" loading="lazy" width={120} height={120} style={{ width: "100%", aspectRatio: "1", objectFit: "contain" }} /> : <span style={placeholder}>{colorFor(catalogue, active!, part) ?? "—"}</span>}
-                  <span style={caption}>{part.resource !== "0xFFFFFFFF" ? part.resource : part.id}</span>
-                </button>;
-              })}
-            </div>
-            {(active?.parts.length ?? 0) > 120 ? <p style={{ fontWeight: 700 }}>Affichage des 120 premières pièces sur {active?.parts.length}.</p> : null}
-          </div>
-        </div>
-        <aside style={panneau} aria-label="Réglages et aperçu">
-          <h3 style={titrePanneau}>Silhouette</h3>
-          <label style={champ}>Morphologie<select value={morphologie} onChange={(e) => setMorphologie(Number(e.target.value))}>{catalogue.modelesDeBase.morphologies.map((m, i) => <option key={m} value={i}>{m}</option>)}</select></label>
-          <label style={champ}>Taille <output>{taille}</output><input type="range" min="0" max="14" value={taille} onChange={(e) => setTaille(Number(e.target.value))} /></label>
-          <h3 style={titrePanneau}>Assemblage</h3>
-          {url ? <><a href={url} target="_blank" rel="noreferrer" style={lien}>Ouvrir le GLB assemblé</a><p style={meta}>Pièces, textures faciales et modèle de corps résolus par le serveur.</p></> : <Notice>Sélectionnez une pièce de modèle pour préparer un GLB.</Notice>}
-          <p style={meta}>Source : {catalogue.source}</p>
-        </aside>
-      </div>
-    </section>
-  );
+function storedDraft(): { state: AvatarState; nameFields: AvatarNameFields } {
+	try {
+		const raw = localStorage.getItem(DRAFT_KEY);
+		if (raw && raw.length <= 65536) {
+			const value = JSON.parse(raw);
+			if (value.version === 1 && value.state && typeof value.state === "object" && value.nameFields) {
+				const fields = value.nameFields;
+				if ([fields.name, fields.nickname, fields.uniformName].every(field => typeof field === "string" && field.length <= 512)
+					&& /^(?:\d{1,2})?$/.test(String(fields.shirtNumber))) {
+					return { state: value.state, nameFields: { name: fields.name, nickname: fields.nickname, uniformName: fields.uniformName, shirtNumber: String(fields.shirtNumber) } };
+				}
+			}
+		}
+	} catch { /* The native resolver validates restored selections before any resource request. */ }
+	return { state: { ...INITIAL_AVATAR_STATE }, nameFields: { ...EMPTY_NAMES } };
 }
 
-function LegacyView({ data }: { data: Famille<Legacy> }) {
-  const counts = [
-    Array.isArray(data.donnees.parts) ? data.donnees.parts.length + " pièces" : null,
-    Array.isArray(data.donnees.colors) ? data.donnees.colors.length + " couleurs" : null,
-  ].filter((value): value is string => value !== null);
-  return <section><ViewTitle detail={counts.length > 0 ? counts.join(" · ") : undefined}>Éditeur d’avatar</ViewTitle><Notice>Le catalogue résolu est temporairement indisponible. Les tables chara_edit restent consultables.</Notice><pre style={ligneStyle}>{JSON.stringify(data.donnees, null, 2)}</pre></section>;
-}
+export function Avatar({ onBack }: { onBack: () => void }) {
+	const [draft] = useState(storedDraft);
+	const [state, setState] = useState<AvatarState>(draft.state);
+	const [nameFields, setNameFields] = useState<AvatarNameFields>(draft.nameFields);
+	const [stage, setStage] = useState<Stage>("style");
+	const [catalog, setCatalog] = useState<AvatarCatalog | null>(null);
+	const [scenes, setScenes] = useState<AvatarScenes | null>(null);
+	const [composition, setComposition] = useState<AvatarComposition | null>(null);
+	const [catalogError, setCatalogError] = useState(false);
+	const [sceneError, setSceneError] = useState(false);
+	const [compositionError, setCompositionError] = useState(false);
+	const [attempt, setAttempt] = useState(0);
 
-export function composeAvatarUrl(catalogue: Catalogue, choix: Record<number, string>, morphologie: number, taille: number): string | null {
-  const pieces = catalogue.categories.flatMap((c) => {
-    const selectedId = choix[c.faceSettingType];
-    const p = selectedId ? c.parts.find((part) => part.id === selectedId) : undefined;
-    return p ? [...(p.modeles ?? []), ...(p.modeles2 ?? [])].filter((x) => x.includes("/20_EDIT/") && x.endsWith(".g4md")).map((x) => x.split("/20_EDIT/")[1]?.replace(/\.g4md$/, "")).filter((x): x is string => Boolean(x)) : [];
-  });
-  const uniques = [...new Set(pieces)];
-  if (!uniques.length) return null;
-  const morpho = catalogue.modelesDeBase.morphologies[morphologie] ?? catalogue.modelesDeBase.morphologies[0];
-  if (!morpho) return null;
-  return CDN + "/model-avatar/" + uniques.join("+") + ".glb?morpho=" + encodeURIComponent(morpho) + "&taille=" + taille;
-}
-function vignette(icone?: string | null): string | null {
-  if (!icone || !/^[A-Za-z0-9_]+_[0-9]+$/.test(icone)) return null;
-  const i = icone.lastIndexOf("_");
-  return CDN + "/tex/dx11/menu/200_icon/21_icon_avatar/" + icone.slice(0, i) + ".g4tx/" + icone + ".png";
-}
-function colorFor(catalogue: Catalogue, category: Category, part: Part): string | null {
-  const id = category.couleurs?.[part.itemNo];
-  return id ? catalogue.couleursRgb?.[id]?.rgb ?? null : null;
-}
-function totalParts(categories: Category[]) { return categories.reduce((n, c) => n + c.parts.length, 0); }
-function totalColors(categories: Category[]) { return categories.reduce((n, c) => n + (c.couleurs?.length ?? 0), 0); }
-async function lire<T>(url: string, signal: AbortSignal): Promise<T> { const r = await fetch(url, { signal, headers: { accept: "application/json" } }); if (!r.ok) throw new Error(url + " a répondu " + r.status); return (await r.json()) as T; }
+	const back = useCallback(() => {
+		const previous = STAGES[STAGES.indexOf(stage) - 1];
+		if (previous) setStage(previous); else onBack();
+	}, [stage, onBack]);
+	useEffect(() => {
+		const key = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.defaultPrevented || event.repeat || document.querySelector('[role="dialog"][aria-modal="true"],dialog[open]')) return;
+			event.preventDefault(); back();
+		};
+		window.addEventListener("keydown", key);
+		return () => window.removeEventListener("keydown", key);
+	}, [back]);
 
-const layout = { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(260px, .4fr)", gap: 18, alignItems: "start" } as const;
-const tabs = { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 } as const;
-const panneau = { background: "rgb(255 255 255 / 78%)", padding: "var(--jeu-espace-l)", boxShadow: "var(--jeu-ombre-panneau)" } as const;
-const titrePanneau = { margin: "0 0 12px", color: "var(--jeu-nuit-profonde)" } as const;
-const meta = { overflowWrap: "anywhere", fontSize: 12, fontWeight: 700 } as const;
-const ligneStyle = { margin: 0, padding: 10, overflow: "auto", maxHeight: 420, background: "var(--jeu-surface-craie)", borderLeft: "3px solid var(--jeu-accent-azur)", fontSize: 11 } as const;
-const grille = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 } as const;
-const tuile = { border: "2px solid transparent", background: "var(--jeu-surface-glace)", padding: 8, cursor: "pointer", textAlign: "left" } as const;
-const caption = { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, fontWeight: 800 } as const;
-const placeholder = { display: "grid", placeItems: "center", aspectRatio: "1", fontSize: 28, fontWeight: 900 } as const;
-const champ = { display: "grid", gap: 6, marginBottom: 18, fontWeight: 800 } as const;
-const lien = { display: "inline-block", padding: "10px 14px", background: "var(--jeu-tuile-active-bas)", color: "var(--jeu-texte-vif)", fontWeight: 800, textDecoration: "none" } as const;
-function bouton(actif: boolean) { return { border: 0, padding: "9px 13px", cursor: "pointer", fontWeight: 800, color: actif ? "var(--jeu-texte-vif)" : "var(--jeu-nuit-profonde)", background: actif ? "var(--jeu-tuile-active-bas)" : "var(--jeu-surface-glace)" } as const; }
+	useEffect(() => {
+		const abort = new AbortController();
+		setCatalogError(false);
+		fetch("/assets/avatar/catalog.json", { signal: abort.signal, headers: { accept: "application/json" } }).then(async response => {
+			if (!response.ok) throw new Error("Avatar catalogue unavailable");
+			return response.json() as Promise<AvatarCatalog>;
+		}).then(value => { if (!abort.signal.aborted) setCatalog(value); }).catch(() => { if (!abort.signal.aborted) setCatalogError(true); });
+		return () => abort.abort();
+	}, [attempt]);
+
+	useEffect(() => {
+		let active = true;
+		setSceneError(false);
+		// Load the small scene descriptions together. Changing steps then preserves the
+		// mounted renderer, loaded model and user's orbit instead of creating six devices.
+		Promise.all(STAGES.map(async key => [key, await loadMenuPresentation(SCENES[key])] as const))
+			.then(values => { if (active) setScenes(Object.fromEntries(values) as AvatarScenes); })
+			.catch(() => { if (active) setSceneError(true); });
+		return () => { active = false; };
+	}, [attempt]);
+
+	useEffect(() => {
+		if (!catalog) return;
+		let active = true;
+		setComposition(null);
+		setCompositionError(false);
+		resolveAvatar(catalog, state).then(value => {
+			if (!active) return;
+			setComposition(value);
+		}).catch(() => { if (active) setCompositionError(true); });
+		return () => { active = false; };
+	}, [catalog, state, attempt]);
+
+	useEffect(() => {
+		if (!composition) return;
+		try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ version: 1, state, nameFields })); } catch { /* Storage may be disabled; the active editor remains usable. */ }
+	}, [state, nameFields, composition]);
+
+	const error = catalogError || sceneError || compositionError;
+	if (!catalog || !scenes || error) return <section aria-label="Éditeur d’avatar" className="avatar-resource-state">
+		<header><button type="button" onClick={back} aria-label="Retour au menu">Retour</button></header>
+		{error ? <p role="alert">Les ressources de l’avatar n’ont pas pu être chargées. <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></p> : <p role="status">Chargement de l’avatar…</p>}
+		{compositionError ? <button type="button" onClick={() => { setState({ ...INITIAL_AVATAR_STATE }); setNameFields({ ...EMPTY_NAMES }); }}>Réinitialiser les choix</button> : null}
+	</section>;
+	return <NativeAvatarEditor catalog={catalog} state={state} onStateChange={setState}
+		onBack={back} stage={stage} onStageChange={setStage} scene={scenes[stage]}
+		nameFields={nameFields} onNameFieldsChange={setNameFields}
+		renderText={nativeText}
+		model={<RustModelViewport url={composition ? avatarModelUrl(composition) : null} createViewer={createNativeViewer} label="Aperçu de l’avatar" />} />;
+}

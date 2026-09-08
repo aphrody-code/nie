@@ -615,6 +615,8 @@ export const commands = {
 	remoteResolveRoster: (baseUrl: string, ids: string[]) => typedError<unknown, string>(__TAURI_INVOKE("remote_resolve_roster", { baseUrl, ids })),
 	/**  Charge le catalogue réellement exporté par `niers avatar export` depuis le service de modèles. */
 	modelServiceAvatarCatalog: (baseUrl: string) => typedError<unknown, string>(__TAURI_INVOKE("model_service_avatar_catalog", { baseUrl })),
+	/**  Resolve editor selections through the same pure library as the WebAssembly and HTTP hosts. */
+	resolveAvatarComposition: (catalogJson: string, stateJson: string) => typedError<unknown, string>(__TAURI_INVOKE("resolve_avatar_composition", { catalogJson, stateJson })),
 	/**
 	 *  Récupère un avatar GLB assemblé par le serveur. La route reste bornée à `/model-avatar/` : le
 	 *  réglage de service ne devient pas un proxy HTTP généraliste.
@@ -675,8 +677,7 @@ export const commands = {
 	 */
 	videoPrecharger: (path: string, gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("video_precharger", { path, gameDir })),
 	/**
-	 *  Ouvre l'asset dans **nie-editor**, l'éditeur de scène 3D natif (éditeur Fyrox embarqué, rendu
-	 *  OpenGL — cf. `crates/tools/nie-editor`).
+	 *  Opens the current native scene editor with the same assembled GLB as the embedded viewport.
 	 * 
 	 *  Process séparé et non bloquant : l'éditeur a sa propre boucle d'événements winit et sa propre
 	 *  fenêtre GPU, deux choses qui ne peuvent pas cohabiter avec la boucle Tauri de cette

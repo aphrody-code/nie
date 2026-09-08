@@ -17,14 +17,21 @@ import {
 } from "@/lib/contextMenu";
 import { registerFileOps } from "@/lib/editBus";
 import { SplitPane } from "@niers/inacord-ui/components/ui/split-pane";
+import {
+  ExplorerBreadcrumbs,
+  ExplorerEntries,
+  ExplorerFilters,
+  ExplorerStatus,
+  ExplorerSurface,
+  ExplorerToolbar,
+  ExplorerToolbarButton,
+} from "@niers/inacord-ui/explorer/explorer-surface";
+import "@niers/inacord-ui/explorer/explorer-surface.css";
 import type { ExplorerTab, ExplorerTabPatch } from "@/lib/explorerTabs";
 import { modsDb } from "@/lib/modsDb";
 import { stageReplacement, stageReplacementFromPath } from "@/lib/modWorkspace";
-import { Input } from "@niers/inacord-ui/components/ui/input";
 import { Badge } from "@niers/inacord-ui/components/ui/badge";
-import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
 import { Popover, PopoverContent, PopoverTrigger } from "@niers/inacord-ui/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@niers/inacord-ui/components/ui/toggle-group";
 import { Slider } from "@niers/inacord-ui/components/ui/slider";
@@ -738,88 +745,66 @@ export function ExplorerView({
         </>
       }
     >
-      {/* `relative` : ancre de la barre flottante de sélection (`SelectionBar`, en `absolute`). */}
-        <div className="relative flex min-h-0 flex-1 flex-col gap-2 p-2">
-          {/* Barre d'outils — mise en forme de la `TopBar` de l'explorer spacedrive : boutons ronds
-           * (`CircleButton`) sur fond transparent et fil d'Ariane en texte, plutôt qu'une pilule
-           * pleine largeur. */}
-          <div className="flex items-center gap-1.5">
-            {/* Arrière/Avant parcourent l'HISTORIQUE de cet onglet (là où l'on est déjà passé) ;
-              * « remonter » suit la HIÉRARCHIE (le dossier parent). Deux gestes différents : après
-              * un saut depuis la barre latérale, « arrière » revient au dossier précédent alors que
-              * « remonter » descend d'un cran dans l'arborescence du nouvel emplacement. */}
-            <CircleButton
-              icon="arrow_back"
-              size="sm"
-              title="Précédent"
-              aria-label="Précédent"
-              disabled={!canGoBack}
-              onClick={() => onBack?.()}
-            />
-            <CircleButton
-              icon="arrow_forward"
-              size="sm"
-              title="Suivant"
-              aria-label="Suivant"
-              disabled={!canGoForward}
-              onClick={() => onForward?.()}
-            />
-            <CircleButton
-              icon="home"
-              size="sm"
-              title={t("explorer.root")}
-              aria-label={t("explorer.root")}
-              onClick={() => goto("")}
-            />
-            <CircleButton
-              icon="expand_less"
-              size="sm"
-              title={t("explorer.parent")}
-              aria-label={t("explorer.parent")}
-              disabled={segments.length === 0}
-              onClick={() => goto(segments.slice(0, -1).join("/"))}
-            />
-            <nav className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5 text-xs">
-              {segments.map((seg, i) => (
-                <span key={i} className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    className="rounded-md px-1.5 py-0.5 text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
-                    onClick={() => goto(segments.slice(0, i + 1).join("/"))}
-                  >
-                    {seg}
-                  </button>
-                  <span className="text-ink-faint">/</span>
-                </span>
-              ))}
-            </nav>
-            <CircleButton
-              icon="stars"
-              size="sm"
-              variant={pins.includes(state.prefix) ? "accent" : "default"}
-              title="Épingler à la barre latérale (Ctrl+D)"
-              aria-label="Épingler à la barre latérale"
-              onClick={() => togglePin(state.prefix)}
-            />
-            <CircleButton
-              icon={sortKey === "name" ? "sort_by_alpha" : "table_rows"}
-              size="sm"
-              title={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
-              aria-label={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
-              onClick={() => {
-                const next = sortKey === "name" ? "size" : "name";
-                setSortKey(next);
-                onStateChange({ sortKey: next });
-              }}
-            />
+      <ExplorerSurface
+        toolbar={
+          <ExplorerToolbar
+            leading={
+              <>
+                <ExplorerToolbarButton
+                  icon={<Icon name="arrow_back" size={16} />}
+                  label="Précédent"
+                  disabled={!canGoBack}
+                  onClick={() => onBack?.()}
+                />
+                <ExplorerToolbarButton
+                  icon={<Icon name="arrow_forward" size={16} />}
+                  label="Suivant"
+                  disabled={!canGoForward}
+                  onClick={() => onForward?.()}
+                />
+                <ExplorerToolbarButton
+                  icon={<Icon name="home" size={16} />}
+                  label={t("explorer.root")}
+                  onClick={() => goto("")}
+                />
+                <ExplorerToolbarButton
+                  icon={<Icon name="expand_less" size={16} />}
+                  label={t("explorer.parent")}
+                  disabled={segments.length === 0}
+                  onClick={() => goto(segments.slice(0, -1).join("/"))}
+                />
+              </>
+            }
+            breadcrumbs={
+              <ExplorerBreadcrumbs
+                segments={segments}
+                rootLabel={t("explorer.root")}
+                onNavigate={(prefix) => goto(prefix)}
+              />
+            }
+            trailing={
+              <>
+                <ExplorerToolbarButton
+                  icon={<Icon name="stars" size={16} />}
+                  label="Épingler à la barre latérale (Ctrl+D)"
+                  pressed={pins.includes(state.prefix)}
+                  onClick={() => togglePin(state.prefix)}
+                />
+                <ExplorerToolbarButton
+                  icon={<Icon name={sortKey === "name" ? "sort_by_alpha" : "table_rows"} size={16} />}
+                  label={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
+                  onClick={() => {
+                    const next = sortKey === "name" ? "size" : "name";
+                    setSortKey(next);
+                    onStateChange({ sortKey: next });
+                  }}
+                />
             <Popover>
               <PopoverTrigger
                 render={
-                  <CircleButton
-                    icon="tune"
-                    size="sm"
-                    title="Options d'affichage"
-                    aria-label="Options d'affichage"
+                  <ExplorerToolbarButton
+                    icon={<Icon name="tune" size={16} />}
+                    label="Options d'affichage"
                   />
                 }
               />
@@ -864,49 +849,76 @@ export function ExplorerView({
                 )}
               </PopoverContent>
             </Popover>
-          </div>
-
-          <div className="flex gap-2">
-            <Input
-              placeholder={t("explorer.search_placeholder")}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                onStateChange({ query: e.target.value });
-              }}
-            />
-            <Input
-              placeholder={t("explorer.ext_placeholder")}
-              className="w-20"
-              value={ext}
-              onChange={(e) => {
-                setExt(e.target.value);
-                onStateChange({ ext: e.target.value });
-              }}
-            />
-          </div>
-
-          {error && <p className="type-body-small text-error">{error}</p>}
-
-          {!searching && role && (
+              </>
+            }
+          />
+        }
+        filters={
+          <ExplorerFilters
+            query={query}
+            extension={ext}
+            queryPlaceholder={t("explorer.search_placeholder")}
+            extensionPlaceholder={t("explorer.ext_placeholder")}
+            onQueryChange={(value) => {
+              setQuery(value);
+              onStateChange({ query: value });
+            }}
+            onExtensionChange={(value) => {
+              setExt(value);
+              onStateChange({ ext: value });
+            }}
+          />
+        }
+        error={error}
+        notice={!searching && role ? (
             <div className="rounded-lg border border-app-line bg-app-box p-3 text-ink-dull">
               <p className="text-xs leading-relaxed">{role.role}</p>
               <Badge variant="outline" className="mt-1.5">
                 {role.status}
               </Badge>
             </div>
-          )}
-
-          <ScrollArea
-            className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box"
-            tabIndex={0}
+          ) : undefined}
+        status={
+          <ExplorerStatus
+            primary={
+              loading
+                ? t("explorer.loading")
+                : searching
+                  ? searchTotal > files.length
+                    ? `${t("explorer.results", { n: files.length })} · sur ${searchTotal.toLocaleString("fr-FR")}`
+                    : t("explorer.results", { n: files.length })
+                  : t("explorer.count", { dirs: dirs.length, files: files.length })
+            }
+            secondary={
+              multiSelected.size > 0
+                ? `${multiSelected.size.toLocaleString("fr-FR")} sélectionné(s)${
+                    selectedTotalSize > 0 ? ` · ${humanSize(selectedTotalSize)}` : ""
+                  }`
+                : undefined
+            }
+          />
+        }
+        selectionBar={
+          <SelectionBar
+            count={multiSelected.size}
+            totalSize={selectedTotalSize}
+            onClear={() => {
+              setMultiSelected(new Set());
+              setFolderAnchor(null);
+            }}
+            onCopyPaths={doCopySelection}
+            onStageIntoMod={() => void stageSelectionIntoMod()}
+            onExport={() => void exportSelection()}
+          />
+        }
+      >
+          <ExplorerEntries
+            ref={listeRef}
+            viewMode={viewMode}
+            gridSize={gridSize}
             onKeyDown={onListKeyDown}
+            ariaLabel="Fichiers et dossiers"
           >
-            <div
-              ref={listeRef}
-              className={viewMode === "grid" ? "grid gap-2 p-2" : "divide-y divide-app-line py-1"}
-              style={viewMode === "grid" ? { gridTemplateColumns: `repeat(auto-fill,minmax(${gridSize}px,1fr))` } : undefined}
-            >
               {!searching &&
                 sortedDirs.map((d) => {
                   const path = state.prefix ? `${state.prefix}/${d.name}` : d.name;
@@ -1030,42 +1042,8 @@ export function ExplorerView({
               {!loading && dirs.length === 0 && files.length === 0 && (
                 <p className="p-4 type-body-small text-on-surface-variant">{t("explorer.empty")}</p>
               )}
-            </div>
-          </ScrollArea>
-          {/* Barre de statut — pattern porté de l'Explorer spacedrive (compteur à gauche, résumé de
-           * la sélection courante à droite dès qu'elle est non vide). */}
-          <div className="flex items-center justify-between gap-2 type-label-small text-on-surface-variant">
-            <span>
-              {loading
-                ? t("explorer.loading")
-                : searching
-                  ? // Le total n'est affiché QUE s'il dépasse la page : « 500 sur 12 480 » dit ce
-                    // qui manque, « 42 sur 42 » n'apprend rien.
-                    searchTotal > files.length
-                    ? `${t("explorer.results", { n: files.length })} · sur ${searchTotal.toLocaleString("fr-FR")}`
-                    : t("explorer.results", { n: files.length })
-                  : t("explorer.count", { dirs: dirs.length, files: files.length })}
-            </span>
-            {multiSelected.size > 0 && (
-              <span>
-                {multiSelected.size.toLocaleString("fr-FR")} sélectionné(s)
-                {selectedTotalSize > 0 && ` · ${humanSize(selectedTotalSize)}`}
-              </span>
-            )}
-          </div>
-
-          <SelectionBar
-            count={multiSelected.size}
-            totalSize={selectedTotalSize}
-            onClear={() => {
-              setMultiSelected(new Set());
-              setFolderAnchor(null);
-            }}
-            onCopyPaths={doCopySelection}
-            onStageIntoMod={() => void stageSelectionIntoMod()}
-            onExport={() => void exportSelection()}
-          />
-        </div>
+          </ExplorerEntries>
+      </ExplorerSurface>
     </SplitPane>
   );
 }

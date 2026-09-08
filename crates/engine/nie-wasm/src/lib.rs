@@ -1765,6 +1765,43 @@ pub fn g4tx_info_json(bytes: &[u8]) -> Result<String, String> {
 
 // ── Static menu layer composition ───────────────────────────────────────────
 
+fn avatar_composition_json_impl(catalog_json: &str, state_json: &str) -> Result<String, String> {
+    if catalog_json.len() > 16 * 1024 * 1024 || state_json.len() > 64 * 1024 {
+        return Err("Avatar input exceeds size limit".into());
+    }
+    let catalog = serde_json::from_str::<nie_data::avatar::AvatarCatalog>(catalog_json)
+        .map_err(|e| e.to_string())?;
+    let state = serde_json::from_str::<nie_data::avatar::AvatarState>(state_json)
+        .map_err(|e| e.to_string())?;
+    let composition = nie_data::avatar::resolve_avatar(&catalog, &state).map_err(|e| e.to_string())?;
+    serde_json::to_string(&composition).map_err(|e| e.to_string())
+}
+
+/// Resolve avatar selections through the shared Rust data owner, without host URL logic.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn avatar_composition_json(catalog_json: &str, state_json: &str) -> Result<String, JsValue> {
+    avatar_composition_json_impl(catalog_json, state_json).map_err(|e| JsValue::from_str(&e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn avatar_composition_json(catalog_json: &str, state_json: &str) -> Result<String, String> {
+    avatar_composition_json_impl(catalog_json, state_json)
+}
+
+/// Compile a measured native screen through the shared portable scene owner.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn menu_presentation_json(id: &str) -> Result<String, JsValue> {
+    nie_formats::menu_presentation::scene_json(id).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Native counterpart of the browser scene compiler.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn menu_presentation_json(id: &str) -> Result<String, String> {
+    nie_formats::menu_presentation::scene_json(id)
+}
+
 fn menu_animation_bindings_json_impl(bytes: &[u8]) -> Result<String, String> {
     let bindings = nie_formats::g4ra::parse(bytes).map_err(|error| error.to_string())?;
     serde_json::to_string(&serde_json::json!({
@@ -2623,6 +2660,39 @@ impl WasmCamera {
             .state_json(aspect)
             .map_err(|error| JsValue::from_str(&error))
     }
+}
+
+/// Thin bitmap-text ABI over the shared native font decoder.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct WasmBitmapFont {
+    font: nie_formats::bitmap_font::BitmapFont,
+    width: u32,
+    height: u32,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl WasmBitmapFont {
+    #[wasm_bindgen(constructor)]
+    pub fn new(config: &[u8], texture: &[u8]) -> Result<WasmBitmapFont, JsValue> {
+        Ok(Self { font: nie_formats::bitmap_font::BitmapFont::from_bytes(config, texture)
+            .map_err(|e| JsValue::from_str(&e))?, width: 0, height: 0 })
+    }
+
+    /// Color is packed RGBA, independent of host endianness.
+    pub fn render(&mut self, text: &str, color: u32) -> Result<Vec<u8>, JsValue> {
+        let frame = self.font.render(text, color.to_be_bytes()).map_err(|e| JsValue::from_str(&e))?;
+        self.width = frame.width;
+        self.height = frame.height;
+        Ok(frame.rgba)
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn width(&self) -> u32 { self.width }
+
+    #[wasm_bindgen(getter)]
+    pub fn height(&self) -> u32 { self.height }
 }
 
 /// Machine à états d'écran interactive, rendue en WebAssembly.
