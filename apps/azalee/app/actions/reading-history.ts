@@ -2,24 +2,17 @@
 
 import { getServerSession } from "@/lib/auth-helpers";
 import { createClient } from "@/lib/supabase/server";
+import {
+	planReadingHistoryQuery,
+	planReadingProgress,
+	toReadingHistoryEntries,
+	toReadingStats,
+	type ReadingHistoryEntry,
+	type ReadingHistoryRow,
+	type ReadingStats,
+} from "@rosegriffon/azalee";
 
-export interface ReadingHistoryEntry {
-	article_id: string;
-	title: string;
-	slug: string;
-	featured_image_url: string | null;
-	excerpt: string | null;
-	category: string | null;
-	progress: number;
-	last_read_at: string;
-	read_count: number;
-}
-
-export interface ReadingStats {
-	totalRead: number;
-	totalInProgress: number;
-	streak: number;
-}
+export type { ReadingHistoryEntry, ReadingStats } from "@rosegriffon/azalee";
 
 /**
  * Enregistre ou met à jour la progression de lecture d'un article.
@@ -32,11 +25,11 @@ export async function trackReading(articleId: string, progress: number): Promise
 	}
 
 	const supabase = await createClient();
-	await supabase.rpc("upsert_reading_progress", {
-		p_article_id: articleId,
-		p_progress: progress,
-		p_user_id: session.user.id,
-	});
+	await supabase.rpc("upsert_reading_progress", planReadingProgress({
+		articleId,
+		progress,
+		userId: session.user.id,
+	}));
 }
 
 /**
@@ -50,35 +43,19 @@ export async function getReadingHistory(limit = 10): Promise<ReadingHistoryEntry
 	}
 
 	const supabase = await createClient();
+	const query = planReadingHistoryQuery(session.user.id, limit);
 	const { data } = await supabase
 		.from("reading_history")
 		.select(
 			"article_id, progress, last_read_at, read_count, articles(title, slug, featured_image_url, excerpt, category)"
 		)
-		.eq("user_id", session.user.id)
+		.eq("user_id", query.userId)
 		.eq("articles.status", "published")
 		.eq("articles.app", "azalee")
 		.order("last_read_at", { ascending: false })
-		.limit(limit);
+		.limit(query.limit);
 
-	if (!data) {
-		return [];
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	return (data as any[])
-		.filter((row) => row.articles !== null)
-		.map((row) => ({
-			article_id: row.article_id,
-			category: row.articles.category,
-			excerpt: row.articles.excerpt,
-			featured_image_url: row.articles.featured_image_url,
-			last_read_at: row.last_read_at,
-			progress: row.progress,
-			read_count: row.read_count,
-			slug: row.articles.slug,
-			title: row.articles.title,
-		}));
+	return toReadingHistoryEntries((data ?? []) as unknown as ReadingHistoryRow[]);
 }
 
 /**
@@ -92,36 +69,20 @@ export async function getContinueReading(limit = 4): Promise<ReadingHistoryEntry
 	}
 
 	const supabase = await createClient();
+	const query = planReadingHistoryQuery(session.user.id, limit, true);
 	const { data } = await supabase
 		.from("reading_history")
 		.select(
 			"article_id, progress, last_read_at, read_count, articles(title, slug, featured_image_url, excerpt, category)"
 		)
-		.eq("user_id", session.user.id)
+		.eq("user_id", query.userId)
 		.lt("progress", 100)
 		.eq("articles.status", "published")
 		.eq("articles.app", "azalee")
 		.order("last_read_at", { ascending: false })
-		.limit(limit);
+		.limit(query.limit);
 
-	if (!data) {
-		return [];
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	return (data as any[])
-		.filter((row) => row.articles !== null)
-		.map((row) => ({
-			article_id: row.article_id,
-			category: row.articles.category,
-			excerpt: row.articles.excerpt,
-			featured_image_url: row.articles.featured_image_url,
-			last_read_at: row.last_read_at,
-			progress: row.progress,
-			read_count: row.read_count,
-			slug: row.articles.slug,
-			title: row.articles.title,
-		}));
+	return toReadingHistoryEntries((data ?? []) as unknown as ReadingHistoryRow[]);
 }
 
 /**
@@ -155,28 +116,9 @@ export async function getReadingStats(): Promise<ReadingStats> {
 			.order("last_read_at", { ascending: false }),
 	]);
 
-	// Calcul du streak : jours consécutifs avec activité en remontant depuis aujourd'hui
-	let streak = 0;
-	if (history && history.length > 0) {
-		// Construire un Set des jours (format YYYY-MM-DD) ayant une activité
-		const activeDays = new Set<string>(
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(history as any[]).map((row) => new Date(row.last_read_at).toISOString().slice(0, 10))
-		);
-
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-
-		const cursor = new Date(today);
-		while (activeDays.has(cursor.toISOString().slice(0, 10))) {
-			streak++;
-			cursor.setDate(cursor.getDate() - 1);
-		}
-	}
-
-	return {
-		streak,
-		totalInProgress: totalInProgress || 0,
-		totalRead: totalRead || 0,
-	};
+	return toReadingStats(
+		totalRead,
+		totalInProgress,
+		(history ?? []).map((row) => row.last_read_at),
+	);
 }
