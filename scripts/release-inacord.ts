@@ -209,10 +209,19 @@ async function main(): Promise<void> {
 
 	const nsisPath = resolve(next, "files/desktop/windows-x86_64", nsisName);
 	const msiPath = resolve(next, "files/desktop/windows-x86_64", msiName);
-	const nsisSignature = (
-		await readFile(resolve(next, "files/desktop/windows-x86_64", `${nsisName}.sig`), "utf8")
-	).trim();
+	const nsisSigFile = resolve(next, "files/desktop/windows-x86_64", `${nsisName}.sig`);
+	const msiSigFile = resolve(next, "files/desktop/windows-x86_64", `${msiName}.sig`);
+	const nsisSignature = (await readFile(nsisSigFile, "utf8")).trim();
 	if (!nsisSignature) throw new Error("Desktop updater signature is empty");
+	if (!nsisSignature.startsWith("untrusted comment:")) {
+		const decodedNsis = Buffer.from(nsisSignature, "base64").toString("utf8");
+		await Bun.write(nsisSigFile, decodedNsis);
+	}
+	const msiSignature = (await readFile(msiSigFile, "utf8")).trim();
+	if (msiSignature && !msiSignature.startsWith("untrusted comment:")) {
+		const decodedMsi = Buffer.from(msiSignature, "base64").toString("utf8");
+		await Bun.write(msiSigFile, decodedMsi);
+	}
 	const tauriConfig = JSON.parse(
 		await readFile(resolve(root, "apps/inacord/src-tauri/tauri.conf.json"), "utf8"),
 	) as { plugins: { updater: { pubkey: string } } };
@@ -334,6 +343,7 @@ async function main(): Promise<void> {
 	];
 
 	const publishedAt = new Date().toISOString();
+	const liveNsisSignature = (await readFile(nsisSigFile, "utf8")).trim();
 	await writeJson(resolve(next, "catalog.json"), {
 		schemaVersion: 1,
 		channel: "stable",
@@ -348,7 +358,7 @@ async function main(): Promise<void> {
 		pub_date: publishedAt,
 		platforms: {
 			"windows-x86_64": {
-				signature: nsisSignature,
+				signature: liveNsisSignature,
 				url: `${origin}/downloads/files/desktop/windows-x86_64/${nsisName}`,
 			},
 		},
