@@ -13,6 +13,13 @@
     "apps/cdn-variants": {
       "name": "cdn-variants",
       "version": "0.1.0",
+      "dependencies": {
+        "sharp": "catalog:",
+      },
+      "devDependencies": {
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
+      },
     },
     "apps/inacord": {
       "name": "inacord",

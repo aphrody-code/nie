@@ -81,7 +81,7 @@ await mkdir(CACHE_ROOT, { recursive: true });
 
 /** Snap une largeur demandée à la plus proche largeur whitelistée. */
 function snapWidth(raw: number): number {
-  let best = ALLOWED_WIDTHS[0];
+  let best: (typeof ALLOWED_WIDTHS)[number] = ALLOWED_WIDTHS[0];
   let bestDelta = Math.abs(raw - best);
   for (const w of ALLOWED_WIDTHS) {
     const d = Math.abs(raw - w);
@@ -165,7 +165,7 @@ async function mesurerBandes(
     const depart = y * info.width * info.channels;
     let claires = 0;
     for (let x = 0; x < info.width; x += 1) {
-      if (data[depart + x * info.channels] > SEUIL_NOIR) {
+      if ((data[depart + x * info.channels] ?? 0) > SEUIL_NOIR) {
         claires += 1;
         if (claires > TOLERANCE_COLONNES) {
           return false;
@@ -411,7 +411,7 @@ const server = Bun.serve({
     if (ifNoneMatch && ifNoneMatch === etag) {
       return new Response(null, { status: 304, headers: webpHeaders({ etag }) });
     }
-    return new Response(out, {
+    return new Response(new Uint8Array(out).buffer, {
       headers: webpHeaders({
         etag,
         "content-length": String(out.byteLength),

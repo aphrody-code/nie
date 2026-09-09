@@ -194,7 +194,7 @@ const stages: Stage[] = [
 			{ argv: ["cargo", "build", "--release", "--locked", "-p", "nie-ffi"] },
 			{ argv: ["cargo", "check", "--locked", "-p", "inacord"] },
 			{ argv: ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"] },
-			{ argv: ["bunx", "tsc", "-b", "apps/nie-web/tsconfig.json"] },
+			{ argv: ["bun", "run", "--cwd", "apps/nie-web", "typecheck"] },
 			{
 				argv: [
 					"bunx",

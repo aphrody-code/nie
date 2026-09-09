@@ -239,7 +239,7 @@ async function deployBinaryService(
 async function deployWeb(context: TargetContext): Promise<void> {
 	const bundle = `${context.releaseDirectory}/bundle`;
 	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"]);
-	await run(context, ["bunx", "tsc", "-b", "apps/nie-web/tsconfig.json"]);
+	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "typecheck"]);
 	await run(context, [
 		"bunx",
 		"vite",
@@ -371,7 +371,7 @@ const targets: Record<string, Target> = {
 		deploy: (context) =>
 			deployBunService(
 				context,
-				["bun", "--check", "apps/cdn-variants/server.ts"],
+				["bun", "run", "--cwd", "apps/cdn-variants", "typecheck"],
 				"cdn-variants.service",
 				"http://127.0.0.1:8805/health"
 			),
