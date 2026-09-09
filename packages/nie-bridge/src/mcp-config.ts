@@ -52,7 +52,7 @@ export function mcpServerEntry(options: McpEntryOptions = {}): McpServerEntry {
   return {
     type: "stdio",
     command: "cargo",
-    args: ["run", "--quiet", ...manifestArgs, "--package", "nie-mcp", "--"],
+    args: ["run", "--release", "--quiet", ...manifestArgs, "--package", "nie-mcp", "--"],
     env,
   };
 }

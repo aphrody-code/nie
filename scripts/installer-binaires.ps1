@@ -122,36 +122,10 @@ if (Test-Path -LiteralPath $release) {
     }
 }
 
-# Les CLI Bun ne sont pas des exécutables : on publie un lanceur. `bun --bun` est obligatoire —
-# `bun run` honore le shebang `#!/usr/bin/env node`, et node est proscrit ici.
-Write-Host ''
-Write-Host 'CLI Bun (lanceurs) :'
-$specs = [ordered]@{
-    'niers-mcp'    = 'packages/mcp/src/cli.ts'
-}
-foreach ($nom in $specs.Keys) {
-    $src = $specs[$nom]
-    if (-not (Test-Path -LiteralPath (Join-Path $racine $src))) {
-        Write-Host ('  ??  {0,-20} source absente ({1})' -f $nom, $src)
-        continue
-    }
-    # Le lanceur .cmd est l'équivalent Windows du shebang bash : PATHEXT le rend appelable
-    # sous le nom publié, sans extension à taper.
-    $publie = Join-Path $dest ($nom + '.cmd')
-    $actuel = Get-CheminPath $nom
-    if (Test-Etranger $actuel) {
-        Write-Host ('  !!  {0,-20} REFUSÉ — {1} existe déjà' -f $nom, $actuel)
-        $refuses++
-        continue
-    }
-    # Le lanceur se place À LA RACINE du dépôt. Mesuré le 2026-09-02 : lancée depuis /tmp,
-    # Le lanceur se place à la racine afin que les chemins relatifs du serveur MCP restent stables.
-    if ($sec -ne '--dry-run') {
-        $contenu = "@echo off`r`ncd /d `"$racine`" || exit /b 1`r`nbun --bun `"$src`" %*`r`n"
-        [IO.File]::WriteAllText($publie, $contenu, [Text.UTF8Encoding]::new($false))
-    }
-    Write-Host ('  ->  {0,-20} {1}' -f $nom, $src)
-    $poses++
+# Preserve the historical command name as an alias of the native Rust server.
+$nativeMcp = Join-Path $release 'nie-mcp.exe'
+if (Test-Path -LiteralPath $nativeMcp) {
+    New-Lien 'niers-mcp.exe' $nativeMcp
 }
 
 Write-Host ''

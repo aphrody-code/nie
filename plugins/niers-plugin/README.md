@@ -20,7 +20,7 @@ their lightweight manifests differ.
 All MCP declarations start the same portable native Rust server:
 
 ```text
-cargo run --quiet --package nie-mcp --
+cargo run --release --quiet --package nie-mcp --
 ```
 
 The Claude marketplace manifest at `../.claude-plugin/marketplace.json` exposes this plugin from

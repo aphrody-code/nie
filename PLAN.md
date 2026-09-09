@@ -837,3 +837,20 @@ round-trip passed 24 tests with 163102 assertions; `nie-wiki` passed 47 tests; `
 `nie-ffi` build and strict clippy, `nie-cli` strict clippy, `nie-model-serve` check, Inacord check,
 and the MCP, cron and web typechecks passed. No deployment or live-production validation was
 performed.
+
+## Independent production target pipeline — 2026-09-09
+
+`bun run deploy:target -- <target>` is the only narrow production entrypoint. Each target has an
+independent hard deadline of 60 seconds, writes a commit-bound manifest under
+`var/deployments/targeted/`, installs its tracked systemd unit when needed, restarts only its own
+process, and requires a meaningful local or public health response. `--all` attempts every target
+and reports all failures instead of hiding later targets behind the first failure.
+
+The maintained targets are the Rust FFI, native CLI, standalone Rust stdio MCP, WebAssembly
+bundle, Rust model server, Rust site, cron, IEVR CDN variants, realtime, and storage. Libraries
+deploy through these
+owners rather than being published as independent services. The former public Bun MCP unit is
+deleted from the repository and remains masked on the host because the supported transport is
+native Rust stdio. The editorial `rg-cdn` unit is not a target: its source and unit are owned by
+the clean `/home/ubuntu/rg` checkout. The stale NIE copy is deleted and production must use the
+external owner's working directory.

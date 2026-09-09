@@ -8,7 +8,7 @@ This repository has one native IEVR owner: the Rust engine and its tools.
 | Wiki library | `crates/tools/nie-wiki` | Read-only mirror queries and domain projections |
 | Native site | `crates/tools/nie-site` | HTTP pages and API routes |
 | Native CLI | `crates/tools/nie-cli` | One terminal interface for game data and tooling |
-| Native MCP | `crates/tools/nie-cli` and `packages/mcp` | Rust command owner with a Bun protocol transport |
+| Native MCP | `crates/tools/nie-cli` and `crates/tools/nie-mcp` | Rust command owner with a native stdio transport |
 | Web client | `apps/nie-web` | WASM/desktop UI consuming the native contracts |
 | Scheduled jobs | `packages/cron` | Editorial and operational jobs only; no IEVR writer |
 

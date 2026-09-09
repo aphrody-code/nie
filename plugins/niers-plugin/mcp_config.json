@@ -3,7 +3,7 @@
     "niers-game": {
       "type": "stdio",
       "command": "cargo",
-      "args": ["run", "--quiet", "--package", "nie-mcp", "--"]
+      "args": ["run", "--release", "--quiet", "--package", "nie-mcp", "--"]
     }
   }
 }

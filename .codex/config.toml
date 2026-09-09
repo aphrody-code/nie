@@ -24,6 +24,7 @@ BASH_ENV = ".claude/shell-init.sh"
 command = "cargo"
 args = [
     "run",
+    "--release",
     "--quiet",
     "--package",
     "nie-mcp",

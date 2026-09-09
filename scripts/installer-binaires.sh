@@ -74,30 +74,10 @@ for f in target/release/*; do
     lien "$(basename "$f")" "$racine/$f"
 done
 
-# Les CLI Bun ne sont pas des exécutables : on publie un lanceur. `bun --bun` est obligatoire —
-# `bun run` honore le shebang `#!/usr/bin/env node`, et node est proscrit ici.
-echo
-echo "CLI Bun (lanceurs) :"
-for spec in \
-    "niers-mcp:packages/mcp/src/cli.ts"; do
-    nom=${spec%%:*}
-    src=${spec#*:}
-    [ -f "$src" ] || { printf '  ??  %-20s source absente (%s)\n' "$nom" "$src"; continue; }
-    actuel=$(command -v "$nom" 2>/dev/null || true)
-    if [ -n "$actuel" ] && [ "$actuel" != "$dest/$nom" ]; then
-        printf '  !!  %-20s REFUSÉ — %s existe déjà\n' "$nom" "$actuel"
-        refuses=$((refuses + 1))
-        continue
-    fi
-    # Le lanceur se place à la racine afin que les chemins relatifs du serveur MCP restent stables.
-    if [ "$sec" != "--dry-run" ]; then
-        printf '#!/usr/bin/env bash\ncd "%s" || exit 1\nexec bun --bun "%s" "$@"\n' \
-            "$racine" "$src" > "$dest/$nom"
-        chmod +x "$dest/$nom"
-    fi
-    printf '  ->  %-20s %s\n' "$nom" "$src"
-    poses=$((poses + 1))
-done
+# Preserve the historical command name as an alias of the native Rust server.
+if [ -x target/release/nie-mcp ]; then
+    lien "niers-mcp" "$racine/target/release/nie-mcp"
+fi
 
 echo
 printf '%d posés, %d déjà à jour, %d refusés (collision), %d copies → %s\n' \

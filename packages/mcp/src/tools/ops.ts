@@ -36,7 +36,6 @@ export const KNOWN_SERVICES = [
 	"cdn-variants.service",
 	"nie-model-serve.service",
 	"niers-wonderbot.service",
-	"rg-mcp.service",
 ] as const;
 
 /** Points d'entrée publics dont on vérifie le code de retour. */

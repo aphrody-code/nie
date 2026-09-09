@@ -112,7 +112,7 @@ fn server_entry(target: McpTarget, game_dir: Option<&str>) -> serde_json::Value 
     let root = repo_root();
     let (args, mut env) = match target {
         McpTarget::ClaudeCode => (
-            vec!["run", "--quiet", "--package", "nie-mcp", "--"]
+            vec!["run", "--release", "--quiet", "--package", "nie-mcp", "--"]
                 .into_iter()
                 .map(str::to_owned)
                 .collect::<Vec<_>>(),
@@ -127,6 +127,7 @@ fn server_entry(target: McpTarget, game_dir: Option<&str>) -> serde_json::Value 
             (
                 vec![
                     "run".to_owned(),
+                    "--release".to_owned(),
                     "--quiet".to_owned(),
                     "--manifest-path".to_owned(),
                     root.join("Cargo.toml").display().to_string(),
@@ -264,7 +265,7 @@ mod tests {
     fn claude_code_uses_the_workspace_native_binary() {
         let entry = server_entry(McpTarget::ClaudeCode, None);
         let args = entry["args"].as_array().expect("args");
-        assert_eq!(args[3].as_str(), Some("nie-mcp"));
+        assert_eq!(args[4].as_str(), Some("nie-mcp"));
         assert_eq!(entry["command"].as_str(), Some("cargo"));
         assert!(entry["env"].get("NIERS_REPO").is_none());
     }

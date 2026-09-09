@@ -181,6 +181,8 @@ const stages: Stage[] = [
 					"-p",
 					"nie-cli",
 					"-p",
+					"nie-mcp",
+					"-p",
 					"nie-site",
 					"-p",
 					"nie-model-serve",

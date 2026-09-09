@@ -85,7 +85,7 @@ seconds. A new connection cleanly replaces the previous one.
 From the repository root:
 
 ```bash
-cargo run --quiet --package nie-mcp --
+cargo run --release --quiet --package nie-mcp --
 # equivalent binding
 cargo run --quiet --package nie-cli -- mcp
 ```
@@ -98,7 +98,7 @@ Portable project configuration:
     "niers-game": {
       "type": "stdio",
       "command": "cargo",
-      "args": ["run", "--quiet", "--package", "nie-mcp", "--"]
+      "args": ["run", "--release", "--quiet", "--package", "nie-mcp", "--"]
     }
   }
 }
