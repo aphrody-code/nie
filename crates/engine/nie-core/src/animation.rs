@@ -98,6 +98,28 @@ impl Rotation {
         )
         .normalized()
     }
+
+    /// Hamilton product of two quaternions (`self * other`).
+    #[must_use]
+    pub fn combine(self, other: &Self) -> Self {
+        Self(crate::quat::quat_mul(&self.0, &other.0)).normalized()
+    }
+
+    /// Rotates a 3D vector by this quaternion: `q * (v, 0) * q^-1`.
+    #[must_use]
+    pub fn rotate_vec3(self, v: Vec3) -> Vec3 {
+        let [x, y, z, w] = self.0;
+        // Optimization: t = 2 * cross(q.xyz, v); v' = v + w * t + cross(q.xyz, t)
+        let tx = 2.0 * (y * v.z - z * v.y);
+        let ty = 2.0 * (z * v.x - x * v.z);
+        let tz = 2.0 * (x * v.y - y * v.x);
+
+        let rx = v.x + w * tx + (y * tz - z * ty);
+        let ry = v.y + w * ty + (z * tx - x * tz);
+        let rz = v.z + w * tz + (x * ty - y * tx);
+
+        Vec3::new(rx, ry, rz)
+    }
 }
 
 /// Local transform of one bone at a sampled instant.
@@ -140,6 +162,84 @@ impl PoseFrame {
             .iter()
             .find(|(bone, _)| *bone == id)
             .map(|(_, pose)| *pose)
+    }
+
+    /// Evaluates world-space transforms of all bones given their parent hierarchy.
+    ///
+    /// `parents` maps a `BoneId` to its optional parent `BoneId`. If a bone has no parent
+    /// (or is mapped to `None`), its local transform is its world transform.
+    /// Hierarchy is evaluated forward; cyclic relationships or missing parents fail safely.
+    #[must_use]
+    pub fn evaluate_world_poses(&self, parents: &[(BoneId, Option<BoneId>)]) -> Vec<(BoneId, BonePose)> {
+        let mut world_poses = Vec::with_capacity(self.bones.len());
+        for &(bone_id, local_pose) in &self.bones {
+            let mut current_id = bone_id;
+            let mut current_local = local_pose;
+            let mut chain = Vec::new();
+            let mut visited = std::collections::HashSet::new();
+
+            while let Some(&(_, parent_opt)) = parents.iter().find(|(b, _)| *b == current_id) {
+                if !visited.insert(current_id) {
+                    // Cycle detected: fallback to current local transform
+                    break;
+                }
+                chain.push(current_local);
+                if let Some(parent_id) = parent_opt {
+                    if let Some(parent_pose) = self.bone(parent_id) {
+                        current_id = parent_id;
+                        current_local = parent_pose;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            // Chain is from child to root. Reverse to compose from root down to child.
+            chain.reverse();
+            let mut world = BonePose::default();
+            for link in chain {
+                world = world.combine(&link);
+            }
+            world_poses.push((bone_id, world));
+        }
+        world_poses
+    }
+}
+
+impl BonePose {
+    /// Combines a parent world transform with a child local transform (`self * child`).
+    ///
+    /// The child translation is rotated and scaled by the parent, then added to the parent
+    /// translation. Quaternions are composed via Hamilton product. Scales are multiplied.
+    #[must_use]
+    pub fn combine(&self, child: &Self) -> Self {
+        let rotated_child_translation = self.rotation.rotate_vec3(Vec3::new(
+            child.translation.x * self.scale.x,
+            child.translation.y * self.scale.y,
+            child.translation.z * self.scale.z,
+        ));
+
+        let world_translation = Vec3::new(
+            self.translation.x + rotated_child_translation.x,
+            self.translation.y + rotated_child_translation.y,
+            self.translation.z + rotated_child_translation.z,
+        );
+
+        let world_rotation = self.rotation.combine(&child.rotation);
+
+        let world_scale = Vec3::new(
+            self.scale.x * child.scale.x,
+            self.scale.y * child.scale.y,
+            self.scale.z * child.scale.z,
+        );
+
+        Self {
+            translation: world_translation,
+            rotation: world_rotation,
+            scale: world_scale,
+        }
     }
 }
 
@@ -386,5 +486,49 @@ mod tests {
             }],
         };
         assert_eq!(zero_rotation.validate(), Err(AnimationError::InvalidPose));
+    }
+
+    #[test]
+    fn bone_pose_combine_and_world_poses_evaluation() {
+        let half_angle = std::f32::consts::FRAC_1_SQRT_2;
+        let parent = BonePose {
+            translation: Vec3::new(0.0, 10.0, 0.0),
+            rotation: Rotation::new(0.0, half_angle, 0.0, half_angle), // 90 deg around Y
+            scale: Vec3::new(2.0, 2.0, 2.0),
+        };
+        let child = BonePose {
+            translation: Vec3::new(1.0, 0.0, 0.0),
+            rotation: Rotation::IDENTITY,
+            scale: Vec3::new(1.0, 1.0, 1.0),
+        };
+        let combined = parent.combine(&child);
+        assert!((combined.scale.x - 2.0).abs() < 1e-5);
+        // (1, 0, 0) scaled by 2 -> (2, 0, 0). Rotated 90 deg around Y -> (0, 0, -2).
+        // + parent translation (0, 10, 0) -> (0, 10, -2).
+        assert!((combined.translation.x - 0.0).abs() < 1e-5);
+        assert!((combined.translation.y - 10.0).abs() < 1e-5);
+        assert!((combined.translation.z - (-2.0)).abs() < 1e-5);
+
+        let frame = PoseFrame {
+            skeleton: SkeletonId::new(1),
+            time_seconds: 0.0,
+            bones: vec![
+                (BoneId::new(0), parent),
+                (BoneId::new(1), child),
+            ],
+        };
+        let parents = [(BoneId::new(0), None), (BoneId::new(1), Some(BoneId::new(0)))];
+        let world_poses = frame.evaluate_world_poses(&parents);
+        assert_eq!(world_poses.len(), 2);
+        assert_eq!(world_poses[0].0, BoneId::new(0));
+        assert_eq!(world_poses[0].1.translation, parent.translation);
+        assert_eq!(world_poses[0].1.scale, parent.scale);
+        assert!((world_poses[0].1.rotation.0[1] - parent.rotation.0[1]).abs() < 1e-6);
+        assert_eq!(world_poses[1].0, BoneId::new(1));
+        assert!((world_poses[1].1.translation.x - combined.translation.x).abs() < 1e-5);
+        assert!((world_poses[1].1.translation.y - combined.translation.y).abs() < 1e-5);
+        assert!((world_poses[1].1.translation.z - combined.translation.z).abs() < 1e-5);
+        assert_eq!(world_poses[1].1.scale, combined.scale);
+        assert!((world_poses[1].1.rotation.0[1] - combined.rotation.0[1]).abs() < 1e-6);
     }
 }

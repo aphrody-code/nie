@@ -69,6 +69,14 @@ required-features = ["textures"]
 name = "menu_presentation_export"
 required-features = ["textures", "serde"]
 
+[[example]]
+name = "probe_g4tg"
+required-features = ["textures"]
+
+[[example]]
+name = "probe_g4tg_swizzle"
+required-features = ["textures"]
+
 # `g4tx_patch_region` réencode en BC7 (`SurfaceRgba8::encode`), qui vit derrière `image_dds/encode`.
 # Sans cette déclaration, `cargo test -p nie-formats --features textures` échoue à compiler
 # l'exemple — donc n'exécute AUCUN test du crate — alors que l'exemple lui-même documente

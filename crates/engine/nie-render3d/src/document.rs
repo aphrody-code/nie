@@ -290,6 +290,136 @@ impl SceneDocumentV2 {
             current = objects[parent];
         }
     }
+
+    /// Evaluates the world-space transform (translation, rotation quat, scale) of an object.
+    ///
+    /// Evaluates all ancestral transforms along the parent hierarchy using full TRS composition.
+    pub fn evaluate_world_transform(&self, id: &str) -> Result<([f32; 3], [f32; 4], [f32; 3])> {
+        self.validate()?;
+        let objects: HashMap<&str, &SceneObjectV2> = self
+            .objects
+            .iter()
+            .map(|object| (object.id.as_str(), object))
+            .collect();
+        let mut current = objects
+            .get(id)
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("objet introuvable"))?;
+
+        let mut chain = vec![current];
+        while let Some(parent) = current.parent.as_deref() {
+            current = objects[parent];
+            chain.push(current);
+        }
+
+        // chain is [child, ..., root]. Reverse to evaluate [root, ..., child]
+        chain.reverse();
+
+        let mut world_pos = [0.0f32; 3];
+        let mut world_rot = [0.0f32, 0.0, 0.0, 1.0];
+        let mut world_scale = [1.0f32; 3];
+
+        for obj in chain {
+            // Apply parent scale to local translation
+            let scaled_local_pos = [
+                obj.position[0] * world_scale[0],
+                obj.position[1] * world_scale[1],
+                obj.position[2] * world_scale[2],
+            ];
+            // Rotate scaled local translation by world rotation
+            let rotated_pos = rotate_vector_by_quat(scaled_local_pos, world_rot);
+            world_pos = [
+                world_pos[0] + rotated_pos[0],
+                world_pos[1] + rotated_pos[1],
+                world_pos[2] + rotated_pos[2],
+            ];
+            // Hamilton product of quaternions
+            world_rot = quat_multiply(world_rot, obj.rotation);
+            // Multiply scale
+            world_scale = [
+                world_scale[0] * obj.scale[0],
+                world_scale[1] * obj.scale[1],
+                world_scale[2] * obj.scale[2],
+            ];
+        }
+
+        Ok((world_pos, world_rot, world_scale))
+    }
+
+    /// Composes objects in a v2 document into a single Model, accounting for hierarchy and full TRS.
+    pub fn compose(&self, mut resolve: impl FnMut(&str) -> Result<Model>) -> Result<Model> {
+        self.validate()?;
+        let mut scene = Model {
+            primitives: vec![],
+            textures: vec![],
+        };
+        for object in &self.objects {
+            if !self.is_effectively_visible(&object.id)? {
+                continue;
+            }
+            let mut model = resolve(&object.asset)?;
+            let texture_base = scene.textures.len();
+            let (pos, rot, scale) = self.evaluate_world_transform(&object.id)?;
+
+            for primitive in &mut model.primitives {
+                for point in &mut primitive.positions {
+                    let scaled = [
+                        point[0] * scale[0],
+                        point[1] * scale[1],
+                        point[2] * scale[2],
+                    ];
+                    let rotated = rotate_vector_by_quat(scaled, rot);
+                    *point = [
+                        rotated[0] + pos[0],
+                        rotated[1] + pos[1],
+                        rotated[2] + pos[2],
+                    ];
+                }
+                for normal in &mut primitive.normals {
+                    let inv_scaled = [
+                        normal[0] / scale[0],
+                        normal[1] / scale[1],
+                        normal[2] / scale[2],
+                    ];
+                    let rotated = rotate_vector_by_quat(inv_scaled, rot);
+                    let length = rotated.iter().map(|v| v * v).sum::<f32>().sqrt().max(1e-12);
+                    *normal = [rotated[0] / length, rotated[1] / length, rotated[2] / length];
+                }
+                primitive.texture = primitive.texture.map(|t| t + texture_base);
+            }
+            scene.primitives.extend(model.primitives);
+            scene.textures.extend(model.textures);
+        }
+        Ok(scene)
+    }
+}
+
+fn rotate_vector_by_quat(v: [f32; 3], q: [f32; 4]) -> [f32; 3] {
+    let [x, y, z, w] = q;
+    let tx = 2.0 * (y * v[2] - z * v[1]);
+    let ty = 2.0 * (z * v[0] - x * v[2]);
+    let tz = 2.0 * (x * v[1] - y * v[0]);
+
+    [
+        v[0] + w * tx + (y * tz - z * ty),
+        v[1] + w * ty + (z * tx - x * tz),
+        v[2] + w * tz + (x * ty - y * tx),
+    ]
+}
+
+fn quat_multiply(q1: [f32; 4], q2: [f32; 4]) -> [f32; 4] {
+    let [x1, y1, z1, w1] = q1;
+    let [x2, y2, z2, w2] = q2;
+    let out_x = x2 * w1 + w2 * x1 + z2 * y1 - y2 * z1;
+    let out_y = w2 * y1 + w1 * y2 + x2 * z1 - x1 * z2;
+    let out_z = w1 * z2 + w2 * z1 + x1 * y2 - x2 * y1;
+    let out_w = w1 * w2 - x2 * x1 - y1 * y2 - z2 * z1;
+    let len = (out_x * out_x + out_y * out_y + out_z * out_z + out_w * out_w).sqrt();
+    if len > 1e-12 {
+        [out_x / len, out_y / len, out_z / len, out_w / len]
+    } else {
+        [0.0, 0.0, 0.0, 1.0]
+    }
 }
 
 impl From<&SceneDocument> for SceneDocumentV2 {
@@ -496,5 +626,63 @@ mod tests {
         assert!(!document.is_effectively_visible("child").unwrap());
         assert!(!document.is_effectively_visible("root").unwrap());
         assert!(document.is_effectively_visible("missing").is_err());
+    }
+
+    #[test]
+    fn v2_evaluate_world_transform_and_compose() {
+        let half_angle = std::f32::consts::FRAC_1_SQRT_2;
+        let document = SceneDocumentV2 {
+            version: 2,
+            objects: vec![
+                SceneObjectV2 {
+                    id: "root".into(),
+                    parent: None,
+                    name: "Root".into(),
+                    asset: "mesh.glb".into(),
+                    position: [0.0, 10.0, 0.0],
+                    rotation: [0.0, half_angle, 0.0, half_angle],
+                    scale: [2.0, 2.0, 2.0],
+                    visible: true,
+                },
+                SceneObjectV2 {
+                    id: "child".into(),
+                    parent: Some("root".into()),
+                    name: "Child".into(),
+                    asset: "mesh.glb".into(),
+                    position: [1.0, 0.0, 0.0],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    scale: [1.0, 1.0, 1.0],
+                    visible: true,
+                },
+            ],
+        };
+
+        let (pos, rot, scale) = document.evaluate_world_transform("child").unwrap();
+        assert!((pos[0] - 0.0).abs() < 1e-5);
+        assert!((pos[1] - 10.0).abs() < 1e-5);
+        assert!((pos[2] - (-2.0)).abs() < 1e-5);
+        assert!((rot[1] - half_angle).abs() < 1e-5);
+        assert!((scale[0] - 2.0).abs() < 1e-5);
+
+        let composed = document
+            .compose(|_| {
+                Ok(Model {
+                    textures: vec![],
+                    primitives: vec![crate::glb::Primitive {
+                        positions: vec![[0.0, 0.0, 0.0]],
+                        normals: vec![[0.0, 1.0, 0.0]],
+                        uv: vec![],
+                        indices: vec![],
+                        texture: None,
+                    }],
+                })
+            })
+            .unwrap();
+
+        assert_eq!(composed.primitives.len(), 2);
+        // Root point at (0, 10, 0)
+        assert!((composed.primitives[0].positions[0][1] - 10.0).abs() < 1e-5);
+        // Child point at (0, 10, -2)
+        assert!((composed.primitives[1].positions[0][2] - (-2.0)).abs() < 1e-5);
     }
 }
