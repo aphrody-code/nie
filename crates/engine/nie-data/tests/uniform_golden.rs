@@ -3,7 +3,7 @@
 //! `data/common/gamedata/character/uniform_config_1.03.52.00.cfg.bin`
 //! (RDBN, format `lists`, décodé via `nie_formats::cfgbin::read_values`).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/uniform-config.ts`.
+//! Port 1:1 d'inagle `inagle`.
 //!
 //! ## Vérité terrain (octet-pour-octet du dump réel)
 //!

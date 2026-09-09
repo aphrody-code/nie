@@ -7,19 +7,17 @@ standard pour stdio, zod pour les schémas.
 
 ## Inventaire
 
-**26 outils** : 20 en lecture, 6 réservés à la portée `admin`.
+**38 outils** : 32 en lecture, 6 réservés à la portée `admin`.
 
 | Famille | Outils |
 | --- | --- |
 | Wiki du jeu | `azalee_search`, `azalee_get`, `azalee_list`, `azalee_dataset` |
 | Base de données | `db_tables`, `db_schema`, `db_query` (SQL `SELECT` uniquement) |
-| Fichiers du jeu | `cpk_browse`, `cpk_search`, `cpk_file` |
-| Texte du jeu | `game_text_search` |
-| Recherche sémantique | `rag_search` |
-| Dépôt | `repo_list`, `repo_read`, `repo_grep`, `repo_git` |
+| Native Rust wiki | `azalee_search`, `azalee_get`, `azalee_list`, `azalee_dataset` |
+| Dépôt | `repo_list`, `repo_read`, `repo_grep`, `repo_git`, `repo_delete`, `repo_edit`, `repo_move`, `repo_write` |
 | Production | `ops_status`, `ops_logs`, `ops_http` |
 | Portée | `access_info` |
-| **Administration** (`admin`) | `repo_write`, `repo_edit`, `repo_delete`, `repo_move`, `shell_run`, `ops_service` |
+| **Administration** (`admin`) | `shell_run`, `ops_service` |
 
 **Ressources** : `rg://context/*` (ces fiches), `rg://docs/*` (documentation
 versionnée du dépôt), `rg://schema/<table>` (schéma réel d'une table du

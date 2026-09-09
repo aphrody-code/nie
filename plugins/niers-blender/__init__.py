@@ -10,7 +10,7 @@ bl_info = {
     "version": (1, 1, 0),
     "blender": (4, 0, 0),
     "location": "File > Import/Export > G4MD / G4PKM · View3D > Sidebar > niers",
-    "description": "Import/export G4 (Level-5) + recherche/import de fichiers via niers.exe (VFS, miroir wiki, azalee)",
+    "description": "Import/export G4 (Level-5) and VFS/wiki search through the Rust niers CLI",
     "category": "Import-Export",
 }
 
@@ -301,15 +301,10 @@ class G4ImporterPreferences(AddonPreferences):
         subtype="FILE_PATH",
         default="",
         description=(
-            "Optional override for the wiki mirror (`supabase-*.sqlite`, character/skill search "
-            "with localized names). Empty = NIE_WIKI_DB/SQLITE_DB_PATH env vars, then the newest "
-            "file under <Raw Data Root>/../var/wiki-mirror/"
+            "Optional override for the local VFS-derived wiki mirror (`inagle-*.sqlite`, "
+            "character/skill search with localized names). Empty = NIE_WIKI_DB/SQLITE_DB_PATH "
+            "env vars, then the newest file under <Raw Data Root>/../var/miroir/"
         ),
-    )
-    azalee_url: StringProperty(
-        name="azalee base URL",
-        default="https://azalee.rosegriffon.fr",
-        description="Base URL of the azalee GraphQL (/api/graphql) + REST (/api/cpk) mirror, queried alongside the local wiki mirror",
     )
     chara_model_xml: StringProperty(
         name="Chara Model XML",
@@ -442,10 +437,9 @@ class G4ImporterPreferences(AddonPreferences):
         resolved_db = niers_bridge.resolve_wiki_db(context)
         db_row = shared_box.row()
         db_row.label(
-            text=f"miroir wiki: {resolved_db}" if resolved_db else "miroir wiki: non trouvé (recherche perso/technique locale indisponible, azalee seul)",
+            text=f"miroir wiki: {resolved_db}" if resolved_db else "miroir wiki: non trouvé",
             icon="CHECKMARK" if resolved_db else "INFO",
         )
-        shared_box.prop(self, "azalee_url")
 
         import_box = layout.box()
         import_box.label(text="Import")

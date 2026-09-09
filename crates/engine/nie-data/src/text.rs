@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! Port **1:1** de `packages/inagle/src/core/data-loader.ts` (`sanitizeText`, l.521-553). La
+//! Port **1:1** de `inagle` (`sanitizeText`, l.521-553). La
 //! fonction TS est une chaîne de `String.replace(regex)` ; on la réplique par une **suite de
 //! passes** déterministes (sans dépendance regex, `no_std`). Chaque passe correspond à un
 //! `.replace()` dans l'ordre exact :
@@ -304,7 +304,7 @@ pub fn split_markup(text: &str) -> (String, Vec<String>) {
 
 /// Catalogue des fichiers de texte localisés (`common/text/<locale>/<file>.cfg.bin`).
 ///
-/// Port **1:1** de `TEXT_FILE_NAMES` (`packages/inagle/src/parsers/text-parser.ts`) :
+/// Port **1:1** de `TEXT_FILE_NAMES` (`inagle`) :
 /// `(nom convivial, nom de fichier sans extension)`. Sert d'index anti-hallucination des
 /// familles de texte résolubles par [`parse_text_file`].
 pub const TEXT_FILES: &[(&str, &str)] = &[

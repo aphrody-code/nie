@@ -35,7 +35,7 @@ import { grayscaleSsim as ssimGris } from "./image-metrics";
 const RACINE = resolve(import.meta.dir, "..", "..");
 const REFS = join(RACINE, "var", "outputs", "zukan-reference");
 const SORTIE = join(RACINE, "var", "outputs", "gate-zukan");
-const MODEL_VIEWER = join(RACINE, "apps", "azalee", "public", "vendor", "model-viewer.min.js");
+const MODEL_VIEWER = process.env.NIE_MODEL_VIEWER ?? join(RACINE, "var", "tools", "model-viewer.min.js");
 const CHROME = process.env.NIE_CHROME ?? "/usr/local/bin/chromium";
 const BASE_SERVICE = process.env.NIE_CDN_URL ?? "http://127.0.0.1:8790";
 

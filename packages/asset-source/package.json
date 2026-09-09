@@ -15,9 +15,6 @@
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test --pass-with-no-tests"
 	},
-	"dependencies": {
-		"@niers/catalog": "workspace:*"
-	},
 	"devDependencies": {
 		"typescript": "catalog:",
 		"@types/bun": "catalog:"

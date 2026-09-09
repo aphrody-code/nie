@@ -2,7 +2,7 @@
 
 Famille de dérivés divers extraits autour d'IEVR. Glob couvert : `data/{schema-snapshot,entries,glossary,translations,all-gamedata}/**/*.json`.
 
-10 vrais fichiers JSON (les ~27 autres entrées d'`all-gamedata/` sont des **symlinks** vers `../rg/packages/inagle/src/entries/`, hors `data/` et non comptés ici). Source des chiffres : parsing direct des fichiers (Bun/TS). Aucun fichier de cette famille n'est au format `cfg.bin.json` (pas de `entries → children TEXT_INFO`) : ce sont des dumps de schéma, des scrapes Twitter, un glossaire dérivé, des patch notes traduits, et une base de texte du mode Histoire.
+10 vrais fichiers JSON (les ~27 autres entrées d'`all-gamedata/` sont des **symlinks** vers `../rg/inagle/`, hors `data/` et non comptés ici). Source des chiffres : parsing direct des fichiers (Bun/TS). Aucun fichier de cette famille n'est au format `cfg.bin.json` (pas de `entries → children TEXT_INFO`) : ce sont des dumps de schéma, des scrapes Twitter, un glossaire dérivé, des patch notes traduits, et une base de texte du mode Histoire.
 
 | Fichier | Type | Top | Taille logique |
 |---|---|---|---|

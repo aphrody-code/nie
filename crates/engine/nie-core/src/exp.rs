@@ -6,7 +6,7 @@
 //!
 //! # Source de vérité
 //!
-//! - Logique : `packages/inagle/src/parsers/chara-exp-table.ts`
+//! - Logique : `inagle`
 //!   (`parseContent` L53-70, `getCumulativeExp` L109-116, `getRarityRate` L108).
 //! - Données réelles : `common/gamedata/character/chara_exp_table_config_0.00.00.00.cfg.bin.json`
 //!   — vérifié : `m_charaExpTableList`=100 entrées (niveaux 1..100),

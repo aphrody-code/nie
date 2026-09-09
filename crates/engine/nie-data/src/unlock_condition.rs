@@ -3,10 +3,10 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/unlock-condition.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`decodeUnlockCondition`, `tokenizeLeaves`, `storyThresholdToEpisode`,
 //!   `buildEventCrcLookup`) — **port 1:1**.
-//! - Vecteurs golden : `packages/inagle/src/parsers/unlock-condition.test.ts` (fixtures réelles
+//! - Vecteurs golden : `inagle` (fixtures réelles
 //!   extraites de `gallery_config` / `scene_archive_config` — repris tels quels dans
 //!   `tests/unlock_condition_golden.rs`).
 //!

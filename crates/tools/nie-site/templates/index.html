@@ -27,7 +27,7 @@
 {% else %}<meta name="twitter:card" content="summary">
 {% endif %}<meta name="twitter:title" content="{{ titre }}">
 <meta name="twitter:description" content="{{ description }}">
-{# Palette MESUREE du menu principal du jeu (docs/stack/web-platform.md) : la DA
+{# Palette MESUREE du menu principal du jeu : la DA
    du site est celle de nie, pas Material Design. `theme-color` n'accepte pas de variable CSS. #}
 {% if let Some(cat) = catalogue %}{% if let Some(prec) = cat.precedent %}<link rel="prev" href="{{ prec }}">
 {% endif %}{% if let Some(suiv) = cat.suivant %}<link rel="next" href="{{ suiv }}">

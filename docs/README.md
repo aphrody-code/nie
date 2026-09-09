@@ -36,12 +36,10 @@ Superseded plans are preserved in the dated
 - **[modele-de-match.md](modele-de-match.md)** : Analyse de la simulation match et calculs de tirs/arrêts.
 
 ### 2.3 Applications, Wiki & Production Web
-- **[AZALEE.md](AZALEE.md)** & **[MIGRATION-SUPABASE-CLOUD-ANALYSIS.md](MIGRATION-SUPABASE-CLOUD-ANALYSIS.md)** : Architecture serverless du wiki Azalée sur Vercel et pooler Supabase Cloud.
-- **[MIGRATION-EXPLORATEUR.md](MIGRATION-EXPLORATEUR.md)** : Unification Inacord / nie via `packages/inacord-ui`.
-- **[FILTRES.md](FILTRES.md)** : Matrice des filtres et navigation du catalogue.
-- **[EXPLOITATION.md](EXPLOITATION.md)** & **[SECURITE-BASCULE.md](SECURITE-BASCULE.md)** : Gestion de la production VPS, services systemd, nginx et remédiation sécurité.
-- **[MCP.md](MCP.md)** : Architecture du serveur MCP natif pur Rust (`rmcp`), ses 56 outils, sa sécurité et ses tests de parité.
-- **[FUSION.md](FUSION.md)** : Justification du monorepo unifié pour l'écosystème Inazuma Eleven.
+- **[packages/mcp/context/exploitation.md](../packages/mcp/context/exploitation.md)** : production services and operational checks.
+- **[MCP.md](MCP.md)** : Architecture du serveur MCP natif pur Rust (`rmcp`), sa sécurité et ses tests.
+- **[architecture/](architecture/)** : Ownership and shared-surface contracts for the maintained applications.
+- **[../PLAN.md](../PLAN.md)** : Migration status, durable data-source decisions, and the active gate ledger.
 
 ---
 

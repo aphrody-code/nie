@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/belong-team.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`loadCharaSeriesInfo`, `buildSeriesMapping`, table `SERIES_NAMES_BY_TYPE`) — **port 1:1**.
 //! - Données : `data/common/gamedata/character/chara_series_config.cfg.bin` (VFS IEVR), format
 //!   **RDBN** (`lists`). Liste `m_charaSeriesInfoList`, type `CHARA_SERIES_INFO`, **9 séries** ;

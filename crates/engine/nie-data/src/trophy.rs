@@ -29,7 +29,7 @@
 //!
 //! ## Champs positionnels (zone d'ombre honnête)
 //!
-//! Le parser TS de référence (`packages/inagle/src/parsers/trophy-config.ts`) n'extrait que
+//! Le parser TS de référence (`inagle`) n'extrait que
 //! quelques champs de `TROPHY_INFO` (id, code, deux hash de texte) par heuristique de type ;
 //! il ne nomme PAS les 18 variables. Ce port capture **toutes** les variables positionnelles
 //! et documente chaque champ d'après l'observation du dump réel. Certaines variables restent

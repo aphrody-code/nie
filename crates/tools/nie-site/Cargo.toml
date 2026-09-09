@@ -54,7 +54,7 @@ nie-data = { workspace = true, features = ["serde", "std"] }
 # La logique de JEU pure : courbe de statistiques a trois segments, tables de croissance
 # reelles, comparaison des variantes d'un personnage, builds BASARA. Ecrite, testee, et servie
 # par aucune route jusqu'ici — c'est ce que la matrice de couverture appelle `manquant`, et ce
-# que `docs/inagle/05-service-et-types.md` § 5.4 classait deuxieme dans l'ordre qui fait tomber
+# que the coverage ledger classait deuxieme dans l'ordre qui fait tomber
 # le plus de code TypeScript.
 #
 # Features PAR DEFAUT, c'est-a-dire `data` seule. Ce qu'elle decide, mesure :
@@ -101,7 +101,7 @@ nie-wiki.workspace = true
 # Portable existing encyclopedia matcher; no network ingestion feature.
 nie-zukan.workspace = true
 
-# Serveur HTTP. Seul ajout réel au workspace (cf. docs/stack/dependencies.md) : 0.8.9, jamais
+# HTTP server dependency. Keep the pinned version in the workspace; never
 # 0.8.2 (yanked). Syntaxe de route 0.8 : `{param}` et `{*wildcard}` — l'ancienne PANIQUE.
 axum = { workspace = true, features = ["http1", "json", "query", "tokio", "matched-path", "original-uri"] }
 # `net`/`signal`/`fs`/`io-util` s'ajoutent aux features du workspace (rt, rt-multi-thread,

@@ -3,9 +3,9 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/opponent-team-config.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseContent`, l.66-112), port **1:1** ici.
-//! - Sortie de référence (vérité terrain) : `packages/inagle/src/entries/opponent_teams.json`.
+//! - Sortie de référence (vérité terrain) : `inagle`.
 //! - Dump réel : `data/common/gamedata/team/opponent_team_config_1.03.05.00.cfg.bin`
 //!   (VFS IEVR), format **RDBN** (`lists`).
 //!

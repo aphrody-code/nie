@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { resolveMirrorPath } from "@niers/azalee-tools/server/index";
+import { resolveMirrorPath } from "../src/wiki-native.ts";
 import { createRgMcpServer, DEFAULT_REPO_ROOT } from "../src/index.ts";
 import { MODERN_PROTOCOL_VERSION } from "../src/protocol/versions.ts";
 import { parseModernMeta } from "../src/protocol/meta.ts";
@@ -95,17 +95,19 @@ describe.skipIf(!hasMirror)("données de jeu réelles", () => {
 	test("azalee_search retrouve Mark Evans", async () => {
 		const result = await callTool("azalee_search", { q: "mark", limit: 5 });
 		const payload = result.structuredContent as {
-			characters: { names: { fr: string }; baseSlug: string }[];
+			results: { entity_type: string; name?: string; name_en?: string }[];
 		};
-		expect(payload.characters.length).toBeGreaterThan(0);
-		expect(payload.characters.some((entry) => entry.names.fr.includes("Mark"))).toBe(true);
+		expect(payload.results.length).toBeGreaterThan(0);
+		expect(payload.results.some((entry) => `${entry.name ?? ""} ${entry.name_en ?? ""}`.includes("Mark"))).toBe(true);
 	});
 
 	test("azalee_get renvoie la fiche complète d'un personnage", async () => {
 		const result = await callTool("azalee_get", { collection: "characters", id: "mark-evans" });
-		const character = result.structuredContent as { names: { fr: string; ja: string }; variants: unknown[] };
-		expect(character.names.fr).toBe("Mark Evans");
-		expect(character.variants.length).toBeGreaterThan(0);
+		const character = result.structuredContent as {
+			character: { id: string; name_fr?: string; name_en?: string };
+		};
+		expect(character.character.id.length).toBeGreaterThan(0);
+		expect(`${character.character.name_fr ?? ""} ${character.character.name_en ?? ""}`).toContain("Mark");
 	});
 
 	test("azalee_get sur un identifiant inconnu renvoie isError", async () => {
@@ -126,9 +128,9 @@ describe.skipIf(!hasMirror)("données de jeu réelles", () => {
 
 	test("azalee_dataset renvoie l'état de la source", async () => {
 		const result = await callTool("azalee_dataset", { dataset: "health" });
-		const payload = result.structuredContent as { mirror: string; cpkFiles: number };
+		const payload = result.structuredContent as { mirror: string; source: string };
 		expect(payload.mirror).toContain(".sqlite");
-		expect(payload.cpkFiles).toBeGreaterThan(0);
+		expect(payload.source).toBe("rust-wiki-read-only-mirror");
 	});
 
 	test("db_tables compte les tables inagle_*", async () => {
@@ -167,18 +169,6 @@ describe.skipIf(!hasMirror)("données de jeu réelles", () => {
 		expect(payload.sql).toContain("limit 5");
 	});
 
-	test("cpk_browse liste la racine de l'arborescence du jeu", async () => {
-		const result = await callTool("cpk_browse", { path: "", limit: 10 });
-		const payload = result.structuredContent as { dirs: { name: string; count: number }[] };
-		expect(payload.dirs.map((entry) => entry.name)).toContain("common");
-	});
-
-	test("game_text_search trouve du texte du jeu", async () => {
-		const result = await callTool("game_text_search", { q: "Tornade", locale: "fr", limit: 3 });
-		const rows = result.structuredContent as { value: string }[];
-		expect(rows.length).toBeGreaterThan(0);
-		expect(rows[0]!.value.toLowerCase()).toContain("tornade");
-	});
 });
 
 describe("dépôt", () => {
@@ -205,7 +195,7 @@ describe("dépôt", () => {
 	});
 
 	test("repo_read refuse les secrets et la sortie du dépôt", async () => {
-		for (const path of [".env", ".env.local", "../../etc/passwd", "apps/azalee/data/backups/mirror.sqlite"]) {
+		for (const path of [".env", ".env.local", "../../etc/passwd", "var/mirror.sqlite"]) {
 			const result = await callTool("repo_read", { path });
 			expect(result.isError).toBe(true);
 		}
@@ -246,9 +236,9 @@ describe("exploitation", () => {
 	test.skipIf(!hasSystemd)("ops_status renvoie l'état des services connus", async () => {
 		const result = await callTool("ops_status", { services: true, endpoints: false });
 		const payload = result.structuredContent as { services: { unit: string; active: string }[] };
-		const azalee = payload.services.find((service) => service.unit === "azalee-web.service");
-		expect(azalee).toBeDefined();
-		expect(azalee!.active.length).toBeGreaterThan(0);
+		const site = payload.services.find((service) => service.unit === "nie-site.service");
+		expect(site).toBeDefined();
+		expect(site!.active.length).toBeGreaterThan(0);
 	});
 
 	test("ops_http refuse un domaine hors périmètre", async () => {

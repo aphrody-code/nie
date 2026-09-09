@@ -5,7 +5,7 @@
 //!
 //! # Source de vérité
 //!
-//! - Logique : `packages/inagle/src/parsers/skill-config.ts`
+//! - Logique : `inagle`
 //!   (`elementMap` L62-67, `typeMap` L69-75, mapping `power_min`/`power_max`/
 //!   `consumeTp` L115-129).
 //! - Données réelles : `common/gamedata/skill/skill_config_4.00.17.00.cfg.bin.json`

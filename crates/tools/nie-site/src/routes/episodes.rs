@@ -7,8 +7,8 @@
 //! Sans porte de sortie, la seule façon de mettre à jour une installation serait de la
 //! réinstaller.
 //!
-//! Cette porte existait sur le wiki (`apps/azalee/app/api/ietv`). Elle en sort, parce qu'elle
-//! lit un fichier local et que le wiki devient serverless — et **elle doit exister ici AVANT
+//! This route replaces the former wiki endpoint. It reads a local file and the Rust site owns
+//! the catalogue — and **it must exist here BEFORE
 //! que le wiki ne s'arrête**, faute de quoi les clients installés cessent silencieusement de
 //! recevoir les nouveaux épisodes : leur repli rend un 503, qu'ils lisent comme « ce serveur ne
 //! moissonne pas la série ».

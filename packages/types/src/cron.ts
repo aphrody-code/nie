@@ -23,14 +23,11 @@
  * aussi bien dans un composant React que dans une commande Discord.
  */
 
-/** Les 23 tâches servies par `GET :3005/tasks`. */
+/** The tasks served by `GET :3005/tasks`. */
 export const TACHES_CRON = [
-	"db",
-	"zukan:videos",
 	"cdn",
 	"crawl",
 	"rag",
-	"publish",
 	"github-publish",
 	"patreon",
 	"reminders",
@@ -107,27 +104,6 @@ export interface DescriptionTache {
  */
 export const CATALOGUE_TACHES: readonly DescriptionTache[] = Object.freeze([
 	{
-		nom: "db",
-		titre: "Poussée des données de jeu",
-		role: "réécrit les tables `inagle_*` de production puis échange le miroir SQLite servi par le wiki",
-		planification: "0 2 * * *",
-		famille: "donnees",
-		niveau: "interdit",
-		motifInterdiction:
-			"réécrit la production ET échange le miroir servi par azalee-web — une bévue de frappe ne doit pas pouvoir la lancer",
-		dureeIndicative: "plusieurs minutes",
-	},
-	{
-		nom: "zukan:videos",
-		titre: "Vidéos officielles des techniques",
-		role: "relit zukan.inazuma.jp et repose les vidéos, posters et vignettes que la poussée des données efface",
-		planification: "0 2 * * *",
-		famille: "donnees",
-		niveau: "admin",
-		motifInterdiction: null,
-		dureeIndicative: "moins d'une minute",
-	},
-	{
 		nom: "cdn",
 		titre: "Synchronisation du CDN",
 		role: "aligne les assets servis par cdn.rosegriffon.fr sur la source",
@@ -157,16 +133,6 @@ export const CATALOGUE_TACHES: readonly DescriptionTache[] = Object.freeze([
 		niveau: "admin-strict",
 		motifInterdiction: null,
 		dureeIndicative: "plusieurs minutes",
-	},
-	{
-		nom: "publish",
-		titre: "Publication programmée",
-		role: "publie les articles dont la date de parution est atteinte",
-		planification: "*/15 * * * *",
-		famille: "publication",
-		niveau: "admin-strict",
-		motifInterdiction: null,
-		dureeIndicative: "quelques secondes",
 	},
 	{
 		nom: "github-publish",

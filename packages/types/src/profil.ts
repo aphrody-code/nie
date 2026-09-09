@@ -4,7 +4,7 @@
  *
  * ── POURQUOI CE FICHIER EXISTE ─────────────────────────────────────────────
  * Le même schéma était écrit deux fois, dans `apps/website/.../account/actions.ts`
- * et dans `apps/azalee/app/settings/actions.ts`, et les deux acceptaient
+ * and in the former account action, and both accepted
  * `badges: z.array(z.string())` — c'est-à-dire n'importe quoi. Deux
  * conséquences, l'une visible et l'autre pas :
  *

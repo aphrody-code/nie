@@ -269,16 +269,6 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 		requires: "disque",
 	},
 	{
-		id: "azaleeUrl",
-		family: "paths",
-		kind: "text",
-		label: "Résolveur distant Azalée",
-		description: "L'origine du résolveur de personnages, pour le pont Blender.",
-		default: "",
-		portable: false,
-		requires: "outils",
-	},
-	{
 		id: "modelServiceUrl",
 		family: "paths",
 		kind: "text",

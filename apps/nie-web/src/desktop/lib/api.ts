@@ -174,7 +174,7 @@ const gd = (gameDir?: string): string | null => (gameDir && gameDir.trim() ? gam
 /** Réadapte `{status:"ok",data}|{status:"error",error}` (tauri-specta) en promesse classique
  * (résout avec `data`, rejette avec `error`) — même contrat que l'ancien `invoke<T>()` direct.
  * `data: unknown` en entrée (pas `T`) : accepte aussi bien les commandes typées (`EntryDto[]`…)
- * que les commandes `RawJson`/`unknown` (résolveur azalee, `save_open` — cf. commentaire `RawJson`
+ * que les commandes `RawJson`/`unknown` (native wiki resolver, `save_open` — cf. commentaire `RawJson`
  * dans `lib.rs`), dont la forme réelle est fixée ici par les interfaces `Remote*`/`SaveSummary`,
  * exactement comme l'ancien `invoke<T>()` ne la vérifiait pas non plus au runtime. */
 async function unwrap<T>(p: Promise<{ status: "ok"; data: unknown } | { status: "error"; error: string }>): Promise<T> {
@@ -194,8 +194,7 @@ export const api = {
     unwrap<string>(commands.modelServiceMenuPngB64(baseUrl, screen)),
   defaultGameDir: () => commands.defaultGameDir(),
   checkGameDir: (game_dir: string) => commands.checkGameDir(game_dir),
-  // Miroir wiki (`supabase-*.sqlite`) auto-détecté (NIE_WIKI_DB/SQLITE_DB_PATH, ou
-  // `<jeu>/var/wiki-mirror/` le plus récent) — `null` si rien n'est trouvé.
+  // Local VFS-derived wiki mirror auto-detected (NIE_WIKI_DB/SQLITE_DB_PATH or var/mirror.sqlite).
   defaultWikiDb: (gameDir?: string) => commands.defaultWikiDb(gd(gameDir)),
   // `var/niers.sqlite` — base RE (fonctions/classes RTTI/xrefs), cf. `src/lib/reDb.ts`.
   defaultReDb: (gameDir?: string) => commands.defaultReDb(gd(gameDir)),
@@ -313,26 +312,6 @@ export const api = {
   clipboardReadFileList: () => commands.clipboardReadFileList(),
   trashAppdataFiles: (appdataRelPaths: string[]) => unwrap<null>(commands.trashAppdataFiles(appdataRelPaths)),
 
-  // Résolveur distant azalee — contrat RÉEL confirmé (`https://nie.aphrody.com`,
-  // GraphQL `graphql-yoga` sans auth + REST `/api/cpk`/`/api/save/resolve-roster`), pas une
-  // convention devinée. `baseUrl` vide → nie.aphrody.com (défaut côté Rust). Les 3 renvoient
-  // du JSON libre côté Rust (`RawJson`, exporté `unknown` — `serde_json::Value` est récursif,
-  // cf. commentaire `RawJson` dans `lib.rs`) : la forme réelle est fixée ici par ces interfaces,
-  // comme avant (l'ancien `invoke<T>()` ne la vérifiait pas non plus au runtime).
-  remoteSearchChara: (baseUrl: string, query: string) => unwrap<RemoteCharaData>(commands.remoteSearchChara(baseUrl, query)),
-  remoteSearchWaza: (baseUrl: string, query: string) => unwrap<RemoteWazaData>(commands.remoteSearchWaza(baseUrl, query)),
-  remoteCpkSearch: (baseUrl: string, query: string) =>
-    unwrap<{ query: string; count: number; files: RemoteCpkFile[] }>(commands.remoteCpkSearch(baseUrl, query)),
-  // `ids` : IDs numériques du roster local (`SaveSummary.roster.owned[].id`) — convertis en
-  // chaînes ici, seule forme acceptée par la commande Rust (`Vec<String>`, qui les relaie tels
-  // quels au REST azalee `{ids: string[]}`). BUG réel trouvé par la migration tauri-specta : le
-  // miroir `invoke<T>()` précédent déclarait `ids: number[]` sans jamais convertir → chaque appel
-  // envoyait des nombres là où Rust attendait des chaînes, donc une erreur de désérialisation
-  // systématique (silencieuse, `resolveRoster()` dans `SaveView` échouait toujours en pratique).
-  remoteResolveRoster: (baseUrl: string, ids: number[]) =>
-    unwrap<{ resolved: RemoteRosterEntry[]; matched: number; total: number }>(
-      commands.remoteResolveRoster(baseUrl, ids.map(String)),
-    ),
 
   videoPreviewB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsVideoPreviewB64(path, gd(gameDir))),
   audioPreviewB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsAudioPreviewB64(path, gd(gameDir))),
@@ -560,63 +539,6 @@ export const api = {
   launchSaveEditor: (alsoGame: boolean, repoDir?: string, gameDir?: string) =>
     unwrap<LaunchResult>(commands.launchSaveEditor(gd(repoDir), gd(gameDir), alsoGame)),
 };
-
-// ─── Types du GraphQL/REST azalee (contrat réel, cf. commentaire Rust `remote_search_*`) ──
-
-interface LocalizedString {
-  fr: string | null;
-  en: string | null;
-  ja: string | null;
-}
-
-export interface RemoteCharaVariant {
-  charaParamId: string;
-  position: string | null;
-  element: string | null;
-  rarity: string | null;
-  image: string | null;
-}
-
-export interface RemoteChara {
-  id: string;
-  internalCode: string | null;
-  name: LocalizedString;
-  variants: RemoteCharaVariant[];
-}
-
-export interface RemoteCharaData {
-  characters: RemoteChara[];
-}
-
-export interface RemoteWaza {
-  id: string;
-  name: LocalizedString;
-  category: string | null;
-  element: string | null;
-  power: string | null;
-  tension: number | null;
-  image: string | null;
-}
-
-export interface RemoteWazaData {
-  skills: RemoteWaza[];
-}
-
-export interface RemoteCpkFile {
-  name: string;
-  ext: string;
-  cpk: string;
-  path: string;
-}
-
-export interface RemoteRosterEntry {
-  id: string;
-  name: string | null;
-  baseSlug: string | null;
-  element: string | null;
-  position: string | null;
-  rarity: string | null;
-}
 
 // Miroir partiel de `nie_save::SaveSummary` (champs affichés par `SaveView`) — le reste du
 // JSON (roster/team complets) est accessible tel quel si besoin, non typé ici.

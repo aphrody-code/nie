@@ -11,7 +11,7 @@
  * mises à jour aux moteurs participants (Bing, Yandex, Seznam, Naver…). La clé
  * est publique PAR DESIGN : un fichier `<clé>.txt` contenant la clé doit être
  * servi à la racine de chaque domaine pour prouver la propriété. Ce n'est donc
- * PAS un secret — voir apps/website/public/<clé>.txt et apps/azalee/public/<clé>.txt.
+ * PAS un secret — voir apps/website/public/<clé>.txt.
  *
  * Ce qui est garanti : la soumission est acceptée (HTTP 200/202) et relayée aux
  * moteurs IndexNow. Ce qui ne l'est PAS : l'indexation effective reste à la
@@ -37,11 +37,6 @@ const SITES: SiteTarget[] = [
 		name: "website",
 		host: "rosegriffon.fr",
 		sitemapUrl: "https://rosegriffon.fr/sitemap.xml",
-	},
-	{
-		name: "azalee",
-		host: "azalee.rosegriffon.fr",
-		sitemapUrl: "https://azalee.rosegriffon.fr/sitemap.xml",
 	},
 ];
 

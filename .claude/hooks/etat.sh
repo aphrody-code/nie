@@ -95,7 +95,7 @@ g=""
 for f in var/mirror.sqlite data/anime/episodes.db data/cpk_list.cfg.bin; do
   if [ -e "$f" ]; then g="$g $(basename "$f")=$(du -Lsh "$f" 2>/dev/null | cut -f1)"; else g="$g $(basename "$f")=absent"; fi
 done
-echo "gisements$g   (facade : packages/nie-catalog/src/cli.ts etat)"
+echo "gisements$g   (Rust-owned VFS/wiki sources)"
 echo "VFS       NIE_GAME_DIR=${NIE_GAME_DIR:-non posee}"
 
 # --- services ---------------------------------------------------------------

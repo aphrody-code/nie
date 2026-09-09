@@ -38,7 +38,6 @@
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgyRjUxMEVCREM0MkUyOTQKUldTVTRrTGM2eEQxZ3RXNUF0QnUvanFHb01USmYzWEoxTnRaKzFlTUt0VysxM1JjaGhKM3A3VXIK",
       "endpoints": [
         "https://nie.aphrody.com/downloads/inacord/latest.json",
-        "https://azalee.rosegriffon.fr/tools/niers/latest.json",
         "https://github.com/aphrody-code/nie/releases/latest/download/latest.json"
       ]
     }

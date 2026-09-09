@@ -6,7 +6,7 @@
  * quels outils appeler, dans quel ordre, et ce qu'il ne faut pas inventer.
  */
 
-import { wikiService } from "@niers/azalee-tools/server/index";
+import { nativeWikiSearch } from "./wiki-native.ts";
 import type { PromptMessage } from "./protocol/types.ts";
 import type { PromptSpec } from "./registry.ts";
 import { KNOWN_SERVICES } from "./tools/ops.ts";
@@ -44,9 +44,10 @@ export function buildPrompts(): PromptSpec[] {
 			}),
 			complete: async (argument, value) => {
 				if (argument !== "personnage" || value.length < 2) return [];
-				const list = await wikiService.getCharactersList({ q: value, limit: 20, page: 1 } as never);
-				return (list.data as unknown as Record<string, unknown>[])
-					.map((entry) => String(entry.baseSlug ?? entry.slug ?? entry.id ?? ""))
+				const list = nativeWikiSearch(value, 20);
+				return list
+					.filter((entry) => entry.entity_type === "chara")
+					.map((entry) => String(entry.id ?? ""))
 					.filter(Boolean);
 			},
 		},
@@ -99,7 +100,7 @@ export function buildPrompts(): PromptSpec[] {
 							"Méthode :",
 							"1. essaie d'abord les outils métier (`azalee_search`, `azalee_list`, `azalee_get`, `azalee_dataset`) — ils appliquent les règles du jeu ;",
 							"2. si la question demande un agrégat ou une jointure, passe à `db_tables` → `db_schema` → `db_query` ;",
-							"3. pour du texte du jeu, `game_text_search` ; pour un fichier du jeu, `cpk_search` puis `cpk_file`.",
+							"3. pour un asset ou un texte brut du jeu, utilise les commandes VFS de `nie-cli`.",
 							"",
 							"Piège connu : dans `inagle_skills`, les colonnes `category_id` et `element_id` sont NULL — filtrer sur les colonnes textuelles françaises `category` et `element`.",
 							"",

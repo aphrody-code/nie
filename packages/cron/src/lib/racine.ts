@@ -1,14 +1,14 @@
 /**
  * Racine du dépôt, résolue à l'exécution — jamais un chemin de machine en dur.
  *
- * Le démon de cron a longtemps porté `/home/ubuntu/rg` dans cinq fichiers. Depuis la
- * fusion (`docs/FUSION.md`), le même code tourne depuis `niers` : ces chemins
+ * Le démon de cron a longtemps porté `/home/ubuntu/rg` dans cinq fichiers. Le code tourne
+ * désormais depuis ce dépôt : ces chemins
  * pointaient alors sur l'autre dépôt, silencieusement, et cinq tâches travaillaient
  * sur les mauvais fichiers sans qu'aucune n'échoue.
  *
  * On remonte les ancêtres jusqu'au dossier qui porte **`Cargo.toml` ET `crates/`** —
- * la même signature que côté Rust et que `packages/azalee/src/config.ts`, pour qu'un
- * `packages/` homonyme rencontré en chemin ne soit jamais pris pour la racine.
+ * the same signature used by the Rust workspace, so a same-named `packages/` directory
+ * encountered on the way is never mistaken for the repository root.
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -38,9 +38,8 @@ export function dansLeDepot(...segments: string[]): string {
 }
 
 /**
- * Racine du monorepo Rose Griffon (`rg`), quand une tâche vise une surface qui n'a pas
- * suivi la fusion : le site vitrine `apps/website` et le bot communautaire `apps/bot`
- * y vivent toujours (`docs/FUSION.md`).
+ * Racine d'un monorepo éditorial externe, quand une tâche vise une surface qui reste
+ * hors de ce dépôt : le site vitrine `apps/website` et le bot communautaire `apps/bot`.
  *
  * Le démon de cron est un **singleton** : il n'y en a qu'un pour les deux dépôts, et il
  * tourne depuis celui-ci. Ces deux tâches doivent donc pouvoir désigner l'autre — par

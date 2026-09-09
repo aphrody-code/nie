@@ -18,7 +18,7 @@
 //! ## Structure `QUEST_DATA_CFG` (20 variables positionnelles)
 //!
 //! Le parseur ne lit que 5 positions (port 1:1 de
-//! `packages/inagle/src/parsers/quest-config.ts`, fn `parseQuestNode`) :
+//! `inagle`, fn `parseQuestNode`) :
 //!
 //! - var\[0\] = `quest_id` (Int → hex non signé) — identifiant unique de la quête.
 //! - var\[1\] = `phase` (Int, défaut 0) — chapitre/phase.

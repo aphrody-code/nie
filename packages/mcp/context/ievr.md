@@ -1,7 +1,7 @@
 # Glossaire — Inazuma Eleven: Victory Road
 
 Vocabulaire nécessaire pour lire les données sans contresens. Le jeu est un
-RPG de football japonais de Level-5 ; le wiki Azalée en documente le contenu.
+RPG de football japonais de Level-5 ; the Rust wiki documents its local data.
 
 ## Entités de jeu
 
@@ -18,8 +18,8 @@ RPG de football japonais de Level-5 ; le wiki Azalée en documente le contenu.
 - **Tactique** — effet d'équipe déclenché en match.
 - **Formation** — disposition des onze joueurs sur le terrain.
 - **Coordinateur** — coach ou manager, distinct d'un joueur.
-- **Capsule / gacha** — tirage aléatoire ; les **taux d'invocation** sont
-  documentés (`azalee_dataset` avec `invocation`).
+- **Capsule / gacha** — random draw; invocation rates are exposed when the
+  corresponding local mirror table exists.
 - **Drop** — objet obtenu après un match ou un coffre, avec son taux.
 
 ## Formats de fichiers du jeu
@@ -44,10 +44,8 @@ RPG de football japonais de Level-5 ; le wiki Azalée en documente le contenu.
 
 ## Projets voisins
 
-- **Inazuma Eleven Cross** — jeu mobile sorti le 9 juin 2026, moteur Unity
-  (IL2CPP + Addressables). **Distinct de Victory Road** : ni le même moteur,
-  ni les mêmes archives. `azalee_dataset` avec `cross_tables` / `cross_stats`
-  donne son catalogue.
+- **Inazuma Eleven Cross** — separate Unity game and schema. It is not part of
+  the Victory Road mirror; use `packages/inagle-cross` for that project.
 - **niers** — réécriture en Rust du moteur du jeu ; alimente le décodage des
   assets et l'assemblage des modèles 3D.
 - **iecode** — outillage C#/.NET de rétro-ingénierie et de téléchargement des

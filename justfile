@@ -107,16 +107,16 @@ health: build
 preuves motif="":
     bash scripts/proofs.sh {{motif}}
 
-# Publie dans ~/.local/bin les 20 binaires Rust + 5 CLI Bun, par liens symboliques (aucune copie).
+# Publie dans ~/.local/bin les binaires Rust + les CLI Bun, par liens symboliques (aucune copie).
 # Refuse d'ecraser un executable etranger deja dans le PATH. `just installer --dry-run` pour voir.
 installer *args:
     bash scripts/installer-binaires.sh {{args}}
 
-# Verifie que les commandes du depot sont publiees et que les 4 gisements repondent.
+# Verifie que les commandes du depot sont publiees et que le proprietaire Rust repond.
 outils:
     bash scripts/data-pipeline.sh --verif-seule
 
-# Chaine complete des donnees : outils -> gisements -> 4 exports, via le PATH et @niers/catalog.
+# Chaine complete des donnees : outils Rust -> wiki -> 4 exports, via le PATH.
 donnees:
     bash scripts/data-pipeline.sh
 

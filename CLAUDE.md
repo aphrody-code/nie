@@ -86,11 +86,8 @@ that price on keeper, menu and match-sim.
   outage rather than a binary with no certificate authority.
 - **Adding a route to `nie-site` breaks four counters**: the assertion in `app.rs`, the
   `instances` array size in `tests/routes.rs`, `declarees.len()`, and `vus`.
-- **The Azalée copy that ships is `apps/azalee`, not `rg/apps/azalee`** — the two diverge.
-  Verify with `/proc/<pid on :3003>/cwd` before editing; cleaning the wrong copy produces a
-  "done" that changes nothing online. Deploy with
-  `bun --bun scripts/ops/deploy.ts deploy azalee|website` (blue/green), never `restart`, and
-  never edit an app's tree while its build is running.
+- **The Rust site is the only game/wiki deployment.** Verify the exact service checkout before
+  editing; never edit a tree while its build is running.
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 

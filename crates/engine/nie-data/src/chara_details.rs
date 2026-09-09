@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/chara-details.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseCharaDetails`) — **port 1:1**.
 //! - Données : `data/common/gamedata/character/chara_details_config_0.00.00.00.cfg.bin`
 //!   (VFS IEVR), format **RDBN** (`lists`). Liste `m_charaDetailsList`, type `CHARA_DETAILS`,

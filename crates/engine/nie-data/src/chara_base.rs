@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/chara-base.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseBaseNode`, `parseAllCharaBase`) — **port 1:1**.
 //! - Données : `data/common/gamedata/character/chara_base_1.*.cfg.bin` (VFS IEVR), format
 //!   **T2B** (`entries`). Noeuds `CHARA_BASE_INFO_<i>` (et `CHARA_BASE_BATTLE_<i>`) dans un dump

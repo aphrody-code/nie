@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Pipeline 100% natif niers : télécharge/valide IEVR via le downloader Steam Rust natif,
- * puis dump sélectif (preset inagle/azalee) avec la CLI `niers`.
+ * then selectively dumps the VFS (preset `wiki`, `assets`, or `full`) with the `niers` CLI.
  *
  * Env :
  *   STEAM_USER        compte Steam possédant IEVR (requis sauf SKIP_DOWNLOAD=1).
@@ -9,7 +9,7 @@
  *   STEAM_GUARD_CODE  code Steam Guard 2FA (requis au 1er login ; ensuite token caché).
  *   IEVR_GAME_DIR     dir d'install (défaut ~/.local/share/Steam/iecode/inazuma)
  *   STEAM_TOKEN_STORE cache JSON des jetons (défaut ~/.local/share/iecode/steam-tokens.json)
- *   DUMP_PRESET       inagle | azalee | inagle-azalee (défaut inagle-azalee)
+ *   DUMP_PRESET       wiki | assets | full (default full)
  *   DUMP_OUT          sortie du dump (défaut ~/niers-dump)
  *   SKIP_DOWNLOAD=1   saute le download (dump seulement, sur l'install existante)
  *
@@ -24,7 +24,7 @@ const APP_ID = "2799860"; // INAZUMA ELEVEN: Victory Road
 const GAME_DIR = process.env.IEVR_GAME_DIR ?? join(HOME, ".local/share/Steam/iecode/inazuma");
 const TOKEN_STORE =
 	process.env.STEAM_TOKEN_STORE ?? join(HOME, ".local/share/iecode/steam-tokens.json");
-const PRESET = process.env.DUMP_PRESET ?? "inagle-azalee";
+const PRESET = process.env.DUMP_PRESET ?? "full";
 const OUT = process.env.DUMP_OUT ?? join(HOME, "niers-dump");
 const NIERS = process.env.NIERS_BIN ?? join(import.meta.dir, "../target/release/niers.exe");
 const useBuiltBinary = existsSync(NIERS);
@@ -51,10 +51,9 @@ if (process.env.SKIP_DOWNLOAD !== "1") {
 	await runNiers("steam", "download", APP_ID, "-o", GAME_DIR, "--token-store", TOKEN_STORE);
 }
 
-// 2. Dump sélectif (seuls les packs inagle/azalee : gamedata utile + text + dx11/chr,
-//    sans map/event, dédupliqué).
+// 2. Selective dump: useful game data, localized text, and assets selected by the Rust preset.
 console.info(`▸ dump niers --preset ${PRESET} → ${OUT}`);
 await runNiers("viola", "dump", "--game-dir", GAME_DIR, "-o", OUT, "--preset", PRESET);
 
-console.info(`\n✓ Données prêtes : ${OUT}`);
-console.info(`  → pour inagle : DATA_PATH=${OUT} (createInagleService lit ce dossier)`);
+console.info(`\n✓ Data ready: ${OUT}`);
+console.info(`  → use the Rust VFS/wiki readers with NIE_GAME_DIR=${GAME_DIR}`);

@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { api, type VfsStats } from "@/lib/api";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { wikiDb, type StatsMiroir } from "@/lib/wikiDb";
+import { wikiDb, type MirrorStats } from "@/lib/wikiDb";
 import { defaultReDbPath, reDb, type ReStats, type StatutForge } from "@/lib/reDb";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
 import { modsDb } from "@/lib/modsDb";
@@ -114,7 +114,7 @@ export function DashboardView({ onSelectTab }: { onSelectTab: (id: string) => vo
   const settings = useSettings();
   const [vfs, setVfs] = useState<VfsStats | null>(null);
   const [vfsErreur, setVfsErreur] = useState<string | null>(null);
-  const [miroir, setMiroir] = useState<StatsMiroir | null>(null);
+  const [miroir, setMiroir] = useState<MirrorStats | null>(null);
   const [re, setRe] = useState<ReStats | null>(null);
   const [cheminRe, setCheminRe] = useState<string | null>(null);
   const [index, setIndex] = useState<VfsIndexMeta | null>(null);

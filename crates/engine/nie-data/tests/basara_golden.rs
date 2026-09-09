@@ -2,7 +2,7 @@
 //! Tests golden `basara` — VRAIES valeurs tirées du noeud RDBN réel :
 //! `data/common/gamedata/character/basara_chara_config_0.00.00.00.cfg.bin` (VFS du jeu,
 //! 4491 octets, RDBN à listes). Extraites via `cargo run -p nie-game --example extract_basara`
-//! (forme iecode `lists`), port 1:1 d'inagle `packages/inagle/src/parsers/basara-config.ts`.
+//! (forme iecode `lists`), port 1:1 d'inagle `inagle`.
 //!
 //! ## Valeurs réelles vérifiées
 //!

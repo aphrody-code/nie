@@ -21,7 +21,7 @@
 //!
 //! ## Port 1:1 d'inagle
 //!
-//! Référence : `packages/inagle/src/parsers/telop-waza.ts` (`parseTelopWazaContent`,
+//! Référence : `inagle` (`parseTelopWazaContent`,
 //! l.101-135). Comportements préservés à l'identique :
 //! - `eldoradoId == 0x00000000` → `None` (constante `ZERO_HASH` côté TS) ;
 //! - index `blankSizeInfo` **hors borne** → marge nulle (« jamais inventer une valeur »,

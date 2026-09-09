@@ -3,7 +3,7 @@
 //! ## Vérité terrain
 //!
 //! - Dump réel : `data/common/gamedata/shop/shop_config_3.00.22.cfg.bin` (VFS IEVR).
-//! - Référence de portage 1:1 : `packages/inagle/src/parsers/shop-config.ts`.
+//! - Référence de portage 1:1 : `inagle`.
 //! - Format : T2B (`entries`), arbre imbriqué.
 //!
 //! ## Structure des noeuds

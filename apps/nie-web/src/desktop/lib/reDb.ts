@@ -131,8 +131,8 @@ function binClause(binId: number | null, prefix: string): string {
   return binId === null ? "" : `${prefix} binary_id = ${binId}`;
 }
 
-/** `<jeu>/var/niers.sqlite` — même convention d'auto-détection que le miroir wiki
- * (`var/wiki-mirror/`) : un seul dépôt, les deux vivent sous `<racine>/var/`. Résolu côté Rust
+/** `<game>/var/niers.sqlite` — same auto-detection convention as the wiki mirror
+ * (`var/mirror.sqlite`): one repository, both live below `<root>/var/`. Resolved by Rust
  * (`default_re_db`) : la portée `fs:scope` de l'app ne couvre que `$APPDATA`. */
 export async function defaultReDbPath(gameDir: string): Promise<string | null> {
   return api.defaultReDb(gameDir);

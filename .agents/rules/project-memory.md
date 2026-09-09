@@ -426,7 +426,7 @@ machine. Ce qui fonctionne à la place :
 
 ---
 name: toujours-release-apres-livraison
-description: "Après toute livraison sur niers, incrémenter la version et publier la release GitHub + azalee, sans attendre qu'on le demande"
+description: "After a niers delivery, update the release metadata and publish only when explicitly requested"
 metadata: 
   node_type: memory
   type: feedback
@@ -438,7 +438,7 @@ Un travail livré n'est pas fini au commit : il faut **incrémenter le numéro d
 publier**. La commande fait tout, elle est idempotente et rejouable :
 
 ```bash
-./scripts/release-desktop.sh <X.Y.Z> [--ship-azalee]
+./scripts/release-desktop.sh <X.Y.Z>
 ```
 
 Elle enchaîne bump de version (Cargo + les 6 `package.json` + `tauri.conf.json`), sync des
@@ -448,9 +448,7 @@ contrôle de taille plancher), commit `chore(release): bump X.Y.Z`, tag, push, p
 
 - Choisir la version en semver sur le contenu réel : correctif seul → patch, fonctionnalité
   ajoutée → mineur.
-- `azalee.rosegriffon.fr/tools/niers` et `/latest.json` lisent la dernière release GitHub **en
-  direct** (cache 1 h) : la release suffit. `--ship-azalee` ne redéploie le VPS que si le code
-  d'azalee a lui aussi changé.
+- `nie.aphrody.com/tools/niers` and `/latest.json` are served by the Rust site release.
 - Prérequis : arbre de travail **entièrement propre** (le garde-fou regarde aussi les fichiers
   non suivis), branche `main`, `gh` authentifié, clé `~/.tauri/niers.key`.
 
@@ -795,11 +793,11 @@ VPS OVH Ubuntu de production. Accès SSH via `~/.ssh/config` : alias `ssh vps` (
 
 Note : `bun` n'est PAS dans le PATH du shell SSH non-login → utiliser `/home/ubuntu/.bun/bin/bun` ou `export PATH=/home/ubuntu/.bun/bin:$PATH`.
 
-Services systemd hébergés (units dans /etc/systemd/system) : azalee-web (Next.js, port 3003, sert depuis `rg/apps/azalee/.next`), azalee-mirror-sync (timer), achillea-bot/yoyo-hub/achillea-watchdog, shenron (bot/site/LLM/RAG/neon-pull), iecode-cdn (bun, port via memfd doublemapper), rpbey-*, vercel-token-sync.
+Services systemd hébergés (units dans /etc/systemd/system) : `nie-site`, `nie-miroir`, `nie-cron`, `rg-mcp`, `rg-cdn`, `nie-model-serve`, and the separately managed infrastructure services.
 
 **Tendance au disque plein** (`/` à 100 % le 2026-06-19, root cause d'effondrement en cascade). Gros postes : `niers/target` (cache build Rust ~31 Go, régénérable), `.local/Steam/iecode/inazuma` (~71 Go de packs .cpk), `niers/data` (6,8 Go). Le memfd 47 Go d'iecode-cdn (bun doublemapper) est de la mémoire virtuelle, PAS du disque.
 
-**Bugs applicatifs connus (non résolus, code de l'utilisateur)** : `shenron-neon-pull` → NOT NULL constraint db_assets.source_id (sync-neon-to-sqlite.ts:133) ; `shenron-rag-refresh` → crawl-fandom-rag.ts exit 1 ; `azalee-mirror-sync` → teste le health d'azalee-web trop tôt après restart (manque une attente de readiness, échec bénin).
+**Bugs applicatifs connus (non résolus, code de l'utilisateur)** : external infrastructure failures remain outside the Rust IEVR path and must be measured from the live service before acting.
 
 Units désactivées le 2026-06-19 car binaire/fichier manquant : `shenron-llm` (binaire `~/llama.cpp/build/bin/llama-server` absent), `rpbey-profile-sync`/`rpbey-staff-sync` (WorkingDirectory `/home/ubuntu/rpbey` disparu), `vercel-token-sync` (script `~/vercel-token-sync.sh` absent).
 
@@ -1431,4 +1429,3 @@ le principe qui a bloque 4 destructions sur 12 cas : **il propose, le dump
 tranche**. Voir [[corpus-databooks-defauts]].
 
 ---
-

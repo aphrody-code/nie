@@ -11,9 +11,9 @@
 //! | `players_universe_event_config.cfg.bin.json` | `lists` | 1 liste (effets de résultat) |
 //!
 //! Parseurs TS de référence (port 1:1) :
-//! - `packages/inagle/src/parsers/constellation.ts` (`StarInfo`, `StarSignInfoEntry`,
+//! - `inagle` (`StarInfo`, `StarSignInfoEntry`,
 //!   `StarSignRarityRateInfo` — champs `*NameHash` + paires `[offset, count]`) ;
-//! - `packages/inagle/src/parsers/star-sign.ts` (`StarSignCharaInfo` — `charaParamId`,
+//! - `inagle` (`StarSignCharaInfo` — `charaParamId`,
 //!   `charaRarity`, `charaRate{Default,BoostA..D}`, `isRemarkable`, `enableCond`).
 //!
 //! ## Paires index `[offset, count]`

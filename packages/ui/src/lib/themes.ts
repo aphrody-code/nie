@@ -2,10 +2,10 @@
  * Palette Rose Griffon — référence officielle.
  *
  * `icon` pointe vers un fichier de `public/emote/` : les quatre visuels
- * existent à l'identique dans `apps/website/public/emote` et
- * `apps/azalee/public/emote`, pour que les deux apps puissent proposer les
+ * existent à l'identique dans `apps/website/public/emote` and are shared by the
+ * application surfaces, so every host can offer the
  * quatre thèmes. `RG_Reika_zukan.webp` est l'icône zukan de Reika, la
- * mascotte d'Azalée (portrait recadré depuis `apps/azalee/public/reika.webp`).
+ * mascot (portrait asset retained in the shared website assets).
  */
 export const THEMES = {
 	roy: {

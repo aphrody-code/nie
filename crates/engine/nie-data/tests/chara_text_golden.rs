@@ -1,5 +1,5 @@
 #![allow(clippy::pedantic)]
-//! Tests golden `chara_text` — port 1:1 d'inagle `packages/inagle/src/parsers/chara-text.ts`.
+//! Tests golden `chara_text` — port 1:1 d'inagle `inagle`.
 //!
 //! Vérité terrain = le vrai `common/text/fr/chara_text.cfg.bin` (VFS IEVR, T2B), via
 //! `cargo run -p nie-game --example extract_chara_text` : **20802** noms `NOUN_INFO`. Le hash

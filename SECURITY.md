@@ -18,7 +18,7 @@ site. Sont dans le périmètre :
 |---|---|
 | CLI `niers`, binaires `crates/` | exécution de code par un fichier de jeu malformé, écriture hors du répertoire visé |
 | `nie-explorer` (Tauri) | contournement de l'allowlist, exécution de commande depuis le front, chaîne de mise à jour (signature) |
-| `nie-model-serve`, `apps/azalee` | traversée de chemin, SSRF, divulgation d'un fichier hors du VFS servi |
+| `nie-model-serve`, `nie-site` | path traversal, SSRF, or disclosure of a file outside the served VFS |
 | `nie-mcp` | outil MCP permettant de lire ou d'écrire hors du dépôt |
 | Parseurs binaires (`nie-formats`, `iecode`) | débordement, boucle infinie, allocation non bornée sur une entrée hostile |
 

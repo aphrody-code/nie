@@ -4,7 +4,7 @@
 //! (jeu monté : `INAZUMA ELEVEN Victory Road/data`).
 //!
 //! Variante **DLC Orion**, port 1:1 d'inagle
-//! `packages/inagle/src/parsers/special-tactics-config.ts` (`parseEntries`).
+//! `inagle` (`parseEntries`).
 //! Toutes les valeurs ci-dessous sont les vraies variables du dump (extraites via l'exemple
 //! jetable `nie-game/examples/extract_special_tactics.rs`, depuis supprimé). Le dump complet
 //! compte 192 effets / 126 conditions / 3 conditions de réussite / 86 tactiques ; on embarque

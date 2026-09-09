@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { runInaglePush, runSQLiteBackup } from "./tasks/db";
 import { syncCdnAssets } from "./tasks/cdn";
 import { runIeCrawl } from "./tasks/ie-crawl";
 import { crawlTwitterSearch } from "./tasks/ie-crawl/harvest-search";
@@ -13,9 +12,8 @@ import { crawlHashtagCampaigns } from "./tasks/ie-crawl/hashtag-harvest";
 import { recolterCreationsDiscord } from "./tasks/campagnes-discord";
 import { revaliderCreationsInstagram } from "./tasks/campagnes-instagram";
 import { relayerCampagnesDiscord } from "./tasks/campagnes-relais-discord";
-import { runRagSync, queryRag, ragGroundedQuery, ingestWikiCorpus } from "./tasks/ie-crawl/rag-index";
+import { runRagSync, queryRag, ragGroundedQuery } from "./tasks/ie-crawl/rag-index";
 import {
-	triggerPublishScheduled,
 	triggerPatreonRefresh,
 	triggerPatreonReminders,
 	warmCaches,
@@ -24,7 +22,6 @@ import {
 import { runSeoIndexNow } from "./tasks/seo/indexnow";
 import { runSeoLlmsTxt } from "./tasks/seo/llms-txt";
 import { collecterAudienceAchillea } from "./tasks/stats/achillea";
-import { rafraichirVideosTechniques } from "./tasks/zukan-videos";
 import { initDiscord, getDiscordTelemetry, onTelemetryUpdate, getDiscordClient, GUILD_ID } from "./lib/discord";
 import { runDiscordSync, runDiscordChannelScan } from "./tasks/discord";
 import {
@@ -182,9 +179,6 @@ const DELAI_TACHE_DEFAUT_MS = 30 * 60_000;
 const DELAIS_TACHES_MS: Record<string, number> = {
 	crawl: 4 * 3600_000,
 	rag: 2 * 3600_000,
-	"rag:wiki": 2 * 3600_000,
-	"db:sync": 2 * 3600_000,
-	"db:sqlite-backup": 2 * 3600_000,
 	"discord:backfill": 4 * 3600_000,
 	"discord:scan": 3600_000,
 	cdn: 3600_000,
@@ -359,10 +353,7 @@ if (indexRun >= 0) {
 	const task = tacheCli;
 	console.log(`🏃 Exécution manuelle de la tâche : ${task}`);
 
-	if (task === "db") {
-		await executeTask("db:sync", runInaglePush);
-		await executeTask("db:sqlite-backup", runSQLiteBackup);
-	} else if (task === "cdn") {
+	if (task === "cdn") {
 		await executeTask("cdn", syncCdnAssets);
 	} else if (task === "crawl") {
 		await executeTask("crawl", runIeCrawl);
@@ -374,8 +365,6 @@ if (indexRun >= 0) {
 		await executeTask("x", () => crawlTwitter({ comptes: ["Azalee_IE"], parCompte: 1 }));
 	} else if (task === "x-search" || task === "x:search") {
 		await executeTask("x-search", crawlTwitterSearch);
-	} else if (task === "rag:wiki" || task === "rag-wiki") {
-		await executeTask("rag:wiki", () => ingestWikiCorpus());
 	} else if (task === "query") {
 		const question = args.slice(taskIdx + 1).join(" ");
 		if (!question) {
@@ -391,8 +380,6 @@ if (indexRun >= 0) {
 				console.log("------------------------------------------------------------------");
 			}
 		}
-	} else if (task === "publish") {
-		await executeTask("publish", triggerPublishScheduled);
 	} else if (task === "github-publish" || task === "gh-publish") {
 		await executeTask("github-publish", triggerGithubPublishWorkflow);
 	} else if (task === "patreon") {
@@ -470,8 +457,6 @@ if (indexRun >= 0) {
 		await executeTask("seo:indexnow", runSeoIndexNow);
 	} else if (task === "seo:llms-txt" || task === "seo:llms") {
 		await executeTask("seo:llms-txt", runSeoLlmsTxt);
-	} else if (task === "zukan:videos" || task === "zukan-videos") {
-		await executeTask("zukan:videos", rafraichirVideosTechniques);
 	} else if (task === "stats:achillea" || task === "stats") {
 		await executeTask("stats:achillea", collecterAudienceAchillea);
 	} else if (task === "seo") {
@@ -479,10 +464,7 @@ if (indexRun >= 0) {
 		await executeTask("seo:indexnow", runSeoIndexNow);
 	} else if (task === "all") {
 		console.log("🏃 Exécution de toutes les tâches...");
-		await executeTask("publish", triggerPublishScheduled);
 		await executeTask("warm", warmCaches);
-		await executeTask("db:sync", runInaglePush);
-		await executeTask("db:sqlite-backup", runSQLiteBackup);
 		await executeTask("patreon", triggerPatreonRefresh);
 		await executeTask("cdn", syncCdnAssets);
 		await executeTask("crawl", runIeCrawl);
@@ -500,7 +482,7 @@ if (indexRun >= 0) {
 		await executeTask("stats:achillea", collecterAudienceAchillea);
 	} else {
 		console.error(
-			`❌ Tâche inconnue : ${task}. Choisissez parmi : db, cdn, crawl, rag, x, x-search, x:campagnes, query, publish, github-publish, patreon, reminders, warm, discord, discord:scan, discord:archives, discord:messages, discord:backfill, discord:polls, noctaly:import, campagnes:discord, campagnes:instagram, campagnes:relais, seo, seo:indexnow, seo:llms-txt, stats:achillea, backup:postgres, backup:pg, all.`
+			`❌ Tâche inconnue : ${task}. Choisissez parmi : db, cdn, crawl, rag, x, x-search, x:campagnes, query, github-publish, patreon, reminders, warm, discord, discord:scan, discord:archives, discord:messages, discord:backfill, discord:polls, noctaly:import, campagnes:discord, campagnes:instagram, campagnes:relais, seo, seo:indexnow, seo:llms-txt, stats:achillea, backup:postgres, backup:pg, all.`
 		);
 	}
 	process.exit(0);
@@ -508,12 +490,7 @@ if (indexRun >= 0) {
 
 // ─── ENREGISTREMENT DES SGHEDULES CRON DE PRODUCTION (BUN.CRON) ───────────────
 
-// 1. Publication programmée Azalée : toutes les 15 minutes
-Bun.cron("*/15 * * * *", async () => {
-	await executeTask("publish", triggerPublishScheduled);
-});
-
-// 2. Pré-chauffage des caches ISR : toutes les 30 minutes
+// Cache warm-up: every 30 minutes.
 Bun.cron("*/30 * * * *", async () => {
 	await executeTask("warm", warmCaches);
 });
@@ -588,23 +565,7 @@ Bun.cron("*/15 * * * *", async () => {
 	await executeTask("campagnes:relais", () => relayerCampagnesDiscord());
 });
 
-// 3. Synchronisation Inagle DB & SQLite Backup : tous les jours à 2h00 UTC
-//
-// L'ORDRE DES TROIS TÂCHES EST LE CORRECTIF, PAS UN DÉTAIL. `db:sync` vide puis
-// réécrit `inagle_skills` : le push préserve désormais les vidéos et vignettes
-// zukan, mais c'est `zukan:videos` qui va les rechercher à la source. Il doit
-// donc tourner APRÈS le push (sinon il écrit dans une table qui sera vidée dans
-// la foulée) et AVANT `db:sqlite-backup` (sinon le miroir servi par azalée
-// embarque un instantané sans vidéos). Le 17/8/2026, `zukan:videos` n'était
-// planifiée nulle part : le push a effacé les 1211 variantes de la nuit, et
-// plus rien ne les remettait — /skill a perdu vidéos et aperçus d'un coup.
-Bun.cron("0 2 * * *", async () => {
-	await executeTask("db:sync", runInaglePush);
-	await executeTask("zukan:videos", rafraichirVideosTechniques);
-	await executeTask("db:sqlite-backup", runSQLiteBackup);
-});
-
-// 3b. Sauvegarde logique PostgreSQL : elle N'EST PLUS ICI.
+// 3. Sauvegarde logique PostgreSQL : elle N'EST PLUS ICI.
 //
 // `db:postgres-backup` appelait `scripts/ops/backup-postgres.sh`, hérité de
 // l'époque Supabase Cloud. Depuis la bascule en auto-hébergement du 11/8/2026,
@@ -804,11 +765,9 @@ Bun.serve({
 			const taskName = url.pathname.slice(7, -4);
 
 			const runnerMap: Record<string, () => Promise<any>> = {
-				db: runInaglePush,
 				cdn: syncCdnAssets,
 				crawl: runIeCrawl,
 				rag: runRagSync,
-				publish: triggerPublishScheduled,
 				"github-publish": triggerGithubPublishWorkflow,
 				patreon: triggerPatreonRefresh,
 				reminders: () => triggerPatreonReminders("announce"),
@@ -850,8 +809,6 @@ Bun.serve({
 				// trois listes.
 				"stats:achillea": collecterAudienceAchillea,
 				"stats-achillea": collecterAudienceAchillea,
-				"zukan:videos": rafraichirVideosTechniques,
-				"zukan-videos": rafraichirVideosTechniques,
 			};
 
 			const taskFn = runnerMap[taskName];
@@ -1053,12 +1010,12 @@ Bun.serve({
 				return new Response("Channel not found", { status: 500 });
 			}
 
-			// Build Embed
+			// Build embed
 			const articleUrl = type === "wiki"
-				? `https://azalee.rosegriffon.fr/news/${slug}`
+				? `https://nie.aphrody.com/${slug}`
 				: `https://rosegriffon.fr/chroniques/${slug}`;
 
-			const embedColor = type === "wiki" ? 0xf2a93b : 0xa14b3f; // Azalée orange vs Rose Griffon red
+			const embedColor = type === "wiki" ? 0xf2a93b : 0xa14b3f;
 
 			const embed = {
 				title,
@@ -1066,7 +1023,7 @@ Bun.serve({
 				description: excerpt || undefined,
 				color: embedColor,
 				image: featured_image_url ? { url: featured_image_url } : undefined,
-				footer: { text: type === "wiki" ? "Azalée — Rose Griffon" : "Rose Griffon" },
+				footer: { text: type === "wiki" ? "nie" : "Rose Griffon" },
 				timestamp: new Date().toISOString()
 			};
 

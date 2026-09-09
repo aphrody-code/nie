@@ -13,9 +13,9 @@ import { humanSize } from "@/lib/bytes";
 
 type Kind = "chara" | "waza";
 
-/** Forme d'affichage commune, quelle que soit la source (miroir SQLite local ou GraphQL azalee). */
+/** Display shape returned by the Rust wiki mirror query. */
 interface Row {
-  source: "local" | "azalee";
+  source: "local";
   id: string;
   internal_code: string | null;
   name_fr: string | null;
@@ -46,52 +46,11 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
     const rows: Row[] = [];
     const notes: string[] = [];
 
-    // Azalee (GraphQL, `https://nie.aphrody.com` par défaut) — toujours disponible,
-    // aucune config requise.
-    try {
-      if (kind === "chara") {
-        const r = await api.remoteSearchChara(settings.azaleeUrl, q);
-        for (const c of r.characters ?? []) {
-          const v = c.variants?.[0];
-          rows.push({
-            source: "azalee",
-            id: c.id,
-            internal_code: c.internalCode,
-            name_fr: c.name?.fr ?? null,
-            name_en: c.name?.en ?? null,
-            name_ja: c.name?.ja ?? null,
-            element: v?.element ?? null,
-            position: v?.position ?? null,
-            category: null,
-            is_hyper: false,
-          });
-        }
-      } else {
-        const r = await api.remoteSearchWaza(settings.azaleeUrl, q);
-        for (const s of r.skills ?? []) {
-          rows.push({
-            source: "azalee",
-            id: s.id,
-            internal_code: null,
-            name_fr: s.name?.fr ?? null,
-            name_en: s.name?.en ?? null,
-            name_ja: s.name?.ja ?? null,
-            element: s.element,
-            position: null,
-            category: s.category,
-            is_hyper: false,
-          });
-        }
-      }
-    } catch (e) {
-      notes.push(`azalee (distant) : ${e}`);
-    }
-
-    // Miroir local (supabase-*.sqlite), si configuré — utile hors-ligne.
+    // The Rust-owned local mirror is the only IEVR source.
     if (settings.wikiDb.trim()) {
       try {
         if (kind === "chara") {
-          const r = await wikiDb.searchChara(settings.wikiDb, q);
+          const r = await wikiDb.searchCharacter(settings.wikiDb, q);
           for (const c of r) {
             rows.push({
               source: "local",
@@ -107,7 +66,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
             });
           }
         } else {
-          const r = await wikiDb.searchWaza(settings.wikiDb, q);
+          const r = await wikiDb.searchSkill(settings.wikiDb, q);
           for (const s of r) {
             rows.push({
               source: "local",
@@ -195,9 +154,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="type-title-small text-on-surface">{r.name_fr ?? r.name_en ?? r.name_ja ?? "?"}</span>
                   {r.name_en && <span className="type-body-small text-on-surface-variant">{r.name_en}</span>}
-                  <Badge variant={r.source === "azalee" ? "default" : "secondary"}>
-                    {r.source === "azalee" ? "distant · azalee" : "local"}
-                  </Badge>
+                  <Badge variant="secondary">local Rust mirror</Badge>
                   {r.is_hyper && <Badge>hyper</Badge>}
                   {r.element && <Badge variant="outline">{r.element}</Badge>}
                   {r.position && <Badge variant="outline">{r.position}</Badge>}

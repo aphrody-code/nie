@@ -28,7 +28,7 @@ $ESC = [char]27
 function titre([string]$m) { Write-Host ''; Write-Host "$ESC[1m$m$ESC[0m" }
 
 titre '1. Les commandes attendues sont-elles publiées ?'
-foreach ($c in @('niers', 'nie-catalog', 'export_skills', 'export_passives', 'export_formations', 'export_aphrody')) {
+foreach ($c in @('niers', 'export_skills', 'export_passives', 'export_formations', 'export_aphrody')) {
     $cmd = Get-Command -Name $c -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($cmd) {
         Write-Host ('  ✓ {0,-20} {1}' -f $c, $cmd.Source)
@@ -43,15 +43,13 @@ if ($manquants.Count -gt 0) {
     exit 1
 }
 
-titre '2. Les quatre gisements répondent-ils ? (paquet @niers/catalog)'
-# `nie-catalog etat` MESURE le contenu : un gisement présent peut être vide. Le lanceur se place
-# à la racine du dépôt, sans quoi `extrait` et `re` sont annoncés vides — faux négatif vécu.
+titre '2. Le propriétaire Rust répond-il ?'
 # Code de sortie du natif lu immédiatement, sans pipe intermédiaire. $LASTEXITCODE est
 # pré-armé : sous Set-StrictMode, le lire alors qu'aucun natif n'a encore tourné dans la
 # session fait planter le script au lieu de compter un échec.
 $global:LASTEXITCODE = 0
-& (Get-Command nie-catalog -CommandType Application | Select-Object -First 1).Source etat
-if ($LASTEXITCODE -ne 0) { $echecs.Add('nie-catalog etat') }
+& (Get-Command niers -CommandType Application | Select-Object -First 1).Source wiki --help | Out-Null
+if ($LASTEXITCODE -ne 0) { $echecs.Add('niers wiki --help') }
 
 if ($sec -eq '--verif-seule') {
     Write-Host ''
@@ -98,5 +96,5 @@ if ($echecs.Count -gt 0) {
     Write-Host ('ÉCHECS ({0}) : {1}' -f $echecs.Count, ($echecs -join ' '))
     exit 1
 }
-Write-Host 'pipeline complet — 4 exports, 4 gisements.'
+Write-Host 'pipeline complet — Rust wiki + 4 exports.'
 exit 0

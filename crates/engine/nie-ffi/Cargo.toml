@@ -15,6 +15,7 @@ crate-type = ["cdylib"]
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
 # `serde` : sérialise `TeamSetup` / `MatchResult`, requis par `nie_match_simulate_json_out`.
 nie-core = { workspace = true, features = ["serde"] }
 nie-data = { workspace = true, features = ["serde"] }
@@ -30,3 +31,5 @@ image = { workspace = true, features = ["png"] }
 # C'est ce qui permet à un runtime extérieur — la lib Python `niepy`, donc Ren'Py — de faire
 # TOURNER la simulation, et pas seulement de lire des assets.
 nie-runtime.workspace = true
+# Rust-owned wiki queries exposed to Bun through the native boundary.
+nie-wiki.workspace = true

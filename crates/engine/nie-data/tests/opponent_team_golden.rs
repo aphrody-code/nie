@@ -3,7 +3,7 @@
 //! `data/common/gamedata/team/opponent_team_config_1.03.05.00.cfg.bin`
 //! (RDBN `lists`, 4 listes : 17 / 404 / 101 / 101 entrées).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/opponent-team-config.ts`
+//! Port 1:1 d'inagle `inagle`
 //! (`parseContent`, l.66-112) : clé typotée Level-5 `meetingtEventId` lue telle quelle,
 //! `meetingCond` non exposé (comme inagle). Valeurs ci-dessous extraites telles quelles du
 //! dump (via `cfgbin::read_values` → forme iecode), aucune valeur inventée.

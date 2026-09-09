@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS : `packages/inagle/src/parsers/item-config.ts` (`CATEGORY_MAP` l.51-72,
+//! - Parser TS : `inagle` (`CATEGORY_MAP` l.51-72,
 //!   `traverse` l.155-241).
 //! - Données : `data/common/gamedata/item/item_config_7.00.25.00.cfg.bin.json`.
 //!

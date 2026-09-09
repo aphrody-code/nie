@@ -3,7 +3,7 @@
 //! `character/chara_param_1.03.66.00.cfg.bin.json`.
 //!
 //! Extraction des techniques **LEVEL-FIRST @10**, port 1:1 d'inagle
-//! `packages/inagle/src/parsers/chara-param.ts` (l.102-118) : `(niveau@10, hash@11)…`,
+//! `inagle` (l.102-118) : `(niveau@10, hash@11)…`,
 //! validée niveau ∈ [0,99], slots invalides sautés. Vérité terrain = la sortie d'inagle.
 
 mod common;

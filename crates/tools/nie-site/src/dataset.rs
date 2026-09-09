@@ -3,7 +3,7 @@
 //! `var/mirror.sqlite` est un **lien symbolique daté**, rebasculé par le timer `nie-miroir`.
 //! `open(2)` résout le lien une seule fois : rebasculer le lien n'a aucun effet sur une
 //! connexion déjà ouverte, qui continue de lire l'ancien inode **indéfiniment, sans la moindre
-//! erreur** (cf. `docs/stack/pieges-api.md`). Base figée, zéro signal — le mode d'échec le plus
+//! erreur**. Base figée, zéro signal — le mode d'échec le plus
 //! cher de cette stack.
 //!
 //! Parade retenue, la seule correcte : mémoriser `(st_dev, st_ino)` à l'ouverture, le comparer

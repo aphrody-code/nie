@@ -632,7 +632,7 @@ rien ne disait à quelle distance du jeu elle se tenait. Le jeu tournant mainten
 distance se chiffre.
 
 Protocole : capture de la page à la **même résolution** que la référence
-(`apps/azalee/scripts/shot.ts`, 1920 × 1080, Playwright sur le chromium du système), puis
+(`scripts/validation/measure-mainmenu.py`, 1920 × 1080, Chromium système), puis
 `niers img diff … --roi` sur cinq régions nommées — un score global masque toujours une zone
 parfaite et une zone fausse.
 

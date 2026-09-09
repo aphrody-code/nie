@@ -400,7 +400,16 @@ function partielSansDefauts(objet: z.ZodObject): z.ZodObject {
 	const forme: Record<string, z.ZodType> = {};
 	for (const [clef, champ] of Object.entries(objet.shape as Record<string, z.ZodType>)) {
 		const nu = deballer(champ);
-		forme[clef] = (nu instanceof z.ZodObject ? partielSansDefauts(nu) : nu).optional();
+		// A transformed default (such as a deduplicated Discord ID list) is a
+		// ZodPipe. Partial input must use its input schema; otherwise the inner
+		// default is still materialized and silently overwrites the current value.
+		const sansTransformation =
+			nu instanceof z.ZodPipe ? deballer(nu._def.in as z.ZodType) : nu;
+		forme[clef] =
+			(sansTransformation instanceof z.ZodObject
+				? partielSansDefauts(sansTransformation)
+				: sansTransformation
+			).optional();
 	}
 	return z.object(forme).strict();
 }
@@ -507,8 +516,8 @@ function manquePousse(liste: string[], texte: string): void {
 
 // ─── Profils du bot ─────────────────────────────────────────────────────────
 
-/** Les deux identités Discord servies par le même programme. */
-export const NOMS_PROFILS_BOT = ["rg", "azalee"] as const;
+/** Discord identities served by the community bot program. */
+export const NOMS_PROFILS_BOT = ["rg"] as const;
 
 export type NomProfilBot = (typeof NOMS_PROFILS_BOT)[number];
 
@@ -541,12 +550,7 @@ export interface ProfilBotPublic {
 }
 
 /**
- * Les deux profils, tels que l'interface d'administration les affiche.
- *
- * Les ports sont FIXES et distincts : les deux services tournent sur la même
- * machine, un port partagé ferait échouer le démarrage du second sans que
- * personne ne comprenne pourquoi le tableau de bord montre deux fois le même
- * bot.
+ * Profiles displayed by the administration interface.
  */
 export const PROFILS_BOT: Readonly<Record<NomProfilBot, ProfilBotPublic>> = Object.freeze({
 	rg: Object.freeze({
@@ -557,15 +561,6 @@ export const PROFILS_BOT: Readonly<Record<NomProfilBot, ProfilBotPublic>> = Obje
 		domaine: "rosegriffon.fr",
 		portAdmin: 3007,
 		role: "communauté, modération, tickets, niveaux et administration du serveur",
-	}),
-	azalee: Object.freeze({
-		nom: "azalee",
-		titre: "Azalée",
-		unite: "azalee-bot.service",
-		couleurHex: "#F89C5A",
-		domaine: "azalee.rosegriffon.fr",
-		portAdmin: 3008,
-		role: "données du jeu, fichiers extraits, recherche sémantique et annonces X",
 	}),
 });
 

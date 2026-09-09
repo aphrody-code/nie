@@ -4,7 +4,7 @@
 //! (jeu monté : `INAZUMA ELEVEN Victory Road/data`).
 //!
 //! Variante **base / pré-DLC**, port 1:1 d'inagle
-//! `packages/inagle/src/parsers/super-tactics-base-config.ts` (`parseEntries`).
+//! `inagle` (`parseEntries`).
 //! Toutes les valeurs ci-dessous sont les vraies variables Int du dump (dumpées via
 //! l'exemple jetable `nie-game/examples/extract_super_tactics.rs`, depuis supprimé).
 

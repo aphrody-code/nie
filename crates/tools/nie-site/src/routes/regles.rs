@@ -3,9 +3,8 @@
 //! `nie-core` porte la logique de jeu pure d'IEVR : la courbe de statistiques à trois segments,
 //! les tables de croissance réelles, la comparaison des variantes d'un personnage et les builds
 //! BASARA. Elle est écrite, testée par 297 cas, et jusqu'ici **aucune route ne l'appelait** —
-//! c'est ce que la matrice de couverture appelle `manquant` (`docs/PLAN-SITE-ULTIME.md`), et ce
-//! que `docs/inagle/05-service-et-types.md` § 5.4 classait deuxième dans l'ordre qui fait tomber
-//! le plus de code : *`nie-core` est déjà écrit, c'est du câblage*.
+//! c'est ce que la matrice de couverture appelle `manquant`, et ce qui était classé deuxième dans
+//! l'ordre qui fait tomber le plus de code : *`nie-core` est déjà écrit, c'est du câblage*.
 //!
 //! # Ce que ce module n'est pas
 //!
@@ -17,7 +16,7 @@
 //! # Les quatre divergences d'inagle, préservées et publiées
 //!
 //! Le portage a fait apparaître quatre comportements du TypeScript d'origine qui ne sont
-//! documentés nulle part côté inagle (`docs/inagle/03-migration-rust.md` § 2.4). Ils sont portés
+//! documentés nulle part côté inagle. Ils sont portés
 //! **tels quels** et figés par un test côté `nie-core`. Les taire côté API reviendrait à laisser
 //! un client les prendre pour des faits du jeu : [`DIVERGENCES`] les rend, et
 //! `GET /api/v1/regles` les publie.
@@ -156,9 +155,8 @@ pub struct Divergence {
 
 /// Les quatre divergences portées telles quelles, chacune figée par un test de `nie-core`.
 ///
-/// Source : `docs/inagle/03-migration-rust.md` § 2.4. Aucune n'est un bug de ce service : ce sont
-/// des arbitrages ouverts, et les publier est la seule façon qu'un client ne les prenne pas pour
-/// des règles du jeu.
+/// These are not bugs in this service: they are open compatibility decisions, and publishing them
+/// is the only way to prevent clients from treating them as game rules.
 pub const DIVERGENCES: [Divergence; 4] = [
     Divergence {
         jeton: "libelles_position_inverses",
@@ -1110,7 +1108,7 @@ mod tests {
     }
 
     // ------------------------------------------------------------------------------------
-    // La rareté : parité avec `packages/inagle/src/lib/rarity.ts`
+    // La rareté : parité avec `inagle`
     // ------------------------------------------------------------------------------------
 
     #[tokio::test]

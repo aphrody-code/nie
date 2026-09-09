@@ -5,7 +5,7 @@
 //! - `data/common/gamedata/soccer/soccer_drop_config_5.00.27.00.cfg.bin.json`
 //! - `data/common/gamedata/soccer/soccer_drop_config_1.03.20.00.cfg.bin.json`
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/drop-rates.ts` (`loadSpiritDropRates`) pour
+//! Port 1:1 d'inagle `inagle` (`loadSpiritDropRates`) pour
 //! la jointure de taux d'esprit ; le reste des 12 listes est nouveau (famille jusqu'ici non
 //! couverte par nie-data). Chaque valeur assérée est copiée octet pour octet du dump réel.
 

@@ -9,7 +9,7 @@
  * Symboles exposés (low-level et haut niveau) :
  *   crc32, CRand, version, callOut, cstr,
  *   detectFormat, decode, decodeFile, decodeToPng, decodeToPngFile,
- *   vfsOpen, VfsHandle, FontHandle, RgbaColor, SO_PATH, FormatInfo, VfsEntry
+ *   wiki, vfsOpen, VfsHandle, FontHandle, RgbaColor, SO_PATH, FormatInfo, VfsEntry
  *
  * Résolution de libnie_ffi.so :
  *   1. NIE_FFI_PATH (override absolu)
@@ -71,6 +71,7 @@ const lib = dlopen(SO_PATH, {
   nie_decode_json_out:  { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
   nie_menu_setting_json_out:
                         { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
+  nie_wiki_json_out:    { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
   nie_g4tx_to_png_out:  { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
   nie_vfs_open:         { args: [FFIType.cstring],          returns: FFIType.ptr  },
   nie_vfs_read_out:     { args: [FFIType.ptr, FFIType.cstring, FFIType.ptr], returns: FFIType.void },
@@ -292,6 +293,32 @@ export function decodeMenuSetting(bytes: Uint8Array): MenuSetting | null {
 export async function decodeFile(path: string): Promise<unknown | null> {
   const ab = await Bun.file(path).arrayBuffer();
   return decode(new Uint8Array(ab));
+}
+
+/** Public request shape for the Rust-owned read-only IEVR wiki. */
+export interface WikiRequest {
+  /** Operation name accepted by `nie_wiki_json_out`. */
+  op: string;
+  /** Operation-specific fields. */
+  [key: string]: unknown;
+}
+
+/**
+ * Execute one IEVR wiki operation in Rust and return its decoded JSON value.
+ *
+ * This is intentionally a transport binding: SQL, mirror access, joins,
+ * parsing and game rules are implemented by `nie-wiki`, never by TypeScript.
+ * The native library must be built before importing this module.
+ */
+export function wiki<T = unknown>(request: WikiRequest): T {
+  const input = _enc.encode(JSON.stringify(request));
+  const output = callOut((outPtr) => {
+    symbols.nie_wiki_json_out(ptr(input), BigInt(input.byteLength), outPtr);
+  });
+  if (output === null) {
+    throw new Error(`Rust wiki operation failed: ${request.op}`);
+  }
+  return JSON.parse(_dec.decode(output)) as T;
 }
 
 // ─── G4TX → PNG ──────────────────────────────────────────────────────────────
@@ -525,4 +552,3 @@ export function vfsOpen(gameDataDir: string): VfsHandle | null {
   if (handle === null) return null;
   return new VfsHandle(handle);
 }
-

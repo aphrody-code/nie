@@ -3,7 +3,7 @@
 //! `data/common/gamedata/nfc/nfc_lottery_config.cfg.bin` (T2B, 85568 octets), extrait du
 //! VFS Steam IEVR via `nie-formats` (`cfgbin_to_t2b_iecode_root`).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/nfc-lottery-config.ts` (`parseEntries`).
+//! Port 1:1 d'inagle `inagle` (`parseEntries`).
 //! Vérité terrain = sortie de l'extraction `nie-game/examples/extract_nfc` (loterie/table
 //! représentative embarquée ; le fichier réel a 3 loteries × jusqu'à 34 tables × 15 items).
 //!

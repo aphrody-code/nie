@@ -1,6 +1,6 @@
 // **Constructeur d'équipe** — le terrain, les 20 créneaux, les stats de la composition.
 //
-// Portage de `apps/azalee/components/tools/my-team/` (6 fichiers, 2 966 lignes) et de
+// Portage du constructeur d'équipe du wiki (6 fichiers, 2 966 lignes) et de
 // `app/tools/my-team/page.tsx`.
 //
 // ## Sans session, et c'est mieux

@@ -2,7 +2,7 @@
 //!
 //! La `Content-Security-Policy` est posée **ici**, par la crate, et nulle part ailleurs : deux
 //! CSP s'additionnent et la plus stricte gagne, donc le bloc nginx d'`nie.aphrody.com` n'en pose
-//! aucune (cf. `docs/stack/web-platform.md`). Un en-tête qui vient de deux endroits est un
+//! aucune. Un en-tête qui vient de deux endroits est un
 //! en-tête que personne ne contrôle.
 
 use std::time::Duration;
@@ -132,10 +132,8 @@ declarer_routes! {
     "/en/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/ja/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/sitemap.xml" => crate::routes::well_known::sitemap,
-    // L'updater d'Inacord : cette URL est gravee dans les binaires deja distribues.
+    // Inacord updater manifest.
     "/downloads/inacord/latest.json" => crate::routes::downloads::inacord_latest,
-    // Legacy Azalee updater URL, retained for already-installed clients.
-    "/tools/niers/latest.json" => crate::routes::downloads::inacord_latest,
     // Legacy Azalee health URL, with its historical response shape.
     "/api/health" => crate::routes::health::legacy,
     "/feed.atom" => crate::routes::feed::atom,
@@ -313,7 +311,7 @@ declarer_routes! {
     // `{language}/{family}`, qui en a deux.
     "/api/v1/text/translate" => crate::routes::text::translate,
     // Les 219 tables du miroir, en lecture generique — 165 249 lignes. Ce qu'elle remplace est
-    // mesure (`docs/inagle/05-service-et-types.md`) : 71 acces directs `from("inagle_…")` ecrits
+    // The legacy implementation had 71 direct `from("inagle_…")` accesses
     // a la main dans les pages du wiki, et 28 methodes de facade que plus rien n'appelle.
     //
     // Aucun nom venu du client n'entre dans une requete : il sert a RETROUVER une entree du
@@ -547,7 +545,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 131, "131 routes montees");
+        assert_eq!(routes.len(), 130, "130 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

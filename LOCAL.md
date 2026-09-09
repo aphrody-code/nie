@@ -9,7 +9,7 @@ Il ne redit rien de ce que possèdent déjà les autres :
 | Les règles de travail du dépôt (outils, pièges, gates) | [`CLAUDE.md`](CLAUDE.md) |
 | La chaîne C++ / MSVC / vcpkg | [`scripts/setup.ps1`](scripts/setup.ps1) |
 | Faire circuler les données **VPS ↔ Windows** en régime établi | [`scripts/ops/sync-machines.sh`](scripts/ops/sync-machines.sh) |
-| Ce qui tourne sur le VPS, et sous quel service | [`docs/EXPLOITATION.md`](docs/EXPLOITATION.md) |
+| Ce qui tourne sur le VPS, et sous quel service | [`packages/mcp/context/exploitation.md`](packages/mcp/context/exploitation.md) |
 
 ---
 

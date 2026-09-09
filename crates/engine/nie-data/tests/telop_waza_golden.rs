@@ -3,7 +3,7 @@
 //! `data/common/gamedata/skill/skill_telop_info_config_0.00.00.cfg.bin`
 //! (RDBN `lists`, 2 listes parallèles de 926 entrées).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/telop-waza.ts`
+//! Port 1:1 d'inagle `inagle`
 //! (`parseTelopWazaContent`, l.101-135) : `eldoradoId == 0x00000000` → `None`, index
 //! `blankSizeInfo` hors borne → marges nulles. Valeurs ci-dessous extraites telles quelles
 //! du dump (via `cfgbin::read_values` → forme iecode), aucune valeur inventée.

@@ -9,7 +9,7 @@
 //! - Dump réel : `data/common/gamedata/team/enjoy_mode_team_config_1.04.02.00.cfg.bin.json`
 //!   (format **`entries`** = arbre T2B ; racine `ENJOY_MODE_TEAM_INFO_LIST_BEG_0` → **28** enfants
 //!   `ENJOY_MODE_TEAM_INFO_<i>`, chacun **12 variables** positionnelles).
-//! - Référence de portage : `packages/inagle/src/parsers/enjoy-mode-team-config.ts` (`parseEntries`).
+//! - Référence de portage : `inagle` (`parseEntries`).
 //!
 //! ## Variables positionnelles (port 1:1 de la référence)
 //!

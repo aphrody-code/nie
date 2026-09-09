@@ -538,8 +538,8 @@ mod tests {
     fn le_dossier_embarque_porte_l_identite() {
         let v: serde_json::Value =
             serde_json::from_str(BUNDLED_DOSSIER_JSON).expect("dossier Aphrody valide");
-        assert!(v.get("identite").is_some(), "le dossier porte une identité");
+        assert!(v.get("identity").is_some(), "dossier identity missing");
         assert!(v.get("techniques").is_some());
-        assert!(v.get("variantes").is_some());
+        assert!(v.get("variants").is_some());
     }
 }

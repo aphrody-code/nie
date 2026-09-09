@@ -5,7 +5,7 @@
 //! `data/common/gamedata/soccer/soccer_performance_config_0.00.00.00.cfg.bin`
 //! (VFS du jeu Steam ; extrait via `nie_formats::cfgbin` → forme iecode `lists`).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/performance-config.ts`
+//! Port 1:1 d'inagle `inagle`
 //! (`parseContent` l.51-77, `extractImageName` l.43-45). Valeurs copiées telles quelles
 //! du dump (les `textureFilePath` couvrent `type_01`..`type_06` puis `type_08`..`type_17` —
 //! `type_07` est réellement absent, 6 + 10 = 16 entrées).

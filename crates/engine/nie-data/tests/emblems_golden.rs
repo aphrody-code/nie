@@ -4,7 +4,7 @@
 //! `data/common/gamedata/menu/emblem_resource_0.04.18.cfg.bin`
 //! (décodé en forme iecode par `nie-model-serve::cfgbin_to_iecode_root`).
 //!
-//! Référence de portage : `packages/inagle/src/parsers/emblems.ts` (`parseContent`), header inagle
+//! Référence de portage : `inagle` (`parseContent`), header inagle
 //! « structure réelle (format `lists`, vérifiée octet pour octet contre le .bin) » → golden trivial.
 //! Vérité terrain = les 2 lignes réelles de `m_EmblemResourceInfoList` (gabarit `default` +
 //! `em010001`) et l'unique `basePath` de `m_EmblemResourceBasePathList`.

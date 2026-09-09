@@ -1,22 +1,7 @@
 //! `/downloads/inacord/latest.json` — le manifeste de mise à jour d'Inacord.
 //!
-//! ## Pourquoi cette route existe
-//!
-//! `apps/inacord/src-tauri/tauri.conf.json` déclare trois points de mise à jour, dans l'ordre :
-//!
-//! 1. `https://nie.aphrody.com/downloads/inacord/latest.json` ;
-//! 2. `https://azalee.rosegriffon.fr/tools/niers/latest.json` ;
-//! 3. la dernière release GitHub.
-//!
-//! Mesure du 2026-09-07 : le **premier** rendait `404` — la route n'existait pas, malgré ce que
-//! `docs/stack/web-platform.md` annonçait — et le **troisième** aussi, aucune release ne portant
-//! d'asset `latest.json`. Toutes les installations d'Inacord se mettaient donc à jour par le
-//! second, c'est-à-dire par le wiki **Rose Griffon**, alors qu'Inacord est un projet
-//! `aphrody-dev` : la seule dépendance de marque qui restait, et elle était invisible parce
-//! qu'un repli qui fonctionne ne se signale pas.
-//!
-//! Ces URL sont **gravées dans les binaires déjà distribués**. On ne les change pas ; on sert
-//! la première.
+//! `apps/inacord/src-tauri/tauri.conf.json` points first to this endpoint and then to the GitHub
+//! release fallback. The endpoint serves the latest signed Windows installer manifest.
 //!
 //! ## Ce que la route fait, et ne fait pas
 //!

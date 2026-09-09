@@ -81,6 +81,7 @@ nie-lua = { workspace = true, default-features = true }
 zip.workspace = true
 trash.workspace = true
 nie-runtime.workspace = true
+nie-wiki.workspace = true
 nie-steam = { workspace = true, default-features = true }
 nie-tasks = { workspace = true, default-features = true }
 async-trait.workspace = true

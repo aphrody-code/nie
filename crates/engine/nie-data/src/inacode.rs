@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/inacode-config.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseContent`, switch sur `list.name`). inagle ne typait explicitement que
 //!   `m_InacodeStampDataList` (`{idCrc, imgNameCrc, imgPathCrc}`) et passait les autres
 //!   listes en brut ; **ce port couvre les 10 listes réelles** avec des structs 1:1 sur

@@ -1,5 +1,5 @@
 #![allow(clippy::pedantic)]
-//! Tests golden `event_subtitle` — port 1:1 d'inagle `packages/inagle/src/parsers/event-subtitles.ts`
+//! Tests golden `event_subtitle` — port 1:1 d'inagle `inagle`
 //! (parseurs par-fichier `parseSubtitleFile` / `loadTextMap` / `loadWashaMap`).
 //!
 //! Vérité terrain = l'event voicé réel `ev09_05000` (VFS IEVR), via

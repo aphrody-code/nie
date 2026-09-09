@@ -1,4 +1,4 @@
-// Catalogue des épisodes de la série — le quatrième gisement (`anime`, cf. `docs/FUSION.md`),
+// Catalogue of series episodes — the separate `anime` store,
 // lu depuis `data/anime/episodes.db` par `shared SQLite owner`, exactement comme le miroir du wiki
 // (`wikiDb.ts`) et la base de reverse (`reDb.ts`).
 //
@@ -495,4 +495,3 @@ export function urlIntegrationSource(source: SourceEpisode, depart?: number): st
 export function urlExterne(ep: EpisodeAnime): string {
   return ep.url || `https://www.youtube.com/watch?v=${ep.videoId}`;
 }
-

@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Type TS / port de référence : `packages/inagle/src/parsers/skill-technic-config.ts`
+//! - Type TS / port de référence : `inagle`
 //!   (`parseContent`, l.44-66). Le port est une projection **List → struct 1:1** : pour chaque
 //!   valeur de la liste `m_SkillTechnicInfoList`, on recopie ses champs tels quels.
 //! - Données : `data/common/gamedata/skill/skill_technic_config_1.01.28.00.cfg.bin`

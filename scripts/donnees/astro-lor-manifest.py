@@ -22,7 +22,7 @@ RACINE = Path(__file__).resolve().parents[2]
 OC = RACINE / "data" / "oc" / "astro-lor"
 SORTIE = OC / "manifest.json"
 SOURCES = OC / "source"
-PUBLIC = RACINE / "apps" / "azalee" / "public" / "oc" / "astro-lor"
+PUBLIC = RACINE / "data" / "oc" / "astro-lor"
 
 # Gabarit : un gardien de Raimon déjà dans le jeu. Ses fichiers donnent la forme exacte
 # de ce qu'un personnage possède en propre — le corps, les uniformes et les animations

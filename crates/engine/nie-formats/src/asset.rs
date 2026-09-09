@@ -1,6 +1,6 @@
 //! Classification pure des fichiers d'assets IEVR.
 //!
-//! Ce module porte les règles qui étaient dupliquées dans `packages/azalee/src/cpk/shared.ts`:
+//! Ce module porte les règles d'assets CPK partagées par le wiki Rust:
 //! une extension ne dit pas comment décoder les octets, mais elle permet de choisir la famille
 //! d'asset et le type de preview demandé par une interface. Le décodage réel reste dans les
 //! parseurs de [`crate::cpk`], [`crate::g4tx`] et [`crate::cri_audio`].

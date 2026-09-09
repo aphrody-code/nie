@@ -1,14 +1,14 @@
 ﻿#!/usr/bin/env pwsh
 # build-wasm.ps1 — port PowerShell 7 de build-wasm.sh (le .sh reste la référence sur le VPS).
 #
-# Build reproductible de la surface WebAssembly (nie-wasm) pour azalee.
+# Reproducible WebAssembly build for the canonical nie-wasm surface.
 #
 # Étapes (best practices wasm-bindgen) :
 #   1. cargo build --release --target wasm32-unknown-unknown
 #   2. wasm-bindgen --target web            (glue ESM + .d.ts)
 #   3. wasm-opt -O3                          (taille -~15 % + vitesse runtime)
 #   4. patch Turbopack : `new URL(..., import.meta.url)` -> throw (force module_or_path)
-#   5. copie vers azalee (lib/nie-wasm-web/ + public/wasm/)
+#   5. leave the generated package in crates/engine/nie-wasm/pkg
 #
 # La version du CLI wasm-bindgen DOIT égaler le pin du workspace (cf. Cargo.toml).
 
@@ -17,11 +17,8 @@ $ErrorActionPreference = 'Stop'
 # Chaque appel natif est testé explicitement sur $LASTEXITCODE.
 $PSNativeCommandUseErrorActionPreference = $false
 
-# Chemins dérivés (portables) : Root = racine du dépôt (parent de scripts/),
-# Azalee surchargeable par env. Défaut = dépôt `rg` côte-à-côte du $HOME.
+# Portable derived paths. Root is the repository parent of scripts/.
 $Root = if ($env:NIE_ROOT) { $env:NIE_ROOT } else { (Resolve-Path (Join-Path $PSScriptRoot '..')).Path }
-$MaisonDefaut = if ($env:HOME) { $env:HOME } else { $env:USERPROFILE }
-$Azalee = if ($env:AZALEE_DIR) { $env:AZALEE_DIR } else { Join-Path $MaisonDefaut 'rg/apps/azalee' }
 $Pkg = Join-Path $Root 'crates/engine/nie-wasm/pkg'
 $Wasm = Join-Path $Root 'target/wasm32-unknown-unknown/release/nie_wasm.wasm'
 
@@ -85,9 +82,6 @@ $contenu = [System.IO.File]::ReadAllText($jsPath)
 $contenu = $contenu.Replace($avant, $apres)
 [System.IO.File]::WriteAllText($jsPath, $contenu, (New-Object System.Text.UTF8Encoding($false)))
 
-Write-Host '[5/5] copie vers azalee…'
-Copy-Item -LiteralPath $jsPath -Destination (Join-Path $Azalee 'lib/nie-wasm-web/') -Force
-Copy-Item -LiteralPath (Join-Path $Pkg 'nie_wasm.d.ts') -Destination (Join-Path $Azalee 'lib/nie-wasm-web/') -Force
-Copy-Item -LiteralPath $bgWasm -Destination (Join-Path $Azalee 'public/wasm/') -Force
+Write-Host '[5/5] canonical nie-web output already generated in' $Pkg
 
-Write-Host "OK — wasm déployable ($after octets). Rebuild azalee + deploy ensuite."
+Write-Host "OK — deployable WASM ($after bytes). The canonical nie-web build can now consume it."

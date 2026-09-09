@@ -7,7 +7,7 @@
 //! ## Vérité terrain
 //!
 //! - Dump réel : `data/common/gamedata/skill/real_skill_config_1.03.74.00.cfg.bin` (VFS IEVR).
-//! - Référence de portage 1:1 : `packages/inagle/src/parsers/real-skill-config.ts`.
+//! - Référence de portage 1:1 : `inagle`.
 //! - Format : RDBN à listes (`{ "version", "lists": [{ "name", "typeName", "values" }] }`).
 //!
 //! ## Structure (2 listes)

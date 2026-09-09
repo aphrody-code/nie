@@ -48,7 +48,7 @@ FFI, documentation de la forge et des agents.
 
 ## [0.5.3] — 2026-09-03
 
-66 commits. Fusion des dépôts (`docs/FUSION.md`), outillage Python, `wonderbot`,
+66 commits. Consolidation of the repository, Python tooling, `wonderbot`,
 performances de l'explorateur, correctifs image et avatar.
 
 ## [0.5.2] — 2026-08-30

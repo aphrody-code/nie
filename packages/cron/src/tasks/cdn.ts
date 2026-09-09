@@ -6,7 +6,7 @@ import { execSync } from "node:child_process";
 import { dansLeDepot } from "../lib/racine";
 
 const SOURCE_DIR = dansLeDepot("packages", "assets", "public");
-const DEST_DIRS = ["/var/www/cdn/static/azalee/public", "/var/www/cdn/static/website/public"];
+const DEST_DIRS = ["/var/www/cdn/static/website/public"];
 
 /**
  * Synchronise les assets statiques partagés du monorepo vers le CDN.

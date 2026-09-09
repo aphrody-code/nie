@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/playstyle.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parsePlaystyleNode`, `parseAllPlaystyles`, tables `PLAYSTYLE_EN`/`PLAYSTYLE_FR`,
 //!   `playstyleIdToEn`/`playstyleIdToFr`) — **port 1:1**.
 //! - Données : `data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin` (VFS IEVR).

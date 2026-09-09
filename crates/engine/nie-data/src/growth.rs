@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Logique TS pure : `packages/inagle/src/stat-calculator.ts` (`calculateSingleStat` l.131-148,
+//! - Logique TS pure : `inagle` (`calculateSingleStat` l.131-148,
 //!   `rarityToGrowthRank` l.92-115, `findLv30/findMain` l.190-284, `StatBlock` l.12-20).
 //! - Données : `/home/ubuntu/niers/data/common/gamedata/character/growth_table_config_0.00.00.00.cfg.bin.json`
 //!   et export agrégé `/home/ubuntu/niers/data/all-gamedata/growth_tables.json` (mêmes 4 listes :

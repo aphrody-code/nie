@@ -6,7 +6,7 @@
 //! - Format **RDBN à listes** (`{ "version", "lists": [ { "name", "typeName", "values" } ] }`),
 //!   décodé en forme iecode par `nie-model-serve::cfgbin_to_iecode_root` (cf. `read_values`).
 //! - **Aucun parseur inagle dédié `movie` n'existe** (grep néant). La référence de portage est
-//!   donc le parseur générique `packages/inagle/src/parsers/universal-gamedata.ts` (lit n'importe
+//!   donc le parseur générique `inagle` (lit n'importe
 //!   quel gamedata : `name`/`values`/`types`). Les structures sont **dérivées 1:1 des noms de
 //!   champs RDBN auto-descriptifs** lus dans la table de types du fichier (résolus par
 //!   `RdbnData::field_name`), sans sémantique inventée. Les **typos Level-5 sont préservées**

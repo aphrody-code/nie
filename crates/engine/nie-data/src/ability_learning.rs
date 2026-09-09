@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parseur TS de référence : `packages/inagle/src/parsers/ability-learning.ts`
+//! - Parseur TS de référence : `inagle`
 //!   (`loadAbilityLearningConfig`, interfaces `AbilityBoardEffect` / `AbilityBoardNode`).
 //! - Données : VFS IEVR, `data/common/gamedata/skill/ability_learning_config_1.03.63.00.cfg.bin`
 //!   (format T2B `entries`). Dump réel : 23790 effets, 877 plateaux.

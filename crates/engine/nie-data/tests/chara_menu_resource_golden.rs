@@ -6,7 +6,7 @@
 //! 1 `BASE_PATH` (`#/menu/`) + 92 `INFO` (template `INFO_0` + 91 overrides). La fixture embarque
 //! les variables BRUTES (type+value) de `INFO_0` (template), `INFO_1`, `INFO_2` et `INFO_91`
 //! (cas « chaînes en fin de bloc »). Vérité terrain = la sortie d'inagle
-//! `packages/inagle/src/parsers/chara-menu-resource-config.ts` (`parseContent` l.100-160),
+//! `inagle` (`parseContent` l.100-160),
 //! recalculée à l'identique en Python lors de l'extraction.
 
 use nie_data::chara_menu_resource::{CharaResourcePaths, parse_chara_menu_resource};

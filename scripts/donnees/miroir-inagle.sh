@@ -70,7 +70,7 @@ for annexe in "$SORTIE"/inagle-*.sqlite-wal "$SORTIE"/inagle-*.sqlite-shm; do
 done
 echo "[miroir] rétention : $(ls -1 "$SORTIE"/inagle-*.sqlite | wc -l) instantané(s) conservé(s)"
 
-# Optional final read-only validation through the native catalog binary.
-if command -v nie-catalog >/dev/null 2>&1; then
-	nie-catalog etat
+# Final validation is owned by the Rust wiki and mirror readers.
+if command -v niers >/dev/null 2>&1; then
+	niers wiki --help >/dev/null
 fi

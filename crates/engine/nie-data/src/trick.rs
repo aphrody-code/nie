@@ -8,7 +8,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS : `packages/inagle/src/parsers/trick-config.ts` (`parseContent` l.55-85,
+//! - Parser TS : `inagle` (`parseContent` l.55-85,
 //!   `TRICK_CATEGORY_MAP` l.25-30).
 //! - Données : `data/common/gamedata/skill/trick_config.cfg.bin` (monté via le VFS),
 //!   liste `m_trickInfoList` (type `TRICK_INFO`) = **9 valeurs**, **8 champs** chacune.

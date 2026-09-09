@@ -1,7 +1,7 @@
 # @rosegriffon/inagle-cross
 
 API de données pour **Inazuma Eleven Cross** (`jp.co.level5.inazumacross`) — jeu mobile
-Unity IL2CPP, **distinct** d'Inazuma Eleven: Victory Road (`@rosegriffon/inagle`, moteur
+Unity IL2CPP, **distinct** from Inazuma Eleven: Victory Road (the Rust IEVR engine,
 Level-5 / CPK). Sortie le 9/6/2026, APK récupéré et rétro-conçu statiquement.
 
 ## Contenu (Phase 0 — figé)
@@ -16,14 +16,13 @@ Level-5 / CPK). Sortie le 9/6/2026, APK récupéré et rétro-conçu statiquemen
   schéma SQL du dépôt n'a qu'un seul foyer, à la racine, d'où il est rejoué en entier.
 - `src/` — types (`CrossSchema`, `CrossTable`, …) + `crossTableName()`.
 
-Le préfixe `inagle_cross_` est routé gratuitement vers le miroir SQLite d'azalée
-(`server.ts` `startsWith("inagle_")`) et capté par `miroir-inagle.sh` (`--prefix=inagle_`).
+The `inagle_cross_` prefix is owned by the Cross schema and is not part of the IEVR mirror.
 
 > **Note Phase 0** : ce dossier est de la **préparation** (schéma/DDL/types figés), pas
 > encore un workspace member — le `package.json` est volontairement différé en Phase 1 pour
 > ne pas régénérer `bun.lock` (v1, CI Bun 1.3.14) avec le Bun 1.4 local (écrit v2, illisible
-> par la CI). À l'activation : ajouter `package.json` (`@rosegriffon/inagle-cross`, dep
-> `workspace:*` `@rosegriffon/inagle`) et régénérer le lock avec Bun 1.3.x.
+> by CI). The package is intentionally isolated from the IEVR workspace and has no dependency
+> on the removed Victory Road TypeScript pipeline.
 
 ## Statut
 
@@ -31,16 +30,15 @@ Le préfixe `inagle_cross_` est routé gratuitement vers le miroir SQLite d'azal
 |---|---|
 | Schéma masterdata | ✅ 153 tables / 1215 colonnes typées |
 | Énumérations | ✅ 214 |
-| Catalogue Addressables | ✅ 25 328 objets (cf. `apps/azalee/data/cross/`) |
+| Catalogue Addressables | ✅ 25 328 objects (see `data/cross/`) |
 | Audio (voix) | ✅ 305 WAV décodés (CRI HCA) |
 | **Valeurs masterdata** | ⛔ **Phase 1** — servies par le serveur du jeu derrière anti-triche (HTTP 426). Déblocage = capture runtime Android arm64. |
 
 ## Phase 1 (à venir)
 
-Une fois `{AssetBaseUri}` / `masterDataHost` résolus (capture runtime) :
+Once `{AssetBaseUri}` / `masterDataHost` are resolved (runtime capture):
 `parsers/` (bundles Unity / TSV masterdata) → `entries-cross/*.json` (JSON normalisé)
-→ `push/` via `@rosegriffon/inagle/push-adapter` (upsert idempotent) →
-`public.inagle_cross_*` → miroir azalée → pages `/cross/*`.
+→ `push/` via a dedicated Cross importer (idempotent upsert) → `public.inagle_cross_*`.
 
 ## Localisation
 

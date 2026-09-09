@@ -12,7 +12,7 @@
 //     réseau de `packages/cron/src/tasks/ie-crawl/bxc.test.ts` ;
 //   • `Bun.serve` refuse la `Response` de happy-dom (« Expected a Response
 //     object »), ce qui oblige les tests qui montent un vrai serveur à
-//     désenregistrer happy-dom à la main (cf. `packages/azalee/test/remote.test.ts`).
+//     désenregistrer happy-dom à la main (cf. les tests réseau du dépôt).
 //
 // On rend donc à Bun ses primitives réseau natives juste après l'enregistrement
 // des globals DOM. Les descripteurs posés par happy-dom sont `configurable: true`
@@ -40,7 +40,7 @@ const PRIMITIVES_RESEAU = [
 	// `AbortController`/`AbortSignal` font partie de la même famille : happy-dom les remplace
 	// aussi, et un signal happy-dom passé au `Request` NATIF est refusé — « Failed to construct
 	// 'Request': signal is not of type AbortSignal ». Le symptôme apparaissait loin de sa cause :
-	// six tests de `packages/azalee` échouaient sur un appel réseau bouchonné, jamais sur le DOM.
+	// Les tests réseau échouaient sur un appel bloqué, jamais sur le DOM.
 	"AbortController",
 	"AbortSignal",
 ] as const;
@@ -55,7 +55,7 @@ for (const nom of PRIMITIVES_RESEAU) {
  * Réinstalle les primitives réseau natives de Bun par-dessus celles de happy-dom.
  *
  * Exporté parce qu'un test qui refait `GlobalRegistrator.register()` (cf.
- * `packages/azalee/test/remote.test.ts`, qui désenregistre happy-dom pour monter un vrai
+ * test réseau, qui désenregistre happy-dom pour monter un vrai
  * `Bun.serve` puis le remet) réinstalle du même coup la pile réseau simulée — et TOUS les
  * fichiers de test exécutés ensuite en héritent. Le symptôme se manifeste alors très loin :
  * `Headers` de happy-dom conserve la casse des clés (`User-Agent`), là où celui de Bun les

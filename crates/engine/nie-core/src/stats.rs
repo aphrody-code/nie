@@ -2,7 +2,7 @@
 //!
 //! Ce module n'est PAS directement porté d'un fichier C décompilé Ghidra —
 //! la logique de croissance de stats IEVR est tirée du cross-référencement
-//! avec `packages/inagle/src/stat-calculator.ts` (validé sur dump réel).
+//! avec `inagle` (validé sur dump réel).
 //!
 //! La courbe de progression (segments lv1→30, 30→50, 50→99) correspond au
 //! pattern de `growth_table_lv30` et `growth_table_main` des cfg.bin.
@@ -20,7 +20,7 @@
 
 /// Bloc de 7 statistiques d'un joueur IEVR.
 ///
-/// Noms confirmés par `packages/inagle/src/stat-calculator.ts` (interface `StatBlock`),
+/// Noms confirmés par `inagle` (interface `StatBlock`),
 /// elle-même validée sur dump réel (`~/.local/share/Steam/iecode/inazuma`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -84,7 +84,7 @@ impl StatBlock {
 /// - lv 30–50 : interpolation entre `stat_lv30` et `stat_lv50`
 /// - lv 50–99 : interpolation entre `stat_lv50` et `stat_lv99`
 ///
-/// Source: `packages/inagle/src/stat-calculator.ts` — `calculateSingleStat()`,
+/// Source: `inagle` — `calculateSingleStat()`,
 /// validé sur dump réel IEVR.
 ///
 /// # Panics
@@ -141,7 +141,7 @@ fn lerp_u16(start: u16, end: u16, t: f32) -> u16 {
 /// Paramètres de croissance d'un personnage.
 ///
 /// Correspond aux tables `growth_table_lv1/lv30/main` des cfg.bin IEVR,
-/// croisées avec `packages/inagle/src/stat-calculator.ts`.
+/// croisées avec `inagle`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GrowthParams {
@@ -226,7 +226,7 @@ pub fn rarity_to_growth_rank(rarity_code: u8) -> u8 {
 
 /// Convertit un code de rareté en libellé d'affichage français.
 ///
-/// Portage verbatim de `rarityCodeToName` (`packages/inagle/src/lib/rarity.ts`
+/// Portage verbatim de `rarityCodeToName` (`inagle`
 /// L45-64), le module qui factorise trois copies auparavant divergentes
 /// (`parsers/star-sign.ts`, `parsers/chara-param.ts`, `stat-calculator.ts`).
 ///
@@ -268,7 +268,7 @@ pub fn rarity_code_to_name(code: u8) -> String {
 
 /// Libellés de position d'inagle, **portés verbatim et contredits par le RE**.
 ///
-/// Source : `POSITION_LABELS` (`packages/inagle/src/stat-calculator.ts` L327-332).
+/// Source : `POSITION_LABELS` (`inagle` L327-332).
 ///
 /// # Divergence mesurée — ne pas s'en servir comme vérité terrain
 ///
@@ -282,7 +282,7 @@ pub fn rarity_code_to_name(code: u8) -> String {
 ///
 /// La table est portée telle quelle pour que le désaccord soit visible et
 /// testable, pas pour être utilisée. Trancher l'affichage est un arbitrage
-/// utilisateur — cf. `docs/inagle/03-migration-rust.md`.
+/// utilisateur.
 pub const LIBELLES_POSITION_INAGLE: [(u8, &str); 4] = [
     (1, "GK (Goalkeeper)"),
     (2, "DF (Defender)"),
@@ -292,7 +292,7 @@ pub const LIBELLES_POSITION_INAGLE: [(u8, &str); 4] = [
 
 /// Libellés de rang d'inagle, portés verbatim.
 ///
-/// Source : `RANK_LABELS` (`packages/inagle/src/stat-calculator.ts` L334-340).
+/// Source : `RANK_LABELS` (`inagle` L334-340).
 ///
 /// # Divergence mesurée
 ///
@@ -312,7 +312,7 @@ pub const LIBELLES_RANG_INAGLE: [(u8, &str); 5] = [
 /// Libellés des 7 statistiques, dans l'ordre `[Kc, Cr, Tc, Pr, Ps, Ag, It]`.
 ///
 /// Chaque entrée est `(clé, anglais, japonais)`. Portage verbatim de
-/// `STAT_LABELS` (`packages/inagle/src/stat-calculator.ts` L342-350). L'ordre
+/// `STAT_LABELS` (`inagle` L342-350). L'ordre
 /// est celui de [`StatBlock::as_array`], ce qui permet de zipper les deux.
 pub const LIBELLES_STATS: [(&str, &str, &str); 7] = [
     ("Kc", "Kick", "シュート"),

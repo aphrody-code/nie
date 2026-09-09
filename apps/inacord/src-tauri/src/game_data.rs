@@ -1480,16 +1480,21 @@ pub fn list_exp_table(vfs: &Vfs) -> Result<Vec<ExpLevelDto>, String> {
     )?;
     let table = nie_data::exp::parse_exp_table(&config);
     let mut cumul = 0.0;
+    let last = table.exp_table.len().saturating_sub(1);
     Ok(table
         .exp_table
         .iter()
-        .map(|e| {
-            cumul += e.need_exp as f64;
-            ExpLevelDto {
+        .enumerate()
+        .map(|(index, e)| {
+            let entry = ExpLevelDto {
                 level: e.level as f64,
                 need_exp: e.need_exp as f64,
                 cumulative: cumul,
+            };
+            if index < last {
+                cumul += e.need_exp as f64;
             }
+            entry
         })
         .collect())
 }

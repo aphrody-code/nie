@@ -1,5 +1,5 @@
 #![allow(clippy::pedantic)]
-//! Tests golden `chara_details` — port 1:1 d'inagle `packages/inagle/src/parsers/chara-details.ts`.
+//! Tests golden `chara_details` — port 1:1 d'inagle `inagle`.
 //!
 //! Vérité terrain = le vrai `chara_details_config_0.00.00.00.cfg.bin` (VFS IEVR, liste RDBN
 //! `m_charaDetailsList`, **550 lignes**), via `cargo run -p nie-game --example extract_chara_details`.

@@ -23,7 +23,7 @@ personnage du jeu.
 | Esprit guerrier Morphée | en base | `inagle_keshins` |
 | Quatre Mixi Max | en base | `inagle_miximax` |
 | Biographie en neuf sections | en base | `inagle_characters.wiki_sections` |
-| Portraits et neuf planches | fichiers | `apps/azalee/public/oc/astro-lor/` |
+| Portraits and nine boards | files | `data/oc/astro-lor/` |
 
 Les scripts sont rejouables : `scripts/donnees/astro-lor-oc.py` et
 `astro-lor-auras.py` écrivent en `ON CONFLICT DO UPDATE`, et n'ont aucun effet sur
@@ -207,7 +207,7 @@ Tant qu'il n'existe pas, aucune icône de portrait du jeu n'est remplaçable —
 qui vaut pour tout le monde, pas seulement pour un personnage original.
 
 Les deux portraits sont prêts en 512×512
-(`apps/azalee/public/oc/astro-lor/face-og.webp`, `face-go.webp`) ; il faudra les
+(`data/oc/astro-lor/face-og.webp`, `face-go.webp`) ; il faudra les
 réduire à 256×256 pour épouser le gabarit.
 
 ### V4 — Injecter dans le VFS · non bloquant

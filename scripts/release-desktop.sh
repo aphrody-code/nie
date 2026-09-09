@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # release-desktop.sh — pipeline de release COMPLET pour l'app desktop Inacord (ex nie-explorer, identifiant Tauri conserve).
 #   bump versions → sync lockfiles → build signé (msi+nsis) → tag+push → GitHub Release
-#   → (option) redeploy azalee.
+#   → publish the Rust site release metadata.
 #
 # Remplace la séquence manuelle du 2026-08-08 (bump Cargo.toml/package.json à la main,
 # `cargo update --workspace`, `bun install`, `bunx tauri signer generate`, build, `gh release
@@ -9,13 +9,10 @@
 #
 # Usage :
 #   TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/niers.key ./scripts/release-desktop.sh 0.5.0
-#   ./scripts/release-desktop.sh 0.5.0 --ship-azalee   # + redeploy azalee (rare, cf. NOTE ci-dessous)
+#   ./scripts/release-desktop.sh 0.5.0
 #
-# NOTE — le côté VPS n'a PAS besoin d'être redéployé à chaque release : `azalee.rosegriffon.fr/
-# tools/niers` et `/tools/niers/latest.json` lisent la dernière release GitHub EN DIRECT
-# (`apps/azalee/lib/niers-releases.ts`, revalidate=3600s) — ce script suffit à lui seul à publier
-# une version que l'updater Tauri ET la page de download verront sous 1h max, sans toucher au VPS.
-# `--ship-azalee` ne sert que si le CODE d'azalee (pas niers) a aussi changé entre-temps.
+# NOTE — the website release metadata endpoint reads the latest GitHub release directly;
+# this script publishes a version visible to the Tauri updater without a second deployment.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,10 +30,8 @@ if [[ "$DESKTOP_TARGET" == *.json ]]; then DESKTOP_TARGET="$(basename "${DESKTOP
 DESKTOP_RELEASE_DIR="$DESKTOP_TARGET_DIR${DESKTOP_TARGET:+/$DESKTOP_TARGET}/release"
 
 VERSION="${1:-}"
-SHIP_AZALEE=0
-for arg in "$@"; do [ "$arg" = "--ship-azalee" ] && SHIP_AZALEE=1; done
 if [ -z "$VERSION" ] || [[ "$VERSION" == --* ]]; then
-	echo "Usage: $0 <version, ex: 0.5.0> [--ship-azalee]" >&2
+	echo "Usage: $0 <version, ex: 0.5.0>" >&2
 	exit 1
 fi
 if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -169,10 +164,4 @@ gh release create "$TAG" \
 	"$MSI" "$MSI.sig" "$NSIS" "$NSIS.sig" "$BLENDER_ZIP"
 
 echo "✓ Release $TAG publiée : https://github.com/aphrody-code/nie/releases/tag/$TAG"
-echo "  → azalee.rosegriffon.fr/tools/niers + /latest.json se mettront à jour tout seuls (≤1h, cache dynamique)."
-
-if [ "$SHIP_AZALEE" = "1" ]; then
-	echo "▸ [bonus] --ship-azalee : redeploy azalee sur le VPS (scripts/redeploy-niers-tools.sh, dépôt rg)…"
-	ssh ovh-vps-ubuntu-direct 'bash /home/ubuntu/rg/scripts/redeploy-niers-tools.sh' \
-		|| ssh ovh-vps-ubuntu 'bash /home/ubuntu/rg/scripts/redeploy-niers-tools.sh'
-fi
+echo "  → the Rust site's release metadata will update from the latest GitHub release."

@@ -844,7 +844,7 @@ pub fn is_hca(data: &[u8]) -> bool {
 
 /// Famille fonctionnelle d'une banque ACB, déduite de son nom VFS.
 ///
-/// Cette règle est celle de `packages/azalee/src/cpk/audio.ts`. Elle ne prétend pas inspecter
+/// This rule is shared with the Rust wiki asset contract. It does not inspect
 /// le contenu de la banque : le préfixe de nom est la seule information stable disponible avant
 /// de lire l'ACB, et un nom inconnu reste explicitement [`AudioBankKind::Other`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

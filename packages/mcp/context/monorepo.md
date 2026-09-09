@@ -1,65 +1,30 @@
-# Monorepo Rose Griffon — carte d'orientation
+# Repository map
 
-Dépôt unique `rose-griffon/rg` sur un VPS OVH. Runtime **Bun** partout (jamais
-`node`, `npm` ni `tsx`), workspaces Bun + Turborepo, versions partagées via la
-`catalog:` de la `package.json` racine.
+This repository has one native IEVR owner: the Rust engine and its tools.
 
-## Ce qui tourne
-
-| Surface | Workspace | Cible |
+| Surface | Owner | Role |
 | --- | --- | --- |
-| Wiki Azalée (Inazuma Eleven: Victory Road) | `apps/azalee` → `@rosegriffon/azalee-web` | VPS, `azalee.rosegriffon.fr` |
-| Site principal | `apps/website` → `@rosegriffon/website` | VPS, `rosegriffon.fr` |
-| Bibliothèque du wiki (données, CLI, API headless) | `packages/azalee` → `@rosegriffon/azalee` | consommée par l'app, le CLI, un futur GUI Tauri |
-| Serveur MCP (ce serveur) | `packages/mcp` → `@rosegriffon/mcp` | VPS, `mcp.rosegriffon.fr` |
-| Tâches planifiées | `packages/cron` | `rg-cron.service` |
-| Bot Discord | `apps/bot` | **non déployé** — ne pas tenter de le relancer |
-| Toolkit de rétro-ingénierie C#/.NET | `iecode/` | outillage local |
+| Native game engine and formats | `crates/engine/*` | VFS, decoders, game rules, Lua and rendering |
+| Wiki library | `crates/tools/nie-wiki` | Read-only mirror queries and domain projections |
+| Native site | `crates/tools/nie-site` | HTTP pages and API routes |
+| Native CLI | `crates/tools/nie-cli` | One terminal interface for game data and tooling |
+| Native MCP | `crates/tools/nie-cli` and `packages/mcp` | Rust command owner with a Bun protocol transport |
+| Web client | `apps/nie-web` | WASM/desktop UI consuming the native contracts |
+| Scheduled jobs | `packages/cron` | Editorial and operational jobs only; no IEVR writer |
 
-Paquets partagés : `ui` (design system shadcn/Tailwind v4), `db` (client
-Supabase), `auth`, `types` (schémas zod), `inagle` (extraction des données du
-jeu), `assets`, `config`.
+## Data boundary
 
-## Séparation `@rosegriffon/azalee` (lib) / `azalee-web` (app)
+IEVR data comes from the verified VFS and the read-only SQLite mirror at
+`var/mirror.sqlite`. Rust owns parsing, joins, validation and game semantics. Bun may
+transport JSON or implement non-game operational glue, but it must not recreate a game-data
+parser or write an alternate wiki database.
 
-Le cœur du wiki vit dans la **bibliothèque**, pas dans l'app Next :
+The deleted Azalée Next application, Azalée TypeScript library, and Inagle TypeScript toolkit
+are not compatibility targets. New consumers must call `nie-wiki`, `nie-site`, or `nie-cli`.
 
-- racine du paquet = **client-safe** (règles de jeu, URLs CDN, recherche,
-  types `*-shared`) — se bundle dans un navigateur ;
-- `@rosegriffon/azalee/server` = tout ce qui touche le disque ou la base
-  (miroir SQLite, index CPK, index de texte) ;
-- `@rosegriffon/azalee/remote` = client HTTP typé vers l'API headless, avec
-  repli automatique quand la machine n'a ni miroir ni dump du jeu.
+## Rules
 
-L'app Next passe par des façades `apps/azalee/lib/**` qui portent
-`import "server-only"` ; **la bibliothèque, elle, ne doit jamais importer
-`server-only`** (cela casserait le CLI et un sidecar Tauri).
-
-## Règles de contribution
-
-- Tout le texte produit est en **français** : commentaires, documentation,
-  messages de commit.
-- Commit : une ligne, `feat|fix|chore|refactor|docs(scope): description`.
-  Pas d'emoji, pas de mention d'outil de génération.
-- Les fichiers `*.md` et `*.txt` sont ignorés par git **sauf**
-  README/CHANGELOG/SECURITY/LICENSE et `docs/**` : aucune note de travail ne
-  doit atterrir dans le dépôt.
-- Vérification avant de pousser : `bun run type-check` puis `bun run build` à
-  la racine.
-
-## Pièges qui coûtent cher
-
-- **`bun.lock` doit rester en `lockfileVersion: 1`.** Le Bun local (1.4
-  canary) le réécrit en 2, illisible par le Bun 1.3.x de la CI et de la
-  production. Remettre la valeur à 1 après chaque `bun install`.
-- **Ne jamais supprimer un `dist/` ou un `.next/` servi par un service.**
-  Effacer `packages/inagle/dist` casse `rg-cron`, effacer
-  `apps/azalee/.next` met le wiki en 500.
-- **Turbopack refuse les liens symboliques sortant de la racine** : ne jamais
-  symlinker `apps/azalee/data` vers un dossier hors du dépôt, cela met le wiki
-  hors service.
-- **`kysely` est épinglé en `0.28.2`** volontairement (une version plus
-  récente casse le build) : ne pas le mettre à jour.
-- **Données personnelles** : les fichiers publics (`humans.txt`, `llm.txt`,
-  JSON-LD) utilisent le pseudonyme `yoyo`, jamais un nom réel. Les sauvegardes
-  Supabase contiennent des adresses e-mail et ne sont jamais versionnées.
+- Keep machine-facing identifiers, schemas and documentation in English.
+- Put reusable behavior in a library; keep CLI, HTTP, MCP and UI layers thin.
+- Never use Supabase or a network database as the source for IEVR data.
+- Never commit generated game dumps or captures; preserve user-owned `data/` and `var/` content.

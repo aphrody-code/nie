@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS : `packages/inagle/src/parsers/chara-exp-table.ts` (`CharaExpEntry` l.24-29,
+//! - Parser TS : `inagle` (`CharaExpEntry` l.24-29,
 //!   `ExpRarityRate` l.32-35, `parseContent` l.53-70, `getCumulativeExp` l.109-116).
 //! - Données : `/home/ubuntu/niers/data/common/gamedata/character/chara_exp_table_config_0.00.00.00.cfg.bin.json`
 //!   — `m_charaExpTableList` = 100 entrées (niveaux 1..100), `m_expRarityRateList` = 9 entrées.

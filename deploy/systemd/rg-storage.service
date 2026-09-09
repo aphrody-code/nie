@@ -1,17 +1,16 @@
 [Unit]
 # rg-storage — API Storage compatible Supabase, servie depuis `niers/apps/storage`.
 #
-# Le code a suivi la fusion (`docs/FUSION.md`) : `rg/apps/storage` est devenu
-# `niers/apps/storage`. Seuls le répertoire de travail et le chemin du serveur changent —
-# le nom de l'unité, lui, RESTE `rg-storage`. Ce n'est pas un oubli : ce service est du
-# socle Supabase auto-hébergé, il sert le wiki ET le site vitrine resté dans `rg`, et son
-# nom est référencé par `rg-watchdog@rg-storage.timer` et par nginx. Le renommer aurait
-# cassé la surveillance sans rien prouver sur la migration ; ce qui compte est qu'aucun
-# chemin ne pointe plus vers `/home/ubuntu/rg`.
+# The service runs from `niers/apps/storage`. Its historical unit name remains stable because
+# systemd watchers and nginx reference it; the name is not a data-source boundary. This service is
+# the self-hosted storage compatibility layer for editorial uploads; game data is owned by Rust
+# and is never served from this process. The unit name is referenced by
+# `rg-watchdog@rg-storage.timer` and nginx; renaming it would break monitoring without changing
+# the data boundary. No path may point to `/home/ubuntu/rg`.
 #
-# Les secrets restent hors du dépôt, en 600 : `/etc/rg-storage.env`.
+# Secrets stay outside the repository with mode 600: `/etc/rg-storage.env`.
 #
-# Installation :
+# Installation:
 #   sudo cp deploy/systemd/rg-storage.service /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl restart rg-storage.service
 Description=rg-storage — API Storage compatible Supabase (Bun, fichiers locaux, depuis niers)

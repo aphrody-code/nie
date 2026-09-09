@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `unlock_condition` — port 1:1 d'inagle
-//! `packages/inagle/src/parsers/unlock-condition.test.ts`.
+//! `inagle`.
 //!
 //! Les fixtures sont **identiques** à celles d'inagle : deux blobs base64 réels extraits de
 //! `gallery_config` / `scene_archive_config` (`STORY_EV01`, `SCENE_EV01_00050`) et trois blobs

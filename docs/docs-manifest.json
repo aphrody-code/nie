@@ -1,8 +1,7 @@
 {
   "canonicalPlan": "PLAN.md",
   "instructionFiles": [
-    "AGENTS.md",
-    "apps/azalee/AGENTS.md"
+    "AGENTS.md"
   ],
   "planAppendices": [],
   "stalePatterns": [

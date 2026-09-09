@@ -8,8 +8,8 @@
 //! comparaison/clé de map. On reproduit cette sémantique exacte ici : un `i32` lu depuis le
 //! dump devient un `u32` par réinterprétation des bits (pas par saturation).
 //!
-//! Source de vérité : `packages/inagle/src/skills/mapper.ts` (`toUnsigned = n >>> 0`),
-//! `packages/inagle/src/skills/mapper-aura.ts` (`toHex`), `parsers/chara-param.ts` (`toHex`).
+//! Source de vérité : `inagle` (`toUnsigned = n >>> 0`),
+//! `inagle` (`toHex`), `parsers/chara-param.ts` (`toHex`).
 
 use alloc::string::String;
 use core::fmt;

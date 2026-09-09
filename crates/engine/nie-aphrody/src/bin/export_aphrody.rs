@@ -1,8 +1,8 @@
 //! Generate the complete Aphrody (Byron Love) dossier from native game data.
 //!
-//! Croise chara_param + skill_config + aura_skill_config via [`nie_aphrody::gisement::build_aphrody_dossier`]
-//! (3 codes/séries, techniques+auras re-séparées, CutinAssets, assets par code). « Set up » du
-//! personnage : données agrégées prêtes à servir l'UI / un RAG.
+//! Crosses chara_param + skill_config + aura_skill_config via
+//! [`nie_aphrody::gisement::build_aphrody_dossier`]. The output contains only native game/VFS
+//! data and the embedded Aphrody pet package; no website, wiki, or network enrichment is used.
 //!
 //! # Usage
 //! ```text
@@ -21,7 +21,7 @@ fn default_data_root() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("data"))
 }
 
-use nie_aphrody::gisement::build_aphrody_dossier;
+use nie_aphrody::{BUNDLED_ANIMATIONS_JSON, BUNDLED_PET_JSON, gisement::build_aphrody_dossier};
 use serde_json::Value;
 
 fn main() {
@@ -61,17 +61,74 @@ fn main() {
     let dossier = build_aphrody_dossier(&chara, &skill, &aura);
     let mut json = serde_json::to_value(&dossier).expect("sérialisation dossier");
 
-    // Enrichissement texte (hors domaine nie-data) : dialogues trilingues, profil, références.
+    // Dialogues are extracted from the game's localized event files. They remain VFS data.
     let dialogues = extract_dialogues(&data_root);
     let n_lines: usize = dialogues
         .iter()
         .filter_map(|d| d.get("lines").and_then(Value::as_array).map(Vec::len))
         .sum();
-    if let Value::Object(map) = &mut json {
-        map.insert("profile".into(), aphrody_profile());
-        map.insert("dialogues".into(), Value::Array(dialogues));
-        map.insert("references".into(), aphrody_references());
-    }
+    let pet: Value = serde_json::from_str(BUNDLED_PET_JSON).expect("embedded pet manifest");
+    let animations: Value =
+        serde_json::from_str(BUNDLED_ANIMATIONS_JSON).expect("embedded animation manifest");
+    let identity = json
+        .get("identity")
+        .cloned()
+        .expect("native dossier identity");
+    let stats = json.get("stats").cloned().expect("native dossier stats");
+    let series = json.get("series").cloned().expect("native dossier series");
+    let assets = json.get("assets").cloned().expect("native dossier assets");
+    let variants = json
+        .get("variants")
+        .cloned()
+        .expect("native dossier variants");
+    let primary = variants
+        .as_array()
+        .and_then(|items| items.iter().find(|item| item["is_primary"] == true))
+        .cloned()
+        .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
+    let internal_codes = series
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item["code"].as_str().map(str::to_owned))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let native_data = json;
+    let dialogues = Value::Array(dialogues);
+    json = serde_json::json!({
+        "schema_version": 1,
+        "slug": "byron-love-aphrody",
+        "generated_at": "native-vfs-export",
+        "identity": identity,
+        "internal_codes": internal_codes,
+        "game": {
+            "source": "local game VFS",
+            "data": native_data,
+            "dialogues": dialogues.clone(),
+        },
+        "stats": stats,
+        "series": series,
+        "assets": assets,
+        "variants": variants,
+        "techniques": primary["techniques"].clone(),
+        "auras": primary["auras"].clone(),
+        "dialogues": dialogues,
+        "pet": {
+            "manifest": pet,
+            "animations": animations,
+        },
+        "sources": {
+            "game_vfs": {
+                "root": "data/",
+                "character": "data/common/gamedata/character/",
+                "skills": "data/common/gamedata/skill/",
+                "events": "data/common/text/{ja,fr,en}/event/"
+            },
+            "pet_package": "crates/engine/nie-aphrody/assets/aphrody/"
+        }
+    });
 
     let variants = json
         .get("variants")
@@ -231,46 +288,6 @@ fn extract_dialogues(data_root: &Path) -> Vec<Value> {
         }));
     }
     out
-}
-
-/// Profil / identité textuelle d'Aphrody (noms + épithète, vérifiés dans `chara_text`).
-fn aphrody_profile() -> Value {
-    serde_json::json!({
-        "name_ja": "亜風炉 照美",
-        "kana": "あふろ てるみ",
-        "nickname_ja": "アフロディ",
-        "nickname_en": "Aphrody",
-        "epithet_ja": "アフロディ帝",
-        "epithet_en": "Archon Aphrodite",
-        "epithet_fr": "Archon Aphrodite",
-    })
-}
-
-/// Références culturelles et easter eggs documentés (sourcés : noms, équipe, élément).
-fn aphrody_references() -> Value {
-    use serde_json::json;
-    json!([
-        {
-            "title": "Étymologie — Aphrodite",
-            "detail": "Le surnom アフロディ / Aphrody et l'épithète « Archon Aphrodite » renvoient à la déesse grecque Aphrodite ; le nom japonais 亜風炉 照美 (Afuro Terumi) est un calque phonétique de « Aphro ».",
-        },
-        {
-            "title": "Titre « 帝 » / Archon",
-            "detail": "Surnommé アフロディ帝 (« empereur Aphrodi »), localisé « Archon Aphrodite » — figure de chef quasi divin, cohérent avec l'imagerie gréco-mythologique.",
-        },
-        {
-            "title": "Équipe Zeus",
-            "detail": "Membre/figure de l'équipe Zeus (team_id 0x9BB9E791, name_en « Zeus ») — panthéon grec ; il revient ensuite comme entraîneur de la sélection coréenne Fire Dragon (event ev23_05000).",
-        },
-        {
-            "title": "Élément Forêt",
-            "detail": "Élément 2 (Forêt / 林) — sa palette de hissatsu et auras (Burning Overdrive wap01001, Instant Burst wap01005) s'y rattache.",
-        },
-        {
-            "title": "Constellation Éclaris / Inazumis",
-            "detail": "series_id 0x62E5F9CF, constellation « Éclaris » (FR) / « Inazumis » (EN), zukan #166 — décliné en 3 ères : IE1 (c01001900), GO (c05026590), Ares (c07080010).",
-        },
-    ])
 }
 
 fn find_cfg(data_root: &Path, subdir: &str, prefix: &str) -> PathBuf {

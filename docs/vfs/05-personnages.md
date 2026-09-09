@@ -185,7 +185,7 @@ Somme annoncée : 5490+273+237+2+100+89 = **6 191** — confirme le chiffre cit�
 
 Fiche d'un modèle (`/api/v1/3d/modeles/perso/c01000010`, 200) : Mark Evans, nom FR/EN/JA, élément
 Montagne, poste Gardien, 12 variantes — donnée servie via le miroir, cohérente avec le catalogue
-`nie-catalog`.
+the Rust wiki and VFS readers.
 
 **Rendu effectif — dégradé au moment de la mesure** :
 

@@ -1,5 +1,5 @@
 #![allow(clippy::pedantic)]
-//! Tests golden `video_waza` — port 1:1 d'inagle `packages/inagle/src/parsers/video-waza.ts`.
+//! Tests golden `video_waza` — port 1:1 d'inagle `inagle`.
 //!
 //! Vérité terrain = le vrai `event/event_movie_config_0.00.00.cfg.bin` (VFS IEVR, 3 listes RDBN),
 //! via `cargo run -p nie-game --example extract_video_waza` (videos=4, subtitles=3, captions=2 ;

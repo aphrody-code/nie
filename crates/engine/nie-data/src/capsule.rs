@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/capsule-config.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseEntries` l.68-136, `parseIntVar` l.64).
 //! - Données : `data/common/gamedata/capsule/capsule_config_0.00.00.cfg.bin` (VFS Steam),
 //!   le plus gros des cfg.bin gamedata (>5 MB). Format **T2B** (`entries`).

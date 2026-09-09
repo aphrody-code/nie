@@ -76,7 +76,7 @@ Chaîne réelle : **ACB → CueTable → (CueId, ReferenceIndex) → CueNameTabl
 c'est voulu, le catalogue est bâti sur l'ACB seul (0,10 Gio à parcourir, pas 7,49 Gio).
 
 Volumes mesurés ci-dessus : **ACB = 0,103 Gio, AWB = 7,688 Gio** (le rapport cité dans
-`packages/azalee/src/cpk/audio.ts:10` — « 0,10 Gio d'ACB contre 7,49 Gio d'AWB » — est la même
+The native `nie-formats::cri_audio` reader exposes the same ACB/AWB distinction
 mesure à l'échelle du jeu entier CPK+VFS ; celle d'ici porte le seul lot audio/vidéo).
 
 **Nombre de cues réel, mesuré, pas estimé** — appel `/audio-info/<chemin>.acb` sur les 5 512 ACB
@@ -92,7 +92,7 @@ banques non-ACB (bruit): 0
 
 C'est ce nombre-là — **284 115**, pas 5 512 — qui doit apparaître dans une matrice/pagination de
 catalogue audio. Exemple de granularité extrême déjà documenté : `waza_stream.acb` porte
-1 512 cues à lui seul (`packages/azalee/src/cpk/audio.ts:4`) ; `bgm_title.acb` n'en porte qu'1
+an ACB can contain many cues while an individual title bank may contain one.
 (cue `bg00010`, `cueId 10100`, 63,121 s, HCA 48 kHz stéréo, en boucle — vérifié en direct,
 `/audio-info/data/common/sound_asset/bgm_title.acb`).
 
@@ -215,8 +215,8 @@ volée « tiendrait la connexion une minute »).**
    fichier continue après la ligne lue ici, `main.rs:5680+`).
 4. **Page catalogue "Sons" réécrite par cue** — chaque ligne = un `AudioCue` (`cueId`, `name`,
    `durationSec`, `codec`), groupé par banque ACB pour le contexte, jamais listé au niveau AWB.
-   Données déjà disponibles via `@niers/catalog/game` (`AudioBank`/`AudioCue`,
-   `packages/nie-catalog/src/game.ts`) et `packages/azalee/src/cpk/audio.ts`
+   Données déjà disponibles via `packages/asset-source/src/url-conventions.ts`
+   and `nie-formats::cri_audio`
    (`cpkAudioCueUrl`, adressage par `awbId`/cue-id, pas par rang — déjà correct côté azalee, à
    répliquer côté nie).
 5. **Page "Vidéos" avec statut par film** — 97 films logiques (`common`+`dx11`, jumeaux),

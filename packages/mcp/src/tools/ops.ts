@@ -12,9 +12,8 @@ import { structured, text } from "../protocol/types.ts";
 import { defineTool, type RegisteredTool } from "../registry.ts";
 
 /**
- * Unités systemd du périmètre, vérifiées sur le VPS après la fin de la migration
- * (`docs/FUSION.md`) : toutes tournent depuis `niers`, sauf `website-web` — le site vitrine
- * est la seule surface restée dans `rg`.
+ * Systemd units in the repository's operational perimeter. All maintained game and wiki
+ * services run from this checkout; external editorial infrastructure is not a game-data owner.
  *
  * Les noms en `rg-*` ne sont PAS des oublis : ils désignent des services d'infrastructure
  * (socle Supabase auto-hébergé, CDN, serveur MCP) dont le nom est référencé par les
@@ -25,10 +24,8 @@ import { defineTool, type RegisteredTool } from "../registry.ts";
  * `nie-miroir.timer` (04:10 UTC), et `rg-cron` a été remplacé par `nie-cron`.
  */
 export const KNOWN_SERVICES = [
-	"azalee-web.service",
-	"azalee-api.service",
 	"nie-miroir.service",
-	"website-web.service",
+	"nie-site.service",
 	"nie-cron.service",
 	"rg-cdn.service",
 	"rg-storage.service",
@@ -44,10 +41,8 @@ export const KNOWN_SERVICES = [
 
 /** Points d'entrée publics dont on vérifie le code de retour. */
 export const KNOWN_ENDPOINTS: Record<string, string> = {
-	azalee: "https://azalee.rosegriffon.fr/",
 	website: "https://rosegriffon.fr/",
 	api: "https://api.rosegriffon.fr/health",
-	"api-azalee": "https://api.rosegriffon.fr/azalee/health",
 	cdn: "https://cdn.rosegriffon.fr/health",
 };
 

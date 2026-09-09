@@ -6,6 +6,7 @@ import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { toast } from "sonner";
 import { api, type BlenderSceneResult, type McpStatus, type McpTarget, type VfsStats } from "@/lib/api";
+import { wikiDb } from "@/lib/wikiDb";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
 import { jobsDb } from "@/lib/jobsDb";
 import {
@@ -165,11 +166,11 @@ export function SettingsView() {
     setSceneBusy(true);
     setSceneResult(null);
     try {
-      // Résolution du nom libre → code interne via le GraphQL azalee (même source que
-      // SearchView) — la technique, elle, est résolue SERVEUR (game_data::find_skill, local,
-      // pas de round-trip réseau requis) directement par blenderBuildSkillScene.
-      const r = await api.remoteSearchChara(settings.azaleeUrl, sceneChara.trim());
-      const code = r.characters?.[0]?.internalCode;
+      // Resolve the character through the local Rust-owned mirror.
+      const rows = settings.wikiDb.trim()
+        ? await wikiDb.searchCharacter(settings.wikiDb, sceneChara.trim())
+        : [];
+      const code = rows[0]?.internal_code;
       if (!code) {
         toast.error(`Aucun personnage trouvé pour « ${sceneChara} »`);
         return;
@@ -423,13 +424,13 @@ export function SettingsView() {
         <CardHeader>
           <CardTitle>Miroir wiki (recherche chara/waza)</CardTitle>
           <CardDescription>
-            Fichier <code>supabase-*.sqlite</code> (miroir <code>nie-wiki</code>).
+            Local SQLite mirror produced from the game VFS (<code>nie-wiki</code>).
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Field
             label="Base SQLite"
-            hint="Vide = résolution automatique (NIE_WIKI_DB / SQLITE_DB_PATH, sinon le supabase-*.sqlite le plus récent sous <jeu>/var/wiki-mirror) — utilisée pour afficher les noms réels (perso/technique/objet) dans l'Explorateur."
+            hint="Empty = automatic resolution (NIE_WIKI_DB / SQLITE_DB_PATH, then var/mirror.sqlite) — used to display real character, skill and item names in the Explorer."
             value={settings.wikiDb}
             placeholder="(auto-détecté)"
             onChange={(v) => setSettings({ wikiDb: v })}
@@ -564,24 +565,11 @@ export function SettingsView() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Résolveur distant azalee</CardTitle>
-          <CardDescription>
-            GraphQL <code>/api/graphql</code> (sans authentification) + REST <code>/api/cpk</code> /{" "}
-            <code>/api/save/resolve-roster</code> — contrat réel confirmé depuis les sources du service.
-            Utilisé en <strong>bonus</strong> de l'index local (personnages/techniques/roster de save) ;
-            les fichiers du jeu restent toujours résolus en local d'abord. Vide = nie.aphrody.com.
-          </CardDescription>
+          <CardTitle>Service de modèles 3D</CardTitle>
+          <CardDescription>Assemblage et rendu des modèles à partir des ressources locales validées.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-1.5">
-            <Label>URL de base</Label>
-            <Input
-              value={settings.azaleeUrl}
-              placeholder="https://nie.aphrody.com"
-              onChange={(e) => setSettings({ azaleeUrl: e.target.value })}
-            />
-          </div>
-          <div className="mt-3 space-y-1.5">
             <Label>Service de modèles 3D</Label>
             <Input
               value={settings.modelServiceUrl}

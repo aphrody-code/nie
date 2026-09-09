@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser de référence : `packages/inagle/src/parsers/basara-config.ts` (`parseContent`).
+//! - Parser de référence : `inagle` (`parseContent`).
 //! - Dump réel (VFS) : `data/common/gamedata/character/basara_chara_config_0.00.00.00.cfg.bin`
 //!   (RDBN à listes, 4491 octets).
 //!

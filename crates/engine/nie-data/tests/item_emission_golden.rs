@@ -4,7 +4,7 @@
 //! (RDBN `lists`, 746 octets, le plus petit cfg.bin du jeu ; extrait du VFS via
 //! `cfgbin_to_iecode_root`, identique au dump iecode/inagle).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/drop-rates.ts` `loadItemEmissionRates`
+//! Port 1:1 d'inagle `inagle` `loadItemEmissionRates`
 //! (l.85-116) : jointure `m_itemEmissionRarityTableConfigList.tableInfo` `[offset, count]`
 //! → `m_itemEmissionRarityTableConfigInfoList`. Une ligne = un couple (item, emitRarity)→poids.
 //!

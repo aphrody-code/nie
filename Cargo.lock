@@ -4754,6 +4754,7 @@ dependencies = [
  "nie-tasks",
  "nie-trace",
  "nie-viola",
+ "nie-wiki",
  "serde",
  "serde_json",
  "specta",
@@ -6106,11 +6107,13 @@ dependencies = [
 name = "nie-ffi"
 version = "0.5.11"
 dependencies = [
+ "anyhow",
  "image",
  "nie-core",
  "nie-data",
  "nie-formats",
  "nie-runtime",
+ "nie-wiki",
  "serde_json",
 ]
 

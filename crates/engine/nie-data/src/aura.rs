@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS : `packages/inagle/src/skills/mapper-aura.ts` (`parseAuraCmdInfo` l.389-469,
+//! - Parser TS : `inagle` (`parseAuraCmdInfo` l.389-469,
 //!   `determineSubType` l.232-293, `resolveAuraHissatsu` l.181-216, `getElement` l.320-329).
 //! - Données : `/home/ubuntu/niers/data/common/gamedata/skill/aura_skill_config_1.04.09.00.cfg.bin.json`.
 //!

@@ -1,7 +1,7 @@
 //! Famille `item_emission` — taux d'émission de rareté par item (poids de loterie).
 //!
 //! Port 1:1 de la source `item_emission` du parseur inagle `drop-rates.ts`
-//! (fonction `loadItemEmissionRates`, `packages/inagle/src/parsers/drop-rates.ts` l.85-116).
+//! (fonction `loadItemEmissionRates`, `inagle` l.85-116).
 //! Seule cette source est portée ici ; les sources `spirit_drop` (soccer) et `win_treasure`
 //! relèvent d'autres familles.
 //!

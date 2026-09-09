@@ -1,6 +1,6 @@
 // **Traducteur** — dictionnaire de noms FR / EN / JA / romaji des entités du jeu.
 //
-// Portage de `apps/azalee/components/tools/TranslatorClient.tsx` (454 lignes) + de la *server
+// Portage du client de traduction du wiki (454 lignes) + de la *server
 // action* `app/actions/translate.ts` (686 lignes) qui l'alimentait. Le scoring — normalisation
 // accent-insensible, correspondance multi-mots dans le désordre, Levenshtein — est repris tel
 // quel dans `lib/traduction.ts` ; ce fichier n'est que la surface.
@@ -101,7 +101,7 @@ export function TranslatorPanel({ onOpenCode }: { onOpenCode?: (code: string) =>
     const chemin = settings.wikiDb.trim();
     const promesse = chemin
       ? wikiDb
-          .chargerIndexNoms(chemin)
+          .loadNameIndex(chemin)
           .then((lignes) => {
             if (annule) return null;
             setIndex(lignes);

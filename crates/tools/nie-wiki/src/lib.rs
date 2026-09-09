@@ -24,6 +24,7 @@ pub mod auras;
 pub mod auxiliary;
 pub mod cards;
 pub mod catalog;
+pub mod desktop;
 pub mod entities;
 pub mod episodes;
 pub mod gallery;

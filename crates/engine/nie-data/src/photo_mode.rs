@@ -9,7 +9,7 @@
 //!     (animation de motion) tirée au hasard pour un personnage en mode photo.
 //!
 //! Note : le parser inagle de référence cité par le workflow
-//! (`packages/inagle/src/parsers/activity-photo-config.ts`) couvre un AUTRE fichier
+//! (`inagle`) couvre un AUTRE fichier
 //! (`trophy/trophy_config_*`, layout `entries`) ; il ne s'applique pas à cette famille.
 //! Le dump JSON `lists` prime et fait foi.
 //!

@@ -80,6 +80,7 @@
 
 use core::ffi::{c_char, c_void};
 use nie_core::crand::CRand;
+use std::path::PathBuf;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CRC32 (IEEE 802.3, polynôme 0xEDB88320)
@@ -465,6 +466,229 @@ fn decode_json_impl(data: &[u8]) -> NieBytes {
         Some(v) => NieBytes::from_vec(v),
         None => NieBytes::empty(),
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Wiki Rust → JSON (Bun/native hosts)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Execute one bounded read-only wiki operation and serialize its Rust result.
+///
+/// The input is a UTF-8 JSON object with an `op` field. All database reads and
+/// game-data decisions remain in `nie-wiki`; this is only the flat C-ABI
+/// transport. It never accepts SQL and never contacts Supabase.
+fn wiki_json_impl(input: &[u8]) -> NieBytes {
+    let result = std::panic::catch_unwind(|| -> anyhow::Result<serde_json::Value> {
+        let request: serde_json::Value = serde_json::from_slice(input)
+            .map_err(|error| anyhow::anyhow!("invalid wiki request: {error}"))?;
+        let op = request
+            .get("op")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("wiki request requires string field `op`"))?;
+        let database = request
+            .get("database")
+            .and_then(serde_json::Value::as_str)
+            .map(PathBuf::from);
+        let connection = nie_wiki::mirror::open(database.as_deref())
+            .map_err(|error| anyhow::anyhow!("wiki mirror unavailable: {error}"))?;
+        let string_field = |name: &str| {
+            request
+                .get(name)
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| anyhow::anyhow!("wiki request requires string field `{name}`"))
+        };
+        let data_root = request
+            .get("data_root")
+            .and_then(serde_json::Value::as_str)
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("DATA_ROOT").map(PathBuf::from))
+            .unwrap_or_else(|| PathBuf::from("data"));
+
+        let value = match op {
+            "character" | "chara" => {
+                let query = string_field("query").or_else(|_| string_field("id"))?;
+                let id = nie_wiki::query::search_characters(&connection, query)?
+                    .into_iter()
+                    .next()
+                    .map(|character| character.id)
+                    .unwrap_or_else(|| query.to_owned());
+                let card = nie_wiki::cards::character(&connection, &id)?
+                    .ok_or_else(|| anyhow::anyhow!("character was not found"))?;
+                serde_json::to_value(card)?
+            }
+            "search" => {
+                let query = string_field("query")?;
+                let limit = request
+                    .get("limit")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(20)
+                    .clamp(1, 50) as usize;
+                serde_json::to_value(nie_wiki::query::search_all(&connection, query, limit)?)?
+            }
+            "skill" => {
+                let query = string_field("query").or_else(|_| string_field("id"))?;
+                if let Some(skill) = nie_wiki::query::get_skill(&connection, query)? {
+                    serde_json::to_value(skill)?
+                } else {
+                    nie_wiki::query::lookup_skill_legacy(&data_root, query)?
+                }
+            }
+            "item" => {
+                let query = string_field("query").or_else(|_| string_field("id"))?;
+                nie_wiki::query::lookup_item_legacy(&connection, query)?
+            }
+            "team" => {
+                let query = string_field("query").or_else(|_| string_field("id"))?;
+                let corpus = data_root.join("all-gamedata").join("teams.json");
+                nie_wiki::query::lookup_team_legacy(&connection, &corpus, query)?
+            }
+            "compare" => {
+                let level = request
+                    .get("level")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(99)
+                    .clamp(1, 99) as u8;
+                let first = string_field("chara1")?;
+                let second = string_field("chara2")?;
+                serde_json::to_value(nie_wiki::query::compare_characters(
+                    &connection,
+                    &data_root,
+                    first,
+                    second,
+                    level,
+                )?)?
+            }
+            "auras" => {
+                let input: nie_wiki::auras::AuraListRequest =
+                    serde_json::from_value(request.clone())?;
+                serde_json::to_value(nie_wiki::auras::list_auras(&connection, &input)?)?
+            }
+            "aura" => {
+                let id = string_field("id")?;
+                let type_slug = request.get("type_slug").and_then(serde_json::Value::as_str);
+                let aura = nie_wiki::auras::get_aura(&connection, id, type_slug)?
+                    .ok_or_else(|| anyhow::anyhow!("aura was not found"))?;
+                serde_json::to_value(aura)?
+            }
+            "tactics" => {
+                let input: nie_wiki::tactics::TacticListRequest =
+                    serde_json::from_value(request.clone())?;
+                serde_json::to_value(nie_wiki::tactics::list_tactics(&connection, &input)?)?
+            }
+            "tactic" => {
+                let id = string_field("id")?;
+                let tactic = nie_wiki::tactics::get_tactic(&connection, id)?
+                    .ok_or_else(|| anyhow::anyhow!("tactic was not found"))?;
+                serde_json::to_value(tactic)?
+            }
+            "passives" => {
+                let input: nie_wiki::passives::PassiveListRequest =
+                    serde_json::from_value(request.clone())?;
+                serde_json::to_value(nie_wiki::passives::list_passives(&connection, &input)?)?
+            }
+            "passive" => {
+                let id = string_field("id")?;
+                let passive = nie_wiki::passives::get_passive(&connection, id)?
+                    .ok_or_else(|| anyhow::anyhow!("passive was not found"))?;
+                serde_json::to_value(passive)?
+            }
+            "passive-scaling" => {
+                serde_json::to_value(nie_wiki::passives::list_passive_scaling(&connection)?)?
+            }
+            "quests" => {
+                let input: nie_wiki::auxiliary::QuestRequest =
+                    serde_json::from_value(request.clone())?;
+                nie_wiki::auxiliary::list_quests(&connection, &input)?
+            }
+            "quest" => {
+                let id = string_field("id")?;
+                nie_wiki::auxiliary::get_quest(&connection, id)?
+                    .ok_or_else(|| anyhow::anyhow!("quest was not found"))?
+            }
+            "shops" => {
+                let input: nie_wiki::auxiliary::ShopRequest =
+                    serde_json::from_value(request.clone())?;
+                nie_wiki::auxiliary::list_shops(&connection, &input)?
+            }
+            "shop" => {
+                let id = request
+                    .get("id")
+                    .and_then(serde_json::Value::as_i64)
+                    .ok_or_else(|| anyhow::anyhow!("shop request requires integer field `id`"))?;
+                nie_wiki::auxiliary::get_shop(&connection, id)?
+                    .ok_or_else(|| anyhow::anyhow!("shop was not found"))?
+            }
+            "capsules" => {
+                let input: nie_wiki::auxiliary::CapsuleRequest =
+                    serde_json::from_value(request.clone())?;
+                nie_wiki::auxiliary::list_capsules(&connection, &input)?
+            }
+            "capsule" => {
+                let id = string_field("id")?;
+                nie_wiki::auxiliary::get_capsule(&connection, id)?
+                    .ok_or_else(|| anyhow::anyhow!("capsule was not found"))?
+            }
+            "costumes" => nie_wiki::auxiliary::list_costumes(
+                &connection,
+                request
+                    .get("page")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(1) as u32,
+                request
+                    .get("limit")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(50) as u32,
+            )?,
+            "stadiums" => nie_wiki::auxiliary::list_stadiums(
+                &connection,
+                request.get("query").and_then(serde_json::Value::as_str),
+            )?,
+            "stadium" => {
+                let id = string_field("id")?;
+                nie_wiki::auxiliary::get_stadium(&connection, id)?
+                    .ok_or_else(|| anyhow::anyhow!("stadium was not found"))?
+            }
+            "trophies" => nie_wiki::auxiliary::list_trophies(
+                &connection,
+                request.get("query").and_then(serde_json::Value::as_str),
+                request.get("category").and_then(serde_json::Value::as_str),
+            )?,
+            "coaches" => nie_wiki::auxiliary::list_coaches(
+                &connection,
+                request.get("query").and_then(serde_json::Value::as_str),
+            )?,
+            other => return Err(anyhow::anyhow!("unsupported wiki operation: {other}")),
+        };
+        Ok(value)
+    });
+
+    match result {
+        Ok(Ok(value)) => serde_json::to_vec(&value)
+            .map(NieBytes::from_vec)
+            .unwrap_or_else(|_| NieBytes::empty()),
+        _ => NieBytes::empty(),
+    }
+}
+
+/// Execute one Rust-owned wiki request from Bun or another native host.
+///
+/// # Safety
+/// `input` must point to a valid UTF-8 JSON buffer of `input_len` bytes and
+/// `out` must point to a writable, properly aligned [`NieBytes`] slot.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_wiki_json_out(input: *const u8, input_len: usize, out: *mut NieBytes) {
+    if out.is_null() {
+        return;
+    }
+    if input.is_null() || input_len == 0 {
+        // SAFETY: caller supplied a non-null writable output slot.
+        unsafe { out.write(NieBytes::empty()) };
+        return;
+    }
+    // SAFETY: caller guarantees that input points to input_len readable bytes.
+    let bytes = unsafe { core::slice::from_raw_parts(input, input_len) };
+    // SAFETY: caller supplied a non-null writable output slot.
+    unsafe { out.write(wiki_json_impl(bytes)) };
 }
 
 /// Parse un `*_menu_setting.cfg.bin` T2B vers la structure de menu sémantique de `nie-data`.

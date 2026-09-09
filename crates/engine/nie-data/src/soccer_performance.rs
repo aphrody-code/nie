@@ -15,7 +15,7 @@
 //! - VFS : `data/common/gamedata/soccer/soccer_performance_config_0.00.00.00.cfg.bin`
 //! - Format : RDBN `lists`, mono-liste `m_soccerPerformanceConfigList`
 //!   (type `SOCCER_PERFORMANCE_CONFIG`), **16 entrées**.
-//! - Port 1:1 de inagle `packages/inagle/src/parsers/performance-config.ts`
+//! - Port 1:1 de inagle `inagle`
 //!   (`parseContent` l.51-77, `extractImageName` l.43-45).
 //!
 //! Première entrée vérifiée (dump réel du VFS) : `performanceId = 0x16E827AF`,

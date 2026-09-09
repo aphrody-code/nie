@@ -4,7 +4,7 @@
 //! (décodé en forme iecode par `nie-model-serve::cfgbin_to_iecode_root`).
 //!
 //! Aucun parseur inagle dédié `movie` n'existe : la référence est le parseur générique
-//! `packages/inagle/src/parsers/universal-gamedata.ts` ; les structs sont dérivées 1:1 des
+//! `inagle` ; les structs sont dérivées 1:1 des
 //! noms de champs RDBN. Vérité terrain = les valeurs réellement lues dans le fichier.
 
 use nie_data::hash::HashId;

@@ -8,7 +8,7 @@
 //!   (monté depuis `/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN
 //!   Victory Road`, décodé en forme iecode `entries`/`children`/`variables`).
 //! - Parseur TS de référence (port 1:1) :
-//!   `packages/inagle/src/parsers/team-build-config.ts`.
+//!   `inagle`.
 //!
 //! ## Structure (format `entries` à listes nommées)
 //!

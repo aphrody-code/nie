@@ -6,7 +6,7 @@
 //! |---------|--------|-------|---------|--------|
 //! | `soccer/soccer_game_option.cfg.bin.json` | `entries` | `SOCCER_OPTION_FIELD_INFO_*` | [`Stadium`] | FAIT |
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/stadium-config.ts`
+//! Port 1:1 d'inagle `inagle`
 //! (`parseFieldEntry` / `parseContent`).
 //!
 //! ## Structure (vérité terrain)

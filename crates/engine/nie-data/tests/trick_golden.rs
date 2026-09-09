@@ -6,7 +6,7 @@
 //!
 //! Extraction : décodage RDBN → forme iecode `lists` (`nie-formats::cfgbin` +
 //! `cfgbin_to_iecode_root`), strictement identique à ce que consomment les parseurs typés
-//! de `nie-data`. Port 1:1 d'inagle `packages/inagle/src/parsers/trick-config.ts`.
+//! de `nie-data`. Port 1:1 d'inagle `inagle`.
 //!
 //! Note `failEventIDName` : champ `Condition`. Sans événement d'échec (catégories Tir/Dribble
 //! et certains blocs), sa valeur brute est la sentinelle `"0xFFFFFFFF"` ; avec échec

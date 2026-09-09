@@ -55,7 +55,6 @@ export interface Settings {
   gameDir: string;
   wikiDb: string;
   blenderExe: string;
-  azaleeUrl: string;
   /** Origine de `nie-model-serve`/CDN : avatar assemblé et rendu de menus réels. */
   modelServiceUrl: string;
   /** Langue de l'interface. */
@@ -98,7 +97,6 @@ const DEFAULTS: Settings = {
   gameDir: "",
   wikiDb: "",
   blenderExe: "",
-  azaleeUrl: "",
   modelServiceUrl: "",
   locale: "fr",
   gameLocale: "fr",

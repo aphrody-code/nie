@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parseur TS de référence : `packages/inagle/src/parsers/drop-rates.ts`
+//! - Parseur TS de référence : `inagle`
 //!   (`loadWinTreasureRates`, l.162-217) — port 1:1.
 //! - Données : `data/common/gamedata/item/win_treasure_lot_table_config_0.00.00.cfg.bin`
 //!   (VFS IEVR). Format **T2B** (`entries`, noeuds nommés), pas RDBN.

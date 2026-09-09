@@ -1,6 +1,6 @@
 // **Comparateur de personnages** — deux joueurs côte à côte, stats et techniques.
 //
-// Portage de `apps/azalee/components/wiki/CharacterComparator.tsx` (816 lignes) et de la page
+// Portage du comparateur du wiki (816 lignes) et de la page
 // serveur `app/tools/compare/page.tsx` qui l'alimentait.
 //
 // ## Le web interpole, l'explorateur calcule
@@ -17,7 +17,7 @@
 // une interpolation. Le repli sur les colonnes Lv99 du miroir n'existe que si le VFS n'est pas
 // monté, et il est ANNONCÉ plutôt que silencieux.
 //
-// Les techniques viennent de `wikiDb.techniquesDuPersonnage` : deux requêtes au total, là où la
+// Les techniques viennent de `wikiDb.characterSkills` : deux requêtes au total, là où la
 // page serveur appelait `wikiService.getSkill` une fois par technique.
 import { useEffect, useMemo, useState } from "react";
 
@@ -27,7 +27,7 @@ import { useFiltered } from "@/lib/filtrage";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { useThumbnail } from "@niers/inacord-ui/lib/thumbs";
 import { wikiDb } from "@/lib/wikiDb";
-import type { LigneTechnique } from "@/lib/wikiQueries";
+import type { TechniqueRow } from "../../lib/wikiContracts";
 import { Alert, AlertDescription, AlertTitle } from "@niers/inacord-ui/components/ui/alert";
 import { Badge } from "@niers/inacord-ui/components/ui/badge";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
@@ -155,7 +155,7 @@ function Techniques({
   communes,
   titre,
 }: {
-  liste: LigneTechnique[];
+  liste: TechniqueRow[];
   communes: ReadonlySet<string>;
   titre: string;
 }) {
@@ -209,8 +209,8 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
   });
   /** Vrai quand le moteur de croissance n'a pas répondu et qu'on affiche les Lv99 du miroir. */
   const [repli, setRepli] = useState(false);
-  const [techG, setTechG] = useState<LigneTechnique[]>([]);
-  const [techD, setTechD] = useState<LigneTechnique[]>([]);
+  const [techG, setTechG] = useState<TechniqueRow[]>([]);
+  const [techD, setTechD] = useState<TechniqueRow[]>([]);
 
   // Stats au niveau demandé — le moteur d'abord, le miroir en repli ANNONCÉ.
   useEffect(() => {
@@ -248,8 +248,8 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
     let annule = false;
     (async () => {
       const [g, d] = await Promise.all([
-        gauche ? wikiDb.techniquesDuPersonnage(chemin, gauche.id).catch(() => []) : [],
-        droite ? wikiDb.techniquesDuPersonnage(chemin, droite.id).catch(() => []) : [],
+        gauche ? wikiDb.characterSkills(chemin, gauche.id).catch(() => []) : [],
+        droite ? wikiDb.characterSkills(chemin, droite.id).catch(() => []) : [],
       ]);
       if (annule) return;
       setTechG(g);

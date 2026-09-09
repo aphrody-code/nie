@@ -83,7 +83,7 @@ async function mirrorToStorage(
 			console.error(`[Media] upload ${storagePath} failed:`, error.message);
 			return null;
 		}
-		return `https://azalee.rosegriffon.fr/storage/v1/object/public/tweets/${storagePath}`;
+		return `https://rosegriffon.fr/storage/v1/object/public/tweets/${storagePath}`;
 	} catch (err) {
 		console.error(`[Media] error ${srcUrl}:`, err instanceof Error ? err.message : err);
 		return null;

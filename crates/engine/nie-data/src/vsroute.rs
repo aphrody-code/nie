@@ -46,7 +46,7 @@
 //!   (`buildVsRouteDatabase` ne lit que `m_chronicleVsRouteInfoList`) : nommage
 //!   positionnel honnête.
 //!
-//! Source de référence inagle : `packages/inagle/src/parsers/gameplay-config.ts`
+//! Source de référence inagle : `inagle`
 //! (`buildVsRouteDatabase`) — ne lit que `m_chronicleVsRouteInfoList` ; la structure
 //! complète ci-dessous est reconstruite octet-pour-octet depuis les dumps réels.
 

@@ -550,22 +550,15 @@ enum Cmd {
     /// décode chacun via nie-formats + image_dds (BC1/BC3/BC7), et écrit le PNG
     /// à <game_dir>/data/dx11/menu/.../<nom>.png (idempotent : skip si non-vide).
     ///
-    /// Priorité : sprites des 32 layouts azalee (<layouts_dir>/*.json) ; le reste si --all.
+    /// Scans and pre-decodes every indexed menu texture from the game VFS.
     MenuPredecode {
         /// Répertoire racine du jeu (contenant `data/packs/`). Résolu automatiquement s'il
         /// est absent (cf. `NIE_GAME_DIR`).
         #[arg(long)]
         game_dir: Option<PathBuf>,
-        /// Répertoire des layouts azalee (`*.json`) — vit dans le dépôt azalee, pas ici :
-        /// aucun défaut ne peut être juste, le chemin est donc demandé.
-        #[arg(long)]
-        layouts_dir: PathBuf,
         /// URL Redis db3 (iev:file:index).
         #[arg(long, default_value = "redis://127.0.0.1/3")]
         redis_url: String,
-        /// Traite aussi TOUS les g4tx menu fr+en+base (pas seulement les sprites des layouts).
-        #[arg(long)]
-        all: bool,
     },
     /// RE en direct : lit/scanne/dumpe la mémoire live d'un nie.exe.
     ///
@@ -1095,7 +1088,7 @@ enum ViolaOp {
         /// préfixe `!` pour exclure (`data/dx11/**,!**/movie/**`).
         #[arg(long)]
         filtre: Option<String>,
-        /// Preset nommé (`inagle`, `azalee`, `inagle-azalee`) — exclusif de `--filtre`.
+        /// Named preset (`wiki`, `assets`, `full`) — exclusive with `--filtre`.
         #[arg(long)]
         preset: Option<String>,
         /// Repart de zéro au lieu de reprendre le manifeste laissé par un dump précédent.
@@ -2634,10 +2627,8 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Cmd::Mem { op } => mem_cmd(op),
         Cmd::MenuPredecode {
             game_dir,
-            layouts_dir,
             redis_url,
-            all,
-        } => menu_predecode_cmd(&racine_jeu(game_dir), &layouts_dir, &redis_url, all),
+        } => menu_predecode_cmd(&racine_jeu(game_dir), &redis_url),
         Cmd::Vfs { op } => vfs_cmd(op),
         Cmd::Vn { op, game_dir } => {
             let vfs = open_vfs(game_dir)?;
@@ -3896,79 +3887,18 @@ fn uniform_map(game_dir: &std::path::Path, out: &std::path::Path) -> anyhow::Res
 // MenuPredecode
 // ---------------------------------------------------------------------------
 
-fn menu_predecode_cmd(
-    game_dir: &std::path::Path,
-    layouts_dir: &std::path::Path,
-    redis_url: &str,
-    all_menu: bool,
-) -> anyhow::Result<()> {
+fn menu_predecode_cmd(game_dir: &std::path::Path, redis_url: &str) -> anyhow::Result<()> {
     // dump_root = game_dir/data (les sprite logicalPaths commencent par "dx11/...")
     let dump_root = game_dir.join("data");
     let packs_dir = game_dir.join("data").join("packs");
 
-    // Extraire les sprites des layouts azalee (champ sprite.logicalPath des JSON).
-    let priority_paths = extract_layout_sprites(layouts_dir)?;
-    eprintln!(
-        "predecode layouts={} sprites_uniques={}",
-        count_json_files(layouts_dir),
-        priority_paths.len()
-    );
-
-    let stats = menu_predecode::run(&dump_root, &packs_dir, redis_url, &priority_paths, all_menu)?;
+    let stats = menu_predecode::run(&dump_root, &packs_dir, redis_url, &[], true)?;
 
     println!(
         "decoded={} skipped={} failed={}",
         stats.decoded, stats.skipped, stats.failed
     );
     Ok(())
-}
-
-/// Extrait les `sprite.logicalPath` (`.g4tx`) uniques depuis tous les *.json du dossier layouts.
-fn extract_layout_sprites(layouts_dir: &std::path::Path) -> anyhow::Result<Vec<String>> {
-    use std::collections::HashSet;
-
-    let mut seen: HashSet<String> = HashSet::new();
-    let mut result: Vec<String> = Vec::new();
-
-    let entries = std::fs::read_dir(layouts_dir)
-        .with_context(|| format!("lecture layouts {}", layouts_dir.display()))?;
-
-    for entry in entries {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("json") {
-            continue;
-        }
-        let content = std::fs::read_to_string(&path)
-            .with_context(|| format!("lecture {}", path.display()))?;
-        let json: serde_json::Value = serde_json::from_str(&content)
-            .with_context(|| format!("parse JSON {}", path.display()))?;
-
-        if let Some(objects) = json.get("objects").and_then(|v| v.as_array()) {
-            for obj in objects {
-                if let Some(sprite) = obj.get("sprite")
-                    && let Some(logical_path) = sprite.get("logicalPath").and_then(|v| v.as_str())
-                    && logical_path.ends_with(".g4tx")
-                    && seen.insert(logical_path.to_string())
-                {
-                    result.push(logical_path.to_string());
-                }
-            }
-        }
-    }
-
-    Ok(result)
-}
-
-fn count_json_files(layouts_dir: &std::path::Path) -> usize {
-    std::fs::read_dir(layouts_dir)
-        .ok()
-        .map(|rd| {
-            rd.filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("json"))
-                .count()
-        })
-        .unwrap_or(0)
 }
 
 // ─── niers vfs — explorateur CPK (VFS) ─────────────────────────────────────────────

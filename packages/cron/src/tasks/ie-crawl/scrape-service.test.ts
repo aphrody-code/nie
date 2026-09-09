@@ -378,7 +378,7 @@ const SERP_DUCKDUCKGO = `
   </div>
   <div class="result results_links results_links_deep web-result ">
     <h2 class="result__title">
-      <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fazalee.rosegriffon.fr%2F&amp;rut=aa11">Azal&eacute;e &mdash; le wiki</a>
+      <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fnie.aphrody.com%2F&amp;rut=aa11">nie &mdash; game wiki</a>
     </h2>
     <a class="result__snippet" href="#">Le wiki fran&ccedil;ais d&#39;Inazuma Eleven: Victory Road.</a>
   </div>
@@ -396,7 +396,7 @@ describe("analyserSerpDuckDuckGo", () => {
 
 	it("décode les entités HTML des titres et des extraits", () => {
 		const resultats = analyserSerpDuckDuckGo(SERP_DUCKDUCKGO, 10);
-		expect(resultats[1]?.titre).toBe("Azalée — le wiki");
+		expect(resultats[1]?.titre).toBe("nie — game wiki");
 		expect(resultats[1]?.extrait).toBe("Le wiki français d'Inazuma Eleven: Victory Road.");
 	});
 
@@ -417,7 +417,7 @@ describe("deplierLienDuckDuckGo", () => {
 	});
 
 	it("laisse passer une URL déjà directe et refuse le reste", () => {
-		expect(deplierLienDuckDuckGo("https://azalee.rosegriffon.fr/")).toBe("https://azalee.rosegriffon.fr/");
+		expect(deplierLienDuckDuckGo("https://nie.aphrody.com/")).toBe("https://nie.aphrody.com/");
 		expect(deplierLienDuckDuckGo("javascript:void(0)")).toBeNull();
 		expect(deplierLienDuckDuckGo("")).toBeNull();
 	});

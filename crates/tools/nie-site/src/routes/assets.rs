@@ -22,12 +22,11 @@
 //! - ce module construit les chemins publics `/assets/*`, en réutilisant les mêmes routes que
 //!   `nie-model-serve` et `routes::inspect`.
 //!
-//! Ne sont pas des règles IEVR à recopier dans Rust : le fetch `fetch`/React et l'arbre lazy de
-//! `packages/azalee/src/cpk/live.ts` sont des comportements de client ; les manifests de présence
+//! Client-only fetch/React behavior and lazy loading are not IEVR rules; presence manifests
 //! (`item-image`, `menu-asset`, modèles et Miximax) sont des résultats générés depuis un VFS ou
 //! une sonde HTTP ; `getOptimizedImageUrl` est le protocole privé de Next.js ; enfin les variantes
 //! `?w=&format=webp` appartiennent à `cdn-variants` et le miroir Zukan 360° est absent. Les
-//! manifests restent donc des données d'entrée du host, et ces services externes ne sont pas
+//! manifests remain host inputs, and these external services are not
 //! déguisés en capacité native inventée.
 
 use axum::extract::{Path, RawQuery, State};

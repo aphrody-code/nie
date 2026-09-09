@@ -27,7 +27,7 @@
 import { FORMATIONS, type Formation } from "@niers/game/game/formations";
 import type { TeamMember } from "@niers/game/game/team-types";
 
-import type { LigneRoster } from "@/lib/wikiQueries";
+import type { RosterRow } from "./wikiContracts";
 
 export { FORMATIONS };
 export type { Formation, TeamMember };
@@ -36,7 +36,7 @@ export type { Formation, TeamMember };
 export const NB_RESERVES = 5;
 export const NB_SUPPORTS = 3;
 
-/** Un personnage sélectionnable, tel que le miroir le rend (cf. `wikiQueries.LigneRoster`). */
+/** A selectable character as returned by the native wiki mirror contract. */
 export interface Joueur {
   /** `chara_param_id` — la clé qui ouvre `api.gameDataCalculateStats`. */
   id: string;
@@ -65,10 +65,10 @@ export interface Joueur {
 }
 
 /**
- * Convertit une ligne du miroir en joueur — **la seule** traduction `LigneRoster` → `Joueur` de
+ * Convertit une ligne du miroir en joueur — **la seule** traduction `RosterRow` → `Joueur` de
  * l'application : le comparateur, le générateur et le constructeur en partagent le résultat.
  */
-export function versJoueur(l: LigneRoster): Joueur {
+export function versJoueur(l: RosterRow): Joueur {
   return {
     id: String(l.id),
     nom: l.name_fr || l.name_en || l.name_ja || String(l.id),

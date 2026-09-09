@@ -1,4 +1,4 @@
-// Navigation par filtres — portage desktop du hook du wiki (`apps/azalee/lib/hooks/
+// Navigation par filtres — portage desktop du hook du wiki.
 // use-filter-navigation.ts`), qui écrivait les filtres dans la QUERY STRING de l'URL via
 // `useRouter`/`useSearchParams` de Next.
 //

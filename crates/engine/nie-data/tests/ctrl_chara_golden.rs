@@ -1,5 +1,5 @@
 #![allow(clippy::pedantic)]
-//! Tests golden `ctrl_chara` — port 1:1 d'inagle `packages/inagle/src/parsers/ctrl-chara-config.ts`.
+//! Tests golden `ctrl_chara` — port 1:1 d'inagle `inagle`.
 //!
 //! Vérité terrain = le vrai `party/ctrl_chara_config_1.04.17.00.cfg.bin` (VFS IEVR), via
 //! `cargo run -p nie-game --example extract_ctrl_chara` :

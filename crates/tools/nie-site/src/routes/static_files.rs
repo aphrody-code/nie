@@ -5,7 +5,7 @@
 //! 1. **Pré-compression servie telle quelle.** Si `x.js.br` ou `x.js.zst` existe à côté de
 //!    `x.js`, il est servi avec `Content-Encoding` et `Vary: Accept-Encoding` — on ne
 //!    recompresse jamais à la volée ce qui a déjà été compressé au build (et on ne cumule
-//!    jamais `precompressed_*` avec une couche de compression, cf. `docs/stack/pieges-api.md`).
+//!    jamais `precompressed_*` with another compression layer.
 //! 2. **Immuable si empreinté.** Un nom qui porte une empreinte (`app-1a2b3c4d.js`) est
 //!    `public, max-age=31536000, immutable` ; tout le reste est `no-cache` — un `index.html`
 //!    figé un an dans un cache navigateur est un site qu'on ne peut plus déployer.

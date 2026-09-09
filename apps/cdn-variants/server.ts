@@ -30,8 +30,8 @@ import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { dirname, join as pathJoin } from "node:path";
 
-// sharp n'est installé que sous apps/azalee (catalog). On le résout d'abord via
-// l'algo standard, sinon via le store hoisté `.bun` du monorepo (chemin stable).
+// Resolve sharp through the standard loader first, then through the hoisted monorepo `.bun`
+// store when the package is not directly linked.
 type SharpModule = typeof import("sharp");
 async function loadSharp(): Promise<SharpModule> {
   try {

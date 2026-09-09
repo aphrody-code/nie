@@ -2,8 +2,8 @@
 //! Tests golden `enjoy_mode_team` sur les **12 variables réelles** — noeuds `ENJOY_MODE_TEAM_INFO_*` tirés de :
 //! `data/common/gamedata/team/enjoy_mode_team_config_1.04.02.00.cfg.bin` (VFS IEVR, format T2B).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/enjoy-mode-team-config.ts` (l.52-90).
-//! Vérité terrain = la sortie d'inagle `packages/inagle/src/entries/enjoy_mode_teams.json`
+//! Port 1:1 d'inagle `inagle` (l.52-90).
+//! Vérité terrain = la sortie d'inagle `inagle`
 //! (28 entrées). Les valeurs hex ci-dessous ont été vérifiées byte-exact contre ce fichier.
 
 use nie_data::enjoy_mode_team::{EnjoyModeTeam, parse_enjoy_mode_teams};

@@ -3,7 +3,7 @@
 //! `data/common/gamedata/character/belong_team_config_0.00.00.cfg.bin`
 //! (RDBN `lists`, 1 liste `m_belongTeamInfoList` / `typeName` `BELONG_TEAM_INFO`, **208 entrées**).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/belong-team.ts` (interface `BelongTeamInfo`
+//! Port 1:1 d'inagle `inagle` (interface `BelongTeamInfo`
 //! l.24-45, lecture `lists[0].values` l.227-233). Valeurs ci-dessous extraites telles quelles
 //! du dump (via `nie_formats::cfgbin::read_values` → forme iecode), aucune valeur inventée.
 

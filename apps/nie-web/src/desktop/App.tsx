@@ -317,8 +317,8 @@ function CorpsApp() {
   // ICI, une fois, plutôt qu'au hasard du premier clic utilisatrice :
   //  1. `mods.db` (tauri-plugin-sql) : `Database.load` applique les migrations et CRÉE le
   //     fichier s'il est absent (premier lancement).
-  //  2. Miroir wiki (`supabase-*.sqlite`) : auto-détecté et rempli dans les réglages s'il n'a
-  //     jamais été choisi manuellement.
+  //  2. Local VFS-derived wiki mirror: auto-detected and filled in settings if it has never been
+  //     selected manually.
   //  3. VFS : précollecté côté Rust (~255 800 entrées) pour que la première navigation dans
   //     l'Explorateur retrouve un cache déjà chaud.
   useEffect(() => {

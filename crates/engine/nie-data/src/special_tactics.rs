@@ -12,7 +12,7 @@
 //!   `nie-game/examples/extract_special_tactics.rs`, depuis supprimé).
 //! - Format **T2B `entries`** (noeuds nommés à variables positionnelles, suffixées `_<i>`
 //!   par occurrence — même convention iecode que `super_tactics.rs` / `boost_grp.rs`).
-//! - Port 1:1 de `packages/inagle/src/parsers/special-tactics-config.ts` (`parseEntries`).
+//! - Port 1:1 de `inagle` (`parseEntries`).
 //!   Comme pour `super_tactics.rs`, on **sépare** proprement infos et liens de référence
 //!   en listes parallèles (alignées par rang) là où inagle agrège les refs dans la tactique.
 //!   La résolution de texte (noms/descriptions via `item_text`) reste hors `nie-data`.

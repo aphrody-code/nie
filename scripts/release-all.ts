@@ -170,11 +170,8 @@ const stages: Stage[] = [
 			// development-profile output before constructing the isolated release target.
 			{ argv: ["cargo", "clean", "--profile", "dev"] },
 			// Enumerate build owners so the site build can never follow the live dist symlink.
-			{ argv: ["bun", "run", "--filter", "@rosegriffon/inagle", "build"] },
-			{ argv: ["bun", "run", "--filter", "@rosegriffon/azalee", "build"] },
 			{ argv: ["bun", "run", "--filter", "@rosegriffon/cron", "build"] },
 			{ argv: ["bun", "run", "--cwd", "apps/inacord", "build"] },
-			{ argv: ["bun", "run", "--cwd", "apps/azalee", "build"] },
 			{
 				argv: [
 					"cargo",
@@ -190,6 +187,9 @@ const stages: Stage[] = [
 				],
 				env: { CARGO_TARGET_DIR: "<STAGE>/target" },
 			},
+			// The Bun bindings load the native FFI library from the checkout during the
+			// TypeScript project build; keep that library in the canonical release target too.
+			{ argv: ["cargo", "build", "--release", "--locked", "-p", "nie-ffi"] },
 			{ argv: ["cargo", "check", "--locked", "-p", "inacord"] },
 			{ argv: ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"] },
 			{ argv: ["bunx", "tsc", "-b", "apps/nie-web/tsconfig.json"] },
@@ -216,7 +216,7 @@ const stages: Stage[] = [
 	},
 	{ name: "release", remote: true, commands: [{ argv: ["git", "push", "origin", "main"] }] },
 	// This checked blue/green wrapper is the repository's deployment contract. It deploys
-	// Azalée from the already-built local artefact; other services require their own owners.
+	// The maintained site from the already-built local artefact; other services require their own owners.
 	{ name: "deploy", remote: true, commands: [] },
 	{ name: "live-validation", remote: true, commands: [] },
 ];
@@ -353,20 +353,17 @@ async function preflightProduction(): Promise<void> {
 	for (const [source, installed] of [
 		["deploy/systemd/nie-site.service", "/etc/systemd/system/nie-site.service"],
 		["deploy/systemd/nie-model-serve.service", "/etc/systemd/system/nie-model-serve.service"],
-		["deploy/systemd/azalee-web.service", "/etc/systemd/system/azalee-web.service"],
-		["deploy/systemd/azalee-web-b.service", "/etc/systemd/system/azalee-web-b.service"],
 		["deploy/nginx/aphrody.com.conf", "/etc/nginx/conf.d/aphrody.com.conf"],
 	] as const) {
 		if ((await commandExit(["cmp", "-s", source, installed])) !== 0)
 			throw new Error(`Installed production configuration drifts from ${source}.`);
 	}
 	await runCommand({ argv: ["sudo", "nginx", "-t"] });
-	for (const unit of ["nie-model-serve.service", "nie-site.service", "azalee-web.service"]) {
+	for (const unit of ["nie-model-serve.service", "nie-site.service"]) {
 		if ((await commandExit(["systemctl", "is-active", "--quiet", unit])) !== 0)
 			throw new Error(`${unit} is not active before deployment.`);
 	}
 	for (const lock of [
-		"/home/ubuntu/rg-releases/azalee/deploy.lock",
 		"/home/ubuntu/rg-releases/website/deploy.lock",
 	]) {
 		if (await Bun.file(lock).exists()) throw new Error(`Another deployment owns ${lock}.`);
@@ -538,18 +535,8 @@ async function validateLive(): Promise<void> {
 	const modelHealth = await (await fetchResponse("https://cdn.aphrody.com/health")).text();
 	if (modelHealth.trim() !== "ok")
 		throw new Error("Public model backend health payload is not ok.");
-	const azaleeHealth = object(
-		await (await fetchResponse("https://azalee.rosegriffon.fr/api/health")).json()
-	);
-	if (azaleeHealth.status !== "ok" || object(azaleeHealth.checks).db !== "ok")
-		throw new Error("Azalée database health is not ok.");
-	for (const path of ["/", "/chara", "/skill", "/news"]) {
-		const html = await (await fetchResponse(`https://azalee.rosegriffon.fr${path}`)).text();
-		if (html.length < 10_000 || !html.includes("/_next/static/"))
-			throw new Error(`Azalée page ${path} is not a populated Next document.`);
-	}
 	process.stdout.write(
-		`    ✓ site API/VFS, ${icons.total_indexed} icons, ${modes.total_modes} modes, Brotli bundle, model backend, and four Azalée pages\n`
+		`    ✓ site API/VFS, ${icons.total_indexed} icons, ${modes.total_modes} modes, Brotli bundle, and model backend\n`
 	);
 }
 
@@ -630,17 +617,13 @@ async function deployProduction(commit: string): Promise<void> {
 			if ((await sha256(`/proc/${newPid}/exe`)) !== (await sha256(`${release}/bin/${binary}`)))
 				throw new Error(`${unit} is not running the released artifact.`);
 		}
-		await runCommand(
-			{ argv: ["bun", "scripts/ops/deploy.ts", "deploy", "azalee", "--no-build", "--no-gate"] },
-			commit
-		);
 	} catch (error) {
-		await rollbackProduction(commit, false);
+		await rollbackProduction(commit);
 		throw error;
 	}
 }
 
-async function rollbackProduction(commit: string, rollbackAzalee: boolean): Promise<void> {
+async function rollbackProduction(commit: string): Promise<void> {
 	const release = `${repositoryRoot}/var/releases/${commit}`;
 	const rollback = `${release}/rollback`;
 	const rollbackState = object(JSON.parse(await Bun.file(`${release}/rollback.json`).text()));
@@ -664,11 +647,6 @@ async function rollbackProduction(commit: string, rollbackAzalee: boolean): Prom
 	await waitFor("http://127.0.0.1:8085/api/v1/health", (body) =>
 		validateSiteHealth(JSON.parse(body))
 	);
-	if (rollbackAzalee)
-		await runCommand(
-			{ argv: ["bun", "scripts/ops/deploy.ts", "rollback", "azalee", "--no-build", "--no-gate"] },
-			commit
-		);
 }
 
 const stageSlug = (stage: string) => stage.replaceAll("-", "_");
@@ -814,19 +792,19 @@ try {
 				throw new Error("Missing immutable release manifest.");
 			if (dryRun)
 				process.stdout.write(
-					`    atomically publish ${releaseStage}, binaries, site/model services, CLI stdio MCP, and Azalée\n`
+					`    atomically publish ${releaseStage}, binaries, site/model services, and CLI stdio MCP\n`
 				);
 			else await deployProduction(releaseCommit!);
 		} else if (stage.name === "live-validation") {
 			if (dryRun)
 				process.stdout.write(
-					"    validate JSON health, icons, modes, and Azalée health payloads\n"
+					"    validate JSON health, icons, modes, and site health payloads\n"
 				);
 			else {
 				try {
 					await validateLive();
 				} catch (error) {
-					await rollbackProduction(releaseCommit!, true);
+					await rollbackProduction(releaseCommit!);
 					throw error;
 				}
 			}

@@ -5,7 +5,7 @@
 //! - Dump réel (VFS) : `data/common/gamedata/menu/emblem_resource_0.04.18.cfg.bin`.
 //! - Format **RDBN à listes** (`{ "lists": [ { "name", "typeName", "values" } ] }`), décodé en
 //!   forme iecode par `nie-model-serve::cfgbin_to_iecode_root` (cf. `read_values`).
-//! - Référence de portage : `packages/inagle/src/parsers/emblems.ts` (`parseContent`,
+//! - Référence de portage : `inagle` (`parseContent`,
 //!   l.55-94), header inagle « vérifiée octet pour octet contre le .bin ».
 //!
 //! ## Les deux listes du fichier

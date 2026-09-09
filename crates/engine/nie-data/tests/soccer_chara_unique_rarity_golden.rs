@@ -5,7 +5,7 @@
 //! `data/common/gamedata/soccer/soccer_chara_unique_rarity_config_1.03.00.00.cfg.bin`
 //! (VFS du jeu Steam ; extrait via `nie_formats::cfgbin` → forme iecode `lists`).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/hero-config.ts` (l.81-104). Détail
+//! Port 1:1 d'inagle `inagle` (l.81-104). Détail
 //! Level-5 vérifié : le `charaParamIdHero*` n'est exposé que si `isHeroX == true` ET id non
 //! nul — plusieurs entrées réelles ont un id non nul avec le flag à `false` (index 0/1/2/4/6).
 

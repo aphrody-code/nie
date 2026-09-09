@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { crawlZukanOrder } from "./zukan";
 import { crawlNews } from "./news";
 import { crawlRe } from "./re";
 import { crawlCross } from "./cross";
@@ -28,15 +27,7 @@ export async function runIeCrawl(): Promise<{ success: boolean; error?: string }
 	console.log("==================================================================");
 
 	try {
-		// 1. Crawl de l'ordre officiel des personnages Zukan
-		const zukanRes = await withProxyRotation(() => crawlZukanOrder());
-		if (!zukanRes.success) {
-			console.error("[ie-crawl] Échec du crawl Zukan :", zukanRes.error);
-		} else {
-			console.log(`[ie-crawl] Crawl Zukan complété : ${zukanRes.count} personnages analysés.`);
-		}
-
-		// 2. Crawl des actualités (Topics FR & Patch Notes EN)
+		// 1. Crawl des actualités (Topics FR & Patch Notes EN)
 		const newsRes = await withProxyRotation(() => crawlNews());
 		if (!newsRes.success) {
 			console.error("[ie-crawl] Échec du crawl des actualités :", newsRes.error);
@@ -44,7 +35,7 @@ export async function runIeCrawl(): Promise<{ success: boolean; error?: string }
 			console.log("[ie-crawl] Crawl des actualités complété.");
 		}
 
-		// 3. Crawl Inazuma Eleven RE (Remake)
+		// 2. Crawl Inazuma Eleven RE (Remake)
 		const reRes = await withProxyRotation(() => crawlRe());
 		if (!reRes.success) {
 			console.error("[ie-crawl] Échec du crawl Inazuma Eleven RE :", reRes.error);
@@ -52,7 +43,7 @@ export async function runIeCrawl(): Promise<{ success: boolean; error?: string }
 			console.log("[ie-crawl] Crawl Inazuma Eleven RE complété.");
 		}
 
-		// 4. Crawl Inazuma Eleven: Cross (Mobile)
+		// 3. Crawl Inazuma Eleven: Cross (Mobile)
 		const crossRes = await withProxyRotation(() => crawlCross());
 		if (!crossRes.success) {
 			console.error("[ie-crawl] Échec du crawl Inazuma Eleven: Cross :", crossRes.error);
@@ -60,7 +51,7 @@ export async function runIeCrawl(): Promise<{ success: boolean; error?: string }
 			console.log("[ie-crawl] Crawl Inazuma Eleven: Cross complété.");
 		}
 
-		// 5. Crawl LEVEL-5 Corporate News (filtered for Inazuma)
+		// 4. Crawl LEVEL-5 Corporate News (filtered for Inazuma)
 		const level5Res = await withProxyRotation(() => crawlLevel5());
 		if (!level5Res.success) {
 			console.error("[ie-crawl] Échec du crawl LEVEL-5 :", level5Res.error);
@@ -68,7 +59,7 @@ export async function runIeCrawl(): Promise<{ success: boolean; error?: string }
 			console.log("[ie-crawl] Crawl LEVEL-5 complété.");
 		}
 
-		// 5c. Crawl LEVEL-5 Blog (Akihiro Hino / Five-Star Workshop)
+		// 5. Crawl LEVEL-5 Blog (Akihiro Hino / Five-Star Workshop)
 		const level5BlogRes = await withProxyRotation(() => crawlLevel5Blog());
 		if (!level5BlogRes.success) {
 			console.error("[ie-crawl] Échec du crawl LEVEL-5 Blog :", level5BlogRes.error);
@@ -167,10 +158,7 @@ export async function runIeCrawl(): Promise<{ success: boolean; error?: string }
 			}
 		}
 
-		const success =
-			zukanRes.success &&
-			newsRes.success &&
-			ragSuccess;
+		const success = newsRes.success && ragSuccess;
 
 		if (success) {
 			try {
@@ -190,7 +178,7 @@ export async function runIeCrawl(): Promise<{ success: boolean; error?: string }
 
 		return {
 			success,
-			error: success ? undefined : "Les tâches de crawl critiques (Zukan, News) ou le RAG ont échoué.",
+			error: success ? undefined : "The critical news crawl or RAG synchronization failed.",
 		};
 	} catch (err: any) {
 		console.error("[ie-crawl] Erreur critique lors de l'exécution du crawl :", err);

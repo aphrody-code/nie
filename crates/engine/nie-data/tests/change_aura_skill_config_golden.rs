@@ -4,7 +4,7 @@
 //! `data/common/gamedata/skill/change_aura_skill_config_1.01.73.00.cfg.bin`
 //! (décodé en forme iecode par `nie-model-serve::cfgbin_to_iecode_root`).
 //!
-//! Référence de portage : `packages/inagle/src/parsers/change-aura-skill-config.ts`
+//! Référence de portage : `inagle`
 //! (`parseContent`, `buildChangeAuraSkillDatabase`). Le dump réel contient 227 lignes
 //! `m_ChangeAuraSkillDataList` + 96 lignes `m_ChangeAuraSkillInfoList` ; la fixture ci-dessous
 //! embarque les **8 premières lignes réelles de chaque liste** (têtes de dump), suffisantes pour

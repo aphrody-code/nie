@@ -22,9 +22,7 @@ function resolveSourcePath(): string | null {
 		process.env.AZALEE_DATA_DIR
 			? path.join(process.env.AZALEE_DATA_DIR, "cross/catalog-index.ndjson.gz")
 			: undefined,
-		path.resolve(process.cwd(), "apps/azalee/data/cross/catalog-index.ndjson.gz"),
 		path.resolve(process.cwd(), "data/cross/catalog-index.ndjson.gz"),
-		path.resolve(process.cwd(), "apps/azalee/data/cross/catalog-index.ndjson.gz"),
 		path.resolve(process.cwd(), "packages/inagle-cross/data/catalog-index.ndjson.gz"),
 	].filter((c): c is string => Boolean(c));
 	for (const c of candidates) {

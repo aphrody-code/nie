@@ -13,7 +13,7 @@
 //! - VFS : `data/common/gamedata/soccer/soccer_chara_unique_rarity_config_1.03.00.00.cfg.bin`
 //! - Format : RDBN `lists`, mono-liste `m_soccerCharaUniqueRarityList` (type
 //!   `SOCCER_CHARA_UNIQUE_RARITY`), **71 entrées**.
-//! - Port 1:1 de inagle `packages/inagle/src/parsers/hero-config.ts` (`loadHeroConfig`).
+//! - Port 1:1 de inagle `inagle` (`loadHeroConfig`).
 //!
 //! ## Détail Level-5 préservé (important)
 //!

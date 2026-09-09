@@ -5,7 +5,7 @@
 //!
 //! Deux fichiers dans `data/common/gamedata/craft/`, tous deux au format **`entries`**
 //! (noeuds nommés, variables positionnelles — aucun nom officiel sans source TS).
-//! La seule référence TS connue est `packages/inagle/src/parsers/gameplay-config.ts`
+//! La seule référence TS connue est `inagle`
 //! (`buildCraftDatabase`), qui n'extrait que `CRAFT_OBJ_INFO_*.var[0]` (= `craft_id`) et
 //! laisse explicitement le reste « Placeholder until we map fields ». Les positions
 //! au-delà de `var[0]` sont donc documentées par observation, jamais par invention.

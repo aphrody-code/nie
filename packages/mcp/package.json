@@ -30,8 +30,7 @@
 		"typecheck": "bun --bun tsc --noEmit"
 	},
 	"dependencies": {
-		"@niers/azalee-tools": "workspace:*",
-		"@rosegriffon/azalee": "workspace:*",
+		"nie": "workspace:*",
 		"zod": "catalog:"
 	},
 	"devDependencies": {

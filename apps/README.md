@@ -5,10 +5,8 @@ bibliothèque va dans [`packages/`](../packages). Toutes partagent le lockfile d
 
 | Application | Ce que c'est | Comment ça tourne |
 |---|---|---|
-| `azalee` | le site du wiki (Next.js 16.3.0-canary.37, App Router) | service `azalee-web`, déploiement bleu/vert |
-| `nie-explorer` | explorateur / éditeur de bureau (Tauri : React + Rust) | `bun run tauri dev`, publié par `scripts/release-desktop.sh` |
+| `nie-web` | the reconstructed web and desktop frontend | Rust `nie-site` / Tauri host |
 | `nie-mcp` | serveur MCP `niers-game` — VFS, assets, KB RE, pilotage de l'explorateur | déclaré dans `.mcp.json` |
-| `nie-bot` | le bot Discord du wiki | service `azalee-bot` |
 | `storage`, `realtime`, `rag-api` | le socle du wiki en Bun natif (stockage, temps réel, recherche vectorielle) | services `rg-storage`, `rg-realtime`, `rg-rag-embed` |
 
 Les 18 services de production tournent sur le VPS Linux ; `systemctl` fait foi sur ce qui

@@ -63,7 +63,6 @@ pub fn mesurer(racine: &Path) -> anyhow::Result<Inventaire> {
     let mut inv = Inventaire::default();
     niers(racine, &mut inv)?;
     inacord(racine, &mut inv)?;
-    azalee(racine, &mut inv)?;
     modules(
         racine,
         Source::NieData,
@@ -171,59 +170,6 @@ fn inacord(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
 /// Le nom d'une page est sa **route**, pas son chemin de fichier : les segments de groupe
 /// (`(liste)`) n'apparaissent pas dans l'URL et sont retirés, faute de quoi `/aura/(liste)` et
 /// `/aura` compteraient pour deux pages là où le visiteur n'en voit qu'une.
-fn azalee(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
-    let base = racine.join("apps/azalee/app");
-    anyhow::ensure!(base.is_dir(), "{} absent", base.display());
-    let mut pages = Vec::new();
-    let mut apis = Vec::new();
-    parcourir(&base, &mut |fichier: &Path| {
-        let nom_fichier = fichier.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        let est_page = nom_fichier == "page.tsx";
-        let est_route = nom_fichier == "route.ts";
-        if !est_page && !est_route {
-            return;
-        }
-        let Ok(relatif) = fichier.strip_prefix(&base) else {
-            return;
-        };
-        let mut segments: Vec<&str> = relatif
-            .parent()
-            .map(|p| {
-                p.components()
-                    .filter_map(|c| c.as_os_str().to_str())
-                    .collect()
-            })
-            .unwrap_or_default();
-        segments.retain(|s| !(s.starts_with('(') && s.ends_with(')')));
-        let route = if segments.is_empty() {
-            "/".to_string()
-        } else {
-            format!("/{}", segments.join("/"))
-        };
-        if est_page {
-            pages.push(route);
-        } else {
-            apis.push(route);
-        }
-    })?;
-    pages.sort_unstable();
-    pages.dedup();
-    apis.sort_unstable();
-    apis.dedup();
-    anyhow::ensure!(
-        !pages.is_empty(),
-        "aucune page trouvée sous {}",
-        base.display()
-    );
-    for p in pages {
-        inv.pousser(Source::Azalee, p, 1);
-    }
-    for a in apis {
-        inv.pousser(Source::AzaleeApi, a, 1);
-    }
-    Ok(())
-}
-
 /// Les `pub mod` de premier niveau d'un `lib.rs` — une famille de données, un module.
 fn modules(
     racine: &Path,

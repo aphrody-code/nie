@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/uniform-config.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseContent` l.80-141, `resolveUniformRows` l.199-215, `buildUniformDatabase`
 //!   l.156-172).
 //! - Dump réel (VFS Steam) : `data/common/gamedata/character/uniform_config_1.03.52.00.cfg.bin`

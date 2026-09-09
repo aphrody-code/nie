@@ -1,7 +1,7 @@
 //! Ingestion des couples (hash, kind, nom) depuis le miroir SQLite d'inagle.
 //!
 //! Les IDs IEVR sont des hash CRC32/FNV Level-5 stockés en hexadécimal dans
-//! les tables `inagle_*` du miroir Supabase.
+//! les tables `inagle_*` du local SQLite mirror.
 //!
 //! ## Sources exploitées
 //!
@@ -31,7 +31,7 @@ use rusqlite::Connection;
 use tracing::{debug, warn};
 
 /// Ingestion des hash→nom inagle depuis le miroir SQLite le plus récent trouvé
-/// dans `sqlite_dir` (cherche `supabase-*.sqlite` par ordre alphabétique décroissant).
+/// dans `sqlite_dir` (cherche `inagle-*.sqlite` par ordre alphabétique décroissant).
 ///
 /// Renvoie le nombre total de couples (hash, nom) insérés.
 ///
@@ -41,12 +41,8 @@ use tracing::{debug, warn};
 /// inaccessible. Les tables absentes ou les lignes sans hash valide sont ignorées
 /// silencieusement.
 pub fn ingest_inagle_hashes(db: &mut Db, sqlite_dir: &Path) -> Result<usize> {
-    let sqlite_path = find_latest_sqlite(sqlite_dir).with_context(|| {
-        format!(
-            "aucun supabase-*.sqlite trouvé dans {}",
-            sqlite_dir.display()
-        )
-    })?;
+    let sqlite_path = find_latest_sqlite(sqlite_dir)
+        .with_context(|| format!("aucun inagle-*.sqlite trouvé dans {}", sqlite_dir.display()))?;
 
     let src = Connection::open(&sqlite_path)
         .with_context(|| format!("ouverture de {}", sqlite_path.display()))?;
@@ -330,7 +326,7 @@ pub fn ingest_inagle_hashes(db: &mut Db, sqlite_dir: &Path) -> Result<usize> {
 
 // ── Fonctions internes ────────────────────────────────────────────────────────
 
-/// Cherche le fichier `supabase-*.sqlite` le plus récent dans `dir`
+/// Cherche le fichier `inagle-*.sqlite` le plus récent dans `dir`
 /// (tri lexicographique décroissant sur le nom de fichier, ce qui correspond
 /// à l'ordre chronologique grâce au format ISO-8601 dans le nom).
 fn find_latest_sqlite(dir: &Path) -> Result<std::path::PathBuf> {
@@ -341,7 +337,7 @@ fn find_latest_sqlite(dir: &Path) -> Result<std::path::PathBuf> {
         .filter(|p| {
             p.file_name()
                 .and_then(|n| n.to_str())
-                .is_some_and(|n| n.starts_with("supabase-") && n.ends_with(".sqlite"))
+                .is_some_and(|n| n.starts_with("inagle-") && n.ends_with(".sqlite"))
         })
         .collect();
 
@@ -349,7 +345,7 @@ fn find_latest_sqlite(dir: &Path) -> Result<std::path::PathBuf> {
     entries
         .into_iter()
         .next()
-        .with_context(|| format!("aucun supabase-*.sqlite dans {}", dir.display()))
+        .with_context(|| format!("aucun inagle-*.sqlite dans {}", dir.display()))
 }
 
 /// Insère les lignes d'une table simple (id→name_fr).
@@ -588,9 +584,9 @@ mod tests {
         drop(src);
 
         // Crée un répertoire temporaire contenant le fichier SQLite nommé
-        // selon la convention supabase-*.sqlite.
+        // according to the inagle-*.sqlite naming convention.
         let dir = tempfile::tempdir().unwrap();
-        let sqlite_name = "supabase-2026-06-04T00-00-00.sqlite";
+        let sqlite_name = "inagle-2026-06-04T00-00-00.sqlite";
         let sqlite_dst = dir.path().join(sqlite_name);
         std::fs::copy(tmp.path(), &sqlite_dst).unwrap();
 

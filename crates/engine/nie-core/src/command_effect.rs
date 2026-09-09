@@ -11,7 +11,7 @@
 //! - Données d'effet réelles : `common/gamedata/skill/passive_skill_effect_config.cfg.bin.json`
 //!   — `m_soccerPassiveSkillEffectList`=8 (effectId + effectParam1..8),
 //!   `m_soccerPassiveSkillEffectInfoList`=5, `m_soccerPassiveSkillEffectRangeList`=1.
-//!   Schéma porté : `packages/inagle/src/parsers/passive-skill-effect-config.ts`.
+//!   Schéma porté : `inagle`.
 
 // ============================================================================
 // Constantes EXACTES du constructeur décompilé (soccer_command_effect.c)

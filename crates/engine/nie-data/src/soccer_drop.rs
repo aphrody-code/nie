@@ -10,7 +10,7 @@
 //! - Dumps réels (deux versions présentes sur le VPS) :
 //!   - `data/common/gamedata/soccer/soccer_drop_config_5.00.27.00.cfg.bin.json`
 //!   - `data/common/gamedata/soccer/soccer_drop_config_1.03.20.00.cfg.bin.json`
-//! - Référence de portage : `packages/inagle/src/parsers/drop-rates.ts`
+//! - Référence de portage : `inagle`
 //!   (`loadSpiritDropRates`, l.123-154) — porté 1:1 par [`SoccerDropConfig::spirit_drop_rates`].
 //! - Format **`lists`** (RDBN à listes plates). 12 listes (la 13ᵉ visible ci-dessous, file
 //!   `version = 100`).

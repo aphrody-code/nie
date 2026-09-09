@@ -26,7 +26,7 @@ documents linked there; do not duplicate large specifications here.
 - `apps/nie-web`: common Vite frontend, including the desktop adapter in `src/desktop`;
   `apps/inacord`: Tauri host and compatibility entrypoints.
 - `packages/inacord-ui` and `packages/asset-source`: shared UI and asset-source contracts.
-- `apps/azalee`: Next.js App Router wiki backed by Supabase Cloud.
+- `crates/tools/nie-site` and `crates/tools/nie-wiki`: the Rust wiki/site and read-only mirror owner.
 - `data/` and `var/`: game assets and measurements; do not commit copyrighted game dumps or
   generated bulk data unless the repository explicitly tracks that exact artifact.
 

@@ -4,7 +4,7 @@
 //!
 //! - Dump réel : `data/common/gamedata/extend_story/extend_story_data_config_0.00.02.00.cfg.bin`
 //! - Fichier unique, très petit (1687 octets), format RDBN à listes nommées.
-//! - Port 1:1 d'inagle `packages/inagle/src/parsers/extend-story-config.ts` (`parseContent`).
+//! - Port 1:1 d'inagle `inagle` (`parseContent`).
 //!
 //! ## Structure (format `lists`, champs nommés)
 //!

@@ -1,6 +1,6 @@
 //! Comparaison des variantes d'un même personnage.
 //!
-//! Portage de `packages/inagle/src/characters/comparison-engine.ts` (161 l.),
+//! Portage de `inagle` (161 l.),
 //! qui classe chaque variante d'un personnage face à sa variante de base : le
 //! poste a-t-il changé, l'élément, les stats sont-elles toutes meilleures, quelles
 //! techniques ont été gagnées ou perdues.

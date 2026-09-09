@@ -139,7 +139,7 @@ import { cn } from "@niers/inacord-ui/lib/utils";
 
 /**
  * Mapping noms « Material Symbols » -> icônes lucide-react.
- * Même vocabulaire de noms que `apps/azalee/lib/icons.ts` (identité visuelle
+ * Même vocabulaire de noms que the former wiki icon table (identité visuelle
  * commune) + quelques ajouts propres à niers (extension Blender, aperçu vidéo/
  * audio/3D, mods). Aucune police d'icônes réseau : tout est du SVG lucide déjà
  * embarqué dans le bundle — compatible offline.

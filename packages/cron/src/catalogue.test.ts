@@ -33,7 +33,7 @@ async function clefsDuRunnerMap(): Promise<Set<string>> {
 	const bloc = source.slice(debut, fin);
 
 	const clefs = new Set<string>();
-	// `"discord:scan": runDiscordChannelScan,` et `db: runInaglePush,`
+	// `"discord:scan": runDiscordChannelScan,` and other canonical entries.
 	for (const trouve of bloc.matchAll(/^\t{4}(?:"([^"]+)"|([a-z]+)):/gm)) {
 		clefs.add(trouve[1] ?? trouve[2]!);
 	}
@@ -69,9 +69,7 @@ describe("catalogue partagé vs démon", () => {
 	 * (`discord:archives`). On vérifie donc seulement qu'aucune entrée non
 	 * aliasée ne manque au catalogue.
 	 *
-	 * `zukan:videos` était tolérée ici tant qu'elle n'était lançable qu'à la
-	 * main ; elle est publiée depuis qu'elle est planifiée (2h00, entre la
-	 * poussée des données et la sauvegarde SQLite).
+	 * `discord:archives` is an internal helper and is intentionally not published.
 	 */
 	test("les entrées du démon absentes du catalogue sont connues et assumées", async () => {
 		const catalogue = new Set(TACHES_CRON.map(normaliserNomTache));

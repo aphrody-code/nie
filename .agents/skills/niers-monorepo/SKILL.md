@@ -27,8 +27,8 @@ Archived plans are historical evidence, not instructions.
 | `packages/nie` | Rust FFI consumption from Bun |
 | `packages/nie-plugin` | Bun game-file import adapter |
 | `packages/nie-bridge` | Existing automation/control transport contract |
-| `apps/azalee` | Separate public news, article and pure-wiki site; owns editorial UI, auth, publishing and host routes |
-| `packages/azalee` | Portable Azalee news/wiki/community domain rules |
+| `crates/tools/nie-site` | Rust public site, pages and read-only IEVR HTTP API |
+| `crates/tools/nie-wiki` | Rust IEVR mirror queries, projections and native desktop operations |
 | `data/`, `var/` | Private game resources, measurements and generated evidence; preserve user content |
 
 The Inacord UI is the primary application surface, retaining all its features. Its principal

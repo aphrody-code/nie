@@ -2,10 +2,10 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Types TS : `packages/inagle/src/skills/types.ts` (`PassiveScope` l.165,
+//! - Types TS : `inagle` (`PassiveScope` l.165,
 //!   `PassiveBoostType` l.168-184, `PASSIVE_BOOST_NAMES` l.195-212).
-//! - Parser : `packages/inagle/src/parsers/passive-skill-config.ts` (collectEffects l.115-133,
-//!   collectSkills l.136-180) ; classification : `packages/inagle/src/skills/mapper-passive.ts`
+//! - Parser : `inagle` (collectEffects l.115-133,
+//!   collectSkills l.136-180) ; classification : `inagle`
 //!   (`detectScope` l.131-161, `detectBoostType` l.165-225).
 //! - Données : `data/common/gamedata/skill/passive_skill_config_5.00.07.00.cfg.bin.json`.
 //!

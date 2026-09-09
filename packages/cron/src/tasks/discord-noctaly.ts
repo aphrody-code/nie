@@ -48,8 +48,8 @@ import { join } from "node:path";
 import { depotRoseGriffon } from "../lib/racine";
 
 /**
- * Le bot communautaire est resté dans `rg` (cf. `docs/FUSION.md`) : son dossier est résolu
- * à l'exécution, jamais par un nombre de « .. » qui change de sens selon le dépôt d'où le
+ * Le bot communautaire reste dans un dépôt externe : son dossier est résolu à l'exécution,
+ * jamais par un nombre de « .. » qui change de sens selon le dépôt d'où le
  * démon tourne — depuis ici, quatre niveaux au-dessus désignaient un `apps/bot` inexistant.
  */
 const RG = depotRoseGriffon();

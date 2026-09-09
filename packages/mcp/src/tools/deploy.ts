@@ -22,8 +22,9 @@ const DEPLOY_SCRIPT = "scripts/ops/deploy.ts";
 const RELEASES_ROOT = "/home/ubuntu/rg-releases";
 const BUN_BIN = "/home/ubuntu/.bun/bin/bun";
 
-/** Surfaces déployables. `all` traite les deux dans l'ordre. */
-const APPS = ["azalee", "website", "all"] as const;
+/** The Rust site is the only deployable web surface. */
+const STATUS_APPS = ["website", "all"] as const;
+const DEPLOY_APPS = ["website"] as const;
 
 /**
  * Modes de publication. `deploy` construit puis bascule ; `reload` republie la version
@@ -77,7 +78,7 @@ export function deployTools(options: DeployToolsOptions): RegisteredTool[] {
 			description:
 				"Version en production de chaque surface (wiki Azalée, site principal), slot servi par nginx, prévisualisation éventuelle, mémoire disponible et santé publique. À appeler avant et après une publication, et pour suivre une publication en cours.",
 			inputSchema: z.object({
-				app: z.enum(APPS).default("all").describe("Surface concernée."),
+				app: z.enum(STATUS_APPS).default("all").describe("Surface concernée."),
 				logLines: z
 					.int()
 					.min(0)
@@ -99,7 +100,7 @@ export function deployTools(options: DeployToolsOptions): RegisteredTool[] {
 					return toolError(`sortie inattendue de ${DEPLOY_SCRIPT} :\n${sortie.slice(0, 2000)}`);
 				}
 				if (logLines === 0) return structured(état as Record<string, unknown>);
-				const cibles = app === "all" ? ["azalee", "website"] : [app];
+				const cibles = [app];
 				const journaux: Record<string, unknown> = {};
 				for (const cible of cibles) journaux[cible] = await dernierJournal(cible, logLines);
 				return structured({ ...(état as Record<string, unknown>), journaux });
@@ -113,7 +114,7 @@ export function deployTools(options: DeployToolsOptions): RegisteredTool[] {
 				"Lance une publication bleu/vert : le nouveau build démarre sur un second port, est sondé, puis nginx bascule — le site ne tombe à aucun moment. La commande est détachée et rend aussitôt le chemin de son journal : suivre l'avancement avec deploy_status (logLines > 0). Un build complet prend une dizaine de minutes ; utiliser build: false pour republier des artefacts déjà bâtis.",
 			scope: "admin",
 			inputSchema: z.object({
-				app: z.enum(APPS).describe("Surface à publier."),
+				app: z.enum(DEPLOY_APPS).describe("Surface à publier."),
 				mode: z.enum(MODES).default("deploy").describe("Nature de la publication."),
 				build: z.boolean().default(true).describe("Reconstruire (false = publier les artefacts existants)."),
 				typeCheck: z.boolean().default(true).describe("Exiger un type-check vert avant de construire."),

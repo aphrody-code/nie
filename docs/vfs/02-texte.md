@@ -195,9 +195,9 @@ faute de build autorisé pendant cette session). Aucun module `nie-data` nommé 
 
 ### packages/
 
-`packages/nie-catalog/src/{game.ts,synergy.ts,anime.ts,cli.ts}` référencent `text`/`font`
+`packages/asset-source/src/url-conventions.ts` and the Rust wiki/CLI reference `text`/`font`
 (recherche `rg`), mais dans des contextes génériques (variables, pas une façade dédiée au texte
-localisé) — **pas de gisement `nie-catalog` propre à la localisation** identifié.
+localisé) — localization remains owned by the VFS text readers.
 
 ## 4. Ce que le site sert déjà (mesuré, aphrody 127.0.0.1:8085 / nie-model-serve 127.0.0.1:8790)
 

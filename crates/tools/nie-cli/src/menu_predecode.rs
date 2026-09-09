@@ -10,8 +10,7 @@
 //! 3. Décode le DDS (BC1/BC3/BC7/RGBA8) en RGBA via `image_dds`.
 //! 4. Encode en PNG et écrit à `<dump_root>/<chemin relatif sans data/>.png` (idempotent).
 //!
-//! Priorité : sprites des 32 écrans MENU_SCREEN_IDS des layouts azalee, puis tous les
-//! g4tx menu `fr`, `en` et la base (sans dossier langue) si `--all`.
+//! The CLI scans every indexed menu texture, covering localized and base variants.
 //!
 //! Concurrence : pool Rayon (threads = nb CPUs, saturé sur les décodages BCn).
 
@@ -64,9 +63,11 @@ pub fn run(
     // --- Collecte des chemins à traiter ---
     let mut indexed = Vec::new();
 
-    // Priorité : chemins fournis par l'appelant (sprites layouts azalee).
+    // Resolve explicitly prioritized paths first. The current CLI passes none;
+    // library callers may still provide paths from their own index.
     for p in priority_paths {
-        // logicalPath azalee = "dx11/menu/..." -> Redis key = "data/dx11/menu/..."
+        // A logical VFS path such as "dx11/menu/..." maps to the Redis key
+        // "data/dx11/menu/...".
         let redis_key = format!("data/{p}");
         let cpk: Option<String> = redis::cmd("HGET")
             .arg("iev:file:index")

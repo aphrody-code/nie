@@ -5875,31 +5875,7 @@ fn resolve_db(racine: &Path, db_override: Option<&Path>) -> Option<PathBuf> {
                 p.extension().map(|e| e == "sqlite").unwrap_or(false)
                     && p.file_name()
                         .and_then(|n| n.to_str())
-                        .map(|s| s.starts_with("supabase-"))
-                        .unwrap_or(false)
-            })
-            .collect();
-        candidates.sort();
-        if let Some(p) = candidates.last() {
-            return Some(p.clone());
-        }
-    }
-
-    // Fallback : miroir azalee.
-    let Ok(azalee_backups) = std::env::var("AZALEE_BACKUPS").map(PathBuf::from) else {
-        return None;
-    };
-    if azalee_backups.is_dir() {
-        let mut candidates: Vec<PathBuf> = fs::read_dir(&azalee_backups)
-            .into_iter()
-            .flatten()
-            .flatten()
-            .map(|e| e.path())
-            .filter(|p| {
-                p.extension().map(|e| e == "sqlite").unwrap_or(false)
-                    && p.file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|s| s.starts_with("supabase-"))
+                        .map(|s| s.starts_with("inagle-"))
                         .unwrap_or(false)
             })
             .collect();

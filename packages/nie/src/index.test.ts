@@ -11,7 +11,10 @@
  */
 
 import { test, expect, describe } from "bun:test";
-import { crc32, CRand, version } from "./index.ts";
+import { resolve } from "node:path";
+import { crc32, CRand, version, wiki } from "./index.ts";
+
+const REPOSITORY_ROOT = resolve(import.meta.dir, "../../..");
 
 // ─── référence CRC32 pure-JS (IEEE 802.3, poly 0xEDB88320) ────────────────────
 const _crcTable: Uint32Array = (() => {
@@ -156,6 +159,19 @@ describe("CRand (Rust nie_crand_* via FFI)", () => {
     using a = new CRand(0xbeef);
     using b = new CRand(0xbeef);
     for (let i = 0; i < 50; i++) expect(a.nextU32()).toBe(b.nextU32());
+  });
+});
+
+describe("wiki (Rust nie_wiki_json_out via FFI)", () => {
+  test("searches the read-only mirror without a TypeScript game-data provider", () => {
+    const rows = wiki<Array<{ entity_type: string; id: string; name: string }>>({
+      op: "search",
+      query: "Mark Evans",
+      limit: 5,
+      database: resolve(REPOSITORY_ROOT, "var/mirror.sqlite"),
+    });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.entity_type.length > 0 && row.id.length > 0)).toBe(true);
   });
 });
 

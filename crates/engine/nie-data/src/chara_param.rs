@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS : `packages/inagle/src/parsers/chara-param.ts` (`parseParamNode` l.71-152,
+//! - Parser TS : `inagle` (`parseParamNode` l.71-152,
 //!   helpers `positionIdToCode`/`elementIdToNames` l.221-260).
 //! - Données : `/home/ubuntu/niers/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json`.
 //!
@@ -14,7 +14,7 @@
 //!
 //! ## Extraction des techniques (port 1:1 d'inagle — vérité terrain)
 //!
-//! On porte **exactement** la logique d'inagle `packages/inagle/src/parsers/chara-param.ts`
+//! On porte **exactement** la logique d'inagle `inagle`
 //! (l.102-118) : lecture **LEVEL-FIRST à partir de l'index 10**, 9 slots :
 //! `(niveau@10, hash@11), (niveau@12, hash@13), …`. On valide le **niveau ∈ [0,99]** (le hash
 //! = toute valeur 32 bits ≠ 0) et on **saute** les slots invalides (pas de `break`, comme

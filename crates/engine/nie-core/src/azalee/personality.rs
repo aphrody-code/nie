@@ -1,6 +1,6 @@
 //! French labels for IEVR character personalities.
 //!
-//! Source of truth: `packages/azalee/src/game/personality.ts`. The table is
+//! Source of truth: the native IEVR personality table. The table is
 //! intentionally total only for known game values: missing data is `Inconnu`
 //! and an unseen numeric value remains visible as `Type <n>`.
 

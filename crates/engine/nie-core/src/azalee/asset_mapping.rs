@@ -1,6 +1,6 @@
 //! Transformations pures de codes d'assets IEVR.
 //!
-//! `packages/azalee/src/images/utils.ts` mélangeait les règles de code du jeu avec les URLs et
+//! The former web image utility mixed game-code rules with URLs and
 //! les manifests CDN. Ce module ne connaît ni CDN ni manifest : il porte uniquement les
 //! transformations déterministes que tous les hosts peuvent réutiliser. La présence effective
 //! d'un fichier reste une décision de l'index VFS ou d'un manifest vérifié par le host.

@@ -46,7 +46,7 @@ export function repoTools(options: RepoToolsOptions): RegisteredTool[] {
 			description:
 				"Liste les fichiers et dossiers d'un répertoire du monorepo Rose Griffon sur le VPS. Chemin relatif à la racine du dépôt ; vide = racine. Les secrets, sauvegardes, binaires et node_modules sont masqués.",
 			inputSchema: z.object({
-				path: z.string().default("").describe("Chemin relatif, ex. `packages/azalee/src`."),
+				path: z.string().default("").describe("Repository-relative path, e.g. `crates/tools/nie-wiki/src`."),
 				depth: z.int().min(1).max(3).default(1).describe("Profondeur de récursion."),
 			}),
 			annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },

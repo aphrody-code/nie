@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/ctrl-chara-config.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseEntries`, `buildCtrlCharaDatabase`) — **port 1:1**.
 //! - Données : `data/common/gamedata/party/ctrl_chara_config_1.04.17.00.cfg.bin` (VFS IEVR),
 //!   format **T2B** (`entries`).

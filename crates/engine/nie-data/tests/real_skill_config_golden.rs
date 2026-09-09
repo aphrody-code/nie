@@ -4,7 +4,7 @@
 //!
 //! Extraction : `cargo run -p nie-game --example extract_real_skill` (RDBN → JSON iecode
 //! `lists`, via `cfgbin::read_values`). Port 1:1 d'inagle
-//! `packages/inagle/src/parsers/real-skill-config.ts`. Vérité terrain = la sortie du dump.
+//! `inagle`. Vérité terrain = la sortie du dump.
 //!
 //! Le dump a 2 listes : `m_RealSkillShootCourseInfoList` (6 courbes) et
 //! `m_RealSkillInfoList` (19 tirs). La fixture embarque les 6 courbes + un sous-ensemble

@@ -7,7 +7,7 @@
 //! - Dump réel (VFS) : `data/common/gamedata/skill/change_aura_skill_config_1.01.73.00.cfg.bin`.
 //! - Format **RDBN à listes** (`{ "lists": [ { "name", "typeName", "values" } ] }`), décodé en
 //!   forme iecode par `nie-model-serve::cfgbin_to_iecode_root`.
-//! - Référence de portage : `packages/inagle/src/parsers/change-aura-skill-config.ts`
+//! - Référence de portage : `inagle`
 //!   (`parseContent` l.45-66, `buildChangeAuraSkillDatabase` l.81-100).
 //!
 //! Ce fichier est **distinct** de `aura_skill_config` (noeuds `AURA_CMD_INFO_*`, porté par le

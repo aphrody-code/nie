@@ -16,7 +16,7 @@
 
 <p align="center">
   <strong>Desktop app</strong> (VFS explorer + Blender add-on):
-  <a href="https://azalee.rosegriffon.fr/tools/niers">azalee.rosegriffon.fr/tools/niers</a>
+  <a href="https://nie.aphrody.com">nie.aphrody.com</a>
 </p>
 
 ## Table of contents
@@ -177,24 +177,22 @@ The work used to be spread across three repositories. The same character existed
 — a row in the wiki's database, files in the VFS, strings in the reversed binary, an episode in
 the anime catalogue — and nothing joined those four existences.
 
-They now sit under one root, and `@niers/catalog` is the joint:
+They now sit under one root, with Rust as the owner of the VFS, wiki mirror, formats, and reverse
+bindings:
 
 ```bash
-bun --bun packages/nie-catalog/src/cli.ts etat
-bun --bun packages/nie-catalog/src/cli.ts personnage mark-evans-0x06E25622
+niers wiki chara "Mark Evans" --json
+niers vfs find "mark" --json
 ```
 
 | Source | What it holds | Where it lives |
 | --- | --- | --- |
-| **jeu** | the game's files, decoded on demand | `nie-model-serve` — `NIE_CDN_URL` |
-| **extrait** | 66 `inagle_*` tables pulled from those files | `var/mirror.sqlite` |
-| **re** | the reverse of `nie.exe` | `var/niers.sqlite` |
-| **anime** | the series' episodes | `data/anime/episodes.db` |
+| **VFS** | the game's files, decoded on demand | `nie.exe`/`nie-model-serve` |
+| **wiki** | read-only mirror queries and joins | `nie-wiki` + `var/mirror.sqlite` |
+| **reverse** | the reverse of `nie.exe` | `var/niers.sqlite` |
 
-Every join carries how it was obtained — a shared key, a path prefix, or a name match. That last
-one matters: the game and the series share no key at all, so a name match is useful but is never
-presented as a fact. See [`docs/FUSION.md`](docs/FUSION.md) and
-[`packages/nie-catalog/README.md`](packages/nie-catalog/README.md).
+Every IEVR query is implemented in Rust and reads only the local VFS or its read-only mirror.
+See [`PLAN.md`](PLAN.md) for the measured ownership and verification ledger.
 
 ## Platform support
 
@@ -328,7 +326,7 @@ game does: no translated slug ever identifies a file. Only reproducible results 
 Eleven content covered by the agreement below are published; no personal data and no secret,
 ever — the origin does not even name itself, `/healthz` returning measured capabilities and
 neither a service name nor a version. Deployment (vhosts and units) is versioned under
-[`deploy/`](deploy/README.md). Decisions and versions: [`docs/stack/`](docs/stack/README.md);
+[`deploy/`](deploy/README.md). Decisions and versions: [`PLAN.md`](PLAN.md);
 week plan: [`PLAN.md`](PLAN.md); build and security rules: [`AGENTS.md`](AGENTS.md).
 
 ## Contributing

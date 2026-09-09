@@ -141,12 +141,12 @@ async function translateWithGlossary(
 
 /**
  * Traduction auto via Grok (OIDC SuperGrok keyless natif, comme dans bxc xai)
- * + sync avec glossaire Azalée (data/glossary.json partagé avec le traducteur Azalée /tools/translator).
+ * + sync avec the shared game glossary.
  * Utilisé prioritairement pour tweets AkihiroHino (CEO) et contenus JA IE, pour qualité lore/termes jeu.
  */
 async function translateWithGrok(text: string, from: string, to: string): Promise<string> {
 	if (!text.trim()) return text;
-	const system = `Expert traducteur Inazuma Eleven / Level-5 pour le wiki Azalée (Rose Griffon, azalee.rosegriffon.fr). Traduis le tweet ci-dessous de ${from} vers ${to} (français naturel et fidèle). 
+	const system = `Expert translator for Inazuma Eleven / Level-5 and the nie game wiki. Translate the following tweet from ${from} to ${to} (natural, faithful French).
 
 Règles Azalée:
 - Noms persos, hissatsu, termes jeu, "Inazuma Eleven", "Victory Road", "Cross" etc. : garde EXACTS ou utilise équiv FR du glossaire Azalée (ex: ne traduis pas "God Hand" en "Main de Dieu" sauf si glossaire le fait).
@@ -286,7 +286,7 @@ export async function processTweets() {
 							console.error(`[Media] Upload failed:`, uploadErr);
 							updatedMedia.push(item);
 						} else {
-							const publicUrl = `https://azalee.rosegriffon.fr/storage/v1/object/public/tweets/${storagePath}`;
+							const publicUrl = `https://rosegriffon.fr/storage/v1/object/public/tweets/${storagePath}`;
 							const originalUrl = item.original_url || item.url;
 							const originalPreviewUrl = item.original_previewUrl || item.previewUrl;
 

@@ -3,7 +3,7 @@
 //! `data/common/gamedata/character/chara_costume_1.02.28.00.cfg.bin`
 //! (jeu Steam « INAZUMA ELEVEN Victory Road »).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/chara-costume-config.ts` (`parseEntries`
+//! Port 1:1 d'inagle `inagle` (`parseEntries`
 //! l.39-61) : une seule liste `CHARA_COSTUME_MODEL_LIST_BEG_0` contenant 577 enfants
 //! (le commentaire d'inagle dit « 576 » mais le dump reel en a 577 ; sa variable d'en-tete
 //! vaut 577). Chaque enfant = 4 variables Int `[type, modelRefCrc, flag1, flag2]`,

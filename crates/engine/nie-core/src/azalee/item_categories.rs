@@ -1,6 +1,6 @@
 //! French labels for IEVR item categories.
 //!
-//! Source of truth: `packages/azalee/src/game/item-categories.ts`. This is a
+//! Source of truth: the native IEVR item-category contract. This is a
 //! deterministic lookup table; unknown non-empty identifiers are returned
 //! unchanged so a new game category is never silently hidden.
 

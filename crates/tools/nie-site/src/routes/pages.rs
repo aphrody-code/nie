@@ -304,7 +304,7 @@ fn accueil(langue: Langue) -> (String, String) {
 
 /// Nombre d'entrées rendues par page de catalogue.
 ///
-/// 60, la même valeur qu'`apps/azalee` a retenue après avoir mesuré une page de 2 355 397
+/// 60, the same value retained after measuring a page of 2,355,397
 /// octets à 200 entrées. Au-delà, le poids de la page cesse d'être proportionnel à ce qu'un
 /// visiteur lit réellement.
 pub const PAR_PAGE: usize = 60;

@@ -1,6 +1,6 @@
 //! IEVR gender normalization.
 //!
-//! Source of truth: `packages/azalee/src/game/gender.ts`. The data layer uses
+//! Source of truth: the native IEVR gender table. The data layer uses
 //! numeric `0`/`1`, while database and API rows can use `M`/`F`, full English
 //! words, or their numeric strings. Missing values are treated as male by the
 //! historical normalization contract; unknown strings are neither gender.

@@ -3,7 +3,7 @@
 //!
 //! # Source de vérité
 //!
-//! - Logique : `packages/inagle/src/skills/mapper-aura.ts`
+//! - Logique : `inagle`
 //!   (`parseAuraCmdInfo` L389-469 pour les index de variables, `getElement`
 //!   vars[8] L320-329, `determineSubType` L232-293, `resolveAuraHissatsu`
 //!   L181-216, `toHex` L221-226).

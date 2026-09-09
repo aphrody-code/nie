@@ -5,7 +5,7 @@
 //! Extraction : `cargo run -p nie-model-serve --example extract_skill_technic` (jetable),
 //! qui décode le RDBN via `nie_formats::cfgbin` puis le projette en JSON iecode
 //! (`Hash → "0x........"`, `Byte`/`Float → nombre`). Port 1:1 d'inagle
-//! `packages/inagle/src/parsers/skill-technic-config.ts` (`parseContent`, l.44-66).
+//! `inagle` (`parseContent`, l.44-66).
 //!
 //! Vérité terrain = la sortie de l'exemple d'extraction sur le vrai nœud du VFS :
 //! 6 valeurs, 5 champs (`id`, `winSubMotionNameCrc`, `loseSubMotionNameCrc`, `formationType`,

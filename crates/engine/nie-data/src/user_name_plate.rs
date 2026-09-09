@@ -28,7 +28,7 @@
 //! `enableCond` is an opaque base64 condition. The unsigned -1 sentinel is normalized to an
 //! empty string for entries that have no activation condition.
 //!
-//! Le parser inagle (`packages/inagle/src/parsers/nameplate-config.ts`) n'expose qu'un
+//! Le parser inagle (`inagle`) n'expose qu'un
 //! sous-ensemble des champs (id, nameId, sortNo, image, fontStyle, flagIndex, enableCond) ;
 //! on conserve ici **tous** les champs du dump, y compris les trois CRC de texture.
 

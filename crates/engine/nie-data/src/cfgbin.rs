@@ -18,8 +18,8 @@
 //! renvoyaient des listes **vides sans erreur**. Les deux formes sont donc reconnues ici, à
 //! l'unique endroit où les variables sont lues, ce qui vaut pour toute la famille `nie-data`.
 //!
-//! Source : `packages/inagle/src/core/config-parser.ts` (ConfigNode/ConfigVariable),
-//! `packages/inagle/src/characters/types.ts` (CfgBinEntry/CfgBinVariable). Échantillon réel :
+//! Source : `inagle` (ConfigNode/ConfigVariable),
+//! `inagle` (CfgBinEntry/CfgBinVariable). Échantillon réel :
 //! `/home/ubuntu/niers/data/common/text/fr/skill_text.cfg.bin.json`.
 
 use alloc::string::String;

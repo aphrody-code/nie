@@ -3,8 +3,8 @@
 	"compilerOptions": {
 		"noEmit": true,
 		"declaration": false,
-		// Aligné sur `packages/azalee` : ce paquet importe ses sources TypeScript
-		// directement (pas de `dist`), donc elles sont vérifiées avec NOS options.
+		// This package imports workspace TypeScript sources directly (not `dist`),
+		// so they are checked with this package's options.
 		// Sans cet alignement, tsc rapporte les erreurs d'un autre paquet.
 		"noUncheckedIndexedAccess": false,
 		"types": ["bun"],

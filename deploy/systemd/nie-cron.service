@@ -42,7 +42,6 @@ Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:
 
 # Cibles publiques. Le code a les mêmes valeurs en repli, mais les rendre explicites permet de
 # basculer un environnement sans recompiler.
-Environment=AZALEE_URL=https://azalee.rosegriffon.fr
 Environment=WEBSITE_URL=https://rosegriffon.fr
 Environment=API_URL=https://api.rosegriffon.fr
 Environment=CDN_URL=https://cdn.rosegriffon.fr
@@ -90,7 +89,7 @@ ProtectHome=read-only
 #   (`cron.sock`). Sans cette entrée la tâche `stats:achillea` échoue en EROFS et le pont ne
 #   s'ouvre pas.
 # `/home/ubuntu/.bxc` : l'état de l'automatisation de navigateur.
-ReadWritePaths=/home/ubuntu/niers /home/ubuntu/rg /tmp /home/ubuntu/.bxc /var/www/cdn/static/azalee/public /var/www/cdn/static/website/public /var/lib/rg
+ReadWritePaths=/home/ubuntu/niers /home/ubuntu/rg /tmp /home/ubuntu/.bxc /var/www/cdn/static/website/public /var/lib/rg
 PrivateTmp=true
 PrivateDevices=true
 ProtectKernelTunables=true

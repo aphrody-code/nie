@@ -1,8 +1,8 @@
 # @rosegriffon/mcp
 
-Serveur **Model Context Protocol** du monorepo Rose Griffon : il ouvre à un
-agent les données extraites d'*Inazuma Eleven: Victory Road* (wiki Azalée,
-miroir SQLite, index des fichiers du jeu, texte du jeu) ainsi que le dépôt et
+Model Context Protocol server for the monorepo: it exposes the Rust-owned
+*Inazuma Eleven: Victory Road* wiki, the local SQLite mirror, the VFS index and
+game text, as well as the repository and
 l'état de la production. Deux portées, décidées par le jeton présenté :
 **lecture seule** par défaut, **écriture complète** avec le jeton
 d'administration.
@@ -37,8 +37,8 @@ pwsh scripts/mcp/install.ps1 -Jeton "<jeton>" -Admin   # …en écriture
 
 ## Ce qu'il expose
 
-**20 outils de lecture** — `azalee_search`, `azalee_get`, `azalee_list`,
-`azalee_dataset` ; `db_tables`, `db_schema`, `db_query` ; `cpk_browse`,
+**20 read tools** — `azalee_search`, `azalee_get`, `azalee_list`,
+`azalee_dataset` (all backed by Rust `nie-wiki`); `db_tables`, `db_schema`, `db_query` ; `cpk_browse`,
 `cpk_search`, `cpk_file` ; `game_text_search` ; `rag_search` ; `repo_list`,
 `repo_read`, `repo_grep`, `repo_git` ; `ops_status`, `ops_logs`, `ops_http` ;
 `access_info`.

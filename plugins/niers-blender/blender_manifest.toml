@@ -1,25 +1,23 @@
-# Manifeste d'extension Blender (plateforme Extensions, Blender ≥4.2) pour `niers`, dossier
-# `plugins/niers-blender` — cf. `niers_bridge.py` : recherche fichiers/chara/waza (VFS + miroir
-# SQLite + azalee), import direct. Le DÉCODAGE G4 sous-jacent (parsers G4MD/G4MG/G4SK/G4MT/G4PKM)
-# est le travail amont de Bobi (github.com/The-RealBobi/G4_Blender) — attribution en `copyright`
-# ci-dessous.
+# Blender Extensions manifest (Blender >=4.2) for `niers`, in `plugins/niers-blender`.
+# `niers_bridge.py` searches files/chara/waza through the VFS and the local SQLite mirror.
+# G4 decoding (G4MD/G4MG/G4SK/G4MT/G4PKM parsers) comes from Bobi's upstream project
+# (github.com/The-RealBobi/G4_Blender), credited below.
 #
-# Modernisation locale d'un addon tiers non licencié en amont (`license` GitHub = null, aucun
-# fichier LICENSE) — republication + modification confirmées autorisées par le propriétaire du
-# projet niers (cf. `NIERS_VENDORING_NOTE.md`). `license` ci-dessous (GPL-3.0-or-later) reflète
-# la convention de facto de l'écosystème addons Blender pour tout code important `bpy` (Blender
-# lui-même est GPL) — PAS une affirmation sur l'intention réelle de l'auteur amont (Bobi).
+# Local modernization of an upstream addon with no declared license (`license` on GitHub is null
+# and no LICENSE file exists). Redistribution and modification are authorized by the niers project
+# owner (see `NIERS_VENDORING_NOTE.md`). The GPL-3.0-or-later declaration follows Blender's addon
+# ecosystem convention for substantial `bpy` code and does not assert the upstream author's intent.
 #
-# Schéma de référence : https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html
-# et https://developer.blender.org/docs/features/extensions/api_listing/v1/ (vérifiés 2026-08).
+# Reference schema: https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html
+# and https://developer.blender.org/docs/features/extensions/api_listing/v1/.
 
 schema_version = "1.0.0"
 
 id = "niers"
 version = "1.1.0"
 name = "niers"
-tagline = "Assets Level-5 G4 (Inazuma Eleven VR) + recherche VFS/azalee"
-maintainer = "niers — décodage G4 amont par Bobi (github.com/The-RealBobi/G4_Blender)"
+tagline = "Level-5 G4 assets (Inazuma Eleven VR) + VFS/wiki search"
+maintainer = "niers — upstream G4 decoding by Bobi (github.com/The-RealBobi/G4_Blender)"
 type = "add-on"
 website = "https://github.com/aphrody-code/nie"
 
@@ -29,8 +27,8 @@ tags = [
 	"Rigging",
 ]
 
-# Extensions n'existe qu'à partir de 4.2 ; le code lui-même visait 4.0 en legacy add-on
-# (ancien bl_info, conservé en parallèle — un addon peut avoir les deux formats, cf. `__init__.py`).
+# Extensions are available from 4.2; the code also supports the legacy addon format
+# (the old bl_info is retained in parallel; see `__init__.py`).
 blender_version_min = "4.2.0"
 
 license = [
@@ -40,24 +38,23 @@ copyright = [
 	"2026 Bobi",
 ]
 
-# Aucune roue tierce : dépendances = bibliothèque standard Python (dont `sqlite3`/`urllib`,
-# ajoutées 2026-08-08 pour `niers_bridge.py`) + bpy/mathutils (fournis par Blender). Vérifié par
-# grep sur tous les fichiers de l'addon.
+# No third-party wheels: dependencies are Python's standard library plus bpy/mathutils supplied by
+# Blender. Wiki queries run through the Rust `niers` CLI; this addon has no database or HTTP client.
 # wheels = []
 
 [permissions]
-files = "Lit/ecrit les G4MD/G4MG/G4SK/G4PKM + le miroir wiki SQLite"
-network = "Recherche personnage/technique via l'API azalee.rosegriffon.fr"
+files = "Reads and writes G4MD/G4MG/G4SK/G4PKM plus the local wiki mirror"
+network = "No network access; wiki queries use the local Rust CLI"
 
 [build]
-# Exclut les artefacts de développement du paquet d'extension (tests, cache Python, images de
-# documentation). N'affecte pas l'usage courant, qui importe directement via `sys.path`.
+# Exclude development artifacts from the extension package (tests, Python cache, documentation
+# images). This does not affect direct development imports through `sys.path`.
 #
-# La clé est `paths_exclude_pattern` (syntaxe gitignore-like), vérifiée par un build réel :
-# `paths_exclude_glob` est silencieusement ignoré par Blender et n'exclut RIEN.
+# The key is `paths_exclude_pattern` (gitignore-like syntax). Blender silently ignores
+# `paths_exclude_glob`.
 #
-# Déclarer cette clé REMPLACE le défaut Blender au lieu de l'étendre : les entrées Git doivent
-# donc y figurer explicitement, sinon elles atterrissent dans le .zip.
+# Declaring this key replaces Blender's default instead of extending it, so Git entries must be
+# listed explicitly or they will be included in the ZIP.
 paths_exclude_pattern = [
 	"__pycache__/",
 	"tests/",

@@ -50,8 +50,8 @@ const TEXTE: &str = "data/common/text/**";
 /// spirits) que `dx11` n'adresse pas ; conservé pour ne rien perdre.
 const ASSETS: &str = "data/dx11/**,data/chr/**";
 
-/// Noms de presets disponibles, dans l'ordre d'affichage de l'aide.
-pub const NOMS: [&str; 3] = ["inagle", "azalee", "inagle-azalee"];
+/// Available dump presets, in help display order.
+pub const NOMS: [&str; 3] = ["wiki", "assets", "full"];
 
 /// Globs des catégories gamedata, une entrée précise par catégorie.
 fn gamedata() -> String {
@@ -71,9 +71,9 @@ pub fn resoudre(nom: &str) -> Option<String> {
     let n = nom.trim().to_ascii_lowercase();
     let g = gamedata();
     match n.as_str() {
-        "inagle" => Some(format!("{g},{TEXTE}")),
-        "azalee" => Some(format!("{g},{ASSETS}")),
-        "inagle-azalee" => Some(format!("{g},{TEXTE},{ASSETS}")),
+        "wiki" => Some(format!("{g},{TEXTE}")),
+        "assets" => Some(format!("{g},{ASSETS}")),
+        "full" => Some(format!("{g},{TEXTE},{ASSETS}")),
         _ => None,
     }
 }
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn les_21_categories_sont_toutes_presentes() {
-        let spec = resoudre("inagle").unwrap();
+        let spec = resoudre("wiki").unwrap();
         for c in CATEGORIES_GAMEDATA {
             assert!(
                 spec.contains(&format!("gamedata/{c}/**")),
@@ -121,20 +121,19 @@ mod tests {
     /// Ce que les presets retiennent et écartent, sur de vrais chemins du VFS.
     #[test]
     fn les_presets_selectionnent_ce_qu_ils_annoncent() {
-        let inagle = Filtre::parse(&resoudre("inagle").unwrap());
-        assert!(inagle.accepte("data/common/gamedata/skill/skill_config_4.00.17.00.cfg.bin"));
-        assert!(inagle.accepte("data/common/text/fr/chara_text.cfg.bin"));
+        let wiki = Filtre::parse(&resoudre("wiki").unwrap());
+        assert!(wiki.accepte("data/common/gamedata/skill/skill_config_4.00.17.00.cfg.bin"));
+        assert!(wiki.accepte("data/common/text/fr/chara_text.cfg.bin"));
         // Les catégories volumineuses jamais lues restent dehors.
-        assert!(!inagle.accepte("data/common/gamedata/event/ev01/x.cfg.bin"));
-        assert!(!inagle.accepte("data/common/gamedata/map/w10/y.cfg.bin"));
-        // inagle ne prend pas les textures…
-        assert!(!inagle.accepte("data/dx11/chr/_face/01_ie1/c01001900/c01001900.g4tx"));
-        // …azalee si.
-        let azalee = Filtre::parse(&resoudre("azalee").unwrap());
-        assert!(azalee.accepte("data/dx11/chr/_face/01_ie1/c01001900/c01001900.g4tx"));
-        assert!(azalee.accepte("data/chr/quelque/chose"));
-        // Le cumul des deux.
-        let tout = Filtre::parse(&resoudre("inagle-azalee").unwrap());
+        assert!(!wiki.accepte("data/common/gamedata/event/ev01/x.cfg.bin"));
+        assert!(!wiki.accepte("data/common/gamedata/map/w10/y.cfg.bin"));
+        // The wiki preset does not include textures.
+        assert!(!wiki.accepte("data/dx11/chr/_face/01_ie1/c01001900/c01001900.g4tx"));
+        let assets = Filtre::parse(&resoudre("assets").unwrap());
+        assert!(assets.accepte("data/dx11/chr/_face/01_ie1/c01001900/c01001900.g4tx"));
+        assert!(assets.accepte("data/chr/quelque/chose"));
+        // The full preset combines both sets.
+        let tout = Filtre::parse(&resoudre("full").unwrap());
         assert!(tout.accepte("data/common/text/fr/chara_text.cfg.bin"));
         assert!(tout.accepte("data/dx11/menu/200_icon/02_icon_item/x.g4tx"));
     }

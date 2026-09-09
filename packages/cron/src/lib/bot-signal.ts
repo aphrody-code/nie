@@ -3,8 +3,8 @@
  *
  * Deux responsabilités, une seule porte d'entrée pour `index.ts` :
  *
- *  1. `demarrerPontBot()` monte la socket UNIX (`./ipc-unix.ts`) avec le
- *     catalogue des 18 tâches et l'exécuteur du démon ;
+ *  1. `demarrerPontBot()` mounts the UNIX socket (`./ipc-unix.ts`) with the
+ *     task catalogue and daemon executor;
  *  2. il démarre la VEILLE DES TWEETS, qui pousse `tweets.signal` au bot quand
  *     la récolte a écrit du nouveau.
  *
@@ -22,7 +22,6 @@ import { syncCdnAssets } from "../tasks/cdn";
 import { runIeCrawl } from "../tasks/ie-crawl";
 import { crawlHashtagCampaigns } from "../tasks/ie-crawl/hashtag-harvest";
 import { runRagSync } from "../tasks/ie-crawl/rag-index";
-import { runInaglePush } from "../tasks/db";
 import { runDiscordSync, runDiscordChannelScan } from "../tasks/discord";
 import { runDiscordMessagesSync, runDiscordMessagesBackfill } from "../tasks/discord-messages";
 import { runDiscordPollsImport } from "../tasks/discord-polls";
@@ -33,7 +32,6 @@ import {
 	triggerGithubPublishWorkflow,
 	triggerPatreonRefresh,
 	triggerPatreonReminders,
-	triggerPublishScheduled,
 	warmCaches,
 } from "../tasks/api";
 import { sql } from "./db";
@@ -54,11 +52,9 @@ export const INTERVALLE_VEILLE_TWEETS_MS = 60_000;
 /** Fonctions exécutables du démon, nom canonique → tâche. */
 function catalogueTaches(): Record<string, () => Promise<unknown>> {
 	return {
-		db: runInaglePush,
 		cdn: syncCdnAssets,
 		crawl: runIeCrawl,
 		rag: runRagSync,
-		publish: triggerPublishScheduled,
 		"github-publish": triggerGithubPublishWorkflow,
 		patreon: triggerPatreonRefresh,
 		reminders: () => triggerPatreonReminders("announce"),
@@ -77,9 +73,7 @@ function catalogueTaches(): Record<string, () => Promise<unknown>> {
 
 /** Planifications, telles qu'annoncées par `GET :3005/tasks`. */
 const PLANIFICATIONS: Record<string, string> = {
-	publish: "*/15 * * * *",
 	warm: "*/30 * * * *",
-	db: "0 2 * * *",
 	patreon: "0 3 * * *",
 	cdn: "0 4 * * *",
 	"github-publish": "30 4 * * *",

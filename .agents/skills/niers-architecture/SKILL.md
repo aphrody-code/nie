@@ -25,15 +25,12 @@ The supplied Inacord explorer and game main-menu captures are visual references.
 captures must never become runtime screen textures. Neither reference authorizes fake gameplay,
 substitute artwork or the removal of application features.
 
-## Azalee product boundary
+## Public site boundary
 
-Azalee is the separate public news, article and pure-wiki site. It is not Niers or Inacord and
-must not absorb the explorer, editor, native game runtime, VFS mutation, mods, reverse-engineering
-or desktop tool surfaces. Azalee owns its editorial UI, public wiki composition, publishing,
-authentication and news/wiki backend. Portable editorial and community rules belong in
-`packages/azalee`; generic UI primitives may come from `packages/ui`. Game-data lookups reach
-`nie-wiki` or another existing Rust owner through an Azalee adapter. Do not move an Azalee-only
-news component into `packages/inacord-ui` merely to reduce duplication counts.
+The public site is `nie-site`, implemented in Rust. It owns IEVR pages, read-only API routes and
+the local mirror boundary. It must not absorb desktop-only VFS mutation, mods, reverse engineering
+or native game runtime state. Bun remains an operational transport only; no TypeScript game-data
+parser or cloud-backed IEVR adapter is permitted.
 
 ## One implementation per role
 
@@ -52,8 +49,8 @@ news component into `packages/inacord-ui` merely to reduce duplication counts.
 | Lua execution and observed native callbacks | `nie-lua` |
 | Scene documents, models and rendering | `nie-render3d`, with existing `nie-game`, `nie-camera` and `nie-ui` consumers |
 | Save/mod/Steam capabilities | `nie-save`, `nie-viola`, `nie-steam` |
-| Game-data wiki mirror and query APIs | `nie-wiki`; Azalee remains the public wiki/news host |
-| News, articles, community and editorial rules | `packages/azalee`; Azalee Next routes remain host adapters |
+| Game-data wiki mirror, projections and query APIs | `nie-wiki` |
+| Public IEVR pages and HTTP routes | `nie-site` |
 | Zukan candidate ranking | `nie-zukan`; do not claim historical TypeScript pipelines migrated without proof |
 | Executable forge and RE | Existing `nie-pe`, `nie-asm`, `nie-forge`, `nie-re`, `nie-index`, `nie-trace` owners |
 | Bun FFI / file imports | `packages/nie` / `packages/nie-plugin` over `nie-ffi` |
@@ -62,8 +59,8 @@ news component into `packages/inacord-ui` merely to reduce duplication counts.
 A CLI, command handler or React component must not become a second home for domain algorithms.
 Extract reusable logic into its existing library owner, preserve the original caller, then add
 other bindings. Do not create another parser, navigation implementation or UI package without
-first checking existing owners. Authentication, publishing and remote storage remain Azalee
-service roles; they are not another game engine and are not Inacord capabilities.
+first checking existing owners. Authentication, publishing and remote storage remain separate
+application infrastructure; they are not game-engine capabilities.
 
 ## Native resources as the principal theme
 

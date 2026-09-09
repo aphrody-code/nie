@@ -21,13 +21,12 @@ be reported as completion of the Inacord application. Missing resource mappings 
 work items, not guessed icon substitutions. Perform interaction and visual validation after the
 source implementation phase, as requested by the user.
 
-**Azalee is a separate public news, article and pure-wiki site.** It is neither Niers nor Inacord
-and must not absorb their explorer, editor, game runtime, modding, VFS mutation or desktop tool
-surfaces. Editorial UI, publication workflows, authentication and the news/wiki backend remain
-Azalee responsibilities. Portable news/wiki rules may live in `packages/azalee`; reusable game
-data queries may call `nie-wiki` through an Azalee adapter. `packages/inacord-ui` owns Inacord and
-game-tool presentation only, so Azalee-only editorial components must not be moved there merely
-to reduce file counts.
+**The Rust site and wiki are the only IEVR data owners.** The deleted Azalee application,
+`packages/azalee`, `packages/azalee-tools`, and the IEVR Inagle package are not compatibility
+targets. IEVR parsing, query rules, mirror access, API projections, CLI behavior and native IPC
+belong to `nie-data`, `nie-formats`, `nie-core`, `nie-wiki`, `nie-site`, `nie-cli`, and Inacord's
+Rust backend. Bun is limited to thin host bindings and non-IEVR integrations; it must not query
+the IEVR mirror directly or call a remote wiki.
 
 ## Active mission — 2026-09-08 rebaseline
 
@@ -800,152 +799,41 @@ five thick Tauri adapters and seven thick MCP adapters before their extraction. 
 keep both the generated ledger and that review boundary; a passing substring search alone is not an
 architecture claim.
 
-## Azalee UI and tool migration inventory — 2026-09-08
+## Rust IEVR ownership and destructive cleanup — 2026-09-09
+The legacy IEVR package graph is deleted. `apps/azalee`, `packages/azalee`,
+`packages/azalee-tools`, and the Victory Road Inagle package are absent from the checkout and
+Bun lockfile. `packages/inagle-cross` remains a separate Unity game schema with no Victory Road
+dependency.
 
-### IEVR Rust migration batch — 2026-09-09
+The native ownership path is:
+`VFS / nie.exe / verified zukan` → `nie-formats` and `nie-data` → `nie-core` and
+`nie-wiki` → `nie-cli`, `nie-site`, MCP, and Inacord Rust IPC.
 
-The IEVR implementation previously exposed by Azalée now has Rust owners for the portable
-rules and read-only wiki operations. `nie-core::azalee` owns search normalization, roster
-identifier canonicalization, level-stat interpolation, gender normalization, item category
-labels, personality labels, reactions, comments and article-series ordering. `nie-wiki` owns
-the SQLite projections for characters, skills, items, teams, auras, tactics, passives and the
-remaining verified `inagle_*` sections. `nie-cli` and `nie-site` are bindings to those owners.
+MCP wiki tools call the Rust `nie-ffi` JSON boundary. The Rust site and CLI call `nie-wiki`
+directly. The desktop UI uses native Tauri IPC for VFS and local mirror access; remote GraphQL,
+remote CPK search, and remote roster resolution are removed. The mirror is read-only at runtime,
+with no Supabase/PostgREST dependency in the IEVR path. `inagle_*` table names remain only as
+the verified snapshot schema contract, not as a TypeScript package owner.
 
-The source policy is strict: IEVR data may come only from the game VFS, formats read from
-`nie.exe`, or verified `inagle`/`zukan` materializations. Supabase, external databases, CDN
-manifests and fabricated fallback rows are not sources for the Rust wiki. The Rust mirror
-resolver accepts `var/mirror.sqlite` and `inagle-*.sqlite` snapshots only.
+The desktop wiki boundary is native as well: Tauri `wiki_query` dispatches named operations into
+`nie-wiki`, while the webview keeps only DTO contracts and localization. The former desktop
+TypeScript SQL module and migration validator are deleted. Blender searches call `niers.exe`, and
+menu predecode scans indexed VFS textures directly instead of requiring deleted Azalée layouts.
+Dump presets are the English Rust-owned `wiki`, `assets`, and `full` choices.
 
-VFS/game-text/CPK indexes and the zukan corpus live under `data/azalee/`; runtime SQLite stays
-outside version control at `var/mirror.sqlite`. Cloud schema snapshots and cloud ingestion
-scripts are not part of the migrated data set. The five compressed VFS indexes pass `gzip -t`.
+The obsolete `@niers/catalog` Bun facade and the disconnected `apps/nie-bot` copy are also
+deleted. VFS URL conventions moved to `@niers/asset-source`; the remaining Bun surface is a
+transport/presentation adapter and no longer owns an `inagle_*` query or join.
 
-Measured gates for this batch are recorded after the final local verification run below. They
-are local gates only; they do not claim live production or visual parity.
+Completion gates:
+1. zero active imports or package references to the deleted IEVR packages;
+2. no deleted application paths in deployment, installer, cron, or runtime code;
+3. Rust wiki/site/FFI checks and Bun adapter checks pass;
+4. root `data/` and `var/` remain intact and generated game dumps are not added.
 
-The native `azalee-api.service` now runs `nie-site`, but the Next host and the retired Bun server
-still contain legacy TypeScript IEVR query modules for compatibility. They are not Rust sources
-of truth, yet the caller cutover is not complete until those modules are replaced by HTTP
-bindings to `nie-site` and the legacy server is removed from the active package graph.
-
-### Azalee CPK/image owner audit — 2026-09-09
-
-The follow-up audit of `packages/azalee/src/cpk` and `packages/azalee/src/images` found that
-CPK parsing/decryption, G4TX decoding, VFS path safety, CRI cue cataloguing/decoding and model
-assembly/rendering were already native. The remaining portable rules are now owned by Rust:
-`nie-formats::asset` classifies CPK content and preview families, `nie-formats::cri_audio`
-classifies audio banks and extracts voice-character codes, `nie-core::azalee::asset_mapping`
-maps aura-family/telop codes and extracts Keshin model identifiers, and
-`nie-site::routes::assets` constructs the public texture/raw/config/audio/video/export paths.
-`routes::inspect` consumes the native texture-path constructor instead of maintaining a second
-URL recipe.
-
-The following Azalee code is intentionally not copied into a second implementation: lazy
-`fetch`/React tree state is client behavior; item/telop/model/Miximax allowlists are generated
-presence evidence from the VFS or an HTTP probe; Next image optimization is a Next host protocol;
-CDN resize/crop is implemented by `cdn-variants`; and the Zukan 360-degree mirror is absent.
-These boundaries and the reason each cannot be proven by a Rust pure function are documented in
-`crates/tools/nie-site/src/routes/assets.rs`.
-
-Measured in this batch: `cargo test -p nie-formats --lib --locked` passed 324 tests with 1
-ignored; strict `cargo clippy -p nie-formats --lib --tests --locked -- -D warnings` passed;
-`cargo fmt --all -- --check` passed; and the final `nie-core`, `nie-wiki`, `nie-cli` and
-`nie-site` test/clippy gates passed. The Next production build also completed 113/113 pages;
-its remaining output is limited to pre-existing Edge-runtime, NFT tracing and cache-size
-warnings. These are local gates only and do not claim live production or visual parity.
-
-## SQL, data and service boundary — 2026-09-08
-
-`nie-sql` is the single Rust owner for database URL selection, portable read value/query
-contracts and SQLite/PostgreSQL connections. The existing SQLx-compatible migration safety
-facade remains in `nie-explore::database` until it is moved in a dedicated compatibility batch.
-It is a library, not a server: Tauri, CLI, MCP, Axum and any future Wasm-compatible adapter call
-its explicit contracts, while browser clients continue to use authenticated HTTP APIs. The selected
-native PostgreSQL driver is the maintained `tokio-postgres` crate, which aligns with the workspace
-Tokio runtime; SQLite remains `rusqlite`. No host may emulate a PostgreSQL connection through a
-local SQLite file.
-
-The existing responsibility tree remains deliberate:
-
-| Concern | Canonical owner | Adapter / existing operational path |
-| --- | --- | --- |
-| Local editable desktop data and SQLx-compatible history | `nie-sql`, migrating the current `nie-explore::database` facade | Inacord Tauri keeps its `sqlite_*` command names until every caller moves. |
-| Read-only game/reverse/catalogue mirror queries | `nie-sql` plus domain-specific `nie-wiki::entities` / `nie-catalog` owners | CLI, MCP, site and desktop inject their source path and never expose arbitrary database files. |
-| PostgreSQL/Supabase domain API and browser authentication | existing `packages/db` and Azalee Supabase adapters | The Rust driver is for trusted native/server callers; it does not replace PostgREST, RLS or browser session handling. |
-| Versioned cloud migrations | existing tracked Supabase migration directories and `packages/db` inspection contract | A migration is applied only through its documented deployment workflow; discovery never applies it implicitly. |
-| Inagle data push and atomic SQLite mirror publication | existing `@rosegriffon/inagle` push plus `scripts/donnees/miroir-inagle.sh` | Cron preserves the established order: push, Zukan enrichment, then mirror publication. |
-| PostgreSQL logical backup, restoration check and retention | existing `scripts/ops/sauvegarde.ts` / `rg-sauvegarde.timer` | Do not recreate the retired cron backup task; the verified seven-copy rotation remains the production path. |
-
-The migration contract must reject duplicate versions, checksum drift, unfinished history and
-unknown applied versions before executing new SQL. Backend-specific SQL stays explicit where
-dialects differ; a migration never claims cross-database compatibility merely because its
-version number matches. Connection strings and error reports must not expose credentials.
-The SQLite registry and its SQLx-compatible migration history now live in
-`nie-sql::sqlite_registry`; `nie-explore::database` is a compatibility `pub use`, so Inacord
-retains its public `sqlite_*` command names while all writable local state reaches the shared
-owner. The move preserved the eight existing registry/migration tests, which pass together with
-strict `nie-sql` clippy. The Inacord Cargo check passes with one pre-existing warning in
-`nie-render3d/glb.rs` outside this batch. `nie-sql::postgres_migrations` now provides an explicit
-PostgreSQL manifest, validates ordering and SHA-384 checksums, refuses dirty/unknown/divergent
-history, and records each transaction with the same `_sqlx_migrations` compatibility shape. It
-never attaches write access to `PostgresReadOnly`. Its static planning and SQLite-adjacent suite
-passes 10 tests with strict clippy; a disposable PostgreSQL server is still needed to prove the
-runner against a live backend before this migration service is declared operational. Thin
-trusted-server adapters must retain public command/API names. This decision preserves the existing
-data push, backup, API and source tree instead of creating parallel mechanisms.
-
-The read driver is implemented: SQLite uses an OS read-only handle; PostgreSQL uses parameterized
-`tokio-postgres` queries, certificate-verifying Rustls with native roots by default, an explicit
-trusted-local no-TLS constructor, and `default_transaction_read_only` in the server session.
-Its portable values include null, boolean, integer, real, text, bytes and JSON text. The focused
-`nie-sql` suite currently passes 5 tests and strict clippy; no live database claim follows from
-these local gates. Moving the writable migration registry and proving a PostgreSQL migration
-against a disposable server are still required before the SQL convergence row can close.
-
-This is the concrete migration ledger for the request to absorb Azalee's tools, UI and components
-into Inacord. It is an ownership decision, not a claim that every consumer has been rewired. The
-inventory was measured from the tracked `apps/azalee/components/**/*.tsx` and `apps/azalee/app/**`
-surface on this checkout: Azalee has 189 application source modules, including 45 dashboard
-modules. `packages/inacord-ui/src/index.ts` records that 136 portable Azalee components had
-already moved into the shared package. Migration means importing the shared owner from both hosts;
-it does not mean copying a second version into the desktop adapter.
-
-| Azalee component family and source paths | Canonical owner / existing counterpart | Decision | Required migration boundary |
-| --- | --- | --- | --- |
-| Sprite, image and generic UI primitives: `components/ui/{CommonSpriteIcon,GameSpriteIcon,Icon,SafeImage,SpriteIcon,fade-in,pull-to-refresh,rarity-badge,search-bar,wiki-loading-skeleton}` | `packages/inacord-ui/src/components/ui` and `components/wiki/ui` | **Shared — migrated** | Preserve the Next compatibility provider at the host edge; sprite paths and localized VFS assets resolve through `asset-source`. |
-| Reusable controls and layouts: dialogs, drawers, menus, form fields, tables, data grids, tabs, pagination, navigation rail, skeletons, charts and upload controls | `packages/inacord-ui/src/components/ui` | **Shared — owner is Inacord UI** | Replace Azalee-local imports with the package export as each page is migrated; retain browser-only upload/download adapters outside the component. |
-| Wiki presentation cards already represented in the package: tactics, items, quests, passives, stadiums, stat curve/heptagon, experience curve, character-stat content and trigger, acquisition panel, media shell, model toolbar, gallery card, video actions/player and filters | `packages/inacord-ui/src/components/wiki/wiki` | **Shared — partially migrated** | `HowToObtain`, controlled `RarityFilterChips`, and the item/coach/tactic detail presentation cores are now shared. Use one visual component with injected data and navigation adapters. Complete the remaining card/detail callers before deleting an Azalee copy. |
-| Wiki cards still Azalee-only: `Character*`, remaining `Skill*` views | `packages/inacord-ui/src/components/wiki/wiki` | **Migrate** | `MoveCard`, `CoachCard`, `TeamCard`, `TacticCard`, `ItemCard`, `QuestCard`, `DropsCard`, `CapsuleCard`/`CostumeCard`, `ShopCard`, `AuraCard`, `ElementIcon`, `FormSelector`, `MovesetList`, `OverrideSkillSection`, `GaijiGlyph` and `SkillDetailInfo` are already shared, with CDN/Next and VFS adapters retained by their hosts. Extract the remaining display props from Supabase queries; keep SQLite/Supabase/VFS joins in the relevant host/data library. Every entity view must show resolved native name plus immutable ID. |
-| Wiki list/search controls: `GlobalSearch`, `CharacterSearchDialog`, `WikiSearchToolbar`, `SearchResult*`, `CharacterTable`, `BaseCharacterTable`, `TeamsListClient`, `AuraList` | `packages/inacord-ui/src/components/wiki/wiki` plus `components/ui/{command,data-grid,tree-rows}` | **Migrate** | `SearchResultHighlight`, `GlobalSearchDialog` and `CharacterSearchDialogSurface` are shared controlled views; each host injects fuzzy results, loading state and selection navigation. Share the remaining query-independent rows, filter state and result rendering. Azalee retains URL/SSR search parameters; Inacord supplies its desktop/router and local-index adapters. |
-| Wiki filter families: `CharacterFilters`, `ItemFilterBar`, `PassiveFilters`, `PassivePlayerFilters`, `RarityFilterChips`, `SkillFilterBar`, `TeamFilter`, `QuestFilterBar` | `packages/inacord-ui/src/components/wiki/wiki/filters` | **Migrate / merge** | `FilterChipGroup`, `CharacterFilters`, `RarityFilterChips` and `TeamFilter` are shared controlled components; host facades supply Next/router or desktop/VFS state. Retain the existing shared item/passive/skill/quest filters and inject facet queries from the host. |
-| 3D and model media: `CharacterModelViewer`, `InlineModelViewer`, `CharaCanvasCard`, `ChrModelGallery`, `KeshinModelGallery`, `CharaAssetsSection`, `MediaDownload` | `packages/inacord-ui/src/three/{ModelViewerSurface,Viewport3D}` and `components/wiki/wiki/{MediaShell,ModelToolbar}` | **Shared — migrate callers** | The package owns viewer lifecycle and editor presentation; VFS decoding, native renderer and download/file-dialog operations remain host adapters. |
-| Gallery, texture and media browsing | `packages/inacord-ui/src/gallery` and desktop `GalleryView` adapter | **Shared — migrated** | Inacord owns categories, filters, bounded thumbnails and viewer behavior. Azalee's SQL/manifest inventory and the desktop VFS source remain adapters to the same contract. |
-| Wiki home components: `AnimatedCounter`, `WikiCarousel`, `ToolsPreview`; home composition `LandingHero`, banners, sections and network content | Azalee host; generic primitives may use `packages/ui` | **Azalee-only** | The public wiki home, editorial layout and remotely managed content remain part of the Azalee site. Do not add an Inacord route for them. |
-| News reading widgets: `BackToTopButton`, `ContinueReading`, `PopularArticles`, `ReadingProgressBar`, `RelatedArticles`, `SeriesNavigation`, `TagCloud`, `TrendingArticles` | Azalee news UI | **Azalee-only** | These are article-reading features of the Azalee site. Share only genuinely generic primitives through `packages/ui`; do not expose them from `inacord-ui`. |
-| News community and publication controls: `ArticleCard`, `FeaturedHero`, `AdvancedFilters`, `CategoryChips`, comments, reactions, bookmarks, notifications, reading mode, push opt-in and author dashboard | Azalee news UI and `packages/azalee` domain contracts | **Azalee-only product surface** | Keep cards and editorial controls in Azalee. Portable validation and aggregation may live in `packages/azalee`; authentication, delivery, analytics, actions and public routes stay in the site. |
-| News dashboard: list, selectable card/row, `BulkActionsBar`, `NewsEditor*`, crop dialog, metadata/publication/SEO/tag sidebars | Azalee dashboard | **Azalee-only** | Editing, scheduling, image storage, SEO/OG generation and publication are part of the news site and must not become Inacord tools. |
-| General Azalee dashboard: `DashboardSidebar`, `DashboardMetricCard`, database element chart, audit tables, database editor, import forms, user/tweet/zukan review screens | Azalee administration | **Azalee-only** | Keep site/wiki administration and privileged CRUD in Azalee. Reuse only generic grid/chart primitives; game extraction and VFS authoring remain Inacord responsibilities. |
-| Rich-text editor: `components/blocks/editor-00/**` and `components/editor/**` including Lexical plugins, toolbar, image node and renderer | Azalee editorial UI | **Azalee-only** | Preserve the complete editor for news/articles. Upload, document storage and publication remain Azalee backend concerns. |
-| Navigation and shell: `Shell`, `app-sidebar`, `AzaleeNavigationRail`, `MaterialBottomNav`, footer, skip link | `packages/inacord-ui/src/components/ui/{navigation-rail,navigation-bar}` and `shell/native-tool-surface` | **Merge** | Inacord owns adaptive navigation primitives and its game theme. Azalee remains responsible for public routes, footer/legal links, metadata and responsive browser shell. |
-| Authentication, profile, account, 2FA and user preferences: `auth/*`, providers, `/login`, `/settings`, `/profil`, `/2fa` | Shared form primitives only; no current shared identity service owner | **Host-only** | Keep Better Auth/Supabase session, cookies, 2FA and account mutation in Azalee. Inacord uses its native profile/settings adapter and must not import web identity code. |
-| Save upload and roster resolution: `SaveUploader`, `/api/save/resolve-roster` | Existing desktop `SaveView`, `nie-explore` and save decoders | **Migrate / converge** | The route is now a thin Request/Supabase adapter over the shared `packages/azalee` roster identifier contract, which canonicalizes unsigned IDs, preserves order, deduplicates and caps batches. Extract parsing and roster resolution itself into the Rust owner; mount one shared upload/progress presentation with browser file and Tauri file-dialog adapters. |
-| Tactical tools and calculators | Desktop `ToolsView` with `ComparatorPanel`, `StatCalculator`, `RandomTeamPanel`, `ProgressionPanel`, `TranslatorPanel`, `ProbabilitesPanel`, `TeamBuilderPanel` | **Merge into Inacord** | Inacord is the canonical tool surface. Extract calculation/query policy from React panels so Azalee can reuse it only where a public web tool is explicitly retained. `RagAssistant` remains disabled: it has no active Azalee caller and must not be re-enabled by this migration. |
-| VFS/CPK, Lua, RE, mods, audio, cinema, live-mod, raw data and editor screens | Desktop `ExplorerView`, `RawCpkView`, `LuaView`, `ReToolsView`, `ModsView`, `AudioBankPanel`, `CinemaView`, `EditorView`, `CfgbinViewer`, `PropertyEditor` and shared Rust owners | **Inacord-only tool surface** | Lua bytecode inspection, execution, globals and eval now live in `nie-lua`; generic VFS cfg.bin RDBN/T2B decoding now lives in `nie-explore`; Tauri retains only compatible DTO/IPC facades. These are already Inacord responsibilities. Azalee may link to public read-only data but does not become a second filesystem, reverse-engineering or mutation host. |
-| Public content routes: entity pages, news/patch-note pages, static metadata, sitemap, robots, feeds, Open Graph images, legal/contact/charter/support/maintenance pages | Azalee Next App Router | **Azalee-only** | Keep server rendering, indexing, compliance and public publishing in Azalee. Inacord does not replicate the public website. |
-| Azalee APIs and server actions: Supabase/GraphQL/RAG, articles, comments, newsletter, notifications, social/share tracking, cron, image upload, VRoid and administration | `packages/azalee` for portable news/wiki rules; Azalee server adapters for transport | **Azalee-only backend** | Reaction/comment validation, reading history, bookmarks and article-series rules belong with Azalee. Their Next actions retain session, Supabase/Postgres transport and public API. No Next route or Server Action is copied to Tauri or `nie-site`. |
-| Cross/mobile-external product, advertising and third-party integrations: `/cross`, `AdSenseGate`, Discord/Google Docs, analytics, Vercel/public deployment configuration | Azalee host | **Host-only** | These are product/service integrations, not Inacord UI capabilities. Do not import them into the desktop suite. |
-
-### Ordered execution and deletion rule
-
-1. Finish the existing partial wiki migration: filters, remaining entity cards/details, search and
-   list rows, then update Azalee callers to use package imports.
-2. Extract the rich-text/editorial and dashboard presentation families with typed host contracts;
-   move portable state and validation into a library before adding desktop routes.
-3. Converge save and tactical tools on existing Rust owners and the Inacord desktop presentation.
-4. For every migrated family, prove both hosts consume the same export, retain a compatibility
-   facade until all callers move, and only then remove the old Azalee implementation.
-
-The completion condition is not a file-count reduction. It is one shared implementation for each
-row marked **Shared**, **Migrate** or **Merge**, with feature-preserving host adapters and no
-duplicate business logic. Rows marked **Host-only** are deliberate boundaries and remain so unless
-a portable owner is first identified and tested.
+Measured locally on 2026-09-09: MCP tests 98/98 passed with 737 assertions; the native FFI
+round-trip passed 24 tests with 163102 assertions; `nie-wiki` passed 47 tests; `nie-site` passed
+318 library tests and 25 route tests with 1 ignored integration test; `nie-viola` passed 51 tests;
+`nie-ffi` build and strict clippy, `nie-cli` strict clippy, `nie-model-serve` check, Inacord check,
+and the MCP, cron and web typechecks passed. No deployment or live-production validation was
+performed.

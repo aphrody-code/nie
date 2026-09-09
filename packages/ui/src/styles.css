@@ -161,7 +161,7 @@
 	 * commune (0.60) pour rester lisibles sur fond clair comme sur fond sombre —
 	 * le rouge d'origine disparaît sur le marine du thème Roy.
 	 *
-	 * ⚠ Elles existaient en SIX exemplaires divergents dans `apps/azalee`
+	 * ⚠ They previously existed in six divergent wiki components
 	 * (`PassiveCard`, `PassiveDetail`, `TeamStats`, `FormationField`, deux
 	 * `opengraph-image`), et le VENT y était tantôt bleu, tantôt vert. L'icône du
 	 * jeu tranche : il est bleu. Toute nouvelle surface qui colore un élément

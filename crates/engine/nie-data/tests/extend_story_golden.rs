@@ -3,7 +3,7 @@
 //! `data/common/gamedata/extend_story/extend_story_data_config_0.00.02.00.cfg.bin`
 //! (VFS du jeu monté ; extrait via l'exemple jetable `nie-game --example extract_extend_story`).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/extend-story-config.ts` (`parseContent`).
+//! Port 1:1 d'inagle `inagle` (`parseContent`).
 //! Vérité terrain = la sortie iecode (format `lists`, champs nommés) du vrai fichier :
 //! 1 histoire, 2 events d'entrée, 1 event de victoire, 1 event de défaite, 1 bloc de données.
 

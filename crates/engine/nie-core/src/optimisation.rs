@@ -1,6 +1,6 @@
 //! Projection des builds BASARA et notation de la synergie d'équipe.
 //!
-//! Portage de `packages/inagle/src/analysis/optimizer.ts` (495 l.).
+//! Portage de `inagle` (495 l.).
 //!
 //! # Ce qui est porté, et ce qui ne l'est pas
 //!

@@ -13,10 +13,9 @@ obj/
 data/
 dump/
 out/
-# Meme piege que `bin/` ci-dessus : `data/` n'est pas ancre, il avale aussi les `src/data/` des
-# paquets Bun, qui contiennent du CODE SOURCE. `packages/inagle/src/data/drops/*.ts` (importes
-# par src/drops/index.ts et src/api/drops.ts) n'est dans AUCUN commit : sur un clone frais, le
-# build de `@rosegriffon/inagle` echoue en TS2307, et tout ce qui en depend avec lui.
+# Same trap as `bin/` above: the unanchored `data/` rule also hides `src/data/` directories
+# containing checked-in source code. Re-include TypeScript sources while keeping generated JSON
+# and game content ignored.
 # On ne re-inclut que les sources : les .json restent ignores, car `src/data/` sert aussi de
 # depot a des manifestes generes et a du contenu de jeu (c) LEVEL-5 (cf. `/export/` plus bas).
 !packages/*/src/data/
@@ -54,8 +53,6 @@ packages/*/src/data/**/*.json
 /data/azalee/*
 !/data/azalee/*.json
 !/data/azalee/*.ndjson.gz
-!/apps/azalee/data/cross/
-!/apps/azalee/data/cross/*.ndjson.gz
 !/data/azalee/zukan/
 !/data/azalee/zukan/*.json
 # Runtime databases remain outside version control. They are local read-only
@@ -238,7 +235,6 @@ __pycache__/
 # s'arrete sans message ; `llms*.txt` sont les documents destines aux agents ; le fichier au
 # nom hexadecimal est un jeton de verification de propriete de domaine, public par nature
 # (il est servi a tout le monde) et inutile s'il n'est pas deploye.
-!apps/azalee/public/*.txt
 
 # Les fichiers de build sont suivis uniquement lorsqu'un sous-projet maintenu en a besoin.
 

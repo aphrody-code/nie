@@ -6,44 +6,10 @@
  *   aux futurs outils Rust internes ; elle ne sert que /health et renvoie 404
  *   {"error":"unknown service"} pour tout le reste). Chaque route vit dans l'app
  *   Next.js qui l'implémente :
- *     - /api/cron/publish-scheduled        → Azalée  (azalee.rosegriffon.fr)
  *     - /api/cron/patreon-refresh|reminders → Website (rosegriffon.fr)
  */
 
-const AZALEE_URL = process.env.AZALEE_URL || "https://azalee.rosegriffon.fr";
 const WEBSITE_URL = process.env.WEBSITE_URL || "https://rosegriffon.fr";
-
-export async function triggerPublishScheduled(): Promise<{ success: boolean; error?: string }> {
-	const secret = process.env.CRON_SECRET;
-	if (!secret) {
-		return { success: false, error: "La variable d'environnement CRON_SECRET est manquante." };
-	}
-	const url = `${AZALEE_URL}/api/cron/publish-scheduled`;
-
-	console.log(`[Cron API] Déclenchement de la publication programmée (Azalée) : ${url}...`);
-	try {
-		const res = await fetch(url, {
-			method: "POST",
-			headers: {
-				Authorization: `Bearer ${secret}`,
-			},
-		});
-
-		if (res.ok) {
-			const data = await res.json();
-			console.log("[Cron API] Résultat publication programmée :", data);
-			return { success: true };
-		} else {
-			const text = await res.text();
-			const err = `HTTP ${res.status}: ${text}`;
-			console.error("[Cron API] Échec du déclenchement publication programmée :", err);
-			return { success: false, error: err };
-		}
-	} catch (err: any) {
-		console.error("[Cron API] Erreur lors du déclenchement publication programmée :", err);
-		return { success: false, error: err.message || String(err) };
-	}
-}
 
 export async function triggerPatreonRefresh(): Promise<{ success: boolean; error?: string }> {
 	const secret = process.env.CRON_SECRET;
@@ -112,20 +78,17 @@ export async function triggerPatreonReminders(
 }
 
 export async function warmCaches(): Promise<{ success: boolean }> {
-	const azaleeUrl = process.env.AZALEE_URL || "https://azalee.rosegriffon.fr";
 	const websiteUrl = process.env.WEBSITE_URL || "https://rosegriffon.fr";
 	const apiUrl = process.env.API_URL || "https://api.rosegriffon.fr";
 	const cdnUrl = process.env.CDN_URL || "https://cdn.rosegriffon.fr";
 
 	const paths = [
-		`${azaleeUrl}/`,
-		`${azaleeUrl}/news`,
-		`${azaleeUrl}/chara`,
+		"https://nie.aphrody.com/",
+		"https://nie.aphrody.com/api/v1/health",
 		`${websiteUrl}/`,
 		`${websiteUrl}/chroniques`,
 		`${websiteUrl}/community`,
 		`${apiUrl}/health`, // Vérifier l'état de la gateway API
-		`${cdnUrl}/static/azalee/public/logo-og.png`, // Vérifier que le CDN répond correctement
 		`${cdnUrl}/static/website/public/icon.webp`,
 	];
 

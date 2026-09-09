@@ -51,7 +51,6 @@ game dumps, and external CDN inventories are not retained IEVR data sources.
 
 ## Regeneration
 
-Use the repository's Rust exporters or the bounded VFS index scripts under
-`packages/azalee-tools/scripts`. Every generator must fail closed when the
-required VFS, `nie`, `inagle`, or `zukan` source is absent; it must not fetch a
+Use the repository's Rust exporters or the bounded VFS index commands. Every generator must fail
+closed when the required VFS, `nie`, or `zukan` source is absent; it must not fetch a
 cloud database or silently substitute an external catalog.

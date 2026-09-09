@@ -4,7 +4,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/belong-team.ts`
+//! - Parser TS de référence : `inagle`
 //!   (interface `BelongTeamInfo` l.24-45 + lecture `lists[0].values` l.213-234), port **1:1** ici.
 //! - Dump réel : `data/common/gamedata/character/belong_team_config_0.00.00.cfg.bin`
 //!   (VFS IEVR), format **RDBN** (`lists`) : une seule liste `m_belongTeamInfoList`

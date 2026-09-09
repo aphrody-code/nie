@@ -744,13 +744,7 @@ mod tests {
     fn refuse_les_fichiers_de_secrets() {
         // Le dépôt porte un vrai `.env.local` : sans barrière, `lire` en rendait le contenu.
         let d = depot();
-        for secret in [
-            ".env.local",
-            ".env",
-            "apps/azalee/.env.local",
-            "cle.pem",
-            "id_rsa",
-        ] {
+        for secret in [".env.local", ".env", ".env.local", "cle.pem", "id_rsa"] {
             assert!(
                 d.lire(secret, None).is_err(),
                 "'{secret}' ne doit jamais être lisible"

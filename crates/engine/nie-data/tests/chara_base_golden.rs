@@ -1,5 +1,5 @@
 #![allow(clippy::pedantic)]
-//! Tests golden `chara_base` — port 1:1 d'inagle `packages/inagle/src/parsers/chara-base.ts`.
+//! Tests golden `chara_base` — port 1:1 d'inagle `inagle`.
 //!
 //! Vérité terrain = le vrai `character/chara_base_1.03.98.00.cfg.bin` (VFS IEVR, T2B), via
 //! `cargo run -p nie-game --example extract_chara_base` : **7223** noeuds valides, genres

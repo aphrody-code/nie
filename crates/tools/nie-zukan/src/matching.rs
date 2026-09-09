@@ -1,7 +1,7 @@
 //! Appariement flou zukan ↔ miroir inagle, et audit des appariements posés.
 //!
-//! Port de `packages/inagle/src/zukan/matcher.ts` (434 l.) et
-//! `packages/inagle/src/zukan/audit.ts` (302 l.).
+//! Port de `inagle` (434 l.) et
+//! `inagle` (302 l.).
 //!
 //! # Pourquoi ici
 //!

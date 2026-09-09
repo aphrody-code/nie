@@ -1177,8 +1177,23 @@ fn save_export(dest: String, state: tauri::State<SaveState>) -> Result<u32, Stri
     Ok(bytes.len() as u32)
 }
 
-// Existing frontend wiki queries use the shared rusqlite compatibility facade.
-// Typed native wiki operations remain available from the nie-wiki library.
+/// Execute a named, read-only desktop wiki operation in the Rust owner.
+///
+/// The webview receives JSON for compatibility with the existing UI DTOs, but
+/// it never owns SQL, joins, or mirror policy.
+#[tauri::command]
+#[specta::specta]
+fn wiki_query(db_path: String, operation: String, args: RawJson) -> Result<RawJson, String> {
+    let override_path = if db_path.trim().is_empty() {
+        None
+    } else {
+        Some(std::path::PathBuf::from(db_path))
+    };
+    let connection = nie_wiki::mirror::open(override_path.as_deref()).map_err(|e| e.to_string())?;
+    nie_wiki::desktop::execute(&connection, &operation, &args.0)
+        .map(RawJson)
+        .map_err(|e| e.to_string())
+}
 
 /// Racines où chercher les artefacts du **dépôt** (miroir wiki, base RE), dans l'ordre : la
 /// racine du jeu (une installation peut porter son propre `var/`), puis le répertoire courant et
@@ -1209,11 +1224,10 @@ fn racines_candidates(game_dir: Option<&str>) -> Vec<PathBuf> {
 }
 
 /// Miroir wiki sous une racine donnée, par ordre de préférence :
-/// 1. `var/mirror.sqlite` — le nom canonique de `@niers/catalog` (un lien vers l'instantané
+/// 1. `var/mirror.sqlite` — le chemin canonique du lecteur Rust (un lien vers l'instantané
 ///    courant, rebasculé atomiquement par `scripts/donnees/miroir-inagle.sh`).
 /// 2. `var/miroir/inagle-*.sqlite` — l'instantané daté le plus récent, si le lien manque.
-/// 3. `var/wiki-mirror/supabase-*.sqlite`, puis `data/backups/supabase-*.sqlite` — les deux
-///    emplacements historiques, conservés pour les postes qui les portent encore.
+/// 3. aucun réseau ni ancien stockage n'est accepté : le miroir doit provenir du VFS local.
 fn miroir_wiki_sous(racine: &std::path::Path) -> Option<PathBuf> {
     let var = racine.join("var");
     let lien = var.join("mirror.sqlite");
@@ -1221,8 +1235,7 @@ fn miroir_wiki_sous(racine: &std::path::Path) -> Option<PathBuf> {
         return Some(lien);
     }
     dernier_sqlite(&var.join("miroir"), "inagle-")
-        .or_else(|| dernier_sqlite(&var.join("wiki-mirror"), "supabase-"))
-        .or_else(|| dernier_sqlite(&racine.join("data").join("backups"), "supabase-"))
+        .or_else(|| dernier_sqlite(&racine.join("data").join("backups"), "inagle-"))
 }
 
 /// Résout le miroir SQLite du wiki (tables `inagle_*`) par défaut. Renvoie `None` si rien n'est
@@ -1282,7 +1295,7 @@ fn default_re_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<Stri
 /// Résout `data/anime/episodes.db` — le catalogue des épisodes de la série (10 saisons, 355
 /// épisodes avec vignettes), alimenté par `packages/ietv` et sa tâche `ietv-cache`.
 ///
-/// C'est le quatrième gisement de `docs/FUSION.md` (`anime`), et la vue Cinéma le présente à côté
+/// This is the separate `anime` store, presented beside the game catalogue by Cinema.
 /// des cinématiques du jeu. Même ordre de résolution que les deux autres bases : `NIE_ANIME_DB`,
 /// bases livrées avec l'application, puis le dépôt.
 #[tauri::command]
@@ -4778,8 +4791,7 @@ fn raw_cpk_video_preview_b64(
     video_mp4_b64_from_bytes(data)
 }
 
-/// JSON libre renvoyé tel quel sur l'IPC (réponses azalee : GraphQL/REST, forme non fixe côté
-/// serveur — le frontend les type déjà en `any`/interfaces locales, cf. `src/lib/api.ts`).
+/// JSON libre returned over IPC for native payloads whose schema is owned by another Rust module.
 ///
 /// `serde_json::Value` EST récursif (`Object`/`Array` se contiennent eux-mêmes, cf.
 /// `impl Type for SerdeValue` dans `specta`) : l'exporter TS dessus fait un vrai
@@ -4788,6 +4800,7 @@ fn raw_cpk_video_preview_b64(
 /// réflexion de types. Ce wrapper s'exporte comme `unknown` côté TS (`specta_typescript::define`,
 /// un type opaque non récursif) sans changer un seul octet envoyé sur l'IPC : `Serialize`
 /// délègue tel quel à `serde_json::Value`.
+#[derive(serde::Deserialize)]
 struct RawJson(serde_json::Value);
 
 impl serde::Serialize for RawJson {
@@ -4800,108 +4813,6 @@ impl specta::Type for RawJson {
     fn definition(_: &mut specta::Types) -> specta::datatype::DataType {
         specta::datatype::DataType::Reference(specta_typescript::define("unknown"))
     }
-}
-
-// ─── Résolveur distant azalee (GraphQL + REST) ──────────────────────────────────────
-//
-// Contrat RÉEL confirmé depuis les sources du service (VPS OVH, `~/rg/apps/azalee`, session
-// 2026-08-07) — pas une convention devinée :
-//   - GraphQL POST `{base}/api/graphql` (graphql-yoga, sans auth) : `app/api/graphql/route.ts`.
-//     Requêtes : `characters(q,limit)`/`character(id)`, `skills(q,limit)`/`skill(id)`,
-//     `items(q,limit)`/`item(id)`, `auras(q,element,typeSlug!)`.
-//   - REST `GET {base}/api/cpk?q=<sous-chaîne>` (index CPK complet, 250 800 fichiers) et
-//     `GET {base}/api/cpk?path=<...>&meta=1` (métadonnées + URL CDN) : `app/api/cpk/route.ts`.
-//   - REST `POST {base}/api/save/resolve-roster` `{ids: string[]}` → noms résolus du roster
-//     d'une save (miroir serveur, aucun ID inventé) : `app/api/save/resolve-roster/route.ts`.
-// Testé en direct (`curl`) le 2026-08-07 : les deux endpoints répondent en production.
-
-const AZALEE_DEFAULT_URL: &str = "https://nie.aphrody.com";
-
-fn azalee_base(base_url: &str) -> &str {
-    let b = base_url.trim();
-    if b.is_empty() {
-        AZALEE_DEFAULT_URL
-    } else {
-        b.trim_end_matches('/')
-    }
-}
-
-fn graphql_query(
-    base_url: &str,
-    query: &str,
-    variables: serde_json::Value,
-) -> Result<serde_json::Value, String> {
-    let url = format!("{}/api/graphql", azalee_base(base_url));
-    let body = serde_json::json!({ "query": query, "variables": variables });
-    let resp = ureq::post(&url)
-        .set("Content-Type", "application/json")
-        .send_json(body)
-        .map_err(|e| format!("requête GraphQL échouée ({url}) : {e}"))?;
-    let json: serde_json::Value = resp
-        .into_json()
-        .map_err(|e| format!("réponse non-JSON : {e}"))?;
-    if let Some(errors) = json.get("errors") {
-        return Err(format!("erreurs GraphQL : {errors}"));
-    }
-    json.get("data")
-        .cloned()
-        .ok_or_else(|| "réponse GraphQL sans champ « data »".to_string())
-}
-
-/// Recherche de personnages via le GraphQL azalee (`characters(q, limit)`), en bonus du miroir
-/// local `nie-wiki` — utile quand aucun `supabase-*.sqlite` local n'est configuré.
-#[tauri::command]
-#[specta::specta]
-fn remote_search_chara(base_url: String, query: String) -> Result<RawJson, String> {
-    graphql_query(
-        &base_url,
-        "query($q: String) { characters(q: $q, limit: 20) { id internalCode name { fr en ja } \
-         variants { charaParamId position element rarity image } } }",
-        serde_json::json!({ "q": query }),
-    )
-    .map(RawJson)
-}
-
-/// Recherche de techniques via le GraphQL azalee (`skills(q, limit)`).
-#[tauri::command]
-#[specta::specta]
-fn remote_search_waza(base_url: String, query: String) -> Result<RawJson, String> {
-    graphql_query(
-        &base_url,
-        "query($q: String) { skills(q: $q, limit: 20) { id name { fr en ja } category element power tension image } }",
-        serde_json::json!({ "q": query }),
-    )
-    .map(RawJson)
-}
-
-/// Recherche plein-texte dans l'index CPK distant (250 800 fichiers, azalee) — utile en
-/// complément du VFS local (comparaison, ou navigation sans avoir le jeu monté).
-#[tauri::command]
-#[specta::specta]
-fn remote_cpk_search(base_url: String, query: String) -> Result<RawJson, String> {
-    let url = format!("{}/api/cpk?q={}", azalee_base(&base_url), urlencode(&query));
-    let resp = ureq::get(&url)
-        .call()
-        .map_err(|e| format!("requête distante échouée ({url}) : {e}"))?;
-    resp.into_json::<serde_json::Value>()
-        .map(RawJson)
-        .map_err(|e| format!("réponse non-JSON : {e}"))
-}
-
-/// Résout les IDs de roster d'une sauvegarde (hash `0x........`) en noms réels via le miroir
-/// serveur azalee — AUCUN octet de save ne transite, seulement les IDs déjà extraits en local
-/// par `nie-save`. Anti-hallucination côté serveur : un ID absent revient `name: null`.
-#[tauri::command]
-#[specta::specta]
-fn remote_resolve_roster(base_url: String, ids: Vec<String>) -> Result<RawJson, String> {
-    let url = format!("{}/api/save/resolve-roster", azalee_base(&base_url));
-    let resp = ureq::post(&url)
-        .set("Content-Type", "application/json")
-        .send_json(serde_json::json!({ "ids": ids }))
-        .map_err(|e| format!("requête distante échouée ({url}) : {e}"))?;
-    resp.into_json::<serde_json::Value>()
-        .map(RawJson)
-        .map_err(|e| format!("réponse non-JSON : {e}"))
 }
 
 // ─── Pipeline 3D distante (avatar + menus) ─────────────────────────────────────────
@@ -5026,19 +4937,6 @@ async fn model_service_menu_png_b64(base_url: String, screen: String) -> Result<
     .map_err(|e| format!("tâche de rendu de menu interrompue : {e}"))?
 }
 
-fn urlencode(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for b in s.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char)
-            }
-            _ => out.push_str(&format!("%{b:02X}")),
-        }
-    }
-    out
-}
-
 // --- Aphrody : le pet, et la chaine pixel-perfect -------------------------------------------
 //
 // Toutes ces commandes sont `async` : elles lisent le disque, et une commande Tauri SYNCHRONE
@@ -5157,6 +5055,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         default_game_dir,
         check_game_dir,
         default_wiki_db,
+        wiki_query,
         default_re_db,
         default_anime_db,
         preload_vfs,
@@ -5240,10 +5139,6 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         blender_preview_png_b64,
         blender_open_scene,
         blender_build_skill_scene,
-        remote_search_chara,
-        remote_search_waza,
-        remote_cpk_search,
-        remote_resolve_roster,
         model_service_avatar_catalog,
         resolve_avatar_composition,
         model_service_avatar_glb_b64,
@@ -5408,7 +5303,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        // `niers://…` — ouvrir un titre depuis le wiki azalée. DOIT être enregistré APRÈS
+        // `niers://…` — open a title from the Rust site. It MUST be registered AFTER
         // `single-instance` sur Windows/Linux : le système relance l'exe avec l'URL en argv, et
         // c'est `single-instance` qui la fait remonter à l'instance vivante. L'inverse ouvre une
         // seconde fenêtre. L'enregistrement du schéma auprès de Windows se fait à
@@ -5419,7 +5314,7 @@ pub fn run() {
         // Version d'OS / architecture — diagnostic (panneau Paramètres, rapport d'anomalie).
         .plugin(tauri_plugin_os::init())
         // Updater : vérifie/télécharge/installe les nouvelles versions depuis les endpoints
-        // `plugins.updater.endpoints` de `tauri.conf.json` (azalee + fallback GitHub releases).
+        // `plugins.updater.endpoints` in `tauri.conf.json` (Rust site + GitHub fallback).
         // `tauri-plugin-process` (relaunch après install) doit être présent côté capacités
         // (`process:allow-restart`) — câblé côté JS par `@tauri-apps/plugin-updater`/`-process`.
         .plugin(tauri_plugin_updater::Builder::new().build())

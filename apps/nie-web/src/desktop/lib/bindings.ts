@@ -51,26 +51,33 @@ export const commands = {
 	 *  Résout le miroir SQLite du wiki (tables `inagle_*`) par défaut. Renvoie `None` si rien n'est
 	 *  trouvé — jamais un chemin deviné : le champ « Base SQLite » des Paramètres reste alors vide,
 	 *  à renseigner manuellement.
-	 * 
+	 *
 	 *  Ordre : `NIE_WIKI_DB`/`SQLITE_DB_PATH`, puis les bases **livrées avec l'application**
 	 *  ([`bases_embarquees`] — c'est ce qui donne une expérience complète à une utilisatrice qui n'a
 	 *  ni le dépôt ni le jeu), puis les emplacements du dépôt ([`miroir_wiki_sous`]).
 	 */
 	defaultWikiDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_wiki_db", { gameDir }),
 	/**
+	 *  Execute a named, read-only desktop wiki operation in the Rust owner.
+	 *
+	 *  The webview receives JSON for compatibility with the existing UI DTOs, but
+	 *  it never owns SQL, joins, or mirror policy.
+	 */
+	wikiQuery: (dbPath: string, operation: string, args: unknown) => typedError<unknown, string>(__TAURI_INVOKE("wiki_query", { dbPath, operation, args })),
+	/**
 	 *  Résout `var/niers.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
 	 *  cf. `src/lib/reDb.ts`). Commande Rust plutôt qu'un `exists()` JS (`@tauri-apps/plugin-fs`) :
 	 *  la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un `std::fs` Rust n'a pas cette
 	 *  restriction — même raison que [`default_wiki_db`] au-dessus.
-	 * 
+	 *
 	 *  Même ordre que le miroir wiki : `NIE_RE_DB`, bases livrées avec l'application, puis le dépôt.
 	 */
 	defaultReDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_re_db", { gameDir }),
 	/**
 	 *  Résout `data/anime/episodes.db` — le catalogue des épisodes de la série (10 saisons, 355
 	 *  épisodes avec vignettes), alimenté par `packages/ietv` et sa tâche `ietv-cache`.
-	 * 
-	 *  C'est le quatrième gisement de `docs/FUSION.md` (`anime`), et la vue Cinéma le présente à côté
+	 *
+	 *  This is the separate `anime` store, presented beside the game catalogue by Cinema.
 	 *  des cinématiques du jeu. Même ordre de résolution que les deux autres bases : `NIE_ANIME_DB`,
 	 *  bases livrées avec l'application, puis le dépôt.
 	 */
@@ -84,10 +91,10 @@ export const commands = {
 	preloadVfs: (gameDir: string | null) => typedError<StatsDto, string>(__TAURI_INVOKE("preload_vfs", { gameDir })),
 	/**
 	 *  Contenu direct d'un dossier du VFS, fichiers paginés et sous-dossiers comptés.
-	 * 
+	 *
 	 *  `limit`/`offset` sont facultatifs : `None` = tout le dossier (comportement historique).
 	 *  `limit = 0` renvoie la structure et `file_total` SANS aucun fichier — ce que veut un arbre.
-	 * 
+	 *
 	 *  Le calcul lui-même vit dans [`nie_explore::listing::ls_paged`], partagé avec `niers vfs ls` et
 	 *  le service HTTP `nie-model-serve` : le VFS étant un index plat, cette vue « dossier » est
 	 *  calculée, et elle divergeait auparavant entre les trois façades.
@@ -96,7 +103,7 @@ export const commands = {
 	vfsFind: (query: string, ext: string | null, limit: number, gameDir: string | null) => typedError<EntryDto[], string>(__TAURI_INVOKE("vfs_find", { query, ext, limit, gameDir })),
 	/**
 	 *  Recherche paginée : la tranche demandée **et** le nombre total de correspondances.
-	 * 
+	 *
 	 *  [`vfs_find`] tronque à `limit` sans jamais dire combien il a laissé derrière lui — une
 	 *  interface ne peut alors ni paginer ni annoncer « 200 sur 12 480 ».
 	 */
@@ -125,7 +132,7 @@ export const commands = {
 	vfsReadB64: (path: string, gameDir: string | null, maxBytes: number | null) => typedError<string, string>(__TAURI_INVOKE("vfs_read_b64", { path, gameDir, maxBytes })),
 	/**
 	 *  Décode la meilleure texture d'un `.g4tx` en PNG (base64), pour un `<img>` côté UI.
-	 * 
+	 *
 	 *  **Pleine résolution** : réservé à l'APERÇU d'un fichier ouvert (un seul à l'écran). Pour une
 	 *  grille de vignettes, utiliser [`vfs_texture_thumb_png_b64`] — cf. la note qui l'accompagne.
 	 */
@@ -133,7 +140,7 @@ export const commands = {
 	/**
 	 *  Décode un `.g4tx` en **vignette** PNG (base64), plus grand côté borné à `max_cote`
 	 *  (défaut 128, plafond 512).
-	 * 
+	 *
 	 *  Distincte de [`vfs_texture_png_b64`] parce que l'usage est distinct : une grille de dossier
 	 *  affiche des centaines d'images de moins de 90 px, et le VFS contient des dossiers de plus de
 	 *  12 000 textures (`data/dx11/menu/200_icon/10_icon_chr/uniform`). Servir la pleine résolution
@@ -145,7 +152,7 @@ export const commands = {
 	vfsTextureThumbPngB64: (path: string, maxCote: number | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_thumb_png_b64", { path, maxCote, gameDir })),
 	/**
 	 *  Catalogue les textures d'un conteneur `.g4tx` — **sans en décoder aucune**.
-	 * 
+	 *
 	 *  Un conteneur IEVR n'est pas mono-texture : `icon_item05.g4tx` porte 80 payloads DDS 256×256
 	 *  nommés (`eq_ac0100101`…), et les atlas spatiaux portent des régions nommées. Jusqu'ici
 	 *  l'explorateur ne pouvait afficher qu'UNE image par fichier — celle que le basename désigne —
@@ -155,21 +162,21 @@ export const commands = {
 	vfsTextureList: (path: string, gameDir: string | null) => typedError<TextureDto[], string>(__TAURI_INVOKE("vfs_texture_list", { path, gameDir })),
 	/**
 	 *  Décode la texture **nommée** `nom` d'un conteneur `.g4tx` en PNG (base64), pleine résolution.
-	 * 
+	 *
 	 *  Forme nommée de [`vfs_texture_png_b64`], seule façon d'adresser une texture précise d'un
 	 *  conteneur multi-textures ou une région d'atlas (cf. [`vfs_texture_list`]).
 	 */
 	vfsTextureNamedPngB64: (path: string, nom: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_named_png_b64", { path, nom, gameDir })),
 	/**
 	 *  Vignette d'une texture nommée — ce qu'une GRILLE de sous-textures doit appeler.
-	 * 
+	 *
 	 *  Même raison d'être que [`vfs_texture_thumb_png_b64`] : un conteneur d'icônes en porte 80, les
 	 *  décoder en pleine résolution pour les afficher à 90 px sature le processus de rendu.
 	 */
 	vfsTextureNamedThumbPngB64: (path: string, nom: string, maxCote: number | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_named_thumb_png_b64", { path, nom, maxCote, gameDir })),
 	/**
 	 *  Extrait un fichier VFS directement vers `dest` (écriture Rust→disque, pas de round-trip JS).
-	 * 
+	 *
 	 *  Sur un montage **dump**, le fichier est déjà sur disque : on le copie au lieu de charger ses
 	 *  octets en mémoire pour les réécrire. La différence se voit sur les gros assets — un `.usm`
 	 *  dépasse les centaines de mégaoctets, et `read` + `write` en tenait deux exemplaires en RAM.
@@ -188,7 +195,7 @@ export const commands = {
 	vfsExportDefaultName: (path: string, format: string) => __TAURI_INVOKE<string>("vfs_export_default_name", { path, format }),
 	/**
 	 *  Convertit une entrée du VFS vers `format` et l'écrit dans `dest`. Rend la taille écrite.
-	 * 
+	 *
 	 *  `format` vient de [`vfs_export_formats`] ; `"raw"` écrit les octets du jeu inchangés, ce que
 	 *  faisait déjà `vfs_extract_to` (qui reste, appelé partout où aucun choix n'est offert).
 	 */
@@ -207,7 +214,7 @@ export const commands = {
 	 *  Refuse explicitement les entrées empaquetées dans un CPK : `nie-formats` n'a pas d'encodeur
 	 *  CPK, y écrire corromprait l'archive — même contrainte que partout ailleurs dans ce fichier,
 	 *  vérifiée ICI plutôt que suppposée (le VFS sait exactement quelles entrées sont loose).
-	 * 
+	 *
 	 *  Sur un montage **dump**, aucune entrée n'est empaquetée : l'écriture en place vaut pour tout
 	 *  le contenu, et modifie le dump lui-même — c'est une arborescence de travail, pas une archive.
 	 */
@@ -359,13 +366,13 @@ export const commands = {
 	vfsDecodeCfgbin: (path: string, gameDir: string | null) => typedError<unknown, string>(__TAURI_INVOKE("vfs_decode_cfgbin", { path, gameDir })),
 	/**
 	 *  Décode un `.cfg.bin` **et** le passe au parseur typé de sa famille, si elle en a un.
-	 * 
+	 *
 	 *  `vfs_decode_cfgbin` rend la forme générique du conteneur (`lists`/`entries`) : des colonnes
 	 *  numérotées, sans nom ni sens. Ici, la clé de famille est dérivée du nom de fichier
 	 *  (`nie_data::typed::family_key`) puis dispatchée vers l'un des **112 parseurs** de `nie-data`,
 	 *  qui rendent des structures nommées — c'est la différence entre « var3 = 1852 » et
 	 *  « `consume_tp` = 1852 ».
-	 * 
+	 *
 	 *  `famille` est `None` quand aucun parseur ne correspond : l'appelant retombe alors sur la vue
 	 *  générique plutôt que de ne rien afficher. C'est le cas de la majorité des `.cfg.bin` du jeu
 	 *  (map, event, effect…), qui n'ont pas de sémantique portée.
@@ -373,12 +380,12 @@ export const commands = {
 	vfsDecodeCfgbinTyped: (path: string, gameDir: string | null) => typedError<CfgbinTyped, string>(__TAURI_INVOKE("vfs_decode_cfgbin_typed", { path, gameDir })),
 	/**
 	 *  Aperçu traçable d'une caméra de cinématique (`.g4cm`) — 1 215 fichiers dans le jeu.
-	 * 
+	 *
 	 *  Rend des **pistes** `(objet, canal, temps → valeur)` plutôt que la structure complète du
 	 *  décodeur : celle-ci descend jusqu'aux octets de rembourrage, ce qu'il faut pour réencoder à
 	 *  l'octet près mais qui noierait une vue. Les canaux portent la position de la caméra
 	 *  (`PosX/Y/Z`), son point visé (`RefX/Y/Z`) et son champ de vision (`Fov`).
-	 * 
+	 *
 	 *  Un canal dont le flux n'est pas `f32` sort avec `resolu = false` et sans valeurs :
 	 *  l'encodage 2 octets n'est pas élucidé, et inventer des nombres donnerait une trajectoire
 	 *  plausible et fausse.
@@ -386,7 +393,7 @@ export const commands = {
 	vfsApercuCamera: (path: string, gameDir: string | null) => typedError<ApercuCameraDto, string>(__TAURI_INVOKE("vfs_apercu_camera", { path, gameDir })),
 	/**
 	 *  Aperçu projetable d'un maillage de navigation (`.g4nv`) — 160 fichiers, 153 cartes.
-	 * 
+	 *
 	 *  Rend les sommets en coordonnées monde, les **triangles** (trois coins par polygone) et les
 	 *  arêtes du graphe avec leur coût. `bord` marque les arêtes qui ne relient qu'un polygone :
 	 *  c'est le contour de la zone marchable. `tronque` dit qu'un plafond a mordu — l'affichage
@@ -395,7 +402,7 @@ export const commands = {
 	vfsApercuNavmesh: (path: string, gameDir: string | null) => typedError<ApercuNavmDto, string>(__TAURI_INVOKE("vfs_apercu_navmesh", { path, gameDir })),
 	/**
 	 *  Occupation actuelle du cache CPK — ce que l'explorateur retient en RAM.
-	 * 
+	 *
 	 *  Rend la consommation observable depuis l'interface : sans cette mesure, un cache qui monte
 	 *  à plusieurs gigaoctets ne se voit nulle part, et le symptôme (la machine qui rame) n'accuse
 	 *  jamais le cache.
@@ -403,7 +410,7 @@ export const commands = {
 	vfsCacheStats: (gameDir: string | null) => typedError<CacheCpkDto, string>(__TAURI_INVOKE("vfs_cache_stats", { gameDir })),
 	/**
 	 *  Vide le cache CPK et rend les mégaoctets libérés.
-	 * 
+	 *
 	 *  Sans danger pour les lectures en cours : chacune détient un `Arc` sur sa donnée, qui reste
 	 *  vivante jusqu'à la fin de l'extraction. Les lectures suivantes relisent le paquet depuis le
 	 *  disque — c'est le prix, assumé, de rendre la RAM.
@@ -413,19 +420,19 @@ export const commands = {
 	 *  Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
 	 *  RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
 	 *  VALIDE.
-	 * 
+	 *
 	 *  - T2B : `nie_formats::cfgbin::encode_t2b`, reconstruction libre à partir du JSON seul.
 	 *  - RDBN : `nie_formats::cfgbin::encode_rdbn` + `nie_explore::bridge::json_to_rdbn_lists`, qui a
 	 *    besoin de l'ORIGINAL déjà décodé comme gabarit — c'est un *patch* de valeurs, pas une
 	 *    reconstruction libre : le JSON seul perd l'information de type par colonne (ex. Short/
 	 *    ActType ou Rates/Position sont indiscernables une fois sérialisés). D'où `path` en plus de
 	 *    `json` ici : on relit et reparse le fichier original depuis le VFS pour fournir ce gabarit.
-	 * 
+	 *
 	 *  Les deux encodeurs sont vérifiés par round-trip réel sur des centaines/milliers de vrais
 	 *  fichiers du jeu (`cfgbin.rs` : `encode_t2b_round_trip_sur_le_vrai_jeu`,
 	 *  `encode_rdbn_round_trip_sur_le_vrai_jeu` ; `bridge.rs` : `json_bridge_round_trip_sur_le_vrai_jeu`,
 	 *  `json_bridge_rdbn_round_trip_sur_le_vrai_jeu`), pas devinés.
-	 * 
+	 *
 	 *  Renvoie les octets en base64 : compose avec [`vfs_write_b64`]/
 	 *  [`vfs_write_loose_override_b64`]/[`save_bytes_b64`] côté frontend pour l'écriture réelle —
 	 *  pas de nouvelle commande d'écriture, réutilisation de celles qui existent déjà.
@@ -522,7 +529,7 @@ export const commands = {
 	exportModAsCpk: (files: CpkExportFileDto[], dest: string) => typedError<number | null, string>(__TAURI_INVOKE("export_mod_as_cpk", { files, dest })),
 	/**
 	 *  Aligne le thème du chrome de fenêtre sur le clair/sombre de l'appli.
-	 * 
+	 *
 	 *  La fenêtre est SANS décorations (`decorations: false`) : il n'y a plus de barre de titre native
 	 *  à teinter, et l'ancienne implémentation (`window_vibrancy::apply_mica`) faisait bien pire que
 	 *  rien — Mica étend la frame DWM dans la zone client, ce qui redonne à Windows une frame à
@@ -552,7 +559,7 @@ export const commands = {
 	 *  Level-5 G4 Model »). Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau
 	 *  de recherche niers→Blender (`niers_bridge.py`) l'utilise pour retrouver `niers.exe` et le VFS
 	 *  sans deviner.
-	 * 
+	 *
 	 *  **Bug corrigé (2026-08-08, « Blender ouvre un fichier vide »)** : le script d'amorçage
 	 *  appelait `level5_g4_port.load_original_model` — ce n'est PAS un import de scène, c'est
 	 *  l'opérateur « choisir le template original » du **wizard d'export/portage** (`g4_port_addon.
@@ -599,24 +606,6 @@ export const commands = {
 	 *  (`warnings`) plutôt que de construire une scène vide en silence ou d'échouer sans explication.
 	 */
 	blenderBuildSkillScene: (internalCode: string, skillQuery: string, blenderExe: string | null, gameDir: string | null) => typedError<BlenderSceneResultDto, string>(__TAURI_INVOKE("blender_build_skill_scene", { internalCode, skillQuery, blenderExe, gameDir })),
-	/**
-	 *  Recherche de personnages via le GraphQL azalee (`characters(q, limit)`), en bonus du miroir
-	 *  local `nie-wiki` — utile quand aucun `supabase-*.sqlite` local n'est configuré.
-	 */
-	remoteSearchChara: (baseUrl: string, query: string) => typedError<unknown, string>(__TAURI_INVOKE("remote_search_chara", { baseUrl, query })),
-	/**  Recherche de techniques via le GraphQL azalee (`skills(q, limit)`). */
-	remoteSearchWaza: (baseUrl: string, query: string) => typedError<unknown, string>(__TAURI_INVOKE("remote_search_waza", { baseUrl, query })),
-	/**
-	 *  Recherche plein-texte dans l'index CPK distant (250 800 fichiers, azalee) — utile en
-	 *  complément du VFS local (comparaison, ou navigation sans avoir le jeu monté).
-	 */
-	remoteCpkSearch: (baseUrl: string, query: string) => typedError<unknown, string>(__TAURI_INVOKE("remote_cpk_search", { baseUrl, query })),
-	/**
-	 *  Résout les IDs de roster d'une sauvegarde (hash `0x........`) en noms réels via le miroir
-	 *  serveur azalee — AUCUN octet de save ne transite, seulement les IDs déjà extraits en local
-	 *  par `nie-save`. Anti-hallucination côté serveur : un ID absent revient `name: null`.
-	 */
-	remoteResolveRoster: (baseUrl: string, ids: string[]) => typedError<unknown, string>(__TAURI_INVOKE("remote_resolve_roster", { baseUrl, ids })),
 	/**  Charge le catalogue réellement exporté par `niers avatar export` depuis le service de modèles. */
 	modelServiceAvatarCatalog: (baseUrl: string) => typedError<unknown, string>(__TAURI_INVOKE("model_service_avatar_catalog", { baseUrl })),
 	/**  Resolve editor selections through the same pure library as the WebAssembly and HTTP hosts. */
@@ -661,7 +650,7 @@ export const commands = {
 	vfsVideoPreviewB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_video_preview_b64", { path, gameDir })),
 	/**
 	 *  Catalogue des cinématiques : instantané, sans lire un octet des conteneurs.
-	 * 
+	 *
 	 *  Les champs issus du démultiplexage (durée, définition, codec) restent vides ; le frontend les
 	 *  remplit carte par carte avec [`video_info`], au fil du défilement. Démultiplexer les 97 films
 	 *  d'un coup coûterait plusieurs minutes et bloquerait l'ouverture de la page.
@@ -671,18 +660,18 @@ export const commands = {
 	videoInfo: (path: string, gameDir: string | null) => typedError<FilmDto, string>(__TAURI_INVOKE("video_info", { path, gameDir })),
 	/**
 	 *  Prépare un film pour la lecture : démuxe, remuxe, et garde le résultat en cache.
-	 * 
+	 *
 	 *  Sans ça, cliquer sur une carte fait attendre le temps du remux — de quelques dixièmes de
 	 *  seconde pour un logo à plusieurs secondes pour une cinématique de 300 Mo. Précharger pendant
 	 *  que le curseur survole la carte rend la lecture instantanée au clic.
-	 * 
+	 *
 	 *  Rend la taille du flux prêt, en octets. Appeler deux fois est sans coût : la seconde fois,
 	 *  l'entrée est déjà dans le cache.
 	 */
 	videoPrecharger: (path: string, gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("video_precharger", { path, gameDir })),
 	/**
 	 *  Opens the current native scene editor with the same assembled GLB as the embedded viewport.
-	 * 
+	 *
 	 *  Process séparé et non bloquant : l'éditeur a sa propre boucle d'événements winit et sa propre
 	 *  fenêtre GPU, deux choses qui ne peuvent pas cohabiter avec la boucle Tauri de cette
 	 *  application. Le binaire est cherché à côté de l'exécutable courant (build distribué), puis dans
@@ -727,10 +716,10 @@ export const commands = {
 	luaSessionApiReport: () => typedError<LuaApiReportDto, string>(__TAURI_INVOKE("lua_session_api_report")),
 	/**
 	 *  Renvoie le **GLB assemblé lui-même** (base64), pas un rendu de celui-ci.
-	 * 
+	 *
 	 *  Le frontend le charge dans le moteur temps réel WebGL commun : caméra libre, éclairage,
 	 *  sélection de maillage — le viewport d'un éditeur, pas une planche-contact.
-	 * 
+	 *
 	 *  Le GLB est auto-suffisant : `to_glb_embedded` embarque géométrie ET textures (le `.g4tx` frère
 	 *  décodé en PNG, cf. [`assemble_glb_for_preview`]), donc aucun aller-retour supplémentaire pour
 	 *  les ressources.
@@ -740,7 +729,7 @@ export const commands = {
 	 *  Liste les clips d'animation d'un asset : archives `.g4pk` de même radical → sous-fichier
 	 *  `.g4mt` → table de clips. **Lecture seule** — rien ici ne rejoue l'animation (cf. commentaire
 	 *  de section : le GLB d'aperçu n'a pas de skin).
-	 * 
+	 *
 	 *  `path` est n'importe quel membre de la famille (`.g4md`, `.g4mg`, `.g4sk`, ou une `.g4pk`
 	 *  précise) : seul son radical compte. Coût réel : une archive de personnage pèse quelques Mo et
 	 *  il y en a des dizaines, la commande lit donc ~100 Mo — d'où l'appel asynchrone côté frontend.
@@ -756,7 +745,7 @@ export const commands = {
 	 *  magic) en WAV PCM16, base64 — `nie_formats::cri_audio::decode_to_wav` (feature `audio-decode`,
 	 *  `cridecoder` + `IEVR_HCA_KEY` reversé de `nie.exe`, vérifié byte-exact sur `c00001001.awb`
 	 *  (48 kHz mono, non silencieux) — cf. `docs/PLAN.md` § C1).
-	 * 
+	 *
 	 *  Décodage lancé sur un THREAD DÉDIÉ à pile de 16 Mio : trouvé par test réel (pas supposé) —
 	 *  `cridecoder` fait un vrai `STATUS_STACK_OVERFLOW` sur la pile debug par défaut (~1 Mio
 	 *  Windows) sur `c01000010.awb` réel (fonctionne en `--release`, casse en `cargo build`/
@@ -769,7 +758,7 @@ export const commands = {
 	vfsAudioPreviewB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_audio_preview_b64", { path, gameDir })),
 	/**
 	 *  Liste les pistes jouables d'un `.acb`/`.awb` du VFS — **sans en décoder aucune**.
-	 * 
+	 *
 	 *  C'est ce qui manquait à l'explorateur : [`vfs_audio_preview_b64`] rend UNE piste par fichier
 	 *  (la plus volumineuse), alors qu'une banque en décrit jusqu'à 1 512. Le catalogue vient de
 	 *  l'ACB quand il y en a un — noms, durées, codec, fréquence — sans ouvrir l'AWB.
@@ -778,7 +767,7 @@ export const commands = {
 	/**
 	 *  Décode UNE piste d'une banque, désignée par son **cue-id AFS2** (cf. [`vfs_audio_cues`]), en
 	 *  WAV PCM16 base64.
-	 * 
+	 *
 	 *  Le cue-id n'est pas le rang de l'entrée dans l'AWB : ils coïncident souvent, jamais toujours,
 	 *  et les confondre fait jouer une autre piste sans lever d'erreur. Même thread à pile large que
 	 *  [`vfs_audio_preview_b64`], pour la même raison (`cridecoder` déborde la pile Windows par défaut).
@@ -817,29 +806,29 @@ export const commands = {
 	trashAppdataFiles: (appdataRelPaths: string[]) => typedError<null, string>(__TAURI_INVOKE("trash_appdata_files", { appdataRelPaths })),
 	/**
 	 *  Mesure de production de la forge, recalculée depuis les artefacts.
-	 * 
+	 *
 	 *  Les trois entrées sont celles de la CLI : le recouvrement
 	 *  (`var/forge/cover.json`, produit par `nie-forge split`), le registre
 	 *  (`forge/registry.json`) et la source assembleur (`forge/asm/*.s`, produite
 	 *  par `nie-forge lift`). Rien n'est mis en cache : la valeur rendue est celle
 	 *  de l'état du disque au moment de l'appel.
-	 * 
+	 *
 	 *  # Errors
-	 * 
+	 *
 	 *  Échoue si la racine du dépôt est introuvable, si le recouvrement n'a pas
 	 *  encore été produit, ou si un artefact est illisible.
 	 */
 	forgeReport: (root: string | null) => typedError<ForgeReportDto, string>(__TAURI_INVOKE("forge_report", { root })),
 	/**
 	 *  Ce qui empêche encore la forge de produire, trié par octets bloqués.
-	 * 
+	 *
 	 *  C'est la **liste de travail** : chaque ligne dit combien d'octets un
 	 *  élargissement du dialecte rapporterait, et donne l'instruction fautive
 	 *  désassemblée. C'est ce diagnostic — pas l'intuition — qui a fait passer la
 	 *  part produite de 51,86 % à 69,53 % du fichier.
-	 * 
+	 *
 	 *  # Errors
-	 * 
+	 *
 	 *  Mêmes conditions que [`forge_report`].
 	 */
 	forgeBlockers: (root: string | null, limit: number | null) => typedError<ForgeBlockerDto[], string>(__TAURI_INVOKE("forge_blockers", { root, limit })),
@@ -870,12 +859,12 @@ export const commands = {
 	/**
 	 *  Écrit des octets (base64) à `addr` dans `pid`, puis **relit** la zone et la rend, elle aussi
 	 *  en base64.
-	 * 
+	 *
 	 *  Complète [`re_trace_read_bytes_b64`] : `nie-trace` porte `write_exact` depuis toujours, seule
 	 *  cette façade ne l'exposait pas. Ce qui est rendu est ce que la mémoire contient **après**
 	 *  l'écriture, jamais ce que l'appelant croyait y mettre — une page protégée en lecture seule ou
 	 *  une écriture partielle se voit alors immédiatement côté UI.
-	 * 
+	 *
 	 *  Même plafond que la lecture : 1 Mio par appel.
 	 */
 	reTraceWriteBytesB64: (pid: number, addr: string, dataB64: string) => typedError<string, string>(__TAURI_INVOKE("re_trace_write_bytes_b64", { pid, addr, dataB64 })),
@@ -887,19 +876,19 @@ export const commands = {
 	reTraceDumpModule: (pid: number) => typedError<ReTraceDumpStatsDto, string>(__TAURI_INVOKE("re_trace_dump_module", { pid })),
 	/**
 	 *  Ouvre un minidump `.dmp` et en renvoie l'inventaire (modules, plages, volume capturé).
-	 * 
+	 *
 	 *  Aucun scan : sert à valider le fichier et à afficher le volume avant d'en lancer un.
 	 */
 	reDumpOpen: (cheminDmp: string) => typedError<ReDumpInfoDto, string>(__TAURI_INVOKE("re_dump_open", { cheminDmp })),
 	/**
 	 *  Scanne un motif AOB façon Cheat Engine (`"44 8B ?? 10"`, `??`/`?`/`*` = joker) dans un
 	 *  minidump déjà capturé.
-	 * 
+	 *
 	 *  Le scan relit les plages mémoire du dump depuis le disque — plusieurs centaines de Mo pour une
 	 *  capture complète : ce n'est **jamais** instantané, comptez plusieurs secondes. `limite` borne le
 	 *  nombre de coups renvoyés **et** le travail effectué (le scan s'arrête à la limite atteinte) ;
 	 *  `0` applique le défaut, et la valeur est plafonnée.
-	 * 
+	 *
 	 *  Lecture seule d'un fichier : aucune attache au process du jeu, aucune écriture mémoire.
 	 */
 	reDumpScan: (cheminDmp: string, motif: string, limite: number) => typedError<ReDumpScanDto, string>(__TAURI_INVOKE("re_dump_scan", { cheminDmp, motif, limite })),
@@ -909,7 +898,7 @@ export const commands = {
 	mcpInstall: (target: McpTarget, gameDir: string | null) => typedError<McpInstallDto, string>(__TAURI_INVOKE("mcp_install", { target, gameDir })),
 	/**
 	 *  Démarre un *dump* en tâche de fond et rend immédiatement son identifiant.
-	 * 
+	 *
 	 *  L'avancement arrive par l'événement `viola-dump-progress`, la fin par `viola-dump-done`.
 	 */
 	violaDumpStart: (gameDir: string | null, sortie: string, filtre: string | null, reprise: boolean, sauterIdentiques: boolean, threads: number | null) => typedError<string, string>(__TAURI_INVOKE("viola_dump_start", { gameDir, sortie, filtre, reprise, sauterIdentiques, threads })),
@@ -925,7 +914,7 @@ export const commands = {
 	violaPack: (cpkList: string, modDir: string, sortie: string, plateforme: ViolaPlatform) => typedError<ViolaPackDto, string>(__TAURI_INVOKE("viola_pack", { cpkList, modDir, sortie, plateforme })),
 	/**
 	 *  **Merge** — fusionne plusieurs mods, `sources` étant en priorité **décroissante**.
-	 * 
+	 *
 	 *  `semantique` active la fusion au champ des `.cfg.bin` : deux mods qui touchent des valeurs
 	 *  différentes du même fichier sont alors compatibles, ce qu'une fusion au fichier ne permet pas.
 	 *  Elle a besoin du jeu comme base de comparaison — sans lui, on retombe sur la fusion au fichier
@@ -934,7 +923,7 @@ export const commands = {
 	violaMerge: (gameDir: string | null, sources: string[], sortie: string, semantique: boolean) => typedError<ViolaMergeDto, string>(__TAURI_INVOKE("viola_merge", { gameDir, sources, sortie, semantique })),
 	/**
 	 *  **Chiffrer / déchiffrer Criware** — le XOR est involutif, la même commande sert aux deux sens.
-	 * 
+	 *
 	 *  `cle` accepte l'hexadécimal (`1717E18E`) ; laissée vide, la clé est dérivée du nom du fichier
 	 *  (CRC32), ce qui est la règle des packs CPK.
 	 */
@@ -943,12 +932,12 @@ export const commands = {
 	liveStatus: () => __TAURI_INVOKE<LiveStatus>("live_status"),
 	/**
 	 *  Retrouve l'adresse du tableau d'équipe en scannant un `charaParamId` connu.
-	 * 
+	 *
 	 *  Le scan seul ne suffit pas : un identifiant apparaît dans les tables de données comme dans le
 	 *  roster. On ne retient un candidat que si la **forme** se confirme — l'entrée suivante, à
 	 *  `+0x38`, porte le même `uniformId` et un `charaParamId` non nul. C'est la signature d'un
 	 *  tableau d'équipe, pas d'une occurrence isolée.
-	 * 
+	 *
 	 *  Renvoie l'adresse de la **première** entrée du tableau (en remontant tant que la forme tient).
 	 */
 	liveFindTeam: (charaParamId: number) => typedError<string, string>(__TAURI_INVOKE("live_find_team", { charaParamId })),
@@ -961,7 +950,7 @@ export const commands = {
 	liveWriteMember: (address: string, slot: number, field: string, value: number) => typedError<LiveMember, string>(__TAURI_INVOKE("live_write_member", { address, slot, field, value })),
 	/**
 	 *  Cherche une valeur 32 bits dans toutes les pages accessibles en écriture du jeu.
-	 * 
+	 *
 	 *  Sert à localiser ce que les tables ne disent pas : l'identifiant d'une aura chargée, un slot
 	 *  de compétence, une fiche de personnage. Chaque résultat rend son **voisinage**, parce qu'une
 	 *  valeur seule ne dit pas dans quelle structure elle se trouve — c'est le contexte qui permet de
@@ -970,7 +959,7 @@ export const commands = {
 	liveScanU32: (value: number, limit: number) => typedError<LiveHit[], string>(__TAURI_INVOKE("live_scan_u32", { value, limit })),
 	/**
 	 *  Écrit une valeur 32 bits à une adresse absolue.
-	 * 
+	 *
 	 *  Volontairement brut : c'est le complément de [`live_scan_u32`] pour tout ce qui n'a pas de
 	 *  structure nommée — poser un identifiant d'aura dans un slot de compétence, par exemple. Rend
 	 *  la valeur **relue** après écriture, jamais celle qu'on croyait écrire.
@@ -978,11 +967,11 @@ export const commands = {
 	liveWriteU32: (address: string, value: number) => typedError<number, string>(__TAURI_INVOKE("live_write_u32", { address, value })),
 	/**
 	 *  Lance l'éditeur de sauvegarde livré avec le dépôt, puis le jeu.
-	 * 
+	 *
 	 *  L'éditeur est cherché à la racine du dépôt (`InazumaElevenVRSaveEditor.exe`) ; le jeu est
 	 *  lancé **directement** (`nie.exe`), sans `EACLauncher` — c'est ce qui permet d'attacher le
 	 *  live-modding derrière.
-	 * 
+	 *
 	 *  L'ordre compte : l'éditeur d'abord, pour pouvoir préparer la sauvegarde avant que le jeu ne
 	 *  la charge.
 	 */
@@ -1105,7 +1094,7 @@ export type BlenderSceneResultDto = {
 
 /**
  *  Occupation du cache CPK, en mégaoctets.
- * 
+ *
  *  Les tailles sont en Mo et non en octets pour rester des entiers simples côté interface :
  *  Specta traduit un flottant en `number | null` (un flottant non fini n'est pas
  *  représentable en JSON), ce qui obligerait chaque affichage à traiter un cas impossible.
@@ -1291,7 +1280,7 @@ export type DictionaryDto = {
 
 /**
  *  Un sous-dossier direct et le nombre de fichiers qu'il porte, tous niveaux confondus.
- * 
+ *
  *  Le compte vient du même balayage que le listing : il ne coûte rien de plus, et il évite à
  *  l'interface de rappeler `vfs_ls` par dossier pour savoir lesquels sont vides.
  */
@@ -1353,7 +1342,7 @@ export type ExpLevelDto = {
 
 /**
  *  Résultat d'un export en lot : ce qui a été écrit, et ce qui a échoué **avec sa raison**.
- * 
+ *
  *  Un lot ne s'arrête pas au premier échec : sur une sélection de 300 fichiers, une texture
  *  factice non décodable ne doit pas priver l'utilisatrice des 299 autres.
  */
@@ -1427,7 +1416,7 @@ export type FilmDto = {
 
 /**
  *  Une page de résultats de recherche, avec le nombre total de correspondances.
- * 
+ *
  *  `total` est le compte AVANT pagination : sans lui, une page de 2 000 résultats est
  *  indiscernable d'un VFS qui n'en contient que 2 000.
  */
@@ -1536,6 +1525,32 @@ export type GalleryDto = {
 };
 
 /**
+ *  Convertit UNE liste de `CfgEntry` frères en JSON **avec suffixe d'index par nom dupliqué**
+ *  (`TEXT_INFO` → `TEXT_INFO_0`, `TEXT_INFO_1`, …) — c'est la forme "inagle"/iecode RÉELLE
+ *  qu'attendent `walk_named`/[`nie_data::text::parse_text_file`] (prefix-match `"TEXT_INFO_"` +
+ *  exclusion du noeud `"…_BEGIN"`), PAS la forme brute de [`nie_explore::bridge::t2b_to_json`]
+ *  (noms non désambiguïsés, ex. plusieurs frères tous nommés `"TEXT_INFO"`) : `walk_named`
+ *  matcherait alors 0 noeud (bug constaté : `list_items`/`list_auras`/`list_trophies`/
+ *  `list_quests` résolvaient 0 texte avant ce correctif, malgré des fichiers texte trouvés et
+ *  parsés sans erreur). Port fidèle du `to_iecode` local dupliqué dans CHAQUE
+ *  `nie-game/examples/export_{items,auras,trophies,quests}.rs` (déjà validé end-to-end sur le
+ *  vrai jeu) — factorisé ici une fois pour toutes plutôt que redupliqué une 5ᵉ fois.
+ *  Charge un `.cfg.bin` T2B du VFS (chemin résolu dynamiquement, cf. [`find_path`]) et le
+ *  convertit en JSON forme "inagle" **indexée** (cf. [`to_indexed_json`]) — factorisé pour les
+ *  modules `nie-data` ci-dessous (item/aura/trophy/quest, config ET texte).
+ *  Charge la table de texte FR d'un `text_type` convivial (`"skill"`, `"item"`, `"team"`, …) sous
+ *  sa forme JSON indexée.
+ *
+ *  Le nom de fichier vient de [`nie_data::text::text_file_name`] — la table `TEXT_FILES` (43
+ *  entrées, port 1:1 d'inagle) qui EST le catalogue des familles de texte du jeu. Chaque `list_*`
+ *  recodait auparavant son propre prédicat en dur (`p.contains("/fr/") &&
+ *  base_name(p).starts_with("skill_text")`, déjà dupliqué 5 fois), au risque de coller à un nom
+ *  approximatif ; ici un type inconnu échoue franchement au lieu de chercher un fichier inexistant.
+ *  Table de texte d'un `text_type` dans une LANGUE donnée (`fr`, `en`, `ja`, `de`, `es`, `it`,
+ *  `pt`, `zh_hans`, `zh_hant` — les neuf dossiers de `data/common/text/`, relevés sur
+ *  l'installation, cf. [`LANGUES`]). Généralise [`load_text_json`], qui forçait `fr`.
+ *  Table de texte FR d'un `text_type` convivial, déjà parsée en `(hashId, texte)` — la forme
+ *  qu'attendent tous les `resolve_*`/`find_text` de `nie-data`. Cf. [`load_text_json`].
  *  Objet (arme/consommable/costume/…) — port applati de `nie_data::item::ItemInfo` + son texte
  *  joint (`item_text.cfg.bin`, mêmes noms ET descriptions), pour l'IPC/l'export TS. N'inclut que
  *  les objets à nom résolu (comme `nie-game/examples/export_items.rs`, roster réel).
@@ -1755,15 +1770,15 @@ export type McpStatusDto = {
 };
 
 /**  Client MCP visé par l'installation. */
-export type McpTarget = 
+export type McpTarget =
 /**  `<repo>/.mcp.json` — serveur de projet, chemin relatif, versionné avec le dépôt. */
-"claude-code" | 
+"claude-code" |
 /**  `%APPDATA%/Claude/claude_desktop_config.json` — chemins absolus obligatoires. */
 "claude-desktop";
 
 /**
  *  Ce qu'une mesure rend au front (miroir IPC de `nie_aphrody::pixel::Mesure`).
- * 
+ *
  *  Les profils de silhouette et les bords ligne à ligne **ne sont pas exposés** : ce sont
  *  plusieurs milliers de valeurs par mesure, que l'interface ne sait pas afficher et que l'IPC
  *  paierait à chaque appel. Ils restent accessibles côté Rust pour qui en a besoin.
@@ -1805,7 +1820,7 @@ export type MesureDto = {
 
 /**
  *  Un clip déclaré par un conteneur G4MT.
- * 
+ *
  *  Tous les entiers sont des `f64` : `specta` refuse les entiers 64 bits (`u64`/`i64` panique à
  *  la génération de bindings), et les champs concernés (u32 au plus) y tiennent exactement.
  */
@@ -1953,7 +1968,7 @@ export type PetEtatDto = {
 
 /**
  *  Piste sonore d'un film.
- * 
+ *
  *  Elle vient de deux endroits, et c'est le fait marquant du corpus : **2 films sur 97 seulement**
  *  portent leur son dans leur propre conteneur (les deux logos). Pour tous les autres, il vit
  *  dans la banque `anime_stream`, à côté — cf. [`nie_explore::soundtrack`].
@@ -2323,9 +2338,9 @@ export type ViolaPackDto = {
 };
 
 /**  Plateforme cible d'un *pack* ou d'un *merge*. */
-export type ViolaPlatform = 
+export type ViolaPlatform =
 /**  Version PC (Steam). */
-"pc" | 
+"pc" |
 /**  Version Nintendo Switch. */
 "switch";
 

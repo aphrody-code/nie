@@ -9,7 +9,7 @@
 //!   (extrait du VFS Steam : `INAZUMA ELEVEN Victory Road/data`).
 //! - Format **T2B `entries`** (noeuds nommés à variables positionnelles, suffixées `_<i>`
 //!   par occurrence — même convention iecode que `boost_grp.rs` / `command.rs`).
-//! - Port 1:1 de `packages/inagle/src/parsers/super-tactics-base-config.ts` (`parseEntries`),
+//! - Port 1:1 de `inagle` (`parseEntries`),
 //!   enrichi : inagle agrège `SUPER_TACTICS_INFO_*` et `SUPER_TACTICS_INFO_REF_EFFECT_*`
 //!   dans une même liste générique `tactics` (var0..varN) ; on les sépare proprement en
 //!   trois listes (`infos`, `ref_effects`, `sort_index`) car ce sont trois rôles distincts.

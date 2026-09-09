@@ -1,6 +1,6 @@
 // **Générateur d'équipe aléatoire** — une composition tirée au sort, poste par poste.
 //
-// Portage de `apps/azalee/components/wiki/RandomTeamGenerator.tsx` (1 337 lignes). La logique de
+// Portage du générateur d'équipe du wiki (1 337 lignes). La logique de
 // tirage, de verrouillage et de filtrage vit dans `lib/equipe.ts` ; ce fichier est la surface.
 //
 // Trois écarts assumés avec le wiki :

@@ -30,7 +30,7 @@ PAS_PAR_DEFAUT = 1.0 / 60.0
 ROLES = ("GK", "DF", "MF", "FW")
 
 #: Les sept statistiques d'un joueur IEVR, dans l'ordre du jeu. Noms confirmés
-#: par `packages/inagle/src/stat-calculator.ts`, validés sur dump réel.
+#: par `inagle`, validés sur dump réel.
 STATS = ("kc", "cr", "tc", "pr", "ps", "ag", "it")
 
 

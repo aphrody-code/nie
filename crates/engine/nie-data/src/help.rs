@@ -29,7 +29,7 @@
 //!
 //! ## Sémantique des positions
 //!
-//! Aucune source nommée n'existe : le parser inagle (`packages/inagle/src/parsers/help-config.ts`)
+//! Aucune source nommée n'existe : le parser inagle (`inagle`)
 //! est purement heuristique (il devine titre/desc parmi les petits entiers qui sont des
 //! indices de texte valides). Les positions sont donc documentées d'après l'observation
 //! statistique du dump réel, jamais inventées. Les positions toujours nulles sont omises ;

@@ -12,7 +12,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Parser TS : `packages/inagle/src/parsers/chara-menu-resource-config.ts` (`parseContent`
+//! - Parser TS : `inagle` (`parseContent`
 //!   l.100-160, helpers `toHex`/`cleanPath`/`extractPaths` l.62-76, `PATH_FIELDS` l.82-98).
 //! - Données : VFS `data/common/gamedata/menu/chara_menu_resource_0.00.00.cfg.bin` (fichier
 //!   unique) : 1 `BASE_PATH` (`#/menu/`) + 92 entrées `INFO` (1 template + 91 overrides).

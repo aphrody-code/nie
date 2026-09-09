@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 /**
- * deploy.ts — publication bleu/vert d'Azalée et du site principal, **sans coupure**.
+ * deploy.ts — publication bleu/vert du site principal, **sans coupure**.
  *
  * Pourquoi ce script existe
  * -------------------------
- * `ship-azalee.sh` / `ship-website.sh` faisaient `systemctl restart` : entre l'arrêt et
+ * `ship-website.sh` faisait `systemctl restart` : entre l'arrêt et
  * le premier octet servi par le nouveau processus Next, nginx n'a plus personne au bout
  * du proxy → page de maintenance (azalée) ou 502 (site) pendant plusieurs secondes, et
  * les fragments `/_next/static/*` de l'ancien build disparaissent sous les onglets déjà
@@ -13,8 +13,8 @@
  *
  * Topologie
  * ---------
- *   slot A = service de production (`azalee-web` :3003, `website-web` :3004)
- *   slot B = doublure de bascule et de prévisualisation (`…-b` :3013 / :3014)
+ *   slot A = service de production (`website-web` :3004)
+ *   slot B = doublure de bascule et de prévisualisation (`website-web-b` :3014)
  *
  * Chaque slot lit une **version figée** :
  *
@@ -67,15 +67,13 @@
  *
  * Usage
  * -----
- *   bun run deploy                      # azalée + site, build compris
- *   bun run deploy azalee               # une seule surface
+ *   bun run deploy                      # site, build compris
+ *   bun run deploy website              # site
  *   bun run deploy -- --no-build        # publie les artefacts déjà bâtis
  *   bun run deploy -- --no-gate         # saute le type-check préalable
- *   bun scripts/ops/deploy.ts preview azalee    # → URL d'activation du cookie
- *   bun scripts/ops/deploy.ts promote azalee    # passe la prévisualisation en prod
- *   bun scripts/ops/deploy.ts preview-off azalee
- *   bun scripts/ops/deploy.ts reload azalee     # même version, sans coupure
- *   bun scripts/ops/deploy.ts rollback azalee   # version précédente
+ *   bun scripts/ops/deploy.ts preview website   # → URL d'activation du cookie
+ *   bun scripts/ops/deploy.ts promote website   # passe la prévisualisation en prod
+ *   bun scripts/ops/deploy.ts rollback website  # version précédente
  *   bun scripts/ops/deploy.ts status --json
  *   bun scripts/ops/deploy.ts install           # unités systemd + amonts nginx
  *
@@ -99,11 +97,9 @@ import { freemem, totalmem } from "node:os";
 const NIERS_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/u, "");
 
 /**
- * Racine du monorepo Rose Griffon, où DEUX surfaces n'ont pas suivi la fusion : le site
- * vitrine `apps/website` et le bot communautaire (`docs/FUSION.md`). Ce script déploie les
- * deux applications, chacune depuis SON dépôt — d'où `repoRoot` par app plutôt qu'une racine
- * unique. Avec une racine unique, le type-check et le `git rev-parse` du wiki partaient de
- * l'autre dépôt : la version publiée aurait porté la révision d'un code qu'elle ne contient pas.
+ * Optional external repository root for the editorial deployment compatibility path. Game-data
+ * services and the maintained site are deployed from this checkout; this value must never be
+ * used as an IEVR source.
  */
 const RG_ROOT = process.env.RG_MONOREPO ?? "/home/ubuntu/rg";
 const RELEASES_ROOT = "/home/ubuntu/rg-releases";
@@ -164,38 +160,6 @@ interface AppConfig {
 }
 
 const APPS: Record<string, AppConfig> = {
-	azalee: {
-		key: "azalee",
-		standaloneDir: "azalee",
-		workspace: "@rosegriffon/azalee-web",
-		repoRoot: NIERS_ROOT,
-		unitDir: "deploy/systemd",
-		appDir: `${NIERS_ROOT}/apps/azalee`,
-		title: "wiki Azalée",
-		slots: {
-			a: { unit: "azalee-web.service", port: 3003 },
-			b: { unit: "azalee-web-b.service", port: 3013 },
-		},
-		upstream: "azalee_web",
-		previewUpstream: "azalee_preview",
-		backendVariable: "azalee_backend",
-		siteConf: "/etc/nginx/conf.d/azalee.rosegriffon.conf",
-		upstreamOptions: "max_fails=3 fail_timeout=15s",
-		publicUrl: "https://azalee.rosegriffon.fr/",
-		// `/gallery` a quitté le wiki (parti dans l'explorateur, cf.
-		// `docs/MIGRATION-EXPLORATEUR.md`) : la sonde suit la page vivante qui l'a remplacée
-		// dans le menu, pas l'URL qui ne fait plus que rediriger.
-		probes: ["/api/health", "/", "/chara", "/skill", "/news", "/tools/niers"],
-		extraDirs: [".next/static", "public", "data"],
-		// Le miroir SQLite est republié chaque nuit dans le dépôt (`nie-miroir.timer`,
-		// 04:10 UTC) et épinglé en absolu par `SQLITE_DB_PATH` : la version le vise par
-		// lien plutôt que d'en figer une copie devenue périmée au premier dump.
-		linkedPaths: ["data/backups"],
-		buildCommand: [BUN_BIN, "--env-file=../../.env.local", "run", "build"],
-		buildEnv: { SENTRY_SKIP_UPLOAD: "1", NEXT_TELEMETRY_DISABLED: "1" },
-		memoryFloorMiB: 2048,
-		bootTimeoutMs: 240_000,
-	},
 	website: {
 		key: "website",
 		standaloneDir: "website",
@@ -1446,7 +1410,7 @@ async function retireLegacyDropIns(app: AppConfig): Promise<void> {
 // Point d'entrée
 // ─────────────────────────────────────────────────────────────────────────────
 
-const USAGE = `Usage : bun scripts/ops/deploy.ts <commande> [azalee|website|all] [options]
+const USAGE = `Usage : bun scripts/ops/deploy.ts <commande> [website|all] [options]
 
 Commandes
   deploy       type-check, build, publie et bascule sans coupure (défaut)

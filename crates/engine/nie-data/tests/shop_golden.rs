@@ -2,7 +2,7 @@
 //! Tests golden `shop` — boutiques réelles `SHOP_INFO_0` et `SHOP_INFO_2` tirées de :
 //! `data/common/gamedata/shop/shop_config_3.00.22.cfg.bin` (VFS IEVR).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/shop-config.ts` : shopId @var0,
+//! Port 1:1 d'inagle `inagle` : shopId @var0,
 //! nameHash @var1 (réinterprétés u32 = `>>> 0`), itemId @var2 collecté en `Set` (dédup,
 //! ordre conservé). Valeurs extraites via l'exemple jetable `nie-model-serve` (supprimé après).
 //!

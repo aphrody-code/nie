@@ -13,7 +13,7 @@
 //! nie-zukan pull --lang ja --all
 //!
 //! # Croisement avec inagle (après pull)
-//! nie-zukan cross --mirror <azalee>/data/backups/mirror.sqlite
+//! nie-zukan cross --mirror var/mirror.sqlite
 //!
 //! # Tests de forge (round-trip + ancre Endou)
 //! nie-zukan forge-test

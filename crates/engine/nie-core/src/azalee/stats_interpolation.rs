@@ -1,7 +1,6 @@
 //! IEVR character-stat curve interpolation.
 //!
-//! Source of truth: `packages/azalee/src/game/stats-interpolation.ts` and its
-//! `CharaStats` shape in `packages/azalee/src/wiki/chara-stats-shared.ts`.
+//! Source of truth: the native IEVR stats contract and its `CharaStats` shape.
 //!
 //! The game exposes four milestones (`lv1`, `lv30`, `lv50`, `lv99`). Complete
 //! curves use three independent linear segments and truncate with floor. When

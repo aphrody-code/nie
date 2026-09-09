@@ -1,5 +1,5 @@
 #![allow(clippy::pedantic)]
-//! Tests golden `playstyle` — port 1:1 d'inagle `packages/inagle/src/parsers/playstyle.ts`.
+//! Tests golden `playstyle` — port 1:1 d'inagle `inagle`.
 //!
 //! Vérité terrain = le vrai `chara_param_1.03.66.00.cfg.bin` (VFS IEVR), via
 //! `cargo run -p nie-game --example extract_playstyle` :

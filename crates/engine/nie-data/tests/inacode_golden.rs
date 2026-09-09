@@ -4,7 +4,7 @@
 //! décodé RDBN par `nie-formats` (`cfgbin::read_values`) en forme iecode
 //! `{ lists: [ { name, typeName, values } ] }`.
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/inacode-config.ts` (switch `list.name`),
+//! Port 1:1 d'inagle `inagle` (switch `list.name`),
 //! étendu aux 10 listes réelles. Vérité terrain extraite via
 //! un exemple jetable, non versionné.
 //! La fixture embarque un échantillon représentatif (2-3 entrées par liste, salons complets).

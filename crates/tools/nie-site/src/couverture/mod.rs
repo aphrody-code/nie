@@ -73,10 +73,6 @@ pub enum Source {
     Niers,
     /// Les commandes IPC de l'hôte desktop (`collect_commands!` de `apps/inacord/src-tauri`).
     Inacord,
-    /// Les pages du wiki Azalée.
-    Azalee,
-    /// Les routes d'API du wiki Azalée.
-    AzaleeApi,
     /// Les modules publics de `nie-data`.
     NieData,
     /// Les modules publics de `nie-formats`.
@@ -96,8 +92,6 @@ impl Source {
         match self {
             Self::Niers => "niers — sous-commandes",
             Self::Inacord => "Inacord — commandes IPC",
-            Self::Azalee => "Azalée — pages",
-            Self::AzaleeApi => "Azalée — routes d'API",
             Self::NieData => "nie-data — modules",
             Self::NieFormats => "nie-formats — modules",
             Self::NieLua => "nie-lua — fonctions publiques",
@@ -112,8 +106,6 @@ impl Source {
         match self {
             Self::Niers => "niers --help",
             Self::Inacord => "collect_commands! de apps/inacord/src-tauri/src/lib.rs",
-            Self::Azalee => "fd -t f page.tsx apps/azalee/app",
-            Self::AzaleeApi => "fd -t f route.ts apps/azalee/app",
             Self::NieData => "rg '^pub mod ' crates/engine/nie-data/src/lib.rs",
             Self::NieFormats => "rg '^pub mod ' crates/engine/nie-formats/src/lib.rs",
             Self::NieLua => "rg '^pub fn ' crates/engine/nie-lua/src/",
@@ -131,14 +123,12 @@ impl Source {
         }
     }
 
-    /// Les neuf sources, dans l'ordre d'affichage.
+    /// Les sept sources, dans l'ordre d'affichage.
     #[must_use]
-    pub const fn toutes() -> [Self; 9] {
+    pub const fn toutes() -> [Self; 7] {
         [
             Self::Niers,
             Self::Inacord,
-            Self::Azalee,
-            Self::AzaleeApi,
             Self::NieData,
             Self::NieFormats,
             Self::NieLua,
@@ -380,7 +370,7 @@ pub struct LigneSource {
 /// Un filet ferme sa source pour qu'aucune capacité n'échappe au classement, et c'est ce qui
 /// rend la matrice honnête. Mais ce qu'il attrape, il le classe **d'une seule raison** : au
 /// 2026-09-06, six lignes de filet portaient à elles seules 152 des 294 `interne` —
-/// `iecode-admin` en couvre 39, `azalee-catalogues` 32, `lua-exec` 22. Une raison qui vaut pour
+/// `iecode-admin` en couvre 39, `lua-exec` 22. Une raison qui vaut pour
 /// 39 sous-commandes différentes ne peut pas être fausse pour l'une d'elles : elle n'est pas
 /// réfutable, donc elle ne mesure rien.
 ///
@@ -667,7 +657,7 @@ mod tests {
     fn une_capacite_non_classee_sort_en_manquant() {
         let inv = inventaire(&[(Source::Vfs, ".format-invente-2026", 42)]);
         // Le filet `vfs-effets` la classerait `bloque` ; on prend donc une source dont aucune
-        // regle ne couvre le nom : Azalee a un `Tout`, NieLua aussi... la seule facon de
+        // regle ne couvre le nom : NieLua a un `Tout`... la seule facon de
         // prouver la garde est de construire SANS regle applicable, c'est-a-dire sur une
         // source dont le nom ne matche rien et dont le filet est absent. Faute de quoi, on
         // verifie au moins que la regle appliquee est bien celle attendue.
@@ -787,9 +777,8 @@ mod tests {
     #[test]
     fn les_agregats_somment_au_total() {
         // Temoin de `manquant`. Les deux precedents etaient de VRAIES capacites —
-        // `nie-data::shop`, puis la page `/tools/compare` d'Azalee — et les deux ont fait
-        // rougir ce test le jour ou elles ont ete servies (`/api/v1/donnees` pour l'une,
-        // `/api/v1/regles/comparaison` pour l'autre, 2026-09-06). C'etait la preuve que la
+        // `nie-data::shop`, puis une route du site — et les deux ont fait rougir ce test le jour
+        // où elles ont été servies. C'était la preuve que la
         // garde fonctionne, et aussi qu'un temoin choisi parmi le travail restant se perime
         // a chaque lot : le plan vise `manquant = 0`, donc a la fin il n'en resterait aucun.
         //

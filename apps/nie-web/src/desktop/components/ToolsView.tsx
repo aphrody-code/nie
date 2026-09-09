@@ -93,7 +93,7 @@ export function ToolsView({ onOpenSearch }: { onOpenSearch?: (query: string) => 
 
     const promesse = chemin
       ? wikiDb
-          .chargerRoster(chemin)
+          .loadRoster(chemin)
           .then((lignes) => {
             if (annule) return null;
             setRoster(lignes.map(versJoueur).filter((j) => j.poste !== "Entraîneur"));

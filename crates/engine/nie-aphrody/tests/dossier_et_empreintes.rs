@@ -15,36 +15,34 @@ use nie_aphrody::{
 fn le_dossier_embarque_se_lit_et_porte_ses_blocs() {
     let d = Dossier::bundled().expect("dossier embarqué valide");
     assert_eq!(d.slug, "byron-love-aphrody");
-    assert!(!d.genere_le.is_empty());
+    assert!(!d.generated_at.is_empty());
 
     // Les trois ères du personnage : IE1, GO, Ares.
-    assert_eq!(d.codes_internes.len(), 3);
-    assert!(d.codes_internes.iter().all(|c| c.starts_with('c')));
+    assert_eq!(d.internal_codes.len(), 3);
+    assert!(d.internal_codes.iter().all(|c| c.starts_with('c')));
 
     for bloc in [
-        "identite",
-        "statistiques",
+        "identity",
+        "stats",
         "techniques",
         "auras",
-        "medias",
+        "assets",
         "sources",
-        "jeu",
+        "game",
         "pet",
     ] {
-        assert!(d.bloc(bloc).is_some(), "bloc manquant : {bloc}");
+        assert!(d.block(bloc).is_some(), "missing block: {bloc}");
     }
 
-    // L'identité porte ce que seules les sources externes savent.
-    assert_eq!(d.identite_str("romaji"), Some("Afuro Terumi"));
-    assert!(d.identite_str("furigana").is_some_and(|f| !f.is_empty()));
-    assert!(d.blocs().len() >= 8);
+    assert_eq!(d.identity_string("name_en"), Some("Byron Love Aphrody"));
+    assert!(d.block_names().len() >= 8);
 }
 
 #[test]
 fn le_bloc_pet_du_dossier_decrit_le_paquet_embarque() {
     let d = Dossier::bundled().expect("dossier");
     let pet_paquet = Pet::bundled().expect("paquet");
-    let pet_bloc = d.bloc("pet").expect("bloc pet");
+    let pet_bloc = d.block("pet").expect("pet block");
 
     // Le dossier est généré depuis les mêmes fichiers que la crate embarque : si les deux
     // divergent, c'est que le dossier a été régénéré contre un autre paquet.
@@ -52,15 +50,17 @@ fn le_bloc_pet_du_dossier_decrit_le_paquet_embarque() {
         .expect("nombre de frames representable");
     assert_eq!(
         pet_bloc
-            .get("total_frames")
+            .get("animations")
+            .and_then(|animations| animations.get("exportedFrameCount"))
             .and_then(serde_json::Value::as_u64),
         Some(frames_paquet),
     );
     assert_eq!(
         pet_bloc
             .get("animations")
-            .and_then(serde_json::Value::as_array)
-            .map(Vec::len),
+            .and_then(|animations| animations.get("animations"))
+            .and_then(serde_json::Value::as_object)
+            .map(serde_json::Map::len),
         Some(pet_paquet.manifest.animations.len()),
     );
 }
@@ -70,7 +70,7 @@ fn le_markdown_embarque_est_le_meme_dossier() {
     let d = Dossier::bundled().expect("dossier");
     assert!(BUNDLED_DOSSIER_MD.len() > 1_000);
     // Le Markdown doit parler du même personnage que le JSON.
-    let nom = d.identite_str("nom_fr").expect("nom_fr");
+    let nom = d.identity_string("name_en").expect("name_en");
     assert!(
         BUNDLED_DOSSIER_MD.contains(nom),
         "le Markdown ne mentionne pas {nom}"

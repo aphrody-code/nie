@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/chara-text.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseNounNode`, `parseNounsFromConfig`, `parseRomaNode`, `buildRomanizedMap`) — **port 1:1**.
 //! - Données : `data/common/text/<locale>/chara_text.cfg.bin` (VFS IEVR), format **T2B**
 //!   (`entries`). Noeuds `NOUN_INFO_<i>` dans un dump JSON inagle (le dumper JS suffixe chaque

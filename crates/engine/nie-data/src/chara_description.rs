@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/chara-description.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseDescriptionNode`, `loadCharaDescriptions`) — **port 1:1**.
 //! - Données : `data/common/text/fr/chara_description_text.cfg.bin` (et autres locales) du VFS,
 //!   format **T2B** (`entries`). Structure (probe live) : un noeud `TEXT_INFO_BEGIN_0` contenant

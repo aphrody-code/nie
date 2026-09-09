@@ -79,9 +79,6 @@ done
 echo
 echo "CLI Bun (lanceurs) :"
 for spec in \
-    "nie-catalog:packages/nie-catalog/src/cli.ts" \
-    "niers-azalee:packages/azalee-tools/src/cli.ts" \
-    "niers-inagle:packages/inagle/src/cli.ts" \
     "niers-mcp:packages/mcp/src/cli.ts"; do
     nom=${spec%%:*}
     src=${spec#*:}
@@ -92,10 +89,7 @@ for spec in \
         refuses=$((refuses + 1))
         continue
     fi
-    # Le lanceur se place À LA RACINE du dépôt. Mesuré le 2026-09-02 : lancée depuis /tmp,
-    # `nie-catalog etat` annonce « extrait : 0 tables » et « re : aucune mesure » — ses gisements
-    # (var/mirror.sqlite, var/niers.sqlite) sont résolus relativement au cwd. Sans ce cd, une CLI
-    # publiée globalement rapporte des gisements VIDES au lieu d'une erreur : un faux négatif.
+    # Le lanceur se place à la racine afin que les chemins relatifs du serveur MCP restent stables.
     if [ "$sec" != "--dry-run" ]; then
         printf '#!/usr/bin/env bash\ncd "%s" || exit 1\nexec bun --bun "%s" "$@"\n' \
             "$racine" "$src" > "$dest/$nom"

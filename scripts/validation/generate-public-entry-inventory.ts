@@ -176,7 +176,7 @@ const getRoutes = [...siteSource.matchAll(/^\s*"(\/[^" ]+)"\s*=>\s*crate::routes
   .map(match => ({ path: match[1], module: match[2] }));
 const posts = [...siteSource.matchAll(/\.route\(\s*CHEMINS_HORS_GET\[(\d+)\],\s*post\(crate::routes::([a-z0-9_]+)::/g)]
   .map(match => ({ path: getRoutes.find(route => route.path === [
-    "/api/v1/regles/comparaison", "/api/v1/team/synergy", "/api/v1/save/roster", "/api/v1/inspect/compare", "/api/v1/inspect/plate", "/api/v1/menu/runtime/{screen}", "/api/v1/zukan/rank"
+    "/api/v1/regles/comparaison", "/api/v1/team/synergy", "/api/v1/save/roster", "/api/v1/inspect/compare", "/api/v1/inspect/plate", "/api/v1/menu/runtime/{screen}", "/api/v1/zukan/rank", "/api/save/resolve-roster", "/api/v1/wiki/compare", "/api/v1/wiki/random-team"
   ][Number(match[1])])?.path ?? `CHEMINS_HORS_GET[${match[1]}]`, module: match[2] }));
 const site = [...getRoutes.map(route => ({...route, method:"GET"})), ...posts.map(route => ({...route, method:"POST"}))]
   .map(route => {

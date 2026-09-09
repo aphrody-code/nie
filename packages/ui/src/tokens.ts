@@ -5,7 +5,7 @@
  * Projection TypeScript des tokens du design system, utilisable HORS navigateur
  * (rendu Canvas du bot Discord, scripts, tests). Module volontairement pur :
  * aucun import, aucune API Node — packages/ui doit rester bundlable côté
- * navigateur, exactement comme la racine de packages/azalee.
+ * navigateur, exactly like the repository root.
  *
  * Les couleurs déclarées en `oklch()` dans le CSS sont converties en
  * hexadécimal sRGB : le backend Skia de Canvas 2D ne sait pas les lire et

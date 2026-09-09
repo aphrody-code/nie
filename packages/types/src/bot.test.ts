@@ -189,13 +189,12 @@ describe("manques", () => {
 });
 
 describe("profils", () => {
-	test("les deux profils ont des ports d'administration distincts", () => {
+	test("les profils ont des ports d'administration distincts", () => {
 		const ports = TOUS_LES_PROFILS_BOT.map((p) => p.portAdmin);
 		expect(new Set(ports).size).toBe(ports.length);
 	});
 
 	test("chaque profil nomme son unité systemd", () => {
 		expect(PROFILS_BOT.rg.unite).toBe("rg-bot.service");
-		expect(PROFILS_BOT.azalee.unite).toBe("azalee-bot.service");
 	});
 });

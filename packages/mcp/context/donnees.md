@@ -1,69 +1,24 @@
-# Données du jeu — d'où elles viennent et comment les interroger
+# Game data boundary
 
-Les données proviennent de la **rétro-ingénierie des fichiers d'Inazuma
-Eleven: Victory Road** (Level-5). Rien n'est saisi à la main : un extracteur
-(`packages/inagle`) lit les archives CPK du jeu, en tire des tables typées,
-les matérialise dans un miroir SQLite local, et le wiki les lit en lecture seule.
+The native Rust stack reads verified Inazuma Eleven: Victory Road assets from the VFS and
+serves the read-only SQLite mirror at `var/mirror.sqlite`.
 
-## Chaîne de traitement
-
-```
-archives CPK du jeu → packages/inagle (extraction) → tables locales inagle_*
-                    → miroir SQLite var/mirror.sqlite
-                    → Rust nie-wiki → wiki, API, CLI and this MCP server
+```text
+nie.exe data/CPK/VFS
+        -> nie-formats / nie-data
+        -> nie-wiki read-only projections
+        -> nie-site, nie-cli, native MCP and nie-web
 ```
 
-Le miroir est rafraîchi chaque jour par `azalee-mirror-sync.timer` (échange
-atomique du fichier puis redémarrage du wiki). Il ne contient **que** les
-tables `inagle_*`, sans donnée personnelle.
+The mirror is an immutable read source for consumers. It is never populated by a TypeScript
+parser, Supabase, or an HTTP writer in a runtime request. The `inagle_*` table prefix is a
+legacy schema identifier retained for snapshot compatibility; it is not a package owner.
 
-## Volumétrie réelle du miroir
+Use the surfaces in this order:
 
-66 tables. Les principales, comptées dans la base :
+1. `nie-cli wiki ...` or the native MCP wiki tools for domain operations.
+2. `nie-site` API routes for HTTP clients.
+3. `db_tables`, `db_schema` and read-only `db_query` only for bounded inspection.
+4. `nie-cli` VFS/format commands for raw game assets.
 
-| Table | Lignes | Contenu |
-| --- | --- | --- |
-| `inagle_characters` | 6 148 | personnages et leurs variantes |
-| `inagle_game_assets` | 40 471 | assets référencés du jeu |
-| `inagle_rag_edges` | 41 491 | graphe de liens entre entités et assets |
-| `inagle_shops` | 2 331 | inventaires de boutiques |
-| `inagle_items` | 1 668 | objets |
-| `inagle_skills` | 1 002 | techniques |
-| `inagle_lua_scripts` | 666 | scripts de jeu |
-| `inagle_uniforms` | 384 | uniformes |
-| `inagle_keshins` | 282 | keshins |
-| `inagle_trophies` | 228 | trophées |
-| `inagle_teams` | 208 | équipes |
-| `inagle_quests` | 182 | quêtes |
-| `inagle_passives` | 128 | compétences passives |
-| `inagle_stadiums` | 81 | stades |
-
-À côté du miroir : l'index des **250 800 fichiers** extraits des archives CPK
-(`cpk_*`) et l'index de **259 000 entrées de texte** du jeu en français,
-anglais et japonais (`game_text_search`).
-
-## Comment interroger, dans l'ordre
-
-1. **Outils métier** — `azalee_search` puis `azalee_get` / `azalee_list`.
-   Ils appliquent les règles du jeu (résolution des variantes, calcul des
-   statistiques, traductions) que le SQL brut ne connaît pas.
-2. **SQL** — `db_tables` → `db_schema` → `db_query`, pour un agrégat, une
-   jointure ou une colonne que les outils n'exposent pas.
-3. **Fichiers du jeu** — `cpk_search` puis `cpk_file` ; le CDN décode à la
-   volée (texture `.g4tx` → PNG, modèle `.g4md` → GLB texturé, `cfg.bin` →
-   JSON).
-
-## Pièges de modélisation
-
-- **`inagle_skills` : `category_id` et `element_id` sont NULL** dans toute la
-  base. Filtrer et regrouper sur les colonnes textuelles françaises
-  `category` et `element` (voir `docs/wiki-filters.md`).
-- Un personnage a plusieurs **variantes** (formes, tenues, versions
-  événementielles). `azalee_get` résout dans l'ordre : slug canonique
-  (`mark-evans`), slug de variante (`mark-evans-0x…`), identifiant de ligne.
-- Les noms existent en trois langues et les identifiants internes sont des
-  hash : quand une valeur ressemble à `0x3055CF22`, chercher sa traduction
-  avec `azalee_get` sur la collection `text` ou avec `game_text_search`.
-- Les statistiques affichées par le wiki sont **interpolées** selon le niveau
-  (courbe niveau 1 → 30 → 50 → 99) : une valeur brute de la base n'est pas la
-  valeur affichée en jeu.
+No non-VFS editorial dataset is part of the IEVR wiki contract.

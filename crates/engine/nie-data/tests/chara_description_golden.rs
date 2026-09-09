@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `chara_description` — port 1:1 d'inagle
-//! `packages/inagle/src/parsers/chara-description.ts` (+ `sanitize_text`).
+//! `inagle` (+ `sanitize_text`).
 //!
 //! Vérité terrain = le vrai `common/text/fr/chara_description_text.cfg.bin` (VFS IEVR, T2B), via
 //! `cargo run -p nie-game --example extract_chara_description` : **5568** descriptions non-vides,

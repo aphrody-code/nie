@@ -1,5 +1,5 @@
 // Remplacement local de `next/image` — les composants du wiki (`components/wiki/*`, portés
-// depuis `apps/azalee`) l'importent partout, et il n'existe pas hors de Next : sans ce shim,
+// depuis l'ancien wiki) l'importent partout, et il n'existe pas hors de Next : sans ce shim,
 // aucun d'eux ne compile ici.
 //
 // Ce que Next fait et que nous ne faisons PAS : l'optimisation serveur (redimensionnement,

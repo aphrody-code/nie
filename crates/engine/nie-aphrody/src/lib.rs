@@ -40,13 +40,12 @@ pub const BUNDLED_ATLAS_PNG: &[u8] = include_bytes!("../assets/aphrody/sprites/s
 /// Atlas WebP VP8L utilisé par le runtime Codex.
 pub const BUNDLED_ATLAS_WEBP: &[u8] = include_bytes!("../assets/aphrody/sprites/spritesheet.webp");
 
-/// Dossier complet d'Aphrody, en JSON.
+/// Complete Aphrody dossier embedded as JSON.
 ///
-/// Produit par `scripts/aphrody/dossier.ts`, qui croise le dossier Rust
-/// (`export_aphrody`, données du jeu), le zukan officiel de LEVEL-5, le VFS, la couverture des
-/// wikis et le paquet du pet. Chaque bloc y porte sa source et sa confiance.
+/// Produced by the native `export_aphrody` binary from local game/VFS files and the embedded pet
+/// package. The exporter does not read a website, a wiki, a remote API, or a network cache.
 pub const BUNDLED_DOSSIER_JSON: &str = include_str!("../assets/dossier/aphrody.json");
-/// Le même dossier, en Markdown lisible — la forme qu'on relit et qu'on cite.
+/// Human-readable native dossier documentation.
 pub const BUNDLED_DOSSIER_MD: &str = include_str!("../assets/dossier/aphrody.md");
 
 /// Taille d'une cellule de l'atlas v2.
@@ -554,25 +553,23 @@ impl Pet {
     }
 }
 
-/// Le dossier documentaire d'Aphrody.
+/// The embedded Aphrody dossier.
 ///
-/// Les champs stables sont typés ; le reste est laissé en [`serde_json::Value`] à dessein. Le
-/// dossier gagne des blocs au fil des sources qu'on lui branche, et figer sa forme complète
-/// obligerait à modifier cette crate à chaque ajout — ce qui la rendrait plus fragile que la
-/// donnée qu'elle décrit.
+/// Stable envelope fields are typed. The remaining blocks stay as JSON so the native export can
+/// expose new VFS records without changing this reader on every format addition.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Dossier {
-    /// Identifiant stable du concept, tel que publié (`byron-love-aphrody`).
+    /// Stable concept identifier (`byron-love-aphrody`).
     pub slug: String,
-    /// Horodatage ISO-8601 de la génération.
-    pub genere_le: String,
-    /// Noms, surnoms, lecture kana, romaji, élément, poste, équipes…
-    pub identite: serde_json::Value,
-    /// Codes internes du jeu couverts par ce dossier (un par ère du personnage).
-    pub codes_internes: Vec<String>,
-    /// Tous les blocs, y compris ceux qui ne sont pas typés ci-dessus.
+    /// Export provenance marker.
+    pub generated_at: String,
+    /// Native character identity fields.
+    pub identity: serde_json::Value,
+    /// Internal game codes covered by this dossier.
+    pub internal_codes: Vec<String>,
+    /// All other native blocks.
     #[serde(flatten)]
-    pub reste: BTreeMap<String, serde_json::Value>,
+    pub blocks: BTreeMap<String, serde_json::Value>,
 }
 
 impl Dossier {
@@ -585,28 +582,28 @@ impl Dossier {
         Ok(serde_json::from_str(BUNDLED_DOSSIER_JSON)?)
     }
 
-    /// Un bloc du dossier par son nom (`statistiques`, `techniques`, `jeu`, `pet`…).
+    /// Returns a dossier block by name (`stats`, `techniques`, `auras`, `game`, `pet`, …).
     #[must_use]
-    pub fn bloc(&self, nom: &str) -> Option<&serde_json::Value> {
-        match nom {
-            "identite" => Some(&self.identite),
-            _ => self.reste.get(nom),
+    pub fn block(&self, name: &str) -> Option<&serde_json::Value> {
+        match name {
+            "identity" => Some(&self.identity),
+            _ => self.blocks.get(name),
         }
     }
 
-    /// Les noms de tous les blocs présents, triés.
+    /// Returns all block names in sorted order.
     #[must_use]
-    pub fn blocs(&self) -> Vec<&str> {
-        let mut v: Vec<&str> = self.reste.keys().map(String::as_str).collect();
-        v.push("identite");
+    pub fn block_names(&self) -> Vec<&str> {
+        let mut v: Vec<&str> = self.blocks.keys().map(String::as_str).collect();
+        v.push("identity");
         v.sort_unstable();
         v
     }
 
-    /// Une valeur d'identité par son nom (`nom_fr`, `romaji`, `furigana`, `element`…).
+    /// Returns a string identity field by name (`name_en`, `name_ja`, `team_name_en`, …).
     #[must_use]
-    pub fn identite_str(&self, champ: &str) -> Option<&str> {
-        self.identite.get(champ).and_then(serde_json::Value::as_str)
+    pub fn identity_string(&self, field: &str) -> Option<&str> {
+        self.identity.get(field).and_then(serde_json::Value::as_str)
     }
 }
 

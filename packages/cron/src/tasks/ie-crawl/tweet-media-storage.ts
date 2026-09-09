@@ -240,7 +240,7 @@ export async function rehebergerMediasTweet(
 		}
 
 		// Test sur le CHEMIN, pas sur l'hôte : une URL déjà réécrite vers
-		// rosegriffon.fr, azalee.rosegriffon.fr ou storage.rosegriffon.fr est
+		// rosegriffon.fr or storage.rosegriffon.fr is
 		// reconnue de la même façon (même convention que process-tweets.ts).
 		const dejaHeberge = (item.url ?? "").includes(`storage/v1/object/public/${BUCKET}`);
 		if (dejaHeberge) {

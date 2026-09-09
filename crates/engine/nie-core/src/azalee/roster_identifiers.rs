@@ -1,6 +1,6 @@
 //! Canonical IEVR roster identifiers.
 //!
-//! Source of truth: `packages/azalee/src/game/roster-identifiers.ts`.
+//! Source of truth: the native IEVR roster contract.
 //!
 //! Save importers expose character identifiers as either JavaScript numbers or
 //! strings. The string grammar is deliberately kept here, instead of in a

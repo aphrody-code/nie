@@ -49,9 +49,8 @@ function Get-CheminPath([string]$nom) {
 
 # « Un exécutable ÉTRANGER déjà dans le PATH » : la comparaison bash portait sur le chemin exact
 # ($dest/$nom), ce qui suffit sous Linux où le nom publié EST le nom du fichier. Sous Windows,
-# PATHEXT résout `nie-catalog` vers `nie-catalog.cmd` : comparer les chemins exacts ferait
-# refuser au script son propre lanceur. On compare donc le RÉPERTOIRE — même intention, même
-# refus sur un binaire étranger, sans faux positif sur nos propres publications.
+# PATHEXT peut ajouter une extension au nom publié : comparer les chemins exacts ferait refuser
+# au script son propre lanceur. On compare donc le RÉPERTOIRE — même intention, sans faux positif.
 function Test-Etranger([string]$actuel) {
     if (-not $actuel) { return $false }
     return ((Split-Path -Path $actuel -Parent) -ne $dest)
@@ -128,9 +127,6 @@ if (Test-Path -LiteralPath $release) {
 Write-Host ''
 Write-Host 'CLI Bun (lanceurs) :'
 $specs = [ordered]@{
-    'nie-catalog'  = 'packages/nie-catalog/src/cli.ts'
-    'niers-azalee' = 'packages/azalee-tools/src/cli.ts'
-    'niers-inagle' = 'packages/inagle/src/cli.ts'
     'niers-mcp'    = 'packages/mcp/src/cli.ts'
 }
 foreach ($nom in $specs.Keys) {
@@ -149,9 +145,7 @@ foreach ($nom in $specs.Keys) {
         continue
     }
     # Le lanceur se place À LA RACINE du dépôt. Mesuré le 2026-09-02 : lancée depuis /tmp,
-    # `nie-catalog etat` annonce « extrait : 0 tables » et « re : aucune mesure » — ses gisements
-    # (var/mirror.sqlite, var/niers.sqlite) sont résolus relativement au cwd. Sans ce cd, une CLI
-    # publiée globalement rapporte des gisements VIDES au lieu d'une erreur : un faux négatif.
+    # Le lanceur se place à la racine afin que les chemins relatifs du serveur MCP restent stables.
     if ($sec -ne '--dry-run') {
         $contenu = "@echo off`r`ncd /d `"$racine`" || exit /b 1`r`nbun --bun `"$src`" %*`r`n"
         [IO.File]::WriteAllText($publie, $contenu, [Text.UTF8Encoding]::new($false))

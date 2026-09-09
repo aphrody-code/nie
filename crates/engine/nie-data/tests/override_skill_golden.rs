@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `override_skill` — port 1:1 d'inagle
-//! `packages/inagle/src/parsers/override-skill-config.ts`.
+//! `inagle`.
 //!
 //! Fixture = VRAIES valeurs extraites du VFS Steam d'IEVR :
 //! `data/common/gamedata/skill/override_skill_config_3.00.21.00.cfg.bin`

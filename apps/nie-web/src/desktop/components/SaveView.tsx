@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
-import { api, type RemoteRosterEntry, type SaveBlobInfo, type SaveSummary } from "@/lib/api";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { api, type SaveBlobInfo, type SaveSummary } from "@/lib/api";
 import { b64ToBytes, hexLines, humanSize } from "@/lib/bytes";
 import { Button } from "@niers/inacord-ui/components/ui/button";
 import { Badge } from "@niers/inacord-ui/components/ui/badge";
@@ -18,14 +17,11 @@ function formatPlaytime(secs: number | null): string {
 }
 
 export function SaveView() {
-  const settings = useSettings();
   const [summary, setSummary] = useState<SaveSummary | null>(null);
   const [blobs, setBlobs] = useState<SaveBlobInfo[]>([]);
   const [blobHex, setBlobHex] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [roster, setRoster] = useState<RemoteRosterEntry[] | null>(null);
-  const [rosterLoading, setRosterLoading] = useState(false);
   const [openedPath, setOpenedPath] = useState<string | null>(null);
   const [openedAuto, setOpenedAuto] = useState(false);
   const [autoDetecting, setAutoDetecting] = useState(true);
@@ -38,7 +34,6 @@ export function SaveView() {
       setSummary(s);
       setBlobs(await api.saveListBlobs());
       setBlobHex(null);
-      setRoster(null);
       setOpenedPath(path);
       setOpenedAuto(auto);
     } catch (e) {
@@ -78,21 +73,6 @@ export function SaveView() {
       setBlobHex(hexLines(b64ToBytes(b64), 128).join("\n"));
     } catch (e) {
       toast.error(String(e));
-    }
-  }
-
-  async function resolveRoster() {
-    if (!summary) return;
-    setRosterLoading(true);
-    try {
-      const ids = summary.roster.owned.map((r) => r.id);
-      const res = await api.remoteResolveRoster(settings.azaleeUrl, ids);
-      setRoster(res.resolved);
-      toast.success(`${res.matched}/${res.total} personnages résolus (azalee)`);
-    } catch (e) {
-      toast.error(String(e));
-    } finally {
-      setRosterLoading(false);
     }
   }
 
@@ -160,9 +140,6 @@ export function SaveView() {
                 <div className="type-label-small text-on-surface-variant">Roster</div>
                 <div className="flex items-center gap-2 text-on-surface">
                   {Array.isArray(summary.roster?.owned) ? summary.roster.owned.length : "?"} personnage(s)
-                  <Button size="sm" variant="link" className="h-auto p-0" onClick={resolveRoster} disabled={rosterLoading}>
-                    {rosterLoading ? "résolution…" : "résoudre les noms (azalee)"}
-                  </Button>
                 </div>
               </div>
               <div>
@@ -171,29 +148,6 @@ export function SaveView() {
               </div>
             </CardContent>
           </Card>
-
-          {roster && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Roster résolu (bonus — azalee, wiki distant)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-56 rounded-lg border border-app-line bg-app-dark-box">
-                  <div className="divide-y divide-app-line">
-                    {roster.map((r) => (
-                      <div key={r.id} className="state-layer flex items-center justify-between px-3 py-1.5 type-body-medium">
-                        <span className="text-on-surface">{r.name ?? <span className="text-on-surface-variant">{r.id} (inconnu)</span>}</span>
-                        <span className="flex gap-1">
-                          {r.element && <Badge variant="outline">{r.element}</Badge>}
-                          {r.position && <Badge variant="outline">{r.position}</Badge>}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          )}
 
           <Card>
             <CardHeader>

@@ -3,7 +3,7 @@
  *
  * ## Pourquoi ce module existe
  *
- * `apps/azalee/components` porte 184 composants dont la valeur est réelle — listes filtrables,
+ * The migrated wiki surface contains 184 components whose value is real — filtered lists,
  * fiches, éditeur, tableaux de bord — et **143 imports de `next/*`** qui les clouent au sol :
  * mesuré le 2026-09-06, `next/link` 61 fois, `next/image` 53, `next/navigation` 27. Ce paquet
  * est monté par deux hôtes dont **aucun n'est Next** : nie est un Vite/SPA, Inacord une

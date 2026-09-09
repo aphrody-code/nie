@@ -20,7 +20,7 @@ echecs=()
 titre() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 titre "1. Les commandes attendues sont-elles publiées ?"
-for c in niers nie-catalog export_skills export_passives export_formations export_aphrody; do
+for c in niers export_skills export_passives export_formations export_aphrody; do
     if chemin=$(command -v "$c" 2>/dev/null); then
         printf '  ✓ %-20s %s\n' "$c" "$chemin"
     else
@@ -34,10 +34,8 @@ if [ ${#manquants[@]} -gt 0 ]; then
     exit 1
 fi
 
-titre "2. Les quatre gisements répondent-ils ? (paquet @niers/catalog)"
-# `nie-catalog etat` MESURE le contenu : un gisement présent peut être vide. Le lanceur se place
-# à la racine du dépôt, sans quoi `extrait` et `re` sont annoncés vides — faux négatif vécu.
-nie-catalog etat || echecs+=("nie-catalog etat")
+titre "2. Le propriétaire Rust répond-il ?"
+niers wiki --help >/dev/null || echecs+=("niers wiki --help")
 
 [ "$sec" = "--verif-seule" ] && { echo; echo "vérification seule : rien exporté."; exit 0; }
 
@@ -68,4 +66,4 @@ if [ ${#echecs[@]} -gt 0 ]; then
     printf 'ÉCHECS (%d) : %s\n' "${#echecs[@]}" "${echecs[*]}"
     exit 1
 fi
-echo "pipeline complet — 4 exports, 4 gisements."
+echo "pipeline complet — Rust wiki + 4 exports."

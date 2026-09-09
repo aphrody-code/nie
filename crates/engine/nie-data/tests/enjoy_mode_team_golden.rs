@@ -4,7 +4,7 @@
 //!
 //! - `data/common/gamedata/team/enjoy_mode_team_config_1.04.02.00.cfg.bin.json`
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/enjoy-mode-team-config.ts`. Chaque valeur
+//! Port 1:1 d'inagle `inagle`. Chaque valeur
 //! assérée est copiée octet pour octet du dump réel (CRC signés convertis en u32 comme `toHex`).
 
 mod common;

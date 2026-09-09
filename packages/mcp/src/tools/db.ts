@@ -13,7 +13,7 @@
 
 import { Database } from "bun:sqlite";
 import { statSync } from "node:fs";
-import { resolveMirrorPath } from "@niers/azalee-tools/server/index";
+import { resolveMirrorPath } from "../wiki-native.ts";
 import { z } from "zod";
 import { structured, toolError } from "../protocol/types.ts";
 import { defineTool, type RegisteredTool } from "../registry.ts";
@@ -39,7 +39,7 @@ function fingerprintOf(path: string): string {
 	try {
 		// `Bun.file().stat()` est asynchrone : dans ce chemin synchrone, seul
 		// `statSync` convient. C'est le même emprunt que fait la bibliothèque
-		// `@rosegriffon/azalee` pour la même raison.
+		// The Rust wiki boundary owns IEVR-specific queries.
 		const info = statSync(path);
 		return `${info.ino}:${info.mtimeMs}:${info.size}`;
 	} catch {

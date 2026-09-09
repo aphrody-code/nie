@@ -269,10 +269,9 @@ export async function ensureUserProfile(
  * provider est de l'étaler explicitement : `socialProviders: { ...googleProvider, discord: {…} }`.
  *
  * ⚠ Le client OAuth (projet `rgfr-8927d`) est commun aux deux origines : chacune
- * doit déclarer son URI de rappel COMPLET dans la console Google Cloud —
- * `https://rosegriffon.fr/api/auth/callback/google` et
- * `https://azalee.rosegriffon.fr/api/auth/callback/google`. Une origine nue ne
- * suffit pas, Google exige une correspondance exacte (`redirect_uri_mismatch`).
+ * must declare its complete callback URI in Google Cloud:
+ * `https://rosegriffon.fr/api/auth/callback/google`. A bare origin is not enough;
+ * Google requires an exact match (`redirect_uri_mismatch`).
  */
 export const googleProvider = {
 	google: {
@@ -351,11 +350,8 @@ export const commonAuthOptions = {
 		// Cookies Secure uniquement en prod : en dev local (http://localhost),
 		// un cookie Secure n'est jamais renvoyé par le navigateur → login cassé.
 		useSecureCookies: process.env.NODE_ENV === "production",
-		// crossSubDomainCookies DÉSACTIVÉ : website (rosegriffon.fr) et azalee
-		// (azalee.rosegriffon.fr) ont des instances Better Auth séparées (tables
-		// users + secrets distincts) → aucune session partagée possible. Activé,
-		// il forçait Domain=<host> sur les cookies et cassait la lecture de session
-		// après le callback OAuth → boucle de redirection vers /login. Host-only = OK.
+		// Keep cookies host-only: cross-subdomain cookies would couple independent
+		// service deployments and can break OAuth callback session lookup.
 		crossSubDomainCookies: {
 			enabled: false,
 		},

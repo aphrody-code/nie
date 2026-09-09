@@ -2,7 +2,7 @@
 //! Tests golden `quest` — noeuds réels `QUEST_DATA_CFG` tirés de :
 //! `data/common/gamedata/quest/quest_config_1.04.11.00.cfg.bin` (VFS IEVR).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/quest-config.ts` (fn `parseQuestNode` /
+//! Port 1:1 d'inagle `inagle` (fn `parseQuestNode` /
 //! `loadQuestConfig`) : var\[0\]=questId (Int→hex), var\[1\]=phase, var\[2\]=type,
 //! var\[3\]=titleHash (Int→hex), var\[16\]=image (String optionnelle). Les enfants
 //! `QUEST_DATA_CFG_REF_*` sont sautés. Vérité terrain = le dump brut, valeurs extraites via

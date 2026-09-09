@@ -18,13 +18,9 @@
 	"dependencies": {
 		"@aphrody-code/bxc": "catalog:",
 		"@aphrody-code/x": "catalog:",
-		"@aphrody-code/zukan": "catalog:",
-		"@aphrody/bxc": "catalog:",
-		"@aphrody/ietv": "workspace:*",
 		"@asteasolutions/zod-to-openapi": "catalog:",
 		"@rosegriffon/auth": "workspace:*",
 		"@rosegriffon/db": "workspace:*",
-		"@rosegriffon/inagle": "workspace:*",
 		"@rosegriffon/types": "workspace:*",
 		"cheerio": "catalog:",
 		"discord.js": "catalog:",

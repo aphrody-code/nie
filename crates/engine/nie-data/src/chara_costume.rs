@@ -3,7 +3,7 @@
 //!
 //! ## Verite terrain
 //!
-//! - Parser TS : `packages/inagle/src/parsers/chara-costume-config.ts`
+//! - Parser TS : `inagle`
 //!   (`parseEntries` l.39-61), port **1:1**.
 //! - Donnees : VFS `data/common/gamedata/character/chara_costume_1.02.28.00.cfg.bin`.
 //!

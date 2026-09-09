@@ -2,7 +2,7 @@ import { useResolvedNames, nameWithId } from "../lib/resolved-names";
 import { GalleryCard } from "../components/wiki/wiki/GalleryCard";
 // Vue **Galerie** — les illustrations du jeu, listées depuis le VFS.
 //
-// Portée depuis `apps/azalee/app/gallery/` (`GalleryGrid`, `GalleryLightbox`,
+// Portée depuis l'ancien wiki (`GalleryGrid`, `GalleryLightbox`,
 // `filters/GalleryFilterBar`, `wikiService.getGalleryList`). La migration ne déplace pas la page :
 // elle change de source. Le wiki compose deux fonds qui ne se rejoignent jamais — la table
 // `inagle_gallery` (360 lignes) et un manifeste statique de 3 579 entrées — d'où sa pastille

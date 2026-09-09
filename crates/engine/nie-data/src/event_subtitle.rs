@@ -4,7 +4,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! Port **1:1** des parseurs par-fichier d'inagle `packages/inagle/src/parsers/event-subtitles.ts`
+//! Port **1:1** des parseurs par-fichier d'inagle `inagle`
 //! (`parseSubtitleFile`, `loadTextMap`, `loadWashaMap`). L'agrégation multi-langue/multi-fichier
 //! d'inagle (scan de répertoires, choix de langue canonique) reste **côté appelant** ; ce module
 //! porte les **trois extractions par-fichier**, chacune ancrée sur le layout réel du dump :

@@ -3,18 +3,15 @@
 # le VPS Linux). Pipeline de release COMPLET pour l'app desktop Inacord (ex nie-explorer,
 # identifiant Tauri conservé) :
 #   bump versions → sync lockfiles → build signé (msi+nsis) → tag+push → GitHub Release
-#   → (option) redeploy azalee.
+#   → publish the Rust site release metadata.
 #
 # Usage :
 #   $env:TAURI_SIGNING_PRIVATE_KEY_PATH = "$HOME/.tauri/niers.key"
 #   pwsh -NoProfile -File scripts/release-desktop.ps1 0.5.0
-#   pwsh -NoProfile -File scripts/release-desktop.ps1 0.5.0 --ship-azalee
+#   pwsh -NoProfile -File scripts/release-desktop.ps1 0.5.0
 #
-# NOTE — le côté VPS n'a PAS besoin d'être redéployé à chaque release : `azalee.rosegriffon.fr/
-# tools/niers` et `/tools/niers/latest.json` lisent la dernière release GitHub EN DIRECT
-# (`apps/azalee/lib/niers-releases.ts`, revalidate=3600s) — ce script suffit à lui seul à publier
-# une version que l'updater Tauri ET la page de download verront sous 1 h max, sans toucher au
-# VPS. `--ship-azalee` ne sert que si le CODE d'azalee (pas niers) a aussi changé entre-temps.
+# NOTE — the website release metadata endpoint reads the latest GitHub release directly;
+# this script publishes a version visible to the Tauri updater without a second deployment.
 #
 # La clé de signature n'est JAMAIS lue ni affichée par ce script : seul son CHEMIN circule,
 # passé à Tauri par la variable d'environnement TAURI_SIGNING_PRIVATE_KEY.
@@ -62,11 +59,8 @@ function Set-FileRegex([string] $Path, [string] $Pattern, [string] $Replacement,
 }
 
 $Version = if ($args.Count -gt 0) { $args[0] } else { '' }
-$ShipAzalee = $false
-foreach ($arg in $args) { if ($arg -eq '--ship-azalee') { $ShipAzalee = $true } }
-
 if ([string]::IsNullOrEmpty($Version) -or $Version.StartsWith('--')) {
-    Write-Err 'Usage: release-desktop.ps1 <version, ex: 0.5.0> [--ship-azalee]'
+	Write-Err 'Usage: release-desktop.ps1 <version, ex: 0.5.0>'
     exit 1
 }
 if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
@@ -254,13 +248,4 @@ Write-Host "▸ [8/8] GitHub Release $Tag (upload msi+nsis+sig+blender zip)…"
 Assert-Exit 'gh release create'
 
 Write-Host "✓ Release $Tag publiée : https://github.com/aphrody-code/nie/releases/tag/$Tag"
-Write-Host '  → azalee.rosegriffon.fr/tools/niers + /latest.json se mettront à jour tout seuls (≤1h, cache dynamique).'
-
-if ($ShipAzalee) {
-    Write-Host '▸ [bonus] --ship-azalee : redeploy azalee sur le VPS (scripts/redeploy-niers-tools.sh, dépôt rg)…'
-    & ssh ovh-vps-ubuntu-direct 'bash /home/ubuntu/rg/scripts/redeploy-niers-tools.sh'
-    if ($LASTEXITCODE -ne 0) {
-        & ssh ovh-vps-ubuntu 'bash /home/ubuntu/rg/scripts/redeploy-niers-tools.sh'
-        Assert-Exit 'ssh redeploy-niers-tools.sh'
-    }
-}
+Write-Host '  → the Rust site release metadata will update from the latest GitHub release.'

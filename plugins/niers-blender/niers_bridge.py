@@ -1,22 +1,15 @@
 # niers_bridge — pont natif entre l'addon Blender « niers — G4 Blender Tools » et l'écosystème
-# niers : `niers.exe` (CLI Rust, VFS local), le miroir wiki SQLite (`supabase-*.sqlite`, noms
-# localisés FR/EN/JA) et azalee (GraphQL + REST distants, https://azalee.rosegriffon.fr).
+# niers : `niers.exe` (CLI Rust, VFS local and Rust-owned wiki mirror).
 #
-# Recherche personnage/technique par NOM LOCALISÉ (FR/EN/JA), depuis deux sources combinées et
-# JAMAIS bloquantes l'une sur l'autre : le miroir local (si présent, hors-ligne, `sqlite3` stdlib
-# — mêmes requêtes SQL EXACTES que `nie_wiki::query::{search_characters, search_skills}` et
-# `apps/inacord/src/lib/wikiDb.ts`) et le GraphQL azalee (toujours tenté, mêmes requêtes que
-# `apps/inacord/src-tauri/src/lib.rs::{remote_search_chara, remote_search_waza}` — un échec
-# réseau devient une notice, jamais un blocage). Un résultat perso/technique se résout en un clic
-# vers ses VRAIS fichiers VFS (`niers vfs find <code>`), eux-mêmes importables directement : noms
-# FR/EN/JA → fichiers réels → import Blender, en trois clics.
+# Recherche personnage/technique par nom localisé via `niers.exe`. Le CLI appelle directement
+# `nie-wiki`; Blender ne réimplémente ni SQL ni la politique de données.
 #
 # Côté Rust, `crates/tools/nie-cli/src/main.rs` documente `-j/--json` de `niers vfs
 # find`/`chara`/`waza` comme étant destiné à ce pont.
 #
 # Panneau « niers — Recherche » (View3D > Sidebar > niers) : deux onglets, Fichiers (recherche VFS
-# substring, `niers vfs find --json`) et Personnage/Technique (noms localisés, miroir local +
-# azalee). Import réel via l'opérateur `import_scene.level5_g4`. **NE PAS appeler**
+# substring, `niers vfs find --json`) et Personnage/Technique (noms localisés, miroir Rust local).
+# Import réel via l'opérateur `import_scene.level5_g4`. **NE PAS appeler**
 # `level5_g4_port.load_original_model` (l'opérateur du wizard d'export) : il ne crée aucun
 # maillage — même piège que dans `open_in_blender` côté `nie-explorer`.
 #
@@ -27,13 +20,9 @@
 import json
 import os
 import shutil
-import sqlite3
 import subprocess
 import threading
 import traceback
-import urllib.error
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
 import bpy
@@ -55,8 +44,6 @@ _NIERS_EXE_SUBPATHS = (
     ("target", "release", "niers"),
     ("target", "debug", "niers"),
 )
-
-AZALEE_DEFAULT_URL = "https://azalee.rosegriffon.fr"
 
 # Processus/threads `niers.exe`/réseau actuellement en vol, pour nettoyage forcé si l'addon est
 # désactivé pendant qu'une recherche/extraction tourne (sinon le timer continuerait à tourner
@@ -114,12 +101,10 @@ def resolve_niers_exe(context) -> Path | None:
 
 
 def resolve_wiki_db(context) -> Path | None:
-    """Résout le miroir wiki (`supabase-*.sqlite`), dans l'ordre : `NIE_WIKI_DB`/`SQLITE_DB_PATH`
+    """Résout le miroir wiki (`inagle-*.sqlite`), dans l'ordre : `NIE_WIKI_DB`/`SQLITE_DB_PATH`
     (mêmes variables que `nie-explorer`/`nie-wiki`) > préférence explicite (`wiki_db_path`) >
-    fichier `supabase-*.sqlite` le plus récent (tri lexicographique du nom, horodaté) sous
-    `<racine du jeu>/var/wiki-mirror/` — même logique que `default_wiki_db`/`latest_sqlite_in`
-    côté Rust (`apps/inacord/src-tauri/src/lib.rs`). `None` si rien de trouvé — la recherche
-    perso/technique retombe alors sur azalee seul, jamais une erreur bloquante."""
+    fichier `inagle-*.sqlite` le plus récent sous `<racine du jeu>/var/miroir/`, selon la
+    même règle que le propriétaire Rust. Returns `None` when no local mirror is available."""
     for var in ("NIE_WIKI_DB", "SQLITE_DB_PATH"):
         v = os.environ.get(var)
         if v and Path(v).is_file():
@@ -135,124 +120,24 @@ def resolve_wiki_db(context) -> Path | None:
     game_dir = _game_dir_from_raw_data_root(getattr(prefs, "raw_data_root", "") if prefs is not None else "")
     if game_dir is None:
         return None
-    mirror_dir = game_dir / "var" / "wiki-mirror"
+    mirror_dir = game_dir / "var" / "miroir"
     if not mirror_dir.is_dir():
         return None
-    candidates = sorted(p for p in mirror_dir.glob("supabase-*.sqlite") if p.is_file() and p.stat().st_size > 0)
+    candidates = sorted(p for p in mirror_dir.glob("inagle-*.sqlite") if p.is_file() and p.stat().st_size > 0)
     return candidates[-1] if candidates else None
 
 
-def _sanitize_filter(value: str) -> str:
-    """Identique à `nie_wiki::query::sanitize_filter`/`wikiDb.ts::sanitizeFilter` : retire
-    `%,().*\\` (pas `_`) — évite qu'une requête utilisatrice n'injecte un joker `LIKE` non voulu."""
-    for ch in "%,().*\\":
-        value = value.replace(ch, "")
-    return value
-
-
-def search_chara_local(db_path: Path, query: str) -> list[dict]:
-    """Même requête SQL, mot pour mot, que `nie_wiki::query::search_characters`/
-    `wikiDb.ts::searchChara` — une seule vérité SQL, trois moteurs d'exécution (`nie-cli`/
-    `tauri-plugin-sql`/`sqlite3` stdlib ici)."""
-    q = _sanitize_filter(query)
-    like = f"%{q}%"
-    conn = sqlite3.connect(str(db_path))
-    try:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """
-            SELECT id, chara_id, name_fr, name_en, name_ja, element, position,
-                   rarity_label, internal_code, slug, base_slug
-            FROM inagle_characters
-            WHERE id = ?1 OR chara_id = ?1 OR internal_code = ?1 OR slug = ?1 OR base_slug = ?1
-               OR name_fr LIKE ?2 OR name_en LIKE ?2 OR name_ja LIKE ?2
-            ORDER BY zukan_order ASC NULLS LAST, id ASC
-            LIMIT 50
-            """,
-            (q, like),
-        ).fetchall()
-        return [dict(row) for row in rows]
-    finally:
-        conn.close()
-
-
-def search_waza_local(db_path: Path, query: str) -> list[dict]:
-    """Même requête SQL que `nie_wiki::query::search_skills`/`wikiDb.ts::searchWaza`."""
-    q = _sanitize_filter(query)
-    like = f"%{q}%"
-    conn = sqlite3.connect(str(db_path))
-    try:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """
-            SELECT id, name_fr, name_en, name_ja, category, element,
-                   power_max, power_min, tp_cost, description_fr, description_en,
-                   internal_code, is_hyper
-            FROM inagle_skills
-            WHERE id = ?1 OR internal_code = ?1 OR name_fr LIKE ?2 OR name_en LIKE ?2 OR name_ja LIKE ?2
-            ORDER BY name_fr ASC
-            LIMIT 20
-            """,
-            (q, like),
-        ).fetchall()
-        return [dict(row) for row in rows]
-    finally:
-        conn.close()
-
-
-def _azalee_base(url: str) -> str:
-    b = (url or "").strip()
-    return b.rstrip("/") if b else AZALEE_DEFAULT_URL
-
-
-def _graphql_query(base_url: str, query: str, variables: dict, timeout: float = 15.0) -> dict:
-    """Même endpoint/forme de requête que `graphql_query` (`apps/inacord/src-tauri/src/
-    lib.rs`) : POST JSON `{query, variables}` sur `<base>/api/graphql`, `data`/`errors` en sortie."""
-    url = f"{_azalee_base(base_url)}/api/graphql"
-    payload = json.dumps({"query": query, "variables": variables}).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        body = json.loads(resp.read().decode("utf-8"))
-    if body.get("errors"):
-        raise RuntimeError(f"erreurs GraphQL azalee : {body['errors']}")
-    data = body.get("data")
-    if data is None:
-        raise RuntimeError("réponse GraphQL azalee sans champ « data »")
-    return data
-
-
-def search_chara_azalee(base_url: str, query: str) -> list[dict]:
-    """Même requête GraphQL que `remote_search_chara` (`apps/inacord/src-tauri/src/lib.rs`)."""
-    data = _graphql_query(
-        base_url,
-        "query($q: String) { characters(q: $q, limit: 20) { id internalCode name { fr en ja } "
-        "variants { charaParamId position element rarity image } } }",
-        {"q": query},
+def search_local(exe: Path, db_path: Path, kind: str, query: str) -> list[dict]:
+    """Call the Rust CLI; this addon has no duplicate mirror query implementation."""
+    subcommand = "chara" if kind == "CHARA" else "waza"
+    completed = subprocess.run(
+        [str(exe), "vfs", subcommand, query, "--no-paths", "--json", "--db", str(db_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
-    return data.get("characters") or []
-
-
-def search_waza_azalee(base_url: str, query: str) -> list[dict]:
-    """Même requête GraphQL que `remote_search_waza`. Le schéma azalee n'expose PAS `internalCode`
-    pour les techniques (vérifié contre le vrai endpoint, pas deviné) — `internal_code` reste vide
-    pour une entrée azalee, jamais fabriqué (même limite honnête que `SearchView.tsx`)."""
-    data = _graphql_query(
-        base_url,
-        "query($q: String) { skills(q: $q, limit: 20) { id name { fr en ja } category element power tension image } }",
-        {"q": query},
-    )
-    return data.get("skills") or []
-
-
-def search_cpk_azalee(base_url: str, query: str, timeout: float = 15.0) -> list[dict]:
-    """Même endpoint REST que `remote_cpk_search` (`GET /api/cpk?q=...`) — index CPK distant
-    (250 800 fichiers azalee), complément à `niers vfs find` local. Réponse réelle observée :
-    `{"query": "...", "files": [{"name","ext","cpk","path"}, ...]}`."""
-    url = f"{_azalee_base(base_url)}/api/cpk?q={urllib.parse.quote(query, safe='')}"
-    req = urllib.request.Request(url, method="GET")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        body = json.loads(resp.read().decode("utf-8"))
-    return body.get("files") or []
+    return json.loads(completed.stdout)
 
 
 def _local_chara_row_to_result(row: dict) -> dict:
@@ -263,7 +148,7 @@ def _local_chara_row_to_result(row: dict) -> dict:
         "name_en": row.get("name_en") or "",
         "name_ja": row.get("name_ja") or "",
         "element": row.get("element") or "",
-        "category_or_position": row.get("position") or "",
+        "category_or_position": row.get("category_or_position") or "",
         "is_hyper": False,
     }
 
@@ -276,37 +161,8 @@ def _local_waza_row_to_result(row: dict) -> dict:
         "name_en": row.get("name_en") or "",
         "name_ja": row.get("name_ja") or "",
         "element": row.get("element") or "",
-        "category_or_position": row.get("category") or "",
+        "category_or_position": row.get("category_or_position") or "",
         "is_hyper": bool(row.get("is_hyper")),
-    }
-
-
-def _azalee_chara_entry_to_result(entry: dict) -> dict:
-    name = entry.get("name") or {}
-    variant = (entry.get("variants") or [{}])[0] or {}
-    return {
-        "source": "azalee",
-        "internal_code": entry.get("internalCode") or "",
-        "name_fr": name.get("fr") or "",
-        "name_en": name.get("en") or "",
-        "name_ja": name.get("ja") or "",
-        "element": variant.get("element") or "",
-        "category_or_position": variant.get("position") or "",
-        "is_hyper": False,
-    }
-
-
-def _azalee_waza_entry_to_result(entry: dict) -> dict:
-    name = entry.get("name") or {}
-    return {
-        "source": "azalee",
-        "internal_code": "",  # cf. docstring `search_waza_azalee` — jamais deviné.
-        "name_fr": name.get("fr") or "",
-        "name_en": name.get("en") or "",
-        "name_ja": name.get("ja") or "",
-        "element": entry.get("element") or "",
-        "category_or_position": entry.get("category") or "",
-        "is_hyper": False,
     }
 
 
@@ -317,7 +173,7 @@ class NiersBridgeResult(PropertyGroup):
 
 
 class NiersBridgeCharaResult(PropertyGroup):
-    source: StringProperty(name="Source")  # "local" | "azalee"
+    source: StringProperty(name="Source")
     internal_code: StringProperty(name="Code")
     name_fr: StringProperty(name="FR")
     name_en: StringProperty(name="EN")
@@ -410,7 +266,7 @@ class _NiersProcessOperator(Operator):
 
 
 class _NiersThreadOperator(Operator):
-    """Base commune des opérateurs qui font de l'I/O réseau (azalee) et/ou disque (SQLite) SANS
+    """Base for non-blocking local worker operators without
     lancer `niers.exe` — même principe non bloquant que [`_NiersProcessOperator`], avec un
     `threading.Thread` à la place d'un `Popen`. `prepare(context)` tourne sur le thread PRINCIPAL
     (accès `bpy`/`context` valide, extrait les données nécessaires en Python simple) ;
@@ -577,10 +433,7 @@ class NIERS_BRIDGE_OT_import_selected(_NiersProcessOperator):
 class NIERS_BRIDGE_OT_search_chara_waza(_NiersThreadOperator):
     bl_idname = "niers_bridge.search_chara_waza"
     bl_label = "Chercher (perso/technique)"
-    bl_description = (
-        "Cherche un personnage/technique par nom FR/EN/JA — miroir SQLite local (si configuré) "
-        "PLUS l'API GraphQL azalee (toujours tentée en complément, jamais bloquante l'une sur l'autre)"
-    )
+    bl_description = "Search a character or skill by localized name through the Rust CLI and local mirror"
 
     def prepare(self, context):
         scene = context.scene
@@ -588,12 +441,11 @@ class NIERS_BRIDGE_OT_search_chara_waza(_NiersThreadOperator):
         if not query:
             self.report({"ERROR"}, "Requête vide")
             return None
-        prefs = addon_preferences(context)
         return {
             "kind": scene.niers_bridge_kind,
             "query": query,
             "wiki_db": resolve_wiki_db(context),
-            "azalee_url": getattr(prefs, "azalee_url", "") or AZALEE_DEFAULT_URL,
+            "niers_exe": resolve_niers_exe(context),
         }
 
     def work(self, prepared):
@@ -602,20 +454,18 @@ class NIERS_BRIDGE_OT_search_chara_waza(_NiersThreadOperator):
         results: list[dict] = []
         notices: list[str] = []
 
-        if prepared["wiki_db"] is not None:
+        if prepared["wiki_db"] is not None and prepared["niers_exe"] is not None:
             try:
-                rows = search_chara_local(prepared["wiki_db"], query) if kind == "CHARA" else search_waza_local(prepared["wiki_db"], query)
+                rows = search_local(prepared["niers_exe"], prepared["wiki_db"], kind, query)
                 mapper = _local_chara_row_to_result if kind == "CHARA" else _local_waza_row_to_result
                 results.extend(mapper(r) for r in rows)
             except Exception as exc:
                 notices.append(f"miroir local : {exc}")
 
-        try:
-            entries = search_chara_azalee(prepared["azalee_url"], query) if kind == "CHARA" else search_waza_azalee(prepared["azalee_url"], query)
-            mapper = _azalee_chara_entry_to_result if kind == "CHARA" else _azalee_waza_entry_to_result
-            results.extend(mapper(e) for e in entries)
-        except (urllib.error.URLError, TimeoutError, OSError, RuntimeError, json.JSONDecodeError) as exc:
-            notices.append(f"azalee (distant) : {exc}")
+        elif prepared["wiki_db"] is None:
+            notices.append("local wiki mirror not found")
+        else:
+            notices.append("niers.exe not found")
 
         return {"results": results, "notices": notices}
 
@@ -648,7 +498,7 @@ class NIERS_BRIDGE_OT_use_chara_as_file_query(Operator):
             return {"CANCELLED"}
         code = scene.niers_bridge_chara_results[idx].internal_code
         if not code:
-            self.report({"ERROR"}, "Ce résultat n'a pas de code interne connu (azalee n'expose pas internalCode pour les techniques)")
+            self.report({"ERROR"}, "This result has no known internal code")
             return {"CANCELLED"}
 
         scene.niers_bridge_kind = "FILES"
@@ -733,7 +583,7 @@ class NIERS_BRIDGE_PT_panel(Panel):
         )
         wiki_db = resolve_wiki_db(context)
         layout.row().label(
-            text=f"miroir wiki : {wiki_db.name}" if wiki_db else "miroir wiki : non trouvé (azalee seul)",
+            text=f"miroir wiki : {wiki_db.name}" if wiki_db else "miroir wiki : non trouvé",
             icon="CHECKMARK" if wiki_db else "INFO",
         )
 
@@ -803,8 +653,8 @@ def register():
         name="Type",
         items=(
             ("FILES", "📁 Fichiers", "Recherche par chemin VFS (niers.exe, substring)"),
-            ("CHARA", "👤 Personnage", "Recherche par nom FR/EN/JA (miroir local + azalee)"),
-            ("WAZA", "⚡ Technique", "Recherche par nom FR/EN/JA (miroir local + azalee)"),
+            ("CHARA", "👤 Personnage", "Recherche par nom FR/EN/JA (miroir Rust local)"),
+            ("WAZA", "⚡ Technique", "Recherche par nom FR/EN/JA (miroir Rust local)"),
         ),
         default="FILES",
     )

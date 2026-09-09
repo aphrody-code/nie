@@ -5,7 +5,7 @@
 //! Le fichier est au format T2B (`entries`). Deux racines : `ITBL_ITEMS_LIST_BEG`
 //! (113 feuilles `[itemId, 1, poids, 0, 0]`) et `ITBL_BASE_LIST_BEG` (44 enfants en
 //! 22 paires `ITBL_BASE` / `ITBL_BASE_REF_ITEMS [offset, count]`). Port 1:1 d'inagle
-//! `packages/inagle/src/parsers/drop-rates.ts` (`loadWinTreasureRates`, l.162-217).
+//! `inagle` (`loadWinTreasureRates`, l.162-217).
 //!
 //! Les `const` ci-dessous sont les octets réels extraits du dump (itemId/coffre en
 //! `Int` **signé** ; on attend la réinterprétation `>>> 0` → hex non signé). Les

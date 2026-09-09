@@ -19,8 +19,8 @@
 // Dimension 384 native (e5-small du sidecar rg-rag-embed), sans le zero-pad
 // vers 1024 qui n'existait que pour coller au type `halfvec(1024)` pgvector.
 //
-// Fichier partagé par deux process séparés (rg-cron = écrivain, azalee-web =
-// lecteur) → WAL + busy_timeout pour l'accès concurrent multi-process.
+// File shared by two separate processes (cron writer, site reader) → WAL + busy_timeout
+// for concurrent multi-process access.
 
 // `import type` (PAS un import de valeur) : s'efface entièrement à la compilation,
 // donc zéro `require("bun:sqlite")` émis au chargement du module. Nécessaire car
@@ -84,7 +84,7 @@ function resolveStorePath(): string {
 	const candidates = [
 		path.resolve(process.cwd(), "var/rag/rag-store.sqlite"),
 		path.resolve(process.cwd(), "data/rag/rag-store.sqlite"),
-		path.resolve(process.cwd(), "apps/azalee/data/rag/rag-store.sqlite"),
+		path.resolve(process.cwd(), "var/rag/rag-store.sqlite"),
 	];
 	for (const c of candidates) {
 		if (existsSync(path.dirname(c))) return c;
@@ -98,7 +98,7 @@ function getDb(): Database {
 	if (db) return db;
 	if (typeof Bun === "undefined") {
 		throw new Error(
-			"[rag-store] bun:sqlite indisponible (runtime Node) — le store RAG local ne tourne que sous Bun (azalee-web / rg-cron)."
+			"[rag-store] bun:sqlite is unavailable in Node; the local RAG store runs under Bun."
 		);
 	}
 	const p = resolveStorePath();

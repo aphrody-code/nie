@@ -3,7 +3,7 @@
 //! `data/common/gamedata/skill/ability_learning_config_1.03.63.00.cfg.bin`
 //! (format T2B `entries`, dump complet = 23790 effets / 877 plateaux).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/ability-learning.ts` :
+//! Port 1:1 d'inagle `inagle` :
 //! effet = `(hash=toHex(var0), type=var2, value=var3)`, `id` = index du nœud ;
 //! plateau = `toHex(BOARD_INFO_N.var0)` → empile `REF_EFFECT_N.var0` (frère de même index).
 //! Vérité terrain = la sortie d'inagle sur le vrai fichier. Valeurs extraites du VFS, non inventées.

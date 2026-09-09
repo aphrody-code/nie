@@ -1,10 +1,10 @@
-# Aphrody v2 — paquet vendored
+# Aphrody v2 — embedded package
 
-Sous-ensemble runtime du paquet validé le 4 septembre 2026 par le pipeline `hatch-pet`.
-Le gate source `qa/run-summary.json` porte `ok=true`, 74 frames validées, les quatre directions
-cardinales validées et un atlas WebP VP8L lossless dont le décodage correspond au PNG canonique.
+Runtime subset of the package validated on 2026-09-04 by the `hatch-pet` pipeline. The source
+gate reports 74 validated frames, four validated cardinal directions, and a lossless VP8L WebP
+atlas whose decoded pixels match the canonical PNG.
 
-Source d'admission :
+Admission source:
 `C:\Users\aphro\Documents\Codex\2026-09-04\hatch-pet-c-users-aphro-codex\outputs\aphrody-v2`.
 
 | Fichier | SHA-256 |
@@ -14,28 +14,25 @@ Source d'admission :
 | `sprites/spritesheet.png` | `bc48f3e2a4d3086234062b9175d58f2caaec39f6afeb53ab8b222513fe964037` |
 | `sprites/spritesheet.webp` | `93238150de5b86b5977f8409800a91637dfcc3b70b3b0d6d617f6563fa54389b` |
 
-Les 74 PNG individuels et les artefacts QA ne sont pas dupliqués : `animations.json` conserve
-leurs rectangles et hashes, et le test d'intégration reconstruit l'atlas complet depuis ces
-cellules. L'utilisation s'inscrit dans l'Accord Commercial RG-L5-VR-2026-001 documenté à la
-racine du dépôt.
+The 74 individual PNGs and QA artifacts are not duplicated: `animations.json` keeps their
+rectangles and hashes, and the integration test reconstructs the complete atlas from those
+cells. Usage is covered by the commercial agreement documented at the repository root.
 
-## Le dossier documentaire
+## Native dossier
 
-`../dossier/aphrody.json` et `../dossier/aphrody.md` rassemblent tout ce que le dépôt sait
-d'Aphrody : les données du jeu (via `export_aphrody`), le canon officiel du zukan LEVEL-5, les
-fichiers réels du VFS, le romaji calculé depuis le furigana, ce que les wikis documentent et
-pas nous, et le paquet du pet décrit ci-dessus. Chaque bloc porte sa source et sa confiance.
+`../dossier/aphrody.json` and `../dossier/aphrody.md` contain the native Aphrody data: game VFS
+records exported by Rust, localized event lines, native asset paths, and the embedded package
+described above. Each block identifies its local source.
 
-Les deux fichiers sont embarqués par `include_str!` (`BUNDLED_DOSSIER_JSON`,
-`BUNDLED_DOSSIER_MD`) et lisibles par `Dossier::bundled()` — sans fichier, sans base, sans
-réseau. Ils se régénèrent par :
+The two files are embedded with `include_str!` (`BUNDLED_DOSSIER_JSON`, `BUNDLED_DOSSIER_MD`) and
+read by `Dossier::bundled()` without a runtime file, database, or network dependency. Regenerate
+the JSON with the native exporter:
 
 ```bash
-bun --bun scripts/aphrody/dossier.ts byron-love-aphrody \
-  --zukan "<url zukan EN>" --zukan "<url zukan JA>" \
-  --fandom "fr:Byron_Love" --fandom "en:Afuro_Terumi" --google "亜風炉 照美"
+cargo run -p nie-aphrody --bin export_aphrody -- \
+  --data "$NIE_GAME_DIR/data" \
+  --out crates/engine/nie-aphrody/assets/dossier/aphrody.json
 ```
 
-Le script écrit ici par défaut. Après régénération, `cargo test -p nie-aphrody` vérifie que le
-dossier se lit, que son bloc `pet` décrit bien le paquet embarqué, et que les empreintes du
-tableau ci-dessus sont exactes.
+After regeneration, `cargo test -p nie-aphrody` verifies that the dossier parses, its pet block
+describes the embedded package, and the hashes in the table above are exact.

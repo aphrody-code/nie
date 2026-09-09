@@ -12,7 +12,7 @@
 //! - `chat_emote_def_set_config_{0.00.00,1.02.03.00,1.03.17.00}.cfg.bin.json`
 //!   → liste `m_ChatEmoteDefSetInfoList`, type `CHAT_EMOTE_DEF_SET_CONFIG`.
 //!
-//! Parser de référence inagle : `packages/inagle/src/parsers/chat-emote-config.ts`
+//! Parser de référence inagle : `inagle`
 //! (n'extrait qu'un sous-ensemble des champs ; ce port couvre **tous** les champs
 //! observés sur les dumps).
 //!

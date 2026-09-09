@@ -5,7 +5,7 @@
 //!
 //! - Dump réel : `data/common/gamedata/skill/override_skill_config_3.00.21.00.cfg.bin`
 //!   (monté depuis le VFS Steam d'IEVR ; 1809 octets, format **RDBN à listes**).
-//! - Port 1:1 d'inagle `packages/inagle/src/parsers/override-skill-config.ts`.
+//! - Port 1:1 d'inagle `inagle`.
 //!
 //! ## Système Orion
 //!

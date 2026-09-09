@@ -4,7 +4,7 @@
 //! `data/common/gamedata/soccer/soccer_game_option.cfg.bin`
 //! (Steam : `INAZUMA ELEVEN Victory Road/data/...`, format T2B `entries`, 12464 octets).
 //!
-//! Port 1:1 d'inagle `packages/inagle/src/parsers/stadium-config.ts`
+//! Port 1:1 d'inagle `inagle`
 //! (`parseFieldEntry` / `parseContent`). Vérité terrain = les 81 entrées
 //! `SOCCER_OPTION_FIELD_INFO_N`, chacune : `[fieldId(Int), index(Int),
 //! condition(Int=0 ou String), imagePath(String), _(Int), _(Int)]`.

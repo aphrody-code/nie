@@ -5,7 +5,7 @@
 //!
 //! # Usage
 //! ```text
-//! cargo run -p nie-aphrody --bin export_assets -- --out apps/azalee/public/aphrody
+//! cargo run -p nie-aphrody --bin export_assets -- --out var/exports/aphrody
 //! cargo run -p nie-aphrody --bin export_assets -- --animation waving --frame 2
 //! ```
 

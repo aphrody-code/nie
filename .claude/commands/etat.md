@@ -1,8 +1,8 @@
 ---
 description: Etat MESURE du depot — machine, git, cible RE, KB, forge, gisements, services
-allowed-tools: Bash(bash .claude/hooks/etat.sh), Bash(bun --bun packages/nie-catalog/src/cli.ts etat), Bash(git status:*), Bash(git log:*)
+allowed-tools: Bash(bash .claude/hooks/etat.sh), Bash(git status:*), Bash(git log:*)
 ---
-Lance `bash .claude/hooks/etat.sh`, puis `bun --bun packages/nie-catalog/src/cli.ts etat` (facade des quatre gisements).
+Lance `bash .claude/hooks/etat.sh`.
 
 Rends un tableau de bord dense en francais. Regles :
 - Aucun chiffre cite de memoire ni repris d'un document : seules les sorties de ces commandes font foi.

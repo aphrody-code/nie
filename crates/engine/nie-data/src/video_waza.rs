@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain (anti-hallucination)
 //!
-//! - Parser TS de référence : `packages/inagle/src/parsers/video-waza.ts`
+//! - Parser TS de référence : `inagle`
 //!   (`parseVideoWazaContent`) — **port 1:1**.
 //! - Données : `data/common/gamedata/event/event_movie_config_0.00.00.cfg.bin` (VFS IEVR),
 //!   format **RDBN** (`lists`), **3 listes** (noms de champs confirmés sur le vrai dump) :

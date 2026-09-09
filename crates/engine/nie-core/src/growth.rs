@@ -11,10 +11,10 @@
 //!
 //! # Source de vérité
 //!
-//! - Logique : `packages/inagle/src/stat-calculator.ts`
+//! - Logique : `inagle`
 //!   (`findLv1Entry` L154-188, `findLv30Entry` L190-243, `findMainEntry`
 //!   L245-284, `calculateStats` L289-312, `rarityToGrowthRank` L92-115).
-//! - Schéma : `packages/inagle/src/parsers/growth-table-config.ts`.
+//! - Schéma : `inagle`.
 //! - Données réelles : `common/gamedata/character/growth_table_config_0.00.00.00.cfg.bin.json`
 //!   (`m_growthTableLv1List`=36, `m_growthTableLv30List`=144,
 //!   `m_growthTableMainList`=48, `m_growthTableSubList`=48 — vérifié).
@@ -316,7 +316,7 @@ pub fn calculate_stats(tables: &GrowthTables, params: &GrowthParams, level: u8) 
 /// Un point de la courbe de croissance : niveau, bloc de stats, total.
 ///
 /// Reproduit l'élément du tableau rendu par `generateGrowthCurve`
-/// (`packages/inagle/src/stat-calculator.ts` L317-325) :
+/// (`inagle` L317-325) :
 /// `{ level, stats, total }`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

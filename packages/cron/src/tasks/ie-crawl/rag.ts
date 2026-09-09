@@ -8,7 +8,6 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as cheerio from "cheerio";
 import { vectorStore, getEmbedding, crawlerTracker } from "@rosegriffon/db/redis";
-import { indexZukanCharacters } from "./rag-zukan";
 import { chunkText, computeStringHash } from "./rag-utils";
 import { ingestSources, type RagSource } from "./rag-store-local";
 import { chunkBySource, type SourceKind } from "./rag-chunkers";
@@ -554,11 +553,6 @@ export async function runRagSync(): Promise<{
 	let errors = 0;
 
 	try {
-		// 0. Cœur du RAG : les personnages du Zukan officiel (mirror corrigé).
-		const zukan = await indexZukanCharacters();
-		processed += zukan.processed;
-		errors += zukan.errors;
-
 		const items = collectScrapedItems();
 		console.log(`[RAG Sync] ${items.length} documents scrapés trouvés localement.`);
 
