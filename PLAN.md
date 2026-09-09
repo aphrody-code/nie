@@ -802,6 +802,58 @@ architecture claim.
 
 ## Azalee UI and tool migration inventory — 2026-09-08
 
+### IEVR Rust migration batch — 2026-09-09
+
+The IEVR implementation previously exposed by Azalée now has Rust owners for the portable
+rules and read-only wiki operations. `nie-core::azalee` owns search normalization, roster
+identifier canonicalization, level-stat interpolation, gender normalization, item category
+labels, personality labels, reactions, comments and article-series ordering. `nie-wiki` owns
+the SQLite projections for characters, skills, items, teams, auras, tactics, passives and the
+remaining verified `inagle_*` sections. `nie-cli` and `nie-site` are bindings to those owners.
+
+The source policy is strict: IEVR data may come only from the game VFS, formats read from
+`nie.exe`, or verified `inagle`/`zukan` materializations. Supabase, external databases, CDN
+manifests and fabricated fallback rows are not sources for the Rust wiki. The Rust mirror
+resolver accepts `var/mirror.sqlite` and `inagle-*.sqlite` snapshots only.
+
+VFS/game-text/CPK indexes and the zukan corpus live under `data/azalee/`; runtime SQLite stays
+outside version control at `var/mirror.sqlite`. Cloud schema snapshots and cloud ingestion
+scripts are not part of the migrated data set. The five compressed VFS indexes pass `gzip -t`.
+
+Measured gates for this batch are recorded after the final local verification run below. They
+are local gates only; they do not claim live production or visual parity.
+
+The native `azalee-api.service` now runs `nie-site`, but the Next host and the retired Bun server
+still contain legacy TypeScript IEVR query modules for compatibility. They are not Rust sources
+of truth, yet the caller cutover is not complete until those modules are replaced by HTTP
+bindings to `nie-site` and the legacy server is removed from the active package graph.
+
+### Azalee CPK/image owner audit — 2026-09-09
+
+The follow-up audit of `packages/azalee/src/cpk` and `packages/azalee/src/images` found that
+CPK parsing/decryption, G4TX decoding, VFS path safety, CRI cue cataloguing/decoding and model
+assembly/rendering were already native. The remaining portable rules are now owned by Rust:
+`nie-formats::asset` classifies CPK content and preview families, `nie-formats::cri_audio`
+classifies audio banks and extracts voice-character codes, `nie-core::azalee::asset_mapping`
+maps aura-family/telop codes and extracts Keshin model identifiers, and
+`nie-site::routes::assets` constructs the public texture/raw/config/audio/video/export paths.
+`routes::inspect` consumes the native texture-path constructor instead of maintaining a second
+URL recipe.
+
+The following Azalee code is intentionally not copied into a second implementation: lazy
+`fetch`/React tree state is client behavior; item/telop/model/Miximax allowlists are generated
+presence evidence from the VFS or an HTTP probe; Next image optimization is a Next host protocol;
+CDN resize/crop is implemented by `cdn-variants`; and the Zukan 360-degree mirror is absent.
+These boundaries and the reason each cannot be proven by a Rust pure function are documented in
+`crates/tools/nie-site/src/routes/assets.rs`.
+
+Measured in this batch: `cargo test -p nie-formats --lib --locked` passed 324 tests with 1
+ignored; strict `cargo clippy -p nie-formats --lib --tests --locked -- -D warnings` passed;
+`cargo fmt --all -- --check` passed; and the final `nie-core`, `nie-wiki`, `nie-cli` and
+`nie-site` test/clippy gates passed. The Next production build also completed 113/113 pages;
+its remaining output is limited to pre-existing Edge-runtime, NFT tracing and cache-size
+warnings. These are local gates only and do not claim live production or visual parity.
+
 ## SQL, data and service boundary — 2026-09-08
 
 `nie-sql` is the single Rust owner for database URL selection, portable read value/query

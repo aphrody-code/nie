@@ -19,17 +19,17 @@
  * Le dump, lui, nommait ses fichiers `<basename_g4tx>_<nom_texture>.png` — un
  * nommage qui n'existe dans AUCUN chemin CPK. Toute URL de cette forme est un 404
  * garanti : elles ont toutes été retirées d'ici. Les manifestes servant de
- * garde-fous sont régénérés depuis `apps/azalee/data/cpk-index.ndjson.gz`
+ * garde-fous sont régénérés depuis `data/azalee/cpk-index.ndjson.gz`
  * (250 800 chemins réels) et non plus depuis `inagle_game_assets`, dont les
  * 40 471 lignes `exists = 1` décrivent le dump disparu.
  */
-import characterFaceManifest from "../data/character-face-manifest.json";
-import characterModelManifest from "../data/character-model-manifest.json";
-import chrModelManifest from "../data/chr-model-manifest.json";
-import itemImageManifest from "../data/item-image-manifest.json";
-import keshinModelManifest from "../data/keshin-model-manifest.json";
-import menuAssetManifest from "../data/menu-asset-manifest.json";
-import miximaxIconManifest from "../data/miximax-icon-manifest.json";
+import characterFaceManifest from "../../../../data/azalee/character-face-manifest.json";
+import characterModelManifest from "../../../../data/azalee/character-model-manifest.json";
+import chrModelManifest from "../../../../data/azalee/chr-model-manifest.json";
+import itemImageManifest from "../../../../data/azalee/item-image-manifest.json";
+import keshinModelManifest from "../../../../data/azalee/keshin-model-manifest.json";
+import menuAssetManifest from "../../../../data/azalee/menu-asset-manifest.json";
+import miximaxIconManifest from "../../../../data/azalee/miximax-icon-manifest.json";
 
 /**
  * Manifeste objets : `internal_code` → conteneur `.g4tx` + nom de texture réels

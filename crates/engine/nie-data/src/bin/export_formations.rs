@@ -1,4 +1,4 @@
-//! Exporte les **115 formations réelles** d'IEVR vers `apps/azalee/data/formations-full.json`.
+//! Exporte les **115 formations réelles** d'IEVR vers `data/azalee/formations-full.json`.
 //!
 //! Remplace (côté azalee) les positions approximées codées en dur de `lib/formations.ts`
 //! (estimées à l'œil depuis le CSS de zukan.inazuma.jp) par les VRAIES coordonnées `f32`

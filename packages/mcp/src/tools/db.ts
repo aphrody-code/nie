@@ -1,7 +1,7 @@
 /**
  * Outils « base de données » — SQL en lecture seule sur le miroir SQLite.
  *
- * Le miroir (`apps/azalee/data/backups/mirror.sqlite`) contient les 66 tables
+ * Le miroir (`var/mirror.sqlite`) contient les 66 tables
  * `inagle_*` extraites du jeu, **sans donnée personnelle** : c'est la copie
  * que sert déjà le wiki. L'ouvrir en SQL donne à un agent la couverture que
  * les outils métier ne peuvent pas atteindre (agrégats, jointures, colonnes

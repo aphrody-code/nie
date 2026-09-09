@@ -1,4 +1,4 @@
-//! Exporte les **hissatsu + leurs assets de cut-in** vers `apps/azalee/data/skills-cutin.json`.
+//! Exporte les **hissatsu + leurs assets de cut-in** vers `data/azalee/skills-cutin.json`.
 //!
 //! Pour chaque skill du `skill_config`, émet l'identité (élément/catégorie/puissance/TP…) et
 //! les chemins VFS des assets de cut-in dérivés ([`SkillInfo::cutin_assets`]) : modèle 3D

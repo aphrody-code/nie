@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 /**
- * Génère `src/data/menu-gallery-manifest.json` (tracké git) : la liste exhaustive
+ * Generate `data/azalee/menu-gallery-manifest.json` (tracked): the exhaustive list
  * des illustrations des dossiers jeu `dx11/menu/220_img/<dir>/`.
  *
- * Source = l'**index CPK** (`apps/azalee/data/cpk-index.ndjson.gz`, chemins réels
+ * Source = l'**index CPK** (`data/azalee/cpk-index.ndjson.gz`, chemins réels
  * des 250 800 fichiers), et non plus un scan du dump PNG pré-extrait : ce dump a
  * été archivé, et son nommage `<nom>_<nom>.png` n'existe dans AUCUN chemin CPK —
  * il produisait 404 sur toute la galerie.
@@ -13,7 +13,7 @@
  * `vsroute_map`, `telop_waza` → 1 texture principale, nom == basename). L'URL CDN
  * est donc la forme 1:1 du contrat :
  *
- *     https://cdn.rosegriffon.fr/dx11/menu/220_img/<dir>/<nom>.png
+ *     /f/data/dx11/menu/220_img/<dir>/<name>.g4tx
  *
  * Run : `bun packages/azalee/scripts/build-menu-gallery-manifest.ts`
  */
@@ -22,7 +22,7 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { resolveDataFile } from "../src/config";
 
-const DATA_DIR = path.resolve(import.meta.dir, "../src/data");
+const DATA_DIR = path.resolve(import.meta.dir, "../../../data/azalee");
 const CPK_INDEX = "cpk-index.ndjson.gz";
 const IMG_ROOT = "data/dx11/menu/220_img/";
 
@@ -58,7 +58,7 @@ function titleOf(name: string): string {
 
 const src = resolveDataFile(CPK_INDEX);
 if (!src) {
-	console.error(`[gallery-manifest] ${CPK_INDEX} introuvable (apps/azalee/data/).`);
+	console.error(`[gallery-manifest] ${CPK_INDEX} introuvable (data/azalee/).`);
 	process.exit(1);
 }
 

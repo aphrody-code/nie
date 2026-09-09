@@ -24,7 +24,7 @@ Un composant migré change donc de **source de données**. Trois conséquences m
 faveur du bureau :
 
 1. **la galerie compte juste.** Le web réunit deux fonds qui ne se rejoignent jamais : la table
-   `inagle_gallery` (360 lignes) et un manifeste figé `packages/azalee/src/data/menu-gallery-manifest.json`
+   `inagle_gallery` (360 lignes) et le manifeste vérifié `data/azalee/menu-gallery-manifest.json`
    (3 579 entrées). D'où le défaut visible : la pastille « Toutes » annonce 3 939 items pour une
    liste qui n'en rend que 360. Le bureau liste le VFS : **17 085 `.g4tx`** sous
    `data/dx11/menu/220_img/`, **45 catégories** découvertes (le manifeste en connaissait 6), et

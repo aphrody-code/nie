@@ -1,20 +1,9 @@
-/**
- * Configuration runtime de la bibliothèque Azalée.
+/** Runtime configuration for the Azalee compatibility tooling.
  *
- * Deux familles de données coexistent :
- *
- * 1. Les **données figées** (manifestes d'assets, enrichissements, catalogue
- *    Cross…) vivent dans `src/data/*.json` et sont importées statiquement par
- *    les modules — elles suivent le package, y compris dans un bundle
- *    navigateur.
- * 2. Les **artefacts volumineux** (miroir SQLite du wiki, index CPK et index de
- *    texte en NDJSON gz) restent hors du package et sont localisés au runtime
- *    par ce module.
- *
- * L'ordre de résolution est explicite → variable d'environnement → chemins
- * conventionnels, ce qui permet à la lib de fonctionner à l'identique sous
- * `next build` (cwd = `apps/azalee`), sous le serveur standalone (cwd =
- * `.next/standalone/apps/azalee`), en CLI et en test (cwd = racine du dépôt).
+ * IEVR artifacts are repository-owned and live under `data/azalee`. They must
+ * come from the game VFS, native `nie` exports, or verified `inagle`/`zukan`
+ * materializations. The unrelated Cross catalog remains outside this resolver.
+ * The SQLite mirror is a local read-only `inagle` materialization.
  */
 
 import { existsSync, readdirSync } from "node:fs";
@@ -23,19 +12,19 @@ import path from "node:path";
 
 /** Options de configuration explicites (priorité maximale). */
 export interface AzaleeConfig {
-	/** Dossier contenant les artefacts runtime (`cpk-index.ndjson.gz`, `game-text-*.ndjson.gz`, `backups/`). */
+	/** Directory containing runtime artifacts (`cpk-index.ndjson.gz`, game-text indexes, and zukan data). */
 	dataDir?: string;
-	/** Chemin du miroir SQLite des tables `inagle_*`. */
+	/** Read-only SQLite mirror path for the `inagle_*` tables. */
 	mirrorPath?: string;
-	/** Dossier de cache pour les SQLite matérialisés (défaut : `os.tmpdir()`). */
+	/** Cache directory for materialized SQLite files (default: `os.tmpdir()`). */
 	cacheDir?: string;
 }
 
 const explicit: AzaleeConfig = {};
 
 /**
- * Fixe la configuration runtime. Appelable plusieurs fois (fusion), typiquement
- * une seule fois au démarrage de l'application hôte ou du CLI.
+ * Set runtime configuration. Calls merge and are normally made once by the
+ * host application or CLI during startup.
  */
 export function configureAzalee(config: AzaleeConfig): void {
 	if (config.dataDir !== undefined) explicit.dataDir = path.resolve(config.dataDir);
@@ -43,12 +32,12 @@ export function configureAzalee(config: AzaleeConfig): void {
 	if (config.cacheDir !== undefined) explicit.cacheDir = path.resolve(config.cacheDir);
 }
 
-/** Renvoie la configuration explicite courante (lecture seule). */
+/** Return the current explicit configuration (read-only). */
 export function getAzaleeConfig(): Readonly<AzaleeConfig> {
 	return explicit;
 }
 
-/** Remet la configuration explicite à zéro (tests). */
+/** Reset explicit configuration for tests. */
 export function resetAzaleeConfig(): void {
 	delete explicit.dataDir;
 	delete explicit.mirrorPath;
@@ -57,7 +46,7 @@ export function resetAzaleeConfig(): void {
 
 /**
  * Racine du package (`packages/azalee`), déduite de l'emplacement de ce module.
- * Sert de dernier recours pour remonter jusqu'à `apps/azalee/data` en monorepo.
+ * Sert de dernier recours pour remonter jusqu'à `data/azalee` en monorepo.
  */
 function packageRoot(): string {
 	// `import.meta.dir` (Bun) / `import.meta.url` (Node) → `<pkg>/src`.
@@ -66,40 +55,32 @@ function packageRoot(): string {
 	return path.resolve(here, "..");
 }
 
-/** Candidats de dossier de données, du plus spécifique au plus générique. */
+/** Data-directory candidates, from the most specific to the most generic. */
 export function dataDirCandidates(): string[] {
 	const root = packageRoot();
 	return [
 		explicit.dataDir,
 		process.env.AZALEE_DATA_DIR,
+        // Shared Azalee artifacts live in the repository, outside the Next host.
+		path.resolve(process.cwd(), "data/azalee"),
 		// Serveur standalone Next (cwd = `.next/standalone/apps/azalee`) et
 		// `next build` (cwd = `apps/azalee`).
 		path.resolve(process.cwd(), "data"),
-		// Exécution depuis la racine du monorepo (CLI, tests, scripts).
-		path.resolve(process.cwd(), "apps/azalee/data"),
-		// Depuis `packages/azalee` : ../../apps/azalee/data.
-		path.resolve(root, "../../apps/azalee/data"),
+        // From `packages/azalee`: ../../data/azalee.
+		path.resolve(root, "../../data/azalee"),
 	].filter((p): p is string => Boolean(p));
 }
 
-/**
- * Marqueurs d'un vrai dossier de données Azalée. Sans ce filtre, un simple
- * `<cwd>/data` homonyme (il en existe un à la racine du monorepo, dédié aux
- * dumps Postgres) serait retenu — c'est exactement le type de « source
- * silencieuse » qu'on veut éviter.
- */
+/** Markers for a directory containing migrated game artifacts. */
 const DATA_DIR_MARKERS = [
 	"cpk-index.ndjson.gz",
 	"game-text-names.ndjson.gz",
-	"backups/mirror.sqlite",
-	"schema-snapshot",
+	"zukan-audit.json",
 ];
 
 /**
- * Résout le dossier des artefacts runtime : premier candidat existant
- * contenant au moins un marqueur Azalée. Renvoie `null` si aucun ne
- * correspond (la lib reste utilisable pour tout ce qui ne touche pas ces
- * artefacts).
+ * Resolve the first candidate containing a migrated game artifact. Return
+ * `null` when no candidate matches.
  */
 export function resolveDataDir(): string | null {
 	for (const candidate of dataDirCandidates()) {
@@ -112,8 +93,7 @@ export function resolveDataDir(): string | null {
 }
 
 /**
- * Résout un fichier d'artefact par son nom (ex. `cpk-index.ndjson.gz`). Chaque
- * dossier candidat est testé, le premier fichier existant gagne.
+ * Resolve an artifact by name. The first existing candidate wins.
  */
 export function resolveDataFile(name: string): string | null {
 	for (const dir of dataDirCandidates()) {
@@ -124,13 +104,10 @@ export function resolveDataFile(name: string): string | null {
 }
 
 /**
- * Miroir du dépôt : `var/mirror.sqlite`, republié par
- * `scripts/donnees/miroir-inagle.sh`.
+ * Repository mirror: `var/mirror.sqlite`, published by the local inagle mirror job.
  *
- * Depuis la fusion, le miroir ne vit plus sous `apps/azalee/data/backups` mais à la racine du
- * dépôt, là où la CLI, le bot et `@niers/catalog` le trouvent aussi. On remonte les ancêtres
- * jusqu'au dossier qui porte `Cargo.toml` **et** `crates/` — la même signature que côté Rust,
- * pour qu'un `var/` homonyme rencontré en chemin ne soit jamais pris pour la racine.
+ * The resolver walks up to the repository containing both `Cargo.toml` and
+ * `crates`, so an unrelated `var` directory is never selected.
  */
 function miroirDuDepot(): string | null {
 	let courant = packageRoot();
@@ -146,22 +123,19 @@ function miroirDuDepot(): string | null {
 }
 
 /**
- * Résout le miroir SQLite des tables `inagle_*`.
+ * Resolve the read-only SQLite materialization of the `inagle_*` tables.
  *
- * `SQLITE_DB_PATH` est épinglé en production (unités systemd) sur `var/mirror.sqlite` :
- * sans épinglage, le repli par `data/backups` prend le snapshot au nom
- * lexicographiquement le plus grand, ce qui est une source silencieuse.
+ * Production systemd units pin `SQLITE_DB_PATH` to `var/mirror.sqlite`.
+ * Without that pin, selecting the lexicographically newest snapshot would be
+ * a silent source change.
  */
 export function resolveMirrorPath(): string | null {
 	if (explicit.mirrorPath) return explicit.mirrorPath;
 	if (process.env.SQLITE_DB_PATH) return path.resolve(process.env.SQLITE_DB_PATH);
 
-	// Le miroir du dépôt PRIME sur `data/backups`. C'est `nie-miroir.timer` qui le publie ;
-	// l'ancien dossier existe encore sur les machines qui ont connu `azalee-mirror-sync`, mais
-	// il ne se rafraîchit plus — le préférer ferait servir des données figées sans qu'aucune
-	// erreur ne le dise.
-	const miroir = miroirDuDepot();
-	if (miroir) return miroir;
+	// Prefer the repository mirror. It is the only default source.
+    const mirror = miroirDuDepot();
+    if (mirror) return mirror;
 
 	for (const dir of dataDirCandidates()) {
 		const backups = path.join(dir, "backups");
@@ -169,11 +143,11 @@ export function resolveMirrorPath(): string | null {
 		if (existsSync(pinned)) return pinned;
 		try {
 			const snapshots = readdirSync(backups)
-				.filter((f) => f.startsWith("supabase-") && f.endsWith(".sqlite"))
+				.filter((f) => f.startsWith("inagle-") && f.endsWith(".sqlite"))
 				.sort((a, b) => b.localeCompare(a));
 			if (snapshots.length > 0) return path.join(backups, snapshots[0]);
 		} catch {
-			// dossier absent ou illisible — candidat suivant
+            // Candidate is absent or unreadable; try the next one.
 		}
 	}
 	return null;

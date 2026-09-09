@@ -59,7 +59,7 @@ pub fn version() -> &'static str {
 /// - `binary_id` : id du binaire dans `nie_index::Db` (déjà inséré via `upsert_binary`).
 /// - `refs_root` : racine du répertoire `refs/` (contient `iecode-re/research/nie-rtti-classes.txt`).
 /// - `inagle_sqlite_dir` : répertoire contenant les fichiers `supabase-*.sqlite`
-///   (typiquement `apps/azalee/data/backups/`).
+///   (typiquement `var/backups/`).
 /// - `format_catalog_json` : chemin du catalogue JSON exporté par
 ///   `iecode export-knowledge --out <fichier>` (optionnel). Si fourni et lisible,
 ///   il enrichit les tables `format`/`format_field` avec le savoir complet d'iecode

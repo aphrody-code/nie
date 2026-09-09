@@ -49,7 +49,6 @@
 		"./game": "./src/game/index.ts",
 		"./game/*": "./src/game/*.ts",
 		"./rag": "./src/rag.ts",
-		"./data/*": "./src/data/*",
 		"./package.json": "./package.json"
 	},
 	"publishConfig": {
@@ -57,7 +56,7 @@
 		"registry": "https://registry.npmjs.org"
 	},
 	"scripts": {
-		"build": "bun --bun tsc -p tsconfig.build.json && bun --bun ../azalee-tools/scripts/copy-data.ts",
+		"build": "bun --bun tsc -p tsconfig.build.json",
 		"test": "bun test",
 		"lint": "bunx oxlint -c ../../.oxlintrc.json -A style -A pedantic -A restriction src",
 		"lint:fix": "bunx oxlint -c ../../.oxlintrc.json -A style -A pedantic -A restriction --fix src",
@@ -70,7 +69,6 @@
 		"@niers/catalog": "workspace:*",
 		"@rosegriffon/db": "workspace:*",
 		"@rosegriffon/inagle": "workspace:*",
-		"@supabase/supabase-js": "catalog:",
 		"commander": "catalog:",
 		"drizzle-orm": "catalog:",
 		"wanakana": "catalog:",

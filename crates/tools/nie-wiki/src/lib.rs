@@ -1,21 +1,27 @@
-//! `nie-wiki` — exploration game-data IEVR depuis le miroir SQLite.
+//! `nie-wiki` — IEVR game-data exploration over the read-only SQLite mirror.
 //!
-//! Porte le comportement des commandes `chara`, `skill`, `item`, `team`,
-//! `compare`, `search`, `db`, `random-team`, `team-builder`, `status`,
-//! `redis`, `audit` et `dialogue` de l'azalee CLI TypeScript vers Rust pur,
-//! en lisant le même miroir SQLite (`supabase-*.sqlite`).
+//! Ports the `chara`, `skill`, `item`, `team`, `compare`, `search`, `db`,
+//! `random-team`, `team-builder`, `status`, `redis`, `audit` and `dialogue`
+//! operations from the Azalee CLI to Rust, reading the local `inagle_*` mirror.
 //!
-//! ## Pièges reproductibles depuis le TS
+//! ## Compatibility rules retained from the original implementation
 //!
-//! - `inagle_skills.category_id` / `element_id` sont NULL → résolution via colonnes texte FR.
-//! - Fusion `data` + `sheet_data` (sheet_data prioritaire si présent).
-//! - Vues `*_clean` inexistantes → émulées par `GROUP BY name_fr` côté query.
-//! - `sanitizeFilter` : on ne strip pas les underscores (les IDs d'auras en contiennent).
-//! - `random-team` : PRNG explicitement seédé (SmallRng::seed_from_u64) — interdit RNG implicite.
-//! - `db [sql]` : refuse les writes (SELECT/PRAGMA/EXPLAIN/WITH uniquement).
+//! - Null `category_id`/`element_id` values fall back to localized text columns.
+//! - `data` and `sheet_data` are merged, with non-empty `sheet_data` taking precedence.
+//! - Missing `*_clean` views are represented with a `GROUP BY name_fr` query.
+//! - Search filters preserve underscores because aura IDs contain them.
+//! - `random-team` uses an explicit `SmallRng::seed_from_u64` seed.
+//! - `db [sql]` accepts read-only statements only.
+//!
+//! The native IEVR wiki surface is split by source truth. The mirror-backed
+//! aura, tactic and passive APIs live in [`auras`], [`tactics`] and [`passives`].
+//! Static TypeScript enrichments, CDN URLs, GLB manifests and network-only joins
+//! are not present in this crate and are never represented as fabricated Rust data.
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+pub mod auras;
+pub mod auxiliary;
 pub mod cards;
 pub mod catalog;
 pub mod entities;
@@ -25,5 +31,7 @@ pub mod mirror;
 pub mod model;
 pub mod models;
 pub mod names;
+pub mod passives;
 pub mod query;
 pub mod render;
+pub mod tactics;

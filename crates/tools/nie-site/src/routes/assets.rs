@@ -10,6 +10,25 @@
 //!   jamais répondre (cas observé le 2026-09-05) rend un `504`, pas une connexion pendante ;
 //! - taille de réponse **bornée** : au-delà, la réponse est refusée plutôt que bufferisée ;
 //! - cache `moka` par clé canonique, ETag `blake3`, `304` sur `If-None-Match`.
+//!
+//! ## Audit Azalée CPK/images (2026-09-09)
+//!
+//! Les règles portables sont désormais dans les owners Rust :
+//!
+//! - `nie_formats::asset` classe les entrées CPK par famille et par preview ;
+//! - `nie_formats::cri_audio` classe les banques et extrait les codes voix ;
+//! - `nie_core::azalee::asset_mapping` transforme les codes d'aura et de modèle sans connaître
+//!   de transport ;
+//! - ce module construit les chemins publics `/assets/*`, en réutilisant les mêmes routes que
+//!   `nie-model-serve` et `routes::inspect`.
+//!
+//! Ne sont pas des règles IEVR à recopier dans Rust : le fetch `fetch`/React et l'arbre lazy de
+//! `packages/azalee/src/cpk/live.ts` sont des comportements de client ; les manifests de présence
+//! (`item-image`, `menu-asset`, modèles et Miximax) sont des résultats générés depuis un VFS ou
+//! une sonde HTTP ; `getOptimizedImageUrl` est le protocole privé de Next.js ; enfin les variantes
+//! `?w=&format=webp` appartiennent à `cdn-variants` et le miroir Zukan 360° est absent. Les
+//! manifests restent donc des données d'entrée du host, et ces services externes ne sont pas
+//! déguisés en capacité native inventée.
 
 use axum::extract::{Path, RawQuery, State};
 use axum::http::HeaderMap;
@@ -22,6 +41,85 @@ use crate::state::{EtatSite, ReponseCachee};
 /// `Cache-Control` des rendus d'amont : le décodage d'un chemin donné est déterministe, mais
 /// le décodeur évolue — une heure de fraîcheur, une journée de service dégradé toléré.
 pub const CONTROLE: &str = "public, max-age=3600, stale-while-revalidate=86400";
+
+/// URL publique d'un atlas ou d'une texture G4TX via le proxy du site.
+///
+/// Le nom de texture conserve `.g4tx` dans le chemin : c'est ce segment qui permet à l'amont de
+/// sélectionner une texture nommée. Sans nom, le suffixe est retiré pour adresser l'atlas et le
+/// préfixe VFS `data/` est retiré uniquement dans ce cas. Un chemin sans suffixe conserve son
+/// préfixe, comme la route d'inspection historique. `path` doit déjà être un chemin VFS validé par
+/// [`crate::routes::vfs::normaliser`].
+#[must_use]
+pub fn texture_url(path: &str, texture_name: Option<&str>) -> String {
+    match texture_name {
+        Some(name) => format!("/assets/tex/{path}/{name}.png"),
+        None => {
+            let atlas = if nie_formats::asset::extension(path)
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("g4tx"))
+            {
+                nie_formats::asset::texture_route_stem(path)
+            } else {
+                path.to_owned()
+            };
+            format!("/assets/tex/{atlas}.png")
+        }
+    }
+}
+
+/// URL publique des octets bruts décompressés d'un fichier VFS.
+#[must_use]
+pub fn raw_url(path: &str) -> String {
+    format!("/assets/raw/{path}")
+}
+
+/// URL publique d'un fichier de configuration décodé en JSON.
+#[must_use]
+pub fn config_url(path: &str) -> String {
+    format!("/assets/cfg/{path}.json")
+}
+
+/// URL publique d'une banque ou d'un flux audio décodé en WAV.
+#[must_use]
+pub fn audio_url(path: &str, awb_id: Option<u16>) -> String {
+    match awb_id {
+        Some(id) => format!("/assets/audio/{path}?id={id}"),
+        None => format!("/assets/audio/{path}"),
+    }
+}
+
+/// URL publique d'une cinématique décodée.
+#[must_use]
+pub fn video_url(path: &str) -> String {
+    format!("/assets/video/{path}")
+}
+
+/// URL publique de l'export d'une ressource ou d'une sous-entrée de conteneur.
+#[must_use]
+pub fn export_url(path: &str, format: &str, id: Option<u16>) -> String {
+    let separator = if id.is_some() { "&" } else { "" };
+    let id = id.map_or_else(String::new, |value| format!("{separator}id={value}"));
+    format!("/assets/export/{path}?format={format}{id}")
+}
+
+/// URL publique correspondant au mapping de `cpkAssetUrl`.
+///
+/// Le mapping est intentionnellement conservateur sur le type : une entrée `.g4md`/`.g4mg`
+/// produit un chemin d'assembleur, mais l'amont peut encore répondre `404` si la paire de
+/// composants n'est pas assemblable. La présence ne peut être affirmée qu'après lecture de
+/// l'index VFS et, pour les personnages, des catalogues de l'assembleur.
+#[must_use]
+pub fn cpk_asset_url(path: &str, ext: Option<&str>) -> Option<String> {
+    let extension = ext.or_else(|| nie_formats::asset::extension(path))?;
+    match nie_formats::asset::cpk_asset_kind(extension) {
+        nie_formats::asset::CpkAssetKind::Image => Some(texture_url(path, None)),
+        nie_formats::asset::CpkAssetKind::Model => {
+            let name = path.rsplit('/').next().unwrap_or(path);
+            let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+            Some(format!("/assets/model-full/{stem}.glb"))
+        }
+        nie_formats::asset::CpkAssetKind::Raw => Some(raw_url(path)),
+    }
+}
 
 /// `GET /assets/{*chemin}` — le fichier du bundle s'il existe, l'amont sinon.
 ///
@@ -168,4 +266,60 @@ pub async fn proxy(
         Encodage::Identite,
         &entetes,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        audio_url, config_url, cpk_asset_url, export_url, raw_url, texture_url, video_url,
+    };
+
+    #[test]
+    fn construit_les_routes_de_contenu_avec_le_meme_contrat_que_l_amont() {
+        assert_eq!(
+            texture_url("data/dx11/menu/icon.g4tx", None),
+            "/assets/tex/dx11/menu/icon.png"
+        );
+        assert_eq!(
+            texture_url("data/dx11/menu/icon.g4tx", Some("face_1")),
+            "/assets/tex/data/dx11/menu/icon.g4tx/face_1.png"
+        );
+        assert_eq!(
+            raw_url("data/common/file.bin"),
+            "/assets/raw/data/common/file.bin"
+        );
+        assert_eq!(
+            config_url("data/common/config.cfg.bin"),
+            "/assets/cfg/data/common/config.cfg.bin.json"
+        );
+        assert_eq!(
+            audio_url("data/common/sound_asset/bgm.acb", Some(42)),
+            "/assets/audio/data/common/sound_asset/bgm.acb?id=42"
+        );
+        assert_eq!(
+            video_url("data/movie/opening.usm"),
+            "/assets/video/data/movie/opening.usm"
+        );
+        assert_eq!(
+            export_url("data/dx11/icon.g4tx", "png", Some(3)),
+            "/assets/export/data/dx11/icon.g4tx?format=png&id=3"
+        );
+    }
+
+    #[test]
+    fn mappe_les_familles_cpk_sans_affirmer_leur_presence() {
+        assert_eq!(
+            cpk_asset_url("data/dx11/menu/icon.g4tx", None).as_deref(),
+            Some("/assets/tex/dx11/menu/icon.png")
+        );
+        assert_eq!(
+            cpk_asset_url("data/common/chr/c01000010.g4md", None).as_deref(),
+            Some("/assets/model-full/c01000010.glb")
+        );
+        assert_eq!(
+            cpk_asset_url("data/common/file.bin", Some("bin")).as_deref(),
+            Some("/assets/raw/data/common/file.bin")
+        );
+        assert_eq!(cpk_asset_url("data/common/file", None), None);
+    }
 }

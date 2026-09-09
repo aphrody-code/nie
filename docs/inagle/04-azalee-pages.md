@@ -81,7 +81,7 @@ référence, produit Rose Griffon ; `trancher` = la question est posée dans la 
 | `app/item/[id]/page.tsx` | `wikiService.getItem` (`:20`, `:52`) | `inagle_items` (`service.ts:1711`) | `Item` | `force-static` + `revalidate=3600` (`:10-12`) | **trancher** | idem |
 | `app/keshin/page.tsx` | aucun — `permanentRedirect("/modeles/keshin")` (`:15`) | — | — | statique | **portable** | ⚠️ **la cible n'existe pas** : `ls app/modeles` → *No such file or directory*. Redirection 308 vers un 404 |
 | `app/niveau/page.tsx` | `getExpTable` (`:49`, `lib/wiki/exp-table.ts:56`) | `inagle_exp_table` | `ExpLevelEntry`, `ExpTableData` (`lib/wiki/exp-table-shared.ts`) | `force-dynamic` (`:1`) | **portable** | 100 lignes ; le calcul (`exp-table-shared.ts`, 270 l.) est pur |
-| `app/passive/(liste)/page.tsx` (563 l.) | **fichiers JSON** : `@/data/passive-sheets.json` (`:28`) + `@rosegriffon/azalee/data/passives-full.json` (`:29`) | *(aucune table)* | local | *(défaut — statique)* | **trancher** | `passive-sheets.json` est un **fichier de feuille communautaire** versionné dans l'app. Est-il régénérable depuis le jeu ? Non vérifié |
+| `app/passive/(liste)/page.tsx` | Rust `nie-site` passive route plus `data/azalee/passives-full.json` | `inagle_passives` and native export | local | read-only | **migrated** | The unverified community `passive-sheets.json` source was removed. |
 | `app/passive/[id]/page.tsx` | `wikiService.getPassive` (`:22`, `:59`) | `inagle_passives` (`service.ts:2908`) | `PassiveDetail` | `force-static` + `revalidate=3600` (`:12-14`) | **portable** | |
 | `app/quete/page.tsx` | `getQuestsList` (`:8`) | `inagle_quests` (`quests.ts:123`) | `QuestKind` | `force-dynamic` (`:1`) | **portable** | |
 | `app/quete/[id]/page.tsx` | `getQuest`, `getQuestNeighbors` (`:7`) | `inagle_quests` | `Quest` | `force-dynamic` (`:1`) | **portable** | |
@@ -233,7 +233,7 @@ ou d'une saisie manuelle. Rien dans le dépôt ne permet aujourd'hui de les rég
 `inagle_skills.video_url/poster_url/thumbnail_url` + toute la table `inagle_skill_videos`
 (1 211 l., scrapée) ; `inagle_items.sheet_data` (mixte).
 
-**Fichiers curatés versionnés dans l'app** : `apps/azalee/data/passive-sheets.json`,
+**Former curated files:** the unverified `passive-sheets.json` file was removed,
 `data/inazuma-cross.json` (crawl + traduction éditoriale), `data/zukan-audit.json`.
 Seul `data/aphrody-dossier.json` est **généré par niers** (`components/wiki/AphrodyDossierSection.tsx:5`).
 
@@ -248,7 +248,7 @@ ils se recouvrent, la somme dépasse donc 40.
 | **A** — ne lisent que des tables `inagle_*` **que le push produit depuis le dump** | **16** | `/aura/[cat]` (liste), `/aura/[cat]/[id]`, `/boutique`, `/capsule`, `/capsule/[id]`, `/equipe`, `/equipe/[id]`, `/gallery`, `/invocation`, `/niveau`, `/passive/[id]`, `/quete`, `/quete/[id]`, `/succes`, `/succes/[id]`, `/tools/translator` |
 | **B** — lisent une table `inagle_*` **sans importeur** (origine non établie) | **11** | `/drops`, `/entraineur`, `/entraineur/[id]`, `/stade`, `/stade/[id]`, `/tactic` (liste), `/tactic/[id]`, `/skill` (liste), `/skill/[id]`, `/tools/random-team`, `/tools/my-team` |
 | **C** — lisent une **colonne curatée** (`sheet_data`, `zukan_order`, `zukan_hash`, `video_url`) | **9** | `/chara` (liste), `/chara/[id]`, `/item` (liste), `/item/[id]`, `/boutique/[id]`, `/skill/[id]`, `/tools/compare`, `/dashboard/zukan-review`, `/dashboard/database/images` |
-| **D** — lisent un **fichier curaté** versionné | **2** | `/passive` (liste) (`data/passive-sheets.json`), `/cross` (`data/inazuma-cross.json`) |
+| **D** — read a separate non-IEVR catalog | **1** | `/cross` (`apps/azalee/data/inazuma-cross.json`) |
 
 Restent, dans les 40, six pages qui ne lisent `inagle_*` que pour des **comptes** ou une
 **recherche** et qu'aucun panier ne décrit bien : `/` (accueil), `/search`, `/dashboard`,
@@ -362,7 +362,7 @@ contourne RLS. Je n'ai **pas** audité si chacune la justifie.
 - **Si les 7 tables sans importeur sont régénérables depuis le VFS** : trancher demande de lancer
   les parseurs de `packages/inagle/src/parsers/` — moitié « ENTRÉE », hors périmètre des deux
   documents précédents comme du mien.
-- **Si `apps/azalee/data/passive-sheets.json` est dérivable du jeu.** Il est versionné dans l'app
+- **Passive sheets:** the unverified community file is no longer part of the IEVR data path.
   et lu en dur par `app/passive/(liste)/page.tsx:28`. Origine non établie.
 - **Les composants** : je n'ai compté que les imports depuis un `page.tsx`. Un composant importé
   par trois autres composants n'apparaît pas dans mon décompte.

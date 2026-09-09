@@ -1,16 +1,11 @@
 [Unit]
-# azalee-api — API HTTP headless de la bibliothèque @rose-griffon/azalee,
-# exposée derrière nginx sur https://api.rosegriffon.fr/azalee/.
+# Legacy Azalee API listener. The implementation is the native Rust `nie-site`
+# binary; no Bun wiki server is used in production.
 #
-# Sert les MÊMES données que le wiki web (miroir SQLite inagle_*, index CPK,
-# index de texte de jeu) en JSON pur, sans Next. C'est la source de repli du
-# CLI `azalee` et d'un GUI Tauri quand la machine cliente n'a ni base locale
-# ni dump du jeu.
-#
-# Installation :
-#   sudo cp deploy/systemd/azalee-api.service /etc/systemd/system/
-#   sudo systemctl daemon-reload && sudo systemctl enable --now azalee-api.service
-Description=azalee-api — API headless du wiki Azalée (Bun, lecture seule)
+# The listener keeps port 8807 for already deployed clients while the canonical
+# site listener remains on 8085. Both listeners read the same local mirror and
+# the same VFS-backed data root.
+Description=Azalee API compatibility listener (nie-site, Rust, read-only)
 After=network.target
 StartLimitIntervalSec=0
 
@@ -22,10 +17,17 @@ WorkingDirectory=/home/ubuntu/niers
 Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
 Environment=AZALEE_PORT=8807
 Environment=AZALEE_HOST=127.0.0.1
-# Miroir épinglé — même source que azalee-web (cf. drop-in azalee-web.service).
+# Pinned mirror — the same source as the canonical nie-site listener.
 Environment=SQLITE_DB_PATH=/home/ubuntu/niers/var/mirror.sqlite
-Environment=AZALEE_DATA_DIR=/home/ubuntu/niers/apps/azalee/data
-ExecStart=/home/ubuntu/.bun/bin/bun packages/azalee-tools/src/server/main.ts
+Environment=AZALEE_DATA_DIR=/home/ubuntu/niers/data/azalee
+Environment=NIE_GAME_DIR=/home/ubuntu/niers
+Environment=RUST_LOG=info
+ExecStart=/home/ubuntu/niers/target/release/nie-site \
+    --listen 127.0.0.1:8807 \
+    --db /home/ubuntu/niers/var/mirror.sqlite \
+    --upstream http://127.0.0.1:8790 \
+    --bundle-dir /home/ubuntu/niers/apps/nie-web/dist \
+    --origin https://nie.aphrody.com
 Restart=always
 RestartSec=5
 

@@ -1,32 +1,19 @@
-import { SearchX, SlidersHorizontal, User, Users, Wand2 } from "lucide-react";
+import { SearchX, User, Users } from "lucide-react";
 import type { Metadata } from "next";
-import type React from "react";
-import { CommonSpriteIcon } from "@/components/ui/CommonSpriteIcon";
 import { FadeInItem, FadeInStagger } from "@/components/ui/fade-in";
 import { PassiveFilters } from "@/components/wiki/filters/PassiveFilters";
 import { PassivePlayerFilters } from "@/components/wiki/filters/PassivePlayerFilters";
 import {
-	CoordinatorPassiveCard,
-	CustomPassiveCard,
 	NierPassiveFamilyCard,
 	NierTeamPassiveCard,
-	PLAYSTYLE_FR,
-	PlayerPassiveCard,
-	REQUIREMENT_FR,
-	STAT_FR,
 } from "@/components/wiki/PassiveCard";
 import type {
-	CoordinatorPassiveData,
-	CustomPassiveData,
 	NierPassiveFamily,
 	NierPassiveInstance,
 	NierTeamPassive,
-	PlayerPassiveData,
 } from "@/components/wiki/PassiveCard";
 import { WikiSearchToolbar } from "@/components/wiki/WikiSearchToolbar";
-import type { SpriteCommonKey } from "@/config/sprites-common";
-import passiveData from "@/data/passive-sheets.json";
-import passivesFullData from "@rosegriffon/azalee/data/passives-full.json";
+import passivesFullData from "../../../../../data/azalee/passives-full.json";
 import { normalizeText } from "@rosegriffon/azalee/search/utils";
 import { parseSearchParams } from "@/lib/validations";
 import { passiveCategory } from "@/lib/wiki-service";
@@ -90,81 +77,6 @@ function familyMatchesFilters(family: NierPassiveFamily, f: NierFamilyFilters): 
 	});
 }
 
-// ── Helpers passive-sheets ──
-
-function passiveSearchText(p: { requirement: string; stat: string; playstyle?: string }): string {
-	const req = REQUIREMENT_FR[p.requirement] || p.requirement;
-	const stat = STAT_FR[p.stat] || p.stat;
-	const ps = p.playstyle ? PLAYSTYLE_FR[p.playstyle] || p.playstyle : "";
-	return normalizeText(`${req} ${stat} ${ps}`);
-}
-
-/** Map stat EN key to a filter category */
-function statCategory(stat: string): string {
-	const s = stat.toLowerCase();
-	if (s.includes("shot")) {
-		return "shot";
-	}
-	if (s.includes("focus")) {
-		return "focus";
-	}
-	if (s.includes("scramble")) {
-		return "scramble";
-	}
-	if (s.includes("castle")) {
-		return "castle";
-	}
-	if (
-		s.startsWith("team") ||
-		s.startsWith("[mf]") ||
-		s.startsWith("[df]") ||
-		s.startsWith("[kp]") ||
-		s.startsWith("[substitute")
-	) {
-		return "team";
-	}
-	if (s.startsWith("own")) {
-		return "own";
-	}
-	return "";
-}
-
-function matchesFilters(
-	p: { requirement: string; stat: string; playstyle?: string },
-	qNorm: string,
-	playstyleFilter: string | null,
-	statCatFilter: string
-): boolean {
-	if (qNorm && !passiveSearchText(p).includes(qNorm)) {
-		return false;
-	}
-	if (playstyleFilter !== null && (p.playstyle ?? "") !== playstyleFilter) {
-		return false;
-	}
-	if (statCatFilter && statCategory(p.stat) !== statCatFilter) {
-		return false;
-	}
-	return true;
-}
-
-// ── Section config ──
-
-const PLAYSTYLE_SECTIONS: Array<{
-	key: string;
-	label: string;
-	icon?: React.ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
-	sprite?: SpriteCommonKey;
-	color: string;
-}> = [
-	{ color: "text-on-surface-variant", icon: SlidersHorizontal, key: "", label: "Généraux" },
-	{ color: "text-red-500", key: "Breach", label: "Brèche", sprite: "breche" },
-	{ color: "text-amber-500", key: "Tension", label: "Tension", sprite: "tension" },
-	{ color: "text-blue-500", key: "Counter", label: "Contre-attaque", sprite: "contre" },
-	{ color: "text-pink-500", key: "Bond", label: "Lien", sprite: "lien" },
-	{ color: "text-orange-500", key: "Rough Play", label: "Jeu brutal", sprite: "jeu_violent" },
-	{ color: "text-emerald-500", key: "Justice", label: "Justice", sprite: "justice" },
-];
-
 export default async function PassivesPage({
 	searchParams,
 }: {
@@ -182,16 +94,9 @@ export default async function PassivesPage({
 	} = params;
 	const qNorm = q ? normalizeText(q) : "";
 
-	const psFilter = playstyleFilter !== undefined ? (playstyleFilter?.toString() ?? "") : null;
-	const catFilter = statCatFilter?.toString() || "";
 	const elFilter = elementFilter?.toString() || "";
 	const rarFilter = rarityFilter?.toString() || "";
 	const pCatFilter = passiveCatFilter?.toString() || "";
-
-	// ── Load passive-sheets data (custom + coordinator) ──
-	const allPlayerPassivesSheets = passiveData.playerPassives as PlayerPassiveData[];
-	const allCustomPassives = passiveData.customPassives as CustomPassiveData[];
-	const allCoordinatorPassives = passiveData.coordinatorPassives as CoordinatorPassiveData[];
 
 	// ── Load nie-data passives (passives-full.json) ──
 	const nierAllPlayer = passivesFullData.player as NierPassiveInstance[];
@@ -221,80 +126,15 @@ export default async function PassivesPage({
 		categoryCounts[ck] = (categoryCounts[ck] || 0) + 1;
 	}
 
-	// ── Compute type counts ──
-	const playerFiltered = allPlayerPassivesSheets.filter((p) =>
-		matchesFilters(p, qNorm, psFilter, catFilter)
-	);
-	const customFiltered = allCustomPassives.filter((p) =>
-		matchesFilters(p, qNorm, null, catFilter)
-	);
-	const coordFiltered = allCoordinatorPassives.filter((p) =>
-		matchesFilters(p, qNorm, psFilter, catFilter)
-	);
-
 	const typeCounts: Record<string, number> = {
-		coordinator: coordFiltered.length,
-		custom: customFiltered.length,
 		player: nierFamiliesFiltered.length,
 	};
 
 	// ── Apply type filter ──
 	const showPlayer = !typeFilter || typeFilter === "player";
-	const showCustom = !typeFilter || typeFilter === "custom";
-	const showCoord = !typeFilter || typeFilter === "coordinator";
-
 	const nierFamilies = showPlayer ? nierFamiliesFiltered : [];
-	const customPassives = showCustom ? customFiltered : [];
-	const coordinatorPassives = showCoord ? coordFiltered : [];
-
-	// ── Playstyle counts (sheets fallback, used for filters) ──
-	const allForPlaystyleCounts = [
-		...(showPlayer
-			? (allPlayerPassivesSheets as Array<{
-					playstyle?: string;
-					requirement: string;
-					stat: string;
-				}>).filter(
-					(p) =>
-						(!qNorm || passiveSearchText(p as { requirement: string; stat: string; playstyle?: string }).includes(qNorm)) &&
-						(!catFilter || statCategory(p.stat) === catFilter)
-				)
-			: []),
-		...(showCoord
-			? (
-					allCoordinatorPassives as Array<{
-						playstyle?: string;
-						requirement: string;
-						stat: string;
-					}>
-				).filter(
-					(p) =>
-						(!qNorm || passiveSearchText(p as { requirement: string; stat: string; playstyle?: string }).includes(qNorm)) &&
-						(!catFilter || statCategory(p.stat) === catFilter)
-				)
-			: []),
-	];
 	const playstyleCounts: Record<string, number> = {};
-	for (const p of allForPlaystyleCounts) {
-		const ps = p.playstyle ?? "";
-		playstyleCounts[ps] = (playstyleCounts[ps] || 0) + 1;
-	}
-
-	// ── Legacy player passive groups (sheets) ──
-	const sheetPlayerPassives = showPlayer ? playerFiltered : [];
-	const playerGroups = PLAYSTYLE_SECTIONS.map((section) => ({
-		...section,
-		passives: sheetPlayerPassives.filter((p) => p.playstyle === section.key),
-	})).filter((g) => g.passives.length > 0);
-
-	// ── Coordinator groups ──
-	const coordGroups = PLAYSTYLE_SECTIONS.map((section) => ({
-		...section,
-		passives: coordinatorPassives.filter((p) => p.playstyle === section.key),
-	})).filter((g) => g.passives.length > 0);
-
-	const totalCount =
-		nierFamilies.length + customPassives.length + coordinatorPassives.length;
+	const totalCount = nierFamilies.length;
 
 	return (
 		<div className="space-y-8 pb-20" role="main" aria-label="Passifs et talents">
@@ -383,62 +223,6 @@ export default async function PassivesPage({
 						</section>
 					)}
 
-					{/* Passifs joueur legacy (passive-sheets, groupés par style de jeu) — affiché si pas de nie-data */}
-					{nierFamilies.length === 0 && playerGroups.length > 0 && (
-						<section id="player-legacy" className="scroll-mt-36" aria-labelledby="player-legacy-heading">
-							<div className="flex items-center gap-4 mb-8 border-b border-outline-variant/30 pb-2">
-								<User size={36} className="text-blue-600" aria-hidden="true" />
-								<div>
-									<h2 id="player-legacy-heading" className="text-2xl font-bold text-on-surface">
-										Passifs joueur
-									</h2>
-									<p className="text-sm text-on-surface-variant font-medium">
-										{sheetPlayerPassives.length} passifs &mdash; valeurs par rareté
-									</p>
-								</div>
-							</div>
-
-							<div className="space-y-10">
-								{playerGroups.map((group) => (
-									<div
-										key={group.key || "general"}
-										role="region"
-										aria-label={`Style de jeu : ${group.label}`}
-									>
-										<div className="flex items-center gap-2 mb-4">
-											{group.sprite ? (
-												<div className="size-6 flex items-center justify-center">
-													<CommonSpriteIcon name={group.sprite} scale={0.5} />
-												</div>
-											) : (
-												group.icon && <group.icon size={20} className={group.color} aria-hidden />
-											)}
-											<h3 className="text-lg font-bold text-on-surface">{group.label}</h3>
-											<span
-												className="text-xs text-on-surface-variant"
-												aria-label={`${group.passives.length} passifs`}
-											>
-												({group.passives.length})
-											</span>
-										</div>
-
-										<FadeInStagger
-											className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-											role="list"
-											aria-label={`Passifs ${group.label}`}
-										>
-											{group.passives.map((p) => (
-												<FadeInItem key={p.no} className="h-full" role="listitem">
-													<PlayerPassiveCard passive={p} />
-												</FadeInItem>
-											))}
-										</FadeInStagger>
-									</div>
-								))}
-							</div>
-						</section>
-					)}
-
 					{/* Passifs d'équipe (team passives nie-data, 21 entrées) */}
 					{!typeFilter && nierTeamPassives.length > 0 && (
 						<section id="team" className="scroll-mt-36" aria-labelledby="team-heading">
@@ -468,94 +252,6 @@ export default async function PassivesPage({
 						</section>
 					)}
 
-					{/* Custom Passives */}
-					{customPassives.length > 0 && (
-						<section id="custom" className="scroll-mt-36" aria-labelledby="custom-heading">
-							<div className="flex items-center gap-4 mb-8 border-b border-outline-variant/30 pb-2">
-								<Wand2 size={36} className="text-purple-600" aria-hidden="true" />
-								<div>
-									<h2 id="custom-heading" className="text-2xl font-bold text-on-surface">
-										Passifs personnalisés
-									</h2>
-									<p className="text-sm text-on-surface-variant font-medium">
-										{customPassives.length} passifs &mdash; valeur fixe unique
-									</p>
-								</div>
-							</div>
-
-							<FadeInStagger
-								className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-								role="list"
-								aria-label="Passifs personnalisés"
-							>
-								{customPassives.map((p) => (
-									<FadeInItem key={p.no} className="h-full" role="listitem">
-										<CustomPassiveCard passive={p} />
-									</FadeInItem>
-								))}
-							</FadeInStagger>
-						</section>
-					)}
-
-					{/* Coordinator / Manager Passives */}
-					{coordinatorPassives.length > 0 && (
-						<section
-							id="coordinator"
-							className="scroll-mt-36"
-							aria-labelledby="coordinator-heading"
-						>
-							<div className="flex items-center gap-4 mb-8 border-b border-outline-variant/30 pb-2">
-								<Users size={36} className="text-amber-600" aria-hidden="true" />
-								<div>
-									<h2 id="coordinator-heading" className="text-2xl font-bold text-on-surface">
-										Passifs coordinateur / manager
-									</h2>
-									<p className="text-sm text-on-surface-variant font-medium">
-										{coordinatorPassives.length} passifs &mdash; valeurs par rôle et rareté
-									</p>
-								</div>
-							</div>
-
-							<div className="space-y-10">
-								{coordGroups.map((group) => (
-									<div
-										key={group.key || "general-coord"}
-										role="region"
-										aria-label={`Style de jeu : ${group.label}`}
-									>
-										<div className="flex items-center gap-2 mb-4">
-											{group.sprite ? (
-												<div className="size-6 flex items-center justify-center">
-													<CommonSpriteIcon name={group.sprite} scale={0.5} />
-												</div>
-											) : (
-												group.icon && <group.icon size={20} className={group.color} aria-hidden />
-											)}
-											<h3 className="text-lg font-bold text-on-surface">{group.label}</h3>
-											<span
-												className="text-xs text-on-surface-variant"
-												aria-label={`${group.passives.length} passifs`}
-											>
-												({group.passives.length})
-											</span>
-										</div>
-
-										<FadeInStagger
-											className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-											role="list"
-											aria-label={`Passifs coordinateur ${group.label}`}
-										>
-											{group.passives.map((p) => (
-												<FadeInItem key={p.no} className="h-full" role="listitem">
-													<CoordinatorPassiveCard passive={p} />
-												</FadeInItem>
-											))}
-										</FadeInStagger>
-									</div>
-								))}
-							</div>
-						</section>
-					)}
 				</div>
 			)}
 		</div>

@@ -119,6 +119,7 @@ pub struct EtatSite {
     /// partagé par tous les clones de l'état — c'est ce qui fait qu'un `Limiteur` cloné à
     /// chaque requête compte quand même les requêtes ensemble.
     pub limiteur: Option<crate::debit::Limiteur>,
+    demarrage: std::time::Instant,
 }
 
 impl std::fmt::Debug for EtatSite {
@@ -168,7 +169,14 @@ impl EtatSite {
             client,
             jetons_amont,
             limiteur,
+            demarrage: std::time::Instant::now(),
         }
+    }
+
+    /// Seconds elapsed since this state was created, for the legacy health contract.
+    #[must_use]
+    pub fn uptime_seconds(&self) -> f64 {
+        self.demarrage.elapsed().as_secs_f64()
     }
 
     /// État de test : index VFS injecté, aucun contenu, aucun amont joignable.

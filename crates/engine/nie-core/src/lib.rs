@@ -22,6 +22,7 @@
 //! - [`exp`] — Table d'XP par niveau + multiplicateur de rareté
 //! - [`skill`] — Modèle de technique (hissatsu) + maps élément/catégorie
 //! - [`aura`] — Modèle d'aura (Keshin/Soul/…) + résolution du hissatsu lié
+//! - [`azalee`] — Portable Azalee search and editorial community rules
 //!
 //! # Conventions de portage
 //!
@@ -35,6 +36,7 @@
 #![warn(missing_docs)]
 #![allow(clippy::pedantic)]
 #![allow(clippy::float_cmp)]
+extern crate alloc;
 // std est requis pour f32::sqrt, f32::floor sur certaines cibles no_std.
 // Pour l'instant on reste std pour simplicité; une feature no_std peut être
 // ajoutée plus tard avec libm si nécessaire pour wasm bare-metal.
@@ -74,6 +76,7 @@ pub mod affine;
 pub mod animation;
 pub mod aspect_viewport;
 pub mod aura;
+pub mod azalee;
 pub mod ball;
 pub mod byte_keyed_table;
 pub mod category_lookup;

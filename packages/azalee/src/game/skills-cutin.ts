@@ -6,8 +6,8 @@
  * d'afficher le modèle 3D du cut-in, le telop (nom rendu) par langue, et les assets son/effets,
  * tous déjà servis live par `nie-model-serve` (`/raw`, `/tex`, `/model-*`).
  */
-import skillsCutinData from "../data/skills-cutin.json";
-import skillsCutinServed from "../data/skills-cutin-served.json";
+import skillsCutinData from "../../../../data/azalee/skills-cutin.json";
+import skillsCutinServed from "../../../../data/azalee/skills-cutin-served.json";
 
 /** Chemins VFS des assets de cut-in d'un hissatsu. */
 export interface SkillCutin {

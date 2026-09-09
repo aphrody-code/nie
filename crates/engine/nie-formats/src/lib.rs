@@ -48,6 +48,8 @@ pub mod bitmap_font;
 /// Assemblage GLB d'un personnage (feature `std` : I/O fichiers + `HashMap`).
 #[cfg(feature = "std")]
 pub mod assemble;
+/// Pure IEVR asset-family and preview classification used by native hosts.
+pub mod asset;
 pub mod cfgbin;
 #[cfg(feature = "std")]
 pub mod col;

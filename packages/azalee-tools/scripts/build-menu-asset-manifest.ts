@@ -1,17 +1,17 @@
 #!/usr/bin/env bun
 /**
  * Génère les **garde-fous d'assets menu** à partir de l'index CPK réel
- * (`apps/azalee/data/cpk-index.ndjson.gz`, 250 799 chemins), et NON plus depuis
+ * (`data/azalee/cpk-index.ndjson.gz`, 250 799 chemins), et NON plus depuis
  * `inagle_game_assets` — cette table indexait le dump PNG pré-extrait qui a été
  * archivé : ses 40 471 lignes `exists = 1` valident aujourd'hui des URL mortes.
  *
- * Sorties (toutes trackées en git, importées statiquement par `src/images/utils.ts`) :
+ * Outputs (tracked under `data/azalee/` and imported by the legacy host adapter):
  *
- * - `src/data/menu-asset-manifest.json` — listes EXHAUSTIVES des basenames `.g4tx`
+ * - `data/azalee/menu-asset-manifest.json` — exhaustive `.g4tx` basenames
  *   réellement présents dans les CPK pour les familles qui ont besoin d'un gate
  *   (emblèmes, telops par langue, icônes d'aura). Un code absent de ces listes
  *   renvoie un placeholder au lieu d'une URL 404 forgée.
- * - `src/data/emblem-crc-map.json` — `crc32_std(nom de fichier) → nom`, calculé sur
+ * - `data/azalee/emblem-crc-map.json` — `crc32_std(file name) → name`, calculated over
  *   les **543** emblèmes du CPK (l'ancienne carte n'en couvrait que 253).
  *
  * Le CRC est le crc32 STANDARD (IEEE, polynôme réfléchi `0xEDB88320`, init/xorout
@@ -25,7 +25,7 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { resolveDataFile } from "../src/config";
 
-const DATA_DIR = path.resolve(import.meta.dir, "../src/data");
+const DATA_DIR = path.resolve(import.meta.dir, "../../../data/azalee");
 const CPK_INDEX = "cpk-index.ndjson.gz";
 
 /** Racine du namespace menu dans l'index CPK. */
@@ -56,7 +56,7 @@ export function crc32Std(input: string): string {
 function readCpkPaths(): string[] {
 	const src = resolveDataFile(CPK_INDEX);
 	if (!src) {
-		throw new Error(`[menu-manifest] ${CPK_INDEX} introuvable (apps/azalee/data/).`);
+		throw new Error(`[menu-manifest] ${CPK_INDEX} introuvable (data/azalee/).`);
 	}
 	const text = gunzipSync(readFileSync(src)).toString("utf8");
 	const out: string[] = [];

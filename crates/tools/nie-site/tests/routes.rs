@@ -91,8 +91,9 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 100] = [
+    let instances: [(&str, &[u16]); 132] = [
         ("/healthz", &[200]),
+        ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
         ("/sitemap.xml", &[200]),
         // Le flux Atom lit le MEME catalogue que `/api/v1/episodes` : absent dans l'etat de
@@ -100,6 +101,7 @@ async fn toutes_les_routes_declarees_repondent() {
         // pour « rien de neuf ».
         ("/feed.atom", &[503]),
         ("/api/v1/health", &[200]),
+        ("/api/save/resolve-roster", &[200]),
         ("/api/v1/chara", &[503]), // miroir absent : capacité dégradée, pas une panne
         ("/llms.txt", &[200]),
         ("/llms-full.txt", &[200]),
@@ -158,6 +160,35 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/api/v1/wiki/gallery", &[200, 400, 503]),
         ("/api/v1/wiki/names", &[200, 400, 503]),
         ("/api/v1/wiki/characters/0", &[404, 503]),
+        ("/api/v1/wiki/skills/0", &[404, 503]),
+        ("/api/v1/wiki/items/0", &[404, 503]),
+        ("/api/v1/wiki/teams/0", &[404, 503]),
+        ("/api/v1/wiki/compare", &[200]),
+        ("/api/v1/wiki/random-team", &[200]),
+        ("/api/v1/wiki/team-builder", &[200, 503]),
+        ("/api/v1/wiki/team-builder/0", &[404, 503]),
+        ("/api/v1/wiki/auras", &[200, 503]),
+        ("/api/v1/wiki/auras/0", &[404, 503]),
+        ("/api/v1/wiki/tactics", &[200, 503]),
+        ("/api/v1/wiki/tactics/0", &[404, 503]),
+        ("/api/v1/wiki/passives", &[200, 503]),
+        ("/api/v1/wiki/passives/0", &[404, 503]),
+        ("/api/v1/wiki/passives/scaling", &[200, 503]),
+        ("/api/v1/wiki/quests", &[200, 503]),
+        ("/api/v1/wiki/quests/0", &[404, 503]),
+        ("/api/v1/wiki/shops", &[200, 503]),
+        ("/api/v1/wiki/shops/0", &[404, 503]),
+        ("/api/v1/wiki/capsules", &[200, 503]),
+        ("/api/v1/wiki/capsules/0", &[404, 503]),
+        ("/api/v1/wiki/costumes", &[200, 503]),
+        ("/api/v1/wiki/stadiums", &[200, 503]),
+        ("/api/v1/wiki/stadiums/0", &[404, 503]),
+        ("/api/v1/wiki/trophies", &[200, 503]),
+        ("/api/v1/wiki/trophies/0", &[404, 503]),
+        ("/api/v1/wiki/coaches", &[200, 503]),
+        ("/api/v1/wiki/coaches/0", &[404, 503]),
+        ("/api/v1/wiki/drops", &[200, 503]),
+        ("/api/v1/wiki/invocation", &[200, 503]),
         ("/api/v1/zukan/rank", &[200]),
         ("/api/v1/motion/clips/data/x.g4mot", &[404, 503]),
         ("/api/v1/preview/camera/data/x.cfg.bin", &[404, 503]),
@@ -250,10 +281,11 @@ async fn toutes_les_routes_declarees_repondent() {
         // reponses correctes. Ce que ce cas garde, c'est que la route EXISTE — elle
         // a rendu 404 en production pendant des semaines sans que rien ne le dise.
         ("/downloads/inacord/latest.json", &[200, 404, 502, 504]),
+        ("/tools/niers/latest.json", &[200, 404, 502, 504]),
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 99, "le routeur monte 99 routes");
+    assert_eq!(declarees.len(), 131, "le routeur monte 131 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -285,7 +317,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 100, "100 instances interrogees pour 99 routes");
+    assert_eq!(vus, 132, "132 instances interrogees pour 131 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).
@@ -702,6 +734,213 @@ async fn chara_lit_le_miroir_et_pagine() {
     let (statut, _, corps) = reponse(&etat, "/api/v1/chara").await;
     assert_eq!(statut, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(json(&corps)["genre"], "indisponible");
+}
+
+#[tokio::test]
+async fn legacy_roster_preserves_azalee_shape_and_accepts_numeric_ids() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("mirror.sqlite");
+    let connection = rusqlite::Connection::open(&db).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE inagle_characters (
+                id TEXT PRIMARY KEY, name_fr TEXT, base_slug TEXT,
+                element TEXT, position TEXT, rarity_label TEXT
+            );
+            INSERT INTO inagle_characters VALUES
+                ('0x00000001', 'Mark', 'mark-evans', 'Wind', 'GK', 'R');",
+        )
+        .unwrap();
+    drop(connection);
+
+    let state = etat_avec(|config| config.db = db);
+    let response = nie_site::routeur(state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/save/resolve-roster")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"ids":["1",1,"0x00000002"]}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(body["total"], 2);
+    assert_eq!(body["matched"], 1);
+    assert_eq!(body["resolved"].as_array().unwrap().len(), 2);
+    assert_eq!(body["resolved"][0]["id"], "0x00000001");
+    assert_eq!(body["resolved"][0]["baseSlug"], "mark-evans");
+    assert_eq!(body["resolved"][1]["name"], serde_json::Value::Null);
+    assert!(body["resolved"][0].get("base_slug").is_none());
+    assert!(body["resolved"][0].get("requested").is_none());
+}
+
+#[tokio::test]
+async fn wiki_operations_use_the_ported_query_owners() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("mirror.sqlite");
+    let connection = rusqlite::Connection::open(&db).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE inagle_skills (
+                id TEXT, name_fr TEXT, name_en TEXT, name_ja TEXT,
+                category TEXT, element TEXT, power_max INTEGER, power_min INTEGER,
+                tp_cost INTEGER, description_fr TEXT, description_en TEXT,
+                internal_code TEXT, is_hyper INTEGER, data TEXT, sheet_data TEXT
+            );
+            CREATE TABLE inagle_items (
+                id TEXT, name_fr TEXT, name_en TEXT, name_ja TEXT,
+                category TEXT, rarity INTEGER, description_fr TEXT,
+                internal_code TEXT, price INTEGER, shops TEXT, data TEXT, sheet_data TEXT
+            );
+            CREATE TABLE inagle_teams (
+                id TEXT, name_fr TEXT, name_en TEXT, name_ja TEXT,
+                internal_code TEXT, series TEXT, region TEXT, data TEXT, sheet_data TEXT
+            );
+            CREATE TABLE inagle_team_build (
+                id TEXT, name_fr TEXT, name_en TEXT, position TEXT, element TEXT, data TEXT
+            );
+            CREATE TABLE inagle_characters (
+                id TEXT, name_fr TEXT, name_en TEXT, element TEXT, position TEXT,
+                stat_frappe INTEGER, zukan_hash TEXT
+            );
+            CREATE TABLE inagle_coordinators (
+                id INTEGER, name_localised TEXT, name_romaji TEXT, element TEXT,
+                playstyle TEXT, role TEXT, buff TEXT
+            );
+            INSERT INTO inagle_skills VALUES
+                ('skill-1', 'Tir test', 'Test Shot', 'テスト', 'Tir', 'Feu', 120, 80, 20, 'desc', 'desc', 'w001', 0, '{}', '{}');
+            INSERT INTO inagle_items VALUES
+                ('item-1', 'Objet test', 'Test Item', 'テスト', 'Equipement', 3, 'desc', 'i001', 0, '[]', '{}', '{}');
+            INSERT INTO inagle_teams VALUES
+                ('team-1', 'Equipe test', 'Test Team', 'テスト', 't001', 'FF', 'JP', '{}', '{}');
+            INSERT INTO inagle_team_build VALUES
+                ('build-1', 'Build test', 'Test Build', 'FW', 'Feu', '{\"power\":42}');
+            INSERT INTO inagle_coordinators VALUES
+                (1, 'Coach test', 'Coach', 'Feu', 'Bond', 'Coach', 'Buff');",
+        )
+        .unwrap();
+    for (index, position) in [
+        (0, "Gardien"),
+        (1, "Défenseur"),
+        (2, "Défenseur"),
+        (3, "Défenseur"),
+        (4, "Défenseur"),
+        (5, "Milieu"),
+        (6, "Milieu"),
+        (7, "Milieu"),
+        (8, "Milieu"),
+        (9, "Attaquant"),
+        (10, "Attaquant"),
+    ] {
+        connection
+            .execute(
+                "INSERT INTO inagle_characters VALUES (?1, ?2, NULL, 'Feu', ?3, 1, 'hash')",
+                rusqlite::params![
+                    format!("player-{index}"),
+                    format!("Player {index}"),
+                    position
+                ],
+            )
+            .unwrap();
+    }
+    drop(connection);
+
+    let state = etat_avec(|config| config.db = db);
+    let app = nie_site::routeur(state);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/wiki/skills/skill-1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(json(&body)["name_fr"], "Tir test");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/wiki/items/item-1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(json(&body)["name_en"], "Test Item");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/wiki/teams/team-1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(json(&body)["name_fr"], "Equipe test");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/wiki/team-builder")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(json(&body).as_array().unwrap().len(), 1);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/wiki/team-builder/build-1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(json(&body)["data"]["power"], 42);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/wiki/random-team")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"formation":"4-4-2","seed":7}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let team = json(&body);
+    assert_eq!(team["formation"], "4-4-2");
+    assert_eq!(team["gk"].as_array().unwrap().len(), 1);
+    assert_eq!(team["df"].as_array().unwrap().len(), 4);
+    assert_eq!(team["mf"].as_array().unwrap().len(), 4);
+    assert_eq!(team["fw"].as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]

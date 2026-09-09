@@ -67,7 +67,7 @@ fichier, sa propre définition**) pour `getSkillVideoUrl`, `STAT_KEYS`, `fetchAu
 **Le sous-arbre `cross/` est mort à 15/17.** Ses trois fichiers exportent 17 symboles ; seuls
 `getCrossTables` et `getCrossCatalogStats` sont lus, par
 `packages/azalee-tools/src/server/serve.ts:15`. Il traîne avec lui **6,5 Mo** de JSON
-(`du -sh packages/azalee/src/data` — dont `data/cross/*`), embarqués dans le paquet publié
+(`du -sh data/azalee`), avec le catalogue Cross séparé sous `apps/azalee/data/cross/`.
 (`"files": ["src", …]`, `packages/azalee/package.json`).
 
 ### 1.3 Les 16 exports que seul le SAS `legacy` atteint

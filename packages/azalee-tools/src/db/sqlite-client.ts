@@ -4,9 +4,7 @@ import { drizzle as drizzleProxy } from "drizzle-orm/sqlite-proxy";
 import { resolveMirrorPath } from "../config";
 
 /**
- * Chemin du miroir SQLite. La résolution (option explicite → `SQLITE_DB_PATH` →
- * `data/backups/mirror.sqlite` → snapshot le plus récent) vit dans `config.ts`,
- * source unique pour toute la lib.
+ * SQLite mirror path. Resolution is centralized in `config.ts`.
  */
 function getSqlitePath(): string | null {
 	return resolveMirrorPath();

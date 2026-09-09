@@ -1,7 +1,7 @@
 /**
  * Index CPK (250 800 fichiers) — listing, pagination, recherche, métadonnées.
  *
- * Source réelle : `apps/azalee/data/cpk-index.ndjson.gz`, matérialisé en SQLite
+ * Source réelle : `data/azalee/cpk-index.ndjson.gz`, matérialisé en SQLite
  * de cache au premier accès. Les tests sont skippés proprement si l'artefact est
  * absent (checkout frais sans données).
  */

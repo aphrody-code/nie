@@ -1,7 +1,7 @@
 /**
  * Accès serveur à l'**index texture → conteneur g4tx** du namespace icône.
  *
- * Source : NDJSON gzippé tracké `apps/azalee/data/icon-texture-index.ndjson.gz`,
+ * Source : NDJSON gzippé tracké `data/azalee/icon-texture-index.ndjson.gz`,
  * généré par `packages/azalee/scripts/build-icon-texture-index.ts` en parsant
  * l'en-tête de chaque `.g4tx` de `dx11/menu/200_icon/**` servi par
  * `nie-model-serve` (`/raw/...`). L'artefact est petit (quelques dizaines de

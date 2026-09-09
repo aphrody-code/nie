@@ -1,13 +1,11 @@
 #!/usr/bin/env bun
 /**
- * Resynchronise les entrées inagle embarquées dans `src/data/`.
+ * Synchronize verified inagle entries into `data/azalee/`.
  *
- * La lib est **autonome** (CLI, sidecar Tauri, publication npm) : elle ne lit
- * jamais un chemin relatif hors de son propre package. Les quelques entrées
- * inagle dont elle dépend sont donc copiées ici, et rafraîchies par ce script
- * après un re-dump du jeu :
+ * The legacy host adapter keeps these small verified entries as generated
+ * repository data. The canonical source remains `packages/inagle`.
  *
- *     bun packages/azalee/scripts/sync-inagle-entries.ts
+ *     bun packages/azalee-tools/scripts/sync-inagle-entries.ts
  */
 
 import path from "node:path";
@@ -26,7 +24,8 @@ for (const entry of ENTRIES) {
 		console.error(`source absente: ${entry.from}`);
 		process.exit(1);
 	}
-	const destPath = path.join(pkgRoot, "src/data", entry.to);
+	const repoRoot = path.resolve(pkgRoot, "../..");
+	const destPath = path.join(repoRoot, "data/azalee", entry.to);
 	const before = await Bun.file(destPath)
 		.text()
 		.catch(() => "");

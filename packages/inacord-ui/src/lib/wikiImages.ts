@@ -7,7 +7,7 @@
 //
 //  1. le module du wiki rend des URL du CDN `azalee` : l'application de bureau doit fonctionner
 //     **hors ligne**, sur les fichiers du jeu qu'elle a déjà montés. C'est toute sa raison d'être ;
-//  2. `packages/azalee/src/images/utils.ts` importe sept manifestes JSON (`../data/
+//  2. The legacy Azalee image adapter imports seven verified manifests from `data/azalee/`
 //     character-face-manifest.json`, …) qui sont **générés** par `packages/azalee/scripts/build-*`
 //     et absents du dépôt : l'importer ici casse `tsc` (`Cannot find module`) et le build Vite.
 //

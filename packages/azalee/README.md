@@ -99,7 +99,6 @@ Table exacte du champ `exports` de `package.json`.
 | `@rosegriffon/azalee/text/*` | `src/text/*.ts` | client-safe |
 | `@rosegriffon/azalee/game` | `src/game/index.ts` | client-safe — formations, genre, règles d'équipe, cut-ins, emblèmes |
 | `@rosegriffon/azalee/game/*` | `src/game/*.ts` | client-safe |
-| `@rosegriffon/azalee/data/*` | `src/data/*` | client-safe — JSON figés (manifestes) |
 | `@rosegriffon/azalee/cpk/*` | `src/cpk/*.ts` | client-safe — `shared`, `live`, `audio`, `models`, `tree` |
 | `@rosegriffon/azalee/game-text/*` | `src/game-text/*.ts` | client-safe — `format`, `shared` |
 | `@rosegriffon/azalee/cross` | `src/cross/index.ts` | Inazuma Eleven Cross (Unity/Addressables) |
@@ -140,9 +139,10 @@ l'injection transparente.
 
 ## Données embarquées et régénération
 
-`src/data/` (~6,7 Mo) suit le package. Chaque fichier a une provenance connue ;
-les scripts de régénération vivent dans `@niers/azalee-tools` (`scripts/`,
-`scripts-app/`) et écrivent ici.
+`data/azalee/` contains the repository-level game artifacts. Each retained file
+has a verified provenance in the game VFS, native `nie` exports, `inagle`, or
+the official zukan. Regeneration scripts live in `@niers/azalee-tools`, but
+they write only to this repository data root.
 
 | Fichier | Régénération |
 |---------|--------------|
@@ -155,14 +155,14 @@ les scripts de régénération vivent dans `@niers/azalee-tools` (`scripts/`,
 | `miximax-icon-manifest.json` | `…/build-miximax-icon-manifest.ts` |
 | `skills-cutin-served.json` | `…/build-skills-cutin-served.ts` |
 | `change-aura-skills.json` | `…/sync-inagle-entries.ts` (copie depuis `packages/inagle/src/entries`) |
-| `passives-full.json`, `formations-full.json`, `skills-cutin.json`, `item-enrichment.json`, `emblem-crc-map.json`, `chr-model-names.json`, `cross/*.json` | produits hors package (exports niers / inagle) — pas de générateur embarqué |
+| `passives-full.json`, `formations-full.json`, `skills-cutin.json`, `item-enrichment.json`, `emblem-crc-map.json`, `chr-model-names.json` | native `nie`/`inagle` exports |
 
 Les manifestes sont des **gates anti-404** : un code absent du manifeste fait
 renvoyer `null` ou un placeholder au lieu d'une URL CDN morte.
 
-Ces JSON sont **gitignorés** (`.gitignore:26`, contenu de jeu © LEVEL-5) : sur un
-clone frais il faut les régénérer avant `bun run typecheck`. Ce n'est pas un
-défaut de code.
+These JSON files are tracked under `data/azalee/` only when their provenance is
+verified. Runtime SQLite remains untracked under `var/`; cloud schema dumps and
+Supabase ingestion artifacts are not part of this package.
 
 ## Tests, build, publication
 
@@ -170,7 +170,7 @@ défaut de code.
 bun test                    # depuis packages/azalee
 bun run typecheck           # tsc --noEmit (vrais types workspace)
 bun run lint                # oxlint
-bun run build               # tsc -p tsconfig.build.json + copie de src/data → dist/data
+bun run build               # tsc -p tsconfig.build.json
 ```
 
 Le build de publication substitue les types de `@rosegriffon/db` par les shims de

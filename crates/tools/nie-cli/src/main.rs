@@ -4,6 +4,7 @@
 
 mod output;
 pub use output::CapturedCommand;
+pub mod api;
 
 // The CLI is also an in-process library for the native MCP server. These
 // macros preserve normal terminal output while allowing one command running
@@ -1355,6 +1356,70 @@ enum WikiOp {
         #[arg(long, env = "NIE_WIKI_DB")]
         db: Option<std::path::PathBuf>,
     },
+    /// List auras, Keshins, Souls, Miximax and awakenings from the IEVR mirror.
+    AuraList {
+        #[arg(long)]
+        query: Option<String>,
+        #[arg(long)]
+        type_slug: Option<String>,
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+        #[arg(long, default_value_t = 50)]
+        limit: u32,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Resolve an aura by identifier, asset code or family.
+    Aura {
+        id: String,
+        #[arg(long)]
+        type_slug: Option<String>,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// List historical and special tactics from the IEVR mirror.
+    TacticList {
+        #[arg(long)]
+        query: Option<String>,
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+        #[arg(long, default_value_t = 50)]
+        limit: u32,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Resolve a tactic by ID, internal code or slug.
+    Tactic {
+        id: String,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// List IEVR passive skills from the mirror.
+    PassiveList {
+        #[arg(long)]
+        query: Option<String>,
+        #[arg(long)]
+        category: Option<String>,
+        #[arg(long)]
+        boost_type: Option<String>,
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+        #[arg(long, default_value_t = 60)]
+        limit: u32,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Resolve a passive by ID or embedded identifier.
+    Passive {
+        id: String,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// List global passive scaling rules.
+    PassiveScaling {
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
     /// Exécute une requête SQL read-only sur le miroir et affiche le résultat.
     ///
     /// Seuls SELECT, PRAGMA, EXPLAIN et WITH … SELECT sont autorisés.
@@ -1459,12 +1524,7 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
 
     match op {
         WikiOp::Card { id, db } => {
-            anyhow::ensure!(!id.is_empty() && id.len() <= 256, "Invalid character ID");
-            let conn = mirror::open(db.as_deref())
-                .map_err(|_| anyhow::anyhow!("Wiki data is unavailable"))?;
-            let card = nie_wiki::cards::character(&conn, &id)
-                .map_err(|_| anyhow::anyhow!("Character card could not be read"))?
-                .ok_or_else(|| anyhow::anyhow!("Character was not found"))?;
+            let card = api::execute_wiki(api::WikiCommand::CharacterCard { id, database: db })?;
             println!("{}", serde_json::to_string_pretty(&card)?);
         }
         WikiOp::ZukanRank {
@@ -1545,7 +1605,10 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             let data_root = data_root
                 .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
                 .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
-            let result = query::lookup_skill_legacy(&data_root, &q)?;
+            let result = api::execute_wiki(api::WikiCommand::SkillLookup {
+                query: q.clone(),
+                data_root,
+            })?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
@@ -1554,8 +1617,10 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
         }
 
         WikiOp::Item { query: q, json, db } => {
-            let conn = mirror::open(db.as_deref())?;
-            let result = query::lookup_item_legacy(&conn, &q)?;
+            let result = api::execute_wiki(api::WikiCommand::ItemLookup {
+                query: q.clone(),
+                database: db,
+            })?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
@@ -1569,12 +1634,14 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             db,
             data_root,
         } => {
-            let conn = mirror::open(db.as_deref())?;
             let data_root = data_root
                 .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
                 .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
-            let corpus = data_root.join("all-gamedata/teams.json");
-            let result = query::lookup_team_legacy(&conn, &corpus, &q)?;
+            let result = api::execute_wiki(api::WikiCommand::TeamLookup {
+                query: q.clone(),
+                database: db,
+                data_root,
+            })?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
@@ -1596,11 +1663,17 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
                 "le niveau doit être compris entre 1 et 99 (reçu: {})",
                 level
             );
-            let conn = mirror::open(db.as_deref())?;
-            let result = query::compare_characters(&conn, &data_root, &chara1, &chara2, level)?;
+            let result = api::execute_wiki(api::WikiCommand::Compare {
+                chara1,
+                chara2,
+                level,
+                database: db,
+                data_root,
+            })?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
+                let result: nie_wiki::model::CompareResult = serde_json::from_value(result)?;
                 println!("{}", render::render_compare(&result));
             }
         }
@@ -1611,16 +1684,86 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             json,
             db,
         } => {
-            if q.trim().is_empty() {
-                anyhow::bail!("terme de recherche vide");
-            }
-            let conn = mirror::open(db.as_deref())?;
-            let results = query::search_all(&conn, &q, limit)?;
+            let results = api::execute_wiki(api::WikiCommand::Search {
+                query: q,
+                limit,
+                database: db,
+            })?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&results)?);
             } else {
+                let results: Vec<nie_wiki::model::SearchResult> = serde_json::from_value(results)?;
                 println!("{}", render::render_search_results(&results));
             }
+        }
+
+        WikiOp::AuraList {
+            query,
+            type_slug,
+            page,
+            limit,
+            db,
+        } => {
+            let value = api::execute_wiki(api::WikiCommand::AuraList {
+                query,
+                type_slug,
+                page,
+                limit,
+                database: db,
+            })?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
+        }
+        WikiOp::Aura { id, type_slug, db } => {
+            let value = api::execute_wiki(api::WikiCommand::Aura {
+                id,
+                type_slug,
+                database: db,
+            })?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
+        }
+        WikiOp::TacticList {
+            query,
+            page,
+            limit,
+            db,
+        } => {
+            let value = api::execute_wiki(api::WikiCommand::TacticList {
+                query,
+                page,
+                limit,
+                database: db,
+            })?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
+        }
+        WikiOp::Tactic { id, db } => {
+            let value = api::execute_wiki(api::WikiCommand::Tactic { id, database: db })?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
+        }
+        WikiOp::PassiveList {
+            query,
+            category,
+            boost_type,
+            page,
+            limit,
+            db,
+        } => {
+            let value = api::execute_wiki(api::WikiCommand::PassiveList {
+                query,
+                category,
+                boost_type,
+                page,
+                limit,
+                database: db,
+            })?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
+        }
+        WikiOp::Passive { id, db } => {
+            let value = api::execute_wiki(api::WikiCommand::Passive { id, database: db })?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
+        }
+        WikiOp::PassiveScaling { db } => {
+            let value = api::execute_wiki(api::WikiCommand::PassiveScaling { database: db })?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
         }
 
         WikiOp::Db { sql, json, db } => {
@@ -1645,17 +1788,17 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             json,
             db,
         } => {
-            let conn = mirror::open(db.as_deref())?;
-            let team = query::random_team(
-                &conn,
-                &formation,
-                element.as_deref(),
-                playstyle.as_deref(),
+            let team = api::execute_wiki(api::WikiCommand::RandomTeam {
                 seed,
-            )?;
+                formation,
+                element,
+                playstyle,
+                database: db,
+            })?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&team)?);
             } else {
+                let team: nie_wiki::model::RandomTeam = serde_json::from_value(team)?;
                 println!("{}", render::render_random_team(&team));
             }
         }
@@ -1665,48 +1808,54 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             args,
             json,
             db,
-        } => {
-            let conn = mirror::open(db.as_deref())?;
-            match action.as_str() {
-                "list" => {
-                    let entries = query::team_build_list(&conn)?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&entries)?);
-                    } else {
-                        println!("{}", render::render_team_build_list(&entries));
-                    }
-                }
-                "show" | "calc" => {
-                    let id = args.first().ok_or_else(|| {
-                        anyhow::anyhow!("Usage: niers wiki team-builder {} <id>", action)
-                    })?;
-                    let entry = query::team_build_calc(&conn, id)?;
-                    match entry {
-                        None => {
-                            if json {
-                                println!("null");
-                            } else {
-                                println!("Aucune entree trouvee pour : \"{}\"", id);
-                            }
-                        }
-                        Some(e) => {
-                            if json {
-                                println!("{}", serde_json::to_string_pretty(&e)?);
-                            } else {
-                                println!("{}", render::render_team_build_entry(&e));
-                            }
-                        }
-                    }
-                }
-                other => {
-                    anyhow::bail!(
-                        "action inconnue : '{}'. Actions supportées depuis le miroir : list / show <id> / calc <id>.\n\
-                         Note : add/delete/save opèrent sur PostgreSQL (user_teams) et ne sont pas portés ici.",
-                        other
-                    );
+        } => match action.as_str() {
+            "list" => {
+                let entries = api::execute_wiki(api::WikiCommand::TeamBuilderList {
+                    database: db.clone(),
+                })?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&entries)?);
+                } else {
+                    let entries: Vec<nie_wiki::model::TeamBuildEntry> =
+                        serde_json::from_value(entries)?;
+                    println!("{}", render::render_team_build_list(&entries));
                 }
             }
-        }
+            "show" | "calc" => {
+                let id = args.first().ok_or_else(|| {
+                    anyhow::anyhow!("Usage: niers wiki team-builder {} <id>", action)
+                })?;
+                let entry = api::execute_wiki(api::WikiCommand::TeamBuilderEntry {
+                    id: id.clone(),
+                    database: db.clone(),
+                });
+                match entry {
+                    Err(error) if error.to_string().contains("not found") => {
+                        if json {
+                            println!("null");
+                        } else {
+                            println!("Aucune entree trouvee pour : \"{}\"", id);
+                        }
+                    }
+                    Ok(e) => {
+                        if json {
+                            println!("{}", serde_json::to_string_pretty(&e)?);
+                        } else {
+                            let e: nie_wiki::model::TeamBuildEntry = serde_json::from_value(e)?;
+                            println!("{}", render::render_team_build_entry(&e));
+                        }
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+            other => {
+                anyhow::bail!(
+                    "action inconnue : '{}'. Actions supportées depuis le miroir : list / show <id> / calc <id>.\n\
+                         Note : add/delete/save opèrent sur PostgreSQL (user_teams) et ne sont pas portés ici.",
+                    other
+                );
+            }
+        },
 
         WikiOp::Status {
             json,

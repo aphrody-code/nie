@@ -2,7 +2,7 @@
  * Accès du bot aux données de jeu IEVR — via `@rosegriffon/azalee`.
  *
  * ── POURQUOI L'API LOCALE ET PAS LE MIROIR SQLITE ──────────────────────────
- * La bibliothèque sait lire le miroir `apps/azalee/data/backups/mirror.sqlite`
+ * La bibliothèque sait lire le miroir `var/mirror.sqlite`
  * sans injection de client. Le bot ne le fait PAS, et ce n'est pas un choix de
  * confort :
  *

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Génère `src/data/item-image-manifest.json` : `internal_code` d'objet →
+ * Generate `data/azalee/item-image-manifest.json`: item `internal_code` →
  * **(conteneur `.g4tx`, nom de texture)** réels dans les CPK.
  *
  * Pourquoi un manifeste plutôt qu'une règle : le dossier écrit en base
@@ -11,7 +11,7 @@
  * de texture), fourni par l'index `icon-texture-index.ndjson.gz`.
  *
  * Sources :
- *  - miroir SQLite `apps/azalee/data/backups/mirror.sqlite` (`inagle_items`) ;
+ *  - miroir SQLite `var/mirror.sqlite` (`inagle_items`) ;
  *  - index texture → conteneur (`@rose-griffon/azalee/icon-index`).
  *
  * Format (compact, pour ne pas gonfler le bundle navigateur — `utils.ts` est
@@ -34,12 +34,12 @@ import path from "node:path";
 import { resolveMirrorPath } from "../src/config";
 import { resolveIconTexture } from "../src/icon-index";
 
-const DATA_DIR = path.resolve(import.meta.dir, "../src/data");
+const DATA_DIR = path.resolve(import.meta.dir, "../../../data/azalee");
 const OUT = path.join(DATA_DIR, "item-image-manifest.json");
 
 const mirror = resolveMirrorPath();
 if (!mirror) {
-	console.error("[item-manifest] miroir SQLite introuvable (apps/azalee/data/backups/).");
+	console.error("[item-manifest] miroir SQLite introuvable (var/mirror.sqlite ou SQLITE_DB_PATH).");
 	process.exit(1);
 }
 

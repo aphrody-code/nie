@@ -842,6 +842,133 @@ pub fn is_hca(data: &[u8]) -> bool {
     data.len() >= 3 && (&data[..3] == b"HCA" || data[..3] == [0xC8, 0xC3, 0xC1])
 }
 
+/// Famille fonctionnelle d'une banque ACB, déduite de son nom VFS.
+///
+/// Cette règle est celle de `packages/azalee/src/cpk/audio.ts`. Elle ne prétend pas inspecter
+/// le contenu de la banque : le préfixe de nom est la seule information stable disponible avant
+/// de lire l'ACB, et un nom inconnu reste explicitement [`AudioBankKind::Other`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AudioBankKind {
+    /// Banque de voix `cXXXXXXXX`.
+    Voice,
+    /// Musique de fond (`bgm*`).
+    Bgm,
+    /// Techniques (`waza*`).
+    Technique,
+    /// Effets (`effect*` ou `se*`).
+    Effect,
+    /// Système/menu (`sys*` ou `menu*`).
+    System,
+    /// Banque non classée.
+    Other,
+}
+
+impl AudioBankKind {
+    /// Jeton stable pour les DTO et les journaux.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Voice => "voice",
+            Self::Bgm => "bgm",
+            Self::Technique => "technique",
+            Self::Effect => "effect",
+            Self::System => "system",
+            Self::Other => "other",
+        }
+    }
+}
+
+/// Classe une banque ACB depuis un chemin VFS, sans ouvrir ses octets.
+#[must_use]
+pub fn audio_bank_kind(path: &str) -> AudioBankKind {
+    let name = path
+        .rsplit('/')
+        .next()
+        .unwrap_or(path)
+        .strip_suffix(".acb")
+        .or_else(|| path.rsplit('/').next().unwrap_or(path).strip_suffix(".ACB"))
+        .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path));
+    let name = name.to_ascii_lowercase();
+    if is_voice_code(&name) || name.contains("voice") {
+        AudioBankKind::Voice
+    } else if name.starts_with("bgm") {
+        AudioBankKind::Bgm
+    } else if name.starts_with("waza") {
+        AudioBankKind::Technique
+    } else if name.starts_with("effect") || name.starts_with("se") {
+        AudioBankKind::Effect
+    } else if name.starts_with("sys") || name.starts_with("menu") {
+        AudioBankKind::System
+    } else {
+        AudioBankKind::Other
+    }
+}
+
+/// Extrait le code personnage d'une banque de voix `cXXXXXXXX.acb`.
+#[must_use]
+pub fn voice_bank_character_code(path: &str) -> Option<String> {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    let name = name
+        .strip_suffix(".acb")
+        .or_else(|| name.strip_suffix(".ACB"))
+        .unwrap_or(name);
+    let normalized = name.to_ascii_lowercase();
+    is_voice_code(&normalized).then_some(normalized)
+}
+
+fn is_voice_code(name: &str) -> bool {
+    name.starts_with('c')
+        && matches!(name.len(), 9 | 10)
+        && name[1..].chars().all(|c| c.is_ascii_digit())
+}
+
+#[cfg(test)]
+mod audio_bank_tests {
+    use super::{AudioBankKind, audio_bank_kind, voice_bank_character_code};
+
+    #[test]
+    fn classifies_banks_by_stable_vfs_name() {
+        assert_eq!(
+            audio_bank_kind("data/common/sound_asset/ja/c01000010.acb"),
+            AudioBankKind::Voice
+        );
+        assert_eq!(
+            audio_bank_kind("sound_asset/bgm_main.ACB"),
+            AudioBankKind::Bgm
+        );
+        assert_eq!(
+            audio_bank_kind("sound_asset/waza_stream.acb"),
+            AudioBankKind::Technique
+        );
+        assert_eq!(
+            audio_bank_kind("sound_asset/effect_common.acb"),
+            AudioBankKind::Effect
+        );
+        assert_eq!(
+            audio_bank_kind("sound_asset/menu.acb"),
+            AudioBankKind::System
+        );
+        assert_eq!(
+            audio_bank_kind("sound_asset/unknown.acb"),
+            AudioBankKind::Other
+        );
+    }
+
+    #[test]
+    fn extracts_only_voice_character_codes() {
+        assert_eq!(
+            voice_bank_character_code("sound_asset/ja/c01000010.acb").as_deref(),
+            Some("c01000010")
+        );
+        assert_eq!(
+            voice_bank_character_code("sound_asset/ja/C01000010.ACB").as_deref(),
+            Some("c01000010")
+        );
+        assert_eq!(voice_bank_character_code("sound_asset/bgm.acb"), None);
+        assert_eq!(voice_bank_character_code("sound_asset/c123.acb"), None);
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Décodage audio → WAV (feature `audio-decode`, tire `cridecoder` std).
 //

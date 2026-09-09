@@ -3,7 +3,8 @@ import { getPgPool } from "@/lib/db/pg";
 // Lecture Postgres DIRECTE (bypass le Data API PostgREST de Supabase) — cf.
 // lib/db/pg.ts. Utilisé par la page de profil public `/profil/[username]`
 // (visitable par tout visiteur non-connecté). `profiles.username` porte une
-// contrainte UNIQUE (cf. data/schema-snapshot) → LIMIT 1 reproduit fidèlement
+// The tracked database migrations define the UNIQUE constraint; LIMIT 1 preserves that
+// contract when the profile lookup is evaluated.
 // le `.single()` Supabase pour le cas nominal.
 
 export interface ProfileMeta {

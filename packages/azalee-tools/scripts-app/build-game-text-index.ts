@@ -11,10 +11,10 @@
  * réutilisée partout dans les configs gamedata.
  *
  * STRATÉGIE D'ARTEFACT (même pattern que `build-cpk-index.ts`) :
- *  - `data/game-text-names.ndjson.gz`  — TRACKÉ git. Les 43 dicts racine (noms,
+ *  - `data/azalee/game-text-names.ndjson.gz`  — TRACKÉ git. Les 43 dicts racine (noms,
  *    descriptions, menus…) dans les 3 langues décodées (fr/en/ja). Compact, c'est
  *    ce que les pages wiki résolvent.
- *  - `data/game-text-dialogue.ndjson.gz` — POTENTIELLEMENT gitignoré si gros. Les
+ *  - `data/azalee/game-text-dialogue.ndjson.gz` — POTENTIELLEMENT gitignoré si gros. Les
  *    ~11 700 fichiers `event/` + `map/`/`phase/`/`purpose/` (dialogues histoire,
  *    fr/en/ja). C'est « tout le dossier text ».
  *
@@ -25,7 +25,7 @@
  *
  * Run : `bun apps/azalee/scripts/build-game-text-index.ts`
  *   --data=<path>   racine du dump (défaut: $DATA_PATH ou /home/ubuntu/niers/data)
- *   --out-dir=<dir> dossier de sortie (défaut: apps/azalee/data)
+ *   --out-dir=<dir> dossier de sortie (défaut: data/azalee)
  *   --names-only    n'écrit que l'artefact noms (saute event/map/phase/purpose)
  *   --sqlite        écrit AUSSI un .sqlite plein (debug)
  */
@@ -111,10 +111,10 @@ function parseArgs(argv: string[]): Args {
 		return hit?.slice(flag.length + 1);
 	};
 	const scriptDir = path.dirname(new URL(import.meta.url).pathname);
-	const appRoot = path.resolve(scriptDir, "..");
+	const repoRoot = path.resolve(scriptDir, "../../..");
 	return {
 		dataRoot: path.resolve(get("--data") ?? process.env.DATA_PATH ?? "/home/ubuntu/niers/data"),
-		outDir: path.resolve(get("--out-dir") ?? path.join(appRoot, "data")),
+		outDir: path.resolve(get("--out-dir") ?? path.join(repoRoot, "data/azalee")),
 		namesOnly: argv.includes("--names-only"),
 		sqlite: argv.includes("--sqlite"),
 	};

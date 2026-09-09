@@ -3,14 +3,14 @@
 Les données proviennent de la **rétro-ingénierie des fichiers d'Inazuma
 Eleven: Victory Road** (Level-5). Rien n'est saisi à la main : un extracteur
 (`packages/inagle`) lit les archives CPK du jeu, en tire des tables typées,
-les pousse dans Supabase, et un miroir SQLite local sert le wiki.
+les matérialise dans un miroir SQLite local, et le wiki les lit en lecture seule.
 
 ## Chaîne de traitement
 
 ```
-archives CPK du jeu → packages/inagle (extraction) → Supabase (tables inagle_*)
-                    → miroir SQLite apps/azalee/data/backups/mirror.sqlite
-                    → @rosegriffon/azalee → wiki, API headless, ce serveur MCP
+archives CPK du jeu → packages/inagle (extraction) → tables locales inagle_*
+                    → miroir SQLite var/mirror.sqlite
+                    → Rust nie-wiki → wiki, API, CLI and this MCP server
 ```
 
 Le miroir est rafraîchi chaque jour par `azalee-mirror-sync.timer` (échange

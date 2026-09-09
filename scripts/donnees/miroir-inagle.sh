@@ -1,45 +1,53 @@
 #!/usr/bin/env bash
-# Republication du miroir SQLite des tables `inagle_*` — dans niers, pas ailleurs.
+# Republish a verified local `inagle_*` SQLite snapshot inside niers.
 #
-# Le miroir vivait sous `rg/apps/azalee/data/backups/`, et tout ce qui n'était pas le site web
-# devait aller le chercher là-bas par un chemin absolu. Il vit maintenant dans `var/` du dépôt,
-# où `@niers/catalog` le résout en premier : le site continue de servir le sien, et le catalogue,
-# le bot et la CLI n'ont plus de dépendance de chemin vers un autre dépôt.
+# The mirror lives in this repository's `var/` directory. The source must be an
+# already verified `inagle-*.sqlite` materialization; this script never contacts
+# a cloud database and never creates game data from a remote service.
 #
-# Idempotent, et ne bascule QUE si le nouveau dump est valide : un dump vide ou tronqué laisse
-# l'ancien miroir en place. La bascule est un renommage de lien symbolique, donc atomique — un
-# lecteur qui ouvre la base pendant l'opération lit l'ancien fichier jusqu'au bout.
+# The switch happens only after validation. A reader opening the database during
+# the operation keeps the previous target until the atomic symlink replacement.
 set -euo pipefail
 
 RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SORTIE="$RACINE/var/miroir"
-BUN="${BUN:-$HOME/.bun/bin/bun}"
 
 mkdir -p "$SORTIE"
 cd "$RACINE"
 
-# DATABASE_URL vient de l'environnement du service (jamais du dépôt).
 HORODATAGE=$(date -u +%Y-%m-%dT%H-%M-%S)
 FICHIER="$SORTIE/inagle-${HORODATAGE}.sqlite"
 
-echo "[miroir] dump inagle_* -> $FICHIER"
-"$BUN" --bun scripts/donnees/dump-inagle-sqlite.ts --prefix=inagle_ --output="$FICHIER"
+SOURCE="${NIE_INAGLE_MIRROR:-}"
+if [ -z "$SOURCE" ]; then
+	SOURCE=$(find "$SORTIE" -maxdepth 1 -type f -name 'inagle-*.sqlite' -printf '%T@ %p\n' 2>/dev/null |
+		sort -nr | awk 'NR == 1 { sub(/^[^ ]+ /, ""); print }')
+fi
+[ -n "$SOURCE" ] && [ -f "$SOURCE" ] || {
+	echo "[mirror] no verified inagle snapshot found; set NIE_INAGLE_MIRROR" >&2
+	exit 1
+}
+case "$SOURCE" in
+	"$RACINE"/*) ;;
+	*) echo "[mirror] source must be inside the repository: $SOURCE" >&2; exit 2 ;;
+esac
 
-# Validation : le fichier doit exister, peser plus d'1 Mo et porter des personnages.
-# Sans ce garde-fou, un dump raté remplacerait un miroir sain par une base vide, et toutes les
-# pages du site répondraient « aucun résultat » au lieu d'une erreur.
+echo "[mirror] verified inagle snapshot $SOURCE -> $FICHIER"
+cp --reflink=auto -- "$SOURCE" "$FICHIER"
+
+# Validation: the file must be larger than 1 MiB and contain characters.
 if [ ! -f "$FICHIER" ]; then
-	echo "[miroir] ABANDON : dump absent"
+		echo "[mirror] abort: snapshot copy is missing"
 	exit 1
 fi
 TAILLE=$(stat -c%s "$FICHIER")
-PERSONNAGES=$("$BUN" -e "import{Database}from'bun:sqlite';const d=new Database(process.argv[1],{readonly:true});console.log(d.prepare('SELECT count(*) c FROM inagle_characters').get().c)" "$FICHIER" 2>/dev/null || echo 0)
+PERSONNAGES=$(sqlite3 "$FICHIER" "SELECT count(*) FROM inagle_characters" 2>/dev/null || echo 0)
 if [ "$TAILLE" -lt 1000000 ] || [ "${PERSONNAGES:-0}" -lt 1000 ]; then
-	echo "[miroir] ABANDON : dump invalide (taille=$TAILLE personnages=$PERSONNAGES) — l'ancien miroir reste en place"
+		echo "[mirror] abort: invalid snapshot (size=$TAILLE characters=$PERSONNAGES)"
 	rm -f "$FICHIER"
 	exit 1
 fi
-echo "[miroir] dump valide (taille=$TAILLE personnages=$PERSONNAGES)"
+echo "[mirror] verified snapshot (size=$TAILLE characters=$PERSONNAGES)"
 
 # Bascule atomique : `ln -sfn` remplace le lien sans jamais laisser `var/mirror.sqlite` absent.
 ln -sfn "miroir/$(basename "$FICHIER")" "$RACINE/var/mirror.sqlite"
@@ -50,9 +58,7 @@ echo "[miroir] var/mirror.sqlite -> $(basename "$FICHIER")"
 # Chaque instantané part avec ses fichiers annexes `-wal` et `-shm`. Sans cette précaution, un
 # lecteur qui a ouvert la base en WAL laisse derrière lui un `-shm` et un `-wal` que le glob
 # `inagle-*.sqlite` ne voit pas : la base est purgée, ses annexes restent, et le dossier
-# accumule des orphelins nuit après nuit. Le cas est observable dans le dossier de l'ancienne
-# synchronisation (`rg/apps/azalee/data/backups/`), qui porte encore les `-shm`/`-wal` d'un
-# instantané supprimé le 2026-09-01.
+# accumulates orphan files over time.
 ls -1t "$SORTIE"/inagle-*.sqlite 2>/dev/null | tail -n +3 | while read -r vieux; do
 	rm -f "$vieux" "$vieux-wal" "$vieux-shm"
 done
@@ -64,6 +70,7 @@ for annexe in "$SORTIE"/inagle-*.sqlite-wal "$SORTIE"/inagle-*.sqlite-shm; do
 done
 echo "[miroir] rétention : $(ls -1 "$SORTIE"/inagle-*.sqlite | wc -l) instantané(s) conservé(s)"
 
-# Contrôle final par la façade elle-même : si le catalogue ne voit pas le nouveau miroir, la
-# bascule n'a servi à rien, et il vaut mieux le savoir ici que dans une page vide.
-"$BUN" --bun packages/nie-catalog/src/cli.ts etat
+# Optional final read-only validation through the native catalog binary.
+if command -v nie-catalog >/dev/null 2>&1; then
+	nie-catalog etat
+fi

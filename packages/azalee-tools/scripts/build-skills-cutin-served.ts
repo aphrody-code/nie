@@ -12,16 +12,16 @@
  * Le résultat (petit, ~2 Ko) est importé client-safe par `lib/skills-cutin.ts` pour n'afficher le
  * viewer 3D + la texture que là où ils existent (cf. CDN, pas de viewer « indisponible »).
  *
- * Régénérer après tout rebuild de `cpk-index.ndjson.gz` ou `skills-cutin.json` :
- *   bun apps/azalee/scripts/build-skills-cutin-served.ts
+ * Regenerate after rebuilding `cpk-index.ndjson.gz` or `skills-cutin.json`:
+ *   bun packages/azalee-tools/scripts/build-skills-cutin-served.ts
  */
 import { gunzipSync } from "node:zlib";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { resolveDataFile } from "../src/config";
 
-/** Données figées du package (`packages/azalee/src/data`). */
-const DATA_DIR = path.resolve(import.meta.dir, "../src/data");
+/** Shared generated artifacts rooted at `data/azalee`. */
+const DATA_DIR = path.resolve(import.meta.dir, "../../../data/azalee");
 
 const INDEX =
 	resolveDataFile("cpk-index.ndjson.gz") ??

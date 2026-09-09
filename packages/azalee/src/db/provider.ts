@@ -1,9 +1,8 @@
 /**
- * Fournisseur de client base de données — point d'injection unique de la lib.
+ * Database client provider — the library's single injection point.
  *
- * L'hôte injecte le client qu'il veut : `apps/azalee` fournit son client
- * Supabase, l'outillage hors ligne fournit le client du miroir SQLite
- * (`@niers/azalee-tools`).
+ * Hosts inject a compatible read-only client. The Rust wiki is the canonical
+ * IEVR data owner; this module remains only for legacy host integrations.
  *
  * ## Pourquoi il n'y a plus de défaut (lot J2, 2026-09-05)
  *
@@ -14,17 +13,21 @@
  * démarrage refusé. Un hôte doit maintenant DIRE d'où viennent ses données.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+/** Minimal query surface required by the legacy host modules. */
+export type DatabaseClient = {
+	// The Rust API is canonical. This untyped chain exists only while the legacy
+	// host adapter is being retired; it carries no database implementation.
+	from(table: string): any;
+};
 
-/** Fabrique de client, synchrone ou asynchrone. */
-export type DatabaseClientFactory = () => SupabaseClient | Promise<SupabaseClient>;
+/** Synchronous or asynchronous client factory. */
+export type DatabaseClientFactory = () => DatabaseClient | Promise<DatabaseClient>;
 
 let factory: DatabaseClientFactory | null = null;
 let defaut: DatabaseClientFactory | null = null;
 
 /**
- * Pose la source de SECOURS, celle qui s'applique quand aucune fabrique explicite n'est
- * injectée.
+ * Set the fallback source used when no explicit factory is injected.
  *
  * Elle n'existe que si un hôte la fournit : `@niers/azalee-tools` y met le miroir SQLite,
  * parce qu'une CLI ou une suite hors ligne lit légitimement un fichier local. Le wiki
@@ -40,30 +43,25 @@ export function setDefaultDatabaseProvider(next: DatabaseClientFactory | null): 
 }
 
 /**
- * Injecte la fabrique de client utilisée par toute la lib. Passer `null` la retire et rend la
- * main à la source de secours, s'il y en a une.
+ * Set the client factory used by the legacy host modules. Passing `null` removes it.
  */
 export function setDatabaseProvider(next: DatabaseClientFactory | null): void {
 	factory = next;
 }
 
-/** Indique si une fabrique a été injectée par l'hôte. */
+/** Return whether a host factory has been injected. */
 export function hasDatabaseProvider(): boolean {
 	return factory !== null;
 }
 
 /**
- * Renvoie le client de lecture des données de jeu. Les modules `wiki/*`
- * n'utilisent que la surface `.from(table).select(...)`, commune au client
- * Supabase et au client miroir.
+ * Return the injected read-only game-data client.
  */
-export async function createClient(): Promise<SupabaseClient> {
+export async function createClient(): Promise<DatabaseClient> {
 	const choisie = factory ?? defaut;
 	if (!choisie) {
 		throw new Error(
-			"Aucun client de données injecté : appelez setDatabaseProvider() avant toute lecture. " +
-				"Le wiki injecte son client Supabase (apps/azalee/lib/azalee-runtime), " +
-				"l'outillage hors ligne celui du miroir (@niers/azalee-tools).",
+			"No data client injected: call setDatabaseProvider() before reading wiki data.",
 		);
 	}
 	return await choisie();

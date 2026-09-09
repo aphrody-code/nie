@@ -16,8 +16,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { resolveDataFile } from "../src/config";
 
-/** Données figées du package (`packages/azalee/src/data`). */
-const DATA_DIR = path.resolve(import.meta.dir, "../src/data");
+/** Shared generated artifacts rooted at `data/azalee`. */
+const DATA_DIR = path.resolve(import.meta.dir, "../../../data/azalee");
 
 const INDEX =
 	resolveDataFile("cpk-index.ndjson.gz") ??

@@ -21,7 +21,6 @@
 		"@rosegriffon/db": "workspace:*",
 		"@rosegriffon/inagle": "workspace:*",
 		"@niers/catalog": "workspace:*",
-		"@supabase/supabase-js": "catalog:",
 		"commander": "catalog:",
 		"drizzle-orm": "catalog:",
 		"wanakana": "catalog:"

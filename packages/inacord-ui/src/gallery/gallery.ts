@@ -5,7 +5,7 @@
 //
 // Le wiki n'a pas les fichiers du jeu : il compose sa galerie à partir de DEUX fonds qui ne se
 // rejoignent jamais — la table `inagle_gallery` (360 lignes, filtrées par `ilike img_path`) et un
-// manifeste statique `packages/azalee/src/data/menu-gallery-manifest.json` (3 579 entrées, figé,
+// verified static `data/azalee/menu-gallery-manifest.json` (3,579 entries, frozen,
 // régénéré à la main par `scripts/build-menu-gallery-manifest.ts` depuis un index CPK exporté).
 // De là son défaut visible : la pastille « Toutes » annonce 3 939 items alors que la liste sans
 // catégorie n'en rend que 360, les deux fonds n'étant pas réunis.

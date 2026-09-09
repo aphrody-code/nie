@@ -23,18 +23,17 @@ Deux changements du 2026-09-06 qui touchent ce fichier :
 | `bun run build` | Build standalone Next 16. **Pas de `next lint`** — `eslint` direct. |
 | `bun run lint` | `oxlint` puis `eslint` (config-next + better-tailwindcss + react-compiler). |
 | `bun run lint:fix` | Auto-fix les deux. |
-| `bun run type-check` | `tsc --noEmit`. Depuis 2026-05-17 `typescript.ignoreBuildErrors=false` (TS 6.0 + React 19.2 + zod 4 ont corrigé la drift). Erreurs TS bloquent maintenant `next build`. |
-| `bun run backup:supabase` | Dump Supabase Postgres → SQLite via le pilote de Bun (WAL + batch transactions). Sortie : `data/backups/supabase-<ISO>.sqlite` (~40 MB, 18 601 rows / 77 tables, gitignored). Lancer avant tout op risqué DB. |
+| `bun run type-check` | Type-check the Azalee host. IEVR records are read through the Rust site/API and the verified local mirror. |
 | `bun run test` / `test:run` | Vitest (jsdom + `tests/setup.ts`). |
 | `azalee test` | Exécute la suite complète de vérifications natives (SQLite DB, API HTTP, Bxc detect/recon, DOM, rendu des pages). |
 | `vercel --prod` | Deploy prod sur Vercel depuis la racine ou via Vercel CLI. |
-| `bun run sync:inagle` | Sync donnees inagle (CPK/G4TX) vers Supabase. |
+| `bun run sync:inagle` | Synchronize verified `inagle` entries into the local Rust mirror. |
 
 ## Architecture
 
 ### App router et alias
 
-- `app/` (App Router), `components/`, `lib/`, `hooks/`, `src/lib/`, `src/data/` cohabitent au meme niveau.
+- `app/` (App Router), `components/`, `lib/`, `hooks/` and `src/lib/` are host code; shared IEVR artifacts live under the repository `data/azalee/` root.
 - **Path alias TS** `@/*` mappe vers **deux** racines : `./src/*` ET `./*` (la racine, ou vivent `lib/`, `app/`, `components/`). Un import `@/lib/auth` resout `lib/auth.ts` racine, pas `src/lib/`. Verifier l'IDE en cas d'ambiguite.
 - `tsconfig.json` exclut `scripts/` du type-check.
 - `eslint.config.mjs` ignore aussi `scripts/`, `data/`, `public/`, `lib/inagle/_cli_ignore/`, `lib/inagle/_scripts_ignore/`, `src/lib/inagle/{types,data,parsers,...}` — ces sous-arbres sont du code genere/legacy, ne pas y appliquer de lint/refactor automatique.
@@ -116,8 +115,8 @@ Migration 2026-02-06 (cf. `CHANGELOG.md`) : tous les PNG de `data/images/menu/` 
 - **Auras G4TX** : la lib `getAuraImageUrl()` mappe `wks{N}` (Keshin) / `wss{N}` (Soul) / `wa{N}` vers `aura_fs|aura_soul|aura_mixi/...g4tx`. Codes hors pattern (`wap*`, `mode_change_*`, `awakening*`, `wmm*`) **n'ont pas de mapping** et retournent string vide → le caller doit fallback. Voir commits recents `bf40b28`, `0e266e2`.
 - **Telop miximax FAUX (cross-namespace)** : le mapping naïf `wmm00<NNN> → aura_mixi_c05028<NNN>` pointe sur un perso légendaire d'un AUTRE set (`c05028XXX` = Fei/Ryoma/Zanark) → affichait le nom d'un autre perso (Arthur→Ryoma). Les miximax wmm n'ont **pas** de telop valide : `resolveAuraTelopUrl(wmm*)=null`, icône via `getMiximaxImageUrl` (manifeste cn/ca). Keshins/souls/wap référencent leur PROPRE code = corrects.
 - **« Icône » tactique = bannière telop large** `220_img/telop_waza/fr/wht*` (1728×352, ~4.9:1), PAS une icône carrée → l'afficher en bannière (`TacticCard`, `aspect-[24/5]` ; détail = `w-full max-w-xs`), jamais écrasée dans un slot carré (sinon invisible). La liste ne doit pas passer le `wht*` à `getItemIconUrl` (→ 404).
-- **Enrichissement objets DURABLE** : bonus de stats / descriptions / maxStack viennent du parser inagle (`item-config.ts` + `item-bonus-db.json` par nameId, descriptions via `item_text`) mais **ne sont pas dans Supabase** → perdus au re-sync du miroir. Figés dans `data/item-enrichment.json` (694 items, par id azalee), appliqués au runtime en repli dans `getItem`/`getItemsList` (`ITEM_ENRICHMENT[item.id]`). Régénérer depuis le miroir enrichi si le parser évolue.
-- **Symlinks hors-racine = OUTAGE Turbopack** : `apps/azalee/data/` doit être un VRAI dossier (les `@/data/*.json` importés réels + trackés) ; le miroir vit IN-ROOT `data/backups/supabase-<stamp>.sqlite` (+ `mirror.sqlite` symlink RELATIF in-dir). Ne jamais symlinker `data/` vers `/home/ubuntu/niers/data` (Turbopack refuse les symlinks hors racine → build cassé → service sur build supprimé → chunks 500). Cf. CLAUDE.md parent.
+- **Persistent item enrichment**: stat bonuses, descriptions and max-stack values come from the verified `inagle` parser and game text. They are not external database content. The Rust wiki reads only the corresponding `inagle_*` columns and VFS text.
+- **Shared IEVR data**: verified game artifacts live in root `data/azalee/`; imports use relative paths to that common source. The unrelated Cross editorial page remains host-owned. The runtime SQLite mirror lives in `var/mirror.sqlite` (backups in `var/backups/`). Do not copy IEVR data into `apps/azalee/data/`.
 - **Pages** : `/gallery` (lightbox+download+préchargement + 2394 illustrations du dossier menu via CDN live, `menu-gallery-manifest.json`), `/cross` (Inazuma Eleven Cross = jeu mobile distinct, sortie 9/6/2026), `/save` (upload save→résumé, wasm niers, en cours). Validation navigateur réel = **bxc** (curl ne voit ni le rendu JS ni la CSP : c'est bxc qui a révélé l'outage chunks-500, la CSP img-src manquante, et les telop faux).
 - **Service Worker** `public/sw.js` : bumper `CACHE_NAME` apres tout update critique (assets, manifest, CSP) sinon les clients servent du stale.
 - **`dynamicParams = false` sur `/gallery/[category]/page.tsx`** (cf. commit `ae367c6`) — les nouvelles categories doivent etre ajoutees dans `generateStaticParams` ou la page renvoie 404.
@@ -130,7 +129,7 @@ Migration 2026-02-06 (cf. `CHANGELOG.md`) : tous les PNG de `data/images/menu/` 
 - **`.next/` build lock** : back-to-back `bun run build` echouent ("Another next build process is already running"). Attendre la fin du précédent ou kill `node .../next build` orphelins.
 - **`.claude/` gitignored** : sub-agents Claude Code avec `isolation: worktree` créent `.claude/worktrees/agent-X/` (= git embed pollue le tree). Doit rester dans `.gitignore` (commit `0351320`).
 - **Auto-formatter Edit revert** : un Edit peut être silencieusement annulé/ré-indenté par un hook éditeur après le retour OK du tool (tabs/spaces, restore import retiré). Si une modif disparaît : fallback `sed -i` (bypass formatter) ou `Write`.
-- **Baseline DB schema** : `data/schema-snapshot/{public-schema-*.sql, columns.json, rls-policies.json, tables.json}` (308 KB committé) = `pg_dump --schema-only` au 2026-05-17. Diff contre Supabase Cloud pour détecter schema drift.
+- **Source boundary**: IEVR records are read from the game VFS, `nie.exe` formats, or verified `inagle`/`zukan` materializations. Cloud schema snapshots are not part of this application data.
 - **`noUncheckedIndexedAccess: false` override** : activé global dans `packages/config/tsconfig-base.json`, désactivé dans `apps/azalee/tsconfig.json` car 183 erreurs pré-existantes (`SelectQueryError` Supabase + `Object is possibly undefined` sur sitemap/auth). TODO : migration progressive.
 - **`"use server"` → tout export DOIT être async** : dans un fichier server actions (ex `app/actions/translate.ts`), un `export function helper()` non-async casse `next build` avec `Server Actions must be async functions` — mais **`tsc --noEmit` ne le détecte PAS** (type-check vert, build rouge). Garder les helpers purs (normalisation, Levenshtein…) **non exportés** (internes au module) ou les déplacer dans un `lib/*` séparé sans `"use server"`.
 - **Cache Turbopack cache aussi les ERREURS de compile** (`turbopackFileSystemCacheForBuild` actif) : après correction d'une erreur source, un rebuild peut **toujours** échouer avec l'ancienne erreur (même ligne, déjà corrigée). Purger `rm -rf .next/cache` (⚠ `rm -f .next/cache` ne fait rien sur un dossier). Si des builds concurrents se chevauchent (orphelins `next build` racent sur `.next`), `rm -rf .next` pour repartir propre.

@@ -66,8 +66,8 @@ const CHR_MODEL_NAMES_FILES = [
 	process.env.GAME_TEXT_DATA_DIR
 		? path.join(process.env.GAME_TEXT_DATA_DIR, "chr-model-names.json")
 		: undefined,
+	path.resolve(process.cwd(), "data/azalee", "chr-model-names.json"),
 	path.resolve(process.cwd(), "data", "chr-model-names.json"),
-	path.resolve(process.cwd(), "apps/azalee/data", "chr-model-names.json"),
 ].filter((p): p is string => Boolean(p));
 
 let _modelNames: ChrModelNames | null = null;

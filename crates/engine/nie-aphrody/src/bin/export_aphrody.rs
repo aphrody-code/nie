@@ -1,4 +1,4 @@
-//! Génère le **dossier complet d'Aphrody** (Byron Love) vers `apps/azalee/data/aphrody-dossier.json`.
+//! Generate the complete Aphrody (Byron Love) dossier from native game data.
 //!
 //! Croise chara_param + skill_config + aura_skill_config via [`nie_aphrody::gisement::build_aphrody_dossier`]
 //! (3 codes/séries, techniques+auras re-séparées, CutinAssets, assets par code). « Set up » du

@@ -2,7 +2,7 @@
  * Résolution des artefacts runtime (`src/config.ts`).
  *
  * Ces tests s'appuient sur les VRAIS artefacts présents sur la machine
- * (`apps/azalee/data/`). Chaque test restaure la configuration explicite et les
+ * (`data/azalee/`). Chaque test restaure la configuration explicite et les
  * variables d'environnement touchées : le miroir SQLite est un singleton
  * process-local, une fuite de configuration casserait les fichiers suivants.
  */
@@ -49,13 +49,11 @@ describe("resolveDataDir — découverte du dossier d'artefacts", () => {
 		expect(dataDir).toBeString();
 		expect(path.isAbsolute(dataDir as string)).toBe(true);
 		expect(existsSync(dataDir as string)).toBe(true);
-		// Au moins un des marqueurs Azalée doit exister — sinon c'est un `data/`
-		// homonyme (dumps Postgres à la racine du monorepo) qu'on doit rejeter.
+		// At least one marker must exist; unrelated data directories must be rejected.
 		const markers = [
 			"cpk-index.ndjson.gz",
 			"game-text-names.ndjson.gz",
 			"backups/mirror.sqlite",
-			"schema-snapshot",
 		];
 		expect(markers.some((m) => existsSync(path.join(dataDir as string, m)))).toBe(true);
 	});
@@ -110,13 +108,7 @@ describe("resolveDataFile — localisation d'un artefact nommé", () => {
 		for (const found of [cpk, names]) {
 			if (found === null) continue;
 			expect(existsSync(found)).toBe(true);
-			// Le dossier trouvé est l'UN des candidats, pas forcément le premier :
-			// `resolveDataDir()` rend le premier dossier de données valide, tandis que
-			// `resolveDataFile()` rend celui qui contient l'artefact cherché. Les deux ne
-			// coïncident que si l'artefact vit dans le premier candidat — ce qui dépend du
-			// répertoire d'où l'on lance. Assertion d'origine : `dirname(found) === dataDir`,
-			// verte depuis un paquet et rouge depuis la racine, où `cpk-index.ndjson.gz` vit
-			// sous `apps/azalee/data` alors que `resolveDataDir()` désigne `<dépôt>/data`.
+			// The artifact and data-directory resolvers may select different candidates.
 			expect(dataDirCandidates()).toContain(path.dirname(found));
 		}
 	});

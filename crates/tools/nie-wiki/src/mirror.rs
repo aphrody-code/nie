@@ -1,45 +1,48 @@
-//! Résolution du miroir SQLite et ouverture en lecture seule.
+//! Resolve the read-only SQLite materialization of the game VFS.
 //!
-//! Ordre de résolution (identique à l'azalee CLI TS) :
-//! 1. Flag `--db` (prioritaire, passé en argument)
-//! 2. Variable d'environnement `NIE_WIKI_DB` ou `SQLITE_DB_PATH`
-//! 3. Fichier `supabase-*.sqlite` ou `inagle-*.sqlite` le plus récent dans
-//!    `var/miroir` ou `data/backups`
+//! Resolution order:
+//! 1. `--db` (highest priority)
+//! 2. `NIE_WIKI_DB` or `SQLITE_DB_PATH`
+//! 3. `var/mirror.sqlite`, then the newest `inagle-*.sqlite` snapshot in
+//!    `var/miroir` or `data/backups`.
+//!
+//! Supabase and other network databases are deliberately not accepted here. The
+//! `inagle_*` tables must be produced from the local game/VFS or zukan source.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, bail};
 use rusqlite::{Connection, OpenFlags};
 
-/// Ouvre la connexion SQLite en lecture seule sur le miroir résolu.
+/// Open the resolved SQLite mirror in read-only mode.
 ///
 /// # Erreurs
 ///
 /// Retourne une erreur si aucun miroir n'est trouvé ou si l'ouverture échoue.
 pub fn open(db_override: Option<&Path>) -> anyhow::Result<Connection> {
     let path = resolve(db_override)?;
-    tracing::debug!("miroir SQLite : {}", path.display());
+    tracing::debug!("game mirror SQLite: {}", path.display());
     let conn = Connection::open_with_flags(
         &path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )
     .with_context(|| format!("ouverture SQLite {}", path.display()))?;
-    // Activer WAL read-only pour les fichiers en cours d'écriture par le backup.
+    // Enable WAL read access for a mirror that is being refreshed locally.
     conn.pragma_update(None, "journal_mode", "WAL").ok();
     Ok(conn)
 }
 
-/// Retourne le chemin résolu du miroir SQLite.
+/// Return the resolved SQLite mirror path.
 pub fn resolve(db_override: Option<&Path>) -> anyhow::Result<PathBuf> {
-    // 1. Flag --db passé directement
+    // 1. Explicit --db path.
     if let Some(p) = db_override {
         if p.exists() {
             return Ok(p.to_path_buf());
         }
-        bail!("base spécifiée introuvable : {}", p.display());
+        bail!("specified database does not exist: {}", p.display());
     }
 
-    // 2. Variables d'environnement
+    // 2. Environment variables.
     for var in &["NIE_WIKI_DB", "SQLITE_DB_PATH"] {
         if let Ok(v) = std::env::var(var) {
             let p = PathBuf::from(&v);
@@ -49,7 +52,11 @@ pub fn resolve(db_override: Option<&Path>) -> anyhow::Result<PathBuf> {
         }
     }
 
-    // 3. Répertoire de backups : fichier supabase-*.sqlite le plus récent (tri lexicographique)
+    // 3. Repository-local game mirror and inagle snapshots.
+    let primary = PathBuf::from("var/mirror.sqlite");
+    if primary.is_file() && primary.metadata().is_ok_and(|m| m.len() > 0) {
+        return Ok(primary);
+    }
     let mut candidates = Vec::new();
     for dir in [PathBuf::from("var/miroir"), PathBuf::from("data/backups")] {
         if dir.is_dir() {
@@ -61,14 +68,14 @@ pub fn resolve(db_override: Option<&Path>) -> anyhow::Result<PathBuf> {
     }
 
     bail!(
-        "aucun miroir SQLite trouvé — utilisez --db, NIE_WIKI_DB ou placez un fichier \
-         supabase-*.sqlite dans data/backups"
+        "no game SQLite mirror found — use --db, NIE_WIKI_DB, var/mirror.sqlite, or place an \
+         inagle-*.sqlite snapshot in data/backups"
     )
 }
 
-/// Trouve les fichiers `supabase-*.sqlite` et `inagle-*.sqlite` non vides.
+/// Find non-empty `inagle-*.sqlite` snapshots.
 ///
-/// Les fichiers 0-octet (en cours de création par le backup) sont ignorés.
+/// Zero-byte files still being created are ignored.
 fn latest_sqlite_in(dir: &Path) -> Option<PathBuf> {
     let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
         .ok()?
@@ -78,8 +85,8 @@ fn latest_sqlite_in(dir: &Path) -> Option<PathBuf> {
             p.extension().is_some_and(|ext| ext == "sqlite")
                 && p.file_name()
                     .and_then(|n| n.to_str())
-                    .is_some_and(|n| n.starts_with("supabase-") || n.starts_with("inagle-"))
-                // Ignorer les fichiers vides (en cours de création)
+                    .is_some_and(|n| n.starts_with("inagle-"))
+                // Ignore empty files that are still being created.
                 && p.metadata().is_ok_and(|m| m.len() > 0)
         })
         .collect();
@@ -87,7 +94,7 @@ fn latest_sqlite_in(dir: &Path) -> Option<PathBuf> {
     entries.into_iter().next_back()
 }
 
-/// Exécute une requête qui retourne des colonnes sous forme de chaînes.
+/// Execute a query that maps rows into caller-defined values.
 ///
 /// Commodité pour les appels one-off sans paramètres typés complexes.
 pub fn query_rows<F, T>(
@@ -99,18 +106,18 @@ pub fn query_rows<F, T>(
 where
     F: Fn(&rusqlite::Row<'_>) -> rusqlite::Result<T>,
 {
-    let mut stmt = conn.prepare(sql).context("préparation SQL")?;
+    let mut stmt = conn.prepare(sql).context("preparing SQL")?;
     let rows = stmt
         .query_map(rusqlite::params_from_iter(params.iter().copied()), map)
-        .context("exécution SQL")?;
+        .context("executing SQL")?;
     let mut results = Vec::new();
     for row in rows {
-        results.push(row.context("lecture ligne")?);
+        results.push(row.context("reading row")?);
     }
     Ok(results)
 }
 
-/// Même signature mais retourne `None` si aucune ligne.
+/// Same as [`query_rows`], returning `None` when no row exists.
 pub fn query_one<F, T>(
     conn: &Connection,
     sql: &str,
@@ -120,19 +127,17 @@ pub fn query_one<F, T>(
 where
     F: Fn(&rusqlite::Row<'_>) -> rusqlite::Result<T>,
 {
-    let mut stmt = conn.prepare(sql).context("préparation SQL")?;
+    let mut stmt = conn.prepare(sql).context("preparing SQL")?;
     let mut rows = stmt
         .query_map(rusqlite::params_from_iter(params.iter().copied()), map)
-        .context("exécution SQL")?;
+        .context("executing SQL")?;
     match rows.next() {
         None => Ok(None),
-        Some(r) => Ok(Some(r.context("lecture ligne")?)),
+        Some(r) => Ok(Some(r.context("reading row")?)),
     }
 }
 
-/// Fusionne `data` JSON + `sheet_data` JSON (sheet_data prioritaire si non-null/non-vide).
-///
-/// Fidèle au comportement TS : `{ ...row.data, ...row.sheet_data }`.
+/// Merge `data` JSON with `sheet_data`, giving non-empty `sheet_data` precedence.
 pub fn merge_data_sheet(data: Option<&str>, sheet_data: Option<&str>) -> serde_json::Value {
     let base = data
         .and_then(|s| serde_json::from_str(s).ok())

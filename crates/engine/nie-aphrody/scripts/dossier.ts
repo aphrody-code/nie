@@ -59,7 +59,7 @@ function args() {
         fiche,
         // Le dossier produit par `export_aphrody` (Rust). C'est LA source des donnees du jeu :
         // ce script ne la refait pas, il l'enrichit de ce qui vient du dehors.
-        base: lire("--base", join(RACINE, "apps", "azalee", "data", "aphrody-dossier.json")),
+        base: lire("--base", join(RACINE, "data", "azalee", "aphrody-dossier.json")),
         google: lire("--google", ""),
         slug: positionnels[0] ?? "byron-love-aphrody",
         // Par defaut, le dossier va DANS la crate : `crates/engine/nie-aphrody` est la source

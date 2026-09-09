@@ -203,7 +203,7 @@ Mesuré contre la structure des wikis (titres de sections et noms de champs uniq
 
 ## Données du jeu — dossier `export_aphrody`
 
-Produit par `cargo run --bin export_aphrody --features serde,std`, lu depuis `apps/azalee/data/aphrody-dossier.json`.
+Produced by `cargo run --bin export_aphrody --features serde,std` and embedded by `nie-aphrody`.
 
 | Champ | Valeur |
 |---|---|

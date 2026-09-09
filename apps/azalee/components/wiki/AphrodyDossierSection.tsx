@@ -1,16 +1,15 @@
 "use client";
 
 /**
- * Dossier complet d'**Aphrody** (Byron Love / 亜風炉 照美 アフロディ) — consomme
- * `data/aphrody-dossier.json` généré par niers (`export_aphrody` → `nie_data::aphrody`).
+ * Complete **Aphrody** dossier (Byron Love / 亜風炉 照美 アフロディ).
+ * The dossier is served by the embedded Rust `nie-aphrody` owner through the
+ * local `/api/nie/aphrody` transport route.
  *
- * Croise chara_param + skill_config + aura_skill_config : 3 séries (IE1/GO/Ares),
- * stats golden (Lv1/50/99), techniques de la variante primaire (telop + noms joints via
- * `skills-cutin.json`), auras. Ne s'affiche que pour Aphrody (code interne ∈ 3 séries).
+ * The Rust dossier joins native character, skill and aura resources across the
+ * three Aphrody series, including golden stats, cut-ins, and aura records.
  */
-import dossier from "@/data/aphrody-dossier.json";
+import { useEffect, useState } from "react";
 import { cpkAssetUrl } from "@rosegriffon/azalee/cpk/shared";
-import { getSkillCutin } from "@rosegriffon/azalee/game/skills-cutin";
 import { Icon } from "@/components/ui/Icon";
 
 const ELEMENT: Record<number, string> = {
@@ -23,18 +22,62 @@ const ELEMENT: Record<number, string> = {
 };
 const POSITION: Record<number, string> = { 1: "GK", 2: "DF", 3: "MF", 4: "FW" };
 
-type Dossier = typeof dossier;
-type Variant = Dossier["variants"][number];
-
-/** Codes internes des 3 séries d'Aphrody. */
-const SERIES_CODES = new Set(dossier.series.map((s) => s.code.toLowerCase()));
+type Dossier = {
+	identity: {
+		name_ja: string;
+		nickname_en: string;
+		constellation_fr: string;
+		constellation_en: string;
+		element_id: number;
+		main_position: number;
+		sub_position: number;
+		team_name_en: string;
+		zukan_order: number;
+	};
+	profile: { epithet_ja: string; epithet_en: string };
+	series: Array<{ code: string; label: string }>;
+	assets: Array<{ code: string; icon_g4tx: string }>;
+	stats: Record<"lv1" | "lv50" | "lv99", Record<string, number>>;
+	variants: Array<{
+		techniques: Array<{
+			learn_level: number;
+			info: { skill_id_str: string; power_min: number; power_max: number; consume_tp: number };
+			cutin?: { telop_by_lang: Array<[string, string]> };
+		}>;
+		auras: Array<{ cmd: { asset_code: string; sub_type: string; config: { rank: number } }; learn_level: number }>;
+	}>;
+	references: Array<{ title: string; detail: string }>;
+	dialogues: Array<{
+		event_id: string;
+		line_count: number;
+		aphrody_mentions: number;
+		lines: Array<{ id: string; ja: string; fr?: string; en?: string; mentions: boolean }>;
+	}>;
+};
 
 export function AphrodyDossierSection({ internalCode }: { internalCode?: string }) {
-	if (!internalCode || !SERIES_CODES.has(internalCode.toLowerCase())) return null;
+	const [dossier, setDossier] = useState<Dossier | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		void fetch("/api/nie/aphrody")
+			.then((response) => (response.ok ? response.json() : null))
+			.then((value: Dossier | null) => {
+				if (!cancelled) setDossier(value);
+			})
+			.catch(() => undefined);
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	if (!internalCode || !dossier) return null;
+	const seriesCodes = new Set(dossier.series.map((s) => s.code.toLowerCase()));
+	if (!seriesCodes.has(internalCode.toLowerCase())) return null;
 
 	const id = dossier.identity;
-	// Variante primaire : 7 techniques + 2 auras (chara_param_id 0x9E23A289), sinon la 1re.
-	const primary: Variant =
+	// Prefer the primary seven-skill/two-aura variant when present.
+	const primary =
 		dossier.variants.find((v) => v.techniques.length === 7 && v.auras.length === 2) ??
 		dossier.variants[0];
 
@@ -54,7 +97,7 @@ export function AphrodyDossierSection({ internalCode }: { internalCode?: string 
 				</p>
 			</header>
 
-			{/* 3 séries */}
+			{/* Three source series. */}
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 				{dossier.series.map((s) => {
 					const asset = dossier.assets.find((a) => a.code === s.code);
@@ -82,7 +125,7 @@ export function AphrodyDossierSection({ internalCode }: { internalCode?: string 
 				})}
 			</div>
 
-			{/* Stats golden */}
+			{/* Golden stats. */}
 			<div className="overflow-x-auto">
 				<table className="w-full text-sm border-collapse">
 					<thead>
@@ -117,7 +160,7 @@ export function AphrodyDossierSection({ internalCode }: { internalCode?: string 
 				</table>
 			</div>
 
-			{/* Techniques de la variante primaire */}
+			{/* Primary variant techniques. */}
 			<div className="space-y-2">
 				<h3 className="text-fluid-title-sm font-semibold text-on-surface">
 					Techniques ({primary.techniques.length})
@@ -125,8 +168,7 @@ export function AphrodyDossierSection({ internalCode }: { internalCode?: string 
 				<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 					{primary.techniques.map((t) => {
 						const code = t.info.skill_id_str;
-						const meta = getSkillCutin(code);
-						const telopPath =
+							const telopPath =
 							t.cutin?.telop_by_lang.find(([l]) => l === "fr")?.[1] ??
 							t.cutin?.telop_by_lang.find(([l]) => l === "en")?.[1] ??
 							t.cutin?.telop_by_lang[0]?.[1];
@@ -150,7 +192,6 @@ export function AphrodyDossierSection({ internalCode }: { internalCode?: string 
 									<span>Lv {t.learn_level}</span>
 									<span>Puiss. {t.info.power_min}–{t.info.power_max}</span>
 									<span>TP {t.info.consume_tp}</span>
-									{meta && <span>{meta.element_name.fr} / {meta.category_name.fr}</span>}
 								</div>
 							</div>
 						);
@@ -158,7 +199,7 @@ export function AphrodyDossierSection({ internalCode }: { internalCode?: string 
 				</div>
 			</div>
 
-			{/* Auras */}
+			{/* Auras. */}
 			{primary.auras.length > 0 && (
 				<div className="space-y-2">
 					<h3 className="text-fluid-title-sm font-semibold text-on-surface">
@@ -180,7 +221,7 @@ export function AphrodyDossierSection({ internalCode }: { internalCode?: string 
 				</div>
 			)}
 
-			{/* Références / easter eggs */}
+			{/* References and easter eggs. */}
 			{dossier.references.length > 0 && (
 				<div className="space-y-2">
 					<h3 className="text-fluid-title-sm font-semibold text-on-surface">
@@ -197,7 +238,7 @@ export function AphrodyDossierSection({ internalCode }: { internalCode?: string 
 				</div>
 			)}
 
-			{/* Dialogues trilingues (scènes de l'histoire) */}
+			{/* Trilingual story dialogues. */}
 			{dossier.dialogues.length > 0 && (
 				<div className="space-y-2">
 					<h3 className="text-fluid-title-sm font-semibold text-on-surface">

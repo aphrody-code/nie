@@ -1067,7 +1067,6 @@ async fn octets_amont(etat: &EtatSite, chemin: &str) -> Result<bytes::Bytes, Err
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn les_six_familles_sont_distinctes_et_routables() {
         assert_eq!(FAMILLES.len(), 6);

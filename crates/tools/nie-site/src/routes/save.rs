@@ -30,6 +30,7 @@
 use axum::Json;
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::error::ErreurSite;
 use crate::state::EtatSite;
@@ -88,6 +89,44 @@ pub struct RosterResponse {
     pub rejected: usize,
 }
 
+/// Historical Azalee request shape. Values are intentionally untyped at the
+/// HTTP edge because the browser save parser can provide decimal numbers or
+/// hexadecimal strings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct LegacyRosterRequest {
+    /// Decimal, hexadecimal or numeric roster identifiers.
+    pub ids: Vec<Value>,
+}
+
+/// One character in Azalee's historical response shape.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LegacyResolvedCharacter {
+    /// Canonical mirror identifier.
+    pub id: String,
+    /// French name, or `null` when unknown.
+    pub name: Option<String>,
+    /// Base slug, or `null` when unknown.
+    pub base_slug: Option<String>,
+    /// Element.
+    pub element: Option<String>,
+    /// Position.
+    pub position: Option<String>,
+    /// Rarity.
+    pub rarity: Option<String>,
+}
+
+/// Historical response retained for `/api/save/resolve-roster` clients.
+#[derive(Debug, Clone, Serialize)]
+pub struct LegacyRosterResponse {
+    /// Results in first-occurrence request order.
+    pub resolved: Vec<LegacyResolvedCharacter>,
+    /// Number of named characters.
+    pub matched: usize,
+    /// Number of distinct identifiers processed.
+    pub total: usize,
+}
+
 /// Contract published by `GET /api/v1/save/roster`.
 #[derive(Debug, Clone, Serialize)]
 pub struct RosterContract {
@@ -116,6 +155,15 @@ pub struct RosterContract {
 #[must_use]
 pub fn normalize(raw: &str) -> Option<String> {
     nie_save::body::autosave_roster::CharaId::parse_external(raw).map(|id| id.to_string())
+}
+
+fn normalize_value(raw: &Value) -> Option<(String, String)> {
+    let requested = match raw {
+        Value::String(value) => value.clone(),
+        Value::Number(value) => value.to_string(),
+        _ => return None,
+    };
+    normalize(&requested).map(|id| (id, requested))
 }
 
 /// Returns the `GET /api/v1/save/roster` contract.
@@ -164,14 +212,23 @@ fn validate_id_count(count: usize) -> Result<(), ErreurSite> {
 }
 
 fn normalize_ids(inputs: &[String]) -> NormalizedIds {
+    let values = inputs
+        .iter()
+        .cloned()
+        .map(Value::String)
+        .collect::<Vec<_>>();
+    normalize_values(&values)
+}
+
+fn normalize_values(inputs: &[Value]) -> NormalizedIds {
     let mut ordered = Vec::new();
     let mut seen = std::collections::HashSet::new();
     let mut rejected = 0;
     let mut duplicates = 0;
 
     for raw in inputs {
-        match normalize(raw) {
-            Some(id) if seen.insert(id.clone()) => ordered.push((id, raw.clone())),
+        match normalize_value(raw) {
+            Some((id, requested)) if seen.insert(id.clone()) => ordered.push((id, requested)),
             Some(_) => duplicates += 1,
             None => rejected += 1,
         }
@@ -182,6 +239,33 @@ fn normalize_ids(inputs: &[String]) -> NormalizedIds {
         duplicates,
         rejected,
     }
+}
+
+async fn resolve_normalized(
+    state: &EtatSite,
+    normalized: &NormalizedIds,
+) -> Result<Vec<ResolvedCharacter>, ErreurSite> {
+    let ids: Vec<String> = normalized
+        .ordered
+        .iter()
+        .map(|(id, _)| id.clone())
+        .collect();
+    let dataset = state.gisement.clone();
+    let rows = tokio::task::spawn_blocking(move || query(&dataset, &ids)).await??;
+
+    Ok(normalized
+        .ordered
+        .iter()
+        .map(|(id, requested)| ResolvedCharacter {
+            id: id.clone(),
+            requested: requested.clone(),
+            name: rows.get(id).and_then(|value| value.name.clone()),
+            base_slug: rows.get(id).and_then(|value| value.base_slug.clone()),
+            element: rows.get(id).and_then(|value| value.element.clone()),
+            position: rows.get(id).and_then(|value| value.position.clone()),
+            rarity: rows.get(id).and_then(|value| value.rarity.clone()),
+        })
+        .collect())
 }
 
 /// Resolves one roster through `POST /api/v1/save/roster`.
@@ -196,37 +280,66 @@ pub async fn roster(
     validate_id_count(request.ids.len())?;
     let normalized = normalize_ids(&request.ids);
 
-    let ids: Vec<String> = normalized
-        .ordered
-        .iter()
-        .map(|(id, _)| id.clone())
-        .collect();
-    let dataset = state.gisement.clone();
-    let rows = tokio::task::spawn_blocking(move || query(&dataset, &ids)).await??;
-
-    let mut resolved = Vec::with_capacity(normalized.ordered.len());
-    let mut matched = 0usize;
-    for (id, requested) in normalized.ordered {
-        let row = rows.get(&id);
-        if row.is_some() {
-            matched += 1;
-        }
-        resolved.push(ResolvedCharacter {
-            id,
-            requested,
-            name: row.and_then(|value| value.name.clone()),
-            base_slug: row.and_then(|value| value.base_slug.clone()),
-            element: row.and_then(|value| value.element.clone()),
-            position: row.and_then(|value| value.position.clone()),
-            rarity: row.and_then(|value| value.rarity.clone()),
-        });
-    }
+    let resolved = resolve_normalized(&state, &normalized).await?;
+    let matched = resolved.iter().filter(|value| value.name.is_some()).count();
 
     Ok(Json(RosterResponse {
         total: resolved.len(),
         matched,
         duplicates: normalized.duplicates,
         rejected: normalized.rejected,
+        resolved,
+    }))
+}
+
+/// `GET /api/save/resolve-roster` publishes the legacy POST contract.
+pub async fn legacy_contract() -> Json<RosterContract> {
+    Json(RosterContract {
+        method: "POST",
+        path: "/api/save/resolve-roster",
+        body: &["ids"],
+        id_forms: &["0xF5E1E7CD", "F5E1E7CD", "4125222861"],
+        fields: &["id", "name", "baseSlug", "element", "position", "rarity"],
+        ids_max: IDS_MAX,
+        never_received: &["aucun fichier de sauvegarde : seuls des identifiants sont acceptes"],
+    })
+}
+
+/// Resolve a roster for the historical Azalee client without uploading save bytes.
+pub async fn legacy_roster(
+    State(state): State<EtatSite>,
+    Json(request): Json<LegacyRosterRequest>,
+) -> Result<Json<LegacyRosterResponse>, ErreurSite> {
+    if request.ids.len() > IDS_MAX {
+        return Err(ErreurSite::Demande(format!(
+            "trop d'identifiants : {} (borne {IDS_MAX})",
+            request.ids.len()
+        )));
+    }
+    let normalized = normalize_values(&request.ids);
+    if normalized.ordered.is_empty() {
+        return Ok(Json(LegacyRosterResponse {
+            resolved: Vec::new(),
+            matched: 0,
+            total: 0,
+        }));
+    }
+    let resolved = resolve_normalized(&state, &normalized).await?;
+    let matched = resolved.iter().filter(|value| value.name.is_some()).count();
+    let resolved: Vec<LegacyResolvedCharacter> = resolved
+        .into_iter()
+        .map(|value| LegacyResolvedCharacter {
+            id: value.id,
+            name: value.name,
+            base_slug: value.base_slug,
+            element: value.element,
+            position: value.position,
+            rarity: value.rarity,
+        })
+        .collect();
+    Ok(Json(LegacyRosterResponse {
+        total: resolved.len(),
+        matched,
         resolved,
     }))
 }

@@ -1,10 +1,10 @@
 import { mergeGalleryRecords, filterGalleryRecords, countGalleryRecords } from "./gallery-collection";
 import type { BaseCharacter, Item, Skill, Team } from "@rosegriffon/inagle";
 import { ElementNames } from "@rosegriffon/inagle/core/types";
-import changeAuraSkills from "../data/change-aura-skills.json";
-import menuGalleryManifest from "../data/menu-gallery-manifest.json";
-import itemEnrichmentData from "../data/item-enrichment.json";
-import passivesFullData from "../data/passives-full.json";
+import changeAuraSkills from "../../../../data/azalee/change-aura-skills.json";
+import menuGalleryManifest from "../../../../data/azalee/menu-gallery-manifest.json";
+import itemEnrichmentData from "../../../../data/azalee/item-enrichment.json";
+import passivesFullData from "../../../../data/azalee/passives-full.json";
 
 /** Enrichissement objet figé (bonus de stats / descriptions / maxStack), appliqué par id. */
 interface ItemEnrichment {
@@ -882,7 +882,7 @@ export const wikiService = {
 					.select("video_url, internal_code, name_fr, name_en")
 					.eq("id", a.skill_id)
 					.maybeSingle()
-					.then(({ data }) => ({ type: "skill", data }))
+					.then(({ data }: { data: any }) => ({ type: "skill", data }))
 			);
 		}
 		for (const sid of possibleSkillIds) {
@@ -893,7 +893,7 @@ export const wikiService = {
 					.or(`data->>skillID.eq.${sid},sheet_data->>skillID.eq.${sid}`)
 					.limit(1)
 					.maybeSingle()
-					.then(({ data }) => ({ type: "skill", data }))
+					.then(({ data }: { data: any }) => ({ type: "skill", data }))
 			);
 		}
 
@@ -919,7 +919,7 @@ export const wikiService = {
 					.select("name_fr, name_en, slug, base_slug")
 					.eq("id", ownerCharaId)
 					.maybeSingle()
-					.then(({ data }) => ({ type: "owner", data }))
+					.then(({ data }: { data: any }) => ({ type: "owner", data }))
 			);
 		}
 
@@ -1217,7 +1217,7 @@ export const wikiService = {
 			.order("id", { ascending: true });
 
 		const allRows = rows && rows.length > 0 ? rows : [row];
-		const mapped = allRows.map((r) => this.mapDbCharacterToBase(r)!).filter(Boolean);
+			const mapped = allRows.map((r: any) => this.mapDbCharacterToBase(r)!).filter(Boolean);
 		const base = this.groupVariants(mapped)[0];
 
 		if (base) {
@@ -1241,7 +1241,7 @@ export const wikiService = {
 			.order("id", { ascending: true });
 		if (!rows || rows.length === 0) return undefined;
 
-		const mapped = rows.map((r) => this.mapDbCharacterToBase(r)!).filter(Boolean);
+			const mapped = rows.map((r: any) => this.mapDbCharacterToBase(r)!).filter(Boolean);
 		const base = this.groupVariants(mapped)[0];
 
 		if (base) {
@@ -1275,7 +1275,7 @@ export const wikiService = {
 			.order("id", { ascending: true });
 
 		const allRows = rows && rows.length > 0 ? rows : [row];
-		const mapped = allRows.map((r) => this.mapDbCharacterToBase(r)!).filter(Boolean);
+			const mapped = allRows.map((r: any) => this.mapDbCharacterToBase(r)!).filter(Boolean);
 		const base = this.groupVariants(mapped)[0];
 
 		if (base) {

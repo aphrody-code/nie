@@ -1,4 +1,4 @@
-//! Exporte la base de données unifiée des passives IEVR vers `apps/azalee/data/passives-full.json`.
+//! Exporte la base de données unifiée des passives IEVR vers `data/azalee/passives-full.json`.
 //!
 //! # Usage
 //!

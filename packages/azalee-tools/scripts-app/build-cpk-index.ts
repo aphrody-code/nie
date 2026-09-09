@@ -3,13 +3,12 @@
  * Génère l'index CPK d'IEVR consommé par le navigateur/arbre de fichiers d'azalee
  * (`/cpk`, `lib/cpk/index.ts`, `app/api/cpk`).
  *
- * Source de vérité = index Redis db3 `iev:file:index` (HASH `path -> cpk`,
- * ~250 800 entrées, ex. `data/dx11/chr/_face/.../c.g4tx -> <hash>.cpk`).
+ * Source of truth: the mounted game VFS, queried through the native `nie` binary.
  *
  * STRATÉGIE D'ARTEFACT (build standalone fresh-checkout) :
  * Un `.sqlite` plein (8 colonnes + index sur 250 k lignes) pèse ~93 Mo — trop
  * lourd à tracker en git. À l'inverse, `*.sqlite` est gitignoré globalement.
- * On tracke donc un NDJSON gzippé compact `data/cpk-index.ndjson.gz` (~7 Mo, une
+ * On tracke donc un NDJSON gzippé compact `data/azalee/cpk-index.ndjson.gz` (~7 Mo, une
  * ligne `[path, cpk]` par fichier) et la lib runtime (`lib/cpk/index.ts`)
  * MATÉRIALISE la table `cpk_index(path, top, sub, dir, name, ext, cpk, depth)`
  * dans un SQLite de cache au premier accès (singleton process-local). Robuste :
@@ -18,7 +17,6 @@
  *
  * Run : `bun scripts/build-cpk-index.ts`
  *   --out=<path>    sortie NDJSON gz (défaut: data/cpk-index.ndjson.gz)
- *   --redis-db=<n>  base Redis (défaut: 3, ou $IEV_REDIS_DB)
  *   --sqlite        écrit AUSSI un .sqlite plein (debug ; data/cpk-index.sqlite)
  */
 import { Database } from "bun:sqlite";
@@ -30,9 +28,7 @@ import { buildSqliteFromEntries, type CpkEntry } from "../src/cpk/materialize";
 
 interface Args {
 	outPath: string;
-	redisDb: string;
 	sqlite: boolean;
-	source: "vfs" | "redis";
 	niers: string;
 }
 
@@ -42,14 +38,10 @@ function parseArgs(argv: string[]): Args {
 		return hit?.slice(flag.length + 1);
 	};
 	const scriptDir = path.dirname(new URL(import.meta.url).pathname);
-	const appRoot = path.resolve(scriptDir, "..");
+	const repoRoot = path.resolve(scriptDir, "../../..");
 	return {
-		outPath: path.resolve(get("--out") ?? path.join(appRoot, "data/cpk-index.ndjson.gz")),
-		redisDb: get("--redis-db") ?? process.env.IEV_REDIS_DB ?? "3",
+		outPath: path.resolve(get("--out") ?? path.join(repoRoot, "data/azalee/cpk-index.ndjson.gz")),
 		sqlite: argv.includes("--sqlite"),
-		// Le VFS par défaut : c'est la seule source qui suit les mises à jour du jeu (cf. le
-		// commentaire de `readVfsIndex`). `--source=redis` garde l'ancien chemin.
-		source: get("--source") === "redis" ? "redis" : "vfs",
 		niers: get("--niers") ?? process.env.NIERS_BIN ?? "/home/ubuntu/niers/target/debug/niers",
 	};
 }
@@ -73,35 +65,15 @@ async function readVfsIndex(niers: string): Promise<CpkEntry[]> {
 	return lignes.filter((e) => e.path && e.cpk).map((e): CpkEntry => [e.path, e.cpk as string]);
 }
 
-/** Récupère l'index complet depuis Redis via `redis-cli HGETALL`. */
-async function readRedisIndex(redisDb: string): Promise<CpkEntry[]> {
-	const out = await $`redis-cli -n ${redisDb} HGETALL iev:file:index`.quiet().text();
-	const lines = out.split("\n");
-	const entries: CpkEntry[] = [];
-	// HGETALL retourne field/value alternés. Les chemins IEVR ne contiennent
-	// jamais de newline → split('\n') est sûr.
-	for (let i = 0; i + 1 < lines.length; i += 2) {
-		const field = lines[i];
-		const value = lines[i + 1];
-		if (field && value) entries.push([field, value]);
-	}
-	return entries;
-}
-
 async function main(): Promise<void> {
 	const args = parseArgs(Bun.argv.slice(2));
 
-	const entries =
-		args.source === "vfs" ? await readVfsIndex(args.niers) : await readRedisIndex(args.redisDb);
+	const entries = await readVfsIndex(args.niers);
 	if (entries.length === 0) {
-		console.error(
-			args.source === "vfs"
-				? `[build-cpk-index] VFS vide — abandon (binaire ${args.niers} absent, ou jeu non installé ?)`
-				: "[build-cpk-index] index Redis vide — abandon (Redis db3 down ?)",
-		);
+		console.error(`[build-cpk-index] VFS empty — abort (binary ${args.niers} missing, or game not installed)`);
 		process.exit(1);
 	}
-	console.log(`[build-cpk-index] ${entries.length} entrées depuis ${args.source}`);
+	console.log(`[build-cpk-index] ${entries.length} entries from the game VFS`);
 
 	mkdirSync(path.dirname(args.outPath), { recursive: true });
 
@@ -122,7 +94,7 @@ async function main(): Promise<void> {
 		console.log(`[build-cpk-index] sqlite (debug) -> ${sqlitePath} (rows=${count})`);
 	}
 
-	console.log("[build-cpk-index] git add data/cpk-index.ndjson.gz  # tracké (artefact source)");
+	console.log("[build-cpk-index] git add data/azalee/cpk-index.ndjson.gz  # tracké (artefact source)");
 }
 
 await main();

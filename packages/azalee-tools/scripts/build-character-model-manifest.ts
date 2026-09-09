@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Génère `data/character-model-manifest.json` : la liste EXHAUSTIVE des basenames
+ * Generate `data/azalee/character-model-manifest.json`: the exhaustive basenames
  * `<base>` qui possèdent réellement un modèle 3D GLB dans le dump dx11
  * (`data/dx11/model/<base>.glb`). Vérité terrain = scan direct du dossier servi par
  * nginx (`cdn.rosegriffon.fr/model/`), pas la DB.
@@ -12,7 +12,7 @@
  * personnages ; le dump contient aussi des accessoires/équipements (`accessory*`,
  * `e*`, `h*`…) gardés ici par cohérence avec le dossier réel.
  *
- * Source dump : $IECODE_DUMP_DIR/dx11/model/ (défaut : le dump Steam local).
+ * Source: the local game/VFS extraction at `$IECODE_DUMP_DIR/dx11/model/`.
  *
  * Run : `bun scripts/build-character-model-manifest.ts`
  */
@@ -20,8 +20,8 @@ import { readdir } from "node:fs/promises";
 
 import path from "node:path";
 
-/** Données figées du package (`packages/azalee/src/data`). */
-const DATA_DIR = path.resolve(import.meta.dir, "../src/data");
+/** Shared generated artifacts rooted at `data/azalee`. */
+const DATA_DIR = path.resolve(import.meta.dir, "../../../data/azalee");
 
 const DUMP_DIR =
 	process.env.IECODE_DUMP_DIR ?? "/home/ubuntu/.local/share/Steam/iecode/inazuma/data";

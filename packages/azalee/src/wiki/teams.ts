@@ -24,7 +24,7 @@ import { createClient } from "../db/provider";
 import { getCharacterFaceUrl, getEmblemImageUrl } from "../images";
 // Table CRC → nom d'emblème (`emNNNNNN`), générée depuis l'index CPK
 // (crc32 standard de chaque `emNNNNNN`). Couvre 206/208 emblèmes réels.
-import emblemCrcMap from "../data/emblem-crc-map.json";
+import emblemCrcMap from "../../../../data/azalee/emblem-crc-map.json";
 import {
 	SERIES_LABELS,
 	type TeamDetail,

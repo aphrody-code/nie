@@ -1,5 +1,13 @@
 # Azalée — le wiki IEVR de Rose Griffon, et son rapport à niers
 
+> Current migration status (2026-09-09): IEVR parsing, rules, mirror queries,
+> CLI operations and HTTP wiki routes are owned by Rust in `nie-core`,
+> `nie-wiki`, `nie-cli` and `nie-site`. The retained IEVR data root is
+> `data/azalee/`; its provenance is limited to the game VFS, native `nie`
+> exports, verified `inagle` materializations and the official `zukan` corpus.
+> Supabase, cloud schema snapshots and community passive sheets are not IEVR
+> sources. Cross remains a separate Unity game.
+
 Azalée désigne trois choses distinctes, qu'il faut séparer avant toute décision :
 
 | | Quoi | Où |
@@ -29,9 +37,10 @@ nie.exe → niers (Rust, nie-data) ─┬→ export_* ──→ @rosegriffon/aza
                                   └→ inagle (TS, parseurs) → Supabase → mirror.sqlite ┘
 ```
 
-**Conséquence de conception : ne jamais consommer les données d'azalée depuis niers.** Ce serait
-reboucler sur notre propre sortie, avec une latence de publication npm en plus et le risque de lire
-une version périmée de nos propres extractions.
+**Current consequence:** do not make Rust consume Azalee package output. The
+Rust owners read native game/VFS material or verified `inagle`/`zukan` sources;
+the remaining package code is a host compatibility layer and is not a source
+of truth.
 
 Le couplage existe déjà, et dans le bon sens : `apps/azalee/lib/cpk-wasm.ts` est un pont navigateur
 vers **`nie-wasm`**, compilé `--target web` et vendoré dans `lib/nie-wasm-web/`. Le wiki appelle
@@ -64,10 +73,11 @@ vers **`nie-wasm`**, compilé `--target web` et vendoré dans `lib/nie-wasm-web/
 Convention respectée dans tout le paquet : tout fichier qui touche `bun:sqlite` ou `node:fs` a un
 jumeau pur `<x>-shared.ts`. C'est ce qui rend la racine importable dans un navigateur.
 
-**Supabase n'est jamais importé à l'exécution** : `createClient()` renvoie par défaut le client
-SQLite miroir, l'injection Supabase est facultative (`setDatabaseProvider`). Les données JSON
-s'importent directement — `import passives from "@rosegriffon/azalee/data/passives-full.json"` — sans
-aucune dépendance.
+The Rust wiki does not import or query Supabase. The package's legacy host
+provider is retained only for compatibility while callers move to the native
+`nie-site` routes. IEVR JSON imports use repository-relative paths under
+`data/azalee/`; `passive-sheets.json` is retired because its provenance was not
+verified.
 
 ### Données embarquées (6,9 Mo)
 

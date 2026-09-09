@@ -68,7 +68,6 @@ normal en non-root et arrive **après** la validation : la configuration a été
 | `nie-model-serve.service` | le décodage des fichiers du jeu à la volée, `127.0.0.1:8790` |
 | `nie-cron.service` | le démon de tâches (`packages/cron`) |
 | `nie-miroir.service` + `.timer` | la rotation nocturne du miroir des données extraites, à 04:10 UTC |
-| `nie-miroir-cloud.service` + `.timer` | la même, vers l'origine distante |
 | `azalee-web.service`, `azalee-web-b.service` | le site du wiki, en bleu/vert (deux emplacements, un seul actif) |
 | `azalee-api.service` | l'API du wiki |
 | `rg-storage`, `rg-realtime`, `rag-api` | le socle du wiki en Bun natif |

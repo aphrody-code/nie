@@ -1,19 +1,17 @@
 /**
  * `azalee data` — pipeline de données unifié.
  *
- * Sous-commandes : `push`, `migrate`, `load`, `sync`, `typecheck`, `verify`,
- * `all`. Chacune **orchestre l'outil canonique existant** plutôt que de
- * dupliquer sa logique : le pipeline reste une façade, pas une seconde source
- * de vérité.
+ * The command only verifies local game/VFS inputs and Rust-owned data paths.
+ * Cloud database ingestion is intentionally not part of this tool.
  */
 
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import type { Command } from "commander";
 
 import { colors } from "../context";
-import type { DataMigrateOptions, DataSyncOptions } from "../types";
+import type { DataMigrateOptions } from "../types";
 
 /**
  * Racine du monorepo (les scripts orchestrés y sont ancrés).
@@ -33,12 +31,8 @@ const REPO_ROOT = ((): string => {
 	}
 	return process.cwd();
 })();
-/** Fichier d'environnement chargé par le pousseur inagle. */
-const AZALEE_ENV = `${REPO_ROOT}/apps/azalee/.env`;
 /** Racine des dumps de jeu. */
 const DATA_ROOT_DEFAULT = process.env.DATA_ROOT || process.env.DATA_PATH || "/home/ubuntu/niers/data";
-/** Âge maximal toléré pour le miroir SQLite, en heures. */
-const MIRROR_MAX_AGE_H = 48;
 
 /**
  * Exécute une étape du pipeline et journalise son issue.
@@ -66,18 +60,14 @@ function runDataStep(label: string, cmd: string, env: Record<string, string> = {
 export function registerDataCommand(program: Command): void {
 	const dataCmd = program
 		.command("data")
-		.description("Pipeline de données unifié (push/migrate/load/sync/typecheck/verify/all)");
+		.description("Verify local VFS, zukan and inagle game data");
 
 	dataCmd
 		.command("push")
-		.description("Push inagle → Supabase (parse live du dump, delete+reinsert)")
+		.description("Removed: game data is read from the VFS and local inagle mirror")
 		.action(() => {
-			const ok = runDataStep(
-				"data push (inagle → Supabase)",
-				`bun packages/inagle/src/cli.ts push --env ${AZALEE_ENV}`,
-				{ DATA_ROOT: DATA_ROOT_DEFAULT, DATA_PATH: DATA_ROOT_DEFAULT },
-			);
-			process.exit(ok ? 0 : 1);
+			console.error("Cloud ingestion is disabled. Rebuild the local inagle mirror from verified game sources.");
+			process.exit(2);
 		});
 
 	dataCmd
@@ -114,27 +104,20 @@ export function registerDataCommand(program: Command): void {
 
 	dataCmd
 		.command("load")
-		.description("Régénère le miroir SQLite local depuis Supabase (backup:supabase)")
+		.description("Removed: use the verified local game mirror")
 		.action(() => {
-			const ok = runDataStep(
-				"data load (Supabase → miroir SQLite)",
-				`bun --filter @rosegriffon/azalee-web backup:supabase`,
-			);
-			process.exit(ok ? 0 : 1);
+			console.error("Cloud loading is disabled; no external database is a source for IEVR data.");
+			process.exit(2);
 		});
 
 	dataCmd
 		.command("sync")
-		.description("Synchronise Supabase ↔ miroir SQLite (incrémental ; --full pour complet)")
+		.description("Removed: external synchronization is disabled")
 		.option("--full", "Resync complet")
 		.option("--deletes", "Propage les suppressions")
-		.action((opts: DataSyncOptions) => {
-			const flags = `${opts.full ? " --full" : ""}${opts.deletes ? " --deletes" : ""}`;
-			const ok = runDataStep(
-				"data sync (Supabase ↔ SQLite)",
-				`bun apps/azalee/scripts/ops/sync-supabase-to-sqlite.ts${flags}`,
-			);
-			process.exit(ok ? 0 : 1);
+		.action(() => {
+			console.error("External synchronization is disabled; use VFS/inagle/zukan inputs only.");
+			process.exit(2);
 		});
 
 	dataCmd
@@ -148,7 +131,7 @@ export function registerDataCommand(program: Command): void {
 
 	dataCmd
 		.command("verify")
-		.description("Vérifie les chemins/données : miroir présent+récent, DATA_ROOT, entries, snapshot schéma")
+		.description("Verify local VFS, mirror, entries and zukan paths")
 		.action(() => {
 			let ok = true;
 			const check = (label: string, cond: boolean, detail = "") => {
@@ -157,44 +140,21 @@ export function registerDataCommand(program: Command): void {
 				);
 				if (!cond) ok = false;
 			};
-			const backupsDir = `${REPO_ROOT}/apps/azalee/data/backups`;
-			let mirror: string | null = null;
-			let ageH = Infinity;
-			try {
-				const m = readdirSync(backupsDir)
-					.filter((f: string) => f.startsWith("supabase-") && f.endsWith(".sqlite"))
-					.sort()
-					.pop();
-				if (m) {
-					mirror = `${backupsDir}/${m}`;
-					ageH = (Date.now() - statSync(mirror).mtimeMs) / 3_600_000;
-				}
-			} catch {}
-			check("miroir SQLite présent", !!mirror, mirror ? mirror.split("/").pop()! : "absent");
-			check("miroir récent (< 48h)", ageH < MIRROR_MAX_AGE_H, ageH === Infinity ? "?" : `${ageH.toFixed(1)}h`);
+			const mirror = `${REPO_ROOT}/var/mirror.sqlite`;
+			check("game mirror present", existsSync(mirror), mirror);
 			check("DATA_ROOT existe", existsSync(DATA_ROOT_DEFAULT), DATA_ROOT_DEFAULT);
 			check("dump chara_param présent", existsSync(`${DATA_ROOT_DEFAULT}/common/gamedata/character`));
 			check("inagle entries/characters.json", existsSync(`${REPO_ROOT}/packages/inagle/src/entries/characters.json`));
-			check("snapshot schéma DB", existsSync(`${REPO_ROOT}/apps/azalee/data/schema-snapshot`));
-			check(
-				"standalone embarque un miroir",
-				existsSync(`${REPO_ROOT}/apps/azalee/.next/standalone/apps/azalee/data/backups`),
-			);
+			check("zukan data present", existsSync(`${REPO_ROOT}/data/azalee/zukan/param_en.json`));
 			console.log(ok ? `${colors.green}verify OK${colors.reset}` : `${colors.red}verify: anomalies détectées${colors.reset}`);
 			process.exit(ok ? 0 : 1);
 		});
 
 	dataCmd
 		.command("all")
-		.description("Pipeline complet ordonné : push → load → typecheck → verify")
+		.description("Verify local game data and run type checks")
 		.action(() => {
 			const steps: Array<[string, string, Record<string, string>]> = [
-				[
-					"push",
-					`bun packages/inagle/src/cli.ts push --env ${AZALEE_ENV}`,
-					{ DATA_ROOT: DATA_ROOT_DEFAULT, DATA_PATH: DATA_ROOT_DEFAULT },
-				],
-				["load", `bun --filter @rosegriffon/azalee-web backup:supabase`, {}],
 				["typecheck azalee", `bun --filter @rosegriffon/azalee-web type-check`, {}],
 				["typecheck inagle", `bun --filter @rosegriffon/inagle type-check`, {}],
 			];

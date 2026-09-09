@@ -27,7 +27,7 @@
  *
  * Sources :
  *   - dump : ~/.local/share/Steam/iecode/inazuma/data/dx11/menu/icon_chr/aura_mixi/
- *   - miroir SQLite : data/backups/mirror.sqlite (inagle_miximax + inagle_chara_menu_resource)
+ *   - read-only mirror: `var/mirror.sqlite` (`inagle_miximax` + `inagle_chara_menu_resource`)
  *
  * Run : `bun scripts/build-miximax-icon-manifest.ts`
  */
@@ -36,14 +36,13 @@ import { Database } from "bun:sqlite";
 
 import path from "node:path";
 
-/** Données figées du package (`packages/azalee/src/data`). */
-const DATA_DIR = path.resolve(import.meta.dir, "../src/data");
+/** Shared generated artifacts rooted at `data/azalee`. */
+const DATA_DIR = path.resolve(import.meta.dir, "../../../data/azalee");
 
 const DUMP_DIR =
 	process.env.IEVR_DUMP_DIR ??
 	"/home/ubuntu/.local/share/Steam/iecode/inazuma/data/dx11/menu/icon_chr/aura_mixi";
-const MIRROR =
-	process.env.AZALEE_MIRROR ?? "data/backups/mirror.sqlite";
+const MIRROR = process.env.AZALEE_MIRROR ?? "var/mirror.sqlite";
 const OUT = path.join(DATA_DIR, "miximax-icon-manifest.json");
 
 // 1) Codes réels présents sur disque (`<code>_l_<code>_l00.png` → `<code>`).

@@ -644,13 +644,7 @@ pub fn css_mode(s: Option<&str>) -> Result<sprite_sheet::ModeCss, ErreurSite> {
 /// écritures du même fichier selon la route qui l'a produit.
 #[must_use]
 pub fn default_atlas_url(path: &str, texture_name: Option<&str>) -> String {
-    match texture_name {
-        Some(name) => format!("/assets/tex/{path}/{name}.png"),
-        None => {
-            let stem = path.strip_suffix(ATLAS_SUFFIX).unwrap_or(path);
-            format!("/assets/tex/{stem}.png")
-        }
-    }
+    super::assets::texture_url(path, texture_name)
 }
 
 /// Rend la feuille de sprites d'un atlas.
@@ -2551,7 +2545,7 @@ mod tests {
     fn l_url_par_defaut_suit_les_deux_formes_de_l_amont() {
         assert_eq!(
             default_atlas_url("data/dx11/menu/x.g4tx", None),
-            "/assets/tex/data/dx11/menu/x.png"
+            "/assets/tex/dx11/menu/x.png"
         );
         assert_eq!(
             default_atlas_url("data/dx11/menu/x.g4tx", Some("eq_ac0100101")),

@@ -106,6 +106,9 @@ pub const CHEMINS_HORS_GET: &[&str] = &[
     "/api/v1/inspect/plate",
     "/api/v1/menu/runtime/{screen}",
     "/api/v1/zukan/rank",
+    "/api/save/resolve-roster",
+    "/api/v1/wiki/compare",
+    "/api/v1/wiki/random-team",
 ];
 
 // Le site ne prend **aucune écriture** : ni base, ni disque, ni état. C'est la garantie que la
@@ -131,6 +134,10 @@ declarer_routes! {
     "/sitemap.xml" => crate::routes::well_known::sitemap,
     // L'updater d'Inacord : cette URL est gravee dans les binaires deja distribues.
     "/downloads/inacord/latest.json" => crate::routes::downloads::inacord_latest,
+    // Legacy Azalee updater URL, retained for already-installed clients.
+    "/tools/niers/latest.json" => crate::routes::downloads::inacord_latest,
+    // Legacy Azalee health URL, with its historical response shape.
+    "/api/health" => crate::routes::health::legacy,
     "/feed.atom" => crate::routes::feed::atom,
     "/api/v1/health" => crate::routes::api_v1::health,
     "/api/v1/chara" => crate::routes::api_v1::chara,
@@ -194,6 +201,35 @@ declarer_routes! {
     "/api/v1/wiki/gallery" => crate::routes::wiki::gallery,
     "/api/v1/wiki/names" => crate::routes::wiki::names,
     "/api/v1/wiki/characters/{id}" => crate::routes::wiki::character,
+    "/api/v1/wiki/skills/{id}" => crate::routes::wiki::skill,
+    "/api/v1/wiki/items/{id}" => crate::routes::wiki::item,
+    "/api/v1/wiki/teams/{id}" => crate::routes::wiki::team,
+    "/api/v1/wiki/compare" => crate::routes::wiki::compare_contract,
+    "/api/v1/wiki/random-team" => crate::routes::wiki::random_team_contract,
+    "/api/v1/wiki/team-builder" => crate::routes::wiki::team_builder,
+    "/api/v1/wiki/team-builder/{id}" => crate::routes::wiki::team_builder_entry,
+    "/api/v1/wiki/auras" => crate::routes::wiki::auras,
+    "/api/v1/wiki/auras/{id}" => crate::routes::wiki::aura,
+    "/api/v1/wiki/tactics" => crate::routes::wiki::tactics,
+    "/api/v1/wiki/tactics/{id}" => crate::routes::wiki::tactic,
+    "/api/v1/wiki/passives" => crate::routes::wiki::passives,
+    "/api/v1/wiki/passives/{id}" => crate::routes::wiki::passive,
+    "/api/v1/wiki/passives/scaling" => crate::routes::wiki::passive_scaling,
+    "/api/v1/wiki/quests" => crate::routes::wiki::quests,
+    "/api/v1/wiki/quests/{id}" => crate::routes::wiki::quest,
+    "/api/v1/wiki/shops" => crate::routes::wiki::shops,
+    "/api/v1/wiki/shops/{id}" => crate::routes::wiki::shop,
+    "/api/v1/wiki/capsules" => crate::routes::wiki::capsules,
+    "/api/v1/wiki/capsules/{id}" => crate::routes::wiki::capsule,
+    "/api/v1/wiki/costumes" => crate::routes::wiki::costumes,
+    "/api/v1/wiki/stadiums" => crate::routes::wiki::stadiums,
+    "/api/v1/wiki/stadiums/{id}" => crate::routes::wiki::stadium,
+    "/api/v1/wiki/trophies" => crate::routes::wiki::trophies,
+    "/api/v1/wiki/trophies/{id}" => crate::routes::wiki::trophy,
+    "/api/v1/wiki/coaches" => crate::routes::wiki::coaches,
+    "/api/v1/wiki/coaches/{id}" => crate::routes::wiki::coach,
+    "/api/v1/wiki/drops" => crate::routes::wiki::drops,
+    "/api/v1/wiki/invocation" => crate::routes::wiki::invocations,
     "/api/v1/zukan/rank" => crate::routes::zukan::contract,
     "/api/v1/motion/clips/{*path}" => crate::routes::motion::clips,
     "/api/v1/preview/camera/{*path}" => crate::routes::spatial_preview::camera,
@@ -307,6 +343,8 @@ declarer_routes! {
     // une sauvegarde — `nie-save` tourne en wasm chez le joueur — mais une liste de codes du
     // jeu. Cf. `routes::save`.
     "/api/v1/save/roster" => crate::routes::save::contract,
+    // Legacy Azalee roster URL, with a compatibility DTO and the same read-only mirror.
+    "/api/save/resolve-roster" => crate::routes::save::legacy_contract,
     // La matrice de couverture du plan (§ 4). Elle est LUE, jamais mesuree ici : mesurer,
     // c'est lancer `niers --help`, lire quatre arbres de sources et parcourir 255 308 lignes
     // d'inventaire. Cf. `routes::couverture`.
@@ -357,7 +395,7 @@ pub fn correspond(motif: &str, uri: &str) -> bool {
 /// **panique** au `route()` — elle ne dégrade pas.
 pub fn routeur(etat: EtatSite) -> Router {
     monter(Router::new())
-        // Les cinq routes du site qui acceptent autre chose qu'un `GET` — et aucune n'écrit.
+        // Les routes du site qui acceptent autre chose qu'un `GET` — et aucune n'écrit.
         // Deux personnages entiers, un effectif de onze joueurs, une liste d'identifiants de
         // sauvegarde, deux images : le verbe dit ici la taille de l'entrée, pas un effet de bord. Le `GET`
         // de chaque chemin, déclaré dans la macro, publie le contrat au lieu de rendre un
@@ -369,6 +407,12 @@ pub fn routeur(etat: EtatSite) -> Router {
         )
         .route(CHEMINS_HORS_GET[1], post(crate::routes::team::synergy))
         .route(CHEMINS_HORS_GET[2], post(crate::routes::save::roster))
+        .route(
+            CHEMINS_HORS_GET[7],
+            post(crate::routes::save::legacy_roster),
+        )
+        .route(CHEMINS_HORS_GET[8], post(crate::routes::wiki::compare))
+        .route(CHEMINS_HORS_GET[9], post(crate::routes::wiki::random_team))
         // Les deux inspecteurs qui prennent des PIXELS en entrée : `imgmetric::comparer` reçoit
         // deux images RGBA, `planche::mesurer` en reçoit une. Aucune query string ne les porte,
         // et ni l'une ni l'autre n'écrit quoi que ce soit.
@@ -484,6 +528,9 @@ mod tests {
                 "/api/v1/inspect/plate",
                 "/api/v1/menu/runtime/{screen}",
                 "/api/v1/zukan/rank",
+                "/api/save/resolve-roster",
+                "/api/v1/wiki/compare",
+                "/api/v1/wiki/random-team",
             ],
             "all non-GET routes compute isolated responses without persistent writes"
         );
@@ -500,7 +547,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 99, "99 routes montees");
+        assert_eq!(routes.len(), 131, "131 routes montees");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade
