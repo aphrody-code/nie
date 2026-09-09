@@ -1,0 +1,12 @@
+This package integrates SpaceUI from:
+https://github.com/aphrody-code/spaceui
+
+Source revision:
+d9983febdf20ca9eb47e7ebd21d5598a8b5d3e36
+
+Upstream project:
+https://github.com/spacedriveapp/spaceui
+
+The upstream primitives and tokens are licensed under the MIT License. The
+NIE/Inacord theme maps SpaceUI semantic roles to the measured token sources in
+crates/engine/nie-ui, crates/engine/nie-aphrody and packages/inacord-ui.

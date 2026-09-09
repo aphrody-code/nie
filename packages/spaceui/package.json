@@ -1,0 +1,51 @@
+{
+	"name": "@aphrody/spaceui",
+	"version": "0.2.4-fork.1",
+	"description": "SpaceUI primitives themed from the measured NIE and Aphrody design tokens",
+	"files": [
+		"src",
+		"LICENSE",
+		"NOTICE",
+		"README.md"
+	],
+	"type": "module",
+	"sideEffects": [
+		"*.css",
+		"./src/*.css"
+	],
+	"exports": {
+		".": "./src/index.ts",
+		"./tokens": "./src/tokens.ts",
+		"./tokens.css": "./src/tokens.css",
+		"./theme.css": "./src/theme.css",
+		"./styles.css": "./src/styles.css",
+		"./homepage.css": "./src/homepage.css"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	},
+	"scripts": {
+		"test": "bun test test",
+		"typecheck": "bun --bun tsc --noEmit"
+	},
+	"dependencies": {
+		"@radix-ui/react-tabs": "catalog:",
+		"@radix-ui/react-toggle": "catalog:",
+		"@radix-ui/react-toggle-group": "catalog:",
+		"@spacedrive/primitives": "catalog:",
+		"class-variance-authority": "catalog:",
+		"clsx": "catalog:"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"typescript": "catalog:"
+	},
+	"peerDependencies": {
+		"react": "catalog:",
+		"react-dom": "catalog:",
+		"tailwindcss": "catalog:"
+	}
+}

@@ -1,0 +1,119 @@
+/*
+ * NIE/Inacord tokens consumed by the vendored SpaceUI surface.
+ * Values are transcribed from the generated and Rust-verified sources:
+ * crates/engine/nie-ui, crates/engine/nie-aphrody and
+ * packages/inacord-ui/src/shell/game-tokens.css.
+ */
+
+:root,
+.inacord-theme,
+[data-theme="inacord"] {
+	--jeu-fond-abysse: oklch(0.1963 0.0242 280.23);
+	--jeu-fond-nuit: oklch(0.3000 0.0726 258.02);
+	--jeu-fond-profond: oklch(0.3800 0.0888 258.02);
+	--jeu-fond-moyen: oklch(0.4600 0.0968 258.02);
+	--jeu-accent-ambre: oklch(0.8400 0.1273 94.17);
+	--jeu-accent-brique: oklch(0.5800 0.1600 18.35);
+	--jeu-accent-azur: oklch(0.5800 0.1291 258.02);
+	--jeu-accent-cyan: oklch(0.8000 0.0968 258.02);
+	--jeu-accent-turquoise: oklch(0.7000 0.1533 258.02);
+	--jeu-surface-glace: oklch(0.9400 0.0282 258.02);
+	--jeu-surface-brume: oklch(0.8800 0.0403 258.02);
+	--jeu-surface-craie: oklch(0.8800 0.0263 70.41);
+	--jeu-surface-cendre: oklch(0.7000 0.0374 46.43);
+	--jeu-surface-rose: oklch(0.6400 0.0435 337.07);
+	--jeu-texte-vif: oklch(0.9850 0.0035 59.65);
+	--jeu-texte-doux: oklch(0.6400 0.1049 258.02);
+	--jeu-ciel-clair: oklch(0.9750 0.0041 59.65);
+	--jeu-ciel-brume: oklch(0.8900 0.0363 258.02);
+	--jeu-nuit-profonde: oklch(0.3229 0.0807 258.02);
+	--jeu-tuile-haut: oklch(0.5000 0.1049 258.02);
+	--jeu-tuile-bas: oklch(0.3900 0.0968 258.02);
+	--jeu-tuile-bord: oklch(0.4500 0.0968 258.02);
+	--jeu-tuile-active-haut: oklch(0.5800 0.1210 258.02);
+	--jeu-tuile-active-bas: oklch(0.4600 0.1614 258.02);
+	--jeu-plaque-bleu: oklch(0.4200 0.1533 258.02);
+	--jeu-lisere-or: oklch(0.7800 0.1485 94.17);
+	--inacord-panneau: oklch(0.2900 0.0242 280.23);
+	--inacord-panneau-clair: oklch(0.3800 0.0484 258.02);
+	--inacord-accent: oklch(0.7000 0.0888 258.02);
+	--jeu-biseau: 14px;
+	--jeu-rayon: 4px;
+	--jeu-bordure: 2px;
+	--jeu-espace-xs: 4px;
+	--jeu-espace-s: 8px;
+	--jeu-espace-m: 16px;
+	--jeu-espace-l: 24px;
+	--jeu-espace-xl: 40px;
+	--jeu-ombre-tuile: 0 2px 8px rgb(19 20 32 / 45%);
+	--jeu-ombre-panneau: 0 8px 32px rgb(19 20 32 / 65%);
+	--jeu-lueur-accent: 0 0 12px rgb(151 192 252 / 55%);
+	--jeu-duree-rapide: 120ms;
+	--jeu-duree-moyenne: 220ms;
+	--jeu-courbe: cubic-bezier(0.2, 0, 0, 1);
+	--jeu-titre-poids: 800;
+	--jeu-titre-espacement: 0.02em;
+	--jeu-libelle-espacement: 0.06em;
+
+	/* SpaceUI semantic roles. Every role resolves to an existing NIE token. */
+	--color-accent: var(--inacord-accent);
+	--color-accent-faint: var(--jeu-accent-cyan);
+	--color-accent-deep: var(--jeu-accent-azur);
+	--color-ink: var(--jeu-texte-vif);
+	--color-ink-dull: var(--jeu-texte-doux);
+	--color-ink-faint: var(--jeu-surface-cendre);
+	--color-app: var(--jeu-fond-abysse);
+	--color-app-box: var(--inacord-panneau);
+	--color-app-dark-box: var(--jeu-fond-nuit);
+	--color-app-darker-box: var(--jeu-fond-abysse);
+	--color-app-light-box: var(--inacord-panneau-clair);
+	--color-app-overlay: var(--inacord-panneau);
+	--color-app-input: var(--jeu-fond-nuit);
+	--color-app-focus: var(--jeu-fond-abysse);
+	--color-app-line: var(--jeu-fond-moyen);
+	--color-app-divider: var(--jeu-fond-abysse);
+	--color-app-button: var(--jeu-fond-profond);
+	--color-app-selected: var(--jeu-fond-moyen);
+	--color-app-selected-item: var(--jeu-fond-profond);
+	--color-app-hover: var(--inacord-panneau-clair);
+	--color-app-active: var(--jeu-fond-moyen);
+	--color-app-shade: var(--jeu-fond-abysse);
+	--color-app-frame: var(--jeu-fond-moyen);
+	--color-app-slider: var(--jeu-fond-profond);
+	--color-app-explorer-scrollbar: var(--jeu-fond-moyen);
+	--color-sidebar: var(--jeu-fond-abysse);
+	--color-sidebar-box: var(--inacord-panneau);
+	--color-sidebar-line: var(--jeu-fond-moyen);
+	--color-sidebar-ink: var(--jeu-texte-vif);
+	--color-sidebar-ink-dull: var(--jeu-texte-doux);
+	--color-sidebar-ink-faint: var(--jeu-surface-cendre);
+	--color-sidebar-divider: var(--jeu-fond-nuit);
+	--color-sidebar-button: var(--jeu-fond-profond);
+	--color-sidebar-selected: var(--jeu-fond-moyen);
+	--color-sidebar-shade: var(--jeu-fond-nuit);
+	--color-menu: var(--jeu-fond-abysse);
+	--color-menu-line: var(--jeu-fond-nuit);
+	--color-menu-ink: var(--jeu-texte-vif);
+	--color-menu-faint: var(--jeu-surface-cendre);
+	--color-menu-hover: var(--jeu-fond-moyen);
+	--color-menu-selected: var(--jeu-fond-profond);
+	--color-menu-shade: var(--jeu-fond-abysse);
+	--color-status-success: var(--jeu-accent-turquoise);
+	--color-status-warning: var(--jeu-accent-ambre);
+	--color-status-error: var(--jeu-accent-brique);
+	--color-status-info: var(--jeu-accent-azur);
+	--color-black: var(--jeu-fond-abysse);
+	--color-white: var(--jeu-texte-vif);
+	--radius-window: var(--jeu-biseau);
+	--radius-lg: var(--jeu-espace-s);
+	--radius-md: var(--jeu-rayon);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root,
+	.inacord-theme,
+	[data-theme="inacord"] {
+		--jeu-duree-rapide: 0ms;
+		--jeu-duree-moyenne: 0ms;
+	}
+}

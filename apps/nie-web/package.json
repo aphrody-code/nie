@@ -21,6 +21,7 @@
 	},
 	"dependencies": {
 		"@aphrody/ietv-client": "workspace:*",
+		"@aphrody/spaceui": "workspace:*",
 		"@monaco-editor/react": "catalog:",
 		"@niers/asset-source": "workspace:*",
 		"@niers/bridge": "workspace:*",
