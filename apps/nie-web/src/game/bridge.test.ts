@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	canvasDisplaySize,
+	compileWasmInWorker,
 	commandForKey,
 	FIXED_TIME_STEP,
 	MAX_FRAME_DELTA,
@@ -8,6 +9,50 @@ import {
 	simulationTiming,
 	type SharedFrameAccess,
 } from "./bridge";
+
+describe("compileWasmInWorker", () => {
+	test("returns a compiled module and terminates the one-shot worker", async () => {
+		const original = globalThis.Worker;
+		const module = new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]));
+		let terminated = 0;
+		class FakeWorker {
+			onmessage: ((event: MessageEvent<{ module: WebAssembly.Module }>) => void) | null = null;
+			onerror: (() => void) | null = null;
+			postMessage() { queueMicrotask(() => this.onmessage?.({ data: { module } } as MessageEvent<{ module: WebAssembly.Module }>)); }
+			terminate() { terminated += 1; }
+		}
+		Object.defineProperty(globalThis, "Worker", { configurable: true, value: FakeWorker });
+		try {
+			expect(await compileWasmInWorker("/static/game/nie_wasm_bg.wasm")).toBe(module);
+			expect(terminated).toBe(1);
+		} finally {
+			Object.defineProperty(globalThis, "Worker", { configurable: true, value: original });
+		}
+	});
+
+	test("falls back when workers are unavailable", async () => {
+		const original = globalThis.Worker;
+		Object.defineProperty(globalThis, "Worker", { configurable: true, value: undefined });
+		try {
+			expect(await compileWasmInWorker("/static/game/nie_wasm_bg.wasm")).toBeNull();
+		} finally {
+			Object.defineProperty(globalThis, "Worker", { configurable: true, value: original });
+		}
+	});
+
+	test("falls back when policy blocks worker construction", async () => {
+		const original = globalThis.Worker;
+		class BlockedWorker {
+			constructor() { throw new DOMException("Blocked by policy", "SecurityError"); }
+		}
+		Object.defineProperty(globalThis, "Worker", { configurable: true, value: BlockedWorker });
+		try {
+			expect(await compileWasmInWorker("/static/game/nie_wasm_bg.wasm")).toBeNull();
+		} finally {
+			Object.defineProperty(globalThis, "Worker", { configurable: true, value: original });
+		}
+	});
+});
 
 describe("commandForKey", () => {
 	test("preserves the command names consumed by nie-app", () => {

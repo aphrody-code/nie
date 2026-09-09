@@ -84,6 +84,11 @@ export function NativeMoviePlayer({ path, onReady, onEnded, presentation = "open
 		};
 		const fail = () => { stop(); if (active) setFailed(true); };
 		const visibility = () => { if (document.hidden) wait(); else ready(); };
+		// Autoplay rejection must not leave an opening screen behind a visible recovery
+		// control. Retry from the next gesture; preview mode keeps its own media control.
+		const gesture = () => {
+			if (presentation === "opening" && blocked) start();
+		};
 		video.addEventListener("canplay", ready);
 		audio.addEventListener("canplay", ready);
 		video.addEventListener("timeupdate", time);
@@ -98,6 +103,8 @@ export function NativeMoviePlayer({ path, onReady, onEnded, presentation = "open
 		video.addEventListener("error", fail);
 		audio.addEventListener("error", fail);
 		document.addEventListener("visibilitychange", visibility);
+		window.addEventListener("pointerdown", gesture);
+		window.addEventListener("keydown", gesture);
 		ready();
 		return () => {
 			active = false;
@@ -117,9 +124,11 @@ export function NativeMoviePlayer({ path, onReady, onEnded, presentation = "open
 			video.removeEventListener("error", fail);
 			audio.removeEventListener("error", fail);
 			document.removeEventListener("visibilitychange", visibility);
+			window.removeEventListener("pointerdown", gesture);
+			window.removeEventListener("keydown", gesture);
 			stop();
 		};
-	}, [current, failed]);
+	}, [current, failed, presentation]);
 	return <div className={presentation === "opening" ? "opening-native-movie" : "native-media-preview"}
 		data-vfs-path={path} aria-busy={!current && !failed}>
 		{current && !failed ? <><video ref={movie} src={current.video} muted playsInline preload="auto"
@@ -127,7 +136,7 @@ export function NativeMoviePlayer({ path, onReady, onEnded, presentation = "open
 			<audio ref={soundtrack} src={current.audio} preload="auto" /></> : failed ?
 			<div role="alert">La vidéo ou sa bande-son n’est pas disponible. <button type="button"
 				onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div> : null}
-		{paused && !failed ? <button type="button" onClick={() => play.current()}>Reprendre</button> : null}
+		{presentation === "preview" && paused && !failed ? <button type="button" onClick={() => play.current()}>Lecture</button> : null}
 		{presentation === "preview" && current && !paused && !failed ? <button type="button" onClick={() => pausePlayback.current()}>Pause</button> : null}
 	</div>;
 }

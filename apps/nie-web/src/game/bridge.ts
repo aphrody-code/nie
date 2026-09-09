@@ -31,13 +31,44 @@ const FONT_G4TX_URL = "/static/game/font.g4tx.gz";
 let initPromise: Promise<void> | null = null;
 let wasmMemory: WebAssembly.Memory | null = null;
 
+/** Compile the immutable Wasm code off the UI thread when module workers are available. */
+export function compileWasmInWorker(url: string): Promise<WebAssembly.Module | null> {
+	if (typeof Worker !== "function") return Promise.resolve(null);
+	return new Promise((resolve) => {
+		let worker: Worker;
+		try {
+			worker = new Worker(new URL("./wasm-compiler.worker.ts", import.meta.url), { type: "module" });
+		} catch {
+			resolve(null);
+			return;
+		}
+		let settled = false;
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		const finish = (module: WebAssembly.Module | null) => {
+			if (settled) return;
+			settled = true;
+			if (timeout !== undefined) clearTimeout(timeout);
+			worker.terminate();
+			resolve(module);
+		};
+		timeout = setTimeout(() => finish(null), 30_000);
+		worker.onmessage = (event: MessageEvent<{ module?: WebAssembly.Module; error?: string }>) => {
+			finish(event.data.module instanceof WebAssembly.Module ? event.data.module : null);
+		};
+		worker.onerror = () => finish(null);
+		worker.postMessage({ url });
+	});
+}
+
 /** Charge le module wasm une seule fois, même si deux écrans le demandent en même temps. */
 export async function ensureWasm(): Promise<void> {
 	if (initPromise === null) {
 		initPromise = (async () => {
 			// This public file is not content-hashed. Force ETag revalidation so an immutable
 			// response from an older deployment cannot be paired with newer JavaScript glue.
-			const exports = await init({ module_or_path: fetch(WASM_URL, { cache: "no-cache" }) });
+			const compiled = await compileWasmInWorker(WASM_URL);
+			const moduleOrResponse = compiled ?? fetch(WASM_URL, { cache: "no-cache" });
+			const exports = await init({ module_or_path: moduleOrResponse });
 			wasmMemory = exports.memory;
 		})();
 	}

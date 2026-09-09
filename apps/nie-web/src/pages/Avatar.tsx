@@ -87,7 +87,9 @@ export function Avatar({ onBack, gamepadSampler }: { onBack: () => void; gamepad
 	useEffect(() => {
 		if (!catalog) return;
 		let active = true;
-		setComposition(null);
+		// Keep the last validated composition mounted while Rust resolves the next one.
+		// The viewport can then swap the uploaded GPU model atomically instead of flashing
+		// an empty canvas between rapid slider or palette changes.
 		setCompositionError(false);
 		resolveAvatar(catalog, state).then(value => {
 			if (!active) return;

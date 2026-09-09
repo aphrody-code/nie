@@ -121,6 +121,7 @@ describe("native avatar editor bindings", () => {
 			let back = 0;
 			await mount("name", names, { onBack: () => back++ });
 			const input = container!.querySelector<HTMLInputElement>('[data-avatar-field="name"]')!;
+			await act(async () => input.focus());
 			for (const kind of ["dialog", "alertdialog", "native"]) {
 				const modal = document.createElement(kind === "native" ? "dialog" : "div");
 				if (kind === "native") modal.setAttribute("open", "");

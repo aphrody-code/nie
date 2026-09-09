@@ -20,6 +20,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import { disposeObjectResources } from "./resource-lifecycle";
 
 /** Host transport decoding only; native model assembly stays in the Rust owner. */
 export interface Viewport3DServices {
@@ -108,15 +109,6 @@ function readTransform(o: THREE.Object3D): NodeTransform {
   };
 }
 
-/** `Material.dispose()` ne libère PAS les textures qu'il référence (three ≥ r152) : sans ce
- * parcours, chaque asset retiré de la scène laisse ses images en mémoire GPU. */
-function disposeMaterial(material: THREE.Material) {
-  for (const value of Object.values(material as unknown as Record<string, unknown>)) {
-    if (value && (value as THREE.Texture).isTexture) (value as THREE.Texture).dispose();
-  }
-  material.dispose();
-}
-
 /** Retire un asset de la scène et libère sa mémoire GPU. Par asset : la scène en porte plusieurs,
  * un `dispose()` global libérerait les modèles restés à l'écran. */
 function disposeAsset(state: GlState, key: string) {
@@ -127,19 +119,12 @@ function disposeAsset(state: GlState, key: string) {
     state.gizmoTarget = null;
   }
   state.scene.remove(group);
-  disposeObject(group);
-  state.assets.delete(key);
-}
-
-/** Libère également un chargement terminé après l'annulation de sa requête. */
-function disposeObject(group: THREE.Object3D) {
-  group.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (mesh.geometry) mesh.geometry.dispose();
-    const mat = mesh.material;
-    if (Array.isArray(mat)) mat.forEach(disposeMaterial);
-    else if (mat) disposeMaterial(mat as THREE.Material);
+  group.traverse((object) => {
+    const id = object.userData.nieId;
+    if (typeof id === "string") state.byId.delete(id);
   });
+  disposeObjectResources(group);
+  state.assets.delete(key);
 }
 
 /** Cadre la caméra sur la boîte englobante de TOUS les assets — sans ça, un modèle de 2 unités et
@@ -342,15 +327,17 @@ export function Viewport3D({
       renderer.domElement.removeEventListener("webglcontextrestored", onContextRestored);
       observer.disconnect();
       for (const key of [...state.assets.keys()]) disposeAsset(state, key);
-      if (state.selectionBox) disposeObject(state.selectionBox);
-      disposeObject(grid);
+      if (state.selectionBox) disposeObjectResources(state.selectionBox);
+      disposeObjectResources(grid);
       gizmo.detach();
       scene.remove(gizmoHelper);
       gizmoHelper.dispose();
       gizmo.dispose();
       controls.dispose();
+      renderer.renderLists.dispose();
       renderer.dispose();
-      host.removeChild(renderer.domElement);
+      renderer.forceContextLoss();
+      renderer.domElement.remove();
       gl.current = null;
     };
   }, []);
@@ -398,7 +385,7 @@ export function Viewport3D({
           "",
           (gltf) => {
             if (cancelled || gl.current !== state) {
-              disposeObject(gltf.scene);
+              disposeObjectResources(gltf.scene);
               return;
             }
             try {
@@ -522,8 +509,7 @@ export function Viewport3D({
     if (!state) return;
     if (state.selectionBox) {
       state.scene.remove(state.selectionBox);
-      state.selectionBox.geometry.dispose();
-      disposeMaterial(state.selectionBox.material as THREE.Material);
+      disposeObjectResources(state.selectionBox);
       state.selectionBox = null;
     }
     if (selectedId == null) return;

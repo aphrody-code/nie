@@ -17,9 +17,9 @@
 //!
 //! `create` renvoie une Promise ; les autres méthodes sont synchrones et lèvent sur erreur.
 //! Exige HTTPS/localhost et Browser WebGPU ; pas de fallback WebGL/CPU, pas de readback.
-//! GLB limité à 64 Mio, parseur NIE existant : positions déjà en espace monde, PNG embarqués.
-//! Transforms de nœuds, skins, animations, codecs compressés et matériaux glTF complets ne
-//! sont pas gérés. L'hôte doit normaliser ses GLB, pas présenter ce pont comme universel.
+//! GLB limité à 64 Mio et textures RGBA décodées limitées à 128 Mio. Le parseur NIE cuit les
+//! transforms de nœuds et le skinning de la pose de liaison dans les sommets. Animations, morph
+//! targets, codecs compressés et matériaux glTF complets ne sont pas gérés.
 //! La version du CLI wasm-bindgen doit correspondre au pin exact du workspace.
 
 use nie_render3d::web::WebViewer;

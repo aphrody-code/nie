@@ -40,18 +40,36 @@ fn rd_u32(b: &[u8], o: usize) -> u32 {
 }
 
 /// Décode un PNG (n'importe quel type de couleur) en RGBA8.
-fn decode_png(bytes: &[u8]) -> Result<Texture> {
+fn decode_png(bytes: &[u8], max_rgba_bytes: usize) -> Result<Texture> {
     let mut dec = png::Decoder::new(std::io::Cursor::new(bytes));
     dec.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = dec.read_info().context("png read_info")?;
+    let header = reader.info();
+    let rgba_len = usize::try_from(header.width)
+        .ok()
+        .and_then(|width| {
+            usize::try_from(header.height)
+                .ok()
+                .and_then(|height| width.checked_mul(height))
+        })
+        .and_then(|pixels| pixels.checked_mul(4))
+        .context("png RGBA size overflow")?;
+    anyhow::ensure!(
+        rgba_len <= max_rgba_bytes,
+        "decoded PNG exceeds the remaining texture budget"
+    );
     let bufsz = reader
         .output_buffer_size()
         .context("png output_buffer_size (overflow)")?;
+    anyhow::ensure!(
+        bufsz <= max_rgba_bytes,
+        "decoded PNG buffer exceeds the remaining texture budget"
+    );
     let mut buf = vec![0u8; bufsz];
     let info = reader.next_frame(&mut buf).context("png next_frame")?;
     let (w, h) = (info.width, info.height);
-    let n = (w as usize) * (h as usize);
-    let mut rgba = vec![0u8; n * 4];
+    let n = rgba_len / 4;
+    let mut rgba = vec![0u8; rgba_len];
     match info.color_type {
         png::ColorType::Rgba => rgba.copy_from_slice(&buf[..n * 4]),
         png::ColorType::Rgb => {
@@ -291,6 +309,18 @@ fn node_world(
 /// Si le magic n'est pas « glTF », si les chunks JSON/BIN manquent, ou si le glTF est malformé.
 #[allow(clippy::collapsible_if)]
 pub fn parse(data: &[u8]) -> Result<Model> {
+    parse_with_texture_budget(data, usize::MAX)
+}
+
+/// Parse a complete GLB while bounding aggregate decoded RGBA texture memory.
+///
+/// The budget is enforced from PNG headers before allocating decoder/output buffers, preventing
+/// a small compressed GLB from expanding into an unbounded WebAssembly heap allocation.
+///
+/// # Errors
+/// Returns an error when malformed input or decoded textures exceed `max_texture_bytes`.
+#[allow(clippy::collapsible_if)]
+pub fn parse_with_texture_budget(data: &[u8], max_texture_bytes: usize) -> Result<Model> {
     if data.len() < 12 || &data[0..4] != b"glTF" {
         bail!("pas un GLB (magic 'glTF' absent)");
     }
@@ -381,6 +411,7 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 
     // Décode les atlas PNG embarqués (indexés par numéro d'image glTF).
     let mut textures = Vec::new();
+    let mut decoded_texture_bytes = 0usize;
     if let Some(imgs) = root["images"].as_array() {
         for im in imgs {
             let bvi = im["bufferView"].as_u64().context("image bufferView")? as usize;
@@ -388,9 +419,17 @@ pub fn parse(data: &[u8]) -> Result<Model> {
             let bo = bv["byteOffset"].as_u64().unwrap_or(0) as usize;
             let bl = bv["byteLength"].as_u64().context("image byteLength")? as usize;
             let end = bo.checked_add(bl).context("image déborde")?;
-            textures.push(decode_png(
+            let remaining = max_texture_bytes
+                .checked_sub(decoded_texture_bytes)
+                .context("decoded textures exceed the aggregate budget")?;
+            let texture = decode_png(
                 bin.get(bo..end).context("image hors du chunk BIN")?,
-            )?);
+                remaining,
+            )?;
+            decoded_texture_bytes = decoded_texture_bytes
+                .checked_add(texture.rgba.len())
+                .context("decoded texture byte count overflow")?;
+            textures.push(texture);
         }
     }
 
@@ -670,6 +709,38 @@ mod tests {
         data.extend_from_slice(&0x004E_4942u32.to_le_bytes());
         data.extend_from_slice(&bin);
         data
+    }
+
+    #[test]
+    fn decoded_texture_budget_is_aggregate_and_checked_before_rgba_allocation() {
+        let mut png_bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut png_bytes, 1, 1);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(&[1, 2, 3, 4])
+                .unwrap();
+        }
+        let root = serde_json::json!({
+            "accessors": [{"bufferView": 0, "componentType": 5126, "count": 1, "type": "VEC3"}],
+            "bufferViews": [
+                {"byteLength": 12},
+                {"byteOffset": 12, "byteLength": png_bytes.len()}
+            ],
+            "images": [{"bufferView": 1}],
+            "meshes": [{"primitives": [{"attributes": {"POSITION": 0}}]}]
+        });
+        let mut bin = vec![0; 12];
+        bin.extend_from_slice(&png_bytes);
+        let glb = fixture_bin(root, bin);
+
+        assert!(parse_with_texture_budget(&glb, 3).is_err());
+        let model = parse_with_texture_budget(&glb, 4).expect("one RGBA texel fits the budget");
+        assert_eq!(model.textures.len(), 1);
+        assert_eq!(model.textures[0].rgba, [1, 2, 3, 4]);
     }
 
     #[test]

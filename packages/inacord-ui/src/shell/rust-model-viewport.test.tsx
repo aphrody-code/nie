@@ -136,6 +136,46 @@ test("a delayed stale response cannot replace the current recipe even when trans
 	expect(viewer.free).not.toHaveBeenCalled();
 });
 
+test("keeps the rendered model visible until its replacement reaches a rendered frame", async () => {
+	const replacement = deferred<Response>();
+	const viewer = fakeViewer();
+	mockFetch(async (url) => url.endsWith("b.glb") ? replacement.promise : new Response(new Uint8Array([1])));
+	const createViewer = async () => viewer;
+	const canvas = await mount("/model/a.glb", createViewer);
+	await presentFrame();
+	expect(canvas.style.visibility).toBe("visible");
+	expect(container.querySelector("[aria-busy]")?.getAttribute("aria-busy")).toBe("false");
+
+	await mount("/model/b.glb", createViewer);
+	expect(canvas.style.visibility).toBe("visible");
+	expect(canvas.dataset.modelReady).toBe("true");
+	expect(container.querySelector("[aria-busy]")?.getAttribute("aria-busy")).toBe("true");
+	await presentFrame();
+	expect(container.querySelector("[aria-busy]")?.getAttribute("aria-busy")).toBe("true");
+
+	await act(async () => replacement.resolve(new Response(new Uint8Array([2]))));
+	expect(viewer.load_glb).toHaveBeenCalledTimes(2);
+	expect(canvas.style.visibility).toBe("visible");
+	expect(container.querySelector("[aria-busy]")?.getAttribute("aria-busy")).toBe("true");
+	await presentFrame();
+	expect(container.querySelector("[aria-busy]")?.getAttribute("aria-busy")).toBe("false");
+});
+
+test("keeps the previous rendered model visible when a replacement fails", async () => {
+	const viewer = fakeViewer();
+	mockFetch(async (url) => url.endsWith("b.glb")
+		? new Response(null, { status: 503 })
+		: new Response(new Uint8Array([1])));
+	const createViewer = async () => viewer;
+	const canvas = await mount("/model/a.glb", createViewer);
+	await presentFrame();
+	await mount("/model/b.glb", createViewer);
+	expect(container.querySelector("[role=alert]")).not.toBeNull();
+	expect(canvas.style.visibility).toBe("visible");
+	expect(canvas.dataset.modelReady).toBe("true");
+	expect(viewer.load_glb).toHaveBeenCalledTimes(1);
+});
+
 test("clearing the recipe URL clears readiness and stops presenting the previous model", async () => {
 	const viewer = fakeViewer();
 	const createViewer = async () => viewer;
@@ -173,9 +213,7 @@ test("GPU initialization failure can retry and the successful viewer is freed on
 
 test("a host can preserve its fallback and error detail while enforcing a smaller byte limit", async () => {
 	const viewer = fakeViewer();
-	mockFetch(async () => new Response(new Uint8Array([1]), {
-		headers: { "content-length": "9" },
-	}));
+	mockFetch(async () => new Response(new Uint8Array(9)));
 	await act(async () => root?.render(
 		<RustModelViewport
 			url="/model/large.glb"
@@ -206,4 +244,21 @@ test("the configured initial camera is sent to the Rust viewer", async () => {
 	});
 	await presentFrame();
 	expect(viewer.orbit).toHaveBeenCalledWith(0.6, -0.2, 4.5);
+});
+
+test("changing the model preserves the camera chosen in the viewport", async () => {
+	const viewer = fakeViewer();
+	mockFetch(async () => new Response(new Uint8Array([1])));
+	const createViewer = async () => viewer;
+	const canvas = await mount("/model/a.glb", createViewer);
+	await presentFrame();
+	await act(async () => {
+		canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+	});
+	await presentFrame();
+	expect(viewer.orbit).toHaveBeenLastCalledWith(0.05, 0, 3.1);
+
+	await mount("/model/b.glb", createViewer);
+	await presentFrame();
+	expect(viewer.orbit).toHaveBeenLastCalledWith(0.05, 0, 3.1);
 });

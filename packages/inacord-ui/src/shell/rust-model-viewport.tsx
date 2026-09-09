@@ -49,6 +49,7 @@ export function RustModelViewport({
 	const camera = useRef({ ...initialCamera });
 	const needsRender = useRef(false);
 	const modelLoaded = useRef(false);
+	const readyPending = useRef(false);
 	const pointer = useRef<{ id: number; x: number; y: number } | null>(null);
 	const readyCallback = useRef(onReady);
 	readyCallback.current = onReady;
@@ -56,6 +57,7 @@ export function RustModelViewport({
 	const [attempt, setAttempt] = useState(0);
 	const [error, setError] = useState<Error | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [hasPresentedModel, setHasPresentedModel] = useState(false);
 
 	useEffect(() => {
 		let disposed = false;
@@ -65,6 +67,9 @@ export function RustModelViewport({
 		setLoading(true);
 		const target = canvas.current;
 		if (!target) return;
+		readyPending.current = false;
+		setHasPresentedModel(false);
+		delete target.dataset.modelReady;
 		createViewer(target).then(value => {
 			if (disposed) { value.free(); return; }
 			owned = value;
@@ -86,8 +91,13 @@ export function RustModelViewport({
 							const c = camera.current; value.orbit(c.yaw, c.pitch, c.distance);
 							if (value.render()) {
 								needsRender.current = false;
+								setHasPresentedModel(true);
 								target.dataset.modelReady = "true";
-								readyCallback.current?.();
+								if (readyPending.current) {
+									readyPending.current = false;
+									setLoading(false);
+									readyCallback.current?.();
+								}
 							}
 						}
 					}
@@ -100,6 +110,7 @@ export function RustModelViewport({
 			disposed = true;
 			cancelAnimationFrame(raf);
 			modelLoaded.current = false;
+			readyPending.current = false;
 			if (viewer.current === owned) viewer.current = null;
 			owned?.free();
 		};
@@ -108,32 +119,36 @@ export function RustModelViewport({
 	useEffect(() => {
 		camera.current = { ...initialCamera };
 		needsRender.current = modelLoaded.current;
-	}, [url, initialCamera.yaw, initialCamera.pitch, initialCamera.distance]);
+	}, [initialCamera.yaw, initialCamera.pitch, initialCamera.distance]);
 
 	useEffect(() => {
 		if (!url) {
 			modelLoaded.current = false;
+			readyPending.current = false;
 			needsRender.current = false;
 			if (canvas.current) delete canvas.current.dataset.modelReady;
+			setHasPresentedModel(false);
+			setError(null);
 			setLoading(false);
 			return;
 		}
 		if (!instance || instance !== viewer.current) return;
 		const abort = new AbortController();
+		readyPending.current = false;
 		setLoading(true);
 		setError(null);
-		modelLoaded.current = false;
-		if (canvas.current) delete canvas.current.dataset.modelReady;
 		(async () => {
 			const response = await fetch(url, { signal: abort.signal });
 			if (!response.ok) throw new Error(`Model response failed (${response.status})`);
 			if (Number(response.headers.get("content-length")) > maxBytes) throw new Error("Model too large");
-			const bytes = new Uint8Array(await response.arrayBuffer());
+			const buffer = await response.arrayBuffer();
+			if (buffer.byteLength > maxBytes) throw new Error("Model too large");
+			const bytes = new Uint8Array(buffer);
 			if (abort.signal.aborted || instance !== viewer.current) return;
 			instance.load_glb(bytes);
 			modelLoaded.current = true;
+			readyPending.current = true;
 			needsRender.current = true;
-			setLoading(false);
 		})().catch((cause) => { if (!abort.signal.aborted) { setError(asError(cause)); setLoading(false); } });
 		return () => abort.abort();
 	}, [instance, maxBytes, url]);
@@ -144,8 +159,8 @@ export function RustModelViewport({
 		needsRender.current = true;
 	};
 	return <div style={{ position: "relative", width: "100%", height: "100%" }} aria-busy={loading}>
-		<canvas ref={canvas} width={640} height={720} aria-label={label} tabIndex={0}
-			data-native-renderer="nie-render3d" style={{ width: "100%", height: "100%", touchAction: "none", outline: "none", ...canvasStyle, visibility: loading || !url || error ? "hidden" : "visible" }}
+			<canvas ref={canvas} width={640} height={720} aria-label={label} tabIndex={0}
+				data-native-renderer="nie-render3d" style={{ width: "100%", height: "100%", touchAction: "none", outline: "none", ...canvasStyle, visibility: !url || (!hasPresentedModel && (loading || error)) ? "hidden" : "visible" }}
 			onPointerDown={event => { if (event.button !== 0) return; event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId); pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY }; }}
 			onPointerMove={event => { const p = pointer.current; if (p?.id !== event.pointerId) return; orbit(event.clientX - p.x, event.clientY - p.y); p.x = event.clientX; p.y = event.clientY; }}
 			onPointerUp={() => { pointer.current = null; }} onPointerCancel={() => { pointer.current = null; }} onLostPointerCapture={() => { pointer.current = null; }}

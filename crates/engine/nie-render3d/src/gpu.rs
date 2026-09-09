@@ -22,7 +22,7 @@
 //! (`nie-explorer`) sans imbrication de fenêtres natives, et de rester testable sans écran.
 
 use anyhow::{Context, Result};
-use wgpu::util::DeviceExt;
+use wgpu::util::{DeviceExt, StagingBelt};
 
 use crate::glb::Model;
 use crate::render::bounds;
@@ -186,20 +186,47 @@ impl Camera {
     }
 }
 
-/// Une primitive téléversée : ses tampons GPU et son atlas.
+/// One uploaded batch: all of its source primitives share an atlas and one draw call.
 struct GpuPrimitive {
     vertices: wgpu::Buffer,
     indices: wgpu::Buffer,
     index_count: u32,
-    /// Groupe de liaison de la texture — toujours présent (un atlas 1×1 blanc sert de bouche-trou
-    /// quand la primitive n'a pas de texture, pour ne pas multiplier les pipelines).
-    texture_bind_group: wgpu::BindGroup,
+    texture_index: usize,
+}
+
+impl Drop for GpuPrimitive {
+    fn drop(&mut self) {
+        self.vertices.destroy();
+        self.indices.destroy();
+    }
+}
+
+/// Atlas and bind group kept together so the texture can be destroyed explicitly.
+struct GpuTexture {
+    texture: wgpu::Texture,
+    bind_group: wgpu::BindGroup,
+}
+
+impl Drop for GpuTexture {
+    fn drop(&mut self) {
+        self.texture.destroy();
+    }
+}
+
+struct UploadBatchPlan {
+    primitive_start: usize,
+    primitive_end: usize,
+    vertex_count: usize,
+    index_count: usize,
+    texture_index: usize,
 }
 
 /// Modèle résident en mémoire GPU. Le construire est coûteux (téléversement) ; le rendre ne l'est
 /// pas — c'est toute la raison d'être de cette séparation.
 pub struct GpuModel {
     primitives: Vec<GpuPrimitive>,
+    /// Index 0 is the white atlas; model textures start at 1.
+    textures: Vec<GpuTexture>,
     /// Centre de la boîte englobante, pour viser la caméra.
     center: [f32; 3],
     /// Rayon englobant, pour normaliser la distance de caméra quelle que soit l'échelle du modèle.
@@ -230,6 +257,74 @@ impl GpuModel {
     }
 }
 
+/// Merge compatible primitives before allocation. The renderer has one immutable pipeline, so
+/// texture identity is the only state boundary that requires a separate draw call.
+fn upload_batch_plan(model: &Model, max_buffer_size: u64) -> Result<Vec<UploadBatchPlan>> {
+    let mut batches: Vec<UploadBatchPlan> = Vec::new();
+    let max_vertices = usize::try_from(
+        (max_buffer_size / std::mem::size_of::<Vertex>() as u64).min(u64::from(u32::MAX)),
+    )
+    .unwrap_or(usize::MAX);
+    let max_indices = usize::try_from(
+        (max_buffer_size / std::mem::size_of::<u32>() as u64).min(u64::from(u32::MAX)),
+    )
+    .unwrap_or(usize::MAX);
+
+    for (primitive_index, primitive) in model.primitives.iter().enumerate() {
+        if primitive.indices.is_empty() || primitive.positions.is_empty() {
+            continue;
+        }
+        let texture_index = primitive
+            .texture
+            .filter(|&index| index < model.textures.len())
+            .map_or(0, |index| index + 1);
+        anyhow::ensure!(
+            primitive.positions.len() <= max_vertices && primitive.indices.len() <= max_indices,
+            "primitive exceeds the GPU buffer-size limit"
+        );
+        anyhow::ensure!(
+            primitive
+                .indices
+                .iter()
+                .all(|&index| (index as usize) < primitive.positions.len()),
+            "primitive index exceeds its vertex range"
+        );
+        let max_source_index = primitive.indices.iter().copied().max().unwrap_or(0);
+        // Only merge adjacent compatible primitives. Reordering by texture would change which
+        // coplanar primitive wins with the pipeline's strict `Less` depth comparison.
+        let merged_counts = batches.last().and_then(|batch| {
+            if batch.texture_index != texture_index {
+                return None;
+            }
+            let vertex_count = batch.vertex_count.checked_add(primitive.positions.len())?;
+            let index_count = batch.index_count.checked_add(primitive.indices.len())?;
+            (vertex_count <= max_vertices
+                && index_count <= max_indices
+                && u32::try_from(batch.vertex_count)
+                    .ok()
+                    .and_then(|base| base.checked_add(max_source_index))
+                    .is_some())
+            .then_some((vertex_count, index_count))
+        });
+        if let Some((vertex_count, index_count)) = merged_counts {
+            let batch = batches.last_mut().expect("batch checked above");
+            batch.primitive_end = primitive_index + 1;
+            batch.vertex_count = vertex_count;
+            batch.index_count = index_count;
+        } else {
+            batches.push(UploadBatchPlan {
+                primitive_start: primitive_index,
+                primitive_end: primitive_index + 1,
+                vertex_count: primitive.positions.len(),
+                index_count: primitive.indices.len(),
+                texture_index,
+            });
+        }
+    }
+
+    Ok(batches)
+}
+
 /// Contexte de rendu GPU réutilisable : adaptateur, device, pipeline, cibles.
 ///
 /// À créer **une fois** et à garder vivant. Créer un device wgpu coûte des dizaines de
@@ -246,8 +341,11 @@ pub struct GpuRenderer {
     camera_bind_group: wgpu::BindGroup,
     texture_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
+    /// Reusable arena for the small dynamic uploads performed each frame.
+    staging_belt: StagingBelt,
     /// Cibles de rendu, recréées uniquement quand la taille demandée change.
     targets: Option<Targets>,
+    resources_released: bool,
 }
 
 struct Targets {
@@ -255,9 +353,10 @@ struct Targets {
     height: u32,
     // La vue de couleur conserve une référence interne à cette texture. Le champ doit donc vivre
     // avec elle, même lorsque le chemin WebGPU ne fait aucune capture CPU.
-    _color: wgpu::Texture,
+    color: wgpu::Texture,
     color_view: wgpu::TextureView,
-    depth: wgpu::TextureView,
+    depth_texture: wgpu::Texture,
+    depth_view: wgpu::TextureView,
     /// Tampon de lecture CPU — sa largeur de ligne est alignée sur 256 octets (exigence wgpu).
     #[cfg(not(target_arch = "wasm32"))]
     readback: Option<Readback>,
@@ -267,6 +366,17 @@ struct Targets {
 struct Readback {
     buffer: wgpu::Buffer,
     padded_bytes_per_row: u32,
+}
+
+impl Drop for Targets {
+    fn drop(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(readback) = &self.readback {
+            readback.buffer.destroy();
+        }
+        self.depth_texture.destroy();
+        self.color.destroy();
+    }
 }
 
 /// Format de la cible couleur. `Rgba8Unorm` **sans** conversion sRGB : les atlas du jeu sont déjà
@@ -341,7 +451,8 @@ impl GpuRenderer {
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("nie-render3d gpu"),
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::downlevel_defaults(),
+                required_limits: wgpu::Limits::downlevel_defaults()
+                    .using_resolution(adapter.limits()),
                 memory_hints: wgpu::MemoryHints::default(),
                 trace: wgpu::Trace::Off,
                 experimental_features: wgpu::ExperimentalFeatures::disabled(),
@@ -487,6 +598,7 @@ impl GpuRenderer {
                 resource: camera_buffer.as_entire_binding(),
             }],
         });
+        let staging_belt = StagingBelt::new(device.clone(), 256);
 
         Self {
             adapter_info,
@@ -497,7 +609,9 @@ impl GpuRenderer {
             camera_bind_group,
             texture_layout,
             sampler,
+            staging_belt,
             targets: None,
+            resources_released: false,
         }
     }
 
@@ -519,48 +633,74 @@ impl GpuRenderer {
         &self.queue
     }
 
+    /// Destroy resources owned directly by the renderer before a dedicated device is torn down.
+    /// Bind groups and pipelines have no explicit destroy operation in wgpu 29.
+    pub(crate) fn release_resources(&mut self) {
+        if self.resources_released {
+            return;
+        }
+        self.targets = None;
+        self.camera_buffer.destroy();
+        self.resources_released = true;
+    }
+
     /// Téléverse un [`Model`] en mémoire GPU. À faire une fois par modèle, pas par image.
     #[must_use = "le modèle doit être conservé pour être rendu"]
     pub fn upload(&self, model: &Model) -> GpuModel {
+        self.try_upload(model)
+            .expect("model rejected by GPU upload limits")
+    }
+
+    /// Fallible upload for untrusted/browser models. Compatible primitives are merged only while
+    /// the resulting vertex and index allocations remain within the selected adapter's limits.
+    pub fn try_upload(&self, model: &Model) -> Result<GpuModel> {
         let (center, radius) = bounds(model);
+        let batches = upload_batch_plan(model, self.device.limits().max_buffer_size)?;
 
         // Atlas 1×1 blanc : évite un second pipeline pour les primitives sans texture (le shader
         // les distingue par `light.w`, mais un groupe de liaison reste obligatoire).
-        let white = self.create_texture_bind_group(1, 1, &[255, 255, 255, 255]);
-
-        let texture_groups: Vec<wgpu::BindGroup> = model
-            .textures
-            .iter()
-            .map(|t| self.create_texture_bind_group(t.width, t.height, &t.rgba))
-            .collect();
+        let mut textures = Vec::with_capacity(model.textures.len() + 1);
+        textures.push(self.create_texture_bind_group(1, 1, &[255, 255, 255, 255]));
+        textures.extend(
+            model
+                .textures
+                .iter()
+                .map(|t| self.create_texture_bind_group(t.width, t.height, &t.rgba)),
+        );
 
         let mut triangle_count = 0u32;
         let mut vertex_count = 0u32;
-        let mut primitives = Vec::with_capacity(model.primitives.len());
+        let mut primitives = Vec::with_capacity(batches.len());
 
-        for prim in &model.primitives {
-            if prim.indices.is_empty() || prim.positions.is_empty() {
-                continue;
+        for batch in batches {
+            let has_texture = batch.texture_index != 0;
+            let mut vertices = Vec::with_capacity(batch.vertex_count);
+            let mut indices = Vec::with_capacity(batch.index_count);
+            for primitive in &model.primitives[batch.primitive_start..batch.primitive_end] {
+                if primitive.indices.is_empty() || primitive.positions.is_empty() {
+                    continue;
+                }
+                let base = u32::try_from(vertices.len())
+                    .map_err(|_| anyhow::anyhow!("model exceeds u32 vertex indexing"))?;
+                vertices.extend((0..primitive.positions.len()).map(|index| {
+                    Vertex {
+                        position: primitive.positions[index],
+                        normal: primitive
+                            .normals
+                            .get(index)
+                            .copied()
+                            .unwrap_or([0.0, 1.0, 0.0]),
+                        uv: primitive.uv.get(index).copied().unwrap_or([0.0, 0.0]),
+                        has_texture: f32::from(has_texture),
+                    }
+                }));
+                for &index in &primitive.indices {
+                    indices.push(base.checked_add(index).context("model index exceeds u32")?);
+                }
             }
-            // Les atlas sont téléversés UNE fois (`texture_groups`) et le groupe de liaison est
-            // cloné — c'est un handle, pas la texture. Deux primitives partageant un atlas ne
-            // doivent pas le renvoyer deux fois sur le bus.
-            let (bind_group, has_texture) = match prim.texture.and_then(|i| texture_groups.get(i)) {
-                Some(group) => (group.clone(), true),
-                None => (white.clone(), false),
-            };
-            let vertices: Vec<Vertex> = (0..prim.positions.len())
-                .map(|i| Vertex {
-                    position: prim.positions[i],
-                    // Normale manquante → vers le haut : un zéro rendrait le Lambert indéfini et
-                    // la primitive uniformément noire.
-                    normal: prim.normals.get(i).copied().unwrap_or([0.0, 1.0, 0.0]),
-                    uv: prim.uv.get(i).copied().unwrap_or([0.0, 0.0]),
-                    has_texture: f32::from(has_texture),
-                })
-                .collect();
-
-            triangle_count += (prim.indices.len() / 3) as u32;
+            debug_assert_eq!(vertices.len(), batch.vertex_count);
+            debug_assert_eq!(indices.len(), batch.index_count);
+            triangle_count += (indices.len() / 3) as u32;
             vertex_count += vertices.len() as u32;
 
             let vbuf = self
@@ -574,28 +714,29 @@ impl GpuRenderer {
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("indices"),
-                    contents: bytemuck::cast_slice(&prim.indices),
+                    contents: bytemuck::cast_slice(&indices),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
             primitives.push(GpuPrimitive {
                 vertices: vbuf,
                 indices: ibuf,
-                index_count: prim.indices.len() as u32,
-                texture_bind_group: bind_group,
+                index_count: indices.len() as u32,
+                texture_index: batch.texture_index,
             });
         }
 
-        GpuModel {
+        Ok(GpuModel {
             primitives,
+            textures,
             center,
             radius,
             triangle_count,
             vertex_count,
-        }
+        })
     }
 
-    fn create_texture_bind_group(&self, width: u32, height: u32, rgba: &[u8]) -> wgpu::BindGroup {
+    fn create_texture_bind_group(&self, width: u32, height: u32, rgba: &[u8]) -> GpuTexture {
         let width = width.max(1);
         let height = height.max(1);
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
@@ -615,9 +756,14 @@ impl GpuRenderer {
 
         // Un atlas tronqué (décodage partiel) ne doit pas faire paniquer `write_texture` : on
         // complète par du blanc opaque plutôt que d'abandonner le modèle entier.
-        let expected = (width * height * 4) as usize;
-        let mut data = rgba.to_vec();
-        data.resize(expected, 255);
+        let expected = usize::try_from(u64::from(width) * u64::from(height) * 4)
+            .expect("texture byte size exceeds address space");
+        let padded = (rgba.len() < expected).then(|| {
+            let mut data = rgba.to_vec();
+            data.resize(expected, 255);
+            data
+        });
+        let data = padded.as_deref().unwrap_or(&rgba[..expected]);
 
         self.queue.write_texture(
             wgpu::TexelCopyTextureInfo {
@@ -626,7 +772,7 @@ impl GpuRenderer {
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            &data,
+            data,
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(width * 4),
@@ -640,7 +786,7 @@ impl GpuRenderer {
         );
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("atlas"),
             layout: &self.texture_layout,
             entries: &[
@@ -653,7 +799,11 @@ impl GpuRenderer {
                     resource: wgpu::BindingResource::Sampler(&self.sampler),
                 },
             ],
-        })
+        });
+        GpuTexture {
+            texture,
+            bind_group,
+        }
     }
 
     /// (Re)crée les cibles de rendu si la taille demandée a changé.
@@ -664,6 +814,9 @@ impl GpuRenderer {
         {
             return;
         }
+        // Release the old attachments before allocating larger replacements. Keeping both sets
+        // resident during a resize can double peak VRAM and turn a recoverable resize into OOM.
+        self.targets = None;
         let size = wgpu::Extent3d {
             width,
             height,
@@ -682,26 +835,25 @@ impl GpuRenderer {
             view_formats: &[],
         });
         let color_view = color.create_view(&wgpu::TextureViewDescriptor::default());
-        let depth = self
-            .device
-            .create_texture(&wgpu::TextureDescriptor {
-                label: Some("depth"),
-                size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: DEPTH_FORMAT,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            })
-            .create_view(&wgpu::TextureViewDescriptor::default());
+        let depth_texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("depth"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: DEPTH_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         self.targets = Some(Targets {
             width,
             height,
-            _color: color,
+            color,
             color_view,
-            depth,
+            depth_texture,
+            depth_view,
             #[cfg(not(target_arch = "wasm32"))]
             readback: None,
         });
@@ -739,13 +891,21 @@ impl GpuRenderer {
             normal_rot,
             light: [light[0], light[1], light[2], 0.0],
         };
-        self.queue
-            .write_buffer(&self.camera_buffer, 0, bytemuck::bytes_of(&uniform));
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("viewport"),
             });
+        let uniform_bytes = bytemuck::bytes_of(&uniform);
+        let uniform_size =
+            wgpu::BufferSize::new(uniform_bytes.len() as u64).expect("CameraUniform is non-empty");
+        {
+            let mut staging =
+                self.staging_belt
+                    .write_buffer(&mut encoder, &self.camera_buffer, 0, uniform_size);
+            staging.copy_from_slice(uniform_bytes);
+        }
+        self.staging_belt.finish();
 
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -762,7 +922,7 @@ impl GpuRenderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &targets.depth,
+                    view: &targets.depth_view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Discard,
@@ -778,7 +938,7 @@ impl GpuRenderer {
             pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
             for prim in &model.primitives {
-                pass.set_bind_group(1, &prim.texture_bind_group, &[]);
+                pass.set_bind_group(1, &model.textures[prim.texture_index].bind_group, &[]);
                 pass.set_vertex_buffer(0, prim.vertices.slice(..));
                 pass.set_index_buffer(prim.indices.slice(..), wgpu::IndexFormat::Uint32);
                 pass.draw_indexed(0..prim.index_count, 0, 0..1);
@@ -786,6 +946,7 @@ impl GpuRenderer {
         }
 
         self.queue.submit(Some(encoder.finish()));
+        self.staging_belt.recall();
         Ok(&targets.color_view)
     }
 
@@ -827,7 +988,7 @@ impl GpuRenderer {
             });
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
-                texture: &targets._color,
+                texture: &targets.color,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
@@ -873,6 +1034,12 @@ impl GpuRenderer {
         readback.buffer.unmap();
 
         Ok(out)
+    }
+}
+
+impl Drop for GpuRenderer {
+    fn drop(&mut self) {
+        self.release_resources();
     }
 }
 
@@ -1013,6 +1180,78 @@ mod tests {
             "model shader must satisfy derivative uniformity without device-specific exemptions",
         );
         assert_eq!(module.entry_points.len(), 2);
+    }
+
+    #[test]
+    fn upload_batches_merge_primitives_by_texture() {
+        let triangle = |offset: f32, texture| crate::glb::Primitive {
+            positions: vec![
+                [offset, 0.0, 0.0],
+                [offset + 1.0, 0.0, 0.0],
+                [offset, 1.0, 0.0],
+            ],
+            normals: vec![[0.0, 0.0, 1.0]; 3],
+            uv: vec![[0.0, 0.0]; 3],
+            indices: vec![0, 1, 2],
+            texture,
+        };
+        let model = Model {
+            primitives: vec![
+                triangle(0.0, Some(0)),
+                triangle(2.0, Some(0)),
+                triangle(4.0, None),
+                triangle(6.0, Some(99)),
+            ],
+            textures: vec![crate::glb::Texture {
+                width: 1,
+                height: 1,
+                rgba: vec![255; 4],
+            }],
+        };
+
+        let batches = upload_batch_plan(&model, u64::MAX).expect("valid batches");
+        assert_eq!(batches.len(), 2);
+        assert_eq!(batches[0].texture_index, 1);
+        assert_eq!(batches[0].vertex_count, 6);
+        assert_eq!(batches[0].index_count, 6);
+        assert_eq!(batches[1].texture_index, 0);
+        assert_eq!(batches[1].vertex_count, 6);
+        assert_eq!(batches[1].index_count, 6);
+
+        let order_sensitive = Model {
+            primitives: vec![
+                triangle(0.0, Some(0)),
+                triangle(2.0, None),
+                triangle(4.0, Some(0)),
+            ],
+            textures: model.textures.clone(),
+        };
+        assert_eq!(
+            upload_batch_plan(&order_sensitive, u64::MAX)
+                .expect("valid ordered batches")
+                .len(),
+            3,
+            "non-adjacent primitives must not be reordered across depth-sensitive draws"
+        );
+
+        let limited = upload_batch_plan(&model, (std::mem::size_of::<Vertex>() * 3) as u64)
+            .expect("each source primitive fits independently");
+        assert_eq!(limited.len(), 4);
+
+        let oversized = Model {
+            primitives: vec![triangle(0.0, None)],
+            textures: vec![],
+        };
+        assert!(upload_batch_plan(&oversized, (std::mem::size_of::<Vertex>() * 2) as u64).is_err());
+
+        let invalid_index = Model {
+            primitives: vec![crate::glb::Primitive {
+                indices: vec![0, 1, 3],
+                ..triangle(0.0, None)
+            }],
+            textures: vec![],
+        };
+        assert!(upload_batch_plan(&invalid_index, u64::MAX).is_err());
     }
 
     #[test]

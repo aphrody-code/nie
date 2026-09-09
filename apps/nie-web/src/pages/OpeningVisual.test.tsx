@@ -4,6 +4,7 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Game } from "./Game";
 import { OpeningVisual } from "./OpeningVisual";
+import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 
 const source = {
 	urlVideo: (path: string) => `/assets/video/${path}.mp4`,
@@ -101,12 +102,12 @@ describe("native opening movies", () => {
 		Object.defineProperty(audio, "readyState", { configurable: true, value: 3 });
 		await dispatch(audio, "canplay");
 		expect(ready).toBe(0);
-		expect(container.textContent).toContain("Reprendre");
-		await click("Reprendre");
+		expect(container.textContent).not.toContain("Reprendre");
+		await act(async () => window.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
 		expect(play).toHaveBeenCalledTimes(4);
 		expect(ready).toBe(0);
 		play.mockResolvedValue(undefined);
-		await click("Reprendre");
+		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
 		expect(ready).toBe(1);
 		expect(container.textContent).not.toContain("Reprendre");
 		await end(movie);
@@ -171,6 +172,18 @@ describe("native opening movies", () => {
 		await act(async () => { resolves.forEach(resolve => resolve()); });
 		expect(ready).toBe(0);
 		expect(container.querySelector("video")).toBeNull();
+	});
+
+	test("preview pause requires its local playback control", async () => {
+		await mount(<NativeMoviePlayer path="data/common/movie/IE_15th.usm" presentation="preview" />);
+		await readyPair();
+		await click("Pause");
+		expect(container.textContent).toContain("Lecture");
+		const beforeGesture = play.mock.calls.length;
+		await act(async () => window.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+		expect(play).toHaveBeenCalledTimes(beforeGesture);
+		await click("Lecture");
+		expect(play.mock.calls.length).toBeGreaterThan(beforeGesture);
 	});
 });
 

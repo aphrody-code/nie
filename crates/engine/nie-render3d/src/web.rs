@@ -2,9 +2,9 @@
 //!
 //! L'hôte fournit un canvas (contexte sécurisé HTTPS/localhost), les dimensions physiques,
 //! les octets GLB et les appels `render` depuis sa boucle requestAnimationFrame.
-//! Pas de repli WebGL/CPU. Le parseur GLB existant attend des positions déjà normalisées en
-//! espace monde : transforms de nœuds, skins, animations et matériaux glTF complets ne sont
-//! pas interprétés ici. Cette surface n'est pas un importateur glTF universel.
+//! Pas de repli WebGL/CPU. Le parseur GLB cuit les transforms de nœuds et le skinning de la pose
+//! de liaison dans les sommets. Animations, morph targets et matériaux glTF complets ne sont pas
+//! interprétés ici. Cette surface n'est pas un importateur glTF universel.
 
 use crate::gpu::Camera;
 use anyhow::{Result, ensure};
@@ -66,6 +66,14 @@ mod browser {
     use std::sync::{Arc, Mutex};
     use web_sys::HtmlCanvasElement;
 
+    const MAX_DECODED_TEXTURE_BYTES: usize = 128 * 1024 * 1024;
+
+    fn record_fault(state: &Arc<Mutex<Option<String>>>, message: String) {
+        if let Ok(mut state) = state.lock() {
+            state.get_or_insert(message);
+        }
+    }
+
     /// Hôte WebGPU d'un modèle NIE. Aucun événement DOM ni requestAnimationFrame installé.
     /// La destruction libère le device dédié ; après perte GPU il faut recréer l'hôte.
     pub struct WebViewer {
@@ -81,7 +89,7 @@ mod browser {
         /// Le bind group de présentation peut donc être conservé lui aussi au lieu d'être créé
         /// à chaque `requestAnimationFrame`.
         presentation_bind: Option<wgpu::BindGroup>,
-        lost: Arc<Mutex<Option<String>>>,
+        fault: Arc<Mutex<Option<String>>>,
     }
 
     impl WebViewer {
@@ -121,13 +129,23 @@ mod browser {
                 .request_device(&wgpu::DeviceDescriptor {
                     label: Some("NIE canvas WebGPU"),
                     required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::downlevel_defaults(),
+                    required_limits: wgpu::Limits::downlevel_defaults()
+                        .using_resolution(adapter.limits()),
                     memory_hints: wgpu::MemoryHints::default(),
                     trace: wgpu::Trace::Off,
                     experimental_features: wgpu::ExperimentalFeatures::disabled(),
                 })
                 .await
                 .context("création du device WebGPU")?;
+            let fault = Arc::new(Mutex::new(None));
+            let lost_signal = Arc::clone(&fault);
+            device.set_device_lost_callback(move |reason, message| {
+                record_fault(&lost_signal, format!("device lost ({reason:?}): {message}"));
+            });
+            let error_signal = Arc::clone(&fault);
+            device.on_uncaptured_error(Arc::new(move |error| {
+                record_fault(&error_signal, format!("uncaptured GPU error: {error}"));
+            }));
             let (width, height) = checked_size(
                 f64::from(canvas.width()),
                 f64::from(canvas.height()),
@@ -159,13 +177,6 @@ mod browser {
             // below; rejecting the incomplete capability list blocks every avatar canvas.
             let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
             surface.configure(&device, &config);
-            let lost = Arc::new(Mutex::new(None));
-            let signal = Arc::clone(&lost);
-            device.set_device_lost_callback(move |reason, message| {
-                if let Ok(mut state) = signal.lock() {
-                    *state = Some(format!("{reason:?}: {message}"));
-                }
-            });
             let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("NIE présentation"),
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -228,13 +239,13 @@ mod browser {
                 layout,
                 pipeline,
                 presentation_bind: None,
-                lost,
+                fault,
             })
         }
 
         fn ready(&self) -> Result<()> {
             let state = self
-                .lost
+                .fault
                 .lock()
                 .map_err(|_| anyhow::anyhow!("état GPU indisponible"))?;
             if let Some(message) = state.as_ref() {
@@ -261,7 +272,7 @@ mod browser {
         pub fn load_glb(&mut self, bytes: &[u8]) -> Result<()> {
             self.ready()?;
             ensure!(bytes.len() <= 64 * 1024 * 1024, "GLB supérieur à 64 Mio");
-            let model = glb::parse(bytes)?;
+            let model = glb::parse_with_texture_budget(bytes, MAX_DECODED_TEXTURE_BYTES)?;
             ensure!(!model.primitives.is_empty(), "GLB sans primitive");
             let limits = self.renderer.device().limits();
             for texture in &model.textures {
@@ -300,7 +311,16 @@ mod browser {
                     "maillage supérieur aux limites GPU"
                 );
             }
-            let uploaded = self.renderer.upload(&model);
+            ensure!(
+                model.primitives.iter().any(|primitive| {
+                    !primitive.positions.is_empty() && !primitive.indices.is_empty()
+                }),
+                "GLB sans triangle exploitable"
+            );
+            // Drop obsolete buffers/textures before allocating the replacement model. This keeps
+            // peak VRAM close to one model instead of temporarily retaining both generations.
+            self.model = None;
+            let uploaded = self.renderer.try_upload(&model)?;
             ensure!(uploaded.triangle_count > 0, "GLB sans triangle exploitable");
             self.model = Some(uploaded);
             Ok(())
@@ -421,6 +441,9 @@ mod browser {
 
     impl Drop for WebViewer {
         fn drop(&mut self) {
+            self.presentation_bind = None;
+            self.model = None;
+            self.renderer.release_resources();
             self.renderer.device().destroy();
         }
     }

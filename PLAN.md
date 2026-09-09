@@ -866,6 +866,48 @@ round-trip passed 24 tests with 163102 assertions; `nie-wiki` passed 47 tests; `
 and the MCP, cron and web typechecks passed. No deployment or live-production validation was
 performed.
 
+## WebGPU and avatar lifecycle stabilization slice — 2026-09-09
+
+The browser WebGPU owner now records device loss and uncaptured errors in one terminal viewer
+fault, requests only adapter-supported limits, and explicitly destroys obsolete buffers, textures,
+render targets and the device. Bind groups and pipelines remain RAII handles because wgpu 29 has
+no explicit destruction operation for them. Camera uniforms use one retained buffer and a
+`StagingBelt` in `write -> finish -> submit -> recall` order. Adjacent primitives sharing a texture
+are merged without reordering and materialized one CPU batch at a time; this is draw batching, not
+instanced rendering, and no performance improvement is claimed without a browser trace.
+
+Web GLB input remains bounded at 64 MiB and now has a separate 128 MiB aggregate decoded-RGBA
+budget checked from PNG headers before decoder and final texture allocations. Replacement models
+release the previous GPU allocation before upload, reject unusable geometry, and keep the previous
+presented canvas visible until the new HTTP response is validated, uploaded and rendered. The
+shared Three.js compatibility viewport deduplicates disposal of geometry, material, texture,
+skeleton bone texture and bitmap resources, clears render lists, and releases its WebGL context.
+
+The browser compiles the immutable Wasm module in a one-shot module worker where policy permits,
+with a tested main-thread fallback. This does not move WGSL pipeline creation or rendering off the
+main thread; that requires an `OffscreenCanvas` worker ABI. The opening sequence no longer exposes
+the `Reprendre` control: an autoplay-rejected opening retries on the next user gesture, while media
+preview keeps an explicit local play control. The Rust avatar resolver and WebGPU model viewport
+remain the active browser path, and model replacement preserves the user's camera.
+
+Measured on host `vps-203bea89` at 2026-09-09T05:53:34Z: `nie-render3d` passed 30 library tests;
+native and wasm32 strict clippy passed; the `nie-wasm` wasm32/WebGPU check passed; shared UI passed
+64 tests with 316 assertions and its TypeScript check; browser tests passed 142 tests with 710
+assertions and its TypeScript check. A production-mode Vite build transformed 2,068 modules and
+emitted the dedicated 672-byte worker chunk. The canonical Wasm build published 4,000,663 bytes,
+SHA-256 `ad51147b2047910086531854875c93dc640bb6605bad5e9959e30af7c5ee91fe`, after all Rust source
+changes. Formatting and scoped whitespace checks passed.
+
+The full stabilization objective remains open. Chrome 147 automation on this host exposes only
+Google SwiftShader, so it cannot prove hardware VRAM behavior, sustained frame pacing or recovery
+under injected hardware device loss. Required next evidence is the bounded stress matrix: 1,000
+representative model swaps, 200 resizes, 100 mount/unmount cycles, a deterministic device-loss
+recreation test, draw-call measurements, and p95 interaction latency on named GPU hardware.
+Dynamic mipmaps, true repeated-geometry instancing, OffscreenCanvas/WGSL worker rendering,
+complete asset dependency coverage, pose/animation controls, and an authenticated/version-guarded
+native Live Bridge with a verified avatar memory schema are also not implemented. The current
+Explorer bridge must not receive process-memory write commands.
+
 ## Independent production target pipeline — 2026-09-09
 
 `bun run deploy:target -- <target>` is the only narrow production entrypoint. Builds are staged
