@@ -266,11 +266,24 @@ The post-`stmxcsr` exact build also remains byte-identical: 209,375 Rust units a
 produced bytes, zero rejected units, 33,918,464 output bytes, and the reference SHA-256
 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c` (`identical=true`).
 
-The `vmovdqu` candidate was independently confirmed: translating the reported VA within
-`fn.14071dac0` locates file offset `0x71cf0a`, whose bytes are `c5 fe 6f 35 4e 1f 19 01`, a
-VEX.256 `vmovdqu ymm6, [1418afa60h]`. This is genuine code, not another boundary residue. The
-remaining implementation must introduce a width-aware YMM operand in the VEX AST and preserve
-`L=1`; a 128-bit alias would encode the wrong instruction and is not acceptable.
+### M1 `vmovdqu` 256-bit VEX.256 form — implemented
+
+`nie-asm` now owns `Ymm`, `YmmRm` and `Insn::Vex256(VexOp, Ymm, Ymm, YmmRm, Option<u8>)` with
+exact bit-preserving encoding for `L=1` across 2-byte (`0xC5`) and 3-byte (`0xC4`) VEX prefixes.
+Canonical text rendering (`ymm...`) and parsing round-trip faithfully; `nie-forge::lift` maps
+iced-x86 YMM instructions (`is_ymm()`) to `Insn::Vex256`. Unit tests verify exact bytes for
+`vmovdqu ymm6, [rip 0x1418afa60]` (`c5 fe 6f 35 4e 1f 19 01`).
+- `nie-asm`: 29 library tests and 1 doctest pass; strict clippy clean.
+- `nie-forge`: 34 library tests and 2 integration tests pass; strict clippy clean.
+- Post-change lift: 105,266 bodies and 22,593,138 bytes, up **1 body / 80 bytes**; blockers fall
+  from 1,978 units / 1,240,903 bytes to **1,977 units / 1,240,823 bytes**. `vmovdqu` is eliminated
+  from the genuine instruction blocker ranking.
+- Post-change report: **74.061759%** file provenance and **92.447995%** `.text` provenance.
+- Post-change build: 209,376 Rust units / 25,120,611 bytes produced, 0 rejected; emitted
+  `dist/nie.exe` is 33,918,464 bytes with exact SHA-256
+  `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c` (`identical=true`).
+- Next genuine high-mass candidate: `vpaddw` 256-bit form (4 units / 33,130 bytes, sample
+  `vpaddw ymm0, ymm8, [rcx] @ 0x140727ebb`); `in`/`out`/`sti` remain suspected false-code.
 
 #### M2 scene-document foundation — implemented library slice, integration still open
 
