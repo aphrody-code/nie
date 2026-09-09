@@ -13,7 +13,7 @@
 use iced_x86::{Decoder, DecoderOptions, Mnemonic, OpKind, Register};
 use nie_asm::{
     Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, ShiftOp, Size, SseMaskOp, SseOp, SseShiftOp,
-    UnOp, VexOp, Xmm, XmmRm,
+    UnOp, VexOp, Xmm, XmmRm, Ymm, YmmRm,
 };
 
 /// Traduit un registre iced-x86 en `(registre nie-asm, taille)`.
@@ -173,6 +173,11 @@ fn alu_of(m: Mnemonic) -> Option<Alu> {
 /// Traduit un registre vectoriel iced-x86.
 fn xmm_of(r: Register) -> Option<Xmm> {
     r.is_xmm().then(|| u8::try_from(r.number()).ok())?.map(Xmm)
+}
+
+/// Traduit un registre vectoriel 256 bits iced-x86.
+fn ymm_of(r: Register) -> Option<Ymm> {
+    r.is_ymm().then(|| u8::try_from(r.number()).ok())?.map(Ymm)
 }
 
 /// Opération VEX correspondant à l'instruction, forme « store » comprise.
@@ -555,6 +560,46 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
     // memoire pouvant etre destination), permutation a immediat, et multiplie-
     // accumule a trois registres ou `vvvv` porte le second operande.
     if let Some(op) = vex_of(i) {
+        let is_256 = i.op0_register().is_ymm()
+            || i.op1_register().is_ymm()
+            || (i.op_count() > 2 && i.op2_register().is_ymm());
+        if is_256 {
+            let (dst, src1, src2, imm) = if op.is_store() {
+                (
+                    ymm_of(i.op_register(1))?,
+                    Ymm(0),
+                    YmmRm::M(mem_of(i)?),
+                    None,
+                )
+            } else if op.has_imm() {
+                let src = match i.op_kind(1) {
+                    OpKind::Register => YmmRm::Y(ymm_of(i.op_register(1))?),
+                    OpKind::Memory => YmmRm::M(mem_of(i)?),
+                    _ => return None,
+                };
+                (ymm_of(i.op_register(0))?, Ymm(0), src, Some(i.immediate8()))
+            } else if i.op_count() == 3 {
+                let src = match i.op_kind(2) {
+                    OpKind::Register => YmmRm::Y(ymm_of(i.op_register(2))?),
+                    OpKind::Memory => YmmRm::M(mem_of(i)?),
+                    _ => return None,
+                };
+                (
+                    ymm_of(i.op_register(0))?,
+                    ymm_of(i.op_register(1))?,
+                    src,
+                    None,
+                )
+            } else {
+                let src = match i.op_kind(1) {
+                    OpKind::Register => YmmRm::Y(ymm_of(i.op_register(1))?),
+                    OpKind::Memory => YmmRm::M(mem_of(i)?),
+                    _ => return None,
+                };
+                (ymm_of(i.op_register(0))?, Ymm(0), src, None)
+            };
+            return Some(Insn::Vex256(op, dst, src1, src2, imm));
+        }
         let (dst, src1, src2, imm) = if op.is_store() {
             (
                 xmm_of(i.op_register(1))?,

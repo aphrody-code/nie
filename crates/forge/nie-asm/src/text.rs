@@ -15,7 +15,7 @@
 
 use crate::{
     Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, RepOp, Rm, Seg, ShiftOp, Size, SseMaskOp, SseOp,
-    SseShiftOp, UnOp, VexOp, Xmm, XmmRm,
+    SseShiftOp, UnOp, VexOp, Xmm, XmmRm, Ymm, YmmRm,
 };
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -587,6 +587,29 @@ fn parse_xmmrm(s: &str) -> Option<XmmRm> {
     Some(XmmRm::X(xmm_of(s)?))
 }
 
+fn ymm_text(y: Ymm) -> String {
+    format!("ymm{}", y.0)
+}
+
+fn ymm_of(s: &str) -> Option<Ymm> {
+    let n = s.trim().strip_prefix("ymm")?.parse::<u8>().ok()?;
+    (n < 16).then_some(Ymm(n))
+}
+
+fn ymmrm_text(rm: YmmRm) -> String {
+    match rm {
+        YmmRm::Y(y) => ymm_text(y),
+        YmmRm::M(m) => mem_text(m),
+    }
+}
+
+fn parse_ymmrm(s: &str) -> Option<YmmRm> {
+    if s.trim_start().starts_with('[') {
+        return Some(YmmRm::M(parse_mem(s)?));
+    }
+    Some(YmmRm::Y(ymm_of(s)?))
+}
+
 const CVTS: [(&str, CvtOp); 6] = [
     ("cvtsi2ss", CvtOp::Cvtsi2ss),
     ("cvtsi2sd", CvtOp::Cvtsi2sd),
@@ -822,6 +845,22 @@ impl Insn {
                     }
                     (false, None) => {
                         format!("{n} {}, {}, {s2}", xmm_text(dst), xmm_text(src1))
+                    }
+                }
+            }
+            Self::Vex256(op, dst, src1, src2, imm) => {
+                let n = vex_name(op);
+                let s2 = ymmrm_text(src2);
+                match (op.is_store(), imm) {
+                    (true, _) => format!("{n} {s2}, {}", ymm_text(dst)),
+                    (false, Some(v)) => {
+                        format!("{n} {}, {s2}, {v:#x}", ymm_text(dst))
+                    }
+                    (false, None) if src1.0 == 0 && !op.has_imm() && is_two_operand(op) => {
+                        format!("{n} {}, {s2}", ymm_text(dst))
+                    }
+                    (false, None) => {
+                        format!("{n} {}, {}, {s2}", ymm_text(dst), ymm_text(src1))
                     }
                 }
             }
@@ -1120,6 +1159,40 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     }
     if let Some((_, op)) = VEXES.iter().find(|(n, _)| *n == mnem) {
         let parts: alloc::vec::Vec<&str> = args.split(',').map(str::trim).collect();
+        if parts.iter().any(|p| p.trim().starts_with("ymm")) {
+            let zero = Ymm(0);
+            return match (op.is_store(), op.has_imm(), parts.len()) {
+                (true, _, 2) => Ok(Insn::Vex256(
+                    *op,
+                    ymm_of(parts[1]).ok_or_else(err)?,
+                    zero,
+                    YmmRm::M(parse_mem(parts[0]).ok_or_else(err)?),
+                    None,
+                )),
+                (false, true, 3) => Ok(Insn::Vex256(
+                    *op,
+                    ymm_of(parts[0]).ok_or_else(err)?,
+                    zero,
+                    parse_ymmrm(parts[1]).ok_or_else(err)?,
+                    Some(u8::try_from(parse_int(parts[2]).ok_or_else(err)?).map_err(|_| err())?),
+                )),
+                (false, false, 2) => Ok(Insn::Vex256(
+                    *op,
+                    ymm_of(parts[0]).ok_or_else(err)?,
+                    zero,
+                    parse_ymmrm(parts[1]).ok_or_else(err)?,
+                    None,
+                )),
+                (false, false, 3) => Ok(Insn::Vex256(
+                    *op,
+                    ymm_of(parts[0]).ok_or_else(err)?,
+                    ymm_of(parts[1]).ok_or_else(err)?,
+                    parse_ymmrm(parts[2]).ok_or_else(err)?,
+                    None,
+                )),
+                _ => Err(err()),
+            };
+        }
         let zero = Xmm(0);
         return match (op.is_store(), op.has_imm(), parts.len()) {
             (true, _, 2) => Ok(Insn::Vex(
@@ -1756,6 +1829,25 @@ mod tests_vex {
     fn vfmadd231ps_porte_le_registre_non_destructif() {
         let i = Insn::Vex(VexOp::Vfmadd231ps, Xmm(4), Xmm(0), XmmRm::X(Xmm(3)), None);
         assert_eq!(crate::encode(&[i]), vec![0xC4, 0xE2, 0x79, 0xB8, 0xE3]);
+    }
+
+    /// `vmovdqu ymm6, [rip 0x1418afa60]` — VEX.256 court `C5` (L=1).
+    #[test]
+    fn vmovdqu_ymm_rip_encode_et_parse() {
+        let i = Insn::Vex256(
+            VexOp::Vmovdqu,
+            Ymm(6),
+            Ymm(0),
+            YmmRm::M(Mem::rip(0x1418afa60)),
+            None,
+        );
+        assert_eq!(
+            crate::encode_at(&[i], 0x14071db0a),
+            vec![0xC5, 0xFE, 0x6F, 0x35, 0x4E, 0x1F, 0x19, 0x01]
+        );
+        let t = i.to_text();
+        assert_eq!(t, "vmovdqu ymm6, [rip 0x1418afa60]");
+        assert_eq!(parse_insn(&t).unwrap(), i);
     }
 }
 

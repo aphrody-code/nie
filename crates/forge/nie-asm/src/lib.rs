@@ -418,6 +418,34 @@ pub enum XmmRm {
     M(Mem),
 }
 
+/// Registre vectoriel 256 bits (AVX).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Ymm(pub u8);
+
+impl Ymm {
+    /// Bit haut (bit 3), porté par VEX/REX.
+    #[must_use]
+    pub fn hi(self) -> u8 {
+        self.0 >> 3
+    }
+
+    /// 3 bits bas, portés par ModRM.
+    #[must_use]
+    pub fn lo(self) -> u8 {
+        self.0 & 7
+    }
+}
+
+/// Opérande vectoriel 256 bits « registre YMM ou mémoire ».
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(missing_docs)]
+pub enum YmmRm {
+    Y(Ymm),
+    M(Mem),
+}
+
 /// Opération SSE à opérandes `xmm, xmm/m`.
 ///
 /// Le jeu couvre ce qui bloque réellement le relevé de `nie.exe` : les
@@ -971,6 +999,11 @@ pub enum Insn {
     /// `vmovaps [rsp+20h], xmm6`. `src1` alimente le champ `vvvv` du préfixe
     /// (registre non destructif) ; il vaut `xmm0` quand la forme n'en a pas.
     Vex(VexOp, Xmm, Xmm, XmmRm, Option<u8>),
+    /// Instruction encodée **VEX.256** (AVX 256 bits) à trois opérandes.
+    ///
+    /// `vmovdqu ymm6, [rip+...]` ; `src1` alimente le champ `vvvv` du préfixe
+    /// (registre non destructif) ; il vaut `ymm0` quand la forme n'en a pas.
+    Vex256(VexOp, Ymm, Ymm, YmmRm, Option<u8>),
     /// `prefetch<hint> [mem]` (`0F 18 /n`) — indication de préchargement.
     ///
     /// Le niveau de cache est porté par le champ `reg` du ModRM : `nta` = 0,
@@ -1733,21 +1766,50 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
                 XmmRm::M(m) => mem_rex(m),
             };
             let r = dst.hi();
+            let l = 0u8;
             // La forme courte `C5` n'existe que pour la table `0F`, sans
             // `X`/`B` hauts et sans `W` : MSVC la choisit dès qu'elle
             // s'applique, et la forge doit rendre les mêmes octets.
             if map == VexMap::M0F && x == 0 && b == 0 && !w {
                 out.push(0xC5);
-                out.push(((1 - r) << 7) | ((!src1.0 & 0x0F) << 3) | pp);
+                out.push(((1 - r) << 7) | ((!src1.0 & 0x0F) << 3) | (l << 2) | pp);
             } else {
                 out.push(0xC4);
                 out.push(((1 - r) << 7) | ((1 - x) << 6) | ((1 - b) << 5) | map.mm());
-                out.push((u8::from(w) << 7) | ((!src1.0 & 0x0F) << 3) | pp);
+                out.push((u8::from(w) << 7) | ((!src1.0 & 0x0F) << 3) | (l << 2) | pp);
             }
             out.push(opcode);
             match src2 {
                 XmmRm::X(rr) => out.push(0xC0 | (dst.lo() << 3) | rr.lo()),
                 XmmRm::M(m) => {
+                    modrm_mem(out, dst.lo(), m, at, base, usize::from(imm.is_some()));
+                }
+            }
+            if let Some(v) = imm {
+                out.push(v);
+            }
+        }
+        Insn::Vex256(op, dst, src1, src2, imm) => {
+            let base = out.len();
+            let (map, pp, opcode, w, _) = op.encoding();
+            let (x, b) = match src2 {
+                YmmRm::Y(r) => (0, r.hi()),
+                YmmRm::M(m) => mem_rex(m),
+            };
+            let r = dst.hi();
+            let l = 1u8;
+            if map == VexMap::M0F && x == 0 && b == 0 && !w {
+                out.push(0xC5);
+                out.push(((1 - r) << 7) | ((!src1.0 & 0x0F) << 3) | (l << 2) | pp);
+            } else {
+                out.push(0xC4);
+                out.push(((1 - r) << 7) | ((1 - x) << 6) | ((1 - b) << 5) | map.mm());
+                out.push((u8::from(w) << 7) | ((!src1.0 & 0x0F) << 3) | (l << 2) | pp);
+            }
+            out.push(opcode);
+            match src2 {
+                YmmRm::Y(rr) => out.push(0xC0 | (dst.lo() << 3) | rr.lo()),
+                YmmRm::M(m) => {
                     modrm_mem(out, dst.lo(), m, at, base, usize::from(imm.is_some()));
                 }
             }
@@ -2366,6 +2428,25 @@ mod tests {
         let insn = Insn::Stmxcsr(Mem::base_disp(Reg::Rsp, 0x58));
         assert_eq!(encode(&[insn]), vec![0x0F, 0xAE, 0x5C, 0x24, 0x58]);
         assert_eq!(text::parse_insn("stmxcsr [rsp+0x58]").unwrap(), insn);
+    }
+
+    #[test]
+    fn vmovdqu_ymm_mem_encode_et_parse() {
+        let insn = Insn::Vex256(
+            VexOp::Vmovdqu,
+            Ymm(6),
+            Ymm(0),
+            YmmRm::M(Mem::rip(0x1418afa60)),
+            None,
+        );
+        assert_eq!(
+            encode_at(&[insn], 0x14071db0a),
+            vec![0xC5, 0xFE, 0x6F, 0x35, 0x4E, 0x1F, 0x19, 0x01]
+        );
+        assert_eq!(
+            text::parse_insn("vmovdqu ymm6, [rip 0x1418afa60]").unwrap(),
+            insn
+        );
     }
 
     #[test]
