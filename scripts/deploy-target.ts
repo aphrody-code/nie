@@ -65,7 +65,6 @@ async function run(context: TargetContext, argv: string[], cwd = repositoryRoot)
 	const child = Bun.spawn(
 		[
 			"timeout",
-			"--foreground",
 			"--signal=TERM",
 			"--kill-after=2s",
 			`${remainingSeconds}s`,
@@ -191,10 +190,14 @@ async function buildBinary(
 	const liveBinary = `target/release/${binaryName}`;
 	const rollback = `${context.releaseDirectory}/rollback/${binaryName}`;
 	const hadLiveBinary = await Bun.file(liveBinary).exists();
+	let rollbackHash: string | undefined;
 	if (hadLiveBinary) {
 		await mkdir(`${context.releaseDirectory}/rollback`, { recursive: true });
 		await copyFile(liveBinary, rollback);
 		await chmod(rollback, 0o755);
+		rollbackHash = new Bun.CryptoHasher("sha256")
+			.update(await Bun.file(rollback).arrayBuffer())
+			.digest("hex");
 	}
 	try {
 		await run(context, ["cargo", "build", "--release", "--locked", "-p", packageName]);
@@ -202,10 +205,15 @@ async function buildBinary(
 		await mkdir(`${context.releaseDirectory}/bin`, { recursive: true });
 		await copyFile(liveBinary, artifact);
 		await chmod(artifact, 0o755);
-		await atomicCopy(artifact, liveBinary);
 		return hadLiveBinary ? rollback : undefined;
 	} catch (error) {
-		if (hadLiveBinary) await atomicCopy(rollback, liveBinary);
+		if (hadLiveBinary) {
+			const current = Bun.file(liveBinary);
+			const currentHash = (await current.exists())
+				? new Bun.CryptoHasher("sha256").update(await current.arrayBuffer()).digest("hex")
+				: "";
+			if (currentHash !== rollbackHash) await atomicCopy(rollback, liveBinary);
+		}
 		throw error;
 	}
 }
@@ -238,7 +246,9 @@ async function deployBinaryService(
 
 async function deployWeb(context: TargetContext): Promise<void> {
 	const bundle = `${context.releaseDirectory}/bundle`;
-	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"]);
+	if (!(await Bun.file("apps/nie-web/public/static/game/nie_wasm_bg.wasm").exists())) {
+		throw new Error("The validated WebAssembly artifact is missing; deploy the wasm target first.");
+	}
 	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "typecheck"]);
 	await run(context, [
 		"bunx",
@@ -275,6 +285,15 @@ async function deployWeb(context: TargetContext): Promise<void> {
 	}
 }
 
+async function deployWasm(context: TargetContext): Promise<void> {
+	const artifact = "apps/nie-web/public/static/game/nie_wasm_bg.wasm";
+	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"]);
+	const file = Bun.file(artifact);
+	if (!(await file.exists()) || file.size < 100_000 || file.size > 6 * 1024 * 1024) {
+		throw new Error("WebAssembly output is absent or outside the 100 KiB to 6 MiB production bound.");
+	}
+}
+
 async function deployBunService(
 	context: TargetContext,
 	typecheck: string[],
@@ -304,7 +323,7 @@ const targets: Record<string, Target> = {
 		description: "Rust FFI library used by Bun compatibility adapters",
 		deploy: async (context) => {
 			await buildBinary(context, "nie-ffi", "libnie_ffi.so");
-			const symbols = await run(context, ["nm", "-D", "target/release/libnie_ffi.so"]);
+			const symbols = await run(context, ["nm", "-D", "--defined-only", "target/release/libnie_ffi.so"]);
 			if (!symbols.includes("nie_wiki_json_out")) {
 				throw new Error("Rust FFI library does not export nie_wiki_json_out.");
 			}
@@ -326,8 +345,12 @@ const targets: Record<string, Target> = {
 			await publishNativeMcpAliases();
 		},
 	},
+	wasm: {
+		description: "Optimized and validated Rust WebAssembly module",
+		deploy: deployWasm,
+	},
 	web: {
-		description: "nie WebAssembly browser bundle",
+		description: "Browser shell built around the validated WebAssembly module",
 		deploy: deployWeb,
 	},
 	model: {
@@ -402,6 +425,7 @@ const orderedTargets = [
 	"ffi",
 	"cli",
 	"mcp",
+	"wasm",
 	"web",
 	"model",
 	"site",

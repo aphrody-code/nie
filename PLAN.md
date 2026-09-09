@@ -846,8 +846,9 @@ independent hard deadline of 60 seconds, writes a commit-bound manifest under
 process, and requires a meaningful local or public health response. `--all` attempts every target
 and reports all failures instead of hiding later targets behind the first failure.
 
-The maintained targets are the Rust FFI, native CLI, standalone Rust stdio MCP, WebAssembly
-bundle, Rust model server, Rust site, cron, IEVR CDN variants, realtime, and storage. Libraries
+The maintained targets are the Rust FFI, native CLI, standalone Rust stdio MCP, optimized
+WebAssembly module, browser shell, Rust model server, Rust site, cron, IEVR CDN variants,
+realtime, and storage. Libraries
 deploy through these
 owners rather than being published as independent services. The former public Bun MCP unit is
 deleted from the repository and remains masked on the host because the supported transport is
