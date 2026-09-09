@@ -184,7 +184,7 @@ async function restartUnit(
 
 async function buildBinary(
 	context: TargetContext,
-	packageName: string,
+	_packageName: string,
 	binaryName: string
 ): Promise<string | undefined> {
 	const liveBinary = `target/release/${binaryName}`;
@@ -200,7 +200,22 @@ async function buildBinary(
 			.digest("hex");
 	}
 	try {
-		await run(context, ["cargo", "build", "--release", "--locked", "-p", packageName]);
+		await run(context, [
+			"cargo",
+			"build",
+			"--release",
+			"--locked",
+			"-p",
+			"nie-cli",
+			"-p",
+			"nie-mcp",
+			"-p",
+			"nie-site",
+			"-p",
+			"nie-model-serve",
+			"-p",
+			"nie-ffi",
+		]);
 		const artifact = `${context.releaseDirectory}/bin/${binaryName}`;
 		await mkdir(`${context.releaseDirectory}/bin`, { recursive: true });
 		await copyFile(liveBinary, artifact);
@@ -272,7 +287,7 @@ async function deployWeb(context: TargetContext): Promise<void> {
 	try {
 		await waitFor(context, "http://127.0.0.1:8085/api/v1/health", validateSiteHealth);
 		await waitFor(context, "https://nie.aphrody.com/", (body) => {
-			if (!body.includes("/static/") || !body.includes("<div id=\"root\"></div>")) {
+			if (!body.includes("/static/") || !body.includes("id=\"racine\"")) {
 				throw new Error("Public site shell is incomplete.");
 			}
 		});

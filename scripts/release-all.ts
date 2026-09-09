@@ -186,6 +186,8 @@ const stages: Stage[] = [
 					"nie-site",
 					"-p",
 					"nie-model-serve",
+					"-p",
+					"nie-ffi",
 				],
 				env: { CARGO_TARGET_DIR: "<STAGE>/target" },
 			},
