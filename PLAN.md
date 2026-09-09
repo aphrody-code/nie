@@ -24,7 +24,7 @@ source implementation phase, as requested by the user.
 ### Inacord distribution lane — 2026-09-09
 
 `inacord.aphrody.com` is the dedicated download and browser-workspace origin. Its root is a
-catalog-driven hub for the signed Windows desktop installer, Linux CLI and MCP archives, Blender
+generated static, zero-JavaScript hub for the signed Windows desktop installer, Linux CLI and MCP archives, Blender
 and agent plugins, the installable mobile web application, and the complete browser-adapted
 Inacord shell. Native Android/iOS packages remain explicitly unavailable until signed artifacts
 and platform runners exist; the mobile web entry must never be relabelled as an APK or IPA.
