@@ -302,11 +302,14 @@ async function deployWeb(context: TargetContext): Promise<void> {
 
 async function deployWasm(context: TargetContext): Promise<void> {
 	const artifact = "apps/nie-web/public/static/game/nie_wasm_bg.wasm";
-	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"]);
 	const file = Bun.file(artifact);
 	if (!(await file.exists()) || file.size < 100_000 || file.size > 6 * 1024 * 1024) {
 		throw new Error("WebAssembly output is absent or outside the 100 KiB to 6 MiB production bound.");
 	}
+	if (!WebAssembly.validate(await file.arrayBuffer())) {
+		throw new Error("The staged WebAssembly artifact is invalid.");
+	}
+	assertDeadline(context);
 }
 
 async function deployBunService(
@@ -361,7 +364,7 @@ const targets: Record<string, Target> = {
 		},
 	},
 	wasm: {
-		description: "Optimized and validated Rust WebAssembly module",
+		description: "Validated prebuilt Rust WebAssembly module",
 		deploy: deployWasm,
 	},
 	web: {

@@ -840,13 +840,14 @@ performed.
 
 ## Independent production target pipeline — 2026-09-09
 
-`bun run deploy:target -- <target>` is the only narrow production entrypoint. Each target has an
-independent hard deadline of 60 seconds, writes a commit-bound manifest under
+`bun run deploy:target -- <target>` is the only narrow production entrypoint. Builds are staged
+before this boundary; the target pipeline validates and publishes them. Each target has an
+independent hard deadline of 60 seconds and writes a commit-bound manifest under
 `var/deployments/targeted/`, installs its tracked systemd unit when needed, restarts only its own
 process, and requires a meaningful local or public health response. `--all` attempts every target
 and reports all failures instead of hiding later targets behind the first failure.
 
-The maintained targets are the Rust FFI, native CLI, standalone Rust stdio MCP, optimized
+The maintained targets are the Rust FFI, native CLI, standalone Rust stdio MCP, validated
 WebAssembly module, browser shell, Rust model server, Rust site, cron, IEVR CDN variants,
 realtime, and storage. Libraries
 deploy through these
