@@ -7,8 +7,11 @@
 	"scripts": {
 		"dev": "vite",
 		"dev:desktop": "vite --mode desktop",
+		"dev:inacord-web": "vite --mode inacord-web",
 		"preview:desktop": "vite preview --mode desktop",
+		"preview:inacord-web": "vite preview --mode inacord-web",
 		"build:desktop": "bun run typecheck:desktop && vite build --mode desktop",
+		"build:inacord-web": "bun run typecheck:desktop && tsc -b && vite build --mode inacord-web",
 		"build": "bun run build:wasm && tsc -b && vite build && bun --bun scripts/precompress.ts",
 		"build:wasm": "bun --bun scripts/build-wasm.ts",
 		"preview": "vite preview",

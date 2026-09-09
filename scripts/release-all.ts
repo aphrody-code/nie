@@ -208,6 +208,19 @@ const stages: Stage[] = [
 					"--emptyOutDir",
 				],
 			},
+			{
+				argv: [
+					"bunx",
+					"vite",
+					"build",
+					"apps/nie-web",
+					"--mode",
+					"inacord-web",
+					"--outDir",
+					"<STAGE>/inacord-bundle",
+					"--emptyOutDir",
+				],
+			},
 			{ argv: ["bun", "apps/nie-web/scripts/precompress.ts", "<STAGE>/bundle"] },
 			{
 				argv: ["bash", "scripts/e2e-site.sh", "--no-build", "--vfs=200"],
@@ -391,7 +404,7 @@ async function assertImmutable(commit: string): Promise<void> {
 
 async function prepareReleaseArtifacts(): Promise<void> {
 	await mkdir(`${releaseStage}/bin`, { recursive: true });
-	for (const binary of ["niers", "nie-site", "nie-model-serve"]) {
+	for (const binary of ["niers", "nie-mcp", "nie-site", "nie-model-serve"]) {
 		const source = `${releaseStage}/target/release/${binary}`;
 		if (!(await Bun.file(source).exists())) throw new Error(`Missing release artifact ${source}`);
 		await copyFile(source, `${releaseStage}/bin/${binary}`);
@@ -431,9 +444,11 @@ async function writeReleaseManifest(
 ): Promise<void> {
 	const paths = [
 		"bin/niers",
+		"bin/nie-mcp",
 		"bin/nie-site",
 		"bin/nie-model-serve",
 		"bundle/index.html",
+		"inacord-bundle/index.html",
 		"bundle/static/game/nie_wasm_bg.wasm",
 	];
 	const artifacts = [];
@@ -539,8 +554,22 @@ async function validateLive(): Promise<void> {
 	const modelHealth = await (await fetchResponse("https://cdn.aphrody.com/health")).text();
 	if (modelHealth.trim() !== "ok")
 		throw new Error("Public model backend health payload is not ok.");
+	const inacordHome = await (await fetchResponse("https://inacord.aphrody.com/")).text();
+	if (!inacordHome.includes("id=\"racine\"")) throw new Error("Inacord shell is incomplete.");
+	const catalog = object(
+		await (await fetchResponse("https://inacord.aphrody.com/downloads/catalog.json")).json()
+	);
+	if (!Array.isArray(catalog.products) || catalog.products.length < 8)
+		throw new Error("Inacord catalog is incomplete.");
+	const updater = object(
+		await (
+			await fetchResponse("https://inacord.aphrody.com/downloads/channels/stable/latest.json")
+		).json()
+	);
+	if (!object(updater.platforms)["windows-x86_64"])
+		throw new Error("Inacord stable updater lacks the Windows platform.");
 	process.stdout.write(
-		`    ✓ site API/VFS, ${icons.total_indexed} icons, ${modes.total_modes} modes, Brotli bundle, and model backend\n`
+		`    ✓ site API/VFS, ${icons.total_indexed} icons, ${modes.total_modes} modes, Brotli bundle, model backend, and ${catalog.products.length} Inacord products\n`
 	);
 }
 
@@ -582,12 +611,17 @@ async function deployProduction(commit: string): Promise<void> {
 		throw new Error(
 			"apps/nie-web/dist is not a release symlink; refusing a non-atomic deployment."
 		);
+	const previousInacordBundle = await readlink("apps/nie-web/dist-inacord").catch(() => "");
+	const previousInacordChannel = await readlink("var/releases/inacord/public").catch(() => "");
 	const rollback = `${release}/rollback`;
 	await rename(releaseStage, release);
-	for (const binary of ["niers", "nie-site", "nie-model-serve"])
+	for (const binary of ["niers", "nie-mcp", "nie-site", "nie-model-serve"])
 		if (!(await Bun.file(`${rollback}/${binary}`).exists()))
 			throw new Error(`Rollback artifact ${binary} is missing.`);
-	await Bun.write(`${release}/rollback.json`, `${JSON.stringify({ previousBundle }, null, 2)}\n`);
+	await Bun.write(
+		`${release}/rollback.json`,
+		`${JSON.stringify({ previousBundle, previousInacordBundle, previousInacordChannel }, null, 2)}\n`
+	);
 	const oldPids = new Map<string, string>();
 	for (const unit of ["nie-model-serve.service", "nie-site.service"])
 		oldPids.set(unit, await capture(["systemctl", "show", unit, "-p", "MainPID", "--value"]));
@@ -596,13 +630,18 @@ async function deployProduction(commit: string): Promise<void> {
 		await rm(nextLink, { force: true });
 		await symlink(`${release}/bundle`, nextLink);
 		await rename(nextLink, "apps/nie-web/dist");
-		for (const binary of ["niers", "nie-site", "nie-model-serve"]) {
+		const inacordLink = "apps/nie-web/dist-inacord.release-next";
+		await rm(inacordLink, { force: true });
+		await symlink(`${release}/inacord-bundle`, inacordLink);
+		await rename(inacordLink, "apps/nie-web/dist-inacord");
+		for (const binary of ["niers", "nie-mcp", "nie-site", "nie-model-serve"]) {
 			await atomicCopy(`${release}/bin/${binary}`, `target/release/${binary}`);
 			if ((await sha256(`${release}/bin/${binary}`)) !== (await sha256(`target/release/${binary}`)))
 				throw new Error(`${binary} changed during atomic publication.`);
 		}
 		await runCommand({ argv: ["target/release/niers", "--version"] }, commit);
 		await runCommand({ argv: ["target/release/niers", "mcp", "--help"] }, commit);
+		await runCommand({ argv: ["bun", "scripts/release-inacord.ts"] }, commit);
 		await runCommand({ argv: ["sudo", "systemctl", "restart", "nie-model-serve.service"] }, commit);
 		await waitFor("http://127.0.0.1:8790/health", (body) => {
 			if (body.trim() !== "ok") throw new Error("model health payload is not ok");
@@ -637,7 +676,21 @@ async function rollbackProduction(commit: string): Promise<void> {
 	await rm(rollbackLink, { force: true });
 	await symlink(previousBundle, rollbackLink);
 	await rename(rollbackLink, "apps/nie-web/dist");
-	for (const binary of ["niers", "nie-site", "nie-model-serve"]) {
+	const previousInacordBundle = String(rollbackState.previousInacordBundle ?? "");
+	if (previousInacordBundle) {
+		const inacordRollbackLink = "apps/nie-web/dist-inacord.release-rollback";
+		await rm(inacordRollbackLink, { force: true });
+		await symlink(previousInacordBundle, inacordRollbackLink);
+		await rename(inacordRollbackLink, "apps/nie-web/dist-inacord");
+	}
+	const previousInacordChannel = String(rollbackState.previousInacordChannel ?? "");
+	if (previousInacordChannel) {
+		const channelRollbackLink = "var/releases/inacord/public-rollback";
+		await rm(channelRollbackLink, { force: true });
+		await symlink(previousInacordChannel, channelRollbackLink);
+		await rename(channelRollbackLink, "var/releases/inacord/public");
+	}
+	for (const binary of ["niers", "nie-mcp", "nie-site", "nie-model-serve"]) {
 		if (await Bun.file(`${rollback}/${binary}`).exists())
 			await atomicCopy(`${rollback}/${binary}`, `target/release/${binary}`);
 	}

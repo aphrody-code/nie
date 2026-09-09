@@ -300,6 +300,67 @@ async function deployWeb(context: TargetContext): Promise<void> {
 	}
 }
 
+async function deployInacordWeb(context: TargetContext): Promise<void> {
+	const bundle = `${context.releaseDirectory}/bundle`;
+	const catalog = "var/releases/inacord/public/catalog.json";
+	const updateFeed = "var/releases/inacord/public/channels/stable/latest.json";
+	for (const required of [catalog, updateFeed]) {
+		if (!(await Bun.file(required).exists())) {
+			throw new Error(`Inacord release channel is missing ${required}.`);
+		}
+	}
+	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "typecheck:desktop"]);
+	await run(context, [
+		"bunx",
+		"vite",
+		"build",
+		"apps/nie-web",
+		"--mode",
+		"inacord-web",
+		"--outDir",
+		bundle,
+		"--emptyOutDir",
+	]);
+	if (!(await Bun.file(`${bundle}/index.html`).exists())) {
+		throw new Error("Inacord web build did not produce index.html.");
+	}
+	const sourceMaps = Array.from(new Bun.Glob("**/*.map").scanSync(bundle));
+	if (sourceMaps.length > 0) {
+		throw new Error(`Inacord web build published ${sourceMaps.length} source map(s).`);
+	}
+	requireBudget(context, 10_000, "switch and validate the Inacord bundle");
+	const live = "apps/nie-web/dist-inacord";
+	const previous = await readlink(live).catch(() => undefined);
+	const next = `${live}.deploy-next`;
+	await rm(next, { force: true });
+	await symlink(bundle, next);
+	await rename(next, live);
+	try {
+		await waitFor(context, "https://inacord.aphrody.com/", (body) => {
+			if (!body.includes("id=\"racine\"") || !body.includes("Inacord")) {
+				throw new Error("Public Inacord download shell is incomplete.");
+			}
+		});
+		await waitFor(context, "https://inacord.aphrody.com/downloads/catalog.json", (body) => {
+			const value = requireJsonObject(body);
+			if (!Array.isArray(value.products) || value.products.length < 6) {
+				throw new Error("Inacord catalog has fewer than six products.");
+			}
+		});
+		await waitFor(context, "https://inacord.aphrody.com/app", (body) => {
+			if (!body.includes("id=\"racine\"")) throw new Error("Inacord web app shell is missing.");
+		});
+	} catch (error) {
+		if (previous) {
+			const rollback = `${live}.deploy-rollback`;
+			await rm(rollback, { force: true });
+			await symlink(previous, rollback);
+			await rename(rollback, live);
+		}
+		throw error;
+	}
+}
+
 async function deployWasm(context: TargetContext): Promise<void> {
 	const artifact = "apps/nie-web/public/static/game/nie_wasm_bg.wasm";
 	const file = Bun.file(artifact);
@@ -370,6 +431,10 @@ const targets: Record<string, Target> = {
 	web: {
 		description: "Browser shell built around the validated WebAssembly module",
 		deploy: deployWeb,
+	},
+	inacord: {
+		description: "Inacord downloads and installable web workspace",
+		deploy: deployInacordWeb,
 	},
 	model: {
 		description: "Rust model and VFS asset server",
@@ -445,6 +510,7 @@ const orderedTargets = [
 	"mcp",
 	"wasm",
 	"web",
+	"inacord",
 	"model",
 	"site",
 	"cron",

@@ -10,6 +10,7 @@ fichier. Chaque écart connu est écrit ci-dessous plutôt que supposé absent.
 | Fichier | Hôtes | Amont |
 |---|---|---|
 | `nginx/aphrody.com.conf` | `nie.aphrody.com` | `127.0.0.1:8085` — `nie-site`, **le site** |
+| | `inacord.aphrody.com` | hub statique, canal updater et UI web ; API Rust de lecture seule sur `127.0.0.1:8085` |
 | | `aphrody.com`, `www.` | 308 vers `https://nie.aphrody.com` |
 | | `api.aphrody.com` | `127.0.0.1:8085`, API seule (`404` ailleurs), `noindex` |
 | | `cdn.aphrody.com` | `127.0.0.1:8790` — `nie-model-serve`, sous limite de débit |
@@ -17,9 +18,22 @@ fichier. Chaque écart connu est écrit ci-dessous plutôt que supposé absent.
 | | `mcp.aphrody.com` | `127.0.0.1:8808` — serveur MCP |
 | `nginx/bxc.aphrody.com.conf` | `bxc.aphrody.com` | `127.0.0.1:8084` — **capture, ne pas modifier ici** |
 
-Les onze hôtes partagent le certificat `letsencrypt/live/aphrody.com`. `bxc.aphrody.com` a son
+Les douze hôtes partagent le certificat `letsencrypt/live/aphrody.com`. `bxc.aphrody.com` a son
 propre fichier depuis le 2026-09-07 : il est copié ici pour que l'inventaire du domaine soit
 complet, mais il appartient au dépôt `bxc` et toute évolution vient de là.
+
+### Publication Inacord
+
+Le vhost Inacord sert deux liens atomiques du checkout de production :
+
+- `apps/nie-web/dist-inacord` pour le hub et l’interface complète adaptée au navigateur ;
+- `var/releases/inacord/public` pour le catalogue, les archives immuables et le canal updater.
+
+`bun run release:inacord` refuse une branche autre que `main`, un checkout sale et tout écart
+entre `HEAD` et `origin/main`. Il vérifie les signatures et hashes avant de déplacer le lien
+`public`. La publication complète reste intégrée à `bun run release:all --deploy`; il n’existe pas
+de second orchestrateur de release. Le rollback précédent est conservé dans les manifestes de
+release, et le vhost ne publie ni source map ni chemin de forge.
 
 **`nie-model-serve` passe de `nie.` à `cdn.`** (décision de l'utilisateur, 2026-09-07). Il
 occupait `nie.aphrody.com`, que le site prend ; `cdn.` décrit ce qu'il fait — servir des octets

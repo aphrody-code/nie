@@ -6,8 +6,8 @@ their lightweight manifests differ.
 
 ## Requirements
 
-- Rust and Cargo available on `PATH`.
-- A checkout of the NIERS workspace. The MCP command runs the workspace's `nie-mcp` package.
+- The `nie-mcp` executable on `PATH` (available from the Inacord download hub). No source
+  checkout or Rust toolchain is required at runtime.
 
 ## Host adapters
 
@@ -17,10 +17,10 @@ their lightweight manifests differ.
 | Claude Code | `.claude-plugin/plugin.json` | `.mcp.json` |
 | Antigravity CLI (`agy`) | `plugin.json` | `mcp_config.json` |
 
-All MCP declarations start the same portable native Rust server:
+All MCP declarations start the same installed native Rust server:
 
 ```text
-cargo run --release --quiet --package nie-mcp --
+nie-mcp
 ```
 
 The Claude marketplace manifest at `../.claude-plugin/marketplace.json` exposes this plugin from

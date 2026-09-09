@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import inacordPackage from "../../../../inacord/package.json";
 import { useTheme } from "next-themes";
 import { MemoireCard } from "@/components/MemoireCard";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -585,10 +586,9 @@ export function SettingsView() {
         <CardHeader>
           <CardTitle>Mises à jour</CardTitle>
           <CardDescription>
-            Vérifie/télécharge/installe les nouvelles versions de niers. Endpoints (dans l'ordre) :{" "}
-            <code>nie.aphrody.com/downloads/inacord</code> (page dédiée niers) puis, en repli, la
-            dernière release GitHub (<code>latest.json</code>). Binaires signés (minisign), version
-            actuelle : <Badge variant="secondary">v0.4.0</Badge>.
+            Vérifie, télécharge et installe les nouvelles versions signées d’Inacord depuis le
+            canal stable <code>inacord.aphrody.com</code>. Version actuelle :{" "}
+            <Badge variant="secondary">v{inacordPackage.version}</Badge>.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

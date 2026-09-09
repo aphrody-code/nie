@@ -118,8 +118,8 @@ describe("native MCP declaration", () => {
 		const server = config.mcpServers[MCP_SERVER];
 		expect(server).toBeDefined();
 		expect(server!.type).toBe("stdio");
-		expect(server!.command).toBe("cargo");
-		expect(server!.args).toEqual(["run", "--release", "--quiet", "--package", "nie-mcp", "--"]);
+		expect(server!.command).toBe("nie-mcp");
+		expect(server!.args).toEqual([]);
 		expect(await Bun.file(`${ROOT}/crates/tools/nie-mcp/Cargo.toml`).exists()).toBe(true);
 		const raw = await Bun.file(`${PLUGIN}/.mcp.json`).text();
 		expect(raw).not.toContain("/home/");

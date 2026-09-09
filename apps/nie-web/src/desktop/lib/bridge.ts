@@ -8,9 +8,10 @@
 import { useEffect, useRef, useState } from "react";
 import { connectBridge, type BridgeHandlers } from "@niers/bridge";
 import { getSettings } from "@niers/inacord-ui/lib/settings";
+import inacordPackage from "../../../../inacord/package.json";
 
 /** Version annoncée au serveur — celle du `package.json` de l'application. */
-const APP_VERSION = "0.4.0";
+const APP_VERSION = inacordPackage.version;
 
 /**
  * Branche la fenêtre sur le pont tant que le composant est monté.

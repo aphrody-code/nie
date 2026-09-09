@@ -2,8 +2,8 @@
   "mcpServers": {
     "niers-game": {
       "type": "stdio",
-      "command": "cargo",
-      "args": ["run", "--release", "--quiet", "--package", "nie-mcp", "--"]
+      "command": "nie-mcp",
+      "args": []
     }
   }
 }

@@ -21,6 +21,34 @@ be reported as completion of the Inacord application. Missing resource mappings 
 work items, not guessed icon substitutions. Perform interaction and visual validation after the
 source implementation phase, as requested by the user.
 
+### Inacord distribution lane — 2026-09-09
+
+`inacord.aphrody.com` is the dedicated download and browser-workspace origin. Its root is a
+catalog-driven hub for the signed Windows desktop installer, Linux CLI and MCP archives, Blender
+and agent plugins, the installable mobile web application, and the complete browser-adapted
+Inacord shell. Native Android/iOS packages remain explicitly unavailable until signed artifacts
+and platform runners exist; the mobile web entry must never be relabelled as an APK or IPA.
+
+The repository `aphrody-code/nie` is public. The dependency audit found that all externally
+referenced `@aphrody/*` registry packages and the Rust git dependency are already public; internal
+`@niers/*` workspaces remain source packages in this public monorepo rather than being published
+under an unowned registry name. The agent plugin starts an installed `nie-mcp` binary and no
+longer requires a source checkout or Rust toolchain.
+
+Production publication is owned by `scripts/release-inacord.ts` and the existing
+`scripts/release-all.ts` pipeline. Each public tree is immutable by pushed commit, records sizes
+and SHA-256 values, verifies the Tauri updater signature plus a negative tamper test, audits archive
+entries, and is promoted through one atomic `public` symlink. Nginx serves only that allowlisted
+tree and the read-only Rust HTTP surfaces. Desktop filesystem, process, updater and mutation
+commands fail explicitly in the browser adapter.
+
+Measured pre-publication gates on `vps-203bea89` on 2026-09-09: both web and desktop TypeScript
+checks passed; 6 focused tests passed with 12 assertions; Vite built 3,715 modules into 137 files
+(18 MiB) with zero source maps; Chromium mounted the Explorer against the production VFS with
+255,308 indexed entries. DNS resolves to `51.77.147.152`, and the renewed ECDSA certificate includes
+`inacord.aphrody.com` with expiry 2026-12-08. The immutable manifest and live HTTP interaction
+checks remain the release-time proof for the exact pushed commit.
+
 **The Rust site and wiki are the only IEVR data owners.** The deleted Azalee application,
 `packages/azalee`, `packages/azalee-tools`, and the IEVR Inagle package are not compatibility
 targets. IEVR parsing, query rules, mirror access, API projections, CLI behavior and native IPC
