@@ -337,3 +337,5 @@ capture/
 
 # Outils binaires téléchargés pour produire le WASM, reproductibles.
 /outputs/webgpu-wasm-tools/
+# Atomic temporary output from the WebAssembly binding builder.
+apps/nie-web/src/wasm/.build-*/
