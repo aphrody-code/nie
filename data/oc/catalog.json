@@ -63,6 +63,30 @@
       "class": "game_metadata"
     },
     {
+      "path": "data/oc/astro-lor/game/text/en/event/ev98_99010.cfg.bin.json",
+      "bytes": 3205,
+      "sha256": "cc27ce9065c6d304f8b346b64069bbb6b55e3207717df793250b79d6b17c9b7d",
+      "class": "game_metadata"
+    },
+    {
+      "path": "data/oc/astro-lor/game/text/event/ev98_99010_map.cfg.bin.json",
+      "bytes": 8337,
+      "sha256": "f537727b215b88fedbbd48236451f725ed646ff6db145d1ba7b6db9a44d4ea77",
+      "class": "game_metadata"
+    },
+    {
+      "path": "data/oc/astro-lor/game/text/fr/event/ev98_99010.cfg.bin.json",
+      "bytes": 3264,
+      "sha256": "461adc8fa88f6fe053ba58dee90f7167a97d5ea7e630632870268b36f4fd893a",
+      "class": "game_metadata"
+    },
+    {
+      "path": "data/oc/astro-lor/game/text/README.md",
+      "bytes": 3862,
+      "sha256": "27e535bd6831afcac9bfa2a9621cd65c6a618566ebf04c3edc8663610088bc70",
+      "class": "game_metadata"
+    },
+    {
       "path": "data/oc/astro-lor/manifest.json",
       "bytes": 24018,
       "sha256": "470e50cc46f27f856772a35dae9e9d52c3645904d7e34419c453e3a30781b82e",

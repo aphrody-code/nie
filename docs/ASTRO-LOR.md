@@ -180,9 +180,10 @@ Deux voies, à trancher sur mesure et non par principe :
 La seconde voie est la bonne première étape : elle permet de valider V1, V3 et V4
 sans dépendre de V2.
 
-### V3 — Encoder une texture · bloquant, pour une raison inattendue
+### V3 — Encoder une texture · levé côté bibliothèque, non prouvé sur fichier réel
 
-Trois choses ont été vérifiées ici, et deux ont démenti ce que ce document disait.
+Quatre choses ont été vérifiées ici ; deux ont démenti ce que ce document disait, et la
+dernière a été corrigée dans le code plutôt que constatée.
 
 **La voie C# est historique et archivée.** Les capacités maintenues passent par `niers` natif ;
 aucune assembly .NET n'est requise. Tout ce qui passait par
@@ -190,24 +191,55 @@ là est indisponible.
 
 **La voie Rust existe, et personne ne l'avait citée.**
 `nie_formats::g4tx_encode` fournit `decode_png_to_rgba8`, `encode_dds_bgra8` et
-`encode_g4tx_single_texture`, et `niers mod texture` les appelle déjà —
-« Remplace une texture par un PNG (g4tx mono-texture, sans région d'atlas) ».
+`encode_g4tx_single_texture`, et `niers mod texture` les appelle déjà.
 Aucun besoin de dotnet.
 
-**Et pourtant l'étape reste bloquée.** Les icônes de portrait ne sont pas
-mono-texture. Vérifié sur quatre personnages de quatre séries
-(`c01000100`, `c02023290`, `c02023380`, `c05024700`) : **toutes** portent
-**deux** textures de 256×256, nommées `<code>_1_l00` et `<code>_2_l00`.
-`encode_g4tx_single_texture` n'en écrit qu'une ; `niers mod texture` refuse donc
-le fichier.
+**L'obstacle mesuré : les icônes de portrait ne sont pas mono-texture.** Vérifié sur
+quatre personnages de quatre séries (`c01000100`, `c02023290`, `c02023380`,
+`c05024700`) : **toutes** portent **deux** textures de 256×256, nommées
+`<code>_1_l00` et `<code>_2_l00`. `encode_g4tx_single_texture` n'en écrit qu'une,
+et `niers mod texture` refusait donc le fichier.
 
-L'écart est petit et nommé : il manque un `encode_g4tx_multi_texture`, ou une
-option de `niers mod texture` qui préserve les textures qu'elle ne remplace pas.
-Tant qu'il n'existe pas, aucune icône de portrait du jeu n'est remplaçable — ce
-qui vaut pour tout le monde, pas seulement pour un personnage original.
+**L'écart est comblé côté bibliothèque.** `nie_formats::g4tx_encode::encode_g4tx_multi_texture`
+écrit `texture_count` textures principales et `sub_texture_count` régions d'atlas, en
+suivant les formules d'offsets de `g4tx::parse` (`sub_entry_offset`, `hash_offset`,
+`id_offset`, `string_offset`, `nxtch_base`). `niers mod texture` prend un `--texture <nom>`
+qui dit laquelle remplacer ; les autres payloads sont recopiés **octet pour octet** depuis
+le fichier d'origine, les régions sont reportées, et le conteneur produit est reparsé
+immédiatement — nom, id et nombre de régions de chaque texture doivent revenir, sinon la
+modification est refusée.
+
+Preuve actuelle : `cargo test -p nie-formats --lib --features textures g4tx_encode` rend
+**10/10**, dont le cas mesuré à deux textures 256×256, un cas à deux textures et trois
+régions, et l'équivalence avec `encode_g4tx_single_texture` sur une texture unique. Ce qui
+n'est **pas** prouvé : qu'un vrai `.g4tx` multi-texture du jeu fasse l'aller-retour — aucune
+icône de portrait n'est lisible depuis ce poste (`cpk_list.cfg.bin` absent), et le round-trip
+sur fichiers réels ne couvre encore que le cas mono-texture.
+
+L'interface graphique d'inacord (`apps/inacord/src-tauri`) porte toujours sa propre
+restriction mono-texture : elle appelle encore le chemin d'avant. Ce sera un lot dédié, pas
+un passage en douce.
 
 Les deux portraits sont prêts en 512×512
 (`data/oc/astro-lor/face-og.webp`, `face-go.webp`) ; il faudra les
+réduire à 256×256 pour épouser le gabarit.
+
+### V3 bis — Le dialogue, lui, est écrit
+
+Une famille que rien ne bloquait : le **texte**. L'événement OC `ev98_99010` existe
+maintenant sous [`data/oc/astro-lor/game/text/`](../data/oc/astro-lor/game/text/README.md) —
+15 répliques transcrites des trois planches de bande dessinée, en français et en anglais,
+plus la table washa qui les joint.
+
+Le format est mesuré, pas supposé : le hash d'une ligne est le **CRC-32 du libellé washa**
+`<eventId>_<bloc>_<ligne>`, recoupé sur deux lignes livrées de `ev02_00800`. Le schéma des
+deux fichiers a été comparé nœud par nœud à ce même événement livré : identique.
+
+Ces fichiers sont en forme **iecode** (`*.cfg.bin.json`). Les passer en `.cfg.bin` binaire
+dépend de **V1** — donc du même verrou que les neuf tables `chara_*`. Le contenu est prêt ;
+l'encodage ne l'est pas.
+
+Régénérer : `uv run scripts/donnees/astro-lor-dialogue.py`.
 réduire à 256×256 pour épouser le gabarit.
 
 ### V4 — Injecter dans le VFS · non bloquant

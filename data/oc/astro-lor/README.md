@@ -16,6 +16,7 @@ data/oc/astro-lor/
 ├── manifest.json                  ce qu'il faut produire pour que le jeu le connaisse
 ├── game/                          contrat VFS/cfg.bin/Lua/nie.exe machine-lisible
 │   ├── character-contract.json    préfixes, formats, chemins et gates d'intégration
+│   ├── text/                      le dialogue OC au format `data/common/text` (ev98_99010)
 │   └── README.md                  règles de séparation source / jeu
 ├── provenance/                    d'où vient chaque original — versionné
 │   ├── SHA256SUMS                 les 12 originaux, vérifiables
