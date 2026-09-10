@@ -129,13 +129,18 @@ pub enum ModOp {
         #[arg(long)]
         game_dir: Option<PathBuf>,
     },
-    /// Remplace une texture par un PNG (g4tx mono-texture, sans région d'atlas).
+    /// Remplace une texture principale par un PNG ; les autres textures et les régions d'atlas
+    /// du conteneur sont recopiées telles quelles.
     Texture {
         /// Chemin VFS du `.g4tx`.
         chemin: String,
         /// Image source.
         #[arg(long)]
         png: PathBuf,
+        /// Nom de la texture principale à remplacer — requis si le conteneur en porte plusieurs
+        /// (les icônes de portrait en ont deux : `<code>_1_l00` et `<code>_2_l00`).
+        #[arg(long)]
+        texture: Option<String>,
         #[arg(long, short = 'd', default_value = ".")]
         dir: PathBuf,
         #[arg(long)]
@@ -320,9 +325,10 @@ pub fn executer(op: ModOp) -> anyhow::Result<()> {
         ModOp::Texture {
             chemin,
             png,
+            texture: nom,
             dir,
             game_dir,
-        } => texture(&chemin, &png, &dir, game_dir),
+        } => texture(&chemin, &png, nom.as_deref(), &dir, game_dir),
         ModOp::Status { dir, game_dir } => status(&dir, game_dir),
         ModOp::Validate { dir, game_dir } => validate(&dir, game_dir).map(|_| ()),
         ModOp::Install {
@@ -527,25 +533,54 @@ fn set(
     Ok(())
 }
 
-fn texture(chemin: &str, png: &Path, dir: &Path, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+fn texture(
+    chemin: &str,
+    png: &Path,
+    nom_texture: Option<&str>,
+    dir: &Path,
+    game_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
     let octets = octets_courants(dir, chemin, game_dir)?;
     let atlas = nie_formats::g4tx::parse(&octets)
         .map_err(|e| anyhow::anyhow!("« {chemin} » n'est pas un G4TX lisible : {e}"))?;
-    // Même restriction que l'interface graphique, et pour la même raison : dans un atlas
-    // multi-région, plusieurs régions partagent une texture — « remplacer » n'y a pas de sens
-    // univoque. Refuser vaut mieux que produire un atlas dont les autres régions sont fausses.
-    if atlas.header.texture_count != 1 || atlas.header.sub_texture_count != 0 {
+    if atlas.textures.is_empty() {
+        bail!("{chemin} : aucune texture");
+    }
+
+    // Quelle texture principale est remplacée. Un conteneur mono-texture n'a pas besoin de
+    // `--texture` ; au-delà, le choix doit être explicite plutôt que deviné — les icônes de
+    // portrait portent deux textures (`<code>_1_l00` / `<code>_2_l00`) qui ne sont pas
+    // interchangeables.
+    let index = match nom_texture {
+        Some(nom) => atlas
+            .textures
+            .iter()
+            .position(|t| t.name == nom)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "« {chemin} » ne porte pas de texture « {nom} » ; disponibles : {}",
+                    noms_des_textures(&atlas)
+                )
+            })?,
+        None if atlas.textures.len() == 1 => 0,
+        None => bail!(
+            "« {chemin} » porte {} textures — préciser --texture parmi : {}",
+            atlas.textures.len(),
+            noms_des_textures(&atlas)
+        ),
+    };
+
+    // Une texture découpée en régions d'atlas reste refusée : plusieurs régions partagent alors
+    // une image, et « remplacer » n'y a pas de sens univoque. Les régions rattachées aux AUTRES
+    // textures, elles, sont recopiées telles quelles.
+    if !atlas.textures[index].sub_textures.is_empty() {
         bail!(
-            "« {chemin} » est un atlas ({} texture(s), {} région(s)) — seul le g4tx mono-texture \
-             sans région est remplaçable aujourd'hui",
-            atlas.header.texture_count,
-            atlas.header.sub_texture_count
+            "« {chemin} » : la texture « {} » porte {} région(s) d'atlas — le remplacement d'une \
+             texture découpée en régions n'est pas défini",
+            atlas.textures[index].name,
+            atlas.textures[index].sub_textures.len()
         );
     }
-    let tex = atlas
-        .textures
-        .first()
-        .ok_or_else(|| anyhow::anyhow!("{chemin} : aucune texture"))?;
 
     let image = std::fs::read(png).with_context(|| format!("lecture « {} »", png.display()))?;
     let (l, h, rgba) = nie_formats::g4tx_encode::decode_png_to_rgba8(&image)
@@ -553,14 +588,119 @@ fn texture(chemin: &str, png: &Path, dir: &Path, game_dir: Option<PathBuf>) -> a
     let dds = nie_formats::g4tx_encode::encode_dds_bgra8(l, h, &rgba)
         .map_err(|e| anyhow::anyhow!("encodage DDS : {e}"))?;
     let (li, hi) = (i16::try_from(l)?, i16::try_from(h)?);
-    let nouveaux =
-        nie_formats::g4tx_encode::encode_g4tx_single_texture(&tex.name, tex.id, li, hi, &dds);
+
+    // Les payloads des textures NON remplacées sont recopiés octet pour octet depuis le fichier
+    // d'origine : rien n'est ré-encodé, donc rien ne peut se dégrader au passage.
+    let mut entrees = Vec::with_capacity(atlas.textures.len());
+    for (i, t) in atlas.textures.iter().enumerate() {
+        if i == index {
+            entrees.push(nie_formats::g4tx_encode::TextureAEcrire {
+                name: t.name.as_str(),
+                id: t.id,
+                width: li,
+                height: hi,
+                dds: &dds,
+            });
+            continue;
+        }
+        let fin = t.data_offset.saturating_add(t.data_size);
+        let payload = octets.get(t.data_offset..fin).ok_or_else(|| {
+            anyhow::anyhow!(
+                "« {chemin} » : payload de « {} » hors limites ({}..{fin} sur {} octets)",
+                t.name,
+                t.data_offset,
+                octets.len()
+            )
+        })?;
+        entrees.push(nie_formats::g4tx_encode::TextureAEcrire {
+            name: t.name.as_str(),
+            id: t.id,
+            width: i16::try_from(t.width).unwrap_or(0),
+            height: i16::try_from(t.height).unwrap_or(0),
+            dds: payload,
+        });
+    }
+
+    // Régions d'atlas des autres textures, reportées avec leur texture parente.
+    let mut regions = Vec::new();
+    for (i, t) in atlas.textures.iter().enumerate() {
+        for s in &t.sub_textures {
+            regions.push(nie_formats::g4tx_encode::RegionAEcrire {
+                entry_index: i16::try_from(i)?,
+                name: s.name.as_str(),
+                id: s.id,
+                x: s.x,
+                y: s.y,
+                width: s.width,
+                height: s.height,
+            });
+        }
+    }
+
+    let nouveaux = nie_formats::g4tx_encode::encode_g4tx_multi_texture(&entrees, &regions)
+        .map_err(|e| anyhow::anyhow!("encodage G4TX : {e}"))?;
+
+    // Relire ce qu'on vient d'écrire, tout de suite : un conteneur qui ne se reparse pas doit
+    // échouer ici, pas dans le jeu. On vérifie que TOUTES les textures reviennent, pas seulement
+    // celle qui a été remplacée.
+    let relu = nie_formats::g4tx::parse(&nouveaux)
+        .map_err(|e| anyhow::anyhow!("le G4TX réencodé ne se relit pas : {e}"))?;
+    if relu.textures.len() != atlas.textures.len() {
+        bail!(
+            "le G4TX réencodé rend {} texture(s) au lieu de {} — modification refusée",
+            relu.textures.len(),
+            atlas.textures.len()
+        );
+    }
+    for (avant, apres) in atlas.textures.iter().zip(&relu.textures) {
+        if avant.name != apres.name || avant.id != apres.id {
+            bail!(
+                "le G4TX réencodé rend « {} » (id {}) là où « {} » (id {}) était attendu — \
+                 modification refusée",
+                apres.name,
+                apres.id,
+                avant.name,
+                avant.id
+            );
+        }
+        if avant.sub_textures.len() != apres.sub_textures.len() {
+            bail!(
+                "le G4TX réencodé rend {} région(s) sur « {} » au lieu de {} — modification refusée",
+                apres.sub_textures.len(),
+                avant.name,
+                avant.sub_textures.len()
+            );
+        }
+    }
 
     let p = ecrire_dans_le_mod(dir, chemin, &nouveaux)?;
-    println!("texture   {} — {l}×{h}", tex.name);
+    println!("texture   {} — {l}×{h}", atlas.textures[index].name);
+    if atlas.textures.len() > 1 {
+        println!(
+            "conservées {}",
+            atlas
+                .textures
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| *i != index)
+                .map(|(_, t)| t.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
     println!("fichier   {}", p.display());
     println!("octets    {} → {}", octets.len(), nouveaux.len());
     Ok(())
+}
+
+/// Noms des textures principales d'un conteneur, pour les messages d'erreur de `--texture`.
+fn noms_des_textures(atlas: &nie_formats::g4tx::G4tx) -> String {
+    atlas
+        .textures
+        .iter()
+        .map(|t| t.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn status(dir: &Path, game_dir: Option<PathBuf>) -> anyhow::Result<()> {

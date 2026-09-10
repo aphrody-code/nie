@@ -209,11 +209,443 @@ pub fn encode_g4tx_single_texture(name: &str, id: u8, w: i16, h: i16, dds: &[u8]
 
     out
 }
+/// Description d'une texture principale à écrire par [`encode_g4tx_multi_texture`].
+///
+/// `dds` est le payload déjà encodé (cf. [`encode_dds_bgra8`]) ; `width`/`height` dupliquent les
+/// dimensions dans les champs d'entrée, lus par [`crate::g4tx::parse`] en repli si le payload est
+/// absent ou tronqué.
+#[derive(Debug, Clone, Copy)]
+pub struct TextureAEcrire<'a> {
+    /// Nom résolu par la table de chaînes.
+    pub name: &'a str,
+    /// Identifiant (octet de la table d'ids).
+    pub id: u8,
+    /// Largeur du champ d'entrée (+0x18).
+    pub width: i16,
+    /// Hauteur du champ d'entrée (+0x1A).
+    pub height: i16,
+    /// Payload DDS déjà encodé, écrit tel quel.
+    pub dds: &'a [u8],
+}
+
+/// Description d'une région d'atlas à écrire par [`encode_g4tx_multi_texture`].
+#[derive(Debug, Clone, Copy)]
+pub struct RegionAEcrire<'a> {
+    /// Index de la texture principale parente (rang dans le tableau `textures`).
+    pub entry_index: i16,
+    /// Nom résolu par la table de chaînes.
+    pub name: &'a str,
+    /// Identifiant (octet de la table d'ids).
+    pub id: u8,
+    /// Coin X.
+    pub x: i16,
+    /// Coin Y.
+    pub y: i16,
+    /// Largeur.
+    pub width: i16,
+    /// Hauteur.
+    pub height: i16,
+}
+
+/// Encode un conteneur G4TX portant **plusieurs textures principales** et, facultativement, leurs
+/// régions d'atlas — la généralisation de [`encode_g4tx_single_texture`], qui n'écrit que le cas
+/// `texture_count=1, sub_texture_count=0`.
+///
+/// Motivation mesurée : les icônes de portrait du jeu
+/// (`data/dx11/menu/200_icon/10_icon_chr/face/<code>_l.g4tx`) portent **deux** textures 256×256
+/// nommées `<code>_1_l00` et `<code>_2_l00` — `encode_g4tx_single_texture` n'en écrit qu'une, ce
+/// qui rendait toute icône de portrait non remplaçable (cf. `docs/ASTRO-LOR.md` §V3).
+///
+/// Le layout suit exactement les formules d'offsets de [`crate::g4tx::parse`] :
+///
+/// ```text
+/// entry_offset     = 0x60
+/// sub_entry_offset = entry_offset + textures.len() * 0x30
+/// hash_offset      = align16(sub_entry_offset + regions.len() * 0x18)
+/// id_offset        = hash_offset + total_count * 4
+/// string_offset    = align4(id_offset + total_count)
+/// nxtch_base       = align16(0x60 + table_size)
+/// ```
+///
+/// Les ids et noms sont écrits dans l'ordre global attendu par `parse` : les `textures` d'abord,
+/// puis les `regions` (index absolu = `textures.len()` + rang de la région). Chaque payload DDS
+/// est aligné sur 16 octets à partir de `nxtch_base`, et le `nxtch_offset` de son entrée pointe
+/// dessus. Les champs jamais lus par `parse` (table de hash, réservés d'en-tête et d'entrée)
+/// restent à zéro — documenté, jamais deviné.
+///
+/// # Erreurs
+/// `Err` si `textures` est vide, si `regions.len() > 255` (le compte tient sur un `u8` dans
+/// l'en-tête), si `textures.len() + regions.len()` dépasse `u16::MAX`, si la table de chaînes
+/// dépasse ce qu'un offset `i16` peut adresser, ou si une région désigne une texture principale
+/// inexistante.
+pub fn encode_g4tx_multi_texture(
+    textures: &[TextureAEcrire<'_>],
+    regions: &[RegionAEcrire<'_>],
+) -> Result<Vec<u8>, alloc::string::String> {
+    use alloc::string::ToString as _;
+
+    const HEADER_SIZE: usize = 0x60;
+    const ENTRY_SIZE: usize = 0x30;
+    const SUB_ENTRY_SIZE: usize = 0x18;
+
+    if textures.is_empty() {
+        return Err(
+            "encode_g4tx_multi_texture : au moins une texture principale est requise".to_string(),
+        );
+    }
+    if regions.len() > u8::MAX as usize {
+        return Err(format!(
+            "encode_g4tx_multi_texture : {} régions, sub_texture_count tient sur un u8 (max 255)",
+            regions.len()
+        ));
+    }
+    let total_count = textures.len() + regions.len();
+    if total_count > u16::MAX as usize {
+        return Err(format!(
+            "encode_g4tx_multi_texture : total_count={total_count} dépasse u16::MAX"
+        ));
+    }
+    for (i, r) in regions.iter().enumerate() {
+        if r.entry_index < 0 || (r.entry_index as usize) >= textures.len() {
+            return Err(format!(
+                "encode_g4tx_multi_texture : région {i} rattachée à la texture {} (il y en a {})",
+                r.entry_index,
+                textures.len()
+            ));
+        }
+    }
+
+    let entry_offset = HEADER_SIZE;
+    let sub_entry_offset = entry_offset + textures.len() * ENTRY_SIZE;
+    let hash_offset = align(sub_entry_offset + regions.len() * SUB_ENTRY_SIZE, 16);
+    let id_offset = hash_offset + total_count * 4;
+    let string_offset = align(id_offset + total_count, 4);
+
+    // Table d'offsets de chaînes (total_count × i16), puis les noms null-terminés à la suite.
+    let string_offsets_size = total_count * 2;
+    let mut noms: Vec<u8> = Vec::new();
+    let mut offsets: Vec<i16> = Vec::with_capacity(total_count);
+    for name in textures
+        .iter()
+        .map(|t| t.name)
+        .chain(regions.iter().map(|r| r.name))
+    {
+        let pos = string_offsets_size + noms.len();
+        let pos = i16::try_from(pos).map_err(|_| {
+            format!("encode_g4tx_multi_texture : table de chaînes trop grande ({pos} octets)")
+        })?;
+        offsets.push(pos);
+        noms.extend_from_slice(name.as_bytes());
+        noms.push(0);
+    }
+
+    let string_table_end = string_offset + string_offsets_size + noms.len();
+    let table_size = string_table_end - HEADER_SIZE;
+    let nxtch_base = align(HEADER_SIZE + table_size, 16);
+
+    // Placement des payloads : chacun aligné sur 16 à partir de `nxtch_base`.
+    let mut payload_offsets: Vec<usize> = Vec::with_capacity(textures.len());
+    let mut curseur = 0usize;
+    for t in textures {
+        curseur = align(curseur, 16);
+        payload_offsets.push(curseur);
+        curseur += t.dds.len();
+    }
+    let texture_data_size = curseur;
+
+    let mut out = vec![0u8; nxtch_base + texture_data_size];
+
+    // En-tête (0x60 o).
+    out[0..4].copy_from_slice(b"G4TX");
+    out[4..6].copy_from_slice(&(HEADER_SIZE as u16).to_le_bytes());
+    out[6..8].copy_from_slice(&0x65u16.to_le_bytes()); // file_type (0x65 observé sur fichiers réels)
+    out[0x0C..0x10].copy_from_slice(&(table_size as u32).to_le_bytes());
+    out[0x20..0x22].copy_from_slice(&(textures.len() as u16).to_le_bytes());
+    out[0x22..0x24].copy_from_slice(&(total_count as u16).to_le_bytes());
+    out[0x25] = regions.len() as u8;
+    out[0x2C..0x30].copy_from_slice(&(texture_data_size as u32).to_le_bytes());
+
+    // Entrées de textures principales (0x30 o chacune).
+    for (i, t) in textures.iter().enumerate() {
+        let e = entry_offset + i * ENTRY_SIZE;
+        out[e + 0x04..e + 0x08].copy_from_slice(&(payload_offsets[i] as u32).to_le_bytes());
+        out[e + 0x08..e + 0x0C].copy_from_slice(&(t.dds.len() as u32).to_le_bytes());
+        out[e + 0x18..e + 0x1A].copy_from_slice(&t.width.to_le_bytes());
+        out[e + 0x1A..e + 0x1C].copy_from_slice(&t.height.to_le_bytes());
+    }
+
+    // Sous-entrées (0x18 o chacune) — layout lu par `g4tx::parse` : entry_id @+0, x @+4, y @+6,
+    // largeur @+8, hauteur @+10 ; +0x02 et le reste sont inconnus et restent à zéro.
+    for (i, r) in regions.iter().enumerate() {
+        let s = sub_entry_offset + i * SUB_ENTRY_SIZE;
+        out[s..s + 2].copy_from_slice(&r.entry_index.to_le_bytes());
+        out[s + 4..s + 6].copy_from_slice(&r.x.to_le_bytes());
+        out[s + 6..s + 8].copy_from_slice(&r.y.to_le_bytes());
+        out[s + 8..s + 10].copy_from_slice(&r.width.to_le_bytes());
+        out[s + 10..s + 12].copy_from_slice(&r.height.to_le_bytes());
+    }
+
+    // Table de hash (@hash_offset, total_count × u32) : jamais lue par `parse` — zéro.
+
+    // Table d'ids (@id_offset, total_count × u8), textures puis régions.
+    for (i, id) in textures
+        .iter()
+        .map(|t| t.id)
+        .chain(regions.iter().map(|r| r.id))
+        .enumerate()
+    {
+        out[id_offset + i] = id;
+    }
+
+    // Table d'offsets de chaînes puis les noms.
+    for (i, off) in offsets.iter().enumerate() {
+        let p = string_offset + i * 2;
+        out[p..p + 2].copy_from_slice(&off.to_le_bytes());
+    }
+    let noms_pos = string_offset + string_offsets_size;
+    out[noms_pos..noms_pos + noms.len()].copy_from_slice(&noms);
+
+    // Payloads DDS, chacun à son offset aligné.
+    for (i, t) in textures.iter().enumerate() {
+        let p = nxtch_base + payload_offsets[i];
+        out[p..p + t.dds.len()].copy_from_slice(t.dds);
+    }
+
+    Ok(out)
+}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{g4tx, g4tx_decode};
+    /// Fabrique un DDS BGRA8 déterministe de `w`×`h` à partir d'une graine, et rend `(rgba, dds)`.
+    fn damier(w: u32, h: u32, graine: u8) -> (alloc::vec::Vec<u8>, alloc::vec::Vec<u8>) {
+        let mut rgba = alloc::vec![0u8; (w * h * 4) as usize];
+        for (i, px) in rgba.chunks_exact_mut(4).enumerate() {
+            px[0] = (i as u8).wrapping_mul(11).wrapping_add(graine);
+            px[1] = (i as u8).wrapping_mul(23).wrapping_add(graine);
+            px[2] = (i as u8).wrapping_mul(37).wrapping_add(graine);
+            px[3] = 255;
+        }
+        let dds = encode_dds_bgra8(w, h, &rgba).expect("encode_dds_bgra8");
+        (rgba, dds)
+    }
+
+    /// Le cas mesuré qui bloquait le remplacement des icônes de portrait : **deux** textures
+    /// principales 256×256 nommées `<code>_1_l00` / `<code>_2_l00` (relevé sur `c01000100`,
+    /// `c02023290`, `c02023380`, `c05024700`, cf. `docs/ASTRO-LOR.md` §V3). Vérifie que les deux
+    /// payloads se relisent, avec leur nom, leur id et leurs pixels EXACTS — pas seulement que
+    /// « ça parse ».
+    #[test]
+    fn encode_multi_texture_icone_de_portrait_deux_textures() {
+        let (w, h) = (8u32, 8u32);
+        let (rgba1, dds1) = damier(w, h, 0);
+        let (rgba2, dds2) = damier(w, h, 97);
+
+        let bytes = encode_g4tx_multi_texture(
+            &[
+                TextureAEcrire {
+                    name: "c99019010_1_l00",
+                    id: 0,
+                    width: w as i16,
+                    height: h as i16,
+                    dds: &dds1,
+                },
+                TextureAEcrire {
+                    name: "c99019010_2_l00",
+                    id: 1,
+                    width: w as i16,
+                    height: h as i16,
+                    dds: &dds2,
+                },
+            ],
+            &[],
+        )
+        .expect("encode_g4tx_multi_texture");
+
+        let parsed = g4tx::parse(&bytes).expect("parse");
+        assert_eq!(parsed.header.texture_count, 2);
+        assert_eq!(parsed.header.total_count, 2);
+        assert_eq!(parsed.header.sub_texture_count, 0);
+        assert_eq!(parsed.textures.len(), 2);
+
+        for (tex, (nom, id, attendu)) in parsed.textures.iter().zip([
+            ("c99019010_1_l00", 0u8, &rgba1),
+            ("c99019010_2_l00", 1u8, &rgba2),
+        ]) {
+            assert_eq!(tex.name, nom);
+            assert_eq!(tex.id, id);
+            assert!(tex.is_dds);
+            assert_eq!((tex.width, tex.height), (w as i32, h as i32));
+            let (dw, dh, decoded) =
+                g4tx_decode::decode_texture_rgba(&bytes, tex).expect("decode_texture_rgba");
+            assert_eq!((dw, dh), (w, h));
+            assert_eq!(&decoded, attendu, "pixels de « {nom} » après round-trip");
+        }
+    }
+
+    /// Régions d'atlas préservées : ids et noms des sous-textures suivent les textures
+    /// principales dans les tables globales (index absolu = `texture_count` + rang), exactement
+    /// comme `g4tx::parse` les relit. Sans ce test, un décalage d'un cran passerait inaperçu.
+    #[test]
+    fn encode_multi_texture_preserve_les_regions_datlas() {
+        let (_, dds_a) = damier(4, 4, 3);
+        let (_, dds_b) = damier(4, 4, 40);
+
+        let bytes = encode_g4tx_multi_texture(
+            &[
+                TextureAEcrire {
+                    name: "atlas_a",
+                    id: 10,
+                    width: 4,
+                    height: 4,
+                    dds: &dds_a,
+                },
+                TextureAEcrire {
+                    name: "atlas_b",
+                    id: 11,
+                    width: 4,
+                    height: 4,
+                    dds: &dds_b,
+                },
+            ],
+            &[
+                RegionAEcrire {
+                    entry_index: 0,
+                    name: "region_a0",
+                    id: 20,
+                    x: 1,
+                    y: 2,
+                    width: 3,
+                    height: 4,
+                },
+                RegionAEcrire {
+                    entry_index: 1,
+                    name: "region_b0",
+                    id: 21,
+                    x: 5,
+                    y: 6,
+                    width: 7,
+                    height: 8,
+                },
+                RegionAEcrire {
+                    entry_index: 0,
+                    name: "region_a1",
+                    id: 22,
+                    x: 9,
+                    y: 10,
+                    width: 11,
+                    height: 12,
+                },
+            ],
+        )
+        .expect("encode_g4tx_multi_texture");
+
+        let parsed = g4tx::parse(&bytes).expect("parse");
+        assert_eq!(parsed.header.texture_count, 2);
+        assert_eq!(parsed.header.sub_texture_count, 3);
+        assert_eq!(parsed.header.total_count, 5);
+
+        let a = &parsed.textures[0];
+        assert_eq!(a.name, "atlas_a");
+        assert_eq!(a.sub_textures.len(), 2);
+        assert_eq!(a.sub_textures[0].name, "region_a0");
+        assert_eq!(a.sub_textures[0].id, 20);
+        assert_eq!(
+            (
+                a.sub_textures[0].x,
+                a.sub_textures[0].y,
+                a.sub_textures[0].width,
+                a.sub_textures[0].height
+            ),
+            (1, 2, 3, 4)
+        );
+        assert_eq!(a.sub_textures[1].name, "region_a1");
+        assert_eq!(a.sub_textures[1].id, 22);
+
+        let b = &parsed.textures[1];
+        assert_eq!(b.name, "atlas_b");
+        assert_eq!(b.sub_textures.len(), 1);
+        assert_eq!(b.sub_textures[0].name, "region_b0");
+        assert_eq!(b.sub_textures[0].id, 21);
+        assert_eq!(
+            (
+                b.sub_textures[0].x,
+                b.sub_textures[0].y,
+                b.sub_textures[0].width,
+                b.sub_textures[0].height
+            ),
+            (5, 6, 7, 8)
+        );
+    }
+
+    /// Le cas mono-texture de `encode_g4tx_multi_texture` doit produire un conteneur que `parse`
+    /// lit à l'identique de celui de `encode_g4tx_single_texture` : mêmes nom, id, dimensions et
+    /// mêmes pixels. La généralisation ne change pas ce qui marchait déjà.
+    #[test]
+    fn multi_texture_a_une_seule_texture_equivaut_au_mono() {
+        let (w, h) = (4u32, 4u32);
+        let (rgba, dds) = damier(w, h, 7);
+
+        let mono = encode_g4tx_single_texture("une_seule", 5, w as i16, h as i16, &dds);
+        let multi = encode_g4tx_multi_texture(
+            &[TextureAEcrire {
+                name: "une_seule",
+                id: 5,
+                width: w as i16,
+                height: h as i16,
+                dds: &dds,
+            }],
+            &[],
+        )
+        .expect("encode_g4tx_multi_texture");
+
+        let pm = g4tx::parse(&mono).expect("parse mono");
+        let px = g4tx::parse(&multi).expect("parse multi");
+        assert_eq!(pm.header.texture_count, px.header.texture_count);
+        assert_eq!(pm.header.total_count, px.header.total_count);
+        assert_eq!(pm.header.sub_texture_count, px.header.sub_texture_count);
+        assert_eq!(pm.textures[0].name, px.textures[0].name);
+        assert_eq!(pm.textures[0].id, px.textures[0].id);
+        assert_eq!(
+            (pm.textures[0].width, pm.textures[0].height),
+            (px.textures[0].width, px.textures[0].height)
+        );
+
+        let (_, _, dm) =
+            g4tx_decode::decode_texture_rgba(&multi, &px.textures[0]).expect("decode multi");
+        assert_eq!(dm, rgba);
+    }
+
+    /// Entrées incohérentes refusées plutôt que silencieusement rognées : aucune texture, et
+    /// région rattachée à une texture inexistante.
+    #[test]
+    fn encode_multi_texture_rejette_les_entrees_incoherentes() {
+        assert!(encode_g4tx_multi_texture(&[], &[]).is_err());
+
+        let (_, dds) = damier(2, 2, 1);
+        let err = encode_g4tx_multi_texture(
+            &[TextureAEcrire {
+                name: "seule",
+                id: 0,
+                width: 2,
+                height: 2,
+                dds: &dds,
+            }],
+            &[RegionAEcrire {
+                entry_index: 3,
+                name: "orpheline",
+                id: 1,
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+            }],
+        );
+        assert!(err.is_err(), "une région orpheline doit être refusée");
+    }
+
 
     /// Encode un DDS BGRA8 synthétique (damier 2×2, alpha variable) puis le redécode — vérifie
     /// que [`encode_dds_bgra8`] est reconnu par le décodeur déjà validé (`dds_format_and_pixel_

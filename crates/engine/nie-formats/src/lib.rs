@@ -94,7 +94,7 @@ pub mod g4tx;
 /// Décodeur G4TX/DDS → RGBA8/PNG (source unique du workspace, feature `textures`).
 #[cfg(feature = "textures")]
 pub mod g4tx_decode;
-/// Encodeur G4TX/DDS (RGBA8 → BGRA8 non compressé → conteneur G4TX mono-texture) — contrepartie
+/// Encodeur G4TX/DDS (RGBA8 → BGRA8 non compressé → conteneur G4TX mono- ou multi-texture) — contrepartie
 /// écriture de [`g4tx_decode`], même gating (ses tests round-trip en dépendent).
 #[cfg(feature = "textures")]
 pub mod g4tx_encode;
