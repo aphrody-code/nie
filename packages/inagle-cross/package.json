@@ -1,26 +1,26 @@
 {
-	"name": "@rosegriffon/inagle-cross",
-	"version": "0.1.0",
-	"description": "API de données et de rétro-conception pour Inazuma Eleven Cross — types, schémas, et analyseurs d'assets",
-	"type": "module",
-	"main": "./src/index.ts",
-	"exports": {
-		".": "./src/index.ts"
-	},
-	"scripts": {
-		"type-check": "bun --bun tsc --noEmit",
-		"typecheck": "bun --bun tsc --noEmit"
-	},
-	"dependencies": {
-		"zod": "catalog:"
-	},
-	"devDependencies": {
-		"@types/node": "catalog:",
-		"typescript": "catalog:",
-		"@types/bun": "catalog:"
-	},
-	"publishConfig": {
-		"access": "public",
-		"registry": "https://registry.npmjs.org"
-	}
+  "name": "@rosegriffon/inagle-cross",
+  "version": "0.1.1",
+  "description": "API de donn\u00e9es et de r\u00e9tro-conception pour Inazuma Eleven Cross \u2014 types, sch\u00e9mas, et analyseurs d'assets",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "bun --bun tsc --noEmit",
+    "typecheck": "bun --bun tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "@types/bun": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }
