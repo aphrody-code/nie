@@ -77,6 +77,20 @@ else
   echo "KB        $KB absent"
 fi
 
+# --- atlas : l'index unique des surfaces RE ---------------------------------
+ATLAS=var/nie-atlas.sqlite
+if [ -f "$ATLAS" ]; then
+  a=$(q "$ATLAS" "select artifacts||' fichiers, '||crates||' crates, '||docs||' docs, '||symbols||' symboles, '||units||' unites, '||tools||' outils' from v_atlas_status;")
+  g=$(q "$ATLAS" "select area||' '||round(current,2)||'% -> '||round(target,0)||' (score '||round(score,0)||')' from v_atlas_gap_ranked limit 1;")
+  n=$(q "$ATLAS" "select count(*) from v_atlas_gap_ranked;")
+  age=$(q "$ATLAS" "select cast((julianday('now')-julianday(max(scanned_at)))*24 as int) from atlas_artifact;")
+  echo "atlas     ${a:-indisponible} (indexe il y a ${age:-?} h)"
+  echo "          ${n:-0} ecarts ouverts, n1 : ${g:-aucun} — 'niers atlas gaps' pour la route, 'niers atlas next' pour le prochain chantier"
+  echo "          CHERCHER AVEC 'niers atlas search <terme>' AVANT tout rg/find : il couvre docs, symboles, outils, fichiers et crates d'un coup."
+else
+  echo "atlas     $ATLAS absent — 'just atlas' le construit (~3 min), cf. docs/ATLAS.md"
+fi
+
 # --- forge ------------------------------------------------------------------
 if [ -x target/release/nie-forge ]; then
   if [ -f var/forge/cover.json ]; then

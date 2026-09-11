@@ -152,6 +152,26 @@ Le pipeline `rebuild` travaille donc sur des adresses correctes :
    (`1/ln(deg+2)`) pour qu'un utilitaire appelé par des milliers de fonctions ne domine pas le
    label de ses voisins.
 
+### La base décrit un AUTRE build que `nie.exe` — 43 % de corroboration (mesuré 2026-09-11)
+
+`cargo test -p nie-mcp --test re_real` interroge le serveur MCP réel, prend 400 fonctions
+**nommées** de la base et vérifie chaque adresse contre la table `.pdata` du `nie.exe` de
+référence, lue indépendamment par `nie-pe` :
+
+| Mesure | Valeur |
+|---|---|
+| Fonctions nommées commençant sur une vraie racine `.pdata` de la référence | **172 / 400 — 43,00 %** |
+| Tombant à l'intérieur d'un corps de fonction (donc décalées, pas absentes) | 163 / 400 |
+| Racines `.pdata` de `nie.exe` (`b1fa04ea…`, 33 918 464 o) | **55 351** |
+| Racines `.pdata` indexées dans la base (`pdata_func`) | **50 674** |
+| Empreinte du binaire ancré dans `binary` (id 2) | `4c2b91fb…`, 31 468 032 o |
+
+Les deux binaires ne sont pas le même. Tant que la base n'est pas ré-ancrée
+(`just re-seed && just re-rebuild` sur la cible), **une adresse citée depuis `function` n'est
+pas une adresse de `nie.exe`** : c'est l'écart `re.anchoring` de `niers atlas gaps`, et le
+préalable à toute exploitation des noms. Le test garde deux planchers mesurés — 40 % de
+corroboration, 75 % de containment — pour qu'une dérive supplémentaire devienne rouge.
+
 ### `.pdata` ne voit que 88,37 % de `.text` (mesuré 2026-08-29)
 
 Sur le binaire cible `b1fa04ea3658…`, mesuré directement dans le fichier :

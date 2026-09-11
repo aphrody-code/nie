@@ -11,6 +11,7 @@
 #   bash scripts/atlas-loop.sh --no-act      # mesure et index seuls, aucune action
 #   bash scripts/atlas-loop.sh --ticks 5     # cinq ticks d'affilée
 #   ATLAS_PROOFS=1 bash scripts/atlas-loop.sh   # rejoue aussi les preuves uemu (lent)
+#   ATLAS_RE_REAL=1 bash scripts/atlas-loop.sh  # rejoue le test RE réel sur le serveur MCP
 #
 # Bornes tenues :
 #   - aucune action irréversible : ni push, ni suppression, ni service, ni /etc ;
@@ -188,6 +189,26 @@ mesure_preuves() {
 	fi
 }
 
+# 3 bis. Le test RE réel : le serveur MCP interrogé pour de vrai, et ses réponses corroborées
+# contre la table `.pdata` du binaire de référence. Opt-in : il compile nie-mcp.
+mesure_re_real() {
+	[ "${ATLAS_RE_REAL:-0}" = "1" ] || return
+	local t0 out rc ms pct
+	t0=$(now_ms)
+	out=$(timeout "$ACT_TIMEOUT" cargo test -p nie-mcp --test re_real -- --nocapture 2>&1)
+	rc=$?
+	ms=$(($(now_ms) - t0))
+	pct=$(printf '%s' "$out" | grep -oE '\(([0-9.]+) %\)' | head -1 | tr -d '() %')
+	if [ "$rc" -eq 0 ] && [ -n "$pct" ]; then
+		record_metric re.pdata_corroboration "$pct" 100 "cargo test -p nie-mcp --test re_real"
+		emit re.real true "$ms" "corroboration .pdata = ${pct} %"
+		record_run re.real re.anchoring true "$ms" "$pct"
+	else
+		emit re.real false "$ms" "rc=$rc $(printf '%s' "$out" | tail -1)"
+		record_run re.real re.anchoring false "$ms" "$out"
+	fi
+}
+
 # 4. L'index : tout le dépôt dans une seule base, plus le miroir redis.
 indexer() {
 	local t0 out rc ms kb_flag=()
@@ -278,6 +299,7 @@ for tick in $(seq 1 "$ticks"); do
 	mesure_forge
 	mesure_identite
 	mesure_preuves
+	mesure_re_real
 	indexer
 	agir
 	"$niers_bin" atlas status --db "$ATLAS_DB"

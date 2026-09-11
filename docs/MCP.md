@@ -135,11 +135,20 @@ Run the scoped gates with:
 ```bash
 cargo test -p nie-cli --lib mcp::
 cargo test -p nie-mcp --test stdio_smoke
+cargo test -p nie-mcp --test re_real -- --nocapture
 cargo clippy -p nie-cli --lib --bins --tests -- -D warnings
 cargo clippy -p nie-mcp --bins --tests -- -D warnings
 bun test packages/nie-bridge
 bunx tsc --noEmit -p packages/nie-bridge/tsconfig.json
 ```
+
+`re_real` is the answer test, not the protocol test: it asks the running server real questions
+about `nie.exe` (`re_coverage`, `re_query`, `re_function` by address **and** by name,
+`cli_atlas`) and corroborates every function start it returns against the compiler's own
+`.pdata` unwind table, read independently with `nie-pe`. It is data-gated — without
+`var/niers.sqlite` and `nie.exe` it reports what it skipped and passes. Measured on
+2026-09-11: **43.00 %** corroboration (172/400), because the knowledge base is anchored on
+another build; see [`RE.md`](RE.md).
 
 The protocol smoke test starts the real binary, initializes MCP, checks all 62 tools, and calls
 `cli_info` over clean stdout. The bridge test performs a real WebSocket round trip with the

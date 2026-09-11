@@ -20,4 +20,7 @@ anyhow.workspace = true
 nie-cli.workspace = true
 
 [dev-dependencies]
+# Le test RE réel corrobore les réponses du serveur contre la table `.pdata` du binaire de
+# référence, lue indépendamment : c'est `nie-pe` qui la décode.
+nie-pe.workspace = true
 serde_json = { workspace = true, default-features = true }

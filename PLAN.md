@@ -22,6 +22,7 @@ Snapshot measured on `vps-203bea89`, 2026-09-11 — **regenerate it, never quote
 
 | Gap | Measured | Score | Next action |
 |---|---|---|---|
+| `re.anchoring` | 43.00 % of named functions start on a real `.pdata` root of the reference | 456 | `just re-seed && just re-rebuild` on `nie.exe` |
 | `re.named` | 12.57 % (13 653 / 108 650) | 437 | `just re-rebuild`, then `niers seed-ui` |
 | `forge.units` | 0.00 % (7 / 215 688) | 400 | `just forge-cc` |
 | `port.symbols` | 1.37 % (189 / 13 845) | 296 | name the ported functions after their binary symbol |
@@ -32,8 +33,15 @@ Snapshot measured on `vps-203bea89`, 2026-09-11 — **regenerate it, never quote
 | `docs.anchored` | 89.84 % (955 / 1 063) | 20 | `niers atlas docs --orphans` |
 | `forge.identity` | **100 %** — `dist/nie.exe` is byte-identical | done | hold it |
 
-Weights encode what "100 %" means here, in order: identity 10, produced 9, uemu proofs 7,
-`.text` 6, classified 6, named 5, lifted 5, units 4, ported symbols 3, anchored docs 2.
+Weights encode what "100 %" means here, in order: identity 10, produced 9, anchoring 8, uemu
+proofs 7, `.text` 6, classified 6, named 5, lifted 5, units 4, ported symbols 3, docs 2.
+
+`re.anchoring` took the lead the day it was first measured: `cargo test -p nie-mcp --test
+re_real` asks the running MCP server for 400 named functions and checks each address against
+the reference binary's own `.pdata` unwind table. Only 43 % are real function starts there —
+the knowledge base is anchored on another build (`4c2b91fb…`, 31,468,032 bytes, 50,674 roots)
+than the target (`b1fa04ea…`, 33,918,464 bytes, 55,351 roots). Until it is re-anchored, an
+address quoted from `function` is not an address of `nie.exe`. See [`docs/RE.md`](docs/RE.md).
 
 ### Rules this workflow imposes on the plan
 

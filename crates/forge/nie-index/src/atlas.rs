@@ -1184,6 +1184,15 @@ impl Atlas {
             ),
             ("proofs.ok", "proofs.uemu", 7.0, "just preuves"),
             ("pdata.text", "re.pdata-text", 4.0, "niers recover"),
+            (
+                // Mesuré par `cargo test -p nie-mcp --test re_real` : la part des fonctions
+                // nommées de la KB qui commencent vraiment sur une racine `.pdata` du binaire
+                // de référence. Un écart ici dit que la base décrit un AUTRE build.
+                "re.pdata_corroboration",
+                "re.anchoring",
+                8.0,
+                "ré-ancrer la KB sur le binaire de référence (just re-seed && just re-rebuild)",
+            ),
         ] {
             if let Some((value, total, pct, source)) = self.latest_metric(metric)? {
                 let current = pct.unwrap_or(value);

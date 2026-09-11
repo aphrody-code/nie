@@ -71,6 +71,23 @@ Corollaire : ne jamais recopier un chiffre d'un document — le régénérer.
 
 Tout ce qui n'est pas validable est marqué incomplet, jamais « fait ».
 
+## Vérifier que le serveur MCP dit vrai
+
+`cargo test -p nie-mcp --test re_real` interroge le **vrai** serveur sur stdio (`re_coverage`,
+`re_query`, `re_function` par adresse **et** par nom, `cli_atlas status`/`gaps`) puis corrobore
+ses réponses contre la table `.pdata` du binaire de référence, lue indépendamment par `nie-pe`.
+Le test est *data-gated* : sans `var/niers.sqlite` ni `nie.exe`, il dit ce qu'il saute et passe.
+
+**Mesure du 2026-09-11 — à connaître avant de citer la base** : sur 400 fonctions nommées,
+**43,00 % seulement** commencent sur une vraie racine `.pdata` de `nie.exe` (172/400 ; 163 de
+plus tombent à l'intérieur d'un corps). Le binaire de référence a **55 351** racines `.pdata`,
+la base en a indexé **50 674** : elle décrit un **autre build** (`binary.sha256 = 4c2b91fb…`,
+31 468 032 o) que la cible (`b1fa04ea…`, 33 918 464 o). D'où l'écart `re.anchoring` dans
+`niers atlas gaps` : ré-ancrer la base est le préalable à toute citation de ses adresses.
+
+Attention au format des réponses : `re_query` rend les colonnes d'adresse en **chaînes
+hexadécimales** (`"0x140452820"`), pas en nombres.
+
 ## La chaîne, et qui possède quoi
 
 ```
@@ -86,10 +103,11 @@ Ghidra → nie-re / nie-index → nie-trace → nie-computer-use
 
 ## Pièges mesurés — les répéter coûte des heures
 
-- L'index Ghidra est **désaligné** : `.pdata` est la vérité terrain (50 674 racines réelles ;
-  3,7 % seulement des `FUN_` de Ghidra tombent sur un vrai début de fonction). Toujours passer
-  par `just re-rebuild`, jamais par les CLI brutes — `disasm` avant `rtti` rend un résultat
-  incomplet **sans erreur**.
+- L'index Ghidra est **désaligné** : `.pdata` est la vérité terrain (3,7 % seulement des `FUN_`
+  de Ghidra tombent sur un vrai début de fonction). Toujours passer par `just re-rebuild`,
+  jamais par les CLI brutes — `disasm` avant `rtti` rend un résultat incomplet **sans erreur**.
+- Les racines `.pdata` ne sont pas un nombre unique : **50 674** dans la base (build indexé),
+  **55 351** dans `nie.exe` (référence). Citer le binaire avec le chiffre, toujours.
 - `kb.forge_unit` est **vide** : le vrai découpage est `var/forge/cover.json` (215 688 unités).
 - Le registre vivant est `data/forge/registry.json`, pas le défaut CLI `forge/registry.json`.
 - `target/release/nie-forge` peut être antérieur au format de `cover.json`
