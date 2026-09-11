@@ -30,7 +30,7 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 			transformIndexHtml(html: string) {
 				if (!desktop && !inacordWeb) return html;
 				let document = html
-					.replace("<title>nie</title>", inacordWeb ? "<title>Inacord — téléchargements</title>" : "<title>Inacord</title>")
+					.replace("<title>nie</title>", "<title>Inacord</title>")
 					.replace('<link rel="icon" href="/static/favicon.ico" />', "");
 				if (inacordWeb) {
 					document = document.replace(
