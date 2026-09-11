@@ -1053,6 +1053,7 @@ pub fn encode_t2b(entries: &[CfgEntry]) -> Vec<u8> {
         Entry(&'a CfgEntry),
         End,
     }
+    use is_container_name as is_begin_name;
     // MÊME critère que `parse_t2b` (`is_begin` dans `parse_sub`) : un conteneur se reconnaît au
     // NOM (suffixe `_BEG`/`_BEGIN`, motif `_BEG_`, préfixe `PTREE`), PAS au fait que `children`
     // soit non vide. Bug réel trouvé par le round-trip sur le vrai jeu (`encode_t2b_round_trip_
@@ -1060,12 +1061,6 @@ pub fn encode_t2b(entries: &[CfgEntry]) -> Vec<u8> {
     // d'origine) a quand même `entry.children = parse_sub(iter)` côté décodeur — juste vide.
     // Se baser sur `!children.is_empty()` omettait le marqueur de fin pour ces conteneurs vides,
     // et le ré-décodage avalait alors tous les frères suivants comme si c'était leur contenu.
-    fn is_begin_name(name: &str) -> bool {
-        name.ends_with("_BEG")
-            || name.ends_with("_BEGIN")
-            || name.contains("_BEG_")
-            || name.starts_with("PTREE")
-    }
     fn flatten<'a>(entries: &'a [CfgEntry], out: &mut Vec<FlatItem<'a>>) {
         for e in entries {
             out.push(FlatItem::Entry(e));
@@ -1764,6 +1759,140 @@ pub fn to_iecode_json(data: &[u8]) -> Option<serde_json::Value> {
     } else {
         t2b_to_iecode_json(data)
     }
+}
+
+/// Un nœud T2B porte-t-il un sous-arbre ? La réponse est dans son **nom**, pas dans ses enfants.
+///
+/// `parse_t2b` (`is_begin` de `parse_sub`) et [`encode_t2b`] appliquent tous deux ce critère : un
+/// conteneur au sous-arbre vide, fermé immédiatement dans le fichier d'origine, doit quand même
+/// recevoir son marqueur de fin, sinon le ré-décodage avale ses frères suivants comme s'ils
+/// étaient son contenu. La conséquence dans l'autre sens est aussi tranchante : un nœud qui n'est
+/// pas nommé comme un conteneur voit ses enfants **ignorés** à l'encodage.
+#[must_use]
+pub fn is_container_name(name: &str) -> bool {
+    name.ends_with("_BEG")
+        || name.ends_with("_BEGIN")
+        || name.contains("_BEG_")
+        || name.starts_with("PTREE")
+}
+
+/// Retire le suffixe d'index que [`t2b_siblings_to_iecode_json`] ajoute à chaque nœud.
+///
+/// La règle iecode **ajoute toujours** `_<rang>` ; retirer le dernier groupe de chiffres en est
+/// donc l'inverse exact, y compris quand le nom d'origine finit lui-même par des chiffres
+/// (`FOO_2` devient `FOO_2_0`, et redevient `FOO_2`).
+fn strip_iecode_index(name: &str) -> &str {
+    match name.rsplit_once('_') {
+        Some((base, index)) if !index.is_empty() && index.bytes().all(|b| b.is_ascii_digit()) => {
+            base
+        }
+        _ => name,
+    }
+}
+
+/// Reconstruit une variable T2B depuis sa forme iecode `{"type","value"}`.
+///
+/// `value` est **toujours** une chaîne dans cette forme, dans les deux sens ; elle est reparsée
+/// selon `type`. Un type inconnu ou une valeur illisible est une erreur explicite, jamais une
+/// valeur par défaut silencieuse : une faute de frappe dans un JSON édité à la main ne doit pas
+/// produire un `cfg.bin` syntaxiquement valide que le jeu lirait de travers.
+fn iecode_json_to_t2b_value(value: &serde_json::Value) -> Result<Value, alloc::string::String> {
+    let kind = value
+        .get("type")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("variable sans champ \"type\"")?;
+    let raw = value
+        .get("value")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("variable sans champ \"value\" (chaîne attendue)")?;
+    match kind {
+        "String" => Ok(Value::String(alloc::string::String::from(raw))),
+        "Int" => raw
+            .parse::<i32>()
+            .map(Value::Int)
+            .map_err(|error| alloc::format!("valeur Int invalide {raw:?} : {error}")),
+        "Float" => raw
+            .parse::<f32>()
+            .map(Value::Float)
+            .map_err(|error| alloc::format!("valeur Float invalide {raw:?} : {error}")),
+        other => Err(alloc::format!(
+            "type de variable inconnu : {other:?} (attendu String/Int/Float)"
+        )),
+    }
+}
+
+/// Reconstruit un nœud T2B depuis sa forme iecode.
+fn iecode_json_to_t2b_entry(value: &serde_json::Value) -> Result<CfgEntry, alloc::string::String> {
+    let name = value
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("nœud sans champ \"name\"")?;
+    let variables = match value.get("variables").and_then(serde_json::Value::as_array) {
+        None => Vec::new(),
+        Some(items) => items
+            .iter()
+            .map(iecode_json_to_t2b_value)
+            .collect::<Result<Vec<_>, _>>()?,
+    };
+    let children = match value.get("children").and_then(serde_json::Value::as_array) {
+        None => Vec::new(),
+        Some(items) => items
+            .iter()
+            .map(iecode_json_to_t2b_entry)
+            .collect::<Result<Vec<_>, _>>()?,
+    };
+    let name = strip_iecode_index(name);
+    // Le silence serait pire que l'erreur : `encode_t2b` n'écrit le sous-arbre que des nœuds
+    // nommés comme des conteneurs, donc un document dont un parent ne l'est pas produirait un
+    // fichier bien formé auquel il manquerait des lignes entières, sans rien pour le signaler.
+    if !children.is_empty() && !is_container_name(name) {
+        return Err(alloc::format!(
+            "{name:?} porte {} enfant(s) mais n'est pas nommé comme un conteneur (_BEG, _BEGIN, \
+             _BEG_, PTREE…) : l'encodage les perdrait en silence",
+            children.len()
+        ));
+    }
+    Ok(CfgEntry {
+        name: alloc::string::String::from(name),
+        variables,
+        children,
+    })
+}
+
+/// Inverse de [`t2b_to_iecode_json`] : reconstruit l'arbre `CfgEntry` depuis la forme iecode
+/// `{"entries": [...]}` — celle des dumps `*.cfg.bin.json` du dépôt et de tout ce qui est édité
+/// à partir d'eux.
+///
+/// À ne pas confondre avec `nie_explore::bridge::json_to_t2b_entries`, qui inverse `t2b_to_json`
+/// et prend les noms **tels quels**. Les deux formes JSON ne diffèrent que par le suffixe
+/// d'index, et c'est exactement ce qui fait qu'appliquer le mauvais inverse produit un fichier
+/// dont chaque nom de nœud porte un `_0` de trop — lisible par le dépôt, faux pour le jeu.
+///
+/// # Errors
+///
+/// Rend le premier nœud ou la première variable mal formée, avec ce qui manquait.
+pub fn iecode_json_to_t2b_entries(
+    root: &serde_json::Value,
+) -> Result<Vec<CfgEntry>, alloc::string::String> {
+    let entries = root
+        .get("entries")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("JSON sans champ \"entries\" (forme iecode T2B attendue)")?;
+    entries.iter().map(iecode_json_to_t2b_entry).collect()
+}
+
+/// Encode un document iecode `{"entries": [...]}` en `cfg.bin` T2B.
+///
+/// C'est le chemin qui manquait entre les artefacts iecode du dépôt et un fichier que le jeu
+/// pourrait lire. Ce que la fonction garantit, et que [`t2b_to_iecode_json`] permet de vérifier,
+/// c'est que le dépôt relit à l'identique ce qu'il vient d'écrire. Ce qu'elle ne garantit pas,
+/// et qu'aucun test ici ne peut établir : que le **jeu** accepte le fichier.
+///
+/// # Errors
+///
+/// Propage l'erreur de [`iecode_json_to_t2b_entries`].
+pub fn encode_iecode_t2b(root: &serde_json::Value) -> Result<Vec<u8>, alloc::string::String> {
+    Ok(encode_t2b(&iecode_json_to_t2b_entries(root)?))
 }
 
 // ---------------------------------------------------------------------------

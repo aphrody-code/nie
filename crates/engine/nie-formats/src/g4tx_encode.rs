@@ -94,6 +94,89 @@ pub fn encode_dds_bgra8(w: u32, h: u32, rgba: &[u8]) -> Result<Vec<u8>, alloc::s
     Ok(out)
 }
 
+/// Encode un buffer RGBA8 brut en DDS **BC7 compressé**, en-tête DX10 (`dxgiFormat` 98,
+/// `BC7RgbaUnorm`) — le format que [`crate::g4tx_decode`] reconnaît déjà en lecture et celui que
+/// portent les icônes de portrait du jeu.
+///
+/// Pourquoi il existe à côté de [`encode_dds_bgra8`] : un conteneur BGRA8 est structurellement
+/// correct mais pèse quatre fois le fichier mesuré. Sur une icône de portrait
+/// (2 textures 256×256) l'écart est exactement `2 × 256 × 256 × 4 = 524 288` octets de pixels
+/// contre `2 × 65 536 = 131 072` en BC7 — ce qui rend la référence `c02023290_l.g4tx` de
+/// **131 648 octets** lisible telle quelle : en-tête plus deux blocs BC7.
+///
+/// La compression vient d'`image_dds` (feature `textures-encode`), pas d'un encodeur BC réécrit
+/// ici. Elle est **avec perte** : le round-trip rend des pixels proches, pas identiques, et c'est
+/// la raison pour laquelle [`encode_dds_bgra8`] reste le chemin par défaut.
+///
+/// # Erreurs
+/// `Err` si `rgba.len() != w * h * 4`, si les dimensions ne conviennent pas au compresseur, ou si
+/// la compression échoue.
+#[cfg(feature = "textures-encode")]
+pub fn encode_dds_bc7(w: u32, h: u32, rgba: &[u8]) -> Result<Vec<u8>, alloc::string::String> {
+    let expected = (w as usize) * (h as usize) * 4;
+    if rgba.len() != expected {
+        return Err(format!(
+            "encode_dds_bc7 : rgba.len()={} attendu w*h*4={expected}",
+            rgba.len()
+        ));
+    }
+    let surface = image_dds::SurfaceRgba8 {
+        width: w,
+        height: h,
+        depth: 1,
+        layers: 1,
+        mipmaps: 1,
+        data: rgba,
+    };
+    let encoded = surface
+        .encode(
+            image_dds::ImageFormat::BC7RgbaUnorm,
+            image_dds::Quality::Normal,
+            image_dds::Mipmaps::Disabled,
+        )
+        .map_err(|error| format!("encode_dds_bc7 : {error}"))?;
+    let blocks = encoded.data;
+
+    /// Offset absolu des pixels d'un DDS à en-tête DX10 : magic + `DDS_HEADER` + `DDS_HEADER_DXT10`.
+    const DX10_PIXELS_OFFSET: usize = DDS_PIXELS_OFFSET + 20;
+    let mut out = vec![0u8; DX10_PIXELS_OFFSET];
+    out[0..4].copy_from_slice(b"DDS ");
+
+    const DDSD_CAPS: u32 = 0x1;
+    const DDSD_HEIGHT: u32 = 0x2;
+    const DDSD_WIDTH: u32 = 0x4;
+    const DDSD_PIXELFORMAT: u32 = 0x1000;
+    const DDSD_LINEARSIZE: u32 = 0x8_0000;
+    const DDPF_FOURCC: u32 = 0x4;
+    const DDSCAPS_TEXTURE: u32 = 0x1000;
+    /// `dxgiFormat` de BC7 non-sRGB — la valeur que `dxgi_to_image_format` accepte en lecture.
+    const DXGI_BC7_UNORM: u32 = 98;
+    /// `D3D10_RESOURCE_DIMENSION_TEXTURE2D`.
+    const RESOURCE_DIMENSION_TEXTURE2D: u32 = 3;
+
+    out[4..8].copy_from_slice(&(DDS_HEADER_LEN as u32).to_le_bytes());
+    out[8..12].copy_from_slice(
+        &(DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_LINEARSIZE | DDSD_PIXELFORMAT).to_le_bytes(),
+    );
+    out[12..16].copy_from_slice(&h.to_le_bytes());
+    out[16..20].copy_from_slice(&w.to_le_bytes());
+    out[20..24].copy_from_slice(&(blocks.len() as u32).to_le_bytes()); // dwPitchOrLinearSize
+    out[28..32].copy_from_slice(&1u32.to_le_bytes()); // dwMipMapCount
+
+    out[76..80].copy_from_slice(&32u32.to_le_bytes()); // pf.dwSize
+    out[80..84].copy_from_slice(&DDPF_FOURCC.to_le_bytes());
+    out[84..88].copy_from_slice(b"DX10"); // pf.dwFourCC
+    out[108..112].copy_from_slice(&DDSCAPS_TEXTURE.to_le_bytes());
+
+    // DDS_HEADER_DXT10 @128 (20 o) : dxgiFormat, resourceDimension, miscFlag, arraySize, miscFlags2.
+    out[128..132].copy_from_slice(&DXGI_BC7_UNORM.to_le_bytes());
+    out[132..136].copy_from_slice(&RESOURCE_DIMENSION_TEXTURE2D.to_le_bytes());
+    out[140..144].copy_from_slice(&1u32.to_le_bytes()); // arraySize
+
+    out.extend_from_slice(&blocks);
+    Ok(out)
+}
+
 #[inline]
 const fn align(v: usize, a: usize) -> usize {
     (v + (a - 1)) & !(a - 1)
@@ -414,7 +497,6 @@ pub fn encode_g4tx_multi_texture(
     Ok(out)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -645,7 +727,6 @@ mod tests {
         );
         assert!(err.is_err(), "une région orpheline doit être refusée");
     }
-
 
     /// Encode un DDS BGRA8 synthétique (damier 2×2, alpha variable) puis le redécode — vérifie
     /// que [`encode_dds_bgra8`] est reconnu par le décodeur déjà validé (`dds_format_and_pixel_
