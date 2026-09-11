@@ -249,9 +249,16 @@ manifeste = {
         {
             "nom": "Encodage G4TX",
             "bloquant": False,
-            "constat": "Le décodage BC7 est validé ; l'encodage existe côté C# et C++, la "
-                       "conversion C++ étant la moins bonne des trois.",
-            "consequence": "Passer par la voie C# pour les textures et les icônes.",
+            "constat": "La voie C# est archivée ; l'encodage est natif Rust. "
+                       "`nie_formats::g4tx_encode` écrit le conteneur mono- et multi-texture, et "
+                       "`nie-ocgen icons` produit les deux icônes de portrait, reparsées puis "
+                       "redécodées en PNG. Le payload par défaut est du BGRA8 non compressé : "
+                       "524 784 octets contre 131 648 pour la référence mesurée.",
+            "consequence": "`encode_dds_bc7` existe derrière la feature `textures-encode`, mais "
+                           "`intel_tex_2` ne livre ses noyaux ISPC que pour les cibles "
+                           "`*-pc-windows-msvc` (et `.a` Linux/macOS/Android) : le link échoue "
+                           "sur `x86_64-pc-windows-gnu`. Le payload au bon format demande une "
+                           "toolchain MSVC, pas du code en plus.",
         },
         {
             "nom": "Budget d'entrées loose",
