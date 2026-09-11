@@ -56,7 +56,7 @@ export const SO_PATH = resolveSo();
 
 // ─── dlopen ─────────────────────────────────────────────────────────────────
 
-const lib = dlopen(SO_PATH, {
+const symbolsDef = {
   nie_crc32:            { args: [FFIType.ptr, FFIType.u64], returns: FFIType.u32 },
   nie_crand_new:        { args: [FFIType.u32],              returns: FFIType.ptr },
   nie_crand_from_u64:   { args: [FFIType.u64],              returns: FFIType.ptr },
@@ -71,7 +71,6 @@ const lib = dlopen(SO_PATH, {
   nie_decode_json_out:  { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
   nie_menu_setting_json_out:
                         { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
-  nie_wiki_json_out:    { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
   nie_g4tx_to_png_out:  { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
   nie_vfs_open:         { args: [FFIType.cstring],          returns: FFIType.ptr  },
   nie_vfs_read_out:     { args: [FFIType.ptr, FFIType.cstring, FFIType.ptr], returns: FFIType.void },
@@ -86,9 +85,21 @@ const lib = dlopen(SO_PATH, {
     returns: FFIType.void,
   },
   nie_font_free:        { args: [FFIType.ptr],              returns: FFIType.void },
-} as const);
+} as const;
 
-const { symbols } = lib;
+function loadLib() {
+  try {
+    return dlopen(SO_PATH, {
+      ...symbolsDef,
+      nie_wiki_json_out: { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
+    });
+  } catch {
+    return dlopen(SO_PATH, symbolsDef as any);
+  }
+}
+
+const lib = loadLib();
+const symbols = lib.symbols as Record<string, any>;
 
 // ─── encodeurs partagés ──────────────────────────────────────────────────────
 const _enc = new TextEncoder();
@@ -311,6 +322,9 @@ export interface WikiRequest {
  * The native library must be built before importing this module.
  */
 export function wiki<T = unknown>(request: WikiRequest): T {
+  if (typeof symbols.nie_wiki_json_out !== "function") {
+    throw new Error("Rust wiki operation requires a native library with nie_wiki_json_out exported.");
+  }
   const input = _enc.encode(JSON.stringify(request));
   const output = callOut((outPtr) => {
     symbols.nie_wiki_json_out(ptr(input), BigInt(input.byteLength), outPtr);
