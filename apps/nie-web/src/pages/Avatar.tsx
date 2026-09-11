@@ -1839,7 +1839,10 @@ export function Avatar({ onBack, gamepadSampler }: { onBack: () => void; gamepad
 			setPlayingCinematicVideo("/assets/skills/who01360/video.webm");
 			setActiveMotionId("waza_who01360");
 		} else if (tech === "morphee") {
-			setCinematicTitle("Aura Keshin : Morphée, le Dieu des Rêves");
+			// La vidéo disponible est celle de la technique who01360 : aucune capture
+			// de l'aura Morphée n'est sourcée (cf. auras.keshin.media_source,
+			// provenance UNSOURCED dans source/skills/manifest.json).
+			setCinematicTitle("Morphée — visuel non sourcé (vidéo who01360 en substitution)");
 			setPlayingCinematicVideo("/assets/oc/astro-lor/source/skills/aura_soul.webm");
 			setActiveMotionId("aura_keshin");
 		}
