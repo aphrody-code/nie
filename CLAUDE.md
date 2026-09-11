@@ -91,6 +91,36 @@ that price on keeper, menu and match-sim.
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 
+## Building on this Windows box (measured 2026-09-11)
+
+This machine has **no MSVC**: `link.exe` is absent, so the pinned msvc host
+toolchain cannot link anything - not even a build script. Five obstacles sit
+between a clean checkout and `bun run build`, and each fails with an error that
+names the wrong culprit.
+
+- **No C toolchain at all.** Install mingw-w64 (`winget install
+  BrechtSanders.WinLibs.POSIX.MSVCRT --scope user`); Rust's `x86_64-pc-windows-gnu`
+  target wants the **MSVCRT** runtime, not UCRT. Then drive cargo with
+  `cargo +1.98.1-x86_64-pc-windows-gnu --target x86_64-pc-windows-gnu`.
+- **`link` from MSYS shadows MSVC's `link.exe` in the Bash tool.** The failure reads
+  `link: extra operand ...rcgu.o` - that is GNU coreutils `link`, not a linker
+  error. Run cargo from **PowerShell**, where the MSYS `link` is not on PATH.
+- **`cargo install` builds the host half with the default toolchain.** Pass
+  `RUSTUP_TOOLCHAIN=1.98.1-x86_64-pc-windows-gnu`. `apps/nie-web/scripts/build-wasm.ts`
+  calls bare `cargo`, so this env var is the only way to steer it.
+- **`wasm32-unknown-unknown` is installed on the msvc toolchain only.**
+  `rustup target add wasm32-unknown-unknown --toolchain 1.98.1-x86_64-pc-windows-gnu`.
+- **`wasm-opt` is mandatory and hard to obtain.** Absent from winget, and the
+  `wasm-opt` crate wraps C++ that does not link under windows-gnu. Install binaryen
+  from npm instead: `bun add -g binaryen`. Do **not** skip the step: the script
+  validates the module and enforces a byte budget on the optimized output.
+- `wasm-bindgen` CLI must match the workspace pin exactly (0.2.125 here); the build
+  refuses a mismatch by design.
+
+Measured end state: `bun run build` exits 0 and writes `apps/nie-web/dist/`
+(`index-*.js` ~589 KB, `index-*.css` ~310 KB, 10 files precompressed to 708 KiB
+with Brotli). **Building is not deploying** - see below.
+
 ## What stays under the user's hand
 
 The pre-approval covers reversible work. It does **not** silently extend to: deleting data,
