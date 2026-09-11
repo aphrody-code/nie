@@ -1,0 +1,162 @@
+{
+  "schema": "niers.oc.3d-probes/v1",
+  "captured_at": "2026-09-11",
+  "method": [
+    "Each rectangle was cropped out of the sheet with `niers img crop`, scaled to a tile with",
+    "`niers img resize`, assembled into a contact strip with `niers img composite`, and looked at.",
+    "A probe was kept only once the tile showed the intended material and nothing else worth",
+    "mentioning. Four of the first ten placements were wrong on inspection and were moved.",
+    "No image was generated: every pixel here comes from the author's own sheets."
+  ],
+  "background_rejection": {
+    "problem": "The first rejection rule was generic: light and unsaturated means paper. It ate the character's palest hair, which sits about 0.017 of Oklab from the paper, and the probe then returned the ink outline (#1c150d at 32 %).",
+    "fix": "The background is measured on each sheet's own four corner patches and rejection is a 0.010 Oklab radius around that measured colour. Measured paper of both sheets: #ece8e6.",
+    "effect": "hair_pale went from #1c150d at 32 % to #ffede3 at 96 %, and skin from #d2bdb1 at 42 % to #ecd6c9 at 99 % — the old rule had been eating the lit half of the skin too."
+  },
+  "measured_2026_09_11": {
+    "hair_pale": { "hex": "#ffede3", "share": 0.96, "spread": 0.0027 },
+    "hair_shadow": { "hex": "#cba696", "share": 0.97, "spread": 0.0024 },
+    "hair_fringe": { "hex": "#b9693d", "share": 0.91, "spread": 0.0055 },
+    "skin": { "hex": "#ecd6c9", "share": 0.99, "spread": 0.0005 },
+    "iris_outer": { "hex": "#7883a6", "share": 0.31, "spread": 0.0839 },
+    "iris_inner": { "hex": "#7398ba", "share": 0.35, "spread": 0.0463 },
+    "jersey_primary": { "hex": "#026bc7", "share": 0.98, "spread": 0.0014 },
+    "jersey_trim": { "hex": "#d27b2d", "share": 0.68, "spread": 0.0568 },
+    "shorts": { "hex": "#d8c5bf", "share": 0.92, "spread": 0.0024 },
+    "sleeve_black": { "hex": "#101124", "share": 0.70, "spread": 0.0174 },
+    "socks_blue": { "hex": "#13377a", "share": 0.51, "spread": 0.0080 },
+    "note": "The two iris probes are the loose ones, as predicted: the iris is 34 px tall and holds four colours. Every other probe is above 0.68."
+  },
+  "sheets": {
+    "sheets/03-og-anatomy.jpg": { "width": 4161, "height": 3000 },
+    "sheets/02-og-outfit-soccer.jpg": { "width": 4161, "height": 3000 }
+  },
+  "probes": [
+    {
+      "role": "hair_pale",
+      "sheet": "sheets/03-og-anatomy.jpg",
+      "pixels": { "x": 1245, "y": 400, "w": 45, "h": 80 },
+      "observed": "interior of the ivory spike right of the fringe, filling the tile",
+      "revision": "third placement. (1040,312,270,187) caught line art and paper; (1150,390,120,60) straddled the ivory and the taupe above it and measured 70 % taupe; (1262,394,75,87) was cut in two by an outline"
+    },
+    {
+      "role": "hair_shadow",
+      "sheet": "sheets/03-og-anatomy.jpg",
+      "pixels": { "x": 1300, "y": 270, "w": 140, "h": 45 },
+      "observed": "interior of the upper taupe spike",
+      "revision": "moved from (770,624,125,166), which landed on pale hair and paper"
+    },
+    {
+      "role": "hair_fringe",
+      "sheet": "sheets/03-og-anatomy.jpg",
+      "pixels": { "x": 1019, "y": 531, "w": 125, "h": 125 },
+      "observed": "the rust forehead tuft, filling the tile"
+    },
+    {
+      "role": "skin",
+      "sheet": "sheets/03-og-anatomy.jpg",
+      "pixels": { "x": 999, "y": 1290, "w": 187, "h": 229 },
+      "observed": "torso skin, clear of the scarring and of the hair overlay"
+    },
+    {
+      "role": "iris_outer",
+      "sheet": "sheets/03-og-anatomy.jpg",
+      "pixels": { "x": 1128, "y": 798, "w": 54, "h": 34 },
+      "observed": "the whole right iris disc: dark navy rim, yellow-green pupil, violet arc, azure arc",
+      "caveat": "the least tight probe of the set. The iris is roughly 34 px tall at full resolution and holds four colours; three narrower placements were tried and each still straddled two of them. The dominant cluster is expected to be the navy rim rather than the azure arc, so this measurement is the eye's mass, not the colour a reader would name. Its `share` and `spread` in the run report are the numbers to check first."
+    },
+    {
+      "role": "iris_inner",
+      "sheet": "sheets/03-og-anatomy.jpg",
+      "pixels": { "x": 1128, "y": 825, "w": 55, "h": 5 },
+      "observed": "the azure arc at the bottom of the iris, still touching the violet ring above it",
+      "caveat": "kept as a second, deliberately unbound measurement: the editor document has one colour per eye layer, so the arc has nowhere to go."
+    },
+    {
+      "role": "jersey_primary",
+      "sheet": "sheets/02-og-outfit-soccer.jpg",
+      "pixels": { "x": 978, "y": 1456, "w": 208, "h": 166 },
+      "observed": "flat blue of the jersey chest"
+    },
+    {
+      "role": "jersey_trim",
+      "sheet": "sheets/02-og-outfit-soccer.jpg",
+      "pixels": { "x": 960, "y": 2235, "w": 125, "h": 30 },
+      "observed": "gold sock band, with a little navy above and blue below",
+      "revision": "narrowed from (940,2222,162,58), where the gold was under half the tile"
+    },
+    {
+      "role": "shorts",
+      "sheet": "sheets/02-og-outfit-soccer.jpg",
+      "pixels": { "x": 936, "y": 1831, "w": 208, "h": 125 },
+      "observed": "flat beige-grey of the shorts"
+    },
+    {
+      "role": "sleeve_black",
+      "sheet": "sheets/02-og-outfit-soccer.jpg",
+      "pixels": { "x": 740, "y": 1520, "w": 55, "h": 200 },
+      "observed": "dark navy of the left under-sleeve",
+      "revision": "moved from (728,1435,83,291), which included skin and paper"
+    },
+    {
+      "role": "socks_blue",
+      "sheet": "sheets/02-og-outfit-soccer.jpg",
+      "pixels": { "x": 946, "y": 2330, "w": 156, "h": 166 },
+      "observed": "blue of the left sock below the gold band"
+    }
+  ],
+  "go_variant_probes": {
+    "recipe": "data/oc/astro-lor/game/3d-recipe-go.json",
+    "internal_code": "c99019020",
+    "why_separate": "The GO block on 07-go-outfit-soccer.jpg reads 20-21 yo, 168 cm, a right-leg prosthesis, three years of coma, an adopted daughter named Heka Lor - against 11 yo / 163 cm on the OG soccer sheet and 10 yo / 162 cm on the Hakuren one. The kit differs as well: white shorts here, beige-grey there. One recipe covering both would have painted the VR variant in the OG kit's colours.",
+    "probes": [
+      { "role": "skin", "sheet": "sheets/08-go-anatomy.jpg", "pixels": { "x": 815, "y": 1000, "w": 170, "h": 190 } },
+      { "role": "hair_pale", "sheet": "sheets/08-go-anatomy.jpg", "pixels": { "x": 650, "y": 350, "w": 110, "h": 130 } },
+      { "role": "hair_rust", "sheet": "sheets/08-go-anatomy.jpg", "pixels": { "x": 875, "y": 430, "w": 200, "h": 120 }, "revision": "narrowed from (860,260,175,130), which straddled the rust top and the cream sides" },
+      { "role": "iris", "sheet": "sheets/08-go-anatomy.jpg", "pixels": { "x": 862, "y": 607, "w": 36, "h": 18 }, "revision": "the first placement (906,564,46,37) landed on hair and cheek, not on the eye at all", "caveat": "same shape as the OG eye and the same caveat: a blue iris around a yellow-green pupil inside a dark navy rim, 46 px tall. The dominant cluster is the rim." },
+      { "role": "jersey_primary", "sheet": "sheets/07-go-outfit-soccer.jpg", "pixels": { "x": 830, "y": 1080, "w": 250, "h": 190 } },
+      { "role": "shorts_white", "sheet": "sheets/07-go-outfit-soccer.jpg", "pixels": { "x": 860, "y": 1680, "w": 220, "h": 110 } },
+      { "role": "socks_blue", "sheet": "sheets/07-go-outfit-soccer.jpg", "pixels": { "x": 825, "y": 2170, "w": 120, "h": 140 } },
+      { "role": "sleeve_black", "sheet": "sheets/07-go-outfit-soccer.jpg", "pixels": { "x": 706, "y": 1330, "w": 28, "h": 220 }, "revision": "narrowed from (705,1270,80,300), which caught the blue of the sock beside it" }
+    ],
+    "measured_2026_09_11": {
+      "skin": { "hex": "#ecd6c9", "share": 0.98, "spread": 0.0006 },
+      "hair_pale": { "hex": "#c8a495", "share": 0.68, "spread": 0.0147 },
+      "hair_rust": { "hex": "#ba6b41", "share": 0.67, "spread": 0.0143 },
+      "iris": { "hex": "#141e2f", "share": 0.30, "spread": 0.074 },
+      "jersey_primary": { "hex": "#1a48b8", "share": 0.99, "spread": 0.0004 },
+      "shorts_white": { "hex": "#fdfdfd", "share": 0.77, "spread": 0.0032 },
+      "socks_blue": { "hex": "#10267a", "share": 0.85, "spread": 0.0067 },
+      "sleeve_black": { "hex": "#111229", "share": 0.65, "spread": 0.0084 },
+      "note": "The GO jersey measures #1a48b8 against the OG's #026bc7, and the shorts #fdfdfd against #d8c5bf: the two kits really are different, which is the whole reason the variant needed its own probes."
+    }
+  },
+  "lore_read_from_the_sheet": {
+    "source": "sheets/02-og-outfit-soccer.jpg, printed block at the top left",
+    "number": 19,
+    "height_cm": 163,
+    "pronouns": "they/them",
+    "age": "11 yo / Second Year",
+    "roles": ["Analyser", "Manager", "Technical & Strategy advisor", "Libero & Goalkeeper (only in Hakuren)"],
+    "note": "The height is what drives the morphology query (`tall`); the slim frame drawn on the anatomy sheet is what keeps the build at `normal` rather than `muscle`."
+  },
+  "document_slots_measured": {
+    "source": "data/common/chr/_test/default/mdl_editpreview_avatar_tall01.cfg.bin.json",
+    "tex_color_slots": {
+      "-94281841": "base layer, holds 244,227,200 on all 13 rows — the skin tone",
+      "-795152863": "main layer colour, varies per texture part (41,41,41 dark; 59,99,154 blue; 182,224,152 green)",
+      "-1640576332": "accent layer colour (255,255,255 or 34,34,34)"
+    },
+    "tex_parts_carrying_the_blue": [1920501681, -750581687],
+    "mdl_part_slots": {
+      "-609743950": "body_type_05",
+      "-164857417": "u117401_10 (upper garment)",
+      "349143447": "s117401_10 (lower garment)",
+      "85228391": "face01_nose01",
+      "-2130940717": "nose_type_01",
+      "2044100479": "hair_type_01, loaded with 59,99,154 — the saturated hair slot",
+      "-1490152083": "hair_type_01, loaded with 255,255,255 — the white hair slot",
+      "-1291330608": "face_mdl_type_01"
+    }
+  }
+}

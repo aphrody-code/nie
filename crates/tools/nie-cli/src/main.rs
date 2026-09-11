@@ -34,6 +34,7 @@ mod mem_lua;
 mod menu_predecode;
 mod mod_cmd;
 mod mode_index;
+mod ocgen_cmd;
 mod render_cmd;
 mod search_cmd;
 mod seed_ui;
@@ -418,6 +419,11 @@ enum Cmd {
         /// Base de connaissance, pour résoudre les noms d'icônes.
         #[arg(long, default_value = "var/niers.sqlite")]
         db: PathBuf,
+    },
+    /// Génération 3D d'un personnage original : morphologie, chara_edit, couleurs mesurées.
+    Ocgen {
+        #[command(subcommand)]
+        op: ocgen_cmd::OcgenCmd,
     },
     /// Affiche la couverture (fonctions classifiées) du binaire indexé.
     Coverage {
@@ -2383,6 +2389,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
             let racine = game_dir.unwrap_or_else(nie_formats::vfs::resolve_game_dir);
             avatar_cmd::run(&op, &racine, &db)
         }
+        Cmd::Ocgen { op } => ocgen_cmd::run(&op),
         Cmd::Mode { op } => match op {
             ModeOp::Index { db, game_dir } => {
                 let vfs = open_vfs(game_dir)?;

@@ -1,0 +1,89 @@
+{
+  "$comment": [
+    "Victory Road variant of Astro Lor. A separate recipe because c99019020 is a separate",
+    "character as far as the game is concerned, and the sheets say so: the GO block on",
+    "07-go-outfit-soccer.jpg reads 20-21 yo, 168 cm, a right-leg prosthesis, three years of coma,",
+    "an adopted daughter named Heka Lor - against 11 yo and 163 cm on the OG soccer sheet (and",
+    "10 yo / 162 cm on the Hakuren one, a year earlier). The kit differs too: white shorts here,",
+    "beige-grey there.",
+    "As in the OG recipe, nothing is generated: each colour is the dominant Oklab cluster of a",
+    "rectangle a human placed and looked at, and every slot hash is copied from a shipped editor",
+    "document. Probe rectangles are normalised; both sheets are 4161x3000.",
+    "Same open question as the OG recipe: which of the two hair_type_01 slots the game paints as",
+    "the main colour is not measured. hair_pale goes to the slot the preview loads saturated."
+  ],
+  "slug": "astro-lor",
+  "internal_code": "c99019020",
+  "name": "astro_lor_vr",
+  "morphology": {
+    "gender": "male",
+    "stature": "tall",
+    "build": "normal"
+  },
+  "probes": [
+    {
+      "role": "skin",
+      "sheet": "sheets/08-go-anatomy.jpg",
+      "rect": { "x": 0.195866, "y": 0.333333, "w": 0.040856, "h": 0.063333 }
+    },
+    {
+      "role": "hair_pale",
+      "sheet": "sheets/08-go-anatomy.jpg",
+      "rect": { "x": 0.156213, "y": 0.116667, "w": 0.026436, "h": 0.043333 }
+    },
+    {
+      "role": "hair_rust",
+      "sheet": "sheets/08-go-anatomy.jpg",
+      "rect": { "x": 0.210286, "y": 0.143333, "w": 0.048065, "h": 0.04 }
+    },
+    {
+      "role": "iris",
+      "sheet": "sheets/08-go-anatomy.jpg",
+      "rect": { "x": 0.207162, "y": 0.202333, "w": 0.008652, "h": 0.006 }
+    },
+    {
+      "role": "jersey_primary",
+      "sheet": "sheets/07-go-outfit-soccer.jpg",
+      "rect": { "x": 0.199471, "y": 0.36, "w": 0.060082, "h": 0.063333 }
+    },
+    {
+      "role": "shorts_white",
+      "sheet": "sheets/07-go-outfit-soccer.jpg",
+      "rect": { "x": 0.206681, "y": 0.56, "w": 0.052872, "h": 0.036667 }
+    },
+    {
+      "role": "socks_blue",
+      "sheet": "sheets/07-go-outfit-soccer.jpg",
+      "rect": { "x": 0.19827, "y": 0.723333, "w": 0.028839, "h": 0.046667 }
+    },
+    {
+      "role": "sleeve_black",
+      "sheet": "sheets/07-go-outfit-soccer.jpg",
+      "rect": { "x": 0.16967, "y": 0.443333, "w": 0.006729, "h": 0.073333 }
+    }
+  ],
+  "colors": [
+    { "role": "skin", "target": { "kind": "tex_slot", "slot": -94281841 } },
+    {
+      "role": "iris",
+      "target": { "kind": "tex_part_slot", "part": 1920501681, "slot": -795152863 }
+    },
+    {
+      "role": "iris",
+      "target": { "kind": "tex_part_slot", "part": -750581687, "slot": -795152863 }
+    },
+    { "role": "hair_pale", "target": { "kind": "mdl_slot", "slot": 2044100479 } },
+    { "role": "hair_rust", "target": { "kind": "mdl_slot", "slot": -1490152083 } },
+    { "role": "jersey_primary", "target": { "kind": "mdl_slot", "slot": -164857417 } },
+    { "role": "shorts_white", "target": { "kind": "mdl_slot", "slot": 349143447 } }
+  ],
+  "parts": [],
+  "bones": [],
+  "icons": [
+    {
+      "internal_code": "c99019020",
+      "first": { "sheet": "sheets/08-go-anatomy.jpg", "x": 578, "y": 46, "side": 878 },
+      "second": { "sheet": "sheets/06-go-outfit-casual.jpg", "x": 566, "y": 315, "side": 650 }
+    }
+  ]
+}

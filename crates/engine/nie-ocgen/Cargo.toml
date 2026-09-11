@@ -1,0 +1,36 @@
+[package]
+name = "nie-ocgen"
+description = "Pipeline de génération 3D d'un personnage original : références mesurées → CHARA_EDIT_PARAM → composition → plan d'assemblage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-data = { workspace = true, features = ["serde", "std"] }
+nie-formats = { workspace = true, default-features = false, features = ["std", "textures"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
+thiserror.workspace = true
+image = { workspace = true, features = ["jpeg", "webp"] }
+clap = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+
+[features]
+default = []
+# The command surface. Kept optional so a host embedding the library does not pull clap.
+cli = ["dep:clap"]
+# Payload BC7 des icônes (le format du jeu). Tire `intel_tex_2`, dont les noyaux ISPC ne sont
+# livrés que pour MSVC : le link échoue sur la cible windows-gnu, d.où une feature et non un défaut.
+bc7 = ["nie-formats/textures-encode"]
+
+[[bin]]
+name = "nie-ocgen"
+path = "src/main.rs"
+required-features = ["cli"]

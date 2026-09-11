@@ -166,6 +166,41 @@ Preuve actuelle : `t2b_roundtrip --vfs chara_` rend **4/152 octet-identiques** ;
 les 148 autres nécessitent encore l'analyse de leurs différences avant toute
 injection dans le jeu.
 
+#### Ce qui manquait entre un artefact iecode et un fichier · comblé
+
+Tout ce que le dépôt produit — un document d'éditeur d'avatar généré, l'événement de dialogue
+d'Astro, une table éditée — sort en forme **iecode** (`*.cfg.bin.json`). `t2b_to_iecode_json`
+existait depuis toujours ; **son inverse, non**. Il n'y avait donc aucun chemin, même mauvais,
+entre ces artefacts et un fichier.
+
+`nie_formats::cfgbin::iecode_json_to_t2b_entries` et `encode_iecode_t2b` le fournissent. Deux
+pièges qu'ils ferment, l'un et l'autre trouvés en écrivant le test :
+
+- **Le suffixe d'index.** `nie_explore::bridge::json_to_t2b_entries` existe déjà, mais il inverse
+  `t2b_to_json`, pas `t2b_to_iecode_json` : il prend les noms **tels quels**. Appliqué à un dump
+  iecode, il aurait écrit `CHARA_EDIT_PARAM_0` dans la table de clés au lieu de
+  `CHARA_EDIT_PARAM`. Le dépôt aurait relu `CHARA_EDIT_PARAM_0_0` sans broncher.
+- **Le conteneur se reconnaît au nom.** `encode_t2b` n'écrit le sous-arbre que des nœuds nommés
+  `_BEG`/`_BEGIN`/`_BEG_`/`PTREE` — critère partagé avec `parse_t2b`, désormais dans la fonction
+  publique `is_container_name`. Un parent nommé autrement voyait ses enfants **disparaître en
+  silence**. L'encodage iecode le refuse maintenant en nommant le nœud.
+
+Preuve : `cargo test -p nie-formats --test iecode_t2b_aller_retour` rend **5/5**, dont
+`iecode → CfgEntry → encode_t2b → parse → iecode` **identique sur les 33 documents
+`CHARA_EDIT_PARAM`** du checkout, et le refus explicite des quatre formes mal formées. Le pied de
+page de 16 octets est bien émis : le fichier produit pour Astro finit par
+`01 74 32 62 FE 01 00 00 01 00 FF FF FF FF FF FF`, la seconde variante du corpus, octet pour
+octet.
+
+Ce que cela **ne dit pas**, et c'est le même avertissement que plus haut : c'est un vert qui
+mesure notre cohérence interne. `encode_t2b` rogne encore face aux fichiers du jeu (4/152), donc
+un fichier produit ici n'a pas le layout que le jeu écrirait. Le dialogue et le document d'Astro
+sont maintenant des `.cfg.bin` — pas des `.cfg.bin` dont on sait qu'ils se chargent.
+
+```bash
+nie-ocgen encode data/oc/astro-lor/game/text --out var/ocgen/text
+```
+
 ### V2 — Écrire un modèle · bloquant
 
 G4MD et G4MG se **lisent** — le skinning est validé byte-exact, l'extraction de

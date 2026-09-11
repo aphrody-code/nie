@@ -21,7 +21,10 @@ members = ["crates/forge/*", "crates/engine/*", "crates/tools/*", "apps/inacord/
 default-members = ["crates/forge/*", "crates/engine/*", "crates/tools/*"]
 # nie-engine = portage RE du moteur Level-5 (~15k LOC, 434 // EXTERN:) consommé par AUCUNE crate vivante.
 # Hors build/test workspace, conservé comme RÉFÉRENCE de portage en lecture seule (cf. docs/PLAN.md).
-exclude = ["crates/archive/nie-engine"]
+exclude = ["crates/archive/nie-engine", "crates/tools/inacord"]
+# crates/tools/inacord/ n'a pas de Cargo.toml (artefacts de build orphelins, cf. .coord —
+# aucun pair actif dessus au 2026-09-10) ; exclu pour ne pas casser `crates/tools/*`.
+# Le crate Tauri réel du dépôt est apps/inacord/src-tauri.
 
 [workspace.package]
 edition = "2024"
@@ -141,6 +144,7 @@ nie-save = { path = "crates/engine/nie-save" }
 nie-wiki = { path = "crates/tools/nie-wiki" }
 nie-core = { path = "crates/engine/nie-core" }
 nie-data = { path = "crates/engine/nie-data" }
+nie-ocgen = { path = "crates/engine/nie-ocgen" }
 # PAS de `nie-engine` ici : la crate est `exclude` du workspace (cf. plus haut) et aucune crate
 # vivante ne la consomme. La déclarer invitait un `nie-engine.workspace = true` qui aurait ramené
 # dans le build un portage conservé en lecture seule.

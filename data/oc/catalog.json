@@ -39,9 +39,27 @@
   ],
   "files": [
     {
+      "path": "data/oc/astro-lor/game/3d-recipe-go.json",
+      "bytes": 3423,
+      "sha256": "dcfbe00966ced2e95a89923aec059a5739e81d3b82ff5b357fea15258511ec1f",
+      "class": "game_metadata"
+    },
+    {
+      "path": "data/oc/astro-lor/game/3d-recipe.json",
+      "bytes": 5531,
+      "sha256": "748c13236f3022b1e68dcd63ca551f69a3d18cd3ad12637717c7994e86d33515",
+      "class": "game_metadata"
+    },
+    {
       "path": "data/oc/astro-lor/game/character-contract.json",
       "bytes": 16200,
       "sha256": "eb4296e0e0afc145a6c307ed49c69b5d2ac5d0fb38094ba81a5a0691586bd429",
+      "class": "game_metadata"
+    },
+    {
+      "path": "data/oc/astro-lor/game/evidence/3d-probes.json",
+      "bytes": 10089,
+      "sha256": "580911d08554cf5c96020434fa17dd7a9dfde369d096d2cdbd28838e9793023d",
       "class": "game_metadata"
     },
     {
@@ -58,8 +76,8 @@
     },
     {
       "path": "data/oc/astro-lor/game/README.md",
-      "bytes": 1864,
-      "sha256": "7cfed0816a453756d0c3f0d6d347d56fc4c1617014ab6d9545449cf591c3d025",
+      "bytes": 2274,
+      "sha256": "eb5ba98416a056785d70f97b7847977f3f238b23bb298f4a9367559eb7ad7598",
       "class": "game_metadata"
     },
     {
@@ -112,8 +130,8 @@
     },
     {
       "path": "data/oc/astro-lor/README.md",
-      "bytes": 5717,
-      "sha256": "3997e3a87492a1365cbe37a895b1d423f77fb7b818da8bdf84fe54660c35a1e7",
+      "bytes": 5817,
+      "sha256": "b3d7e827bf06fd6e7d30b00e5327e86e817d08f161f4d4e6105b87d35aa69bd4",
       "class": "metadata"
     },
     {

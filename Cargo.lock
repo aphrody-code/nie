@@ -6005,6 +6005,7 @@ dependencies = [
  "nie-formats",
  "nie-index",
  "nie-lua",
+ "nie-ocgen",
  "nie-queue",
  "nie-re",
  "nie-render3d",
@@ -6244,6 +6245,19 @@ dependencies = [
  "sha2 0.10.9",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "nie-ocgen"
+version = "0.5.11"
+dependencies = [
+ "clap",
+ "image",
+ "nie-data",
+ "nie-formats",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
