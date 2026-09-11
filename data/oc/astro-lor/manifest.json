@@ -3,6 +3,12 @@
   "nature": "personnage original (OC) — n'existe pas dans les données du jeu",
   "auteur_des_planches": "@Karumina_san",
   "game_contract": "data/oc/astro-lor/game/character-contract.json",
+  "skills_source": "data/oc/astro-lor/source/skills/manifest.json",
+  "auras_summary": {
+    "keshin": "Morphée, le Dieu des Rêves (0xCFD002A0) / Hissatsu: Vœux Précieux (ock6006)",
+    "miximax": ["Master Dragon (0xA5C69DB2)", "Shawn Froste (0x056F6CFC)", "Celia Hills (0xFFCE6BFF)", "Asta Lor (0x8DC4DA83)"],
+    "linked_skills": ["who01060 (Sauve-cabri / Saute-Mouton)", "who01360 (Cabriole de la biche)"]
+  },
   "gabarit": {
     "code_interne": "c02023290",
     "pourquoi": "gardien déjà présent dans le jeu ; ses fichiers donnent la forme exacte de ce qu'un personnage possède en propre",
