@@ -1485,14 +1485,39 @@ mod tests {
 mod tests_personnage {
     use super::*;
 
+    /// VFS monté une seule fois : `Vfs::init` indexe tous les CPK du jeu.
+    fn vfs_partage() -> Option<&'static crate::vfs::Vfs> {
+        use std::sync::OnceLock;
+        static VFS: OnceLock<Option<crate::vfs::Vfs>> = OnceLock::new();
+        VFS.get_or_init(|| {
+            let mut vfs = crate::vfs::Vfs::new();
+            match vfs.init(crate::vfs::resolve_game_dir().join("data")) {
+                Ok(()) => Some(vfs),
+                Err(e) => {
+                    std::eprintln!("SKIP : VFS non initialisable : {e}");
+                    None
+                }
+            }
+        })
+        .as_ref()
+    }
+
+    /// Lit un fichier sous `data/common/chr/`, via le VFS.
+    ///
+    /// Une installation réelle ne garde en vrac que `data/common/system` : lire le
+    /// disque directement faisait sauter ces tests en permanence.
     fn chr(rel: &str) -> Option<Vec<u8>> {
+        let interne = alloc::format!("data/common/chr/{}", rel.replace('\\', "/"));
+        if let Some(Ok(d)) = vfs_partage().map(|vfs| vfs.read(&interne)) {
+            return Some(d);
+        }
         let p = crate::vfs::resolve_game_dir()
             .join("data/common/chr")
             .join(rel);
         match std::fs::read(&p) {
             Ok(d) => Some(d),
             Err(_) => {
-                std::eprintln!("SKIP : {} absent", p.display());
+                std::eprintln!("SKIP : {interne} absent du VFS et {} absent", p.display());
                 None
             }
         }

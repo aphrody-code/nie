@@ -51,7 +51,7 @@ done
 |---|---|---|
 | `zh_hant` | 5 379 | 9 337 552 |
 | `ja` | 5 234 | 12 474 864 |
-| `event` (sans langue — cf. §2) | 5 131 | 3 519 088 |
+| `event` (sans langue — cf. §2) | 5 132 | 3 519 088 |
 | `zh_hans` | 4 069 | 8 355 920 |
 | `en` | 4 068 | 8 177 296 |
 | `pt` | 4 065 | 8 433 456 |
@@ -87,7 +87,7 @@ pour zh_hans uniquement — à confirmer si besoin par un diff complet, non refa
   (texte des PNJ par carte, ex. `w10_npc_text.cfg.bin`, `z01_debug_npc_text.cfg.bin`),
   `<langue>/purpose/c<NN>_purpose_text.cfg.bin` et `<langue>/phase/c01_phase_text.cfg.bin`
   (objectifs de quête par chapitre `c01`…`c96`).
-- **`event/` à la racine** (sans langue, 5 131 fichiers) : `ev<NN>_<NNNNN>_map.cfg.bin` —
+- **`event/` à la racine** (sans langue, 5 132 fichiers) : `ev<NN>_<NNNNN>_map.cfg.bin` —
   la variante **hors langue** de la scène `event/<code>.cfg.bin`, à vérifier ce qu'elle porte
   (probablement les métadonnées de mise en scène — positions, timing — communes à toutes les
   langues, séparées du texte traduit). Non prouvé par un parseur ici.

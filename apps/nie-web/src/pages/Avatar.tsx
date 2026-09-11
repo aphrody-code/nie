@@ -1828,6 +1828,28 @@ export function Avatar({ onBack, gamepadSampler }: { onBack: () => void; gamepad
 		document.body.removeChild(link);
 	};
 
+	// ── Hauteur réelle de la bulle de dialogue ───────────────────────────────
+	// La barre de cadrage caméra et la bulle Washa sont deux surcouches ancrées
+	// au même bord bas du viewport ; sans cette mesure la bulle recouvrait les
+	// boutons de cadrage et les rendait incliquables (cf. avatar-studio.css).
+	const bulleDialogueRef = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		const bulle = bulleDialogueRef.current;
+		const zone = bulle?.closest<HTMLElement>(".avatar-studio-viewport-area");
+		if (!bulle || !zone) return;
+		const publier = () => {
+			zone.style.setProperty("--hauteur-bulle-dialogue", `${Math.round(bulle.getBoundingClientRect().height)}px`);
+		};
+		publier();
+		const observateur = new ResizeObserver(publier);
+		observateur.observe(bulle);
+		return () => {
+			observateur.disconnect();
+			zone.style.removeProperty("--hauteur-bulle-dialogue");
+		};
+	}, [showDialogueOverlay, studioMode, dialogueText, choiceA, choiceB]);
+
 	// ── Déclencheur Cinématique / Animation ──────────────────────────────────
 	const triggerTechniqueCinematic = (tech: "saute-mouton" | "cabriole" | "morphee") => {
 		if (tech === "saute-mouton") {
@@ -2581,7 +2603,7 @@ export function Avatar({ onBack, gamepadSampler }: { onBack: () => void; gamepad
 
 							{/* Boîte de Dialogue Inazuma Eleven Authentique */}
 							{showDialogueOverlay && (studioMode === "dialogue" || studioMode === "anim-event") && (
-								<div className="inazuma-dialogue-box">
+								<div className="inazuma-dialogue-box" ref={bulleDialogueRef}>
 									<div className="inazuma-dialogue-tag">{speakerName}</div>
 									<div className="inazuma-dialogue-text">{dialogueText}</div>
 									<div className="inazuma-dialogue-choices">

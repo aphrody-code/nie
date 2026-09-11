@@ -7,6 +7,12 @@
  *              télécharge les médias (vidéo webm, poster, telop, textures) et établit la correspondance exacte.
  *
  * @rule TypeScript Only — aucun import node:*, 100% Bun / Web API natif.
+ *
+ * @verification `n2b .` depuis la racine du depot. `n2b scripts/crawler` rapporte
+ *               « fichiers scannés : 0 », donc « 0 findings » sans rien avoir lu :
+ *               n2b exige une racine de paquet, et `scripts/` n’en est pas une
+ *               (absent de `workspaces.packages`). La racine couvre bien `scripts/`
+ *               (36 fichiers y sont signalés) et ne relève rien sur ce fichier.
  */
 
 // Déclarations des APIs globales Bun et Process pour vérification TypeScript autonome

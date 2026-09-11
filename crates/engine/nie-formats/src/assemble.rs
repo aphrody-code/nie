@@ -3988,8 +3988,19 @@ mod tests {
 
     /// Dossier des GLB de référence, sous la racine de jeu résolue à l'exécution — aucun
     /// chemin de poste en dur : `NIE_GAME_DIR`, sinon le répertoire courant ou un ancêtre.
+    /// Les GLB sont des artefacts **produits** par ce dépôt (`var/glb/`), pas des
+    /// fichiers livrés par le jeu : `data/dx11/model` ne contient pas de GLB.
+    /// `NIE_GLB_DIR` permet de pointer un autre répertoire de sortie.
     fn glb_dir() -> PathBuf {
-        crate::vfs::resolve_game_dir().join("data/dx11/model")
+        if let Ok(d) = std::env::var("NIE_GLB_DIR") {
+            return PathBuf::from(d);
+        }
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .expect("racine du dépôt")
+            .join("var/glb")
     }
 
     fn glb_exists(name: &str) -> bool {
@@ -4143,18 +4154,23 @@ mod tests {
 
         let model = assemble_character_model(&input).expect("assemblage c01000010");
 
-        // Corps : 2 primitives (base_normal_00 a 2 meshes : 321 + 36 verts)
+        // Corps : 2 primitives. Compte ancré sur le g4md du jeu
+        // (data/common/chr/_face/20_EDIT/_base/base_normal_00.g4md : sm[0] vtx=365,
+        // sm[1] vtx=38), et non sur un GLB non versionné. L'attente précédente
+        // (321+36=357) venait d'un exporteur qui soude les sommets ; le pipeline du
+        // dépôt (assemble_generic_model) préserve les comptes du g4md.
         let body_verts: usize = model.body_primitives().map(|p| p.vertex_count()).sum();
         assert_eq!(
-            body_verts, 357,
-            "corps base_normal_00 : 357 vertices attendus (321+36)"
+            body_verts, 403,
+            "corps base_normal_00 : 403 vertices attendus (365+38, cf. g4md)"
         );
 
-        // Visage : 3 primitives (c01000010 a 3 meshes : 798+344+72 verts)
+        // Visage : 3 primitives. Compte ancré sur le g4md du jeu
+        // (data/common/chr/_face/01_IE1/c01000010/c01000010.g4md : 880+406+72).
         let face_verts: usize = model.face_primitives().map(|p| p.vertex_count()).sum();
         assert_eq!(
-            face_verts, 1214,
-            "visage c01000010 : 1214 vertices attendus (798+344+72)"
+            face_verts, 1358,
+            "visage c01000010 : 1358 vertices attendus (880+406+72, cf. g4md)"
         );
 
         // Aucun uniforme fourni.
@@ -4164,8 +4180,10 @@ mod tests {
             "pas d'uniforme fourni"
         );
 
-        // Total = 357 + 1214 = 1571.
-        assert_eq!(model.total_vertex_count(), 1571, "total vertices : 1571");
+        // Total = 403 + 1358 = 1761. Les triangles ci-dessous (1754) dérivent des
+        // mêmes g4md et n'ont pas bougé : la soudure de sommets de l'ancien
+        // exporteur ne changeait que les comptes de sommets.
+        assert_eq!(model.total_vertex_count(), 1761, "total vertices : 1761");
 
         // Triangles du visage : 3390/3 + 1536/3 + 336/3 = 1130+512+112 = 1754
         let face_tris: usize = model.face_primitives().map(|p| p.triangle_count()).sum();
@@ -5028,14 +5046,45 @@ mod tests {
 mod tests_byron {
     use super::*;
 
+    /// VFS monté une seule fois : `Vfs::init` indexe tous les CPK du jeu, ce qui
+    /// est trop coûteux pour être refait à chaque lecture.
+    fn vfs_partage() -> Option<&'static crate::vfs::Vfs> {
+        use std::sync::OnceLock;
+        static VFS: OnceLock<Option<crate::vfs::Vfs>> = OnceLock::new();
+        VFS.get_or_init(|| {
+            let mut vfs = crate::vfs::Vfs::new();
+            match vfs.init(crate::vfs::resolve_game_dir().join("data")) {
+                Ok(()) => Some(vfs),
+                Err(e) => {
+                    eprintln!("SKIP : VFS non initialisable : {e}");
+                    None
+                }
+            }
+        })
+        .as_ref()
+    }
+
+    /// Lit un fichier sous `data/common/chr/`.
+    ///
+    /// Une installation réelle ne garde en vrac que `data/common/system` : tout le
+    /// reste vit dans les CPK. Ces tests lisaient directement le disque et
+    /// sautaient donc systématiquement — la lecture passe par le VFS, le dump en
+    /// vrac ne servant plus que de repli.
     fn chr(rel: &str) -> Option<Vec<u8>> {
+        let interne = alloc::format!("data/common/chr/{}", rel.replace('\\', "/"));
+        if let Some(vfs) = vfs_partage() {
+            match vfs.read(&interne) {
+                Ok(d) => return Some(d),
+                Err(e) => eprintln!("VFS : {interne} illisible ({e}) — repli sur le dump en vrac"),
+            }
+        }
         let p = crate::vfs::resolve_game_dir()
             .join("data/common/chr")
             .join(rel);
         match std::fs::read(&p) {
             Ok(d) => Some(d),
             Err(_) => {
-                eprintln!("SKIP : {} absent", p.display());
+                eprintln!("SKIP : {interne} absent du VFS et {} absent", p.display());
                 None
             }
         }
@@ -5235,14 +5284,40 @@ mod tests_byron {
 mod tests_uniforme_zeus {
     use super::*;
 
+    /// Lit un fichier sous `data/common/chr/` via le VFS : une installation réelle
+    /// ne garde en vrac que `data/common/system`, tout le reste est en CPK.
+    fn chr(rel: &str) -> Option<Vec<u8>> {
+        use std::sync::OnceLock;
+        static VFS: OnceLock<Option<crate::vfs::Vfs>> = OnceLock::new();
+        let vfs = VFS
+            .get_or_init(|| {
+                let mut vfs = crate::vfs::Vfs::new();
+                match vfs.init(crate::vfs::resolve_game_dir().join("data")) {
+                    Ok(()) => Some(vfs),
+                    Err(e) => {
+                        eprintln!("SKIP : VFS non initialisable : {e}");
+                        None
+                    }
+                }
+            })
+            .as_ref()?;
+        let interne = alloc::format!("data/common/chr/{rel}");
+        match vfs.read(&interne) {
+            Ok(d) => Some(d),
+            Err(e) => {
+                eprintln!("SKIP : {interne} illisible ({e})");
+                None
+            }
+        }
+    }
+
     #[test]
     fn le_haut_garde_ses_mailles_pleines_et_les_uv_du_short_couvrent_la_planche() {
-        let base = crate::vfs::resolve_game_dir().join("data/common/chr/_uniform/u011001");
-        let (Ok(g4md), Ok(g4mg)) = (
-            std::fs::read(base.join("u011001.g4md")),
-            std::fs::read(base.join("u011001.g4mg")),
+        // Les uniformes vivent dans les CPK, pas en vrac sur le disque.
+        let (Some(g4md), Some(g4mg)) = (
+            chr("_uniform/u011001/u011001.g4md"),
+            chr("_uniform/u011001/u011001.g4mg"),
         ) else {
-            eprintln!("SKIP : u011001 absent");
             return;
         };
         let md = g4md::parse(&g4md).unwrap();

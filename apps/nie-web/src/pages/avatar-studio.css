@@ -81,6 +81,9 @@
 
 /* ── Studio Tabs ────────────────────────────────────────────────────────── */
 
+/* Les six onglets mesurent ~953 px : sous ~1000 px de large la barre débordait
+   hors de la fenêtre et « Texture Paint Studio » devenait inatteignable, sans
+   que le document défile. Elle défile désormais horizontalement. */
 .avatar-studio-tabs {
   display: flex;
   align-items: center;
@@ -89,6 +92,21 @@
   padding: 3px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  /* La barre de défilement ajoutait ~14 px de hauteur à la barre, qui
+     débordait alors sur la ligne de contenu suivante. Le défilement reste
+     possible (molette, tactile, clavier), sans occuper de hauteur. */
+  scrollbar-width: none;
+}
+
+.avatar-studio-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.avatar-studio-tabs > * {
+  flex: 0 0 auto;
 }
 
 .avatar-studio-tab-btn {
@@ -211,6 +229,16 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(8px);
   z-index: 200;
+}
+
+/* La bulle de dialogue Washa est ancrée au même bord bas que la barre de
+   cadrage caméra (bottom: 28px, z-index 500) et la recouvrait entièrement :
+   « Corps Entier », « Visage » et « Buste » n’étaient plus cliquables dès que
+   la bulle était affichée. La barre remonte au-dessus de la bulle, dont la
+   hauteur réelle est publiée dans --hauteur-bulle-dialogue par le composant. */
+.avatar-studio-viewport-area:has(.inazuma-dialogue-box)
+  .avatar-studio-overlay-controls {
+  bottom: calc(28px + var(--hauteur-bulle-dialogue, 157px) + 14px);
 }
 
 .avatar-viewport-pill-btn {
