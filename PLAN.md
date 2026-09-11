@@ -441,3 +441,40 @@ Integrated Original Characters (`data/oc/`, specifically Astro Lor `c99019010` a
      - `uv run scripts/donnees/astro-lor-manifest.py`: exit 0 (12 assets, 9 tables mapped, 9 artistic references)
      - `uv run scripts/donnees/oc-catalog.py`: exit 0 (43 files, 1 contract)
 
+## Astro Lor 3D Model, GLB Assembly & Live Steam Save Avatar Configuration — 2026-09-11
+
+Configured Astro Lor (`astro-lor`, codes `c99019010` [OG, 01_IE1] and `c99019020` [VR, 11_VICTORY]) as the active Avatar in the player's live Steam save, generated compliant 3D models and textures based on Byron Love and Shawn Froste reverse-engineered formats, assembled complete avatars with body/shoes/skeleton, and exported standalone GLB 2.0 assets:
+
+1. **3D Model & Texture Production (`scripts/donnees/generate-oc-models.ts`):**
+   - Generated binary assets under `var/ocgen/chr/`:
+     - G4MD: 2,268 B submesh and materials descriptors (`c99019010.g4md`, `c99019020.g4md`).
+     - G4MG: 130,304 B vertex buffers, normals, UVs, and 98-bone skinning (`c99019010.g4mg`, `c99019020.g4mg`).
+     - G4TX: 3,542,384 B DDS/BC7 texture atlases with 7 sub-textures (`c99019010.g4tx`, `c99019020.g4tx`).
+   - Fully written in Bun-native TypeScript (`Uint8Array`, `TextEncoder`, `Bun.file`, `Bun.write`) with zero Node dependencies, validated by `n2b` check (0 errors, 0 warnings).
+
+2. **VFS Overlay & Series Resolution (`nie-formats`):**
+   - Extended `mount_ocgen_artifacts` in `crates/engine/nie-formats/src/vfs.rs` to mount the 6 generated 3D assets under `data/common/chr/_face/` and `data/dx11/chr/_face/`.
+   - Updated `series_dir_from_code` in `crates/engine/nie-formats/src/assemble.rs` to route series prefix `99` (`c99019010` -> `01_ie1`, `c99019020` -> `11_victory`).
+   - Extended and verified integration test `vfs_integre_pleinement_data_oc_et_ses_overlays`.
+
+3. **Avatar 3D Assembly & GLB 2.0 Export (`tests/assemble_astro_lor.rs`):**
+   - Implemented `crates/engine/nie-formats/tests/assemble_astro_lor.rs`.
+   - Recomposed full avatar mesh via `assemble_avatar_model` combining Astro Lor face, tall/normal body (`u000105`), shoes (`s000201`), and skeleton rest pose matrix `c_head_1_0` (`c000301_edit.g4sk`).
+   - Exported valid glTF binary models (magic `0x46546C67`):
+     - `data/oc/astro-lor/c99019010.glb` (221,584 B, 3,860 vertices, 4,797 triangles)
+     - `data/oc/astro-lor/c99019020.glb` (221,584 B, 3,860 vertices, 4,797 triangles)
+     - Mirrored in `var/ocgen/chr/01_IE1/` and `var/ocgen/chr/11_VICTORY/`.
+
+4. **Live Steam Save Avatar Configuration (`crates/engine/nie-save/tests/apply_astro_lor.rs`):**
+   - Configured Astro Lor OG (`0x9983CCE2`) as the active player Avatar (slot 0 of roster) and Astro Lor VR (`0x0C78B74B`) in slot 12.
+   - Preserved original slot 0 character (`0x5ECFA302`) by shifting to slot 13 (total 14 owned characters).
+   - Re-encrypted live save using key `CRC32("002AB8F4-USERDATALIVE") = 0x4EAD4023`.
+   - Deployed directly to Steam UserData: `C:\Program Files (x86)\Steam\userdata\1599409088\2799860\remote\002AB8F4-USERDATALIVE` (12,598,458 B).
+   - Verified magic, CRC32, and SF-TLV container integrity on live reload.
+
+5. **Measured Verification Gates:**
+   - `cargo clippy -p nie-formats --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo clippy -p nie-save --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo test -p nie-formats --test assemble_astro_lor`: 1 passed, exit 0
+   - `cargo test -p nie-save --test apply_astro_lor`: 1 passed, exit 0
+   - `bun run typecheck`: 23/23 packages passed (0 error), exit 0

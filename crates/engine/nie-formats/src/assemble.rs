@@ -220,6 +220,15 @@ pub fn series_dir_from_code(internal_code: &str) -> Option<&'static str> {
         "20" => Some("20_edit"),
         "21" => Some("21_mannequin"),
         "22" => Some("22_combo"),
+        "99" => {
+            if digits == "99019010" {
+                Some("01_ie1")
+            } else if digits == "99019020" {
+                Some("11_victory")
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

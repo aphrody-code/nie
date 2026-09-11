@@ -944,6 +944,29 @@ impl Vfs {
             }
         }
 
+        // Modèles 3D et textures générés (G4MD, G4MG, G4TX) pour c99019010 (OG) et c99019020 (VR)
+        let chr_dir = ocgen_dir.join("chr");
+        if chr_dir.is_dir() {
+            let model_mappings = [
+                // OG (01_IE1)
+                ("01_IE1/c99019010/c99019010.g4md", "data/common/chr/_face/01_IE1/c99019010/c99019010.g4md"),
+                ("01_IE1/c99019010/c99019010.g4mg", "data/common/chr/_face/01_IE1/c99019010/c99019010.g4mg"),
+                ("01_IE1/c99019010/c99019010.g4tx", "data/dx11/chr/_face/01_IE1/c99019010/c99019010.g4tx"),
+                // VR (11_VICTORY)
+                ("11_VICTORY/c99019020/c99019020.g4md", "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4md"),
+                ("11_VICTORY/c99019020/c99019020.g4mg", "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4mg"),
+                ("11_VICTORY/c99019020/c99019020.g4tx", "data/dx11/chr/_face/11_VICTORY/c99019020/c99019020.g4tx"),
+            ];
+            for (rel_path, vfs_path) in model_mappings {
+                let file_path = chr_dir.join(rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+                if file_path.is_file() {
+                    let size = file_path.metadata().map(|m| m.len() as u32).unwrap_or(0);
+                    self.add_overlay_file(vfs_path.to_string(), file_path, size);
+                    added += 1;
+                }
+            }
+        }
+
         added
     }
 
@@ -1512,13 +1535,35 @@ mod tests {
         let bytes_text = vfs.read(text_fr).expect("lecture dialogue FR overlay");
         assert!(!bytes_text.is_empty());
 
+        // 5b. Overlays des modèles 3D et textures générés (G4MD, G4MG, G4TX)
+        let md_og = "data/common/chr/_face/01_IE1/c99019010/c99019010.g4md";
+        let mg_og = "data/common/chr/_face/01_IE1/c99019010/c99019010.g4mg";
+        let tx_og = "data/dx11/chr/_face/01_IE1/c99019010/c99019010.g4tx";
+        let md_vr = "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4md";
+        let mg_vr = "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4mg";
+        let tx_vr = "data/dx11/chr/_face/11_VICTORY/c99019020/c99019020.g4tx";
+
+        assert!(vfs.find(md_og).is_some(), "G4MD OG présent dans le VFS");
+        assert!(vfs.find(mg_og).is_some(), "G4MG OG présent dans le VFS");
+        assert!(vfs.find(tx_og).is_some(), "G4TX OG présent dans le VFS");
+        assert!(vfs.find(md_vr).is_some(), "G4MD VR présent dans le VFS");
+        assert!(vfs.find(mg_vr).is_some(), "G4MG VR présent dans le VFS");
+        assert!(vfs.find(tx_vr).is_some(), "G4TX VR présent dans le VFS");
+
+        let bytes_md = vfs.read(md_og).expect("lecture G4MD OG");
+        assert_eq!(&bytes_md[0..4], b"G4MD");
+        let bytes_tx = vfs.read(tx_og).expect("lecture G4TX OG");
+        assert_eq!(&bytes_tx[0..4], b"G4TX");
+
         // 6. Test de détection de chemin OC
         assert!(Vfs::is_oc_path("data/oc/catalog.json"));
         assert!(Vfs::is_oc_path(icon_og));
         assert!(Vfs::is_oc_path(text_fr));
+        assert!(Vfs::is_oc_path(md_og));
+        assert!(Vfs::is_oc_path(tx_vr));
         assert!(!Vfs::is_oc_path("data/common/gamedata/item.cfg.bin"));
 
-        assert!(vfs.overlay_count() >= 40, "au moins 40 entrées d'overlay attendues");
+        assert!(vfs.overlay_count() >= 46, "au moins 46 entrées d'overlay attendues");
         eprintln!(
             "VFS OC OK : {} overlays montés, {} personnages déclarés",
             vfs.overlay_count(),
