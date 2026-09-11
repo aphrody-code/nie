@@ -10,7 +10,7 @@
       "name": "niers",
       "source": "./niers-plugin",
       "category": "developer-tools",
-      "description": "Native Rust tooling for NIERS formats, assets, reverse engineering, Inacord, and MCP."
+      "description": "Native Rust tooling for NIERS: the atlas-driven reverse-engineering loop, formats, assets, Inacord, and MCP."
     }
   ]
 }

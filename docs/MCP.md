@@ -31,20 +31,25 @@ MCP client ──stdio──> nie-mcp / niers mcp
                          └── WebSocket 127.0.0.1:8791/bridge ──> Inacord
 ```
 
-## Tool surface: 56 tools
+## Tool surface: 62 tools
 
-Forty `cli_*` tools cover exactly the forty top-level commands other than `mcp`. Every tool uses
-the common `{ "args": string[] }` input. These are the same arguments that follow the command in
+Forty-three `cli_*` tools cover exactly the forty-three top-level commands other than `mcp`.
+Every tool uses the common `{ "args": string[] }` input. These are the same arguments that follow the command in
 the terminal, keeping Clap as the single source of truth for nested commands and options.
+
+`cli_atlas` is the entry point for anything reverse-engineering: one call searches documents,
+symbols, tools, files and crates at once (`{"args": ["search", "<term>"]}`), and
+`{"args": ["gaps"]}` returns the ranked road to 100 %. It reads `NIERS_ATLAS`; `build` and
+`sync` write it, everything else is read-only.
 
 | Family | Tools |
 |---|---|
 | Forge and RE | `cli_atlas`, `cli_seed`, `cli_seed_ui`, `cli_strings`, `cli_coverage`, `cli_queue`, `cli_propagate`, `cli_rtti`, `cli_index`, `cli_disasm`, `cli_pdata`, `cli_rebuild`, `cli_recover` |
 | Formats and VFS | `cli_viola`, `cli_format`, `cli_decode`, `cli_refresh_typed_json`, `cli_convert`, `cli_vfs` |
-| Game and content | `cli_steam`, `cli_info`, `cli_render`, `cli_lua`, `cli_lua_run`, `cli_lua_audit`, `cli_img`, `cli_mode`, `cli_icons`, `cli_avatar`, `cli_save`, `cli_wiki`, `cli_uniform_map`, `cli_textures`, `cli_menu_predecode`, `cli_vn`, `cli_video` |
+| Game and content | `cli_steam`, `cli_info`, `cli_locales`, `cli_ocgen`, `cli_render`, `cli_lua`, `cli_lua_run`, `cli_lua_audit`, `cli_img`, `cli_mode`, `cli_icons`, `cli_avatar`, `cli_save`, `cli_wiki`, `cli_uniform_map`, `cli_textures`, `cli_menu_predecode`, `cli_vn`, `cli_video` |
 | System and control | `cli_computer_use`, `cli_mod`, `cli_find`, `cli_grep`, `cli_mem` |
 
-Sixteen compatibility names preserve the former Bun server API:
+Nineteen compatibility names preserve the former Bun server API:
 
 | Domain | Native tools |
 |---|---|
@@ -116,6 +121,8 @@ Recognized environment variables:
 | `NIERS_REPO` | root inferred from the manifest | `repo_read`, `game_launch`, and generated configuration |
 | `NIE_GAME_DIR` | native `nie-formats` resolution | VFS and game data |
 | `NIERS_SQLITE` | `<repo>/var/niers.sqlite` | read-only RE tools |
+| `NIERS_ATLAS` | `<repo>/var/nie-atlas.sqlite` | `cli_atlas` — the single index over every RE surface |
+| `NIERS_ATLAS_REDIS` | `redis://127.0.0.1/4` | `cli_atlas sync` mirror |
 | `NIE_APHRODY_API_URL` | `http://127.0.0.1:8085` | `aphrody_api_health` compatibility |
 | `MODEL_SERVE_URL` | `http://127.0.0.1:8790` | `asset_get` with `decode: "model"` |
 | `NIERS_BRIDGE_PORT` | `8791` | local Inacord bridge |
@@ -134,7 +141,7 @@ bun test packages/nie-bridge
 bunx tsc --noEmit -p packages/nie-bridge/tsconfig.json
 ```
 
-The protocol smoke test starts the real binary, initializes MCP, checks all 56 tools, and calls
+The protocol smoke test starts the real binary, initializes MCP, checks all 62 tools, and calls
 `cli_info` over clean stdout. The bridge test performs a real WebSocket round trip with the
 historical client contract. Every new top-level CLI command must add its `cli_*` binding and
 update the verified count. Every bridge protocol change must update both the TypeScript client

@@ -26,7 +26,7 @@ pub enum AtlasCmd {
     /// connaissance, binaires, outils, métriques et écarts.
     Build {
         /// Base atlas cible.
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Racine du dépôt.
         #[arg(long, default_value = ".")]
@@ -52,7 +52,7 @@ pub enum AtlasCmd {
     },
     /// Une ligne d'état mesurée.
     Status {
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         #[arg(long)]
         json: bool,
@@ -61,7 +61,7 @@ pub enum AtlasCmd {
     Search {
         /// Motif recherché.
         query: String,
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Restreint à un type (`doc`, `symbol`, `tool`, `artifact`, `crate`).
         #[arg(long)]
@@ -73,7 +73,7 @@ pub enum AtlasCmd {
     },
     /// La route vers les 100 %, classée par travail restant × poids.
     Gaps {
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         #[arg(long, default_value_t = 20)]
         limit: usize,
@@ -82,7 +82,7 @@ pub enum AtlasCmd {
     },
     /// Le prochain chantier (écart le mieux classé), en JSON pour la boucle autonome.
     Next {
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
     },
     /// Enregistre une mesure dans la chronologie (source obligatoire : la commande qui l'a produite).
@@ -91,7 +91,7 @@ pub enum AtlasCmd {
         name: String,
         /// Valeur mesurée.
         value: f64,
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Total, quand la métrique est un ratio.
         #[arg(long)]
@@ -110,7 +110,7 @@ pub enum AtlasCmd {
     Run {
         /// Étape exécutée.
         step: String,
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Domaine visé (`forge.identity`, `re.named`…).
         #[arg(long)]
@@ -130,7 +130,7 @@ pub enum AtlasCmd {
     },
     /// Documents indexés, classés par ancrage machine (adresses, symboles, empreintes).
     Docs {
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// N'affiche que les documents sans aucune référence machine.
         #[arg(long)]
@@ -140,7 +140,7 @@ pub enum AtlasCmd {
     },
     /// Fichiers strictement identiques (même sha256) présents à plusieurs chemins.
     Dupes {
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Restreint à une zone (`re-data`, `doc`, `forge`, `crate`…).
         #[arg(long)]
@@ -150,7 +150,7 @@ pub enum AtlasCmd {
     },
     /// Miroir Redis de l'index (statut, écarts, outils, symbole → adresse).
     Sync {
-        #[arg(long, default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         #[arg(long, env = "NIERS_ATLAS_REDIS", default_value = nie_index::atlas::DEFAULT_ATLAS_REDIS)]
         redis: String,

@@ -10,7 +10,7 @@
   <img alt="version" src="https://img.shields.io/badge/version-0.5.11-blue">
   <img alt="rust" src="https://img.shields.io/badge/rust-nightly--2026--05--17-orange">
   <img alt="edition" src="https://img.shields.io/badge/edition-2024-orange">
-  <img alt="forge" src="https://img.shields.io/badge/forge-69.37%25%20of%20nie.exe-yellow">
+  <img alt="forge" src="https://img.shields.io/badge/forge-74.06%25%20of%20nie.exe-yellow">
   <img alt="license" src="https://img.shields.io/badge/license-RG--L5--VR--2026--001-red">
 </p>
 
@@ -23,6 +23,7 @@
 
 - [Overview](#overview)
 - [Status](#status)
+- [The reverse-engineering workflow](#the-reverse-engineering-workflow)
 - [Quick start](#quick-start)
 - [Repository layout](#repository-layout)
 - [Platform support](#platform-support)
@@ -60,8 +61,10 @@ yourself:
 
 | What | Measured | Command |
 | --- | --- | --- |
-| Bytes of `nie.exe` produced by this repo | **69.37 %** of the file · **90.36 %** of `.text` | `nie-forge report` |
-| VFS files in a format we parse | **99.56 %** (254,187 / 255,308 across 936 CPK) | `niers vfs stats` |
+| Bytes of `nie.exe` produced by this repo | **74.061759 %** of the file · **92.447995 %** of `.text` | `nie-forge report` |
+| Files in the VFS | **255,308** across **936** CPK, 5 loose | `niers vfs stats` |
+| VFS files a decoder claims, by extension dispatch | **99.56 %** (254,187 / 255,308) | `niers format data/` |
+| VFS files recognised by **magic alone** | **50.05 %** (127,778 / 255,308) | `data/re/20-vfs/metrics/format-coverage.json` |
 | Functions classified in the binary | **92.65 %** (100,664 / 108,650) · 13,653 named | `niers coverage --db var/niers.sqlite` |
 | Functions ported **and** proven byte-exact | **43** | `uv run scripts/validate_re.py` |
 | Test suite | see the CI badge above | `cargo test --workspace` |
@@ -84,6 +87,41 @@ incomplete rather than done.
 
 What *is* solid: the file formats, the game data, the ported primitives, and the forge. Those are
 the numbers in the table above.
+
+## The reverse-engineering workflow
+
+Reverse engineering here is a **loop with a scoreboard**, not a browsing session. Everything the
+repository knows about the binary — files, crates, documents and what they claim, the 19 GB
+knowledge base, the forge units, the binaries, the tools — is indexed in one database, the
+**atlas**, and what is still missing is ranked.
+
+```bash
+just atlas                  # build the index + its Redis mirror  (~3 min from cold)
+niers atlas status          # one measured line
+niers atlas search <term>   # docs + symbols + tools + files + crates, in one query
+niers atlas gaps            # the road to 100 %, ranked by (target − current) × weight
+niers atlas next            # the next task, as JSON
+bash scripts/atlas-loop.sh  # one autonomous tick: measure → index → rank → one bounded act → re-measure
+```
+
+Measured on `vps-203bea89`, 2026-09-11 — **regenerate, never quote**:
+
+| Surface | Indexed |
+| --- | --- |
+| Files of the RE/forge chain | 6,743 (1.05 GiB), with SHA-256, zone and git-tracked flag |
+| Crates | 46, with LOC, tests, `unsafe`, `EXTERN:`/`todo!()` |
+| Markdown documents | 1,063, and the **13,793 machine references** they claim |
+| Knowledge base | 52 tables, 41,297,157 rows, **13,845 named functions** |
+| Forge units | 215,688 — **105,266** lifted to assembly, **7** byte-exact through C |
+| Runnable tools | 178 (`niers` subcommands, `just` recipes, scripts) |
+
+The loop obeys three rules. A number enters the index only with the command that produced it
+(`atlas_metric`). A gap exists only if its metric was really measured — an absent measurement
+leaves **no row**, never a zero that would read as "not started". And one tick performs exactly
+one bounded, reversible act inside the repository: no push, no deletion, no service, with a disk
+guard and a timeout.
+
+Full description: [`docs/ATLAS.md`](docs/ATLAS.md). How it drives the plan: [`PLAN.md`](PLAN.md).
 
 ## Quick start
 
@@ -279,7 +317,8 @@ part of the canonical [`PLAN.md`](PLAN.md).
 
 ## Reverse-engineering bridge
 
-The canonical local chain is `Ghidra → nie-re/nie-index → nie-trace → nie-computer-use`.
+The entry point is the atlas (`niers atlas search`, `niers atlas gaps`); under it, the canonical
+local chain is `Ghidra → nie-re/nie-index → nie-trace → nie-computer-use`.
 `nie-re` owns static PE/`.pdata`/RTTI/vtable/disassembly analysis and the SQLite knowledge base;
 `nie-trace` owns bounded live process reads and scans; `nie-computer-use` is the read-only typed
 orchestration boundary. The source-to-consumer parity matrix and migration decision live in

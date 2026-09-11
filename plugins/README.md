@@ -4,7 +4,7 @@ The directories in this folder are versioned deliverables for external hosts.
 
 | Extension | Hosts | Contents |
 |---|---|---|
-| [`niers-plugin/`](niers-plugin) | Codex, Claude Code, Antigravity (`agy`) | Host adapters, 17 NIERS skills, and the native Rust `niers-game` MCP declaration |
+| [`niers-plugin/`](niers-plugin) | Codex, Claude Code, Antigravity (`agy`) | Host adapters, 18 NIERS skills, and the native Rust `niers-game` MCP declaration |
 | [`niers-blender/`](niers-blender) | Blender | G4 asset import, character/map/animation/camera/texture workflows, and native-base patch export |
 
 `niers-plugin` follows the multi-host layout used by Aphrody's YOLO package: Codex uses
