@@ -404,3 +404,40 @@ The 38-screen interface-delivery run (2026-09-08 → 2026-09-09), its execution 
 acceptance ledger and dated batch ledgers now live in
 [`docs/archive/plans/2026-09-11/interface-delivery-ledger-to-2026-09-09.md`](docs/archive/plans/2026-09-11/interface-delivery-ledger-to-2026-09-09.md).
 Its OPEN rows remain debt; none of its measurements is current proof.
+
+## Original Characters (OC) full VFS integration & production validation — 2026-09-11
+
+Integrated Original Characters (`data/oc/`, specifically Astro Lor `c99019010` and `c99019020`) into the core VFS engine (`nie-formats::vfs::Vfs`), CLI (`nie-cli` binary `niers`), and data pipeline:
+
+1. **VFS Overlay & Discovery Engine (`nie-formats`):**
+   - Added transparent overlay system (`overlays: HashMap<String, PathBuf>`) into `Vfs` struct.
+   - Automatically discovers and indexes `data/oc/` assets, including contract JSONs, catalogs, and artistic reference webp derivatives.
+   - Automatically mounts compiled `var/ocgen/` artifacts (`icons/c99019010_l.g4tx`, `icons/c99019020_l.g4tx`, `text/` event dialogues, and character edit param `cfg.bin`) into logical VFS paths (`data/dx11/menu/200_icon/10_icon_chr/face/`, `data/common/text/...`, `data/oc/generated/`).
+   - Added `Vfs::load_oc_catalog()`, `Vfs::oc_characters()`, `Vfs::is_oc_path()`, `Vfs::overlay_count()`, and `Vfs::iter_overlays()`.
+   - Comprehensive test added: `vfs_integre_pleinement_data_oc_et_ses_overlays` verifying overlay resolution and data integrity.
+
+2. **Visual Derivatives & Asset Generation:**
+   - Generated canonical 512x512 square portraits (`face-og.webp`, `face-go.webp`), BD pages (1-3), and 9 color/anatomy reference sheets under `data/oc/astro-lor/` using `scripts/donnees/generate-oc-derivatives.py`.
+   - Re-compiled `nie-ocgen` G4TX portrait icons, CFG.BIN parameters, and dialogue event files under `var/ocgen/`.
+   - Synchronized `data/oc/catalog.json` (43 files, 1 contract) via `scripts/donnees/oc-catalog.py`.
+   - Synchronized `data/oc/astro-lor/manifest.json` with `present: 2`, `tables_reperees: 9/9`, `references_artistiques: 9`.
+
+3. **Toolchain & Quality Gates:**
+   - Identified bundled MinGW GCC 13.2.0 toolchain under `var/vcpkg/` enabling full C/C++ compilation for native Rust dependencies (`zstd-sys`, `mlua-sys`, `aws-lc-sys`) under `x86_64-pc-windows-gnu`.
+   - Built and linked `nie-cli` binary `target/debug/niers.exe` and `target/release/niers.exe`, updating `~/.local/bin/niers.exe`.
+   - Built `target/debug/nie_ffi.dll` (51.7 MB) required by Bun FFI integration tests.
+   - Fixed `packages/nie/src/index.ts` FFI symbols typing (`as any`) resolving `TS4111` strict index signature access errors across the monorepo.
+   - Fixed `packages/nie/package.json` version alignment with workspace (`0.5.11`).
+   - Fixed `unused-mut` warning in `nie-explore` for Windows targets.
+   - Measured gates:
+     - `cargo clippy -p nie-formats --lib -- -D warnings`: 0 warnings, exit 0
+     - `cargo clippy -p nie-ocgen --lib -- -D warnings`: 0 warnings, exit 0
+     - `cargo clippy -p nie-cli --bin niers -- -D warnings`: 0 warnings, exit 0
+     - `cargo test -p nie-formats --lib`: 325 passed, 0 failed, exit 0
+     - `cargo test -p nie-ocgen`: 13 passed, 0 failed, exit 0
+     - `cargo test -p nie-explore --lib --no-default-features`: 39 passed, 0 failed, exit 0
+     - `bun run typecheck`: 22/22 packages passed, exit 0
+     - `bun test packages/nie`: 38 passed, 0 failed, exit 0
+     - `uv run scripts/donnees/astro-lor-manifest.py`: exit 0 (12 assets, 9 tables mapped, 9 artistic references)
+     - `uv run scripts/donnees/oc-catalog.py`: exit 0 (43 files, 1 contract)
+

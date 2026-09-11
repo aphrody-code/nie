@@ -149,6 +149,9 @@ pub struct Vfs {
     /// consommateurs qui énumèrent — [`Vfs::find`], [`Vfs::iter`], [`Vfs::asset_count`] —
     /// le déclenchent, et une seule fois.
     loose_index: OnceLock<HashMap<String, VfsEntry>>,
+    /// Table d'overlays locaux (chemin logique interne -> chemin fichier disque réel).
+    /// Sert à intégrer data/oc et les artefacts de modding/ocgen directement dans le VFS.
+    overlays: HashMap<String, PathBuf>,
 }
 
 impl Default for Vfs {
@@ -169,6 +172,7 @@ impl Vfs {
             cpk_names: HashSet::new(),
             cpk_cache: Mutex::new(CpkCache::new(cpk_cache_budget())),
             loose_index: OnceLock::new(),
+            overlays: HashMap::new(),
         }
     }
 
@@ -281,6 +285,9 @@ impl Vfs {
         // mise à jour du `cpk_list`). Retourne 0 si tous les packs sont déjà indexés.
         self.discover_extra_cpks();
 
+        // Auto-découverte et montage des assets OC (`data/oc`) et dérivés (`var/ocgen`).
+        self.discover_oc_assets();
+
         Ok(())
     }
 
@@ -365,7 +372,10 @@ impl Vfs {
         self.index.clear();
         self.index_extra.clear();
         self.cpk_names.clear();
+        self.overlays.clear();
         self.loose_index = OnceLock::new();
+        // Auto-découverte et montage des assets OC (`data/oc`) et dérivés (`var/ocgen`).
+        self.discover_oc_assets();
         Ok(())
     }
 
@@ -402,6 +412,20 @@ impl Vfs {
                         internal_path.clone(),
                         VfsEntry {
                             internal_path,
+                            cpk_filename: String::new(),
+                            file_size,
+                        },
+                    );
+                }
+            }
+            // Fusionner les overlays (ex. data/oc, var/ocgen) dans l'index loose
+            for (path, disk_path) in &self.overlays {
+                if !index.contains_key(path) {
+                    let file_size = disk_path.metadata().map(|m| m.len() as u32).unwrap_or(0);
+                    index.insert(
+                        path.clone(),
+                        VfsEntry {
+                            internal_path: path.clone(),
                             cpk_filename: String::new(),
                             file_size,
                         },
@@ -491,6 +515,9 @@ impl Vfs {
     /// appelé par des façades qui décrivent des fichiers de plusieurs centaines de mégaoctets.
     #[must_use]
     pub fn is_readable(&self, internal_path: &str) -> bool {
+        if let Some(overlay_path) = self.overlays.get(internal_path) {
+            return overlay_path.is_file();
+        }
         if self.loose_files {
             // Même résolution que `read` — y compris le repli inter-racine : un dump range
             // les fichiers là où le disque les range, pas là où le `cpk_list` les déclare.
@@ -529,6 +556,11 @@ impl Vfs {
     /// Renvoie `None` si aucun candidat n'existe ou si plusieurs sont en concurrence.
     #[must_use]
     pub fn resolve_loose_path(&self, internal_path: &str) -> Option<PathBuf> {
+        if let Some(overlay_path) = self.overlays.get(internal_path)
+            && overlay_path.is_file()
+        {
+            return Some(overlay_path.clone());
+        }
         let rel = internal_path.strip_prefix("data/").unwrap_or(internal_path);
         let direct = self.game_data_dir.join(rel);
         if direct.is_file() {
@@ -570,6 +602,17 @@ impl Vfs {
     /// 4. Index supplémentaire (`index_extra`, peuplé par [`Vfs::discover_extra_cpks`]) →
     ///    extrait du CPK hors-cpk_list correspondant.
     pub fn read(&self, internal_path: &str) -> Result<Vec<u8>, FormatError> {
+        if let Some(overlay_path) = self.overlays.get(internal_path)
+            && overlay_path.is_file()
+        {
+            let mut file = File::open(overlay_path)
+                .map_err(|_| FormatError::Corrupt("impossible d'ouvrir overlay file"))?;
+            let mut data = Vec::new();
+            file.read_to_end(&mut data)
+                .map_err(|_| FormatError::Corrupt("impossible de lire overlay file"))?;
+            return Ok(data);
+        }
+
         if self.loose_files {
             let disk_path = self
                 .resolve_loose_path(internal_path)
@@ -783,14 +826,177 @@ impl Vfs {
             .iter()
             .map(|(k, v)| (k.as_str(), v.as_str()))
     }
+
+    /// Ajoute un fichier d'overlay au VFS associant un chemin logique interne à un fichier réel sur disque.
+    pub fn add_overlay_file(&mut self, internal_path: String, disk_path: PathBuf, file_size: u32) {
+        let entry = VfsEntry {
+            internal_path: internal_path.clone(),
+            cpk_filename: String::new(),
+            file_size,
+        };
+        self.index.insert(internal_path.clone(), entry);
+        self.overlays.insert(internal_path, disk_path);
+    }
+
+    /// Découvre et monte automatiquement les fichiers OC (`data/oc/`) et les artefacts
+    /// dérivés (`var/ocgen/`) comme overlays virtuels dans le VFS.
+    pub fn discover_oc_assets(&mut self) -> usize {
+        let mut count = 0;
+        let oc_dir_candidates = [
+            self.game_data_dir.join("oc"),
+            self.game_data_dir.parent().map(|p| p.join("data").join("oc")).unwrap_or_default(),
+            PathBuf::from("data").join("oc"),
+        ];
+        if let Some(oc_dir) = oc_dir_candidates.into_iter().find(|p| p.is_dir()) {
+            count += self.mount_oc_dir(&oc_dir);
+        }
+
+        // Découvrir également var/ocgen s'il existe
+        let ocgen_candidates = [
+            PathBuf::from("var").join("ocgen"),
+            self.game_data_dir.parent().map(|p| p.join("var").join("ocgen")).unwrap_or_default(),
+        ];
+        if let Some(ocgen_dir) = ocgen_candidates.into_iter().find(|p| p.is_dir()) {
+            count += self.mount_ocgen_artifacts(&ocgen_dir);
+        }
+
+        count
+    }
+
+    /// Monte récursivement un répertoire `data/oc` dans les overlays du VFS.
+    pub fn mount_oc_dir(&mut self, oc_dir: &Path) -> usize {
+        let mut added = 0;
+        let mut stack = vec![oc_dir.to_path_buf()];
+        while let Some(dir) = stack.pop() {
+            let Ok(entries) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Ok(file_type) = entry.file_type() {
+                    if file_type.is_dir() {
+                        // Ignorer les originaux source/ pour préserver la politique OC
+                        if entry.file_name() == "source" {
+                            continue;
+                        }
+                        stack.push(path);
+                    } else if file_type.is_file() {
+                        let Ok(rel) = path.strip_prefix(oc_dir) else {
+                            continue;
+                        };
+                        let rel_str = rel.to_string_lossy().replace('\\', "/");
+                        let logical_path = format!("data/oc/{rel_str}");
+                        let file_size = entry.metadata().map(|m| m.len() as u32).unwrap_or(0);
+                        self.add_overlay_file(logical_path, path, file_size);
+                        added += 1;
+                    }
+                }
+            }
+        }
+        added
+    }
+
+    /// Monte les artefacts compilés sous `var/ocgen` (icônes G4TX, tables, dialogues)
+    /// sur leurs chemins de jeu VFS respectifs.
+    pub fn mount_ocgen_artifacts(&mut self, ocgen_dir: &Path) -> usize {
+        let mut added = 0;
+        let icons_dir = ocgen_dir.join("icons");
+        if icons_dir.is_dir() {
+            let icon_mappings = [
+                ("c99019010_l.g4tx", "data/dx11/menu/200_icon/10_icon_chr/face/c99019010_l.g4tx"),
+                ("c99019020_l.g4tx", "data/dx11/menu/200_icon/10_icon_chr/face/c99019020_l.g4tx"),
+            ];
+            for (filename, vfs_path) in icon_mappings {
+                let file_path = icons_dir.join(filename);
+                if file_path.is_file() {
+                    let size = file_path.metadata().map(|m| m.len() as u32).unwrap_or(0);
+                    self.add_overlay_file(vfs_path.to_string(), file_path, size);
+                    added += 1;
+                }
+            }
+        }
+
+        let text_dir = ocgen_dir.join("text");
+        if text_dir.is_dir() {
+            let text_mappings = [
+                ("fr/event/ev98_99010.cfg.bin", "data/common/text/fr/event/ev98_99010.cfg.bin"),
+                ("en/event/ev98_99010.cfg.bin", "data/common/text/en/event/ev98_99010.cfg.bin"),
+                ("event/ev98_99010_map.cfg.bin", "data/common/text/event/ev98_99010_map.cfg.bin"),
+            ];
+            for (rel_path, vfs_path) in text_mappings {
+                let file_path = text_dir.join(rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+                if file_path.is_file() {
+                    let size = file_path.metadata().map(|m| m.len() as u32).unwrap_or(0);
+                    self.add_overlay_file(vfs_path.to_string(), file_path, size);
+                    added += 1;
+                }
+            }
+        }
+
+        // Fichiers chara_edit_param générés
+        for code in ["c99019010", "c99019020"] {
+            let cfg_file = ocgen_dir.join(format!("{code}.cfg.bin"));
+            if cfg_file.is_file() {
+                let vfs_path = format!("data/oc/generated/{code}.cfg.bin");
+                let size = cfg_file.metadata().map(|m| m.len() as u32).unwrap_or(0);
+                self.add_overlay_file(vfs_path, cfg_file, size);
+                added += 1;
+            }
+        }
+
+        added
+    }
+
+    /// Nombre d'entrées d'overlay (fichiers OC et mods enregistrés).
+    #[must_use]
+    pub fn overlay_count(&self) -> usize {
+        self.overlays.len()
+    }
+
+    /// Charge et désérialise le catalogue OC `data/oc/catalog.json` s'il est accessible dans le VFS.
+    pub fn load_oc_catalog(&self) -> Result<serde_json::Value, FormatError> {
+        let bytes = self.read("data/oc/catalog.json")?;
+        serde_json::from_slice(&bytes)
+            .map_err(|_| FormatError::Corrupt("catalogue data/oc/catalog.json corrompu ou invalide"))
+    }
+
+    /// Liste les slugs de personnages OC déclarés dans le catalogue du VFS.
+    pub fn oc_characters(&self) -> Vec<String> {
+        let Ok(catalog) = self.load_oc_catalog() else {
+            return Vec::new();
+        };
+        catalog
+            .get("contracts")
+            .and_then(|c| c.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|c| c.get("character_slug").and_then(|s| s.as_str()).map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Indique si un chemin interne correspond à un asset OC ou un chemin sous `data/oc/`.
+    #[must_use]
+    pub fn is_oc_path(internal_path: &str) -> bool {
+        internal_path.starts_with("data/oc/")
+            || internal_path.contains("c99019010")
+            || internal_path.contains("c99019020")
+            || internal_path.contains("ev98_99010")
+    }
+
+    /// Itère sur toutes les entrées d'overlay (chemin_interne, chemin_disque).
+    pub fn iter_overlays(&self) -> impl Iterator<Item = (&str, &Path)> {
+        self.overlays.iter().map(|(k, v)| (k.as_str(), v.as_path()))
+    }
 }
 
 /// Nom du marqueur qui identifie la racine du jeu : l'index VFS chiffré.
 const MARQUEUR_RACINE: &str = "data/cpk_list.cfg.bin";
 
 /// Racines de premier niveau d'un dump extrait. `common/` porte les données de plateforme
-/// neutre, `dx11/` les ressources rendues — l'une des deux suffit à identifier un dump.
-const RACINES_DUMP: [&str; 2] = ["common", "dx11"];
+/// neutre, `dx11/` les ressources rendues, `oc/` les personnages originaux.
+const RACINES_DUMP: [&str; 3] = ["common", "dx11", "oc"];
 
 /// Dit si `data_dir` est le `data/` d'un **dump extrait** : une arborescence logique du jeu
 /// sans index chiffré ni packs.
@@ -1229,6 +1435,94 @@ mod tests {
         );
         eprintln!(
             "read_loose_file OK : {read_ok} fichiers lus, {missing_on_disk} absents du disque"
+        );
+    }
+
+    /// Vérifie que le VFS intègre automatiquement data/oc/ et les overlays d'assets OC
+    /// (icônes G4TX, dialogues, catalogue, portraits et contrats).
+    #[test]
+    fn vfs_integre_pleinement_data_oc_et_ses_overlays() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("racine du dépôt");
+        let data_dir = root.join("data");
+        if !data_dir.join("oc").is_dir() {
+            eprintln!("skip vfs_integre_pleinement_data_oc_et_ses_overlays : data/oc absent");
+            return;
+        }
+
+        let mut vfs = Vfs::new();
+        // Monter le VFS sur data/
+        if data_dir.join("cpk_list.cfg.bin").exists() {
+            vfs.init(&data_dir).expect("init packs");
+        } else {
+            vfs.init_loose(&data_dir).expect("init loose");
+        }
+
+        // 1. Le catalogue OC est indexé et lisible
+        assert!(
+            vfs.find("data/oc/catalog.json").is_some(),
+            "data/oc/catalog.json doit être indexé dans le VFS"
+        );
+        assert!(
+            vfs.is_readable("data/oc/catalog.json"),
+            "data/oc/catalog.json doit être lisible"
+        );
+        let catalog_bytes = vfs.read("data/oc/catalog.json").expect("read catalog.json");
+        assert!(!catalog_bytes.is_empty());
+
+        let catalog = vfs.load_oc_catalog().expect("load_oc_catalog");
+        assert_eq!(catalog.get("root").and_then(|v| v.as_str()), Some("data/oc"));
+
+        // 2. Personnages OC découverts
+        let charas = vfs.oc_characters();
+        assert!(
+            charas.contains(&"astro-lor".to_string()),
+            "astro-lor doit figurer dans les personnages OC du VFS"
+        );
+
+        // 3. Fichiers OC de contrat et dérivés visuels
+        assert!(vfs.find("data/oc/astro-lor/game/character-contract.json").is_some());
+        assert!(vfs.find("data/oc/astro-lor/manifest.json").is_some());
+        assert!(vfs.find("data/oc/astro-lor/face-og.webp").is_some());
+        assert!(vfs.find("data/oc/astro-lor/face-go.webp").is_some());
+        assert!(vfs.find("data/oc/astro-lor/bd-page-1.webp").is_some());
+
+        // 4. Overlays d'assets de jeu pour Astro Lor
+        let icon_og = "data/dx11/menu/200_icon/10_icon_chr/face/c99019010_l.g4tx";
+        let icon_vr = "data/dx11/menu/200_icon/10_icon_chr/face/c99019020_l.g4tx";
+        assert!(
+            vfs.find(icon_og).is_some(),
+            "l'icône OG doit être présente dans le VFS"
+        );
+        assert!(
+            vfs.find(icon_vr).is_some(),
+            "l'icône VR doit être présente dans le VFS"
+        );
+        let bytes_icon = vfs.read(icon_og).expect("lecture icône OG overlay");
+        assert_eq!(&bytes_icon[0..4], b"G4TX");
+
+        // 5. Overlays de texte d'événement
+        let text_fr = "data/common/text/fr/event/ev98_99010.cfg.bin";
+        assert!(
+            vfs.find(text_fr).is_some(),
+            "le texte FR ev98_99010 doit être présent dans le VFS"
+        );
+        let bytes_text = vfs.read(text_fr).expect("lecture dialogue FR overlay");
+        assert!(!bytes_text.is_empty());
+
+        // 6. Test de détection de chemin OC
+        assert!(Vfs::is_oc_path("data/oc/catalog.json"));
+        assert!(Vfs::is_oc_path(icon_og));
+        assert!(Vfs::is_oc_path(text_fr));
+        assert!(!Vfs::is_oc_path("data/common/gamedata/item.cfg.bin"));
+
+        assert!(vfs.overlay_count() >= 40, "au moins 40 entrées d'overlay attendues");
+        eprintln!(
+            "VFS OC OK : {} overlays montés, {} personnages déclarés",
+            vfs.overlay_count(),
+            charas.len()
         );
     }
 }

@@ -99,7 +99,7 @@ function loadLib() {
 }
 
 const lib = loadLib();
-const symbols = lib.symbols as Record<string, any>;
+const symbols = lib.symbols as any;
 
 // ─── encodeurs partagés ──────────────────────────────────────────────────────
 const _enc = new TextEncoder();

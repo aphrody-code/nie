@@ -215,6 +215,7 @@ impl TemporaryVideo {
         for _ in 0..32 {
             let id = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
             let path = std::env::temp_dir().join(format!("nie-video-{}-{id}", std::process::id()));
+            #[allow(unused_mut)]
             let mut directory = fs::DirBuilder::new();
             #[cfg(unix)]
             {

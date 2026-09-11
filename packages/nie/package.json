@@ -1,6 +1,6 @@
 {
   "name": "nie",
-  "version": "1.2.8",
+  "version": "0.5.11",
   "description": "Bindings FFI de nie_ffi (Rust) \u2014 la biblioth\u00e8que native du d\u00e9p\u00f4t",
   "type": "module",
   "main": "src/index.ts",

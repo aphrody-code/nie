@@ -39,6 +39,36 @@
   ],
   "files": [
     {
+      "path": "data/oc/astro-lor/bd-page-1.webp",
+      "bytes": 448650,
+      "sha256": "05ecd66d482b7b0b6e337334722ce617a0264b30afdde15e9f629ad36d20859d",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/bd-page-2.webp",
+      "bytes": 298552,
+      "sha256": "cbbb11b0075d69be7e0a2f8a4eba85aead1808e12084edf60a9bde9ef1543096",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/bd-page-3.webp",
+      "bytes": 234380,
+      "sha256": "17077ca56358be3efb254a26d65d04dbbf4f7020a38a46ba9aa8c87d9a163caf",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/face-go.webp",
+      "bytes": 37050,
+      "sha256": "a1d824c0a0d10351d450402267058850c841bec0852a3544ce641be8639ece8c",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/face-og.webp",
+      "bytes": 41020,
+      "sha256": "e37814ac87cae0b8d842419c3f99c9a2be40a2bb2cda9a26754f9bad6cc9ef77",
+      "class": "unclassified"
+    },
+    {
       "path": "data/oc/astro-lor/game/3d-recipe-go.json",
       "bytes": 3423,
       "sha256": "dcfbe00966ced2e95a89923aec059a5739e81d3b82ff5b357fea15258511ec1f",
@@ -106,9 +136,63 @@
     },
     {
       "path": "data/oc/astro-lor/manifest.json",
-      "bytes": 24018,
-      "sha256": "470e50cc46f27f856772a35dae9e9d52c3645904d7e34419c453e3a30781b82e",
+      "bytes": 24525,
+      "sha256": "9c720681816afb68f335624efe8558ae44d8f2a81f3c17017e6cd9195cee2b39",
       "class": "metadata"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-go-anatomie.webp",
+      "bytes": 254754,
+      "sha256": "c92ff84c9ca88f8bd5d454e58330c04ffee63f45b02d9d1f0cd3af4eae9808fb",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-go-expressions.webp",
+      "bytes": 485584,
+      "sha256": "04decf52ed53291d82e12c7b1f9f2563a152c93053eac443deee87eba8e978f9",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-go-tenue-foot.webp",
+      "bytes": 474318,
+      "sha256": "bc5c905ee7742ecae53a02badf02cbd544db07c030adf823bbe352141bb845c0",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-go-tenue-ville.webp",
+      "bytes": 456852,
+      "sha256": "acdfe93defbbc43662d852d8c46a6494de5c023f280a374ee731738467f949c4",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-og-anatomie.webp",
+      "bytes": 249324,
+      "sha256": "01364e21ab708f666b39eabb15a91cb6cacfa9db3b6a53c93e42f57faec36824",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-og-expressions.webp",
+      "bytes": 539232,
+      "sha256": "eb90233ea3da4bdd191a3390d33c290a5cc6f452372f8a39bd3cd462a9994e89",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-og-tenue-foot.webp",
+      "bytes": 445668,
+      "sha256": "bdf84ebbb94273e067bd509dd357f9c03e0b5f168f625c569ae14a4d1e774add",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-og-tenue-hakuren.webp",
+      "bytes": 446828,
+      "sha256": "4a381e70736859bbff9a188a7a6ad128cc48c0f221ee3b6e5f3f2a64e8ea90ce",
+      "class": "unclassified"
+    },
+    {
+      "path": "data/oc/astro-lor/planche-og-tenue-jaune.webp",
+      "bytes": 441040,
+      "sha256": "faab240b33c551bafcb7107a2828be1d90ceca76ddf7a5e9ef278d1361b23564",
+      "class": "unclassified"
     },
     {
       "path": "data/oc/astro-lor/provenance/discord-1545590117895250101.json",

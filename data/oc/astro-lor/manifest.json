@@ -8,6 +8,74 @@
     "pourquoi": "gardien déjà présent dans le jeu ; ses fichiers donnent la forme exacte de ce qu'un personnage possède en propre",
     "fichiers": [
       {
+        "chemin": "data/common/chr/_face/02_IE2/c02023290/c02023290.g4md",
+        "octets": 2664
+      },
+      {
+        "chemin": "data/common/chr/_face/02_IE2/c02023290/c02023290.g4mg",
+        "octets": 141696
+      },
+      {
+        "chemin": "data/common/gamedata/menu/obj/soccer10_01_mode_change_c02023290.objbin",
+        "octets": 784
+      },
+      {
+        "chemin": "data/common/sound_asset/ja/c02023290.acb",
+        "octets": 26848
+      },
+      {
+        "chemin": "data/common/sound_asset/ja/c02023290.awb",
+        "octets": 635682
+      },
+      {
+        "chemin": "data/dx11/chr/_face/02_IE2/c02023290/c02023290.g4tx",
+        "octets": 5271872
+      },
+      {
+        "chemin": "data/dx11/chr/_face/02_IE2/c02023290/c02023290_03.g4tx",
+        "octets": 5271920
+      },
+      {
+        "chemin": "data/dx11/menu/200_icon/10_icon_chr/face/c02023290_l.g4tx",
+        "octets": 131648
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/de/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/en/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/es/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/fr/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/it/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/pt/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/zh_hans/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/zh_hant/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
         "chemin": "data/oc/astro-lor/game/evidence/reference-c02023290-live-scan.json",
         "octets": 8389
       },
@@ -35,21 +103,21 @@
     {
       "page": 1,
       "publie": "data/oc/astro-lor/bd-page-1.webp",
-      "octets": null,
+      "octets": 448650,
       "source": "data/oc/astro-lor/source/comic/page-1.webp",
       "octets_source": 661016
     },
     {
       "page": 2,
       "publie": "data/oc/astro-lor/bd-page-2.webp",
-      "octets": null,
+      "octets": 298552,
       "source": "data/oc/astro-lor/source/comic/page-2.webp",
       "octets_source": 257492
     },
     {
       "page": 3,
       "publie": "data/oc/astro-lor/bd-page-3.webp",
-      "octets": null,
+      "octets": 234380,
       "source": "data/oc/astro-lor/source/comic/page-3.webp",
       "octets_source": 203910
     }
@@ -99,9 +167,12 @@
           "role": "Icône de portrait (menus, fiche, effectif)",
           "format": "G4TX",
           "chemin_vfs": "data/dx11/menu/200_icon/10_icon_chr/face/c99019010_l.g4tx",
-          "present_dans_le_jeu": false,
-          "statut": "a_produire",
-          "source": null,
+          "present_dans_le_jeu": true,
+          "statut": "present",
+          "source": {
+            "fichier": "data/oc/astro-lor/face-og.webp",
+            "octets": 41020
+          },
           "outil": "niers (conversion d'image → G4TX)",
           "note": "Une source 512×512 existe déjà pour les deux variantes."
         },
@@ -128,7 +199,28 @@
           "note": "Facultatif : un personnage muet reste jouable."
         }
       ],
-      "references_artistiques": []
+      "references_artistiques": [
+        {
+          "fichier": "data/oc/astro-lor/planche-og-tenue-jaune.webp",
+          "octets": 441040
+        },
+        {
+          "fichier": "data/oc/astro-lor/planche-og-tenue-foot.webp",
+          "octets": 445668
+        },
+        {
+          "fichier": "data/oc/astro-lor/planche-og-tenue-hakuren.webp",
+          "octets": 446828
+        },
+        {
+          "fichier": "data/oc/astro-lor/planche-og-anatomie.webp",
+          "octets": 249324
+        },
+        {
+          "fichier": "data/oc/astro-lor/planche-og-expressions.webp",
+          "octets": 539232
+        }
+      ]
     },
     {
       "code_interne": "c99019020",
@@ -174,9 +266,12 @@
           "role": "Icône de portrait (menus, fiche, effectif)",
           "format": "G4TX",
           "chemin_vfs": "data/dx11/menu/200_icon/10_icon_chr/face/c99019020_l.g4tx",
-          "present_dans_le_jeu": false,
-          "statut": "a_produire",
-          "source": null,
+          "present_dans_le_jeu": true,
+          "statut": "present",
+          "source": {
+            "fichier": "data/oc/astro-lor/face-go.webp",
+            "octets": 37050
+          },
           "outil": "niers (conversion d'image → G4TX)",
           "note": "Une source 512×512 existe déjà pour les deux variantes."
         },
@@ -203,7 +298,24 @@
           "note": "Facultatif : un personnage muet reste jouable."
         }
       ],
-      "references_artistiques": []
+      "references_artistiques": [
+        {
+          "fichier": "data/oc/astro-lor/planche-go-tenue-ville.webp",
+          "octets": 456852
+        },
+        {
+          "fichier": "data/oc/astro-lor/planche-go-tenue-foot.webp",
+          "octets": 474318
+        },
+        {
+          "fichier": "data/oc/astro-lor/planche-go-anatomie.webp",
+          "octets": 254754
+        },
+        {
+          "fichier": "data/oc/astro-lor/planche-go-expressions.webp",
+          "octets": 485584
+        }
+      ]
     }
   ],
   "optional_visual_assets": [
@@ -420,8 +532,8 @@
       "role": "Fiche de base : identité, série, code interne",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_base_1.03.98.00.cfg.bin.json",
-          "octets": 9322134
+          "chemin": "data/common/gamedata/character/chara_base_1.03.98.00.cfg.bin",
+          "octets": 1381344
         }
       ],
       "trouve": true
@@ -431,12 +543,12 @@
       "role": "Paramètres : poste, élément, rareté, statistiques",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json",
-          "octets": 8778924
+          "chemin": "data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin",
+          "octets": 1238672
         },
         {
-          "chemin": "data/common/gamedata/character/chara_param_table_config_0.00.00.00.cfg.bin.json",
-          "octets": 8009
+          "chemin": "data/common/gamedata/character/chara_param_table_config_0.00.00.00.cfg.bin",
+          "octets": 5556
         }
       ],
       "trouve": true
@@ -446,16 +558,16 @@
       "role": "Association code interne → modèle et texture",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_model_1.03.49.00.cfg.bin.json",
-          "octets": 8934203
+          "chemin": "data/common/gamedata/character/chara_model_1.03.49.00.cfg.bin",
+          "octets": 1511088
         },
         {
-          "chemin": "data/common/gamedata/character/chara_model_change_1.00.92.00.cfg.bin.json",
-          "octets": 45911
+          "chemin": "data/common/gamedata/character/chara_model_change_1.00.92.00.cfg.bin",
+          "octets": 12848
         },
         {
-          "chemin": "data/common/gamedata/character/chara_model_preset_0.00.00.cfg.bin.json",
-          "octets": 14
+          "chemin": "data/common/gamedata/character/chara_model_preset_0.00.00.cfg.bin",
+          "octets": 48
         }
       ],
       "trouve": true
@@ -465,8 +577,8 @@
       "role": "Pièces du modèle (tête, corps, uniforme)",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_parts_0.07.22.cfg.bin.json",
-          "octets": 14502161
+          "chemin": "data/common/gamedata/character/chara_parts_0.07.22.cfg.bin",
+          "octets": 1996976
         }
       ],
       "trouve": true
@@ -476,8 +588,8 @@
       "role": "Échelle et stature",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_scale_0.11.12.cfg.bin.json",
-          "octets": 739564
+          "chemin": "data/common/gamedata/character/chara_scale_0.11.12.cfg.bin",
+          "octets": 150705
         }
       ],
       "trouve": true
@@ -487,8 +599,8 @@
       "role": "Jeux d'animations",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_motion_1.02.91.00.cfg.bin.json",
-          "octets": 97984
+          "chemin": "data/common/gamedata/character/chara_motion_1.02.91.00.cfg.bin",
+          "octets": 17952
         }
       ],
       "trouve": true
@@ -498,8 +610,8 @@
       "role": "Expressions du visage",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_face_1.03.00.00.cfg.bin.json",
-          "octets": 50917
+          "chemin": "data/common/gamedata/character/chara_face_1.03.00.00.cfg.bin",
+          "octets": 7184
         }
       ],
       "trouve": true
@@ -509,8 +621,8 @@
       "role": "Étiquette de nom affichée en match",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_name_tag_1.03.38.00.cfg.bin.json",
-          "octets": 51317
+          "chemin": "data/common/gamedata/character/chara_name_tag_1.03.38.00.cfg.bin",
+          "octets": 9792
         }
       ],
       "trouve": true
@@ -520,8 +632,8 @@
       "role": "Tenues disponibles",
       "chemins": [
         {
-          "chemin": "data/common/gamedata/character/chara_costume_1.02.28.00.cfg.bin.json",
-          "octets": 356018
+          "chemin": "data/common/gamedata/character/chara_costume_1.02.28.00.cfg.bin",
+          "octets": 46864
         }
       ],
       "trouve": true
@@ -559,12 +671,12 @@
   ],
   "resume": {
     "assets_total": 12,
-    "present": 0,
+    "present": 2,
     "source_prete": 0,
-    "a_produire": 12,
+    "a_produire": 10,
     "tables_reperees": 9,
     "tables_total": 9,
-    "references_artistiques": 0,
+    "references_artistiques": 9,
     "optional_visual_assets_total": 20,
     "optional_visual_assets_present": 0,
     "optional_visual_assets_to_produce": 20
