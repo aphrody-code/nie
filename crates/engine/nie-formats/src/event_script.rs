@@ -34,49 +34,55 @@ use crate::FormatError;
 use crate::cfgbin::{CfgEntry, Format, Value, cfgbin_parse};
 
 // ── Opcodes Level-5 CRC-32 connus ──────────────────────────────────────────
+//
+// Chaque valeur est l'opcode dominant de sa catégorie, mesuré sur les 9 897
+// fixtures `data/common/event_cfg/{evt,snd,eff}/*.cfg.bin.json` (~800 000
+// commandes). Le nombre d'occurrences accompagne chaque constante ; les
+// catégories dont l'opcode dominant est ambigu sont marquées comme telles.
 
-/// Définition de cut / scène (`FCF477A2`).
-pub const OPCODE_CUT: u32 = 0xFCF4_77A2;
-/// Spawn et enregistrement d'acteur / personnage (`35777F00`).
-pub const OPCODE_ACTOR: u32 = 0x3577_7F00;
-/// Configuration de l'éclairage de scène (`A8C2CE62`).
-pub const OPCODE_LIGHT: u32 = 0xA8C2_CE62;
-/// Chargement d'un pack de motions `.g4pk` (`D551829D`).
-pub const OPCODE_MOTION_PKG: u32 = 0xD551_829D;
-/// Reset d'état de scène (`DDCE63B8`).
-pub const OPCODE_SCENE_RESET: u32 = 0xDDCE_63B8;
-/// Reset de cut (`682C9DF6`).
-pub const OPCODE_CUT_RESET: u32 = 0x682C_9DF6;
-/// Enregistrement d'un jeu de motions (`DDE4EBBD`).
-pub const OPCODE_MOTION_SET: u32 = 0xDDE4_EBBD;
-/// Lecture d'animation squelettique (`678FA566`).
-pub const OPCODE_ANIM_PLAY: u32 = 0x678F_A566;
-/// Animation faciale / expression (`BFABA9A7`).
-pub const OPCODE_FACIAL: u32 = 0xBFAB_A9A7;
-/// Déplacement dans l'espace avec animation de marche/course (`822A2DB6`).
-pub const OPCODE_CHARA_MOVE: u32 = 0x822A_2DB6;
-/// Position de caméra (`6C976696`).
-pub const OPCODE_CAMERA_POS: u32 = 0x6C97_6696;
-/// Cible / LookAt de caméra (`F822CF69`).
-pub const OPCODE_CAMERA_TARGET: u32 = 0xF822_CF69;
-/// Champ de vision (FOV) de caméra (`045642BB`).
-pub const OPCODE_CAMERA_FOV: u32 = 0x0456_42BB;
-/// Déclencheur de dialogue et réplique (`A4C7132D`).
+/// Définition de cut / scène (`FD044302`, catégorie 1, 8 546 occurrences).
+pub const OPCODE_CUT: u32 = 0xFD04_4302;
+/// Spawn et enregistrement d'acteur / personnage (`35746E60`, catégorie 100, 7 246 occurrences).
+pub const OPCODE_ACTOR: u32 = 0x3574_6E60;
+/// Configuration de l'éclairage de scène (`A8C45AA2`, catégorie 100, 2 085 occurrences).
+pub const OPCODE_LIGHT: u32 = 0xA8C4_5AA2;
+/// Chargement d'un pack de motions `.g4pk` (`D552FA5D`, catégorie 102, 61 390 occurrences).
+pub const OPCODE_MOTION_PKG: u32 = 0xD552_FA5D;
+/// Reset d'état de scène (`DDC9D278`, catégorie 105, 7 825 occurrences).
+pub const OPCODE_SCENE_RESET: u32 = 0xDDC9_D278;
+/// Reset de cut (`682C8656`, catégorie 106, 8 546 occurrences).
+pub const OPCODE_CUT_RESET: u32 = 0x682C_8656;
+/// Enregistrement d'un jeu de motions (`DDEC5B3D`, catégorie 108, 23 222 occurrences).
+pub const OPCODE_MOTION_SET: u32 = 0xDDEC_5B3D;
+/// Lecture d'animation squelettique (`678F7CE6`, catégorie 109, 24 652 occurrences).
+pub const OPCODE_ANIM_PLAY: u32 = 0x678F_7CE6;
+/// Animation faciale / expression (`BFA5C387`, catégorie 109, 10 605 occurrences).
+pub const OPCODE_FACIAL: u32 = 0xBFA5_C387;
+/// Déplacement dans l'espace avec animation de marche/course (`82297276`, catégorie 109, 1 234 occurrences).
+pub const OPCODE_CHARA_MOVE: u32 = 0x8229_7276;
+/// Position de caméra (`6C976996`, catégorie 110 — args `x, y, z, …`).
+pub const OPCODE_CAMERA_POS: u32 = 0x6C97_6996;
+/// Cible / LookAt de caméra (`F821B199`, catégorie 110 — args `x, y, z, …`).
+pub const OPCODE_CAMERA_TARGET: u32 = 0xF821_B199;
+/// Champ de vision (FOV) de caméra (`045642DB`, catégorie 110 — premier arg en degrés).
+pub const OPCODE_CAMERA_FOV: u32 = 0x0456_42DB;
+/// Déclencheur de dialogue et réplique (`A4C7132D`, catégorie 150, 5 322 occurrences).
 pub const OPCODE_DIALOGUE: u32 = 0xA4C7_132D;
-/// Configuration d'effet de dialogue / lip-sync (`7B9E5545`).
-pub const OPCODE_DIALOGUE_UI: u32 = 0x7B9E_5545;
-/// Enregistrement de ressource sonore (`BA6C4D04`).
-pub const OPCODE_AUDIO_REG: u32 = 0xBA6C_4D04;
-/// Déclenchement / lecture de son ou voix (`39462DFC`).
-pub const OPCODE_AUDIO_PLAY: u32 = 0x3946_2DFC;
-/// Chargement de modèle d'effet visuel `.objbin` (`799745DA`).
-pub const OPCODE_EFFECT_LOAD: u32 = 0x7997_45DA;
-/// Nettoyage / libération d'acteurs ou d'effets (`7EE4B170`).
-pub const OPCODE_CLEANUP: u32 = 0x7EE4_B170;
-/// Fin de séquence d'événement (`B4CE4E97`).
-pub const OPCODE_END: u32 = 0xB4CE_4E97;
-/// Attente d'entrée utilisateur / confirmation de dialogue (`FF352B87`).
-pub const OPCODE_WAIT_INPUT: u32 = 0xFF35_2B87;
+/// Configuration d'effet de dialogue / lip-sync (`7BA7DD95`, catégorie 155, 5 322 occurrences).
+pub const OPCODE_DIALOGUE_UI: u32 = 0x7BA7_DD95;
+/// Enregistrement de ressource sonore (`BA67E844`, catégorie 140, 6 626 occurrences).
+pub const OPCODE_AUDIO_REG: u32 = 0xBA67_E844;
+/// Déclenchement / lecture de son ou voix (`3946657C`, catégorie 145, 9 774 occurrences).
+pub const OPCODE_AUDIO_PLAY: u32 = 0x3946_657C;
+/// Chargement d'un asset de scène référencé par chemin, `.g4sk` compris
+/// (`799A1EBA`, catégorie 100, 11 409 occurrences).
+pub const OPCODE_EFFECT_LOAD: u32 = 0x799A_1EBA;
+/// Nettoyage / libération d'acteurs ou d'effets (`7EE3A490`, catégorie 900, 60 282 occurrences).
+pub const OPCODE_CLEANUP: u32 = 0x7EE3_A490;
+/// Fin de séquence d'événement (`B4CD69F7`, catégorie 1000, 2 088 occurrences).
+pub const OPCODE_END: u32 = 0xB4CD_69F7;
+/// Attente d'entrée utilisateur / confirmation de dialogue (`FF354267`, catégorie 1009, 5 154 occurrences).
+pub const OPCODE_WAIT_INPUT: u32 = 0xFF35_4267;
 
 // ── Types sémantiques ─────────────────────────────────────────────────────────
 
@@ -658,11 +664,22 @@ fn json_to_cfg_entries(val: &serde_json::Value) -> Result<Vec<CfgEntry>, FormatE
 mod tests {
     use super::*;
 
+    /// Résout un chemin relatif depuis la racine du workspace.
+    ///
+    /// Les tests s'exécutent avec le dossier du crate comme répertoire courant,
+    /// si bien qu'un chemin relatif nu comme `data/common/...` ne résolvait
+    /// jamais : les tests concernés sautaient et rapportaient `ok` à vide.
+    fn workspace_path(relative: &str) -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../..")
+            .join(relative)
+    }
+
     #[test]
     fn test_parse_real_event_json() {
-        let path = "data/common/event_cfg/evt/ev01_00300.cfg.bin.json";
-        if !std::path::Path::new(path).exists() {
-            eprintln!("skip test_parse_real_event_json : fichier {path} absent");
+        let path = workspace_path("data/common/event_cfg/evt/ev01_00300.cfg.bin.json");
+        if !path.exists() {
+            eprintln!("skip test_parse_real_event_json : fichier {} absent", path.display());
             return;
         }
         let content = std::fs::read_to_string(path).expect("lecture ev01_00300.cfg.bin.json");
@@ -706,8 +723,8 @@ mod tests {
 
     #[test]
     fn test_parse_real_sound_event_json() {
-        let path = "data/common/event_cfg/snd/ev01_00300_snd.cfg.bin.json";
-        if !std::path::Path::new(path).exists() {
+        let path = workspace_path("data/common/event_cfg/snd/ev01_00300_snd.cfg.bin.json");
+        if !path.exists() {
             eprintln!("skip test_parse_real_sound_event_json : fichier absent");
             return;
         }
@@ -727,8 +744,8 @@ mod tests {
 
     #[test]
     fn test_parse_compact_command_json() {
-        let path = "data/common/event_cfg/other/select_sys_win.cfg.bin.json";
-        if !std::path::Path::new(path).exists() {
+        let path = workspace_path("data/common/event_cfg/other/select_sys_win.cfg.bin.json");
+        if !path.exists() {
             eprintln!("skip test_parse_compact_command_json : fichier absent");
             return;
         }
@@ -746,11 +763,9 @@ mod tests {
 
     #[test]
     fn test_oc_event_washa_map_json() {
-        let path = "data/oc/astro-lor/game/text/event/ev98_99010_map.cfg.bin.json";
-        if !std::path::Path::new(path).exists() {
-            eprintln!("skip test_oc_event_washa_map_json : fichier absent");
-            return;
-        }
+        // fixture suivie par git : son absence est une régression, pas un saut.
+        let path = workspace_path("data/oc/astro-lor/game/text/event/ev98_99010_map.cfg.bin.json");
+        assert!(path.exists(), "fixture suivie absente : {}", path.display());
         let content = std::fs::read_to_string(path).expect("lecture ev98_99010_map.cfg.bin.json");
         let json: serde_json::Value = serde_json::from_str(&content).expect("JSON valide");
         let entries = json_to_cfg_entries(&json).expect("entries");
@@ -769,8 +784,8 @@ mod tests {
 
     #[test]
     fn test_oc_event_washa_map_binary() {
-        let path = "var/ocgen/text/event/ev98_99010_map.cfg.bin";
-        if !std::path::Path::new(path).exists() {
+        let path = workspace_path("var/ocgen/text/event/ev98_99010_map.cfg.bin");
+        if !path.exists() {
             eprintln!("skip test_oc_event_washa_map_binary : fichier binaire absent");
             return;
         }
@@ -778,7 +793,9 @@ mod tests {
         let cfg = cfgbin_parse(&bytes).expect("cfgbin_parse réussi sur binaire OC");
         assert_eq!(cfg.format, Format::T2b);
         assert_eq!(cfg.entries.len(), 1);
-        assert_eq!(cfg.entries[0].name, "TEXT_WASHA_MAP_BEGIN_0");
+        // Le suffixe d'index `_<i>` est ajouté par la sérialisation iecode/JSON
+        // (`t2b_siblings_to_iecode_json`) ; le binaire porte le nom nu.
+        assert_eq!(cfg.entries[0].name, "TEXT_WASHA_MAP_BEGIN");
         assert_eq!(cfg.entries[0].children.len(), 15);
         assert_eq!(
             val_as_str(&cfg.entries[0].children[0].variables[15]),

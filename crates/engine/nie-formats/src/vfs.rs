@@ -1465,8 +1465,10 @@ mod tests {
     /// (icônes G4TX, dialogues, catalogue, portraits et contrats).
     #[test]
     fn vfs_integre_pleinement_data_oc_et_ses_overlays() {
+        // crates/engine/nie-formats -> racine du workspace : trois niveaux, pas deux.
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
+            .and_then(|p| p.parent())
             .and_then(|p| p.parent())
             .expect("racine du dépôt");
         let data_dir = root.join("data");

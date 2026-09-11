@@ -4878,7 +4878,14 @@ mod tests {
 
         let racine = crate::vfs::resolve_game_dir();
         let game_data = racine.join("data");
-        let manifest_path = racine.join("var/model-crc-manifest.ndjson");
+        // `var/` appartient au dépôt, pas à l'installation du jeu : le manifeste
+        // était cherché sous la racine du jeu, où il ne peut pas exister.
+        let depot = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .expect("racine du dépôt");
+        let manifest_path = depot.join("var/model-crc-manifest.ndjson");
 
         // Charger le manifeste.
         let manifest_str = match std::fs::read_to_string(&manifest_path) {
