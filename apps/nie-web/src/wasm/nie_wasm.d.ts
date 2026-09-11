@@ -876,10 +876,10 @@ export interface InitOutput {
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4016: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4031: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3025: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3025_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4021: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4036: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3030: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3030_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;
