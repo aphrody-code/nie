@@ -34,7 +34,6 @@
 		"./shell/layout-jeu": "./src/shell/layout-jeu.ts",
 		"./shell/*": "./src/shell/*",
 		"./three/*": "./src/three/*.tsx",
-		"./three/character-renderer": "./src/three/character-renderer.ts",
 		"./gallery/GalleryView": "./src/gallery/GalleryView.tsx",
 		"./gallery/GalleryFilters": "./src/gallery/GalleryFilters.tsx",
 		"./gallery/gallery": "./src/gallery/gallery.ts",

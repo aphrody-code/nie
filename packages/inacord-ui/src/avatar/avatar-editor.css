@@ -1,4 +1,8 @@
-.native-avatar-editor { position: relative; width: 100%; height: 100dvh; min-height: 0; overflow: hidden; }
+/* La scene remplit la boite que son hote lui donne, pas la fenetre. Avec
+   100dvh elle depassait de la hauteur de la barre d'onglets du studio
+   (.avatar-studio-workspace fait calc(100% - 56px) avec overflow:hidden) et le
+   bas du layout du jeu -- les guides de pied de page -- etait coupe. */
+.native-avatar-editor { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; }
 .native-avatar-editor__image,
 .native-avatar-editor__text,
 .native-avatar-editor__model,
