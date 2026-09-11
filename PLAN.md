@@ -478,3 +478,41 @@ Configured Astro Lor (`astro-lor`, codes `c99019010` [OG, 01_IE1] and `c99019020
    - `cargo test -p nie-formats --test assemble_astro_lor`: 1 passed, exit 0
    - `cargo test -p nie-save --test apply_astro_lor`: 1 passed, exit 0
    - `bun run typecheck`: 23/23 packages passed (0 error), exit 0
+
+## Full Engine RE: Skills, Animation (G4MT/G4MA), Events (T2B), Video (IVF/WebM/USM) & Azalée Crawler — 2026-09-11
+
+Comprehensive reverse-engineering across four core engine systems, media crawling pipeline, and Astro Lor source skills/auras integration:
+
+1. **Skills RE & Crawler Pipeline (`scripts/crawler/sync-skills-azalee.ts`):**
+   - Mapped `who01060` (Sauve-cabri / Soyoyagi Step, hash `0xE0549BE6`, event `ev61_01060` `0x858B3028`, Wind Dribble, TP 70, Power 70->440) and `who01360` (Cabriole de la biche / Serow Cabriole, hash `0xE21225BF`, event `ev61_01360` `0x87CD8E71`, Wind Dribble, TP 100, Power 140->800).
+   - Created Bun-native crawler fetching JSON specs, WebM 60fps video, posters, telops, and actor textures directly to `data/skills/` and `var/skills/`. Validated with `n2b` (0 errors, 0 warnings).
+
+2. **Motion & Animation RE (`nie-formats::g4mt`, `nie-formats::g4ma`):**
+   - Unveiled Level-5 container type ID `0x68` unification: G4MT (skeletal transform animation) and G4MA (material/texture stage animation) share the exact same 64-byte file header (`_HEADER_G4MT_BIN_V01`).
+   - Extended `g4mt.rs` with `find_clip_by_name` and `find_clip_by_hash`.
+   - Refactored `g4ma.rs` with `G4ma` parser extracting material animation tracks, translation/rotation/scale channels, and timing.
+
+3. **Event & Dialogue RE (`nie-formats::event_script`):**
+   - Mapped 2,087 `evt/`, 3,899 `snd/`, 3,911 `eff/`, and 5,131 washa tables.
+   - Built `nie-formats::event_script` decoder for Level-5 T2B event bytecode (`ev*.cfg.bin`), decoding CRC-32 opcodes: `OPCODE_CUT` (`0x53AC0392`), `OPCODE_ACTOR` (`0xE31C63A6`), `OPCODE_DIALOGUE` (`0x1613A5AE`), `OPCODE_CAMERA` (`0x8A8A1C5A`), and `OPCODE_EFF` (`0x8C1B7A3C`).
+   - Verified event parsing and round-trip fidelity against real game data and OC cutscenes (`ev98_99010.cfg.bin`).
+
+4. **Video & Media RE (`nie-formats::ivf`, `nie-formats::webm`, `nie-formats::usm`, `nie-cli video`):**
+   - Unveiled CRI USM video structure: VP90 codec ID 9, H.264 codec ID 5.
+   - Built standalone IVF (Indeo Video Format / VP90 `DKIF`) encoder and decoder in `nie-formats::ivf`.
+   - Implemented `demuxer_webm_vp9` in `nie-formats::webm` to extract raw VP9 bitstream frames without container overhead.
+   - Implemented `muxer_usm_vp9` in `nie-formats::usm` constructing bitstream chunks, `@SFV` blocks, and `@UTF` directory headers.
+   - Added `niers video convert-webm` CLI command converting WebM directly to IVF and USM (`who01060.ivf`: 1280x720, 316 frames, 5.27s, 1,354,973 B).
+
+5. **Astro Lor Skills & Auras Integration (`data/oc/astro-lor/source/skills/`):**
+   - Downloaded and linked official media: `aura_soul.webm`, `saute-mouton.webm`, `who01060.png`, `ev61_01060.png`, `who01360.webm`, `who01360_poster.jpg`, `who01360.png`.
+   - Created canonical manifest `data/oc/astro-lor/source/skills/manifest.json` cataloguing Keshin *Morphée, le Dieu des Rêves* (`0xCFD002A0`, hissatsu *Vœux Précieux* `ock6006`), 4 Mixi-Max (Master Dragon, Shawn Froste, Celia Hills, Asta Lor), 2 linked skills (`who01060`, `who01360`), and 24 lore hissatsu.
+   - Linked `skills_source` and `auras_summary` directly in `data/oc/astro-lor/manifest.json`.
+
+6. **Measured Verification Gates:**
+   - `cargo clippy -p nie-formats --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo clippy -p nie-cli --bins --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo test -p nie-formats --lib`: 337 passed, 0 failed, exit 0
+   - `bun run typecheck`: 23/23 packages passed (0 error), exit 0
+   - `n2b scripts/crawler/sync-skills-azalee.ts`: 0 errors, 0 warnings
+
