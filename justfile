@@ -13,6 +13,10 @@ bin      := "target/release/niers"
 seed_json := "refs/iecode-re/research/nie-index.json"
 rounds   := "16"
 
+# Atlas : index unique des surfaces RE (cf. docs/ATLAS.md).
+atlas_db    := "var/nie-atlas.sqlite"
+atlas_redis := env_var_or_default("NIERS_ATLAS_REDIS", "redis://127.0.0.1/4")
+
 # Liste les recettes (defaut).
 default:
     @just --list
@@ -106,6 +110,38 @@ health: build
 # `just preuves parabola` n'en rejoue qu'une famille ; PREUVES_TIMEOUT=30 raccourcit l'attente.
 preuves motif="":
     bash scripts/proofs.sh {{motif}}
+
+# --- Atlas : l'index unique des surfaces RE ------------------------------------
+# Une seule base rassemble fichiers, crates, docs, digest de la KB, forge, binaires,
+# outils, mesures et ecarts. Cf. docs/ATLAS.md.
+
+# Construit (ou met a jour) l'index complet + le miroir redis db4.
+atlas: build
+    {{bin}} atlas build --db {{atlas_db}} --kb {{db}} --redis {{atlas_redis}}
+
+# Une ligne d'etat mesuree.
+atlas-status:
+    {{bin}} atlas status --db {{atlas_db}}
+
+# La route vers les 100 %, classee par travail restant x poids.
+atlas-gaps limit="20":
+    {{bin}} atlas gaps --db {{atlas_db}} --limit {{limit}}
+
+# Cherche dans tout l'index d'un coup (docs, symboles, outils, fichiers, crates).
+atlas-search motif:
+    {{bin}} atlas search "{{motif}}" --db {{atlas_db}}
+
+# Fichiers strictement identiques presents a plusieurs chemins.
+atlas-dupes limit="20":
+    {{bin}} atlas dupes --db {{atlas_db}} --limit {{limit}}
+
+# Boucle autonome : mesure -> index -> classe -> agit -> re-mesure. `just atlas-loop 5` pour 5 ticks.
+atlas-loop ticks="1":
+    bash scripts/atlas-loop.sh --ticks {{ticks}}
+
+# Boucle autonome sans action (mesure et index seuls).
+atlas-watch:
+    bash scripts/atlas-loop.sh --no-act
 
 # Publie dans ~/.local/bin les binaires Rust + les CLI Bun, par liens symboliques (aucune copie).
 # Refuse d'ecraser un executable etranger deja dans le PATH. `just installer --dry-run` pour voir.

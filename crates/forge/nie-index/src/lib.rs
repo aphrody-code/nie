@@ -8,6 +8,11 @@
 
 pub mod memory;
 
+/// Atlas — index unique de toutes les surfaces RE du dépôt (fichiers, crates, docs,
+/// digest de la base de connaissance, unités de forge, outils, métriques, écarts).
+#[cfg(feature = "host")]
+pub mod atlas;
+
 #[cfg(feature = "host")]
 mod host {
     use std::path::{Path, PathBuf};

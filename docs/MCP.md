@@ -39,7 +39,7 @@ the terminal, keeping Clap as the single source of truth for nested commands and
 
 | Family | Tools |
 |---|---|
-| Forge and RE | `cli_seed`, `cli_seed_ui`, `cli_strings`, `cli_coverage`, `cli_queue`, `cli_propagate`, `cli_rtti`, `cli_index`, `cli_disasm`, `cli_pdata`, `cli_rebuild`, `cli_recover` |
+| Forge and RE | `cli_atlas`, `cli_seed`, `cli_seed_ui`, `cli_strings`, `cli_coverage`, `cli_queue`, `cli_propagate`, `cli_rtti`, `cli_index`, `cli_disasm`, `cli_pdata`, `cli_rebuild`, `cli_recover` |
 | Formats and VFS | `cli_viola`, `cli_format`, `cli_decode`, `cli_refresh_typed_json`, `cli_convert`, `cli_vfs` |
 | Game and content | `cli_steam`, `cli_info`, `cli_render`, `cli_lua`, `cli_lua_run`, `cli_lua_audit`, `cli_img`, `cli_mode`, `cli_icons`, `cli_avatar`, `cli_save`, `cli_wiki`, `cli_uniform_map`, `cli_textures`, `cli_menu_predecode`, `cli_vn`, `cli_video` |
 | System and control | `cli_computer_use`, `cli_mod`, `cli_find`, `cli_grep`, `cli_mem` |

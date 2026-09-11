@@ -227,6 +227,18 @@ define_cli_tools!(
         "Inspect and export avatar recipes, parts, presets, regions, sheets, UVs, or icons."
     ),
     (
+        CliOcgen,
+        "cli_ocgen",
+        "ocgen",
+        "Generate an original character in 3D: morphology, chara_edit parts, and measured colours."
+    ),
+    (
+        CliAtlas,
+        "cli_atlas",
+        "atlas",
+        "Query or rebuild the single index over every reverse-engineering surface: files, crates, Markdown claims, knowledge-base digest, forge units, binaries, tools, metrics, and the ranked road to 100 %. `build` and `sync` write the atlas database and its Redis mirror; `status`, `search`, `gaps`, `next`, `docs`, and `dupes` are read-only."
+    ),
+    (
         CliCoverage,
         "cli_coverage",
         "coverage",
@@ -1083,14 +1095,14 @@ mod tests {
         use clap::CommandFactory as _;
 
         let tools = NiersMcpServer::all_tools().list_all();
-        assert_eq!(tools.len(), 60);
+        assert_eq!(tools.len(), 62);
         let commands = crate::Cli::command()
             .get_subcommands()
             .map(clap::Command::get_name)
             .filter(|name| *name != "mcp")
             .map(str::to_owned)
             .collect::<Vec<_>>();
-        assert_eq!(commands.len(), 41);
+        assert_eq!(commands.len(), 43);
         for command in commands {
             let tool_name = format!("cli_{}", command.replace('-', "_"));
             assert!(

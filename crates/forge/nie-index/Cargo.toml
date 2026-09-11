@@ -13,15 +13,19 @@ workspace = true
 [features]
 default = ["host"]
 host = [
+    "dep:ignore",
     "dep:r2d2",
     "dep:redis",
     "dep:rusqlite",
     "dep:serde_json",
+    "dep:sha2",
     "dep:tracing",
 ]
 
 [dependencies]
+ignore = { workspace = true, optional = true }
 rusqlite = { workspace = true, optional = true, features = ["bundled"] }
+sha2 = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true, default-features = true }
 thiserror.workspace = true

@@ -22,6 +22,7 @@ macro_rules! eprintln {
     ($($arg:tt)*) => {{ $crate::output::write_stderr(format_args!($($arg)*), true) }};
 }
 
+mod atlas_cmd;
 mod avatar_cmd;
 mod decode_cmd;
 mod icons_cmd;
@@ -424,6 +425,12 @@ enum Cmd {
     Ocgen {
         #[command(subcommand)]
         op: ocgen_cmd::OcgenCmd,
+    },
+    /// Index unique de toutes les surfaces RE : fichiers, crates, docs, base de
+    /// connaissance, forge, binaires, outils, métriques et route vers les 100 %.
+    Atlas {
+        #[command(subcommand)]
+        op: atlas_cmd::AtlasCmd,
     },
     /// Affiche la couverture (fonctions classifiées) du binaire indexé.
     Coverage {
@@ -2601,6 +2608,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
                 amplification,
             },
         }),
+        Cmd::Atlas { op } => atlas_cmd::run(op),
         Cmd::Coverage { db } => coverage(&db),
         Cmd::Queue { op, redis, tag } => queue(op, &redis, &tag),
         Cmd::Propagate { db, rounds } => propagate(&db, rounds),

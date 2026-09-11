@@ -28,6 +28,7 @@ Superseded plans are preserved in the dated
 - **[BENCHMARKS.md](BENCHMARKS.md)** : Mesures comparatives de performance (Rust vs C++ vs C#).
 
 ### 2.2 Reverse Engineering, Binaire & Formats
+- **[ATLAS.md](ATLAS.md)** : L'index unique de toutes les surfaces RE (fichiers, crates, docs, digest de la KB, forge, binaires, outils) et la boucle autonome qui vise les 100 %.
 - **[FORGE.md](FORGE.md)** : Production de `nie.exe` byte-exact (atteint 74.00% du binaire et 92.24% de `.text`).
 - **[RE.md](RE.md)** : Base de connaissances RE, ancrage des fonctions et structures décompilées.
 - **[re/README.md](re/README.md)** : Centre canonique des données RE et règle d’audit local → consommateur → Rust → parité.

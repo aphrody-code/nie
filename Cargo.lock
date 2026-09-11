@@ -6199,11 +6199,13 @@ dependencies = [
 name = "nie-index"
 version = "0.5.11"
 dependencies = [
+ "ignore",
  "r2d2",
  "redis",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "thiserror 2.0.20",
  "tracing",
 ]

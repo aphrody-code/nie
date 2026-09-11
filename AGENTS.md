@@ -29,6 +29,12 @@ documents linked there; do not duplicate large specifications here.
 - `crates/tools/nie-site` and `crates/tools/nie-wiki`: the Rust wiki/site and read-only mirror owner.
 - `data/` and `var/`: game assets and measurements; do not commit copyrighted game dumps or
   generated bulk data unless the repository explicitly tracks that exact artifact.
+- `var/nie-atlas.sqlite`: the single index over every RE surface — files, crates, Markdown
+  claims, the 19 GB knowledge-base digest, forge units, binaries, tools, metrics and the
+  ranked road to 100 %. Built by `just atlas`, queried by `niers atlas {status,search,gaps,
+  next,dupes}`, mirrored into Redis db4, driven by `scripts/atlas-loop.sh`. Ask it before
+  searching the tree by hand: `niers atlas search <term>` covers all surfaces at once.
+  See [docs/ATLAS.md](docs/ATLAS.md).
 
 ## Target architecture (2026-09-07)
 
@@ -146,6 +152,12 @@ Its command logs belong under `var/log/sync-main/<run-id>/`.
 - Under Windows/MSYS, do not use `sed -i` on source; use structured edits.
 - For production claims, verify the live endpoint and a non-zero/meaningful response after any
   restart. `systemctl active` alone is insufficient.
+- `kb.forge_unit` is empty on this machine: the real unit cover is `var/forge/cover.json`
+  (215 688 units). The live registry is `data/forge/registry.json`, not the CLI default
+  `forge/registry.json`. Measured 2026-09-11 while building the atlas.
+- SQLite rejects `INSERT … SELECT … ON CONFLICT` without an intervening `WHERE true`
+  (`near "DO": syntax error`), and `pragma_table_info` does not accept a schema-qualified
+  table name — read the DDL from `<schema>.sqlite_master` instead.
 
 ## Windows ↔ VPS workflow
 
