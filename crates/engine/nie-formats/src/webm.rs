@@ -77,6 +77,9 @@ const ID_DISPLAY_HEIGHT: u32 = 0x54BA;
 const ID_CLUSTER: u32 = 0x1F43_B675;
 const ID_TIMESTAMP: u32 = 0xE7;
 const ID_SIMPLE_BLOCK: u32 = 0xA3;
+const ID_BLOCK_GROUP: u32 = 0xA0;
+const ID_BLOCK: u32 = 0xA1;
+const ID_REFERENCE_BLOCK: u32 = 0xFB;
 
 const ID_CUES: u32 = 0x1C53_BB6B;
 const ID_CUE_POINT: u32 = 0xBB;
@@ -495,6 +498,370 @@ pub fn muxer_vp9(
     Ok((e.o, resume))
 }
 
+// ── Démultiplexage WebM / VP9 ────────────────────────────────────────────────
+
+/// Métadonnées d'un flux vidéo WebM / VP9.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WebmInfo {
+    /// Largeur codée en pixels.
+    pub largeur: u32,
+    /// Hauteur codée en pixels.
+    pub hauteur: u32,
+    /// Largeur d'affichage (DisplayWidth), si différente.
+    pub largeur_affichee: Option<u32>,
+    /// Hauteur d'affichage (DisplayHeight), si différente.
+    pub hauteur_affichee: Option<u32>,
+    /// Durée en secondes calculée d'après Duration ou la dernière trame.
+    pub duree_secondes: f64,
+    /// Numéro de piste vidéo VP9.
+    pub track_video: u64,
+    /// Nombre total de trames extraites.
+    pub total_images: usize,
+    /// Nombre d'images-clés identifiées.
+    pub total_cles: usize,
+}
+
+/// Une trame vidéo extraite d'un bloc WebM.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WebmTrame {
+    /// Vrai s'il s'agit d'une image-clé (point d'accès aléatoire).
+    pub cle: bool,
+    /// Horodatage absolu en millisecondes depuis le début du flux.
+    pub timestamp_ms: u64,
+    /// Octets compressés de la trame VP9 brute.
+    pub octets: Vec<u8>,
+}
+
+/// Résultat complet du démultiplexage WebM VP9.
+#[derive(Debug, Clone)]
+pub struct WebmDemux {
+    /// Métadonnées du flux.
+    pub info: WebmInfo,
+    /// Trames vidéo extraites dans l'ordre chronologique.
+    pub trames: Vec<WebmTrame>,
+}
+
+/// Démultiplexe un conteneur WebM / Matroska portant un flux vidéo VP9.
+///
+/// Extrait les métadonnées de piste (définition, durée) et chaque trame VP9 brute,
+/// en conservant l'information d'image-clé et l'horodatage en millisecondes.
+///
+/// # Erreurs
+///
+/// [`FormatError::BadMagic`] si le conteneur ne commence pas par `EBML`,
+/// [`FormatError::Corrupt`] si aucune piste VP9 valide n'est trouvée.
+pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
+    if data.len() < 4 {
+        return Err(FormatError::TooShort {
+            got: data.len(),
+            need: 4,
+        });
+    }
+    let Some((id, _)) = lire_id(data) else {
+        return Err(FormatError::BadMagic { format: "EBML" });
+    };
+    if id != ID_EBML {
+        return Err(FormatError::BadMagic { format: "EBML" });
+    }
+
+    // Recherche de l'élément Segment
+    let mut pos = 0usize;
+    let mut segment_debut = None;
+    let mut segment_fin = None;
+
+    while pos < data.len() {
+        let Some((elem_id, nid)) = lire_id(&data[pos..]) else { break };
+        let Some((taille, nsz)) = lire_taille(&data[pos + nid..]) else { break };
+        let charge_debut = pos + nid + nsz;
+        let charge_fin = if taille == 0x00FF_FFFF_FFFF_FFFF || charge_debut + (taille as usize) > data.len() {
+            data.len()
+        } else {
+            charge_debut + (taille as usize)
+        };
+        if elem_id == ID_SEGMENT {
+            segment_debut = Some(charge_debut);
+            segment_fin = Some(charge_fin);
+            break;
+        }
+        pos = charge_fin;
+    }
+
+    let debut = segment_debut.ok_or(FormatError::Corrupt("WebM : élément Segment introuvable"))?;
+    let fin = segment_fin.unwrap_or(data.len());
+
+    let mut timecode_scale_ns = ECHELLE_NS; // 1_000_000 ns par défaut (1 ms)
+    let mut duree_brute = 0.0f64;
+    let mut video_track_num = None;
+    let mut largeur = 0u32;
+    let mut hauteur = 0u32;
+    let mut disp_w = None;
+    let mut disp_h = None;
+
+    let mut trames: Vec<WebmTrame> = Vec::new();
+    let mut total_cles = 0usize;
+
+    let mut p = debut;
+    while p < fin {
+        let Some((elem_id, nid)) = lire_id(&data[p..fin]) else { break };
+        let Some((taille, nsz)) = lire_taille(&data[p + nid..fin]) else { break };
+        let elem_debut = p + nid + nsz;
+        let elem_fin = if taille == 0x00FF_FFFF_FFFF_FFFF || elem_debut + (taille as usize) > fin {
+            fin
+        } else {
+            elem_debut + (taille as usize)
+        };
+
+        match elem_id {
+            ID_INFO => {
+                let mut ip = elem_debut;
+                while ip < elem_fin {
+                    let Some((iid, inid)) = lire_id(&data[ip..elem_fin]) else { break };
+                    let Some((isz, insz)) = lire_taille(&data[ip + inid..elem_fin]) else { break };
+                    let ic_debut = ip + inid + insz;
+                    let ic_fin = ic_debut + (isz as usize);
+                    if ic_fin > elem_fin { break };
+                    let c = &data[ic_debut..ic_fin];
+                    if iid == ID_TIMESTAMP_SCALE {
+                        timecode_scale_ns = lire_uint(c);
+                    } else if iid == ID_DURATION {
+                        duree_brute = lire_float(c);
+                    }
+                    ip = ic_fin;
+                }
+            }
+            ID_TRACKS => {
+                let mut tp = elem_debut;
+                while tp < elem_fin {
+                    let Some((tid, tnid)) = lire_id(&data[tp..elem_fin]) else { break };
+                    let Some((tsz, tnsz)) = lire_taille(&data[tp + tnid..elem_fin]) else { break };
+                    let tc_debut = tp + tnid + tnsz;
+                    let tc_fin = tc_debut + (tsz as usize);
+                    if tc_fin > elem_fin { break };
+
+                    if tid == ID_TRACK_ENTRY {
+                        let mut ep = tc_debut;
+                        let mut track_no = 0u64;
+                        let mut is_video = false;
+                        let mut is_vp9 = false;
+                        let mut w = 0u32;
+                        let mut h = 0u32;
+                        let mut dw = None;
+                        let mut dh = None;
+
+                        while ep < tc_fin {
+                            let Some((eid, enid)) = lire_id(&data[ep..tc_fin]) else { break };
+                            let Some((esz, ensz)) = lire_taille(&data[ep + enid..tc_fin]) else { break };
+                            let ec_debut = ep + enid + ensz;
+                            let ec_fin = ec_debut + (esz as usize);
+                            if ec_fin > tc_fin { break };
+                            let c = &data[ec_debut..ec_fin];
+
+                            match eid {
+                                ID_TRACK_NUMBER => track_no = lire_uint(c),
+                                ID_TRACK_TYPE => if lire_uint(c) == 1 { is_video = true },
+                                ID_CODEC_ID => {
+                                    if c.starts_with(b"V_VP9") {
+                                        is_vp9 = true;
+                                    }
+                                }
+                                ID_VIDEO => {
+                                    let mut vp = ec_debut;
+                                    while vp < ec_fin {
+                                        let Some((vid, vnid)) = lire_id(&data[vp..ec_fin]) else { break };
+                                        let Some((vsz, vnsz)) = lire_taille(&data[vp + vnid..ec_fin]) else { break };
+                                        let vc_debut = vp + vnid + vnsz;
+                                        let vc_fin = vc_debut + (vsz as usize);
+                                        if vc_fin > ec_fin { break };
+                                        let vc = &data[vc_debut..vc_fin];
+
+                                        match vid {
+                                            ID_PIXEL_WIDTH => w = lire_uint(vc) as u32,
+                                            ID_PIXEL_HEIGHT => h = lire_uint(vc) as u32,
+                                            ID_DISPLAY_WIDTH => dw = Some(lire_uint(vc) as u32),
+                                            ID_DISPLAY_HEIGHT => dh = Some(lire_uint(vc) as u32),
+                                            _ => {}
+                                        }
+                                        vp = vc_fin;
+                                    }
+                                }
+                                _ => {}
+                            }
+                            ep = ec_fin;
+                        }
+
+                        if is_video && is_vp9 {
+                            video_track_num = Some(track_no);
+                            largeur = w;
+                            hauteur = h;
+                            disp_w = dw;
+                            disp_h = dh;
+                        }
+                    }
+                    tp = tc_fin;
+                }
+            }
+            ID_CLUSTER => {
+                let mut cp = elem_debut;
+                let mut cluster_timecode = 0u64;
+
+                while cp < elem_fin {
+                    let Some((cid, cnid)) = lire_id(&data[cp..elem_fin]) else { break };
+                    let Some((csz, cnsz)) = lire_taille(&data[cp + cnid..elem_fin]) else { break };
+                    let cc_debut = cp + cnid + cnsz;
+                    let cc_fin = cc_debut + (csz as usize);
+                    if cc_fin > elem_fin { break };
+                    let c = &data[cc_debut..cc_fin];
+
+                    match cid {
+                        ID_TIMESTAMP => {
+                            cluster_timecode = lire_uint(c);
+                        }
+                        ID_SIMPLE_BLOCK => {
+                            if let Some((tnum, rel_tc, is_key, payload)) = parser_bloc(c)
+                                && (video_track_num.is_none() || video_track_num == Some(tnum))
+                            {
+                                let abs_tc_scale = (cluster_timecode as i64 + rel_tc as i64).max(0) as u64;
+                                let timestamp_ms = (abs_tc_scale as u128 * timecode_scale_ns as u128 / 1_000_000) as u64;
+
+                                let cle = is_key || lire_trame_vp9(payload).is_ok_and(|t| t.cle);
+                                if cle {
+                                    total_cles += 1;
+                                    if (largeur == 0 || hauteur == 0)
+                                        && let Ok(tvp9) = lire_trame_vp9(payload)
+                                        && tvp9.largeur > 0
+                                        && tvp9.hauteur > 0
+                                    {
+                                        largeur = tvp9.largeur;
+                                        hauteur = tvp9.hauteur;
+                                    }
+                                }
+                                trames.push(WebmTrame {
+                                    cle,
+                                    timestamp_ms,
+                                    octets: payload.to_vec(),
+                                });
+                            }
+                        }
+                        ID_BLOCK_GROUP => {
+                            let mut bgp = cc_debut;
+                            let mut ref_block = false;
+                            let mut block_data = None;
+
+                            while bgp < cc_fin {
+                                let Some((bgid, bgnid)) = lire_id(&data[bgp..cc_fin]) else { break };
+                                let Some((bgsz, bgnsz)) = lire_taille(&data[bgp + bgnid..cc_fin]) else { break };
+                                let bgc_debut = bgp + bgnid + bgnsz;
+                                let bgc_fin = bgc_debut + (bgsz as usize);
+                                if bgc_fin > cc_fin { break };
+                                let bgc = &data[bgc_debut..bgc_fin];
+
+                                if bgid == ID_BLOCK {
+                                    block_data = Some(bgc);
+                                } else if bgid == ID_REFERENCE_BLOCK {
+                                    ref_block = true;
+                                }
+                                bgp = bgc_fin;
+                            }
+
+                            if let Some(blk) = block_data
+                                && let Some((tnum, rel_tc, _, payload)) = parser_bloc(blk)
+                                && (video_track_num.is_none() || video_track_num == Some(tnum))
+                            {
+                                let abs_tc_scale = (cluster_timecode as i64 + rel_tc as i64).max(0) as u64;
+                                let timestamp_ms = (abs_tc_scale as u128 * timecode_scale_ns as u128 / 1_000_000) as u64;
+                                let cle = !ref_block || lire_trame_vp9(payload).is_ok_and(|t| t.cle);
+                                if cle {
+                                    total_cles += 1;
+                                    if (largeur == 0 || hauteur == 0)
+                                        && let Ok(tvp9) = lire_trame_vp9(payload)
+                                        && tvp9.largeur > 0
+                                        && tvp9.hauteur > 0
+                                    {
+                                        largeur = tvp9.largeur;
+                                        hauteur = tvp9.hauteur;
+                                    }
+                                }
+                                trames.push(WebmTrame {
+                                    cle,
+                                    timestamp_ms,
+                                    octets: payload.to_vec(),
+                                });
+                            }
+                        }
+                        _ => {}
+                    }
+                    cp = cc_fin;
+                }
+            }
+            _ => {}
+        }
+        p = elem_fin;
+    }
+
+    if trames.is_empty() {
+        return Err(FormatError::Corrupt("WebM : aucune trame vidéo VP9 trouvée"));
+    }
+
+    let duree_secondes = if duree_brute > 0.0 {
+        duree_brute * (timecode_scale_ns as f64) / 1_000_000_000.0
+    } else {
+        trames.last().map_or(0.0, |t| t.timestamp_ms as f64 / 1000.0)
+    };
+
+    Ok(WebmDemux {
+        info: WebmInfo {
+            largeur,
+            hauteur,
+            largeur_affichee: disp_w,
+            hauteur_affichee: disp_h,
+            duree_secondes,
+            track_video: video_track_num.unwrap_or(1),
+            total_images: trames.len(),
+            total_cles,
+        },
+        trames,
+    })
+}
+
+/// Lit un entier non signé d'un tampon EBML (big-endian).
+fn lire_uint(d: &[u8]) -> u64 {
+    let mut v = 0u64;
+    for &b in d {
+        v = (v << 8) | u64::from(b);
+    }
+    v
+}
+
+/// Lit un flottant IEEE-754 EBML (32 bits ou 64 bits big-endian).
+fn lire_float(d: &[u8]) -> f64 {
+    match d.len() {
+        4 => f64::from(f32::from_be_bytes([d[0], d[1], d[2], d[3]])),
+        8 => f64::from_be_bytes([d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]]),
+        _ => 0.0,
+    }
+}
+
+/// Décode l'en-tête d'un `SimpleBlock` ou `Block` Matroska.
+///
+/// Rend `(track_number, relative_timecode, is_keyframe, payload)`.
+fn parser_bloc(d: &[u8]) -> Option<(u64, i16, bool, &[u8])> {
+    if d.is_empty() {
+        return None;
+    }
+    let (track_num, n_track) = lire_taille(d)?;
+    if d.len() < n_track + 3 {
+        return None;
+    }
+    let rel_tc = i16::from_be_bytes([d[n_track], d[n_track + 1]]);
+    let flags = d[n_track + 2];
+    let is_key = (flags & 0x80) != 0;
+    let lacing = (flags & 0x06) >> 1;
+
+    let charge = &d[n_track + 3..];
+    let _ = lacing;
+    Some((track_num, rel_tc, is_key, charge))
+}
+
 // ── Inspection ────────────────────────────────────────────────────────────────
 
 /// Parcourt les éléments de premier niveau d'un WebM et rend `(identifiant, taille)`.
@@ -834,5 +1201,65 @@ mod tests {
             p = fin;
         }
         n
+    }
+
+    #[test]
+    fn demuxer_webm_vp9_round_trip() {
+        let k = trame(true, 1280, 720);
+        let p1 = trame(false, 1280, 720);
+        let p2 = trame(false, 1280, 720);
+        let trames: Vec<&[u8]> = vec![&k, &p1, &p2];
+
+        let (webm_octets, resume) = muxer_vp9(&trames, (30, 1), None).expect("muxage webm");
+        assert_eq!(resume.images, 3);
+        assert_eq!(resume.cles, 1);
+
+        let demux = demuxer_webm_vp9(&webm_octets).expect("demux webm");
+        assert_eq!(demux.info.largeur, 1280);
+        assert_eq!(demux.info.hauteur, 720);
+        assert_eq!(demux.info.total_images, 3);
+        assert_eq!(demux.info.total_cles, 1);
+        assert_eq!(demux.trames.len(), 3);
+        assert!(demux.trames[0].cle);
+        assert!(!demux.trames[1].cle);
+        assert!(!demux.trames[2].cle);
+        assert_eq!(demux.trames[0].octets, k);
+        assert_eq!(demux.trames[1].octets, p1);
+        assert_eq!(demux.trames[2].octets, p2);
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn demuxer_webm_sur_fichier_reel_who01060() {
+        let p = std::path::Path::new("var/skills/who01060/who01060.webm");
+        if !p.exists() {
+            return;
+        }
+        let octets = std::fs::read(p).expect("lecture who01060.webm");
+        let demux = demuxer_webm_vp9(&octets).expect("demux who01060.webm");
+
+        // Mesures réelles du flux CloudFront de Sauve-cabri
+        assert_eq!((demux.info.largeur, demux.info.hauteur), (1280, 720));
+        assert_eq!(demux.info.total_images, 277);
+        assert_eq!(demux.info.total_cles, 2);
+        assert!(demux.info.duree_secondes > 4.0);
+        assert_eq!(demux.trames.len(), 277);
+        assert!(demux.trames[0].cle);
+
+        // Conversion en IVF autonome
+        let trames_ref: Vec<&[u8]> = demux.trames.iter().map(|t| t.octets.as_slice()).collect();
+        let ivf_bytes = crate::ivf::emballer_ivf(1280, 720, (60, 1), &trames_ref);
+        let (ivf_hdr, ivf_lues) = crate::ivf::demuxer_ivf(&ivf_bytes).expect("demux ivf converti");
+        assert_eq!(ivf_hdr.total_images, 277);
+        assert_eq!(ivf_lues.len(), 277);
+        assert_eq!(ivf_lues[0].donnees, demux.trames[0].octets.as_slice());
+
+        // Conversion en conteneur USM compatible moteur
+        let usm_bytes = crate::usm::muxer_usm_vp9("who01060.usm", &trames_ref, (60, 1), 1280, 720);
+        let u = crate::usm::demuxer(&usm_bytes).expect("demux usm converti");
+        assert_eq!(u.codec, crate::usm::CodecVideo::Vp9);
+        assert_eq!(u.images.len(), 277);
+        assert_eq!(u.entete.largeur, 1280);
+        assert_eq!(u.entete.hauteur, 720);
     }
 }

@@ -491,6 +491,18 @@ impl Motion {
         out
     }
 
+    /// Trouve un clip par son nom exact.
+    #[must_use]
+    pub fn find_clip_by_name(&self, name: &str) -> Option<&Clip> {
+        self.clips.iter().find(|c| c.name == name)
+    }
+
+    /// Trouve un clip par son hash CRC32 (ex. `winSubMotionNameCrc` de `SkillTechnicInfo`).
+    #[must_use]
+    pub fn find_clip_by_hash(&self, crc32: u32) -> Option<&Clip> {
+        self.clips.iter().find(|c| c.crc32 == crc32)
+    }
+
     /// Decode one non-additive clip into local TRS tracks resolved against a caller-owned
     /// skeleton.
     ///
@@ -1057,6 +1069,11 @@ mod tests {
         let bones = ["root"];
         let resolved = resolve_targets(&motion.target_hashes, &bones);
         assert_eq!(resolved, alloc::vec![Some(0)]);
+
+        assert_eq!(motion.find_clip_by_name("clip").map(|c| c.crc32), Some(clip.crc32));
+        assert_eq!(motion.find_clip_by_hash(clip.crc32).map(|c| c.name.as_str()), Some("clip"));
+        assert!(motion.find_clip_by_name("inconnu").is_none());
+        assert!(motion.find_clip_by_hash(0xdead_beef).is_none());
 
         let q0 = motion.sample_rotation(&buf, clip, 0, 0.0).expect("q0");
         assert!((q0[3] - 1.0).abs() < 0.01, "q0 ≈ identité : {q0:?}");

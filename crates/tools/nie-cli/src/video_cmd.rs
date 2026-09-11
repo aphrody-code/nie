@@ -88,6 +88,21 @@ pub enum VideoCmd {
         #[arg(long)]
         rapide: bool,
     },
+
+    /// Convertit une vidéo WebM / VP9 (ex: supertechnique CloudFront) en conteneur USM ou IVF.
+    ConvertWebm {
+        /// Fichier `.webm` source.
+        source: PathBuf,
+        /// Fichier de sortie (`.usm` ou `.ivf`).
+        #[arg(long)]
+        out: PathBuf,
+        /// Nom logique du film dans les métadonnées USM (optionnel).
+        #[arg(long)]
+        nom: Option<String>,
+        /// Cadence imposée en images par seconde (numérateur). Défaut : 60.
+        #[arg(long, default_value_t = 60)]
+        fps: u32,
+    },
 }
 
 /// Point d'entrée de la commande.
@@ -115,6 +130,12 @@ pub fn run(op: &VideoCmd, vfs: &Vfs) -> Result<()> {
             brut,
         } => export(vfs, chemin, out, *audio, *brut),
         VideoCmd::Catalogue { out, rapide } => catalogue(vfs, out.as_deref(), *rapide),
+        VideoCmd::ConvertWebm {
+            source,
+            out,
+            nom,
+            fps,
+        } => convert_webm(source, out, nom.as_deref(), *fps),
     }
 }
 
@@ -411,6 +432,69 @@ fn catalogue(vfs: &Vfs, out: Option<&Path>, rapide: bool) -> Result<()> {
                 p.display(),
                 cat.films.len(),
                 cat.rubriques.len()
+            );
+        }
+    }
+    Ok(())
+}
+
+fn convert_webm(source: &Path, out: &Path, nom: Option<&str>, fps: u32) -> Result<()> {
+    let brut = std::fs::read(source).with_context(|| format!("lecture {}", source.display()))?;
+    let demux = nie_formats::webm::demuxer_webm_vp9(&brut)
+        .with_context(|| format!("démultiplexage WebM {}", source.display()))?;
+
+    let trames_ref: Vec<&[u8]> = demux.trames.iter().map(|t| t.octets.as_slice()).collect();
+    let ext = out.extension().and_then(|e| e.to_str()).unwrap_or("usm");
+
+    if let Some(parent) = out.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent).with_context(|| format!("mkdir {}", parent.display()))?;
+    }
+
+    match ext {
+        "ivf" => {
+            let ivf_bytes = nie_formats::ivf::emballer_ivf(
+                demux.info.largeur as u16,
+                demux.info.hauteur as u16,
+                (fps, 1),
+                &trames_ref,
+            );
+            std::fs::write(out, &ivf_bytes)
+                .with_context(|| format!("écriture IVF {}", out.display()))?;
+            println!(
+                "{} — {}×{} VP9, {} images ({} clés), {:.2} s, {} octets (format IVF autonome)",
+                out.display(),
+                demux.info.largeur,
+                demux.info.hauteur,
+                demux.info.total_images,
+                demux.info.total_cles,
+                demux.info.duree_secondes,
+                ivf_bytes.len(),
+            );
+        }
+        _ => {
+            let nom_final = nom.unwrap_or_else(|| {
+                source.file_name().and_then(|f| f.to_str()).unwrap_or("video.usm")
+            });
+            let usm_bytes = nie_formats::usm::muxer_usm_vp9(
+                nom_final,
+                &trames_ref,
+                (fps, 1),
+                demux.info.largeur,
+                demux.info.hauteur,
+            );
+            std::fs::write(out, &usm_bytes)
+                .with_context(|| format!("écriture USM {}", out.display()))?;
+            println!(
+                "{} — {}×{} VP9, {} images ({} clés), {:.2} s, {} octets (conteneur USM/Sofdec2)",
+                out.display(),
+                demux.info.largeur,
+                demux.info.hauteur,
+                demux.info.total_images,
+                demux.info.total_cles,
+                demux.info.duree_secondes,
+                usm_bytes.len(),
             );
         }
     }

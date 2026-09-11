@@ -59,6 +59,124 @@ pub const STMID_SBT: [u8; 4] = *b"@SBT";
 /// `@ALP` — flux de canal alpha (Sofdec2 « video with alpha »).
 pub const STMID_ALP: [u8; 4] = *b"@ALP";
 
+// ── Structure de bloc USM ───────────────────────────────────────────────────
+
+/// Un bloc ou paquet individuel extrait d'un conteneur USM.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UsmChunk<'a> {
+    /// Offset absolu dans le flux/tampon.
+    pub offset: usize,
+    /// Identifiant de flux (`CRID`, `@SFV`, `@SFA`, `@SBT`, `@ALP`).
+    pub stmid: [u8; 4],
+    /// Taille déclarée des données après les 8 premiers octets.
+    pub data_size: u32,
+    /// Décalage vers la charge utile depuis le début du bloc (généralement 0x20).
+    pub data_offset: u8,
+    /// Taille du bourrage en queue de bloc.
+    pub padding_size: u16,
+    /// Numéro de canal / piste audio (pour `@SFA`).
+    pub channel_no: u8,
+    /// Type de bloc : 0 = données, 1 = en-tête @UTF, 2 = fin de section, 3 = index.
+    pub block_type: u8,
+    /// Charge utile brute (hors en-tête et hors bourrage).
+    pub charge: &'a [u8],
+}
+
+impl<'a> UsmChunk<'a> {
+    /// Vrai s'il s'agit d'un bloc vidéo (`@SFV` ou `@ALP`).
+    #[must_use]
+    pub fn est_video(&self) -> bool {
+        self.stmid == STMID_SFV || self.stmid == STMID_ALP
+    }
+
+    /// Vrai s'il s'agit d'un bloc audio (`@SFA`).
+    #[must_use]
+    pub fn est_audio(&self) -> bool {
+        self.stmid == STMID_SFA
+    }
+
+    /// Vrai s'il s'agit d'un bloc d'en-tête contenant une table `@UTF`.
+    #[must_use]
+    pub fn est_entete(&self) -> bool {
+        self.block_type == 1
+    }
+
+    /// Vrai s'il s'agit d'un bloc de données utiles.
+    #[must_use]
+    pub fn est_donnees(&self) -> bool {
+        self.block_type == 0
+    }
+}
+
+/// Itérateur zéro-copie sur les blocs d'un fichier USM.
+pub struct UsmChunkIter<'a> {
+    data: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> UsmChunkIter<'a> {
+    /// Crée un nouvel itérateur de blocs.
+    #[must_use]
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data, pos: 0 }
+    }
+}
+
+impl<'a> Iterator for UsmChunkIter<'a> {
+    type Item = UsmChunk<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.pos + 0x20 <= self.data.len() {
+            let offset = self.pos;
+            let mut stmid = [0u8; 4];
+            stmid.copy_from_slice(&self.data[offset..offset + 4]);
+            let data_size = u32::from_be_bytes([
+                self.data[offset + 4],
+                self.data[offset + 5],
+                self.data[offset + 6],
+                self.data[offset + 7],
+            ]);
+            let bloc_total = 8 + data_size as usize;
+            if data_size < 0x18 || offset + bloc_total > self.data.len() {
+                self.pos = self.data.len();
+                return None;
+            }
+
+            let data_offset = self.data[offset + 0x09];
+            let padding = u16::from_be_bytes([self.data[offset + 0x0A], self.data[offset + 0x0B]]);
+            let channel_no = self.data[offset + 0x0C];
+            let block_type = self.data[offset + 0x0F];
+
+            let debut = offset + 8 + data_offset as usize;
+            let dispo = (data_size as usize)
+                .saturating_sub(data_offset as usize)
+                .saturating_sub(padding as usize);
+
+            self.pos += bloc_total;
+
+            if debut + dispo <= self.data.len() {
+                return Some(UsmChunk {
+                    offset,
+                    stmid,
+                    data_size,
+                    data_offset,
+                    padding_size: padding,
+                    channel_no,
+                    block_type,
+                    charge: &self.data[debut..debut + dispo],
+                });
+            }
+        }
+        None
+    }
+}
+
+/// Crée un itérateur de blocs zéro-copie sur un tampon USM.
+#[must_use]
+pub fn chunks(data: &[u8]) -> UsmChunkIter<'_> {
+    UsmChunkIter::new(data)
+}
+
 /// Codec vidéo porté par le flux `@SFV`.
 ///
 /// **Le champ `mpeg_codec` de `VIDEO_HDRINFO` fait autorité**, pas le reniflage d'octets : le
@@ -413,6 +531,49 @@ impl Usm {
                 affichage: self.affichage(),
             },
         )
+    }
+
+    /// Extrait le flux vidéo en conteneur IVF autonome (`.ivf`).
+    ///
+    /// Utilisable pour les flux VP9 : produit un fichier standard avec en-tête `DKIF` et
+    /// trames horodatées, directement lisible par ffprobe, VLC, ffmpeg ou les lecteurs VP9.
+    ///
+    /// # Erreurs
+    ///
+    /// [`FormatError::Corrupt`] si le codec n'est pas VP9 ou si aucune trame n'est présente.
+    pub fn extraire_flux_ivf(&self) -> Result<Vec<u8>, FormatError> {
+        if self.codec != CodecVideo::Vp9 {
+            return Err(FormatError::Corrupt("USM : exportation IVF réservée au VP9"));
+        }
+        if self.images.is_empty() {
+            return Err(FormatError::Corrupt("USM : aucune trame vidéo à exporter"));
+        }
+        let (cad_num, cad_den) = self.cadence().unwrap_or((30, 1));
+        let trames: Vec<&[u8]> = self.images.iter().map(Vec::as_slice).collect();
+        Ok(crate::ivf::emballer_ivf(
+            self.entete.largeur as u16,
+            self.entete.hauteur as u16,
+            (cad_num, cad_den),
+            &trames,
+        ))
+    }
+
+    /// Extrait le flux vidéo H.264 élémentaire (Annex-B brut avec NAL units).
+    ///
+    /// # Erreurs
+    ///
+    /// [`FormatError::Corrupt`] si le codec n'est pas H.264.
+    pub fn extraire_flux_h264(&self) -> Result<Vec<u8>, FormatError> {
+        if self.codec != CodecVideo::H264 {
+            return Err(FormatError::Corrupt("USM : flux H.264 attendu"));
+        }
+        Ok(self.flux_brut())
+    }
+
+    /// Extrait le flux audio élémentaire brut d'un canal donné (HCA ou ADX).
+    #[must_use]
+    pub fn extraire_flux_audio(&self, canal: u8) -> Option<&[u8]> {
+        self.pistes.iter().find(|p| p.canal == canal).map(|p| p.octets.as_slice())
     }
 }
 
@@ -859,6 +1020,112 @@ fn deviner_codec_audio(charge: &[u8]) -> CodecAudio {
     }
 }
 
+// ── Multiplexage USM ──────────────────────────────────────────────────────────
+
+/// Bâtit un bloc USM canonique avec en-tête de 0x20 octets.
+#[must_use]
+pub fn creer_bloc(stmid: &[u8; 4], block_type: u8, canal: u8, charge: &[u8]) -> Vec<u8> {
+    let data_offset = 0x18u8;
+    let data_size = data_offset as u32 + charge.len() as u32;
+    let mut b = Vec::with_capacity(8 + data_size as usize);
+    b.extend_from_slice(stmid);
+    b.extend_from_slice(&data_size.to_be_bytes());
+    b.push(0); // 0x08
+    b.push(data_offset); // 0x09
+    b.extend_from_slice(&0u16.to_be_bytes()); // 0x0A padding
+    b.push(canal); // 0x0C
+    b.push(0); // 0x0D
+    b.push(0); // 0x0E
+    b.push(block_type); // 0x0F
+    b.extend_from_slice(&[0u8; 0x10]); // 0x10..0x20
+    b.extend_from_slice(charge);
+    b
+}
+
+/// Muxe une séquence de trames VP9 dans un conteneur USM / Sofdec2 pur Rust.
+///
+/// Génère les en-têtes `CRID` et `@SFV` avec leurs tables `@UTF` correspondantes
+/// (`CRIUSF_DIR_STREAM` et `VIDEO_HDRINFO`), puis emballe chaque trame sous forme de bloc `@SFV`.
+/// Le flux vidéo est formaté en IVF sous `@SFV`, avec les métadonnées de définition et de cadence.
+#[must_use]
+pub fn muxer_usm_vp9(
+    nom_film: &str,
+    trames: &[&[u8]],
+    cadence: (u32, u32),
+    largeur: u32,
+    hauteur: u32,
+) -> Vec<u8> {
+    use crate::cpk::{ColumnType, UtfValue};
+    use crate::cpk_encode::{UtfColumnSpec, encode_utf};
+
+    let (cad_num, cad_den) = cadence;
+    let mut out = Vec::new();
+
+    // 1. Table CRIUSF_DIR_STREAM pour le bloc CRID (type 1)
+    let dir_cols = [
+        UtfColumnSpec { name: "fmtver".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "filename".to_string(), col_type: ColumnType::String },
+        UtfColumnSpec { name: "filesize".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "datasize".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "stmid".to_string(), col_type: ColumnType::String },
+        UtfColumnSpec { name: "chno".to_string(), col_type: ColumnType::U16 },
+        UtfColumnSpec { name: "minchk".to_string(), col_type: ColumnType::U16 },
+        UtfColumnSpec { name: "minbuf".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "avbps".to_string(), col_type: ColumnType::U32 },
+    ];
+    let dir_row = alloc::vec![
+        UtfValue::U32(0x0107_0000),
+        UtfValue::String(nom_film.to_string()),
+        UtfValue::U32(0),
+        UtfValue::U32(0),
+        UtfValue::String("@SFV".to_string()),
+        UtfValue::U16(0),
+        UtfValue::U16(1),
+        UtfValue::U32(0x0010_0000),
+        UtfValue::U32(2_000_000),
+    ];
+    let dir_table = encode_utf("CRIUSF_DIR_STREAM", &dir_cols, &[dir_row])
+        .expect("table CRIUSF_DIR_STREAM");
+    out.extend_from_slice(&creer_bloc(&STMID_CRID, 1, 0, &dir_table));
+
+    // 2. Table VIDEO_HDRINFO pour le bloc @SFV (type 1)
+    let vid_cols = [
+        UtfColumnSpec { name: "width".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "height".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "disp_width".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "disp_height".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "framerate_n".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "framerate_d".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "total_frames".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "mpeg_codec".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec { name: "alpha_type".to_string(), col_type: ColumnType::U32 },
+    ];
+    let vid_row = alloc::vec![
+        UtfValue::U32(largeur),
+        UtfValue::U32(hauteur),
+        UtfValue::U32(largeur),
+        UtfValue::U32(hauteur),
+        UtfValue::U32(cad_num),
+        UtfValue::U32(cad_den),
+        UtfValue::U32(trames.len() as u32),
+        UtfValue::U32(9), // 9 = VP9
+        UtfValue::U32(0),
+    ];
+    let vid_table = encode_utf("VIDEO_HDRINFO", &vid_cols, &[vid_row])
+        .expect("table VIDEO_HDRINFO");
+    out.extend_from_slice(&creer_bloc(&STMID_SFV, 1, 0, &vid_table));
+
+    // 3. Trames emballées en IVF dans des blocs @SFV de données (type 0)
+    let ivf_full = crate::ivf::emballer_ivf(largeur as u16, hauteur as u16, cadence, trames);
+    out.extend_from_slice(&creer_bloc(&STMID_SFV, 0, 0, &ivf_full));
+
+    // 4. Fin de section @SFV (type 2) et fin CRID (type 2)
+    out.extend_from_slice(&creer_bloc(&STMID_SFV, 2, 0, &[]));
+    out.extend_from_slice(&creer_bloc(&STMID_CRID, 2, 0, &[]));
+
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::vec;
@@ -1128,5 +1395,64 @@ mod tests {
             entetes: Vec::new(),
         };
         assert!(matches!(u.en_mp4(), Err(FormatError::Corrupt(_))));
+    }
+
+    #[test]
+    fn chunks_iterateur_parcourt_les_blocs() {
+        let mut f = creer_bloc(&STMID_CRID, 1, 0, b"table_crid");
+        f.extend(creer_bloc(&STMID_SFV, 0, 0, &[0, 0, 0, 1, 0x67]));
+        f.extend(creer_bloc(&STMID_SFA, 0, 1, b"HCA\0audio"));
+        f.extend(creer_bloc(&STMID_SFV, 2, 0, &[]));
+
+        let liste: Vec<UsmChunk> = chunks(&f).collect();
+        assert_eq!(liste.len(), 4);
+
+        assert_eq!(liste[0].stmid, STMID_CRID);
+        assert!(liste[0].est_entete());
+        assert_eq!(liste[0].charge, b"table_crid");
+
+        assert_eq!(liste[1].stmid, STMID_SFV);
+        assert!(liste[1].est_video());
+        assert!(liste[1].est_donnees());
+        assert_eq!(liste[1].charge, &[0, 0, 0, 1, 0x67]);
+
+        assert_eq!(liste[2].stmid, STMID_SFA);
+        assert!(liste[2].est_audio());
+        assert_eq!(liste[2].channel_no, 1);
+        assert_eq!(liste[2].charge, b"HCA\0audio");
+
+        assert_eq!(liste[3].stmid, STMID_SFV);
+        assert_eq!(liste[3].block_type, 2);
+    }
+
+    #[test]
+    fn muxer_usm_vp9_et_demuxer_round_trip() {
+        let trame1 = b"donnees_trame_vp9_1";
+        let trame2 = b"donnees_trame_vp9_2_un_peu_plus_longue";
+        let trames: [&[u8]; 2] = [trame1, trame2];
+
+        let usm_bytes = muxer_usm_vp9("test_skill.usm", &trames, (60, 1), 1920, 1080);
+        assert!(usm_bytes.len() > 100);
+
+        let u = demuxer(&usm_bytes).expect("démux usm produit");
+        assert_eq!(u.nom.as_deref(), Some("test_skill.usm"));
+        assert_eq!(u.codec, CodecVideo::Vp9);
+        assert_eq!(u.entete.largeur, 1920);
+        assert_eq!(u.entete.hauteur, 1080);
+        assert_eq!(u.entete.cadence(), Some((60, 1)));
+        assert_eq!(u.images.len(), 2);
+        assert_eq!(u.images[0], trame1);
+        assert_eq!(u.images[1], trame2);
+
+        // Extraction IVF autonome depuis l'USM
+        let ivf_bytes = u.extraire_flux_ivf().expect("extraction ivf");
+        let (ivf_hdr, ivf_trames) = crate::ivf::demuxer_ivf(&ivf_bytes).expect("demux ivf");
+        assert_eq!(ivf_hdr.largeur, 1920);
+        assert_eq!(ivf_hdr.hauteur, 1080);
+        assert_eq!(ivf_hdr.cadence_num, 60);
+        assert_eq!(ivf_hdr.cadence_den, 1);
+        assert_eq!(ivf_trames.len(), 2);
+        assert_eq!(ivf_trames[0].donnees, trame1);
+        assert_eq!(ivf_trames[1].donnees, trame2);
     }
 }
