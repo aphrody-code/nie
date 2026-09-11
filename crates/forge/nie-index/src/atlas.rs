@@ -1174,7 +1174,14 @@ impl Atlas {
                 6.0,
                 "just re-rebuild",
             ),
-            ("re.named", "re.named", 5.0, "niers propagate && niers seed-ui"),
+            (
+                "re.named",
+                "re.named",
+                5.0,
+                // `just re-rebuild` et non les CLI brutes : docs/RE.md le dit, `disasm`
+                // avant `rtti` rend un résultat incomplet SANS erreur.
+                "just re-rebuild, puis niers seed-ui",
+            ),
             ("proofs.ok", "proofs.uemu", 7.0, "just preuves"),
             ("pdata.text", "re.pdata-text", 4.0, "niers recover"),
         ] {
