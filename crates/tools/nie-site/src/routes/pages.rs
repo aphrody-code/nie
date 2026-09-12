@@ -112,7 +112,7 @@ struct Entree {
 /// segment d'URL brut, en minuscule, identique dans les trois langues — parce qu'il tombait
 /// dans la branche générique de [`metadonnees`]. Une entrée du menu que le serveur ne connaît
 /// pas est une page sans titre, absente du plan du site et non déclarée à `robots.txt`.
-const ENTREES: [Entree; 11] = [
+const ENTREES: [Entree; 12] = [
     Entree {
         // La navigation, qui occupait la racine jusqu'au 2026-09-07. La racine sert le jeu ;
         // le menu a donc son adresse. Il n'est PAS au plan du site : une page de liens vers
@@ -192,6 +192,17 @@ const ENTREES: [Entree; 11] = [
             "Langue, thème, densité des listes, taille du texte : les réglages de nie, dans l'écran des Options du jeu.",
             "Language, theme, list density, text size: nie's settings, in the game's Options screen.",
             "言語・テーマ・リストの密度・文字サイズなど、nie の設定をゲームのオプション画面で。",
+        ],
+    },
+    Entree {
+        // La Banque : l'écran `chara_bank_menu` du jeu — la liste des personnages possédés,
+        // leur fiche et le dialogue FILTRES. Segment anglais, comme toute URL nouvelle.
+        segment: "bank",
+        titres: ["Banque", "Bank", "バンク"],
+        descriptions: [
+            "Les personnages de la banque, leur fiche et leurs techniques, dans l'écran du jeu.",
+            "The characters in the bank, their sheet and their skills, in the game's own screen.",
+            "バンクの選手・ステータス・必殺技を、ゲームの画面そのままで。",
         ],
     },
     Entree {

@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 136] = [
+    let instances: [(&str, &[u16]); 137] = [
         ("/healthz", &[200]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
@@ -293,10 +293,14 @@ async fn toutes_les_routes_declarees_repondent() {
         // instance omits `?path=` (a 400 without it, cf. `axum::extract::Query`'s own
         // rejection) — the family/id instances above already exercise the VFS-backed path.
         ("/api/v1/game-data/decode_cfgbin", &[400]),
+        // Same shape as the game-data families above: the VFS in this test carries none of the
+        // `.cfg.bin` `routes::profile` reads, so it 503s honestly rather than rendering an empty
+        // "finished game".
+        ("/api/v1/profile/complete", &[503]),
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 134, "le routeur monte 134 routes");
+    assert_eq!(declarees.len(), 135, "le routeur monte 135 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -328,7 +332,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 136, "136 instances interrogees pour 134 routes");
+    assert_eq!(vus, 137, "137 instances interrogees pour 135 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).

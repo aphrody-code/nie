@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { AVATAR, EXPLORER, INACORD, MEDIA, SETTINGS, menuEntries } from "../entries";
+import { AVATAR, BANK, EXPLORER, INACORD, MEDIA, SETTINGS, menuEntries } from "../entries";
 import { bindMenuActions } from "./menu-actions";
 
 describe("catalogue menu bindings", () => {
 	test("preserves catalogue presentation/order and invokes the matching host destination", () => {
 		const opened: string[] = [];
 		const entries = menuEntries(null);
-		const bindings = Object.fromEntries([MEDIA, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => [
+		const bindings = Object.fromEntries([MEDIA, BANK, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => [
 			route, { id: route, onActivate: () => opened.push(route) },
 		]));
 		const actions = bindMenuActions(entries, bindings);

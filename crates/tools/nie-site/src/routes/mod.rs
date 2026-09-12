@@ -27,6 +27,7 @@ pub mod native_export;
 pub mod pages;
 pub mod passives;
 pub mod playstyles;
+pub mod profile;
 pub mod recherche;
 pub mod regles;
 pub mod related;

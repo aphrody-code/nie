@@ -358,6 +358,9 @@ declarer_routes! {
     "/api/v1/game-data/calculate_stats" => crate::routes::game_data::calculate_stats_contract,
     "/api/v1/game-data/decode_cfgbin" => crate::routes::game_data::decode_cfgbin,
     "/api/v1/game-data/{family}" => crate::routes::game_data::family,
+    // The save-like finished-game state every screen reads, cf. `docs/GAME-SCREENS-PLAN.md`
+    // "The completed profile" and `routes::profile`.
+    "/api/v1/profile/complete" => crate::routes::profile::complete,
     "/" => crate::routes::pages::coquille,
 }
 
@@ -560,7 +563,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 134, "134 routes mounted");
+        assert_eq!(routes.len(), 135, "135 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

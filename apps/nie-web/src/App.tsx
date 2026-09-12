@@ -12,7 +12,7 @@ import "@niers/inacord-ui/shell/game-tokens.css";
 import "@niers/inacord-ui/shell/game-screens.css";
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ALIAS, AVATAR, DOWNLOADS, EXPLORER, INACORD, MEDIA, SETTINGS, recognizedRoutes } from "./entries";
+import { ALIAS, AVATAR, BANK, DOWNLOADS, EXPLORER, INACORD, MEDIA, SETTINGS, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
 import { Catalog } from "./pages/Catalog";
@@ -20,6 +20,7 @@ import { Avatar } from "./pages/Avatar";
 import { Notice, SecondaryScreen } from "./pages/SecondaryScreen";
 import { ExplorerInacord } from "./pages/ExplorerInacord";
 import { Game } from "./pages/Game";
+import { PlayerBank } from "./screens/PlayerBank";
 import { Settings } from "./pages/Settings";
 import { Inacord } from "./pages/Inacord";
 import { HOME, splitLanguagePrefix } from "./routing";
@@ -113,6 +114,7 @@ function Site() {
 				health={etat}
 				startupFailed={vfs === "absent"}
 				onPhaseChange={setOpeningPhase}
+				onOpenBank={() => setVue(BANK)}
 				onOpenAvatar={() => setVue(AVATAR)}
 				onOpenSettings={() => setVue(SETTINGS)}
 				onOpenMedia={() => setVue(MEDIA)}
@@ -125,6 +127,9 @@ function Site() {
 	// Settings and the secondary shell keep their Return controls available during VFS startup.
 	if (vue === SETTINGS) {
 		return withHost(<Settings prefixe={prefixe} onRetour={() => setVue(HOME)} />);
+	}
+	if (vue === BANK) {
+		return withHost(<PlayerBank onBack={() => setVue(HOME)} />);
 	}
 	if (vue === AVATAR) {
 		return withHost(<Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} />);

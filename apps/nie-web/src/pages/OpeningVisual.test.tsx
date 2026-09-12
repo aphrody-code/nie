@@ -79,7 +79,7 @@ describe("native opening movies", () => {
 	test("data readiness skips every media frame and advances directly to the menu", async () => {
 		const phases: string[] = [];
 		await mount(<Game phase="loading" startupReady health={null}
-			onPhaseChange={(phase) => phases.push(phase)} onOpenAvatar={() => {}}
+			onPhaseChange={(phase) => phases.push(phase)} onOpenBank={() => {}} onOpenAvatar={() => {}}
 			onOpenSettings={() => {}} onOpenMedia={() => {}} onOpenExplorer={() => {}} onOpenInacord={() => {}} />);
 		expect(phases).toEqual(["menu"]);
 		expect(fetchMock).not.toHaveBeenCalled();
@@ -143,7 +143,7 @@ describe("native opening movies", () => {
 
 	test("the mounted game advances each logo only once after both tracks end", async () => {
 		const phases: string[] = [];
-		const callbacks = { onPhaseChange: (phase: string) => phases.push(phase), onOpenAvatar() {}, onOpenSettings() {}, onOpenMedia() {}, onOpenExplorer() {}, onOpenInacord() {} };
+		const callbacks = { onPhaseChange: (phase: string) => phases.push(phase), onOpenBank() {}, onOpenAvatar() {}, onOpenSettings() {}, onOpenMedia() {}, onOpenExplorer() {}, onOpenInacord() {} };
 		await mount(<Game phase="inazuma-eleven" {...callbacks} />);
 		await readyPair();
 		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));

@@ -1,0 +1,46 @@
+/*
+ * La géométrie de la Banque, dans le repère du canevas du jeu (1280×720).
+ *
+ * Uniquement des positions et des tailles : les couleurs viennent des jetons de `game-tokens.css`
+ * et les fonds viennent du layout du jeu, dessiné dessous. Les zones sont calées sur
+ * `data/menu/bank_character_detail.png` — la liste à gauche, la fiche à droite, les guides en bas.
+ */
+.player-bank { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.player-bank__title { position: absolute; left: 96px; top: 42px; }
+.player-bank__grid {
+	position: absolute; left: 24px; top: 150px; width: 596px; height: 460px;
+	display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 104px; gap: 6px;
+	align-content: start; overflow: hidden;
+}
+.player-bank__card {
+	display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+	gap: 2px; padding: 2px; font: inherit; font-size: 9px; line-height: 1.1; overflow: hidden;
+	background: rgb(255 255 255 / 8%); border: 2px solid transparent; border-radius: 6px;
+	color: var(--jeu-texte-vif, #fff); cursor: pointer;
+}
+.player-bank__card[data-state="focused"] { border-color: var(--jeu-accent-turquoise, #3ee); }
+.player-bank__face { width: 48px; height: 48px; object-fit: cover; border-radius: 50%; }
+.player-bank__name { font-weight: 700; text-align: center; }
+.player-bank__tags { opacity: 0.8; text-align: center; }
+.player-bank__empty { grid-column: 1 / -1; font-size: 13px; }
+.player-bank__counts {
+	position: absolute; left: 24px; top: 622px; width: 596px;
+	display: flex; justify-content: space-between; font-size: 12px; color: var(--jeu-texte-vif, #fff);
+}
+.player-bank__detail {
+	position: absolute; left: 644px; top: 92px; width: 612px; height: 552px;
+	overflow: auto; padding: 12px 16px; font-size: 12px; color: var(--jeu-texte-sombre, #123);
+}
+.player-bank__detail-name { margin: 0; font-size: 20px; }
+.player-bank__detail-tags, .player-bank__detail-level { margin: 2px 0; opacity: 0.85; }
+.player-bank__detail-desc { margin: 8px 0; white-space: pre-line; }
+.player-bank__stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 8px 0; }
+.player-bank__stats dt { font-size: 10px; opacity: 0.8; }
+.player-bank__stats dd { margin: 0; font-size: 16px; font-weight: 700; }
+.player-bank__skills { margin: 0; padding-left: 16px; display: grid; gap: 2px; }
+.player-bank__search { position: absolute; left: 24px; top: 108px; width: 596px; }
+.player-bank__filters { position: absolute; left: 180px; top: 60px; width: 920px; height: 600px; }
+.player-bank__hints {
+	position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 24px;
+	font-size: 14px; color: var(--jeu-texte-vif, #fff);
+}

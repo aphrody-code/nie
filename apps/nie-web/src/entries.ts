@@ -75,6 +75,12 @@ export const INACORD = "inacord";
 /** The download catalogue of the native Inacord builds (desktop, mobile, CLI, MCP, plugins). */
 export const DOWNLOADS = "downloads";
 
+/**
+ * La Banque du joueur — l'écran `chara_bank_menu` du jeu : la liste des personnages possédés,
+ * leur fiche et le dialogue FILTRES. Segment anglais, comme toute URL nouvelle.
+ */
+export const BANK = "bank";
+
 /** Published alias that enters the main menu at `/` without replaying startup. */
 export const MENU = "menu";
 
@@ -101,6 +107,7 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[EXPLORER]: { label: "Explorer", glyph: "arbre" },
 	[SETTINGS]: { label: "Options", glyph: "engrenage" },
 	[AVATAR]: { label: "Avatar", glyph: "ballon" },
+	[BANK]: { label: "Banque", glyph: "livre" },
 	[INACORD]: { label: "Inacord", glyph: "livre" },
 	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
 };
@@ -127,7 +134,7 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
  * signature for existing consumers; it does not currently supply native action availability.
  */
 export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
-	return [MEDIA, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => ({
+	return [MEDIA, BANK, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => ({
 		route,
 		label: entryLabel(route),
 		glyph: PRESENTATION[route]?.glyph ?? "arbre",
