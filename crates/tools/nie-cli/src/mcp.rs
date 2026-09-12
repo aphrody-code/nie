@@ -209,6 +209,12 @@ define_cli_tools!(
         "Run native image inspection, resize, crop, conversion, composition, contact-sheet, or diff operations."
     ),
     (
+        CliPlay,
+        "cli_play",
+        "play",
+        "Run the headless game engine: simulate or render a screen, menu, or match for a bounded number of frames."
+    ),
+    (
         CliMode,
         "cli_mode",
         "mode",
@@ -1095,14 +1101,14 @@ mod tests {
         use clap::CommandFactory as _;
 
         let tools = NiersMcpServer::all_tools().list_all();
-        assert_eq!(tools.len(), 62);
+        assert_eq!(tools.len(), 63);
         let commands = crate::Cli::command()
             .get_subcommands()
             .map(clap::Command::get_name)
             .filter(|name| *name != "mcp")
             .map(str::to_owned)
             .collect::<Vec<_>>();
-        assert_eq!(commands.len(), 43);
+        assert_eq!(commands.len(), 44);
         for command in commands {
             let tool_name = format!("cli_{}", command.replace('-', "_"));
             assert!(
