@@ -8,11 +8,18 @@
  *
  * 1. `WebGpuViewer` (Rust, `nie-render3d` through `wgpu`), whenever `navigator.gpu` answers;
  * 2. {@link WebGlModelViewer}, WebGL 2, drawing the same served GLB;
- * 3. an error naming exactly which of the two is missing, which `RustModelViewport` surfaces.
+ * 3. {@link createCpuModelViewer}, the Rust CPU rasteriser compiled into the same module.
+ *
+ * The third tier is not a degraded copy of the first two: it is `nie_render3d::render`, the
+ * function the native golden tests freeze, so it is the only one of the three that shares code
+ * with the renderer this repository verifies. Tier 2 is a TypeScript re-implementation — it
+ * works, and it drifts by construction. Tier 3 costs CPU and honours yaw only (see its module
+ * note), which is why it sits last rather than first.
  */
 import { WebGpuViewer } from "../wasm/nie_wasm.js";
 import { WebGlModelViewer } from "../avatar/webgl-viewer";
 import { ensureWasm } from "./bridge";
+import { createCpuModelViewer } from "./model-render";
 
 /**
  * A canvas keeps the FIRST context kind it is given: asking for `webgpu` and failing leaves the
@@ -47,7 +54,9 @@ async function build(canvas: HTMLCanvasElement, transparent: boolean) {
 		}
 	}
 	if (hasWebGl2()) return new WebGlModelViewer(canvas, transparent);
-	throw new Error("Aucun rendu 3D disponible : ni WebGPU (navigator.gpu absent) ni WebGL 2.");
+	// Ni GPU ni WebGL : le processeur reste, et il rend les mêmes modèles. `transparent` n'a pas
+	// d'équivalent ici — le rastériseur pose son propre fond — donc rien ne le simule.
+	return createCpuModelViewer(canvas);
 }
 
 export async function createNativeViewer(canvas: HTMLCanvasElement) {

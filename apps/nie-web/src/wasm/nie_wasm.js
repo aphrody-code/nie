@@ -359,6 +359,137 @@ export class MenuScreenBuilder {
 if (Symbol.dispose) MenuScreenBuilder.prototype[Symbol.dispose] = MenuScreenBuilder.prototype.free;
 
 /**
+ * Rend un modèle 3D du jeu en image, sur le processeur.
+ *
+ * ## Ce que c'est
+ *
+ * `nie_render3d::render`, le rastériseur que `nie-render3d --verify` compare au chemin GPU et
+ * que les golden natifs figent. Pas une seconde implémentation : la même fonction, appelée
+ * depuis le navigateur.
+ *
+ * ## Ce que ça ne prétend pas
+ *
+ * Ce n'est pas le rendu de `nie.exe`. C'est le rendu des DONNÉES du jeu — géométrie, textures,
+ * pose de liaison — par un rastériseur de ce dépôt. La conformité pixel au jeu n'est pas
+ * mesurée ici, et rien dans cette surface ne l'affirme.
+ *
+ * ## Le budget de textures
+ *
+ * Un GLB compressé de quelques centaines de kilooctets peut décompresser en dizaines de
+ * mégaoctets de RGBA. Le budget est appliqué AVANT toute allocation, depuis les en-têtes PNG :
+ * c'est ce qui empêche un modèle mal formé de faire grandir le tas WebAssembly sans borne.
+ */
+export class ModelRenderer {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        ModelRendererFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_modelrenderer_free(ptr, 0);
+    }
+    /**
+     * Longueur de l'image, en octets — `width * height * 4` après un rendu.
+     * @returns {number}
+     */
+    frame_len() {
+        const ret = wasm.modelrenderer_frame_len(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Offset de l'image RGBA8 dans la mémoire du module.
+     * @returns {number}
+     */
+    frame_ptr() {
+        const ret = wasm.modelrenderer_frame_ptr(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Construit le rendu depuis un GLB — celui que [`model_to_glb`] produit à partir des
+     * `.g4md`/`.g4mg` du jeu, ou tout autre GLB que l'appelant possède.
+     * @param {Uint8Array} glb
+     */
+    constructor(glb) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(glb, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.modelrenderer_new(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0;
+            ModelRendererFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Le nombre de primitives du modèle — ce qui sera réellement rasterisé.
+     * @returns {number}
+     */
+    get primitives() {
+        const ret = wasm.modelrenderer_primitives(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Rend une image à `angle` radians autour de l'axe vertical.
+     *
+     * L'image reste dans la mémoire WebAssembly : elle se lit par
+     * [`ModelRenderer::frame_ptr`]/[`ModelRenderer::frame_len`], comme celle de [`MenuComposer`],
+     * pour qu'aucun tampon RGBA ne traverse la frontière à chaque image.
+     * @param {number} angle
+     * @param {number} width
+     * @param {number} height
+     */
+    render(angle, width, height) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.modelrenderer_render(retptr, this.__wbg_ptr, angle, width, height);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Les dimensions du dernier rendu, `[largeur, hauteur]` — `[0, 0]` avant le premier.
+     * @returns {Uint32Array}
+     */
+    get size() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.modelrenderer_size(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayU32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Le nombre de textures décodées que le modèle porte.
+     * @returns {number}
+     */
+    get textures() {
+        const ret = wasm.modelrenderer_textures(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+}
+if (Symbol.dispose) ModelRenderer.prototype[Symbol.dispose] = ModelRenderer.prototype.free;
+
+/**
  * Thin bitmap-text ABI over the shared native font decoder.
  */
 export class WasmBitmapFont {
@@ -3892,7 +4023,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wasm_bindgen_func_elem_4104(a, state0.b, arg0, arg1);
+                        return __wasm_bindgen_func_elem_4119(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -4538,17 +4669,17 @@ function __wbg_get_imports() {
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1215, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3098);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3113);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1275, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4089);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4104);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1215, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3098_2);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3113_2);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000004: function(arg0) {
@@ -4580,18 +4711,18 @@ function __wbg_get_imports() {
     };
 }
 
-function __wasm_bindgen_func_elem_3098(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3098(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3113(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3113(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_3098_2(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3098_2(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3113_2(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3113_2(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_4089(arg0, arg1, arg2) {
+function __wasm_bindgen_func_elem_4104(arg0, arg1, arg2) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.__wasm_bindgen_func_elem_4089(retptr, arg0, arg1, addHeapObject(arg2));
+        wasm.__wasm_bindgen_func_elem_4104(retptr, arg0, arg1, addHeapObject(arg2));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         if (r1) {
@@ -4602,8 +4733,8 @@ function __wasm_bindgen_func_elem_4089(arg0, arg1, arg2) {
     }
 }
 
-function __wasm_bindgen_func_elem_4104(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_4104(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wasm_bindgen_func_elem_4119(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_4119(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 
@@ -4692,6 +4823,9 @@ const MenuComposerFinalization = (typeof FinalizationRegistry === 'undefined')
 const MenuScreenBuilderFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_menuscreenbuilder_free(ptr, 1));
+const ModelRendererFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_modelrenderer_free(ptr, 1));
 const WasmBitmapFontFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmbitmapfont_free(ptr, 1));

@@ -26,6 +26,10 @@ nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode
 nie-core = { workspace = true, features = ["serde"] }
 nie-data = { workspace = true, features = ["serde"] }
 nie-save = { workspace = true, features = ["serde"] }
+# Le rendu 3D des VRAIS modèles du jeu. `default-features = false` retire `clap` (l'exécutable)
+# et laisse le rastériseur CPU pur Rust : aucun GPU requis, et c'est exactement le code dont les
+# tests golden natifs vérifient la sortie.
+nie-render3d.workspace = true
 # Decodeur de bytecode Lua 5.2 SANS la VM : `default-features = false` retire mlua (Lua
 # vendored en C), qui ne se construit pas pour wasm32. Le module `bytecode` est pur Rust.
 nie-lua.workspace = true
@@ -98,9 +102,11 @@ parking_lot.workspace = true
 # getrandom avec feature "js" : requis si une dep transitive l'utilise sur wasm32.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
-nie-render3d = { workspace = true, optional = true, features = ["webgpu"] }
 web-sys = { workspace = true, optional = true, features = ["HtmlCanvasElement"] }
 
 [features]
 default = []
-webgpu = ["dep:nie-render3d", "dep:web-sys"]
+# Présentation WebGPU du viewport 3D. Le rastériseur CPU, lui, n'est derrière AUCUNE feature :
+# c'est le seul rendu 3D qu'un moteur sans WebGPU puisse faire, et c'est celui dont la sortie
+# est vérifiée par les tests golden natifs de `nie-render3d`.
+webgpu = ["nie-render3d/webgpu", "dep:web-sys"]

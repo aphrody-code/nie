@@ -147,6 +147,65 @@ export class MenuScreenBuilder {
 }
 
 /**
+ * Rend un modèle 3D du jeu en image, sur le processeur.
+ *
+ * ## Ce que c'est
+ *
+ * `nie_render3d::render`, le rastériseur que `nie-render3d --verify` compare au chemin GPU et
+ * que les golden natifs figent. Pas une seconde implémentation : la même fonction, appelée
+ * depuis le navigateur.
+ *
+ * ## Ce que ça ne prétend pas
+ *
+ * Ce n'est pas le rendu de `nie.exe`. C'est le rendu des DONNÉES du jeu — géométrie, textures,
+ * pose de liaison — par un rastériseur de ce dépôt. La conformité pixel au jeu n'est pas
+ * mesurée ici, et rien dans cette surface ne l'affirme.
+ *
+ * ## Le budget de textures
+ *
+ * Un GLB compressé de quelques centaines de kilooctets peut décompresser en dizaines de
+ * mégaoctets de RGBA. Le budget est appliqué AVANT toute allocation, depuis les en-têtes PNG :
+ * c'est ce qui empêche un modèle mal formé de faire grandir le tas WebAssembly sans borne.
+ */
+export class ModelRenderer {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Longueur de l'image, en octets — `width * height * 4` après un rendu.
+     */
+    frame_len(): number;
+    /**
+     * Offset de l'image RGBA8 dans la mémoire du module.
+     */
+    frame_ptr(): number;
+    /**
+     * Construit le rendu depuis un GLB — celui que [`model_to_glb`] produit à partir des
+     * `.g4md`/`.g4mg` du jeu, ou tout autre GLB que l'appelant possède.
+     */
+    constructor(glb: Uint8Array);
+    /**
+     * Rend une image à `angle` radians autour de l'axe vertical.
+     *
+     * L'image reste dans la mémoire WebAssembly : elle se lit par
+     * [`ModelRenderer::frame_ptr`]/[`ModelRenderer::frame_len`], comme celle de [`MenuComposer`],
+     * pour qu'aucun tampon RGBA ne traverse la frontière à chaque image.
+     */
+    render(angle: number, width: number, height: number): void;
+    /**
+     * Le nombre de primitives du modèle — ce qui sera réellement rasterisé.
+     */
+    readonly primitives: number;
+    /**
+     * Les dimensions du dernier rendu, `[largeur, hauteur]` — `[0, 0]` avant le premier.
+     */
+    readonly size: Uint32Array;
+    /**
+     * Le nombre de textures décodées que le modèle porte.
+     */
+    readonly textures: number;
+}
+
+/**
  * Thin bitmap-text ABI over the shared native font decoder.
  */
 export class WasmBitmapFont {
@@ -900,6 +959,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_menucomposer_free: (a: number, b: number) => void;
     readonly __wbg_menuscreenbuilder_free: (a: number, b: number) => void;
+    readonly __wbg_modelrenderer_free: (a: number, b: number) => void;
     readonly __wbg_wasmbitmapfont_free: (a: number, b: number) => void;
     readonly __wbg_wasmcamera_free: (a: number, b: number) => void;
     readonly __wbg_wasmeditorsession_free: (a: number, b: number) => void;
@@ -968,6 +1028,13 @@ export interface InitOutput {
     readonly menuscreenbuilder_required_files: (a: number, b: number) => void;
     readonly minidump_summary_json: (a: number, b: number, c: number) => void;
     readonly model_to_glb: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly modelrenderer_frame_len: (a: number) => number;
+    readonly modelrenderer_frame_ptr: (a: number) => number;
+    readonly modelrenderer_new: (a: number, b: number, c: number) => void;
+    readonly modelrenderer_primitives: (a: number) => number;
+    readonly modelrenderer_render: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly modelrenderer_size: (a: number, b: number) => void;
+    readonly modelrenderer_textures: (a: number) => number;
     readonly offline_image_inspect_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly parse_save_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly pdata_inspect_json: (a: number, b: number, c: number, d: number) => void;
@@ -1045,10 +1112,10 @@ export interface InitOutput {
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4089: (a: number, b: number, c: number, d: number) => void;
     readonly __wasm_bindgen_func_elem_4104: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3098: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3098_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4119: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3113: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3113_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

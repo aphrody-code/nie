@@ -4694,3 +4694,139 @@ impl From<NwScreenSpec> for nie_formats::menu_screen::ScreenSpec {
         }
     }
 }
+
+// ── Le rendu 3D des VRAIS modèles, sans GPU ──────────────────────────────────────────────────
+//
+// Le viewport 3D du navigateur passait par WebGPU (`nie_render3d::web`, feature `webgpu`). C'est
+// le chemin rapide, et c'est le seul : un moteur sans WebGPU n'affichait aucun modèle. Or le
+// rastériseur de `nie_render3d::render` est du Rust pur — z-buffer CPU, éclairage, textures
+// décodées — et c'est LUI dont les tests golden natifs vérifient la sortie. Rien n'empêchait de
+// l'embarquer, sinon que personne ne l'avait lié.
+//
+// La chaîne complète tient alors dans le module : les octets `.g4md`/`.g4mg` du jeu, tels que
+// `/f/{path}` les sert, passent par [`model_to_glb`] puis par ce rendu. Aucun serveur ne dessine.
+
+/// Rend un modèle 3D du jeu en image, sur le processeur.
+///
+/// ## Ce que c'est
+///
+/// `nie_render3d::render`, le rastériseur que `nie-render3d --verify` compare au chemin GPU et
+/// que les golden natifs figent. Pas une seconde implémentation : la même fonction, appelée
+/// depuis le navigateur.
+///
+/// ## Ce que ça ne prétend pas
+///
+/// Ce n'est pas le rendu de `nie.exe`. C'est le rendu des DONNÉES du jeu — géométrie, textures,
+/// pose de liaison — par un rastériseur de ce dépôt. La conformité pixel au jeu n'est pas
+/// mesurée ici, et rien dans cette surface ne l'affirme.
+///
+/// ## Le budget de textures
+///
+/// Un GLB compressé de quelques centaines de kilooctets peut décompresser en dizaines de
+/// mégaoctets de RGBA. Le budget est appliqué AVANT toute allocation, depuis les en-têtes PNG :
+/// c'est ce qui empêche un modèle mal formé de faire grandir le tas WebAssembly sans borne.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct ModelRenderer {
+    model: nie_render3d::glb::Model,
+    frame: FrameBuffer,
+    width: u32,
+    height: u32,
+}
+
+/// Budget de textures décodées d'un modèle, en octets. 256 MiB : au-delà, un seul modèle
+/// remplirait le tas d'un onglet, et le refus est préférable à un plantage d'allocation.
+const MODEL_TEXTURE_BUDGET: usize = 256 * 1024 * 1024;
+
+/// Analyse un GLB sous le budget de textures du navigateur.
+fn model_parse_impl(glb: &[u8]) -> Result<nie_render3d::glb::Model, String> {
+    nie_render3d::glb::parse_with_texture_budget(glb, MODEL_TEXTURE_BUDGET)
+        .map_err(|error| error.to_string())
+}
+
+/// Rend un GLB en image RGBA8 — le pendant natif de [`ModelRenderer`].
+///
+/// Existe pour que la chaîne complète (octets du jeu → GLB → pixels) soit éprouvable par un
+/// test qui tourne sur une machine portant le jeu, sans navigateur ni GPU.
+///
+/// # Errors
+///
+/// Rend l'erreur du lecteur GLB quand les octets n'en sont pas un, ou quand les textures
+/// décodées dépassent le budget.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn model_render_rgba(
+    glb: &[u8],
+    angle: f32,
+    width: u32,
+    height: u32,
+) -> Result<Vec<u8>, String> {
+    let model = model_parse_impl(glb)?;
+    Ok(nie_render3d::render::render(&model, angle, width, height))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl ModelRenderer {
+    /// Construit le rendu depuis un GLB — celui que [`model_to_glb`] produit à partir des
+    /// `.g4md`/`.g4mg` du jeu, ou tout autre GLB que l'appelant possède.
+    #[wasm_bindgen(constructor)]
+    pub fn new(glb: &[u8]) -> Result<ModelRenderer, JsValue> {
+        let model = model_parse_impl(glb).map_err(|error| JsValue::from_str(&error))?;
+        Ok(ModelRenderer {
+            model,
+            frame: FrameBuffer::default(),
+            width: 0,
+            height: 0,
+        })
+    }
+
+    /// Le nombre de primitives du modèle — ce qui sera réellement rasterisé.
+    #[wasm_bindgen(getter)]
+    pub fn primitives(&self) -> usize {
+        self.model.primitives.len()
+    }
+
+    /// Le nombre de textures décodées que le modèle porte.
+    #[wasm_bindgen(getter)]
+    pub fn textures(&self) -> usize {
+        self.model.textures.len()
+    }
+
+    /// Rend une image à `angle` radians autour de l'axe vertical.
+    ///
+    /// L'image reste dans la mémoire WebAssembly : elle se lit par
+    /// [`ModelRenderer::frame_ptr`]/[`ModelRenderer::frame_len`], comme celle de [`MenuComposer`],
+    /// pour qu'aucun tampon RGBA ne traverse la frontière à chaque image.
+    #[wasm_bindgen]
+    pub fn render(&mut self, angle: f32, width: u32, height: u32) -> Result<(), JsValue> {
+        if width == 0 || height == 0 || width > 4096 || height > 4096 {
+            return Err(JsValue::from_str("dimensions hors bornes (1..=4096)"));
+        }
+        if !angle.is_finite() {
+            return Err(JsValue::from_str("angle non fini"));
+        }
+        self.frame
+            .replace(nie_render3d::render::render(&self.model, angle, width, height));
+        self.width = width;
+        self.height = height;
+        Ok(())
+    }
+
+    /// Offset de l'image RGBA8 dans la mémoire du module.
+    #[wasm_bindgen]
+    pub fn frame_ptr(&self) -> usize {
+        self.frame.pointer()
+    }
+
+    /// Longueur de l'image, en octets — `width * height * 4` après un rendu.
+    #[wasm_bindgen]
+    pub fn frame_len(&self) -> usize {
+        self.frame.len()
+    }
+
+    /// Les dimensions du dernier rendu, `[largeur, hauteur]` — `[0, 0]` avant le premier.
+    #[wasm_bindgen(getter)]
+    pub fn size(&self) -> Vec<u32> {
+        vec![self.width, self.height]
+    }
+}

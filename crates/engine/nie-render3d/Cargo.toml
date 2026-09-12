@@ -10,6 +10,9 @@ rust-version.workspace = true
 [[bin]]
 name = "nie-render3d"
 path = "src/main.rs"
+# La bibliothèque ne dépend pas d'un analyseur d'arguments : c'est ce qui la rend embarquable
+# dans un module WebAssembly, où `clap` ne serait que du poids mort dans le budget d'octets.
+required-features = ["cli"]
 
 [lints]
 workspace = true
@@ -17,7 +20,7 @@ workspace = true
 [dependencies]
 nie-core.workspace = true
 anyhow.workspace = true
-clap = { workspace = true, features = ["derive", "color", "env"] }
+clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
 serde_json = { workspace = true, default-features = true }
 serde = { workspace = true, features = ["derive"] }
 png.workspace = true
@@ -33,7 +36,10 @@ nie-formats = { workspace = true, default-features = true }
 # ne doivent pas tirer wgpu/pollster. Version de wgpu ALIGNÉE sur `nie-game` (=29.0.3), l'autre hôte
 # GPU du workspace : deux versions majeures de wgpu dans un même binaire dupliqueraient le backend.
 [features]
-default = []
+default = ["cli"]
+# L'exécutable en ligne de commande. Séparé pour que `nie-wasm` puisse embarquer le rastériseur
+# CPU sans embarquer `clap`.
+cli = ["dep:clap"]
 gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
 # Présentation canvas facultative ; aucun backend GPU ajouté aux consommateurs CPU par défaut.
 webgpu = ["gpu", "wgpu/webgpu", "dep:web-sys"]

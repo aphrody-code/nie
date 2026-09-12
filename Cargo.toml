@@ -152,7 +152,9 @@ nie-model-serve = { version = "0.6.0", path = "crates/tools/nie-model-serve", de
 nie-zukan = { version = "0.6.0", path = "crates/tools/nie-zukan", default-features = false }
 nie-lua = { version = "0.6.0", path = "crates/engine/nie-lua", default-features = false }
 nie-app = { version = "0.6.0", path = "crates/engine/nie-app" }
-nie-render3d = { version = "0.6.0", path = "crates/engine/nie-render3d" }
+# `default-features = false` par défaut : la bibliothèque (rastériseur CPU, glTF) sans `clap`.
+# Un consommateur qui veut l'exécutable ou le GPU demande `features = ["cli"]` / `["gpu"]`.
+nie-render3d = { version = "0.6.0", path = "crates/engine/nie-render3d", default-features = false }
 nie-aphrody = { version = "0.6.0", path = "crates/engine/nie-aphrody" }
 # nie-ui : source unique, typée, des jetons de design du jeu (couleurs OKLCH, géométrie,
 # mouvement) — génère le CSS de packages/inacord-ui/src/shell/game-tokens.css et relie
