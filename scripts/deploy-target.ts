@@ -279,7 +279,10 @@ async function deployWeb(context: TargetContext): Promise<void> {
 		throw new Error("Web build did not produce index.html.");
 	}
 	requireBudget(context, 10_000, "switch and validate the web bundle");
-	const previous = await readlink("apps/nie-web/dist");
+	const previous = await readlink("apps/nie-web/dist").catch(() => undefined);
+	if (!previous) {
+		await rm("apps/nie-web/dist", { recursive: true, force: true });
+	}
 	const next = "apps/nie-web/dist.deploy-next";
 	await rm(next, { force: true });
 	await symlink(bundle, next);
@@ -331,6 +334,9 @@ async function deployInacordWeb(context: TargetContext): Promise<void> {
 	requireBudget(context, 10_000, "switch and validate the Inacord bundle");
 	const live = "apps/nie-web/dist-inacord";
 	const previous = await readlink(live).catch(() => undefined);
+	if (!previous) {
+		await rm(live, { recursive: true, force: true });
+	}
 	const next = `${live}.deploy-next`;
 	await rm(next, { force: true });
 	await symlink(bundle, next);
