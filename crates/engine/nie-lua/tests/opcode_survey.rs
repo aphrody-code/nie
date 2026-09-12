@@ -19,6 +19,20 @@
 //!
 //! Le relevé ne construit rien. Il rend un NOMBRE, pour que la décision d'écrire cette VM se
 //! prenne sur une mesure et non sur une impression.
+//!
+//! ## Ce que ce nombre N'EST PAS : une estimation de travail
+//!
+//! Il compte les globales LUES dans le bytecode, branches jamais prises comprises. Restreint aux
+//! menus et à leurs includes, il tombe à peine — 6 081 sur 6 686 — ce qui se lirait comme « même
+//! les menus demandent tout le jeu ».
+//!
+//! La mesure DYNAMIQUE dit autre chose. `menu_host_gap.rs` rejoue 51 écrans avec la vraie VM et
+//! relève 178 unités réellement manquantes. L'écart est de deux ordres de grandeur, et il est
+//! attendu : un script nomme des centaines de fonctions sur des chemins qu'une ouverture d'écran
+//! ne prend jamais.
+//!
+//! Le relevé statique borne donc la surface ; il ne mesure pas le chemin. Prendre 6 686 pour une
+//! charge de travail ferait renoncer à un chantier dont la partie utile en compte 178.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -86,7 +100,12 @@ fn la_surface_lua_reellement_employee_par_le_jeu() {
 
     let mut opcodes: BTreeMap<u8, usize> = BTreeMap::new();
     let mut globales: BTreeSet<String> = BTreeSet::new();
-    let (mut lus, mut illisibles) = (0usize, 0usize);
+    // Le sous-ensemble qui décide vraiment de la faisabilité : ce que le NAVIGATEUR rejoue.
+    // Une VM en Rust pour le site n'a pas à couvrir le jeu entier — seulement les écrans de menu
+    // et les includes qu'ils tirent.
+    let mut opcodes_menu: BTreeMap<u8, usize> = BTreeMap::new();
+    let mut globales_menu: BTreeSet<String> = BTreeSet::new();
+    let (mut lus, mut illisibles, mut lus_menu) = (0usize, 0usize, 0usize);
     for chemin in &fichiers {
         let Ok(octets) = std::fs::read(chemin) else {
             continue;
@@ -95,6 +114,11 @@ fn la_surface_lua_reellement_employee_par_le_jeu() {
             Ok(chunk) => {
                 lus += 1;
                 parcourir(&chunk.main, &mut opcodes, &mut globales);
+                let texte = chemin.to_string_lossy();
+                if texte.contains("/script/lua/menu/") || texte.contains("/script/lua/include/") {
+                    lus_menu += 1;
+                    parcourir(&chunk.main, &mut opcodes_menu, &mut globales_menu);
+                }
             }
             Err(_) => illisibles += 1,
         }
@@ -114,6 +138,11 @@ fn la_surface_lua_reellement_employee_par_le_jeu() {
     eprintln!("opcodes atteints  : {} / 40", atteints.len());
     eprintln!("jamais atteints   : {}", jamais.join(", "));
     eprintln!("globales lues     : {}", globales.len());
+    let opcodes_menu_atteints = (0..40u8).filter(|op| opcodes_menu.contains_key(op)).count();
+    eprintln!(
+        "— dont MENUS + includes ({lus_menu} scripts) : {opcodes_menu_atteints} opcodes, {} globales",
+        globales_menu.len()
+    );
     let mut par_frequence: Vec<(&str, usize)> = opcodes
         .iter()
         .map(|(op, n)| (OPCODE_NAMES[*op as usize], *n))

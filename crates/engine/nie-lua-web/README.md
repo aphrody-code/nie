@@ -75,10 +75,17 @@ number. Those scripts read **6 686 distinct globals** — `AddItem`, `ActivateAu
 `AdvanceGameTimeZone` — every one of them a function the game's executable provides, and the
 Rust host currently binds **none** of them (its two binders are `Debug` and `Math`).
 
-So "one module" is not one commit away, and it is not blocked by the interpreter. It is blocked
-by 6 686 host functions whose behaviour lives in `nie.exe` and has to be reversed one at a time.
-The survey is checked in so that this number is re-measured rather than remembered, and so the
-day it drops, it drops visibly.
+So "one module" is not one commit away, and it is not blocked by the interpreter.
+
+But 6 686 is a bound on the SURFACE, not an estimate of the work, and the difference matters.
+That number counts globals read anywhere in the bytecode, branches never taken included;
+restricting it to menus and their includes barely moves it (6 081 of 6 686). The dynamic measure
+disagrees by two orders of magnitude: `menu_host_gap.rs` replays 51 screens through the real VM
+and finds **178** units actually missing. A script names hundreds of functions on paths that
+opening a screen never takes.
+
+Both surveys are checked in so the numbers are re-measured rather than remembered — and so the
+day either drops, it drops visibly.
 
 ## What the official documentation says about the flag this crate depends on
 
