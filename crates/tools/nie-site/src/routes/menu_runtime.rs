@@ -130,6 +130,19 @@ pub(crate) fn rejouer(
     }
 }
 
+/// Une visibilité résolue, par identifiant d'objet.
+type Visibilite = std::collections::BTreeMap<u32, bool>;
+
+/// Les visibilités déjà calculées, par (écran, locale).
+///
+/// Le replay est une fonction PURE du VFS monté, et le VFS ne change pas tant que le processus
+/// vit : le refaire à chaque requête servie était du travail repayé pour rien. Mesuré le
+/// 2026-09-12 sur `chara_bank_menu` : le replay seul coûte 0,19 s — ce n'est PAS lui qui domine
+/// les 2,5 s du layout servi (le parsing `objbin`/`g4pkm`/`g4tx` de chaque objet les porte, et ce
+/// coût-là précède cette jointure). Le cache est borné par le nombre d'écrans demandés.
+static VISIBILITE: OnceLock<std::sync::Mutex<std::collections::HashMap<(String, String), Visibilite>>> =
+    OnceLock::new();
+
 /// La visibilité RÉSOLUE de chaque objet d'un écran, par identifiant runtime.
 ///
 /// C'est la seule chose que le layout statique ne peut pas savoir : quel objet le jeu affiche.
@@ -139,20 +152,36 @@ pub(crate) fn visibilite_par_objet(
     vfs: std::sync::Arc<nie_formats::vfs::Vfs>,
     screen: &str,
     locale: &str,
-) -> std::collections::BTreeMap<u32, bool> {
+) -> Visibilite {
+    let cle = (screen.to_owned(), locale.to_owned());
+    let cache = VISIBILITE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(deja) = cache.lock()
+        && let Some(connue) = deja.get(&cle)
+    {
+        return connue.clone();
+    }
     let request = ReplayRequest {
         locale: locale.to_owned(),
         ..ReplayRequest::default()
     };
+    // Un écran sans script Lua propre — `shop_menu` en a trois voisins mais aucun du même nom —
+    // n'a pas de visibilité résolue, et l'absence se met en cache comme le reste : la réessayer à
+    // chaque requête coûterait le prix du replay pour le même « je ne sais pas ».
     let Ok(output) = rejouer(vfs, screen, request) else {
-        return std::collections::BTreeMap::new();
+        if let Ok(mut deja) = cache.lock() {
+            deja.insert(cle, std::collections::BTreeMap::new());
+        }
+        return Visibilite::new();
     };
-    let mut visibilite = std::collections::BTreeMap::new();
+    let mut visibilite = Visibilite::new();
     for layer in output.scene.layers.values() {
         for (id, objet) in &layer.objects {
             // Un objet d'un calque caché ne s'affiche pas, quoi qu'il dise de lui-même.
             visibilite.insert(*id, layer.visible && objet.visible);
         }
+    }
+    if let Ok(mut deja) = cache.lock() {
+        deja.insert(cle, visibilite.clone());
     }
     visibilite
 }
