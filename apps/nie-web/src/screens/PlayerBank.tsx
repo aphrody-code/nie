@@ -247,7 +247,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 		>
 			<GameCanvas canvas={layout?.canvas ?? { w: 1280, h: 720 }}>
 				{layout ? (
-					<LayoutCanvas layout={layout} assumeUnknownVisible={false} onReport={onCompose} />
+					<LayoutCanvas layout={layout} screen={SCREEN} assumeUnknownVisible={false} onReport={onCompose} />
 				) : null}
 
 				<header className="player-bank__title">

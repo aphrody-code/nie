@@ -107,10 +107,16 @@ blocker named when there is one. Regenerate it; do not quote it.
 2. A layout whose visibility is unresolved cannot be composed honestly: drawing it whole stacks
    every mutually exclusive panel (78 objects for the Bank where the game shows a fraction).
    `LayoutCanvas` therefore draws only what the data establishes.
-3. The Lua replay runs on the server, not in the page. `nie-lua` binds mlua (Lua in C);
-   `crates/engine/nie-lua-web` builds the real 5.2.4 VM for `wasm32-unknown-emscripten`, which
-   is not the `wasm32-unknown-unknown` target the site bundle uses. Joining the two is the
-   remaining step for a menu that resolves itself in the browser.
+3. The Lua replay runs on the server, and the page now CARRIES the VM but cannot finish a
+   replay. `crates/engine/nie-lua-web` (the real 5.2.4 VM for `wasm32-unknown-emscripten`) is
+   shipped at `/static/game/nie_lua_web.wasm` and driven by `game/lua-runtime.ts`: the module
+   loads, the script catalogue answers, the game's own `.lua.bin` are fetched — and the replay
+   dies on Lua's first error path with `fatal runtime error: Rust cannot catch foreign
+   exceptions, aborting`. The cause is the LINK, not the driver: the artifact was produced
+   without emscripten's JS-side C++ exception support, so Lua's `longjmp` surfaces as a JS
+   exception Rust cannot catch. Relinking with `-sSUPPORT_LONGJMP=emscripten` (or
+   `-fwasm-exceptions`) is the next step, and it is the size of a build flag. Until then the
+   driver returns an empty table and the screens fall back on the server's resolution.
 
 **Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no
 `packages/azalee*`, and three inert mentions left in shared code — a team-name string, role

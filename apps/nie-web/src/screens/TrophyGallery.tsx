@@ -246,7 +246,7 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 			data-origin={current?.origin ?? "none"}
 		>
 			<GameCanvas canvas={layout?.canvas ?? { w: 1280, h: 720 }}>
-				{layout ? <LayoutCanvas layout={layout} assumeUnknownVisible={false} onReport={onCompose} /> : null}
+				{layout ? <LayoutCanvas layout={layout} screen={SCREEN} assumeUnknownVisible={false} onReport={onCompose} /> : null}
 
 				<header className="trophy-gallery__title">
 					<NativeText text={GALLERY_TITLE} height={28} />

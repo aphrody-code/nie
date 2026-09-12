@@ -88,12 +88,64 @@ Localized menu text (`load_menu_text` on the native site) is **not yet wired**: 
 bring-up always replays with an empty text map. That is a known, explicit gap, not a silent
 approximation.
 
+## Generalised beyond menu screens (2026-09-12)
+
+The entry-script resolution accepts any registered `.lua.bin` under
+`data/common/script/lua/`, not only `.../menu/` — `chara`, `system`, `kizuna`, `story_mode_*`
+and `action` scripts share the exact same `HostRegistry::standard` (there is no separate
+per-family Lua host in `nie-lua` yet). A missing `*_setting.cfg.bin` is treated as an empty
+layer list, not a hard error, so non-menu families can still be replayed for their
+callback/host-call surface — though `nie_lua::menu_runtime::replay` itself still requires a
+**non-empty** layer list, so a family with no menu config will report `"Invalid menu layer
+count"` until `nie-lua` grows a non-menu replay entry point (see `PLAN.md`).
+
+## JS/Bun glue (`js/nie-lua-web.ts`)
+
+The module emits **no** `.js` glue of its own — rustc's `emcc` invocation for a `cdylib` bypasses
+emscripten's JS-emitting driver entirely and links straight to `.wasm` via `wasm-ld`. `js/nie-lua-web.ts`
+hand-implements exactly the imports `WebAssembly.Module.imports()` reports for this build
+(WASI `fd_write`/`clock_time_get`/`random_get`/…, plus emscripten's `env` syscalls and
+`invoke_*` exception trampolines) and exposes `createLuaRuntime(wasmBytes)` with
+`loadScript`/`clearScripts`/`replay`.
+
+Proven working (measured 2026-09-12): the FFI plumbing itself — string/byte marshalling via
+the exported `nie_lua_web_alloc`/`nie_lua_web_dealloc` (wrapping `malloc`/`free`) — round-trips
+correctly for any call path that stays in pure-Rust validation:
+`replay("!!!", "{}")` → `{"error":"invalid menu screen"}`;
+`replay("nonexistent_screen_xyz", "{}")` → `{"error":"script not loaded for screen: ..."}`.
+
+## Differential proof (`scripts/differential.ts`) — measured 0/14
+
+Run against the live site (`127.0.0.1:8085`) for the 14 `runtime_matrix.results` families in
+`data/menu/manifest.json`, having registered all 651 `.lua.bin` under
+`data/common/script/lua/` and every `*_setting.cfg.bin` under
+`data/common/gamedata/menu/cfg/` (fetched via `/api/v1/recherche?prefixe=...` + `/f/{path}`):
+
+- **`shop_menu`**: fails identically on both sides for the same reason — there is no top-level
+  `shop_menu.lua.bin`, only `shop_menu_basara_*`/`shop_menu_buy_*`/`shop_menu_sell` variants.
+  Native: `{"genre":"introuvable","message":"Menu script unavailable"}`. wasm:
+  `{"error":"script not loaded for screen: shop_menu"}`. Different shape, same root cause.
+- **The other 13 families all abort the wasm instance**: `thread '<unnamed>' (1) panicked at
+  .../panicking.rs:225:5: panic in a function that cannot unwind`, surfacing in JS as
+  `Unreachable code should not be executed`.
+
+**Diagnosed root cause** (not fixed in this pass): `mlua` registers Rust closures as Lua C
+functions through `extern "C"` trampolines and relies on `std::panic::catch_unwind` internally
+so an accidental Rust panic inside a host callback becomes a recoverable `mlua::Error` instead
+of crossing the C-ABI boundary raw. On `wasm32-unknown-emscripten`, Rust's unwinding is
+implemented via the Itanium C++ exception ABI — the exact `invoke_*` / `__cxa_find_matching_catch_3`
+imports this module declares. This crate's hand-written JS glue stubs
+`__cxa_find_matching_catch_3` to always report "no match" and does not re-throw through nested
+`invoke_*` frames the way emscripten's real JS runtime does, so `catch_unwind` never finds its
+landing pad and the panic escapes as a genuine `abort()`. This is a JS-glue gap, not a bug in
+`nie-lua`/`mlua` itself. See `PLAN.md`'s "Real Lua 5.2.4 VM in the browser" section for the
+two candidate fixes (port emscripten's real exception runtime, or force `panic = "abort"`
+end-to-end) and the ranked list of what is still missing to turn this bring-up into a shipped
+browser feature.
+
 ## Known gaps (be honest about these)
 
 - `wasm-opt` was not run on the release artifact in this pass (binaryen not installed on this
-  box within the time box); the 867,791-byte figure above is raw rustc/emcc output.
-- No JS glue (`ccall`/`cwrap` wrapper) was written yet; the C-ABI functions above are the
-  contract JS must bind against.
-- No differential test against the native `/api/v1/menu/runtime/{screen}` route has been run
-  yet from this crate (would need a `scripts/differential.ts`, not yet written).
+  box within the time box); the 867,690-byte figure above is raw rustc/emcc output.
 - Localized text is stubbed to empty, see above.
+- 0/14 families reach a comparable `MenuScene` today — see the differential section above.

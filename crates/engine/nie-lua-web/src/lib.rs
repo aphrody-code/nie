@@ -15,10 +15,46 @@ use std::{
 
 use nie_lua::menu_runtime::{ReplayOutput, ReplayRequest};
 
+unsafe extern "C" {
+    fn free(ptr: *mut u8);
+}
+
+/// Allocates `len` bytes in the module's linear memory for the JS caller to write into (a
+/// path string or a script/config buffer) before passing the pointer to
+/// [`nie_lua_web_load_script`] or [`nie_lua_web_replay`]. Wraps the C allocator directly:
+/// emscripten's `-sSTANDALONE_WASM=1` output already exports `malloc`, but that export's name
+/// and calling convention are an implementation detail of the C runtime, not this crate's ABI —
+/// callers should depend on `nie_lua_web_alloc`/`nie_lua_web_dealloc` instead.
+#[unsafe(no_mangle)]
+pub extern "C" fn nie_lua_web_alloc(len: usize) -> *mut u8 {
+    // SAFETY: `len` is caller-controlled but `malloc` tolerates any `usize`, returning null on
+    // failure; the caller must check for null before writing.
+    unsafe { libc_malloc(len) }
+}
+
+unsafe extern "C" {
+    #[link_name = "malloc"]
+    fn libc_malloc(size: usize) -> *mut u8;
+}
+
+/// Releases a buffer previously returned by [`nie_lua_web_alloc`]. `len` is accepted for
+/// symmetry with `nie_lua_web_alloc` but unused (the C allocator tracks size internally).
+///
+/// # Safety
+/// `ptr` must be a pointer previously returned by [`nie_lua_web_alloc`], not yet freed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_lua_web_dealloc(ptr: *mut u8, _len: usize) {
+    if ptr.is_null() {
+        return;
+    }
+    // SAFETY: contract documented on the function.
+    unsafe { free(ptr) };
+}
+
 thread_local! {
     /// Script registry keyed by VFS path, filled by JS before each [`replay`] call.
     /// Single-threaded by construction (wasm32 has no threads here); `RefCell` is enough.
-    static SCRIPTS: RefCell<BTreeMap<String, Vec<u8>>> = RefCell::new(BTreeMap::new());
+    static SCRIPTS: RefCell<BTreeMap<String, Vec<u8>>> = const { RefCell::new(BTreeMap::new()) };
 }
 
 fn cstr_to_string(ptr: *const c_char) -> String {
@@ -106,9 +142,28 @@ pub unsafe extern "C" fn nie_lua_web_replay(
     screen: *const c_char,
     request_json: *const c_char,
 ) -> *mut c_char {
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("[nie-lua-web panic hook] {info}");
+    }));
+
     let screen = cstr_to_string(screen);
     let request_json = cstr_to_string(request_json);
-    let result = run_replay(&screen, &request_json);
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        run_replay(&screen, &request_json)
+    }));
+    let result = match caught {
+        Ok(r) => r,
+        Err(e) => {
+            let msg = if let Some(s) = e.downcast_ref::<&str>() {
+                (*s).to_string()
+            } else if let Some(s) = e.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "panic in replay".to_string()
+            };
+            Err(msg)
+        }
+    };
     string_to_cstr(match result {
         Ok(output) => {
             serde_json::to_string(&output).unwrap_or_else(|error| json_error(&error.to_string()))
@@ -133,18 +188,21 @@ fn run_replay(screen: &str, request_json: &str) -> Result<ReplayOutput, String> 
     };
     request.events()?;
 
+    // Only `menu/` (and kizuna town, which is itself a menu mode) screens carry a
+    // `*_setting.cfg.bin` layer list on the native site. `chara`/`system`/other script
+    // families have no such file; an absent config yields an empty layer list rather than a
+    // hard error, so those families can still be replayed for their callback/host-call surface.
     let config_path = format!("data/common/gamedata/menu/cfg/{screen}_setting.cfg.bin");
-    let config_bytes = SCRIPTS
-        .with(|scripts| scripts.borrow().get(&config_path).cloned())
-        .ok_or_else(|| format!("menu config not loaded: {config_path}"))?;
-    let root = nie_formats::cfgbin::to_iecode_json(&config_bytes)
-        .ok_or("menu config bytes did not decode as cfg.bin")?;
-    let setting = nie_data::menu_setting::parse(&root);
-    let layers: Vec<u32> = setting
-        .layers
-        .iter()
-        .map(|layer| layer.layer_id.0)
-        .collect();
+    let layers: Vec<u32> = match SCRIPTS.with(|scripts| scripts.borrow().get(&config_path).cloned())
+    {
+        Some(config_bytes) => {
+            let root = nie_formats::cfgbin::to_iecode_json(&config_bytes)
+                .ok_or("menu config bytes did not decode as cfg.bin")?;
+            let setting = nie_data::menu_setting::parse(&root);
+            setting.layers.iter().map(|layer| layer.layer_id.0).collect()
+        }
+        None => Vec::new(),
+    };
 
     let (paths, by_name, by_logical) = SCRIPTS.with(|scripts| {
         let scripts = scripts.borrow();
@@ -156,10 +214,15 @@ fn run_replay(screen: &str, request_json: &str) -> Result<ReplayOutput, String> 
         let (by_name, by_logical) = nie_lua::index_script_paths(paths.iter().map(String::as_str));
         (paths, by_name, by_logical)
     });
+    // Generalised beyond menu screens on purpose: `chara`/`system`/`kizuna`/`story_mode_*`
+    // scripts share the exact same `data/common/script/lua/<family>/` layout and the exact
+    // same host registry (`HostRegistry::standard` — there is no separate per-family host in
+    // `nie-lua` yet, see `crates/engine/nie-lua/src/host.rs`'s module doc). Any registered
+    // `.lua.bin` under `data/common/script/lua/` can be the entry point, not only `menu/`.
     let script = nie_lua::resolve_script_path(screen, &by_name, &by_logical)
-        .filter(|path| path.starts_with("data/common/script/lua/menu/"))
+        .filter(|path| path.starts_with("data/common/script/lua/"))
         .cloned()
-        .ok_or_else(|| format!("menu script not loaded for screen: {screen}"))?;
+        .ok_or_else(|| format!("script not loaded for screen: {screen}"))?;
 
     // Localised text (`load_menu_text`'s job on the native site) is out of scope for this
     // first browser bring-up: the caller passes an empty map, matching an unlocalised replay.

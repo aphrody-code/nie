@@ -18,6 +18,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { composeMenuScreen, type ComposeReport } from "./menu-composer";
+import { crc32, resolveMenuVisibility } from "./lua-runtime";
 
 export interface LayoutCanvasProps {
 	/** Le layout, tel que l'écran l'a chargé. Sérialisé tel quel : aucune clé n'est réinterprétée. */
@@ -44,8 +45,41 @@ export interface LayoutCanvasProps {
 	 * annonce sa politique dans `x-compose-visibility`.
 	 */
 	assumeUnknownVisible?: boolean;
+	/**
+	 * Le stem `_setting.cfg.bin` de l'écran — `chara_bank_menu`, `shop_menu`…
+	 *
+	 * Donné, la page EXÉCUTE le Lua du jeu pour les objets dont le layout ne tranche pas la
+	 * visibilité, au lieu d'attendre un verdict du serveur. Absent, rien n'est exécuté.
+	 */
+	screen?: string;
 	/** Le rapport de composition, quand l'appelant veut le publier. */
 	onReport?: (report: ComposeReport) => void;
+}
+
+/** Un objet de layout, réduit à ce que la résolution de visibilité touche. */
+interface LayoutObject {
+	name?: unknown;
+	visible?: unknown;
+}
+
+/**
+ * Le layout, avec la visibilité que le Lua de la page a établie.
+ *
+ * Seuls les objets que le layout laisse indécis (`visible: null`) sont touchés : ce que le
+ * serveur a déjà résolu fait foi, et ce que personne ne résout reste indécis.
+ */
+function withResolvedVisibility(layout: unknown, byObject: Map<number, boolean>): unknown {
+	if (byObject.size === 0) return layout;
+	const document = layout as { objects?: LayoutObject[] };
+	if (!Array.isArray(document.objects)) return layout;
+	return {
+		...document,
+		objects: document.objects.map((object) => {
+			if (typeof object.visible === "boolean" || typeof object.name !== "string") return object;
+			const resolved = byObject.get(crc32(object.name));
+			return resolved === undefined ? object : { ...object, visible: resolved };
+		}),
+	};
 }
 
 export function LayoutCanvas({
@@ -53,6 +87,7 @@ export function LayoutCanvas({
 	width = 1280,
 	height = 720,
 	assumeUnknownVisible = false,
+	screen,
 	onReport,
 }: LayoutCanvasProps) {
 	const canvas = useRef<HTMLCanvasElement | null>(null);
@@ -62,7 +97,13 @@ export function LayoutCanvas({
 	useEffect(() => {
 		let mounted = true;
 		setState("composing");
-		composeMenuScreen(layout, assumeUnknownVisible, { width, height })
+		// La visibilité d'abord, les pixels ensuite : un objet dessiné puis effacé serait un
+		// clignotement, et un objet effacé puis dessiné, une apparition sans cause visible.
+		(screen
+			? resolveMenuVisibility(screen).then(({ byObject }) => withResolvedVisibility(layout, byObject))
+			: Promise.resolve(layout)
+		)
+			.then((resolu) => composeMenuScreen(resolu, assumeUnknownVisible, { width, height }))
 			.then(({ image, report: counts }) => {
 				if (!mounted) return;
 				const context = canvas.current?.getContext("2d");
@@ -84,7 +125,7 @@ export function LayoutCanvas({
 			mounted = false;
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- `onReport` ne doit pas recomposer.
-	}, [layout, assumeUnknownVisible, width, height]);
+	}, [layout, assumeUnknownVisible, width, height, screen]);
 
 	return (
 		<canvas
