@@ -183,10 +183,10 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 		description:
 			"Affiche les outils de spécialiste dans la barre latérale : RE, Viola, Live mod, Lua.",
 		default: false,
-		// Ces outils lisent la mémoire du jeu et désassemblent des scripts : ils n'existent
-		// que sur un hôte qui sait les exécuter.
-		portable: false,
-		requires: "outils",
+		// Since 2026-09-12 the browser workspace serves these tools through nie-site (Lua
+		// listing and disassembly, RE queries) and the rest as downloads: the toggle has a
+		// meaning on every host.
+		portable: true,
 	},
 
 	// ── Affichage ───────────────────────────────────────────────────────────────────────────
@@ -273,10 +273,9 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 		family: "paths",
 		kind: "text",
 		label: "Service de modèles",
-		description: "L'origine de nie-model-serve. Sur le web, le site en tient lieu.",
+		description: "L'origine de nie-model-serve. Vide : le site en tient lieu.",
 		default: "",
-		portable: false,
-		requires: "outils",
+		portable: true,
 	},
 
 	// ── Outils ──────────────────────────────────────────────────────────────────────────────

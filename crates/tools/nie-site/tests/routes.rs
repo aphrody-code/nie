@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 131] = [
+    let instances: [(&str, &[u16]); 136] = [
         ("/healthz", &[200]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
@@ -281,10 +281,22 @@ async fn toutes_les_routes_declarees_repondent() {
         // reponses correctes. Ce que ce cas garde, c'est que la route EXISTE — elle
         // a rendu 404 en production pendant des semaines sans que rien ne le dise.
         ("/downloads/inacord/latest.json", &[200, 404, 502, 504]),
+        // Inacord's read-only game data, shared with its browser build over HTTP. The test VFS
+        // is mounted but carries none of the game's `.cfg.bin`, so a known family still 503s
+        // (the file it needs is not there) — same shape as `/api/v1/passives` above. An unknown
+        // family is a 404 regardless of what is mounted.
+        ("/api/v1/game-data/skills", &[503]),
+        ("/api/v1/game-data/not-a-real-family", &[404]),
+        ("/api/v1/game-data/skills/whs00340", &[503]),
+        ("/api/v1/game-data/calculate_stats", &[200]),
+        // `correspond` matches by segment count and does not strip a query string, so this
+        // instance omits `?path=` (a 400 without it, cf. `axum::extract::Query`'s own
+        // rejection) — the family/id instances above already exercise the VFS-backed path.
+        ("/api/v1/game-data/decode_cfgbin", &[400]),
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 130, "le routeur monte 130 routes");
+    assert_eq!(declarees.len(), 134, "le routeur monte 134 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -316,7 +328,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 131, "131 instances interrogees pour 130 routes");
+    assert_eq!(vus, 136, "136 instances interrogees pour 134 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).

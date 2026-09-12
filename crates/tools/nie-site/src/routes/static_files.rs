@@ -83,11 +83,16 @@ pub fn immuable(relatif: &Path) -> bool {
         })
         .is_some_and(|d| DOSSIERS_BUNDLE.contains(&d));
     let a_plusieurs_composants = relatif.components().count() > 1;
-    (dans_dossier_bundle && a_plusieurs_composants)
-        || relatif
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(empreinte)
+    let nom_empreinte = relatif
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(empreinte);
+    // `static/game/nie_wasm_bg.wasm` and the gzipped font live in the bundle folder but are
+    // copied verbatim from `public/`, with a stable name: served `immutable`, a browser kept
+    // the previous deployment's module next to freshly hashed glue and the menu came up
+    // "unavailable" until a hard reload (measured 2026-09-12). Only a fingerprinted name is
+    // immutable, wherever it sits.
+    (dans_dossier_bundle && a_plusieurs_composants && nom_empreinte) || nom_empreinte
 }
 
 /// Normalise un chemin relatif reçu d'un client : rend `None` dès qu'il sort de la racine.
@@ -259,6 +264,16 @@ pub const DOSSIERS_BUNDLE: [&str; 2] = ["static", "assets"];
 /// Ce mode d'échec est SILENCIEUX par nature (page valide, 200, aucun log) : c'est
 /// `coquille_charge_le_bundle` qui le surveille, pas la lecture du code.
 pub async fn points_d_entree(racine: &Path) -> (Option<String>, Option<String>) {
+    // The bundler already wrote the answer: `index.html` names the entry script and the entry
+    // stylesheet. Scanning the folder instead picked the FIRST sorted file, and once the site
+    // grew a lazily split `CfgbinViewer-*.js` chunk (sorted before `index-*.js`), every page
+    // loaded a 4 MiB viewer as its entry and rendered nothing (measured 2026-09-12).
+    if let Ok(html) = tokio::fs::read_to_string(racine.join("index.html")).await {
+        let (css, js) = points_d_entree_depuis_html(&html);
+        if css.is_some() || js.is_some() {
+            return (css, js);
+        }
+    }
     for dossier in DOSSIERS_BUNDLE {
         let (css, js) = points_d_entree_dans(racine, dossier).await;
         if css.is_some() || js.is_some() {
@@ -266,6 +281,29 @@ pub async fn points_d_entree(racine: &Path) -> (Option<String>, Option<String>) 
         }
     }
     (None, None)
+}
+
+/// Reads the entry points Vite wrote into `index.html`: the first `<script type="module"
+/// src="…">` and the first `<link rel="stylesheet" href="…">`. Absolute paths only.
+#[must_use]
+pub fn points_d_entree_depuis_html(html: &str) -> (Option<String>, Option<String>) {
+    fn attribut(balise: &str, nom: &str) -> Option<String> {
+        let debut = balise.find(&format!("{nom}=\""))? + nom.len() + 2;
+        let fin = balise[debut..].find('"')? + debut;
+        let valeur = &balise[debut..fin];
+        valeur.starts_with('/').then(|| valeur.to_owned())
+    }
+    let mut css = None;
+    let mut js = None;
+    for morceau in html.split('<').skip(1) {
+        let balise = morceau.split('>').next().unwrap_or("");
+        if js.is_none() && balise.starts_with("script") && balise.contains("type=\"module\"") {
+            js = attribut(balise, "src");
+        } else if css.is_none() && balise.starts_with("link") && balise.contains("rel=\"stylesheet\"") {
+            css = attribut(balise, "href");
+        }
+    }
+    (css, js)
 }
 
 /// Balaie un dossier précis du bundle. Les fichiers sont triés pour que le point d'entrée
@@ -410,12 +448,26 @@ mod tests {
     }
 
     #[test]
+    fn les_points_d_entree_viennent_de_index_html() {
+        let html = r#"<!doctype html><html><head><link rel="stylesheet" crossorigin href="/static/index-CARP3-L6.css"><script type="application/ld+json">{}</script></head><body><script type="module" crossorigin src="/static/index-CC_vyI19.js"></script></body></html>"#;
+        assert_eq!(
+            points_d_entree_depuis_html(html),
+            (
+                Some("/static/index-CARP3-L6.css".to_owned()),
+                Some("/static/index-CC_vyI19.js".to_owned())
+            )
+        );
+        assert_eq!(points_d_entree_depuis_html("<html></html>"), (None, None));
+    }
+
+    #[test]
     fn immuable_suit_le_dossier_avant_le_nom() {
         for d in DOSSIERS_BUNDLE {
             assert!(immuable(&PathBuf::from(d).join("index-RXLrxaJS.js")));
-            // Meme un nom sans empreinte est immuable dans le dossier d'assets : c'est le
-            // bundler qui garantit l'unicite, pas la forme du nom.
-            assert!(immuable(&PathBuf::from(d).join("worker.js")));
+            // A stable name inside the assets folder is NOT immutable: `public/` copies land
+            // there unhashed (`static/game/nie_wasm_bg.wasm`) and change at every deployment.
+            assert!(!immuable(&PathBuf::from(d).join("worker.js")));
+            assert!(!immuable(&PathBuf::from(d).join("game/nie_wasm_bg.wasm")));
         }
         // La racine du bundle n'est jamais figee : un index.html immuable est un site qu'on
         // ne peut plus deployer.

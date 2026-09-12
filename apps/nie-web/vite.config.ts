@@ -6,11 +6,11 @@ import { fileURLToPath } from "node:url";
 /** One frontend build owner; host adapters retain their native services and resources. */
 export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 	const desktop = mode === "desktop";
-	const inacordWeb = mode === "inacord-web";
 	const host = process.env.TAURI_DEV_HOST;
-	// The browser builds (site and inacord-web) never carry Tauri: its API is replaced by HTTP
-	// shims that talk to `nie-site`. The desktop build keeps the real plugins.
-	const inacordWebAliases: Record<string, string> = !desktop ? {
+	// The site build never carries Tauri: its API is replaced by HTTP shims that talk to
+	// `nie-site`, which is how the Inacord workspace runs at `nie.aphrody.com/inacord`. The
+	// desktop build keeps the real plugins.
+	const browserShimAliases: Record<string, string> = !desktop ? {
 		"#inacord-desktop-host": fileURLToPath(new URL("./src/desktop/DesktopHost.tsx", import.meta.url)),
 		"@tauri-apps/api/core": fileURLToPath(new URL("./src/inacord-web/shims/core.ts", import.meta.url)),
 		"@tauri-apps/api/event": fileURLToPath(new URL("./src/inacord-web/shims/event.ts", import.meta.url)),
@@ -30,39 +30,32 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 		plugins: [react(), tailwindcss(), {
 			name: "nie-host-document",
 			transformIndexHtml(html: string) {
-				if (!desktop && !inacordWeb) return html;
-				let document = html
+				if (!desktop) return html;
+				return html
 					.replace("<title>nie</title>", "<title>Inacord</title>")
 					.replace('<link rel="icon" href="/static/favicon.ico" />', '<link rel="icon" href="/favicon.ico" />');
-				if (inacordWeb) {
-					document = document.replace(
-						"</head>",
-						'<link rel="manifest" href="/manifest.webmanifest" /><meta name="theme-color" content="#071018" /></head>',
-					).replace("</body>", '<script src="/register-sw.js" defer></script></body>');
-				}
-				return document;
 			},
 		}],
-		publicDir: desktop || inacordWeb ? fileURLToPath(new URL("../inacord/public", import.meta.url)) : "public",
+		publicDir: desktop ? fileURLToPath(new URL("../inacord/public", import.meta.url)) : "public",
 		resolve: {
 			dedupe: ["react", "react-dom"],
 			alias: {
-				"#nie-host": fileURLToPath(new URL(desktop ? "./src/desktop/DesktopHost.tsx" : inacordWeb ? "./src/inacord-web/InacordWebHost.tsx" : "./src/BrowserHost.tsx", import.meta.url)),
+				"#nie-host": fileURLToPath(new URL(desktop ? "./src/desktop/DesktopHost.tsx" : "./src/BrowserHost.tsx", import.meta.url)),
 				"@": fileURLToPath(new URL("./src/desktop", import.meta.url)),
-				...inacordWebAliases,
+				...browserShimAliases,
 			},
 		},
 		clearScreen: !desktop,
 		// Keep the existing site output stable; Tauri consumes the desktop artifact.
-		build: { outDir: desktop ? "dist-desktop" : inacordWeb ? "dist-inacord" : "dist", sourcemap: !inacordWeb, assetsDir: "static" },
+		build: { outDir: desktop ? "dist-desktop" : "dist", sourcemap: true, assetsDir: "static" },
 		server: {
-			port: desktop ? 1420 : inacordWeb ? 5176 : 5175,
+			port: desktop ? 1420 : 5175,
 			strictPort: desktop,
 			host: desktop ? host || false : undefined,
 			hmr: desktop && host ? { protocol: "ws", host, port: 1421 } : undefined,
 			watch: { ignored: ["**/src-tauri/**"] },
 			proxy: Object.fromEntries(
-				["/api", "/f", "/b", "/assets", "/healthz", ...(inacordWeb ? ["/downloads"] : [])].map(path => [
+				["/api", "/f", "/b", "/assets", "/downloads", "/healthz"].map(path => [
 					path,
 					{ target: "http://127.0.0.1:8085", changeOrigin: true },
 				]),

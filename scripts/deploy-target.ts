@@ -304,7 +304,9 @@ async function deployWeb(context: TargetContext): Promise<void> {
 }
 
 async function deployInacordWeb(context: TargetContext): Promise<void> {
-	const bundle = `${context.releaseDirectory}/bundle`;
+	// Inacord was merged into the site on 2026-09-12: the workspace is a route of the `web`
+	// bundle (`/inacord`) and the catalogue is `/downloads`. This target only publishes and
+	// validates the release channel those routes read.
 	const catalog = "var/releases/inacord/public/catalog.json";
 	const updateFeed = "var/releases/inacord/public/channels/stable/latest.json";
 	for (const required of [catalog, updateFeed]) {
@@ -312,59 +314,25 @@ async function deployInacordWeb(context: TargetContext): Promise<void> {
 			throw new Error(`Inacord release channel is missing ${required}.`);
 		}
 	}
-	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "typecheck:desktop"]);
-	await run(context, [
-		"bunx",
-		"vite",
-		"build",
-		"apps/nie-web",
-		"--mode",
-		"inacord-web",
-		"--outDir",
-		bundle,
-		"--emptyOutDir",
-	]);
-	if (!(await Bun.file(`${bundle}/index.html`).exists())) {
-		throw new Error("Inacord web build did not produce index.html.");
-	}
-	const sourceMaps = Array.from(new Bun.Glob("**/*.map").scanSync(bundle));
-	if (sourceMaps.length > 0) {
-		throw new Error(`Inacord web build published ${sourceMaps.length} source map(s).`);
-	}
-	requireBudget(context, 10_000, "switch and validate the Inacord bundle");
-	const live = "apps/nie-web/dist-inacord";
-	const previous = await readlink(live).catch(() => undefined);
-	if (!previous) {
-		await rm(live, { recursive: true, force: true });
-	}
-	const next = `${live}.deploy-next`;
-	await rm(next, { force: true });
-	await symlink(bundle, next);
-	await rename(next, live);
-	try {
-		await waitFor(context, "https://inacord.aphrody.com/", (body) => {
-			if (!body.includes("id=\"racine\"") || !body.includes("Inacord")) {
-				throw new Error("Public Inacord download shell is incomplete.");
-			}
-		});
-		await waitFor(context, "https://inacord.aphrody.com/downloads/catalog.json", (body) => {
-			const value = requireJsonObject(body);
-			if (!Array.isArray(value.products) || value.products.length < 6) {
-				throw new Error("Inacord catalog has fewer than six products.");
-			}
-		});
-		await waitFor(context, "https://inacord.aphrody.com/app", (body) => {
-			if (!body.includes("id=\"racine\"")) throw new Error("Inacord web app shell is missing.");
-		});
-	} catch (error) {
-		if (previous) {
-			const rollback = `${live}.deploy-rollback`;
-			await rm(rollback, { force: true });
-			await symlink(previous, rollback);
-			await rename(rollback, live);
+	requireBudget(context, 10_000, "validate the Inacord workspace and download routes");
+	await waitFor(context, "https://nie.aphrody.com/inacord", (body) => {
+		if (!body.includes("id=\"racine\"")) {
+			throw new Error("Public Inacord workspace shell is incomplete.");
 		}
-		throw error;
-	}
+	});
+	await waitFor(context, "https://nie.aphrody.com/downloads/catalog.json", (body) => {
+		const value = requireJsonObject(body);
+		if (!Array.isArray(value.products) || value.products.length < 6) {
+			throw new Error("Inacord catalog has fewer than six products.");
+		}
+	});
+	// Installed desktop clients still poll the legacy host directly; it must keep answering.
+	await waitFor(context, "https://inacord.aphrody.com/downloads/channels/stable/latest.json", (body) => {
+		const value = requireJsonObject(body);
+		if (typeof value.version !== "string") {
+			throw new Error("Legacy Inacord updater manifest has no version.");
+		}
+	});
 }
 
 async function deployWasm(context: TargetContext): Promise<void> {
@@ -439,7 +407,7 @@ const targets: Record<string, Target> = {
 		deploy: deployWeb,
 	},
 	inacord: {
-		description: "Inacord downloads and installable web workspace",
+		description: "Inacord release channel behind the site's /inacord and /downloads routes",
 		deploy: deployInacordWeb,
 	},
 	model: {

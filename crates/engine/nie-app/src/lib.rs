@@ -14,6 +14,15 @@ pub mod character;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod effectif;
 pub mod flow;
+/// Read-only game-data DTOs (skills, items, characters, …), decoded from the VFS.
+///
+/// Shared by two surfaces: the Tauri desktop host (`inacord`, native commands) and the axum
+/// site (`nie-site`, HTTP routes for the browser build of Inacord) — extracted here so neither
+/// reimplements the other's decoding (`CLAUDE.md` § "Extract before you bind"). Native only, like
+/// `effectif`/`match3d`/`roster`: it goes through `nie_explore::game_data`'s "host" feature
+/// (filesystem search, SQLite), which is not wasm32-compatible.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod game_data;
 /// Rendu 3D d'un match (vrais modèles du VFS) — natif seulement, comme `effectif`.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod match3d;

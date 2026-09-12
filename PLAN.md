@@ -83,11 +83,15 @@ source implementation phase, as requested by the user.
 
 ### Inacord distribution lane — 2026-09-09
 
-`inacord.aphrody.com` is the dedicated download and browser-workspace origin. Its root is a
-generated static, zero-JavaScript hub for the signed Windows desktop installer, Linux CLI and MCP archives, Blender
-and agent plugins, the installable mobile web application, and the complete browser-adapted
-Inacord shell. Native Android/iOS packages remain explicitly unavailable until signed artifacts
-and platform runners exist; the mobile web entry must never be relabelled as an APK or IPA.
+**Merged into the site on 2026-09-12.** The browser workspace is a route of `nie.aphrody.com`
+(`/inacord`, served by the single `apps/nie-web/dist` bundle) and the download catalogue is
+`nie.aphrody.com/downloads` (`catalog.json`, `files/`, `channels/stable/latest.json`). It lists
+the signed Windows desktop installer, the Linux CLI and MCP archives, the Blender and agent
+plugins and the installable mobile web application. `inacord.aphrody.com` is no longer a site: it
+answers `308` to `nie.aphrody.com`, and only keeps serving its updater manifest for already
+installed clients. Native Android/iOS packages remain explicitly unavailable until signed
+artifacts and platform runners exist; the mobile web entry must never be relabelled as an APK or
+IPA.
 
 The repository `aphrody-code/nie` is public. The dependency audit found that all externally
 referenced `@aphrody/*` registry packages and the Rust git dependency are already public; internal
@@ -106,7 +110,7 @@ Measured pre-publication gates on `vps-203bea89` on 2026-09-09: both web and des
 checks passed; 6 focused tests passed with 12 assertions; Vite built 3,715 modules into 137 files
 (18 MiB) with zero source maps; Chromium mounted the Explorer against the production VFS with
 255,308 indexed entries. DNS resolves to `51.77.147.152`, and the renewed ECDSA certificate includes
-`inacord.aphrody.com` with expiry 2026-12-08. The immutable manifest and live HTTP interaction
+`inacord.aphrody.com` with expiry 2026-12-08 (the host survives the merge as a redirect). The immutable manifest and live HTTP interaction
 checks remain the release-time proof for the exact pushed commit.
 
 **The Rust site and wiki are the only IEVR data owners.** The deleted Azalee application,
@@ -762,7 +766,7 @@ Full enforcement of authentic game asset sovereignty, PE icon extraction, and ze
      - `apps/nie-web/public/static/favicon.ico` + PNG icons
      - `apps/inacord/public/favicon.ico` + `apps/inacord/public/static/favicon.ico` + PNG icons
      - `apps/inacord/src-tauri/icons/` (`icon.ico`, `icon.png`, `icon.icns`, `32x32.png`, `64x64.png`, `128x128.png`, `128x128@2x.png`, and all Square/Store logos)
-   - Fixed `apps/nie-web/vite.config.ts` to preserve `<link rel="icon" ...>` on desktop and inacord-web modes instead of stripping it.
+   - Fixed `apps/nie-web/vite.config.ts` to preserve `<link rel="icon" ...>` on the desktop mode instead of stripping it (the `inacord-web` mode was removed by the 2026-09-12 merge).
    - Added `<link rel="icon" href="/favicon.ico" />` to `apps/inacord/index.html`.
 
 2. **Inacord Zero AI Slop Quality Charter (`apps/inacord/AGENTS.md`):**
@@ -774,7 +778,6 @@ Full enforcement of authentic game asset sovereignty, PE icon extraction, and ze
    - `bun run typecheck`: 23/23 packages passed (0 errors), exit 0
    - `bun run --cwd apps/nie-web test`: 142/142 passed across 21 files (710 expect calls), exit 0
    - `bun run --cwd apps/nie-web build:desktop`: built in 41.78s (`dist-desktop/index.html` with authentic favicon verified), exit 0
-   - `bun run --cwd apps/nie-web build:inacord-web`: built in 50.13s (`dist-inacord/index.html` with authentic favicon verified), exit 0
    - `cargo clippy -p nie-app -p nie-index -p nie-wasm -p nie-cli -- -D warnings`: 0 warnings, exit 0
    - `cargo test -p nie-app -p nie-index -p nie-wasm`: 96/96 tests + 1 doctest passed, 0 failed, exit 0
    - `cargo check -p nie-wasm --target wasm32-unknown-unknown`: 0 errors, exit 0

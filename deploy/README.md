@@ -10,7 +10,7 @@ fichier. Chaque écart connu est écrit ci-dessous plutôt que supposé absent.
 | Fichier | Hôtes | Amont |
 |---|---|---|
 | `nginx/aphrody.com.conf` | `nie.aphrody.com` | `127.0.0.1:8085` — `nie-site`, **le site** |
-| | `inacord.aphrody.com` | hub statique, canal updater et UI web ; API Rust de lecture seule sur `127.0.0.1:8085` |
+| | `inacord.aphrody.com` | 308 vers `https://nie.aphrody.com/inacord` (fusion du 2026-09-12) ; seul le manifeste updater reste servi ici, pour les clients installés |
 | | `aphrody.com`, `www.` | 308 vers `https://nie.aphrody.com` |
 | | `api.aphrody.com` | `127.0.0.1:8085`, API seule (`404` ailleurs), `noindex` |
 | | `cdn.aphrody.com` | `127.0.0.1:8790` — `nie-model-serve`, sous limite de débit |
@@ -24,10 +24,11 @@ complet, mais il appartient au dépôt `bxc` et toute évolution vient de là.
 
 ### Publication Inacord
 
-Le vhost Inacord sert deux liens atomiques du checkout de production :
-
-- `apps/nie-web/dist-inacord` pour le hub et l’interface complète adaptée au navigateur ;
-- `var/releases/inacord/public` pour le catalogue, les archives immuables et le canal updater.
+Depuis la fusion du 2026-09-12, l’espace de travail est une route du site
+(`nie.aphrody.com/inacord`) servie par le bundle `apps/nie-web/dist`, et le catalogue des
+binaires natifs est `nie.aphrody.com/downloads`. Le vhost `inacord.` ne sert plus qu’un lien
+atomique du checkout de production, `var/releases/inacord/public`, pour le manifeste updater
+que les clients déjà installés interrogent encore ; tout le reste y répond 308.
 
 `bun run release:inacord` refuse une branche autre que `main`, un checkout sale et tout écart
 entre `HEAD` et `origin/main`. Il vérifie les signatures et hashes avant de déplacer le lien

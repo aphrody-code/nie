@@ -100,6 +100,13 @@ nie-wiki.workspace = true
 # Portable existing encyclopedia matcher; no network ingestion feature.
 nie-zukan.workspace = true
 
+# `game_data`: the exact same read-only game-data decoding as the Tauri desktop host (Inacord).
+# The browser build of Inacord talks HTTP instead of Tauri IPC, and needs to reach the same
+# `list_*`/`calculate_character_stats`/`decode_cfgbin` functions — extracted to this shared
+# library so neither surface reimplements the other's decoding (`CLAUDE.md` § "Extract before
+# you bind"). Routed under `/api/v1/game-data`, cf. `routes::game_data`.
+nie-app.workspace = true
+
 # HTTP server dependency. Keep the pinned version in the workspace; never
 # 0.8.2 (yanked). Syntaxe de route 0.8 : `{param}` et `{*wildcard}` — l'ancienne PANIQUE.
 axum = { workspace = true, features = ["http1", "json", "query", "tokio", "matched-path", "original-uri"] }

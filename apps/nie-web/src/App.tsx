@@ -130,7 +130,7 @@ function Site() {
 		return withHost(<Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} />);
 	}
 	if (vue === INACORD || vue === DOWNLOADS) {
-		return withHost(<Inacord view={vue} onHome={() => setVue(HOME)} onSelect={setVue} />);
+		return withHost(<Inacord view={vue} onSelect={setVue} />);
 	}
 	if (vue === EXPLORER || (ALIAS as readonly string[]).includes(vue)) {
 		return withHost(<ExplorerInacord onHome={() => setVue(HOME)} />);

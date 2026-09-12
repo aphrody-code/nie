@@ -1,17 +1,5 @@
-/* The Inacord workspace frame: a 44 px game-styled bar, then the workspace filling the rest. */
-.inacord-frame { height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: var(--color-app, #0b1220); }
-.inacord-frame__bar {
-	display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 14px; flex: none;
-	background: linear-gradient(180deg, var(--jeu-surface-glace), var(--jeu-ciel-brume));
-	border-bottom: 3px solid var(--jeu-tuile-bas);
-	color: var(--jeu-nuit-profonde);
-}
-.inacord-frame__home { border: 0; background: transparent; padding: 0; color: inherit; font: inherit; font-size: 20px; font-weight: 900; letter-spacing: .04em; cursor: pointer; }
-.inacord-frame__title { font-weight: 800; letter-spacing: .02em; }
-.inacord-frame__hint { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; opacity: .8; }
-.inacord-frame__actions { display: flex; align-items: center; gap: 8px; flex: none; }
-.inacord-frame__viewport { flex: 1; min-height: 0; overflow: hidden; }
-.inacord-frame__viewport .h-screen { height: 100% !important; }
+/* The Inacord workspace fills the viewport; the site chrome stops at the route. */
+.inacord-frame { height: 100vh; overflow: hidden; background: var(--color-app, #0b1220); }
+.inacord-frame .h-screen { height: 100% !important; }
 .inacord-downloads .downloads { min-height: 0; width: 100%; }
 .inacord-downloads .masthead { display: none; }
-@media (max-width: 760px) { .inacord-frame__hint { display: none; } }

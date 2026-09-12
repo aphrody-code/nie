@@ -51,10 +51,12 @@ describe("le modèle des réglages", () => {
 			"gameLocale",
 			"listDensity",
 			"reducedMotion",
+			"outilsAvances",
 			"theme",
 			"accentTheme",
 			"fontScale",
 			"uiZoom",
+			"modelServiceUrl",
 		]);
 		expect(SETTING_DEFINITIONS.every((d) => isSettingVisible(d, DESKTOP))).toBe(true);
 		// Tant que la mesure court, rien de non portable n'apparaît.
@@ -62,14 +64,14 @@ describe("le modèle des réglages", () => {
 	});
 
 	test("une famille sans réglage visible n'est pas un onglet", () => {
-		expect(visibleFamilies(WEB).map((f) => f.id)).toEqual(["general", "display"]);
+		expect(visibleFamilies(WEB).map((f) => f.id)).toEqual(["general", "display", "paths"]);
 		expect(visibleFamilies(DESKTOP).map((f) => f.id)).toEqual([
 			"general",
 			"display",
 			"paths",
 			"tools",
 		]);
-		expect(visibleSettings("paths", WEB)).toEqual([]);
+		expect(visibleSettings("paths", WEB).map((d) => d.id)).toEqual(["modelServiceUrl"]);
 	});
 
 	test("← → bouclent sur les choix et les bascules, s'arrêtent aux bornes d'une plage", () => {

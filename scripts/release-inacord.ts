@@ -29,7 +29,7 @@ const root = resolve(import.meta.dir, "..");
 const releaseRoot = resolve(root, "var/releases/inacord");
 const live = resolve(releaseRoot, "public");
 const desktopTag = process.env.INACORD_DESKTOP_TAG || "v0.5.9";
-const origin = "https://inacord.aphrody.com";
+const origin = "https://nie.aphrody.com";
 
 type Product = {
 	id: string;
@@ -93,9 +93,9 @@ function renderHomepage(products: Product[]): string {
 <title>Inacord — téléchargements</title><meta name="description" content="Téléchargez Inacord Desktop, CLI, MCP et plugins.">
 <meta name="theme-color" content="#071018"><link rel="manifest" href="/manifest.webmanifest">
 <style>*{box-sizing:border-box}body{margin:0;background:#071018;color:#eaf5ff;font:15px/1.45 system-ui,sans-serif}main{width:min(860px,calc(100% - 32px));margin:auto;padding:56px 0 80px}header{display:flex;gap:24px;align-items:center;justify-content:space-between;margin-bottom:36px}h1{font-size:clamp(36px,8vw,68px);line-height:1;margin:0}h2{margin:42px 0 12px}p{color:#a9bdca;margin:.35rem 0}.actions{display:flex;gap:10px;flex-wrap:wrap}a{color:#6fe4ff}a.primary,.download{background:#6fe4ff;color:#041014;text-decoration:none;font-weight:750;border-radius:999px;padding:11px 17px}.ghost{border:1px solid #35505f;border-radius:999px;padding:10px 16px;text-decoration:none}ul{list-style:none;padding:0;margin:0;border-top:1px solid #263d49}li{display:flex;gap:20px;align-items:center;justify-content:space-between;padding:18px 0;border-bottom:1px solid #263d49}small{display:block;color:#78a0b2;margin-top:3px}.download{white-space:nowrap;padding:8px 13px}.unavailable{color:#78909b;font-size:13px}code{background:#10232d;border-radius:6px;padding:2px 6px}section.quick{border:1px solid #263d49;border-radius:16px;padding:20px;margin-top:42px}.quick p{margin:.8rem 0}@media(max-width:620px){main{padding-top:32px}header,li{align-items:flex-start;flex-direction:column}.download{width:100%;text-align:center}}</style></head>
-<body><main><header><div><h1>Inacord</h1><p>Desktop, CLI, MCP, mobile web et plugins — un seul endroit.</p></div><nav class="actions"><a class="primary" href="/app">Ouvrir l’app</a><a class="ghost" href="#quickstart">Docs rapides</a></nav></header>
+<body><main><header><div><h1>Inacord</h1><p>Desktop, CLI, MCP, mobile web et plugins — un seul endroit.</p></div><nav class="actions"><a class="primary" href="/inacord">Ouvrir l’app</a><a class="ghost" href="#quickstart">Docs rapides</a></nav></header>
 <ul>${links}</ul>
-<section class="quick" id="quickstart"><h2>Docs rapides</h2><p><strong>Desktop</strong> — lancez l’installateur Windows. Les mises à jour signées arrivent automatiquement par le canal stable.</p><p><strong>CLI</strong> — extrayez l’archive puis installez avec <code>install -m 0755 niers ~/.local/bin/niers</code>.</p><p><strong>MCP</strong> — placez <code>nie-mcp</code> sur votre <code>PATH</code>, puis configurez-le comme serveur stdio avec la commande <code>nie-mcp</code>.</p><p><strong>Plugins</strong> — importez l’archive Blender ou le plugin agent depuis leur gestionnaire respectif.</p><p><strong>Mobile</strong> — ouvrez <a href="/app">l’app web</a> puis utilisez « Ajouter à l’écran d’accueil ».</p></section>
+<section class="quick" id="quickstart"><h2>Docs rapides</h2><p><strong>Desktop</strong> — lancez l’installateur Windows. Les mises à jour signées arrivent automatiquement par le canal stable.</p><p><strong>CLI</strong> — extrayez l’archive puis installez avec <code>install -m 0755 niers ~/.local/bin/niers</code>.</p><p><strong>MCP</strong> — placez <code>nie-mcp</code> sur votre <code>PATH</code>, puis configurez-le comme serveur stdio avec la commande <code>nie-mcp</code>.</p><p><strong>Plugins</strong> — importez l’archive Blender ou le plugin agent depuis leur gestionnaire respectif.</p><p><strong>Mobile</strong> — ouvrez <a href="/inacord">l’app web</a> puis utilisez « Ajouter à l’écran d’accueil ».</p></section>
 </main></body></html>\n`;
 }
 
@@ -328,7 +328,7 @@ async function main(): Promise<void> {
 			status: "available",
 			version,
 			platform: "Android / iOS browser",
-			url: "/app",
+			url: "/inacord",
 		},
 		{
 			id: "web-workspace",
@@ -338,7 +338,7 @@ async function main(): Promise<void> {
 			status: "available",
 			version,
 			platform: "Modern browser",
-			url: "/app",
+			url: "/inacord",
 		},
 	];
 

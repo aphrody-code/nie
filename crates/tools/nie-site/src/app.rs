@@ -109,6 +109,7 @@ pub const CHEMINS_HORS_GET: &[&str] = &[
     "/api/save/resolve-roster",
     "/api/v1/wiki/compare",
     "/api/v1/wiki/random-team",
+    "/api/v1/game-data/calculate_stats",
 ];
 
 // Le site ne prend **aucune écriture** : ni base, ni disque, ni état. C'est la garantie que la
@@ -348,6 +349,15 @@ declarer_routes! {
     // d'inventaire. Cf. `routes::couverture`.
     "/couverture" => crate::routes::couverture::page,
     "/api/v1/couverture" => crate::routes::couverture::json,
+    // The Tauri desktop host's read-only game-data decoding, shared with the browser build of
+    // Inacord (which talks HTTP, not Tauri IPC). Declared AFTER the routes above for the same
+    // reason as `/api/v1/3d`/`/api/v1/lua`: matchit prefers the literal segments
+    // (`skills`/`calculate_stats`/`decode_cfgbin`) over `{family}` regardless of declaration
+    // order, but the order of reading should say so too. Cf. `routes::game_data`.
+    "/api/v1/game-data/skills/{id}" => crate::routes::game_data::skill,
+    "/api/v1/game-data/calculate_stats" => crate::routes::game_data::calculate_stats_contract,
+    "/api/v1/game-data/decode_cfgbin" => crate::routes::game_data::decode_cfgbin,
+    "/api/v1/game-data/{family}" => crate::routes::game_data::family,
     "/" => crate::routes::pages::coquille,
 }
 
@@ -411,6 +421,10 @@ pub fn routeur(etat: EtatSite) -> Router {
         )
         .route(CHEMINS_HORS_GET[8], post(crate::routes::wiki::compare))
         .route(CHEMINS_HORS_GET[9], post(crate::routes::wiki::random_team))
+        .route(
+            CHEMINS_HORS_GET[10],
+            post(crate::routes::game_data::calculate_stats),
+        )
         // Les deux inspecteurs qui prennent des PIXELS en entrée : `imgmetric::comparer` reçoit
         // deux images RGBA, `planche::mesurer` en reçoit une. Aucune query string ne les porte,
         // et ni l'une ni l'autre n'écrit quoi que ce soit.
@@ -529,6 +543,7 @@ mod tests {
                 "/api/save/resolve-roster",
                 "/api/v1/wiki/compare",
                 "/api/v1/wiki/random-team",
+                "/api/v1/game-data/calculate_stats",
             ],
             "all non-GET routes compute isolated responses without persistent writes"
         );
@@ -545,7 +560,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 130, "130 routes mounted");
+        assert_eq!(routes.len(), 134, "134 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

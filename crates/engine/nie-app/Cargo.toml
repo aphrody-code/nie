@@ -12,17 +12,30 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, default-features = true }
 nie-formats = { workspace = true, features = ["serde"], default-features = true }
 nie-render3d.workspace = true
 nie-core.workspace = true
 nie-data = { workspace = true, features = ["serde", "std"] }
+# `game_data` DTOs derive `specta::Type` so the Tauri (Inacord) and axum (nie-site) surfaces both
+# bind them without a second, hand-written schema.
+specta = { workspace = true, features = ["derive", "serde_json"] }
 # Moteur de match (World : physique ballon, 22 joueurs, buts) pour la FSM interactive `flow::Screen`
 # (relocalisée depuis nie-wasm, Phase 5). Lib seulement (pas les bins ffmpeg) → wasm-compatible.
 nie-runtime.workspace = true
 # `Vec2` traverse l'API du moteur (direction de l'entrée de jeu) : le type doit être nommable ici.
 nie-geom.workspace = true
 bcdec_rs.workspace = true
+
+# `game_data`: the T2B/RDBN → JSON bridge (`nie_explore::bridge`) and the dynamic-path resolution
+# helpers (`nie_explore::game_data`) — both gated behind nie-explore's "host" feature, which pulls
+# in filesystem search and SQLite (native-only, not wasm32-compatible). The `game_data` module of
+# THIS crate mirrors that with `cfg(not(target_arch = "wasm32"))` (same convention as
+# `effectif`/`match3d`/`roster`), and this dependency stays target-scoped so `nie-wasm`
+# (`nie-app.workspace = true` unconditionally) still links for wasm32.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+nie-explore = { workspace = true, default-features = true }
 
 [dev-dependencies]
 # Encodage PNG des exemples (rendu 3D de match) — pas une dependance de la bibliotheque.

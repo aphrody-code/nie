@@ -12,7 +12,7 @@
 // Le rendu d'un item reprend `SpaceItem.tsx` : `rounded-md`, icône 16 px, libellé tronqué,
 // actif = `bg-accent`.
 import { useTheme } from "next-themes";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { NativeToolSurface } from "@niers/inacord-ui/shell/native-tool-surface.tsx";
 
 import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
@@ -20,6 +20,34 @@ import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { JobManagerButton } from "@/components/JobManager";
 import { useT } from "@/lib/i18n";
 import { cn } from "@niers/inacord-ui/lib/utils";
+
+/**
+ * Browser-only: the native builds are one click away from the workspace footer. Under Tauri the
+ * app IS the native build, so the button is not drawn at all.
+ */
+const IS_NATIVE = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+const DownloadModal = lazy(() => import("../../inacord-web/DownloadModal").then((m) => ({ default: m.DownloadModal })));
+
+function DownloadButton() {
+  const [open, setOpen] = useState(false);
+  if (IS_NATIVE) return null;
+  return (
+    <>
+      <CircleButton
+        icon="download"
+        size="sm"
+        title="Télécharger Inacord (Desktop / Mobile)"
+        aria-label="Télécharger Inacord"
+        onClick={() => setOpen(true)}
+      />
+      {open && (
+        <Suspense fallback={null}>
+          <DownloadModal isOpen onClose={() => setOpen(false)} />
+        </Suspense>
+      )}
+    </>
+  );
+}
 
 export interface SidebarSection {
   /** Intitulé du groupe (`GroupHeader.tsx` amont) — `null` pour un groupe sans titre. */
@@ -161,6 +189,7 @@ export function Sidebar({
                 aria-label={t("tab.settings")}
                 onClick={onOpenSettings}
               />
+              <DownloadButton />
             </div>
           </div>
         </nav>

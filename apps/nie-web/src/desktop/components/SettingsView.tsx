@@ -377,7 +377,7 @@ export function SettingsView() {
           <CardTitle>Mises à jour</CardTitle>
           <CardDescription>
             Vérifie, télécharge et installe les nouvelles versions signées d’Inacord depuis le
-            canal stable <code>inacord.aphrody.com</code>. Version actuelle :{" "}
+            canal stable <code>nie.aphrody.com/downloads</code>. Version actuelle :{" "}
             <Badge variant="secondary">v{inacordPackage.version}</Badge>.
           </CardDescription>
         </CardHeader>

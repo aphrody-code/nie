@@ -11,6 +11,7 @@ pub mod entites;
 pub mod episodes;
 pub mod feed;
 pub mod formats;
+pub mod game_data;
 pub mod geometrie;
 pub mod growth;
 pub mod health;

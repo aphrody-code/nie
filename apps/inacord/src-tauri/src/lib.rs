@@ -17,7 +17,10 @@ mod aphrody;
 mod camera_nav;
 mod export;
 mod forge;
-pub mod game_data;
+/// Read-only game-data DTOs — extracted to `nie-app` so the browser build of Inacord (HTTP via
+/// `nie-site`) shares the exact same decoding as this native Tauri host (`CLAUDE.md` § "Extract
+/// before you bind").
+pub use nie_app::game_data;
 mod live_mod;
 mod lua_session;
 mod lua_tools;

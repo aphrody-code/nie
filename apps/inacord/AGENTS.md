@@ -13,7 +13,7 @@
   ```bash
   bunx tsc --noEmit -p tsconfig.desktop.json
   bun run --cwd apps/nie-web build:desktop
-  bun run --cwd apps/nie-web build:inacord-web
+  bun run --cwd apps/nie-web build
   ```
 - **Tauri Desktop Backend (GNU toolchain)**:
   ```bash
