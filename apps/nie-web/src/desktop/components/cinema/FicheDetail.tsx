@@ -35,6 +35,7 @@ import {
 import { empreinte } from "@/lib/serie";
 import type { SourceLecture } from "@/lib/sources";
 import { cn } from "@niers/inacord-ui/lib/utils";
+import { GameText } from "@niers/inacord-ui";
 
 export interface FicheDetailProps {
   element: ElementCinema;
@@ -255,7 +256,7 @@ export function FicheDetail({
           >
             <TabsList variant="line" className="h-8">
               {avecEpisodes && <TabsTrigger value="episodes">Épisodes</TabsTrigger>}
-              <TabsTrigger value="details">Détails</TabsTrigger>
+              <TabsTrigger value="details"><GameText>Détails</GameText></TabsTrigger>
             </TabsList>
 
             {avecEpisodes && (

@@ -60,6 +60,7 @@ import { entryLabel } from "../entries";
 import { agree, Notice, readableSize, ViewTitle } from "./screen-parts";
 import { Modeles3D as Models3D } from "./Models3D";
 import { CatalogAudioBank, CatalogMoviePreview } from "./CatalogMedia";
+import { GameText } from "@niers/inacord-ui";
 
 /**
  * Tailles de page proposées. Le serveur borne à **200** (`config.rs:27`) : proposer davantage
@@ -302,7 +303,7 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 							value={item.view}
 							className="px-4 py-2 font-bold data-[selected]:font-extrabold"
 						>
-							{item.label}
+							<GameText>{item.label}</GameText>
 						</TabsTrigger>
 					))}
 				</TabsList>
@@ -432,7 +433,7 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 			    plafonnés à 200 — vivent dans le dialogue FILTRES, comme dans la Banque du jeu. */}
 			<ExplorerSurface
 				error={error ? <>Ce catalogue n’a pas pu être chargé. <button type="button"
-					onClick={() => setRequestAttempt(value => value + 1)}>Réessayer</button></> : undefined}
+					onClick={() => setRequestAttempt(value => value + 1)}><GameText>Réessayer</GameText></button></> : undefined}
 				status={<PaginationControls currentPage={page} totalPages={pages}
 					baseUrl={window.location.pathname} disabled={!loaded || error}
 					onPageChange={nextPage => setState(current => ({ ...current, page: nextPage }))}

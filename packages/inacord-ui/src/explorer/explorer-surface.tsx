@@ -3,6 +3,7 @@ import type { CSSProperties, KeyboardEventHandler, MouseEventHandler, ReactNode 
 
 import type { ExplorerViewMode } from "./explorer-tabs";
 import "./explorer-surface.css";
+import { GameText } from "../lib/game-text-context";
 
 function joinClassName(...names: Array<string | undefined | false>): string {
   return names.filter(Boolean).join(" ");
@@ -162,7 +163,7 @@ export function ExplorerSidebar({ sections, current, onSelect, footer, ariaLabel
         <div className="inacord-explorer-sidebar__sections">
           {sections.map((section, sectionIndex) => (
             <section className="inacord-explorer-sidebar__section" key={section.label ?? `section-${sectionIndex}`}>
-              {section.label && <h2>{section.label}</h2>}
+              {section.label && <h2><GameText>{section.label}</GameText></h2>}
               {section.items.map((item) => {
                 const active = item.active ?? item.id === current;
                 return (
@@ -177,7 +178,7 @@ export function ExplorerSidebar({ sections, current, onSelect, footer, ariaLabel
                     onAuxClick={item.onAuxClick}
                   >
                     {item.icon != null && <span className="inacord-explorer-sidebar__icon">{item.icon}</span>}
-                    <span>{item.label}</span>
+                    <span><GameText>{item.label}</GameText></span>
                   </button>
                 );
               })}

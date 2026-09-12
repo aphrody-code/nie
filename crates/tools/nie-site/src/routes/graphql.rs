@@ -20,7 +20,9 @@
 //! taille, et offrir deux modèles de pagination pour un seul corpus ferait diverger les deux
 //! surfaces à la première évolution.
 
-use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, SimpleObject};
+use async_graphql::{
+    Context, EmptyMutation, EmptySubscription, InputObject, Object, Schema, SimpleObject,
+};
 use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response};
 
@@ -47,6 +49,32 @@ pub struct TextLine {
     pub hash: String,
     /// Le texte, nettoyé (furigana, balises, échappements) par `nie_data::text`.
     pub text: String,
+}
+
+/// La référence sous laquelle le jeu adresse une ligne : sa famille et son hash.
+///
+/// C'est exactement ce que porte `packages/inacord-ui/src/lib/ui-text-map.ts`, mesuré ligne par ligne
+/// sur la route REST. Un écran en cite une centaine ; les envoyer ensemble est la raison d'être
+/// de [`Query::texts`].
+#[derive(InputObject)]
+pub struct TextRef {
+    /// Nom de la famille, tel que `/api/v1/text` la nomme.
+    pub family: String,
+    /// Le hash, décimal ou `0x`-hexadécimal — la même écriture que la route REST accepte.
+    pub hash: String,
+}
+
+/// Ce qu'une référence a résolu.
+#[derive(SimpleObject)]
+pub struct ResolvedText {
+    /// La famille demandée, recopiée pour que l'appelant réassocie sans compter sur l'ordre.
+    pub family: String,
+    /// Le hash demandé, normalisé en `0x`-hexadécimal.
+    pub hash: String,
+    /// Les textes que ce hash porte dans cette famille. **Vide** quand le couple n'existe pas,
+    /// et de longueur > 1 quand plusieurs lignes partagent le hash : l'ambiguïté est rendue
+    /// intacte plutôt que tranchée au hasard, comme sur la route REST.
+    pub texts: Vec<String>,
 }
 
 /// La racine de lecture.
@@ -109,6 +137,72 @@ impl Query {
             .collect())
     }
 
+    /// Résout un LOT de références `(famille, hash)` en une seule requête.
+    ///
+    /// C'est la raison d'être de cette surface. L'interface du site porte une carte de 120
+    /// libellés vers leur ligne du jeu (`packages/inacord-ui/src/lib/ui-text-map.ts`) ; les résoudre
+    /// une par une sur `/api/v1/text/{language}/{family}/{hash}` coûterait 120 allers-retours
+    /// pour afficher un écran. Ici, une requête — et le décodage d'une famille est fait une
+    /// seule fois même si vingt références la citent.
+    ///
+    /// Une référence dont le couple n'existe pas rend `texts: []` plutôt qu'une erreur : un
+    /// libellé absent d'une langue ne doit pas faire échouer les 119 autres.
+    async fn texts(
+        &self,
+        ctx: &Context<'_>,
+        language: String,
+        refs: Vec<TextRef>,
+    ) -> async_graphql::Result<Vec<ResolvedText>> {
+        if refs.len() > MAX_REFS {
+            return Err(async_graphql::Error::new(format!(
+                "{} références demandées, {MAX_REFS} au plus",
+                refs.len()
+            )));
+        }
+        let state = ctx.data_unchecked::<EtatSite>().clone();
+        let survey = super::text::survey(&state).await.map_err(erreur)?;
+
+        // Les références, regroupées par famille : une famille se décode une fois, quel que
+        // soit le nombre de références qui la citent.
+        let mut par_famille: std::collections::BTreeMap<&str, Vec<u32>> =
+            std::collections::BTreeMap::new();
+        let mut demandes = Vec::with_capacity(refs.len());
+        for reference in &refs {
+            let hash = super::text::parse_hash(&reference.hash).map_err(erreur)?;
+            par_famille
+                .entry(reference.family.as_str())
+                .or_default()
+                .push(hash);
+            demandes.push((reference.family.as_str(), hash));
+        }
+
+        let mut lignes: std::collections::HashMap<(&str, u32), Vec<String>> =
+            std::collections::HashMap::new();
+        for famille in par_famille.keys().copied() {
+            // Une famille que cette langue ne livre pas laisse ses références vides ; c'est un
+            // fait mesurable sur le corpus, pas une panne.
+            let Ok(paths) = super::text::resolve(survey, &language, famille) else {
+                continue;
+            };
+            let chargees = super::text::load(&state, paths).await.map_err(erreur)?;
+            for ligne in chargees {
+                lignes
+                    .entry((famille, ligne.hash))
+                    .or_default()
+                    .push(ligne.text.clone());
+            }
+        }
+
+        Ok(demandes
+            .into_iter()
+            .map(|(famille, hash)| ResolvedText {
+                family: famille.to_owned(),
+                hash: format!("0x{hash:08x}"),
+                texts: lignes.get(&(famille, hash)).cloned().unwrap_or_default(),
+            })
+            .collect())
+    }
+
     /// Les lignes d'une famille dans une langue, bornées.
     ///
     /// `limit` est plafonné : une famille en compte jusqu'à 187 218 (`chara_text`), et rendre un
@@ -154,6 +248,12 @@ impl Query {
 /// suffirait à faire rendre tout le corpus.
 const MAX_LINES: i32 = 500;
 
+/// Plafond de références résolues en une requête.
+///
+/// Mesuré sur le besoin réel : la carte de l'interface en compte 120. Le plafond laisse la
+/// marge d'un écran entier sans permettre de se servir de cette route comme d'un export.
+const MAX_REFS: usize = 512;
+
 /// Traduit une erreur du service en erreur GraphQL, en gardant son message.
 fn erreur(source: ErreurSite) -> async_graphql::Error {
     async_graphql::Error::new(source.to_string())
@@ -189,7 +289,10 @@ pub async fn playground() -> Response {
   languages
   families(language: "fr") { family lines }
   lines(language: "fr", family: "menu_text", limit: 5) { hash text }
+  texts(language: "fr", refs: [{family: "menu_text", hash: "0x8ace28fb"}]) { hash texts }
 }</pre>
+<p>C\'est <code>texts</code> qui justifie cette route : il resout jusqu\'a 512 references
+<code>(famille, hash)</code> en un aller-retour, la ou le REST en demanderait autant.</p>
 <p>Le même corpus est servi en JSON et en texte brut sur <code>/api/v1/text</code>.</p>
 </body></html>"#,
     )
@@ -211,9 +314,28 @@ mod tests {
             !sdl.contains("type Mutation"),
             "aucune mutation ne doit être déclarée : ce service est en lecture seule"
         );
-        for champ in ["languages", "families", "lines"] {
+        for champ in ["languages", "families", "lines", "texts"] {
             assert!(sdl.contains(champ), "{champ} doit être exposé");
         }
+    }
+
+    /// Le lot déclare son plafond, et le schéma décrit bien une entrée structurée.
+    #[test]
+    fn le_lot_est_borne_et_prend_des_references_structurees() {
+        let sdl = Schema::build(Query, EmptyMutation, EmptySubscription)
+            .finish()
+            .sdl();
+        assert!(sdl.contains("input TextRef"), "la référence est une entrée typée");
+        assert!(
+            sdl.contains("type ResolvedText"),
+            "le résultat nomme la famille et le hash qu'il résout"
+        );
+        // Le plafond n'est pas une décoration : il doit laisser passer un écran entier
+        // (120 libellés mesurés) sans permettre de se servir de la route comme d'un export.
+        // Vérifié à la COMPILATION : baisser la constante sous le besoin réel ne doit pas
+        // attendre qu'un test tourne.
+        const { assert!(MAX_REFS >= 120, "un écran entier doit tenir dans une requête") };
+        const { assert!(MAX_REFS < 5_000, "le lot ne doit pas devenir un export") };
     }
 
     /// Le plafond de lignes est réel, et il borne aussi une demande absurde.

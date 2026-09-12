@@ -26,6 +26,7 @@ import { InacordWorkspace, type WorkspaceId } from "../avatar/InacordWorkspace";
 import { NativeText } from "./NativeText";
 import "@niers/inacord-ui/avatar/avatar-editor.css";
 import "./avatar-studio.css";
+import { GameText } from "@niers/inacord-ui";
 
 const STAGES = ["style", "body", "hair", "clothes", "stats", "name"] as const;
 type Stage = typeof STAGES[number];
@@ -172,11 +173,11 @@ export function Avatar({ onBack, gamepadSampler }: { onBack: () => void; gamepad
 	if (!catalog || !scenes || error) {
 		return (
 			<section aria-label="Éditeur d’avatar" className="avatar-resource-state">
-				<header><button type="button" onClick={back} aria-label="Retour au menu">Retour</button></header>
+				<header><button type="button" onClick={back} aria-label="Retour au menu"><GameText>Retour</GameText></button></header>
 				{error ? (
 					<p role="alert">
 						Les ressources de l’avatar n’ont pas pu être chargées.{" "}
-						<button type="button" onClick={() => setAttempt(v => v + 1)}>Réessayer</button>
+						<button type="button" onClick={() => setAttempt(v => v + 1)}><GameText>Réessayer</GameText></button>
 					</p>
 				) : (
 					<p role="status">Chargement de l’avatar…</p>

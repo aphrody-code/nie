@@ -192,6 +192,26 @@ export {
 	type ThemeMode,
 } from "./lib/settings";
 export {
+	applyTransform,
+	findUiText,
+	UI_TEXT_MAP,
+	UI_TEXT_NOT_FOUND,
+	UI_TEXT_VARIANTS,
+	type UiTextEntry,
+	type UiTextMiss,
+	type UiTextVariant,
+} from "./lib/ui-text-map";
+export {
+	fetchGameText,
+	gameText,
+	type GameTextRef,
+	type GameTextResolver,
+	mappedRefs,
+	refKey,
+	useGameTextCatalogue,
+} from "./lib/game-text";
+export { GameText, GameTextProvider, useGameText } from "./lib/game-text-context";
+export {
 	type NativeTextMatches,
 	type NativeTextOccurrence,
 	type NativeTextResolver,

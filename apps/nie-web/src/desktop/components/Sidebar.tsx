@@ -23,6 +23,7 @@ import { setSettings } from "@niers/inacord-ui/lib/settings";
 import { DOWNLOADS } from "../../entries";
 import { NATIVE_WINDOW } from "../../host";
 import { cn } from "@niers/inacord-ui/lib/utils";
+import { GameText } from "@niers/inacord-ui";
 
 /**
  * Browser-only: the native builds are one click away from the footer. Under Tauri the app IS the
@@ -110,7 +111,7 @@ export function Sidebar({
                 {section.label && (
                   <div className="mb-1 flex items-center px-1.5">
                     <span className="text-tiny font-semibold uppercase tracking-wide text-sidebar-ink-faint">
-                      {section.label}
+                      <GameText>{section.label}</GameText>
                     </span>
                   </div>
                 )}
@@ -141,7 +142,7 @@ export function Sidebar({
                       <span className={cn("shrink-0", !active && item.iconClassName)}>
                         <Icon name={item.icon} size={16} />
                       </span>
-                      <span className="flex-1 truncate text-left">{item.label}</span>
+                      <span className="flex-1 truncate text-left"><GameText>{item.label}</GameText></span>
                     </button>
                   );
                 })}

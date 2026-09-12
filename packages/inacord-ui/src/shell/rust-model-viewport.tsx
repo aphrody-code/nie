@@ -1,5 +1,6 @@
 /** Browser lifecycle and input binding for the shared Rust renderer. */
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { GameText } from "../lib/game-text-context";
 
 export interface RustModelViewer {
 	load_glb(bytes: Uint8Array): void;
@@ -167,6 +168,6 @@ export function RustModelViewport({
 			onWheel={event => { camera.current.distance = Math.max(1.2, Math.min(10, camera.current.distance * Math.exp(event.deltaY * 0.001))); needsRender.current = true; }}
 			onKeyDown={event => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { orbit(event.key === "ArrowLeft" ? -5 : 5, 0); event.preventDefault(); event.stopPropagation(); } }} />
 		{loading ? loadingFallback : null}
-		{error ? (renderError?.(error, () => setAttempt(value => value + 1)) ?? <div role="alert" style={{ position: "absolute", bottom: 16, left: 16 }}>Le modèle n’a pas pu être affiché. <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div>) : null}
+		{error ? (renderError?.(error, () => setAttempt(value => value + 1)) ?? <div role="alert" style={{ position: "absolute", bottom: 16, left: 16 }}>Le modèle n’a pas pu être affiché. <button type="button" onClick={() => setAttempt(value => value + 1)}><GameText>Réessayer</GameText></button></div>) : null}
 	</div>;
 }

@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Alert, AlertDescription, AlertTitle } from "@niers/inacord-ui/components/ui/alert";
 import { RenameInput } from "@niers/inacord-ui/components/ui/rename-input";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
+import { GameText } from "@niers/inacord-ui";
 
 export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void }) {
   const settings = useSettings();
@@ -173,11 +174,11 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
             </DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label>Nom</Label>
+                <Label><GameText>Nom</GameText></Label>
                 <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Description</Label>
+                <Label><GameText>Description</GameText></Label>
                 <Textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
               </div>
             </div>

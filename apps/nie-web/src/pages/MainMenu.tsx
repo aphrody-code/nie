@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
 import "./main-menu.css";
+import { GameText } from "@niers/inacord-ui";
 
 export interface MainMenuAction {
 	id: string;
@@ -108,7 +109,7 @@ export function MainMenu(props: MainMenuProps) {
 	if (!scene) return (
 		<section className="runtime-main-menu" aria-label="Menu principal" aria-busy={!failed}>
 			{failed ? <p role="alert">Le menu est indisponible.</p> : null}
-			{props.onCancel ? <button type="button" onClick={props.onCancel}>Retour</button> : null}
+			{props.onCancel ? <button type="button" onClick={props.onCancel}><GameText>Retour</GameText></button> : null}
 		</section>
 	);
 	return <ObservedMainMenu scene={scene} {...props} />;

@@ -25,6 +25,7 @@ import { type SanteApi, sante } from "@niers/asset-source/nie-site";
 import {
 	AssetSourceProvider,
 	FournisseurNavigation,
+	GameTextProvider,
 	useApplySettings,
 	useCapacites,
 	useErreurSource,
@@ -71,9 +72,24 @@ export function App({ source }: { source?: AssetSource } = {}) {
 	const resolved = useMemo(() => source ?? creerWebSource(), [source]);
 	return (
 		<AssetSourceProvider source={resolved}>
-			<Site />
+			<TexteDuJeu>
+				<Site />
+			</TexteDuJeu>
 		</AssetSourceProvider>
 	);
+}
+
+/**
+ * Charge, une fois, la ligne du jeu de chaque libellé que le jeu écrit lui aussi.
+ *
+ * Ici et pas dans `Site` parce que le catalogue doit survivre aux changements d'écran : une
+ * requête par navigation ferait clignoter les libellés à chaque aller-retour. Le lot entier tient
+ * dans UNE requête GraphQL (`packages/inacord-ui/src/lib/game-text.ts`), et tant qu'elle n'a pas
+ * répondu chaque composant affiche le texte écrit dans son code — donc rien n'attend le réseau.
+ */
+function TexteDuJeu({ children }: { children: ReactNode }) {
+	const { gameLocale } = useSettings();
+	return <GameTextProvider locale={gameLocale}>{children}</GameTextProvider>;
 }
 
 /** One current route and opening state; returning from a tool resumes its main menu. */

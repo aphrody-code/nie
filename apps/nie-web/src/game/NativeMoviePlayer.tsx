@@ -2,6 +2,7 @@ import { useAssetSource } from "@niers/inacord-ui";
 import { playMediaPair, synchronizeMediaClock } from "@niers/inacord-ui/lib/media-sync";
 import { useEffect, useRef, useState } from "react";
 import { acquireOpeningMedia } from "./opening-media";
+import { GameText } from "@niers/inacord-ui";
 
 /** Native movie host shared by opening playback and demand-activated media inspection. */
 export function NativeMoviePlayer({ path, onReady, onEnded, presentation = "opening" }: {
@@ -135,8 +136,8 @@ export function NativeMoviePlayer({ path, onReady, onEnded, presentation = "open
 			style={presentation === "preview" ? { width: "100%", aspectRatio: "16/9", objectFit: "contain" } : undefined} />
 			<audio ref={soundtrack} src={current.audio} preload="auto" /></> : failed ?
 			<div role="alert">La vidéo ou sa bande-son n’est pas disponible. <button type="button"
-				onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div> : null}
+				onClick={() => setAttempt(value => value + 1)}><GameText>Réessayer</GameText></button></div> : null}
 		{presentation === "preview" && paused && !failed ? <button type="button" onClick={() => play.current()}>Lecture</button> : null}
-		{presentation === "preview" && current && !paused && !failed ? <button type="button" onClick={() => pausePlayback.current()}>Pause</button> : null}
+		{presentation === "preview" && current && !paused && !failed ? <button type="button" onClick={() => pausePlayback.current()}><GameText>Pause</GameText></button> : null}
 	</div>;
 }

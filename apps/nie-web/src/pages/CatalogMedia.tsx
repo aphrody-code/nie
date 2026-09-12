@@ -11,6 +11,7 @@ import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-c
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NativeResources, type NativeAudioBank, type NativeVideoMetadata } from "../game/native-resources";
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
+import { GameText } from "@niers/inacord-ui";
 
 /** One selected ACB and one explicitly selected named cue; never an arbitrary bank waveform. */
 export function CatalogAudioBank({ path, onClose }: { path: string; onClose: () => void }) {
@@ -58,9 +59,9 @@ export function CatalogAudioBank({ path, onClose }: { path: string; onClose: () 
 		role="region"
 		watermark={GLYPHES.onde}
 		header={bank ? <GameCountBadge count={bank.cues.length} icon={GLYPHES.onde} unit="cue" /> : null}
-		footer={<GameKeyHint keyLabel="Échap" onActivate={onClose}>Fermer</GameKeyHint>}
+		footer={<GameKeyHint keyLabel="Échap" onActivate={onClose}><GameText>Fermer</GameText></GameKeyHint>}
 	>
-		{failed ? <p role="alert">Cette banque est indisponible. <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></p>
+		{failed ? <p role="alert">Cette banque est indisponible. <button type="button" onClick={() => setAttempt(value => value + 1)}><GameText>Réessayer</GameText></button></p>
 			: !bank ? <p>Lecture du catalogue ACB…</p> : <>
 				<p>{path}</p>
 				<ul>{bank.cues.slice((page - 1) * 80, page * 80).map((cue, index) => <li key={`${cue.name}-${index}`}>
@@ -101,12 +102,12 @@ export function CatalogMoviePreview({ path }: { path: string }) {
 	}, [source, path, inspect, attempt]);
 	if (!inspect) return <button type="button" onClick={() => setInspect(true)}>Inspecter la vidéo</button>;
 	return <div>
-		{failed ? <p role="alert">Cette vidéo ne peut pas être inspectée. <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></p>
+		{failed ? <p role="alert">Cette vidéo ne peut pas être inspectée. <button type="button" onClick={() => setAttempt(value => value + 1)}><GameText>Réessayer</GameText></button></p>
 			: !metadata ? <p>Lecture des pistes…</p> : <>
 				<p>{metadata.video.codec} · {metadata.audioTracks.length} piste(s) audio</p>
 				{metadata.audioTracks.map(track => <p key={track.channel}>Canal {track.channel} · {track.codec} · {track.channels} canaux · {track.sampleRate} Hz</p>)}
 				{playing ? <><NativeMoviePlayer path={path} presentation="preview" onEnded={() => setPlaying(false)} />
-					<button type="button" onClick={() => setPlaying(false)}>Arrêter</button></>
+					<button type="button" onClick={() => setPlaying(false)}><GameText>Arrêter</GameText></button></>
 					: source.urlVideo && source.urlVideoAudio ? <button type="button" onClick={() => setPlaying(true)}>Lire avec bande-son</button>
 						: <p>La lecture avec bande-son n’est pas disponible sur cet hôte.</p>}
 			</>}

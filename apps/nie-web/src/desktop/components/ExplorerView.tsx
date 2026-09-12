@@ -41,6 +41,7 @@ import { DetailPane, type DetailTarget } from "@/components/DetailPane";
 import { PropertyEditor } from "@/components/PropertyEditor";
 import { SelectionBar } from "@/components/SelectionBar";
 import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
+import { GameText } from "@niers/inacord-ui";
 
 type SortKey = "name" | "size";
 
@@ -810,7 +811,7 @@ export function ExplorerView({
                 }
               />
               <PopoverContent className="w-56">
-                <p className="px-1 pb-1 type-label-small text-on-surface-variant">Affichage</p>
+                <p className="px-1 pb-1 type-label-small text-on-surface-variant"><GameText>Affichage</GameText></p>
                 {/* Vue Liste/Grille — ToggleGroup porté de `spaceui/primitives/ToggleGroup.tsx`
                  * (spacedrive), cf. components/ui/toggle-group.tsx. */}
                 <ToggleGroup

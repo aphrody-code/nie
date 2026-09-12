@@ -8,6 +8,7 @@ import { Badge } from "@niers/inacord-ui/components/ui/badge";
 import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@niers/inacord-ui/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@niers/inacord-ui/components/ui/alert";
+import { GameText } from "@niers/inacord-ui";
 
 function formatPlaytime(secs: number | null): string {
   if (secs == null) return "?";
@@ -119,7 +120,7 @@ export function SaveView() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2 type-body-medium sm:grid-cols-3">
               <div>
-                <div className="type-label-small text-on-surface-variant">Joueur</div>
+                <div className="type-label-small text-on-surface-variant"><GameText>Joueur</GameText></div>
                 <div className="text-on-surface">{summary.player_name || "?"}</div>
               </div>
               <div>

@@ -11,6 +11,7 @@ import type { Settings } from "../../lib/settings";
 import type { NativeMenuScene } from "../../shell/native-title-menu";
 import { NativeSettingsSurface } from "./NativeSettingsSurface";
 import { GameCursor } from "../game/GameCursor";
+import { GameText } from "../../lib/game-text-context";
 import { cycleValue, formatValue, type SettingDefinition, type SettingId } from "./settings-model";
 
 export function SettingRow<K extends SettingId>({
@@ -61,7 +62,9 @@ export function SettingRow<K extends SettingId>({
 				<span style={{ display: "inline-flex", width: 36, justifyContent: "center" }}>
 					{focused ? <GameCursor /> : null}
 				</span>
-				<span>{def.label}</span>
+				<span>
+					<GameText>{def.label}</GameText>
+				</span>
 			</button>
 			<div className="game-setting-row__value">
 				{cyclable ? (
@@ -85,7 +88,9 @@ export function SettingRow<K extends SettingId>({
 						style={{ font: "inherit", color: "inherit", background: "transparent", border: 0 }}
 					/>
 				) : (
-					<span className="game-setting-row__text">{formatValue(def, value)}</span>
+					<span className="game-setting-row__text">
+						<GameText>{formatValue(def, value)}</GameText>
+					</span>
 				)}
 				{cyclable ? (
 					<button
@@ -137,7 +142,9 @@ export function SettingChoiceList<K extends SettingId>({
 						onClick={() => onChange(option.value)}
 						style={{ border: 0, font: "inherit", cursor: "pointer", padding: 0 }}
 					>
-						<span className="game-setting-row__label">{option.label}</span>
+						<span className="game-setting-row__label">
+							<GameText>{option.label}</GameText>
+						</span>
 						<span className="game-setting-row__value">{selected ? "●" : ""}</span>
 					</button>
 				);

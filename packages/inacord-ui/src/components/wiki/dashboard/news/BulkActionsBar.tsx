@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../../components/ui/alert-dialog";
 import { Button } from "../../../../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
+import { GameText } from "../../../../lib/game-text-context";
 
 interface BulkActionsBarProps {
 	selectedCount: number;
@@ -87,7 +88,7 @@ export function BulkActionsBar({
 						<SelectContent>
 							<SelectItem value="announcement">Annonce</SelectItem>
 							<SelectItem value="event">Événement</SelectItem>
-							<SelectItem value="critique">Critique</SelectItem>
+							<SelectItem value="critique"><GameText>Critique</GameText></SelectItem>
 							<SelectItem value="community">Communauté</SelectItem>
 						</SelectContent>
 					</Select>
@@ -157,7 +158,7 @@ export function BulkActionsBar({
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
+						<AlertDialogCancel className="rounded-full"><GameText>Annuler</GameText></AlertDialogCancel>
 						<AlertDialogAction
 							onClick={() => handleAction("delete")}
 							className="rounded-full bg-red-600 hover:bg-red-700 text-white"

@@ -9,6 +9,7 @@ import {
 	TrendingUp,
 	Users,
 } from "lucide-react";
+import { GameText } from "../../../lib/game-text-context";
 
 export interface SkillDetailRecipeCost {
 	name: string;
@@ -129,7 +130,7 @@ export function SkillDetailInfo({
 				<div className="border-t border-outline-variant/20 pt-3 mt-3 mb-2">
 					<div className="flex items-center gap-1.5 mb-2">
 						<Sparkles size={16} className="text-tertiary" aria-hidden="true" />
-						<span className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">Effets</span>
+						<span className="text-xs font-bold text-on-surface-variant uppercase tracking-wide"><GameText>Effets</GameText></span>
 					</div>
 					<ul className="list-disc list-inside text-sm space-y-1">
 						{effects.map((effect, index) => (

@@ -14,6 +14,7 @@ import { Badge } from "@niers/inacord-ui/components/ui/badge";
 import { Input } from "@niers/inacord-ui/components/ui/input";
 import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
+import { GameText } from "@niers/inacord-ui";
 
 type Onglet = "butin" | "capsules";
 
@@ -106,7 +107,7 @@ export function ProbabilitesPanel() {
             ) : (
               <tr>
                 <th className="px-3 py-2 text-left">Table</th>
-                <th className="px-3 py-2 text-right">Rang</th>
+                <th className="px-3 py-2 text-right"><GameText>Rang</GameText></th>
                 <th className="px-3 py-2 text-right">Taux brut</th>
                 <th className="px-3 py-2 text-right">Chance</th>
                 <th className="px-3 py-2 text-right">50 % en</th>

@@ -18,6 +18,7 @@ import { Badge } from "@niers/inacord-ui/components/ui/badge";
 import { Input } from "@niers/inacord-ui/components/ui/input";
 import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@niers/inacord-ui/components/ui/select";
+import { GameText } from "@niers/inacord-ui";
 
 /** `rarityCode` → libellé FR (cf. doc Rust `game_data::calculate_character_stats`). */
 export const RARITY_LABELS: [number, string][] = [
@@ -117,7 +118,7 @@ export function StatCalculator() {
                 />
               </div>
               <div className="space-y-1.5">
-                <span className="type-label-small text-on-surface-variant">Rareté</span>
+                <span className="type-label-small text-on-surface-variant"><GameText>Rareté</GameText></span>
                 <Select value={String(rarity)} onValueChange={(v) => v && setRarity(Number(v))}>
                   <SelectTrigger className="w-32">
                     <SelectValue />

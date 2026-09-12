@@ -27,6 +27,7 @@ import {
   type Profil,
 } from "@/lib/profils";
 import { cn } from "@niers/inacord-ui/lib/utils";
+import { GameText } from "@niers/inacord-ui";
 
 /** L'avatar seul — réemployé par la barre de la vue Cinéma, en petit. */
 export function AvatarProfil({
@@ -250,7 +251,7 @@ function EditeurProfil({
       </div>
 
       <div className="mt-6">
-        <div className="text-tiny uppercase tracking-wider text-ink-faint">Couleur</div>
+        <div className="text-tiny uppercase tracking-wider text-ink-faint"><GameText>Couleur</GameText></div>
         <div className="mt-2 flex flex-wrap gap-2">
           {PALETTE.map((p, i) => (
             <button
