@@ -306,3 +306,10 @@ inherits = "release"
 lto = "fat"
 panic = "abort"
 strip = "symbols"
+
+# `lua-src` compiles Lua as C++ with exceptions on emscripten, which makes every Lua error a
+# foreign exception that Rust aborts on in the browser (cf. crates/engine/nie-lua-web/README.md).
+# The vendored copy differs by one branch: on that target Lua is compiled as C, so its errors
+# travel by longjmp again. Every other target is untouched.
+[patch.crates-io]
+lua-src = { path = "vendor/lua-src" }

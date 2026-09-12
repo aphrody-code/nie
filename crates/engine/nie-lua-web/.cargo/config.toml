@@ -15,6 +15,8 @@ rustflags = [
     "-C", "link-arg=-sSIDE_MODULE=0",
     "-C", "link-arg=-sSTANDALONE_WASM=1",
     "-C", "link-arg=-Wl,--no-entry",
-    "-C", "link-arg=-lc++abi",
-    "-C", "link-arg=-lc++",
+    # Lua est compilé en C (vendor/lua-src patché) : ses erreurs voyagent par longjmp, et c'est
+    # cette implémentation-là qu'il faut lier. rustc active `-fwasm-exceptions` sur cette cible, donc
+    # c'est le longjmp SUR exceptions wasm, pas le repli JS, que le lien accepte.
+    "-C", "link-arg=-sSUPPORT_LONGJMP=wasm",
 ]

@@ -107,51 +107,16 @@ blocker named when there is one. Regenerate it; do not quote it.
 2. A layout whose visibility is unresolved cannot be composed honestly: drawing it whole stacks
    every mutually exclusive panel (78 objects for the Bank where the game shows a fraction).
    `LayoutCanvas` therefore draws only what the data establishes.
-3. The Lua replay runs on the server, and the page now CARRIES the VM but cannot finish a
-   replay. `crates/engine/nie-lua-web` (the real 5.2.4 VM for `wasm32-unknown-emscripten`) is
-   shipped at `/static/game/nie_lua_web.wasm` and driven by `game/lua-runtime.ts`: the module
-   loads, the script catalogue answers, the game's own `.lua.bin` are fetched — and the replay
-   dies on Lua's first error path with `fatal runtime error: Rust cannot catch foreign
-   exceptions, aborting`. The cause is the LINK, not the driver: the artifact was produced
-   without emscripten's JS-side C++ exception support, so Lua's `longjmp` surfaces as a JS
-   exception Rust cannot catch. Relinking with `-fwasm-exceptions` and
-   `-sSUPPORT_LONGJMP=wasm` was tried and **does not fix it** — measured: the rebuilt artifact is
-   byte-for-byte the same size (870,512) and still imports the `invoke_*` JS trampolines, because
-   the vendored Lua C sources are compiled by `lua-src`'s `cc::Build`, which ignores
-   `CFLAGS_wasm32_unknown_emscripten` (the same wall this crate already documents for `-fPIC`).
-   That explanation was then RULED OUT: `cargo clean -p mlua-sys` followed by
-   55 s of real C recompilation with `CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions`
-   produced the same 870,512 bytes and the same five `invoke_*`. A forced recompilation that
-   changes nothing means the trampolines come from the RUST side — `rustc` emits the
-   JS-trampoline exception path on this target, and `mlua` propagates Lua errors through Rust
-   unwinding. Three real rebuilds — link flags, forced C recompilation, and
-   `-C target-feature=+exception-handling` on the nightly installed here — each produced a
-   BYTE-IDENTICAL 870,512-byte artifact with the same five `invoke_*`. Flags do not reach code
-   generation on this target. `-Z emscripten-wasm-eh` does not exist in that nightly either.
-   The `emcc` link line was then read (`cargo build -v`): the crate's five link args do reach
-   rustc, so the configuration is applied. The lever that finally moves the artifact is
-   `-Z build-std` — rebuilding the standard library, whose prebuilt form carries the
-   JS-exception ABI: with `-Z build-std=std,panic_abort` the module drops to 867,669 bytes and
-   stops reporting a foreign exception; run end to end against the live VFS it now TRAPS instead,
-   on a Rust panic inside `nie_lua_web_replay`. That message was read, and it is not a panic:
-   `Rust cannot catch foreign exceptions, aborting`. The chain is now established — 
-   `-fwasm-exceptions` IS active (asking for JS `longjmp` makes emcc refuse:
-   "SUPPORT_LONGJMP=emscripten is not compatible with -fwasm-exceptions"), Lua unwinds through
-   it, `mlua` wraps its calls in `catch_unwind`, and Rust's std on this target uses the
-   emscripten JS exception ABI, so the catch meets a foreign exception and aborts by design.
-   Switching rustc to wasm EH needs `-Z emscripten-wasm-eh`, absent from the nightly installed
-   here (`-Z help` lists exactly one wasm option, `wasm-c-abi`). The newer-nightly way out was tried and fails: updated to
-   `1.100.0-nightly` (2026-09-11), `-Z help` still has no exception switch, and the rebuilt
-   artifact (875,952 bytes) keeps its five `invoke_*` and still traps. ONE way out remains, and it is located to the line:
-   `lua-src-550.0.0/src/lib.rs` compiles Lua as C++ with `-fexceptions` on emscripten
-   (`.cpp(true).flag("-fexceptions")`, plus a copy of every source into `cpp_source/` with the
-   headers wrapped in `extern "C"`). That is where `LUAI_THROW` becomes a C++ `throw`. Compiling
-   it as C instead — so the throw is a `longjmp` — is a ~35-line fork of a third-party build
-   script plus a `longjmp` mode. Not done here on purpose: mlua chose C++ exceptions for this
-   target deliberately, the fork's maintenance would be inherited, and whether mlua's own error
-   propagation survives `longjmp` is not something this repository can assert. A product
-   decision with a known shape, not a missing measurement. Until then the driver returns an empty table and the screens fall back on the server's
-   resolution.
+3. The Lua replay ran on the server only. **The page now runs it too** — the abort is fixed.
+   `vendor/lua-src` (wired through `[patch.crates-io]`) compiles Lua as C on emscripten instead
+   of C++ with exceptions, with `-sSUPPORT_LONGJMP=wasm` matching the link, and the flag lives in
+   the build script because `CFLAGS_*` is not part of cargo's fingerprint. The artifact drops to
+   870,393 bytes with **zero `invoke_*`**, and the VM instantiates, loads the screen's four real
+   scripts and runs the replay. What blocks it now is ordinary: the game's `.lua.bin` are
+   precompiled for a 64-bit Lua and the wasm VM is 32-bit, so it answers
+   `incompatible precompiled chunk`. Lua 5.2 bytecode embeds the sizes of `int`, `size_t` and
+   `lua_Number` in its header; transcoding them is a decoding job this repository already owns
+   (`nie_lua::bytecode`, byte-exact, used by `mode_index.rs`).
 
 **Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no
 `packages/azalee*`, and three inert mentions left in shared code — a team-name string, role

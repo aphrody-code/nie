@@ -132,10 +132,34 @@ Rust aborts on. Compiling Lua as C instead (so `LUAI_THROW` is `longjmp`) means 
 third-party build script**, and then choosing a `longjmp` mode (`-sSUPPORT_LONGJMP=emscripten`
 or `=wasm`).
 
-It is not done here, deliberately: `mlua` chose C++ exceptions for this target on purpose, this
-repository would inherit the fork's maintenance, and whether mlua's own error propagation still
-holds under `longjmp` is not something this crate can assert. It is a product decision with a
-known, three-line shape — not a missing measurement. Until it is resolved the browser driver
+**It is done, and it works.** `vendor/lua-src` is that fork, wired through `[patch.crates-io]` in
+the workspace manifest, and it differs from upstream in one branch: on emscripten Lua is compiled
+as C (no `.cpp(true)`, no `-fexceptions`, no `cpp_source` copy) with
+`-sSUPPORT_LONGJMP=wasm`, which must match the link — rustc enables `-fwasm-exceptions` on this
+target, so the JS `longjmp` is refused outright by emcc.
+
+The flag belongs in the build script, not in the environment: `CFLAGS_wasm32_unknown_emscripten`
+is not part of cargo's fingerprint, so setting it outside recompiles nothing (measured twice —
+same `ldo.o`, same hash).
+
+Measured result: the artifact drops to **870,393 bytes with ZERO `invoke_*`** — the JS exception
+trampolines are gone — and driven end to end against the live VFS the VM now instantiates, loads
+the screen's four real scripts and RUNS the replay instead of aborting.
+
+### What blocks it now, and it is an ordinary problem
+
+```text
+erreur VM Lua : syntax error: chara_bank_menu_6.00.09.00.lua.bin: incompatible precompiled chunk
+```
+
+Lua 5.2 bytecode embeds the sizes of `int`, `size_t` and `lua_Number` in its header. The game's
+`.lua.bin` were precompiled for a 64-bit build; the wasm VM is 32-bit, so it refuses them. That
+is why the same files replay on the server and not in the page.
+
+The way through is already in this repository: `nie_lua::bytecode` is a pure-Rust, byte-exact
+Lua 5.2 codec (it is what `mode_index.rs` uses). Transcoding a chunk's header and its embedded
+sizes from the 64-bit to the 32-bit layout before `loadbuffer` is the next step — and it is a
+decoding job this repository already knows how to do, not a toolchain fight. Until it is resolved the browser driver
 (`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back on the
 server's resolution.
 
