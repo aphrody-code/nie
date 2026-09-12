@@ -80,9 +80,16 @@ So "one module" is not one commit away, and it is not blocked by the interpreter
 But 6 686 is a bound on the SURFACE, not an estimate of the work, and the difference matters.
 That number counts globals read anywhere in the bytecode, branches never taken included;
 restricting it to menus and their includes barely moves it (6 081 of 6 686). The dynamic measure
-disagrees by two orders of magnitude: `menu_host_gap.rs` replays 51 screens through the real VM
-and finds **178** units actually missing. A script names hundreds of functions on paths that
-opening a screen never takes.
+disagrees by two orders of magnitude: `menu_host_gap.rs` replays screens through the real VM and
+finds a few hundred units actually missing — 398 over an even sample of 93 screens, of which
+**19 replay complete**. A script names hundreds of functions on paths that opening a screen never
+takes.
+
+The ranked head of that queue is host globals, not unreversed commands:
+`SetCtrlGuideTextCommon` blocks 11 of the 93, `ShowTitleChangeChildButtonCommon` 9,
+`SetTitleTextureCommon` 8. None of them exists anywhere in the extracted corpus, so they are
+provided by `nie.exe` — they are exactly the category the static survey bounds, and the queue
+says which of them actually pay.
 
 Both surveys are checked in so the numbers are re-measured rather than remembered — and so the
 day either drops, it drops visibly.

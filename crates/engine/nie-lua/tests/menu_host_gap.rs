@@ -13,6 +13,28 @@
 //!
 //! Le relevé ne corrige rien et n'invente aucun comportement : il rend la file d'attente.
 //!
+//! ## Ce que l'échantillon RÉGULIER a corrigé
+//!
+//! Classée sur les 60 premiers écrans de l'ordre alphabétique — tous `ability_*`, `avatar_*`,
+//! `chara_edit_*` — la file donnait 178 unités dominées par des `funcLuaMenuCommand` non
+//! reversés. C'était la file de l'ÉDITEUR D'AVATAR, pas celle du jeu.
+//!
+//! Un écran sur quatre, réparti sur tout l'alphabet, donne autre chose (mesuré le 2026-09-12,
+//! 93 écrans rejoués, dont **19 complets**) :
+//!
+//! ```text
+//!    11 écrans  SetCtrlGuideTextCommon
+//!     9 écrans  ShowTitleChangeChildButtonCommon
+//!     8 écrans  SetTitleTextureCommon
+//!     6 écrans  SetStandAloneMenuCrc
+//!     6 écrans  cmd 0xb984776b
+//! ```
+//!
+//! Les têtes de file sont des GLOBALES D'HÔTE, pas des commandes : `SetCtrlGuideTextCommon`
+//! n'existe nulle part dans le corpus extrait (vérifié par `niers grep`), donc elle est fournie
+//! par `nie.exe`. C'est la catégorie que `opcode_survey.rs` borne à 6 686 — et cette file dit
+//! lesquelles servent vraiment, par ordre d'écrans débloqués.
+//!
 //! ## Ce que cette file NE débloque PAS — déjà mesuré, ne pas le refaire
 //!
 //! Elle ferme des COMPTEURS, pas des pixels. `docs/AVATAR.md` (§ « Ce que le port du cmdId
@@ -27,9 +49,9 @@
 //! établi ».
 //!
 //! Cette file sert donc à la COMPLÉTUDE du rejeu — le chemin vers un module WebAssembly unique,
-//! où chaque commande portée rapproche d'une VM en Rust pur. Elle ne sert pas à faire apparaître
-//! des pixels manquants, et la prendre pour ça ferait refaire un travail dont le résultat est
-//! déjà écrit.
+//! où chaque globale et chaque commande portée rapproche d'une VM en Rust pur. Elle ne sert pas
+//! à faire apparaître des pixels manquants, et la prendre pour ça ferait refaire un travail dont
+//! le résultat est déjà écrit.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -133,9 +155,14 @@ fn la_file_dattente_des_globales_hote() {
     let mut par_manque: BTreeMap<String, (usize, String)> = BTreeMap::new();
     let (mut rejoues, mut complets, mut refuses, mut sans_setting) = (0usize, 0usize, 0usize, 0usize);
 
-    // Borné : chaque rejeu démarre une VM Lua et lit ses inclusions ; la file d'attente se lit
-    // sur un échantillon large, pas sur les 552 scripts de menu du jeu.
-    for chemin in ecrans.iter().take(60) {
+    // Un échantillon RÉGULIER, pas les premiers : dans l'ordre alphabétique les 60 premiers sont
+    // les `ability_*`, `avatar_*` et `chara_edit_*`, et une file bâtie sur eux classerait ce qui
+    // bloque l'éditeur d'avatar plutôt que ce qui bloque le jeu. Le corpus entier n'est pas
+    // rejouable ici : `replay` réindexe les 1 197 chemins à chaque appel, donc le coût est
+    // quadratique et 552 écrans dépassent dix minutes. Un écran sur quatre couvre l'alphabet
+    // pour quelques secondes.
+    let pas = ecrans.len().div_ceil(140).max(1);
+    for chemin in ecrans.iter().step_by(pas) {
         let racine_lecture = racine.clone();
         let lire = move |demande: &str| std::fs::read(racine_lecture.join(demande)).ok();
         // Le nom d'écran est le nom logique du script : `chara_bank_menu_6.00.09.00.lua.bin`
