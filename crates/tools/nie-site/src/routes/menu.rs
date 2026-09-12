@@ -303,6 +303,21 @@ fn build_static_layout(
     detail: &super::screens::ScreenDetail,
     locale: &str,
 ) -> Value {
+    build_layout(vfs, index, detail, locale, &BTreeMap::new())
+}
+
+/// Le layout, avec la visibilité que le RUNTIME a résolue quand elle est disponible.
+///
+/// `visibilite` associe le CRC32 du nom d'un objet à ce que l'exécution Lua en dit. Un objet
+/// absent de cette table garde `visible: null` : le site ne sait pas, et il le dit plutôt que de
+/// trancher. C'est ce qui sépare « cet écran contient ceci » de « le jeu affiche ceci ».
+fn build_layout(
+    vfs: &Vfs,
+    index: &IndexVfs,
+    detail: &super::screens::ScreenDetail,
+    locale: &str,
+    visibilite: &BTreeMap<u32, bool>,
+) -> Value {
     let menu_text = load_menu_text(vfs, locale);
     let mut parsed: Vec<(String, String, objbin::MenuObject)> = Vec::new();
     let mut unreadable = Vec::new();
@@ -492,7 +507,9 @@ fn build_static_layout(
                 "anim": anim.clone(),
                 "primitive": Value::Null,
                 "charModel": Value::Null,
-                "visible": Value::Null,
+                "visible": visibilite
+                    .get(&cfgbin::crc32(object.name.as_bytes()))
+                    .map_or(Value::Null, |visible| json!(visible)),
                 "runtime": Value::Null,
             }));
         }
@@ -521,7 +538,7 @@ fn build_static_layout(
             "spritesResolved": sprite_count,
             "attachInstancesExtra": attach_instances,
             "transformsUnresolved": unresolved_transforms,
-            "visibilityResolved": 0,
+            "visibilityResolved": objects.iter().filter(|object| !object["visible"].is_null()).count(),
         },
     })
 }
@@ -539,7 +556,21 @@ pub async fn layout(
     let vfs = state.vfs()?;
     let index = state.index()?;
     let body = tokio::task::spawn_blocking(move || {
-        build_static_layout(&vfs, &index, &detail, super::inspect::DEFAULT_LOCALE)
+        // La visibilité vient de l'exécution Lua du jeu, pas d'une supposition : sans elle, un
+        // écran composé rendrait tout son contenu à la fois — mesuré le 2026-09-12 sur
+        // `chara_bank_menu`, 78 objets dessinés là où le jeu en montre 13.
+        let visibilite = super::menu_runtime::visibilite_par_objet(
+            std::sync::Arc::clone(&vfs),
+            &detail.screen,
+            super::inspect::DEFAULT_LOCALE,
+        );
+        build_layout(
+            &vfs,
+            &index,
+            &detail,
+            super::inspect::DEFAULT_LOCALE,
+            &visibilite,
+        )
     })
     .await?;
     Ok(Json(body))

@@ -49,6 +49,25 @@ async fn run(
         .map_err(|_| ErreurSite::TropDeRequetes("Menu runtime busy".into()))?;
     let output = tokio::task::spawn_blocking(move || -> Result<ReplayOutput, ErreurSite> {
         let _permit = permit;
+        rejouer(vfs, &screen, request)
+    })
+    .await
+    .map_err(|_| ErreurSite::Indisponible("Menu runtime unavailable".into()))??;
+    reponse(output)
+}
+
+/// Rejoue un écran de menu, en bloquant — le cœur partagé par la route HTTP et par la jointure
+/// de visibilité du layout (`super::menu::layout`).
+///
+/// C'est l'exécution Lua du jeu : elle seule sait quel objet d'un écran est VISIBLE. Le layout
+/// statique, lui, ne l'a jamais su et le disait (`visible: null`).
+pub(crate) fn rejouer(
+    vfs: std::sync::Arc<nie_formats::vfs::Vfs>,
+    screen: &str,
+    request: ReplayRequest,
+) -> Result<ReplayOutput, ErreurSite> {
+    {
+        let screen = screen.to_owned();
         let config = format!("data/common/gamedata/menu/cfg/{screen}_setting.cfg.bin");
         if !vfs
             .find(&config)
@@ -108,8 +127,37 @@ async fn run(
             tracing::debug!(%error, "menu replay unavailable");
             ErreurSite::Indisponible("Menu runtime unavailable".into())
         })
-    })
-    .await??;
+    }
+}
+
+/// La visibilité RÉSOLUE de chaque objet d'un écran, par identifiant runtime.
+///
+/// C'est la seule chose que le layout statique ne peut pas savoir : quel objet le jeu affiche.
+/// L'identifiant est le CRC32 du nom de l'objet — mesuré le 2026-09-12 sur `chara_bank_menu` :
+/// 23 des 25 noms du layout retrouvent leur objet ainsi.
+pub(crate) fn visibilite_par_objet(
+    vfs: std::sync::Arc<nie_formats::vfs::Vfs>,
+    screen: &str,
+    locale: &str,
+) -> std::collections::BTreeMap<u32, bool> {
+    let request = ReplayRequest {
+        locale: locale.to_owned(),
+        ..ReplayRequest::default()
+    };
+    let Ok(output) = rejouer(vfs, screen, request) else {
+        return std::collections::BTreeMap::new();
+    };
+    let mut visibilite = std::collections::BTreeMap::new();
+    for layer in output.scene.layers.values() {
+        for (id, objet) in &layer.objects {
+            // Un objet d'un calque caché ne s'affiche pas, quoi qu'il dise de lui-même.
+            visibilite.insert(*id, layer.visible && objet.visible);
+        }
+    }
+    visibilite
+}
+
+fn reponse(output: ReplayOutput) -> Result<Response, ErreurSite> {
     let mut response = Json(output).into_response();
     response
         .headers_mut()
