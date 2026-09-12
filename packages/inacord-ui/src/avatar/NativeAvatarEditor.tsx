@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useAssetSource } from "../source";
-import { GameCanvas } from "../shell/layout-render";
+import { GameCanvas } from "../shell/game-canvas";
 import { createStandardGamepadMenuSampler, initialMenuState, keyboardMenuIntent, reduceMenuInteraction, type MenuInteractionItem, type MenuIntent } from "../shell/menu-interaction";
 import { NativeSceneLayers, type NativeSceneAssetState } from "../shell/native-scene-layers";
 import type { NativeMenuScene, NativeSceneRect } from "../shell/native-title-menu";

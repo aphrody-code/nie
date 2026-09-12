@@ -17,7 +17,6 @@
 		"./shell/game-screens.css": "./src/shell/game-screens.css",
 		"./shell/game-tokens.css": "./src/shell/game-tokens.css",
 		"./shell/inacord": "./src/shell/inacord.tsx",
-		"./shell/layout-render": "./src/shell/layout-render.tsx",
 		"./shell/main-menu": "./src/shell/main-menu.tsx",
 		"./shell/main-menu-geometry": "./src/shell/main-menu-geometry.ts",
 		"./shell/menu-interaction": "./src/shell/menu-interaction.ts",
@@ -37,7 +36,8 @@
 		"./gallery/GalleryView": "./src/gallery/GalleryView.tsx",
 		"./gallery/GalleryFilters": "./src/gallery/GalleryFilters.tsx",
 		"./gallery/gallery": "./src/gallery/gallery.ts",
-		"./gallery/contracts": "./src/gallery/contracts.ts"
+		"./gallery/contracts": "./src/gallery/contracts.ts",
+		"./shell/game-canvas": "./src/shell/game-canvas.tsx"
 	},
 	"scripts": {
 		"typecheck": "bunx tsc --noEmit"

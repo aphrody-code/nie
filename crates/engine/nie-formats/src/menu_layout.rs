@@ -215,9 +215,18 @@ impl MenuLayout {
     /// liste, va chercher les octets comme il veut, puis compose en un appel synchrone. Les clés
     /// sont celles que [`MenuAssets::g4tx`] recevra.
     ///
-    /// Un objet peut nommer sa texture de deux façons — la région runtime porte son propre chemin
-    /// (`runtime.spriteRegionG4tx`), le reste passe par le nom de fichier de `sprite.logicalPath`
-    /// — et les deux sont retournées : laquelle sert dépend de ce que l'hôte a pu fournir.
+    /// Un objet nomme sa texture de trois façons, et les trois sont retournées parce qu'aucun
+    /// hôte ne sait résoudre les trois :
+    ///
+    /// - le chemin propre de la région runtime (`runtime.spriteRegionG4tx`) ;
+    /// - le chemin logique complet de `sprite.logicalPath` — le seul que sache demander un hôte
+    ///   qui n'a que HTTP, puisqu'il s'adresse à un serveur de fichiers ;
+    /// - son nom de fichier seul — ce que sait résoudre un hôte qui a l'index du VFS, et ce que
+    ///   le chemin logique ne permet pas toujours : `btl01_02.g4tx` est déclaré sous
+    ///   `dx11/menu/02_btl/btl01/btl01_02/<LG>/btl01_02.g4tx`, un chemin qui n'existe sous aucune
+    ///   forme littérale.
+    ///
+    /// La composition essaie dans cet ordre et retient la première clé que l'hôte a remplie.
     #[must_use]
     pub fn required_assets(&self) -> Vec<String> {
         let mut seen = BTreeSet::new();
@@ -228,9 +237,8 @@ impl MenuLayout {
             }
             for key in [
                 object["runtime"]["spriteRegionG4tx"].as_str(),
-                object["sprite"]["logicalPath"]
-                    .as_str()
-                    .and_then(|path| path.rsplit('/').next()),
+                object["sprite"]["logicalPath"].as_str(),
+                object["sprite"]["logicalPath"].as_str().map(basename),
             ]
             .into_iter()
             .flatten()
@@ -493,7 +501,8 @@ fn region_hash_pixels(
     if hash == 0 {
         return None;
     }
-    let key = basename(object["sprite"]["logicalPath"].as_str()?);
+    let logical = object["sprite"]["logicalPath"].as_str()?;
+    let key = fourni(assets, logical)?;
     let container = parsed(cache, assets, key)?;
     let bytes = assets.g4tx(key)?;
     for texture in &container.textures {
@@ -519,8 +528,8 @@ fn static_pixels(
     cache: &mut BTreeMap<String, Option<g4tx::G4tx>>,
 ) -> Option<Pixels> {
     let logical = object["sprite"]["logicalPath"].as_str()?;
-    let key = basename(logical);
-    let stem = key.strip_suffix(".g4tx").unwrap_or(key);
+    let key = fourni(assets, logical)?;
+    let stem = basename(key).strip_suffix(".g4tx").unwrap_or_else(|| basename(key));
     let container = parsed(cache, assets, key)?;
     let texture = g4tx::select_main_texture(container, stem)?;
     let bytes = assets.g4tx(key)?;
@@ -530,6 +539,17 @@ fn static_pixels(
 /// Le nom de fichier d'un chemin logique VFS.
 fn basename(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
+}
+
+/// La clé que l'hôte a effectivement remplie pour ce chemin logique : le chemin entier d'abord,
+/// son nom de fichier ensuite. Un hôte qui n'a que HTTP fournit le premier ; un hôte qui a
+/// l'index du VFS peut n'avoir que le second.
+fn fourni<'a>(assets: &dyn MenuAssets, logical: &'a str) -> Option<&'a str> {
+    if assets.g4tx(logical).is_some() {
+        return Some(logical);
+    }
+    let name = basename(logical);
+    assets.g4tx(name).map(|_| name)
 }
 
 /// Le libellé RÉSOLU d'un objet de layout.
@@ -621,11 +641,18 @@ mod tests {
             ]"#,
         );
         let parsed = MenuLayout::from_json(&[&json]).expect("layout lisible");
-        // `common.g4tx` est nommé par deux objets et n'est demandé qu'une fois ; l'objet invisible
-        // ne demande rien.
+        // Chaque objet demande son chemin logique ET son nom de fichier : le premier sert à un
+        // hôte qui n'a que HTTP, le second à un hôte qui a l'index du VFS. `common.g4tx`, nommé
+        // par deux objets sous deux chemins différents, n'apparaît qu'une fois sous ce nom ;
+        // l'objet invisible ne demande rien.
         assert_eq!(
             parsed.required_assets(),
-            ["menu/icon_rarity.g4tx", "common.g4tx"]
+            [
+                "menu/icon_rarity.g4tx",
+                "menu/atlas/common.g4tx",
+                "common.g4tx",
+                "other/common.g4tx"
+            ]
         );
     }
 
@@ -657,6 +684,24 @@ mod tests {
         );
     }
 
+    /// Le garde de placement, côté compositeur : un objet qui DÉCLARE ne pas savoir où il est
+    /// n'est pas dessiné, même s'il porte un transform et qu'il est visible. Ce garde vivait
+    /// aussi dans un rendu DOM parallèle (`layout-render.tsx`) ; il n'a plus qu'une maison.
+    #[test]
+    fn an_unresolved_placement_is_never_painted() {
+        let json = layout(
+            r#"[
+              {"visible":true,"transform":{"x":640.0,"y":360.0},"placementSource":"unresolved",
+               "sprite":{"logicalPath":"menu/unknown.g4tx"}},
+              {"visible":true,"transform":{"x":640.0,"y":360.0},"placementSource":"g4pkm-pose",
+               "sprite":{"logicalPath":"menu/measured.g4tx"}}
+            ]"#,
+        );
+        let parsed = MenuLayout::from_json(&[&json]).expect("layout lisible");
+        assert_eq!(parsed.object_count(), 1, "seul l'objet placé passe la porte");
+        assert_eq!(parsed.required_assets(), ["menu/measured.g4tx", "measured.g4tx"]);
+    }
+
     #[test]
     fn an_unknown_visibility_is_drawn_only_under_the_static_policy() {
         // C'est exactement le layout que `nie-site` publie : `visible` non résolu, et il le dit.
@@ -669,7 +714,7 @@ mod tests {
         let statique = MenuLayout::from_json(&[&json])
             .expect("layout lisible")
             .with_visibility(Visibility::UnknownCounts);
-        assert_eq!(statique.required_assets(), ["one.g4tx"]);
+        assert_eq!(statique.required_assets(), ["menu/one.g4tx", "one.g4tx"]);
     }
 
     #[test]

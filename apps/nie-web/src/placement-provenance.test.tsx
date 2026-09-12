@@ -1,8 +1,14 @@
+/**
+ * La provenance d'un placement, du côté du LECTEUR.
+ *
+ * Le garde « un objet non résolu ne se dessine pas » a quitté ce fichier : il vit désormais dans
+ * le compositeur lui-même (`nie_formats::menu_layout`, test
+ * `an_unresolved_placement_is_never_painted`), qui est le seul à dessiner depuis que le rendu DOM
+ * parallèle a disparu. Ce qui reste ici est ce que le navigateur fait encore : LIRE un layout et
+ * en rendre compte.
+ */
 import { describe, expect, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { AssetSourceProvider } from "@niers/inacord-ui/source";
 import { bilanLayout, lireLayout } from "@niers/inacord-ui/shell/game-layout";
-import { LayoutRender } from "@niers/inacord-ui/shell/layout-render";
 
 const canvas = { w: 1280, h: 720 };
 const transform = { x: 640, y: 360, scaleX: 1, scaleY: 1, rot: 0, anchorX: 0.5, anchorY: 0.5 };
@@ -19,14 +25,6 @@ describe("placement provenance", () => {
 		expect(report.unresolvedVisiblePlacements).toBe(1);
 		expect(report.auCentre).toBe(1);
 		expect(report.avecTexte).toBe(1);
-		const html = renderToStaticMarkup(
-			<AssetSourceProvider source={{ urlTexture: () => null } as never}>
-				<LayoutRender layout={layout} diagnostic visiblesSeules={false} />
-			</AssetSourceProvider>,
-		);
-		expect(html).toContain("Measured center");
-		expect(html).not.toContain("Unknown placement");
-		expect(html).not.toContain("unknown-tab");
 	});
 
 	test("retains legacy numeric layouts and rejects silently guessed schema values", () => {

@@ -42,7 +42,7 @@ export {
 // --- L'ecran de menu principal : ses formes, et le rendu d'un layout exporte ---------------
 //
 // Les formes (`menu-screen`) sont posees par l'appelant en coordonnees du canevas ; le layout
-// (`game-layout` + `layout-render`) vient du jeu et n'est jamais reecrit a la main. Les deux se
+// (`game-layout`) vient du jeu et n'est jamais reecrit a la main. Les deux se
 // montent dans le MEME `GameCanvas`, donc dans le meme repere.
 export {
 	Banniere,
@@ -96,12 +96,7 @@ export {
 	texteNu,
 	type TransformLayout,
 } from "./shell/game-layout";
-export {
-	GameCanvas,
-	LayoutRender,
-	type ProprietesLayout,
-	useEchelleCanvas,
-} from "./shell/layout-render";
+export { GameCanvas, useEchelleCanvas } from "./shell/game-canvas";
 
 // --- La compatibilite Next, pour les composants venus du wiki ------------------------------
 //
