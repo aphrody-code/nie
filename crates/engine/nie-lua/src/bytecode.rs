@@ -598,6 +598,192 @@ fn read_prototype(r: &mut Reader<'_>) -> Result<Prototype, BytecodeError> {
     })
 }
 
+// ─── Réencodage ──────────────────────────────────────────────────────────────────────────────
+
+/// Écrit un chunk avec les tailles de plateforme d'un en-tête donné.
+struct Writer {
+    out: Vec<u8>,
+    little_endian: bool,
+    size_size_t: usize,
+    size_int: usize,
+}
+
+impl Writer {
+    fn u8(&mut self, value: u8) {
+        self.out.push(value);
+    }
+
+    fn u32(&mut self, value: u32) {
+        let bytes = if self.little_endian {
+            value.to_le_bytes()
+        } else {
+            value.to_be_bytes()
+        };
+        self.out.extend_from_slice(&bytes);
+    }
+
+    /// Un entier de `width` octets, dans l'ordre de l'en-tête. Sert pour `int` comme pour `size_t`.
+    fn sized(&mut self, value: u64, width: usize) {
+        let full = if self.little_endian {
+            value.to_le_bytes()
+        } else {
+            value.to_be_bytes()
+        };
+        if self.little_endian {
+            self.out.extend_from_slice(&full[..width]);
+        } else {
+            self.out.extend_from_slice(&full[8 - width..]);
+        }
+    }
+
+    fn int(&mut self, value: u32) {
+        self.sized(u64::from(value), self.size_int);
+    }
+
+    fn size_t(&mut self, value: u64) {
+        self.sized(value, self.size_size_t);
+    }
+
+    fn number(&mut self, value: f64) {
+        let bits = value.to_bits();
+        let bytes = if self.little_endian {
+            bits.to_le_bytes()
+        } else {
+            bits.to_be_bytes()
+        };
+        self.out.extend_from_slice(&bytes);
+    }
+
+    /// Une chaîne Lua : longueur `size_t` INCLUANT le `\0` final, puis les octets et ce `\0`.
+    /// Une longueur nulle est la chaîne absente, et n'écrit aucun octet — c'est ainsi qu'un chunk
+    /// dépouillé (`luac -s`) note ses noms de débogage manquants.
+    fn string_bytes(&mut self, value: &[u8]) {
+        if value.is_empty() {
+            self.size_t(0);
+            return;
+        }
+        self.size_t(value.len() as u64 + 1);
+        self.out.extend_from_slice(value);
+        self.out.push(0);
+    }
+}
+
+fn write_prototype(w: &mut Writer, proto: &Prototype) {
+    w.int(proto.line_defined);
+    w.int(proto.last_line_defined);
+    w.u8(proto.num_params);
+    w.u8(proto.is_vararg);
+    w.u8(proto.max_stack_size);
+
+    w.int(proto.code.len() as u32);
+    for instruction in &proto.code {
+        w.u32(*instruction);
+    }
+
+    w.int(proto.constants.len() as u32);
+    for constant in &proto.constants {
+        match constant {
+            Constant::Nil => w.u8(0),
+            Constant::Boolean(value) => {
+                w.u8(1);
+                w.u8(u8::from(*value));
+            }
+            Constant::Number(value) => {
+                w.u8(3);
+                w.number(*value);
+            }
+            Constant::String(bytes) => {
+                w.u8(4);
+                w.string_bytes(bytes);
+            }
+        }
+    }
+
+    w.int(proto.protos.len() as u32);
+    for nested in &proto.protos {
+        write_prototype(w, nested);
+    }
+
+    w.int(proto.upvalues.len() as u32);
+    for upvalue in &proto.upvalues {
+        w.u8(u8::from(upvalue.in_stack));
+        w.u8(upvalue.index);
+    }
+
+    w.string_bytes(proto.source.as_bytes());
+    w.int(proto.line_info.len() as u32);
+    for line in &proto.line_info {
+        w.int(*line);
+    }
+
+    w.int(proto.loc_vars.len() as u32);
+    for local in &proto.loc_vars {
+        w.string_bytes(local.name.as_bytes());
+        w.int(local.start_pc);
+        w.int(local.end_pc);
+    }
+
+    w.int(proto.upvalue_names.len() as u32);
+    for name in &proto.upvalue_names {
+        w.string_bytes(name.as_bytes());
+    }
+}
+
+/// Réencode un chunk déjà décodé, avec les tailles que porte son en-tête.
+///
+/// C'est l'inverse exact de [`parse`] : mêmes champs, même ordre, même convention de chaîne
+/// (longueur `size_t` incluant le `\0`, zéro pour une chaîne absente).
+#[must_use]
+pub fn encode(chunk: &Chunk) -> Vec<u8> {
+    let mut w = Writer {
+        out: Vec::with_capacity(4096),
+        little_endian: chunk.header.little_endian,
+        size_size_t: chunk.header.size_size_t as usize,
+        size_int: chunk.header.size_int as usize,
+    };
+    w.out.extend_from_slice(&[0x1B, 0x4C, 0x75, 0x61]);
+    w.out.push(chunk.header.version);
+    w.out.push(chunk.header.format);
+    w.out.push(u8::from(chunk.header.little_endian));
+    w.out.push(chunk.header.size_int);
+    w.out.push(chunk.header.size_size_t);
+    w.out.push(chunk.header.size_instruction);
+    w.out.push(chunk.header.size_number);
+    w.out.push(u8::from(chunk.header.number_is_integral));
+    w.out.extend_from_slice(&[0x19, 0x93, b'\r', b'\n', 0x1A, b'\n']);
+    write_prototype(&mut w, &chunk.main);
+    w.out
+}
+
+/// Réencode un chunk pour une plateforme dont `size_t` et `int` ont d'autres tailles.
+///
+/// ## Pourquoi cette fonction existe
+///
+/// Le bytecode Lua 5.2 n'est pas portable : son en-tête déclare `sizeof(int)`, `sizeof(size_t)`
+/// et `sizeof(lua_Number)`, et le CORPS écrit chaque longueur de chaîne sur `size_t` octets. Un
+/// chunk précompilé pour un Lua 64 bits est donc refusé par une VM 32 bits —
+/// `incompatible precompiled chunk` — et c'est exactement ce que rencontre la VM WebAssembly du
+/// dépôt face aux `.lua.bin` du jeu, qui sont des chunks 64 bits.
+///
+/// Transcoder n'est pas « corriger l'en-tête » : il faut relire tout le corps et le réécrire avec
+/// les nouvelles largeurs.
+///
+/// ## Ce qui n'est PAS conservé
+///
+/// Les noms de débogage (`source`, variables locales, upvalues) sont décodés en `String` par
+/// [`parse`], donc en UTF-8 avec remplacement. Un nom non-UTF-8 ne survivrait pas au tour. Les
+/// constantes chaînes, elles, gardent leurs octets bruts — ce sont elles qui portent les libellés
+/// du jeu.
+///
+/// # Errors
+/// [`BytecodeError`] quand le chunk d'entrée ne se décode pas.
+pub fn transcode(data: &[u8], size_int: u8, size_size_t: u8) -> Result<Vec<u8>, BytecodeError> {
+    let mut chunk = parse(data)?;
+    chunk.header.size_int = size_int;
+    chunk.header.size_size_t = size_size_t;
+    Ok(encode(&chunk))
+}
+
 // ─── Désassemblage ───────────────────────────────────────────────────────────────────────────
 
 /// Produit un listing lisible du chunk, prototypes imbriqués compris.
@@ -751,6 +937,58 @@ fn format_operands(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Réencoder ce qu'on vient de décoder rend EXACTEMENT les mêmes octets.
+    ///
+    /// C'est la seule preuve qui vaille pour un encodeur : s'il diverge d'un octet, il invente.
+    /// Le chunk vient de la VM elle-même — donc de PUC-Rio 5.2.4, pas d'une idée du format.
+    #[cfg(feature = "vm")]
+    #[test]
+    fn reencoder_un_chunk_rend_les_memes_octets() {
+        let lua = crate::new_vm();
+        let dumped = lua
+            .load("local t = {1, 2.5, 'trois'} local function g(x) return t[x] end return g")
+            .set_name("aller-retour")
+            .into_function()
+            .expect("compilation")
+            .dump(false);
+
+        let chunk = parse(&dumped).expect("décodage");
+        assert_eq!(encode(&chunk), dumped, "le réencodage doit être byte-exact");
+    }
+
+    /// Transcoder vers une plateforme 32 bits change les largeurs ET reste relisible.
+    ///
+    /// C'est ce que réclame la VM WebAssembly : les `.lua.bin` du jeu sont des chunks 64 bits,
+    /// qu'un Lua 32 bits refuse (`incompatible precompiled chunk`).
+    #[cfg(feature = "vm")]
+    #[test]
+    fn transcoder_vers_32_bits_reste_relisible() {
+        let lua = crate::new_vm();
+        let dumped = lua
+            .load("local s = 'une chaîne assez longue pour peser' return function() return s end")
+            .set_name("transcodage")
+            .into_function()
+            .expect("compilation")
+            .dump(false);
+
+        let origine = parse(&dumped).expect("décodage");
+        let transcode_32 = transcode(&dumped, 4, 4).expect("transcodage");
+        let relu = parse(&transcode_32).expect("le chunk 32 bits se relit");
+
+        assert_eq!(relu.header.size_size_t, 4);
+        assert_eq!(relu.header.size_int, 4);
+        // Et rien du CONTENU n'a bougé : mêmes instructions, mêmes constantes, même arbre.
+        assert_eq!(relu.main.code, origine.main.code);
+        assert_eq!(relu.main.constants, origine.main.constants);
+        assert_eq!(relu.main.protos.len(), origine.main.protos.len());
+        if origine.header.size_size_t == 8 {
+            assert!(
+                transcode_32.len() < dumped.len(),
+                "des longueurs sur 4 octets au lieu de 8 raccourcissent le chunk"
+            );
+        }
+    }
 
     /// Décode un chunk produit par la VM elle-même : `mlua` compile une source connue, on relit le
     /// bytecode et on vérifie qu'on retrouve la structure attendue.

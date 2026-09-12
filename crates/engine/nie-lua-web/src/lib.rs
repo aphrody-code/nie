@@ -113,8 +113,40 @@ pub unsafe extern "C" fn nie_lua_web_load_script(
         unsafe { std::slice::from_raw_parts(data, len) }.to_vec()
     };
     SCRIPTS.with(|scripts| {
-        scripts.borrow_mut().insert(path, bytes);
+        scripts.borrow_mut().insert(path, portable_chunk(bytes));
     });
+}
+
+/// Rend un `.lua.bin` chargeable par CETTE VM.
+///
+/// Le bytecode Lua 5.2 n'est pas portable : son en-tête déclare `sizeof(int)` et `sizeof(size_t)`,
+/// et le corps écrit chaque longueur de chaîne sur `size_t` octets. Les scripts du jeu sont
+/// précompilés pour un Lua **64 bits** ; cette VM est en **32 bits** (wasm32) et les refuse —
+/// `incompatible precompiled chunk`, mesuré contre le VFS de production.
+///
+/// Le transcodage relit le chunk et le réécrit avec les largeurs de la plateforme
+/// (`nie_lua::bytecode::transcode`, dont le réencodage est prouvé byte-exact par ses tests). Ce
+/// qui n'est pas un chunk — une source Lua en clair, un `cfg.bin` de configuration — passe
+/// inchangé : seul un tampon commençant par la signature `ESC Lua 5.2` est touché.
+fn portable_chunk(bytes: Vec<u8>) -> Vec<u8> {
+    const SIGNATURE: [u8; 5] = [0x1B, b'L', b'u', b'a', 0x52];
+    if bytes.len() < 12 || bytes[..5] != SIGNATURE {
+        return bytes;
+    }
+    let (size_int, size_size_t) = (bytes[7], bytes[8]);
+    if size_int as usize == size_of::<i32>() && size_size_t as usize == size_of::<usize>() {
+        return bytes; // déjà aux largeurs de cette plateforme
+    }
+    match nie_lua::bytecode::transcode(
+        &bytes,
+        size_of::<i32>() as u8,
+        size_of::<usize>() as u8,
+    ) {
+        Ok(portable) => portable,
+        // Un chunk illisible reste tel quel : c'est à Lua de rendre son erreur, pas à ce pont
+        // d'inventer un tampon vide qui se lirait comme un script sans instruction.
+        Err(_) => bytes,
+    }
 }
 
 /// Clears every registered script/config. Call between menu screens to bound memory use.
