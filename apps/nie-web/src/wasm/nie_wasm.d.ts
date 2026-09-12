@@ -2,6 +2,89 @@
 /* eslint-disable */
 
 /**
+ * Un écran de menu composé DANS la page, par le compositeur de référence du dépôt.
+ *
+ * ## Ce que ça change
+ *
+ * Le site dessinait ces layouts en DOM (`packages/inacord-ui/src/shell/layout-render.tsx`) : un
+ * `<img>` par objet, positionné par un `transform` CSS. Cette voie ne sait faire ni
+ * l'échantillonnage bilinéaire, ni la rotation autour d'une ancre, ni la teinte, ni le mélange
+ * additif — les quatre opérations que le jeu applique. Ici, c'est `nie_formats::menu_layout`,
+ * exactement le même code que `nie-game --compose-layout` et que `/api/v1/menu/render/{screen}`.
+ *
+ * ## Le protocole, et pourquoi il est en trois temps
+ *
+ * Le compositeur est synchrone et ne connaît pas le réseau. La page demande donc d'abord ce
+ * qu'il faut ([`MenuComposer::required_assets`]), va le chercher comme elle veut, le lui donne
+ * ([`MenuComposer::provide_asset`]), puis compose. Les pixels ne traversent jamais la frontière
+ * JS : [`MenuComposer::render`] rend le RAPPORT, et l'image se lit dans la mémoire WebAssembly
+ * par [`MenuComposer::frame_ptr`]/[`MenuComposer::frame_len`].
+ *
+ * ## Ce que ça ne prétend pas
+ *
+ * Rien ici ne dit que l'image est conforme à `nie.exe`. C'est la composition des données que le
+ * layout porte : un objet sans pixels est compté `skipped`, jamais remplacé.
+ */
+export class MenuComposer {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Longueur en octets de la dernière image.
+     */
+    frame_len(): number;
+    /**
+     * Décalage de la dernière image RGBA8 dans `WebAssembly.Memory`. Invalidé par le prochain
+     * [`MenuComposer::render`].
+     */
+    frame_ptr(): number;
+    /**
+     * Construit le compositeur depuis un layout JSON.
+     *
+     * `assume_unknown_visible` choisit la politique de visibilité : le layout STATIQUE de
+     * `nie-site` ne résout aucune visibilité et pose `visible: null` — composé sous la règle de
+     * l'export runtime, il rendrait une image vide. L'export runtime, lui, la résout : passer
+     * `false` est alors la bonne réponse.
+     */
+    constructor(layout_json: string, assume_unknown_visible: boolean);
+    /**
+     * Dépose les octets d'un `.g4tx`. Une clé inconnue du layout est acceptée et ignorée à la
+     * composition : c'est au layout de dire ce qu'il emploie, pas à l'appelant de le deviner.
+     */
+    provide_asset(key: string, bytes: Uint8Array): void;
+    /**
+     * Dépose la police : l'atlas `font.g4tx` et les métriques `font.cfg.bin`, bruts.
+     *
+     * # Errors
+     *
+     * Rejette quand l'un des deux est illisible — une police à moitié chargée dessinerait des
+     * glyphes faux, ce qui est pire qu'aucun libellé.
+     */
+    provide_font(atlas_g4tx: Uint8Array, metrics_cfgbin: Uint8Array): void;
+    /**
+     * Compose l'écran et rend le RAPPORT en JSON (`drawn`, `sprites`, `regions`, `texts`,
+     * `skipped`). Les pixels restent en mémoire WebAssembly, cf. [`MenuComposer::frame_ptr`].
+     *
+     * # Errors
+     *
+     * Rejette quand le rapport n'est pas sérialisable, ce qui ne dépend pas de l'appelant.
+     */
+    render(width: number, height: number): string;
+    /**
+     * Les `.g4tx` à fetcher, dans l'ordre de rencontre. Ce sont les clés de `provide_asset`.
+     */
+    required_assets(): string[];
+    /**
+     * L'écran porte-t-il un libellé RÉSOLU ? L'atlas de police pèse des dizaines de mégaoctets :
+     * la page ne le télécharge que si un texte va s'en servir.
+     */
+    readonly needs_font: boolean;
+    /**
+     * Combien d'objets ont passé la porte de placement — un layout vide se voit tout de suite.
+     */
+    readonly object_count: number;
+}
+
+/**
  * Thin bitmap-text ABI over the shared native font decoder.
  */
 export class WasmBitmapFont {
@@ -753,6 +836,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly __wbg_menucomposer_free: (a: number, b: number) => void;
     readonly __wbg_wasmbitmapfont_free: (a: number, b: number) => void;
     readonly __wbg_wasmcamera_free: (a: number, b: number) => void;
     readonly __wbg_wasmeditorsession_free: (a: number, b: number) => void;
@@ -804,6 +888,15 @@ export interface InitOutput {
     readonly menu_runtime_scene_json: (a: number, b: number, c: number) => void;
     readonly menu_screens_catalog_json: (a: number) => void;
     readonly menu_static_layer_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+    readonly menucomposer_frame_len: (a: number) => number;
+    readonly menucomposer_frame_ptr: (a: number) => number;
+    readonly menucomposer_needs_font: (a: number) => number;
+    readonly menucomposer_new: (a: number, b: number, c: number, d: number) => void;
+    readonly menucomposer_object_count: (a: number) => number;
+    readonly menucomposer_provide_asset: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly menucomposer_provide_font: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly menucomposer_render: (a: number, b: number, c: number, d: number) => void;
+    readonly menucomposer_required_assets: (a: number, b: number) => void;
     readonly minidump_summary_json: (a: number, b: number, c: number) => void;
     readonly model_to_glb: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly offline_image_inspect_json: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -883,10 +976,10 @@ export interface InitOutput {
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4025: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4040: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3034: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3034_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4049: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4064: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3058: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3058_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

@@ -5,7 +5,7 @@
  *
  * - Le **fond, les plaques et les cadres** sont le layout du jeu :
  *   `GET /api/v1/menu/layout/shop_menu` rend **62 objets** (212 en comptant les 150 instances
- *   d'attache) et **62 sprites résolus**, dessinés par `LayoutRender` sans qu'une position soit
+ *   d'attache) et **62 sprites résolus**, dessinés par le compositeur wasm (`LayoutCanvas`) sans qu'une position soit
  *   corrigée ici. Le layout déclare **74 calques et il en manque 12** dans le VFS résolu
  *   (`shop01_01_list_base_spirit`, `shopmenu01_07_button_guide`, `cmn01_06_consume_item_icon`…) :
  *   c'est constaté, pas contourné — les objets qui en dépendent ne sont simplement pas dessinés.
@@ -27,7 +27,8 @@
  * boutique d'échange nommée par la donnée (« Marché aux esprits ») — aucun guide n'est dessiné
  * sans son gestionnaire.
  */
-import { GameCanvas, GameHintBar, GameSearchBar, LayoutRender } from "@niers/inacord-ui";
+import { LayoutCanvas } from "../game/LayoutCanvas";
+import { GameCanvas, GameHintBar, GameSearchBar } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listPage, stepCursor } from "../game/list-page";
@@ -114,7 +115,7 @@ export function Shop({ onBack }: ShopProps) {
 	const [selected, setSelected] = useState<StockItem | null>(null);
 	const [runtimeState, setRuntimeState] = useState<"loading" | "observed" | "partial" | "unavailable">("loading");
 	const [runtime, setRuntime] = useState<MenuRuntimeResult | null>(null);
-	const [textures, setTextures] = useState({ loaded: 0, total: 0 });
+	const [compose, setCompose] = useState({ drawn: 0, skipped: 0 });
 	const seen = useRef(new Set<string>());
 
 	useEffect(() => {
@@ -215,11 +216,13 @@ export function Shop({ onBack }: ShopProps) {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [move, changeCategory, onBack, searchOpen]);
 
-	const onTexture = useCallback((name: string, loaded: boolean) => {
-		if (seen.current.has(name)) return;
-		seen.current.add(name);
-		setTextures((value) => ({ loaded: value.loaded + (loaded ? 1 : 0), total: value.total + 1 }));
-	}, []);
+	// Ce que la composition a RÉELLEMENT dessiné, publié sur la section : `drawn` et `skipped`
+	// viennent du compositeur lui-même, au lieu d'un décompte de balises `<img>` chargées.
+	const onCompose = useCallback(
+		(report: { drawn: number; skipped: number }) =>
+			setCompose({ drawn: report.drawn, skipped: report.skipped }),
+		[],
+	);
 
 	const hints = useMemo(() => [
 		{
@@ -247,14 +250,14 @@ export function Shop({ onBack }: ShopProps) {
 			data-lua-observation={runtimeState}
 			data-runtime-layers={runtime ? Object.keys(runtime.scene.layers).length : 0}
 			data-layout-objects={layout?.objects.length ?? 0}
-			data-textures={`${textures.loaded}/${textures.total}`}
+			data-compose={`${compose.drawn}/${compose.drawn + compose.skipped}`}
 			data-shops={stock.length}
 			data-stock={current?.items.length ?? 0}
 			data-retained={retained.length}
 			data-origin={current?.origin ?? "none"}
 		>
 			<GameCanvas canvas={layout?.canvas ?? { w: 1280, h: 720 }}>
-				{layout ? <LayoutRender layout={layout} visiblesSeules={false} onTexture={onTexture} /> : null}
+				{layout ? <LayoutCanvas layout={layout} assumeUnknownVisible={false} onReport={onCompose} /> : null}
 
 				<header className="shop__title">
 					<NativeText text={current ? current.label : SHOP_TITLE} height={28} />

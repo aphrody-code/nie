@@ -1,6 +1,199 @@
 /* @ts-self-types="./nie_wasm.d.ts" */
 
 /**
+ * Un écran de menu composé DANS la page, par le compositeur de référence du dépôt.
+ *
+ * ## Ce que ça change
+ *
+ * Le site dessinait ces layouts en DOM (`packages/inacord-ui/src/shell/layout-render.tsx`) : un
+ * `<img>` par objet, positionné par un `transform` CSS. Cette voie ne sait faire ni
+ * l'échantillonnage bilinéaire, ni la rotation autour d'une ancre, ni la teinte, ni le mélange
+ * additif — les quatre opérations que le jeu applique. Ici, c'est `nie_formats::menu_layout`,
+ * exactement le même code que `nie-game --compose-layout` et que `/api/v1/menu/render/{screen}`.
+ *
+ * ## Le protocole, et pourquoi il est en trois temps
+ *
+ * Le compositeur est synchrone et ne connaît pas le réseau. La page demande donc d'abord ce
+ * qu'il faut ([`MenuComposer::required_assets`]), va le chercher comme elle veut, le lui donne
+ * ([`MenuComposer::provide_asset`]), puis compose. Les pixels ne traversent jamais la frontière
+ * JS : [`MenuComposer::render`] rend le RAPPORT, et l'image se lit dans la mémoire WebAssembly
+ * par [`MenuComposer::frame_ptr`]/[`MenuComposer::frame_len`].
+ *
+ * ## Ce que ça ne prétend pas
+ *
+ * Rien ici ne dit que l'image est conforme à `nie.exe`. C'est la composition des données que le
+ * layout porte : un objet sans pixels est compté `skipped`, jamais remplacé.
+ */
+export class MenuComposer {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        MenuComposerFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_menucomposer_free(ptr, 0);
+    }
+    /**
+     * Longueur en octets de la dernière image.
+     * @returns {number}
+     */
+    frame_len() {
+        const ret = wasm.menucomposer_frame_len(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Décalage de la dernière image RGBA8 dans `WebAssembly.Memory`. Invalidé par le prochain
+     * [`MenuComposer::render`].
+     * @returns {number}
+     */
+    frame_ptr() {
+        const ret = wasm.menucomposer_frame_ptr(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * L'écran porte-t-il un libellé RÉSOLU ? L'atlas de police pèse des dizaines de mégaoctets :
+     * la page ne le télécharge que si un texte va s'en servir.
+     * @returns {boolean}
+     */
+    get needs_font() {
+        const ret = wasm.menucomposer_needs_font(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Construit le compositeur depuis un layout JSON.
+     *
+     * `assume_unknown_visible` choisit la politique de visibilité : le layout STATIQUE de
+     * `nie-site` ne résout aucune visibilité et pose `visible: null` — composé sous la règle de
+     * l'export runtime, il rendrait une image vide. L'export runtime, lui, la résout : passer
+     * `false` est alors la bonne réponse.
+     * @param {string} layout_json
+     * @param {boolean} assume_unknown_visible
+     */
+    constructor(layout_json, assume_unknown_visible) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(layout_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.menucomposer_new(retptr, ptr0, len0, assume_unknown_visible);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0;
+            MenuComposerFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Combien d'objets ont passé la porte de placement — un layout vide se voit tout de suite.
+     * @returns {number}
+     */
+    get object_count() {
+        const ret = wasm.menucomposer_object_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Dépose les octets d'un `.g4tx`. Une clé inconnue du layout est acceptée et ignorée à la
+     * composition : c'est au layout de dire ce qu'il emploie, pas à l'appelant de le deviner.
+     * @param {string} key
+     * @param {Uint8Array} bytes
+     */
+    provide_asset(key, bytes) {
+        const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.menucomposer_provide_asset(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+    }
+    /**
+     * Dépose la police : l'atlas `font.g4tx` et les métriques `font.cfg.bin`, bruts.
+     *
+     * # Errors
+     *
+     * Rejette quand l'un des deux est illisible — une police à moitié chargée dessinerait des
+     * glyphes faux, ce qui est pire qu'aucun libellé.
+     * @param {Uint8Array} atlas_g4tx
+     * @param {Uint8Array} metrics_cfgbin
+     */
+    provide_font(atlas_g4tx, metrics_cfgbin) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(atlas_g4tx, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            const ptr1 = passArray8ToWasm0(metrics_cfgbin, wasm.__wbindgen_export);
+            const len1 = WASM_VECTOR_LEN;
+            wasm.menucomposer_provide_font(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Compose l'écran et rend le RAPPORT en JSON (`drawn`, `sprites`, `regions`, `texts`,
+     * `skipped`). Les pixels restent en mémoire WebAssembly, cf. [`MenuComposer::frame_ptr`].
+     *
+     * # Errors
+     *
+     * Rejette quand le rapport n'est pas sérialisable, ce qui ne dépend pas de l'appelant.
+     * @param {number} width
+     * @param {number} height
+     * @returns {string}
+     */
+    render(width, height) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.menucomposer_render(retptr, this.__wbg_ptr, width, height);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Les `.g4tx` à fetcher, dans l'ordre de rencontre. Ce sont les clés de `provide_asset`.
+     * @returns {string[]}
+     */
+    required_assets() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.menucomposer_required_assets(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayJsValueFromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+if (Symbol.dispose) MenuComposer.prototype[Symbol.dispose] = MenuComposer.prototype.free;
+
+/**
  * Thin bitmap-text ABI over the shared native font decoder.
  */
 export class WasmBitmapFont {
@@ -3534,7 +3727,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wasm_bindgen_func_elem_4040(a, state0.b, arg0, arg1);
+                        return __wasm_bindgen_func_elem_4064(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -4179,18 +4372,18 @@ function __wbg_get_imports() {
             getObject(arg0).writeTexture(getObject(arg1), getArrayU8FromWasm0(arg2, arg3), getObject(arg4), getObject(arg5));
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1206, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3034);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1209, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3058);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1266, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4025);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1269, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4049);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1206, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3034_2);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1209, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3058_2);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000004: function(arg0) {
@@ -4222,18 +4415,18 @@ function __wbg_get_imports() {
     };
 }
 
-function __wasm_bindgen_func_elem_3034(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3034(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3058(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3058(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_3034_2(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3034_2(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3058_2(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3058_2(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_4025(arg0, arg1, arg2) {
+function __wasm_bindgen_func_elem_4049(arg0, arg1, arg2) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.__wasm_bindgen_func_elem_4025(retptr, arg0, arg1, addHeapObject(arg2));
+        wasm.__wasm_bindgen_func_elem_4049(retptr, arg0, arg1, addHeapObject(arg2));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         if (r1) {
@@ -4244,8 +4437,8 @@ function __wasm_bindgen_func_elem_4025(arg0, arg1, arg2) {
     }
 }
 
-function __wasm_bindgen_func_elem_4040(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_4040(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wasm_bindgen_func_elem_4064(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_4064(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 
@@ -4328,6 +4521,9 @@ const __wbindgen_enum_GpuVertexFormat = ["uint8", "uint8x2", "uint8x4", "sint8",
 
 
 const __wbindgen_enum_GpuVertexStepMode = ["vertex", "instance"];
+const MenuComposerFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_menucomposer_free(ptr, 1));
 const WasmBitmapFontFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmbitmapfont_free(ptr, 1));
@@ -4432,6 +4628,16 @@ function dropObject(idx) {
     if (idx < 1028) return;
     heap[idx] = heap_next;
     heap_next = idx;
+}
+
+function getArrayJsValueFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    const mem = getDataViewMemory0();
+    const result = [];
+    for (let i = ptr; i < ptr + 4 * len; i += 4) {
+        result.push(takeObject(mem.getUint32(i, true)));
+    }
+    return result;
 }
 
 function getArrayU32FromWasm0(ptr, len) {

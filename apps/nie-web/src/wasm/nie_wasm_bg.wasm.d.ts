@@ -1,6 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_menucomposer_free: (a: number, b: number) => void;
 export const __wbg_wasmbitmapfont_free: (a: number, b: number) => void;
 export const __wbg_wasmcamera_free: (a: number, b: number) => void;
 export const __wbg_wasmeditorsession_free: (a: number, b: number) => void;
@@ -52,6 +53,15 @@ export const menu_presentation_json: (a: number, b: number, c: number) => void;
 export const menu_runtime_scene_json: (a: number, b: number, c: number) => void;
 export const menu_screens_catalog_json: (a: number) => void;
 export const menu_static_layer_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+export const menucomposer_frame_len: (a: number) => number;
+export const menucomposer_frame_ptr: (a: number) => number;
+export const menucomposer_needs_font: (a: number) => number;
+export const menucomposer_new: (a: number, b: number, c: number, d: number) => void;
+export const menucomposer_object_count: (a: number) => number;
+export const menucomposer_provide_asset: (a: number, b: number, c: number, d: number, e: number) => void;
+export const menucomposer_provide_font: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+export const menucomposer_render: (a: number, b: number, c: number, d: number) => void;
+export const menucomposer_required_assets: (a: number, b: number) => void;
 export const minidump_summary_json: (a: number, b: number, c: number) => void;
 export const model_to_glb: (a: number, b: number, c: number, d: number, e: number) => void;
 export const offline_image_inspect_json: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -131,10 +141,10 @@ export const webgpuviewer_resize: (a: number, b: number, c: number, d: number) =
 export const zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
 export const __wasm_start: () => void;
 export const init_panic_hook: () => void;
-export const __wasm_bindgen_func_elem_4025: (a: number, b: number, c: number, d: number) => void;
-export const __wasm_bindgen_func_elem_4040: (a: number, b: number, c: number, d: number) => void;
-export const __wasm_bindgen_func_elem_3034: (a: number, b: number, c: number) => void;
-export const __wasm_bindgen_func_elem_3034_2: (a: number, b: number, c: number) => void;
+export const __wasm_bindgen_func_elem_4049: (a: number, b: number, c: number, d: number) => void;
+export const __wasm_bindgen_func_elem_4064: (a: number, b: number, c: number, d: number) => void;
+export const __wasm_bindgen_func_elem_3058: (a: number, b: number, c: number) => void;
+export const __wasm_bindgen_func_elem_3058_2: (a: number, b: number, c: number) => void;
 export const __wbindgen_export: (a: number, b: number) => number;
 export const __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_export3: (a: number) => void;

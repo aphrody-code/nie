@@ -5,7 +5,7 @@
  *
  * - Le **fond, le bandeau et le cadre de la grille** sont le layout du jeu :
  *   `GET /api/v1/menu/layout/gallery_menu` rend **7 objets** et **7 sprites résolus**, dessinés
- *   par `LayoutRender` sans qu'une position soit corrigée ici (`layersMissing: []`).
+ *   par le compositeur wasm (`LayoutCanvas`) sans qu'une position soit corrigée ici (`layersMissing: []`).
  * - Les **calques** viennent du Lua : `POST /api/v1/menu/runtime/gallery_menu` reçoit
  *   `itemCounts` pour la liste (`gallery01_01_list_base`) et `OnEnter(layer, index)` à chaque
  *   déplacement du curseur.
@@ -31,7 +31,8 @@
  * résolus : aucune vignette n'est fabriquée. Les **films**, eux, ont un vrai chemin et se
  * jouent par `NativeMoviePlayer`.
  */
-import { GameCanvas, GameHintBar, GameSearchBar, LayoutRender } from "@niers/inacord-ui";
+import { LayoutCanvas } from "../game/LayoutCanvas";
+import { GameCanvas, GameHintBar, GameSearchBar } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -122,7 +123,7 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 	const [playing, setPlaying] = useState<string | null>(null);
 	const [runtimeState, setRuntimeState] = useState<"loading" | "observed" | "partial" | "unavailable">("loading");
 	const [runtime, setRuntime] = useState<MenuRuntimeResult | null>(null);
-	const [textures, setTextures] = useState({ loaded: 0, total: 0 });
+	const [compose, setCompose] = useState({ drawn: 0, skipped: 0 });
 	const seen = useRef(new Set<string>());
 
 	useEffect(() => {
@@ -214,11 +215,13 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [move, onBack, searchOpen, playing]);
 
-	const onTexture = useCallback((name: string, loaded: boolean) => {
-		if (seen.current.has(name)) return;
-		seen.current.add(name);
-		setTextures((value) => ({ loaded: value.loaded + (loaded ? 1 : 0), total: value.total + 1 }));
-	}, []);
+	// Ce que la composition a RÉELLEMENT dessiné, publié sur la section : `drawn` et `skipped`
+	// viennent du compositeur lui-même, au lieu d'un décompte de balises `<img>` chargées.
+	const onCompose = useCallback(
+		(report: { drawn: number; skipped: number }) =>
+			setCompose({ drawn: report.drawn, skipped: report.skipped }),
+		[],
+	);
 
 	const hints = useMemo(() => [
 		{ key: "Enter", keyLabel: "Entrée", label: "Confirmer", onActivate: confirm },
@@ -236,14 +239,14 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 			data-lua-observation={runtimeState}
 			data-runtime-layers={runtime ? Object.keys(runtime.scene.layers).length : 0}
 			data-layout-objects={layout?.objects.length ?? 0}
-			data-textures={`${textures.loaded}/${textures.total}`}
+			data-compose={`${compose.drawn}/${compose.drawn + compose.skipped}`}
 			data-family={current?.id ?? "none"}
 			data-entries={current?.items.length ?? 0}
 			data-retained={retained.length}
 			data-origin={current?.origin ?? "none"}
 		>
 			<GameCanvas canvas={layout?.canvas ?? { w: 1280, h: 720 }}>
-				{layout ? <LayoutRender layout={layout} visiblesSeules={false} onTexture={onTexture} /> : null}
+				{layout ? <LayoutCanvas layout={layout} assumeUnknownVisible={false} onReport={onCompose} /> : null}
 
 				<header className="trophy-gallery__title">
 					<NativeText text={GALLERY_TITLE} height={28} />

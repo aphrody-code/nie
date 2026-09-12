@@ -459,10 +459,26 @@ fn build_static_layout(
             if positioned.is_null() {
                 unresolved_transforms += 1;
             }
+            // La PREUVE du placement, nommée, et jamais omise.
+            //
+            // Le champ manquait : un objet sans transform sortait sans rien dire de ce qui
+            // manquait, et le lecteur (`lireLayout`, côté navigateur) rejetait le layout ENTIER —
+            // un objet sans position doit déclarer pourquoi. Mesuré le 2026-09-12 sur
+            // `chara_bank_menu` : 4 objets sur 78 dans ce cas, et les trois écrans du jeu
+            // affichaient « Le layout du jeu est indisponible » alors que 74 objets étaient
+            // parfaitement placés.
+            let placement_source = if positioned.is_null() {
+                menu_placement::PlacementSource::Unresolved
+            } else if attach_position.is_some() {
+                menu_placement::PlacementSource::AttachLocator
+            } else {
+                menu_placement::PlacementSource::G4pkmPose
+            };
             objects.push(json!({
                 "name": object.name.clone(),
                 "layer": layer.clone(),
                 "parent": Value::Null,
+                "placementSource": placement_source.as_str(),
                 "transform": positioned,
                 "drawPriority": draw_priority,
                 "drawType": draw_type,
@@ -673,6 +689,28 @@ pub async fn render(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Le lecteur du navigateur (`lireLayout`) EXIGE qu'un objet sans transform déclare sa
+    /// preuve de placement ; sans elle il rejette le layout entier. La preuve est donc toujours
+    /// nommée, et « non résolue » en est une.
+    #[test]
+    fn chaque_objet_declare_sa_preuve_de_placement() {
+        for (positionne, attache, attendu) in [
+            (false, false, "unresolved"),
+            (false, true, "unresolved"),
+            (true, true, "attach-locator"),
+            (true, false, "g4pkm-pose"),
+        ] {
+            let source = if !positionne {
+                menu_placement::PlacementSource::Unresolved
+            } else if attache {
+                menu_placement::PlacementSource::AttachLocator
+            } else {
+                menu_placement::PlacementSource::G4pkmPose
+            };
+            assert_eq!(source.as_str(), attendu);
+        }
+    }
 
     #[test]
     fn le_stem_devient_un_fichier_menu_tree() {

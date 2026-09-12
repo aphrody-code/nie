@@ -105,8 +105,13 @@ async function loadGzip(url: string): Promise<Uint8Array> {
 
 let fontPromise: Promise<readonly [Uint8Array, Uint8Array]> | null = null;
 
-/** Shares only an in-flight font load; decoded 42 MiB buffers are released after construction. */
-function loadFont(): Promise<readonly [Uint8Array, Uint8Array]> {
+/**
+ * Shares only an in-flight font load; decoded 42 MiB buffers are released after construction.
+ *
+ * Exporté : le compositeur de menu en WebAssembly a besoin des deux mêmes octets, et les charger
+ * une seconde fois ferait descendre 42 MiB de plus pour la même police.
+ */
+export function loadFont(): Promise<readonly [Uint8Array, Uint8Array]> {
 	if (fontPromise === null) {
 		fontPromise = (async () => {
 			try {
@@ -181,6 +186,15 @@ export function sharedFrameView(
 		throw new Error(`invalid shared frame: offset=${pointer} length=${length}`);
 	}
 	return new Uint8ClampedArray(memory.buffer as ArrayBuffer, pointer, length);
+}
+
+/**
+ * La mémoire du module, une fois `ensureWasm()` résolu — `null` avant.
+ *
+ * Elle sert à lire une image rendue SANS la copier : le Rust y écrit, le JS y pointe.
+ */
+export function moduleMemory(): WebAssembly.Memory | null {
+	return wasmMemory;
 }
 
 /** Charge le jeu et sa police, et rend une poignée pilotable. */
