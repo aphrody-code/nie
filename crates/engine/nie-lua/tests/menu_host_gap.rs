@@ -30,10 +30,20 @@
 //!     6 écrans  cmd 0xb984776b
 //! ```
 //!
-//! Les têtes de file sont des GLOBALES D'HÔTE, pas des commandes : `SetCtrlGuideTextCommon`
-//! n'existe nulle part dans le corpus extrait (vérifié par `niers grep`), donc elle est fournie
-//! par `nie.exe`. C'est la catégorie que `opcode_survey.rs` borne à 6 686 — et cette file dit
-//! lesquelles servent vraiment, par ordre d'écrans débloqués.
+//! Les têtes de file sont des NOMS, pas des identifiants de commande. Et contrairement à ce que
+//! j'ai d'abord écrit, `SetCtrlGuideTextCommon` existe bien dans le corpus : **48 `.lua.bin` la
+//! nomment**, dont deux includes — `menu/main_menu_inc` et `menu/go_school_menu_inc`.
+//!
+//! (Le premier relevé disait « nulle part » parce que `grep -r` saute les fichiers binaires sans
+//! le dire ; `find … -print0 | xargs -0 grep -l` les lit. Deux outils, deux réponses, et la
+//! mauvaise était silencieuse.)
+//!
+//! Ce qui manque n'est donc pas forcément une fonction de `nie.exe` : c'est une globale qui n'a
+//! pas été DÉFINIE au moment où l'écran la lit, parce que l'include qui la porte n'a pas été
+//! exécuté pour cet écran. Fournir les octets ne suffit pas — encore faut-il que le script les
+//! `INCLUDE`. La distinction change la nature du travail, et elle n'est pas tranchée ici :
+//! établir lequel des 48 la définit demande de lire les `SETTABUP` sur `_ENV`, pas de compter
+//! des occurrences.
 //!
 //! ## Ce que cette file NE débloque PAS — déjà mesuré, ne pas le refaire
 //!

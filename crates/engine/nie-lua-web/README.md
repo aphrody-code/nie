@@ -85,11 +85,15 @@ finds a few hundred units actually missing — 398 over an even sample of 93 scr
 **19 replay complete**. A script names hundreds of functions on paths that opening a screen never
 takes.
 
-The ranked head of that queue is host globals, not unreversed commands:
-`SetCtrlGuideTextCommon` blocks 11 of the 93, `ShowTitleChangeChildButtonCommon` 9,
-`SetTitleTextureCommon` 8. None of them exists anywhere in the extracted corpus, so they are
-provided by `nie.exe` — they are exactly the category the static survey bounds, and the queue
-says which of them actually pay.
+The ranked head of that queue is names, not command ids: `SetCtrlGuideTextCommon` blocks 11 of
+the 93, `ShowTitleChangeChildButtonCommon` 9, `SetTitleTextureCommon` 8.
+
+Whether those are `nie.exe` functions is NOT established, and a first reading here said it was.
+`SetCtrlGuideTextCommon` appears in 48 `.lua.bin`, two of them includes
+(`menu/main_menu_inc`, `menu/go_school_menu_inc`) — so it may well be a Lua function that simply
+was not defined at the moment the screen read it, because the include carrying it had not run.
+Supplying the bytes is not enough; the script has to `INCLUDE` them. That distinction changes
+what the work is, and settling it means reading `SETTABUP` on `_ENV`, not counting occurrences.
 
 Both surveys are checked in so the numbers are re-measured rather than remembered — and so the
 day either drops, it drops visibly.

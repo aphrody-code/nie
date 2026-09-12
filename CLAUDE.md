@@ -68,6 +68,12 @@ that price on keeper, menu and match-sim.
 
 ## Traps measured on this machine (2026-09-07)
 
+- **`grep -r` silently skips binary files; `find … -print0 | xargs -0 grep -l` does not.**
+  Searching the `.lua.bin` corpus for `SetCtrlGuideTextCommon` returned 0 files with `grep -rl`
+  and 48 with the `xargs` form (measured 2026-09-12), which turned "this name does not exist in
+  the game" into a written conclusion that was wrong. On this repository's binary corpora
+  (`.lua.bin`, `.cfg.bin`, `.objbin`), prefer `niers grep`/`rg -a`, or the `xargs` form.
+
 - **A wasm build killed "low on memory" wants `CARGO_BUILD_JOBS=1`, not a weaker LTO.** Three
   `nie-viewer-web` builds died that way while `earlyoom`'s own journal never dropped below 41 %
   available and logged no kill — the guard is the agent harness, and the pressure is
