@@ -12,9 +12,19 @@
  *
  * The third tier is not a degraded copy of the first two: it is `nie_render3d::render`, the
  * function the native golden tests freeze, so it is the only one of the three that shares code
- * with the renderer this repository verifies. Tier 2 is a TypeScript re-implementation — it
- * works, and it drifts by construction. Tier 3 costs CPU and honours yaw only (see its module
- * note), which is why it sits last rather than first.
+ * with the renderer this repository verifies. Tier 3 costs CPU and honours yaw only (see its
+ * module note), which is why it sits last rather than first.
+ *
+ * ## Why tier 2 is still TypeScript, measured
+ *
+ * `WebGlModelViewer` is a re-implementation: 445 lines that share nothing with the renderer this
+ * repository verifies, so it drifts by construction. Deleting it is one flag away — `wgpu/webgl`
+ * on `nie-render3d`'s `webgpu` feature makes the SAME Rust renderer run on WebGL 2. It was tried
+ * on 2026-09-12 and it works; it just does not fit: the module goes from 4 518 833 to 6 865 774
+ * bytes, 574 318 over the 6 MiB budget `scripts/build-wasm.ts` enforces. That budget guards what
+ * EVERY visitor downloads, not only those who open a model, so the honest resolution is a
+ * lazily-loaded second module rather than a raised ceiling. Until then this tier stays, and it
+ * stays for a measured reason rather than a preference.
  */
 import { WebGpuViewer } from "../wasm/nie_wasm.js";
 import { WebGlModelViewer } from "../avatar/webgl-viewer";

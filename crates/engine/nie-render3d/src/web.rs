@@ -104,6 +104,10 @@ mod browser {
             canvas: HtmlCanvasElement,
             transparent: bool,
         ) -> Result<Self> {
+            // `BROWSER_WEBGPU` seul, et c'est un choix contraint : `Backends::GL` demanderait
+            // `wgpu/webgl`, qui coûte +2,24 Mio au module et dépasse son budget (mesuré, cf. le
+            // commentaire de la feature `webgpu` dans Cargo.toml). Un navigateur sans WebGPU est
+            // servi par le rastériseur CPU de `nie_render3d::render`, lié sans feature.
             let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
             descriptor.backends = wgpu::Backends::BROWSER_WEBGPU;
             let instance = wgpu::Instance::new(descriptor);
