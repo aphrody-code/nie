@@ -19,7 +19,7 @@
  * `nie-wasm` from 4 518 833 to 6 865 774 bytes: 574 318 over the 6 MiB budget that guards what
  * EVERY visitor downloads.
  *
- * So the backend moved into `nie-viewer-web`, a crate carrying only the viewer: 3 153 478 bytes,
+ * So the backend moved into `nie-viewer-web`, a crate carrying only the viewer: 2 855 742 bytes,
  * fetched by browsers without WebGPU and by nobody else. The re-implementation is gone, the main
  * module did not grow by one byte, and all three tiers now run this repository's renderer.
  *

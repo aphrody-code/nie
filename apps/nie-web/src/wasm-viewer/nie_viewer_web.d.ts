@@ -64,10 +64,10 @@ export interface InitOutput {
     readonly modelviewer_render: (a: number, b: number) => void;
     readonly modelviewer_resize: (a: number, b: number, c: number, d: number) => void;
     readonly start: () => void;
-    readonly __wasm_bindgen_func_elem_8717: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_8719: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_2774: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_2774_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_6930: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_6951: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_1376: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_1376_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

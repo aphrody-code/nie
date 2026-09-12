@@ -10,7 +10,7 @@
  * budget guards what EVERY visitor downloads.
  *
  * This module carries ONLY the viewer, is fetched only when `navigator.gpu` does not answer, and
- * costs every other visitor nothing. Measured optimized size on first build: 3 153 478 bytes.
+ * costs every other visitor nothing. Measured optimized size on first build: 2 855 742 bytes.
  *
  * Its budget is deliberately looser than the main module's (4 MiB against 6 MiB for a module
  * twenty times broader) because it is paid by a minority path — but it is a budget, so the day

@@ -10,10 +10,10 @@ export const modelviewer_orbit: (a: number, b: number, c: number, d: number, e: 
 export const modelviewer_render: (a: number, b: number) => void;
 export const modelviewer_resize: (a: number, b: number, c: number, d: number) => void;
 export const start: () => void;
-export const __wasm_bindgen_func_elem_8717: (a: number, b: number, c: number, d: number) => void;
-export const __wasm_bindgen_func_elem_8719: (a: number, b: number, c: number, d: number) => void;
-export const __wasm_bindgen_func_elem_2774: (a: number, b: number, c: number) => void;
-export const __wasm_bindgen_func_elem_2774_2: (a: number, b: number, c: number) => void;
+export const __wasm_bindgen_func_elem_6930: (a: number, b: number, c: number, d: number) => void;
+export const __wasm_bindgen_func_elem_6951: (a: number, b: number, c: number, d: number) => void;
+export const __wasm_bindgen_func_elem_1376: (a: number, b: number, c: number) => void;
+export const __wasm_bindgen_func_elem_1376_2: (a: number, b: number, c: number) => void;
 export const __wbindgen_export: (a: number, b: number) => number;
 export const __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_export3: (a: number) => void;
