@@ -65,15 +65,19 @@ CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions
 |---|---|
 | link flags only | 870,512 bytes, 5 `invoke_*`, 1 `__cxa_find_matching_catch` |
 | `cargo clean -p mlua-sys` + rebuild (55 s of real C compilation) with `CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions` | **the same 870,512 bytes, the same 5 `invoke_*`, the same 1 `__cxa_find_matching_catch`** |
+| add `-C target-feature=+exception-handling` on nightly (installed here) and rebuild again, 1 min 14 s | **again the same 870,512 bytes and the same counts** — single output file, freshly timestamped, so the rebuild is real |
 
 A forced recompilation of Lua's C sources that changes NOTHING in the output means the
 trampolines do not come from those sources. They come from the Rust side: `rustc` emits the
 JS-trampoline exception path on `wasm32-unknown-emscripten`, and `mlua` propagates Lua errors
 through Rust unwinding (`catch_unwind`), which is what then meets a foreign exception and aborts.
 
-Switching `rustc` itself to WebAssembly exception handling needs `-Z emscripten-wasm-eh`, a
-**nightly** flag; this workspace pins stable 1.98.1. That is the real constraint, and it is not
-a flag on this crate. Until it is resolved the browser driver
+Three real rebuilds producing a byte-identical artifact mean the flags do not reach code
+generation on this target at all. `-Z emscripten-wasm-eh` does not exist in the nightly
+installed here (`rustc 1.98.0-nightly 2026-06-04`, `-Z help` lists 287 options and none match
+`emscripten`/`exception`), and `-C target-feature=+exception-handling` changes nothing either.
+Establishing WHY needs the actual `emcc` link line (`EMCC_DEBUG=1`, or `-v`) rather than more
+flag guesses — that is the next measurement, not another flag. Until it is resolved the browser driver
 (`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back on the
 server's resolution.
 

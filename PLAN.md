@@ -124,8 +124,12 @@ blocker named when there is one. Regenerate it; do not quote it.
    produced the same 870,512 bytes and the same five `invoke_*`. A forced recompilation that
    changes nothing means the trampolines come from the RUST side — `rustc` emits the
    JS-trampoline exception path on this target, and `mlua` propagates Lua errors through Rust
-   unwinding. Switching rustc to WebAssembly exception handling needs `-Z emscripten-wasm-eh`,
-   a nightly flag, while this workspace pins stable 1.98.1. That is the real constraint. Until then the driver returns an empty table and the screens fall back on the server's
+   unwinding. Three real rebuilds — link flags, forced C recompilation, and
+   `-C target-feature=+exception-handling` on the nightly installed here — each produced a
+   BYTE-IDENTICAL 870,512-byte artifact with the same five `invoke_*`. Flags do not reach code
+   generation on this target. `-Z emscripten-wasm-eh` does not exist in that nightly either.
+   The next step is to read the actual `emcc` link line (`EMCC_DEBUG=1`), not to guess another
+   flag. Until then the driver returns an empty table and the screens fall back on the server's
    resolution.
 
 **Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no
