@@ -20,8 +20,16 @@ const DIST = process.argv[2]
 	? resolve(process.argv[2])
 	: fileURLToPath(new URL("../dist", import.meta.url));
 
-/** Extensions that normally benefit from compression. Images are already compressed. */
-const TARGET_EXTENSIONS = [".js", ".css", ".html", ".json", ".svg", ".map", ".txt"];
+/**
+ * Extensions that normally benefit from compression. Images are already compressed.
+ *
+ * `.wasm` is not: a WebAssembly module is a dense but highly redundant byte stream, and it was
+ * the largest uncompressed thing this bundle served. Measured 2026-09-12 at Brotli 11:
+ * `nie_wasm_bg.wasm` 4 518 898 → 927 208 (−80 %), `nie_viewer_web_bg.wasm` 2 855 742 → 804 693
+ * (−72 %). `nie-site` serves the adjacent variant for ANY file (`routes/static_files.rs`
+ * negotiates on the path, not on the extension), so listing it here is all it takes.
+ */
+const TARGET_EXTENSIONS = [".js", ".css", ".html", ".json", ".svg", ".map", ".txt", ".wasm"];
 
 function filesIn(dir: string, accumulator: string[] = []): string[] {
 	for (const entry of readdirSync(dir)) {
