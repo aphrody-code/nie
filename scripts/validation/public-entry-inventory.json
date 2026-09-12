@@ -11,6 +11,18 @@
   "entries": [
     {
       "surface": "cli",
+      "entry": "Play",
+      "capability": "play",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/flow.rs",
+      "rationale": "Play delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/play_cmd.rs",
+        "nie_app::"
+      ]
+    },
+    {
+      "surface": "cli",
       "entry": "ComputerUse",
       "capability": "computeruse",
       "classification": "host_only",
@@ -267,6 +279,30 @@
       "sourceEvidence": [
         "crates/tools/nie-cli/src/avatar_cmd.rs",
         "category_resource_prefix(cfg,"
+      ]
+    },
+    {
+      "surface": "cli",
+      "entry": "Ocgen",
+      "capability": "ocgen",
+      "classification": "portable",
+      "owner": "crates/engine/nie-ocgen/src/cli.rs",
+      "rationale": "Ocgen delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/ocgen_cmd.rs",
+        "nie_ocgen::"
+      ]
+    },
+    {
+      "surface": "cli",
+      "entry": "Atlas",
+      "capability": "atlas",
+      "classification": "portable",
+      "owner": "crates/forge/nie-index/src/atlas.rs",
+      "rationale": "Atlas delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_index::"
       ]
     },
     {

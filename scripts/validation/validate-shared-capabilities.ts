@@ -40,7 +40,7 @@ if (!siteRoutes.length || new Set(siteRoutes).size !== siteRoutes.length) failur
 if (!tauriCommands.length) failures.push("Inacord registry parsed zero commands");
 
 const bySurface = (surface: string) => inventory.entries.filter(entry => entry.surface === surface);
-const expectedCounts = { cli: 41, mcp: 19, inacord: 160, site: 140 };
+const expectedCounts = { cli: 44, mcp: 19, inacord: 160, site: 140 };
 for (const [surface, expected] of Object.entries(expectedCounts)) {
   const entries = bySurface(surface);
   if (entries.length !== expected) failures.push(`${surface}: mapped ${entries.length}, expected ${expected} authoritative entries`);
