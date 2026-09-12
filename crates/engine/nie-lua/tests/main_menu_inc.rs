@@ -21,10 +21,21 @@
 //! qu'une seule globale existe : `MAIN_MENU`. Ce n'est donc ni un travail de reverse, ni une
 //! résolution d'include défaillante — c'est UN nom.
 //!
-//! Ce que ce relevé ne tranche pas : si le rejeu réel s'arrête à la lecture de `MAIN_MENU` (là
-//! où cette VM-ci rend un stub), les cinq fonctions ne sont jamais définies, et 46 écrans les
-//! réclament ensuite en vain. C'est cohérent avec la file d'attente, et c'est la prochaine
-//! chose à vérifier — en mesurant le rejeu, pas en supposant.
+//! ## Trois hypothèses éliminées, dans cet ordre
+//!
+//! 1. **L'include échoue avant ses définitions.** Non : il va au bout et définit les cinq.
+//! 2. **Il s'arrête sur `MAIN_MENU`.** Non plus : `runtime::install_host_stubs` pose une
+//!    métatable sur `_G` qui enregistre toute globale inconnue et rend un stub appelable. Une
+//!    globale absente ne peut donc pas interrompre un script dans ce rejeu.
+//! 3. **L'INCLUDE ne se résout pas.** Non : `linclude_se_resout_sur_les_chemins_du_rejeu` le
+//!    résout depuis les trois écritures que les scripts emploient — `LUA_MAIN_MENU_INC`,
+//!    `MAIN_MENU_INC`, `main_menu_inc`.
+//!
+//! Ce qui reste, et que ce fichier n'établit PAS : l'appel `INCLUDE` n'est pas ATTEINT. S'il
+//! vit dans une fonction que le rejeu n'invoque pas — un rappel, une branche conditionnelle —
+//! l'include n'est jamais exécuté, ses définitions n'existent pas, et les 46 écrans qui les
+//! appellent les voient comme des globales d'hôte manquantes. C'est la prochaine mesure : où,
+//! dans le bytecode d'un écran, le `INCLUDE` est-il appelé.
 
 use std::path::{Path, PathBuf};
 
@@ -93,6 +104,59 @@ fn ce_que_linclude_reclame_avant_de_definir() {
             // Une erreur EST la réponse : l'include ne s'exécute pas jusqu'au bout, et le
             // message dit sur quoi il s'arrête.
             eprintln!("{nom} ÉCHOUE : {erreur}");
+        }
+    }
+}
+
+/// L'INCLUDE se résout-il, sur le jeu de chemins que le rejeu reçoit ?
+///
+/// La VM stube toute globale inconnue (`install_host_stubs`), donc `MAIN_MENU` ne peut PAS
+/// arrêter l'include : s'il s'exécutait, ses cinq fonctions existeraient. Qu'elles manquent
+/// signifie qu'il n'est pas exécuté du tout — et la première chose à éprouver est la résolution,
+/// qui est une fonction pure et ne demande aucune VM.
+#[test]
+fn linclude_se_resout_sur_les_chemins_du_rejeu() {
+    let Some(chemin) = include() else {
+        eprintln!("main_menu_inc absent de ce montage : relevé sauté");
+        return;
+    };
+    // La base sous laquelle le rejeu nomme ses chemins (`common/script/lua/...`).
+    let texte = chemin.to_string_lossy().into_owned();
+    let Some(position) = texte.find("common/script/lua/") else {
+        eprintln!("chemin inattendu : {texte}");
+        return;
+    };
+    let base = &texte[..position];
+    let mut chemins = Vec::new();
+    collecter_relatifs(Path::new(base), base, &mut chemins);
+    assert!(chemins.len() > 100, "corpus trop mince : {}", chemins.len());
+
+    let (by_name, by_logical) = nie_lua::index_script_paths(chemins.iter().map(String::as_str));
+    for nom in ["LUA_MAIN_MENU_INC", "MAIN_MENU_INC", "main_menu_inc"] {
+        eprintln!(
+            "{nom} → {:?}",
+            nie_lua::resolve_script_path(nom, &by_name, &by_logical)
+        );
+    }
+    assert!(
+        nie_lua::resolve_script_path("LUA_MAIN_MENU_INC", &by_name, &by_logical).is_some(),
+        "l'include que 46 écrans nomment doit se résoudre"
+    );
+}
+
+fn collecter_relatifs(dossier: &Path, base: &str, dans: &mut Vec<String>) {
+    let Ok(entrees) = std::fs::read_dir(dossier) else {
+        return;
+    };
+    for entree in entrees.flatten() {
+        let chemin = entree.path();
+        if chemin.is_dir() {
+            collecter_relatifs(&chemin, base, dans);
+        } else {
+            let texte = chemin.to_string_lossy();
+            if texte.ends_with(".lua.bin") {
+                dans.push(texte[base.len()..].to_owned());
+            }
         }
     }
 }
