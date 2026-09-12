@@ -247,7 +247,8 @@ CREATE TABLE IF NOT EXISTS forge_unit (
 );
 CREATE INDEX IF NOT EXISTS idx_forge_unit_vaddr ON forge_unit(binary_id, vaddr);
 CREATE INDEX IF NOT EXISTS idx_forge_unit_statut ON forge_unit(binary_id, statut);
-CREATE VIEW IF NOT EXISTS v_forge_function AS
+DROP VIEW IF EXISTS v_forge_function;
+CREATE VIEW v_forge_function AS
 SELECT f.binary_id,
        f.vaddr,
        printf('0x%x', f.vaddr) AS va_hex,

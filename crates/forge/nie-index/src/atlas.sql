@@ -238,7 +238,8 @@ CREATE INDEX IF NOT EXISTS idx_menu_screen_id     ON atlas_menu_screen(screen_id
 CREATE INDEX IF NOT EXISTS idx_menu_screen_status ON atlas_menu_screen(pairing_status);
 
 -- Aggregate status, one row.
-CREATE VIEW IF NOT EXISTS v_atlas_status AS
+DROP VIEW IF EXISTS v_atlas_status;
+CREATE VIEW v_atlas_status AS
 SELECT
     (SELECT COUNT(*) FROM atlas_artifact)                          AS artifacts,
     (SELECT COALESCE(SUM(bytes), 0) FROM atlas_artifact)           AS artifact_bytes,
@@ -256,7 +257,8 @@ SELECT
     (SELECT COUNT(*) FROM atlas_run)                               AS runs;
 
 -- Gaps ranked by the work they actually represent.
-CREATE VIEW IF NOT EXISTS v_atlas_gap_ranked AS
+DROP VIEW IF EXISTS v_atlas_gap_ranked;
+CREATE VIEW v_atlas_gap_ranked AS
 SELECT area, metric, current, target, unit, weight, status, action, evidence,
        (target - current) AS remaining,
        (target - current) * weight AS score

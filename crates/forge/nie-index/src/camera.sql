@@ -377,7 +377,8 @@ CREATE TABLE IF NOT EXISTS cam_anim_sample (
 -- ---------------------------------------------------------------------------
 
 -- Hiérarchie des contrôleurs, à plat, avec le chemin d'héritage complet.
-CREATE VIEW IF NOT EXISTS v_cam_ctrl_hierarchy AS
+DROP VIEW IF EXISTS v_cam_ctrl_hierarchy;
+CREATE VIEW v_cam_ctrl_hierarchy AS
 WITH RECURSIVE chain(cpp_name, short_name, ported, root, path, depth) AS (
     SELECT cpp_name, short_name, ported, cpp_name, cpp_name, 0
       FROM cam_ctrl_class WHERE base IS NULL
@@ -388,7 +389,8 @@ WITH RECURSIVE chain(cpp_name, short_name, ported, root, path, depth) AS (
 SELECT cpp_name, short_name, ported, depth, path FROM chain;
 
 -- Paramètres effectifs d'un preset (déclarés + hérités), un par nom.
-CREATE VIEW IF NOT EXISTS v_cam_preset_effective AS
+DROP VIEW IF EXISTS v_cam_preset_effective;
+CREATE VIEW v_cam_preset_effective AS
 SELECT p.id           AS preset_id,
        p.name         AS preset,
        p.context      AS context,
@@ -405,7 +407,8 @@ SELECT p.id           AS preset_id,
   JOIN cam_preset_param pp ON pp.preset_id = p.id;
 
 -- Une ligne par caméra logique de match, avec ses paramètres résolus par la tranche.
-CREATE VIEW IF NOT EXISTS v_cam_soccer_resolved AS
+DROP VIEW IF EXISTS v_cam_soccer_resolved;
+CREATE VIEW v_cam_soccer_resolved AS
 SELECT r.cam_id       AS cam_id,
        r.list_name    AS list_name,
        r.row_idx      AS ref_row,
@@ -420,7 +423,8 @@ SELECT r.cam_id       AS cam_id,
    AND d.row_idx <  r.slice_offset + r.slice_count;
 
 -- Bilan par type de canal : combien de canaux, combien d'échantillons, quelle part décodée.
-CREATE VIEW IF NOT EXISTS v_cam_channel_stats AS
+DROP VIEW IF EXISTS v_cam_channel_stats;
+CREATE VIEW v_cam_channel_stats AS
 SELECT kind,
        encoding,
        COUNT(*)            AS n_channels,
@@ -431,7 +435,8 @@ SELECT kind,
  GROUP BY kind, encoding;
 
 -- Couverture globale de l'indexation caméra — la question « où en est-on ? » en une ligne.
-CREATE VIEW IF NOT EXISTS v_cam_coverage AS
+DROP VIEW IF EXISTS v_cam_coverage;
+CREATE VIEW v_cam_coverage AS
 SELECT (SELECT COUNT(*) FROM cam_anim)                                   AS anims,
        (SELECT COUNT(*) FROM cam_anim WHERE roundtrip_ok = 1)            AS anims_roundtrip_ok,
        (SELECT COUNT(*) FROM cam_anim_channel)                           AS channels,
