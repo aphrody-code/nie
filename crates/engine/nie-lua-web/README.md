@@ -103,9 +103,17 @@ kept) and driven end to end against the live VFS, the module prints:
    which **does not exist** in the nightly installed here (`rustc 1.98.0-nightly`, 2026-06-04):
    `-Z help` has exactly one wasm option, `wasm-c-abi`.
 
-Two ways out remain, and both are decisions rather than flags: a newer nightly that carries the
-wasm-EH switch, or removing `-fwasm-exceptions` from Lua's C compilation, which means patching
-or forking `lua-src`'s build script. Until it is resolved the browser driver
+The "newer nightly" way out was then TRIED and does not work: the toolchain was updated from
+`1.98.0-nightly` (2026-06-04) to **`1.100.0-nightly` (2026-09-11, the day before this
+measurement)**. `-Z help` there still lists exactly two wasm options — `wasm-c-abi` and
+`wasm-proc-macros` — and no exception switch. Rebuilt with it and `-Z build-std=std`, the
+artifact changes again (875,952 bytes, and rustc now emits it at `release/` instead of
+`release/deps/`) but the five `invoke_*` remain and the module still traps in
+`nie_lua_web_replay`.
+
+**One way out remains**, and it is not a flag: stop compiling Lua with `-fwasm-exceptions`, which
+means patching or forking `lua-src`'s build script so that `mlua`'s `catch_unwind` no longer
+meets a C++ unwind it cannot catch. Until it is resolved the browser driver
 (`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back on the
 server's resolution.
 
