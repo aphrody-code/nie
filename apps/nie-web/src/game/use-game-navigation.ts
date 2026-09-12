@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { NATIVE_WINDOW } from "../host";
 import { HOME, pathForEntry, splitLanguagePrefix } from "../routing";
 import {
 	gameNavigationHistory,
@@ -24,6 +25,14 @@ export function useGameNavigation(routes: readonly string[], serverRoute?: strin
 
 	useEffect(() => {
 		const persist = () => {
+			// Inside the native window the address bar is not an address: Tauri serves the files of
+			// `frontendDist`, with no index fallback, so a path like `/inacord/cinema` written here
+			// would 404 the whole application on the next reload. The screen still lives in the
+			// history STATE, which is what restores it — only the URL stays put.
+			if (NATIVE_WINDOW) {
+				writeBrowserHistory(undefined, gameNavigationHistory(window.history.state, current.current));
+				return;
+			}
 			const url = new URL(window.location.href);
 			url.pathname = pathForEntry(splitLanguagePrefix(url.pathname).prefix, current.current.view);
 			writeBrowserHistory(url, gameNavigationHistory(window.history.state, current.current));
@@ -45,6 +54,16 @@ export function useGameNavigation(routes: readonly string[], serverRoute?: strin
 
 	const navigate = useCallback((view: string, href?: URL, options?: NavigationOptions) => {
 		const next = gameNavigationTarget(view);
+		if (NATIVE_WINDOW) {
+			// Same reason as `persist`: the state moves, the URL does not. And it REPLACES, never
+			// pushes: `readGameNavigation` deliberately ignores a non-root screen found in a history
+			// record at `/` (a stale entry must not hijack the game), so pushed entries here would
+			// build a Back stack that always came back to the same screen. The native window has no
+			// Back button; it had no view history before this merge either.
+			writeBrowserHistory(undefined, gameNavigationHistory(window.history.state, next));
+			update(next);
+			return;
+		}
 		const location = new URL(window.location.href);
 		const url = href ? new URL(href) : gameNavigationUrl(location, next.view);
 		url.pathname = pathForEntry(splitLanguagePrefix(url.pathname).prefix, next.view);
