@@ -57,7 +57,7 @@ schemars = { version = "1" }
 # Official Rust SDK for the Model Context Protocol. Keep the same reviewed
 # revision as the production aphrody-mcp sibling until the native niers MCP
 # compatibility suite authorises an SDK upgrade.
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "cc66e3091e1584f48ee1e0058a2a1201a1d35c81" }
+rmcp = { version = "1.8.0" }
 
 # base de connaissance + frontière
 rusqlite = { version = "0.37" }

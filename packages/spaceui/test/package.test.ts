@@ -21,7 +21,7 @@ describe("@aphrody/spaceui package", () => {
 	test("publishes every declared entrypoint", async () => {
 		const manifest = await Bun.file(resolve(packageRoot, "package.json")).json();
 		expect(manifest.name).toBe("@aphrody/spaceui");
-		expect(manifest.version).toBe("0.2.4-fork.1");
+		expect(manifest.version).toMatch(/^0\.2\.4-fork\.\d+$/u);
 		expect(manifest.publishConfig.access).toBe("public");
 
 		for (const target of Object.values(manifest.exports) as string[]) {

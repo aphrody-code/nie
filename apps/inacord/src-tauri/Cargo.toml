@@ -1,6 +1,7 @@
 # Desktop host in the root Cargo workspace. SQLite sessions use the shared nie-explore rusqlite owner.
 [package]
 name = "inacord"
+publish = false
 description = "Native desktop host for browsing and editing the Inazuma Eleven: Victory Road VFS"
 version.workspace = true
 authors.workspace = true
