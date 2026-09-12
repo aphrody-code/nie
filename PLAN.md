@@ -133,8 +133,15 @@ blocker named when there is one. Regenerate it; do not quote it.
    `-Z build-std` — rebuilding the standard library, whose prebuilt form carries the
    JS-exception ABI: with `-Z build-std=std,panic_abort` the module drops to 867,669 bytes and
    stops reporting a foreign exception; run end to end against the live VFS it now TRAPS instead,
-   on a Rust panic inside `nie_lua_web_replay`. The next measurement is that panic message
-   (rebuild with `-Z build-std=std`, keep unwinding, read fd 2), not another exception flag. Until then the driver returns an empty table and the screens fall back on the server's
+   on a Rust panic inside `nie_lua_web_replay`. That message was read, and it is not a panic:
+   `Rust cannot catch foreign exceptions, aborting`. The chain is now established — 
+   `-fwasm-exceptions` IS active (asking for JS `longjmp` makes emcc refuse:
+   "SUPPORT_LONGJMP=emscripten is not compatible with -fwasm-exceptions"), Lua unwinds through
+   it, `mlua` wraps its calls in `catch_unwind`, and Rust's std on this target uses the
+   emscripten JS exception ABI, so the catch meets a foreign exception and aborts by design.
+   Switching rustc to wasm EH needs `-Z emscripten-wasm-eh`, absent from the nightly installed
+   here (`-Z help` lists exactly one wasm option, `wasm-c-abi`). The two ways out are decisions,
+   not flags: a newer nightly, or patching `lua-src` to drop `-fwasm-exceptions`. Until then the driver returns an empty table and the screens fall back on the server's
    resolution.
 
 **Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no

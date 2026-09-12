@@ -83,10 +83,29 @@ library, whose prebuilt form carries the JS-exception ABI. With `panic_abort` th
 stops complaining about foreign exceptions and traps instead, on a Rust panic inside
 `nie_lua_web_replay`.
 
-So the next measurement is that panic, not another flag: rebuild with `-Z build-std=std` (keeping
-unwinding) and read the message the panic prints on fd 2 — the browser glue already surfaces it
-(`[nie-lua-web fd2] …`). That names what actually fails in the replay under wasm, which no
-amount of exception-mode tuning will tell us. Until it is resolved the browser driver
+That panic was then read, and it is not a panic. Rebuilt with `-Z build-std=std` (unwinding
+kept) and driven end to end against the live VFS, the module prints:
+
+```text
+[nie-lua-web fd2] fatal runtime error: Rust cannot catch foreign exceptions, aborting
+```
+
+**The causal chain, established:**
+
+1. `-fwasm-exceptions` is active in the link. This is not a guess — asking for the JS-based
+   `longjmp` instead makes `emcc` refuse outright:
+   `SUPPORT_LONGJMP=emscripten is not compatible with -fwasm-exceptions`.
+2. Lua's protected calls therefore unwind through the C++/wasm unwinder.
+3. `mlua` wraps its calls into Lua in `catch_unwind`.
+4. Rust's standard library on `wasm32-unknown-emscripten` uses the *emscripten* (JS) exception
+   ABI, so that `catch_unwind` meets a foreign exception and aborts by design.
+5. Making `rustc` emit WebAssembly exception handling instead needs `-Z emscripten-wasm-eh`,
+   which **does not exist** in the nightly installed here (`rustc 1.98.0-nightly`, 2026-06-04):
+   `-Z help` has exactly one wasm option, `wasm-c-abi`.
+
+Two ways out remain, and both are decisions rather than flags: a newer nightly that carries the
+wasm-EH switch, or removing `-fwasm-exceptions` from Lua's C compilation, which means patching
+or forking `lua-src`'s build script. Until it is resolved the browser driver
 (`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back on the
 server's resolution.
 
