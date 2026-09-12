@@ -94,6 +94,7 @@ pub struct Status {
     pub tools: i64,
     pub kb_tables: i64,
     pub kb_rows: i64,
+    pub menu_screens: i64,
     pub gaps_open: i64,
     pub runs: i64,
 }
@@ -175,6 +176,20 @@ pub struct ToolRecord {
     pub kind: String,
     pub path: Option<String>,
     pub summary: Option<String>,
+}
+
+/// One row of `atlas_menu_screen`.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MenuScreenRecord {
+    pub capture_file: String,
+    pub screen_id: String,
+    pub name: String,
+    pub setting_cfg: Option<String>,
+    pub pairing_status: String,
+    pub referenced_objbins: i64,
+    pub missing_objbins: i64,
+    pub has_lua: bool,
+    pub reference_image: Option<String>,
 }
 
 /// Scan tuning.
@@ -1039,6 +1054,83 @@ impl Atlas {
         self.import_tools(&tools)
     }
 
+    /// Import the 38 native menu screens and their paired assets from data/menu/screen-inventory.json
+    pub fn import_menu(&mut self, root: &Path) -> Result<usize> {
+        let inv_path = root.join("data/menu/screen-inventory.json");
+        if !inv_path.exists() {
+            return Ok(0);
+        }
+        let raw = std::fs::read_to_string(&inv_path)
+            .map_err(|e| IndexError::Other(e.to_string()))?;
+        let inventory: ScreenInventoryFile = serde_json::from_str(&raw)
+            .map_err(|e| IndexError::Other(format!("invalid screen-inventory.json: {e}")))?;
+
+        let tx = self.conn.transaction()?;
+        let mut count = 0usize;
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO atlas_menu_screen(capture_file, screen_id, name, setting_cfg, pairing_status,
+                                              referenced_objbins, missing_objbins, has_lua, reference_image, updated_at)
+                 VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, datetime('now'))
+                 ON CONFLICT(capture_file) DO UPDATE SET
+                     screen_id = excluded.screen_id,
+                     name = excluded.name,
+                     setting_cfg = excluded.setting_cfg,
+                     pairing_status = excluded.pairing_status,
+                     referenced_objbins = excluded.referenced_objbins,
+                     missing_objbins = excluded.missing_objbins,
+                     has_lua = excluded.has_lua,
+                     reference_image = excluded.reference_image,
+                     updated_at = excluded.updated_at",
+            )?;
+
+            let mut text = tx.prepare(
+                "INSERT INTO atlas_text(kind, key, body, ref) VALUES('menu_screen', ?1, ?2, ?3)
+                 ON CONFLICT(kind, key) DO UPDATE SET body = excluded.body, ref = excluded.ref",
+            )?;
+
+            for entry in &inventory.entries {
+                let screen_id = if entry.screen.is_empty() {
+                    continue;
+                } else {
+                    &entry.screen
+                };
+                let recipe = entry.setting_recipes.first();
+                let setting_cfg = recipe.map(|r| r.setting.as_str());
+                let ref_objbins = recipe.map_or(0, |r| r.referenced_objbins);
+                let miss_objbins = recipe.map_or(0, |r| r.missing_objbins);
+                let has_lua = entry
+                    .resource_counts
+                    .as_ref()
+                    .map_or(0, |r| if r.lua > 0 { 1 } else { 0 });
+
+                stmt.execute(params![
+                    entry.file,
+                    screen_id,
+                    screen_id,
+                    setting_cfg,
+                    entry.pairing_status,
+                    ref_objbins as i64,
+                    miss_objbins as i64,
+                    has_lua,
+                    entry.file,
+                ])?;
+
+                text.execute(params![
+                    entry.file,
+                    format!("menu screen {} {} {}", screen_id, entry.pairing_status, entry.file),
+                    setting_cfg.unwrap_or(""),
+                ])?;
+
+                count += 1;
+            }
+        }
+        tx.commit()?;
+        self.set_meta("menu_screens", &count.to_string())?;
+        self.refresh_fts()?;
+        Ok(count)
+    }
+
     // ------------------------------------------------------- metrics, gaps
 
     /// Record one measurement, with the command or table it came from.
@@ -1254,6 +1346,27 @@ impl Atlas {
             created += 1;
         }
 
+        // Menu screens from data/menu/ paired and verified.
+        let (menu_screens, paired): (i64, i64) = self.conn.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(CASE WHEN pairing_status = 'resolved' THEN 1 ELSE 0 END), 0)
+             FROM atlas_menu_screen",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if menu_screens > 0 {
+            self.upsert_gap(
+                "menu.screens",
+                "native menu screens indexed and paired with verified assets",
+                paired as f64 / menu_screens as f64 * 100.0,
+                100.0,
+                "pct",
+                5.0,
+                Some("niers atlas menu"),
+                Some(&format!("atlas_menu_screen {paired}/{menu_screens}")),
+            )?;
+            created += 1;
+        }
+
         Ok(created)
     }
 
@@ -1328,6 +1441,31 @@ impl Atlas {
             .find(|g| g.status == "open" || g.status == "running"))
     }
 
+    /// Read every indexed native menu screen and its asset pairing.
+    pub fn menu_screens(&self) -> Result<Vec<MenuScreenRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT capture_file, screen_id, name, setting_cfg, pairing_status,
+                    referenced_objbins, missing_objbins, has_lua, reference_image
+             FROM atlas_menu_screen ORDER BY screen_id, capture_file",
+        )?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok(MenuScreenRecord {
+                    capture_file: r.get(0)?,
+                    screen_id: r.get(1)?,
+                    name: r.get(2)?,
+                    setting_cfg: r.get(3)?,
+                    pairing_status: r.get(4)?,
+                    referenced_objbins: r.get(5)?,
+                    missing_objbins: r.get(6)?,
+                    has_lua: r.get::<_, i64>(7)? != 0,
+                    reference_image: r.get(8)?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
     /// Record one step of the autonomous loop.
     pub fn record_run(
         &self,
@@ -1350,7 +1488,7 @@ impl Atlas {
     pub fn status(&self) -> Result<Status> {
         Ok(self.conn.query_row(
             "SELECT artifacts, artifact_bytes, crates, docs, doc_refs, symbols, units,
-                    units_exact, tools, kb_tables, kb_rows, gaps_open, runs
+                    units_exact, tools, kb_tables, kb_rows, menu_screens, gaps_open, runs
              FROM v_atlas_status",
             [],
             |r| {
@@ -1366,8 +1504,9 @@ impl Atlas {
                     tools: r.get(8)?,
                     kb_tables: r.get(9)?,
                     kb_rows: r.get(10)?,
-                    gaps_open: r.get(11)?,
-                    runs: r.get(12)?,
+                    menu_screens: r.get(11)?,
+                    gaps_open: r.get(12)?,
+                    runs: r.get(13)?,
                 })
             },
         )?)
@@ -1493,6 +1632,43 @@ impl Atlas {
 }
 
 // ------------------------------------------------------------------ helpers
+
+/// `data/menu/screen-inventory.json` — the 38 native screens and their paired assets.
+#[derive(Debug, Default, serde::Deserialize)]
+struct ScreenInventoryFile {
+    #[serde(default)]
+    entries: Vec<ScreenInventoryEntry>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct ScreenInventoryEntry {
+    #[serde(default)]
+    file: String,
+    #[serde(default)]
+    screen: String,
+    #[serde(default)]
+    pairing_status: String,
+    #[serde(default)]
+    setting_recipes: Vec<SettingRecipe>,
+    #[serde(default)]
+    resource_counts: Option<ResourceCounts>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct SettingRecipe {
+    #[serde(default)]
+    setting: String,
+    #[serde(default)]
+    referenced_objbins: usize,
+    #[serde(default)]
+    missing_objbins: usize,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct ResourceCounts {
+    #[serde(default)]
+    lua: usize,
+}
 
 /// `var/forge/cover.json` — the total cover of the reference binary, written by
 /// `nie-forge split`.

@@ -25,7 +25,7 @@ pub mod story;
 /// Renderer CPU natif (charge les assets disque) — absent en wasm (le web utilise [`render::render_state`]).
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::CpuRenderer;
-pub use render::{Font, Frame, H, W};
+pub use render::{Font, Frame, H, MENU_DESCRIPTIONS, W, render_main_menu};
 
 /// Shared rendering state used by the front ends.
 ///

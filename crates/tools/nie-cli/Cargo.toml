@@ -44,6 +44,9 @@ nie-lua = { workspace = true, default-features = true }
 nie-save.workspace = true
 nie-wiki.workspace = true
 nie-zukan.workspace = true
+nie-app.workspace = true
+nie-core.workspace = true
+nie-runtime.workspace = true
 nie-render3d = { workspace = true, features = ["gpu"] }
 nie-ocgen = { workspace = true, features = ["cli"] }
 clap = { workspace = true, features = ["derive", "color", "env"] }

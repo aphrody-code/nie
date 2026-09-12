@@ -5,7 +5,7 @@
 //! `nie_runtime::World` provides a deterministic local simulation. It is not the original game
 //! executable, its match engine, or proof that a game mode has been reproduced faithfully.
 
-use crate::render::{host_owned_surface, render_list, render_state};
+use crate::render::{render_list, render_state};
 use crate::{Font, GameState, H, MENU, MODES, W};
 
 /// Public fallback shown until a front end injects sourced dialogue lines.
@@ -271,7 +271,7 @@ impl Screen {
     pub fn render(&self, font: &Font) -> Vec<u8> {
         match self {
             Screen::Title => render_state(&GameState::Title, font, None).buf,
-            Screen::Menu { .. } => host_owned_surface(),
+            Screen::Menu { sel } => crate::render::render_main_menu(*sel, font).buf,
             Screen::ModeSelect { sel } => render_list("MODE DE JEU", &MODES, *sel, font).buf,
             Screen::Story {
                 idx,
@@ -325,6 +325,7 @@ fn story_render_state(idx: usize, title: &str, lines: &[String]) -> GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::render::host_owned_surface;
 
     #[test]
     fn story_without_injected_lines_reports_unavailable() {

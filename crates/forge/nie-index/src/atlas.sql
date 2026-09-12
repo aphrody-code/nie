@@ -221,6 +221,22 @@ CREATE TABLE IF NOT EXISTS atlas_text (
 );
 CREATE INDEX IF NOT EXISTS idx_text_kind ON atlas_text(kind);
 
+-- Inventory of the 38 native menu screens and their paired assets from data/menu/
+CREATE TABLE IF NOT EXISTS atlas_menu_screen (
+    capture_file       TEXT PRIMARY KEY,
+    screen_id          TEXT NOT NULL,
+    name               TEXT NOT NULL,
+    setting_cfg        TEXT,
+    pairing_status     TEXT NOT NULL DEFAULT 'unpaired',
+    referenced_objbins INTEGER NOT NULL DEFAULT 0,
+    missing_objbins    INTEGER NOT NULL DEFAULT 0,
+    has_lua            INTEGER NOT NULL DEFAULT 0,
+    reference_image    TEXT,
+    updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_menu_screen_id     ON atlas_menu_screen(screen_id);
+CREATE INDEX IF NOT EXISTS idx_menu_screen_status ON atlas_menu_screen(pairing_status);
+
 -- Aggregate status, one row.
 CREATE VIEW IF NOT EXISTS v_atlas_status AS
 SELECT
@@ -235,6 +251,7 @@ SELECT
     (SELECT COUNT(*) FROM atlas_tool)                              AS tools,
     (SELECT COUNT(*) FROM atlas_kb_table)                          AS kb_tables,
     (SELECT COALESCE(SUM(n_rows), 0) FROM atlas_kb_table)          AS kb_rows,
+    (SELECT COUNT(*) FROM atlas_menu_screen)                       AS menu_screens,
     (SELECT COUNT(*) FROM atlas_gap WHERE status <> 'done')        AS gaps_open,
     (SELECT COUNT(*) FROM atlas_run)                               AS runs;
 

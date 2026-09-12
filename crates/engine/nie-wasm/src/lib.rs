@@ -2757,6 +2757,13 @@ impl WasmGame {
     }
 }
 
+/// Returns the embedded JSON catalog of the 38 native menu screens and their paired assets
+/// from `data/menu/screen-inventory.json`.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn menu_screens_catalog_json() -> String {
+    include_str!("../../../../data/menu/screen-inventory.json").to_string()
+}
+
 // ---------------------------------------------------------------------------
 // Tests natifs
 // ---------------------------------------------------------------------------
@@ -2764,6 +2771,15 @@ impl WasmGame {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn menu_screens_catalog_json_returns_38_screens() {
+        let json = menu_screens_catalog_json();
+        let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON catalog");
+        let entries = value["entries"].as_array().expect("entries array");
+        assert_eq!(entries.len(), 38);
+        assert_eq!(value["capture_count"], 38);
+    }
 
     #[test]
     fn menu_runtime_scene_matches_native_compiler_without_losing_layer_state() {

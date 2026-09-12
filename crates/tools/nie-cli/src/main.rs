@@ -36,6 +36,7 @@ mod menu_predecode;
 mod mod_cmd;
 mod mode_index;
 mod ocgen_cmd;
+mod play_cmd;
 mod render_cmd;
 mod search_cmd;
 mod seed_ui;
@@ -76,6 +77,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Lance l'exécution headless du moteur de jeu nie (simulation, menu, match, rendu).
+    Play(play_cmd::PlayArgs),
     /// Start the native Model Context Protocol server on stdio.
     Mcp,
     /// Probe non-destructively the native `nie.exe` or Ghidra Computer Use surface.
@@ -2166,6 +2169,7 @@ fn run() -> anyhow::Result<()> {
 
 fn dispatch(cli: Cli) -> anyhow::Result<()> {
     match cli.cmd {
+        Cmd::Play(args) => play_cmd::run(args),
         Cmd::Mcp => {
             let runtime = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()

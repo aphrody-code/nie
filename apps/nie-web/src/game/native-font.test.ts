@@ -2,9 +2,9 @@ import { expect, test } from "bun:test";
 
 test("font replacement retains all pending raster users before freeing the old atlas", () => {
 	// Keep WASM and fetch mocks in a separate process: other suites import the real bridge.
-	const wasmPath = new URL("../wasm/nie_wasm.js", import.meta.url).pathname;
-	const bridgePath = new URL("./bridge.ts", import.meta.url).pathname;
-	const fontPath = new URL("./native-font.ts", import.meta.url).pathname;
+	const wasmPath = `${import.meta.dir}/../wasm/nie_wasm.js`;
+	const bridgePath = `${import.meta.dir}/bridge.ts`;
+	const fontPath = `${import.meta.dir}/native-font.ts`;
 	const script = `
 		import { mock } from "bun:test";
 		const events = [];

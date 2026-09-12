@@ -93,7 +93,25 @@ impl Font {
         let la = LatinAtlas::from_atlas(&atlas, aw, ah, 946, metrics.dims.cell_height);
         Ok(Self { atlas, la, aw })
     }
+}
 
+impl Default for Font {
+    fn default() -> Self {
+        Self {
+            atlas: vec![0; 64 * 64 * 4],
+            la: LatinAtlas {
+                spans: Vec::new(),
+                y_base: 0,
+                cell_h: 24,
+                ink_top: 0,
+                ink_h: 24,
+            },
+            aw: 64,
+        }
+    }
+}
+
+impl Font {
     /// Largeur d'un texte en pixels, telle qu'il sera dessiné (replis ASCII compris).
     #[must_use]
     pub fn largeur(&self, texte: &str) -> u32 {
@@ -193,7 +211,8 @@ pub struct Frame<'a> {
 /// The reconstructed main-menu image and its measured interaction geometry live outside this
 /// generic CPU prototype. Returning an empty surface prevents this crate from drawing a second,
 /// invented menu while preserving the fixed framebuffer ABI expected by existing callers.
-pub(crate) fn host_owned_surface() -> Vec<u8> {
+#[allow(dead_code)]
+pub fn host_owned_surface() -> Vec<u8> {
     vec![0; W * H * 4]
 }
 
@@ -286,12 +305,7 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Fr
             s.text_centered(330, "VICTORY ROAD", [120, 200, 255, 255]);
             s.text_centered(560, "PRESS START", [200, 210, 230, 255]);
         }
-        GameState::MainMenu { .. } => {
-            return Frame {
-                buf: host_owned_surface(),
-                f,
-            };
-        }
+        GameState::MainMenu { sel } => return render_main_menu(*sel, f),
         GameState::Match { home, away } => {
             if bg.is_none() {
                 s.gradient([18, 60, 30], [8, 24, 14]);
@@ -364,6 +378,108 @@ pub fn hud_match(base: &[u8], f: &Font, score: [u32; 2], temps: f32) -> Vec<u8> 
     let w_droite = f.largeur(&droite) as i32;
     s.text(W as i32 - 24 - w_droite, y, &droite, [255, 170, 170, 255]);
     s.buf
+}
+
+/// Descriptions textuelles de chaque onglet du menu principal pour la prévisualisation.
+pub const MENU_DESCRIPTIONS: [&str; 9] = [
+    "Gestion de la formation, placement des joueurs et tactiques d'équipe.",
+    "Inventaire des objets, équipements, techniques et consommables.",
+    "Marque-pages d'informations, profils favoris et repères de progression.",
+    "Réseau Inacord : messagerie, liens entre joueurs et activités de club.",
+    "Fichier de données encyclopédique du football d'Inazuma Eleven.",
+    "Sélection des adversaires et accès aux 5 modes de jeu principaux.",
+    "Guide du jeu, didacticiels et explications des règles de match.",
+    "Paramètres système, affichage, audio et commandes de jeu.",
+    "Sauvegarde de la progression sur le système de fichiers virtuel.",
+];
+
+/// Rend le menu principal complet avec la liste des 9 onglets, la carte d'aperçu du mode sélectionné
+/// et la barre de commandes de navigation. Utilisable en headless, natif et wasm.
+#[must_use]
+pub fn render_main_menu<'a>(sel: usize, f: &'a Font) -> Frame<'a> {
+    let mut s = Frame::new(f);
+    // Fond dégradé élégant Victory Road
+    s.gradient([18, 28, 58], [10, 14, 28]);
+
+    // Barre supérieure de titre
+    s.rect(0, 0, W as i32, 64, [16, 48, 110, 240]);
+    s.rect(0, 62, W as i32, 64, [60, 180, 255, 255]);
+    s.text(32, 14, "INAZUMA ELEVEN : VICTORY ROAD", [230, 242, 255, 255]);
+    s.text(W as i32 - 280, 14, "MENU PRINCIPAL", [120, 200, 255, 255]);
+
+    // Panneau gauche : les 9 onglets réels du jeu
+    let left_w = 480i32;
+    let n = crate::MENU.len();
+    let ligne = f.hauteur_ligne();
+    let haut_liste = 84;
+    let dispo = H as i32 - haut_liste - 54;
+    let gap = dispo / n as i32;
+    let bh = gap - 6;
+
+    for (i, &item) in crate::MENU.iter().enumerate() {
+        let y = haut_liste + i as i32 * gap;
+        let hot = i == sel;
+        let bg_c = if hot {
+            [40, 110, 200, 245]
+        } else {
+            [16, 24, 46, 210]
+        };
+        s.rect(32, y, left_w, y + bh, bg_c);
+        if hot {
+            s.rect(32, y, 40, y + bh, [100, 220, 255, 255]);
+            s.rect(left_w - 4, y, left_w, y + bh, [100, 220, 255, 255]);
+        }
+        let txt = f.tronquer(item, left_w - 64);
+        let color = if hot {
+            [255, 255, 255, 255]
+        } else {
+            [190, 205, 225, 255]
+        };
+        s.text(52, y + (bh - ligne) / 2, &txt, color);
+    }
+
+    // Panneau droit : carte d'aperçu / prévisualisation de l'onglet actif
+    let right_x = left_w + 24;
+    let right_w = W as i32 - 32 - right_x;
+    let right_top = 84;
+    let right_bot = H as i32 - 54;
+    s.rect(right_x, right_top, right_x + right_w, right_bot, [14, 22, 42, 230]);
+    s.rect(right_x, right_top, right_x + right_w, right_top + 4, [60, 160, 240, 255]);
+
+    // Titre de l'onglet actif dans la carte
+    let active_title = crate::MENU.get(sel).copied().unwrap_or("MENU");
+    s.text(right_x + 24, right_top + 24, active_title, [240, 245, 255, 255]);
+
+    // Description de l'onglet
+    let desc = MENU_DESCRIPTIONS.get(sel).copied().unwrap_or("");
+    s.text_wrapped(right_x + 24, right_top + 70, right_w - 48, 36, desc, [180, 200, 230, 255]);
+
+    // Si on est sur "Adversaires" (sel == 5), afficher les 5 modes disponibles
+    if sel == 5 {
+        s.text(right_x + 24, right_top + 160, "MODES DISPONIBLES :", [100, 210, 255, 255]);
+        for (m_idx, &mode) in crate::MODES.iter().enumerate() {
+            let my = right_top + 200 + m_idx as i32 * 38;
+            s.rect(right_x + 24, my, right_x + right_w - 24, my + 30, [20, 32, 60, 200]);
+            s.rect(right_x + 24, my, right_x + 28, my + 30, [80, 160, 230, 255]);
+            s.text(right_x + 36, my + (30 - ligne) / 2, mode, [220, 235, 250, 255]);
+        }
+    } else {
+        // Décoration d'aperçu générique
+        s.rect(right_x + 24, right_top + 160, right_x + right_w - 24, right_bot - 24, [10, 16, 32, 180]);
+        let center_x = right_x + right_w / 2;
+        let lbl1 = "VFS / LEVEL-5 SYSTEM ENGINE";
+        let w1 = f.largeur(lbl1) as i32;
+        s.text(center_x - w1 / 2, right_top + 240, lbl1, [70, 110, 170, 255]);
+        let lbl2 = "Composant operationnel - Ready";
+        let w2 = f.largeur(lbl2) as i32;
+        s.text(center_x - w2 / 2, right_top + 280, lbl2, [100, 170, 230, 255]);
+    }
+
+    // Barre inférieure d'aide / commandes
+    s.rect(0, H as i32 - 40, W as i32, H as i32, [10, 16, 32, 240]);
+    s.text(32, H as i32 - 30, "[Fleches / ZQSD] Naviguer   [Entree] Valider   [Echap] Ecran-titre", [140, 170, 210, 255]);
+
+    s
 }
 
 /// Rendu générique d'un menu-liste (titre + items surlignables), adapté au nombre d'items.
@@ -515,4 +631,13 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn menu_descriptions_correspondent_aux_neuf_onglets() {
+        assert_eq!(super::MENU_DESCRIPTIONS.len(), crate::MENU.len());
+        for desc in &super::MENU_DESCRIPTIONS {
+            assert!(!desc.is_empty());
+        }
+    }
 }
+

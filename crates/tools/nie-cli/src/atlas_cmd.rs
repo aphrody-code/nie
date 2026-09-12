@@ -57,6 +57,13 @@ pub enum AtlasCmd {
         #[arg(long)]
         json: bool,
     },
+    /// Affiche l'inventaire des 38 écrans de menu réels et leur couverture.
+    Menu {
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        db: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// Cherche dans tout l'index d'un coup (docs, symboles, outils, fichiers, crates).
     Search {
         /// Motif recherché.
@@ -172,6 +179,7 @@ pub fn run(cmd: AtlasCmd) -> Result<()> {
             json,
         } => build(&db, &root, &kb, no_kb, row_cap, no_link, redis.as_deref(), json),
         AtlasCmd::Status { db, json } => status(&db, json),
+        AtlasCmd::Menu { db, json } => menu_screens(&db, json),
         AtlasCmd::Search {
             query,
             db,
@@ -248,6 +256,9 @@ fn build(
         )
         .context("import des binaires")?;
     let forge = atlas.import_forge(&root).context("import de la forge")?;
+    let menu_screens = atlas
+        .import_menu(&root)
+        .context("import du catalogue menu")?;
     let mut tools = atlas
         .import_repo_tools(&root)
         .context("import des outils du dépôt")?;
@@ -284,6 +295,14 @@ fn build(
             .context("appariement symbole → source Rust")?
     };
 
+    atlas.record_metric(
+        "menu.screens",
+        menu_screens as f64,
+        Some(38.0),
+        "data/menu/screen-inventory.json",
+        None,
+        None,
+    )?;
     record_forge_metrics(&atlas)?;
     let gaps = atlas.refresh_gaps().context("calcul des écarts")?;
     let mirrored = match redis {
@@ -309,6 +328,7 @@ fn build(
             "docs": docs,
             "binaries": binaries,
             "forge": forge,
+            "menu_screens": menu_screens,
             "tools": tools,
             "kb": kb_digest,
             "symbols_linked": linked,
@@ -320,7 +340,7 @@ fn build(
         println!("{}", serde_json::to_string_pretty(&payload)?);
     } else {
         println!(
-            "atlas-build files={} bytes={} crates={} docs={} doc_refs={} binaries={} tools={} symbols={} units={} units_lifted={} units_exact={} kb_tables={} kb_rows={} linked={} gaps={} redis={} ms={}",
+            "atlas-build files={} bytes={} crates={} docs={} doc_refs={} binaries={} tools={} menu_screens={} symbols={} units={} units_lifted={} units_exact={} kb_tables={} kb_rows={} linked={} gaps={} redis={} ms={}",
             scan.files,
             scan.bytes,
             crates,
@@ -328,6 +348,7 @@ fn build(
             status.doc_refs,
             binaries,
             tools,
+            menu_screens,
             status.symbols,
             status.units,
             forge.lifted,
@@ -452,7 +473,7 @@ fn status(db: &Path, json: bool) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(&status)?);
     } else {
         println!(
-            "atlas artifacts={} bytes={} crates={} docs={} doc_refs={} symbols={} units={} units_exact={} tools={} kb_tables={} kb_rows={} gaps_open={} runs={}",
+            "atlas artifacts={} bytes={} crates={} docs={} doc_refs={} symbols={} units={} units_exact={} tools={} menu_screens={} kb_tables={} kb_rows={} gaps_open={} runs={}",
             status.artifacts,
             status.artifact_bytes,
             status.crates,
@@ -462,11 +483,39 @@ fn status(db: &Path, json: bool) -> Result<()> {
             status.units,
             status.units_exact,
             status.tools,
+            status.menu_screens,
             status.kb_tables,
             status.kb_rows,
             status.gaps_open,
             status.runs
         );
+    }
+    Ok(())
+}
+
+fn menu_screens(db: &Path, json: bool) -> Result<()> {
+    let atlas = Atlas::open(db)?;
+    let screens = atlas.menu_screens()?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&screens)?);
+    } else {
+        println!(
+            "{:<24} {:<32} {:<10} {:>5} {:>5} {:<5} {}",
+            "SCREEN_ID", "CAPTURE_FILE", "STATUS", "REFS", "MISS", "LUA", "SETTING_CFG"
+        );
+        for s in &screens {
+            println!(
+                "{:<24} {:<32} {:<10} {:>5} {:>5} {:<5} {}",
+                s.screen_id,
+                s.capture_file,
+                s.pairing_status,
+                s.referenced_objbins,
+                s.missing_objbins,
+                if s.has_lua { "yes" } else { "no" },
+                s.setting_cfg.as_deref().unwrap_or("-")
+            );
+        }
+        println!("menu-screens total={} (catalog 38)", screens.len());
     }
     Ok(())
 }

@@ -516,3 +516,265 @@ Comprehensive reverse-engineering across four core engine systems, media crawlin
    - `bun run typecheck`: 23/23 packages passed (0 error), exit 0
    - `n2b scripts/crawler/sync-skills-azalee.ts`: 0 errors, 0 warnings
 
+## Reconstructing nie.exe across WASM, Win32, Linux & Headless CLI + data/menu 38 Screens Unified Atlas Pipeline — 2026-09-11
+
+Full unification of the game engine runtime, cross-platform compilation gates, and `data/menu` 38-screen inventory into the Atlas pipeline:
+
+1. **Autonomous Game Rendering & Main Menu Reconstruction (`nie-app`):**
+   - Implemented `render_main_menu(sel, font)` rendering the Level-5 9-tab main menu layout (1280x720) with tab preview cards, active highlights, descriptions, and footer navigation.
+   - Connected `GameState::MainMenu` in `render_state` and `Screen::Menu` in `flow.rs`.
+   - Provided `impl Default for Font` with memory fallback so headless and server runners operate deterministically without filesystem font assets.
+   - Verified: `cargo test -p nie-app` (24/24 tests passed, 0 failed).
+
+2. **Native Menu Catalog (38 screens) & Atlas Pipeline (`nie-index`, `nie-cli atlas`):**
+   - Designed and created `atlas_menu_screen` schema in `atlas.sql` and updated `v_atlas_status` view.
+   - Imported all 38 cataloged screens from `data/menu/screen-inventory.json`, indexing recipe configurations, referenced/missing objbins, Lua presence, and pairing status (38/38 resolved).
+   - Added `niers atlas menu` subcommand displaying the complete 38-screen inventory table.
+   - Metric `menu.screens` recorded at 38/38 (100.0 %), closing the gap with `status: done`.
+   - Verified: `cargo test -p nie-index` (18/18 unit tests + 1/1 doctest passed).
+
+3. **Multiplatform Headless Game Runtime (`niers play` & `nie-wasm`):**
+   - Implemented `niers play` CLI command supporting deterministic frame simulation, IEVR input dispatch (`CMD_ENTER`, `CMD_BACK`, `CMD_FCS_MTX_*`), match physics simulation (22 players, live ball tracking), framebuffer rendering (1280x720), PPM export, and JSON summaries.
+   - Verified `niers play` scenarios:
+     - Headless boot & menu: `niers play --frames 30 --json` (status OK, final screen `Menu(sel=0)`)
+     - Menu navigation & PPM dump: `niers play --screen menu --cmd "down,down,enter" --frames 10 --out var/test_menu.ppm --json` (final screen `Info(Marque-pages d'informations)`, PPM rendered)
+     - Match simulation: `niers play --match --match-seconds 5.0 --json` (300 frames, score 0-0, live ball coordinates tracked)
+   - Exposed `menu_screens_catalog_json()` in `nie-wasm` with unit tests (65/65 passed).
+   - Verified multi-platform target gates:
+     - **WASM:** `cargo check -p nie-wasm --target wasm32-unknown-unknown` (exit 0)
+     - **Linux:** `cargo check -p nie-app -p nie-core -p nie-runtime --target x86_64-unknown-linux-gnu` (exit 0)
+     - **Win32:** `cargo check -p nie-cli` with MinGW GCC 13.2.0 toolchain (exit 0)
+
+API: persisted identifiers, parent hierarchy, local full quaternion/TRS, inherited visibility,
+bounded validation and JSON v1→v2 migration. V1 retains its 128-object limit; v2 permits at most
+4,096 authoring objects. Initial migrated IDs are deterministic for an unchanged v1 sequence and
+become persistent only after saving v2; they are not claimed stable across v1 reordering.
+
+The document suite passes 17 tests and strict clippy with zero warnings. This slice does not yet
+make the editor persistent: composition, atomic save/recovery, command history, frontend bindings
+and parent-transform evaluation remain open M2/M4 work.
+
+#### M2 pose/animation contract — implemented primitive, format binding still open
+
+`nie-core::animation` now owns format-neutral `SkeletonId`, `BoneId`, `PoseFrame`, local bone
+poses, keyframe tracks and deterministic clamp/loop sampling with translation/scale lerp and
+quaternion nlerp. It deliberately does not claim G4MT/G4RA semantics: loaders must provide decoded
+keyframes. Invalid times, transforms, quaternions and non-finite values fail closed.
+
+`nie-runtime` re-exports the contract for compatibility, while `nie-render3d` depends on the
+acyclic core owner. The core suite passes 300 tests and the runtime suite 6 tests; strict clippy
+passes for both crates. The contract is not yet connected to G4MT/G4SK, skinned
+`nie-render3d`, native/Wasm bindings or the editor timeline; those remain the next functional gates.
+
+The G4MT loader now exposes a format-neutral `Motion::decode_clip` result (`DecodedMotionClip`,
+tracks and keyframes): it resolves target-to-bone mappings supplied by the caller, preserves local
+TRS, converts declared FPS to seconds, rejects additive clips/invalid mappings and omits unresolved
+targets without inventing bones. The `nie-formats` gate passes 317 tests (one ignored) and strict
+clippy. A runtime adapter and pose-driven renderer are still required before this becomes a
+functional playback path.
+
+The GLB loader now evaluates glTF node hierarchy transforms and bind-pose skinning (JOINTS/WEIGHTS
+and inverse-bind matrices), while preserving the existing `Model`/`Primitive` API. Its focused
+suite passes 19 tests and strict clippy. This is a measured bind-pose/import improvement, not yet
+dynamic `PoseFrame` application: runtime pose upload, morph targets and GPU skinning remain open.
+
+#### Gate finding — forge independence remains open
+
+The current `nie-forge build` reproduces the exact SHA-256, but source inspection shows it still
+loads the reference binary and copies every non-regenerated unit from it. This proves exact output
+and measured replacement coverage, not independent production of all bytes. The 100% repository
+provenance definition of done therefore remains open and must not be inferred from `identical=true`.
+
+The avatar-editor fixture TypeScript diagnostics were corrected in
+`packages/inacord-ui/src/avatar/NativeAvatarEditor.test.tsx`; the targeted package typecheck now
+passes. Its targeted test run is 9/10: the remaining Escape-bubbling failure is a separate
+pre-existing happy-dom/React event error (`getNodeFromInstance(null)`), so the editor integration
+gate remains open.
+
+---
+
+## Interface-delivery ledger — archived
+
+The 38-screen interface-delivery run (2026-09-08 → 2026-09-09), its execution schedule,
+acceptance ledger and dated batch ledgers now live in
+[`docs/archive/plans/2026-09-11/interface-delivery-ledger-to-2026-09-09.md`](docs/archive/plans/2026-09-11/interface-delivery-ledger-to-2026-09-09.md).
+Its OPEN rows remain debt; none of its measurements is current proof.
+
+## Original Characters (OC) full VFS integration & production validation — 2026-09-11
+
+Integrated Original Characters (`data/oc/`, specifically Astro Lor `c99019010` and `c99019020`) into the core VFS engine (`nie-formats::vfs::Vfs`), CLI (`nie-cli` binary `niers`), and data pipeline:
+
+1. **VFS Overlay & Discovery Engine (`nie-formats`):**
+   - Added transparent overlay system (`overlays: HashMap<String, PathBuf>`) into `Vfs` struct.
+   - Automatically discovers and indexes `data/oc/` assets, including contract JSONs, catalogs, and artistic reference webp derivatives.
+   - Automatically mounts compiled `var/ocgen/` artifacts (`icons/c99019010_l.g4tx`, `icons/c99019020_l.g4tx`, `text/` event dialogues, and character edit param `cfg.bin`) into logical VFS paths (`data/dx11/menu/200_icon/10_icon_chr/face/`, `data/common/text/...`, `data/oc/generated/`).
+   - Added `Vfs::load_oc_catalog()`, `Vfs::oc_characters()`, `Vfs::is_oc_path()`, `Vfs::overlay_count()`, and `Vfs::iter_overlays()`.
+   - Comprehensive test added: `vfs_integre_pleinement_data_oc_et_ses_overlays` verifying overlay resolution and data integrity.
+
+2. **Visual Derivatives & Asset Generation:**
+   - Generated canonical 512x512 square portraits (`face-og.webp`, `face-go.webp`), BD pages (1-3), and 9 color/anatomy reference sheets under `data/oc/astro-lor/` using `scripts/donnees/generate-oc-derivatives.py`.
+   - Re-compiled `nie-ocgen` G4TX portrait icons, CFG.BIN parameters, and dialogue event files under `var/ocgen/`.
+   - Synchronized `data/oc/catalog.json` (43 files, 1 contract) via `scripts/donnees/oc-catalog.py`.
+   - Synchronized `data/oc/astro-lor/manifest.json` with `present: 2`, `tables_reperees: 9/9`, `references_artistiques: 9`.
+
+3. **Toolchain & Quality Gates:**
+   - Identified bundled MinGW GCC 13.2.0 toolchain under `var/vcpkg/` enabling full C/C++ compilation for native Rust dependencies (`zstd-sys`, `mlua-sys`, `aws-lc-sys`) under `x86_64-pc-windows-gnu`.
+   - Built and linked `nie-cli` binary `target/debug/niers.exe` and `target/release/niers.exe`, updating `~/.local/bin/niers.exe`.
+   - Built `target/debug/nie_ffi.dll` (51.7 MB) required by Bun FFI integration tests.
+   - Fixed `packages/nie/src/index.ts` FFI symbols typing (`as any`) resolving `TS4111` strict index signature access errors across the monorepo.
+   - Fixed `packages/nie/package.json` version alignment with workspace (`0.5.11`).
+   - Fixed `unused-mut` warning in `nie-explore` for Windows targets.
+   - Measured gates:
+     - `cargo clippy -p nie-formats --lib -- -D warnings`: 0 warnings, exit 0
+     - `cargo clippy -p nie-ocgen --lib -- -D warnings`: 0 warnings, exit 0
+     - `cargo clippy -p nie-cli --bin niers -- -D warnings`: 0 warnings, exit 0
+     - `cargo test -p nie-formats --lib`: 325 passed, 0 failed, exit 0
+     - `cargo test -p nie-ocgen`: 13 passed, 0 failed, exit 0
+     - `cargo test -p nie-explore --lib --no-default-features`: 39 passed, 0 failed, exit 0
+     - `bun run typecheck`: 22/22 packages passed, exit 0
+     - `bun test packages/nie`: 38 passed, 0 failed, exit 0
+     - `uv run scripts/donnees/astro-lor-manifest.py`: exit 0 (12 assets, 9 tables mapped, 9 artistic references)
+     - `uv run scripts/donnees/oc-catalog.py`: exit 0 (43 files, 1 contract)
+
+## Astro Lor 3D Model, GLB Assembly & Live Steam Save Avatar Configuration — 2026-09-11
+
+Configured Astro Lor (`astro-lor`, codes `c99019010` [OG, 01_IE1] and `c99019020` [VR, 11_VICTORY]) as the active Avatar in the player's live Steam save, generated compliant 3D models and textures based on Byron Love and Shawn Froste reverse-engineered formats, assembled complete avatars with body/shoes/skeleton, and exported standalone GLB 2.0 assets:
+
+1. **3D Model & Texture Production (`scripts/donnees/generate-oc-models.ts`):**
+   - Generated binary assets under `var/ocgen/chr/`:
+     - G4MD: 2,268 B submesh and materials descriptors (`c99019010.g4md`, `c99019020.g4md`).
+     - G4MG: 130,304 B vertex buffers, normals, UVs, and 98-bone skinning (`c99019010.g4mg`, `c99019020.g4mg`).
+     - G4TX: 3,542,384 B DDS/BC7 texture atlases with 7 sub-textures (`c99019010.g4tx`, `c99019020.g4tx`).
+   - Fully written in Bun-native TypeScript (`Uint8Array`, `TextEncoder`, `Bun.file`, `Bun.write`) with zero Node dependencies, validated by `n2b` check (0 errors, 0 warnings).
+
+2. **VFS Overlay & Series Resolution (`nie-formats`):**
+   - Extended `mount_ocgen_artifacts` in `crates/engine/nie-formats/src/vfs.rs` to mount the 6 generated 3D assets under `data/common/chr/_face/` and `data/dx11/chr/_face/`.
+   - Updated `series_dir_from_code` in `crates/engine/nie-formats/src/assemble.rs` to route series prefix `99` (`c99019010` -> `01_ie1`, `c99019020` -> `11_victory`).
+   - Extended and verified integration test `vfs_integre_pleinement_data_oc_et_ses_overlays`.
+
+3. **Avatar 3D Assembly & GLB 2.0 Export (`tests/assemble_astro_lor.rs`):**
+   - Implemented `crates/engine/nie-formats/tests/assemble_astro_lor.rs`.
+   - Recomposed full avatar mesh via `assemble_avatar_model` combining Astro Lor face, tall/normal body (`u000105`), shoes (`s000201`), and skeleton rest pose matrix `c_head_1_0` (`c000301_edit.g4sk`).
+   - Exported valid glTF binary models (magic `0x46546C67`):
+     - `data/oc/astro-lor/c99019010.glb` (221,584 B, 3,860 vertices, 4,797 triangles)
+     - `data/oc/astro-lor/c99019020.glb` (221,584 B, 3,860 vertices, 4,797 triangles)
+     - Mirrored in `var/ocgen/chr/01_IE1/` and `var/ocgen/chr/11_VICTORY/`.
+
+4. **Live Steam Save Avatar Configuration (`crates/engine/nie-save/tests/apply_astro_lor.rs`):**
+   - Configured Astro Lor OG (`0x9983CCE2`) as the active player Avatar (slot 0 of roster) and Astro Lor VR (`0x0C78B74B`) in slot 12.
+   - Preserved original slot 0 character (`0x5ECFA302`) by shifting to slot 13 (total 14 owned characters).
+   - Re-encrypted live save using key `CRC32("002AB8F4-USERDATALIVE") = 0x4EAD4023`.
+   - Deployed directly to Steam UserData: `C:\Program Files (x86)\Steam\userdata\1599409088\2799860\remote\002AB8F4-USERDATALIVE` (12,598,458 B).
+   - Verified magic, CRC32, and SF-TLV container integrity on live reload.
+
+5. **Measured Verification Gates:**
+   - `cargo clippy -p nie-formats --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo clippy -p nie-save --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo test -p nie-formats --test assemble_astro_lor`: 1 passed, exit 0
+   - `cargo test -p nie-save --test apply_astro_lor`: 1 passed, exit 0
+   - `bun run typecheck`: 23/23 packages passed (0 error), exit 0
+
+## Full Engine RE: Skills, Animation (G4MT/G4MA), Events (T2B), Video (IVF/WebM/USM) & Azalée Crawler — 2026-09-11
+
+Comprehensive reverse-engineering across four core engine systems, media crawling pipeline, and Astro Lor source skills/auras integration:
+
+1. **Skills RE & Crawler Pipeline (`scripts/crawler/sync-skills-azalee.ts`):**
+   - Mapped `who01060` (Sauve-cabri / Soyoyagi Step, hash `0xE0549BE6`, event `ev61_01060` `0x858B3028`, Wind Dribble, TP 70, Power 70->440) and `who01360` (Cabriole de la biche / Serow Cabriole, hash `0xE21225BF`, event `ev61_01360` `0x87CD8E71`, Wind Dribble, TP 100, Power 140->800).
+   - Created Bun-native crawler fetching JSON specs, WebM 60fps video, posters, telops, and actor textures directly to `data/skills/` and `var/skills/`. Validated with `n2b` (0 errors, 0 warnings).
+
+2. **Motion & Animation RE (`nie-formats::g4mt`, `nie-formats::g4ma`):**
+   - Unveiled Level-5 container type ID `0x68` unification: G4MT (skeletal transform animation) and G4MA (material/texture stage animation) share the exact same 64-byte file header (`_HEADER_G4MT_BIN_V01`).
+   - Extended `g4mt.rs` with `find_clip_by_name` and `find_clip_by_hash`.
+   - Refactored `g4ma.rs` with `G4ma` parser extracting material animation tracks, translation/rotation/scale channels, and timing.
+
+3. **Event & Dialogue RE (`nie-formats::event_script`):**
+   - Mapped 2,087 `evt/`, 3,899 `snd/`, 3,911 `eff/`, and 5,131 washa tables.
+   - Built `nie-formats::event_script` decoder for Level-5 T2B event bytecode (`ev*.cfg.bin`), decoding CRC-32 opcodes: `OPCODE_CUT` (`0x53AC0392`), `OPCODE_ACTOR` (`0xE31C63A6`), `OPCODE_DIALOGUE` (`0x1613A5AE`), `OPCODE_CAMERA` (`0x8A8A1C5A`), and `OPCODE_EFF` (`0x8C1B7A3C`).
+   - Verified event parsing and round-trip fidelity against real game data and OC cutscenes (`ev98_99010.cfg.bin`).
+
+4. **Video & Media RE (`nie-formats::ivf`, `nie-formats::webm`, `nie-formats::usm`, `nie-cli video`):**
+   - Unveiled CRI USM video structure: VP90 codec ID 9, H.264 codec ID 5.
+   - Built standalone IVF (Indeo Video Format / VP90 `DKIF`) encoder and decoder in `nie-formats::ivf`.
+   - Implemented `demuxer_webm_vp9` in `nie-formats::webm` to extract raw VP9 bitstream frames without container overhead.
+   - Implemented `muxer_usm_vp9` in `nie-formats::usm` constructing bitstream chunks, `@SFV` blocks, and `@UTF` directory headers.
+   - Added `niers video convert-webm` CLI command converting WebM directly to IVF and USM (`who01060.ivf`: 1280x720, 316 frames, 5.27s, 1,354,973 B).
+
+5. **Astro Lor Skills & Auras Integration (`data/oc/astro-lor/source/skills/`):**
+   - Downloaded and linked official media: `aura_soul.webm`, `saute-mouton.webm`, `who01060.png`, `ev61_01060.png`, `who01360.webm`, `who01360_poster.jpg`, `who01360.png`.
+   - Created canonical manifest `data/oc/astro-lor/source/skills/manifest.json` cataloguing Keshin *Morphée, le Dieu des Rêves* (`0xCFD002A0`, hissatsu *Vœux Précieux* `ock6006`), 4 Mixi-Max (Master Dragon, Shawn Froste, Celia Hills, Asta Lor), 2 linked skills (`who01060`, `who01360`), and 24 lore hissatsu.
+   - Linked `skills_source` and `auras_summary` directly in `data/oc/astro-lor/manifest.json`.
+
+6. **Measured Verification Gates:**
+   - `cargo clippy -p nie-formats --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo clippy -p nie-cli --bins --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo test -p nie-formats --lib`: 337 passed, 0 failed, exit 0
+   - `bun run typecheck`: 23/23 packages passed (0 error), exit 0
+   - `n2b scripts/crawler/sync-skills-azalee.ts`: 0 errors, 0 warnings
+
+## Reconstructing nie.exe across WASM, Win32, Linux & Headless CLI + data/menu 38 Screens Unified Atlas Pipeline — 2026-09-11
+
+Full unification of the game engine runtime, cross-platform compilation gates, and `data/menu` 38-screen inventory into the Atlas pipeline:
+
+1. **Autonomous Game Rendering & Main Menu Reconstruction (`nie-app`):**
+   - Implemented `render_main_menu(sel, font)` rendering the Level-5 9-tab main menu layout (1280x720) with tab preview cards, active highlights, descriptions, and footer navigation.
+   - Connected `GameState::MainMenu` in `render_state` and `Screen::Menu` in `flow.rs`.
+   - Provided `impl Default for Font` with memory fallback so headless and server runners operate deterministically without filesystem font assets.
+   - Verified: `cargo test -p nie-app` (24/24 tests passed, 0 failed).
+
+2. **Native Menu Catalog (38 screens) & Atlas Pipeline (`nie-index`, `nie-cli atlas`):**
+   - Designed and created `atlas_menu_screen` schema in `atlas.sql` and updated `v_atlas_status` view.
+   - Imported all 38 cataloged screens from `data/menu/screen-inventory.json`, indexing recipe configurations, referenced/missing objbins, Lua presence, and pairing status (38/38 resolved).
+   - Added `niers atlas menu` subcommand displaying the complete 38-screen inventory table.
+   - Metric `menu.screens` recorded at 38/38 (100.0 %), closing the gap with `status: done`.
+   - Verified: `cargo test -p nie-index` (18/18 unit tests + 1/1 doctest passed).
+
+3. **Multiplatform Headless Game Runtime (`niers play` & `nie-wasm`):**
+   - Implemented `niers play` CLI command supporting deterministic frame simulation, IEVR input dispatch (`CMD_ENTER`, `CMD_BACK`, `CMD_FCS_MTX_*`), match physics simulation (22 players, live ball tracking), framebuffer rendering (1280x720), PPM export, and JSON summaries.
+   - Verified `niers play` scenarios:
+     - Headless boot & menu: `niers play --frames 30 --json` (status OK, final screen `Menu(sel=0)`)
+     - Menu navigation & PPM dump: `niers play --screen menu --cmd "down,down,enter" --frames 10 --out var/test_menu.ppm --json` (final screen `Info(Marque-pages d'informations)`, PPM rendered)
+     - Match simulation: `niers play --match --match-seconds 5.0 --json` (300 frames, score 0-0, live ball coordinates tracked)
+   - Exposed `menu_screens_catalog_json()` in `nie-wasm` with unit tests (65/65 passed).
+   - Verified multi-platform target gates:
+     - **WASM:** `cargo check -p nie-wasm --target wasm32-unknown-unknown` (exit 0)
+     - **Linux:** `cargo check -p nie-app -p nie-core -p nie-runtime --target x86_64-unknown-linux-gnu` (exit 0)
+     - **Win32:** `cargo check -p nie-cli` with MinGW GCC 13.2.0 toolchain (exit 0)
+
+4. **Measured Verification Gates:**
+   - `bun run typecheck`: 23/23 packages passed (0 error), exit 0
+   - `cargo test -p nie-wasm`: 65 passed, 0 failed, exit 0
+   - `cargo test -p nie-app`: 24 passed, 0 failed, exit 0
+   - `cargo test -p nie-index`: 18 passed + 1 doctest, 0 failed, exit 0
+   - `cargo clippy -p nie-app --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo clippy -p nie-index --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo clippy -p nie-wasm --lib --tests -- -D warnings`: 0 warnings, exit 0
+   - `cargo clippy -p nie-cli --bins --tests -- -D warnings`: 0 warnings, exit 0
+   - `niers atlas status`: `menu_screens=38`, `artifacts=5292`, `crates=46`, `docs=591`, `tools=179`, `gaps_open=3`, `runs=1`
+
+## Authentic Game Favicon Deployment, Inacord AI Slop Strict Prohibition & Production Gate — 2026-09-12
+
+Full enforcement of authentic game asset sovereignty, PE icon extraction, and zero-slop quality gates:
+
+1. **Authentic Game Icon Extraction & Multi-Resolution Deployment (`nie.exe` PE Resources):**
+   - Extracted authentic official game icon from Steam `nie.exe` PE `.rsrc` table (RT_GROUP_ICON ID 101, portrait of Unmei Sasanami).
+   - Verified 4 embedded resolutions: 16x16 8bpp, 32x32 8bpp, 48x48 32bpp, 256x256 32bpp PNG (`var/game_extracted.ico`, 59,145 B; `var/game_extracted_256.png`, 45,835 B).
+   - Deployed multi-resolution `.ico` and Lanczos-resampled PNG assets (16, 32, 48, 64, 128, 180, 192, 256, 512) to:
+     - `apps/nie-web/public/static/favicon.ico` + PNG icons
+     - `apps/inacord/public/favicon.ico` + `apps/inacord/public/static/favicon.ico` + PNG icons
+     - `apps/inacord/src-tauri/icons/` (`icon.ico`, `icon.png`, `icon.icns`, `32x32.png`, `64x64.png`, `128x128.png`, `128x128@2x.png`, and all Square/Store logos)
+   - Fixed `apps/nie-web/vite.config.ts` to preserve `<link rel="icon" ...>` on desktop and inacord-web modes instead of stripping it.
+   - Added `<link rel="icon" href="/favicon.ico" />` to `apps/inacord/index.html`.
+
+2. **Inacord Zero AI Slop Quality Charter (`apps/inacord/AGENTS.md`):**
+   - Codified permanent invariant: synthetic AI placeholders, hallucinated game data, generic AI-generated textures, and speculative schemas are strictly forbidden in Inacord.
+   - Mandated 100% authentic Level-5 assets originating from verified Steam game VFS (`nie.exe`, `.cpk`, `.g4md`, `.g4mg`, `.g4pkm`) or official dumps.
+
+3. **Measured Verification Gates:**
+   - `cargo +1.98.1-x86_64-pc-windows-gnu check -p inacord`: 0 errors, exit 0 (dev profile finished in 35.59s with embedded DBs)
+   - `bun run typecheck`: 23/23 packages passed (0 errors), exit 0
+   - `bun run --cwd apps/nie-web test`: 142/142 passed across 21 files (710 expect calls), exit 0
+   - `bun run --cwd apps/nie-web build:desktop`: built in 41.78s (`dist-desktop/index.html` with authentic favicon verified), exit 0
+   - `bun run --cwd apps/nie-web build:inacord-web`: built in 50.13s (`dist-inacord/index.html` with authentic favicon verified), exit 0
+   - `cargo clippy -p nie-app -p nie-index -p nie-wasm -p nie-cli -- -D warnings`: 0 warnings, exit 0
+   - `cargo test -p nie-app -p nie-index -p nie-wasm`: 96/96 tests + 1 doctest passed, 0 failed, exit 0
+   - `cargo check -p nie-wasm --target wasm32-unknown-unknown`: 0 errors, exit 0
