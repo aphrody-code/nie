@@ -20,7 +20,14 @@ interface GltfAccessor { bufferView?: number; byteOffset?: number; componentType
 interface GltfBufferView { buffer: number; byteOffset?: number; byteLength: number; byteStride?: number; }
 interface GltfImage { bufferView?: number; mimeType?: string; uri?: string; }
 interface GltfPrimitive { attributes: Record<string, number>; indices?: number; material?: number; mode?: number; }
-interface GltfMaterial { pbrMetallicRoughness?: { baseColorTexture?: { index: number }; baseColorFactor?: number[] } }
+interface GltfMaterial {
+	/** `OPAQUE` (défaut), `MASK` ou `BLEND`, tel que le glTF le déclare. */
+	alphaMode?: string;
+	alphaCutoff?: number;
+	/** `true` quand les deux faces doivent être dessinées. Les dix matériaux de l'avatar le sont. */
+	doubleSided?: boolean;
+	pbrMetallicRoughness?: { baseColorTexture?: { index: number }; baseColorFactor?: number[] };
+}
 interface GltfDocument {
 	accessors?: GltfAccessor[];
 	bufferViews?: GltfBufferView[];
@@ -46,11 +53,15 @@ in vec2 v_uv;
 uniform sampler2D base_colour;
 uniform float has_texture;
 uniform vec4 tint;
+/* Seuil de decoupe d'un materiau MASK ; 0 partout ailleurs, ou seul le rebut quasi-transparent
+   s'applique. Sans lui, un uniforme decoupe laissait passer ses pixels a demi transparents
+   et bavait sur ce qu'il y avait derriere. */
+uniform float cutoff;
 out vec4 colour;
 void main() {
 	vec4 sampled = texture(base_colour, v_uv);
 	vec4 value = mix(tint, sampled * tint, has_texture);
-	if (value.a < 0.02) discard;
+	if (value.a < max(cutoff, 0.02)) discard;
 	colour = value;
 }`;
 
@@ -110,6 +121,12 @@ interface DrawCall {
 	indexType: number;
 	texture: WebGLTexture | null;
 	tint: [number, number, number, number];
+	/** `true` quand le matériau déclare `alphaMode: "BLEND"`. */
+	blended: boolean;
+	/** Seuil de découpe d'un matériau `MASK` ; `0` quand il n'en est pas un. */
+	cutoff: number;
+	/** `true` quand le matériau déclare `doubleSided` — le culling est alors coupé pour lui. */
+	doubleSided: boolean;
 }
 
 function compile(gl: WebGL2RenderingContext, kind: number, source: string): WebGLShader {
@@ -228,6 +245,9 @@ export class WebGlModelViewer implements RustModelViewer {
 					indexType,
 					texture: null,
 					tint: [factor?.[0] ?? 1, factor?.[1] ?? 1, factor?.[2] ?? 1, factor?.[3] ?? 1],
+					blended: material?.alphaMode === "BLEND",
+					cutoff: material?.alphaMode === "MASK" ? (material.alphaCutoff ?? 0.5) : 0,
+					doubleSided: material?.doubleSided === true,
 				};
 				this.draws.push(draw);
 				const textureIndex = material?.pbrMetallicRoughness?.baseColorTexture?.index;
@@ -294,13 +314,41 @@ export class WebGlModelViewer implements RustModelViewer {
 		this.gl.canvas.height = height;
 	}
 
+	/**
+	 * Deux passes, parce qu'un visage est fait de décalques.
+	 *
+	 * ## Le défaut que cela corrige
+	 *
+	 * Tout se dessinait en UNE passe, dans l'ordre de déclaration, profondeur écrite à chaque
+	 * fois et `alphaMode` ignoré. Or les yeux, les pupilles, les reflets, les sourcils et la
+	 * bouche sont des décalques posés SUR la peau du visage, au même endroit : la peau, déclarée
+	 * la première, écrivait la profondeur, et les cinq décalques suivants échouaient au test
+	 * `LESS`. Mesuré sur `/chara_edit_menu` : le personnage s'affichait sans visage — pas d'yeux,
+	 * pas de bouche, pas de sourcils — alors que le GLB les porte bien (`eye_10`, `mouth_10`, en
+	 * `alphaMode: "BLEND"`, textures RGBA 1024×512).
+	 *
+	 * ## Ce que fait le glTF, et qu'on suit
+	 *
+	 * 1. les matériaux opaques et découpés (`OPAQUE`, `MASK`) d'abord, profondeur écrite ;
+	 * 2. les matériaux mélangés (`BLEND`) ensuite, profondeur TESTÉE mais plus écrite, et en
+	 *    `LEQUAL` : un décalque coplanaire avec sa surface a exactement la même profondeur, donc
+	 *    `LESS` le rejetterait toujours.
+	 *
+	 * Les mélangés ne sont pas triés d'arrière en avant : sur un visage, ils ne se recouvrent
+	 * pas. Un tri s'imposera le jour où deux surfaces mélangées se chevaucheront vraiment.
+	 */
 	render(): boolean {
 		if (this.disposed || this.draws.length === 0) return false;
 		const gl = this.gl;
 		gl.viewport(0, 0, this.width, this.height);
 		gl.clearColor(0, 0, 0, 0);
 		gl.enable(gl.DEPTH_TEST);
-		gl.enable(gl.CULL_FACE);
+		gl.depthFunc(gl.LESS);
+		gl.depthMask(true);
+		// Le culling est décidé PAR MATÉRIAU, pas une fois pour toutes : les dix matériaux de
+		// l'avatar déclarent `doubleSided: true`, et les couper à la face arrière effaçait les
+		// décalques du visage — dont les quads sont enroulés dans l'autre sens. Mesuré sur
+		// `/chara_edit_menu` : personnage sans yeux, sans sourcils et sans bouche.
 		gl.cullFace(gl.BACK);
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -311,16 +359,26 @@ export class WebGlModelViewer implements RustModelViewer {
 		const textureUniform = gl.getUniformLocation(this.program, "base_colour");
 		const hasTexture = gl.getUniformLocation(this.program, "has_texture");
 		const tint = gl.getUniformLocation(this.program, "tint");
+		const cutoff = gl.getUniformLocation(this.program, "cutoff");
 		gl.uniform1i(textureUniform, 0);
 		gl.activeTexture(gl.TEXTURE0);
-		for (const draw of this.draws) {
+		const paint = (draw: DrawCall) => {
+			if (draw.doubleSided) gl.disable(gl.CULL_FACE);
+			else gl.enable(gl.CULL_FACE);
 			gl.bindTexture(gl.TEXTURE_2D, draw.texture ?? this.white);
 			gl.uniform1f(hasTexture, draw.texture ? 1 : 0);
+			gl.uniform1f(cutoff, draw.cutoff);
 			gl.uniform4f(tint, ...draw.tint);
 			gl.bindVertexArray(draw.vao);
 			if (draw.indexType) gl.drawElements(gl.TRIANGLES, draw.count, draw.indexType, 0);
 			else gl.drawArrays(gl.TRIANGLES, 0, draw.count);
-		}
+		};
+		for (const draw of this.draws) if (!draw.blended) paint(draw);
+		gl.depthMask(false);
+		gl.depthFunc(gl.LEQUAL);
+		for (const draw of this.draws) if (draw.blended) paint(draw);
+		gl.depthMask(true);
+		gl.depthFunc(gl.LESS);
 		gl.bindVertexArray(null);
 		return true;
 	}
