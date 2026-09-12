@@ -48,6 +48,43 @@ cargo build --release --target wasm32-unknown-emscripten
 Output: `target/wasm32-unknown-emscripten/release/deps/nie_lua_web.wasm` (867,791 bytes,
 unoptimized `-O3` rustc output; `wasm-opt` was not run in this pass — see Known gaps).
 
+## What the official documentation says about the flag this crate depends on
+
+The patched `vendor/lua-src` passes `-sSUPPORT_LONGJMP=wasm` when it compiles Lua **as C**. That
+is not a workaround discovered by trial: it is the rule emscripten states.
+
+- `SUPPORT_LONGJMP` takes `emscripten` (JavaScript-based), `wasm` (WebAssembly
+  exception-handling-based), `0`, or `1`. `1` is the default and means *"`wasm` if
+  `-fwasm-exceptions` is used, `emscripten` otherwise"*.
+- *"When combining C and C++ code with `-fwasm-exceptions`, you must explicitly pass
+  `-sSUPPORT_LONGJMP=wasm` at C compile time to match the C++ handling model."*
+  — <https://emscripten.org/docs/porting/setjmp-longjmp.html>
+
+That is exactly this crate's situation: rustc compiles the Rust half of the module with
+`-fwasm-exceptions` on `wasm32-unknown-emscripten`, while `lua-src` compiles Lua's C sources in a
+separate `cc::Build` that inherits none of it. Without the explicit flag the two halves disagree
+on how a `longjmp` travels, and the link fails on `undefined symbol: emscripten_longjmp`
+(measured 2026-09-12). The flag belongs in the build script and nowhere else: cargo does not
+fingerprint `CFLAGS_<target>`, so setting it in the environment recompiles nothing.
+
+### The consequence, measured on the artefact
+
+Choosing `wasm` makes the module **require the WebAssembly exception-handling proposal**. This is
+readable in the published binary, not inferred:
+
+```
+$ # apps/nie-web/public/static/game/nie_lua_web.wasm, sections by id
+  section  1 type       452 bytes
+  ...
+  section 13 tag          5 bytes      <- exception handling
+```
+
+Section 13 (`tag`) exists only in that proposal. An engine without it does not misbehave at
+runtime — it **refuses to instantiate the module**. `apps/nie-web/src/game/lua-runtime.ts`
+therefore probes for it with a 19-byte module before downloading 873 KB, and
+`lua-runtime.test.ts` reads the shipped artefact back to keep this paragraph honest: if a future
+build drops the `tag` section, the test fails rather than the documentation quietly going stale.
+
 ### Measured NEGATIVE result: `-fwasm-exceptions` at link time does not fix the abort
 
 In the page, the module aborts on Lua's first protected error with `fatal runtime error: Rust

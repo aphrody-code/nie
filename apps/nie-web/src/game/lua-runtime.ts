@@ -20,6 +20,18 @@
  * seul `wasm32-unknown-emscripten` fournit parmi les cibles wasm. Les deux modules cohabitent
  * donc, chacun sur sa cible — ce n'est pas une duplication, c'est la seule façon d'avoir les deux.
  *
+ * ## Ce que le module EXIGE du moteur, mesuré sur l'artefact
+ *
+ * `nie_lua_web.wasm` déclare une **section `tag` (identifiant 13)** : mesuré sur le binaire
+ * servi, 5 octets. Cette section n'existe que dans la proposition *exception handling* de
+ * WebAssembly, et c'est une conséquence directe du mode de `longjmp` choisi à la compilation
+ * (`-sSUPPORT_LONGJMP=wasm`, cf. `crates/engine/nie-lua-web/README.md`). Un moteur qui ne
+ * l'implémente pas **refuse le module** — pas une erreur d'exécution, un refus d'instanciation.
+ *
+ * [`wasmExceptionsAvailable`] le détecte avant le téléchargement de 873 Ko, et
+ * [`resolveMenuVisibility`] rend alors une table vide en le disant. Le repli existait déjà ;
+ * ce qui change est qu'il porte désormais une RAISON au lieu d'un échec muet.
+ *
  * ## L'état MESURÉ, le 2026-09-12 : la VM avorte
  *
  * Le module se télécharge (870 512 o), le catalogue de scripts répond, les vrais `.lua.bin` du
@@ -56,12 +68,41 @@ function settingPath(screen: string): string {
 	return `data/common/gamedata/menu/cfg/${screen}_setting.cfg.bin`;
 }
 
+/**
+ * Un module minimal dont la seule particularité est de déclarer une section `tag`.
+ *
+ * En-tête, un type `() -> ()`, puis la section 13 avec une balise de ce type. Aucun moteur
+ * dépourvu de la proposition *exception handling* ne le valide, et aucun ne le refuse s'il
+ * l'implémente : c'est la détection canonique, et elle ne coûte pas une requête réseau.
+ */
+const SONDE_EXCEPTIONS = new Uint8Array([
+	0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // \0asm 1
+	0x01, 0x04, 0x01, 0x60, 0x00, 0x00, //             type : 1 × () -> ()
+	0x0d, 0x03, 0x01, 0x00, 0x00, //                   tag  : 1 × attribut 0, type 0
+]);
+
+/** Ce moteur implémente-t-il les exceptions WebAssembly, dont ce module dépend ? */
+export function wasmExceptionsAvailable(): boolean {
+	try {
+		return WebAssembly.validate(SONDE_EXCEPTIONS);
+	} catch {
+		return false;
+	}
+}
+
 let runtimePromise: Promise<LuaRuntime> | null = null;
 
 /** Charge la VM une seule fois, même si deux écrans la demandent en même temps. */
 function ensureRuntime(): Promise<LuaRuntime> {
 	if (runtimePromise === null) {
 		runtimePromise = (async () => {
+			// Avant les 873 Ko : le module déclare une section `tag`, donc un moteur sans
+			// exceptions WebAssembly le refusera de toute façon à l'instanciation.
+			if (!wasmExceptionsAvailable()) {
+				throw new Error(
+					"ce moteur n'implémente pas les exceptions WebAssembly, que nie_lua_web.wasm exige",
+				);
+			}
 			// Comme le module du jeu, ce nom est stable : il faut le revalider à chaque
 			// déploiement plutôt que de le figer un an dans les caches.
 			const response = await fetch(VM_URL, { cache: "no-cache" });
