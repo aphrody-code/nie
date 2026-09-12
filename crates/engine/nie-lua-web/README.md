@@ -48,6 +48,38 @@ cargo build --release --target wasm32-unknown-emscripten
 Output: `target/wasm32-unknown-emscripten/release/deps/nie_lua_web.wasm` (867,791 bytes,
 unoptimized `-O3` rustc output; `wasm-opt` was not run in this pass — see Known gaps).
 
+## Why there are two modules, and what it would take to have one — MEASURED
+
+The browser loads two WebAssembly modules: `nie-wasm` (`wasm32-unknown-unknown`, pure Rust) and
+this one (`wasm32-unknown-emscripten`, Lua in C). That is not a wiring mistake. `mlua` compiles
+PUC-Rio Lua 5.2.4's C sources, which need `setjmp`/`longjmp`, and emscripten is the only wasm32
+target that provides them.
+
+The only exit is a VM written in Rust, interpreting the bytecode `nie_lua::bytecode` already
+decodes — not a third-party interpreter, which would be a DIFFERENT Lua from the one the game
+ships. Before writing a line of it, `tests/opcode_survey.rs` in `nie-lua` measures what it would
+have to cover, across every `.lua.bin` on this mount:
+
+```text
+scripts lus       : 4188 (illisibles : 0)
+instructions      : 3905236
+opcodes atteints  : 38 / 40
+jamais atteints   : LOADKX, EXTRAARG
+globales lues     : 6686
+dont fournies par l'hôte Rust : 0 / 6686 (0 %) — l'hôte en installe 2 : Debug Math
+```
+
+The interpreter is the small half: 38 opcodes, and the two that never appear (`LOADKX`,
+`EXTRAARG`) are the wide-constant pair that only very large chunks need. The wall is the other
+number. Those scripts read **6 686 distinct globals** — `AddItem`, `ActivateAuraSkill`,
+`AdvanceGameTimeZone` — every one of them a function the game's executable provides, and the
+Rust host currently binds **none** of them (its two binders are `Debug` and `Math`).
+
+So "one module" is not one commit away, and it is not blocked by the interpreter. It is blocked
+by 6 686 host functions whose behaviour lives in `nie.exe` and has to be reversed one at a time.
+The survey is checked in so that this number is re-measured rather than remembered, and so the
+day it drops, it drops visibly.
+
 ## What the official documentation says about the flag this crate depends on
 
 The patched `vendor/lua-src` passes `-sSUPPORT_LONGJMP=wasm` when it compiles Lua **as C**. That
