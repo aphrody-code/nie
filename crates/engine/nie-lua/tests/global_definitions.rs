@@ -19,23 +19,31 @@
 //! ## La réponse, mesurée le 2026-09-12
 //!
 //! ```text
-//! SetCtrlGuideTextCommon            : défini par main_menu_inc_3.00.01.00, lu par 160
-//! ShowTitleChangeChildButtonCommon  : défini par main_menu_inc_3.00.01.00, lu par 116
-//! SetTitleTextureCommon             : défini par main_menu_inc_3.00.01.00, lu par 108
-//! SetStandAloneMenuCrc              : défini par main_menu_inc_3.00.01.00, lu par  76
-//! SetStandAloneTopCtrlGuideLayerCrc : défini par main_menu_inc_3.00.01.00, lu par  72
+//! SetCtrlGuideTextCommon            : défini par 0 script(s), lu par 80
+//! ShowTitleChangeChildButtonCommon  : défini par 0 script(s), lu par 58
+//! SetTitleTextureCommon             : défini par 0 script(s), lu par 54
+//! SetStandAloneMenuCrc              : défini par 0 script(s), lu par 38
+//! SetStandAloneTopCtrlGuideLayerCrc : défini par 0 script(s), lu par 36
 //! ```
 //!
-//! **Aucune n'est une fonction du moteur.** Les cinq têtes de file sont du Lua, définies par UN
-//! seul include, et les 46 écrans de menu qui lisent la première nomment tous `MAIN_MENU_INC`
-//! (46 sur 46). `include_logical_base` sait déjà retirer le préfixe `LUA_`, donc la résolution
-//! n'est pas en cause non plus.
+//! **Aucune n'est définie en Lua.** Les cinq sont donc fournies par `nie.exe`, et les porter est
+//! un travail de reverse — pas de câblage.
 //!
-//! Ce qui reste comme explication — et qui n'est PAS établi ici — est que `main_menu_inc`
-//! s'exécute mais échoue avant ses définitions, probablement sur une globale qui lui manque à
-//! lui. Un seul include en défaut retirerait alors ces cinq fonctions à 46 écrans d'un coup, ce
-//! qui correspond à ce que la file d'attente montre. C'est la piste à suivre, et elle est de
-//! l'ordre du câblage, pas du reverse.
+//! ## Le détour qui a failli conclure l'inverse
+//!
+//! Ce relevé a d'abord balayé tout `data/`, et rendu « défini par
+//! `main_menu_inc_3.00.01.00.lua.bin` » pour les cinq. Deux fichiers portent ce nom sur ce
+//! montage, et ils DIFFÈRENT :
+//!
+//! ```text
+//! 13 362 o  data/lua_scripts/main_menu_inc_3.00.01.00.lua.bin          ← définit les cinq
+//! 13 092 o  data/lua_dump/common/script/lua/include/menu/…             ← ne les définit pas
+//! 13 092 o  le VFS du jeu (`niers vfs find main_menu_inc`)             ← l'arbitre
+//! ```
+//!
+//! `data/lua_scripts/` est un dump PLAT qui diverge du jeu. Le balayage ne lit donc plus que les
+//! montages en forme de VFS, et le nom d'un définisseur est rendu avec son chemin complet : un
+//! basename seul avait fait prendre une copie non conforme pour la source.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -62,7 +70,13 @@ fn scripts() -> Vec<PathBuf> {
         PathBuf::from,
     );
     let mut trouves = Vec::new();
-    collecter(&racine.join("data"), &mut trouves);
+    // SEULEMENT les montages en forme de VFS. `data/lua_scripts/` est un dump PLAT qui diverge
+    // du jeu : sa copie de `main_menu_inc_3.00.01.00.lua.bin` fait 13 362 octets là où le VFS
+    // en porte 13 092 (`niers vfs find`, 2026-09-12), et elle définit cinq globales que la
+    // vraie ne définit pas. L'y inclure faisait conclure que ces fonctions étaient du Lua.
+    for base in ["data/lua_dump", "data/re/40-derived/dumps/lua-vfs-all"] {
+        collecter(&racine.join(base).join("common"), &mut trouves);
+    }
     trouves.sort();
     trouves
 }
@@ -136,10 +150,10 @@ fn qui_definit_les_globales_en_tete_de_file() {
         };
         let (mut ecrit, mut lit) = (BTreeSet::new(), BTreeSet::new());
         parcourir(&chunk.main, &mut ecrit, &mut lit);
-        let nom_court = chemin
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
+        // Le chemin COMPLET, pas le basename : ce montage porte plusieurs copies du même nom
+        // (`data/lua_dump`, `data/re/40-derived/dumps/…`) et elles ne sont pas identiques.
+        // Nommer par le basename faisait croire à un définisseur unique.
+        let nom_court = chemin.to_string_lossy().into_owned();
         for cible in NOMS {
             if ecrit.contains(cible) {
                 definit.entry(cible.to_owned()).or_default().push(nom_court.clone());

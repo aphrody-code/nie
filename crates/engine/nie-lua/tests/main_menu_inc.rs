@@ -17,9 +17,10 @@
 //!   définit-il ses cinq fonctions quand tout est stubé ? toutes = true
 //! ```
 //!
-//! **L'include n'est pas cassé.** Il va jusqu'au bout et définit ses cinq fonctions dès lors
-//! qu'une seule globale existe : `MAIN_MENU`. Ce n'est donc ni un travail de reverse, ni une
-//! résolution d'include défaillante — c'est UN nom.
+//! **L'include n'est pas cassé** et ne réclame qu'une globale, `MAIN_MENU`. Mais il ne définit
+//! PAS les cinq fonctions : `a_quelle_profondeur_linclude_definit_ses_fonctions` ne trouve aucun
+//! `SETTABUP _ENV[<nom>]`, à aucune profondeur. La ligne « toutes = true » plus haut mesure leur
+//! absence de la liste des MANQUES, pas leur présence — deux choses différentes.
 //!
 //! ## Trois hypothèses éliminées, dans cet ordre
 //!
@@ -158,5 +159,130 @@ fn collecter_relatifs(dossier: &Path, base: &str, dans: &mut Vec<String>) {
                 dans.push(texte[base.len()..].to_owned());
             }
         }
+    }
+}
+
+/// L'appel `INCLUDE` est-il au niveau PRINCIPAL du script, ou enfoui dans une fonction ?
+///
+/// C'est la seule explication restante au fait que 46 écrans lisent des fonctions que
+/// `main_menu_inc` définit sans jamais les obtenir. Le rejeu exécute le chunk principal puis des
+/// rappels nommés ; un `INCLUDE` posé dans une fonction qu'il n'invoque pas n'est jamais atteint.
+///
+/// Le bytecode le dit sans ambiguïté : une constante référencée par le prototype principal vit
+/// au niveau 0, une constante référencée par un prototype enfant vit dans une fonction.
+#[test]
+fn ou_vit_lappel_include_dans_un_ecran() {
+    use nie_lua::bytecode::{self, Constant, Prototype};
+
+    let Some(chemin) = include() else {
+        eprintln!("montage sans include : relevé sauté");
+        return;
+    };
+    let texte = chemin.to_string_lossy().into_owned();
+    let Some(position) = texte.find("common/script/lua/") else {
+        return;
+    };
+    let menus = PathBuf::from(&texte[..position]).join("common/script/lua/menu");
+
+    /// Profondeur minimale à laquelle un prototype cite la constante, `None` s'il ne la cite pas.
+    fn profondeur(proto: &Prototype, cible: &str, niveau: usize) -> Option<usize> {
+        let cite = proto.constants.iter().any(|constante| {
+            matches!(constante, Constant::String(octets) if octets.as_slice() == cible.as_bytes())
+        });
+        if cite {
+            return Some(niveau);
+        }
+        proto
+            .protos
+            .iter()
+            .filter_map(|enfant| profondeur(enfant, cible, niveau + 1))
+            .min()
+    }
+
+    let Ok(entrees) = std::fs::read_dir(&menus) else {
+        return;
+    };
+    let (mut au_principal, mut enfoui, mut examines) = (0usize, 0usize, 0usize);
+    let mut exemples = Vec::new();
+    for entree in entrees.flatten() {
+        let chemin = entree.path();
+        if !chemin.to_string_lossy().ends_with(".lua.bin") {
+            continue;
+        }
+        let Ok(octets) = std::fs::read(&chemin) else {
+            continue;
+        };
+        let Ok(chunk) = bytecode::parse(&octets) else {
+            continue;
+        };
+        // Seuls les écrans concernés : ceux qui LISENT une fonction de `main_menu_inc`.
+        if profondeur(&chunk.main, "SetCtrlGuideTextCommon", 0).is_none() {
+            continue;
+        }
+        examines += 1;
+        match profondeur(&chunk.main, "LUA_MAIN_MENU_INC", 0) {
+            Some(0) => au_principal += 1,
+            Some(niveau) => {
+                enfoui += 1;
+                if exemples.len() < 3 {
+                    exemples.push(format!(
+                        "{} (niveau {niveau})",
+                        chemin.file_name().unwrap_or_default().to_string_lossy()
+                    ));
+                }
+            }
+            None => {}
+        }
+    }
+    eprintln!(
+        "écrans lisant une fonction de main_menu_inc : {examines} — INCLUDE au niveau principal : \
+         {au_principal}, dans une fonction : {enfoui} {exemples:?}"
+    );
+    assert!(examines > 0, "aucun écran concerné : le relevé ne mesure rien");
+}
+
+/// À quelle PROFONDEUR l'include définit-il ses fonctions ?
+///
+/// Une définition au niveau 0 s'exécute dès que l'include est chargé. Une définition au niveau 1
+/// vit dans une fonction : l'include la crée, mais tant que personne ne l'appelle, les globales
+/// n'existent pas — et 46 écrans les lisent comme des globales d'hôte manquantes.
+#[test]
+fn a_quelle_profondeur_linclude_definit_ses_fonctions() {
+    use nie_lua::bytecode::{self, Constant, Prototype};
+
+    const OP_SETTABUP: u8 = 8;
+
+    let Some(chemin) = include() else {
+        eprintln!("montage sans include : relevé sauté");
+        return;
+    };
+    let octets = std::fs::read(&chemin).expect("include lisible");
+    let chunk = bytecode::parse(&octets).expect("bytecode lisible");
+
+    /// Profondeur minimale d'un `SETTABUP _ENV[<nom>]`, `None` si le nom n'est jamais écrit.
+    fn profondeur_ecriture(proto: &Prototype, cible: &str, niveau: usize) -> Option<usize> {
+        for raw in &proto.code {
+            let i = bytecode::decode_instruction(*raw);
+            if i.opcode != OP_SETTABUP || i.a != 0 || i.b < 256 {
+                continue;
+            }
+            if let Some(Constant::String(octets)) = proto.constants.get((i.b - 256) as usize)
+                && octets.as_slice() == cible.as_bytes()
+            {
+                return Some(niveau);
+            }
+        }
+        proto
+            .protos
+            .iter()
+            .filter_map(|enfant| profondeur_ecriture(enfant, cible, niveau + 1))
+            .min()
+    }
+
+    for cible in DEFINIES_ICI {
+        eprintln!(
+            "  {cible} : écrite au niveau {:?}",
+            profondeur_ecriture(&chunk.main, cible, 0)
+        );
     }
 }

@@ -68,6 +68,13 @@ that price on keeper, menu and match-sim.
 
 ## Traps measured on this machine (2026-09-07)
 
+- **`data/lua_scripts/` DIVERGES from the game's VFS — do not analyse it.** It is a flat dump,
+  and its `main_menu_inc_3.00.01.00.lua.bin` is 13 362 bytes where the VFS carries 13 092
+  (`niers vfs find`, measured 2026-09-12). The larger copy DEFINES five globals the real file
+  does not, which is enough to turn "these are `nie.exe` functions" into "these are Lua". Scan
+  `data/lua_dump/` or `data/re/40-derived/dumps/lua-vfs-all/`, both VFS-shaped, and report
+  findings with FULL paths: two mounts carry the same basename with different bytes.
+
 - **`grep -r` silently skips binary files; `find … -print0 | xargs -0 grep -l` does not.**
   Searching the `.lua.bin` corpus for `SetCtrlGuideTextCommon` returned 0 files with `grep -rl`
   and 48 with the `xargs` form (measured 2026-09-12), which turned "this name does not exist in
