@@ -142,9 +142,15 @@ blocker named when there is one. Regenerate it; do not quote it.
    Switching rustc to wasm EH needs `-Z emscripten-wasm-eh`, absent from the nightly installed
    here (`-Z help` lists exactly one wasm option, `wasm-c-abi`). The newer-nightly way out was tried and fails: updated to
    `1.100.0-nightly` (2026-09-11), `-Z help` still has no exception switch, and the rebuilt
-   artifact (875,952 bytes) keeps its five `invoke_*` and still traps. ONE way out remains, and
-   it is not a flag: patch or fork `lua-src` so Lua stops being compiled with
-   `-fwasm-exceptions`. Until then the driver returns an empty table and the screens fall back on the server's
+   artifact (875,952 bytes) keeps its five `invoke_*` and still traps. ONE way out remains, and it is located to the line:
+   `lua-src-550.0.0/src/lib.rs` compiles Lua as C++ with `-fexceptions` on emscripten
+   (`.cpp(true).flag("-fexceptions")`, plus a copy of every source into `cpp_source/` with the
+   headers wrapped in `extern "C"`). That is where `LUAI_THROW` becomes a C++ `throw`. Compiling
+   it as C instead — so the throw is a `longjmp` — is a ~35-line fork of a third-party build
+   script plus a `longjmp` mode. Not done here on purpose: mlua chose C++ exceptions for this
+   target deliberately, the fork's maintenance would be inherited, and whether mlua's own error
+   propagation survives `longjmp` is not something this repository can assert. A product
+   decision with a known shape, not a missing measurement. Until then the driver returns an empty table and the screens fall back on the server's
    resolution.
 
 **Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no

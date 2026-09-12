@@ -111,9 +111,31 @@ artifact changes again (875,952 bytes, and rustc now emits it at `release/` inst
 `release/deps/`) but the five `invoke_*` remain and the module still traps in
 `nie_lua_web_replay`.
 
-**One way out remains**, and it is not a flag: stop compiling Lua with `-fwasm-exceptions`, which
-means patching or forking `lua-src`'s build script so that `mlua`'s `catch_unwind` no longer
-meets a C++ unwind it cannot catch. Until it is resolved the browser driver
+**One way out remains**, and it is now located to the line. `lua-src-550.0.0/src/lib.rs`, in its
+emscripten branch:
+
+```rust
+_ if target.ends_with("emscripten") => {
+    config
+        .define("LUA_USE_POSIX", None)
+        .cpp(true)              // Lua is compiled as C++…
+        .flag("-fexceptions");  // …with exceptions, "to be caught"
+    // …then every source is copied to `cpp_source/`, with lauxlib.h / lua.h /
+    // lualib.h wrapped in `extern "C" { … }`.
+}
+```
+
+That is the origin of the whole chain: Lua's `LUAI_THROW` becomes a C++ `throw`, which unwinds
+through the C++/wasm unwinder, which `mlua`'s `catch_unwind` meets as a foreign exception, which
+Rust aborts on. Compiling Lua as C instead (so `LUAI_THROW` is `longjmp`) means dropping
+`.cpp(true)`, `-fexceptions` and the `cpp_source` copy — about 35 lines — in a **fork of a
+third-party build script**, and then choosing a `longjmp` mode (`-sSUPPORT_LONGJMP=emscripten`
+or `=wasm`).
+
+It is not done here, deliberately: `mlua` chose C++ exceptions for this target on purpose, this
+repository would inherit the fork's maintenance, and whether mlua's own error propagation still
+holds under `longjmp` is not something this crate can assert. It is a product decision with a
+known, three-line shape — not a missing measurement. Until it is resolved the browser driver
 (`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back on the
 server's resolution.
 
