@@ -12,6 +12,24 @@
 //! qu'une qui en bloque un, et jusqu'ici rien ne permettait de faire la différence.
 //!
 //! Le relevé ne corrige rien et n'invente aucun comportement : il rend la file d'attente.
+//!
+//! ## Ce que cette file NE débloque PAS — déjà mesuré, ne pas le refaire
+//!
+//! Elle ferme des COMPTEURS, pas des pixels. `docs/AVATAR.md` (§ « Ce que le port du cmdId
+//! dominant a appris — le verrou n'est pas là ») rapporte la mesure : porter `0x5245F000` a fait
+//! tomber les appels non gérés de `chara_edit_parts_menu` de 364 à 7 (−98 %) et le rendu n'a pas
+//! bougé d'un pixel — objets visibles 10 → 10, sprites mutés 46 → 46. Le verrou nommé là-bas est
+//! ailleurs : les items de liste ne sont pas instanciés.
+//!
+//! Le premier de cette file, `0x52BD4EDC`, y est d'ailleurs déjà analysé : handler
+//! `0x140CDF730`, `cmp edx, 6` donc six arguments, `comisd`/`cvttsd2si` donc des flottants
+//! convertis — un setter de couleur, dont « quel argument porte quelle composante n'est pas
+//! établi ».
+//!
+//! Cette file sert donc à la COMPLÉTUDE du rejeu — le chemin vers un module WebAssembly unique,
+//! où chaque commande portée rapproche d'une VM en Rust pur. Elle ne sert pas à faire apparaître
+//! des pixels manquants, et la prendre pour ça ferait refaire un travail dont le résultat est
+//! déjà écrit.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
