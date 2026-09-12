@@ -12,7 +12,7 @@ import "@niers/inacord-ui/shell/game-tokens.css";
 import "@niers/inacord-ui/shell/game-screens.css";
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ALIAS, AVATAR, EXPLORER, MEDIA, SETTINGS, recognizedRoutes } from "./entries";
+import { ALIAS, AVATAR, DOWNLOADS, EXPLORER, INACORD, MEDIA, SETTINGS, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
 import { Catalog } from "./pages/Catalog";
@@ -21,6 +21,7 @@ import { Notice, SecondaryScreen } from "./pages/SecondaryScreen";
 import { ExplorerInacord } from "./pages/ExplorerInacord";
 import { Game } from "./pages/Game";
 import { Settings } from "./pages/Settings";
+import { Inacord } from "./pages/Inacord";
 import { HOME, splitLanguagePrefix } from "./routing";
 
 /** Hosts the real startup/game at root and the shared catalogue UI on explicit tool routes. */
@@ -116,6 +117,7 @@ function Site() {
 				onOpenSettings={() => setVue(SETTINGS)}
 				onOpenMedia={() => setVue(MEDIA)}
 				onOpenExplorer={() => setVue(EXPLORER)}
+				onOpenInacord={() => setVue(INACORD)}
 			/>
 		);
 	}
@@ -126,6 +128,9 @@ function Site() {
 	}
 	if (vue === AVATAR) {
 		return withHost(<Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} />);
+	}
+	if (vue === INACORD || vue === DOWNLOADS) {
+		return withHost(<Inacord view={vue} onHome={() => setVue(HOME)} onSelect={setVue} />);
 	}
 	if (vue === EXPLORER || (ALIAS as readonly string[]).includes(vue)) {
 		return withHost(<ExplorerInacord onHome={() => setVue(HOME)} />);

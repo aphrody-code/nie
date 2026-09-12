@@ -10,6 +10,7 @@ file is right and the plan is stale.
 |---|---|---|---|
 | `nie.aphrody.com` | `127.0.0.1:8085` | `nie-site` — **the site**, the game at `/` | `niers` |
 | `aphrody.com`, `www.aphrody.com` | — | `308` to `https://nie.aphrody.com` | `niers` |
+| `inacord.aphrody.com` | — | `308` to `https://nie.aphrody.com/inacord` (merged 2026-09-12); `/downloads/*` and `/api/*` `308` to the same path on `nie.`; updater manifest still served locally | `niers` |
 | `api.aphrody.com` | `127.0.0.1:8085` | `nie-site`, API only (`404` elsewhere), `noindex` | `niers` |
 | `cdn.aphrody.com` | `127.0.0.1:8790` | `nie-model-serve` — decoding on demand, rate-limited | `niers` |
 | `mcp.aphrody.com` | `127.0.0.1:8808` | MCP server (`401` without a token is correct) | `niers` |

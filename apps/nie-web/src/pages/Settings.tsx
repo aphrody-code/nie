@@ -47,7 +47,7 @@ export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () 
 	return (
 		<div style={{ position: "fixed", inset: 0 }} data-native-presentation={nativeState}>
 			<SettingsScreen
-				title="Réglages Inacord"
+				title="Options"
 				nativeScene={nativeScene}
 				initialFamily={initialFamily}
 				onBack={onRetour}

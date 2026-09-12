@@ -71,14 +71,19 @@ export function SettingsScreen({
 	backLabel = "Retour",
 	initialFamily,
 	nativeScene,
+	inline = false,
 }: {
 	title?: string;
 	/** Optional native row template; host setting identities and behavior are preserved. */
 	nativeScene?: NativeMenuScene;
 	/** L'onglet ouvert à l'arrivée — un lien profond (`?tab=display`) ; sinon le premier. */
 	initialFamily?: SettingFamily;
-	/** Échap, ou le bouton de retour. */
-	onBack: () => void;
+	/**
+	 * Échap, ou le bouton de retour. Omis quand l'écran est déjà la destination (le panneau
+	 * Options d'Inacord) : le guide de retour n'est alors pas dessiné, puisqu'il n'irait nulle
+	 * part — une affordance n'est dessinée que si elle est écoutée.
+	 */
+	onBack?: () => void;
 	/**
 	 * V : appelé avec les réglages courants et les identifiants qui ont changé depuis
 	 * l'ouverture de l'écran (ou depuis la dernière application).
@@ -86,6 +91,11 @@ export function SettingsScreen({
 	onApply?: (settings: Settings, changed: SettingId[]) => void;
 	/** Le libellé du guide de retour, à gauche de la barre du bas. */
 	backLabel?: string;
+	/**
+	 * Rend l'écran dans le flux du document au lieu d'occuper toute la hauteur de son hôte.
+	 * Par défaut `false` : le comportement plein écran d'origine est inchangé.
+	 */
+	inline?: boolean;
 }) {
 	const capacites = useCapacites();
 	const { settings, set, reset } = useSettings();
@@ -163,7 +173,7 @@ export function SettingsScreen({
 
 	const back = useCallback(() => {
 		if (listOpen) setListOpen(false);
-		else onBack();
+		else onBack?.();
 	}, [listOpen, onBack]);
 
 	const stepFamily = useCallback(
@@ -219,7 +229,8 @@ export function SettingsScreen({
 			style={{
 				display: "flex",
 				flexDirection: "column",
-				height: "100%",
+				height: inline ? "auto" : "100%",
+				minHeight: inline ? "34rem" : undefined,
 				background: "var(--jeu-ciel-clair)",
 				color: "var(--jeu-nuit-profonde)",
 			}}
@@ -262,16 +273,18 @@ export function SettingsScreen({
 			</div>
 			<p className="game-description-bar">{focused?.description ?? ""}</p>
 			<GameHintBar hints={hints}>
-				<button
-					type="button"
-					className="game-key-hint game-key-hint--back"
-					onClick={back}
-					style={{ marginRight: "auto", border: 0, background: "transparent", font: "inherit", cursor: "pointer" }}
-				>
-					<GameKeyCap>Esc</GameKeyCap>
-					<GameCursor />
-					<span>{backLabel}</span>
-				</button>
+				{onBack ? (
+					<button
+						type="button"
+						className="game-key-hint game-key-hint--back"
+						onClick={back}
+						style={{ marginRight: "auto", border: 0, background: "transparent", font: "inherit", cursor: "pointer" }}
+					>
+						<GameKeyCap>Esc</GameKeyCap>
+						<GameCursor />
+						<span>{backLabel}</span>
+					</button>
+				) : null}
 			</GameHintBar>
 		</div>
 	);

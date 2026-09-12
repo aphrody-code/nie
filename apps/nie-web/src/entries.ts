@@ -65,6 +65,16 @@ export const SETTINGS = "settings";
 /** L'éditeur d'avatar, alimenté par les tables `chara_edit` du VFS. */
 export const AVATAR = "avatar";
 
+/**
+ * Inacord — the full workspace (explorer, editor, RE tools, mods, cinema, gallery, tools,
+ * saves), merged into this site on 2026-09-12. It used to live on its own host; one origin now
+ * serves the game, the catalogues and the workspace.
+ */
+export const INACORD = "inacord";
+
+/** The download catalogue of the native Inacord builds (desktop, mobile, CLI, MCP, plugins). */
+export const DOWNLOADS = "downloads";
+
 /** Published alias that enters the main menu at `/` without replaying startup. */
 export const MENU = "menu";
 
@@ -91,6 +101,8 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[EXPLORER]: { label: "Explorer", glyph: "arbre" },
 	[SETTINGS]: { label: "Options", glyph: "engrenage" },
 	[AVATAR]: { label: "Avatar", glyph: "ballon" },
+	[INACORD]: { label: "Inacord", glyph: "livre" },
+	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
 };
 
 /** Le libellé d'une entrée, ou son nom brut si le site ne la connaît pas. */
@@ -107,7 +119,7 @@ export function entryLabel(route: string): string {
  * serait payer une décision d'affichage avec les liens des autres.
  */
 export function recognizedRoutes(health: SiteHealth | null): string[] {
-	return [MENU, ...menuEntries(health).map((entry) => entry.route), ...ALIAS, ...CATALOGS];
+	return [MENU, ...menuEntries(health).map((entry) => entry.route), DOWNLOADS, ...ALIAS, ...CATALOGS];
 }
 
 /**
@@ -115,7 +127,7 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
  * signature for existing consumers; it does not currently supply native action availability.
  */
 export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
-	return [MEDIA, AVATAR, EXPLORER, SETTINGS].map((route) => ({
+	return [MEDIA, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => ({
 		route,
 		label: entryLabel(route),
 		glyph: PRESENTATION[route]?.glyph ?? "arbre",

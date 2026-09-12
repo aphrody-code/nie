@@ -37,12 +37,16 @@ import { TextCatalog } from "./TextCatalog";
 import type { EntreeVfs as VfsEntry, VueCatalogue as CatalogView } from "@niers/asset-source";
 import {
 	describeFilters,
+	GameCountBadge,
 	type GameFilterFamily,
 	GameFilterPanel,
 	type GameFilterValue,
 	type GameHint,
 	GameHintBar,
+	GameHeaderBar,
 	GameSearchBar,
+	type GameTab,
+	GameTabStrip,
 	GLYPHES,
 	useAssetSource,
 	useCapacites as useCapabilities,
@@ -200,6 +204,21 @@ function stateFromPanel(value: GameFilterValue): Partial<FilterState> {
 	};
 }
 
+/** Les trois lectures des textures, telles que `?display=` les nomme. */
+const TEXTURE_DISPLAYS: readonly GameTab[] = [
+	{ id: "files", label: "Fichiers", icon: GLYPHES.arbre },
+	{ id: "gallery", label: "Galerie", icon: GLYPHES.image },
+	{ id: "text", label: "Textes", icon: GLYPHES.livre },
+];
+
+/** Le pictogramme du bandeau de tête, par vue. */
+const VIEW_ICONS: Record<string, React.ReactNode> = {
+	textures: GLYPHES.image,
+	modeles: GLYPHES.cube,
+	sons: GLYPHES.onde,
+	videos: GLYPHES.film,
+};
+
 /** Les quatre vues, dans l'ordre où elles s'affichent, avec leur libellé. */
 const VIEWS: { view: CatalogView; label: string }[] = [
 	{ view: "textures", label: "Textures" },
@@ -289,26 +308,26 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 				</TabsList>
 			</Tabs>
 
-			{view === "textures" && <div className="mb-3 flex gap-2">
-				<button type="button" className="rounded-full border px-4 py-2" aria-pressed={gallery}
-					onClick={() => {
+			{/*
+			  * The three ways of reading the textures — files, gallery, native texts — are the
+			  * game's own tab strip, not three ad-hoc pills. `W`/`C` are removed because this
+			  * host binds no key to them; drawing a cap without a handler is forbidden here.
+			  */}
+			{view === "textures" ? (
+				<GameTabStrip
+					tabs={TEXTURE_DISPLAYS}
+					value={text ? "text" : gallery ? "gallery" : "files"}
+					onChange={(next) => {
 						const url = new URL(window.location.href);
-						if (gallery) url.searchParams.delete("display");
-						else url.searchParams.set("display", "gallery");
-						writeBrowserHistory(url, window.history.state, "push");
-					}}>
-					{gallery ? "Afficher les fichiers" : "Afficher la galerie"}
-				</button>
-				<button type="button" className="rounded-full border px-4 py-2" aria-pressed={text}
-					onClick={() => {
-						const url = new URL(window.location.href);
-						if (text) url.searchParams.delete("display");
-						else url.searchParams.set("display", "text");
-						writeBrowserHistory(url, window.history.state, "push");
-					}}>
-					{text ? "Afficher les fichiers" : "Explorer les textes"}
-				</button>
-			</div>}
+						if (next === "files") url.searchParams.delete("display");
+						else url.searchParams.set("display", next);
+						if (url.href !== window.location.href) writeBrowserHistory(url, window.history.state, "push");
+					}}
+					previousKey={null}
+					nextKey={null}
+					className="mb-3"
+				/>
+			) : null}
 			{view === "textures" && text ? <TextCatalog /> : view === "textures" && gallery ? <WebGallery /> : view === "modeles" ? <Models3D /> : <VfsCatalog key={view} view={view} />}
 		</>
 	);
@@ -400,6 +419,12 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 			  * parce qu'il porte sur ce que la page montre.
 			  */}
 			<ViewTitle detail={total ? agree(total, "élément") : undefined}>Médias</ViewTitle>
+
+			{/* Le bandeau de tête du jeu nomme la VUE courante et porte son compte vivant : le
+			    titre nomme la page, l'onglet nomme la vue, le compte suit les filtres. */}
+			<GameHeaderBar icon={VIEW_ICONS[view]} title={title}>
+				{loaded && !error ? <GameCountBadge count={total} icon={GLYPHES.image} unit="élément" /> : null}
+			</GameHeaderBar>
 
 			{/* ── La barre du jeu : recherche avec sa touche, bouton FILTRES, effacement ───────
 			    Reprise de `data/menu/bank_character_detail.png` (« X Chercher par nom de joueur »).

@@ -1,6 +1,14 @@
+import {
+	GameCountBadge,
+	GameCursor,
+	GameKeyHint,
+	GamePanel,
+	GLYPHES,
+	useGameKeys,
+} from "@niers/inacord-ui";
 import { useAssetSource } from "@niers/inacord-ui";
 import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-controls";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NativeResources, type NativeAudioBank, type NativeVideoMetadata } from "../game/native-resources";
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 
@@ -42,12 +50,22 @@ export function CatalogAudioBank({ path, onClose }: { path: string; onClose: () 
 		return () => { active = false; generation++; loadCue.current = () => {}; clearAudio(); resources.dispose(); };
 	}, [source, path, attempt]);
 	const pages = Math.ceil((bank?.cues.length ?? 0) / 80);
-	return <section aria-label="Banque audio" aria-busy={!bank && !failed}>
-		<header><h2>Banque audio</h2><button type="button" onClick={onClose}>Fermer</button></header>
+	// `Escape` closes the bank, and the footer hint is the very same handler — never a key cap
+	// without a binding.
+	useGameKeys(useMemo(() => [{ key: "Escape", onActivate: onClose, fromInputs: true }], [onClose]));
+	return <GamePanel
+		title="Banque audio"
+		role="region"
+		watermark={GLYPHES.onde}
+		header={bank ? <GameCountBadge count={bank.cues.length} icon={GLYPHES.onde} unit="cue" /> : null}
+		footer={<GameKeyHint keyLabel="Échap" onActivate={onClose}>Fermer</GameKeyHint>}
+	>
 		{failed ? <p role="alert">Cette banque est indisponible. <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></p>
 			: !bank ? <p>Lecture du catalogue ACB…</p> : <>
-				<p>{bank.cues.length.toLocaleString("fr")} cues · {path}</p>
+				<p>{path}</p>
 				<ul>{bank.cues.slice((page - 1) * 80, page * 80).map((cue, index) => <li key={`${cue.name}-${index}`}>
+					{/* The cursor marks the cue that is actually loaded. */}
+					{selected === cue.name ? <GameCursor /> : null}
 					<span>{cue.name} · {(cue.lengthMs / 1000).toFixed(2)} s </span>
 					<button type="button" disabled={cue.awbId === null || (pending && selected === cue.name)}
 						onClick={() => loadCue.current(cue.name)}>Charger cette cue</button>
@@ -59,7 +77,7 @@ export function CatalogAudioBank({ path, onClose }: { path: string; onClose: () 
 			{cueFailed ? <p role="alert">Cette cue n’a pas pu être décodée.</p> : null}
 			{audioUrl ? <audio key={audioUrl} ref={audio} src={audioUrl} controls preload="metadata"
 				onError={() => setCueFailed(true)} aria-label={selected} /> : null}</div> : null}
-	</section>;
+	</GamePanel>;
 }
 
 /** Inspection is demand-only. Playback uses the host's real paired resources, including its

@@ -58,7 +58,15 @@ import { Badge } from "@niers/inacord-ui/components/ui/badge";
 import { Button } from "@niers/inacord-ui/components/ui/button";
 import { DataGrid, type DataGridColumn } from "@niers/inacord-ui/components/ui/data-grid";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Input } from "@niers/inacord-ui/components/ui/input";
+// The game's own FILTERS dialog and search bar — the screens reproduced from
+// `data/menu/filters_*.png`, not a plain `<input>` plus a row of chips.
+import {
+  describeFilters,
+  type GameFilterFamily,
+  GameFilterPanel,
+  type GameFilterValue,
+} from "@niers/inacord-ui/components/game/GameFilterPanel";
+import { GameSearchBar } from "@niers/inacord-ui/components/game/GameSearchBar";
 import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 // Cartes du wiki, migrées dans l'application (`components/wiki/`) : le mode grille de
 // l'encyclopédie rend EXACTEMENT les mêmes composants que les pages du site.
@@ -685,6 +693,8 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [filtre, setFiltre] = useState("");
+  /** The game's FILTERS dialog, opened from the toolbar button and by « F ». */
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [tri, setTri] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
   const [selection, setSelection] = useState<number | null>(null);
   const [hauteur, setHauteur] = useState(480);
@@ -702,6 +712,53 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
   }, [settings.gameDir]);
 
   const famille = REGISTRE.find((f) => f.cle === cle);
+
+  /**
+   * The families of the game's FILTERS dialog: one per REGISTRE group, `single` mode.
+   *
+   * Picking an entry switches the encyclopedia onto that family — the same move as the left
+   * rail, but with the dialog the game actually draws (`data/menu/filters_*.png`). Only the
+   * family currently decoded knows its own count; the others would each cost a VFS decode, so
+   * they carry none rather than a number invented for the layout.
+   */
+  const famillesFiltre = useMemo<GameFilterFamily[]>(
+    () =>
+      GROUPES.map((groupe) => ({
+        id: groupe,
+        label: groupe,
+        // The family strip needs one icon per group: the first entry of the group already
+        // carries the one the left rail draws, so the two surfaces never diverge.
+        icon: <Icon name={REGISTRE.find((f) => f.groupe === groupe)?.icone ?? "folder"} size={18} />,
+        options: REGISTRE.filter((f) => f.groupe === groupe).map((f) => ({
+          value: f.cle,
+          label: f.libelle,
+          count: f.cle === cle && !chargement ? lignes.length : undefined,
+        })),
+      })),
+    [cle, chargement, lignes.length],
+  );
+
+  /** Only the group owning the current family carries a value; the others read « Tout ». */
+  const valeurFiltre = useMemo<GameFilterValue>(
+    () =>
+      Object.fromEntries(
+        GROUPES.map((groupe) => [groupe, famille?.groupe === groupe ? [cle] : []]),
+      ),
+    [cle, famille],
+  );
+
+  /** Confirming the dialog keeps the first entry that is not the family already shown. */
+  const appliquerFiltres = (valeur: GameFilterValue) => {
+    for (const groupe of GROUPES) {
+      const choisi = valeur[groupe]?.[0];
+      if (choisi && choisi !== cle) {
+        setCle(choisi);
+        setSelection(null);
+        break;
+      }
+    }
+    setFiltresOuverts(false);
+  };
 
   useEffect(() => {
     if (!famille) return;
@@ -870,18 +927,55 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+          {filtresOuverts ? (
+            <div
+              className="fixed inset-0 z-100 flex items-center justify-center p-6 backdrop-blur-xs"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) setFiltresOuverts(false);
+              }}
+            >
+              <GameFilterPanel
+                families={famillesFiltre}
+                value={valeurFiltre}
+                onConfirm={appliquerFiltres}
+                onClose={() => setFiltresOuverts(false)}
+                count={chargement ? undefined : lignes.length}
+                countUnit="entrée"
+                initialFamily={famille?.groupe}
+                style={{ width: "min(960px, 100%)", maxHeight: "90vh" }}
+              />
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              placeholder={`Filtrer ${famille?.libelle.toLowerCase() ?? ""}…`}
-              value={filtre}
-              onChange={(e) => setFiltre(e.target.value)}
-              className="max-w-xs"
-            />
+            {/* The game's search bar, not a bare `<input>`: same filter, same « X » hotkey as
+                the Bank screen it is drawn from. The filter is local to rows already decoded,
+                so it applies on every keystroke; `Entrée` only commits the trimmed value. */}
+            <div className="max-w-xs flex-1">
+              <GameSearchBar
+                value={filtre}
+                onChange={setFiltre}
+                onSubmit={setFiltre}
+                placeholder={`Filtrer ${famille?.libelle.toLowerCase() ?? ""}…`}
+                label={`Filtrer ${famille?.libelle.toLowerCase() ?? "les données"}`}
+                hotkey="x"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setFiltresOuverts(true)}>
+              <Icon name="filter_list" size={14} />
+              Filtres
+            </Button>
             <span className="type-label-small text-on-surface-variant">
               {chargement
                 ? "décodage du VFS…"
                 : `${ordre.length.toLocaleString("fr-FR")} / ${lignes.length.toLocaleString("fr-FR")}`}
             </span>
+            {/* What the dialog currently holds, spelled out — a closed dialog must not hide
+                the family it selected. */}
+            {describeFilters(famillesFiltre, valeurFiltre).map((label) => (
+              <Badge key={label} variant="outline">
+                {label}
+              </Badge>
+            ))}
             {tri && (
               <Badge variant="outline" className="gap-1">
                 tri {colonnes.find((c) => c.key === tri.key)?.label} {tri.dir === "asc" ? "↑" : "↓"}

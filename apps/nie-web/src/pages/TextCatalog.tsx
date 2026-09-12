@@ -1,4 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+	GameCountBadge,
+	GameCursor,
+	GameHeaderBar,
+	GamePanel,
+	GameSearchBar,
+	GLYPHES,
+} from "@niers/inacord-ui";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 
 type TextFamily = { family: string; languages: string[]; files: number; lines: number };
@@ -46,21 +54,39 @@ export function TextCatalog() {
 	}, [family, locale, submitted]);
 
 	const available = useMemo(() => catalog?.families.filter(item => item.languages.includes(locale)) ?? [], [catalog, locale]);
+	const current = useMemo(() => available.find(item => item.family === family) ?? null, [available, family]);
 	return <section aria-label="Textes du jeu" className="space-y-4">
-		<header className="flex flex-wrap items-center gap-3"><h2>Textes du jeu</h2>
-			{catalog && <span>{catalog.lines.toLocaleString(locale)} lignes · {catalog.files.toLocaleString(locale)} fichiers</span>}
-			<span>Langue : {locale.toUpperCase()}</span></header>
+		{/* The game header bar, its icon and its live count: the same shape as `data/menu/options.png`. */}
+		<GameHeaderBar icon={GLYPHES.livre} title="Textes du jeu">
+			{catalog ? <GameCountBadge count={catalog.lines} icon={GLYPHES.livre} unit="ligne" /> : null}
+			<span>{catalog ? `${catalog.files.toLocaleString(locale)} fichiers · ` : ""}Langue : {locale.toUpperCase()}</span>
+		</GameHeaderBar>
 		{error && <p role="alert">Les textes du jeu ne sont pas disponibles pour le moment.</p>}
-		<div className="flex flex-wrap gap-2" role="tablist" aria-label="Familles de texte">
-			{available.map(item => <button type="button" key={item.family} role="tab" aria-selected={family === item.family}
-				onClick={() => { setFamily(item.family); setSubmitted(""); setQuery(""); }}>
-				{item.family} ({item.lines.toLocaleString(locale)})
-			</button>)}
-		</div>
-		<form onSubmit={event => { event.preventDefault(); setSubmitted(query); }} className="flex gap-2">
-			<input aria-label="Chercher dans cette famille" value={query} onChange={event => setQuery(event.target.value)} placeholder="Chercher le texte natif…" />
-			<button type="submit">Chercher</button>
-		</form>
+		<GamePanel
+			title="Familles"
+			role="region"
+			watermark={GLYPHES.livre}
+			footer={current ? <GameCountBadge count={current.lines} icon={GLYPHES.livre} unit="ligne" /> : null}
+		>
+			<div className="flex flex-wrap gap-2" role="tablist" aria-label="Familles de texte">
+				{available.map(item => <button type="button" key={item.family} role="tab" aria-selected={family === item.family}
+					className="game-button-secondary inline-flex items-center gap-1"
+					onClick={() => { setFamily(item.family); setSubmitted(""); setQuery(""); }}>
+					{/* The cursor only marks the family that is actually selected. */}
+					{family === item.family ? <GameCursor /> : null}
+					{item.family} ({item.lines.toLocaleString(locale)})
+				</button>)}
+			</div>
+		</GamePanel>
+		{/* `x` focuses the field, exactly as the bank screen of the game does. */}
+		<GameSearchBar
+			value={query}
+			onChange={setQuery}
+			onSubmit={setSubmitted}
+			hotkey="x"
+			placeholder="Chercher le texte natif…"
+			label="Chercher dans cette famille"
+		/>
 		{page && <><p>{page.results.total.toLocaleString(locale)} ligne(s){page.q ? ` pour « ${page.q} »` : ""} · {page.files.length} fichier(s) VFS</p>
 			<ul className="space-y-2">{page.results.elements.map((line, index) => <li key={`${line.file}:${line.hash}:${index}`}>
 				<p>{line.text}</p><code>{line.hash_hex} · {line.file}</code>

@@ -8,7 +8,9 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 	const desktop = mode === "desktop";
 	const inacordWeb = mode === "inacord-web";
 	const host = process.env.TAURI_DEV_HOST;
-	const inacordWebAliases: Record<string, string> = inacordWeb ? {
+	// The browser builds (site and inacord-web) never carry Tauri: its API is replaced by HTTP
+	// shims that talk to `nie-site`. The desktop build keeps the real plugins.
+	const inacordWebAliases: Record<string, string> = !desktop ? {
 		"#inacord-desktop-host": fileURLToPath(new URL("./src/desktop/DesktopHost.tsx", import.meta.url)),
 		"@tauri-apps/api/core": fileURLToPath(new URL("./src/inacord-web/shims/core.ts", import.meta.url)),
 		"@tauri-apps/api/event": fileURLToPath(new URL("./src/inacord-web/shims/event.ts", import.meta.url)),

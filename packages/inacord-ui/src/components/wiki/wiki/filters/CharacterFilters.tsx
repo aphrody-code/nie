@@ -3,13 +3,13 @@
 import type { ReactNode } from "react";
 
 import {
-	FilterChipGroup,
-	type FilterChipOption,
-} from "../FilterChipGroup";
-import {
-	RarityFilterChips,
-	type RarityFilterOption,
-} from "../RarityFilterChips";
+	type GameFilterFamily,
+	GameFilterPanel,
+	type GameFilterValue,
+} from "../../../game/GameFilterPanel";
+import type { FilterChipOption } from "../FilterChipGroup";
+import { DEFAULT_RARITY_OPTIONS, type RarityFilterOption } from "../RarityFilterChips";
+import { RarityBadge } from "../../ui/rarity-badge";
 
 export interface CharacterFilterOption extends FilterChipOption {
 	/** Host-owned image source resolved before mounting the shared surface. */
@@ -50,12 +50,65 @@ export interface CharacterFiltersProps {
 	readonly isPending?: boolean;
 	/** A host-specific selector (for example, a searchable team combobox). */
 	readonly teamControl?: ReactNode;
+	/** Dismissing the dialog without applying. Hosts that mount it inline omit it. */
+	readonly onClose?: () => void;
+	/** The count the current selection retains, when the host measures it. */
+	readonly count?: number;
+	readonly countUnit?: string;
 }
 
 /**
- * Controlled character catalogue filters shared by Inacord and web hosts.
- * Navigation, persistence, localization lookup, and asset resolution stay in
- * the mounting host; this component only owns the common visual hierarchy.
+ * One section becomes one family of the game's FILTERS dialog.
+ *
+ * A section holds at most one value in the host state (`Record<string, string | null>`), which
+ * is exactly the panel's `single` mode: ticking a box replaces the previous one, unticking the
+ * ticked box goes back to « Tout ».
+ */
+function familyOf(section: CharacterFilterSection): GameFilterFamily {
+	if (section.kind === "rarity") {
+		const options = section.options ?? DEFAULT_RARITY_OPTIONS;
+		return {
+			id: section.id,
+			label: section.title,
+			mode: "single" as const,
+			// The family strip shows one icon per section: the first badge of the section, so
+			// the strip reads like the list it opens.
+			icon: options[0]
+				? (section.renderBadge?.(options[0]) ?? <RarityBadge rarity={options[0].rarity} size="md" />)
+				: section.title.slice(0, 1),
+			options: options.map((option) => ({
+				value: option.value,
+				label: option.rarity,
+				icon: section.renderBadge?.(option) ?? <RarityBadge rarity={option.rarity} size="md" />,
+			})),
+		};
+	}
+	const first = section.options[0];
+	return {
+		id: section.id,
+		label: section.title,
+		mode: "single" as const,
+		icon: (first ? section.renderIcon?.(first, true) : undefined) ?? section.title.slice(0, 1),
+		options: section.options.map((option) => ({
+			value: option.value,
+			// `hideLabel` asked the chips to render the icon alone. The dialog always names its
+			// boxes — a grid of unlabelled pictures is not the screen the game draws — so the
+			// host renderer is asked for the icon only, and the label stays.
+			label: option.label,
+			icon: section.renderIcon?.(option, section.hideLabel ?? false),
+		})),
+	};
+}
+
+/**
+ * Controlled character catalogue filters shared by Inacord and web hosts, rendered as the
+ * game's own FILTERS dialog (`data/menu/filters_*.png`) instead of rows of chips.
+ *
+ * Navigation, persistence, localization lookup, and asset resolution stay in the mounting
+ * host; this component only owns the common visual hierarchy. The host keeps its `onToggle`
+ * contract: confirming the dialog reports each section whose value actually changed, and a
+ * section brought back to « Tout » is reported with the value it previously held — the same
+ * call a second click on a selected chip used to make.
  */
 export function CharacterFilters({
 	sections,
@@ -63,36 +116,41 @@ export function CharacterFilters({
 	onToggle,
 	isPending = false,
 	teamControl,
+	onClose,
+	count,
+	countUnit,
 }: CharacterFiltersProps) {
+	const families = sections.map(familyOf);
+	const value: GameFilterValue = Object.fromEntries(
+		sections.map((section) => {
+			const selected = selectedValues[section.id];
+			return [section.id, selected ? [selected] : []];
+		}),
+	);
+
+	const confirm = (next: GameFilterValue) => {
+		if (isPending) return;
+		for (const section of sections) {
+			const before = selectedValues[section.id] ?? null;
+			const after = next[section.id]?.[0] ?? null;
+			if (after === before) continue;
+			// Clearing a section is a toggle of the value it held: the host owns the semantics
+			// of its own query state, and it already answers that call.
+			onToggle(section.id, after ?? before ?? "");
+		}
+		onClose?.();
+	};
+
 	return (
 		<div className="flex flex-col gap-4 px-1 pb-6">
-			{sections.map((section, index) => (
-				<div key={section.id}>
-					{index > 0 ? <hr className="mb-4 border-outline-variant/20" /> : null}
-					<section className="space-y-2">
-						<h4 className="text-xs font-bold uppercase tracking-wider text-primary">{section.title}</h4>
-						{section.kind === "rarity" ? (
-							<RarityFilterChips
-								options={section.options}
-								selectedValue={selectedValues[section.id] ?? null}
-								onToggle={(value) => onToggle(section.id, value)}
-								isPending={isPending}
-								renderBadge={section.renderBadge}
-							/>
-						) : (
-							<FilterChipGroup
-								options={section.options}
-								selectedValue={selectedValues[section.id] ?? null}
-								onToggle={(value) => onToggle(section.id, value)}
-								isPending={isPending}
-								className="flex flex-wrap gap-1.5"
-								hideLabel={section.hideLabel}
-								renderIcon={section.renderIcon}
-							/>
-						)}
-					</section>
-				</div>
-			))}
+			<GameFilterPanel
+				families={families}
+				value={value}
+				onConfirm={confirm}
+				onClose={onClose}
+				count={count}
+				countUnit={countUnit}
+			/>
 			{teamControl ? (
 				<>
 					<hr className="border-outline-variant/20" />

@@ -112,7 +112,7 @@ struct Entree {
 /// segment d'URL brut, en minuscule, identique dans les trois langues — parce qu'il tombait
 /// dans la branche générique de [`metadonnees`]. Une entrée du menu que le serveur ne connaît
 /// pas est une page sans titre, absente du plan du site et non déclarée à `robots.txt`.
-const ENTREES: [Entree; 9] = [
+const ENTREES: [Entree; 11] = [
     Entree {
         // La navigation, qui occupait la racine jusqu'au 2026-09-07. La racine sert le jeu ;
         // le menu a donc son adresse. Il n'est PAS au plan du site : une page de liens vers
@@ -201,6 +201,26 @@ const ENTREES: [Entree; 9] = [
             "Composer un personnage joueur à partir des pièces et réglages du jeu.",
             "Compose a player character from the game's parts and settings.",
             "ゲームのパーツと設定から選手キャラクターを組み立てます。",
+        ],
+    },
+    Entree {
+        // Inacord, merged into this site on 2026-09-12: the former `inacord.aphrody.com`
+        // workspace now lives here, framed by the game's secondary shell.
+        segment: "inacord",
+        titres: ["Inacord", "Inacord", "Inacord"],
+        descriptions: [
+            "L'espace de travail Inacord dans le navigateur : explorateur, éditeur, outils RE, mods, cinéma, galerie et sauvegardes.",
+            "The Inacord workspace in the browser: explorer, editor, RE tools, mods, cinema, gallery and saves.",
+            "ブラウザーで使える Inacord ワークスペース：エクスプローラー、エディター、RE ツール、MOD、シネマ、ギャラリー、セーブ。",
+        ],
+    },
+    Entree {
+        segment: "downloads",
+        titres: ["Téléchargements", "Downloads", "ダウンロード"],
+        descriptions: [
+            "Les distributions natives d'Inacord : Desktop, Mobile, CLI, MCP et extensions, signées.",
+            "Inacord's native distributions: Desktop, Mobile, CLI, MCP and plugins, signed.",
+            "Inacord のネイティブ配布物：Desktop、Mobile、CLI、MCP、拡張機能（署名付き）。",
         ],
     },
 ];

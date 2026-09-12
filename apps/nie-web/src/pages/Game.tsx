@@ -3,7 +3,7 @@ import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-i
 import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
 import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AVATAR, EXPLORER, MEDIA, SETTINGS, menuEntries } from "../entries";
+import { AVATAR, EXPLORER, INACORD, MEDIA, SETTINGS, menuEntries } from "../entries";
 import { bindMenuActions } from "../game/menu-actions";
 import {
 	advanceOpeningPhase,
@@ -23,6 +23,7 @@ export interface GameProps {
 	onOpenSettings: () => void;
 	onOpenMedia: () => void;
 	onOpenExplorer: () => void;
+	onOpenInacord: () => void;
 	startupReady?: boolean;
 	health?: SiteHealth | null;
 	startupFailed?: boolean;
@@ -37,6 +38,7 @@ export function Game({
 	onOpenSettings,
 	onOpenMedia,
 	onOpenExplorer,
+	onOpenInacord,
 	startupReady = false,
 	health = null,
 	startupFailed = false,
@@ -52,6 +54,7 @@ export function Game({
 			[MEDIA]: { id: "media", onActivate: onOpenMedia },
 			[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },
 			[EXPLORER]: { id: "explorer", onActivate: onOpenExplorer },
+			[INACORD]: { id: "inacord", onActivate: onOpenInacord },
 			[SETTINGS]: { id: "settings", onActivate: onOpenSettings },
 		});
 		return (

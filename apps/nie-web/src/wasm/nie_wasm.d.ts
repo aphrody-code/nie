@@ -603,6 +603,12 @@ export function menu_presentation_json(id: string): string;
 export function menu_runtime_scene_json(state_json: string): string;
 
 /**
+ * Returns the embedded JSON catalog of the 38 native menu screens and their paired assets
+ * from `data/menu/screen-inventory.json`.
+ */
+export function menu_screens_catalog_json(): string;
+
+/**
  * Composes one static menu layer from raw OBJBIN, G4PKM and G4TX bytes in WebAssembly.
  */
 export function menu_static_layer_json(objbin_bytes: Uint8Array, g4pkm_bytes: Uint8Array, g4tx_bytes: Uint8Array, g4tx_path: string): string;
@@ -796,6 +802,7 @@ export interface InitOutput {
     readonly menu_animation_bindings_json: (a: number, b: number, c: number) => void;
     readonly menu_presentation_json: (a: number, b: number, c: number) => void;
     readonly menu_runtime_scene_json: (a: number, b: number, c: number) => void;
+    readonly menu_screens_catalog_json: (a: number) => void;
     readonly menu_static_layer_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly minidump_summary_json: (a: number, b: number, c: number) => void;
     readonly model_to_glb: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -876,10 +883,10 @@ export interface InitOutput {
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4021: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4036: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3030: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3030_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4025: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4040: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3034: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3034_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;
