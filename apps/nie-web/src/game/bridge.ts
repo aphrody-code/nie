@@ -22,7 +22,7 @@
  * lui-même, avec sa pré-compression et son cache — c'est là qu'ils vivent.
  */
 import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
-import init, { WasmGame, menu_presentation_json } from "../wasm/nie_wasm.js";
+import init, { crc32 as wasmCrc32, WasmGame, menu_presentation_json } from "../wasm/nie_wasm.js";
 
 const WASM_URL = "/static/game/nie_wasm_bg.wasm";
 const FONT_CFG_URL = "/static/game/font.cfg.bin.gz";
@@ -193,6 +193,21 @@ export function sharedFrameView(
  *
  * Elle sert à lire une image rendue SANS la copier : le Rust y écrit, le JS y pointe.
  */
+/**
+ * Le CRC-32 d'un nom, calculé par le module — `nie_formats::cfgbin::crc32`.
+ *
+ * `layer_id == crc32(nom)` dans les scènes de menu, et l'identifiant d'un objet suit la même
+ * règle : c'est la clé qui relie un objet du layout à son objet d'exécution. Trois copies
+ * TypeScript de cette boucle vivaient dans le dépôt (`lua-runtime`, `PlayerBank`, `Shop`), et
+ * rien ne les comparait entre elles ni à celle du jeu.
+ *
+ * Exige que le module soit chargé : appeler `ensureWasm()` avant. Un appel prématuré lève,
+ * plutôt que de rendre un zéro qui se lirait comme un identifiant valide.
+ */
+export function crc32(value: string): number {
+	return wasmCrc32(value);
+}
+
 export function moduleMemory(): WebAssembly.Memory | null {
 	return wasmMemory;
 }

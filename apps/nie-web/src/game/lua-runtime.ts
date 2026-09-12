@@ -210,19 +210,14 @@ interface ReplayOutput {
 /**
  * CRC-32 d'un nom — la clé qui relie un objet du layout à son objet runtime.
  *
- * `layer_id == crc32(nom)` dans les scènes du menu, et l'identifiant d'un objet suit la même
- * règle : mesuré le 2026-09-12, 23 des 25 noms d'objets de la Banque retrouvent ainsi le leur.
+ * Réexporté depuis le module WebAssembly : c'est `nie_formats::cfgbin::crc32`, la fonction du
+ * jeu, et non plus une boucle réécrite ici. Elle en avait trois copies dans le dépôt, qu'aucun
+ * test ne comparait ; `crates/engine/nie-wasm/tests/model_render.rs` fixe désormais la
+ * référence (`crc32("123456789") == 0xCBF43926`).
+ *
+ * Exige `ensureWasm()` au préalable, comme tout ce que le module calcule.
  */
-export function crc32(value: string): number {
-	let reste = 0xffffffff;
-	for (const octet of new TextEncoder().encode(value)) {
-		reste ^= octet;
-		for (let bit = 0; bit < 8; bit += 1) {
-			reste = reste & 1 ? (reste >>> 1) ^ 0xedb88320 : reste >>> 1;
-		}
-	}
-	return (reste ^ 0xffffffff) >>> 0;
-}
+export { crc32 } from "./bridge";
 
 /** Ce que le replay a établi pour un écran. */
 export interface ResolvedVisibility {

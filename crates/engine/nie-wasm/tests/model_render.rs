@@ -76,3 +76,32 @@ fn des_octets_qui_ne_sont_pas_un_glb_sont_refuses() {
         "l'erreur doit nommer ce qui manque : {erreur}"
     );
 }
+
+/// Le CRC-32 exposé au navigateur est bien celui du jeu.
+///
+/// Il avait un jumeau en TypeScript, que rien ne comparait à celui-ci. Le vecteur canonique du
+/// CRC-32 (IEEE 802.3) fixe la référence, et un nom d'objet réel fixe l'usage.
+#[test]
+fn le_crc32_du_navigateur_est_celui_du_jeu() {
+    assert_eq!(nie_wasm::crc32("123456789"), 0xCBF4_3926);
+    assert_eq!(nie_wasm::crc32(""), 0);
+    // `layer_id == crc32(nom)` : le calque de la Banque, tel que le layout le nomme.
+    assert_eq!(
+        nie_wasm::crc32("team14_01_chara_bank_list"),
+        nie_formats::cfgbin::crc32(b"team14_01_chara_bank_list")
+    );
+}
+
+/// Les identifiants de calque FIGÉS dans les écrans valent bien ce que la fonction rend.
+///
+/// `PlayerBank.tsx` et `Shop.tsx` portent ces nombres en dur, parce qu'un module WebAssembly
+/// n'est pas chargé quand un module TypeScript s'évalue. Une constante figée sans vérification
+/// dérive dès que le calque est renommé, et l'écran se contenterait de ne rien peupler. Ici,
+/// elle échoue au test.
+#[test]
+fn les_identifiants_de_calque_figes_dans_les_ecrans_sont_exacts() {
+    // apps/nie-web/src/screens/PlayerBank.tsx
+    assert_eq!(nie_wasm::crc32("team14_01_chara_bank_list"), 0x1ac9_9083);
+    // apps/nie-web/src/screens/Shop.tsx
+    assert_eq!(nie_wasm::crc32("shop01_01_list_base"), 0x992e_f302);
+}

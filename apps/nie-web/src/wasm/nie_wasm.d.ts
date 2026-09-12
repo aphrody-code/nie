@@ -638,6 +638,16 @@ export function cpk_extract_file(cpk_bytes: Uint8Array, cpk_filename: string, en
 export function cpk_parse_entries(cpk_bytes: Uint8Array, cpk_filename: string): string;
 
 /**
+ * Le CRC-32 d'un nom, tel que le jeu l'emploie pour adresser ses objets.
+ *
+ * `layer_id == crc32(nom)` dans les scènes de menu, et l'identifiant d'un objet suit la même
+ * règle : c'est la clé qui relie un objet du layout à son objet d'exécution. Le navigateur
+ * l'avait réécrit en TypeScript — vingt lignes qui devaient rester d'accord avec
+ * `nie_formats::cfgbin::crc32` sans que rien ne le vérifie. Ici, c'est la MÊME fonction.
+ */
+export function crc32(value: string): number;
+
+/**
  * Produces the bounded deterministic CRC32 sample shared by all benchmark harnesses.
  */
 export function crc32_benchmark_sample_json(byte_length: number): string;
@@ -984,6 +994,7 @@ export interface InitOutput {
     readonly character_parts_catalog_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly cpk_extract_file: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly cpk_parse_entries: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly crc32: (a: number, b: number) => number;
     readonly crc32_benchmark_sample_json: (a: number, b: number) => void;
     readonly crilayla_decompress: (a: number, b: number, c: number) => void;
     readonly detect_format: (a: number, b: number, c: number) => void;
@@ -1112,10 +1123,10 @@ export interface InitOutput {
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4104: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4119: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3113: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3113_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4107: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4122: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3116: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3116_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

@@ -4706,6 +4706,25 @@ impl From<NwScreenSpec> for nie_formats::menu_screen::ScreenSpec {
 // La chaîne complète tient alors dans le module : les octets `.g4md`/`.g4mg` du jeu, tels que
 // `/f/{path}` les sert, passent par [`model_to_glb`] puis par ce rendu. Aucun serveur ne dessine.
 
+/// Le CRC-32 d'un nom, tel que le jeu l'emploie pour adresser ses objets.
+///
+/// `layer_id == crc32(nom)` dans les scènes de menu, et l'identifiant d'un objet suit la même
+/// règle : c'est la clé qui relie un objet du layout à son objet d'exécution. Le navigateur
+/// l'avait réécrit en TypeScript — vingt lignes qui devaient rester d'accord avec
+/// `nie_formats::cfgbin::crc32` sans que rien ne le vérifie. Ici, c'est la MÊME fonction.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn crc32(value: &str) -> u32 {
+    nie_formats::cfgbin::crc32(value.as_bytes())
+}
+
+/// Pendant natif de [`crc32`], pour que les tests éprouvent la même fonction que le navigateur.
+#[cfg(not(target_arch = "wasm32"))]
+#[must_use]
+pub fn crc32(value: &str) -> u32 {
+    nie_formats::cfgbin::crc32(value.as_bytes())
+}
+
 /// Rend un modèle 3D du jeu en image, sur le processeur.
 ///
 /// ## Ce que c'est

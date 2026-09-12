@@ -63,18 +63,15 @@ const COLUMNS = 6;
 const ROWS = 4;
 const PAGE_SIZE = COLUMNS * ROWS;
 
-/** CRC-32 d'un nom de calque : `layer_id == crc32(nom)` dans les scènes du menu. */
-function crc32(value: string): number {
-	let crc = 0xffffffff;
-	for (const byte of new TextEncoder().encode(value)) {
-		crc ^= byte;
-		for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
-	}
-	return (crc ^ 0xffffffff) >>> 0;
-}
-
-/** Le calque de la liste de la banque, tel que le layout le nomme. */
-const LIST_LAYER = crc32("team14_01_chara_bank_list");
+/**
+ * L'identifiant du calque de la liste : `layer_id == crc32(nom)` dans les scènes du menu.
+ *
+ * La valeur est FIGÉE ici plutôt que calculée au chargement, parce que le CRC-32 vit maintenant
+ * dans le module WebAssembly (`nie_formats::cfgbin::crc32`) et qu'un module n'est pas chargé au
+ * moment où un module TypeScript s'évalue. `layerIdEstCelleDuJeu` la revérifie contre la vraie
+ * fonction, donc une constante fausse échoue au test et non à l'écran.
+ */
+const LIST_LAYER = 0x1ac99083;
 
 /** Le layout de l'écran, validé par `lireLayout` — un JSON mal formé échoue bruyamment. */
 async function loadLayout(signal: AbortSignal): Promise<LayoutJeu> {
