@@ -1479,6 +1479,15 @@ pub struct ScreenObject {
     pub mute: bool,
     /// Pourquoi l'objet n'est pas positionné, quand il ne l'est pas.
     pub reason: Option<&'static str>,
+    /// Les compagnons que cet objet désigne, nom LOGIQUE → chemin de ce montage.
+    ///
+    /// Un `.objbin` nomme son squelette et sa texture par un nom logique (`team14_01.g4pkm`) ;
+    /// où ce nom vit dépend du montage, et seule la machine qui porte le jeu le sait. Publier la
+    /// résolution est ce qui permet à un client — le navigateur, notamment — de construire le
+    /// layout lui-même au lieu de le demander. Ce que ça révèle est déjà publié : `objbin` et
+    /// `cfg` portent les mêmes chemins.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub companions: BTreeMap<String, String>,
 }
 
 /// Les trois nombres d'un écran, et le détail qui les produit.
@@ -1590,6 +1599,7 @@ fn inspect_layer(vfs: &Vfs, index: &IndexVfs, paths: &MenuPaths, layer: &str) ->
         positioned: false,
         mute: false,
         reason: Some(reason),
+        companions: BTreeMap::new(),
     };
     let Some(objbin_path) = paths.objects.get(layer) else {
         return vide("aucun .objbin de ce nom dans ce montage du VFS");
@@ -1609,16 +1619,32 @@ fn inspect_layer(vfs: &Vfs, index: &IndexVfs, paths: &MenuPaths, layer: &str) ->
 
     // La pose. Le sprite entre dans l'appariement d'os, mais son ABSENCE ne doit pas empêcher
     // de placer : on place alors avec un sprite de 0×0, comme `routes::inspect`.
+    let mut companions = BTreeMap::new();
+    // La texture, résolue même quand la pose échoue : c'est elle qui porte les pixels, et son
+    // absence n'a rien à voir avec celle du squelette.
+    if let Some(logique) = obj.g4tx_path.clone().or_else(|| {
+        obj.g4pkm_path
+            .as_deref()
+            .and_then(|path| path.rsplit('/').next())
+            .and_then(|name| name.strip_suffix(".g4pkm"))
+            .map(|stem| format!("{stem}.g4tx"))
+    }) && let Some(chemin) = super::inspect::resolve_companion(index, &logique, SCREEN_LOCALE)
+    {
+        companions.insert(logique, chemin);
+    }
+
     let (mut position, mut positioned, mut reason) = (None, false, None);
     match obj.g4pkm_path.as_deref() {
         None => reason = Some("l'objet ne declare aucun SkeletonAnime"),
         Some(logique) => match super::inspect::resolve_companion(index, logique, SCREEN_LOCALE) {
             None => reason = Some("chemin de squelette declare mais absent de ce montage"),
-            Some(p) => match vfs
-                .read(&p)
-                .ok()
-                .and_then(|d| nie_formats::g4pkm::parse(&d).ok())
-            {
+            Some(p) => match {
+                companions.insert(logique.to_owned(), p.clone());
+                vfs
+                    .read(&p)
+                    .ok()
+                    .and_then(|d| nie_formats::g4pkm::parse(&d).ok())
+            } {
                 None => reason = Some("squelette lu mais illisible par g4pkm::parse"),
                 Some(layout) => {
                     let t = nie_formats::menu::assemble_object(&obj, &layout, 0, 0).transform;
@@ -1638,6 +1664,7 @@ fn inspect_layer(vfs: &Vfs, index: &IndexVfs, paths: &MenuPaths, layer: &str) ->
         positioned,
         mute,
         reason,
+        companions,
     }
 }
 

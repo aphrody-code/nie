@@ -85,6 +85,68 @@ export class MenuComposer {
 }
 
 /**
+ * Construit le layout d'un écran de menu dans le navigateur.
+ *
+ * ## L'ordre d'usage
+ *
+ * 1. `new(screen_spec_json)` — le nom de l'écran, son canvas et ses calques, tels que
+ *    `/api/v1/menu/{screen}` les publie ;
+ * 2. `required_files()` — les chemins d'`.objbin` à télécharger, puis `provide_file` pour
+ *    chacun ;
+ * 3. `required_companions()` — les noms logiques que ces `.objbin` désignent ; `provide_companion`
+ *    dit où chacun vit, `provide_file` en donne les octets ;
+ * 4. `build(locale, menu_text_json, visibility_json)` — le layout, au schéma
+ *    `niers.menu.layout/v1`.
+ *
+ * Deux tours sont nécessaires parce qu'un `.objbin` ne se lit pas sans être téléchargé, et que
+ * ce qu'il désigne ne se connaît pas avant de l'avoir lu. C'est le jeu lui-même qui impose cet
+ * ordre, pas ce pont.
+ *
+ * ## Ce que ça ne prétend pas
+ *
+ * Un fichier absent de la table n'est pas inventé : le calque sort dans
+ * `diagnostics.objectsUnreadable`, l'objet garde `transform: null` et
+ * `placementSource: "unresolved"`. Le layout construit avec la moitié des octets dit qu'il lui
+ * manque la moitié des octets.
+ */
+export class MenuScreenBuilder {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Le layout, au schéma `niers.menu.layout/v1`.
+     *
+     * `menu_text_json` : `[[hash, "texte"], …]` — les libellés de la locale, que la page tient
+     * de `/api/v1/text`. Une liste vide rend un layout sans libellé, ce qui est exact.
+     * `visibility_json` : `{ "<crc32>": true }` — ce que l'exécution Lua a résolu, ou `{}`.
+     */
+    build(locale: string, menu_text_json: string, visibility_json: string): string;
+    /**
+     * `screen_spec_json` : `{ screen, cfg, canvas: [w, h], items: [{ layer, objbin }],
+     * layersMissing: [] }`.
+     */
+    constructor(screen_spec_json: string);
+    /**
+     * Où vit un nom logique sur ce montage.
+     */
+    provide_companion(logical: string, path: string): void;
+    /**
+     * Les octets d'un chemin, tels que `/f/{path}` les a rendus.
+     */
+    provide_file(path: string, bytes: Uint8Array): void;
+    /**
+     * Les noms logiques que les `.objbin` FOURNIS désignent — squelettes et textures.
+     *
+     * Vide tant qu'aucun `.objbin` n'est chargé : la liste se lit dans les octets, elle ne se
+     * devine pas depuis le nom de l'écran.
+     */
+    required_companions(): string[];
+    /**
+     * Les chemins d'`.objbin` que cet écran déclare, dans l'ordre du fichier.
+     */
+    required_files(): string[];
+}
+
+/**
  * Thin bitmap-text ABI over the shared native font decoder.
  */
 export class WasmBitmapFont {
@@ -837,6 +899,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_menucomposer_free: (a: number, b: number) => void;
+    readonly __wbg_menuscreenbuilder_free: (a: number, b: number) => void;
     readonly __wbg_wasmbitmapfont_free: (a: number, b: number) => void;
     readonly __wbg_wasmcamera_free: (a: number, b: number) => void;
     readonly __wbg_wasmeditorsession_free: (a: number, b: number) => void;
@@ -897,6 +960,12 @@ export interface InitOutput {
     readonly menucomposer_provide_font: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly menucomposer_render: (a: number, b: number, c: number, d: number) => void;
     readonly menucomposer_required_assets: (a: number, b: number) => void;
+    readonly menuscreenbuilder_build: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly menuscreenbuilder_new: (a: number, b: number, c: number) => void;
+    readonly menuscreenbuilder_provide_companion: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly menuscreenbuilder_provide_file: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly menuscreenbuilder_required_companions: (a: number, b: number) => void;
+    readonly menuscreenbuilder_required_files: (a: number, b: number) => void;
     readonly minidump_summary_json: (a: number, b: number, c: number) => void;
     readonly model_to_glb: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly offline_image_inspect_json: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -976,10 +1045,10 @@ export interface InitOutput {
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4049: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4064: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3058: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3058_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4089: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4104: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3098: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3098_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

@@ -194,6 +194,171 @@ export class MenuComposer {
 if (Symbol.dispose) MenuComposer.prototype[Symbol.dispose] = MenuComposer.prototype.free;
 
 /**
+ * Construit le layout d'un écran de menu dans le navigateur.
+ *
+ * ## L'ordre d'usage
+ *
+ * 1. `new(screen_spec_json)` — le nom de l'écran, son canvas et ses calques, tels que
+ *    `/api/v1/menu/{screen}` les publie ;
+ * 2. `required_files()` — les chemins d'`.objbin` à télécharger, puis `provide_file` pour
+ *    chacun ;
+ * 3. `required_companions()` — les noms logiques que ces `.objbin` désignent ; `provide_companion`
+ *    dit où chacun vit, `provide_file` en donne les octets ;
+ * 4. `build(locale, menu_text_json, visibility_json)` — le layout, au schéma
+ *    `niers.menu.layout/v1`.
+ *
+ * Deux tours sont nécessaires parce qu'un `.objbin` ne se lit pas sans être téléchargé, et que
+ * ce qu'il désigne ne se connaît pas avant de l'avoir lu. C'est le jeu lui-même qui impose cet
+ * ordre, pas ce pont.
+ *
+ * ## Ce que ça ne prétend pas
+ *
+ * Un fichier absent de la table n'est pas inventé : le calque sort dans
+ * `diagnostics.objectsUnreadable`, l'objet garde `transform: null` et
+ * `placementSource: "unresolved"`. Le layout construit avec la moitié des octets dit qu'il lui
+ * manque la moitié des octets.
+ */
+export class MenuScreenBuilder {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        MenuScreenBuilderFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_menuscreenbuilder_free(ptr, 0);
+    }
+    /**
+     * Le layout, au schéma `niers.menu.layout/v1`.
+     *
+     * `menu_text_json` : `[[hash, "texte"], …]` — les libellés de la locale, que la page tient
+     * de `/api/v1/text`. Une liste vide rend un layout sans libellé, ce qui est exact.
+     * `visibility_json` : `{ "<crc32>": true }` — ce que l'exécution Lua a résolu, ou `{}`.
+     * @param {string} locale
+     * @param {string} menu_text_json
+     * @param {string} visibility_json
+     * @returns {string}
+     */
+    build(locale, menu_text_json, visibility_json) {
+        let deferred5_0;
+        let deferred5_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(locale, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            const ptr1 = passStringToWasm0(menu_text_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len1 = WASM_VECTOR_LEN;
+            const ptr2 = passStringToWasm0(visibility_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len2 = WASM_VECTOR_LEN;
+            wasm.menuscreenbuilder_build(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr4 = r0;
+            var len4 = r1;
+            if (r3) {
+                ptr4 = 0; len4 = 0;
+                throw takeObject(r2);
+            }
+            deferred5_0 = ptr4;
+            deferred5_1 = len4;
+            return getStringFromWasm0(ptr4, len4);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred5_0, deferred5_1, 1);
+        }
+    }
+    /**
+     * `screen_spec_json` : `{ screen, cfg, canvas: [w, h], items: [{ layer, objbin }],
+     * layersMissing: [] }`.
+     * @param {string} screen_spec_json
+     */
+    constructor(screen_spec_json) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(screen_spec_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.menuscreenbuilder_new(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0;
+            MenuScreenBuilderFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Où vit un nom logique sur ce montage.
+     * @param {string} logical
+     * @param {string} path
+     */
+    provide_companion(logical, path) {
+        const ptr0 = passStringToWasm0(logical, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(path, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.menuscreenbuilder_provide_companion(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+    }
+    /**
+     * Les octets d'un chemin, tels que `/f/{path}` les a rendus.
+     * @param {string} path
+     * @param {Uint8Array} bytes
+     */
+    provide_file(path, bytes) {
+        const ptr0 = passStringToWasm0(path, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.menuscreenbuilder_provide_file(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+    }
+    /**
+     * Les noms logiques que les `.objbin` FOURNIS désignent — squelettes et textures.
+     *
+     * Vide tant qu'aucun `.objbin` n'est chargé : la liste se lit dans les octets, elle ne se
+     * devine pas depuis le nom de l'écran.
+     * @returns {string[]}
+     */
+    required_companions() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.menuscreenbuilder_required_companions(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayJsValueFromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Les chemins d'`.objbin` que cet écran déclare, dans l'ordre du fichier.
+     * @returns {string[]}
+     */
+    required_files() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.menuscreenbuilder_required_files(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayJsValueFromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+if (Symbol.dispose) MenuScreenBuilder.prototype[Symbol.dispose] = MenuScreenBuilder.prototype.free;
+
+/**
  * Thin bitmap-text ABI over the shared native font decoder.
  */
 export class WasmBitmapFont {
@@ -3727,7 +3892,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wasm_bindgen_func_elem_4064(a, state0.b, arg0, arg1);
+                        return __wasm_bindgen_func_elem_4104(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -4372,18 +4537,18 @@ function __wbg_get_imports() {
             getObject(arg0).writeTexture(getObject(arg1), getArrayU8FromWasm0(arg2, arg3), getObject(arg4), getObject(arg5));
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1209, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3058);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1215, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3098);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1269, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4049);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1275, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4089);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1209, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3058_2);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1215, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3098_2);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000004: function(arg0) {
@@ -4415,18 +4580,18 @@ function __wbg_get_imports() {
     };
 }
 
-function __wasm_bindgen_func_elem_3058(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3058(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3098(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3098(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_3058_2(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3058_2(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3098_2(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3098_2(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_4049(arg0, arg1, arg2) {
+function __wasm_bindgen_func_elem_4089(arg0, arg1, arg2) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.__wasm_bindgen_func_elem_4049(retptr, arg0, arg1, addHeapObject(arg2));
+        wasm.__wasm_bindgen_func_elem_4089(retptr, arg0, arg1, addHeapObject(arg2));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         if (r1) {
@@ -4437,8 +4602,8 @@ function __wasm_bindgen_func_elem_4049(arg0, arg1, arg2) {
     }
 }
 
-function __wasm_bindgen_func_elem_4064(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_4064(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wasm_bindgen_func_elem_4104(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_4104(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 
@@ -4524,6 +4689,9 @@ const __wbindgen_enum_GpuVertexStepMode = ["vertex", "instance"];
 const MenuComposerFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_menucomposer_free(ptr, 1));
+const MenuScreenBuilderFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_menuscreenbuilder_free(ptr, 1));
 const WasmBitmapFontFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmbitmapfont_free(ptr, 1));

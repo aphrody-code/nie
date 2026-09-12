@@ -125,6 +125,9 @@ pub mod menu_layout;
 /// Portable, measured VFS presentations shared by native and browser hosts.
 #[cfg(all(feature = "std", feature = "serde"))]
 pub mod menu_presentation;
+/// Le layout d'un écran de menu, construit depuis les octets du jeu (feature `std`).
+#[cfg(feature = "std")]
+pub mod menu_screen;
 #[cfg(feature = "std")]
 pub mod mevbin;
 /// Muxeur MP4/AVC pur Rust (H.264 Annex-B → `ftyp`/`moov`/`mdat`) — remplace l'appel `ffmpeg`.

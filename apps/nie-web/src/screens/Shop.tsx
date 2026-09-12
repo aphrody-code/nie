@@ -48,6 +48,7 @@ import {
 } from "../game/shop";
 import { NativeText } from "../pages/NativeText";
 import "./shop.css";
+import { loadMenuLayout } from "../game/menu-layout";
 
 /** L'écran du jeu dont cette page est la reproduction. */
 const SCREEN = "shop_menu";
@@ -73,9 +74,7 @@ const LIST_LAYER = crc32("shop01_01_list_base");
 const EXCHANGE_SHOP = "Marché aux esprits";
 
 async function loadLayout(signal: AbortSignal): Promise<LayoutJeu> {
-	const response = await fetch(`/api/v1/menu/layout/${SCREEN}`, { signal, headers: { accept: "application/json" } });
-	if (!response.ok) throw new Error("Layout unavailable");
-	return lireLayout(await response.json());
+	return lireLayout(await loadMenuLayout(SCREEN, "fr", signal));
 }
 
 async function loadFamily(family: string, signal: AbortSignal): Promise<unknown[]> {

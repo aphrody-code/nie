@@ -4484,3 +4484,213 @@ impl MenuComposer {
         self.frame.len()
     }
 }
+
+// ── Le layout d'un écran, construit DANS la page ─────────────────────────────────────────────
+//
+// Jusqu'ici le navigateur DEMANDAIT le layout à `nie-site` (`/api/v1/menu/{screen}/layout`) : il
+// recevait un verdict déjà calculé, et l'écran n'existait que parce qu'un serveur voulait bien
+// le décrire. Le constructeur vit maintenant dans `nie_formats::menu_screen`, au-dessus d'une
+// source d'octets abstraite ; ce pont branche cette source sur des octets que la page a
+// téléchargés elle-même depuis `/f/{path}`. Le même code, les mêmes octets, le même JSON.
+
+/// Les octets que la page a téléchargés, vus par le constructeur de layout.
+///
+/// La résolution d'un nom logique (`chara_bank_menu.g4pkm`) vers un chemin réel n'est pas
+/// devinée : l'appelant la déclare avec [`MenuScreenBuilder::provide_companion`], parce qu'elle
+/// dépend du montage et que seule la machine qui porte le jeu la connaît.
+#[cfg(target_arch = "wasm32")]
+#[derive(Default)]
+struct FichiersNavigateur {
+    fichiers: std::collections::BTreeMap<String, Vec<u8>>,
+    compagnons: std::collections::BTreeMap<String, String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl nie_formats::menu_screen::MenuSource for FichiersNavigateur {
+    fn read(&self, path: &str) -> Option<Vec<u8>> {
+        self.fichiers.get(path).cloned()
+    }
+
+    fn resolve_companion(&self, logical: &str) -> Option<String> {
+        self.compagnons.get(logical).cloned()
+    }
+}
+
+/// Construit le layout d'un écran de menu dans le navigateur.
+///
+/// ## L'ordre d'usage
+///
+/// 1. `new(screen_spec_json)` — le nom de l'écran, son canvas et ses calques, tels que
+///    `/api/v1/menu/{screen}` les publie ;
+/// 2. `required_files()` — les chemins d'`.objbin` à télécharger, puis `provide_file` pour
+///    chacun ;
+/// 3. `required_companions()` — les noms logiques que ces `.objbin` désignent ; `provide_companion`
+///    dit où chacun vit, `provide_file` en donne les octets ;
+/// 4. `build(locale, menu_text_json, visibility_json)` — le layout, au schéma
+///    `niers.menu.layout/v1`.
+///
+/// Deux tours sont nécessaires parce qu'un `.objbin` ne se lit pas sans être téléchargé, et que
+/// ce qu'il désigne ne se connaît pas avant de l'avoir lu. C'est le jeu lui-même qui impose cet
+/// ordre, pas ce pont.
+///
+/// ## Ce que ça ne prétend pas
+///
+/// Un fichier absent de la table n'est pas inventé : le calque sort dans
+/// `diagnostics.objectsUnreadable`, l'objet garde `transform: null` et
+/// `placementSource: "unresolved"`. Le layout construit avec la moitié des octets dit qu'il lui
+/// manque la moitié des octets.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct MenuScreenBuilder {
+    spec: nie_formats::menu_screen::ScreenSpec,
+    source: FichiersNavigateur,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl MenuScreenBuilder {
+    /// `screen_spec_json` : `{ screen, cfg, canvas: [w, h], items: [{ layer, objbin }],
+    /// layersMissing: [] }`.
+    #[wasm_bindgen(constructor)]
+    pub fn new(screen_spec_json: &str) -> Result<MenuScreenBuilder, JsValue> {
+        let spec: NwScreenSpec = serde_json::from_str(screen_spec_json)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        Ok(MenuScreenBuilder {
+            spec: spec.into(),
+            source: FichiersNavigateur::default(),
+        })
+    }
+
+    /// Les chemins d'`.objbin` que cet écran déclare, dans l'ordre du fichier.
+    #[wasm_bindgen]
+    pub fn required_files(&self) -> Vec<String> {
+        self.spec
+            .items
+            .iter()
+            .filter_map(|item| item.objbin.clone())
+            .collect()
+    }
+
+    /// Les noms logiques que les `.objbin` FOURNIS désignent — squelettes et textures.
+    ///
+    /// Vide tant qu'aucun `.objbin` n'est chargé : la liste se lit dans les octets, elle ne se
+    /// devine pas depuis le nom de l'écran.
+    #[wasm_bindgen]
+    pub fn required_companions(&self) -> Vec<String> {
+        let mut logiques = std::collections::BTreeSet::new();
+        for item in &self.spec.items {
+            let Some(bytes) = item
+                .objbin
+                .as_deref()
+                .and_then(|path| self.source.fichiers.get(path))
+            else {
+                continue;
+            };
+            let Ok(object) = nie_formats::objbin::parse(bytes) else {
+                continue;
+            };
+            if let Some(skeleton) = object.g4pkm_path.clone() {
+                logiques.insert(skeleton);
+            }
+            if let Some(texture) = object.g4tx_path.clone().or_else(|| {
+                object
+                    .g4pkm_path
+                    .as_deref()
+                    .and_then(|path| path.rsplit('/').next())
+                    .and_then(|name| name.strip_suffix(".g4pkm"))
+                    .map(|stem| format!("{stem}.g4tx"))
+            }) {
+                logiques.insert(texture);
+            }
+        }
+        logiques.into_iter().collect()
+    }
+
+    /// Les octets d'un chemin, tels que `/f/{path}` les a rendus.
+    #[wasm_bindgen]
+    pub fn provide_file(&mut self, path: &str, bytes: &[u8]) {
+        self.source
+            .fichiers
+            .insert(path.to_owned(), bytes.to_vec());
+    }
+
+    /// Où vit un nom logique sur ce montage.
+    #[wasm_bindgen]
+    pub fn provide_companion(&mut self, logical: &str, path: &str) {
+        self.source
+            .compagnons
+            .insert(logical.to_owned(), path.to_owned());
+    }
+
+    /// Le layout, au schéma `niers.menu.layout/v1`.
+    ///
+    /// `menu_text_json` : `[[hash, "texte"], …]` — les libellés de la locale, que la page tient
+    /// de `/api/v1/text`. Une liste vide rend un layout sans libellé, ce qui est exact.
+    /// `visibility_json` : `{ "<crc32>": true }` — ce que l'exécution Lua a résolu, ou `{}`.
+    #[wasm_bindgen]
+    pub fn build(
+        &self,
+        locale: &str,
+        menu_text_json: &str,
+        visibility_json: &str,
+    ) -> Result<String, JsValue> {
+        let menu_text: Vec<(u32, String)> = serde_json::from_str(menu_text_json)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let visibility: std::collections::BTreeMap<String, bool> =
+            serde_json::from_str(visibility_json)
+                .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let visibility: std::collections::BTreeMap<u32, bool> = visibility
+            .into_iter()
+            .filter_map(|(key, value)| key.parse::<u32>().ok().map(|hash| (hash, value)))
+            .collect();
+        let layout = nie_formats::menu_screen::build(
+            &self.source,
+            &self.spec,
+            locale,
+            &menu_text,
+            &visibility,
+        );
+        serde_json::to_string(&layout).map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+}
+
+/// La spécification d'écran telle que le JSON la porte, en `camelCase` comme le reste de l'API.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NwScreenSpec {
+    screen: String,
+    #[serde(default)]
+    cfg: String,
+    canvas: [u32; 2],
+    #[serde(default)]
+    items: Vec<NwScreenItem>,
+    #[serde(default)]
+    layers_missing: Vec<String>,
+}
+
+/// Un calque de la spécification.
+#[derive(serde::Deserialize)]
+struct NwScreenItem {
+    layer: String,
+    #[serde(default)]
+    objbin: Option<String>,
+}
+
+impl From<NwScreenSpec> for nie_formats::menu_screen::ScreenSpec {
+    fn from(spec: NwScreenSpec) -> Self {
+        Self {
+            screen: spec.screen,
+            cfg: spec.cfg,
+            canvas: spec.canvas,
+            items: spec
+                .items
+                .into_iter()
+                .map(|item| nie_formats::menu_screen::ScreenItem {
+                    layer: item.layer,
+                    objbin: item.objbin,
+                })
+                .collect(),
+            layers_missing: spec.layers_missing,
+        }
+    }
+}

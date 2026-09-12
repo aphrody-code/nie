@@ -16,11 +16,9 @@ use axum::extract::{Path, RawQuery, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 use nie_formats::cfgbin;
-use nie_formats::g4pkm;
 use nie_formats::g4tx;
-use nie_formats::menu as menu_placement;
 use nie_formats::menu_layout;
-use nie_formats::objbin;
+use nie_formats::menu_screen;
 use nie_formats::vfs::Vfs;
 use serde_json::{Value, json};
 
@@ -225,72 +223,6 @@ pub(super) fn load_menu_text(vfs: &Vfs, locale: &str) -> Vec<(nie_data::hash::Ha
     nie_data::text::parse_text_file(&root)
 }
 
-/// Nom logique du compagnon texture d'un objet.
-fn texture_logical_path(object: &objbin::MenuObject) -> Option<String> {
-    object.g4tx_path.clone().or_else(|| {
-        object
-            .g4pkm_path
-            .as_deref()
-            .and_then(|path| path.rsplit('/').next())
-            .and_then(|name| name.strip_suffix(".g4pkm"))
-            .map(|stem| format!("{stem}.g4tx"))
-    })
-}
-
-/// Serializes only transform components backed by parsed layout data.
-///
-/// An attach locator proves the position of an instance, but it does not prove its scale,
-/// rotation, or anchor. Those unresolved components remain JSON `null` instead of silently
-/// turning into an identity transform at the centre of the canvas.
-fn serialize_transform(
-    transform: Option<menu_placement::ScreenTransform>,
-    attach_position: Option<(f32, f32)>,
-) -> Value {
-    match (transform, attach_position) {
-        (None, None) => Value::Null,
-        (Some(transform), position) => {
-            let (x, y) = position.unwrap_or((transform.x_px, transform.y_px));
-            json!({
-                "x": x,
-                "y": y,
-                "scaleX": transform.scale_x,
-                "scaleY": transform.scale_y,
-                "rot": transform.rot,
-                "anchorX": 0.5,
-                "anchorY": 0.5,
-            })
-        }
-        (None, Some((x, y))) => json!({
-            "x": x,
-            "y": y,
-            "scaleX": Value::Null,
-            "scaleY": Value::Null,
-            "rot": Value::Null,
-            "anchorX": Value::Null,
-            "anchorY": Value::Null,
-        }),
-    }
-}
-
-/// Rejects the identity placement produced when a parsed skeleton contains no usable visual
-/// geometry. A genuine centred object remains resolved when its skeleton designates a size.
-fn resolved_static_transform(
-    object: &objbin::MenuObject,
-    layout: &g4pkm::G4pkmLayout,
-    sprite_size: (u32, u32),
-) -> Option<menu_placement::ScreenTransform> {
-    let transform =
-        menu_placement::assemble_object(object, layout, sprite_size.0, sprite_size.1).transform;
-    let identity_centre = transform.x_px == 640.0
-        && transform.y_px == 360.0
-        && transform.scale_x == 1.0
-        && transform.scale_y == 1.0
-        && transform.rot == 0.0;
-    (!identity_centre
-        || menu_placement::taille_designee(layout, sprite_size.0, sprite_size.1).is_some())
-    .then_some(transform)
-}
-
 /// Construit le layout statique d'un écran depuis les octets déjà montés.
 ///
 /// Le résultat reprend le contrat consommé par Inacord (`transform`, `sprite`, `text`, `anim`).
@@ -318,229 +250,51 @@ fn build_layout(
     locale: &str,
     visibilite: &BTreeMap<u32, bool>,
 ) -> Value {
-    let menu_text = load_menu_text(vfs, locale);
-    let mut parsed: Vec<(String, String, objbin::MenuObject)> = Vec::new();
-    let mut unreadable = Vec::new();
-
-    for item in &detail.items {
-        let Some(path) = item.objbin.as_deref() else {
-            continue;
-        };
-        let Ok(bytes) = vfs.read(path) else {
-            unreadable.push(item.layer.clone());
-            continue;
-        };
-        match objbin::parse(&bytes) {
-            Ok(object) => parsed.push((item.layer.clone(), path.to_owned(), object)),
-            Err(_) => unreadable.push(item.layer.clone()),
-        }
-    }
-    let objects_parsed = parsed.len();
-
-    // Les locators doivent être collectés avant les objets cibles : l'ordre des calques dans le
-    // setting n'est pas un ordre de parenté et le porteur peut apparaître après sa cible.
-    let mut attaches: BTreeMap<u32, Vec<(f32, f32)>> = BTreeMap::new();
-    for (_, _, object) in &parsed {
-        let Some(logical) = object.g4pkm_path.as_deref() else {
-            continue;
-        };
-        let Some(path) =
-            super::inspect::resolve_companion(index, logical, super::inspect::DEFAULT_LOCALE)
-        else {
-            continue;
-        };
-        let Ok(bytes) = vfs.read(&path) else {
-            continue;
-        };
-        let Ok(layout) = g4pkm::parse(&bytes) else {
-            continue;
-        };
-        for slot in menu_placement::attach_slots(object, &layout) {
-            attaches
-                .entry(slot.target_hash)
-                .or_default()
-                .push(slot.to_css());
-        }
-    }
-
-    let mut objects = Vec::new();
-    let mut sprite_count = 0usize;
-    let mut attach_instances = 0usize;
-    let mut unresolved_transforms = 0usize;
-
-    for (layer, _, object) in parsed {
-        let mut draw_priority = 0i32;
-        let mut draw_type = 0i32;
-        let mut camera = 0u32;
-        let mut anim = Value::Null;
-        let mut text_labels = Vec::new();
-
-        for component in &object.components {
-            match component {
-                objbin::MenuComponent::Render(render) => {
-                    draw_priority = render.draw_priority;
-                    draw_type = render.draw_type;
-                    camera = render.camera_name_hash;
-                }
-                objbin::MenuComponent::Animation(animation) => {
-                    let hash = |value: u32| {
-                        if value == 0 {
-                            Value::Null
-                        } else {
-                            json!(format!("0x{value:08X}"))
-                        }
-                    };
-                    anim = json!({
-                        "open": hash(animation.mot_open_hash),
-                        "loop": hash(animation.mot_loop_hash),
-                        "close": hash(animation.mot_close_hash),
-                    });
-                }
-                objbin::MenuComponent::Text(text) => {
-                    for entry in &text.entries {
-                        if let Some(value) = entry.hashes.iter().find_map(|hash| {
-                            nie_data::text::find_text(&menu_text, nie_data::hash::HashId(*hash))
-                        }) {
-                            text_labels.push(json!({
-                                "slot": entry.key,
-                                "text": value,
-                            }));
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        let mut sprite = Value::Null;
-        let mut sprite_size = (0u32, 0u32);
-
-        let skeleton = object
-            .g4pkm_path
-            .as_deref()
-            .and_then(|logical| {
-                super::inspect::resolve_companion(index, logical, super::inspect::DEFAULT_LOCALE)
+    let menu_text: Vec<(u32, String)> = load_menu_text(vfs, locale)
+        .into_iter()
+        .map(|(hash, text)| (hash.0, text))
+        .collect();
+    let spec = menu_screen::ScreenSpec {
+        screen: detail.screen.clone(),
+        cfg: detail.cfg.clone(),
+        canvas: detail.canvas,
+        items: detail
+            .items
+            .iter()
+            .map(|item| menu_screen::ScreenItem {
+                layer: item.layer.clone(),
+                objbin: item.objbin.clone(),
             })
-            .and_then(|path| vfs.read(&path).ok())
-            .and_then(|bytes| g4pkm::parse(&bytes).ok());
+            .collect(),
+        layers_missing: detail.layers_missing.clone(),
+    };
+    menu_screen::build(
+        &SourceVfs { vfs, index },
+        &spec,
+        locale,
+        &menu_text,
+        visibilite,
+    )
+}
 
-        let texture_logical = texture_logical_path(&object);
-        let texture = texture_logical.as_deref().and_then(|logical| {
-            super::inspect::resolve_companion(index, logical, super::inspect::DEFAULT_LOCALE)
-        });
-        if let Some(texture_path) = texture.as_deref()
-            && let Ok(bytes) = vfs.read(texture_path)
-            && let Ok(parsed_texture) = g4tx::parse(&bytes)
-        {
-            let base = texture_path
-                .rsplit('/')
-                .next()
-                .unwrap_or_default()
-                .strip_suffix(".g4tx")
-                .unwrap_or_default();
-            if let Some(main) = g4tx::select_main_texture(&parsed_texture, base) {
-                let (width, height) = (
-                    u32::try_from(main.width.max(0)).unwrap_or(0),
-                    u32::try_from(main.height.max(0)).unwrap_or(0),
-                );
-                sprite_size = (width, height);
-                let logical = texture_path.strip_prefix("data/").unwrap_or(texture_path);
-                let stem = logical.strip_suffix(".g4tx").unwrap_or(logical);
-                sprite = json!({
-                    "logicalPath": logical,
-                    "pngUrl": format!("/assets/tex/{stem}.png"),
-                    "w": width,
-                    "h": height,
-                });
-                sprite_count += 1;
-            }
-        }
+/// Le VFS monté, vu par le constructeur de layout.
+///
+/// Tout ce que `nie-site` ajoute au constructeur partagé tient ici : lire un chemin, et résoudre
+/// un nom logique par l'index du service. Le navigateur fournit les deux autrement — c'est
+/// exactement la frontière qui permet au même code de servir les deux.
+struct SourceVfs<'a> {
+    vfs: &'a Vfs,
+    index: &'a IndexVfs,
+}
 
-        let static_transform = skeleton
-            .as_ref()
-            .and_then(|layout| resolved_static_transform(&object, layout, sprite_size));
-
-        let positions = attaches
-            .get(&cfgbin::crc32(object.name.as_bytes()))
-            .cloned();
-        let positions = positions
-            .map(|positions| positions.into_iter().map(Some).collect::<Vec<_>>())
-            .unwrap_or_else(|| vec![None]);
-        if positions.len() > 1 {
-            attach_instances += positions.len() - 1;
-        }
-        for (position_index, attach_position) in positions.into_iter().enumerate() {
-            let positioned = serialize_transform(static_transform, attach_position);
-            if positioned.is_null() {
-                unresolved_transforms += 1;
-            }
-            // La PREUVE du placement, nommée, et jamais omise.
-            //
-            // Le champ manquait : un objet sans transform sortait sans rien dire de ce qui
-            // manquait, et le lecteur (`lireLayout`, côté navigateur) rejetait le layout ENTIER —
-            // un objet sans position doit déclarer pourquoi. Mesuré le 2026-09-12 sur
-            // `chara_bank_menu` : 4 objets sur 78 dans ce cas, et les trois écrans du jeu
-            // affichaient « Le layout du jeu est indisponible » alors que 74 objets étaient
-            // parfaitement placés.
-            let placement_source = if positioned.is_null() {
-                menu_placement::PlacementSource::Unresolved
-            } else if attach_position.is_some() {
-                menu_placement::PlacementSource::AttachLocator
-            } else {
-                menu_placement::PlacementSource::G4pkmPose
-            };
-            objects.push(json!({
-                "name": object.name.clone(),
-                "layer": layer.clone(),
-                "parent": Value::Null,
-                "placementSource": placement_source.as_str(),
-                "transform": positioned,
-                "drawPriority": draw_priority,
-                "drawType": draw_type,
-                "camera": format!("0x{camera:08X}"),
-                "sprite": sprite.clone(),
-                "text": if position_index == 0 && !text_labels.is_empty() {
-                    json!(text_labels.clone())
-                } else {
-                    Value::Null
-                },
-                "anim": anim.clone(),
-                "primitive": Value::Null,
-                "charModel": Value::Null,
-                "visible": visibilite
-                    .get(&cfgbin::crc32(object.name.as_bytes()))
-                    .map_or(Value::Null, |visible| json!(visible)),
-                "runtime": Value::Null,
-            }));
-        }
+impl menu_screen::MenuSource for SourceVfs<'_> {
+    fn read(&self, path: &str) -> Option<Vec<u8>> {
+        self.vfs.read(path).ok()
     }
-    objects.sort_by_key(|object| object["drawPriority"].as_i64().unwrap_or(0));
 
-    json!({
-        "schema": "niers.menu.layout/v1",
-        "screen": detail.screen,
-        "locale": locale,
-        "canvas": { "w": detail.canvas[0], "h": detail.canvas[1] },
-        "objects": objects,
-        "source": {
-            "cfg": detail.cfg,
-            "kind": "static_vfs",
-        },
-        "runtime": {
-            "available": false,
-            "reason": "nie-site publie le layout statique; l'execution Lua reste hors de l'API publique",
-        },
-        "diagnostics": {
-            "layersDeclared": detail.items.len(),
-            "layersMissing": detail.layers_missing.clone(),
-            "objectsParsed": objects_parsed,
-            "objectsUnreadable": unreadable,
-            "spritesResolved": sprite_count,
-            "attachInstancesExtra": attach_instances,
-            "transformsUnresolved": unresolved_transforms,
-            "visibilityResolved": objects.iter().filter(|object| !object["visible"].is_null()).count(),
-        },
-    })
+    fn resolve_companion(&self, logical: &str) -> Option<String> {
+        super::inspect::resolve_companion(self.index, logical, super::inspect::DEFAULT_LOCALE)
+    }
 }
 
 /// `GET /api/v1/menu/layout/{screen}` — le layout statique d'un écran du VFS.
@@ -721,28 +475,6 @@ pub async fn render(
 mod tests {
     use super::*;
 
-    /// Le lecteur du navigateur (`lireLayout`) EXIGE qu'un objet sans transform déclare sa
-    /// preuve de placement ; sans elle il rejette le layout entier. La preuve est donc toujours
-    /// nommée, et « non résolue » en est une.
-    #[test]
-    fn chaque_objet_declare_sa_preuve_de_placement() {
-        for (positionne, attache, attendu) in [
-            (false, false, "unresolved"),
-            (false, true, "unresolved"),
-            (true, true, "attach-locator"),
-            (true, false, "g4pkm-pose"),
-        ] {
-            let source = if !positionne {
-                menu_placement::PlacementSource::Unresolved
-            } else if attache {
-                menu_placement::PlacementSource::AttachLocator
-            } else {
-                menu_placement::PlacementSource::G4pkmPose
-            };
-            assert_eq!(source.as_str(), attendu);
-        }
-    }
-
     #[test]
     fn le_stem_devient_un_fichier_menu_tree() {
         assert_eq!(
@@ -773,29 +505,4 @@ mod tests {
         }
     }
 
-    #[test]
-    fn unresolved_transform_and_visibility_are_not_invented() {
-        assert!(serialize_transform(None, None).is_null());
-        let attached = serialize_transform(None, Some((123.0, 456.0)));
-        assert_eq!(attached["x"], 123.0);
-        assert_eq!(attached["y"], 456.0);
-        assert!(attached["scaleX"].is_null());
-        assert!(attached["anchorX"].is_null());
-    }
-
-    #[test]
-    fn resolved_transform_preserves_parsed_values() {
-        let transform = menu_placement::ScreenTransform {
-            x_px: 12.0,
-            y_px: 34.0,
-            scale_x: 1.5,
-            scale_y: 2.0,
-            rot: 0.25,
-        };
-        let serialized = serialize_transform(Some(transform), None);
-        assert_eq!(serialized["x"], 12.0);
-        assert_eq!(serialized["y"], 34.0);
-        assert_eq!(serialized["scaleX"], 1.5);
-        assert_eq!(serialized["rot"], 0.25);
-    }
 }

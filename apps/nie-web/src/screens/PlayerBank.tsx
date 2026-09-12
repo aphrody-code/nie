@@ -48,6 +48,7 @@ import {
 } from "../game/roster";
 import { NativeText } from "../pages/NativeText";
 import "./player-bank.css";
+import { loadMenuLayout } from "../game/menu-layout";
 
 /** L'écran du jeu dont cette page est la reproduction. */
 const SCREEN = "chara_bank_menu";
@@ -77,9 +78,7 @@ const LIST_LAYER = crc32("team14_01_chara_bank_list");
 
 /** Le layout de l'écran, validé par `lireLayout` — un JSON mal formé échoue bruyamment. */
 async function loadLayout(signal: AbortSignal): Promise<LayoutJeu> {
-	const response = await fetch(`/api/v1/menu/layout/${SCREEN}`, { signal, headers: { accept: "application/json" } });
-	if (!response.ok) throw new Error("Layout unavailable");
-	return lireLayout(await response.json());
+	return lireLayout(await loadMenuLayout(SCREEN, "fr", signal));
 }
 
 /** Une réponse de `/api/v1/game-data/charas`, vérifiée avant d'être liée à la liste. */

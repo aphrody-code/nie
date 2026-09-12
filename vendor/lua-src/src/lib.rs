@@ -107,7 +107,7 @@ impl Build {
         let target = self.target.as_ref().ok_or("TARGET is not set")?;
         let out_dir = self.out_dir.as_ref().ok_or("OUT_DIR is not set")?;
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut source_dir = manifest_dir.join(version.source_dir());
+        let source_dir = manifest_dir.join(version.source_dir());
         let lib_dir = out_dir.join("lib");
         let include_dir = out_dir.join("include");
 

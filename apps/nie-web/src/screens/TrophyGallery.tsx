@@ -50,6 +50,7 @@ import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime"
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 import { NativeText } from "../pages/NativeText";
 import "./trophy-gallery.css";
+import { loadMenuLayout } from "../game/menu-layout";
 
 /** L'écran du jeu dont cette page est la reproduction. */
 const SCREEN = "gallery_menu";
@@ -74,9 +75,7 @@ const LIST_LAYER = crc32("gallery01_01_list_base");
 
 /** Le layout de l'écran, validé par `lireLayout` — un JSON mal formé échoue bruyamment. */
 async function loadLayout(signal: AbortSignal): Promise<LayoutJeu> {
-	const response = await fetch(`/api/v1/menu/layout/${SCREEN}`, { signal, headers: { accept: "application/json" } });
-	if (!response.ok) throw new Error("Layout unavailable");
-	return lireLayout(await response.json());
+	return lireLayout(await loadMenuLayout(SCREEN, "fr", signal));
 }
 
 /** Une réponse `game-data` : un tableau, ou l'échec. */
