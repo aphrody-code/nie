@@ -8,7 +8,13 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
+import { initSync } from "../wasm/nie_wasm.js";
 import { crc32, wasmExceptionsAvailable } from "./lua-runtime";
+
+// `crc32` est maintenant celui du module (`nie_formats::cfgbin::crc32`), pas une boucle écrite
+// ici : il faut donc charger le module pour l'éprouver. C'est le même artefact que la page
+// télécharge, donc ce test passe par le chemin réel plutôt que par une copie.
+initSync({ module: readFileSync(new URL("../../public/static/game/nie_wasm_bg.wasm", import.meta.url)) });
 
 /** L'artefact que la page télécharge, tel qu'il est publié. */
 const MODULE = new URL("../../public/static/game/nie_lua_web.wasm", import.meta.url);
@@ -60,6 +66,16 @@ describe("wasmExceptionsAvailable", () => {
 		} finally {
 			globalThis.WebAssembly = origine;
 		}
+	});
+});
+
+describe("la visibilité par exemplaire", () => {
+	test("la clé d'un exemplaire joint l'objet ET son rang", () => {
+		// C'est le contrat que `LayoutCanvas` interroge : `${crc32(nom)}:${instance}`. Le
+		// vérifier ici évite qu'un des deux côtés change de forme sans l'autre.
+		const id = crc32("team14_01_chara_bank_list");
+		expect(`${id}:0`).toBe("449417347:0");
+		expect(`${id}:3`).toBe("449417347:3");
 	});
 });
 

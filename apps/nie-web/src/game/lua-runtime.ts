@@ -190,6 +190,15 @@ async function vfsBytes(path: string): Promise<Uint8Array | null> {
 /** L'état d'un objet, tel que le replay le rend. */
 interface RuntimeObject {
 	visible?: boolean;
+	/**
+	 * La visibilité par EXEMPLAIRE, quand une commande en a nommé un.
+	 *
+	 * Un objet de liste est un gabarit que le jeu réplique par emplacement d'attache ; le
+	 * `2ᵉ` argument de `SetObjectVisible`/`SetPartVisible` désigne l'un d'eux. Le champ existait
+	 * côté Rust (`CompiledMenuObject::visible_par_index`) et s'arrêtait à la frontière du
+	 * navigateur, qui ne lisait que `visible` — donc masquait les 51 exemplaires ensemble.
+	 */
+	visible_par_index?: Record<string, boolean>;
 }
 
 /** Un calque et ses objets. */
@@ -223,6 +232,14 @@ export { crc32 } from "./bridge";
 export interface ResolvedVisibility {
 	/** Identifiant d'objet (CRC32 de son nom) → visible. */
 	byObject: Map<number, boolean>;
+	/**
+	 * `"<crc32>:<rang>"` → visible, pour les exemplaires qu'une commande a nommés.
+	 *
+	 * Se lit AVANT `byObject` : un exemplaire nommé l'emporte sur la visibilité du gabarit. La
+	 * table est presque toujours creuse — mesuré sur `chara_edit_parts_menu` : 6 objets sur 2
+	 * index — parce que les scripts ne commandent pas les exemplaires un par un.
+	 */
+	byInstance: Map<string, boolean>;
 	/** `false` dès qu'un rappel ou un appel hôte reste non résolu — comme côté serveur. */
 	complete: boolean;
 	/** Ce qui a manqué, nommé. Vide quand `complete` est vrai. */
@@ -237,7 +254,12 @@ export interface ResolvedVisibility {
  * ailleurs, au lieu de supposer.
  */
 export async function resolveMenuVisibility(screen: string): Promise<ResolvedVisibility> {
-	const vide: ResolvedVisibility = { byObject: new Map(), complete: false, missing: [] };
+	const vide: ResolvedVisibility = {
+		byObject: new Map(),
+		byInstance: new Map(),
+		complete: false,
+		missing: [],
+	};
 	let runtime: LuaRuntime;
 	try {
 		runtime = await ensureRuntime();
@@ -268,12 +290,21 @@ export async function resolveMenuVisibility(screen: string): Promise<ResolvedVis
 	if (output.error || !output.scene?.layers) return vide;
 
 	const byObject = new Map<number, boolean>();
+	const byInstance = new Map<string, boolean>();
 	for (const layer of Object.values(output.scene.layers)) {
 		// Un objet d'un calque caché ne s'affiche pas, quoi qu'il dise de lui-même.
 		const layerVisible = layer.visible !== false;
 		for (const [id, objet] of Object.entries(layer.objects ?? {})) {
 			byObject.set(Number(id), layerVisible && objet.visible === true);
+			for (const [rang, visible] of Object.entries(objet.visible_par_index ?? {})) {
+				byInstance.set(`${id}:${rang}`, layerVisible && visible === true);
+			}
 		}
 	}
-	return { byObject, complete: output.complete === true, missing: output.missing ?? [] };
+	return {
+		byObject,
+		byInstance,
+		complete: output.complete === true,
+		missing: output.missing ?? [],
+	};
 }

@@ -60,6 +60,8 @@ export interface LayoutCanvasProps {
 interface LayoutObject {
 	name?: unknown;
 	visible?: unknown;
+	/** Le rang de cet exemplaire parmi ceux que les locators posent (`menu_screen::build`). */
+	instance?: unknown;
 }
 
 /**
@@ -68,15 +70,27 @@ interface LayoutObject {
  * Seuls les objets que le layout laisse indécis (`visible: null`) sont touchés : ce que le
  * serveur a déjà résolu fait foi, et ce que personne ne résout reste indécis.
  */
-function withResolvedVisibility(layout: unknown, byObject: Map<number, boolean>): unknown {
-	if (byObject.size === 0) return layout;
+function withResolvedVisibility(
+	layout: unknown,
+	byObject: Map<number, boolean>,
+	byInstance: Map<string, boolean>,
+): unknown {
+	if (byObject.size === 0 && byInstance.size === 0) return layout;
 	const document = layout as { objects?: LayoutObject[] };
 	if (!Array.isArray(document.objects)) return layout;
 	return {
 		...document,
 		objects: document.objects.map((object) => {
 			if (typeof object.visible === "boolean" || typeof object.name !== "string") return object;
-			const resolved = byObject.get(crc32(object.name));
+			const id = crc32(object.name);
+			// Un EXEMPLAIRE nommé l'emporte sur le gabarit : les objets d'une liste sortent tous
+			// sous le même nom, et `instance` est leur rang parmi les emplacements d'attache.
+			// Sans cette lecture, masquer le troisième les masquait tous.
+			const nomme =
+				typeof object.instance === "number"
+					? byInstance.get(`${id}:${object.instance}`)
+					: undefined;
+			const resolved = nomme ?? byObject.get(id);
 			return resolved === undefined ? object : { ...object, visible: resolved };
 		}),
 	};
@@ -100,7 +114,9 @@ export function LayoutCanvas({
 		// La visibilité d'abord, les pixels ensuite : un objet dessiné puis effacé serait un
 		// clignotement, et un objet effacé puis dessiné, une apparition sans cause visible.
 		(screen
-			? resolveMenuVisibility(screen).then(({ byObject }) => withResolvedVisibility(layout, byObject))
+			? resolveMenuVisibility(screen).then(({ byObject, byInstance }) =>
+					withResolvedVisibility(layout, byObject, byInstance),
+				)
 			: Promise.resolve(layout)
 		)
 			.then((resolu) => composeMenuScreen(resolu, assumeUnknownVisible, { width, height }))
