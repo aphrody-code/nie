@@ -45,12 +45,14 @@ pub const PLAN: [UrlPlan; 5] = [
     },
     UrlPlan {
         // Les Options : une page de réglages change rarement, et n'est pas ce qu'on cherche.
-        chemin: "/settings",
+        // L'adresse est celle du jeu (`setting_menu`), comme pour tout écran : le plan de site
+        // ne publie que la forme CANONIQUE, jamais l'adresse héritée.
+        chemin: "/setting_menu",
         frequence: "monthly",
         priorite: "0.3",
     },
     UrlPlan {
-        chemin: "/avatar",
+        chemin: "/chara_edit_menu",
         frequence: "monthly",
         priorite: "0.5",
     },
@@ -393,11 +395,20 @@ mod tests {
                 "{absente} ne doit plus etre annoncee"
             );
         }
-        // Les Options ont leur page, donc leur place au plan — dans les trois langues.
-        assert!(rendu.contains("https://nie.aphrody.com/settings"));
-        assert!(rendu.contains("https://nie.aphrody.com/en/settings"));
-        assert!(rendu.contains("https://nie.aphrody.com/avatar"));
-        assert!(rendu.contains("https://nie.aphrody.com/ja/avatar"));
+        // Les Options ont leur page, donc leur place au plan — dans les trois langues, et sous
+        // le nom que le jeu donne à l'écran.
+        assert!(rendu.contains("https://nie.aphrody.com/setting_menu"));
+        assert!(rendu.contains("https://nie.aphrody.com/en/setting_menu"));
+        assert!(rendu.contains("https://nie.aphrody.com/chara_edit_menu"));
+        assert!(rendu.contains("https://nie.aphrody.com/ja/chara_edit_menu"));
+        // Et les adresses héritées n'y sont PAS : elles mènent à la page, elles ne la doublent
+        // pas au plan du site.
+        for heritee in [
+            "https://nie.aphrody.com/settings",
+            "https://nie.aphrody.com/avatar",
+        ] {
+            assert!(!rendu.contains(heritee), "{heritee} est héritée, pas canonique");
+        }
         // Chaque entrée porte son groupe complet : 15 x 4 liens alternatifs.
         assert_eq!(rendu.matches("xhtml:link").count(), 60);
         assert_eq!(rendu.matches("hreflang=\"x-default\"").count(), 15);
@@ -443,7 +454,15 @@ mod tests {
         let chemins = chemins_autorises();
         // 5 routes x 3 langues, moins la racine française déjà couverte par `Allow: /$`.
         assert_eq!(chemins.len(), 14);
-        for attendu in ["/en", "/ja", "/settings", "/ja/settings", "/avatar", "/inacord", "/en/downloads"] {
+        for attendu in [
+            "/en",
+            "/ja",
+            "/setting_menu",
+            "/ja/setting_menu",
+            "/chara_edit_menu",
+            "/inacord",
+            "/en/downloads",
+        ] {
             assert!(
                 chemins.iter().any(|c| c == attendu),
                 "{attendu} non autorisé"

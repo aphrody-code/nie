@@ -59,12 +59,16 @@ export const MEDIA = "medias";
 /**
  * Les Options — l'écran des réglages du jeu, avec les réglages d'Inacord dedans.
  *
- * Segment anglais (`/settings`), comme toute URL nouvelle. La tuile porte l'engrenage du jeu.
+ * L'URL porte le nom du jeu : `setting_menu`, le stem de son `_setting.cfg.bin`. La tuile porte
+ * l'engrenage du jeu.
  */
-export const SETTINGS = "settings";
+export const SETTINGS = "setting_menu";
 
-/** L'éditeur d'avatar, alimenté par les tables `chara_edit` du VFS. */
-export const AVATAR = "avatar";
+/**
+ * L'éditeur d'avatar, alimenté par les tables `chara_edit` du VFS — et nommé comme elles :
+ * `chara_edit_menu` est le stem de son `_setting.cfg.bin`, celui que portent ses scripts Lua.
+ */
+export const AVATAR = "chara_edit_menu";
 
 /**
  * Inacord — the full workspace (explorer, editor, RE tools, mods, cinema, gallery, tools,
@@ -78,24 +82,49 @@ export const DOWNLOADS = "downloads";
 
 /**
  * La Banque du joueur — l'écran `chara_bank_menu` du jeu : la liste des personnages possédés,
- * leur fiche et le dialogue FILTRES. Segment anglais, comme toute URL nouvelle.
+ * leur fiche et le dialogue FILTRES. L'URL porte le nom de l'écran.
  */
-export const BANK = "bank";
+export const BANK = "chara_bank_menu";
 
 /**
  * La Galerie des succès — l'écran `gallery_menu` du jeu : les succès à 100 %, les images de la
  * galerie, les cinématiques et les musiques du profil complet.
  */
-export const GALLERY = "gallery";
+export const GALLERY = "gallery_menu";
 
 /**
  * Le Marché — l'écran `shop_menu` du jeu : les 16 boutiques et tout leur stock, prix et
  * descriptions compris.
  */
-export const SHOP = "shop";
+export const SHOP = "shop_menu";
 
 /** Published alias that enters the main menu at `/` without replaying startup. */
 export const MENU = "menu";
+
+/**
+ * Les adresses qu'un écran servait AVANT de porter le nom que le jeu lui donne.
+ *
+ * Un écran du jeu s'appelle par le stem de son `_setting.cfg.bin` — c'est ce nom que portent ses
+ * scripts Lua, ses `objbin`, ses calques et ses `cfg.bin`. L'URL le porte donc aussi : un slug
+ * traduit (`avatar`, `bank`, `shop`) était un troisième nom pour la même chose, qui ne se
+ * retrouvait dans aucun fichier du jeu et que rien ne pouvait vérifier.
+ *
+ * Les anciennes restent reconnues et mènent à la nouvelle, qui remplace l'entrée d'historique :
+ * une adresse publiée ne se casse pas pour un renommage. `nie-site` fait la même chose côté
+ * serveur (`routes::pages::Entree::heritage`), canonique compris.
+ */
+export const LEGACY_ROUTES: Readonly<Record<string, string>> = {
+	settings: SETTINGS,
+	avatar: AVATAR,
+	bank: BANK,
+	gallery: GALLERY,
+	shop: SHOP,
+};
+
+/** La route canonique d'une adresse, héritée ou non. */
+export function canonicalRoute(route: string): string {
+	return LEGACY_ROUTES[route] ?? route;
+}
 
 /** Une entrée du menu : sa route, son libellé, son pictogramme. */
 export interface MenuEntry {
@@ -148,6 +177,7 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
 		...INACORD_VIEW_ROUTES,
 		...ALIAS,
 		...CATALOGS,
+		...Object.keys(LEGACY_ROUTES),
 	];
 }
 

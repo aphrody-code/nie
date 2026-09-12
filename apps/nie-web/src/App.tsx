@@ -33,7 +33,7 @@ import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-i
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { useTheme } from "next-themes";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
-import { AVATAR, BANK, DOWNLOADS, EXPLORER, GALLERY, INACORD, MEDIA, SETTINGS, SHOP, recognizedRoutes } from "./entries";
+import { AVATAR, BANK, DOWNLOADS, EXPLORER, GALLERY, INACORD, LEGACY_ROUTES, MEDIA, SETTINGS, SHOP, canonicalRoute, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
 import { GAME_REACHABLE } from "./host";
@@ -111,6 +111,14 @@ function Site() {
 		navigateLink: naviguer,
 	} = useGameNavigation(INITIAL_ROUTES, document.getElementById("racine")?.dataset.route);
 	const actions = useMemo(() => createWorkspaceActions(setVue), [setVue]);
+
+	// Une adresse héritée mène à l'écran, puis s'efface : `/avatar` ouvre `chara_edit_menu` et
+	// l'URL devient celle du jeu, en REMPLAÇANT l'entrée d'historique — un « précédent » qui
+	// ramènerait sur l'ancienne adresse la ferait rediriger encore, en boucle.
+	useEffect(() => {
+		const canonical = LEGACY_ROUTES[vue];
+		if (canonical) setVue(canonical, undefined, { replace: true });
+	}, [vue, setVue]);
 
 	// L'index du VFS se monte EN FOND côté serveur (`EtatSite::monter_vfs_en_fond`) : au premier
 	// appel il répond `en_cours`. Une sonde unique fige donc l'écran d'attente pour toujours —

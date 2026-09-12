@@ -519,9 +519,9 @@ async fn documents_well_known() {
     // Sans la declaration de l'espace de noms, les `xhtml:link` ne sont que du bruit.
     assert!(texte.contains(r#"xmlns:xhtml="http://www.w3.org/1999/xhtml""#));
     for attendu in [
-        "<loc>https://exemple.test/settings</loc>",
-        "<loc>https://exemple.test/en/settings</loc>",
-        "<loc>https://exemple.test/avatar</loc>",
+        "<loc>https://exemple.test/setting_menu</loc>",
+        "<loc>https://exemple.test/en/setting_menu</loc>",
+        "<loc>https://exemple.test/chara_edit_menu</loc>",
         "<loc>https://exemple.test/inacord</loc>",
         "<loc>https://exemple.test/ja/downloads</loc>",
     ] {

@@ -1,12 +1,19 @@
-/* `/avatar` — the game's screen, and the game's chrome only.
-   The editor's canvas fills the viewport exactly like the title menu: `GameCanvas` centres and
-   scales its own 1280×720 frame, so the host must give it a full box and nothing else. The old
-   studio shell wrapped it in a 56px top bar plus a split grid, which is what pushed the scene
-   off-canvas towards the bottom-right. */
+/* The avatar editor — the game's screen, and the game's chrome only.
+   `GameCanvas` centres and scales its own 1280×720 frame, so the host must give it a full box
+   and nothing else. The old studio shell wrapped it in a 56px top bar plus a split grid, which
+   is what pushed the scene off-canvas towards the bottom-right.
+
+   The box is the one the SHELL gives it, not the viewport. `position: fixed; inset: 0` was
+   written when this screen owned the whole window; since the one shell of 2026-09-12 draws a
+   sidebar and a top bar around every screen, that rule made the editor slide underneath both —
+   measured in Chromium: `main` at x=200 and 1200 wide, the editor at x=0 and 1400 wide, so its
+   title read through the sidebar items. */
 
 .avatar-screen {
-	position: fixed;
-	inset: 0;
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	height: 100%;
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -70,8 +77,12 @@
 }
 
 .avatar-resource-state {
-	position: fixed;
-	inset: 0;
+	/* Même raison que `.avatar-screen` : l'état de chargement occupe la place de l'écran, pas
+	   celle de la fenêtre — sinon il recouvrirait la barre latérale. */
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	height: 100%;
 	display: grid;
 	place-content: center;
 	gap: 12px;

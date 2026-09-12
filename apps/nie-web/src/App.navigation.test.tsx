@@ -83,7 +83,7 @@ describe("game navigation in the mounted host", () => {
 			await act(async () => container.querySelector<HTMLButtonElement>('[data-host-action="avatar"] button')!.focus());
 			(pad.buttons[0] as { pressed: boolean }).pressed = true;
 			await tick();
-			expect(window.location.pathname).toBe("/avatar");
+			expect(window.location.pathname).toBe("/chara_edit_menu");
 			await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
 			await expectMenu();
 			await tick();
@@ -92,7 +92,7 @@ describe("game navigation in the mounted host", () => {
 			await tick();
 			(pad.buttons[0] as { pressed: boolean }).pressed = true;
 			await tick();
-			expect(window.location.pathname).toBe("/settings");
+			expect(window.location.pathname).toBe("/setting_menu");
 		} finally {
 			await act(async () => root?.unmount()); root = null;
 			raf.mockRestore(); cancel.mockRestore();
@@ -129,7 +129,7 @@ describe("game navigation in the mounted host", () => {
 	});
 
 	test("Options Return reaches the menu before VFS readiness and stays there after reload", async () => {
-		await mount("/ja/settings?tab=display#selection");
+		await mount("/ja/setting_menu?tab=display#selection");
 		expect(container.querySelector(".game-screen--settings")).not.toBeNull();
 		await click(".game-key-hint--back");
 		await expectMenu("/ja");
@@ -142,7 +142,7 @@ describe("game navigation in the mounted host", () => {
 	});
 
 	test("every direct secondary route keeps an immediate menu return while resources load", async () => {
-		for (const route of ["medias", "avatar", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
+		for (const route of ["medias", "chara_edit_menu", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
 			await mount(`/${route}`);
 			// The return to the game is the first item of the ONE sidebar (`shell/UnifiedShell.tsx`),
 			// where the secondary shell used to put its `nie` title button.
@@ -156,7 +156,7 @@ describe("game navigation in the mounted host", () => {
 	test("browser Back and Forward restore the real menu and Options without replaying loading", async () => {
 		await mount("/menu");
 		await click('[data-host-action="settings"] button');
-		expect(window.location.pathname).toBe("/settings");
+		expect(window.location.pathname).toBe("/setting_menu");
 		await act(async () => {
 			const restored = new Promise((resolve) => window.addEventListener("popstate", resolve, { once: true }));
 			window.history.back();
@@ -230,27 +230,27 @@ describe("game navigation in the mounted host", () => {
 	});
 
 	test("Avatar Escape returns to menu while nested dialogs and consumed events retain control", async () => {
-		await mount("/avatar");
+		await mount("/chara_edit_menu");
 		const dialog = document.createElement("div");
 		dialog.setAttribute("role", "dialog");
 		dialog.setAttribute("aria-modal", "true");
 		container.append(dialog);
 		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
-		expect(window.location.pathname).toBe("/avatar");
+		expect(window.location.pathname).toBe("/chara_edit_menu");
 		dialog.remove();
 		dialog.setAttribute("role", "alertdialog");
 		container.append(dialog);
 		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
-		expect(window.location.pathname).toBe("/avatar");
+		expect(window.location.pathname).toBe("/chara_edit_menu");
 		dialog.remove();
 		for (const modifier of ["altKey", "ctrlKey", "metaKey", "repeat"]) {
 			await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true, [modifier]: true })));
-			expect(window.location.pathname).toBe("/avatar");
+			expect(window.location.pathname).toBe("/chara_edit_menu");
 		}
 		const consumed = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
 		consumed.preventDefault();
 		await act(async () => window.dispatchEvent(consumed));
-		expect(window.location.pathname).toBe("/avatar");
+		expect(window.location.pathname).toBe("/chara_edit_menu");
 		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
 		await expectMenu();
 	});

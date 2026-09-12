@@ -101,6 +101,17 @@ pub const JEU: &str = "Inazuma Eleven: Victory Road";
 /// `match` : ajouter une langue devient une colonne, pas une réécriture.
 struct Entree {
     segment: &'static str,
+    /// Les segments que cette page servait AVANT de porter le nom que le jeu lui donne.
+    ///
+    /// Un écran du jeu s'appelle par le stem de son `_setting.cfg.bin` — `chara_edit_menu`,
+    /// `chara_bank_menu`, `gallery_menu`, `shop_menu`, `setting_menu` — et c'est ce nom que
+    /// portent ses scripts Lua, ses `objbin` et ses calques. L'URL le porte donc aussi : un slug
+    /// traduit (`avatar`, `bank`) est un troisième nom pour la même chose, qui ne se retrouve
+    /// dans aucun fichier du jeu.
+    ///
+    /// Les anciennes adresses restent servies et canonisées vers la nouvelle : elles sont
+    /// publiées, et une adresse publiée ne se casse pas pour un renommage.
+    heritage: &'static [&'static str],
     titres: [&'static str; 3],
     descriptions: [&'static str; 3],
 }
@@ -118,6 +129,7 @@ const ENTREES: [Entree; 14] = [
         // le menu a donc son adresse. Il n'est PAS au plan du site : une page de liens vers
         // des pages déjà listées ne se référence pas deux fois.
         segment: "menu",
+        heritage: &[],
         titres: ["Menu", "Menu", "メニュー"],
         descriptions: [
             "Les catalogues, l'explorateur et les Options, depuis un seul écran.",
@@ -131,6 +143,7 @@ const ENTREES: [Entree; 14] = [
         // générique et `og:type` d'article — le défaut corrigé pour `/explorateur`, laissé
         // intact sur la page qui rassemble les quatre catalogues.
         segment: "medias",
+        heritage: &[],
         titres: ["Médias", "Media", "メディア"],
         descriptions: [
             "Textures, modèles, sons et vidéos du jeu, dans une seule page filtrable.",
@@ -140,6 +153,7 @@ const ENTREES: [Entree; 14] = [
     },
     Entree {
         segment: "textures",
+        heritage: &[],
         titres: ["Textures", "Textures", "テクスチャ"],
         descriptions: [
             "Toutes les textures du jeu, à leur chemin d'origine, converties à la demande.",
@@ -149,6 +163,7 @@ const ENTREES: [Entree; 14] = [
     },
     Entree {
         segment: "modeles",
+        heritage: &[],
         titres: ["Modèles", "Models", "モデル"],
         descriptions: [
             "Les modèles du jeu, assemblés et exportables, à leur chemin d'origine.",
@@ -158,6 +173,7 @@ const ENTREES: [Entree; 14] = [
     },
     Entree {
         segment: "sons",
+        heritage: &[],
         titres: ["Sons", "Sounds", "サウンド"],
         descriptions: [
             "Les banques audio du jeu (ACB, AWB, HCA), décodées à la demande.",
@@ -167,6 +183,7 @@ const ENTREES: [Entree; 14] = [
     },
     Entree {
         segment: "videos",
+        heritage: &[],
         titres: ["Vidéos", "Videos", "ムービー"],
         descriptions: [
             "Les vidéos du jeu (USM), lisibles depuis leur chemin d'origine.",
@@ -176,6 +193,7 @@ const ENTREES: [Entree; 14] = [
     },
     Entree {
         segment: "explorateur",
+        heritage: &[],
         titres: ["Explorer", "Browse", "ファイルを辿る"],
         descriptions: [
             "Parcourir l'arborescence du jeu dossier par dossier, telle qu'elle existe dedans.",
@@ -186,7 +204,8 @@ const ENTREES: [Entree; 14] = [
     Entree {
         // Les Options : l'écran des réglages du jeu, avec les réglages d'Inacord dedans.
         // Segment anglais, comme toute URL nouvelle (CLAUDE.md § Language).
-        segment: "settings",
+        segment: "setting_menu",
+        heritage: &["settings"],
         titres: ["Options", "Settings", "オプション"],
         descriptions: [
             "Langue, thème, densité des listes, taille du texte : les réglages de nie, dans l'écran des Options du jeu.",
@@ -197,7 +216,8 @@ const ENTREES: [Entree; 14] = [
     Entree {
         // La Banque : l'écran `chara_bank_menu` du jeu — la liste des personnages possédés,
         // leur fiche et le dialogue FILTRES. Segment anglais, comme toute URL nouvelle.
-        segment: "bank",
+        segment: "chara_bank_menu",
+        heritage: &["bank"],
         titres: ["Banque", "Bank", "バンク"],
         descriptions: [
             "Les personnages de la banque, leur fiche et leurs techniques, dans l'écran du jeu.",
@@ -208,7 +228,8 @@ const ENTREES: [Entree; 14] = [
     Entree {
         // La Galerie des succès : l'écran `gallery_menu` du jeu — les succès à 100 %, les
         // images de la galerie, les cinématiques et les musiques du profil complet.
-        segment: "gallery",
+        segment: "gallery_menu",
+        heritage: &["gallery"],
         titres: ["Galerie", "Gallery", "ギャラリー"],
         descriptions: [
             "Les succès, les images, les cinématiques et les musiques du jeu, dans l'écran de la Galerie des succès.",
@@ -218,7 +239,8 @@ const ENTREES: [Entree; 14] = [
     },
     Entree {
         // Le Marché : l'écran `shop_menu` du jeu — les 16 boutiques et tout leur stock.
-        segment: "shop",
+        segment: "shop_menu",
+        heritage: &["shop"],
         titres: ["Boutique", "Shop", "ショップ"],
         descriptions: [
             "Les seize boutiques du jeu et tout leur stock, avec les prix et les descriptions des objets.",
@@ -227,7 +249,8 @@ const ENTREES: [Entree; 14] = [
         ],
     },
     Entree {
-        segment: "avatar",
+        segment: "chara_edit_menu",
+        heritage: &["avatar"],
         titres: ["Avatar", "Avatar", "アバター"],
         descriptions: [
             "Composer un personnage joueur à partir des pièces et réglages du jeu.",
@@ -239,6 +262,7 @@ const ENTREES: [Entree; 14] = [
         // Inacord, merged into this site on 2026-09-12: the former `inacord.aphrody.com`
         // workspace now lives here, framed by the game's secondary shell.
         segment: "inacord",
+        heritage: &[],
         titres: ["Inacord", "Inacord", "Inacord"],
         descriptions: [
             "L'espace de travail Inacord dans le navigateur : explorateur, éditeur, outils RE, mods, cinéma, galerie et sauvegardes.",
@@ -248,6 +272,7 @@ const ENTREES: [Entree; 14] = [
     },
     Entree {
         segment: "downloads",
+        heritage: &[],
         titres: ["Téléchargements", "Downloads", "ダウンロード"],
         descriptions: [
             "Les distributions natives d'Inacord : Desktop, Mobile, CLI, MCP et extensions, signées.",
@@ -278,6 +303,14 @@ pub fn route_canonique(route: &str) -> String {
     if ALIAS.contains(&premier) {
         return "/explorateur".to_owned();
     }
+    // Une adresse héritée décrit la même page que celle qui porte le nom du jeu : le canonique
+    // les réunit, sinon deux URL indexées se disputeraient un seul écran.
+    if let Some(e) = ENTREES
+        .iter()
+        .find(|e| e.heritage.contains(&premier))
+    {
+        return format!("/{}", e.segment);
+    }
     route.to_owned()
 }
 
@@ -292,7 +325,11 @@ pub fn route_canonique(route: &str) -> String {
 pub fn route_servie(route: &str) -> bool {
     let nu = route.trim_start_matches('/').trim_end_matches('/');
     let premier = nu.split('/').next().unwrap_or("");
-    premier.is_empty() || ENTREES.iter().any(|e| e.segment == premier) || ALIAS.contains(&premier)
+    premier.is_empty()
+        || ENTREES
+            .iter()
+            .any(|e| e.segment == premier || e.heritage.contains(&premier))
+        || ALIAS.contains(&premier)
 }
 
 /// Index de la langue dans les tables de libellés.
@@ -1027,6 +1064,33 @@ mod tests {
             None,
         );
         assert!(inconnue.noindex, "une route inventee ne s'indexe pas");
+    }
+
+    #[test]
+    #[test]
+    fn un_ecran_porte_le_nom_que_le_jeu_lui_donne() {
+        // Le stem du `_setting.cfg.bin`, mesuré sur le VFS : c'est ce nom que portent les
+        // scripts Lua de l'écran, ses `objbin` et ses calques.
+        for (jeu, ancien) in [
+            ("chara_edit_menu", "avatar"),
+            ("chara_bank_menu", "bank"),
+            ("gallery_menu", "gallery"),
+            ("shop_menu", "shop"),
+            ("setting_menu", "settings"),
+        ] {
+            assert!(route_servie(&format!("/{jeu}")), "{jeu} doit être servi");
+            assert!(route_servie(&format!("/{ancien}")), "{ancien} reste servi");
+            assert_eq!(
+                route_canonique(&format!("/{ancien}")),
+                format!("/{jeu}"),
+                "l'ancienne adresse doit canoniser vers le nom du jeu"
+            );
+            // Et la page héritée décrit la MÊME chose : un seul titre pour un seul écran.
+            assert_eq!(
+                metadonnees(&route_canonique(&format!("/{ancien}")), Langue::Fr).0,
+                metadonnees(&format!("/{jeu}"), Langue::Fr).0
+            );
+        }
     }
 
     #[test]
