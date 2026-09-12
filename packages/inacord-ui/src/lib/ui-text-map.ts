@@ -16,9 +16,9 @@
  *   « ÉMÉRITE », « Éditeur d’avatar » pour « Éditeur d'avatar »).
  * - 14 libellés que le jeu n'écrit QUE comme nom propre : « Forge » et « Océan » sont des
  *   personnages de `chara_text`, pas des étiquettes. Refusés, et rangés avec leur raison.
- * - 213 quasi-correspondances listées pour mémoire : la recherche rend un voisin
+ * - 186 quasi-correspondances listées pour mémoire : la recherche rend un voisin
  *   (« Modèles » → « Modèle »), jamais l'égalité. La règle est l'égalité stricte.
- * - 639 autres libellés français que le corpus ignore complètement, surtout dans
+ * - 637 autres libellés français que le corpus ignore complètement, surtout dans
  *   `apps/nie-web/src/desktop` (497),
  *   `packages/inacord-ui/src/components` (136),
  *   `apps/nie-web/src/inacord-web` (72),
@@ -1040,7 +1040,7 @@ export const UI_TEXT_VARIANTS: readonly UiTextVariant[] = [
 ];
 
 /**
- * Les non trouvés retenus : 14 homonymes de noms propres, puis 213 quasi-correspondances.
+ * Les non trouvés retenus : 14 homonymes de noms propres, puis 186 quasi-correspondances.
  *
  * `homonymFamilies` marque les libellés que le jeu écrit bien, mais seulement comme nom propre.
  * Les prendre pour des étiquettes d'écran serait une correspondance devinée.
@@ -1053,7 +1053,7 @@ export const UI_TEXT_VARIANTS: readonly UiTextVariant[] = [
  * La recherche plafonne à 50 lignes par requête : pour un libellé très courant, `closest` est la
  * plus courte de ces 50, pas forcément la plus proche du corpus entier.
  *
- * Les 639 libellés dont la recherche n'a RIEN rendu ne sont pas listés : il n'y a rien à en
+ * Les 637 libellés dont la recherche n'a RIEN rendu ne sont pas listés : il n'y a rien à en
  * dire de plus que leur absence, et les énumérer ferait un fichier plus long que la carte.
  */
 export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
@@ -1064,7 +1064,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x20aeccbe",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/desktop/components/tools/RandomTeamPanel.tsx:50", "apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:310", "apps/nie-web/src/game/ui-text-map.ts:1100", "apps/nie-web/src/game/ui-text-map.ts:1102", "packages/inacord-ui/src/components/ui/rarity-badge.tsx:27", "packages/inacord-ui/src/components/ui/rarity-badge.tsx:40", "packages/inacord-ui/src/components/wiki/ui/rarity-badge.tsx:27", "packages/inacord-ui/src/components/wiki/ui/rarity-badge.tsx:40", "packages/inacord-ui/src/components/wiki/wiki/FormSelector.tsx:121", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:312", "packages/inacord-ui/src/components/wiki/wiki/PassiveDetail.tsx:63", "packages/inacord-ui/src/components/wiki/wiki/RarityFilterChips.tsx:66", "packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:21"],
+		usedAt: ["apps/nie-web/src/desktop/components/tools/RandomTeamPanel.tsx:50", "apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:310", "packages/inacord-ui/src/components/ui/rarity-badge.tsx:27", "packages/inacord-ui/src/components/ui/rarity-badge.tsx:40", "packages/inacord-ui/src/components/wiki/ui/rarity-badge.tsx:27", "packages/inacord-ui/src/components/wiki/ui/rarity-badge.tsx:40", "packages/inacord-ui/src/components/wiki/wiki/FormSelector.tsx:121", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:312", "packages/inacord-ui/src/components/wiki/wiki/PassiveDetail.tsx:63", "packages/inacord-ui/src/components/wiki/wiki/RarityFilterChips.tsx:66", "packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:21"],
 	},
 	{
 		label: "Code",
@@ -1073,7 +1073,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x111c7a52",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:135", "apps/nie-web/src/desktop/components/GameDataView.tsx:193", "apps/nie-web/src/desktop/components/GameDataView.tsx:234", "apps/nie-web/src/desktop/components/GameDataView.tsx:280", "apps/nie-web/src/desktop/components/GameDataView.tsx:297", "apps/nie-web/src/desktop/components/GameDataView.tsx:336", "apps/nie-web/src/desktop/components/GameDataView.tsx:561", "apps/nie-web/src/game/ui-text-map.ts:1109"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:135", "apps/nie-web/src/desktop/components/GameDataView.tsx:193", "apps/nie-web/src/desktop/components/GameDataView.tsx:234", "apps/nie-web/src/desktop/components/GameDataView.tsx:280", "apps/nie-web/src/desktop/components/GameDataView.tsx:297", "apps/nie-web/src/desktop/components/GameDataView.tsx:336", "apps/nie-web/src/desktop/components/GameDataView.tsx:561"],
 	},
 	{
 		label: "Chance",
@@ -1082,16 +1082,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x19636d34",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:100", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:111", "apps/nie-web/src/game/ui-text-map.ts:1118"],
-	},
-	{
-		label: "Océan",
-		searchHits: 50,
-		closest: "Océan",
-		closestFamily: "chara_text",
-		closestHash: "0x1df3b3ca",
-		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/desktop/lib/profils.ts:58", "apps/nie-web/src/game/ui-text-map.ts:1190", "apps/nie-web/src/game/ui-text-map.ts:1192"],
+		usedAt: ["apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:100", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:111"],
 	},
 	{
 		label: "PRESSION",
@@ -1100,7 +1091,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x98518c66",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:35", "apps/nie-web/src/game/ui-text-map.ts:1127", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:35"],
+		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:35", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:35"],
 	},
 	{
 		label: "Contre-attaque",
@@ -1109,7 +1100,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "skill_text",
 		closestHash: "0xa769e280",
 		homonymFamilies: ["skill_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1145", "packages/inacord-ui/src/components/wiki/wiki/filters/PassiveFilters.tsx:28"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/filters/PassiveFilters.tsx:28"],
 	},
 	{
 		label: "Costume",
@@ -1118,7 +1109,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x9540b3bb",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1154", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Eldorado",
@@ -1127,7 +1118,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x12eb1802",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:200", "apps/nie-web/src/game/ui-text-map.ts:1163"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:200"],
 	},
 	{
 		label: "Forge",
@@ -1136,7 +1127,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x91f3f228",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/desktop/components/ReToolsView.tsx:424", "apps/nie-web/src/game/ui-text-map.ts:1172"],
+		usedAt: ["apps/nie-web/src/desktop/components/ReToolsView.tsx:424"],
 	},
 	{
 		label: "Mode",
@@ -1145,7 +1136,16 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x0ca82f6a",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1181", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+	},
+	{
+		label: "Océan",
+		searchHits: 50,
+		closest: "Océan",
+		closestFamily: "chara_text",
+		closestHash: "0x1df3b3ca",
+		homonymFamilies: ["chara_text"],
+		usedAt: ["apps/nie-web/src/desktop/lib/profils.ts:58"],
 	},
 	{
 		label: "Pack",
@@ -1154,7 +1154,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text_roma",
 		closestHash: "0x0e8fae45",
 		homonymFamilies: ["chara_text_roma"],
-		usedAt: ["apps/nie-web/src/desktop/components/ViolaView.tsx:171", "apps/nie-web/src/game/ui-text-map.ts:1199"],
+		usedAt: ["apps/nie-web/src/desktop/components/ViolaView.tsx:171"],
 	},
 	{
 		label: "Switch",
@@ -1163,7 +1163,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x6a56c8f4",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1208", "packages/inacord-ui/src/components/wiki/wiki/patch-notes/PlatformBadge.tsx:50"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/patch-notes/PlatformBadge.tsx:50"],
 	},
 	{
 		label: "Talent",
@@ -1172,7 +1172,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x6fac7dc4",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1217", "packages/inacord-ui/src/components/wiki/wiki/MovesetList.tsx:135"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/MovesetList.tsx:135"],
 	},
 	{
 		label: "Tri",
@@ -1181,7 +1181,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x5faba963",
 		homonymFamilies: ["chara_text", "chara_text_roma"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1226", "apps/nie-web/src/pages/Catalog.tsx:164"],
+		usedAt: ["apps/nie-web/src/pages/Catalog.tsx:164"],
 	},
 	{
 		label: "Promise",
@@ -1189,7 +1189,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Afin d'atteindre la perfection qu'il lui a promise, il se glisse dans la peau\nde son frère défunt.",
 		closestFamily: "skill_text",
 		closestHash: "0xd61b832f",
-		usedAt: ["apps/nie-web/src/desktop/components/AppMenu.tsx:156", "apps/nie-web/src/desktop/components/AppMenu.tsx:169", "apps/nie-web/src/desktop/components/GameDataView.tsx:105", "apps/nie-web/src/desktop/components/ModelPreview.tsx:20", "apps/nie-web/src/desktop/lib/contextMenu.ts:41", "apps/nie-web/src/game/ui-text-map.ts:1235", "apps/nie-web/src/inacord-web/DownloadPage.tsx:35", "apps/nie-web/src/inacord-web/shims/browser-fs.ts:16", "apps/nie-web/src/inacord-web/shims/browser-fs.ts:20", "apps/nie-web/src/inacord-web/shims/browser-fs.ts:21", "apps/nie-web/src/inacord-web/shims/browser-fs.ts:22", "apps/nie-web/src/inacord-web/shims/core.ts:143", "apps/nie-web/src/inacord-web/shims/core.ts:146", "apps/nie-web/src/pages/MainMenu.tsx:54", "packages/inacord-ui/src/components/ui/rename-input.tsx:15", "packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:13", "packages/inacord-ui/src/lib/native-audio.ts:25", "packages/inacord-ui/src/lib/native-text.ts:21", "packages/inacord-ui/src/lib/resolved-names.ts:12", "packages/inacord-ui/src/shell/rust-model-viewport.tsx:11"],
+		usedAt: ["apps/nie-web/src/desktop/components/AppMenu.tsx:156", "apps/nie-web/src/desktop/components/AppMenu.tsx:169", "apps/nie-web/src/desktop/components/GameDataView.tsx:105", "apps/nie-web/src/desktop/components/ModelPreview.tsx:20", "apps/nie-web/src/desktop/lib/contextMenu.ts:41", "apps/nie-web/src/inacord-web/DownloadPage.tsx:35", "apps/nie-web/src/inacord-web/shims/browser-fs.ts:16", "apps/nie-web/src/inacord-web/shims/browser-fs.ts:20", "apps/nie-web/src/inacord-web/shims/browser-fs.ts:21", "apps/nie-web/src/inacord-web/shims/browser-fs.ts:22", "apps/nie-web/src/inacord-web/shims/core.ts:143", "apps/nie-web/src/inacord-web/shims/core.ts:146", "apps/nie-web/src/pages/MainMenu.tsx:54", "packages/inacord-ui/src/components/ui/rename-input.tsx:15", "packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:13", "packages/inacord-ui/src/lib/native-audio.ts:25", "packages/inacord-ui/src/lib/native-text.ts:21", "packages/inacord-ui/src/lib/resolved-names.ts:12", "packages/inacord-ui/src/shell/rust-model-viewport.tsx:11"],
 	},
 	{
 		label: "Équipes",
@@ -1197,7 +1197,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Huit équipes en lice !",
 		closestFamily: "w17_npc_text",
 		closestHash: "0x1ee541f6",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:406", "apps/nie-web/src/desktop/components/GameDataView.tsx:407", "apps/nie-web/src/desktop/components/GameDataView.tsx:423", "apps/nie-web/src/desktop/components/GameDataView.tsx:442", "apps/nie-web/src/desktop/components/GameDataView.tsx:460", "apps/nie-web/src/desktop/components/GameDataView.tsx:476", "apps/nie-web/src/game/ui-text-map.ts:1243"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:406", "apps/nie-web/src/desktop/components/GameDataView.tsx:407", "apps/nie-web/src/desktop/components/GameDataView.tsx:423", "apps/nie-web/src/desktop/components/GameDataView.tsx:442", "apps/nie-web/src/desktop/components/GameDataView.tsx:460", "apps/nie-web/src/desktop/components/GameDataView.tsx:476"],
 	},
 	{
 		label: "Catégorie",
@@ -1205,7 +1205,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Vous pouvez utiliser des Techniques Spéciales en consommant de la Tension.\nIl en existe quatre catégories :\nTir, Offensive, Défense et Gardien.",
 		closestFamily: "help_list_text",
 		closestHash: "0x5b787820",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:174", "apps/nie-web/src/desktop/components/GameDataView.tsx:281", "apps/nie-web/src/desktop/components/GameDataView.tsx:334", "apps/nie-web/src/desktop/components/GameDataView.tsx:623", "apps/nie-web/src/game/ui-text-map.ts:1251", "packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:85"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:174", "apps/nie-web/src/desktop/components/GameDataView.tsx:281", "apps/nie-web/src/desktop/components/GameDataView.tsx:334", "apps/nie-web/src/desktop/components/GameDataView.tsx:623", "packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:85"],
 	},
 	{
 		label: "Chercher",
@@ -1213,7 +1213,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Rechercher",
 		closestFamily: "menu_text",
 		closestHash: "0x5ee8de18",
-		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:360", "apps/nie-web/src/game/ui-text-map.ts:1259", "apps/nie-web/src/screens/TrophyGallery.tsx:229", "apps/nie-web/src/screens/TrophyGallery.tsx:335", "packages/inacord-ui/src/components/game/GameSearchBar.tsx:20", "packages/inacord-ui/src/components/game/GameSearchBar.tsx:21"],
+		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:360", "apps/nie-web/src/screens/TrophyGallery.tsx:229", "apps/nie-web/src/screens/TrophyGallery.tsx:335", "packages/inacord-ui/src/components/game/GameSearchBar.tsx:20", "packages/inacord-ui/src/components/game/GameSearchBar.tsx:21"],
 	},
 	{
 		label: "ID",
@@ -1221,7 +1221,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "David",
 		closestFamily: "chara_text",
 		closestHash: "0xe717414b",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:266", "apps/nie-web/src/desktop/components/GameDataView.tsx:416", "apps/nie-web/src/desktop/components/GameDataView.tsx:435", "apps/nie-web/src/desktop/components/GameDataView.tsx:485", "apps/nie-web/src/desktop/components/GameDataView.tsx:527", "apps/nie-web/src/game/ui-text-map.ts:1275"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:266", "apps/nie-web/src/desktop/components/GameDataView.tsx:416", "apps/nie-web/src/desktop/components/GameDataView.tsx:435", "apps/nie-web/src/desktop/components/GameDataView.tsx:485", "apps/nie-web/src/desktop/components/GameDataView.tsx:527"],
 	},
 	{
 		label: "Personnalisé",
@@ -1229,7 +1229,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Personnalisée",
 		closestFamily: "menu_text",
 		closestHash: "0x3c0ade2e",
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:309", "apps/nie-web/src/game/ui-text-map.ts:1291", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:311", "packages/inacord-ui/src/components/wiki/wiki/PassiveDetail.tsx:62", "packages/inacord-ui/src/components/wiki/wiki/filters/PassiveFilters.tsx:14", "packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:20"],
+		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:309", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:311", "packages/inacord-ui/src/components/wiki/wiki/PassiveDetail.tsx:62", "packages/inacord-ui/src/components/wiki/wiki/filters/PassiveFilters.tsx:14", "packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:20"],
 	},
 	{
 		label: "Galerie",
@@ -1237,7 +1237,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Galerie des succès",
 		closestFamily: "menu_text",
 		closestHash: "0xe694e2d2",
-		usedAt: ["apps/nie-web/src/entries.ts:153", "apps/nie-web/src/game/gallery.ts:108", "apps/nie-web/src/game/ui-text-map.ts:1267", "apps/nie-web/src/pages/Catalog.tsx:210", "packages/inacord-ui/src/gallery/GalleryView.tsx:442"],
+		usedAt: ["apps/nie-web/src/entries.ts:153", "apps/nie-web/src/game/gallery.ts:108", "apps/nie-web/src/pages/Catalog.tsx:210", "packages/inacord-ui/src/gallery/GalleryView.tsx:442"],
 	},
 	{
 		label: "Joueurs de la même position",
@@ -1245,7 +1245,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "ATT des tirs + %[C]\npour les joueurs de la même position",
 		closestFamily: "skill_text",
 		closestHash: "0x2bde6064",
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:88", "apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:89", "apps/nie-web/src/game/ui-text-map.ts:1299", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:88", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:89"],
+		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:88", "apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:89", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:88", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:89"],
 	},
 	{
 		label: "Médias",
@@ -1253,7 +1253,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "On voit souvent le collège NAGUMOHARA\ndans les médias ces derniers temps. Avec un peu de chance,\nça fera revenir les touristes au port...",
 		closestFamily: "w21_npc_text",
 		closestHash: "0x925f668f",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:598", "apps/nie-web/src/desktop/components/GameDataView.tsx:616", "apps/nie-web/src/entries.ts:148", "apps/nie-web/src/game/ui-text-map.ts:1307", "apps/nie-web/src/pages/Catalog.tsx:421"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:598", "apps/nie-web/src/desktop/components/GameDataView.tsx:616", "apps/nie-web/src/entries.ts:148", "apps/nie-web/src/pages/Catalog.tsx:421"],
 	},
 	{
 		label: "Niveau",
@@ -1261,7 +1261,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Par niveau",
 		closestFamily: "menu_text",
 		closestHash: "0x7b75f1d9",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:641", "apps/nie-web/src/desktop/components/SaveView.tsx:126", "apps/nie-web/src/desktop/components/tools/ComparatorPanel.tsx:310", "apps/nie-web/src/desktop/components/tools/ProgressionPanel.tsx:105", "apps/nie-web/src/game/ui-text-map.ts:1315"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:641", "apps/nie-web/src/desktop/components/SaveView.tsx:126", "apps/nie-web/src/desktop/components/tools/ComparatorPanel.tsx:310", "apps/nie-web/src/desktop/components/tools/ProgressionPanel.tsx:105"],
 	},
 	{
 		label: "Personnage",
@@ -1269,7 +1269,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Personnages",
 		closestFamily: "menu_text",
 		closestHash: "0x9b419e32",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:171", "apps/nie-web/src/desktop/components/GameDataView.tsx:380", "apps/nie-web/src/desktop/components/SearchView.tsx:122", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:98", "apps/nie-web/src/game/ui-text-map.ts:1283"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:171", "apps/nie-web/src/desktop/components/GameDataView.tsx:380", "apps/nie-web/src/desktop/components/SearchView.tsx:122", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:98"],
 	},
 	{
 		label: "Total",
@@ -1277,7 +1277,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Mépris total",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0xac986433",
-		usedAt: ["apps/nie-web/src/desktop/components/tools/ComparatorPanel.tsx:390", "apps/nie-web/src/desktop/components/tools/StatCalculator.tsx:161", "apps/nie-web/src/game/ui-text-map.ts:1331", "apps/nie-web/src/screens/PlayerBank.tsx:314", "packages/inacord-ui/src/components/wiki/wiki/CharacterStatsContent.tsx:84"],
+		usedAt: ["apps/nie-web/src/desktop/components/tools/ComparatorPanel.tsx:390", "apps/nie-web/src/desktop/components/tools/StatCalculator.tsx:161", "apps/nie-web/src/screens/PlayerBank.tsx:314", "packages/inacord-ui/src/components/wiki/wiki/CharacterStatsContent.tsx:84"],
 	},
 	{
 		label: "Vidéo",
@@ -1285,7 +1285,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Fan de vidéos",
 		closestFamily: "chara_text",
 		closestHash: "0x1978e885",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:604", "apps/nie-web/src/desktop/components/PropertyEditor.tsx:85", "apps/nie-web/src/game/ui-text-map.ts:1339", "packages/inacord-ui/src/components/wiki/wiki/SkillVideoPlayer.tsx:26", "packages/inacord-ui/src/components/wiki/wiki/filters/SkillFilterBar.tsx:201"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:604", "apps/nie-web/src/desktop/components/PropertyEditor.tsx:85", "packages/inacord-ui/src/components/wiki/wiki/SkillVideoPlayer.tsx:26", "packages/inacord-ui/src/components/wiki/wiki/filters/SkillFilterBar.tsx:201"],
 	},
 	{
 		label: "Vidéos",
@@ -1293,7 +1293,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Fan de vidéos",
 		closestFamily: "chara_text",
 		closestHash: "0x1978e885",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:597", "apps/nie-web/src/entries.ts:147", "apps/nie-web/src/game/ui-text-map.ts:1347", "apps/nie-web/src/pages/Catalog.tsx:227", "packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx:40"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:597", "apps/nie-web/src/entries.ts:147", "apps/nie-web/src/pages/Catalog.tsx:227", "packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx:40"],
 	},
 	{
 		label: "Données",
@@ -1301,7 +1301,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Fichier de données",
 		closestFamily: "menu_text",
 		closestHash: "0x8dc42b6d",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:544", "apps/nie-web/src/desktop/components/PropertyEditor.tsx:54", "apps/nie-web/src/desktop/lib/vues.ts:210", "apps/nie-web/src/game/ui-text-map.ts:1355"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:544", "apps/nie-web/src/desktop/components/PropertyEditor.tsx:54", "apps/nie-web/src/desktop/lib/vues.ts:210"],
 	},
 	{
 		label: "Emblème",
@@ -1309,7 +1309,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Emblème Top 4",
 		closestFamily: "item_text",
 		closestHash: "0xae1fb179",
-		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:39", "apps/nie-web/src/desktop/components/cinema/ChoixProfil.tsx:274", "apps/nie-web/src/game/ui-text-map.ts:1363", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:39", "apps/nie-web/src/desktop/components/cinema/ChoixProfil.tsx:274", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Entrée",
@@ -1317,7 +1317,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Collège Raimon (Entrée)",
 		closestFamily: "item_text",
 		closestHash: "0x076dddb5",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:952", "apps/nie-web/src/game/ui-text-map.ts:1371", "apps/nie-web/src/screens/Shop.tsx:229", "apps/nie-web/src/screens/TrophyGallery.tsx:227"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:952", "apps/nie-web/src/screens/Shop.tsx:229", "apps/nie-web/src/screens/TrophyGallery.tsx:227"],
 	},
 	{
 		label: "Familles",
@@ -1325,7 +1325,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Beaucoup de familles d'ici vivent à NAGUMOHARA depuis des générations.\nIl doit y avoir pas mal de demandes pour des rénovations.",
 		closestFamily: "w14_npc_text",
 		closestHash: "0xdab59448",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1379", "apps/nie-web/src/pages/TextCatalog.tsx:66", "apps/nie-web/src/screens/TrophyGallery.tsx:260", "packages/inacord-ui/src/components/game/GameTabStrip.tsx:57"],
+		usedAt: ["apps/nie-web/src/pages/TextCatalog.tsx:66", "apps/nie-web/src/screens/TrophyGallery.tsx:260", "packages/inacord-ui/src/components/game/GameTabStrip.tsx:57"],
 	},
 	{
 		label: "Lire",
@@ -1333,7 +1333,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Arrête avec tes délires.",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0x6f3a54d2",
-		usedAt: ["apps/nie-web/src/desktop/components/CinemaView.tsx:1912", "apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:473", "apps/nie-web/src/desktop/lib/contextMenu.ts:299", "apps/nie-web/src/game/ui-text-map.ts:1387"],
+		usedAt: ["apps/nie-web/src/desktop/components/CinemaView.tsx:1912", "apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:473", "apps/nie-web/src/desktop/lib/contextMenu.ts:299"],
 	},
 	{
 		label: "Précédent",
@@ -1341,7 +1341,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Membres précédents",
 		closestFamily: "menu_text",
 		closestHash: "0x95efecca",
-		usedAt: ["apps/nie-web/src/desktop/components/ExplorerView.tsx:756", "apps/nie-web/src/game/ui-text-map.ts:1395", "packages/inacord-ui/src/components/ui/pagination-controls.tsx:34", "packages/inacord-ui/src/components/ui/pagination.tsx:66"],
+		usedAt: ["apps/nie-web/src/desktop/components/ExplorerView.tsx:756", "packages/inacord-ui/src/components/ui/pagination-controls.tsx:34", "packages/inacord-ui/src/components/ui/pagination.tsx:66"],
 	},
 	{
 		label: "Puissance",
@@ -1349,7 +1349,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Par puissance",
 		closestFamily: "menu_text",
 		closestHash: "0x2a63981c",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:236", "apps/nie-web/src/desktop/components/tools/TeamBuilderPanel.tsx:563", "apps/nie-web/src/game/ui-text-map.ts:1403", "packages/inacord-ui/src/components/wiki/wiki/filters/SkillFilterBar.tsx:318"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:236", "apps/nie-web/src/desktop/components/tools/TeamBuilderPanel.tsx:563", "packages/inacord-ui/src/components/wiki/wiki/filters/SkillFilterBar.tsx:318"],
 	},
 	{
 		label: "Sons",
@@ -1357,7 +1357,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Fourseasons",
 		closestFamily: "chara_text",
 		closestHash: "0x741ec412",
-		usedAt: ["apps/nie-web/src/desktop/lib/places.ts:19", "apps/nie-web/src/entries.ts:146", "apps/nie-web/src/game/ui-text-map.ts:1411", "apps/nie-web/src/pages/Catalog.tsx:226"],
+		usedAt: ["apps/nie-web/src/desktop/lib/places.ts:19", "apps/nie-web/src/entries.ts:146", "apps/nie-web/src/pages/Catalog.tsx:226"],
 	},
 	{
 		label: "Système",
@@ -1365,7 +1365,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Système de recrutement",
 		closestFamily: "help_list_text",
 		closestHash: "0x4777b668",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:636", "apps/nie-web/src/desktop/lib/i18n.tsx:55", "apps/nie-web/src/game/ui-text-map.ts:1419", "packages/inacord-ui/src/components/settings/settings-model.ts:109"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:636", "apps/nie-web/src/desktop/lib/i18n.tsx:55", "packages/inacord-ui/src/components/settings/settings-model.ts:109"],
 	},
 	{
 		label: "Techniques",
@@ -1373,7 +1373,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Hyper techniques",
 		closestFamily: "help_list_text",
 		closestHash: "0xcedee3d4",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:141", "apps/nie-web/src/desktop/components/tools/ComparatorPanel.tsx:399", "apps/nie-web/src/game/ui-text-map.ts:1323", "packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:39"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:141", "apps/nie-web/src/desktop/components/tools/ComparatorPanel.tsx:399", "packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:39"],
 	},
 	{
 		label: "Textures",
@@ -1381,7 +1381,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Qualité des textures",
 		closestFamily: "menu_text",
 		closestHash: "0x3a3c6e45",
-		usedAt: ["apps/nie-web/src/entries.ts:144", "apps/nie-web/src/game/ui-text-map.ts:1427", "apps/nie-web/src/pages/Catalog.tsx:224", "packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx:38"],
+		usedAt: ["apps/nie-web/src/entries.ts:144", "apps/nie-web/src/pages/Catalog.tsx:224", "packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx:38"],
 	},
 	{
 		label: "Échap",
@@ -1389,7 +1389,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Pfiou, on l'a échappé belle.",
 		closestFamily: "w21_npc_text",
 		closestHash: "0xbf685dc0",
-		usedAt: ["apps/nie-web/src/desktop/components/CommandPalette.tsx:112", "apps/nie-web/src/desktop/components/VideoPlayer.tsx:64", "apps/nie-web/src/game/ui-text-map.ts:1435", "apps/nie-web/src/pages/CatalogMedia.tsx:61"],
+		usedAt: ["apps/nie-web/src/desktop/components/CommandPalette.tsx:112", "apps/nie-web/src/desktop/components/VideoPlayer.tsx:64", "apps/nie-web/src/pages/CatalogMedia.tsx:61"],
 	},
 	{
 		label: "Épisode",
@@ -1397,7 +1397,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Épisode : Affrontement avec le collège Solaria-Zeus.",
 		closestFamily: "menu_text",
 		closestHash: "0xa52db12a",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:559", "apps/nie-web/src/desktop/components/GameDataView.tsx:576", "apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:518", "apps/nie-web/src/game/ui-text-map.ts:1443"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:559", "apps/nie-web/src/desktop/components/GameDataView.tsx:576", "apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:518"],
 	},
 	{
 		label: "Activer le mod",
@@ -1405,7 +1405,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Permet d'activer ou désactiver le mode HDR",
 		closestFamily: "menu_text",
 		closestHash: "0x6d67d31c",
-		usedAt: ["apps/nie-web/src/desktop/components/ModsView.tsx:256", "apps/nie-web/src/desktop/components/ModsView.tsx:257", "apps/nie-web/src/game/ui-text-map.ts:1451"],
+		usedAt: ["apps/nie-web/src/desktop/components/ModsView.tsx:256", "apps/nie-web/src/desktop/components/ModsView.tsx:257"],
 	},
 	{
 		label: "Condition",
@@ -1413,7 +1413,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Conditions",
 		closestFamily: "menu_text",
 		closestHash: "0x97fa18c3",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:383", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:104", "apps/nie-web/src/game/ui-text-map.ts:1483"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:383", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:104"],
 	},
 	{
 		label: "Durée",
@@ -1421,7 +1421,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Les succès à durée limitée ne sont visibles que durant\ntrois saisons. Les délais pour les obtenir sont indiqués.",
 		closestFamily: "help_list_text",
 		closestHash: "0x05772ea8",
-		usedAt: ["apps/nie-web/src/desktop/components/VideoPlayer.tsx:688", "apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:527", "apps/nie-web/src/game/ui-text-map.ts:1491"],
+		usedAt: ["apps/nie-web/src/desktop/components/VideoPlayer.tsx:688", "apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:527"],
 	},
 	{
 		label: "Définition",
@@ -1429,7 +1429,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Objets en haute définition",
 		closestFamily: "menu_text",
 		closestHash: "0x448d12f8",
-		usedAt: ["apps/nie-web/src/desktop/components/VideoPlayer.tsx:683", "apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:528", "apps/nie-web/src/game/ui-text-map.ts:1499"],
+		usedAt: ["apps/nie-web/src/desktop/components/VideoPlayer.tsx:683", "apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:528"],
 	},
 	{
 		label: "Désactiver le mod",
@@ -1437,7 +1437,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Permet d'activer ou désactiver le mode HDR",
 		closestFamily: "menu_text",
 		closestHash: "0x6d67d31c",
-		usedAt: ["apps/nie-web/src/desktop/components/ModsView.tsx:256", "apps/nie-web/src/desktop/components/ModsView.tsx:257", "apps/nie-web/src/game/ui-text-map.ts:1507"],
+		usedAt: ["apps/nie-web/src/desktop/components/ModsView.tsx:256", "apps/nie-web/src/desktop/components/ModsView.tsx:257"],
 	},
 	{
 		label: "Fichier",
@@ -1445,7 +1445,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Fichier de données",
 		closestFamily: "menu_text",
 		closestHash: "0x8dc42b6d",
-		usedAt: ["apps/nie-web/src/desktop/components/AppMenu.tsx:170", "apps/nie-web/src/desktop/components/GameDataView.tsx:484", "apps/nie-web/src/game/ui-text-map.ts:1515"],
+		usedAt: ["apps/nie-web/src/desktop/components/AppMenu.tsx:170", "apps/nie-web/src/desktop/components/GameDataView.tsx:484"],
 	},
 	{
 		label: "Flag",
@@ -1453,7 +1453,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Flagg",
 		closestFamily: "chara_text",
 		closestHash: "0x338c54c0",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:431", "apps/nie-web/src/desktop/components/GameDataView.tsx:577", "apps/nie-web/src/game/ui-text-map.ts:1523"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:431", "apps/nie-web/src/desktop/components/GameDataView.tsx:577"],
 	},
 	{
 		label: "Hors de la zone",
@@ -1461,7 +1461,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Les différentes techniques sont limitées à certaines situations. Quand\nvous ne pouvez pas utiliser une technique, l'avertissement\n\"Hors de la zone de compétence\" s'affiche.",
 		closestFamily: "help_list_text",
 		closestHash: "0x5b787820",
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:113", "apps/nie-web/src/game/ui-text-map.ts:1531", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:113"],
+		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:113", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:113"],
 	},
 	{
 		label: "Jeu",
@@ -1469,7 +1469,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Hors-jeu",
 		closestFamily: "help_list_text",
 		closestHash: "0xb1482dfd",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1539", "apps/nie-web/src/shell/UnifiedShell.tsx:107", "apps/nie-web/src/shell/UnifiedShell.tsx:109"],
+		usedAt: ["apps/nie-web/src/shell/UnifiedShell.tsx:107", "apps/nie-web/src/shell/UnifiedShell.tsx:109"],
 	},
 	{
 		label: "Joueurs d'éléments différents",
@@ -1477,7 +1477,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "ATT des tirs + %[C]\npour les joueurs d'éléments différents",
 		closestFamily: "skill_text",
 		closestHash: "0x22682c4f",
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:85", "apps/nie-web/src/game/ui-text-map.ts:1547", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:85"],
+		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:85", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:85"],
 	},
 	{
 		label: "Joueurs du même élément",
@@ -1485,7 +1485,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "ATT des tirs + %[C]\npour les joueurs du même élément",
 		closestFamily: "skill_text",
 		closestHash: "0x2505e856",
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:87", "apps/nie-web/src/game/ui-text-map.ts:1555", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:87"],
+		usedAt: ["apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx:87", "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx:87"],
 	},
 	{
 		label: "Menus",
@@ -1493,7 +1493,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Ces menus\nsont vraiment top.",
 		closestFamily: "w17_npc_text",
 		closestHash: "0xaf07cb77",
-		usedAt: ["apps/nie-web/src/desktop/components/editor/EditorView.tsx:100", "apps/nie-web/src/game/ui-text-map.ts:1563", "apps/nie-web/src/pages/Avatar.tsx:48"],
+		usedAt: ["apps/nie-web/src/desktop/components/editor/EditorView.tsx:100", "apps/nie-web/src/pages/Avatar.tsx:48"],
 	},
 	{
 		label: "Mon Équipe",
@@ -1501,7 +1501,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Mon équipe A",
 		closestFamily: "team_text",
 		closestHash: "0xfb36439d",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1571", "packages/inacord-ui/src/components/wiki/home/ToolsPreview.tsx:38", "packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:77"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/home/ToolsPreview.tsx:38", "packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:77"],
 	},
 	{
 		label: "Mon équipe",
@@ -1509,7 +1509,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Mon équipe A",
 		closestFamily: "team_text",
 		closestHash: "0xfb36439d",
-		usedAt: ["apps/nie-web/src/desktop/components/ToolsView.tsx:57", "apps/nie-web/src/desktop/components/tools/TeamBuilderPanel.tsx:297", "apps/nie-web/src/game/ui-text-map.ts:1579"],
+		usedAt: ["apps/nie-web/src/desktop/components/ToolsView.tsx:57", "apps/nie-web/src/desktop/components/tools/TeamBuilderPanel.tsx:297"],
 	},
 	{
 		label: "Obtention",
@@ -1517,7 +1517,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Pas d'obtention de HÉROS déjà possédés",
 		closestFamily: "menu_text",
 		closestHash: "0x11f685ab",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1587", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:47", "packages/inacord-ui/src/components/wiki/wiki/SkillDetailInfo.tsx:187"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:47", "packages/inacord-ui/src/components/wiki/wiki/SkillDetailInfo.tsx:187"],
 	},
 	{
 		label: "Part",
@@ -1525,7 +1525,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Parting",
 		closestFamily: "chara_text",
 		closestHash: "0xae0e31de",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:382", "apps/nie-web/src/desktop/components/GameDataView.tsx:399", "apps/nie-web/src/game/ui-text-map.ts:1595"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:382", "apps/nie-web/src/desktop/components/GameDataView.tsx:399"],
 	},
 	{
 		label: "Poids",
@@ -1533,7 +1533,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Poids lourd physique",
 		closestFamily: "item_text",
 		closestHash: "0xe2bd1f1d",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:381", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:99", "apps/nie-web/src/game/ui-text-map.ts:1611"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:381", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:99"],
 	},
 	{
 		label: "Poste",
@@ -1541,7 +1541,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Poster",
 		closestFamily: "chara_text",
 		closestHash: "0xe14fa719",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:137", "apps/nie-web/src/game/roster.ts:103", "apps/nie-web/src/game/ui-text-map.ts:1619"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:137", "apps/nie-web/src/game/roster.ts:103"],
 	},
 	{
 		label: "Quêtes",
@@ -1549,7 +1549,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Quêtes actives",
 		closestFamily: "menu_text",
 		closestHash: "0x7833b0a8",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:519", "apps/nie-web/src/game/ui-text-map.ts:1627", "packages/inacord-ui/src/gallery/gallery.ts:47"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:519", "packages/inacord-ui/src/gallery/gallery.ts:47"],
 	},
 	{
 		label: "Racine",
@@ -1557,7 +1557,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Avec son design évoquant la propagation de puissantes\nracines, ce maillot donne à son porteur l'impression d'être\nune force de la nature.",
 		closestFamily: "item_text",
 		closestHash: "0xa3b31dd8",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:540", "apps/nie-web/src/desktop/lib/places.ts:14", "apps/nie-web/src/game/ui-text-map.ts:1635"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:540", "apps/nie-web/src/desktop/lib/places.ts:14"],
 	},
 	{
 		label: "Réduire",
@@ -1565,7 +1565,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Je vais te réduire en charpie.",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0x88520616",
-		usedAt: ["apps/nie-web/src/desktop/components/ui/window-controls.tsx:61", "apps/nie-web/src/desktop/components/ui/window-controls.tsx:62", "apps/nie-web/src/game/ui-text-map.ts:1643"],
+		usedAt: ["apps/nie-web/src/desktop/components/ui/window-controls.tsx:61", "apps/nie-web/src/desktop/components/ui/window-controls.tsx:62"],
 	},
 	{
 		label: "Table",
@@ -1573,7 +1573,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Dictable",
 		closestFamily: "chara_text",
 		closestHash: "0x1b4d5743",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:396", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:108", "apps/nie-web/src/game/ui-text-map.ts:1651"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:396", "apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:108"],
 	},
 	{
 		label: "Titre",
@@ -1581,7 +1581,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Titres",
 		closestFamily: "menu_text",
 		closestHash: "0x4682ecc8",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:622", "apps/nie-web/src/game/ui-text-map.ts:1659", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:622", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Télécharger",
@@ -1589,7 +1589,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Télécharger les données depuis la sauvegarde multi-plateforme.",
 		closestFamily: "menu_text",
 		closestHash: "0xbcef19a3",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1667", "apps/nie-web/src/inacord-web/DownloadPage.tsx:55", "packages/inacord-ui/src/components/wiki/wiki/SkillVideoActions.tsx:91"],
+		usedAt: ["apps/nie-web/src/inacord-web/DownloadPage.tsx:55", "packages/inacord-ui/src/components/wiki/wiki/SkillVideoActions.tsx:91"],
 	},
 	{
 		label: "Volume",
@@ -1597,7 +1597,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Volume général",
 		closestFamily: "menu_text",
 		closestHash: "0x4efdd62b",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:626", "apps/nie-web/src/desktop/components/VideoPlayer.tsx:837", "apps/nie-web/src/game/ui-text-map.ts:1675"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:626", "apps/nie-web/src/desktop/components/VideoPlayer.tsx:837"],
 	},
 	{
 		label: "bloquées",
@@ -1605,7 +1605,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Indique le rang de rareté d'un joueur.\nPlus le rang est haut, plus vous aurez des avantages comme de nouvelles compétences débloquées ou des attributs améliorés.",
 		closestFamily: "help_list_text",
 		closestHash: "0x1e551a7f",
-		usedAt: ["apps/nie-web/src/desktop/components/DashboardView.tsx:307", "apps/nie-web/src/desktop/components/ReForgeView.tsx:230", "apps/nie-web/src/game/ui-text-map.ts:1683"],
+		usedAt: ["apps/nie-web/src/desktop/components/DashboardView.tsx:307", "apps/nie-web/src/desktop/components/ReForgeView.tsx:230"],
 	},
 	{
 		label: "Événement",
@@ -1613,7 +1613,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Événement du White Day",
 		closestFamily: "post_text",
 		closestHash: "0xb483f545",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:282", "apps/nie-web/src/game/ui-text-map.ts:1691", "packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:89"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:282", "packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:89"],
 	},
 	{
 		label: "Accessoire",
@@ -1621,7 +1621,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Accessoire boule de riz",
 		closestFamily: "item_text",
 		closestHash: "0x4a287b5a",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1699", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Activité",
@@ -1629,7 +1629,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Activités",
 		closestFamily: "help_list_text",
 		closestHash: "0x6e1c5bf2",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:539", "apps/nie-web/src/game/ui-text-map.ts:1707"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:539"],
 	},
 	{
 		label: "Actualités",
@@ -1637,7 +1637,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Apparemment, quelqu'un poste les actualités de NAGUMOHARA en ligne.\nMais je ne me souviens pas de comment ça s'appelle.",
 		closestFamily: "w10i000_npc_text",
 		closestHash: "0x30383e3d",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1715", "packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:84"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:84"],
 	},
 	{
 		label: "Adresse",
@@ -1645,7 +1645,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Tu as du goût pour venir t'adresser à moi.",
 		closestFamily: "scout_phase_text",
 		closestHash: "0xed40235a",
-		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:387", "apps/nie-web/src/game/ui-text-map.ts:1723"],
+		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:387"],
 	},
 	{
 		label: "Affrontement",
@@ -1653,7 +1653,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Zone d'affrontement",
 		closestFamily: "help_list_text",
 		closestHash: "0x04e653b0",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1731", "packages/inacord-ui/src/components/wiki/wiki/filters/PassiveFilters.tsx:36"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/filters/PassiveFilters.tsx:36"],
 	},
 	{
 		label: "Ajouter",
@@ -1661,7 +1661,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Ajouter à l'équipe",
 		closestFamily: "menu_text",
 		closestHash: "0xea5e7789",
-		usedAt: ["apps/nie-web/src/desktop/components/cinema/ChoixProfil.tsx:155", "apps/nie-web/src/game/ui-text-map.ts:1739"],
+		usedAt: ["apps/nie-web/src/desktop/components/cinema/ChoixProfil.tsx:155"],
 	},
 	{
 		label: "Animal",
@@ -1669,7 +1669,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Griffon, seigneur du règne animal",
 		closestFamily: "skill_text",
 		closestHash: "0x2d186134",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1747", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Annonce",
@@ -1677,7 +1677,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Annonce aux joueurs",
 		closestFamily: "post_text",
 		closestHash: "0x44fb6131",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1755", "packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:88"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:88"],
 	},
 	{
 		label: "Auras",
@@ -1685,7 +1685,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Tu n'auras plus faim après !",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0xd5d585e9",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1763", "packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:47"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:47"],
 	},
 	{
 		label: "BGM",
@@ -1693,7 +1693,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "BGM音量",
 		closestFamily: "setting_text",
 		closestHash: "0xd92f0fa3",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:606", "apps/nie-web/src/game/ui-text-map.ts:1771"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:606"],
 	},
 	{
 		label: "Bracelet",
@@ -1701,7 +1701,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Bracelets",
 		closestFamily: "menu_text",
 		closestHash: "0xe0bcd6cc",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1779", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "CLI",
@@ -1709,7 +1709,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Cliff",
 		closestFamily: "chara_text",
 		closestHash: "0x73386990",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1787", "apps/nie-web/src/inacord-web/DownloadPage.tsx:160"],
+		usedAt: ["apps/nie-web/src/inacord-web/DownloadPage.tsx:160"],
 	},
 	{
 		label: "Capsules",
@@ -1717,7 +1717,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Ce sticker de gorille bizarre n'est pas du tout mignon ! Je ne l'aime pas !\nQui a collé ça sur la machine à capsules ?",
 		closestFamily: "w12_npc_text",
 		closestHash: "0x2250c940",
-		usedAt: ["apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:79", "apps/nie-web/src/game/ui-text-map.ts:1467"],
+		usedAt: ["apps/nie-web/src/desktop/components/tools/ProbabilitesPanel.tsx:79"],
 	},
 	{
 		label: "Catégories",
@@ -1725,7 +1725,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Vous pouvez utiliser des Techniques Spéciales en consommant de la Tension.\nIl en existe quatre catégories :\nTir, Offensive, Défense et Gardien.",
 		closestFamily: "help_list_text",
 		closestHash: "0x5b787820",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1803", "apps/nie-web/src/screens/Shop.tsx:283"],
+		usedAt: ["apps/nie-web/src/screens/Shop.tsx:283"],
 	},
 	{
 		label: "Chaussures",
@@ -1733,7 +1733,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Chaussures tech",
 		closestFamily: "item_text",
 		closestHash: "0xf682ded7",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1475", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Cinéma",
@@ -1741,7 +1741,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Pause cinématique",
 		closestFamily: "help_list_text",
 		closestHash: "0xe9c1b64f",
-		usedAt: ["apps/nie-web/src/desktop/lib/i18n.tsx:17", "apps/nie-web/src/game/ui-text-map.ts:1811"],
+		usedAt: ["apps/nie-web/src/desktop/lib/i18n.tsx:17"],
 	},
 	{
 		label: "Cinématique",
@@ -1749,7 +1749,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Pause cinématique",
 		closestFamily: "help_list_text",
 		closestHash: "0xe9c1b64f",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1819", "apps/nie-web/src/screens/TrophyGallery.tsx:328"],
+		usedAt: ["apps/nie-web/src/screens/TrophyGallery.tsx:328"],
 	},
 	{
 		label: "Clair",
@@ -1757,7 +1757,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Claire",
 		closestFamily: "chara_text",
 		closestHash: "0x4c2bd336",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1827", "packages/inacord-ui/src/components/settings/settings-model.ts:110"],
+		usedAt: ["packages/inacord-ui/src/components/settings/settings-model.ts:110"],
 	},
 	{
 		label: "Close",
@@ -1765,7 +1765,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Closeout",
 		closestFamily: "chara_text",
 		closestHash: "0x0cc9101c",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1835", "packages/inacord-ui/src/components/ui/dialog.tsx:75"],
+		usedAt: ["packages/inacord-ui/src/components/ui/dialog.tsx:75"],
 	},
 	{
 		label: "Communauté",
@@ -1773,7 +1773,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Pour le bien de la communauté.",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0x7318bfbc",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1843", "packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:91"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/dashboard/news/BulkActionsBar.tsx:91"],
 	},
 	{
 		label: "Compacte",
@@ -1781,7 +1781,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Tacle compacteur",
 		closestFamily: "skill_text",
 		closestHash: "0x5136f889",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1851", "packages/inacord-ui/src/components/settings/settings-model.ts:126"],
+		usedAt: ["packages/inacord-ui/src/components/settings/settings-model.ts:126"],
 	},
 	{
 		label: "Composition",
@@ -1789,7 +1789,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Composition d'équipe",
 		closestFamily: "help_list_text",
 		closestHash: "0x25d0b187",
-		usedAt: ["apps/nie-web/src/desktop/components/tools/TeamBuilderPanel.tsx:537", "apps/nie-web/src/game/ui-text-map.ts:1859"],
+		usedAt: ["apps/nie-web/src/desktop/components/tools/TeamBuilderPanel.tsx:537"],
 	},
 	{
 		label: "Confortable",
@@ -1797,7 +1797,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Chaussettes confortables",
 		closestFamily: "item_text",
 		closestHash: "0x3a428fd5",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1867", "packages/inacord-ui/src/components/settings/settings-model.ts:125"],
+		usedAt: ["packages/inacord-ui/src/components/settings/settings-model.ts:125"],
 	},
 	{
 		label: "Côté",
@@ -1805,7 +1805,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Résurgence du côté obscur",
 		closestFamily: "soccer_game_title",
 		closestHash: "0x5f0ddb47",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1875", "packages/inacord-ui/src/three/Viewport3D.tsx:583"],
+		usedAt: ["packages/inacord-ui/src/three/Viewport3D.tsx:583"],
 	},
 	{
 		label: "Difficulté",
@@ -1813,7 +1813,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Permet d'essayer la difficulté Rang Dieu.",
 		closestFamily: "item_text",
 		closestHash: "0x5d36b369",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:429", "apps/nie-web/src/game/ui-text-map.ts:1883"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:429"],
 	},
 	{
 		label: "Disposition",
@@ -1821,7 +1821,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Les formations déterminent la position des joueurs sur le terrain. Vous pouvez choisir entre de multiples dispositions.\nVotre formation décide du rôle de chaque joueur et façonne le style tactique de votre équipe.",
 		closestFamily: "help_list_text",
 		closestHash: "0xb8fbe487",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1891", "packages/inacord-ui/src/components/wiki/wiki/ModelToolbar.tsx:76"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ModelToolbar.tsx:76"],
 	},
 	{
 		label: "Désactivée",
@@ -1829,7 +1829,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Super Tactiques Désactivées",
 		closestFamily: "menu_text",
 		closestHash: "0xbc192ef6",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1899", "packages/inacord-ui/src/components/settings/settings-model.ts:365"],
+		usedAt: ["packages/inacord-ui/src/components/settings/settings-model.ts:365"],
 	},
 	{
 		label: "Détail",
@@ -1837,7 +1837,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Détails",
 		closestFamily: "menu_text",
 		closestHash: "0xa46fd1af",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1907", "apps/nie-web/src/screens/TrophyGallery.tsx:312"],
+		usedAt: ["apps/nie-web/src/screens/TrophyGallery.tsx:312"],
 	},
 	{
 		label: "Encyclopédie",
@@ -1845,7 +1845,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Ce qui était à la base un groupe d'études des quiz est devenu une encyclopédie\nde culture G. Vous n'imaginez même pas tout ce qu'ils savent.",
 		closestFamily: "data_file_text",
 		closestHash: "0x08c3ee98",
-		usedAt: ["apps/nie-web/src/desktop/lib/i18n.tsx:18", "apps/nie-web/src/game/ui-text-map.ts:1915"],
+		usedAt: ["apps/nie-web/src/desktop/lib/i18n.tsx:18"],
 	},
 	{
 		label: "Entraînement",
@@ -1853,7 +1853,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Entraînement libre",
 		closestFamily: "help_list_text",
 		closestHash: "0xa707bbcd",
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/ItemCard.tsx:14", "apps/nie-web/src/game/ui-text-map.ts:1923"],
+		usedAt: ["apps/nie-web/src/desktop/components/wiki/ItemCard.tsx:14"],
 	},
 	{
 		label: "Esc",
@@ -1861,7 +1861,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Pesci",
 		closestFamily: "chara_text",
 		closestHash: "0x605486d6",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1931", "packages/inacord-ui/src/components/settings/SettingsScreen.tsx:283"],
+		usedAt: ["packages/inacord-ui/src/components/settings/SettingsScreen.tsx:283"],
 	},
 	{
 		label: "Explorer",
@@ -1869,7 +1869,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "J'adore explorer !",
 		closestFamily: "w10g201_npc_text",
 		closestHash: "0xf524bdd5",
-		usedAt: ["apps/nie-web/src/entries.ts:149", "apps/nie-web/src/game/ui-text-map.ts:1939"],
+		usedAt: ["apps/nie-web/src/entries.ts:149"],
 	},
 	{
 		label: "Export",
@@ -1877,7 +1877,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Exporter les données (Multi-plateforme)",
 		closestFamily: "menu_text",
 		closestHash: "0x6a4485ff",
-		usedAt: ["apps/nie-web/src/desktop/components/ModsView.tsx:345", "apps/nie-web/src/game/ui-text-map.ts:1947"],
+		usedAt: ["apps/nie-web/src/desktop/components/ModsView.tsx:345"],
 	},
 	{
 		label: "Expérience",
@@ -1885,7 +1885,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Les joueurs de baseball qui participaient au spectacle après les cours\nont de l'expérience en foot, et sont en très bonne forme physique.",
 		closestFamily: "team_text",
 		closestHash: "0xe2cdc5ba",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:635", "apps/nie-web/src/game/ui-text-map.ts:1955"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:635"],
 	},
 	{
 		label: "Extension",
@@ -1893,16 +1893,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "[CMODE03]Extension du nombre maximum de compositions d'équipe[C]",
 		closestFamily: "system_text",
 		closestHash: "0xe3e2f540",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1963", "apps/nie-web/src/pages/Catalog.tsx:155"],
-	},
-	{
-		label: "Fan de vidéos",
-		searchHits: 2,
-		closest: "Fan de vidéos",
-		closestFamily: "chara_text",
-		closestHash: "0x1978e885",
-		homonymFamilies: ["chara_text", "chara_text_roma"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1341", "apps/nie-web/src/game/ui-text-map.ts:1349"],
+		usedAt: ["apps/nie-web/src/pages/Catalog.tsx:155"],
 	},
 	{
 		label: "Fichiers",
@@ -1910,7 +1901,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Fichiers de données",
 		closestFamily: "system_text",
 		closestHash: "0x1de4879f",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1971", "apps/nie-web/src/pages/Catalog.tsx:209"],
+		usedAt: ["apps/nie-web/src/pages/Catalog.tsx:209"],
 	},
 	{
 		label: "Films",
@@ -1918,7 +1909,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "BUG FILMS",
 		closestFamily: "staffroll_text",
 		closestHash: "0x723173b0",
-		usedAt: ["apps/nie-web/src/game/gallery.ts:109", "apps/nie-web/src/game/ui-text-map.ts:1987"],
+		usedAt: ["apps/nie-web/src/game/gallery.ts:109"],
 	},
 	{
 		label: "Fonctions",
@@ -1926,7 +1917,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Espace débordant de boutiques et de gares.\nOn y trouve les fonctions principales du village.",
 		closestFamily: "map_text",
 		closestHash: "0xe8e4f512",
-		usedAt: ["apps/nie-web/src/desktop/components/ReToolsView.tsx:422", "apps/nie-web/src/game/ui-text-map.ts:1995"],
+		usedAt: ["apps/nie-web/src/desktop/components/ReToolsView.tsx:422"],
 	},
 	{
 		label: "Fond",
@@ -1934,7 +1925,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "FONDUE",
 		closestFamily: "chara_text",
 		closestHash: "0x1f5dc0d0",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:434", "apps/nie-web/src/game/ui-text-map.ts:2003"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:434"],
 	},
 	{
 		label: "Garçon",
@@ -1942,7 +1933,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Garçon cool",
 		closestFamily: "chara_text",
 		closestHash: "0xecccbe9c",
-		usedAt: ["apps/nie-web/src/desktop/components/tools/RandomTeamPanel.tsx:45", "apps/nie-web/src/game/ui-text-map.ts:2019"],
+		usedAt: ["apps/nie-web/src/desktop/components/tools/RandomTeamPanel.tsx:45"],
 	},
 	{
 		label: "Genre",
@@ -1950,7 +1941,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Quel genre ?",
 		closestFamily: "inacode_text",
 		closestHash: "0x2d8f4cd8",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:142", "apps/nie-web/src/game/ui-text-map.ts:2027"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:142"],
 	},
 	{
 		label: "Grille",
@@ -1958,7 +1949,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Quand ton cerveau grille à force de réviser, rien ne vaut une petite gourmandise glacée.\nPeut-être que je vais me prendre une glace aujourd'hui.",
 		closestFamily: "w14_npc_text",
 		closestHash: "0x718e7919",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2035", "packages/inacord-ui/src/components/wiki/wiki/ModelToolbar.tsx:81"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ModelToolbar.tsx:81"],
 	},
 	{
 		label: "Générique",
@@ -1966,7 +1957,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Sous-titres du générique",
 		closestFamily: "menu_text",
 		closestHash: "0xff1f5caa",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:607", "apps/nie-web/src/game/ui-text-map.ts:2043"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:607"],
 	},
 	{
 		label: "Habitat",
@@ -1974,7 +1965,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Un bâtiment d'entraînement dédié au club de biologie marine.\nIl est entouré d'étangs pour élever des poissons.\nÀ l'intérieur, de l'équipement permet de recréer les habitats océaniques.",
 		closestFamily: "search_word_text",
 		closestHash: "0xb74dbd78",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:172", "apps/nie-web/src/game/ui-text-map.ts:2051"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:172"],
 	},
 	{
 		label: "Illustration",
@@ -1982,7 +1973,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Cette illustration n'est pas encore disponible.\nAvancez dans l'histoire pour la débloquer.",
 		closestFamily: "menu_text",
 		closestHash: "0xb946bc08",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:574", "apps/nie-web/src/game/ui-text-map.ts:2059"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:574"],
 	},
 	{
 		label: "Illustrations",
@@ -1990,7 +1981,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Débloquez des illustrations conceptuelles avec vos victoires !\nCommencez à collectionner maintenant !",
 		closestFamily: "menu_text",
 		closestHash: "0x867a2a1e",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2067", "packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx:37"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx:37"],
 	},
 	{
 		label: "Image",
@@ -1998,7 +1989,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Midorimage",
 		closestFamily: "chara_text_roma",
 		closestHash: "0xe9dfcba1",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:502", "apps/nie-web/src/game/ui-text-map.ts:2075"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:502"],
 	},
 	{
 		label: "Inventaire",
@@ -2006,7 +1997,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Récupération impossible. Votre inventaire est plein.",
 		closestFamily: "menu_text",
 		closestHash: "0xee7bbe51",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:368", "apps/nie-web/src/game/ui-text-map.ts:2083"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:368"],
 	},
 	{
 		label: "JEU",
@@ -2014,7 +2005,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Hors-jeu",
 		closestFamily: "help_list_text",
 		closestHash: "0xb1482dfd",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2091", "apps/nie-web/src/shell/UnifiedShell.tsx:101"],
+		usedAt: ["apps/nie-web/src/shell/UnifiedShell.tsx:101"],
 	},
 	{
 		label: "Joueurs",
@@ -2022,7 +2013,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Joueurs Héros",
 		closestFamily: "help_list_text",
 		closestHash: "0x4e6d4f0c",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2107", "packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:31"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:31"],
 	},
 	{
 		label: "Lecture",
@@ -2030,7 +2021,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Mauvaise lecture...",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0x7a3a737d",
-		usedAt: ["apps/nie-web/src/game/NativeMoviePlayer.tsx:139", "apps/nie-web/src/game/ui-text-map.ts:2115"],
+		usedAt: ["apps/nie-web/src/game/NativeMoviePlayer.tsx:139"],
 	},
 	{
 		label: "Liste",
@@ -2038,7 +2029,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Cycliste",
 		closestFamily: "chara_text",
 		closestHash: "0x0ad06cf4",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2123", "packages/inacord-ui/src/components/wiki/wiki/ModelToolbar.tsx:82"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ModelToolbar.tsx:82"],
 	},
 	{
 		label: "Live",
@@ -2046,7 +2037,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Olive",
 		closestFamily: "chara_text",
 		closestHash: "0xb5629885",
-		usedAt: ["apps/nie-web/src/desktop/components/ReToolsView.tsx:425", "apps/nie-web/src/game/ui-text-map.ts:2131"],
+		usedAt: ["apps/nie-web/src/desktop/components/ReToolsView.tsx:425"],
 	},
 	{
 		label: "Matériau",
@@ -2054,7 +2045,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Des notes détaillées du cours de SVT.\nLes matériaux et les étapes y sont soigneusement consignés.",
 		closestFamily: "item_text",
 		closestHash: "0x33a39249",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2147", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Maîtrise",
@@ -2062,7 +2053,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Je vais te maîtriser.",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0xc0468ac4",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2155", "packages/inacord-ui/src/components/wiki/wiki/CharacterStatsContent.tsx:23"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/CharacterStatsContent.tsx:23"],
 	},
 	{
 		label: "Merge",
@@ -2070,7 +2061,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Séparez-vous en deux ailes et foncez\nvers le but pour submerger la défense.",
 		closestFamily: "item_text",
 		closestHash: "0x938d2921",
-		usedAt: ["apps/nie-web/src/desktop/components/ViolaView.tsx:172", "apps/nie-web/src/game/ui-text-map.ts:2163"],
+		usedAt: ["apps/nie-web/src/desktop/components/ViolaView.tsx:172"],
 	},
 	{
 		label: "Mises à jour",
@@ -2078,7 +2069,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Les fonctionnalités suivantes seront\najoutées dans de futures mises à jour :",
 		closestFamily: "system_text",
 		closestHash: "0x4b267476",
-		usedAt: ["apps/nie-web/src/desktop/components/SettingsView.tsx:368", "apps/nie-web/src/game/ui-text-map.ts:2171"],
+		usedAt: ["apps/nie-web/src/desktop/components/SettingsView.tsx:368"],
 	},
 	{
 		label: "Miximax",
@@ -2086,7 +2077,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Esprit miximax",
 		closestFamily: "skill_text",
 		closestHash: "0x22ca440d",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2179", "packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:19"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:19"],
 	},
 	{
 		label: "Mobile",
@@ -2094,7 +2085,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "L'arène mobile du Grand tournoi galaxy.\nTraverse la galaxie comme un vaisseau.",
 		closestFamily: "item_text",
 		closestHash: "0xf8237696",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2187", "apps/nie-web/src/inacord-web/DownloadPage.tsx:162"],
+		usedAt: ["apps/nie-web/src/inacord-web/DownloadPage.tsx:162"],
 	},
 	{
 		label: "Modes de jeu",
@@ -2102,7 +2093,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Créez un avatar qui vous représente dans tous les modes de jeu.\nVous pouvez passer cette étape et y revenir plus tard.",
 		closestFamily: "menu_text",
 		closestHash: "0xb74741e3",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2195", "packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx:42"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx:42"],
 	},
 	{
 		label: "Musiques",
@@ -2110,7 +2101,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Musiques non libres de droit",
 		closestFamily: "menu_text",
 		closestHash: "0x244a9b1d",
-		usedAt: ["apps/nie-web/src/game/gallery.ts:110", "apps/nie-web/src/game/ui-text-map.ts:2203"],
+		usedAt: ["apps/nie-web/src/game/gallery.ts:110"],
 	},
 	{
 		label: "Neutre",
@@ -2118,7 +2109,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "On a besoin d'une voix neutre.\nLe club de natation devrait être premier, non ?",
 		closestFamily: "rpg_battle_message_text",
 		closestHash: "0x69554406",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2211", "packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:14"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:14"],
 	},
 	{
 		label: "Nom de joueur",
@@ -2126,7 +2117,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Chercher par nom de joueur",
 		closestFamily: "menu_text",
 		closestHash: "0x30ba34b1",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2219", "apps/nie-web/src/screens/PlayerBank.tsx:326"],
+		usedAt: ["apps/nie-web/src/screens/PlayerBank.tsx:326"],
 	},
 	{
 		label: "Nom de l'équipe",
@@ -2134,7 +2125,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Changer le nom de l'équipe",
 		closestFamily: "menu_text",
 		closestHash: "0x74a2d349",
-		usedAt: ["apps/nie-web/src/desktop/components/tools/TeamBuilderPanel.tsx:426", "apps/nie-web/src/game/ui-text-map.ts:2227"],
+		usedAt: ["apps/nie-web/src/desktop/components/tools/TeamBuilderPanel.tsx:426"],
 	},
 	{
 		label: "Nouveau mod",
@@ -2142,7 +2133,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "J'aimerais bien trouver un nouveau modèle pour le club...",
 		closestFamily: "scout_phase_text",
 		closestHash: "0x0d3b6e29",
-		usedAt: ["apps/nie-web/src/desktop/components/ModsView.tsx:172", "apps/nie-web/src/game/ui-text-map.ts:2235"],
+		usedAt: ["apps/nie-web/src/desktop/components/ModsView.tsx:172"],
 	},
 	{
 		label: "Numéro",
@@ -2150,7 +2141,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Numéro d'équilibriste !",
 		closestFamily: "item_text",
 		closestHash: "0xdb59e5e3",
-		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:33", "apps/nie-web/src/game/ui-text-map.ts:2243"],
+		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:33"],
 	},
 	{
 		label: "Observations",
@@ -2158,7 +2149,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "D'après les observations d'autres élèves sans clubs,\nrentrant directement chez directement après les cours.\nLes membres du club de foot ont été aperçus en train\nde discuter avec le conseil des élèves et sont repartis\nde très bonne humeur.\nIls ont reçu de bonnes nouvelles ?",
 		closestFamily: "search_word_text",
 		closestHash: "0x6c187acf",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:177", "apps/nie-web/src/game/ui-text-map.ts:2251"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:177"],
 	},
 	{
 		label: "Opérations",
@@ -2166,7 +2157,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Opérations de base",
 		closestFamily: "help_list_text",
 		closestHash: "0x74c5f394",
-		usedAt: ["apps/nie-web/src/desktop/components/JobManager.tsx:95", "apps/nie-web/src/game/ui-text-map.ts:2259"],
+		usedAt: ["apps/nie-web/src/desktop/components/JobManager.tsx:95"],
 	},
 	{
 		label: "Ordre",
@@ -2174,7 +2165,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Ordre de tri",
 		closestFamily: "menu_text",
 		closestHash: "0x88bba88d",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:414", "apps/nie-web/src/game/ui-text-map.ts:2267"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:414"],
 	},
 	{
 		label: "Outils",
@@ -2182,7 +2173,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "J'ai discuté avec les profs de Northbright...\nIls m'ont montré comment utiliser les outils numériques.\nC'était édifiant.",
 		closestFamily: "w10i000_npc_text",
 		closestHash: "0x1b156dfe",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2275", "packages/inacord-ui/src/components/settings/settings-model.ts:95"],
+		usedAt: ["packages/inacord-ui/src/components/settings/settings-model.ts:95"],
 	},
 	{
 		label: "PATH",
@@ -2190,7 +2181,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Pathy",
 		closestFamily: "chara_text",
 		closestHash: "0x5726e8da",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2283", "apps/nie-web/src/inacord-web/DownloadPage.tsx:160"],
+		usedAt: ["apps/nie-web/src/inacord-web/DownloadPage.tsx:160"],
 	},
 	{
 		label: "Parent",
@@ -2198,7 +2189,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Parents pugnaces",
 		closestFamily: "item_text",
 		closestHash: "0xbf1b75f9",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:541", "apps/nie-web/src/game/ui-text-map.ts:2291"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:541"],
 	},
 	{
 		label: "Partager",
@@ -2206,7 +2197,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Des anecdotes à partager ?",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0xc4eeb6a8",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2299", "packages/inacord-ui/src/components/wiki/wiki/SkillVideoActions.tsx:98"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/SkillVideoActions.tsx:98"],
 	},
 	{
 		label: "Partenaires",
@@ -2214,7 +2205,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Partenaires malgré tout",
 		closestFamily: "item_text",
 		closestHash: "0x373e599e",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:237", "apps/nie-web/src/game/ui-text-map.ts:2307"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:237"],
 	},
 	{
 		label: "Passifs",
@@ -2222,7 +2213,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Passifs hérités",
 		closestFamily: "help_list_text",
 		closestHash: "0xff6c5538",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1603", "packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:63"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/home/WikiCarousel.tsx:63"],
 	},
 	{
 		label: "Performance",
@@ -2230,7 +2221,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Un modèle haute performance de chez CHAMP-ON.\nUne série populaire centrée sur la mobilité.",
 		closestFamily: "item_text",
 		closestHash: "0x577452d9",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2315", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Personnel",
@@ -2238,7 +2229,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Top personnel",
 		closestFamily: "menu_text",
 		closestHash: "0x97a2d2e1",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2323", "packages/inacord-ui/src/components/wiki/wiki/filters/PassiveFilters.tsx:40"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/filters/PassiveFilters.tsx:40"],
 	},
 	{
 		label: "Phase",
@@ -2246,7 +2237,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Phase finale",
 		closestFamily: "help_list_text",
 		closestHash: "0xc5df07ed",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:526", "apps/nie-web/src/game/ui-text-map.ts:2331"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:526"],
 	},
 	{
 		label: "Piste",
@@ -2254,7 +2245,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Pisteuse",
 		closestFamily: "chara_text",
 		closestHash: "0x0c654c7f",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:624", "apps/nie-web/src/game/ui-text-map.ts:2339"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:624"],
 	},
 	{
 		label: "Placements",
@@ -2262,7 +2253,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Remplacements",
 		closestFamily: "help_list_text",
 		closestHash: "0x18b27474",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:449", "apps/nie-web/src/game/ui-text-map.ts:2347"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:449"],
 	},
 	{
 		label: "Plaque",
@@ -2270,7 +2261,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Plaque nominative 01",
 		closestFamily: "item_text",
 		closestHash: "0x011d2282",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2355", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Plateforme",
@@ -2278,7 +2269,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Sauvegarde multi-plateforme",
 		closestFamily: "menu_text",
 		closestHash: "0x78370855",
-		usedAt: ["apps/nie-web/src/desktop/components/ViolaView.tsx:263", "apps/nie-web/src/game/ui-text-map.ts:2363"],
+		usedAt: ["apps/nie-web/src/desktop/components/ViolaView.tsx:263"],
 	},
 	{
 		label: "Points",
@@ -2286,7 +2277,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Points forts",
 		closestFamily: "menu_text",
 		closestHash: "0x4c4868b5",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2371", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:45"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:45"],
 	},
 	{
 		label: "Portée",
@@ -2294,7 +2285,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Une fois à portée, appuyez sur pour pénétrer la zone",
 		closestFamily: "soccer_common_text",
 		closestHash: "0x33002182",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:262", "apps/nie-web/src/game/ui-text-map.ts:2379"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:262"],
 	},
 	{
 		label: "Postes",
@@ -2302,7 +2293,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Yo ! J'ai testé différents postes lors des matchs,\nça aide à comprendre comment réfléchissent\nles autres joueurs. C'est super pratique !",
 		closestFamily: "inacode_text",
 		closestHash: "0x348984b4",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:452", "apps/nie-web/src/game/ui-text-map.ts:2387"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:452"],
 	},
 	{
 		label: "Prix",
@@ -2310,7 +2301,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "ICHINOSE à tout prix !",
 		closestFamily: "soccer_game_title",
 		closestHash: "0x79ec2f5e",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:335", "apps/nie-web/src/game/ui-text-map.ts:2395"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:335"],
 	},
 	{
 		label: "Précédente",
@@ -2318,7 +2309,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Meilleur classement des saisons précédentes",
 		closestFamily: "menu_text",
 		closestHash: "0x8e5ace8a",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2403", "packages/inacord-ui/src/gallery/GalleryView.tsx:252"],
+		usedAt: ["packages/inacord-ui/src/gallery/GalleryView.tsx:252"],
 	},
 	{
 		label: "Prévu",
@@ -2326,7 +2317,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Comme prévu.",
 		closestFamily: "w14_npc_text",
 		closestHash: "0x5195faac",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2411", "apps/nie-web/src/inacord-web/DownloadPage.tsx:56"],
+		usedAt: ["apps/nie-web/src/inacord-web/DownloadPage.tsx:56"],
 	},
 	{
 		label: "Recharge",
@@ -2334,7 +2325,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Temps recharge tactiques spéciales (perso) - %",
 		closestFamily: "skill_text",
 		closestHash: "0x75652bf5",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:199", "apps/nie-web/src/game/ui-text-map.ts:2419"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:199"],
 	},
 	{
 		label: "Relâcher",
@@ -2342,7 +2333,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Tracez un cœur rose pale de votre lame,\npuis frappez-le vers l'avant pour relâcher un tir envoûtant\nvers le but.",
 		closestFamily: "skill_text",
 		closestHash: "0x0186ac2d",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2427", "apps/nie-web/src/screens/Shop.tsx:229"],
+		usedAt: ["apps/nie-web/src/screens/Shop.tsx:229"],
 	},
 	{
 		label: "Retour au menu",
@@ -2350,7 +2341,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "La période du tournoi a changé.\nRetour au menu principal du mode Victory Road.",
 		closestFamily: "system_text",
 		closestHash: "0x3a9d5c7d",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2435", "apps/nie-web/src/pages/Avatar.tsx:175"],
+		usedAt: ["apps/nie-web/src/pages/Avatar.tsx:175"],
 	},
 	{
 		label: "Récents",
@@ -2358,7 +2349,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Un peu d'amour pour mes récents succès !\nPas de haine, ok ?",
 		closestFamily: "rpg_battle_message_text",
 		closestHash: "0x636bb901",
-		usedAt: ["apps/nie-web/src/desktop/lib/i18n.tsx:45", "apps/nie-web/src/game/ui-text-map.ts:2443"],
+		usedAt: ["apps/nie-web/src/desktop/lib/i18n.tsx:45"],
 	},
 	{
 		label: "Réussite",
@@ -2366,7 +2357,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Conditions de Réussite",
 		closestFamily: "menu_text",
 		closestHash: "0x9bb894f1",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2451", "packages/inacord-ui/src/components/wiki/wiki/SkillVideoPlayer.tsx:30"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/SkillVideoPlayer.tsx:30"],
 	},
 	{
 		label: "Saisons",
@@ -2374,7 +2365,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Inter-saisons",
 		closestFamily: "help_list_text",
 		closestHash: "0x0cc4e7d2",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:413", "apps/nie-web/src/game/ui-text-map.ts:2459"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:413"],
 	},
 	{
 		label: "Search",
@@ -2382,7 +2373,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Searcher",
 		closestFamily: "chara_text",
 		closestHash: "0x8984546e",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2467", "packages/inacord-ui/src/components/wiki/wiki/GlobalSearchDialog.tsx:72"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/GlobalSearchDialog.tsx:72"],
 	},
 	{
 		label: "Signature",
@@ -2390,7 +2381,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "C'est qu'une signature, allez.",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0x483f8ce5",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2475", "apps/nie-web/src/inacord-web/DownloadPage.tsx:57"],
+		usedAt: ["apps/nie-web/src/inacord-web/DownloadPage.tsx:57"],
 	},
 	{
 		label: "Slot",
@@ -2398,7 +2389,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "SLOTH",
 		closestFamily: "chara_text",
 		closestHash: "0xd7cd93f2",
-		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:275", "apps/nie-web/src/game/ui-text-map.ts:2483"],
+		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:275"],
 	},
 	{
 		label: "Soul",
@@ -2406,7 +2397,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Soulèvement",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0x79415caa",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2491", "packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:22"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/filters/PassivePlayerFilters.tsx:22"],
 	},
 	{
 		label: "Source",
@@ -2414,7 +2405,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Champon Sourcebleue",
 		closestFamily: "map_text",
 		closestHash: "0xfa0943e9",
-		usedAt: ["apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:193", "apps/nie-web/src/game/ui-text-map.ts:2499"],
+		usedAt: ["apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:193"],
 	},
 	{
 		label: "Spécial",
@@ -2422,7 +2413,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Tactiques spéciales",
 		closestFamily: "help_list_text",
 		closestHash: "0x9a657e3e",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2507", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:9"],
 	},
 	{
 		label: "Statistiques",
@@ -2430,7 +2421,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "L'ATT et la DÉF sont calculées à partir des 7 statistiques de base du\njoueur. Elles peuvent donc augmenter à mesure que le joueur progresse.",
 		closestFamily: "help_list_text",
 		closestHash: "0x70552be3",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2523", "packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:46"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/ItemDetail.tsx:46"],
 	},
 	{
 		label: "Stock",
@@ -2438,7 +2429,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Stocks",
 		closestFamily: "chara_text",
 		closestHash: "0xa5eb766f",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2531", "apps/nie-web/src/screens/Shop.tsx:304"],
+		usedAt: ["apps/nie-web/src/screens/Shop.tsx:304"],
 	},
 	{
 		label: "Suivante",
@@ -2446,7 +2437,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Les fonctionnalités suivantes seront\najoutées dans de futures mises à jour :",
 		closestFamily: "system_text",
 		closestHash: "0x4b267476",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2539", "packages/inacord-ui/src/gallery/GalleryView.tsx:271"],
+		usedAt: ["packages/inacord-ui/src/gallery/GalleryView.tsx:271"],
 	},
 	{
 		label: "TP",
@@ -2454,7 +2445,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "TPK",
 		closestFamily: "staffroll_text",
 		closestHash: "0xcf419a32",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:198", "apps/nie-web/src/game/ui-text-map.ts:2547"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:198"],
 	},
 	{
 		label: "Temps de jeu",
@@ -2462,7 +2453,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Tu vas perdre tout\nton temps de jeu !",
 		closestFamily: "w20_npc_text",
 		closestHash: "0xf3e05a1d",
-		usedAt: ["apps/nie-web/src/desktop/components/SaveView.tsx:130", "apps/nie-web/src/game/ui-text-map.ts:2555"],
+		usedAt: ["apps/nie-web/src/desktop/components/SaveView.tsx:130"],
 	},
 	{
 		label: "Terrain",
@@ -2470,7 +2461,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Terrain Wild",
 		closestFamily: "item_text",
 		closestHash: "0x22299f1e",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:500", "apps/nie-web/src/game/ui-text-map.ts:2563"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:500"],
 	},
 	{
 		label: "Théâtre",
@@ -2478,7 +2469,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Club de théâtre",
 		closestFamily: "data_file_text",
 		closestHash: "0x90d16b13",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2571", "packages/inacord-ui/src/gallery/gallery.ts:48"],
+		usedAt: ["packages/inacord-ui/src/gallery/gallery.ts:48"],
 	},
 	{
 		label: "Touches",
@@ -2486,7 +2477,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Configuration des touches",
 		closestFamily: "menu_text",
 		closestHash: "0xe5a3623f",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2579", "packages/inacord-ui/src/components/game/GameHintBar.tsx:40"],
+		usedAt: ["packages/inacord-ui/src/components/game/GameHintBar.tsx:40"],
 	},
 	{
 		label: "Toutes",
@@ -2494,7 +2485,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Toutes nos excuses",
 		closestFamily: "post_text",
 		closestHash: "0x68bbf6eb",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2587", "packages/inacord-ui/src/components/wiki/wiki/QuestFilterBar.tsx:10"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/QuestFilterBar.tsx:10"],
 	},
 	{
 		label: "Uniforme",
@@ -2502,7 +2493,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Nom de l'uniforme",
 		closestFamily: "menu_text",
 		closestHash: "0x80c3302e",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:465", "apps/nie-web/src/game/ui-text-map.ts:2595"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:465"],
 	},
 	{
 		label: "Valeur",
@@ -2510,7 +2501,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Arrêt valeureux",
 		closestFamily: "skill_text",
 		closestHash: "0xaf9e3111",
-		usedAt: ["apps/nie-web/src/desktop/components/CfgbinViewer.tsx:299", "apps/nie-web/src/game/ui-text-map.ts:2611"],
+		usedAt: ["apps/nie-web/src/desktop/components/CfgbinViewer.tsx:299"],
 	},
 	{
 		label: "Verrouillé",
@@ -2518,7 +2509,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Déverrouillé",
 		closestFamily: "menu_text",
 		closestHash: "0x98fdf852",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2619", "apps/nie-web/src/screens/TrophyGallery.tsx:315"],
+		usedAt: ["apps/nie-web/src/screens/TrophyGallery.tsx:315"],
 	},
 	{
 		label: "Vues",
@@ -2526,7 +2517,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Tu vas perdre un max de vues.",
 		closestFamily: "rpg_battle_cmd_text",
 		closestHash: "0x265f4670",
-		usedAt: ["apps/nie-web/src/desktop/components/CommandPalette.tsx:73", "apps/nie-web/src/game/ui-text-map.ts:2627"],
+		usedAt: ["apps/nie-web/src/desktop/components/CommandPalette.tsx:73"],
 	},
 	{
 		label: "WAV",
@@ -2534,7 +2525,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Waverly",
 		closestFamily: "chara_text",
 		closestHash: "0xe3091940",
-		usedAt: ["apps/nie-web/src/desktop/components/AudioBankPanel.tsx:86", "apps/nie-web/src/game/ui-text-map.ts:2635"],
+		usedAt: ["apps/nie-web/src/desktop/components/AudioBankPanel.tsx:86"],
 	},
 	{
 		label: "annulé",
@@ -2542,7 +2533,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Ils ont annulé\nles réunions parents-élèves.",
 		closestFamily: "w10i000_npc_text",
 		closestHash: "0xad0a9458",
-		usedAt: ["apps/nie-web/src/desktop/components/JobManager.tsx:20", "apps/nie-web/src/game/ui-text-map.ts:2643"],
+		usedAt: ["apps/nie-web/src/desktop/components/JobManager.tsx:20"],
 	},
 	{
 		label: "chaîne",
@@ -2550,7 +2541,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Chaîne de tir",
 		closestFamily: "help_list_text",
 		closestHash: "0xd1a9944b",
-		usedAt: ["apps/nie-web/src/desktop/lib/cfgbinModel.ts:583", "apps/nie-web/src/game/ui-text-map.ts:2651"],
+		usedAt: ["apps/nie-web/src/desktop/lib/cfgbinModel.ts:583"],
 	},
 	{
 		label: "dans votre",
@@ -2558,7 +2549,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Recruter dans votre équipe ?",
 		closestFamily: "menu_text",
 		closestHash: "0xdef5b73e",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2659", "apps/nie-web/src/inacord-web/DownloadPage.tsx:160"],
+		usedAt: ["apps/nie-web/src/inacord-web/DownloadPage.tsx:160"],
 	},
 	{
 		label: "détectée",
@@ -2566,7 +2557,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Données suspectes détectées chez l'adversaire.",
 		closestFamily: "menu_text",
 		closestHash: "0x04e06d51",
-		usedAt: ["apps/nie-web/src/desktop/components/DashboardView.tsx:375", "apps/nie-web/src/game/ui-text-map.ts:2667"],
+		usedAt: ["apps/nie-web/src/desktop/components/DashboardView.tsx:375"],
 	},
 	{
 		label: "entrée",
@@ -2574,7 +2565,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Collège Raimon (Entrée)",
 		closestFamily: "item_text",
 		closestHash: "0x076dddb5",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:943", "apps/nie-web/src/game/ui-text-map.ts:2675"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:943"],
 	},
 	{
 		label: "installé",
@@ -2582,7 +2573,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Installé dans une crique, ce groupe de primaires joue\ncomme des pros. Beaucoup ont le niveau de collégiens.",
 		closestFamily: "team_text",
 		closestHash: "0xf80e14f6",
-		usedAt: ["apps/nie-web/src/desktop/components/SettingsView.tsx:565", "apps/nie-web/src/game/ui-text-map.ts:2683"],
+		usedAt: ["apps/nie-web/src/desktop/components/SettingsView.tsx:565"],
 	},
 	{
 		label: "les données",
@@ -2590,7 +2581,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Exporter les données (Multi-plateforme)",
 		closestFamily: "menu_text",
 		closestHash: "0x6a4485ff",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:959", "apps/nie-web/src/game/ui-text-map.ts:2691"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:959"],
 	},
 	{
 		label: "méthodes",
@@ -2598,7 +2589,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "La génoise garde l'image d'un dessert de luxe fait maison.\nNous devons concevoir de nouvelles méthodes de marketing.",
 		closestFamily: "w20_npc_text",
 		closestHash: "0x7f76ea44",
-		usedAt: ["apps/nie-web/src/desktop/components/ReForgeView.tsx:227", "apps/nie-web/src/game/ui-text-map.ts:2699"],
+		usedAt: ["apps/nie-web/src/desktop/components/ReForgeView.tsx:227"],
 	},
 	{
 		label: "À débloquer",
@@ -2606,7 +2597,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Consulter les contenus à débloquer et récupérer vos récompenses.",
 		closestFamily: "menu_text",
 		closestHash: "0xa785a272",
-		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:501", "apps/nie-web/src/game/ui-text-map.ts:2707"],
+		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:501"],
 	},
 	{
 		label: "Échec",
@@ -2614,16 +2605,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Échec et mat",
 		closestFamily: "skill_text",
 		closestHash: "0x9bedfb98",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2715", "packages/inacord-ui/src/components/wiki/wiki/SkillVideoPlayer.tsx:25"],
-	},
-	{
-		label: "Échec et mat",
-		searchHits: 1,
-		closest: "Échec et mat",
-		closestFamily: "skill_text",
-		closestHash: "0x9bedfb98",
-		homonymFamilies: ["skill_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2717", "apps/nie-web/src/game/ui-text-map.ts:2765"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/SkillVideoPlayer.tsx:25"],
 	},
 	{
 		label: "Édition",
@@ -2631,7 +2613,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Mode édition",
 		closestFamily: "help_list_text",
 		closestHash: "0x686e4428",
-		usedAt: ["apps/nie-web/src/desktop/components/AppMenu.tsx:171", "apps/nie-web/src/game/ui-text-map.ts:2723"],
+		usedAt: ["apps/nie-web/src/desktop/components/AppMenu.tsx:171"],
 	},
 	{
 		label: "Épisodes",
@@ -2639,7 +2621,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "En terminant le Mode Histoire, vous débloquez des épisodes additionnels spéciaux.\nCes épisodes resteront débloqués même si vous lancez une nouvelle partie avec Re: Histoire.",
 		closestFamily: "help_list_text",
 		closestHash: "0x4ec47f12",
-		usedAt: ["apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:257", "apps/nie-web/src/game/ui-text-map.ts:2731"],
+		usedAt: ["apps/nie-web/src/desktop/components/cinema/FicheDetail.tsx:257"],
 	},
 	{
 		label: "Épuisé",
@@ -2647,7 +2629,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Les joueurs doivent\nêtre épuisés.",
 		closestFamily: "w20_npc_text",
 		closestHash: "0x67f40b6d",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2739", "apps/nie-web/src/screens/Shop.tsx:325"],
+		usedAt: ["apps/nie-web/src/screens/Shop.tsx:325"],
 	},
 	{
 		label: "Équipe active",
@@ -2655,7 +2637,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Changer l'équipe active",
 		closestFamily: "menu_text",
 		closestHash: "0x66bd5ac6",
-		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:233", "apps/nie-web/src/game/ui-text-map.ts:2747"],
+		usedAt: ["apps/nie-web/src/desktop/components/LiveModView.tsx:233"],
 	},
 	{
 		label: "Événements",
@@ -2663,7 +2645,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Activer/désactiver les sous-titres pendant certains événements",
 		closestFamily: "menu_text",
 		closestHash: "0x464a80df",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2755", "packages/inacord-ui/src/gallery/gallery.ts:40"],
+		usedAt: ["packages/inacord-ui/src/gallery/gallery.ts:40"],
 	},
 	{
 		label: "échec",
@@ -2671,7 +2653,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Échec et mat",
 		closestFamily: "skill_text",
 		closestHash: "0x9bedfb98",
-		usedAt: ["apps/nie-web/src/desktop/components/JobManager.tsx:19", "apps/nie-web/src/game/ui-text-map.ts:2763"],
+		usedAt: ["apps/nie-web/src/desktop/components/JobManager.tsx:19"],
 	},
 	{
 		label: "échelle",
@@ -2679,7 +2661,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "Il nous faut élever notre\nconscience à une échelle cosmique...",
 		closestFamily: "rpg_battle_message_text",
 		closestHash: "0xa954f10d",
-		usedAt: ["apps/nie-web/src/desktop/components/editor/EditorView.tsx:543", "apps/nie-web/src/game/ui-text-map.ts:2771"],
+		usedAt: ["apps/nie-web/src/desktop/components/editor/EditorView.tsx:543"],
 	},
 	{
 		label: "état",
@@ -2687,224 +2669,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closest: "F-Coup d’État",
 		closestFamily: "item_text",
 		closestHash: "0xd776a794",
-		usedAt: ["apps/nie-web/src/desktop/components/ReForgeView.tsx:194", "apps/nie-web/src/game/ui-text-map.ts:2779"],
-	},
-	{
-		label: "Accessoire boule de riz",
-		searchHits: 2,
-		closest: "Accessoire boule de riz",
-		closestFamily: "item_text",
-		closestHash: "0x4a287b5a",
-		homonymFamilies: ["item_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1701"],
-	},
-	{
-		label: "Allemand",
-		searchHits: 2,
-		closest: "ALLEMAND",
-		closestFamily: "chara_text",
-		closestHash: "0x87f911a4",
-		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1136"],
-	},
-	{
-		label: "Anglais",
-		searchHits: 4,
-		closest: "Prof d'anglais sincère",
-		closestFamily: "chara_text",
-		closestHash: "0xc2869a15",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1459"],
-	},
-	{
-		label: "Annonce aux joueurs",
-		searchHits: 1,
-		closest: "Annonce aux joueurs",
-		closestFamily: "post_text",
-		closestHash: "0x44fb6131",
-		homonymFamilies: ["post_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1757"],
-	},
-	{
-		label: "Arrêt valeureux",
-		searchHits: 2,
-		closest: "Arrêt valeureux",
-		closestFamily: "skill_text",
-		closestHash: "0xaf9e3111",
-		homonymFamilies: ["skill_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2613"],
-	},
-	{
-		label: "Capitaine",
-		searchHits: 27,
-		closest: "Capitaine Man",
-		closestFamily: "chara_text_roma",
-		closestHash: "0xd832f074",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1795"],
-	},
-	{
-		label: "Comme prévu.",
-		searchHits: 2,
-		closest: "Comme prévu.",
-		closestFamily: "w14_npc_text",
-		closestHash: "0x5195faac",
-		homonymFamilies: ["w14_npc_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2413"],
-	},
-	{
-		label: "Emblème Top 4",
-		searchHits: 1,
-		closest: "Emblème Top 4",
-		closestFamily: "item_text",
-		closestHash: "0xae1fb179",
-		homonymFamilies: ["item_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1365"],
-	},
-	{
-		label: "F-Coup d’État",
-		searchHits: 1,
-		closest: "F-Coup d’État",
-		closestFamily: "item_text",
-		closestHash: "0xd776a794",
-		homonymFamilies: ["item_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2781"],
-	},
-	{
-		label: "Fille",
-		searchHits: 50,
-		closest: "Filler",
-		closestFamily: "chara_text",
-		closestHash: "0x6212388f",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1979"],
-	},
-	{
-		label: "Gants",
-		searchHits: 25,
-		closest: "Gants pastel",
-		closestFamily: "item_text",
-		closestHash: "0x60c56222",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2011"],
-	},
-	{
-		label: "Garçon cool",
-		searchHits: 2,
-		closest: "Garçon cool",
-		closestFamily: "chara_text",
-		closestHash: "0xecccbe9c",
-		homonymFamilies: ["chara_text", "chara_text_roma"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2021"],
-	},
-	{
-		label: "Griffon, seigneur du règne animal",
-		searchHits: 2,
-		closest: "Griffon, seigneur du règne animal",
-		closestFamily: "skill_text",
-		closestHash: "0x2d186134",
-		homonymFamilies: ["skill_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1749"],
-	},
-	{
-		label: "Huit équipes en lice !",
-		searchHits: 1,
-		closest: "Huit équipes en lice !",
-		closestFamily: "w17_npc_text",
-		closestHash: "0x1ee541f6",
-		homonymFamilies: ["w17_npc_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1245"],
-	},
-	{
-		label: "ICHINOSE à tout prix !",
-		searchHits: 1,
-		closest: "ICHINOSE à tout prix !",
-		closestFamily: "soccer_game_title",
-		closestHash: "0x79ec2f5e",
-		homonymFamilies: ["soccer_game_title"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2397"],
-	},
-	{
-		label: "Japonais",
-		searchHits: 13,
-		closest: "Noms japonais",
-		closestFamily: "menu_text",
-		closestHash: "0x451b9634",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2099"],
-	},
-	{
-		label: "Maillot",
-		searchHits: 50,
-		closest: "Maillot Zeus",
-		closestFamily: "item_text",
-		closestHash: "0x903bc45d",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2139"],
-	},
-	{
-		label: "Partenaires malgré tout",
-		searchHits: 1,
-		closest: "Partenaires malgré tout",
-		closestFamily: "item_text",
-		closestHash: "0x373e599e",
-		homonymFamilies: ["item_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2309"],
-	},
-	{
-		label: "Pfiou, on l'a échappé belle.",
-		searchHits: 1,
-		closest: "Pfiou, on l'a échappé belle.",
-		closestFamily: "w21_npc_text",
-		closestHash: "0xbf685dc0",
-		homonymFamilies: ["w21_npc_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1437"],
-	},
-	{
-		label: "Prof d'anglais sincère",
-		searchHits: 2,
-		closest: "Prof d'anglais sincère",
-		closestFamily: "chara_text",
-		closestHash: "0xc2869a15",
-		homonymFamilies: ["chara_text", "chara_text_roma"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1461"],
-	},
-	{
-		label: "Résurgence du côté obscur",
-		searchHits: 1,
-		closest: "Résurgence du côté obscur",
-		closestFamily: "soccer_game_title",
-		closestHash: "0x5f0ddb47",
-		homonymFamilies: ["soccer_game_title"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1877"],
-	},
-	{
-		label: "Stades",
-		searchHits: 3,
-		closest: "La nourriture dans les stades\nest sous-estimée !",
-		closestFamily: "w17_npc_text",
-		closestHash: "0xd1b6b7ca",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2515"],
-	},
-	{
-		label: "Toutes nos excuses",
-		searchHits: 6,
-		closest: "Toutes nos excuses",
-		closestFamily: "post_text",
-		closestHash: "0x68bbf6eb",
-		homonymFamilies: ["post_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2589"],
-	},
-	{
-		label: "Uniformes",
-		searchHits: 10,
-		closest: "Obtenir 50 uniformes.",
-		closestFamily: "trophy_text",
-		closestHash: "0x55b17f9d",
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:2603"],
-	},
-	{
-		label: "Événement du White Day",
-		searchHits: 2,
-		closest: "Événement du White Day",
-		closestFamily: "post_text",
-		closestHash: "0xb483f545",
-		homonymFamilies: ["post_text"],
-		usedAt: ["apps/nie-web/src/game/ui-text-map.ts:1693"],
+		usedAt: ["apps/nie-web/src/desktop/components/ReForgeView.tsx:194"],
 	},
 ];
 
