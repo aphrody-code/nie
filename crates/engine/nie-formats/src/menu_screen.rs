@@ -331,6 +331,15 @@ pub fn build(
             objects.push(json!({
                 "name": object.name.clone(),
                 "layer": layer.clone(),
+                // Le RANG de cet exemplaire parmi ceux que les locators posent.
+                //
+                // Un objet de liste est un gabarit : le jeu le réplique une fois par emplacement
+                // (`CMenuAttachLocator`), et ces exemplaires sortent ici sous le MÊME nom, donc
+                // sous le même `crc32(nom)`. Sans ce rang, rien ne les distingue : masquer le
+                // troisième les masquait tous, ce que `docs/AVATAR.md` mesure comme le verrou réel
+                // du rendu de ces écrans. Le publier ne résout pas la commande qui les adresserait
+                // un par un — il rend la distinction EXPRIMABLE, ce qu'elle n'était pas.
+                "instance": position_index,
                 "parent": Value::Null,
                 "placementSource": placement_source.as_str(),
                 "transform": positioned,
@@ -434,6 +443,18 @@ mod tests {
             json!(["declare_mais_absent"])
         );
         assert_eq!(layout["objects"], json!([]));
+    }
+
+    /// Sans octets, aucun objet n'est émis — et aucun exemplaire supplémentaire n'est compté.
+    ///
+    /// Ce test ne couvre PAS l'émission de `instance` sur un gabarit répliqué : les `.objbin` de
+    /// menu vivent dans les CPK et ce montage ne les extrait pas, donc rien ici ne peut poser un
+    /// locator réel. Cette partie est exercée par le chemin de `nie-site`, qui monte le VFS.
+    #[test]
+    fn sans_octets_aucun_objet_ni_exemplaire_supplementaire() {
+        let layout = build(&Vide, &spec(), "fr", &[], &BTreeMap::new());
+        assert_eq!(layout["objects"], json!([]));
+        assert_eq!(layout["diagnostics"]["attachInstancesExtra"], 0);
     }
 
     /// Le contrat que lit le navigateur est nommé dans le document lui-même.
