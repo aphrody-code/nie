@@ -49,7 +49,7 @@ use wgpu::util::DeviceExt;
 mod gpu_select;
 
 use nie_formats::vfs::Vfs;
-use nie_formats::{cfgbin, font, g4pkm, g4tx, g4tx_decode, menu, objbin};
+use nie_formats::{cfgbin, font, g4pkm, g4tx, g4tx_decode, menu, menu_layout, objbin};
 // Primitives 2D pures centralisées dans nie-formats::raster2d (dédup Phase 2 ; le blend reste local, landmine #5).
 use nie_formats::menu::{choose_asset_basename, resolve_asset_basename};
 use nie_formats::raster2d::{crop_rgba, scale_nearest};
@@ -857,21 +857,6 @@ fn load_menu_font(game_dir: &Path) -> Option<(Vec<u8>, u32, font::FontMetrics)> 
     Some((atlas, aw, font::parse_metrics(&cfg)))
 }
 
-/// Extrait le libellé texte RÉSOLU d'un objet de layout. Le champ `text` est hétérogène : un hash
-/// `"0x…"` non résolu ou un nombre → `None` (rien à rendre) ; un tableau `[{slot, text}]` (forme
-/// résolue par le résolveur de texte universel) → concatène les `text` non vides.
-fn resolved_text_label(text_val: &serde_json::Value) -> Option<String> {
-    let arr = text_val.as_array()?;
-    let parts: Vec<&str> = arr
-        .iter()
-        .filter_map(|e| e.get("text").and_then(serde_json::Value::as_str))
-        .filter(|s| !s.is_empty() && !s.starts_with("0x"))
-        .collect();
-    if parts.is_empty() {
-        return None;
-    }
-    Some(parts.join(" "))
-}
 
 /// Chemin du fichier listant les atlas d'icônes de menu (un chemin VFS logique par ligne, `#`=commentaire).
 const MENU_ICON_ATLASES: &str = "data/re/menu-icon-atlases.txt";
@@ -991,288 +976,73 @@ fn blit_over(
 fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> Result<()> {
     const W: u32 = 1280;
     const H: u32 = 720;
-    // Les calques sont concaténés dans l'ordre donné : le tri final se fait sur (priorité, rang),
-    // donc à priorité égale un calque déclaré plus tard passe au-dessus — c'est l'empilement du jeu.
-    let mut objs: Vec<serde_json::Value> = Vec::new();
+
+    let mut textes = Vec::with_capacity(json_in.len());
     for chemin in json_in {
-        let txt = std::fs::read_to_string(chemin)
-            .with_context(|| format!("lecture du layout {}", chemin.display()))?;
-        let doc: serde_json::Value = serde_json::from_str(&txt)
-            .with_context(|| format!("layout JSON invalide : {}", chemin.display()))?;
-        objs.extend(doc["objects"].as_array().cloned().unwrap_or_default());
-    }
-    // Apply the same placement gate before either sprite decoding or text rasterization.
-    objs.retain(|object| {
-        menu::PlacementSource::allows_rendering(
-            object
-                .get("placementSource")
-                .map(|source| source.as_str().unwrap_or("")),
-            object["transform"].is_object(),
-        )
-    });
-
-    // Cache (octets, parse) par chemin g4tx logique.
-    let mut cache: std::collections::HashMap<String, Option<(Vec<u8>, g4tx::G4tx)>> =
-        std::collections::HashMap::new();
-
-    // Un élément à dessiner : pixels RGBA **natifs** + transform écran + priorité (z-order).
-    //
-    // Les pixels ne sont plus pré-agrandis ici : l'échelle est portée par le transform et
-    // appliquée par le compositeur de référence (`nie_formats::menu`), qui échantillonne en
-    // bilinéaire et sait tourner un sprite. Pré-agrandir au plus proche voisin, comme le faisait
-    // cette voie, jetait de l'information avant la composition et ignorait la rotation.
-    struct DrawItem {
-        prio: i64,
-        order: usize,
-        rgba: Vec<u8>,
-        w: u32,
-        h: u32,
-        transform: menu::ScreenTransform,
-        anchor_x: f32,
-        anchor_y: f32,
-        /// Mode de dessin lu dans l'objbin : 1 = additif.
-        draw_type: i64,
-    }
-    let mut items: Vec<DrawItem> = Vec::new();
-    let (mut n_region, mut n_static) = (0usize, 0usize);
-    let mut n_region_hash = 0usize;
-
-    for (order, o) in objs.iter().enumerate() {
-        if !o["visible"].as_bool().unwrap_or(false) {
-            continue;
-        }
-        // Charge la SOURCE de pixels : région d'atlas (runtime) en priorité, sinon texture statique.
-        let rt = &o["runtime"];
-        let region_src = (|| {
-            let (g4tx_path, region) = (
-                rt["spriteRegionG4tx"].as_str()?,
-                rt["spriteRegion"].as_str()?,
-            );
-            let entry = cache.entry(g4tx_path.to_string()).or_insert_with(|| {
-                obtenir_g4tx_bytes(game_dir, g4tx_path)
-                    .ok()
-                    .and_then(|(_, b)| g4tx::parse(&b).ok().map(|p| (b, p)))
-            });
-            let (bytes, parsed) = entry.as_ref()?;
-            // Un nom d'icône désigne soit une TEXTURE entière du conteneur, soit une région dans
-            // une porteuse (`avatar01_13.g4tx` a les deux). Ne chercher que les sous-textures
-            // rendait l'atlas complet à la place de la moitié des icônes.
-            match parsed.named(region)? {
-                g4tx::NamedTarget::Texture(tex) => g4tx_decode::decode_texture_rgba(bytes, tex),
-                g4tx::NamedTarget::Region { texture, sub } => {
-                    let (fw, fh, full) = g4tx_decode::decode_texture_rgba(bytes, texture)?;
-                    crop_rgba(&full, fw, fh, (sub.x, sub.y, sub.width, sub.height))
-                }
-            }
-        })();
-        // Résolution de région par HASH (D1.b) : si l'objet porte un `spriteRegionHash` (= CRC32 du
-        // nom de région) non résolu en nom, on croppe la sous-région de SON atlas dont
-        // `CRC32(nom) == hash` — au lieu de rendre l'atlas entier (toutes ses sous-textures empilées).
-        // Même mécanisme CRC32 que partout (cf. `nie-core::ecs`, `cfgbin::crc32`).
-        let region_hash_src = (|| {
-            let srh = rt["spriteRegionHash"].as_u64().or_else(|| {
-                rt["spriteRegionHash"]
-                    .as_str()
-                    .and_then(|s| s.strip_prefix("0x"))
-                    .and_then(|h| u32::from_str_radix(h, 16).ok())
-                    .map(u64::from)
-            })? as u32;
-            if srh == 0 {
-                return None;
-            }
-            let logical = o["sprite"]["logicalPath"].as_str()?;
-            let basename = logical.rsplit('/').next()?;
-            let entry = cache.entry(logical.to_string()).or_insert_with(|| {
-                obtenir_g4tx_bytes(game_dir, basename)
-                    .ok()
-                    .and_then(|(_, b)| g4tx::parse(&b).ok().map(|p| (b, p)))
-            });
-            let (bytes, parsed) = entry.as_ref()?;
-            // Même angle mort que `region_src` : le hash peut être celui d'une TEXTURE du
-            // conteneur, pas seulement d'une sous-texture. Les textures d'abord, comme
-            // `g4tx::find_named` et `g4tx_decode::decode_named_to_rgba`.
-            for t in &parsed.textures {
-                if cfgbin::crc32(t.name.as_bytes()) == srh {
-                    return g4tx_decode::decode_texture_rgba(bytes, t);
-                }
-            }
-            for t in &parsed.textures {
-                for s in &t.sub_textures {
-                    if cfgbin::crc32(s.name.as_bytes()) == srh {
-                        let (fw, fh, full) = g4tx_decode::decode_texture_rgba(bytes, t)?;
-                        return crop_rgba(&full, fw, fh, (s.x, s.y, s.width, s.height));
-                    }
-                }
-            }
-            None
-        })();
-        let mut static_src = || {
-            let logical = o["sprite"]["logicalPath"].as_str()?;
-            let basename = logical.rsplit('/').next()?;
-            let stem = basename.strip_suffix(".g4tx").unwrap_or(basename);
-            let entry = cache.entry(logical.to_string()).or_insert_with(|| {
-                obtenir_g4tx_bytes(game_dir, basename)
-                    .ok()
-                    .and_then(|(_, b)| g4tx::parse(&b).ok().map(|p| (b, p)))
-            });
-            let (bytes, parsed) = entry.as_ref()?;
-            let tex = g4tx::select_main_texture(parsed, stem)?;
-            g4tx_decode::decode_texture_rgba(bytes, tex)
-        };
-        let via_hash = region_src.is_none() && region_hash_src.is_some();
-        let (is_region, (cw, chh, crop)) = match region_src.or(region_hash_src) {
-            Some(src) => (true, src),
-            None => match static_src() {
-                Some(src) => (false, src),
-                None => continue,
-            },
-        };
-        if via_hash {
-            n_region_hash += 1;
-        }
-
-        // Transform : échelle + ancre. Défauts neutres si absents.
-        let tr = &o["transform"];
-        let f = |k: &str, def: f64| tr[k].as_f64().unwrap_or(def);
-        let (sx, sy) = (f("scaleX", 1.0).max(0.0), f("scaleY", 1.0).max(0.0));
-        let (ax, ay) = (f("anchorX", 0.5), f("anchorY", 0.5));
-        let (px, py) = (f("x", 0.0), f("y", 0.0));
-        if crop.is_empty() || cw == 0 || chh == 0 {
-            continue;
-        }
-        if is_region {
-            n_region += 1;
-        } else {
-            n_static += 1;
-        }
-        items.push(DrawItem {
-            prio: o["drawPriority"].as_i64().unwrap_or(0),
-            order,
-            rgba: crop,
-            w: cw,
-            h: chh,
-            transform: menu::ScreenTransform {
-                x_px: px as f32,
-                y_px: py as f32,
-                scale_x: sx as f32,
-                scale_y: sy as f32,
-                rot: f("rot", 0.0) as f32,
-            },
-            anchor_x: ax as f32,
-            anchor_y: ay as f32,
-            draw_type: o["drawType"].as_i64().unwrap_or(0),
-        });
-    }
-
-    // ── Passe TEXTE (D1.d) : pose les libellés RÉSOLUS au transform de l'objet, au-dessus des
-    // sprites. Police chargée à la demande (atlas 44 Mo). Les positions viennent du driver — les
-    // libellés hors canevas (y>720) sont clippés par `blit_over` (limite de placement connue D1.c).
-    let mut font: Option<(Vec<u8>, u32, font::FontMetrics)> = None;
-    let mut font_tried = false;
-    let mut n_text = 0usize;
-    for (order, o) in objs.iter().enumerate() {
-        if !o["visible"].as_bool().unwrap_or(false) {
-            continue;
-        }
-        let Some(label) = resolved_text_label(&o["text"]) else {
-            continue;
-        };
-        if !font_tried {
-            font = load_menu_font(game_dir);
-            font_tried = true;
-        }
-        let Some((atlas, aw, metrics)) = font.as_ref() else {
-            break; // police absente — inutile de réessayer chaque objet
-        };
-        let ch = u32::from(metrics.dims.cell_height).max(1);
-        let cw = ((label.chars().count() as u32).max(1) * ch).max(ch);
-        let mut buf = alloc_canvas(cw, ch);
-        let adv = font::draw_text(
-            atlas,
-            *aw,
-            metrics,
-            &label,
-            &mut buf,
-            cw * 4,
-            0,
-            i32::from(metrics.dims.ascent),
-            [255, 255, 255, 255],
+        textes.push(
+            std::fs::read_to_string(chemin)
+                .with_context(|| format!("lecture du layout {}", chemin.display()))?,
         );
-        if adv <= 0 {
-            continue; // aucun glyphe résolu
-        }
-        // `cw` est une borne haute (une cellule carrée par caractère) ; l'avance rendue est la
-        // largeur RÉELLE du libellé. Recadrer dessus est nécessaire pour pouvoir l'ancrer : une
-        // boîte surdimensionnée décalerait le texte de la moitié de son excédent.
-        let largeur = u32::try_from(adv).unwrap_or(cw).clamp(1, cw);
-        let Some((tw, th, texte)) = crop_rgba(&buf, cw, ch, (0, 0, largeur as i16, ch as i16))
-        else {
-            continue;
-        };
-        let tr = &o["transform"];
-        let f = |k: &str, d: f64| tr[k].as_f64().unwrap_or(d);
-        // Même convention d'ancre que les sprites : le transform donne un PIVOT, pas un coin. Le
-        // texte se posait jusqu'ici au coin haut-gauche, donc décalé d'une demi-boîte par rapport
-        // au widget qu'il étiquette.
-        let (ax, ay) = (f("anchorX", 0.5), f("anchorY", 0.5));
-        items.push(DrawItem {
-            prio: o["drawPriority"].as_i64().unwrap_or(0) + 1000, // texte au-dessus des sprites
-            order: order + 1_000_000,
-            rgba: texte,
-            w: tw,
-            h: th,
-            // Le libellé est déjà rendu à sa taille : échelle neutre, seule l'ancre le place.
-            transform: menu::ScreenTransform {
-                x_px: f("x", 0.0) as f32,
-                y_px: f("y", 0.0) as f32,
-                scale_x: 1.0,
-                scale_y: 1.0,
-                rot: 0.0,
-            },
-            anchor_x: ax as f32,
-            anchor_y: ay as f32,
-            draw_type: 0,
-        });
-        n_text += 1;
     }
+    let refs: Vec<&str> = textes.iter().map(String::as_str).collect();
+    let layout = menu_layout::MenuLayout::from_json(&refs).map_err(|e| anyhow::anyhow!(e))?;
 
-    // Z-order : priorité de dessin croissante (fond d'abord), départage par ordre de déclaration.
-    items.sort_by(|a, b| a.prio.cmp(&b.prio).then(a.order.cmp(&b.order)));
-    let sprites: Vec<menu::CompositeSprite> = items
-        .iter()
-        .map(|it| menu::CompositeSprite {
-            rgba: &it.rgba,
-            width: it.w,
-            height: it.h,
-            transform: it.transform,
-            anchor_x: it.anchor_x,
-            anchor_y: it.anchor_y,
-            couleur: [1.0; 4],
-            // `drawType` vient du composant de rendu de l'objbin. 1 = additif (halos, néons) :
-            // les mélanger en « over » les éteint. Les autres valeurs — dont 4, dont la
-            // sémantique n'est pas établie — restent en mélange normal plutôt qu'inventées.
-            mode: if it.draw_type == 1 {
-                menu::BlendMode::Additif
-            } else {
-                menu::BlendMode::Normal
-            },
+    // Les octets, et rien d'autre : la composition elle-même vit dans `nie_formats::menu_layout`,
+    // portable, donc partagée telle quelle avec le navigateur. Ce binaire n'est plus que l'hôte
+    // qui sait lire le jeu monté sur CETTE machine.
+    let mut octets: std::collections::BTreeMap<String, Vec<u8>> = std::collections::BTreeMap::new();
+    for cle in layout.required_assets() {
+        if let Ok((_, donnees)) = obtenir_g4tx_bytes(game_dir, &cle) {
+            octets.insert(cle, donnees);
+        }
+    }
+    let police = if layout.has_text_labels() {
+        load_menu_font(game_dir).map(|(atlas, atlas_width, metrics)| menu_layout::MenuFont {
+            atlas,
+            atlas_width,
+            metrics,
         })
-        .collect();
-    let canvas = menu::compose(W, H, &sprites);
-    let n_drawn = items.len();
+    } else {
+        None
+    };
+    let assets = AssetsDuJeu { octets, police };
 
-    let png = encoder_rgba_png(&canvas, W, H)?;
+    let composee = layout.compose(&assets, W, H);
+    let rapport = composee.report;
+
+    let png = encoder_rgba_png(&composee.rgba, W, H)?;
     std::fs::write(png_out, &png).with_context(|| format!("écriture {}", png_out.display()))?;
-    let opaques = canvas.chunks_exact(4).filter(|p| p[3] != 0).count();
+    let opaques = composee.rgba.chunks_exact(4).filter(|p| p[3] != 0).count();
     println!(
-        "compose-layout : {n_drawn} éléments ({n_static} sprites statiques + {n_region} régions runtime \
-         + {n_region_hash} régions par hash + {n_text} libellés texte) sur {}×{} ; {opaques} px opaques -> {} ({} octets)",
+        "compose-layout : {} éléments ({} sprites statiques + {} régions runtime \
+         + {} régions par hash + {} libellés texte) sur {}×{} ; {opaques} px opaques -> {} ({} octets)",
+        rapport.drawn,
+        rapport.statics,
+        rapport.regions,
+        rapport.region_hashes,
+        rapport.texts,
         W,
         H,
         png_out.display(),
         png.len()
     );
     Ok(())
+}
+
+/// Les assets du jeu monté sur cette machine, déjà lus, pour le compositeur portable.
+struct AssetsDuJeu {
+    octets: std::collections::BTreeMap<String, Vec<u8>>,
+    police: Option<menu_layout::MenuFont>,
+}
+
+impl menu_layout::MenuAssets for AssetsDuJeu {
+    fn g4tx(&self, cle: &str) -> Option<&[u8]> {
+        self.octets.get(cle).map(Vec::as_slice)
+    }
+
+    fn font(&self) -> Option<&menu_layout::MenuFont> {
+        self.police.as_ref()
+    }
 }
 
 /// Sélectionne automatiquement un chemin `.g4tx` prioritaire depuis le VFS.
