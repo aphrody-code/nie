@@ -114,9 +114,15 @@ blocker named when there is one. Regenerate it; do not quote it.
    dies on Lua's first error path with `fatal runtime error: Rust cannot catch foreign
    exceptions, aborting`. The cause is the LINK, not the driver: the artifact was produced
    without emscripten's JS-side C++ exception support, so Lua's `longjmp` surfaces as a JS
-   exception Rust cannot catch. Relinking with `-sSUPPORT_LONGJMP=emscripten` (or
-   `-fwasm-exceptions`) is the next step, and it is the size of a build flag. Until then the
-   driver returns an empty table and the screens fall back on the server's resolution.
+   exception Rust cannot catch. Relinking with `-fwasm-exceptions` and
+   `-sSUPPORT_LONGJMP=wasm` was tried and **does not fix it** — measured: the rebuilt artifact is
+   byte-for-byte the same size (870,512) and still imports the `invoke_*` JS trampolines, because
+   the vendored Lua C sources are compiled by `lua-src`'s `cc::Build`, which ignores
+   `CFLAGS_wasm32_unknown_emscripten` (the same wall this crate already documents for `-fPIC`).
+   A link flag cannot change how an object was compiled: the fix is to compile Lua's sources with
+   `-fwasm-exceptions`, which means forking `lua-src`'s build script or vendoring the sources
+   here. Until then the driver returns an empty table and the screens fall back on the server's
+   resolution.
 
 **Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no
 `packages/azalee*`, and three inert mentions left in shared code — a team-name string, role

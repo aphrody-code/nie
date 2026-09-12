@@ -48,6 +48,29 @@ cargo build --release --target wasm32-unknown-emscripten
 Output: `target/wasm32-unknown-emscripten/release/deps/nie_lua_web.wasm` (867,791 bytes,
 unoptimized `-O3` rustc output; `wasm-opt` was not run in this pass — see Known gaps).
 
+### Measured NEGATIVE result: `-fwasm-exceptions` at link time does not fix the abort
+
+In the page, the module aborts on Lua's first protected error with `fatal runtime error: Rust
+cannot catch foreign exceptions` (measured 2026-09-12 on the deployed site). The obvious reading
+is that the link lacks emscripten's exception support, so the link was retried with
+
+```sh
+-C link-arg=-fwasm-exceptions -C link-arg=-sSUPPORT_LONGJMP=wasm \
+CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions
+```
+
+**It changes nothing.** The rebuilt artifact is 870,512 bytes — the same size as before — and
+still imports the JS trampolines (`invoke_*` still present in the module). The reason is the
+same one this file already records for `-fPIC`: the vendored Lua 5.2.4 C sources are compiled by
+`lua-src`'s `cc::Build`, which does not honour `CFLAGS_wasm32_unknown_emscripten`. A link flag
+cannot change how an object file was already compiled.
+
+The fix therefore is not a flag on this crate: the C sources must be compiled with
+`-fwasm-exceptions`, which means either patching/forking `lua-src`'s build script, or vendoring
+Lua's sources here and compiling them with an explicit `cc::Build`. Until then the browser
+driver (`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back
+on the server's resolution.
+
 ### The three link-time corrections (`.cargo/config.toml`)
 
 `rustc`'s default for a `cdylib` on `wasm32-unknown-emscripten` is an emcc **side module**
