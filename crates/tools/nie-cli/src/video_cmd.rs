@@ -475,7 +475,10 @@ fn convert_webm(source: &Path, out: &Path, nom: Option<&str>, fps: u32) -> Resul
         }
         _ => {
             let nom_final = nom.unwrap_or_else(|| {
-                source.file_name().and_then(|f| f.to_str()).unwrap_or("video.usm")
+                source
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("video.usm")
             });
             let usm_bytes = nie_formats::usm::muxer_usm_vp9(
                 nom_final,

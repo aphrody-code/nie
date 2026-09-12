@@ -6,10 +6,10 @@
 //! - Deterministic physics and match simulation via `nie_runtime::World`
 //! - Framebuffer rendering (1280x720) and optional image export (PPM/PNG)
 
-use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use nie_app::flow::Screen;
 use nie_app::render::{Font, H, W};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, clap::Args)]
 pub struct PlayArgs {
@@ -150,7 +150,8 @@ pub fn run(args: PlayArgs) -> Result<()> {
     if let Some(out_path) = &args.out {
         let font = Font::default();
         let frame = screen.render(&font);
-        write_ppm(out_path, &frame).with_context(|| format!("écriture du rendu vers {}", out_path.display()))?;
+        write_ppm(out_path, &frame)
+            .with_context(|| format!("écriture du rendu vers {}", out_path.display()))?;
         frame_rendered = true;
         out_path_str = Some(out_path.display().to_string());
     }
@@ -174,7 +175,9 @@ pub fn run(args: PlayArgs) -> Result<()> {
             final_screen_name,
             total_frames,
             summary.simulated_time_seconds,
-            args.out.as_ref().map_or("none", |p| p.to_str().unwrap_or("-"))
+            args.out
+                .as_ref()
+                .map_or("none", |p| p.to_str().unwrap_or("-"))
         );
         if let Some(score) = &summary.match_score {
             println!(

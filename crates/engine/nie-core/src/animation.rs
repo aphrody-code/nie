@@ -170,7 +170,10 @@ impl PoseFrame {
     /// (or is mapped to `None`), its local transform is its world transform.
     /// Hierarchy is evaluated forward; cyclic relationships or missing parents fail safely.
     #[must_use]
-    pub fn evaluate_world_poses(&self, parents: &[(BoneId, Option<BoneId>)]) -> Vec<(BoneId, BonePose)> {
+    pub fn evaluate_world_poses(
+        &self,
+        parents: &[(BoneId, Option<BoneId>)],
+    ) -> Vec<(BoneId, BonePose)> {
         let mut world_poses = Vec::with_capacity(self.bones.len());
         for &(bone_id, local_pose) in &self.bones {
             let mut current_id = bone_id;
@@ -512,12 +515,12 @@ mod tests {
         let frame = PoseFrame {
             skeleton: SkeletonId::new(1),
             time_seconds: 0.0,
-            bones: vec![
-                (BoneId::new(0), parent),
-                (BoneId::new(1), child),
-            ],
+            bones: vec![(BoneId::new(0), parent), (BoneId::new(1), child)],
         };
-        let parents = [(BoneId::new(0), None), (BoneId::new(1), Some(BoneId::new(0)))];
+        let parents = [
+            (BoneId::new(0), None),
+            (BoneId::new(1), Some(BoneId::new(0))),
+        ];
         let world_poses = frame.evaluate_world_poses(&parents);
         assert_eq!(world_poses.len(), 2);
         assert_eq!(world_poses[0].0, BoneId::new(0));

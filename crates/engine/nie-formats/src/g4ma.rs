@@ -75,7 +75,9 @@ impl G4ma {
     /// Recherche un clip par son hash CRC32.
     #[must_use]
     pub fn find_clip_by_hash(&self, crc32: u32) -> Option<&Clip> {
-        self.motion.as_ref().and_then(|m| m.find_clip_by_hash(crc32))
+        self.motion
+            .as_ref()
+            .and_then(|m| m.find_clip_by_hash(crc32))
     }
 }
 
@@ -226,7 +228,9 @@ mod tests {
         assert_eq!(clip.frame_count(), 61);
         assert_eq!(clip.fps, 60);
 
-        let clip_by_hash = g.find_clip_by_hash(expected_hash).expect("clip trouvé par hash");
+        let clip_by_hash = g
+            .find_clip_by_hash(expected_hash)
+            .expect("clip trouvé par hash");
         assert_eq!(clip_by_hash.name, "mat0");
     }
 

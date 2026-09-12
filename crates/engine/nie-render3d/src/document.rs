@@ -383,7 +383,11 @@ impl SceneDocumentV2 {
                     ];
                     let rotated = rotate_vector_by_quat(inv_scaled, rot);
                     let length = rotated.iter().map(|v| v * v).sum::<f32>().sqrt().max(1e-12);
-                    *normal = [rotated[0] / length, rotated[1] / length, rotated[2] / length];
+                    *normal = [
+                        rotated[0] / length,
+                        rotated[1] / length,
+                        rotated[2] / length,
+                    ];
                 }
                 primitive.texture = primitive.texture.map(|t| t + texture_base);
             }

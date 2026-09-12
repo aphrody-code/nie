@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 //! Conteneur et flux **IVF** (Indeo Video Format / format de test VP8/VP9/AV1).
 //!
 //! Utilisé nativement par CRI Sofdec2 pour encapsuler les flux vidéo VP9 dans les blocs `@SFV`,
@@ -63,7 +63,13 @@ pub struct IvfHeader {
 impl IvfHeader {
     /// Crée un en-tête IVF pour un flux VP9 avec la résolution et la cadence données.
     #[must_use]
-    pub fn vp9(largeur: u16, hauteur: u16, cadence_num: u32, cadence_den: u32, total_images: u32) -> Self {
+    pub fn vp9(
+        largeur: u16,
+        hauteur: u16,
+        cadence_num: u32,
+        cadence_den: u32,
+        total_images: u32,
+    ) -> Self {
         Self {
             version: 0,
             fourcc: FOURCC_VP90,
@@ -168,7 +174,11 @@ impl<'a> IvfIter<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         let debut = if data.len() >= 32 && data[..4] == IVF_MAGIC {
             let hlen = u16::from_le_bytes([data[6], data[7]]) as usize;
-            if hlen >= 32 && hlen <= data.len() { hlen } else { 32 }
+            if hlen >= 32 && hlen <= data.len() {
+                hlen
+            } else {
+                32
+            }
         } else {
             0
         };
@@ -233,20 +243,10 @@ pub fn demuxer_ivf<'a>(data: &'a [u8]) -> Result<(IvfHeader, Vec<IvfTrame<'a>>),
 ///
 /// `cadence` est le tuple `(num, den)` en i/s (ex. `(60, 1)` ou `(30000, 1001)`).
 #[must_use]
-pub fn emballer_ivf(
-    largeur: u16,
-    hauteur: u16,
-    cadence: (u32, u32),
-    trames: &[&[u8]],
-) -> Vec<u8> {
-    let header = IvfHeader::vp9(
-        largeur,
-        hauteur,
-        cadence.0,
-        cadence.1,
-        trames.len() as u32,
-    );
-    let mut out = Vec::with_capacity(32 + trames.len() * 12 + trames.iter().map(|t| t.len()).sum::<usize>());
+pub fn emballer_ivf(largeur: u16, hauteur: u16, cadence: (u32, u32), trames: &[&[u8]]) -> Vec<u8> {
+    let header = IvfHeader::vp9(largeur, hauteur, cadence.0, cadence.1, trames.len() as u32);
+    let mut out =
+        Vec::with_capacity(32 + trames.len() * 12 + trames.iter().map(|t| t.len()).sum::<usize>());
     out.extend_from_slice(&header.to_bytes());
 
     for (i, &trame) in trames.iter().enumerate() {

@@ -177,7 +177,16 @@ pub fn run(cmd: AtlasCmd) -> Result<()> {
             no_link,
             redis,
             json,
-        } => build(&db, &root, &kb, no_kb, row_cap, no_link, redis.as_deref(), json),
+        } => build(
+            &db,
+            &root,
+            &kb,
+            no_kb,
+            row_cap,
+            no_link,
+            redis.as_deref(),
+            json,
+        ),
         AtlasCmd::Status { db, json } => status(&db, json),
         AtlasCmd::Menu { db, json } => menu_screens(&db, json),
         AtlasCmd::Search {
@@ -215,11 +224,7 @@ pub fn run(cmd: AtlasCmd) -> Result<()> {
             metrics.as_deref(),
             log.as_deref(),
         ),
-        AtlasCmd::Docs {
-            db,
-            orphans,
-            limit,
-        } => docs(&db, orphans, limit),
+        AtlasCmd::Docs { db, orphans, limit } => docs(&db, orphans, limit),
         AtlasCmd::Dupes { db, zone, limit } => dupes(&db, zone.as_deref(), limit),
         AtlasCmd::Sync { db, redis, prefix } => sync(&db, &redis, &prefix),
     }
@@ -375,7 +380,10 @@ fn record_kb_metrics(atlas: &Atlas, digest: &nie_index::atlas::KbDigest) -> Resu
         None,
         "atlas import_kb (COUNT borné par --row-cap)",
         None,
-        Some(&format!("{} tables, {} plafonnées", digest.tables, digest.capped)),
+        Some(&format!(
+            "{} tables, {} plafonnées",
+            digest.tables, digest.capped
+        )),
     )?;
     if let Some(cov) = digest.coverage {
         atlas.record_metric(

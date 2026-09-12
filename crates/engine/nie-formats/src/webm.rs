@@ -570,14 +570,19 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
     let mut segment_fin = None;
 
     while pos < data.len() {
-        let Some((elem_id, nid)) = lire_id(&data[pos..]) else { break };
-        let Some((taille, nsz)) = lire_taille(&data[pos + nid..]) else { break };
-        let charge_debut = pos + nid + nsz;
-        let charge_fin = if taille == 0x00FF_FFFF_FFFF_FFFF || charge_debut + (taille as usize) > data.len() {
-            data.len()
-        } else {
-            charge_debut + (taille as usize)
+        let Some((elem_id, nid)) = lire_id(&data[pos..]) else {
+            break;
         };
+        let Some((taille, nsz)) = lire_taille(&data[pos + nid..]) else {
+            break;
+        };
+        let charge_debut = pos + nid + nsz;
+        let charge_fin =
+            if taille == 0x00FF_FFFF_FFFF_FFFF || charge_debut + (taille as usize) > data.len() {
+                data.len()
+            } else {
+                charge_debut + (taille as usize)
+            };
         if elem_id == ID_SEGMENT {
             segment_debut = Some(charge_debut);
             segment_fin = Some(charge_fin);
@@ -602,8 +607,12 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
 
     let mut p = debut;
     while p < fin {
-        let Some((elem_id, nid)) = lire_id(&data[p..fin]) else { break };
-        let Some((taille, nsz)) = lire_taille(&data[p + nid..fin]) else { break };
+        let Some((elem_id, nid)) = lire_id(&data[p..fin]) else {
+            break;
+        };
+        let Some((taille, nsz)) = lire_taille(&data[p + nid..fin]) else {
+            break;
+        };
         let elem_debut = p + nid + nsz;
         let elem_fin = if taille == 0x00FF_FFFF_FFFF_FFFF || elem_debut + (taille as usize) > fin {
             fin
@@ -615,11 +624,17 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
             ID_INFO => {
                 let mut ip = elem_debut;
                 while ip < elem_fin {
-                    let Some((iid, inid)) = lire_id(&data[ip..elem_fin]) else { break };
-                    let Some((isz, insz)) = lire_taille(&data[ip + inid..elem_fin]) else { break };
+                    let Some((iid, inid)) = lire_id(&data[ip..elem_fin]) else {
+                        break;
+                    };
+                    let Some((isz, insz)) = lire_taille(&data[ip + inid..elem_fin]) else {
+                        break;
+                    };
                     let ic_debut = ip + inid + insz;
                     let ic_fin = ic_debut + (isz as usize);
-                    if ic_fin > elem_fin { break };
+                    if ic_fin > elem_fin {
+                        break;
+                    };
                     let c = &data[ic_debut..ic_fin];
                     if iid == ID_TIMESTAMP_SCALE {
                         timecode_scale_ns = lire_uint(c);
@@ -632,11 +647,17 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
             ID_TRACKS => {
                 let mut tp = elem_debut;
                 while tp < elem_fin {
-                    let Some((tid, tnid)) = lire_id(&data[tp..elem_fin]) else { break };
-                    let Some((tsz, tnsz)) = lire_taille(&data[tp + tnid..elem_fin]) else { break };
+                    let Some((tid, tnid)) = lire_id(&data[tp..elem_fin]) else {
+                        break;
+                    };
+                    let Some((tsz, tnsz)) = lire_taille(&data[tp + tnid..elem_fin]) else {
+                        break;
+                    };
                     let tc_debut = tp + tnid + tnsz;
                     let tc_fin = tc_debut + (tsz as usize);
-                    if tc_fin > elem_fin { break };
+                    if tc_fin > elem_fin {
+                        break;
+                    };
 
                     if tid == ID_TRACK_ENTRY {
                         let mut ep = tc_debut;
@@ -649,16 +670,26 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
                         let mut dh = None;
 
                         while ep < tc_fin {
-                            let Some((eid, enid)) = lire_id(&data[ep..tc_fin]) else { break };
-                            let Some((esz, ensz)) = lire_taille(&data[ep + enid..tc_fin]) else { break };
+                            let Some((eid, enid)) = lire_id(&data[ep..tc_fin]) else {
+                                break;
+                            };
+                            let Some((esz, ensz)) = lire_taille(&data[ep + enid..tc_fin]) else {
+                                break;
+                            };
                             let ec_debut = ep + enid + ensz;
                             let ec_fin = ec_debut + (esz as usize);
-                            if ec_fin > tc_fin { break };
+                            if ec_fin > tc_fin {
+                                break;
+                            };
                             let c = &data[ec_debut..ec_fin];
 
                             match eid {
                                 ID_TRACK_NUMBER => track_no = lire_uint(c),
-                                ID_TRACK_TYPE => if lire_uint(c) == 1 { is_video = true },
+                                ID_TRACK_TYPE => {
+                                    if lire_uint(c) == 1 {
+                                        is_video = true
+                                    }
+                                }
                                 ID_CODEC_ID => {
                                     if c.starts_with(b"V_VP9") {
                                         is_vp9 = true;
@@ -667,11 +698,19 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
                                 ID_VIDEO => {
                                     let mut vp = ec_debut;
                                     while vp < ec_fin {
-                                        let Some((vid, vnid)) = lire_id(&data[vp..ec_fin]) else { break };
-                                        let Some((vsz, vnsz)) = lire_taille(&data[vp + vnid..ec_fin]) else { break };
+                                        let Some((vid, vnid)) = lire_id(&data[vp..ec_fin]) else {
+                                            break;
+                                        };
+                                        let Some((vsz, vnsz)) =
+                                            lire_taille(&data[vp + vnid..ec_fin])
+                                        else {
+                                            break;
+                                        };
                                         let vc_debut = vp + vnid + vnsz;
                                         let vc_fin = vc_debut + (vsz as usize);
-                                        if vc_fin > ec_fin { break };
+                                        if vc_fin > ec_fin {
+                                            break;
+                                        };
                                         let vc = &data[vc_debut..vc_fin];
 
                                         match vid {
@@ -705,11 +744,17 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
                 let mut cluster_timecode = 0u64;
 
                 while cp < elem_fin {
-                    let Some((cid, cnid)) = lire_id(&data[cp..elem_fin]) else { break };
-                    let Some((csz, cnsz)) = lire_taille(&data[cp + cnid..elem_fin]) else { break };
+                    let Some((cid, cnid)) = lire_id(&data[cp..elem_fin]) else {
+                        break;
+                    };
+                    let Some((csz, cnsz)) = lire_taille(&data[cp + cnid..elem_fin]) else {
+                        break;
+                    };
                     let cc_debut = cp + cnid + cnsz;
                     let cc_fin = cc_debut + (csz as usize);
-                    if cc_fin > elem_fin { break };
+                    if cc_fin > elem_fin {
+                        break;
+                    };
                     let c = &data[cc_debut..cc_fin];
 
                     match cid {
@@ -720,8 +765,11 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
                             if let Some((tnum, rel_tc, is_key, payload)) = parser_bloc(c)
                                 && (video_track_num.is_none() || video_track_num == Some(tnum))
                             {
-                                let abs_tc_scale = (cluster_timecode as i64 + rel_tc as i64).max(0) as u64;
-                                let timestamp_ms = (abs_tc_scale as u128 * timecode_scale_ns as u128 / 1_000_000) as u64;
+                                let abs_tc_scale =
+                                    (cluster_timecode as i64 + rel_tc as i64).max(0) as u64;
+                                let timestamp_ms =
+                                    (abs_tc_scale as u128 * timecode_scale_ns as u128 / 1_000_000)
+                                        as u64;
 
                                 let cle = is_key || lire_trame_vp9(payload).is_ok_and(|t| t.cle);
                                 if cle {
@@ -748,11 +796,18 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
                             let mut block_data = None;
 
                             while bgp < cc_fin {
-                                let Some((bgid, bgnid)) = lire_id(&data[bgp..cc_fin]) else { break };
-                                let Some((bgsz, bgnsz)) = lire_taille(&data[bgp + bgnid..cc_fin]) else { break };
+                                let Some((bgid, bgnid)) = lire_id(&data[bgp..cc_fin]) else {
+                                    break;
+                                };
+                                let Some((bgsz, bgnsz)) = lire_taille(&data[bgp + bgnid..cc_fin])
+                                else {
+                                    break;
+                                };
                                 let bgc_debut = bgp + bgnid + bgnsz;
                                 let bgc_fin = bgc_debut + (bgsz as usize);
-                                if bgc_fin > cc_fin { break };
+                                if bgc_fin > cc_fin {
+                                    break;
+                                };
                                 let bgc = &data[bgc_debut..bgc_fin];
 
                                 if bgid == ID_BLOCK {
@@ -767,9 +822,13 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
                                 && let Some((tnum, rel_tc, _, payload)) = parser_bloc(blk)
                                 && (video_track_num.is_none() || video_track_num == Some(tnum))
                             {
-                                let abs_tc_scale = (cluster_timecode as i64 + rel_tc as i64).max(0) as u64;
-                                let timestamp_ms = (abs_tc_scale as u128 * timecode_scale_ns as u128 / 1_000_000) as u64;
-                                let cle = !ref_block || lire_trame_vp9(payload).is_ok_and(|t| t.cle);
+                                let abs_tc_scale =
+                                    (cluster_timecode as i64 + rel_tc as i64).max(0) as u64;
+                                let timestamp_ms =
+                                    (abs_tc_scale as u128 * timecode_scale_ns as u128 / 1_000_000)
+                                        as u64;
+                                let cle =
+                                    !ref_block || lire_trame_vp9(payload).is_ok_and(|t| t.cle);
                                 if cle {
                                     total_cles += 1;
                                     if (largeur == 0 || hauteur == 0)
@@ -799,13 +858,17 @@ pub fn demuxer_webm_vp9(data: &[u8]) -> Result<WebmDemux, FormatError> {
     }
 
     if trames.is_empty() {
-        return Err(FormatError::Corrupt("WebM : aucune trame vidéo VP9 trouvée"));
+        return Err(FormatError::Corrupt(
+            "WebM : aucune trame vidéo VP9 trouvée",
+        ));
     }
 
     let duree_secondes = if duree_brute > 0.0 {
         duree_brute * (timecode_scale_ns as f64) / 1_000_000_000.0
     } else {
-        trames.last().map_or(0.0, |t| t.timestamp_ms as f64 / 1000.0)
+        trames
+            .last()
+            .map_or(0.0, |t| t.timestamp_ms as f64 / 1000.0)
     };
 
     Ok(WebmDemux {

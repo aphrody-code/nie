@@ -60,13 +60,13 @@ pub mod cpk_encode;
 #[cfg(feature = "std")]
 pub mod cri_audio;
 pub mod crilayla;
-/// Scripts d'événements et cinématiques Level-5 (`ev*.cfg.bin`, format T2B).
-pub mod event_script;
 /// Dispatch « octets → JSON », partagé par la FFI, la CLI et le décodage en lot.
 #[cfg(all(feature = "std", feature = "serde"))]
 pub mod decode;
 #[cfg(feature = "std")]
 pub mod dxbc;
+/// Scripts d'événements et cinématiques Level-5 (`ev*.cfg.bin`, format T2B).
+pub mod event_script;
 #[cfg(feature = "std")]
 pub mod font;
 #[cfg(feature = "std")]
@@ -106,11 +106,11 @@ pub mod g4vs;
 /// TIFF, QOI) — feature `images`. Le PNG y garde son chemin `png` historique, byte-exact.
 #[cfg(feature = "images")]
 pub mod image_out;
-/// Conteneur et flux vidéo IVF (VP8/VP9/AV1) pur Rust, no_std.
-pub mod ivf;
 /// Comparaison d'images de rendu : identité, ΔE2000, SSIM par région, carte par bloc, masques ROI.
 #[cfg(feature = "std")]
 pub mod imgmetric;
+/// Conteneur et flux vidéo IVF (VP8/VP9/AV1) pur Rust, no_std.
+pub mod ivf;
 #[cfg(feature = "std")]
 pub mod level5;
 #[cfg(feature = "std")]

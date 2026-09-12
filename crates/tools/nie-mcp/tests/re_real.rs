@@ -156,7 +156,13 @@ fn the_server_answers_real_questions_about_the_binary() {
     );
 
     // --- 1. Coverage must be internally consistent, not merely present. ---------------
-    let coverage = call(&mut stdin, &mut reader, 2, "re_coverage", serde_json::json!({}));
+    let coverage = call(
+        &mut stdin,
+        &mut reader,
+        2,
+        "re_coverage",
+        serde_json::json!({}),
+    );
     let total = find_number(&coverage, &["total", "total_funcs", "functions"])
         .unwrap_or_else(|| panic!("no total in coverage report: {coverage}"));
     let classified = find_number(&coverage, &["classified"])
@@ -214,7 +220,8 @@ fn the_server_answers_real_questions_about_the_binary() {
     );
     let rendered = by_name.to_string();
     assert!(
-        rendered.contains(&format!("0x{first_vaddr:x}")) || rendered.contains(&first_vaddr.to_string()),
+        rendered.contains(&format!("0x{first_vaddr:x}"))
+            || rendered.contains(&first_vaddr.to_string()),
         "re_function by name {first_name} lost its address 0x{first_vaddr:x}: {by_name}"
     );
 
@@ -300,7 +307,10 @@ fn the_server_answers_real_questions_about_the_binary() {
             "cli_atlas gaps returned no ranked road: {gaps}"
         );
     } else {
-        eprintln!("skip atlas cross-check: {} absent (just atlas)", atlas.display());
+        eprintln!(
+            "skip atlas cross-check: {} absent (just atlas)",
+            atlas.display()
+        );
     }
 }
 
@@ -354,7 +364,10 @@ fn row_pair(row: &serde_json::Value, page: &serde_json::Value) -> (u64, String) 
     };
     let items = row.as_array().expect("row array");
     let vaddr = as_number(&items[index("vaddr")]).expect("vaddr value") as u64;
-    let name = items[index("name")].as_str().unwrap_or_default().to_string();
+    let name = items[index("name")]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
     (vaddr, name)
 }
 

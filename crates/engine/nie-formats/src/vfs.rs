@@ -844,7 +844,10 @@ impl Vfs {
         let mut count = 0;
         let oc_dir_candidates = [
             self.game_data_dir.join("oc"),
-            self.game_data_dir.parent().map(|p| p.join("data").join("oc")).unwrap_or_default(),
+            self.game_data_dir
+                .parent()
+                .map(|p| p.join("data").join("oc"))
+                .unwrap_or_default(),
             PathBuf::from("data").join("oc"),
         ];
         if let Some(oc_dir) = oc_dir_candidates.into_iter().find(|p| p.is_dir()) {
@@ -854,7 +857,10 @@ impl Vfs {
         // Découvrir également var/ocgen s'il existe
         let ocgen_candidates = [
             PathBuf::from("var").join("ocgen"),
-            self.game_data_dir.parent().map(|p| p.join("var").join("ocgen")).unwrap_or_default(),
+            self.game_data_dir
+                .parent()
+                .map(|p| p.join("var").join("ocgen"))
+                .unwrap_or_default(),
         ];
         if let Some(ocgen_dir) = ocgen_candidates.into_iter().find(|p| p.is_dir()) {
             count += self.mount_ocgen_artifacts(&ocgen_dir);
@@ -903,8 +909,14 @@ impl Vfs {
         let icons_dir = ocgen_dir.join("icons");
         if icons_dir.is_dir() {
             let icon_mappings = [
-                ("c99019010_l.g4tx", "data/dx11/menu/200_icon/10_icon_chr/face/c99019010_l.g4tx"),
-                ("c99019020_l.g4tx", "data/dx11/menu/200_icon/10_icon_chr/face/c99019020_l.g4tx"),
+                (
+                    "c99019010_l.g4tx",
+                    "data/dx11/menu/200_icon/10_icon_chr/face/c99019010_l.g4tx",
+                ),
+                (
+                    "c99019020_l.g4tx",
+                    "data/dx11/menu/200_icon/10_icon_chr/face/c99019020_l.g4tx",
+                ),
             ];
             for (filename, vfs_path) in icon_mappings {
                 let file_path = icons_dir.join(filename);
@@ -919,9 +931,18 @@ impl Vfs {
         let text_dir = ocgen_dir.join("text");
         if text_dir.is_dir() {
             let text_mappings = [
-                ("fr/event/ev98_99010.cfg.bin", "data/common/text/fr/event/ev98_99010.cfg.bin"),
-                ("en/event/ev98_99010.cfg.bin", "data/common/text/en/event/ev98_99010.cfg.bin"),
-                ("event/ev98_99010_map.cfg.bin", "data/common/text/event/ev98_99010_map.cfg.bin"),
+                (
+                    "fr/event/ev98_99010.cfg.bin",
+                    "data/common/text/fr/event/ev98_99010.cfg.bin",
+                ),
+                (
+                    "en/event/ev98_99010.cfg.bin",
+                    "data/common/text/en/event/ev98_99010.cfg.bin",
+                ),
+                (
+                    "event/ev98_99010_map.cfg.bin",
+                    "data/common/text/event/ev98_99010_map.cfg.bin",
+                ),
             ];
             for (rel_path, vfs_path) in text_mappings {
                 let file_path = text_dir.join(rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
@@ -949,13 +970,31 @@ impl Vfs {
         if chr_dir.is_dir() {
             let model_mappings = [
                 // OG (01_IE1)
-                ("01_IE1/c99019010/c99019010.g4md", "data/common/chr/_face/01_IE1/c99019010/c99019010.g4md"),
-                ("01_IE1/c99019010/c99019010.g4mg", "data/common/chr/_face/01_IE1/c99019010/c99019010.g4mg"),
-                ("01_IE1/c99019010/c99019010.g4tx", "data/dx11/chr/_face/01_IE1/c99019010/c99019010.g4tx"),
+                (
+                    "01_IE1/c99019010/c99019010.g4md",
+                    "data/common/chr/_face/01_IE1/c99019010/c99019010.g4md",
+                ),
+                (
+                    "01_IE1/c99019010/c99019010.g4mg",
+                    "data/common/chr/_face/01_IE1/c99019010/c99019010.g4mg",
+                ),
+                (
+                    "01_IE1/c99019010/c99019010.g4tx",
+                    "data/dx11/chr/_face/01_IE1/c99019010/c99019010.g4tx",
+                ),
                 // VR (11_VICTORY)
-                ("11_VICTORY/c99019020/c99019020.g4md", "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4md"),
-                ("11_VICTORY/c99019020/c99019020.g4mg", "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4mg"),
-                ("11_VICTORY/c99019020/c99019020.g4tx", "data/dx11/chr/_face/11_VICTORY/c99019020/c99019020.g4tx"),
+                (
+                    "11_VICTORY/c99019020/c99019020.g4md",
+                    "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4md",
+                ),
+                (
+                    "11_VICTORY/c99019020/c99019020.g4mg",
+                    "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4mg",
+                ),
+                (
+                    "11_VICTORY/c99019020/c99019020.g4tx",
+                    "data/dx11/chr/_face/11_VICTORY/c99019020/c99019020.g4tx",
+                ),
             ];
             for (rel_path, vfs_path) in model_mappings {
                 let file_path = chr_dir.join(rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
@@ -979,8 +1018,9 @@ impl Vfs {
     /// Charge et désérialise le catalogue OC `data/oc/catalog.json` s'il est accessible dans le VFS.
     pub fn load_oc_catalog(&self) -> Result<serde_json::Value, FormatError> {
         let bytes = self.read("data/oc/catalog.json")?;
-        serde_json::from_slice(&bytes)
-            .map_err(|_| FormatError::Corrupt("catalogue data/oc/catalog.json corrompu ou invalide"))
+        serde_json::from_slice(&bytes).map_err(|_| {
+            FormatError::Corrupt("catalogue data/oc/catalog.json corrompu ou invalide")
+        })
     }
 
     /// Liste les slugs de personnages OC déclarés dans le catalogue du VFS.
@@ -993,7 +1033,11 @@ impl Vfs {
             .and_then(|c| c.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|c| c.get("character_slug").and_then(|s| s.as_str()).map(String::from))
+                    .filter_map(|c| {
+                        c.get("character_slug")
+                            .and_then(|s| s.as_str())
+                            .map(String::from)
+                    })
                     .collect()
             })
             .unwrap_or_default()
@@ -1498,7 +1542,10 @@ mod tests {
         assert!(!catalog_bytes.is_empty());
 
         let catalog = vfs.load_oc_catalog().expect("load_oc_catalog");
-        assert_eq!(catalog.get("root").and_then(|v| v.as_str()), Some("data/oc"));
+        assert_eq!(
+            catalog.get("root").and_then(|v| v.as_str()),
+            Some("data/oc")
+        );
 
         // 2. Personnages OC découverts
         let charas = vfs.oc_characters();
@@ -1508,7 +1555,10 @@ mod tests {
         );
 
         // 3. Fichiers OC de contrat et dérivés visuels
-        assert!(vfs.find("data/oc/astro-lor/game/character-contract.json").is_some());
+        assert!(
+            vfs.find("data/oc/astro-lor/game/character-contract.json")
+                .is_some()
+        );
         assert!(vfs.find("data/oc/astro-lor/manifest.json").is_some());
         assert!(vfs.find("data/oc/astro-lor/face-og.webp").is_some());
         assert!(vfs.find("data/oc/astro-lor/face-go.webp").is_some());
@@ -1565,7 +1615,10 @@ mod tests {
         assert!(Vfs::is_oc_path(tx_vr));
         assert!(!Vfs::is_oc_path("data/common/gamedata/item.cfg.bin"));
 
-        assert!(vfs.overlay_count() >= 46, "au moins 46 entrées d'overlay attendues");
+        assert!(
+            vfs.overlay_count() >= 46,
+            "au moins 46 entrées d'overlay attendues"
+        );
         eprintln!(
             "VFS OC OK : {} overlays montés, {} personnages déclarés",
             vfs.overlay_count(),

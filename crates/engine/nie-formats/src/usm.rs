@@ -543,7 +543,9 @@ impl Usm {
     /// [`FormatError::Corrupt`] si le codec n'est pas VP9 ou si aucune trame n'est présente.
     pub fn extraire_flux_ivf(&self) -> Result<Vec<u8>, FormatError> {
         if self.codec != CodecVideo::Vp9 {
-            return Err(FormatError::Corrupt("USM : exportation IVF réservée au VP9"));
+            return Err(FormatError::Corrupt(
+                "USM : exportation IVF réservée au VP9",
+            ));
         }
         if self.images.is_empty() {
             return Err(FormatError::Corrupt("USM : aucune trame vidéo à exporter"));
@@ -573,7 +575,10 @@ impl Usm {
     /// Extrait le flux audio élémentaire brut d'un canal donné (HCA ou ADX).
     #[must_use]
     pub fn extraire_flux_audio(&self, canal: u8) -> Option<&[u8]> {
-        self.pistes.iter().find(|p| p.canal == canal).map(|p| p.octets.as_slice())
+        self.pistes
+            .iter()
+            .find(|p| p.canal == canal)
+            .map(|p| p.octets.as_slice())
     }
 }
 
@@ -1063,15 +1068,42 @@ pub fn muxer_usm_vp9(
 
     // 1. Table CRIUSF_DIR_STREAM pour le bloc CRID (type 1)
     let dir_cols = [
-        UtfColumnSpec { name: "fmtver".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "filename".to_string(), col_type: ColumnType::String },
-        UtfColumnSpec { name: "filesize".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "datasize".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "stmid".to_string(), col_type: ColumnType::String },
-        UtfColumnSpec { name: "chno".to_string(), col_type: ColumnType::U16 },
-        UtfColumnSpec { name: "minchk".to_string(), col_type: ColumnType::U16 },
-        UtfColumnSpec { name: "minbuf".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "avbps".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec {
+            name: "fmtver".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "filename".to_string(),
+            col_type: ColumnType::String,
+        },
+        UtfColumnSpec {
+            name: "filesize".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "datasize".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "stmid".to_string(),
+            col_type: ColumnType::String,
+        },
+        UtfColumnSpec {
+            name: "chno".to_string(),
+            col_type: ColumnType::U16,
+        },
+        UtfColumnSpec {
+            name: "minchk".to_string(),
+            col_type: ColumnType::U16,
+        },
+        UtfColumnSpec {
+            name: "minbuf".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "avbps".to_string(),
+            col_type: ColumnType::U32,
+        },
     ];
     let dir_row = alloc::vec![
         UtfValue::U32(0x0107_0000),
@@ -1084,21 +1116,48 @@ pub fn muxer_usm_vp9(
         UtfValue::U32(0x0010_0000),
         UtfValue::U32(2_000_000),
     ];
-    let dir_table = encode_utf("CRIUSF_DIR_STREAM", &dir_cols, &[dir_row])
-        .expect("table CRIUSF_DIR_STREAM");
+    let dir_table =
+        encode_utf("CRIUSF_DIR_STREAM", &dir_cols, &[dir_row]).expect("table CRIUSF_DIR_STREAM");
     out.extend_from_slice(&creer_bloc(&STMID_CRID, 1, 0, &dir_table));
 
     // 2. Table VIDEO_HDRINFO pour le bloc @SFV (type 1)
     let vid_cols = [
-        UtfColumnSpec { name: "width".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "height".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "disp_width".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "disp_height".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "framerate_n".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "framerate_d".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "total_frames".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "mpeg_codec".to_string(), col_type: ColumnType::U32 },
-        UtfColumnSpec { name: "alpha_type".to_string(), col_type: ColumnType::U32 },
+        UtfColumnSpec {
+            name: "width".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "height".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "disp_width".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "disp_height".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "framerate_n".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "framerate_d".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "total_frames".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "mpeg_codec".to_string(),
+            col_type: ColumnType::U32,
+        },
+        UtfColumnSpec {
+            name: "alpha_type".to_string(),
+            col_type: ColumnType::U32,
+        },
     ];
     let vid_row = alloc::vec![
         UtfValue::U32(largeur),
@@ -1111,8 +1170,8 @@ pub fn muxer_usm_vp9(
         UtfValue::U32(9), // 9 = VP9
         UtfValue::U32(0),
     ];
-    let vid_table = encode_utf("VIDEO_HDRINFO", &vid_cols, &[vid_row])
-        .expect("table VIDEO_HDRINFO");
+    let vid_table =
+        encode_utf("VIDEO_HDRINFO", &vid_cols, &[vid_row]).expect("table VIDEO_HDRINFO");
     out.extend_from_slice(&creer_bloc(&STMID_SFV, 1, 0, &vid_table));
 
     // 3. Trames emballées en IVF dans des blocs @SFV de données (type 0)

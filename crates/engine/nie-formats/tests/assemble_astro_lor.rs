@@ -4,11 +4,9 @@
 //! calqués sur Byron Love c01001900) avec le corps avatar `u000105` (stature tall / normal) et le
 //! squelette d'édition, puis exporte le modèle complet en binaire glTF (GLB 2.0).
 
-use std::path::{Path, PathBuf};
-use nie_formats::assemble::{
-    assemble_avatar_model, bone_rest_world, AvatarPiece, MeshComponent,
-};
+use nie_formats::assemble::{AvatarPiece, MeshComponent, assemble_avatar_model, bone_rest_world};
 use nie_formats::vfs::Vfs;
+use std::path::{Path, PathBuf};
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -20,7 +18,6 @@ fn repo_root() -> PathBuf {
         .unwrap()
         .to_path_buf()
 }
-
 
 fn game_data_dir() -> PathBuf {
     nie_formats::vfs::resolve_game_dir().join("data")
@@ -42,7 +39,6 @@ fn assemble_et_export_glb_astro_lor() {
         eprintln!("VFS : {n_mounted} artefacts ocgen montés avec succès");
     }
 
-
     // Squelette avatar tall/normal (c000301_edit.g4sk)
     let skel_candidates = [
         "data/common/chr/_face/20_EDIT/_bodySK/c000301_edit/c000301_edit.g4sk",
@@ -59,14 +55,16 @@ fn assemble_et_export_glb_astro_lor() {
         }
     }
 
-    let attach_matrix = skel_bytes.as_ref().and_then(|bytes| {
-        bone_rest_world(bytes, "c_head_1_0")
-    });
+    let attach_matrix = skel_bytes
+        .as_ref()
+        .and_then(|bytes| bone_rest_world(bytes, "c_head_1_0"));
 
     if attach_matrix.is_some() {
         eprintln!("Matrice d'attache 'c_head_1_0' résolue avec succès");
     } else {
-        eprintln!("Avertissement : matrice d'attache 'c_head_1_0' non résolue, repli vers identité");
+        eprintln!(
+            "Avertissement : matrice d'attache 'c_head_1_0' non résolue, repli vers identité"
+        );
     }
 
     // Corps avatar tall / normal (u000105) sous u000101
@@ -79,7 +77,11 @@ fn assemble_et_export_glb_astro_lor() {
         let md_path = format!("{body_base}.g4md");
         let mg_path = format!("{body_base}.g4mg");
         if let (Ok(md), Ok(mg)) = (vfs.read(&md_path), vfs.read(&mg_path)) {
-            eprintln!("Corps avatar trouvé : {body_base} (md={}, mg={})", md.len(), mg.len());
+            eprintln!(
+                "Corps avatar trouvé : {body_base} (md={}, mg={})",
+                md.len(),
+                mg.len()
+            );
             body_parts = Some((md, mg));
             break;
         }
@@ -87,14 +89,20 @@ fn assemble_et_export_glb_astro_lor() {
 
     // Chaussures avatar (s000201)
     let shoes_base = "data/common/chr/_uniform/s000201/s000201";
-    let shoes_parts = match (vfs.read(&format!("{shoes_base}.g4md")), vfs.read(&format!("{shoes_base}.g4mg"))) {
+    let shoes_parts = match (
+        vfs.read(&format!("{shoes_base}.g4md")),
+        vfs.read(&format!("{shoes_base}.g4mg")),
+    ) {
         (Ok(md), Ok(mg)) => {
-            eprintln!("Chaussures avatar trouvées : {shoes_base} (md={}, mg={})", md.len(), mg.len());
+            eprintln!(
+                "Chaussures avatar trouvées : {shoes_base} (md={}, mg={})",
+                md.len(),
+                mg.len()
+            );
             Some((md, mg))
         }
         _ => None,
     };
-
 
     // Paires de test : (code, group, vfs_md, vfs_mg)
     let variants = [
@@ -117,8 +125,20 @@ fn assemble_et_export_glb_astro_lor() {
             (Ok(md), Ok(mg)) => (md, mg),
             _ => {
                 // Repli direct sur disque si non présent dans le VFS loose
-                let disk_md = root.join("var").join("ocgen").join("chr").join(group).join(code).join(format!("{code}.g4md"));
-                let disk_mg = root.join("var").join("ocgen").join("chr").join(group).join(code).join(format!("{code}.g4mg"));
+                let disk_md = root
+                    .join("var")
+                    .join("ocgen")
+                    .join("chr")
+                    .join(group)
+                    .join(code)
+                    .join(format!("{code}.g4md"));
+                let disk_mg = root
+                    .join("var")
+                    .join("ocgen")
+                    .join("chr")
+                    .join(group)
+                    .join(code)
+                    .join(format!("{code}.g4mg"));
                 let Ok(md) = std::fs::read(&disk_md) else {
                     eprintln!("SKIP : Fichier introuvable {}", disk_md.display());
                     continue;
@@ -166,11 +186,20 @@ fn assemble_et_export_glb_astro_lor() {
 
         let total_verts = model.total_vertex_count();
         let total_tris = model.total_triangle_count();
-        assert!(total_verts > 0, "Le modèle assemblé {code} doit contenir des sommets");
-        assert!(total_tris > 0, "Le modèle assemblé {code} doit contenir des triangles");
+        assert!(
+            total_verts > 0,
+            "Le modèle assemblé {code} doit contenir des sommets"
+        );
+        assert!(
+            total_tris > 0,
+            "Le modèle assemblé {code} doit contenir des triangles"
+        );
 
         let glb = model.to_glb();
-        assert!(glb.len() > 12, "Le GLB généré pour {code} ne doit pas être vide");
+        assert!(
+            glb.len() > 12,
+            "Le GLB généré pour {code} ne doit pas être vide"
+        );
 
         // Validation du magic glTF (0x46546C67 = "glTF" en little-endian)
         let magic = u32::from_le_bytes([glb[0], glb[1], glb[2], glb[3]]);
@@ -184,11 +213,15 @@ fn assemble_et_export_glb_astro_lor() {
             .unwrap_or_else(|e| panic!("Impossible d'écrire {}: {e}", oc_glb_path.display()));
 
         // 2. var/ocgen/chr/<group>/<code_internal>/<code_internal>.glb
-        let var_target_dir = root.join("var").join("ocgen").join("chr").join(group).join(code);
+        let var_target_dir = root
+            .join("var")
+            .join("ocgen")
+            .join("chr")
+            .join(group)
+            .join(code);
         let var_glb_path = var_target_dir.join(format!("{code}.glb"));
         std::fs::write(&var_glb_path, &glb)
             .unwrap_or_else(|e| panic!("Impossible d'écrire {}: {e}", var_glb_path.display()));
-
 
         eprintln!(
             "SUCCÈS : Modèle 3D GLB assemblé pour {code} ({group}) -> {} sommets, {} triangles, {} octets écris dans {} et {}",

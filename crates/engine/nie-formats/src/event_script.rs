@@ -401,7 +401,10 @@ impl EventScriptDocument {
     /// Liste de tous les cuts définis dans l'événement.
     #[must_use]
     pub fn cuts(&self) -> Vec<CutInfo> {
-        self.commands.iter().filter_map(EventCommand::as_cut).collect()
+        self.commands
+            .iter()
+            .filter_map(EventCommand::as_cut)
+            .collect()
     }
 
     /// Liste de tous les acteurs spawnés dans l'événement.
@@ -679,7 +682,10 @@ mod tests {
     fn test_parse_real_event_json() {
         let path = workspace_path("data/common/event_cfg/evt/ev01_00300.cfg.bin.json");
         if !path.exists() {
-            eprintln!("skip test_parse_real_event_json : fichier {} absent", path.display());
+            eprintln!(
+                "skip test_parse_real_event_json : fichier {} absent",
+                path.display()
+            );
             return;
         }
         let content = std::fs::read_to_string(path).expect("lecture ev01_00300.cfg.bin.json");

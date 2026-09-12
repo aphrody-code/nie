@@ -327,9 +327,10 @@ impl Atlas {
                     .hidden(false)
                     .follow_links(false)
                     .filter_entry(|entry| {
-                        entry.file_name().to_str().is_none_or(|n| {
-                            !SKIP_DIRS.contains(&n) && !n.ends_with(".sqlite-wal")
-                        })
+                        entry
+                            .file_name()
+                            .to_str()
+                            .is_none_or(|n| !SKIP_DIRS.contains(&n) && !n.ends_with(".sqlite-wal"))
                     });
                 for entry in walker.build().flatten() {
                     if !entry.file_type().is_some_and(|t| t.is_file()) {
@@ -385,11 +386,7 @@ impl Atlas {
                         lines,
                         i64::from(tracked.contains(&rel)),
                     ])?;
-                    text.execute(params![
-                        rel,
-                        format!("{zone} {kind} {rel}"),
-                        rel.clone()
-                    ])?;
+                    text.execute(params![rel, format!("{zone} {kind} {rel}"), rel.clone()])?;
                 }
             }
         }
@@ -423,7 +420,10 @@ impl Atlas {
             return self.write_crates(root, &manifests);
         };
         for entry in apps.flatten() {
-            for candidate in [entry.path().join("Cargo.toml"), entry.path().join("src-tauri/Cargo.toml")] {
+            for candidate in [
+                entry.path().join("Cargo.toml"),
+                entry.path().join("src-tauri/Cargo.toml"),
+            ] {
                 if candidate.is_file() {
                     manifests.push((candidate, "app".to_string()));
                 }
@@ -485,11 +485,10 @@ impl Atlas {
                     parsed.deps.len() as i64,
                     in_workspace,
                 ])?;
-                let crate_id: i64 = tx.query_row(
-                    "SELECT id FROM atlas_crate WHERE name = ?1",
-                    [&name],
-                    |r| r.get(0),
-                )?;
+                let crate_id: i64 =
+                    tx.query_row("SELECT id FROM atlas_crate WHERE name = ?1", [&name], |r| {
+                        r.get(0)
+                    })?;
                 for dep in &parsed.deps {
                     let internal =
                         i64::from(dep.starts_with("nie-") || dep.starts_with("aphrody-"));
@@ -798,10 +797,7 @@ impl Atlas {
         let mut out = ForgeImport::default();
         let cover = first_existing(root, &["var/forge/cover.json", "data/forge/cover.json"]);
         let lifted = first_existing(root, &["forge/asm/lifted.s", "data/forge/asm/lifted.s"]);
-        let registry = first_existing(
-            root,
-            &["data/forge/registry.json", "forge/registry.json"],
-        );
+        let registry = first_existing(root, &["data/forge/registry.json", "forge/registry.json"]);
 
         if let Some(path) = cover {
             let file = std::fs::File::open(&path).map_err(|e| IndexError::Other(e.to_string()))?;
@@ -917,7 +913,11 @@ impl Atlas {
     ///
     /// `candidates` are `(path, role)` pairs; the reference is the one with role
     /// `reference`, and every other binary of the same size is compared byte for byte.
-    pub fn import_binaries(&mut self, root: &Path, candidates: &[(String, String)]) -> Result<usize> {
+    pub fn import_binaries(
+        &mut self,
+        root: &Path,
+        candidates: &[(String, String)],
+    ) -> Result<usize> {
         let mut reference: Option<(String, u64)> = None;
         let mut rows: Vec<(String, String, u64, Option<String>)> = Vec::new();
         for (rel, role) in candidates {
@@ -1060,8 +1060,8 @@ impl Atlas {
         if !inv_path.exists() {
             return Ok(0);
         }
-        let raw = std::fs::read_to_string(&inv_path)
-            .map_err(|e| IndexError::Other(e.to_string()))?;
+        let raw =
+            std::fs::read_to_string(&inv_path).map_err(|e| IndexError::Other(e.to_string()))?;
         let inventory: ScreenInventoryFile = serde_json::from_str(&raw)
             .map_err(|e| IndexError::Other(format!("invalid screen-inventory.json: {e}")))?;
 
@@ -1118,7 +1118,10 @@ impl Atlas {
 
                 text.execute(params![
                     entry.file,
-                    format!("menu screen {} {} {}", screen_id, entry.pairing_status, entry.file),
+                    format!(
+                        "menu screen {} {} {}",
+                        screen_id, entry.pairing_status, entry.file
+                    ),
                     setting_cfg.unwrap_or(""),
                 ])?;
 
@@ -1253,19 +1256,19 @@ impl Atlas {
                 9.0,
                 "just forge (split -> lift -> cc -> build)",
             ),
-            ("forge.code_rust", "forge.code", 6.0, "nie-forge lift --max-len"),
+            (
+                "forge.code_rust",
+                "forge.code",
+                6.0,
+                "nie-forge lift --max-len",
+            ),
             (
                 "forge.lifted",
                 "forge.lifted",
                 5.0,
                 "nie-forge lift (corps régénérables par nie-asm)",
             ),
-            (
-                "re.classified",
-                "re.classified",
-                6.0,
-                "just re-rebuild",
-            ),
+            ("re.classified", "re.classified", 6.0, "just re-rebuild"),
             (
                 "re.named",
                 "re.named",
@@ -1592,7 +1595,8 @@ impl Atlas {
             // elle, est unique, et c'est elle qui répond « qu'y a-t-il en 0x… ».
             pipe.set(format!("{prefix}:sym:{name}"), format!("0x{vaddr:x}"))
                 .ignore();
-            pipe.set(format!("{prefix}:addr:0x{vaddr:x}"), &name).ignore();
+            pipe.set(format!("{prefix}:addr:0x{vaddr:x}"), &name)
+                .ignore();
             pending += 2;
             written += 2;
             if pending >= 2000 {
@@ -1605,9 +1609,9 @@ impl Atlas {
             let _: () = pipe.query(&mut conn)?;
         }
 
-        let mut stmt = self
-            .conn
-            .prepare("SELECT kind, name, COALESCE(path, ''), COALESCE(summary, '') FROM atlas_tool")?;
+        let mut stmt = self.conn.prepare(
+            "SELECT kind, name, COALESCE(path, ''), COALESCE(summary, '') FROM atlas_tool",
+        )?;
         let mut rows = stmt.query([])?;
         let mut pipe = redis::pipe();
         while let Some(row) = rows.next()? {
@@ -1739,9 +1743,11 @@ fn parse_hex(raw: &str) -> Option<i64> {
     let raw = raw.trim();
     raw.strip_prefix("0x")
         .or_else(|| raw.strip_prefix("0X"))
-        .map_or_else(|| raw.parse::<i64>().ok(), |hex| i64::from_str_radix(hex, 16).ok())
+        .map_or_else(
+            || raw.parse::<i64>().ok(),
+            |hex| i64::from_str_radix(hex, 16).ok(),
+        )
 }
-
 
 fn now_secs() -> u64 {
     SystemTime::now()
@@ -2200,9 +2206,15 @@ mod tests {
     fn zones_and_kinds_follow_the_repository_layout() {
         assert_eq!(classify_kind("forge/asm/lifted.s", Some("s")), "asm");
         assert_eq!(classify_zone("forge/asm/lifted.s", "asm"), "forge");
-        assert_eq!(classify_zone("crates/forge/nie-re/src/lib.rs", "rust"), "crate");
+        assert_eq!(
+            classify_zone("crates/forge/nie-re/src/lib.rs", "rust"),
+            "crate"
+        );
         assert_eq!(classify_zone("crates/forge/nie-re/README.md", "md"), "doc");
-        assert_eq!(classify_zone("data/re/40-derived/x.json", "json"), "re-data");
+        assert_eq!(
+            classify_zone("data/re/40-derived/x.json", "json"),
+            "re-data"
+        );
         assert_eq!(classify_zone("dist/nie.exe", "exe"), "binary");
         assert_eq!(classify_zone("docs/RE.md", "md"), "doc");
         assert_eq!(classify_zone("AGENTS.md", "md"), "doc");
@@ -2214,11 +2226,31 @@ mod tests {
         let doc = parse_markdown(raw);
         assert_eq!(doc.title.as_deref(), Some("Titre"));
         assert_eq!(doc.sections.len(), 2);
-        assert!(doc.refs.iter().any(|(_, k, v)| *k == "func" && v == "FUN_140452820"));
-        assert!(doc.refs.iter().any(|(_, k, v)| *k == "vaddr" && v == "0x140452820"));
-        assert!(doc.refs.iter().any(|(_, k, v)| *k == "crate" && v == "nie-re"));
-        assert!(doc.refs.iter().any(|(_, k, v)| *k == "cmd" && v == "niers coverage"));
-        assert!(doc.refs.iter().any(|(_, k, v)| *k == "table" && v == "function"));
+        assert!(
+            doc.refs
+                .iter()
+                .any(|(_, k, v)| *k == "func" && v == "FUN_140452820")
+        );
+        assert!(
+            doc.refs
+                .iter()
+                .any(|(_, k, v)| *k == "vaddr" && v == "0x140452820")
+        );
+        assert!(
+            doc.refs
+                .iter()
+                .any(|(_, k, v)| *k == "crate" && v == "nie-re")
+        );
+        assert!(
+            doc.refs
+                .iter()
+                .any(|(_, k, v)| *k == "cmd" && v == "niers coverage")
+        );
+        assert!(
+            doc.refs
+                .iter()
+                .any(|(_, k, v)| *k == "table" && v == "function")
+        );
         assert!(doc.re_score > 0);
     }
 
@@ -2255,7 +2287,14 @@ mod tests {
         let atlas = Atlas::open_in_memory().unwrap();
         assert_eq!(atlas.refresh_gaps().unwrap(), 0, "no metric, no gap");
         atlas
-            .record_metric("re.classified", 100_664.0, Some(108_650.0), "niers coverage", None, None)
+            .record_metric(
+                "re.classified",
+                100_664.0,
+                Some(108_650.0),
+                "niers coverage",
+                None,
+                None,
+            )
             .unwrap();
         atlas.refresh_gaps().unwrap();
         let gaps = atlas.gaps(10).unwrap();

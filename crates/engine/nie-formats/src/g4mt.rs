@@ -1070,8 +1070,16 @@ mod tests {
         let resolved = resolve_targets(&motion.target_hashes, &bones);
         assert_eq!(resolved, alloc::vec![Some(0)]);
 
-        assert_eq!(motion.find_clip_by_name("clip").map(|c| c.crc32), Some(clip.crc32));
-        assert_eq!(motion.find_clip_by_hash(clip.crc32).map(|c| c.name.as_str()), Some("clip"));
+        assert_eq!(
+            motion.find_clip_by_name("clip").map(|c| c.crc32),
+            Some(clip.crc32)
+        );
+        assert_eq!(
+            motion
+                .find_clip_by_hash(clip.crc32)
+                .map(|c| c.name.as_str()),
+            Some("clip")
+        );
         assert!(motion.find_clip_by_name("inconnu").is_none());
         assert!(motion.find_clip_by_hash(0xdead_beef).is_none());
 
