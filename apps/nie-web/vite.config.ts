@@ -11,7 +11,6 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 	// `nie-site`, which is how the Inacord workspace runs at `nie.aphrody.com/inacord`. The
 	// desktop build keeps the real plugins.
 	const browserShimAliases: Record<string, string> = !desktop ? {
-		"#inacord-desktop-host": fileURLToPath(new URL("./src/desktop/DesktopHost.tsx", import.meta.url)),
 		"@tauri-apps/api/core": fileURLToPath(new URL("./src/inacord-web/shims/core.ts", import.meta.url)),
 		"@tauri-apps/api/event": fileURLToPath(new URL("./src/inacord-web/shims/event.ts", import.meta.url)),
 		"@tauri-apps/api/window": fileURLToPath(new URL("./src/inacord-web/shims/window.ts", import.meta.url)),

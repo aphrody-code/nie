@@ -6,6 +6,7 @@
 // cadre natif utilise (`WM_NCLBUTTONDOWN`/`HTLEFT`…), donc le redimensionnement reste fait PAR
 // Windows (accrochage, contraintes min/max, aperçu) et non simulé en JS.
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { NATIVE_WINDOW } from "../../../host";
 
 /** Recopié de `@tauri-apps/api/window` : le paquet déclare `ResizeDirection` mais ne l'exporte
  * pas (vérifié dans son `.d.ts`), donc impossible de l'importer. */
@@ -59,7 +60,15 @@ const HANDLES: Handle[] = [
   { direction: "SouthEast", style: { bottom: 0, right: 0, width: CORNER, height: CORNER }, cursor: "nwse-resize" },
 ];
 
+/**
+ * Les huit bords saisissables — **fenêtre native seulement**.
+ *
+ * Ils appellent `startResizeDragging` sur la fenêtre Tauri. Dans une page, ce sont huit bandes
+ * fixes en `z-[100]` par-dessus tout le chrome, qui interceptent le pointeur sur les bords du
+ * document sans rien redimensionner.
+ */
 export function WindowResizeHandles() {
+  if (!NATIVE_WINDOW) return null;
   return (
     <>
       {HANDLES.map((h) => (

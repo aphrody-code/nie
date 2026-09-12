@@ -1,4 +1,0 @@
-{
-  "extends": "../nie-web/tsconfig.desktop.json",
-  "include": ["src", "../nie-web/src/desktop", "../nie-web/src/main.tsx", "../nie-web/src/host.d.ts"]
-}

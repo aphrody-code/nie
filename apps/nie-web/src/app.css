@@ -1,0 +1,48 @@
+/*
+ * app.css — the ONE stylesheet of the product.
+ *
+ * ## The defect it repairs
+ *
+ * Three files used to start with `@import "tailwindcss"`: `base.css` (the site), `desktop/styles.css`
+ * (the workspace) and `inacord-web/inacord-web.css` (the download page). Each one therefore emitted
+ * its own preflight and its own theme layer into the SAME document — and sixty design tokens were
+ * defined in two of them with different values (`--color-accent`, `--color-app-box`, `--color-ink`,
+ * the whole shadcn and Material role set…). Whichever sheet the browser loaded last won. Since the
+ * workspace sheet arrived with a lazy import, the palette of a game screen depended on whether the
+ * visitor had opened a tool earlier in the session.
+ *
+ * Here Tailwind is entered ONCE, the sources are declared once, and the three token layers are
+ * ordered on purpose:
+ *
+ *  1. `base.css` — the bridge from the shadcn and Material role names to the game tokens measured
+ *     on the menu captures (`--jeu-*`), plus the appearance settings (`data-theme`, `data-density`,
+ *     `data-motion`).
+ *  2. `desktop/styles.css` — the application roles of the mature workspace (`app-*`, `ink-*`,
+ *     `sidebar-*`), its utilities (`frame`, `no-scrollbar`, `mask-fade-out`, `rounded-window`) and
+ *     its self-hosted fonts. It comes second, so the roles the chrome uses everywhere are its own.
+ *  3. `inacord-tool-theme.css` (imported by the sheet above) — which binds those application roles
+ *     back onto the game tokens. The chrome is therefore game-derived too, not a second palette.
+ *
+ * The game screens are untouched by all of it: they read `--jeu-*` and `--screen-*` directly, and
+ * no role name of the application layer collides with those.
+ */
+@import "tailwindcss";
+
+/* The Vite root is `apps/nie-web`; every tree whose rendered classes must survive the build is
+ * named here, once. Scanning only the facade files of the shared UI packages would omit the
+ * classes their compatibility entries re-export. */
+@source ".";
+@source "../../../packages/inacord-ui/src";
+@source "../../../packages/ui/src/components";
+@source "../../../packages/spaceui";
+@source "../node_modules/@spacedrive/primitives/dist";
+
+@import "tw-animate-css";
+@import "@aphrody/spaceui/styles.css";
+
+@import "./base.css";
+@import "./desktop/styles.css";
+@import "./inacord-web/inacord-web.css";
+@import "@niers/inacord-ui/shell/game-tokens.css";
+/* Les classes `game-*` des écrans du jeu (Options, filtres), engendrées depuis les captures. */
+@import "@niers/inacord-ui/shell/game-screens.css";

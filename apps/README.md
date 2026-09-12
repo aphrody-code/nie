@@ -5,7 +5,8 @@ bibliothèque va dans [`packages/`](../packages). Toutes partagent le lockfile d
 
 | Application | Ce que c'est | Comment ça tourne |
 |---|---|---|
-| `nie-web` | the reconstructed web and desktop frontend | Rust `nie-site` / Tauri host |
+| `nie-web` | **the** frontend — one application, one shell, one stylesheet, for the page and the native window alike | Rust `nie-site` / Tauri host |
+| `inacord` | the desktop packaging lane: `src-tauri`, the public assets, the Tauri configuration. No frontend of its own since 2026-09-12 | `bun run --cwd apps/inacord tauri build` |
 | `nie-mcp` | serveur MCP `niers-game` — VFS, assets, KB RE, pilotage de l'explorateur | déclaré dans `.mcp.json` |
 | `storage`, `realtime`, `rag-api` | le socle du wiki en Bun natif (stockage, temps réel, recherche vectorielle) | services `rg-storage`, `rg-realtime`, `rg-rag-embed` |
 

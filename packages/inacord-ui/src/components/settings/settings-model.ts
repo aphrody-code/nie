@@ -243,30 +243,30 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 		family: "paths",
 		kind: "text",
 		label: "Répertoire du jeu",
-		description: "Vide = auto-détection (NIE_GAME_DIR, dossier courant, puis Steam).",
+		description:
+			"Desktop app: the folder holding nie.exe — empty means auto-detection (NIE_GAME_DIR, current directory, then Steam). On the site this is informative only: the web build reads the VFS its own service publishes.",
 		default: "",
-		portable: false,
-		requires: "disque",
+		portable: true,
 	},
 	{
 		id: "wikiDb",
 		family: "paths",
 		kind: "text",
 		label: "Miroir wiki (SQLite)",
-		description: "Vide = résolution automatique. Sert à afficher les noms réels dans l'explorateur.",
+		description:
+			"Desktop app: path of the SQLite wiki mirror used to show real names in the explorer — empty means automatic resolution. On the site the names come from the hosted service instead.",
 		default: "",
-		portable: false,
-		requires: "disque",
+		portable: true,
 	},
 	{
 		id: "blenderExe",
 		family: "paths",
 		kind: "text",
 		label: "Blender",
-		description: "Le chemin de blender.exe, pour l'extension niers-blender.",
+		description:
+			"Desktop app: path of blender.exe used by the niers-blender extension. The site cannot launch a local Blender; the value is kept for the desktop build.",
 		default: "",
-		portable: false,
-		requires: "disque",
+		portable: true,
 	},
 	{
 		id: "modelServiceUrl",
@@ -284,10 +284,10 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 		family: "tools",
 		kind: "toggle",
 		label: "Pont MCP",
-		description: "Autorise le serveur MCP à piloter cette fenêtre par le pont local.",
+		description:
+			"Desktop app: lets the MCP server drive this window through the local bridge. The site has no local bridge; the setting stays visible so the preference carries over to the desktop build.",
 		default: true,
-		portable: false,
-		requires: "outils",
+		portable: true,
 	},
 ];
 

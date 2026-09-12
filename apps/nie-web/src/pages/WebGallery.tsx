@@ -4,7 +4,7 @@ import { useAssetSource } from "@niers/inacord-ui";
 import { writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
 import { GalleryView } from "@niers/inacord-ui/gallery/GalleryView";
 import type { GalleryServices } from "@niers/inacord-ui/gallery/contracts";
-import { readableSize } from "./SecondaryScreen";
+import { readableSize } from "./screen-parts";
 
 /** HTTP adapter for the same gallery used by the desktop explorer. */
 export function WebGallery() {

@@ -61,13 +61,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return null;
   }
 
-  componentDidCatch(erreur: Error, info: ErrorInfo) {
+  override componentDidCatch(erreur: Error, info: ErrorInfo) {
     // La console du WebView est le SEUL endroit où la pile survit : la carte ci-dessous n'affiche
     // que le message, et une erreur non journalisée est une erreur non diagnosticable.
     console.error(`[${this.props.zone ?? "app"}]`, erreur, info.componentStack);
   }
 
-  render() {
+  override render() {
     const { erreur } = this.state;
     if (!erreur) return this.props.children;
 

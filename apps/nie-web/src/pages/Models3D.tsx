@@ -37,7 +37,7 @@
 import { RustModelViewport } from "@niers/inacord-ui/shell/rust-model-viewport";
 import { useEffect, useState } from "react";
 import { createOpaqueNativeViewer } from "../game/native-viewer";
-import { agree, Notice, ViewTitle } from "./SecondaryScreen";
+import { agree, Notice, ViewTitle } from "./screen-parts";
 
 /** Taille de page. 24 cartes : une grille pleine sans imposer 60 rendus à froid au serveur. */
 const PAR_PAGE = 24;

@@ -1,7 +1,3 @@
-@import "tailwindcss";
-@import "@aphrody/spaceui/styles.css";
-@source "../../../../packages/spaceui";
-@source "../../node_modules/@spacedrive/primitives/dist";
 
 :root {
 	color: var(--color-ink);
@@ -284,3 +280,13 @@ footer span { color: var(--color-ink); font-weight: 700; } footer p { margin: 0;
 .download-catalog-link:hover {
   text-decoration: underline;
 }
+
+/*
+ * The download catalogue inside the one shell.
+ *
+ * It was a standalone page with its own masthead — a second header, above the sidebar that
+ * already names where you are. Inside the shell the page is content, so the masthead goes and
+ * the full-viewport height becomes the height the shell gives it.
+ */
+.inacord-downloads .downloads { min-height: 0; width: 100%; }
+.inacord-downloads .masthead { display: none; }

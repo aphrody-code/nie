@@ -37,11 +37,6 @@ body {
 	padding: 2rem 1rem;
 }
 
-/* Scan both shared UI owners. Inacord compatibility entries reexport identical primitives
- * from packages/ui, so scanning only the facade files would omit their rendered classes. */
-@import "tailwindcss";
-@source "../../../packages/inacord-ui/src";
-@source "../../../packages/ui/src/components";
 
 /* ── La passerelle : les variables de shadcn, dans la DA du jeu ────────────────────────────
  *

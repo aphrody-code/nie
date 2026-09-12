@@ -1,5 +1,0 @@
-/* The Inacord workspace fills the viewport; the site chrome stops at the route. */
-.inacord-frame { height: 100vh; overflow: hidden; background: var(--color-app, #0b1220); }
-.inacord-frame .h-screen { height: 100% !important; }
-.inacord-downloads .downloads { min-height: 0; width: 100%; }
-.inacord-downloads .masthead { display: none; }

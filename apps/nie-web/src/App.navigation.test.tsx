@@ -144,7 +144,9 @@ describe("game navigation in the mounted host", () => {
 	test("every direct secondary route keeps an immediate menu return while resources load", async () => {
 		for (const route of ["medias", "avatar", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
 			await mount(`/${route}`);
-			await click('header > button, [data-avatar-control="back"], .inacord-explorer-sidebar button[title="Éditeur"]');
+			// The return to the game is the first item of the ONE sidebar (`shell/UnifiedShell.tsx`),
+			// where the secondary shell used to put its `nie` title button.
+			await click('button[title="Jeu"], [data-avatar-control="back"], .inacord-explorer-sidebar button[title="Éditeur"]');
 			await expectMenu();
 			await act(async () => root?.unmount());
 			root = createRoot(container);
@@ -212,12 +214,17 @@ describe("game navigation in the mounted host", () => {
 	});
 
 	test("Explorer Escape dismisses display options before returning to the menu", async () => {
+		// `/explorateur` opens the ONE Explorer — the workspace view, whose display options live in
+		// a popover portalled OUT of the host container, hence the document-level queries.
 		await mount("/explorateur");
-		await click('[aria-label="Options d\'affichage"]');
-		expect(container.querySelector(".nie-web-explorer-view-popover")).not.toBeNull();
-		await act(async () => container.querySelector(".nie-web-explorer-view-popover button")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+		const trigger = document.querySelector<HTMLButtonElement>('[aria-label="Options d\'affichage"]');
+		expect(trigger).not.toBeNull();
+		await act(async () => trigger!.click());
+		const popover = document.querySelector('[role="dialog"]');
+		expect(popover).not.toBeNull();
+		await act(async () => popover!.querySelector("button")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
 		expect(window.location.pathname).toBe("/explorateur");
-		expect(container.querySelector(".nie-web-explorer-view-popover")).toBeNull();
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
 		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
 		await expectMenu();
 	});

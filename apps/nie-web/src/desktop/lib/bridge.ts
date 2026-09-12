@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { connectBridge, type BridgeHandlers } from "@niers/bridge";
 import { getSettings } from "@niers/inacord-ui/lib/settings";
+import { NATIVE_WINDOW } from "../../host";
 import inacordPackage from "../../../../inacord/package.json";
 
 /** Version annoncée au serveur — celle du `package.json` de l'application. */
@@ -27,7 +28,11 @@ export function useBridge(handlers: BridgeHandlers): boolean {
   ref.current = handlers;
 
   useEffect(() => {
-    if (getSettings().bridgeEnabled === false) return;
+    // The bridge dials `ws://127.0.0.1:8791` — the MCP server running next to the native window.
+    // A page served to a visitor has no such neighbour: opening that socket would make the site
+    // probe the READER's own loopback, on every screen now that the shell is one. The workspace
+    // used to do it behind `/inacord`; it stops here.
+    if (!NATIVE_WINDOW || getSettings().bridgeEnabled === false) return;
 
     const client = connectBridge(
       {

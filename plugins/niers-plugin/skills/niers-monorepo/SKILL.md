@@ -63,7 +63,7 @@ cargo clippy -p <library-crate> --lib --tests --locked -- -D warnings
 cargo test -p <library-crate> --locked <test-filter>
 cargo run -p inacord --bin export-bindings --features dev-bindings --locked
 bun run --cwd apps/nie-web typecheck
-bun run --cwd apps/nie-web typecheck:desktop
+bun run --cwd apps/nie-web typecheck
 ```
 
 The binding generator writes `apps/nie-web/src/desktop/lib/bindings.ts`. Never hand-edit generated

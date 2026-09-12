@@ -17,10 +17,26 @@ import {
 	setSettings,
 } from "@niers/inacord-ui";
 import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
-import { useEffect, useState } from "react";
+import { GamePanel } from "@niers/inacord-ui";
+import { ErrorBoundary } from "../desktop/components/ErrorBoundary";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
 import { SETTINGS } from "../entries";
 import { localeFromPrefix, pathForEntry, prefixForLocale } from "../routing";
+
+/**
+ * The Inacord tool actions — updates, VFS index and stats, MCP, Blender bridge.
+ *
+ * They are NOT desktop-only: each one calls the same command surface, which the site serves
+ * through the HTTP shims of `inacord-web/shims`. The ones a browser cannot honour (picking a
+ * folder, launching Blender) answer with the shim's own message instead of being hidden — a
+ * missing button teaches nothing, a refusal names what is missing.
+ */
+const InacordTools = lazy(() =>
+	import("../desktop/components/SettingsView").then(({ SettingsView }) => ({
+		default: () => <SettingsView toolsOnly />,
+	})),
+);
 
 export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () => void }) {
 	const [nativeScene, setNativeScene] = useState<NativeMenuScene>();
@@ -45,9 +61,10 @@ export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () 
 	const initialFamily = SETTING_FAMILIES.find((f) => f.id === tab)?.id as SettingFamily | undefined;
 
 	return (
-		<div style={{ position: "fixed", inset: 0 }} data-native-presentation={nativeState}>
+		<div style={{ minHeight: "100%", overflow: "auto" }} data-native-presentation={nativeState}>
 			<SettingsScreen
 				title="Options"
+				inline
 				nativeScene={nativeScene}
 				initialFamily={initialFamily}
 				onBack={onRetour}
@@ -58,6 +75,17 @@ export function Settings({ prefixe, onRetour }: { prefixe: string; onRetour: () 
 					window.location.assign(pathForEntry(prefixForLocale(locale), SETTINGS));
 				}}
 			/>
+			{/* Same page, same shell: the workspace's own actions, in the game's panel. */}
+			<GamePanel title="OUTILS INACORD" role="region" style={{ margin: "var(--jeu-espace-l)" }}>
+				{/* A host without the workspace bundle (or without its command surface) must not
+				    take the Options screen down with it: the boundary names the failure and the
+				    settings above stay usable. */}
+				<ErrorBoundary zone="inacord-tools">
+					<Suspense fallback={<p>Chargement des outils…</p>}>
+						<InacordTools />
+					</Suspense>
+				</ErrorBoundary>
+			</GamePanel>
 		</div>
 	);
 }

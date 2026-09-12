@@ -2,8 +2,8 @@ import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { AvatarCatalog, AvatarComposition } from "@niers/inacord-ui/avatar/contract";
-import { api } from "../src/lib/api";
-import { AvatarPipelinePanel } from "../src/components/editor/AvatarPipelinePanel";
+import { api } from "@/lib/api";
+import { AvatarPipelinePanel } from "./AvatarPipelinePanel";
 
 const catalog: AvatarCatalog = {
 	categories: [{ faceSettingType: 4, parts: [{ id: "hair", itemNo: 1, resource: "hair", modeles: [], modeles2: [] }] }],

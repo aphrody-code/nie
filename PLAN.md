@@ -81,6 +81,50 @@ be reported as completion of the Inacord application. Missing resource mappings 
 work items, not guessed icon substitutions. Perform interaction and visual validation after the
 source implementation phase, as requested by the user.
 
+### One interface — nie and Inacord fully merged, 2026-09-12
+
+`/inacord` was a route of the site that mounted a **second application**: its own sidebar, top
+bar, command palette, toaster, current-view state and address-bar writer, behind a lazy import.
+Four consequences, all measured before the merge: a game screen could not reach a tool, a tool
+reached a game screen by reloading the whole page (`window.location.assign`), `Ctrl+K` existed on
+one half of the product only, and **three** files entered Tailwind (`base.css`,
+`desktop/styles.css`, `inacord-web.css`), so the document got three preflights and sixty design
+tokens defined twice — whichever sheet loaded last won, and that depended on the visitor's path.
+
+What the merge establishes:
+
+- **One shell** (`src/shell/UnifiedShell.tsx`): the workspace's own `Sidebar`, driven by data —
+  the game screens of `entries.ts`, then the workspace views of `desktop/lib/vues.ts`, then the
+  Explorer's places, pins and recents. Top bar, command palette and notifications on every
+  screen. The game at `/` stays unframed and owns the viewport.
+- **One route state**: `useGameNavigation`. A workspace view is a route (`/inacord/<viewId>`),
+  so it is addressable and shareable, and moving between a tool and a game screen is a render,
+  not a page load. Verified in Chromium: a marker set on `window` survives `/bank` → sidebar
+  click → `/inacord/explorer`.
+- **One Explorer**. `pages/ExplorerInacord.tsx` (a reduced copy, with its own tab store and its
+  own `position: fixed` overlay that covered the shell) is gone; `/explorateur`, `/recherche` and
+  `/donnees` open the mature one. `pages/Explorer.tsx`, `pages/DataPanel.tsx` and
+  `pages/PetAphrody.tsx` were already unreachable and went with it.
+- **One Options screen**: `/inacord/settings` is `/settings`, which already carried the
+  workspace's tool actions.
+- **One stylesheet** (`src/app.css`): Tailwind entered once, sources declared once, the three
+  token layers ordered on purpose. One preflight in the built CSS, measured.
+- **One theme owner**: the settings store. `next-themes` still paints the class, but no longer
+  decides — its default (`dark`) and the store's (`system`) were two writers on `<html>`, and
+  merely opening the Options screen adopted one into the other and flipped the product to dark
+  for good.
+- **One TypeScript project**: `tsconfig.desktop.json` is gone, the `exclude` on `src/desktop` with
+  it. `apps/inacord` keeps `src-tauri`, its public assets and its Tauri configuration — it has no
+  frontend of its own.
+- Native-only chrome stops being drawn in a page: the window controls, the resize handles and the
+  job manager (which needs `sqlite_*` Tauri commands and logged an error on every page load), and
+  the MCP bridge no longer dials the READER's `ws://127.0.0.1:8791`.
+
+Gates on `vps-203bea89`, 2026-09-12: `bunx tsc --noEmit` clean on the single project and
+`bun run typecheck` clean across the workspace; 164 nie-web tests pass; `vite build` and
+`vite build --mode desktop` both succeed; Chromium checked nine routes against the live
+`nie-site` — shell present, titles correct, no console error but the pre-existing `/bank` 404s.
+
 ### Inacord distribution lane — 2026-09-09
 
 **Merged into the site on 2026-09-12.** The browser workspace is a route of `nie.aphrody.com`
@@ -781,3 +825,105 @@ Full enforcement of authentic game asset sovereignty, PE icon extraction, and ze
    - `cargo clippy -p nie-app -p nie-index -p nie-wasm -p nie-cli -- -D warnings`: 0 warnings, exit 0
    - `cargo test -p nie-app -p nie-index -p nie-wasm`: 96/96 tests + 1 doctest passed, 0 failed, exit 0
    - `cargo check -p nie-wasm --target wasm32-unknown-unknown`: 0 errors, exit 0
+
+## Real Lua 5.2.4 VM in the browser (`nie-lua-web`) — wasm32-unknown-emscripten bring-up — 2026-09-12
+
+Voie A (decided by the user): the site must run the real game environment in the browser,
+starting with the real Lua 5.2.4 VM (`mlua`, vendored C, feature `vm`) that backs
+`crates/tools/nie-site/src/routes/menu_runtime.rs`'s `POST /api/v1/menu/runtime/{screen}`.
+`wasm32-unknown-unknown` cannot host `mlua` (`lua-src` panics explicitly: `don't know how to
+build Lua for wasm32-unknown-unknown` — measured via `cargo check -p nie-game --target
+wasm32-unknown-unknown --no-default-features`); only `wasm32-unknown-emscripten` links PUC-Rio
+Lua's vendored C.
+
+1. **New crate `crates/engine/nie-lua-web`** (cdylib+rlib): a C-ABI surface
+   (`nie_lua_web_load_script`/`_clear_scripts`/`_replay`/`_alloc`/`_dealloc`/`_free_string`)
+   wrapping the exact `nie_lua::menu_runtime::replay` the native site calls. A `thread_local!`
+   `BTreeMap<path, bytes>` registry stands in for the site's VFS: JS fetches `.lua.bin` and
+   `*_setting.cfg.bin` bytes from `/f/{path}` and hands them in before calling `replay`.
+   **Generalised beyond menu screens on purpose** (explicit user instruction, 2026-09-12): the
+   entry-script resolution accepts any `.lua.bin` under `data/common/script/lua/`, not only
+   `.../menu/` — `chara`, `system`, `kizuna`, `story_mode_*`, `action` families share the exact
+   same host registry (`HostRegistry::standard`; `nie-lua` has no separate per-family host yet,
+   see `crates/engine/nie-lua/src/host.rs`'s module doc). A missing `*_setting.cfg.bin` yields
+   an empty layer list rather than a hard error (only `menu/`-family screens carry one).
+2. **Build recipe measured and pinned** (`crates/engine/nie-lua-web/.cargo/config.toml` +
+   `README.md`): `rustup target add wasm32-unknown-emscripten`, emsdk 6.0.9
+   (`~/emsdk`, `source emsdk_env.sh`), then, from *inside* the crate directory (workspace-root
+   `cargo build -p nie-lua-web` does **not** pick up the crate-local `.cargo/config.toml` —
+   config discovery starts at `$PWD`, not the invoked package's manifest dir):
+   `CC_wasm32_unknown_emscripten=emcc CXX_wasm32_unknown_emscripten=em++
+   AR_wasm32_unknown_emscripten=emar cargo build --release --target wasm32-unknown-emscripten`.
+   Three link-time corrections were required and are documented with their exact error text:
+   rustc's cdylib default for this target is a PIC side module (`-sSIDE_MODULE=2`) but
+   `lua-src`'s `cc::Build` never compiles `-fPIC` (confirmed: `CFLAGS_wasm32_unknown_emscripten`
+   changed nothing) → link a standalone module instead (`-sSIDE_MODULE=0 -sSTANDALONE_WASM=1`);
+   a standalone module needs `-Wl,--no-entry` (no `main`); Lua's `ldo.c` protected calls need
+   `-lc++abi -lc++` (C++ exception ABI symbols). Output: `nie_lua_web.wasm`, 867,690 bytes,
+   unoptimized (`wasm-opt` not run — binaryen not installed in this pass).
+3. **JS/Bun glue** (`crates/engine/nie-lua-web/js/nie-lua-web.ts`): hand-written WASI +
+   emscripten-import shim (the module emits no `.js` glue — rustc's emcc linker invocation for
+   a cdylib bypasses emscripten's own JS-emitting driver). Provides `fd_write` (mirrors
+   stdout/stderr to `console`), `clock_time_get`, `random_get`, and stub `env` syscalls.
+   Confirmed working end to end for the FFI plumbing itself (string/buffer marshalling via
+   `nie_lua_web_alloc`/`_dealloc`, `malloc`/`free` exported and wired): `replay("!!!", "{}")` →
+   `{"error":"invalid menu screen"}`, `replay("nonexistent_screen_xyz", "{}")` →
+   `{"error":"script not loaded for screen: ..."}`, both produced by pure-Rust validation paths
+   that never touch the Lua VM.
+4. **Differential proof run** (`crates/engine/nie-lua-web/scripts/differential.ts`, `bun --bun`)
+   against the live site (`127.0.0.1:8085`) for the 14 `runtime_matrix.results` families in
+   `data/menu/manifest.json`, having registered all 651 `.lua.bin` under
+   `data/common/script/lua/` and all `*_setting.cfg.bin` under `data/common/gamedata/menu/cfg/`
+   (fetched via `/api/v1/recherche?prefixe=...` + `/f/{path}`) — **result: 0/14 identical.**
+   `shop_menu` fails identically on both sides (native: `{"genre":"introuvable","message":"Menu
+   script unavailable"}`; wasm: `"script not loaded for screen: shop_menu"` — there genuinely is
+   no top-level `shop_menu.lua.bin`, only `shop_menu_basara_*`/`shop_menu_buy_*`/
+   `shop_menu_sell` variants; same root cause, different error shape). **The other 13 all abort
+   the wasm instance** with `thread '<unnamed>' (1) panicked at .../panicking.rs:225:5: panic in
+   a function that cannot unwind` → JS sees `Unreachable code should not be executed`.
+   **Diagnosed root cause, not yet fixed**: `mlua` registers Rust closures as Lua C functions
+   through `extern "C"` trampolines and relies on `std::panic::catch_unwind` internally to turn
+   an accidental Rust panic inside a host callback into a recoverable `mlua::Error` instead of
+   letting it cross the C-ABI boundary raw. On `wasm32-unknown-emscripten`, Rust's unwinding is
+   implemented via the Itanium C++ exception ABI, routed through exactly the `invoke_*` /
+   `__cxa_find_matching_catch_3` imports this module declares. This crate's hand-written JS glue
+   stubs `__cxa_find_matching_catch_3` to always report "no match" and does not re-throw through
+   nested `invoke_*` frames the way emscripten's real JS runtime does — so `catch_unwind` cannot
+   find its landing pad, and what should have been a caught-and-converted host-call panic
+   instead escapes as a genuine `abort()`. This is a JS-glue gap, not a `nie-lua`/`mlua` bug.
+
+### What is missing to turn this bring-up into a real "Lua vm in the browser" feature
+
+Ranked by what unblocks the most:
+
+1. **Fix `catch_unwind` under wasm32-unknown-emscripten** — either vendor/port emscripten's
+   actual exception-handling runtime JS (`ExceptionInfo`, real type-matching against Rust's
+   panic payload, `setThrew`/`stackSave` semantics) into `nie-lua-web/js/`, or compile this
+   crate's dependency graph with `panic = "abort"` end-to-end so a host-callback panic aborts
+   predictably instead of relying on an unwind path our glue cannot service (loses the
+   Lua-error-recovery behavior the native build gets from `catch_unwind`, but removes the
+   dependency on a correct C++-exception JS shim entirely — the faster path to a first green
+   family). Re-run `scripts/differential.ts` after either fix; today's 0/14 measurement is the
+   baseline to beat.
+2. **`wasm-opt` the release artifact** (binaryen via `bun add -g binaryen`, not installed in
+   this pass) and record the optimized size budget, mirroring `nie-wasm`'s build discipline.
+3. **Wire localized menu text** (`load_menu_text`'s job on the native site) — `nie-lua-web`
+   currently always replays with an empty text map; JS needs to fetch and pass locale strings
+   the same way it fetches scripts.
+4. **`chara`/`system`/`kizuna` host coverage**: the registry already accepts any script family
+   (point 1 above), but `HostRegistry::standard` in `nie-lua` only implements the *menu* host
+   API surface end to end (`crates/engine/nie-lua/src/menu_host.rs`, 1,900 lines). Running a
+   `chara_edit`/Kizuna-town/system script for real, not just resolving its bytecode, needs the
+   same incremental host-call discovery `menu_host` went through
+   (`nie_lua::discover_host_calls`) applied to those families — start from
+   `data/common/script/lua/{chara,system,action}/` inventories (651 total `.lua.bin` measured
+   under `data/common/script/lua/`, only a fraction are `menu/`).
+5. **Site/browser wiring once (1) is fixed**: a page/route that loads `nie-lua-web.wasm`
+   alongside `nie-wasm`'s existing module, fetches a screen's scripts from `/f/{path}` the way
+   `differential.ts` does, and renders the resulting `MenuScene` JSON with the same layer/object
+   model the native `/api/v1/menu/runtime/{screen}` consumers already use — this is the concrete
+   deliverable that makes "the real game environment in the browser" true for menus, then for
+   `chara`/`kizuna`/`system` once (4) lands.
+
+Files: `crates/engine/nie-lua-web/{Cargo.toml,src/lib.rs,.cargo/config.toml,README.md,
+js/nie-lua-web.ts,scripts/differential.ts}`.

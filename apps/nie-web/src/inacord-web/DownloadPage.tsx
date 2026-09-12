@@ -1,7 +1,6 @@
 import { Button, Card, CardContent, Divider } from "@aphrody/spaceui";
 import { useEffect, useMemo, useState } from "react";
 import { formatBytes, normalizeCatalog, type DownloadItem, type ProductKind } from "./catalog";
-import "./inacord-web.css";
 
 const groupNames: Record<ProductKind, string> = {
 	desktop: "Desktop",

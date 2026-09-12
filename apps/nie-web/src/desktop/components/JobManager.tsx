@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@niers/inacord-ui/compo
 import { Progress } from "@niers/inacord-ui/components/ui/progress";
 import { jobsDb, useJobs, type JobRow, type JobStatus } from "@/lib/jobsDb";
 import { cn } from "@niers/inacord-ui/lib/utils";
+import { NATIVE_WINDOW } from "../../host";
 
 const STATUS_LABEL: Record<JobStatus, string> = {
   running: "en cours",
@@ -58,7 +59,21 @@ function JobCard({ job }: { job: JobRow }) {
   );
 }
 
+/**
+ * Le journal des opérations — **fenêtre native seulement**.
+ *
+ * Sa source est la table `jobs` de `mods.db`, lue par la commande Rust `sqlite_select`. Une page
+ * n'a pas de SQLite : depuis que la barre latérale est celle de TOUS les écrans, le bouton se
+ * dessinait sur le site entier et chaque chargement se soldait par « L'accès SQLite direct n'est
+ * pas disponible dans le mode navigateur » en console. Un contrôle qui ne peut rien faire ne se
+ * dessine pas — c'est déjà la règle du bouton de téléchargement, dans l'autre sens.
+ */
 export function JobManagerButton() {
+  if (!NATIVE_WINDOW) return null;
+  return <JobManagerPopover />;
+}
+
+function JobManagerPopover() {
   const jobs = useJobs();
   const running = jobs.filter((j) => j.status === "running").length;
 

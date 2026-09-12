@@ -9,6 +9,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { cn } from "@niers/inacord-ui/lib/utils";
+import { NATIVE_WINDOW } from "../../../host";
 
 /** La fenêtre Tauri courante, ou `null` hors de son runtime.
  *
@@ -25,7 +26,19 @@ function fenetre() {
   }
 }
 
+/**
+ * Les boutons de fenêtre — **fenêtre native seulement**.
+ *
+ * Ils réduisent, agrandissent et ferment LA fenêtre Tauri. Un onglet de navigateur n'en a pas :
+ * depuis que la barre supérieure coiffe tous les écrans, ces trois boutons se dessinaient sur le
+ * site, où ils ne faisaient rien du tout. Trois contrôles morts en haut à droite de chaque page.
+ */
 export function WindowControls({ className }: { className?: string }) {
+  if (!NATIVE_WINDOW) return null;
+  return <NativeWindowControls className={className} />;
+}
+
+function NativeWindowControls({ className }: { className?: string }) {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {

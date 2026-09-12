@@ -11,7 +11,7 @@
 
 - **TypeScript / UI**:
   ```bash
-  bunx tsc --noEmit -p tsconfig.desktop.json
+  bun run --cwd apps/nie-web typecheck
   bun run --cwd apps/nie-web build:desktop
   bun run --cwd apps/nie-web build
   ```

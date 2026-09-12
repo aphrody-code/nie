@@ -121,7 +121,13 @@ export const jobsDb = {
 function subscribe(cb: () => void): () => void {
   listeners.add(cb);
   // Premier abonné : amorce le cache (asynchrone, la vue se re-rendra à l'arrivée des données).
-  if (listeners.size === 1) void refresh();
+  // A failed first load must not take the page down with it: the job badge lives in the sidebar
+  // of EVERY screen now, and a host with no SQLite behind it (a plain browser session, a test
+  // renderer) would otherwise throw out of a passive effect and unmount the whole shell. An
+  // empty journal is the honest answer — the error is reported, not swallowed silently.
+  if (listeners.size === 1) {
+    void refresh().catch((err) => console.error("[jobs] journal unavailable", err));
+  }
   return () => listeners.delete(cb);
 }
 

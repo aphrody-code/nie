@@ -57,7 +57,7 @@ import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-c
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
 import { entryLabel } from "../entries";
-import { agree, Notice, readableSize, ViewTitle } from "./SecondaryScreen";
+import { agree, Notice, readableSize, ViewTitle } from "./screen-parts";
 import { Modeles3D as Models3D } from "./Models3D";
 import { CatalogAudioBank, CatalogMoviePreview } from "./CatalogMedia";
 

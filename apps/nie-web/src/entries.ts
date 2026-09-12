@@ -16,6 +16,7 @@
  */
 import type { SanteApi as SiteHealth } from "@niers/asset-source";
 import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
+import { IDS_VUES } from "./desktop/lib/vues";
 
 /**
  * L'explorateur — **la seule page**, décidé par l'utilisateur le 2026-09-06.
@@ -140,8 +141,24 @@ export function entryLabel(route: string): string {
  * serait payer une décision d'affichage avec les liens des autres.
  */
 export function recognizedRoutes(health: SiteHealth | null): string[] {
-	return [MENU, ...menuEntries(health).map((entry) => entry.route), DOWNLOADS, ...ALIAS, ...CATALOGS];
+	return [
+		MENU,
+		...menuEntries(health).map((entry) => entry.route),
+		DOWNLOADS,
+		...INACORD_VIEW_ROUTES,
+		...ALIAS,
+		...CATALOGS,
+	];
 }
+
+/**
+ * The workspace views, addressable one by one: `/inacord/cinema` opens the Cinema view inside
+ * the unified shell. `/inacord` alone stays valid and opens the explorer.
+ *
+ * The identifiers are NOT re-declared here — they come from the view registry
+ * (`desktop/lib/vues.ts`), the single place that says what the workspace contains.
+ */
+export const INACORD_VIEW_ROUTES: readonly string[] = IDS_VUES.map((id) => `${INACORD}/${id}`);
 
 /**
  * Implemented host destinations in their display order. Health is retained in the public

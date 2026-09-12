@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import inacordPackage from "../../../../inacord/package.json";
-import { useTheme } from "next-themes";
 import { MemoireCard } from "@/components/MemoireCard";
 import { open } from "@tauri-apps/plugin-dialog";
 import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
@@ -14,7 +13,6 @@ import {
   getSettings,
   setSettings,
   useSettings,
-  type ThemeMode,
 } from "@niers/inacord-ui/lib/settings";
 import { SettingsScreen } from "@niers/inacord-ui";
 import { Input } from "@niers/inacord-ui/components/ui/input";
@@ -25,9 +23,8 @@ import { Badge } from "@niers/inacord-ui/components/ui/badge";
 import { Progress } from "@niers/inacord-ui/components/ui/progress";
 import { Switch } from "@niers/inacord-ui/components/ui/switch";
 
-export function SettingsView() {
+export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}) {
   const settings = useSettings();
-  const { theme, setTheme } = useTheme();
   const [autoGameDir, setAutoGameDir] = useState("");
   const [gameDirOk, setGameDirOk] = useState<boolean | null>(null);
   const [stats, setStats] = useState<VfsStats | null>(null);
@@ -48,19 +45,6 @@ export function SettingsView() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
   const [installingUpdate, setInstallingUpdate] = useState(false);
-
-  // The shared Options screen writes the `theme` field of the settings store, while
-  // next-themes owns what the desktop window actually paints. Adopt the persisted
-  // next-themes value once, then mirror every later store change back into it.
-  const themeAdopted = useRef(false);
-  useEffect(() => {
-    if (!themeAdopted.current) {
-      themeAdopted.current = true;
-      if (theme && theme !== settings.theme) setSettings({ theme: theme as ThemeMode });
-      return;
-    }
-    if (settings.theme !== theme) setTheme(settings.theme);
-  }, [settings.theme, theme, setTheme]);
 
   async function checkForUpdate() {
     setCheckingUpdate(true);
@@ -152,7 +136,9 @@ export function SettingsView() {
   }
 
   useEffect(() => {
-    api.defaultGameDir().then(setAutoGameDir);
+    // A host that cannot answer (the site, where this command has no shim) must leave the rest
+    // of the Options page standing: an unhandled rejection here took the whole screen down.
+    api.defaultGameDir().then(setAutoGameDir, () => setAutoGameDir(""));
     refreshIndexMeta();
   }, []);
 
@@ -203,7 +189,7 @@ export function SettingsView() {
   useEffect(() => {
     const dir = settings.gameDir || autoGameDir;
     if (!dir) return;
-    api.checkGameDir(dir).then(setGameDirOk);
+    api.checkGameDir(dir).then(setGameDirOk, () => setGameDirOk(null));
     api
       .stats(settings.gameDir)
       .then((s) => {
@@ -218,11 +204,16 @@ export function SettingsView() {
       {/* One settings UI across the site and the desktop app: every setting field is owned by
           the game's own Options screen, rendered inline here. Only the desktop-only ACTIONS
           below stay local to Inacord. */}
-      <div className="overflow-hidden rounded-lg border border-app-line">
-        <SettingsScreen title="Options" inline />
-      </div>
+      {/* `toolsOnly` — the site already draws the game's Options screen above these cards
+          (`pages/Settings.tsx`). Drawing it twice would give one page two sets of the same
+          fields, each with its own « Appliquer ». */}
+      {!toolsOnly && (
+        <div className="overflow-hidden rounded-lg border border-app-line">
+          <SettingsScreen title="Options" inline />
+        </div>
+      )}
 
-      <h2 className="type-title-medium text-on-surface">Outils Inacord</h2>
+      {!toolsOnly && <h2 className="type-title-medium text-on-surface">Outils Inacord</h2>}
 
       <Card>
         <CardHeader>

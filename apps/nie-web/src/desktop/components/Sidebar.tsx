@@ -19,6 +19,7 @@ import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { JobManagerButton } from "@/components/JobManager";
 import { useT } from "@/lib/i18n";
+import { setSettings } from "@niers/inacord-ui/lib/settings";
 import { cn } from "@niers/inacord-ui/lib/utils";
 
 /**
@@ -89,7 +90,11 @@ export function Sidebar({
   onBasculerRepli?: () => void;
 }) {
   const t = useT();
-  const { resolvedTheme, setTheme } = useTheme();
+  // Le thème appartient au magasin de réglages, pas à next-themes : deux propriétaires écrivaient
+  // la même classe sur `<html>`, et ouvrir les Options suffisait à basculer toute l'application
+  // dans le thème par défaut de next-themes, définitivement. next-themes ne fait plus que peindre
+  // ce que le magasin dit (`App.tsx`), et ce bouton écrit le magasin, comme l'écran des Options.
+  const { resolvedTheme } = useTheme();
   const dark = resolvedTheme !== "light";
   const [focusedItem, setFocusedItem] = useState<string | null>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -157,7 +162,7 @@ export function Sidebar({
                 size="sm"
                 title={dark ? "Thème clair" : "Thème sombre"}
                 aria-label={dark ? "Thème clair" : "Thème sombre"}
-                onClick={() => setTheme(dark ? "light" : "dark")}
+                onClick={() => setSettings({ theme: dark ? "light" : "dark" })}
               />
               <CircleButton
                 icon="search"
