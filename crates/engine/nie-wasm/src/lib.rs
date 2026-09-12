@@ -2784,7 +2784,14 @@ mod tests {
         let compose = MenuLayout::from_json(&[layout])
             .expect("layout lisible")
             .with_visibility(Visibility::UnknownCounts);
-        assert_eq!(compose.required_assets(), ["absent.g4tx"]);
+        // Les DEUX formes sont demandées, et dans cet ordre : le chemin logique tel que le
+        // layout le nomme, puis son seul nom de fichier. L'hôte sert l'un ou l'autre selon son
+        // montage — `nie-site` résout le chemin, un dossier extrait ne porte que le basename —
+        // et n'en demander qu'une laisserait l'autre moitié des hôtes sans texture.
+        assert_eq!(
+            compose.required_assets(),
+            ["menu/absent.g4tx", "absent.g4tx"]
+        );
 
         let assets = AssetsNavigateur::default();
         assert!(assets.g4tx("absent.g4tx").is_none());
