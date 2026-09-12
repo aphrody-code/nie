@@ -11,6 +11,7 @@
 		"build:desktop": "bun run typecheck && vite build --mode desktop",
 		"build": "bun run build:wasm && bun run typecheck && tsc -b && vite build && bun --bun scripts/precompress.ts",
 		"build:wasm": "bun --bun scripts/build-wasm.ts",
+		"build:wasm-viewer": "bun --bun scripts/build-viewer-wasm.ts",
 		"preview": "vite preview",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test --preload ../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts src/"

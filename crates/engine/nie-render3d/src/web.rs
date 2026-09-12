@@ -104,12 +104,15 @@ mod browser {
             canvas: HtmlCanvasElement,
             transparent: bool,
         ) -> Result<Self> {
-            // `BROWSER_WEBGPU` seul, et c'est un choix contraint : `Backends::GL` demanderait
-            // `wgpu/webgl`, qui coûte +2,24 Mio au module et dépasse son budget (mesuré, cf. le
-            // commentaire de la feature `webgpu` dans Cargo.toml). Un navigateur sans WebGPU est
-            // servi par le rastériseur CPU de `nie_render3d::render`, lié sans feature.
+            // Les backends dépendent de la feature `webgl`, et c'est une question de POIDS, pas
+            // de préférence : le backend GL coûte +2,24 Mio (mesuré, cf. le commentaire de la
+            // feature dans Cargo.toml). `nie-wasm` compile donc sans lui, `nie-viewer-web` avec.
             let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
-            descriptor.backends = wgpu::Backends::BROWSER_WEBGPU;
+            descriptor.backends = if cfg!(feature = "webgl") {
+                wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL
+            } else {
+                wgpu::Backends::BROWSER_WEBGPU
+            };
             let instance = wgpu::Instance::new(descriptor);
             let surface = instance
                 .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
@@ -124,10 +127,14 @@ mod browser {
                 .context(
                     "WebGPU indisponible : navigateur compatible et contexte sécurisé requis",
                 )?;
+            // Le backend obtenu est vérifié contre ce que la compilation autorise : accepter GL
+            // dans un module qui ne l'embarque pas masquerait une erreur de configuration.
             let info = adapter.get_info();
             ensure!(
-                info.backend == wgpu::Backend::BrowserWebGpu,
-                "backend obtenu différent de WebGPU"
+                info.backend == wgpu::Backend::BrowserWebGpu
+                    || (cfg!(feature = "webgl") && info.backend == wgpu::Backend::Gl),
+                "backend obtenu inattendu : {:?}",
+                info.backend
             );
             let (device, queue) = adapter
                 .request_device(&wgpu::DeviceDescriptor {

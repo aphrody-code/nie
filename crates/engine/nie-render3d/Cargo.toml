@@ -42,14 +42,15 @@ default = ["cli"]
 cli = ["dep:clap"]
 gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
 # Présentation canvas facultative ; aucun backend GPU ajouté aux consommateurs CPU par défaut.
-# RÉSULTAT NÉGATIF MESURÉ, 2026-09-12 : ajouter `wgpu/webgl` ici ferait tourner le MÊME renderer
-# Rust sur WebGL 2, ce qui rendrait supprimables les 445 lignes de
-# `apps/nie-web/src/avatar/webgl-viewer.ts` — une seconde implémentation qui dérive par
-# construction. Le module passe alors de 4 518 833 à 6 865 774 octets, soit +2,24 Mio, et dépasse
-# de 574 318 octets le budget de 6 Mio que `apps/nie-web/scripts/build-wasm.ts` impose. Ce budget
-# protège le téléchargement de CHAQUE visiteur, pas seulement de ceux qui ouvrent un modèle : la
-# migration attend un module chargé à la demande, pas un relèvement du plafond.
 webgpu = ["gpu", "wgpu/webgpu", "dep:web-sys"]
+# Le backend WebGL 2, qui fait tourner le MÊME renderer là où WebGPU manque.
+#
+# MESURÉ le 2026-09-12 : l'activer dans `nie-wasm` fait passer son module de 4 518 833 à
+# 6 865 774 octets (+2,24 Mio) et dépasse de 574 318 octets le budget de 6 Mio que
+# `apps/nie-web/scripts/build-wasm.ts` impose — un budget qui protège le téléchargement de CHAQUE
+# visiteur, pas seulement de ceux qui ouvrent un modèle. D'où `nie-viewer-web` : un module
+# séparé, qui ne porte QUE le viewer et n'est chargé que par un navigateur sans WebGPU.
+webgl = ["webgpu", "wgpu/webgl"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { workspace = true, optional = true, features = ["HtmlCanvasElement"] }

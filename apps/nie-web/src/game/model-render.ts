@@ -122,11 +122,13 @@ export async function loadGameModelFromGlb(url: string, signal?: AbortSignal): P
  *
  * ## Sa place dans la chaîne
  *
- * `native-viewer.ts` essaie WebGPU, puis WebGL 2. Le second est une SECONDE implémentation,
- * écrite en TypeScript (`apps/nie-web/src/avatar/webgl-viewer`) : elle marche, mais elle dérive
- * du rendu natif par construction, puisqu'elle ne partage aucune ligne avec lui. Ce viewer-ci
- * est le seul des trois qui appelle `nie_render3d::render` — la fonction dont les golden natifs
- * figent la sortie — donc le seul dont on puisse dire qu'il rend comme le renderer du dépôt.
+ * `native-viewer.ts` essaie WebGPU, puis le module `nie-viewer-web` (le même renderer Rust sur
+ * WebGL 2), puis celui-ci. Les trois appellent désormais le renderer de ce dépôt : la
+ * réimplémentation TypeScript qui occupait le deuxième rang a été supprimée le 2026-09-12.
+ *
+ * Celui-ci est le seul des trois qui n'a besoin d'aucun GPU : il appelle `nie_render3d::render`,
+ * la fonction dont les golden natifs figent la sortie, et il est déjà dans le module principal —
+ * donc il ne coûte aucun téléchargement supplémentaire.
  *
  * ## Ce qu'il N'HONORE PAS, et le dit
  *

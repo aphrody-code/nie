@@ -1,0 +1,27 @@
+[package]
+name = "nie-viewer-web"
+description = "Le viewer 3D du dépôt, compilé seul pour le navigateur avec le backend WebGL 2 — chargé à la demande quand WebGPU manque"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# La SEULE dépendance de fond : le renderer du dépôt, avec son backend WebGL 2. Ce module ne
+# porte rien d'autre — c'est ce qui le rend assez petit pour être téléchargé à la demande là où
+# l'activer dans `nie-wasm` dépassait le budget de tout le monde.
+nie-render3d = { workspace = true, features = ["webgl"] }
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+console_error_panic_hook.workspace = true
+serde_json = { workspace = true, default-features = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { workspace = true, features = ["HtmlCanvasElement"] }

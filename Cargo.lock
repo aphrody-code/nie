@@ -6612,6 +6612,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-viewer-web"
+version = "0.6.0"
+dependencies = [
+ "console_error_panic_hook",
+ "nie-render3d",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "nie-viola"
 version = "0.6.0"
 dependencies = [
