@@ -128,8 +128,13 @@ blocker named when there is one. Regenerate it; do not quote it.
    `-C target-feature=+exception-handling` on the nightly installed here — each produced a
    BYTE-IDENTICAL 870,512-byte artifact with the same five `invoke_*`. Flags do not reach code
    generation on this target. `-Z emscripten-wasm-eh` does not exist in that nightly either.
-   The next step is to read the actual `emcc` link line (`EMCC_DEBUG=1`), not to guess another
-   flag. Until then the driver returns an empty table and the screens fall back on the server's
+   The `emcc` link line was then read (`cargo build -v`): the crate's five link args do reach
+   rustc, so the configuration is applied. The lever that finally moves the artifact is
+   `-Z build-std` — rebuilding the standard library, whose prebuilt form carries the
+   JS-exception ABI: with `-Z build-std=std,panic_abort` the module drops to 867,669 bytes and
+   stops reporting a foreign exception; run end to end against the live VFS it now TRAPS instead,
+   on a Rust panic inside `nie_lua_web_replay`. The next measurement is that panic message
+   (rebuild with `-Z build-std=std`, keep unwinding, read fd 2), not another exception flag. Until then the driver returns an empty table and the screens fall back on the server's
    resolution.
 
 **Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no

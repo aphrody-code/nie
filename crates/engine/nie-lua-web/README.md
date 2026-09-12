@@ -66,6 +66,7 @@ CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions
 | link flags only | 870,512 bytes, 5 `invoke_*`, 1 `__cxa_find_matching_catch` |
 | `cargo clean -p mlua-sys` + rebuild (55 s of real C compilation) with `CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions` | **the same 870,512 bytes, the same 5 `invoke_*`, the same 1 `__cxa_find_matching_catch`** |
 | add `-C target-feature=+exception-handling` on nightly (installed here) and rebuild again, 1 min 14 s | **again the same 870,512 bytes and the same counts** — single output file, freshly timestamped, so the rebuild is real |
+| `cargo +nightly -Z build-std=std,panic_abort` with the same flags | **the artifact finally MOVES: 867,669 bytes** (−2,843). `invoke_*` and `__cxa_find_matching_catch` still present. Run end to end against the live VFS, the replay no longer reports a foreign exception — it traps: `RuntimeError: Unreachable code should not be executed` inside `nie_lua_web_replay`, which is what `panic_abort` makes of a Rust panic |
 
 A forced recompilation of Lua's C sources that changes NOTHING in the output means the
 trampolines do not come from those sources. They come from the Rust side: `rustc` emits the
@@ -76,8 +77,16 @@ Three real rebuilds producing a byte-identical artifact mean the flags do not re
 generation on this target at all. `-Z emscripten-wasm-eh` does not exist in the nightly
 installed here (`rustc 1.98.0-nightly 2026-06-04`, `-Z help` lists 287 options and none match
 `emscripten`/`exception`), and `-C target-feature=+exception-handling` changes nothing either.
-Establishing WHY needs the actual `emcc` link line (`EMCC_DEBUG=1`, or `-v`) rather than more
-flag guesses — that is the next measurement, not another flag. Until it is resolved the browser driver
+The `-v` build was read: the five link args of this file DO reach rustc, so the config is
+applied. The lever that finally moves the artifact is `-Z build-std` — rebuilding the standard
+library, whose prebuilt form carries the JS-exception ABI. With `panic_abort` the module then
+stops complaining about foreign exceptions and traps instead, on a Rust panic inside
+`nie_lua_web_replay`.
+
+So the next measurement is that panic, not another flag: rebuild with `-Z build-std=std` (keeping
+unwinding) and read the message the panic prints on fd 2 — the browser glue already surfaces it
+(`[nie-lua-web fd2] …`). That names what actually fails in the replay under wasm, which no
+amount of exception-mode tuning will tell us. Until it is resolved the browser driver
 (`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back on the
 server's resolution.
 
