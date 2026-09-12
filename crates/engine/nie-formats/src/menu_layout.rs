@@ -103,9 +103,48 @@ pub struct ComposedLayout {
     pub report: ComposeReport,
 }
 
+/// Ce qu'un hôte sait de la visibilité des objets qu'il compose.
+///
+/// Le champ `visible` d'un layout n'a pas la même valeur selon qui l'a produit, et cette
+/// différence est réelle, pas cosmétique :
+///
+/// - l'export RUNTIME (`nie-game --runtime --export-layout`) exécute le driver Lua du jeu :
+///   `visible` y est **résolu**, objet par objet ;
+/// - le layout STATIQUE de `nie-site` (`/api/v1/menu/layout/{screen}`) se construit depuis les
+///   `_setting.cfg.bin`, les `objbin` et les `g4pkm`, sans exécuter le moindre script. Il pose
+///   donc `visible: null` et l'annonce (`diagnostics.visibilityResolved = 0`) plutôt que
+///   d'affirmer une visibilité qu'il n'a pas mesurée.
+///
+/// Composer le second avec la règle du premier rend une image vide — mesuré le 2026-09-12 sur
+/// `main_menu` : 20 objets, 0 dessiné. Le choix appartient donc à l'hôte, et il est nommé.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Visibility {
+    /// Ne dessine que ce que la donnée déclare visible. Règle de l'export runtime.
+    #[default]
+    Declared,
+    /// Dessine aussi ce dont la visibilité est INCONNUE (`null`, absent) ; `false` cache toujours.
+    ///
+    /// C'est la seule façon de composer un layout statique, et c'est une hypothèse : l'image
+    /// obtenue montre ce que l'écran CONTIENT, pas ce que le jeu en affiche à un instant donné.
+    UnknownCounts,
+}
+
+impl Visibility {
+    /// Cet objet doit-il être dessiné sous cette politique ?
+    #[must_use]
+    fn draws(self, object: &Value) -> bool {
+        match (self, object["visible"].as_bool()) {
+            (_, Some(declared)) => declared,
+            (Self::Declared, None) => false,
+            (Self::UnknownCounts, None) => true,
+        }
+    }
+}
+
 /// Un layout de menu prêt à composer.
 pub struct MenuLayout {
     objects: Vec<Value>,
+    visibility: Visibility,
 }
 
 impl MenuLayout {
@@ -140,7 +179,17 @@ impl MenuLayout {
                 object["transform"].is_object(),
             )
         });
-        Ok(Self { objects })
+        Ok(Self {
+            objects,
+            visibility: Visibility::default(),
+        })
+    }
+
+    /// Choisit la politique de visibilité — cf. [`Visibility`].
+    #[must_use]
+    pub fn with_visibility(mut self, visibility: Visibility) -> Self {
+        self.visibility = visibility;
+        self
     }
 
     /// Combien d'objets ont passé la porte de placement.
@@ -156,8 +205,7 @@ impl MenuLayout {
     #[must_use]
     pub fn has_text_labels(&self) -> bool {
         self.objects.iter().any(|object| {
-            object["visible"].as_bool().unwrap_or(false)
-                && resolved_text_label(&object["text"]).is_some()
+            self.visibility.draws(object) && resolved_text_label(&object["text"]).is_some()
         })
     }
 
@@ -175,7 +223,7 @@ impl MenuLayout {
         let mut seen = BTreeSet::new();
         let mut keys = Vec::new();
         for object in &self.objects {
-            if !object["visible"].as_bool().unwrap_or(false) {
+            if !self.visibility.draws(object) {
                 continue;
             }
             for key in [
@@ -228,7 +276,7 @@ impl MenuLayout {
         let mut report = ComposeReport::default();
 
         for (order, object) in self.objects.iter().enumerate() {
-            if !object["visible"].as_bool().unwrap_or(false) {
+            if !self.visibility.draws(object) {
                 continue;
             }
             let Some((source, pixels)) = sprite_pixels(object, assets, &mut cache) else {
@@ -278,7 +326,7 @@ impl MenuLayout {
 
         if let Some(menu_font) = assets.font() {
             for (order, object) in self.objects.iter().enumerate() {
-                if !object["visible"].as_bool().unwrap_or(false) {
+                if !self.visibility.draws(object) {
                     continue;
                 }
                 let Some(label) = resolved_text_label(&object["text"]) else {
@@ -607,6 +655,35 @@ mod tests {
                 .as_deref(),
             Some("MODE HISTOIRE")
         );
+    }
+
+    #[test]
+    fn an_unknown_visibility_is_drawn_only_under_the_static_policy() {
+        // C'est exactement le layout que `nie-site` publie : `visible` non résolu, et il le dit.
+        let json = layout(
+            r#"[{"visible":null,"transform":{},"placementSource":"attach-locator",
+                 "sprite":{"logicalPath":"menu/one.g4tx"}}]"#,
+        );
+        let declared = MenuLayout::from_json(&[&json]).expect("layout lisible");
+        assert!(declared.required_assets().is_empty(), "rien n'est déclaré visible");
+        let statique = MenuLayout::from_json(&[&json])
+            .expect("layout lisible")
+            .with_visibility(Visibility::UnknownCounts);
+        assert_eq!(statique.required_assets(), ["one.g4tx"]);
+    }
+
+    #[test]
+    fn an_explicit_false_hides_under_both_policies() {
+        let json = layout(
+            r#"[{"visible":false,"transform":{},"placementSource":"attach-locator",
+                 "sprite":{"logicalPath":"menu/hidden.g4tx"}}]"#,
+        );
+        for politique in [Visibility::Declared, Visibility::UnknownCounts] {
+            let parsed = MenuLayout::from_json(&[&json])
+                .expect("layout lisible")
+                .with_visibility(politique);
+            assert!(parsed.required_assets().is_empty(), "caché sous {politique:?}");
+        }
     }
 
     #[test]

@@ -18,7 +18,8 @@ use axum::response::{IntoResponse, Response};
 use nie_formats::cfgbin;
 use nie_formats::g4pkm;
 use nie_formats::g4tx;
-use nie_formats::menu as menu_layout;
+use nie_formats::menu as menu_placement;
+use nie_formats::menu_layout;
 use nie_formats::objbin;
 use nie_formats::vfs::Vfs;
 use serde_json::{Value, json};
@@ -38,6 +39,16 @@ pub const SETTING_ROUTE: &str = "/api/v1/menu/settings/{screen}";
 
 /// Chemin public d'un layout statique construit depuis le VFS.
 pub const LAYOUT_ROUTE: &str = "/api/v1/menu/layout/{screen}";
+
+/// Chemin public de l'IMAGE composée d'un écran, PNG 1280×720.
+pub const RENDER_ROUTE: &str = "/api/v1/menu/render/{screen}";
+
+/// L'atlas de la police de menu et ses métriques, dans le VFS.
+const FONT_ATLAS: &str = "data/dx11/font/font_def/font.g4tx";
+const FONT_METRICS: &str = "data/common/font/font/font_def/font.cfg.bin";
+
+/// Le canevas du jeu, en pixels. Les transforms du layout y sont exprimés.
+const CANVAS: (u32, u32) = (1280, 720);
 
 /// Chemin d'amont du catalogue complet.
 const UPSTREAM_INDEX: &str = "menu-tree.json";
@@ -232,7 +243,7 @@ fn texture_logical_path(object: &objbin::MenuObject) -> Option<String> {
 /// rotation, or anchor. Those unresolved components remain JSON `null` instead of silently
 /// turning into an identity transform at the centre of the canvas.
 fn serialize_transform(
-    transform: Option<menu_layout::ScreenTransform>,
+    transform: Option<menu_placement::ScreenTransform>,
     attach_position: Option<(f32, f32)>,
 ) -> Value {
     match (transform, attach_position) {
@@ -267,16 +278,16 @@ fn resolved_static_transform(
     object: &objbin::MenuObject,
     layout: &g4pkm::G4pkmLayout,
     sprite_size: (u32, u32),
-) -> Option<menu_layout::ScreenTransform> {
+) -> Option<menu_placement::ScreenTransform> {
     let transform =
-        menu_layout::assemble_object(object, layout, sprite_size.0, sprite_size.1).transform;
+        menu_placement::assemble_object(object, layout, sprite_size.0, sprite_size.1).transform;
     let identity_centre = transform.x_px == 640.0
         && transform.y_px == 360.0
         && transform.scale_x == 1.0
         && transform.scale_y == 1.0
         && transform.rot == 0.0;
     (!identity_centre
-        || menu_layout::taille_designee(layout, sprite_size.0, sprite_size.1).is_some())
+        || menu_placement::taille_designee(layout, sprite_size.0, sprite_size.1).is_some())
     .then_some(transform)
 }
 
@@ -329,7 +340,7 @@ fn build_static_layout(
         let Ok(layout) = g4pkm::parse(&bytes) else {
             continue;
         };
-        for slot in menu_layout::attach_slots(object, &layout) {
+        for slot in menu_placement::attach_slots(object, &layout) {
             attaches
                 .entry(slot.target_hash)
                 .or_default()
@@ -518,6 +529,147 @@ pub async fn layout(
     Ok(Json(body))
 }
 
+/// Les octets que le compositeur portable demandera, lus dans le VFS monté.
+struct AssetsVfs {
+    octets: BTreeMap<String, Vec<u8>>,
+    police: Option<menu_layout::MenuFont>,
+}
+
+impl menu_layout::MenuAssets for AssetsVfs {
+    fn g4tx(&self, cle: &str) -> Option<&[u8]> {
+        self.octets.get(cle).map(Vec::as_slice)
+    }
+
+    fn font(&self) -> Option<&menu_layout::MenuFont> {
+        self.police.as_ref()
+    }
+}
+
+/// Lit un `.g4tx` que le layout nomme, sous l'une ou l'autre de ses deux formes.
+///
+/// Le layout nomme sa texture tantôt par un chemin VFS complet (région runtime), tantôt par le
+/// seul nom de fichier (texture statique, région par hash). Les deux passent ici : lecture
+/// directe d'abord, puis la résolution par nom de l'index, qui applique la politique de locale
+/// du jeu (`resolve_companion`). Aucun chemin n'est deviné — les deux issues viennent de l'index.
+fn lire_asset(vfs: &Vfs, index: &IndexVfs, cle: &str, locale: &str) -> Option<Vec<u8>> {
+    if let Ok(octets) = vfs.read(cle) {
+        return Some(octets);
+    }
+    let logique = cle.strip_prefix("data/").unwrap_or(cle);
+    let chemin = super::inspect::resolve_companion(index, logique, locale)?;
+    vfs.read(&chemin).ok()
+}
+
+/// Charge la police du menu — atlas RGBA8 + métriques T2B. `None` si l'une des deux manque :
+/// une police à moitié chargée dessinerait des glyphes faux, ce qui est pire qu'aucun libellé.
+fn lire_police(vfs: &Vfs, index: &IndexVfs, locale: &str) -> Option<menu_layout::MenuFont> {
+    let atlas_octets = lire_asset(vfs, index, FONT_ATLAS, locale)?;
+    let conteneur = g4tx::parse(&atlas_octets).ok()?;
+    let texture = g4tx::select_main_texture(&conteneur, "font_def")?;
+    let (atlas_width, _, atlas) =
+        nie_formats::g4tx_decode::decode_texture_rgba(&atlas_octets, texture)?;
+    let metriques_octets = lire_asset(vfs, index, FONT_METRICS, locale)?;
+    let cfg = cfgbin::parse_t2b(&metriques_octets).ok()?;
+    Some(menu_layout::MenuFont {
+        atlas,
+        atlas_width,
+        metrics: nie_formats::font::parse_metrics(&cfg),
+    })
+}
+
+/// Compose l'écran en PNG avec le compositeur de référence du dépôt.
+///
+/// Ce n'est pas une seconde implémentation : `nie_formats::menu_layout` est celle que
+/// `nie-game --compose-layout` emploie, et la même que le navigateur peut charger en
+/// WebAssembly. Le site ne fait que lui apporter les octets du VFS qu'il a déjà monté.
+fn composer_ecran(
+    vfs: &Vfs,
+    index: &IndexVfs,
+    detail: &super::screens::ScreenDetail,
+    locale: &str,
+) -> Result<(Vec<u8>, menu_layout::ComposeReport), ErreurSite> {
+    let layout = build_static_layout(vfs, index, detail, locale);
+    let texte = serde_json::to_string(&layout)
+        .map_err(|e| ErreurSite::Interne(format!("layout non sérialisable : {e}")))?;
+    // Le layout du site est STATIQUE : il n'exécute aucun script, donc il ne résout aucune
+    // visibilité et pose `visible: null` (`diagnostics.visibilityResolved = 0`). Sous la règle de
+    // l'export runtime, composer ce layout rend une image vide — mesuré le 2026-09-12 sur
+    // `main_menu` : 20 objets, 0 dessiné. La politique est donc nommée ici : l'image montre ce que
+    // l'écran CONTIENT, pas ce que le jeu en affiche à un instant donné, et l'en-tête le dit.
+    let compose = menu_layout::MenuLayout::from_json(&[&texte])
+        .map_err(ErreurSite::Interne)?
+        .with_visibility(menu_layout::Visibility::UnknownCounts);
+    let mut octets = BTreeMap::new();
+    for cle in compose.required_assets() {
+        if let Some(donnees) = lire_asset(vfs, index, &cle, locale) {
+            octets.insert(cle, donnees);
+        }
+    }
+    let police = if compose.has_text_labels() {
+        lire_police(vfs, index, locale)
+    } else {
+        None
+    };
+    let assets = AssetsVfs { octets, police };
+    let composee = compose.compose(&assets, CANVAS.0, CANVAS.1);
+    let png = nie_aphrody::assets::encoder_png(&composee.rgba, composee.width, composee.height)
+        .map_err(|e| ErreurSite::Interne(format!("encodage PNG : {e}")))?;
+    Ok((png, composee.report))
+}
+
+/// `GET /api/v1/menu/render/{screen}` — l'écran, composé en PNG 1280×720.
+///
+/// Le rendu vient du compositeur de référence (échantillonnage bilinéaire, rotation, ancre,
+/// mélange additif), pas d'un empilement d'images HTML. Les en-têtes portent les comptes de la
+/// composition : ce qui a été dessiné, et ce qui a été SAUTÉ faute de pixels — un écran
+/// incomplet se voit dans la réponse au lieu de passer pour un écran vide.
+///
+/// # Errors
+///
+/// `503` quand le VFS n'est pas monté, `404` quand l'écran n'existe pas, `500` si l'encodage
+/// échoue.
+pub async fn render(
+    State(state): State<EtatSite>,
+    Path(screen): Path<String>,
+) -> Result<Response, ErreurSite> {
+    let axum::Json(detail) = super::screens::screen(State(state.clone()), Path(screen)).await?;
+    let vfs = state.vfs()?;
+    let index = state.index()?;
+    let (png, report) = tokio::task::spawn_blocking(move || {
+        composer_ecran(&vfs, &index, &detail, super::inspect::DEFAULT_LOCALE)
+    })
+    .await??;
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        axum::http::header::CONTENT_TYPE,
+        axum::http::HeaderValue::from_static("image/png"),
+    );
+    headers.insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("public, max-age=300"),
+    );
+    // La politique de visibilité employée, en clair : sans elle, un lecteur croirait voir un état
+    // du jeu là où il voit le contenu d'un écran.
+    headers.insert(
+        axum::http::HeaderName::from_static("x-compose-visibility"),
+        axum::http::HeaderValue::from_static("unknown-counts"),
+    );
+    for (nom, valeur) in [
+        ("x-compose-drawn", report.drawn),
+        ("x-compose-sprites", report.statics),
+        ("x-compose-regions", report.regions),
+        ("x-compose-texts", report.texts),
+        ("x-compose-skipped", report.skipped),
+    ] {
+        if let Ok(entete) = axum::http::HeaderValue::from_str(&valeur.to_string())
+            && let Ok(cle) = axum::http::HeaderName::from_bytes(nom.as_bytes())
+        {
+            headers.insert(cle, entete);
+        }
+    }
+    Ok((headers, png).into_response())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -564,7 +716,7 @@ mod tests {
 
     #[test]
     fn resolved_transform_preserves_parsed_values() {
-        let transform = menu_layout::ScreenTransform {
+        let transform = menu_placement::ScreenTransform {
             x_px: 12.0,
             y_px: 34.0,
             scale_x: 1.5,

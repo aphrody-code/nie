@@ -191,6 +191,10 @@ declarer_routes! {
     // Le layout statique est construit depuis les mêmes settings/objbin/g4pkm/g4tx que
     // `/api/v1/screens`. L'exécution Lua reste volontairement hors du service HTTP.
     "/api/v1/menu/layout/{screen}" => crate::routes::menu::layout,
+    // Et son IMAGE : le même layout, composé par le compositeur de référence
+    // (`nie_formats::menu_layout`) — celui de `nie-game --compose-layout`, et celui que le
+    // navigateur charge en WebAssembly. Une seule implémentation pour les trois surfaces.
+    "/api/v1/menu/render/{screen}" => crate::routes::menu::render,
     "/api/v1/formats" => crate::routes::formats::capacites,
     "/api/v1/formats/decode/{*chemin}" => crate::routes::formats::decode,
     "/api/v1/export/formats/{*path}" => crate::routes::native_export::formats,
@@ -563,7 +567,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 135, "135 routes mounted");
+        assert_eq!(routes.len(), 136, "136 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

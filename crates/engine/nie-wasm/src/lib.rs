@@ -2772,6 +2772,31 @@ pub fn menu_screens_catalog_json() -> String {
 mod tests {
     use super::*;
 
+    /// Le chemin que `MenuComposer` emprunte, éprouvé en natif : sans octets, rien n'est dessiné
+    /// et rien n'est inventé. Le binding lui-même ne vit que sur `wasm32` (il tient un
+    /// `FrameBuffer` partagé avec JS), mais sa plomberie est celle-ci.
+    #[test]
+    fn the_browser_asset_store_draws_nothing_without_bytes() {
+        use nie_formats::menu_layout::{MenuAssets, MenuLayout, Visibility};
+
+        let layout = r#"{"objects":[{"visible":null,"transform":{"x":4.0,"y":2.0},
+            "sprite":{"logicalPath":"menu/absent.g4tx"}}]}"#;
+        let compose = MenuLayout::from_json(&[layout])
+            .expect("layout lisible")
+            .with_visibility(Visibility::UnknownCounts);
+        assert_eq!(compose.required_assets(), ["absent.g4tx"]);
+
+        let assets = AssetsNavigateur::default();
+        assert!(assets.g4tx("absent.g4tx").is_none());
+        assert!(assets.font().is_none());
+
+        let composee = compose.compose(&assets, 8, 4);
+        assert_eq!(composee.rgba.len(), 8 * 4 * 4);
+        assert!(composee.rgba.iter().all(|byte| *byte == 0));
+        assert_eq!(composee.report.drawn, 0);
+        assert_eq!(composee.report.skipped, 1);
+    }
+
     #[test]
     fn menu_screens_catalog_json_returns_38_screens() {
         let json = menu_screens_catalog_json();
@@ -4289,5 +4314,173 @@ mod tests_sprite_sheet {
                 "region sans largeur : {s}"
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Composition d'un écran de menu — le compositeur de référence, dans le navigateur
+// ---------------------------------------------------------------------------
+
+/// Les octets que la page a fetchés, tels que le compositeur portable les attend.
+#[cfg(any(target_arch = "wasm32", test))]
+#[derive(Default)]
+struct AssetsNavigateur {
+    octets: std::collections::BTreeMap<String, Vec<u8>>,
+    police: Option<nie_formats::menu_layout::MenuFont>,
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+impl nie_formats::menu_layout::MenuAssets for AssetsNavigateur {
+    fn g4tx(&self, cle: &str) -> Option<&[u8]> {
+        self.octets.get(cle).map(Vec::as_slice)
+    }
+
+    fn font(&self) -> Option<&nie_formats::menu_layout::MenuFont> {
+        self.police.as_ref()
+    }
+}
+
+/// Un écran de menu composé DANS la page, par le compositeur de référence du dépôt.
+///
+/// ## Ce que ça change
+///
+/// Le site dessinait ces layouts en DOM (`packages/inacord-ui/src/shell/layout-render.tsx`) : un
+/// `<img>` par objet, positionné par un `transform` CSS. Cette voie ne sait faire ni
+/// l'échantillonnage bilinéaire, ni la rotation autour d'une ancre, ni la teinte, ni le mélange
+/// additif — les quatre opérations que le jeu applique. Ici, c'est `nie_formats::menu_layout`,
+/// exactement le même code que `nie-game --compose-layout` et que `/api/v1/menu/render/{screen}`.
+///
+/// ## Le protocole, et pourquoi il est en trois temps
+///
+/// Le compositeur est synchrone et ne connaît pas le réseau. La page demande donc d'abord ce
+/// qu'il faut ([`MenuComposer::required_assets`]), va le chercher comme elle veut, le lui donne
+/// ([`MenuComposer::provide_asset`]), puis compose. Les pixels ne traversent jamais la frontière
+/// JS : [`MenuComposer::render`] rend le RAPPORT, et l'image se lit dans la mémoire WebAssembly
+/// par [`MenuComposer::frame_ptr`]/[`MenuComposer::frame_len`].
+///
+/// ## Ce que ça ne prétend pas
+///
+/// Rien ici ne dit que l'image est conforme à `nie.exe`. C'est la composition des données que le
+/// layout porte : un objet sans pixels est compté `skipped`, jamais remplacé.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct MenuComposer {
+    layout: nie_formats::menu_layout::MenuLayout,
+    assets: AssetsNavigateur,
+    frame: FrameBuffer,
+    width: u32,
+    height: u32,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl MenuComposer {
+    /// Construit le compositeur depuis un layout JSON.
+    ///
+    /// `assume_unknown_visible` choisit la politique de visibilité : le layout STATIQUE de
+    /// `nie-site` ne résout aucune visibilité et pose `visible: null` — composé sous la règle de
+    /// l'export runtime, il rendrait une image vide. L'export runtime, lui, la résout : passer
+    /// `false` est alors la bonne réponse.
+    #[wasm_bindgen(constructor)]
+    pub fn new(layout_json: &str, assume_unknown_visible: bool) -> Result<MenuComposer, JsValue> {
+        let visibility = if assume_unknown_visible {
+            nie_formats::menu_layout::Visibility::UnknownCounts
+        } else {
+            nie_formats::menu_layout::Visibility::Declared
+        };
+        let layout = nie_formats::menu_layout::MenuLayout::from_json(&[layout_json])
+            .map_err(|error| JsValue::from_str(&error))?
+            .with_visibility(visibility);
+        Ok(MenuComposer {
+            layout,
+            assets: AssetsNavigateur::default(),
+            frame: FrameBuffer::default(),
+            width: 0,
+            height: 0,
+        })
+    }
+
+    /// Les `.g4tx` à fetcher, dans l'ordre de rencontre. Ce sont les clés de `provide_asset`.
+    pub fn required_assets(&self) -> Vec<String> {
+        self.layout.required_assets()
+    }
+
+    /// Combien d'objets ont passé la porte de placement — un layout vide se voit tout de suite.
+    #[wasm_bindgen(getter)]
+    pub fn object_count(&self) -> usize {
+        self.layout.object_count()
+    }
+
+    /// L'écran porte-t-il un libellé RÉSOLU ? L'atlas de police pèse des dizaines de mégaoctets :
+    /// la page ne le télécharge que si un texte va s'en servir.
+    #[wasm_bindgen(getter)]
+    pub fn needs_font(&self) -> bool {
+        self.layout.has_text_labels()
+    }
+
+    /// Dépose les octets d'un `.g4tx`. Une clé inconnue du layout est acceptée et ignorée à la
+    /// composition : c'est au layout de dire ce qu'il emploie, pas à l'appelant de le deviner.
+    pub fn provide_asset(&mut self, key: &str, bytes: &[u8]) {
+        self.assets.octets.insert(key.to_owned(), bytes.to_vec());
+    }
+
+    /// Dépose la police : l'atlas `font.g4tx` et les métriques `font.cfg.bin`, bruts.
+    ///
+    /// # Errors
+    ///
+    /// Rejette quand l'un des deux est illisible — une police à moitié chargée dessinerait des
+    /// glyphes faux, ce qui est pire qu'aucun libellé.
+    pub fn provide_font(&mut self, atlas_g4tx: &[u8], metrics_cfgbin: &[u8]) -> Result<(), JsValue> {
+        let conteneur = nie_formats::g4tx::parse(atlas_g4tx)
+            .map_err(|e| JsValue::from_str(&format!("atlas de police illisible : {e}")))?;
+        let texture = nie_formats::g4tx::select_main_texture(&conteneur, "font_def")
+            .ok_or_else(|| JsValue::from_str("atlas de police sans texture `font_def`"))?;
+        let (atlas_width, _, atlas) =
+            nie_formats::g4tx_decode::decode_texture_rgba(atlas_g4tx, texture)
+                .ok_or_else(|| JsValue::from_str("atlas de police non décodable"))?;
+        let cfg = nie_formats::cfgbin::parse_t2b(metrics_cfgbin)
+            .map_err(|e| JsValue::from_str(&format!("métriques de police illisibles : {e}")))?;
+        self.assets.police = Some(nie_formats::menu_layout::MenuFont {
+            atlas,
+            atlas_width,
+            metrics: nie_formats::font::parse_metrics(&cfg),
+        });
+        Ok(())
+    }
+
+    /// Compose l'écran et rend le RAPPORT en JSON (`drawn`, `sprites`, `regions`, `texts`,
+    /// `skipped`). Les pixels restent en mémoire WebAssembly, cf. [`MenuComposer::frame_ptr`].
+    ///
+    /// # Errors
+    ///
+    /// Rejette quand le rapport n'est pas sérialisable, ce qui ne dépend pas de l'appelant.
+    pub fn render(&mut self, width: u32, height: u32) -> Result<String, JsValue> {
+        let composee = self.layout.compose(&self.assets, width, height);
+        let rapport = composee.report;
+        self.width = composee.width;
+        self.height = composee.height;
+        self.frame.replace(composee.rgba);
+        serde_json::to_string(&serde_json::json!({
+            "drawn": rapport.drawn,
+            "sprites": rapport.statics,
+            "regions": rapport.regions,
+            "regionHashes": rapport.region_hashes,
+            "texts": rapport.texts,
+            "skipped": rapport.skipped,
+            "width": self.width,
+            "height": self.height,
+        }))
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    /// Décalage de la dernière image RGBA8 dans `WebAssembly.Memory`. Invalidé par le prochain
+    /// [`MenuComposer::render`].
+    pub fn frame_ptr(&self) -> usize {
+        self.frame.pointer()
+    }
+
+    /// Longueur en octets de la dernière image.
+    pub fn frame_len(&self) -> usize {
+        self.frame.len()
     }
 }
