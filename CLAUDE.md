@@ -68,6 +68,16 @@ that price on keeper, menu and match-sim.
 
 ## Traps measured on this machine (2026-09-07)
 
+- **A killed wasm build is `lto = "fat"`, not `earlyoom`.** Three `nie-viewer-web` builds died
+  "low on memory" while `earlyoom`'s own journal never dropped below 41 % available and logged no
+  kill — the guard that stopped them is the agent harness, and the peak came from ONE rustc
+  linking `wgpu` + `naga` under the `wasm-release` profile. `CARGO_BUILD_JOBS` does not help; the
+  lever is `CARGO_PROFILE_WASM_RELEASE_LTO=false` (or `thin`), which gets a size that is a valid
+  UPPER bound. `nie-model-serve` sitting at ~13 GiB RSS is the background pressure, and it is a
+  production service (`cdn.aphrody.com`) — restarting it is host state, not this repository's.
+- **`wgpu/webgl` costs +2.24 MiB and blows the 6 MiB module budget** (4 518 833 → 6 865 774,
+  measured 2026-09-12). Serving WebGL from a *separate* crate costs 3 153 478 bytes paid only by
+  browsers without WebGPU — the pattern to reach for when a backend is needed by a minority path.
 - **`/etc/nginx` and `/etc/systemd` DRIFT from `deploy/`.** `diff` against `/etc` and run
   `ss -ltnp` before editing a vhost — the installed file had been repointed `:8083` → `:8084`
   and had `bxc.` split into its own file, none of which the repository knew.
