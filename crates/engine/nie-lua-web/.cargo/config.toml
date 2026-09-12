@@ -1,0 +1,20 @@
+# Crate-local override (does not affect the workspace's wasm32-unknown-unknown builds).
+#
+# `wasm32-unknown-emscripten` needs three link-time corrections beyond rustc's cdylib default:
+# 1. `rustc` defaults a cdylib on this target to an emcc "side module" (`-sSIDE_MODULE=2`,
+#    dynamic-linking PIC). mlua-sys's vendored Lua 5.2.4 C sources are *not* compiled -fPIC by
+#    `lua-src`'s `cc::Build`, and injecting `CFLAGS_wasm32_unknown_emscripten=-fPIC` did not
+#    change the fingerprint/output either (measured 2026-09-12) — the practical fix is to stop
+#    asking for a side module and link a standalone module instead (`-sSIDE_MODULE=0`).
+# 2. A standalone, non-PIC module has no `main`, so `wasm-ld` refuses it as an executable unless
+#    told it is a reactor: `--no-entry`.
+# 3. Lua's `ldo.c` (protected calls) is compiled by emscripten's `-fwasm-exceptions` C++
+#    unwinder path, which pulls `__cxa_*`/RTTI symbols — link `-lc++abi -lc++` to resolve them.
+[target.wasm32-unknown-emscripten]
+rustflags = [
+    "-C", "link-arg=-sSIDE_MODULE=0",
+    "-C", "link-arg=-sSTANDALONE_WASM=1",
+    "-C", "link-arg=-Wl,--no-entry",
+    "-C", "link-arg=-lc++abi",
+    "-C", "link-arg=-lc++",
+]

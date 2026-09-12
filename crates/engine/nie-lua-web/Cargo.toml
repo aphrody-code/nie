@@ -1,0 +1,23 @@
+[package]
+name = "nie-lua-web"
+description = "Browser-callable surface over the real nie-lua VM (mlua, vendored Lua 5.2.4 C), built for wasm32-unknown-emscripten only. Mirrors crates/tools/nie-site's POST /api/v1/menu/runtime/{screen} contract: JS supplies the .lua.bin scripts and *_setting.cfg.bin bytes fetched from the site's VFS (/f/{path}), this crate replays them through the same nie_lua::menu_runtime::replay used natively. wasm32-unknown-unknown cannot host this crate: mlua-sys compiles PUC-Rio Lua's C sources, which need libc + setjmp/longjmp only present under emscripten's libc shim."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# `vm` pulls mlua vendored (Lua 5.2.4 C sources); `analysis` is intentionally left off
+# (tree-sitter-lua is not needed by menu_runtime and does not build any faster here).
+nie-lua = { workspace = true, default-features = false, features = ["vm"] }
+nie-formats = { workspace = true, features = ["serde"], default-features = true }
+nie-data = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["std"] }

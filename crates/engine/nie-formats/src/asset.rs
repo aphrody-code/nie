@@ -10,6 +10,7 @@
 
 extern crate alloc;
 
+use alloc::borrow::ToOwned;
 use alloc::string::String;
 
 /// Famille de contenu produite par une entrée de l'index CPK.
