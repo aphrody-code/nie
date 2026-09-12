@@ -81,6 +81,41 @@ be reported as completion of the Inacord application. Missing resource mappings 
 work items, not guessed icon substitutions. Perform interaction and visual validation after the
 source implementation phase, as requested by the user.
 
+### Where the game's pixels come from — measured 2026-09-12
+
+The goal is that the game is drawn by the code that reproduces the game, not by a second
+implementation in the browser. Here is what each surface actually runs, measured, with the
+blocker named when there is one. Regenerate it; do not quote it.
+
+| Surface | Who draws it | Measured |
+|---|---|---|
+| Menu layouts (Bank, Shop, Gallery) | **Rust → WebAssembly** (`nie_formats::menu_layout`) | Bank composes 39 elements, 0 skipped, in the page |
+| Menu layouts, server side | the same library | `/api/v1/menu/render/{screen}`: `main_menu` 16, `shop_menu` 206, `chara_bank_menu` 78 |
+| Menu layouts, CLI | the same library | `nie-game --compose-layout`, 14 + 1 reference tests incl. two SSIM gates |
+| Object visibility | the game's own Lua, replayed | `chara_bank_menu` 76/78 resolved, `gallery_menu` 3/7, `shop_menu` 0 |
+| 3D models | **Rust wgpu** (`nie-render3d` through `WebGpuViewer`) | the wasm build ships `--features webgpu`; the TS WebGL viewer is the fallback when `navigator.gpu` is absent |
+| Title menu shapes | TypeScript DOM (`inacord-ui/shell/menu-screen`, 602 l) | no game layout exists behind those panels — they are shapes measured on captures |
+| Title menu scene | TypeScript DOM (`main-menu` + `native-scene-layers` + `native-sprite`, 388 l) | the scene is Rust-derived (`menu_presentation`) and drawn in the DOM |
+| Screen content (rosters, prices, stock) | TypeScript over the Rust APIs | — |
+
+**The named blockers, not guesses:**
+
+1. `shop_menu` and `title_menu_2` resolve NO visibility, because the game ships no `.lua.bin`
+   of that name: `data/common/script/lua/menu/` has `shop_menu_buy`, `shop_menu_sell`,
+   `shop_menu_basara`… and no `shop_menu`. Mapping one onto the other would be a guess, so the
+   screens draw nothing rather than everything.
+2. A layout whose visibility is unresolved cannot be composed honestly: drawing it whole stacks
+   every mutually exclusive panel (78 objects for the Bank where the game shows a fraction).
+   `LayoutCanvas` therefore draws only what the data establishes.
+3. The Lua replay runs on the server, not in the page. `nie-lua` binds mlua (Lua in C);
+   `crates/engine/nie-lua-web` builds the real 5.2.4 VM for `wasm32-unknown-emscripten`, which
+   is not the `wasm32-unknown-unknown` target the site bundle uses. Joining the two is the
+   remaining step for a menu that resolves itself in the browser.
+
+**Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no
+`packages/azalee*`, and three inert mentions left in shared code — a team-name string, role
+doc comments, a CSS theme name. Nothing of it renders.
+
 ### One interface — nie and Inacord fully merged, 2026-09-12
 
 `/inacord` was a route of the site that mounted a **second application**: its own sidebar, top
