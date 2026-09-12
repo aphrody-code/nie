@@ -1,7 +1,7 @@
 import { statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { wiki, type WikiRequest } from "nie";
+import { wiki, type WikiRequest } from "@aphrody/nie";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 

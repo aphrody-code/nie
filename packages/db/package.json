@@ -1,6 +1,6 @@
 {
   "name": "@rosegriffon/db",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Client Supabase partag\u00e9 + Database types g\u00e9n\u00e9r\u00e9s (site + bot)",
   "type": "module",
   "exports": {

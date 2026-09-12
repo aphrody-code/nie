@@ -1,7 +1,7 @@
 {
   "name": "niers",
-  "version": "0.2.0+codex.20260908091137",
-  "description": "Native Rust tooling for the niers game workspace: formats, assets, reverse engineering, and Inacord.",
+  "version": "0.3.0+codex.20260911",
+  "description": "Native Rust tooling for the niers game workspace: the atlas-driven reverse-engineering loop, formats, assets, and Inacord.",
   "author": {
     "name": "Aphrody Dev"
   },
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "NIERS",
     "shortDescription": "Native Rust game-development tools",
-    "longDescription": "Codex skills and native Rust MCP tools for NIERS formats, assets, reverse engineering, and Inacord.",
+    "longDescription": "Codex skills and native Rust MCP tools for NIERS: the atlas-driven reverse-engineering loop, formats, assets, and Inacord.",
     "developerName": "Aphrody Dev",
     "category": "Developer Tools",
     "capabilities": [
@@ -18,9 +18,9 @@
       "Write"
     ],
     "defaultPrompt": [
+      "Ask the atlas where the reconstruction of nie.exe stands, and what to do next.",
       "Inspect a NIERS game asset using the native Rust tools.",
-      "Find the canonical crate for this NIERS capability.",
-      "Diagnose a Level-5 format or Inacord integration issue."
+      "Find the canonical crate for this NIERS capability."
     ]
   }
 }

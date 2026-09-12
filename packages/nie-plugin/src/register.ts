@@ -23,7 +23,7 @@
  *   ../../.. = racine workspace niers/
  */
 
-import { decode, decodeToPng } from "nie";
+import { decode, decodeToPng } from "@aphrody/nie";
 
 // ─── chemins des données RE ─────────────────────────────────────────────────
 

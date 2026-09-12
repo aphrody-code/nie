@@ -1,6 +1,6 @@
 {
 	"name": "@aphrody/spaceui",
-	"version": "0.2.4-fork.1",
+	"version": "0.2.4-fork.2",
 	"description": "SpaceUI primitives themed from the measured NIE and Aphrody design tokens",
 	"files": [
 		"src",

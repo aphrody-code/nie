@@ -25,7 +25,7 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"nie": "workspace:*"
+		"@aphrody/nie": "workspace:*"
 	},
 	"devDependencies": {
 		"typescript": "catalog:",

@@ -23,6 +23,7 @@ const SKILLS = [
 	"niers-monorepo",
 	"peaufiner-rendu-3d",
 	"pixel-perfect",
+	"re-workflow",
 	"rs-to-ts",
 	"rust-bun",
 	"wasm-bun",
@@ -86,13 +87,13 @@ describe("Codex manifest", () => {
 		}>(`${PLUGIN}/.claude-plugin/plugin.json`);
 		expect(claude.$schema).toBe("https://code.claude.com/schema/plugin.json");
 		expect(claude.name).toBe(PLUGIN_NAME);
-		expect(claude.version).toBe("0.2.0");
+		expect(claude.version).toBe("0.3.0");
 		expect(claude.skills).toBe("./skills");
 		expect(claude.mcpServers).toBe("./.mcp.json");
 
 		const agy = await readJson<{ name: string; version: string; description: string }>(`${PLUGIN}/plugin.json`);
 		expect(agy.name).toBe(PLUGIN_NAME);
-		expect(agy.version).toBe("0.2.0");
+		expect(agy.version).toBe("0.3.0");
 		expect(agy.description).toContain("Antigravity CLI (agy)");
 	});
 

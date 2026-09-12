@@ -24,7 +24,7 @@ export {
   SO_PATH,
   type FormatInfo,
   type VfsEntry,
-} from "nie";
+} from "@aphrody/nie";
 
 // ─── Artefacts RE du .exe (data/re) + scripts Lua décompilés (data/lua_scripts) ───
 //

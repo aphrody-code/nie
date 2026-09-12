@@ -1,6 +1,6 @@
 {
   "name": "@rosegriffon/auth",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Shared authentication logic and guards for Rose Griffon apps",
   "type": "module",
   "exports": {

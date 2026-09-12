@@ -1,6 +1,6 @@
 {
   "name": "@rosegriffon/inagle-cross",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "API de donn\u00e9es et de r\u00e9tro-conception pour Inazuma Eleven Cross \u2014 types, sch\u00e9mas, et analyseurs d'assets",
   "type": "module",
   "main": "./src/index.ts",
