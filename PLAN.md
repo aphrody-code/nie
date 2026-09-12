@@ -94,7 +94,7 @@ blocker named when there is one. Regenerate it; do not quote it.
 | Menu layouts, CLI | the same library | `nie-game --compose-layout`, 14 + 1 reference tests incl. two SSIM gates |
 | Object visibility | the game's own Lua, replayed | `chara_bank_menu` 76/78 resolved, `gallery_menu` 3/7, `shop_menu` 0 |
 | 3D models | **Rust wgpu** (`nie-render3d` through `WebGpuViewer`) | the wasm build ships `--features webgpu`; the TS WebGL viewer is the fallback when `navigator.gpu` is absent |
-| Title menu shapes | TypeScript DOM (`inacord-ui/shell/menu-screen`, 602 l) | no game layout exists behind those panels — they are shapes measured on captures |
+| Title menu shapes | TypeScript DOM (`inacord-ui/shell/menu-screen`, 602 l) | no game layout exists behind those panels — they are shapes measured on captures. Composing `title_menu_2` instead was TRIED: `/api/v1/menu/render/title_menu_2` draws 40 objects, 0 skipped, and the image is not the title screen — stacked panels, a stray `ver.` logo, garbled glyphs, because that screen resolves no visibility and its transforms are defaults. Replacing the shapes with it would make the product worse, so the shapes stay until the screen resolves. |
 | Title menu scene | TypeScript DOM (`main-menu` + `native-scene-layers` + `native-sprite`, 388 l) | the scene is Rust-derived (`menu_presentation`) and drawn in the DOM |
 | Screen content (rosters, prices, stock) | TypeScript over the Rust APIs | — |
 
