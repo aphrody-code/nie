@@ -119,9 +119,13 @@ blocker named when there is one. Regenerate it; do not quote it.
    byte-for-byte the same size (870,512) and still imports the `invoke_*` JS trampolines, because
    the vendored Lua C sources are compiled by `lua-src`'s `cc::Build`, which ignores
    `CFLAGS_wasm32_unknown_emscripten` (the same wall this crate already documents for `-fPIC`).
-   A link flag cannot change how an object was compiled: the fix is to compile Lua's sources with
-   `-fwasm-exceptions`, which means forking `lua-src`'s build script or vendoring the sources
-   here. Until then the driver returns an empty table and the screens fall back on the server's
+   That explanation was then RULED OUT: `cargo clean -p mlua-sys` followed by
+   55 s of real C recompilation with `CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions`
+   produced the same 870,512 bytes and the same five `invoke_*`. A forced recompilation that
+   changes nothing means the trampolines come from the RUST side — `rustc` emits the
+   JS-trampoline exception path on this target, and `mlua` propagates Lua errors through Rust
+   unwinding. Switching rustc to WebAssembly exception handling needs `-Z emscripten-wasm-eh`,
+   a nightly flag, while this workspace pins stable 1.98.1. That is the real constraint. Until then the driver returns an empty table and the screens fall back on the server's
    resolution.
 
 **Azalée is gone**, and this is what "gone" means, measured: no `apps/azalee`, no

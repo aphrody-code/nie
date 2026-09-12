@@ -59,17 +59,23 @@ is that the link lacks emscripten's exception support, so the link was retried w
 CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions
 ```
 
-**It changes nothing.** The rebuilt artifact is 870,512 bytes — the same size as before — and
-still imports the JS trampolines (`invoke_*` still present in the module). The reason is the
-same one this file already records for `-fPIC`: the vendored Lua 5.2.4 C sources are compiled by
-`lua-src`'s `cc::Build`, which does not honour `CFLAGS_wasm32_unknown_emscripten`. A link flag
-cannot change how an object file was already compiled.
+**It changes nothing**, and a second attempt ruled out the obvious explanation. Measured twice:
 
-The fix therefore is not a flag on this crate: the C sources must be compiled with
-`-fwasm-exceptions`, which means either patching/forking `lua-src`'s build script, or vendoring
-Lua's sources here and compiling them with an explicit `cc::Build`. Until then the browser
-driver (`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back
-on the server's resolution.
+| Attempt | Result |
+|---|---|
+| link flags only | 870,512 bytes, 5 `invoke_*`, 1 `__cxa_find_matching_catch` |
+| `cargo clean -p mlua-sys` + rebuild (55 s of real C compilation) with `CFLAGS_wasm32_unknown_emscripten=-fwasm-exceptions` | **the same 870,512 bytes, the same 5 `invoke_*`, the same 1 `__cxa_find_matching_catch`** |
+
+A forced recompilation of Lua's C sources that changes NOTHING in the output means the
+trampolines do not come from those sources. They come from the Rust side: `rustc` emits the
+JS-trampoline exception path on `wasm32-unknown-emscripten`, and `mlua` propagates Lua errors
+through Rust unwinding (`catch_unwind`), which is what then meets a foreign exception and aborts.
+
+Switching `rustc` itself to WebAssembly exception handling needs `-Z emscripten-wasm-eh`, a
+**nightly** flag; this workspace pins stable 1.98.1. That is the real constraint, and it is not
+a flag on this crate. Until it is resolved the browser driver
+(`apps/nie-web/src/game/lua-runtime.ts`) returns an empty table and the screens fall back on the
+server's resolution.
 
 ### The three link-time corrections (`.cargo/config.toml`)
 
