@@ -1067,7 +1067,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn un_ecran_porte_le_nom_que_le_jeu_lui_donne() {
         // Le stem du `_setting.cfg.bin`, mesuré sur le VFS : c'est ce nom que portent les
         // scripts Lua de l'écran, ses `objbin` et ses calques.
