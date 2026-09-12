@@ -265,15 +265,18 @@ async function deployWeb(context: TargetContext): Promise<void> {
 		throw new Error("The validated WebAssembly artifact is missing; deploy the wasm target first.");
 	}
 	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "typecheck"]);
-	await run(context, [
-		"bunx",
-		"vite",
-		"build",
-		"apps/nie-web",
-		"--outDir",
-		bundle,
-		"--emptyOutDir",
-	]);
+	// Run from `apps/nie-web`, NOT from the repository root. From the root, `bunx vite` resolves
+	// no workspace dependency and fetches whatever version it likes — measured 2026-09-12:
+	// vite 8.3.0 (rolldown) at the root against the pinned 6.4.3 in the app. That is not just a
+	// reproducibility problem: rolldown emits base64url hashes that CONTAIN a dash
+	// (`index-D9-ScSY4.js`), and `nie_site::routes::static_files::empreinte` splits on `-`, so no
+	// segment reaches eight characters and the whole bundle is served `no-cache` instead of
+	// `immutable`. A production bundle must be built by the version the lockfile pins.
+	await run(
+		context,
+		["bunx", "vite", "build", "--outDir", bundle, "--emptyOutDir"],
+		`${repositoryRoot}/apps/nie-web`,
+	);
 	await run(context, ["bun", "apps/nie-web/scripts/precompress.ts", bundle]);
 	if (!(await Bun.file(`${bundle}/index.html`).exists())) {
 		throw new Error("Web build did not produce index.html.");
