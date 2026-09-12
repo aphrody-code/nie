@@ -81,6 +81,18 @@ export const DOWNLOADS = "downloads";
  */
 export const BANK = "bank";
 
+/**
+ * La Galerie des succès — l'écran `gallery_menu` du jeu : les succès à 100 %, les images de la
+ * galerie, les cinématiques et les musiques du profil complet.
+ */
+export const GALLERY = "gallery";
+
+/**
+ * Le Marché — l'écran `shop_menu` du jeu : les 16 boutiques et tout leur stock, prix et
+ * descriptions compris.
+ */
+export const SHOP = "shop";
+
 /** Published alias that enters the main menu at `/` without replaying startup. */
 export const MENU = "menu";
 
@@ -108,6 +120,8 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[SETTINGS]: { label: "Options", glyph: "engrenage" },
 	[AVATAR]: { label: "Avatar", glyph: "ballon" },
 	[BANK]: { label: "Banque", glyph: "livre" },
+	[GALLERY]: { label: "Galerie", glyph: "image" },
+	[SHOP]: { label: "Boutique", glyph: "cube" },
 	[INACORD]: { label: "Inacord", glyph: "livre" },
 	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
 };
@@ -134,7 +148,7 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
  * signature for existing consumers; it does not currently supply native action availability.
  */
 export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
-	return [MEDIA, BANK, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => ({
+	return [MEDIA, BANK, GALLERY, SHOP, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => ({
 		route,
 		label: entryLabel(route),
 		glyph: PRESENTATION[route]?.glyph ?? "arbre",

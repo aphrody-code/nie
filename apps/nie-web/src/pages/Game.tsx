@@ -3,7 +3,7 @@ import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-i
 import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
 import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AVATAR, BANK, EXPLORER, INACORD, MEDIA, SETTINGS, menuEntries } from "../entries";
+import { AVATAR, BANK, EXPLORER, GALLERY, INACORD, MEDIA, SETTINGS, SHOP, menuEntries } from "../entries";
 import { bindMenuActions } from "../game/menu-actions";
 import {
 	advanceOpeningPhase,
@@ -20,6 +20,8 @@ export interface GameProps {
 	phase: OpeningPhase;
 	onPhaseChange: (phase: OpeningPhase) => void;
 	onOpenBank: () => void;
+	onOpenGallery: () => void;
+	onOpenShop: () => void;
 	onOpenAvatar: () => void;
 	onOpenSettings: () => void;
 	onOpenMedia: () => void;
@@ -36,6 +38,8 @@ export function Game({
 	phase,
 	onPhaseChange,
 	onOpenBank,
+	onOpenGallery,
+	onOpenShop,
 	onOpenAvatar,
 	onOpenSettings,
 	onOpenMedia,
@@ -55,6 +59,8 @@ export function Game({
 		const actions = bindMenuActions(menuEntries(null), {
 			[MEDIA]: { id: "media", onActivate: onOpenMedia },
 			[BANK]: { id: "bank", onActivate: onOpenBank },
+			[GALLERY]: { id: "gallery", onActivate: onOpenGallery },
+			[SHOP]: { id: "shop", onActivate: onOpenShop },
 			[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },
 			[EXPLORER]: { id: "explorer", onActivate: onOpenExplorer },
 			[INACORD]: { id: "inacord", onActivate: onOpenInacord },

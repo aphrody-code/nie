@@ -12,7 +12,7 @@ import "@niers/inacord-ui/shell/game-tokens.css";
 import "@niers/inacord-ui/shell/game-screens.css";
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ALIAS, AVATAR, BANK, DOWNLOADS, EXPLORER, INACORD, MEDIA, SETTINGS, recognizedRoutes } from "./entries";
+import { ALIAS, AVATAR, BANK, DOWNLOADS, EXPLORER, GALLERY, INACORD, MEDIA, SETTINGS, SHOP, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
 import { Catalog } from "./pages/Catalog";
@@ -21,6 +21,8 @@ import { Notice, SecondaryScreen } from "./pages/SecondaryScreen";
 import { ExplorerInacord } from "./pages/ExplorerInacord";
 import { Game } from "./pages/Game";
 import { PlayerBank } from "./screens/PlayerBank";
+import { Shop } from "./screens/Shop";
+import { TrophyGallery } from "./screens/TrophyGallery";
 import { Settings } from "./pages/Settings";
 import { Inacord } from "./pages/Inacord";
 import { HOME, splitLanguagePrefix } from "./routing";
@@ -115,6 +117,8 @@ function Site() {
 				startupFailed={vfs === "absent"}
 				onPhaseChange={setOpeningPhase}
 				onOpenBank={() => setVue(BANK)}
+				onOpenGallery={() => setVue(GALLERY)}
+				onOpenShop={() => setVue(SHOP)}
 				onOpenAvatar={() => setVue(AVATAR)}
 				onOpenSettings={() => setVue(SETTINGS)}
 				onOpenMedia={() => setVue(MEDIA)}
@@ -130,6 +134,12 @@ function Site() {
 	}
 	if (vue === BANK) {
 		return withHost(<PlayerBank onBack={() => setVue(HOME)} />);
+	}
+	if (vue === GALLERY) {
+		return withHost(<TrophyGallery onBack={() => setVue(HOME)} />);
+	}
+	if (vue === SHOP) {
+		return withHost(<Shop onBack={() => setVue(HOME)} />);
 	}
 	if (vue === AVATAR) {
 		return withHost(<Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} />);

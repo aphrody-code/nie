@@ -112,7 +112,7 @@ struct Entree {
 /// segment d'URL brut, en minuscule, identique dans les trois langues — parce qu'il tombait
 /// dans la branche générique de [`metadonnees`]. Une entrée du menu que le serveur ne connaît
 /// pas est une page sans titre, absente du plan du site et non déclarée à `robots.txt`.
-const ENTREES: [Entree; 12] = [
+const ENTREES: [Entree; 14] = [
     Entree {
         // La navigation, qui occupait la racine jusqu'au 2026-09-07. La racine sert le jeu ;
         // le menu a donc son adresse. Il n'est PAS au plan du site : une page de liens vers
@@ -203,6 +203,27 @@ const ENTREES: [Entree; 12] = [
             "Les personnages de la banque, leur fiche et leurs techniques, dans l'écran du jeu.",
             "The characters in the bank, their sheet and their skills, in the game's own screen.",
             "バンクの選手・ステータス・必殺技を、ゲームの画面そのままで。",
+        ],
+    },
+    Entree {
+        // La Galerie des succès : l'écran `gallery_menu` du jeu — les succès à 100 %, les
+        // images de la galerie, les cinématiques et les musiques du profil complet.
+        segment: "gallery",
+        titres: ["Galerie", "Gallery", "ギャラリー"],
+        descriptions: [
+            "Les succès, les images, les cinématiques et les musiques du jeu, dans l'écran de la Galerie des succès.",
+            "The game's achievements, images, movies and music, in its own achievement gallery screen.",
+            "ゲームの実績・イラスト・ムービー・楽曲を、実績ギャラリーの画面そのままで。",
+        ],
+    },
+    Entree {
+        // Le Marché : l'écran `shop_menu` du jeu — les 16 boutiques et tout leur stock.
+        segment: "shop",
+        titres: ["Boutique", "Shop", "ショップ"],
+        descriptions: [
+            "Les seize boutiques du jeu et tout leur stock, avec les prix et les descriptions des objets.",
+            "The game's sixteen shops and their full stock, with each item's price and description.",
+            "ゲーム内の16店舗と全在庫を、価格とアイテム説明つきで。",
         ],
     },
     Entree {
@@ -996,9 +1017,10 @@ mod tests {
             assert!(!c.noindex, "{alias} est servie");
             assert_eq!(c.route, alias, "le bundle garde la route demandee");
         }
+        // `/gallery` est desormais une entree servie : la route inventee doit rester inconnue.
         let inconnue = construire(
             "https://nie.aphrody.com",
-            "/gallery",
+            "/route-inexistante",
             Langue::Fr,
             None,
             None,
