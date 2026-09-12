@@ -57,6 +57,8 @@ use std::sync::OnceLock;
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use axum::http::HeaderMap;
+use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ErreurSite;
@@ -269,6 +271,20 @@ impl Survey {
         self.languages.keys().map(String::as_str).collect()
     }
 
+    /// Les familles d'une langue, avec leurs comptes — sans leur contenu.
+    ///
+    /// Exposé pour la surface GraphQL, qui interroge le MÊME relevé que les routes REST : deux
+    /// façades, un seul catalogue mesuré.
+    #[must_use]
+    pub fn families_of_language(&self, language: &str) -> Vec<(&str, usize, usize)> {
+        self.languages.get(language).map_or_else(Vec::new, |familles| {
+            familles
+                .iter()
+                .map(|(nom, releve)| (nom.as_str(), releve.paths.len(), releve.lines))
+                .collect()
+        })
+    }
+
     /// Les chemins d'un couple (langue, famille), ou `None` si le couple n'existe pas.
     #[must_use]
     pub fn paths(&self, language: &str, family: &str) -> Option<&[String]> {
@@ -430,7 +446,7 @@ fn weigh(s: &Survey) -> usize {
 ///
 /// `Indisponible` (503) tant que le VFS n'est pas monté, ou quand le montage n'a pas de
 /// contenu — c'est la capacité, pas la route, qui manque.
-async fn survey(state: &EtatSite) -> Result<&'static Survey, ErreurSite> {
+pub(super) async fn survey(state: &EtatSite) -> Result<&'static Survey, ErreurSite> {
     if let Some(s) = CATALOG.get() {
         return Ok(s);
     }
@@ -569,7 +585,7 @@ pub async fn catalog(State(state): State<EtatSite>) -> Result<Json<Catalog>, Err
 ///
 /// `Introuvable` (404) — un segment d'URL désigne une ressource, pas un paramètre : c'est un
 /// `404`, et le message cite ce qui existe pour que l'appelant n'ait pas à deviner.
-fn resolve(s: &'static Survey, language: &str, family: &str) -> Result<Vec<String>, ErreurSite> {
+pub(super) fn resolve(s: &'static Survey, language: &str, family: &str) -> Result<Vec<String>, ErreurSite> {
     let Some(families) = s.languages.get(language) else {
         return Err(ErreurSite::Introuvable(format!(
             "langue inconnue `{language}` ; les langues mesurees dans ce jeu sont : {}",
@@ -605,7 +621,7 @@ fn resolve(s: &'static Survey, language: &str, family: &str) -> Result<Vec<Strin
 /// route rend donc exactement ce que la façade décode, dans l'ordre des fichiers puis des
 /// nœuds : c'est aussi ce qui rend ses comptes comparables, ligne pour ligne, à ceux de
 /// `/api/v1/donnees/{chemin}`.
-async fn load(state: &EtatSite, paths: Vec<String>) -> Result<Vec<Line>, ErreurSite> {
+pub(super) async fn load(state: &EtatSite, paths: Vec<String>) -> Result<Vec<Line>, ErreurSite> {
     let vfs = state.vfs()?;
     tokio::task::spawn_blocking(move || {
         let mut out = Vec::new();
@@ -638,6 +654,103 @@ pub struct TextPage {
     pub results: Page<Line>,
 }
 
+/// Le cache d'une réponse de texte. Le corpus ne bouge pas tant que le VFS est monté ; cinq
+/// minutes suffisent à absorber une page qu'on feuillette sans figer une mise à jour du jeu.
+const CACHE_CONTROL: &str = "public, max-age=300";
+
+/// Une demande de page, plus la forme voulue.
+///
+/// `format` est propre aux routes de TEXTE : ce sont les seules à savoir rendre autre chose que
+/// du JSON, et l'ajouter à [`DemandePage`], partagé par vingt routes, leur prêterait un contrat
+/// qu'elles n'honorent pas.
+/// Les champs sont répétés plutôt qu'aplatis (`#[serde(flatten)]`) : l'aplatissement force
+/// `serde` à passer par un déserialiseur de map où toute valeur arrive en CHAÎNE, et `page=5`
+/// devient alors `invalid type: string "5", expected u32`. Mesuré en production le 2026-09-12 —
+/// la route rendait une erreur de désérialisation sur sa propre pagination.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct DemandeTexte {
+    /// Numéro de page, à partir de 1.
+    pub page: Option<u32>,
+    /// Nombre d'éléments par page, plafonné comme partout.
+    pub per_page: Option<u32>,
+    /// Motif de recherche, comparé sans casse au texte.
+    pub q: Option<String>,
+    /// `txt` pour du texte brut. Absent : la négociation suit `Accept`.
+    pub format: Option<String>,
+}
+
+impl DemandeTexte {
+    /// La demande de page correspondante, telle que les vingt routes voisines la prennent.
+    fn pagination(&self) -> DemandePage {
+        DemandePage {
+            page: self.page,
+            per_page: self.per_page,
+            q: self.q.clone(),
+        }
+    }
+}
+
+/// Le client veut-il du texte brut plutôt que du JSON ?
+///
+/// ## Pourquoi cette route a deux formes
+///
+/// Ce corpus sert deux publics. Un programme veut la pagination, la provenance des fichiers et
+/// les hashs : c'est le JSON. Un humain — ou un outil de texte, un modèle, un `grep` — veut les
+/// lignes, et rien d'autre. Lui servir du JSON l'oblige à le désérialiser pour jeter les neuf
+/// dixièmes de la réponse.
+///
+/// La négociation suit `Accept`, et `?format=txt` la force pour les clients qui ne contrôlent
+/// pas leurs en-têtes (un navigateur qu'on ouvre à la main, `curl` sans option). Le JSON reste le
+/// défaut : c'est ce que répondent les vingt routes voisines.
+fn veut_texte_brut(headers: &HeaderMap, format: Option<&str>) -> bool {
+    if let Some(format) = format {
+        return matches!(format, "txt" | "text" | "plain");
+    }
+    headers
+        .get(axum::http::header::ACCEPT)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|accept| {
+            // `text/plain` doit être demandé EXPLICITEMENT : un navigateur envoie `text/html`
+            // suivi de `*/*`, et lire le joker comme un accord rendrait du texte brut à qui
+            // attend une page.
+            accept
+                .split(',')
+                .map(|part| part.split(';').next().unwrap_or("").trim())
+                .any(|media| media == "text/plain")
+        })
+}
+
+/// Les lignes en texte brut : un hash hexadécimal, une tabulation, le texte.
+///
+/// Le hash reste là parce qu'il est l'IDENTITÉ de la ligne dans le jeu — le retirer rendrait un
+/// corpus qu'on ne peut plus réadresser. La tabulation sépare sans ambiguïté : aucun hash n'en
+/// contient, et le texte est déjà nettoyé de ses sauts de ligne par `nie_data::text`.
+fn lignes_en_texte(lignes: &[Line]) -> String {
+    let mut sortie = String::with_capacity(lignes.len() * 48);
+    for ligne in lignes {
+        sortie.push_str(&ligne.hash_hex);
+        sortie.push('\t');
+        sortie.push_str(&ligne.text);
+        sortie.push('\n');
+    }
+    sortie
+}
+
+/// Une réponse `text/plain`, avec le même cache que sa jumelle JSON.
+fn reponse_texte(corps: String) -> Response {
+    (
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                "text/plain; charset=utf-8",
+            ),
+            (axum::http::header::CACHE_CONTROL, CACHE_CONTROL),
+        ],
+        corps,
+    )
+        .into_response()
+}
+
 /// `GET /api/v1/text/{language}/{family}` — les lignes, paginées et bornées.
 ///
 /// `?q=` filtre sans casse sur le texte, et le filtre appliqué est **republié** : un paramètre
@@ -648,9 +761,11 @@ pub struct TextPage {
 /// `503` sans VFS, `404` si la langue ou la famille n'existe pas.
 pub async fn family(
     State(state): State<EtatSite>,
+    headers: HeaderMap,
     Path((language, family)): Path<(String, String)>,
-    Query(query): Query<DemandePage>,
-) -> Result<Json<TextPage>, ErreurSite> {
+    Query(demande): Query<DemandeTexte>,
+) -> Result<Response, ErreurSite> {
+    let query = demande.pagination();
     let s = survey(&state).await?;
     let paths = resolve(s, &language, &family)?;
     let lines = load(&state, paths.clone()).await?;
@@ -679,6 +794,9 @@ pub async fn family(
         .map(|l| (*l).clone())
         .collect();
     let total = kept.len();
+    if veut_texte_brut(&headers, demande.format.as_deref()) {
+        return Ok(reponse_texte(lignes_en_texte(&page)));
+    }
     Ok(Json(TextPage {
         language,
         family,
@@ -686,7 +804,8 @@ pub async fn family(
         q: pattern,
         total_unfiltered,
         results: Page::nouvelle(page, bounds, total),
-    }))
+    })
+    .into_response())
 }
 
 /// Une occurrence d'un hash : son fichier et son texte.
@@ -1226,6 +1345,81 @@ pub async fn translate(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `text/plain` doit être demandé, pas deviné : un navigateur envoie `text/html` puis `*/*`,
+    /// et lire le joker comme un accord rendrait du texte brut à qui attend une page.
+    #[test]
+    fn le_texte_brut_se_demande_explicitement() {
+        let entetes = |valeur: &str| {
+            let mut h = HeaderMap::new();
+            h.insert(
+                axum::http::header::ACCEPT,
+                axum::http::HeaderValue::from_str(valeur).unwrap(),
+            );
+            h
+        };
+        assert!(veut_texte_brut(&entetes("text/plain"), None));
+        assert!(veut_texte_brut(
+            &entetes("text/plain; charset=utf-8, */*;q=0.8"),
+            None
+        ));
+        assert!(!veut_texte_brut(&entetes("*/*"), None));
+        assert!(!veut_texte_brut(
+            &entetes("text/html,application/xhtml+xml,*/*;q=0.8"),
+            None
+        ));
+        assert!(!veut_texte_brut(&HeaderMap::new(), None));
+        // Et le paramètre l'emporte, pour les clients qui ne maîtrisent pas leurs en-têtes.
+        assert!(veut_texte_brut(&entetes("text/html"), Some("txt")));
+        assert!(!veut_texte_brut(&entetes("text/plain"), Some("json")));
+    }
+
+    /// La pagination d'une demande de texte se déserialise VRAIMENT depuis une query string.
+    ///
+    /// Écrite avec `#[serde(flatten)]`, elle ne le faisait plus : serde passait par un
+    /// déserialiseur de map où toute valeur arrive en chaîne, et `per_page=5` rendait
+    /// `invalid type: string "5", expected u32`. Le défaut n'était visible qu'en servant.
+    #[test]
+    fn la_pagination_se_deserialise_depuis_la_query_string() {
+        // Par l'extracteur d'axum, celui qui tourne réellement — pas par un déserialiseur voisin
+        // qui pourrait réussir là où la route échoue.
+        let uri: axum::http::Uri = "/api/v1/text/fr/menu_text?page=2&per_page=5&q=ballon&format=txt"
+            .parse()
+            .expect("uri");
+        let Query(demande) = Query::<DemandeTexte>::try_from_uri(&uri)
+            .expect("la query string doit se lire");
+        assert_eq!(demande.page, Some(2));
+        assert_eq!(demande.per_page, Some(5));
+        assert_eq!(demande.q.as_deref(), Some("ballon"));
+        assert_eq!(demande.format.as_deref(), Some("txt"));
+
+        let bornes = demande.pagination();
+        assert_eq!(bornes.page, Some(2));
+        assert_eq!(bornes.per_page, Some(5));
+    }
+
+    /// Le rendu brut garde l'IDENTITÉ de chaque ligne : sans le hash, le corpus n'est plus
+    /// réadressable.
+    #[test]
+    fn le_rendu_brut_garde_le_hash() {
+        let lignes = vec![
+            Line {
+                hash: 0x1234_5678,
+                hash_hex: "0x12345678".to_owned(),
+                text: "Boutique".to_owned(),
+            },
+            Line {
+                hash: 1,
+                hash_hex: "0x00000001".to_owned(),
+                text: "Banque".to_owned(),
+            },
+        ];
+        assert_eq!(
+            lignes_en_texte(&lignes),
+            "0x12345678\tBoutique\n0x00000001\tBanque\n"
+        );
+        assert_eq!(lignes_en_texte(&[]), "");
+    }
     use crate::config::Config;
 
     #[test]
@@ -1371,8 +1565,9 @@ mod tests {
 
         let e = family(
             State(state.clone()),
+            HeaderMap::new(),
             Path(("fr".to_owned(), "menu_text".to_owned())),
-            Query(DemandePage::default()),
+            Query(DemandeTexte::default()),
         )
         .await
         .expect_err("503");

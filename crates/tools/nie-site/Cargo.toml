@@ -110,6 +110,8 @@ nie-app.workspace = true
 # HTTP server dependency. Keep the pinned version in the workspace; never
 # 0.8.2 (yanked). Syntaxe de route 0.8 : `{param}` et `{*wildcard}` — l'ancienne PANIQUE.
 axum = { workspace = true, features = ["http1", "json", "query", "tokio", "matched-path", "original-uri"] }
+async-graphql = { workspace = true }
+async-graphql-axum = { workspace = true }
 # `net`/`signal`/`fs`/`io-util` s'ajoutent aux features du workspace (rt, rt-multi-thread,
 # sync, macros, time) : les features cargo sont additives.
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net", "signal", "fs", "io-util"] }

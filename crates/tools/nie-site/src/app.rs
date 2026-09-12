@@ -110,6 +110,9 @@ pub const CHEMINS_HORS_GET: &[&str] = &[
     "/api/v1/wiki/compare",
     "/api/v1/wiki/random-team",
     "/api/v1/game-data/calculate_stats",
+    // GraphQL : la requête voyage dans le corps, c'est le protocole. Comme les autres, elle a son
+    // pendant `GET`, qui publie ce que la route attend au lieu d'un `405` muet.
+    "/api/v1/graphql",
 ];
 
 // Le site ne prend **aucune écriture** : ni base, ni disque, ni état. C'est la garantie que la
@@ -306,6 +309,10 @@ declarer_routes! {
     // URLs en ANGLAIS (regle du 2026-09-06, cf. CLAUDE.md § Language) : ce sont elles qu'un
     // consommateur etranger lit. `/search` a UN segment, `{language}/{family}` en a DEUX :
     // aucune ambiguite pour matchit.
+    // Le même corpus, en une requête au lieu de trois : une seule implémentation dessous
+    // (`routes::text`), deux façades. Le `GET` publie le contrat, le `POST` exécute.
+    "/api/v1/graphql" => crate::routes::graphql::playground,
+    "/api/v1/openapi.json" => crate::routes::openapi::document_json,
     "/api/v1/text" => crate::routes::text::catalog,
     "/api/v1/text/search" => crate::routes::text::search,
     "/api/v1/text/{language}/{family}" => crate::routes::text::family,
@@ -432,6 +439,10 @@ pub fn routeur(etat: EtatSite) -> Router {
             CHEMINS_HORS_GET[10],
             post(crate::routes::game_data::calculate_stats),
         )
+        .route(
+            CHEMINS_HORS_GET[11],
+            post(crate::routes::graphql::execute),
+        )
         // Les deux inspecteurs qui prennent des PIXELS en entrée : `imgmetric::comparer` reçoit
         // deux images RGBA, `planche::mesurer` en reçoit une. Aucune query string ne les porte,
         // et ni l'une ni l'autre n'écrit quoi que ce soit.
@@ -551,6 +562,7 @@ mod tests {
                 "/api/v1/wiki/compare",
                 "/api/v1/wiki/random-team",
                 "/api/v1/game-data/calculate_stats",
+                "/api/v1/graphql",
             ],
             "all non-GET routes compute isolated responses without persistent writes"
         );
@@ -567,7 +579,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 136, "136 routes mounted");
+        assert_eq!(routes.len(), 138, "138 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

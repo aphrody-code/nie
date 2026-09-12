@@ -188,6 +188,11 @@ tempfile = { version = "3" }
 # Existing host and library dependencies, centralized without changing their version requirements.
 askama = { version = "0.16.1" }
 axum = { version = "0.8.9", default-features = false }
+# GraphQL — une seule requête pour ce que le REST rend en plusieurs (le texte d'un écran dans
+# deux langues, avec sa famille et ses comptes). `async-graphql` est l'implémentation de
+# référence en Rust ; écrire un dialecte maison rendrait un GraphQL qui n'en est pas un.
+async-graphql = { version = "7", default-features = false }
+async-graphql-axum = { version = "7" }
 bcdec_rs = { version = "0.2.0" }
 blake3 = { version = "1.8.7" }
 bytemuck = { version = "1" }
