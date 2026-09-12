@@ -1,3 +1,21 @@
+/**
+ * `/downloads` — le catalogue des builds natifs, **un écran du produit**.
+ *
+ * ## Ce qui a été fusionné ici, le 2026-09-12
+ *
+ * Le même `catalog.json` était rendu deux fois : par cette page, et par un `DownloadModal` ouvert
+ * depuis le pied de la barre latérale — deux mises en page, deux libellés, et dans la modale une
+ * liste d'artefacts **écrite en dur** servant de repli quand la requête échouait, avec des URL de
+ * téléchargement qui ne prouvaient rien. Un seul rendu subsiste, celui qui n'affiche que ce que
+ * le catalogue publie ; le bouton du pied navigue ici au lieu d'ouvrir une seconde vue.
+ *
+ * De cette page ont disparu son bandeau de marque, son titre d'accueil et ses deux boutons
+ * « Ouvrir l'app » vers `/app` — une adresse que le site ne sert pas (404, mesuré). Dans la
+ * coquille unique, la barre latérale dit déjà où l'on est et l'application est déjà ouverte.
+ *
+ * L'installation de l'application web (`beforeinstallprompt`) vient de la modale : c'est le seul
+ * geste qu'elle offrait et que cette page n'avait pas.
+ */
 import { Button, Card, CardContent, Divider } from "@aphrody/spaceui";
 import { useEffect, useMemo, useState } from "react";
 import { formatBytes, normalizeCatalog, type DownloadItem, type ProductKind } from "./catalog";
@@ -11,6 +29,12 @@ const groupNames: Record<ProductKind, string> = {
 	web: "Web",
 	other: "Autres",
 };
+
+/** L'événement que Chromium émet quand l'application web est installable. Non standardisé. */
+interface BeforeInstallPromptEvent extends Event {
+	prompt: () => Promise<void>;
+	userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 function Artifact({ item }: { item: DownloadItem }) {
 	const meta = [item.platform, item.architecture, item.version ? `v${item.version.replace(/^v/u, "")}` : undefined, formatBytes(item.bytes)]
@@ -33,6 +57,51 @@ function Artifact({ item }: { item: DownloadItem }) {
 			{item.signatureUrl && <Button href={item.signatureUrl} variant="bare" size="xs">Signature</Button>}
 		</div>
 	</Card>;
+}
+
+/**
+ * Installer l'application web.
+ *
+ * Le bouton n'apparaît que si le navigateur a VRAIMENT proposé l'installation : sans
+ * `beforeinstallprompt`, il n'y a rien à déclencher, et un bouton qui ouvrirait une boîte de
+ * dialogue expliquant d'aller chercher dans le menu du navigateur n'est pas une installation.
+ */
+function InstallWebApp() {
+	const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+	const [installed, setInstalled] = useState(false);
+	useEffect(() => {
+		const offer = (event: Event) => {
+			event.preventDefault();
+			setPrompt(event as BeforeInstallPromptEvent);
+		};
+		const done = () => {
+			setInstalled(true);
+			setPrompt(null);
+		};
+		window.addEventListener("beforeinstallprompt", offer);
+		window.addEventListener("appinstalled", done);
+		return () => {
+			window.removeEventListener("beforeinstallprompt", offer);
+			window.removeEventListener("appinstalled", done);
+		};
+	}, []);
+	if (installed) return <p className="artifact__status">Application web installée.</p>;
+	if (!prompt) return null;
+	return (
+		<Button
+			variant="gray"
+			size="md"
+			rounding="full"
+			onClick={async () => {
+				await prompt.prompt();
+				const choice = await prompt.userChoice;
+				if (choice.outcome === "accepted") setInstalled(true);
+				setPrompt(null);
+			}}
+		>
+			Installer l’application web
+		</Button>
+	);
 }
 
 export default function DownloadPage() {
@@ -62,30 +131,18 @@ export default function DownloadPage() {
 		return Object.keys(groupNames).indexOf(a.kind) - Object.keys(groupNames).indexOf(b.kind);
 	}), [items]);
 
-	return <main className="downloads">
-		<header className="masthead">
-			<a className="wordmark" href="/" aria-label="Inacord, accueil"><span aria-hidden="true">IN</span>Inacord</a>
-			<nav aria-label="Navigation principale">
-				<a href="#downloads">Téléchargements</a>
-				<a href="#docs">Docs rapides</a>
-				<Button href="/app" variant="accent" size="sm" rounding="full">Ouvrir l’app</Button>
-			</nav>
-		</header>
-
-		<section className="hero">
-			<p className="eyebrow">INACORD TOOL SUITE</p>
-			<h1>Tous les outils.<br/><span>Un seul endroit.</span></h1>
-			<p>Desktop, CLI, MCP, mobile web et plugins. Téléchargements vérifiés depuis le catalogue de publication.</p>
-			<div className="hero__actions">
-				<Button href="#downloads" variant="accent" size="lg" rounding="full">Voir les téléchargements</Button>
-				<Button href="/app" variant="gray" size="lg" rounding="full">Ouvrir l’app</Button>
-			</div>
-		</section>
-
-		<Divider />
-
+	return <div className="downloads">
 		<section className="catalog" id="downloads" aria-busy={state === "loading"}>
-			<div className="section-heading"><h2>Téléchargements</h2><p>Versions, plateformes et empreintes en direct.</p></div>
+			<div className="section-heading">
+				<h2>Téléchargements</h2>
+				<p>Versions, plateformes et empreintes en direct.</p>
+			</div>
+			<p className="downloads__intro">
+				Desktop, CLI, MCP, application web mobile et plugins. Les fonctions natives et
+				l’écriture locale demandent l’application de bureau ; tout le reste est déjà ouvert
+				autour de cette page.
+			</p>
+			<div className="hero__actions"><InstallWebApp /></div>
 			{state === "loading" && <Card className="notice" role="status">Chargement du catalogue…</Card>}
 			{state === "error" && <Card className="notice notice--error" role="alert"><strong>Catalogue temporairement inaccessible.</strong><span>Aucun lien non vérifié n’est affiché.</span></Card>}
 			{state === "ready" && <div className="artifact-grid" role="list">
@@ -94,16 +151,18 @@ export default function DownloadPage() {
 			</div>}
 		</section>
 
+		<Divider />
+
 		<section className="quickstart" id="docs">
 			<div className="section-heading"><h2>Docs rapides</h2><p>Commencer sans détour.</p></div>
 			<div className="quickstart__grid">
 				<div><span>01</span><h3>Desktop</h3><p>Lancez l’installateur. Les versions signées utilisent ensuite le canal stable de mise à jour.</p></div>
 				<div><span>02</span><h3>CLI</h3><p>Extrayez l’archive, puis placez <code>niers</code> dans votre <code>PATH</code>.</p></div>
 				<div><span>03</span><h3>MCP</h3><p>Déclarez <code>nie-mcp</code> comme serveur stdio dans votre client compatible.</p></div>
-				<div><span>04</span><h3>Mobile</h3><p>Ouvrez <a href="/app">l’app web</a>, puis ajoutez-la à l’écran d’accueil.</p></div>
+				<div><span>04</span><h3>Mobile</h3><p>Ajoutez cette page à votre écran d’accueil ; le bouton ci-dessus le fait quand le navigateur le propose.</p></div>
 			</div>
 		</section>
 
-		<footer><span>Inacord</span><p>Les fonctions natives et l’écriture locale nécessitent l’application desktop.</p><a href="/downloads/catalog.json">Catalogue JSON</a></footer>
-	</main>;
+		<footer><a href="/downloads/catalog.json">Catalogue JSON</a></footer>
+	</div>;
 }

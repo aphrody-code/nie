@@ -12,7 +12,7 @@
 // Le rendu d'un item reprend `SpaceItem.tsx` : `rounded-md`, icône 16 px, libellé tronqué,
 // actif = `bg-accent`.
 import { useTheme } from "next-themes";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { NativeToolSurface } from "@niers/inacord-ui/shell/native-tool-surface.tsx";
 
 import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
@@ -20,33 +20,28 @@ import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { JobManagerButton } from "@/components/JobManager";
 import { useT } from "@/lib/i18n";
 import { setSettings } from "@niers/inacord-ui/lib/settings";
+import { DOWNLOADS } from "../../entries";
+import { NATIVE_WINDOW } from "../../host";
 import { cn } from "@niers/inacord-ui/lib/utils";
 
 /**
- * Browser-only: the native builds are one click away from the workspace footer. Under Tauri the
- * app IS the native build, so the button is not drawn at all.
+ * Browser-only: the native builds are one click away from the footer. Under Tauri the app IS the
+ * native build, so the button is not drawn at all.
+ *
+ * It NAVIGATES, it does not open a modal. The catalogue already is a screen of the product
+ * (`/downloads`), and a modal restating it was a second rendering of the same `catalog.json`
+ * — different layout, different wording, one of the two always drifting.
  */
-const IS_NATIVE = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-const DownloadModal = lazy(() => import("../../inacord-web/DownloadModal").then((m) => ({ default: m.DownloadModal })));
-
-function DownloadButton() {
-  const [open, setOpen] = useState(false);
-  if (IS_NATIVE) return null;
+function DownloadButton({ onOpen }: { onOpen: () => void }) {
+  if (NATIVE_WINDOW) return null;
   return (
-    <>
-      <CircleButton
-        icon="download"
-        size="sm"
-        title="Télécharger Inacord (Desktop / Mobile)"
-        aria-label="Télécharger Inacord"
-        onClick={() => setOpen(true)}
-      />
-      {open && (
-        <Suspense fallback={null}>
-          <DownloadModal isOpen onClose={() => setOpen(false)} />
-        </Suspense>
-      )}
-    </>
+    <CircleButton
+      icon="download"
+      size="sm"
+      title="Télécharger (Desktop / Mobile / CLI)"
+      aria-label="Téléchargements"
+      onClick={onOpen}
+    />
   );
 }
 
@@ -194,7 +189,7 @@ export function Sidebar({
                 aria-label={t("tab.settings")}
                 onClick={onOpenSettings}
               />
-              <DownloadButton />
+              <DownloadButton onOpen={() => onSelect(DOWNLOADS)} />
             </div>
           </div>
         </nav>

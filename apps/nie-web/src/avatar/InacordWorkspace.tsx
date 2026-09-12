@@ -10,7 +10,6 @@
  * Lazy by construction: the game's avatar editor must not pay for three.js on load.
  */
 import { lazy, Suspense, useState } from "react";
-import { TooltipProvider } from "@niers/inacord-ui/components/ui/tooltip";
 import type { EditorViewState } from "@/components/editor/EditorView";
 
 const EditorView = lazy(() => import("@/components/editor/EditorView").then(({ EditorView }) => ({ default: EditorView })));
@@ -26,11 +25,11 @@ export type WorkspaceId = keyof typeof WORKSPACE_PREFIX;
 
 export function InacordWorkspace({ workspace }: { workspace: WorkspaceId }) {
 	const [state, setState] = useState<EditorViewState>({ prefix: WORKSPACE_PREFIX[workspace], selected: null });
+	// Pas de `TooltipProvider` ici : la coquille en monte un au-dessus de tous les écrans
+	// (`shell/UnifiedShell.tsx`) depuis la fusion du 2026-09-12.
 	return (
-		<TooltipProvider>
-			<Suspense fallback={<p role="status" className="avatar-workspace__state">Chargement de l’éditeur…</p>}>
-				<EditorView state={state} onStateChange={setState} />
-			</Suspense>
-		</TooltipProvider>
+		<Suspense fallback={<p role="status" className="avatar-workspace__state">Chargement de l’éditeur…</p>}>
+			<EditorView state={state} onStateChange={setState} />
+		</Suspense>
 	);
 }
