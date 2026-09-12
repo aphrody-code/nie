@@ -1,6 +1,6 @@
 {
 	"name": "@niers/bridge",
-	"version": "0.5.11",
+	"version": "0.6.0",
 	"private": true,
 	"description": "Control bridge contract and client for the native Rust nie-mcp server and Inacord.",
 	"type": "module",

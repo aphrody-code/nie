@@ -28,7 +28,7 @@ exclude = ["crates/archive/nie-engine", "crates/tools/inacord"]
 
 [workspace.package]
 edition = "2024"
-version = "0.5.11"
+version = "0.6.0"
 license = "MIT"
 authors = ["Aphrody"]
 repository = "https://github.com/aphrody-code/nie"
@@ -93,7 +93,7 @@ zerocopy = { version = "0.8" }
 # (`lib.rs` + `headers`) ; les modules forensics d'aphrody — adobe, asar,
 # electron, golang, google — et les modules sous drapeau — leveldb, magika,
 # yara — sont écartés : `nie-re` n'appelle que `triage()` et `Format`.
-aphrody-re = { path = "crates/forge/aphrody-re" }
+aphrody-re = { version = "0.6.0", path = "crates/forge/aphrody-re" }
 
 # décodage audio CRI (HCA, ACB, AWB) — licence MIT
 cridecoder = { version = "0.2.3", default-features = false }
@@ -125,44 +125,44 @@ libc = { version = "0.2" }
 
 # crates internes
 # forge : production du binaire
-nie-pe = { path = "crates/forge/nie-pe", default-features = false }
-nie-asm = { path = "crates/forge/nie-asm", default-features = false }
-nie-forge = { path = "crates/forge/nie-forge", default-features = false }
-nie-index = { path = "crates/forge/nie-index", default-features = false }
-nie-trace = { path = "crates/forge/nie-trace", default-features = false }
-nie-re = { path = "crates/forge/nie-re", default-features = false }
+nie-pe = { version = "0.6.0", path = "crates/forge/nie-pe", default-features = false }
+nie-asm = { version = "0.6.0", path = "crates/forge/nie-asm", default-features = false }
+nie-forge = { version = "0.6.0", path = "crates/forge/nie-forge", default-features = false }
+nie-index = { version = "0.6.0", path = "crates/forge/nie-index", default-features = false }
+nie-trace = { version = "0.6.0", path = "crates/forge/nie-trace", default-features = false }
+nie-re = { version = "0.6.0", path = "crates/forge/nie-re", default-features = false }
 # Minidump (.dmp) : parsing + scan AOB. Extrait de nie-re pour n'avoir AUCUNE dépendance
 # (hors thiserror) — c'est ce qui le rend liable par nie-explorer, contrairement à nie-re.
-nie-dump = { path = "crates/forge/nie-dump" }
-nie-queue = { path = "crates/forge/nie-queue", default-features = false }
-nie-seed = { path = "crates/forge/nie-seed", default-features = false }
-nie-formats = { path = "crates/engine/nie-formats", default-features = false }
-nie-explore = { path = "crates/engine/nie-explore", default-features = false }
-nie-sql = { path = "crates/engine/nie-sql" }
-nie-headless = { path = "crates/engine/nie-headless", default-features = false }
-nie-save = { path = "crates/engine/nie-save" }
-nie-wiki = { path = "crates/tools/nie-wiki" }
-nie-core = { path = "crates/engine/nie-core" }
-nie-data = { path = "crates/engine/nie-data" }
-nie-ocgen = { path = "crates/engine/nie-ocgen" }
+nie-dump = { version = "0.6.0", path = "crates/forge/nie-dump" }
+nie-queue = { version = "0.6.0", path = "crates/forge/nie-queue", default-features = false }
+nie-seed = { version = "0.6.0", path = "crates/forge/nie-seed", default-features = false }
+nie-formats = { version = "0.6.0", path = "crates/engine/nie-formats", default-features = false }
+nie-explore = { version = "0.6.0", path = "crates/engine/nie-explore", default-features = false }
+nie-sql = { version = "0.6.0", path = "crates/engine/nie-sql" }
+nie-headless = { version = "0.6.0", path = "crates/engine/nie-headless", default-features = false }
+nie-save = { version = "0.6.0", path = "crates/engine/nie-save" }
+nie-wiki = { version = "0.6.0", path = "crates/tools/nie-wiki" }
+nie-core = { version = "0.6.0", path = "crates/engine/nie-core" }
+nie-data = { version = "0.6.0", path = "crates/engine/nie-data" }
+nie-ocgen = { version = "0.6.0", path = "crates/engine/nie-ocgen" }
 # PAS de `nie-engine` ici : la crate est `exclude` du workspace (cf. plus haut) et aucune crate
 # vivante ne la consomme. La déclarer invitait un `nie-engine.workspace = true` qui aurait ramené
 # dans le build un portage conservé en lecture seule.
-nie-model-serve = { path = "crates/tools/nie-model-serve", default-features = false }
-nie-zukan = { path = "crates/tools/nie-zukan", default-features = false }
-nie-lua = { path = "crates/engine/nie-lua", default-features = false }
-nie-app = { path = "crates/engine/nie-app" }
-nie-render3d = { path = "crates/engine/nie-render3d" }
-nie-aphrody = { path = "crates/engine/nie-aphrody" }
+nie-model-serve = { version = "0.6.0", path = "crates/tools/nie-model-serve", default-features = false }
+nie-zukan = { version = "0.6.0", path = "crates/tools/nie-zukan", default-features = false }
+nie-lua = { version = "0.6.0", path = "crates/engine/nie-lua", default-features = false }
+nie-app = { version = "0.6.0", path = "crates/engine/nie-app" }
+nie-render3d = { version = "0.6.0", path = "crates/engine/nie-render3d" }
+nie-aphrody = { version = "0.6.0", path = "crates/engine/nie-aphrody" }
 # nie-ui : source unique, typée, des jetons de design du jeu (couleurs OKLCH, géométrie,
 # mouvement) — génère le CSS de packages/inacord-ui/src/shell/game-tokens.css et relie
 # nie-formats::sprite_sheet (icônes) aux jetons pour le Rust qui compose des images.
-nie-ui = { path = "crates/engine/nie-ui" }
+nie-ui = { version = "0.6.0", path = "crates/engine/nie-ui" }
 # `nie-runtime` : le moteur de match. Declare ici parce que `nie-ffi` le consomme desormais —
 # c'est ce qui rend la simulation pilotable depuis Python (`niepy`) et donc depuis Ren'Py.
-nie-runtime = { path = "crates/engine/nie-runtime" }
-nie-viola = { path = "crates/engine/nie-viola" }
-nie-steam = { path = "crates/tools/nie-steam", default-features = false }
+nie-runtime = { version = "0.6.0", path = "crates/engine/nie-runtime" }
+nie-viola = { version = "0.6.0", path = "crates/engine/nie-viola" }
+nie-steam = { version = "0.6.0", path = "crates/tools/nie-steam", default-features = false }
 
 # chaîne « image → SVG → raster » (skill pixel-perfect, crate nie-aphrody).
 # Choix mesurés le 2026-09-05, avec les rejets et leur raison :
@@ -201,18 +201,18 @@ fyrox = { version = "1.0.1" }
 fyroxed_base = { version = "1.0.1" }
 googletest = { version = "0.14" }
 http-body-util = { version = "0.1.4" }
-ievr-tools = { path = "crates/tools/ievr-tools", default-features = false }
+ievr-tools = { version = "0.6.0", path = "crates/tools/ievr-tools", default-features = false }
 image_dds = { version = "0.7", default-features = false }
 log = { version = "0.4.34" }
 mlua = { version = "0.11" }
 moka = { version = "0.12.16" }
-nie-bench = { path = "crates/tools/nie-bench", default-features = false }
-nie-camera = { path = "crates/engine/nie-camera", default-features = false }
-nie-cli = { path = "crates/tools/nie-cli" }
-nie-computer-use = { path = "crates/tools/nie-computer-use", default-features = false }
-nie-editor = { path = "crates/tools/nie-editor", default-features = false }
-nie-geom = { path = "crates/engine/nie-geom" }
-nie-tasks = { path = "crates/tools/nie-tasks", default-features = false }
+nie-bench = { version = "0.6.0", path = "crates/tools/nie-bench", default-features = false }
+nie-camera = { version = "0.6.0", path = "crates/engine/nie-camera", default-features = false }
+nie-cli = { version = "0.6.0", path = "crates/tools/nie-cli" }
+nie-computer-use = { version = "0.6.0", path = "crates/tools/nie-computer-use", default-features = false }
+nie-editor = { version = "0.6.0", path = "crates/tools/nie-editor", default-features = false }
+nie-geom = { version = "0.6.0", path = "crates/engine/nie-geom" }
+nie-tasks = { version = "0.6.0", path = "crates/tools/nie-tasks", default-features = false }
 percent-encoding = { version = "2" }
 png = { version = "0.18" }
 pollster = { version = "0.4" }

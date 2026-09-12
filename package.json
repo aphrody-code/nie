@@ -1,6 +1,6 @@
 {
 	"name": "nie-monorepo",
-	"version": "0.5.11",
+	"version": "0.6.0",
 	"private": true,
 	"description": "Bun workspace for nie libraries and applications; the `nie` name is reserved for the FFI package.",
 	"workspaces": {

@@ -11,6 +11,44 @@ listé qui ne s'y retrouve.
 
 ## [Non publié]
 
+## [0.6.0] — 2026-09-12
+
+227 commits depuis `v0.5.11`.
+
+### Ajouté
+
+- Runtime headless de `nie.exe` reconstruit, pipeline d'atlas des 38 écrans de menu et
+  icônes authentiques du jeu.
+- Atelier avatar : viewport 3D, pistes d'animation, cinématiques, et génération de modèles
+  GLB pour les personnages originaux (`nie-ocgen`).
+- `nie-index` : index atlas unique sur toutes les surfaces de reverse engineering, avec sa
+  boucle autonome de complétion.
+- `nie-formats` : décodage USM, WebM, IVF et scripts d'événement ; encodage des conteneurs
+  G4TX multi-textures et des documents iecode vers `cfg.bin` T2B ; 20 opcodes d'événement
+  corrigés ; extensions G4MA/G4MT.
+- `nie-asm`/`nie-forge` : encodage et lifting AVX VEX.256, plus `paddq`, `extractps`,
+  `stmxcsr`.
+- Espace de travail Inacord servi à la racine, modale de téléchargement et routes unifiées.
+- `nie-sql` : frontière SQL unique en lecture seule, pilote PostgreSQL vérifié et service de
+  migration.
+
+### Modifié
+
+- Propriété Azalée/Inagle migrée vers Rust ; surfaces partagées (cartes wiki, recherche,
+  filtres, fiches d'entité) extraites en composants uniques et auditées par
+  `audit-shared-surfaces.sh`.
+- Résolution des ressources localisées par la locale du jeu, de bout en bout (VFS, CLI,
+  Inacord, bureau).
+- Déploiement : bascule de lien symbolique atomique tolérante aux répertoires non-symlink,
+  cibles de production bornées, HTTP/2 sur l'API Aphrody et le CDN.
+- Toutes les dépendances internes du workspace portent désormais un `version` à côté de leur
+  `path`, et `aphrody-re` devient publiable — prérequis d'une publication crates.io.
+
+### Retiré
+
+- Chaînes IECODE héritées, aides de workflow obsolètes, placeholder public BXC, charges MCP
+  publique et RAG locale, et trois chemins de rendu avatar/3D orphelins.
+
 ## [0.5.11] — 2026-09-07
 
 - Configure l'exécution du CLI BXC natif 0.9.7 depuis niers sans charger le
@@ -82,7 +120,9 @@ reverse-engineering.
 365 commits — l'amorçage. Familles de données `nie-data` (52), cœur `nie-core` (34),
 formats Level-5 `nie-formats` (15), serveur de modèles, premières vagues de reverse.
 
-[Non publié]: https://github.com/aphrody-code/nie/compare/v0.5.10...HEAD
+[Non publié]: https://github.com/aphrody-code/nie/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/aphrody-code/nie/compare/v0.5.11...v0.6.0
+[0.5.11]: https://github.com/aphrody-code/nie/compare/v0.5.10...v0.5.11
 [0.5.10]: https://github.com/aphrody-code/nie/compare/v0.5.9...v0.5.10
 [0.5.9]: https://github.com/aphrody-code/nie/compare/v0.5.6...v0.5.9
 [0.5.6]: https://github.com/aphrody-code/nie/compare/v0.5.4...v0.5.6

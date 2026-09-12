@@ -1,7 +1,7 @@
 {
 	"name": "inacord",
 	"private": true,
-	"version": "0.5.11",
+	"version": "0.6.0",
 	"type": "module",
 	"scripts": {
 		"dev": "bun run --cwd ../nie-web dev:desktop",
