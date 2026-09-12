@@ -29,6 +29,25 @@
 //! **Aucune n'est définie en Lua.** Les cinq sont donc fournies par `nie.exe`, et les porter est
 //! un travail de reverse — pas de câblage.
 //!
+//! ## Par où les reverser : pas par `funcLuaMenuCommand`
+//!
+//! Le réflexe serait de les chercher dans `data/re/funclua-cmdid-handlers.json` (3 659 entrées),
+//! la table qui associe un `cmdId` à l'adresse de son handler. Mesuré le 2026-09-12 : les cinq
+//! CRC-32 en sont ABSENTS.
+//!
+//! ```text
+//! SetCtrlGuideTextCommon            0xB1245F8B   absent
+//! ShowTitleChangeChildButtonCommon  0x7A47702C   absent
+//! SetTitleTextureCommon             0x85CC3989   absent
+//! SetStandAloneMenuCrc              0xE3B17AEC   absent
+//! SetStandAloneTopCtrlGuideLayerCrc 0xEC8A95DB   absent
+//! ```
+//!
+//! Elles ne passent donc pas par le répartiteur de commandes de menu : ce sont des fonctions C
+//! enregistrées directement dans `_ENV` (`lua_register`/`luaL_Reg`). C'est là qu'il faut les
+//! chercher dans le binaire, et leurs CRC-32 sont ci-dessus pour ancrer la recherche — leurs
+//! noms sont d'ailleurs déjà dans `data/re/menu-crc32-dictionary.json`.
+//!
 //! ## Le détour qui a failli conclure l'inverse
 //!
 //! Ce relevé a d'abord balayé tout `data/`, et rendu « défini par
