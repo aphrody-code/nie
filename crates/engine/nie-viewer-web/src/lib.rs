@@ -23,6 +23,11 @@
 //! rastériseur CPU de `nie-wasm`. Rien ici ne dessine en cas d'échec — un canvas vide se
 //! remarque, une image inventée non.
 
+// `nie_render3d::web::WebViewer` n'existe que sur `wasm32` : il tient une surface de canvas. Le
+// reste du fichier l'est aussi, mais l'import doit l'être explicitement, sinon la crate ne
+// compile pas sur l'hôte — et `cargo clippy --workspace --all-targets`, le gate du dépôt,
+// compile TOUT en natif.
+#[cfg(target_arch = "wasm32")]
 use nie_render3d::web::WebViewer;
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
@@ -34,6 +39,7 @@ pub fn start() {
     console_error_panic_hook::set_once();
 }
 
+#[cfg(target_arch = "wasm32")]
 fn js_error(error: impl core::fmt::Display) -> JsValue {
     JsValue::from_str(&error.to_string())
 }
