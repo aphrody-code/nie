@@ -70,6 +70,16 @@ pub struct ReplayOutput {
     pub complete: bool,
     pub events_applied: usize,
     pub callbacks: Vec<String>,
+    /// Ce qui a MANQUÉ, nommé, quand `complete` est faux.
+    ///
+    /// Sans ce champ, `complete: false` disait qu'il manquait quelque chose sans dire quoi —
+    /// exactement le défaut qu'un objet de layout sans `placementSource` avait ailleurs. Les
+    /// noms sont ceux que le script a lus : des globales de l'hôte (`AddItem`,
+    /// `ActivateAuraSkill`), des chemins d'appel, des `include` absents. C'est la liste de
+    /// travail pour rendre un écran complet, et le seul moyen de la classer par fréquence
+    /// plutôt que de la deviner.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub missing: Vec<String>,
 }
 
 impl ReplayRequest {
@@ -200,16 +210,30 @@ where
     {
         return Err("Menu scene exceeds object limit".into());
     }
+    // Collecté AVANT le calcul de `complete` : les deux consomment les mêmes sources, et
+    // `take_missing_includes` les vide.
+    let mut missing: Vec<String> = Vec::new();
+    missing.extend(drive.missing_host_calls.iter().cloned());
+    missing.extend(drive.missing_host_paths.iter().cloned());
+    missing.extend(session.api_report().missing.iter().cloned());
+    missing.extend(session.take_missing_includes());
+    // Une commande inconnue est un triplet `(layer, objet, nom)` : le NOM seul ferait la liste
+    // de travail, mais perdre l'écran où elle tombe rendrait la reproduction impossible.
+    missing.extend(
+        state
+            .unknown_cmd_log
+            .iter()
+            .chain(state.unknown_general_cmd_log.iter())
+            .map(|(layer, object, name)| format!("{name} (cmd {layer:#010x}/{object:#010x})")),
+    );
+    missing.sort_unstable();
+    missing.dedup();
+
     let complete = drive.on_init != Some(false)
         && drive.callback_errors.is_empty()
-        && drive.missing_host_calls.is_empty()
-        && drive.missing_host_paths.is_empty()
+        && missing.is_empty()
         && report.events_succeeded == events.len()
-        && report.callback_errors.is_empty()
-        && session.api_report().missing.is_empty()
-        && session.take_missing_includes().is_empty()
-        && state.unknown_cmd_log.is_empty()
-        && state.unknown_general_cmd_log.is_empty();
+        && report.callback_errors.is_empty();
     let callbacks = MenuCallback::ALL
         .into_iter()
         .filter(|callback| {
@@ -228,5 +252,6 @@ where
         complete,
         events_applied: report.events_succeeded,
         callbacks,
+        missing,
     })
 }

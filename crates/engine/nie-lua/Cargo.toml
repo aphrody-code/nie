@@ -31,6 +31,10 @@ tree-sitter-lua = { workspace = true, optional = true }
 
 [dev-dependencies]
 nie-formats = { workspace = true, default-features = true }
+# Le relevé `menu_host_gap` a besoin de la liste des calques d'un écran, que `menu_setting`
+# décode. La prendre plutôt que la relire à la main : une seconde lecture du même fichier
+# dériverait de celle que le site et le navigateur emploient.
+nie-data.workspace = true
 
 [features]
 # La VM (mlua, Lua 5.2 vendored en C) — activée par défaut : tous les consommateurs actuels

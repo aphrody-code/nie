@@ -6339,6 +6339,7 @@ name = "nie-lua"
 version = "0.6.0"
 dependencies = [
  "mlua",
+ "nie-data",
  "nie-formats",
  "serde",
  "thiserror 2.0.20",

@@ -138,6 +138,48 @@ async function scriptPaths(screen: string): Promise<string[]> {
 		.filter((path) => path.startsWith("data/common/script/lua/menu/") && path.endsWith(".lua.bin"));
 }
 
+let includesPromise: Promise<string[]> | null = null;
+
+/**
+ * Les scripts d'inclusion, que TOUS les écrans partagent.
+ *
+ * ## Pourquoi ils sont indispensables
+ *
+ * Un écran n'est pas autonome : il fait `INCLUDE("LUA_PROG_BASE")`, `LUA_LISTVIEW_INC`,
+ * `LUA_CHARA_EDIT_MENU_INC`, et les fonctions qu'il appelle ensuite — `SetupEditWindowInfo`,
+ * `SetupGaugeBar`, `UpdateManageCoroutineAll` — sont DÉFINIES là. Ne charger que les scripts
+ * dont le nom ressemble à celui de l'écran laissait donc le rejeu sans ces définitions, et ce
+ * qui manquait se lisait comme un manque de l'HÔTE alors que c'était un fichier non fourni.
+ *
+ * Mesuré le 2026-09-12 par `crates/engine/nie-lua/tests/menu_host_gap.rs` : sur 51 écrans
+ * rejoués, fournir tout le corpus fait disparaître les cinq includes les plus bloquants ET les
+ * sept fonctions qu'ils définissent, en tête de la liste des manques. Ce qui reste est du
+ * `funcLuaMenuCommand` non reversé — 178 unités, un travail nommé, plus un symptôme.
+ *
+ * ## Le coût, mesuré
+ *
+ * 77 fichiers, 1 448 473 octets, servis en `max-age=86400`. Ils sont téléchargés une fois par
+ * session et partagés par tous les écrans, pas une fois par écran.
+ */
+function includePaths(): Promise<string[]> {
+	includesPromise ??= (async () => {
+		const response = await fetch("/api/v1/lua/scripts?q=include&per_page=500", {
+			headers: { accept: "application/json" },
+		});
+		if (!response.ok) return [];
+		const body = (await response.json()) as { elements?: ScriptEntry[] };
+		return (body.elements ?? [])
+			.map((entry) => entry.chemin)
+			.filter((path) => path.startsWith("data/common/script/lua/include/") && path.endsWith(".lua.bin"));
+	})().catch(() => {
+		// Un catalogue indisponible ne doit pas figer l'absence d'includes pour la session : le
+		// rejeu suivant réessaie, et en attendant il se déroule sans eux comme avant.
+		includesPromise = null;
+		return [];
+	});
+	return includesPromise;
+}
+
 /** Les octets d'un fichier du VFS, ou `null` quand le site ne l'a pas. */
 async function vfsBytes(path: string): Promise<Uint8Array | null> {
 	const response = await fetch(`/f/${path}`).catch(() => null);
@@ -160,6 +202,8 @@ interface RuntimeLayer {
 interface ReplayOutput {
 	scene?: { layers?: Record<string, RuntimeLayer> };
 	complete?: boolean;
+	/** Les manques que la VM a relevés — `ReplayOutput::missing` côté Rust. */
+	missing?: string[];
 	error?: string;
 }
 
@@ -186,6 +230,8 @@ export interface ResolvedVisibility {
 	byObject: Map<number, boolean>;
 	/** `false` dès qu'un rappel ou un appel hôte reste non résolu — comme côté serveur. */
 	complete: boolean;
+	/** Ce qui a manqué, nommé. Vide quand `complete` est vrai. */
+	missing: string[];
 }
 
 /**
@@ -196,15 +242,16 @@ export interface ResolvedVisibility {
  * ailleurs, au lieu de supposer.
  */
 export async function resolveMenuVisibility(screen: string): Promise<ResolvedVisibility> {
-	const vide: ResolvedVisibility = { byObject: new Map(), complete: false };
+	const vide: ResolvedVisibility = { byObject: new Map(), complete: false, missing: [] };
 	let runtime: LuaRuntime;
 	try {
 		runtime = await ensureRuntime();
 	} catch {
 		return vide;
 	}
-	const paths = await scriptPaths(screen);
-	if (paths.length === 0) return vide;
+	const [ecran, includes] = await Promise.all([scriptPaths(screen), includePaths()]);
+	const paths = [...new Set([...ecran, ...includes])];
+	if (ecran.length === 0) return vide;
 
 	runtime.clearScripts();
 	const setting = settingPath(screen);
@@ -233,5 +280,5 @@ export async function resolveMenuVisibility(screen: string): Promise<ResolvedVis
 			byObject.set(Number(id), layerVisible && objet.visible === true);
 		}
 	}
-	return { byObject, complete: output.complete === true };
+	return { byObject, complete: output.complete === true, missing: output.missing ?? [] };
 }
