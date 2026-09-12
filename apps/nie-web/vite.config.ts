@@ -1,7 +1,19 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ConfigEnv, type UserConfig } from "vite";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+/**
+ * Les modules WebAssembly que les DEUX hôtes chargent par URL.
+ *
+ * Le build de bureau prend son `publicDir` dans `apps/inacord/public`, qui ne porte pas
+ * `static/game/` : sans cette copie, `/static/game/*.wasm` répond 404 dans la fenêtre native.
+ * Le jeu, lui, y est volontairement inaccessible (`GAME_REACHABLE = !NATIVE_WINDOW`) — mais le
+ * viewport 3D des Modèles et de l'Avatar est un outil, pas le jeu, et il a besoin du renderer.
+ */
+const SHARED_WASM = ["static/game/nie_wasm_bg.wasm", "static/game/nie_viewer_web_bg.wasm"];
 
 /** One frontend build owner; host adapters retain their native services and resources. */
 export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
@@ -33,6 +45,23 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 				return html
 					.replace("<title>nie</title>", "<title>Inacord</title>")
 					.replace('<link rel="icon" href="/static/favicon.ico" />', '<link rel="icon" href="/favicon.ico" />');
+			},
+		}, {
+			// Le build web sert ces fichiers par son `publicDir` ; celui de bureau ne le peut pas,
+			// puisqu'il pointe ailleurs. La copie est donc explicite, et manquante elle serait
+			// silencieuse : un 404 sur un module se lit comme « pas de rendu 3D », pas comme un
+			// fichier oublié.
+			name: "nie-shared-wasm",
+			apply: "build" as const,
+			writeBundle() {
+				if (!desktop) return;
+				for (const relatif of SHARED_WASM) {
+					const source = fileURLToPath(new URL(`./public/${relatif}`, import.meta.url));
+					if (!existsSync(source)) continue;
+					const destination = join(fileURLToPath(new URL("./dist-desktop/", import.meta.url)), relatif);
+					mkdirSync(dirname(destination), { recursive: true });
+					copyFileSync(source, destination);
+				}
 			},
 		}],
 		publicDir: desktop ? fileURLToPath(new URL("../inacord/public", import.meta.url)) : "public",
