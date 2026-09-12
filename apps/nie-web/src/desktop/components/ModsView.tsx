@@ -31,8 +31,24 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
   /** Mod dont le nom est en cours d'édition en ligne (double-clic) — `null` = aucun. */
   const [renaming, setRenaming] = useState<string | null>(null);
 
+  /**
+   * Le registre est INDISPONIBLE sans hôte natif, et ça se dit.
+   *
+   * `modsDb` lit `mods.db` par la commande Rust `sqlite_select`. Dans une page, elle rejette. Le
+   * rejet n'était pas rattrapé : depuis que la vue a sa propre route (`/inacord/mods`), elle
+   * s'ouvre d'un clic sur le site, et le premier rendu partait en erreur non gérée. Une vue qui
+   * nomme ce qui lui manque vaut mieux qu'une promesse rompue dans la console.
+   */
+  const [unavailable, setUnavailable] = useState<string | null>(null);
+
   async function refresh() {
-    setMods(await modsDb.listMods());
+    try {
+      setMods(await modsDb.listMods());
+      setUnavailable(null);
+    } catch (e) {
+      setUnavailable(e instanceof Error ? e.message : String(e));
+      setMods([]);
+    }
   }
 
   useEffect(() => {
@@ -40,7 +56,7 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
   }, []);
 
   useEffect(() => {
-    if (selected) modsDb.listFiles(selected).then(setFiles);
+    if (selected) modsDb.listFiles(selected).then(setFiles).catch(() => setFiles([]));
     else setFiles([]);
   }, [selected]);
 
@@ -137,6 +153,14 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
   }
 
   const current = mods.find((m) => m.id === selected) ?? null;
+
+  if (unavailable) {
+    return (
+      <div className="grid h-full place-items-center p-6">
+        <p className="max-w-prose text-center text-sm text-ink-dull" role="status">{unavailable}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid h-full grid-cols-[320px_1fr] gap-3 p-3">

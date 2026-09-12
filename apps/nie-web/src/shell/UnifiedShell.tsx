@@ -37,7 +37,7 @@ import { TooltipProvider } from "@niers/inacord-ui/components/ui/tooltip";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { EXPLORER, INACORD, SETTINGS, entryLabel, menuEntries } from "../entries";
+import { ALIAS, EXPLORER, INACORD, SETTINGS, entryLabel, menuEntries } from "../entries";
 import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
 import { GAME_REACHABLE, NATIVE_WINDOW } from "../host";
 import { HOME } from "../routing";
@@ -75,6 +75,19 @@ export const INACORD_VIEW_PREFIX = `${INACORD}/`;
 export function inacordViewOf(route: string): string | null {
 	if (route === INACORD) return "explorer";
 	return route.startsWith(INACORD_VIEW_PREFIX) ? route.slice(INACORD_VIEW_PREFIX.length) : null;
+}
+
+/**
+ * The workspace view a route opens, whatever the route is called.
+ *
+ * `/explorateur` and the two addresses inherited from the screens it absorbed (`/recherche`,
+ * `/donnees`) open the Explorer, the same one `/inacord/explorer` opens. One function answers for
+ * all of them, so the router and the top bar cannot disagree — they did: the title bar showed the
+ * raw segment, « recherche », on a screen that is the Explorer.
+ */
+export function workspaceViewOf(route: string): string | null {
+	if (route === EXPLORER || (ALIAS as readonly string[]).includes(route)) return "explorer";
+	return inacordViewOf(route);
 }
 
 /**
@@ -184,7 +197,7 @@ export function UnifiedShell({
 	}, [onSelect]);
 
 	const advanced = settings.outilsAvances !== false;
-	const inExplorer = inacordViewOf(current) === "explorer" && !externalPath;
+	const inExplorer = workspaceViewOf(current) === "explorer" && !externalPath;
 	const sections = useMemo<SidebarSection[]>(() => {
 		/** One place row, with its three gestures: click, middle click, context menu. */
 		const place = (id: string, prefix: string, label: string, icon: string, kind: "builtin" | "pinned" | "recent", iconClassName?: string) => ({
@@ -238,7 +251,7 @@ export function UnifiedShell({
 	 * de fichiers du système), nom de l'écran partout ailleurs. */
 	const title = useMemo(() => {
 		if (externalPath) return externalPath;
-		const view = inacordViewOf(current);
+		const view = workspaceViewOf(current);
 		if (view === "explorer") return explorer.selected ?? explorer.prefix ?? "data";
 		if (view) {
 			const declared = viewById(view);

@@ -33,14 +33,14 @@ import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-i
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { useTheme } from "next-themes";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ALIAS, AVATAR, BANK, DOWNLOADS, EXPLORER, GALLERY, INACORD, MEDIA, SETTINGS, SHOP, recognizedRoutes } from "./entries";
+import { AVATAR, BANK, DOWNLOADS, EXPLORER, GALLERY, INACORD, MEDIA, SETTINGS, SHOP, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
 import { GAME_REACHABLE } from "./host";
 import { Catalog } from "./pages/Catalog";
 import { Avatar } from "./pages/Avatar";
 import { Notice } from "./pages/screen-parts";
-import { UnifiedShell, inacordViewOf } from "./shell/UnifiedShell";
+import { UnifiedShell, workspaceViewOf } from "./shell/UnifiedShell";
 import { createWorkspaceActions, workspaceRoute } from "./shell/workspace-actions";
 import { Game } from "./pages/Game";
 import { PlayerBank } from "./screens/PlayerBank";
@@ -216,8 +216,7 @@ function Site() {
 	// screens it absorbed (`/recherche`, `/donnees`) open the workspace's Explorer, the mature one
 	// — tabs, pins, thumbnails, context menus, mod staging — instead of the reduced copy the site
 	// used to carry beside it.
-	const workspaceView =
-		route === EXPLORER || (ALIAS as readonly string[]).includes(route) ? "explorer" : inacordViewOf(route);
+	const workspaceView = workspaceViewOf(route);
 	if (workspaceView !== null) {
 		return shell(
 			<Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-faint">Ouverture de la vue…</div>}>
