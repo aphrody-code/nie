@@ -387,6 +387,34 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   object → parts, one sprite per bone, and the compositor already has the crop path for it
   (`menu_layout` resolves a region by CRC-32 for the runtime `SetIconSprite` commands).
 
+- **Three rasterisers in `nie-render3d`, and they disagreed on two things nothing could see.**
+  Measured 2026-09-13, both now fixed, both invisible to the tests that existed.
+  *Field of view*: `render::render` scaled both screen axes by `w * 0.5` (fixing the HORIZONTAL
+  half-angle) while `gpu::view_projection` passes `fovy` (fixing the VERTICAL) and
+  `scene::render_scene` scaled by `h * 0.5`. At 128×128 the CPU and GPU silhouettes matched at
+  **IoU 100 %**; at 256×128 they matched at **26 %**, the CPU model being twice as large in
+  linear size. `gpu_et_cpu_cadrent_la_meme_vue` only ever measured the square case — a viewport
+  is never square, and `native-viewer.ts` falls back to the CPU rasteriser when WebGPU is
+  absent, so the same model changed size with the browser. *Winding*: `render` culled positive
+  signed areas, `render_scene` negative ones. On one quad: CCW gave 1 200 px / 0 px, CW gave
+  0 px / 1 296 px. glTF front faces are CCW, and Y-down screen space makes their area negative,
+  so `render` was right; the GPU sets `cull_mode: None`, so the CPU↔GPU test is blind to culling
+  by construction. Only `match3d` passes `two_sided: false` — it drew its players inside out.
+  **A test written against a defect describes it as the rule**: the scene test carried
+  `indices: vec![0, 2, 1]` commented "front-facing", which is the back face.
+
+- **The editor's 3D surfaces: what is now one, and what is still two.** One editor (the Fyrox
+  `legacy-fyrox` binary is gone, with `fyrox`/`fyroxed_base` — 47 505 bytes out of
+  `Cargo.lock`). One scene document: `SceneDocumentV2` was fully tested with ZERO consumers
+  while `EditorSession` ran on the flat v1, which is why the browser viewport's gizmo transforms
+  were documented as unsaveable — v1 cannot express a rotation off Y. One object decoder
+  (`EditorSession::add_object_json`, accepting either version). One orbital camera basis, read
+  by both the view matrix and the picking ray. **Still two: the renderers.** `Viewport3D`
+  (three.js) has one consumer left, `EditorView`; everything else goes through `nie-render3d`.
+  Retiring it needs selection highlight, wireframe, grid and gizmo interaction — picking
+  (`pick.rs`) and multi-object scenes (`WebViewer::stage_asset`/`load_scene`) are done. Do not
+  delete it before those exist: that removes editing, not duplication.
+
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 
