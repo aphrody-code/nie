@@ -663,6 +663,13 @@ fn value_repr(v: &Value) -> String {
     // `0x88154DF4` (2 283 097 588) tient donc dans l'un et pas dans l'autre, et la MÊME valeur
     // sortait en `2283097588` d'un côté et `0x88154DF4` de l'autre — ce qui rendait les journaux
     // des deux hôtes incomparables alors que rien ne divergeait (mesuré le 2026-09-13).
+    //
+    // Audit du même jour : c'était le SEUL endroit du crate où la distinction `Integer`/`Number`
+    // changeait quelque chose. `lua_to_u32`, `lua_to_i32`, `lua_to_f32`, `lua_to_bool`,
+    // `CMD_SET_TEXT`, `runtime::value_to_string` et `host::parse_live_addr` traitent les deux
+    // variantes identiquement, et `value_to_string` rend la même chaîne pour un entier tenant
+    // dans `u32` (`f64::to_string` ne met pas de `.0`). Ce qui reste de divergent entre les deux
+    // hôtes ne vient donc pas de ce crate.
     let entier_hex = |u: u32| format!("0x{u:08X}");
     match v {
         Value::Nil => "nil".to_string(),
