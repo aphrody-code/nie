@@ -263,6 +263,11 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   to COMPILE under this pressure; it just cannot be turned into a module. Do not read one failure
   as the other's — and do not assume either without retesting, since the two crates differ by an
   order of magnitude in link cost.
+  **And waiting makes it worse, not better.** `nie-model-serve`'s CPK cache is an LRU that fills
+  as the service answers requests: measured across one session, 10.5 → 10.9 → 11.2 GiB of its
+  12 GiB budget, with free memory falling 14 → 13 GiB. Retrying a build "later" is a losing
+  strategy — either free the memory deliberately (a production restart, which needs the user) or
+  do the work that does not need a build.
 
 - **The uemu oracle WORKS; the 49 old proofs are anchored on a build that is gone.** Measured
   2026-09-13: `nie.exe`, `nie_eacpatched.exe` and `dist/nie.exe` are all the SAME file
