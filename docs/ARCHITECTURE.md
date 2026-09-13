@@ -62,7 +62,7 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-dump` | Lecture/scan AOB d'un minidump Windows de `nie.exe` | 6 |
 | `nie-trace` | RE en direct : lecture de la mémoire d'un `nie.exe` en cours d'exécution | 93 |
 
-### `crates/engine/*` — le moteur (19)
+### `crates/engine/*` — le moteur (23)
 
 | Crate | Rôle | Tests |
 |---|---|---:|
@@ -84,7 +84,11 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-ui` | Source unique typée des jetons de design du jeu (OKLCH, géométrie, mouvement) → CSS | 35 |
 | `nie-aphrody` | Runtime typé du pet « Codex Aphrody v2 » (atlas RGBA, animations, directions) | 56 |
 | `nie-ffi` | Frontière C-ABI — **seul natif chargé côté TS** | 13 |
-| `nie-wasm` | Bindings WebAssembly du savoir vérifié | 32 |
+| `nie-wasm` | Bindings WebAssembly du savoir vérifié | 66 |
+| `nie-lua-web` | La VRAIE VM Lua du jeu dans le navigateur — cible `wasm32-unknown-emscripten` | 0 |
+| `nie-viewer-web` | Le viewer 3D seul, backend WebGL 2, chargé à la demande sans WebGPU | 0 |
+| `nie-sql` | Frontière SQL partagée, en lecture seule | 10 |
+| `nie-ocgen` | Génération 3D d'un personnage original depuis des références mesurées | 0 |
 
 ### `crates/tools/*` — outillage (12)
 
