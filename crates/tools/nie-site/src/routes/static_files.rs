@@ -468,6 +468,12 @@ mod tests {
             // there unhashed (`static/game/nie_wasm_bg.wasm`) and change at every deployment.
             assert!(!immuable(&PathBuf::from(d).join("worker.js")));
             assert!(!immuable(&PathBuf::from(d).join("game/nie_wasm_bg.wasm")));
+            // Le second module, chargé à la demande par les navigateurs sans WebGPU, porte lui
+            // aussi un nom stable dans le même dossier. Le servir `immutable` rejouerait la
+            // panne mesurée le 2026-09-12 : un module d'un déploiement précédent à côté d'une
+            // glue fraîchement empreintée, et pas de rendu jusqu'à un rechargement forcé.
+            assert!(!immuable(&PathBuf::from(d).join("game/nie_viewer_web_bg.wasm")));
+            assert!(!immuable(&PathBuf::from(d).join("game/nie_lua_web.wasm")));
         }
         // La racine du bundle n'est jamais figee : un index.html immuable est un site qu'on
         // ne peut plus deployer.
