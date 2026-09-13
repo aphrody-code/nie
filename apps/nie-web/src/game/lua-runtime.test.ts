@@ -152,3 +152,22 @@ describe("le catalogue d'includes", () => {
 		}
 	});
 });
+
+describe("resolveMenuVisibility", () => {
+	test("dit POURQUOI elle ne rend rien, au lieu d'une table vide muette", async () => {
+		// Sans VM, toutes les sorties anticipées rendaient la même table vide : « rien ne
+		// manque » et « le rejeu n'a pas eu lieu » étaient indiscernables. Ce moteur de test ne
+		// charge pas le module, donc c'est la première raison qui sort — et c'en est une.
+		const origine = globalThis.fetch;
+		globalThis.fetch = (async () => new Response("", { status: 404 })) as unknown as typeof fetch;
+		try {
+			const { resolveMenuVisibility } = await import("./lua-runtime");
+			const resolu = await resolveMenuVisibility("chara_bank_menu");
+			expect(resolu.complete).toBe(false);
+			expect(resolu.missing).toHaveLength(1);
+			expect(resolu.missing[0]).toContain("VM Lua indisponible");
+		} finally {
+			globalThis.fetch = origine;
+		}
+	});
+});

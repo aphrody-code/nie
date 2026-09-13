@@ -286,21 +286,24 @@ export interface ResolvedVisibility {
  * ailleurs, au lieu de supposer.
  */
 export async function resolveMenuVisibility(screen: string): Promise<ResolvedVisibility> {
-	const vide: ResolvedVisibility = {
+	// Chaque sortie anticipée porte SA raison. Rendre partout la même table vide confondait
+	// « la VM ne s'est pas chargée » avec « rien ne manque » : deux états opposés, un seul
+	// résultat, et personne pour distinguer un rejeu parfait d'un rejeu qui n'a pas eu lieu.
+	const echec = (raison: string): ResolvedVisibility => ({
 		byObject: new Map(),
 		byInstance: new Map(),
 		complete: false,
-		missing: [],
-	};
+		missing: [raison],
+	});
 	let runtime: LuaRuntime;
 	try {
 		runtime = await ensureRuntime();
-	} catch {
-		return vide;
+	} catch (erreur) {
+		return echec(`VM Lua indisponible : ${erreur instanceof Error ? erreur.message : erreur}`);
 	}
 	const [ecran, includes] = await Promise.all([scriptPaths(screen), includePaths()]);
 	const paths = [...new Set([...ecran, ...includes])];
-	if (ecran.length === 0) return vide;
+	if (ecran.length === 0) return echec(`aucun script de menu nommé ${screen}`);
 
 	runtime.clearScripts();
 	const setting = settingPath(screen);
@@ -311,15 +314,16 @@ export async function resolveMenuVisibility(screen: string): Promise<ResolvedVis
 		runtime.loadScript(path, bytes);
 		charges += 1;
 	}
-	if (charges === 0) return vide;
+	if (charges === 0) return echec("aucun script n'a pu être téléchargé");
 
 	let output: ReplayOutput;
 	try {
 		output = JSON.parse(runtime.replay(screen, JSON.stringify({ locale: "fr" }))) as ReplayOutput;
-	} catch {
-		return vide;
+	} catch (erreur) {
+		return echec(`rejeu interrompu : ${erreur instanceof Error ? erreur.message : erreur}`);
 	}
-	if (output.error || !output.scene?.layers) return vide;
+	if (output.error) return echec(output.error);
+	if (!output.scene?.layers) return echec("le rejeu n'a rendu aucune scène");
 
 	const byObject = new Map<number, boolean>();
 	const byInstance = new Map<string, boolean>();
