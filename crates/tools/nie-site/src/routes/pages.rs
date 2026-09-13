@@ -123,7 +123,7 @@ struct Entree {
 /// segment d'URL brut, en minuscule, identique dans les trois langues — parce qu'il tombait
 /// dans la branche générique de [`metadonnees`]. Une entrée du menu que le serveur ne connaît
 /// pas est une page sans titre, absente du plan du site et non déclarée à `robots.txt`.
-const ENTREES: [Entree; 14] = [
+const ENTREES: [Entree; 15] = [
     Entree {
         // La navigation, qui occupait la racine jusqu'au 2026-09-07. La racine sert le jeu ;
         // le menu a donc son adresse. Il n'est PAS au plan du site : une page de liens vers
@@ -278,6 +278,20 @@ const ENTREES: [Entree; 14] = [
             "Les distributions natives d'Inacord : Desktop, Mobile, CLI, MCP et extensions, signées.",
             "Inacord's native distributions: Desktop, Mobile, CLI, MCP and plugins, signed.",
             "Inacord のネイティブ配布物：Desktop、Mobile、CLI、MCP、拡張機能（署名付き）。",
+        ],
+    },
+    Entree {
+        // Les modes de jeu. Le jeu ne garde pas la liste de ses onglets en clair — son script
+        // de menu les designe par un entier — mais chaque mode s'adosse a des ecrans
+        // `*_setting.cfg.bin` reels, et de ces ecrans decoulent les calques, les objbin, les
+        // maillages et les textures. La page les compte sur le VFS, et rend les ecrans.
+        segment: "modes",
+        heritage: &[],
+        titres: ["Modes", "Modes", "モード"],
+        descriptions: [
+            "Les modes de jeu, les écrans dont chacun est fait, et le rendu de ces écrans.",
+            "The game modes, the screens each one is made of, and those screens rendered.",
+            "ゲームモードと、それぞれを構成する画面、そしてその画面のレンダリング。",
         ],
     },
 ];
@@ -1098,6 +1112,28 @@ mod tests {
         assert_eq!(metadonnees("/textures", Langue::Fr).0, "Textures — nie");
         assert_eq!(metadonnees("/modeles/x/y", Langue::Fr).2, "website");
         assert_eq!(metadonnees("/inconnue", Langue::Fr).2, "article");
+    }
+
+    /// Le catalogue des modes est une PAGE, pas une adresse inventée.
+    ///
+    /// Les pages `/mode` et `/mode/<slug>` ont été retirées d'Azalée pour être reprises ici,
+    /// avec le rendu réel des écrans que `/api/v1/menu/render/<ecran>` sait produire. Tant que
+    /// le serveur ne connaît pas le segment, il répond `404` sur la fiche et pose un `noindex`
+    /// sur la liste : la migration serait invisible, quel que soit le travail fait côté client.
+    #[test]
+    fn les_modes_sont_une_page_servie_et_decrite() {
+        assert!(route_servie("/modes"), "/modes doit être servi");
+        assert!(
+            route_servie("/modes/victory-road"),
+            "la fiche d'un mode est servie par le même segment"
+        );
+        assert_eq!(metadonnees("/modes", Langue::Fr).0, "Modes — nie");
+        assert_eq!(metadonnees("/modes", Langue::En).0, "Modes — nie");
+        // Le type Open Graph d'une page de catalogue, pas d'un article : la fiche d'un mode
+        // décrit des fichiers du jeu, elle n'est pas une publication datée.
+        assert_eq!(metadonnees("/modes/victory-road", Langue::Fr).2, "website");
+        // Le canonique ne déplace pas la fiche vers la liste : ce sont deux pages.
+        assert_eq!(route_canonique("/modes/victory-road"), "/modes/victory-road");
     }
 
     #[test]
