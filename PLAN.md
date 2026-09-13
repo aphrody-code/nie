@@ -358,8 +358,24 @@ clear, `0x140509BF0`. That initialiser is 985 bytes with **13 calls and ZERO flo
 instructions**: it wires structures, it does not compute matrices. So the per-cell transforms are
 DATA, loaded from files, not derived at runtime.
 
-Which raises the question worth asking next, and cheaply: are they the skeleton bone poses the
-static export ALREADY reads (`menu.rs`, `local_bind_pose`)? If so the compositor has the geometry
+**The list-view PARAMETERS are already in the files the export reads.**
+`team14_01_chara_bank_list.objbin` (1 792 bytes) carries a `CMenuListViewCharaBank` component —
+the very class whose vtable this session reversed — alongside `CMenuAttachLocator`. And
+`objbin::UnknownComponent` preserves such components' parameters TYPED, key by key, since 106 of
+the 114 menu component types land there.
+
+Its readable strings include **`DispMaxValue`**, a direct candidate for the visible extent that
+`ListScroll` reads at `[this+0xC0]`, plus `NullLayerName` and the bone names `_pos_icon`,
+`_text_list01`, `_team`. A card's own objbin carries none of this — 1 328 bytes, three components,
+no layout data — so the parameters live on the list object, which is where the reversal says the
+state lives too.
+
+Not claimed: that `DispMaxValue` IS `[+0xC0]`. The names line up and the location is right, and
+that is a lead rather than a mapping. Reading the component's parsed params on a screen whose
+visible count is known would settle it in one measurement.
+
+Which also answers the earlier question more cheaply than expected: are the cell transforms the
+skeleton bone poses the static export ALREADY reads (`menu.rs`, `local_bind_pose`)? If so the compositor has the geometry
 in hand and only lacks the ring-slot mapping — which is ported and proven. That would close
 pillar 3 for settled list screens without further reversal. Not assumed: `0x140509BF0` delegates
 to 13 callees and none has been read.
