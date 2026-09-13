@@ -92,6 +92,14 @@ diff, so the list exists to be re-run rather than remembered.
 Only the first three are outside the build chain by design; `nie-lua-web` is outside it because
 it needs emsdk, which is exactly why it went stale.
 
+- **Every list route of `nie-site` paginates, and CLIPS in silence.** `PER_PAGE_DEFAUT = 50`,
+  `PER_PAGE_MAX = 200` (`crates/tools/nie-site/src/config.rs`): asking for more returns 200
+  without an error, and the response only says so through `pages`/`per_page`. Two consumers
+  written on 2026-09-12 were already clipped — `menu_text` gave 200 lines of 2 755, and
+  `/api/v1/lua/scripts?q=chara_edit` 50 scripts of 51, so an avatar-editor screen replayed
+  without one of its own. A client MUST read `pages` and fetch the rest; a fixed `per_page` is a
+  bug waiting for the corpus to grow. Ask a route what it returns before trusting a parameter.
+
 ## Traps measured on this machine (2026-09-07)
 
 - **`bun test --root <dir>` sweeps `var/releases/`; the packages' own scripts do not.** A
