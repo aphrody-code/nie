@@ -146,13 +146,13 @@ describe("buildMenuLayout", () => {
 		expect(journal.files).not.toContain("data/common/gamedata/menu/tex/team14_01.g4tx");
 	});
 
-	test("lit TOUTES les pages de texte — la route en plafonne une à 200 lignes", async () => {
-		// Mesuré le 2026-09-13 : `menu_text` compte 2 755 lignes en français et demander
-		// `per_page=5000` en rend 200, sans erreur. Une version antérieure construisait donc ses
-		// layouts avec 7 % du texte du jeu, et rien ne le disait.
+	test("passe le texte du jeu au constructeur", async () => {
+		// La PAGINATION est éprouvée dans `lua-runtime.test.ts`, qui possède le chargeur ; ici on
+		// vérifie seulement que la table arrive au constructeur. Les deux modules partagent
+		// désormais `menuTextLines`, mémorisé par langue — c'est pourquoi ce test ne compte plus
+		// les pages : selon l'ordre d'exécution, elles peuvent avoir été lues par un autre cas.
 		await buildMenuLayout("chara_bank_menu", "fr");
-		expect(textPagesDemandees.sort()).toEqual([1, 2, 3]);
-		expect(journal.built[0]).toContain("ligne 3");
+		expect(journal.built[0]).toContain("ligne");
 	});
 
 	test("la visibilité passe en clés textuelles, comme l'ABI l'attend", async () => {

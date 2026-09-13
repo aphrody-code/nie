@@ -201,9 +201,9 @@ describe("le texte de menu du rejeu", () => {
 			});
 		}) as unknown as typeof fetch;
 		try {
-			const { menuTextLinesForTests } = await import("./lua-runtime");
-			expect(await menuTextLinesForTests("fr")).toEqual([]);
-			expect(await menuTextLinesForTests("fr")).toHaveLength(3);
+			const { menuTextLines } = await import("./lua-runtime");
+			expect(await menuTextLines("fr")).toEqual([]);
+			expect(await menuTextLines("fr")).toHaveLength(3);
 			expect(pagesVues.sort()).toEqual([1, 2, 3]);
 		} finally {
 			globalThis.fetch = origine;

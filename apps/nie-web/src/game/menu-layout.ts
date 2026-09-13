@@ -30,6 +30,7 @@
  * manque la moitié des octets.
  */
 import { ensureWasm } from "./bridge";
+import { menuTextLines } from "./lua-runtime";
 import { MenuScreenBuilder } from "../wasm/nie_wasm.js";
 
 /** L'espace de fichiers du VFS servi par `nie-site`. */
@@ -81,53 +82,6 @@ async function screenDetail(screen: string): Promise<ScreenDetail | null> {
 	}).catch(() => null);
 	if (!response?.ok) return null;
 	return (await response.json()) as ScreenDetail;
-}
-
-/** Une page de la route texte. */
-interface TextPage {
-	results?: {
-		elements?: { hash: number; text: string }[];
-		pages?: number;
-		per_page?: number;
-	};
-}
-
-/**
- * Les libellés d'une famille de texte, sous la forme `[[hash, texte], …]` que le constructeur
- * attend.
- *
- * ## Pourquoi c'est paginé, et pourquoi ce n'était pas une option
- *
- * `menu_text` compte 2 755 lignes en français et la route PLAFONNE `per_page` à 200 — mesuré le
- * 2026-09-13 : demander 5 000 en rend 200, sans erreur et sans le dire. Une première version
- * demandait donc 5 000 et construisait ses layouts avec 7 % du texte du jeu ; les libellés
- * manquants ne s'expliquaient par rien, puisque rien ne signalait la troncature.
- *
- * Les pages suivantes partent ensemble : quatorze requêtes parallèles, servies en
- * `max-age=86400`, une fois par langue et par session.
- *
- * Une locale que le jeu ne livre pas rend une table vide, donc un layout sans libellé — ce qui
- * est exact, et se voit dans le résultat.
- */
-async function menuText(locale: string): Promise<[number, string][]> {
-	const url = (page: number) =>
-		`/api/v1/text/${encodeURIComponent(locale)}/menu_text?page=${page}&per_page=200`;
-	const lire = async (page: number): Promise<TextPage | null> => {
-		const response = await fetch(url(page), { headers: { accept: "application/json" } }).catch(() => null);
-		return response?.ok ? ((await response.json()) as TextPage) : null;
-	};
-
-	const premiere = await lire(1);
-	if (premiere === null) return [];
-	const lignes = [...(premiere.results?.elements ?? [])];
-	const pages = premiere.results?.pages ?? 1;
-	if (pages > 1) {
-		const suivantes = await Promise.all(
-			Array.from({ length: pages - 1 }, (_, index) => lire(index + 2)),
-		);
-		for (const page of suivantes) lignes.push(...(page?.results?.elements ?? []));
-	}
-	return lignes.map(line => [line.hash, line.text]);
 }
 
 /**
@@ -211,7 +165,7 @@ export async function buildMenuLayout(
 
 		const visibilityJson = JSON.stringify(Object.fromEntries([...visibility].map(([id, value]) => [String(id), value])));
 		const layout = JSON.parse(
-			builder.build(locale, JSON.stringify(await menuText(locale)), visibilityJson),
+			builder.build(locale, JSON.stringify(await menuTextLines(locale)), visibilityJson),
 		) as unknown;
 		return { layout, fetched: { requested, received, missing } };
 	} finally {

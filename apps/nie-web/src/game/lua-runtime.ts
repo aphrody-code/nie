@@ -184,8 +184,12 @@ const textesPromises = new Map<string, Promise<[number, string][]>>();
  *
  * Mémorisé par langue : 2 755 lignes en français, quatorze pages de 200, servies en
  * `max-age=86400` — une fois par session, pas une fois par écran.
+ *
+ * `menu-layout.ts` s'en sert aussi : la construction d'un layout a besoin de la MÊME table pour
+ * remplir ses slots de texte. Deux chargeurs mémorisés séparément — ce qu'ils étaient pendant
+ * une heure — faisaient descendre 2 755 lignes deux fois par écran.
  */
-function menuTextLines(locale: string): Promise<[number, string][]> {
+export function menuTextLines(locale: string): Promise<[number, string][]> {
 	const memo = textesPromises.get(locale);
 	if (memo) return memo;
 	const charge = (async () => {
@@ -386,6 +390,3 @@ export async function resolveMenuVisibility(screen: string): Promise<ResolvedVis
 
 /** Exposé pour le test : la mémoïsation d'un échec ne se voit qu'en interrogeant deux fois. */
 export const includePathsForTests = includePaths;
-
-/** Exposé pour le test : la non-mémoïsation d'un échec ne se voit qu'en interrogeant deux fois. */
-export const menuTextLinesForTests = menuTextLines;
