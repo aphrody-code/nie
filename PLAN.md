@@ -80,11 +80,26 @@ Inacord, the half that IS here, is a Cargo workspace of 46 members already.
 
 ### Pillar 1 — what the browser still runs as TypeScript
 
-`apps/nie-web/src/game/` holds **2 836 lines** of non-test TypeScript, of which **848** are pure
-wasm wiring (`bridge.ts`, `menu-composer.ts`, `lua-runtime.ts`) and therefore not migration debt:
-a binding is not a second implementation. The remaining ~2 000 lines are the real surface, led by
-`menu-layout.ts` (285), `gallery.ts` (221), `native-resources.ts` (192), `roster.ts` (169),
-`model-render.ts` (164), `shop.ts` (149), `list-page.ts` (90).
+`apps/nie-web/src/game/` holds **2 836 lines** of non-test TypeScript. The earlier reading of
+that number — "848 are wiring, so ~2 000 are the real surface" — was counted by hand on three
+files and is too pessimistic. Classified objectively, by whether a module imports the wasm
+bridge:
+
+| | lignes |
+| --- | ---: |
+| importe `./bridge` ou `../wasm/` — un BINDING, pas une seconde implémentation | **1 691** |
+| n'importe rien de wasm | **1 145** |
+
+And the 1 145 divide further. Host plumbing that has no business in Rust — browser routing
+(`navigation.ts` 76, `use-game-navigation.ts` 94), page sequencing (`opening-sequence.ts` 86,
+`opening-media.ts` 35), a worker (29), and small tables (`menu-actions.ts` 23,
+`screen-catalog.ts` 23, `resource-names.ts` 33, `menu-runtime.ts` 117) — accounts for **516**.
+
+What is left is **629 lines**: `gallery.ts` (221), `roster.ts` (169), `shop.ts` (149) shape API
+responses into screen models, and `list-page.ts` (90) is the pagination this session proved
+encodes a WRONG model of the game. That is the honest size of pillar 1's remaining surface —
+roughly a fifth of what the first estimate implied, and most of it presentation rather than
+engine logic.
 
 Three modules published: `nie_wasm_bg.wasm` 4 537 432 B, `nie_viewer_web_bg.wasm` 2 855 742 B,
 `nie_lua_web.wasm` 887 551 B.
