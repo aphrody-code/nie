@@ -268,6 +268,14 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   existed. `scripts/re/extent.py` chains chunks by adjacency (previous `end` == next `start`),
   which is checkable from the file alone. Use it before disassembling anything.
 
+- **Never put a gate and a `git commit` in the same shell invocation.** Measured the hard way on
+  2026-09-13: `cargo test … ; cargo clippy … ; git commit …` ran the gate, printed its failure,
+  and committed anyway — the output arrives after the commit has already happened, so it reads as
+  a report rather than a decision. The crate did not compile (`error: expected one of '!' or
+  '::', found 'quatre'` — a scripted doc-block replacement had dropped a `/// ` prefix). Run the
+  gate, READ it, then commit in a separate call. This repository has no commit hook
+  (`.git/hooks` holds only samples and is untracked), so nothing catches it for you.
+
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 
