@@ -259,6 +259,15 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   Also: `just preuves` with no pattern chains 49 validators that each map the 33 MB PE and gets
   OOM-killed — filter it, which likely explains part of the historical "timeouts".
 
+- **Most menu text is BAKED into textures; only a handful of labels go through the font.**
+  Counted 2026-09-13 on the served layouts: `main_menu` has **1** font-rendered text object,
+  `story_mode_top_menu` 1, `advent_calendar_menu` 1, `players_universe_menu` 1, `shop_menu` 10.
+  Everything else legible on those screens — "COMPOSITION D'ÉQUIPE", "TENSION", "IA activée" —
+  is pixels in a `.g4tx` and never touches `font::draw_text`. So a glyph-path defect looks
+  catastrophic in a code review and corrects 1 to 10 labels per screen in practice; and
+  conversely, a screen whose text reads correctly proves nothing about the font path. Check
+  which of the two paths a label takes before drawing a conclusion from a screenshot.
+
 - **One function, several `.pdata` entries — read only the first and you truncate the body.**
   MSVC splits a function into chunks whose ranges touch end-to-end, each with its own unwind
   info. Measured on `lives::CMenuListView`: `0x140542B80` is 87 bytes in its own entry and 580
