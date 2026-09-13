@@ -101,6 +101,21 @@ bun run typecheck
 bun run test
 ```
 
+Three gates answer questions the list above cannot, and each exists because something slipped
+past everything else:
+
+```text
+just preuves <motif>   # oracle uemu : un port reproduit-il les octets du JEU ?
+just cross-host [n]    # le même Rust compilé pour wasm32 et natif s'accorde-t-il ?
+just ecrans            # l'IMAGE composée ressemble-t-elle à la capture réelle ?
+```
+
+`just ecrans` is the newest and the reason is instructive: every other gate checks that two
+implementations AGREE or that a function reproduces measured bytes. On 2026-09-13 the glyph
+blitter and its four synthetic fixtures were wrong by the same amount — so they agreed, the suite
+was green, and menu text rendered as kanji in all four hosts. Nothing asked whether the picture
+was right. Now something does.
+
 For the desktop workspace member `apps/inacord/src-tauri`, run `cargo check -p inacord`
 explicitly, including its platform dependencies. Use the root Cargo lockfile. Do not run
 `cargo build --workspace --all-targets` on this machine: disk usage is constrained. Format only
