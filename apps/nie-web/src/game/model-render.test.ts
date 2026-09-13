@@ -7,7 +7,7 @@
  * la distance qui sont IGNORÉS plutôt qu'approximés — une approximation silencieuse ferait
  * croire à une caméra libre.
  */
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 /** Les appels reçus par le double du module. */
 const appels: { render: [number, number, number][]; libere: number } = { render: [], libere: 0 };
@@ -39,9 +39,34 @@ class ModelRendererDouble {
 	}
 }
 
+/** Ce que la chaîne de repli a construit, dans l'ordre. */
+let rangs: string[] = [];
+/** Les rangs qui doivent échouer à la construction. */
+let rangsEnEchec = new Set<string>();
+
+function rang(nom: string) {
+	rangs.push(nom);
+	if (rangsEnEchec.has(nom)) throw new Error(`${nom} indisponible`);
+	return { rang: nom };
+}
+
+// `mock.module` est GLOBAL à ce moteur de test : deux fichiers ne peuvent pas doubler le même
+// spécificateur différemment. Les tests de `native-viewer` vivent donc ici, avec les doubles
+// qu'ils partagent — les séparer faisait tomber sept tests de ce fichier-ci, mesuré.
 mock.module("../wasm/nie_wasm.js", () => ({
 	ModelRenderer: ModelRendererDouble,
 	model_to_glb: (a: Uint8Array, b: Uint8Array) => new Uint8Array([...a, ...b]),
+	WebGpuViewer: {
+		create: async () => rang("webgpu"),
+		create_transparent: async () => rang("webgpu"),
+	},
+}));
+mock.module("../wasm-viewer/nie_viewer_web.js", () => ({
+	initSync: () => ({}),
+	ModelViewer: {
+		create: async () => rang("webgl"),
+		create_transparent: async () => rang("webgl"),
+	},
 }));
 mock.module("./bridge", () => ({
 	ensureWasm: async () => {},
@@ -50,6 +75,7 @@ mock.module("./bridge", () => ({
 }));
 
 const { createCpuModelViewer } = await import("./model-render");
+const { createOpaqueNativeViewer } = await import("./native-viewer");
 
 /** Un canvas suffisant pour la présentation : un contexte 2D qui enregistre ce qu'on lui pose. */
 function faireCanvas() {
@@ -166,4 +192,91 @@ describe("createCpuModelViewer", () => {
 		const canvas = { getContext: () => null } as unknown as HTMLCanvasElement;
 		expect(createCpuModelViewer(canvas)).rejects.toThrow("contexte 2D");
 	});
+});
+
+/** Installe les sondes : WebGPU par `navigator.gpu`, WebGL 2 par un contexte de canvas. */
+function sondes({ gpu, webgl2, moduleServi = true }: { gpu: boolean; webgl2: boolean; moduleServi?: boolean }) {
+	rangs = [];
+	// `navigator` est en lecture seule ici : redéfinir la propriété, pas l'affecter.
+	Object.defineProperty(globalThis, "navigator", {
+		configurable: true,
+		value: gpu ? { gpu: { requestAdapter: async () => ({}) } } : {},
+	});
+	Object.defineProperty(globalThis, "document", {
+		configurable: true,
+		value: { createElement: () => ({ getContext: () => (webgl2 ? {} : null) }) },
+	});
+	globalThis.fetch = (async () =>
+		moduleServi ? new Response(new Uint8Array([0]), { status: 200 }) : new Response("", { status: 404 })) as unknown as typeof fetch;
+}
+
+// Le rang 3 n'est PAS doublé : `createOpaqueNativeViewer` appelle le vrai
+// `createCpuModelViewer`, qui réclame un contexte 2D. Le canvas en fournit un, et `rang("cpu")`
+// est posé par le double du module principal quand ce viewer construit son modèle.
+const canvasChaine = {
+	getContext: () => {
+		rangs.push("cpu");
+		return { putImageData: () => {}, drawImage: () => {}, clearRect: () => {} };
+	},
+} as unknown as HTMLCanvasElement;
+
+describe("la chaîne de repli du viewer", () => {
+	// EN PREMIER, et ce n'est pas un hasard : `loadLazyViewer` mémorise le module une fois
+	// chargé, pour ne pas retélécharger 3 Mio à chaque écran. Un cas de 404 placé après un cas
+	// réussi lirait donc le cache et passerait pour un repli qui marche.
+	test("le CPU prend le relais quand le module paresseux n'est pas SERVI", async () => {
+		// Le cas d'un déploiement sans `nie_viewer_web_bg.wasm` : un 404 ne doit pas laisser
+		// l'écran sans rendu alors que le rastériseur est dans le module principal.
+		sondes({ gpu: false, webgl2: true, moduleServi: false });
+		const viewer = await createOpaqueNativeViewer(canvasChaine);
+		expect(typeof (viewer as { load_glb?: unknown }).load_glb).toBe("function");
+		expect(rangs).not.toContain("webgl");
+	});
+
+	test("WebGPU d'abord quand l'adaptateur répond", async () => {
+		sondes({ gpu: true, webgl2: true });
+		expect(await createOpaqueNativeViewer(canvasChaine)).toMatchObject({ rang: "webgpu" });
+		expect(rangs).toEqual(["webgpu"]);
+	});
+
+	test("le module paresseux quand WebGPU manque", async () => {
+		sondes({ gpu: false, webgl2: true });
+		expect(await createOpaqueNativeViewer(canvasChaine)).toMatchObject({ rang: "webgl" });
+		// Le rang 1 n'est même pas tenté : sonder `navigator.gpu` évite d'empoisonner le canvas.
+		expect(rangs).toEqual(["webgl"]);
+	});
+
+	test("le rastériseur CPU quand ni WebGPU ni WebGL 2", async () => {
+		sondes({ gpu: false, webgl2: false });
+		// Le rang 3 rend un VRAI `CpuViewer` (pas un double) : on le reconnaît à sa surface, et
+		// ce qui compte est qu'aucun des deux rangs GPU n'ait été tenté.
+		const viewer = await createOpaqueNativeViewer(canvasChaine);
+		expect(typeof (viewer as { load_glb?: unknown }).load_glb).toBe("function");
+		expect(rangs).not.toContain("webgpu");
+		expect(rangs).not.toContain("webgl");
+	});
+
+	test("un WebGPU qui échoue à la construction retombe sur le module paresseux", async () => {
+		sondes({ gpu: true, webgl2: true });
+		rangsEnEchec = new Set(["webgpu"]);
+		expect(await createOpaqueNativeViewer(canvasChaine)).toMatchObject({ rang: "webgl" });
+		expect(rangs).toEqual(["webgpu", "webgl"]);
+	});
+});
+
+// `navigator` et `document` sont GLOBAUX et ce moteur exécute tous les fichiers dans le même
+// processus : les remplacer sans les rendre faisait tomber dix-huit tests d'autres fichiers.
+const originaux = {
+	navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator"),
+	document: Object.getOwnPropertyDescriptor(globalThis, "document"),
+	fetch: globalThis.fetch,
+};
+
+afterAll(() => {
+	for (const nom of ["navigator", "document"] as const) {
+		const descripteur = originaux[nom];
+		if (descripteur) Object.defineProperty(globalThis, nom, descripteur);
+		else Reflect.deleteProperty(globalThis, nom);
+	}
+	globalThis.fetch = originaux.fetch;
 });
