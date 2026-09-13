@@ -425,9 +425,14 @@ async function snapshotRollbackArtifacts(): Promise<void> {
 		await copyFile(`/proc/${pid}/exe`, `${rollback}/${binary}`);
 		await chmod(`${rollback}/${binary}`, 0o755);
 	}
-	if (await Bun.file("target/release/niers").exists()) {
-		await copyFile("target/release/niers", `${rollback}/niers`);
-		await chmod(`${rollback}/niers`, 0o755);
+	// These client-facing binaries are atomically replaced too. They do not have a systemd
+	// process to copy from, so retain the current checked-out artifacts explicitly.
+	for (const binary of ["niers", "nie-mcp"]) {
+		const source = `target/release/${binary}`;
+		if (!(await Bun.file(source).exists()))
+			throw new Error(`Missing rollback artifact ${source}.`);
+		await copyFile(source, `${rollback}/${binary}`);
+		await chmod(`${rollback}/${binary}`, 0o755);
 	}
 }
 
