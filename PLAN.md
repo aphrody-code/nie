@@ -306,16 +306,27 @@ the files and receives its real positions from the engine. The overlap is not a 
 defect; it is the same structural limit found for `CMenuListView` cells, reached from a different
 direction.
 
-**But it is not uniform, and the same screen proves it.** On `chara_bank_menu`,
-`cmn06_20_list_tab_item` gets 12 instances at DISTINCT, evenly pitched positions — 53, 107, 160,
-213, 267, 320, 373 at y=129, about 53 px apart — while `team00_01_chara_card_for_soccer` and
-`team00_01_p1_chara_card_blank` get 19 instances each, all at (929, 355). Same screen, same
-mechanism, opposite outcomes.
+**But it is not uniform, and it is not per-widget either — it is per INSTANCE.** Counted over
+five screens, 701 instances in total: **503 (72 %) carry a position of their own** and 198 (28 %)
+share one with a sibling.
 
-So an attach-locator DOES declare per-instance positions for some widgets and not for others.
-The tabs are placed by the files; the cards are not. "Runtime-placed" is therefore a property of
-a WIDGET, not of a screen or of instancing in general — and a composer can already draw the
-widgets whose locator declares their positions, which is more than the earlier reading allowed.
+| écran | instances | empilées | placées |
+| --- | ---: | ---: | ---: |
+| `story_mode_top_menu` | 13 | 0 (0 %) | 13 |
+| `players_universe_menu` | 338 | 30 (8 %) | 308 |
+| `soccer_formation_menu` | 118 | 40 (33 %) | 78 |
+| `chara_bank_menu` | 57 | 28 (49 %) | 29 |
+| `shop_menu` | 175 | 100 (57 %) | 75 |
+
+A single widget mixes both: `team00_01_p1_chara_card_blank` has 19 instances at 9 distinct
+positions — 11 piled at (929, 355) and 8 spread down (1178, 208…586). So the files place most of
+what they instance, and the engine finishes the rest.
+
+⚠ Two wrong readings preceded this figure, both mine. The first printed the first 8 of 19
+instances, saw them identical, and recorded "all at (929,355)". The second counted WIDGETS with
+more than one distinct position and got "93 % spread", which hides a widget that stacks 11 of its
+19. The metric that survives is per instance: does this one share its position with a sibling?
+A truncated list and a coarse denominator each produced a confident number, and neither was true.
 
 That matters for the pillar-3 estimate: "static composition is complete for chrome and
 incomplete for runtime-placed content" is a general property of this engine's menu data, not a
