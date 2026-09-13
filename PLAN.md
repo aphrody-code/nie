@@ -278,6 +278,21 @@ was actually wrong was the text (mojibake, fixed) and unresolved shared sprites.
 That changes the estimate for pillar 3 on this screen: the geometry is there, the ring mapping is
 ported and proven, and the gap is narrower than the composed PNG suggested.
 
+### Seven screens looked at, three causes — and no fourth
+
+Composed and inspected: `main_menu`, `story_mode_top_menu`, `chara_bank_menu`, `shop_menu`,
+`advent_calendar_menu`, `players_universe_menu`, `ability_learning_board_menu`. Every visible
+anomaly across all seven reduces to one of three already-named causes:
+
+1. **font path** — labels drawn through `font::draw_text` came out as kanji (fixed, cc1e05d3);
+2. **dummy texture** — the exact-name rule returned a 4×4 placeholder (fixed, e2322fc4);
+3. **runtime placement** — instanced content carries a template pose and the engine spreads it,
+   so the composer stacks it (structural, documented above).
+
+Nothing needed a fourth explanation. That convergence is the useful result: it means the visible
+gap between a composed screen and the game is now accounted for, and the remaining distance is
+the three-step chain — state, index, geometry — rather than an unknown number of separate bugs.
+
 ### The runtime-placement limit is not a list-view quirk
 
 Composing `players_universe_menu` (387 objects) and looking at it shows the skill tree's stars
