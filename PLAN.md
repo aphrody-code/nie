@@ -157,6 +157,27 @@ reversal task and not an API to call. It is the single remaining blocker between
 and a faithful list screen, and the tools built this session (`scripts/re/vtable.py`,
 `xref.py`, `extent.py`, the uemu harness with GPR read-back) are what it needs.
 
+**And step 3 is ANIMATED, which changes what "faithful" costs.** Scanning the 19 methods for
+floating-point instructions puts 56 of them in five: `0x1405410D0` (slot 9) has 29,
+`0x140542080` (slot 56) 14, `0x140544BD0` (slot 73) 10, then 2 and 1. Slot 9 is the per-frame
+update, and it reads as easing rather than layout — read, not proven:
+
+    movss xmm0,[rdi+144h] ; subss xmm0,[rdi+50h]   ; compteur -= delta
+    comiss xmm0,xmm3 ; movss [rdi+144h],xmm0        ; borné à 0 et réécrit
+    subss xmm1,xmm0 ; mulss xmm0,xmm0 ; subss xmm1,xmm0   ; courbe quadratique
+    mulss xmm1,[rdi+148h] ; mulss xmm1,[rdi+14Ch]   ; facteurs d'échelle
+
+`[+0xE0]` is the duration slot 56 copies into `[+0x144]` when a scroll starts. So a cell's
+on-screen position is a function of TIME, not of the ring slot alone: the view interpolates
+between rows. A faithful list therefore needs the animation state as well as the index, and a
+single-frame composer cannot reproduce a screen mid-scroll. Whether a settled screen reduces to
+a static formula (timer at 0) is the first thing to check — it would make most screens tractable
+without an animation clock.
+
+The first candidate for the static case was `0x1405439B0`, called from the re-indexer with
+`(this, cell, index)`. Eliminated: it reads 16-bit record tables and carries no float
+arithmetic at all.
+
 The 6 unresolved objects on that screen are shared components — headers, button guides, a lock
 icon — that the owning screen positions at runtime. The compositor does not paint them, which is
 correct and already gated by `an_unresolved_placement_is_never_painted`.
