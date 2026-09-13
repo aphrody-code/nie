@@ -6,6 +6,8 @@
  * silencieusement : un hash mal formé, une transformation de casse qui ne reproduit pas le
  * libellé, un libellé rangé des deux côtés à la fois.
  */
+import { existsSync } from "node:fs";
+
 import { describe, expect, test } from "bun:test";
 
 import {
@@ -36,6 +38,23 @@ describe("UI_TEXT_MAP", () => {
 			expect(entry.usedAt.length).toBeGreaterThan(0);
 			for (const use of entry.usedAt) expect(use).toMatch(/^(apps|packages)\/.+:\d+$/);
 		}
+	});
+
+	test("chaque endroit cité existe encore — sinon la carte a pourri", () => {
+		// `usedAt` est le seul lien entre la carte et le code qu'elle décrit. Un composant
+		// supprimé ou déplacé le rompt sans bruit, et la carte se met à décrire un dépôt qui
+		// n'existe plus. 113 fichiers cités au dernier relevé ; le générateur les relit tous,
+		// donc régénérer suffit à réparer. Les LIGNES, elles, ne sont pas vérifiées : elles
+		// bougent à chaque édition et les exiger rendrait ce test faux en permanence.
+		const racine = new URL("../../../../", import.meta.url).pathname;
+		const manquants = new Set<string>();
+		for (const entry of [...UI_TEXT_MAP, ...UI_TEXT_VARIANTS, ...UI_TEXT_NOT_FOUND]) {
+			for (const use of entry.usedAt) {
+				const chemin = use.slice(0, use.lastIndexOf(":"));
+				if (!existsSync(racine + chemin)) manquants.add(chemin);
+			}
+		}
+		expect([...manquants]).toEqual([]);
 	});
 
 	test("aucun libellé n'est rangé dans deux tables à la fois", () => {
