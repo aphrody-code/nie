@@ -223,6 +223,32 @@ the base slot 73's third argument; slot 9 passes `lea r8,[rsp+30h]` after zeroin
 curve. The whole model in one sentence: rows stay at their table translations and the LIST slides
 by an eased Y offset.
 
+### Ground truth says the exported geometry is already right
+
+`data/menu/story_mode.png` is a real 2560×1440 capture of the very screen composed above — 38 such
+captures sit in `data/menu/` and none was in the verification loop. Scaling it to the 1280×720
+canvas and reading the menu rows against the static export:
+
+| rangée | capture → canevas | layout | écart |
+| ---: | ---: | ---: | ---: |
+| 0 | 150.4 | 148 | 2.4 |
+| 1 | 222.7 | 220 | 2.7 |
+| 2 | 294.4 | 292 | 2.4 |
+| 3 | 366.7 | 364 | 2.7 |
+| 4 | 438.4 | 436 | 2.4 |
+
+Mean 2.5 px, **spread 0.3 px**. The SPACING is exact; what remains is a constant bias, which is
+either the anchor convention or my picking row centres by eye on a displayed image — the readings
+are eyeballed and that uncertainty is larger than the residual.
+
+And the rows really do start at `x = 0`: in the capture they are full-width bars anchored to the
+LEFT EDGE. So `x = 0` is not merely a faithful export of the file, it is what the game draws. The
+earlier impression that the composed screen looked "scattered" was wrong about placement; what
+was actually wrong was the text (mojibake, fixed) and unresolved shared sprites.
+
+That changes the estimate for pillar 3 on this screen: the geometry is there, the ring mapping is
+ported and proven, and the gap is narrower than the composed PNG suggested.
+
 ### What is left: where the affine table comes from
 
 The table hangs off `[obj+0x198]` of an object reached by a multiple-inheritance base adjustment
