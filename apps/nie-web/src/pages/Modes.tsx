@@ -40,7 +40,7 @@
  * ici pourrait s'écarter de celui que le serveur publie, et c'est le serveur qui a lu les
  * fichiers.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	GameCountBadge,
 	GameHeaderBar,
@@ -109,6 +109,14 @@ const COUNT_LABELS: Record<string, string> = {
 	text_slots: "emplacements de texte",
 	unreadable: "fichiers illisibles",
 };
+
+/** Où en est le rendu d'un écran. */
+type RenderState =
+	| { kind: "idle" }
+	| { kind: "loading" }
+	| { kind: "drawn"; url: string; drawn: number; skipped: number }
+	| { kind: "blank"; drawn: number; skipped: number }
+	| { kind: "failed"; status: string };
 
 /** Le slug porté par la route, ou `null` sur la liste. */
 function slugOf(route: string): string | null {
@@ -346,34 +354,108 @@ function ModeSheetView({ slug, prefix }: { slug: string; prefix: string }) {
 }
 
 /**
- * Un écran et son rendu.
+ * Un écran et son rendu — ou ce que le moteur a fait à sa place.
  *
- * L'image est demandée en `loading="lazy"` : une fiche porte jusqu'à 24 écrans, et le plus lourd
- * mesuré fait 1,2 Mio. Les charger tous d'emblée ferait payer 24 rendus pour en regarder un.
+ * ## Pourquoi un `fetch` et pas une balise `<img>`
+ *
+ * `GET /api/v1/menu/render/<ecran>` répond **200 avec un PNG entièrement transparent** quand la
+ * composition n'a rien dessiné. Mesuré le 2026-09-13 : `victory_load_mode_menu`,
+ * `victory_road_mode_menu` et `vroad_tournament_notice` rendent 1280×720, **1 seule couleur,
+ * 0 pixel opaque sur 921 600**, pour 5 209 octets — la signature exacte d'une toile vide — là où
+ * `victory_road_top_menu` en fait 1 248 427 avec 29 959 couleurs. Une balise `<img>` les affiche
+ * comme n'importe quel rendu, et la page affirme alors trois reproductions qui n'en sont pas.
+ *
+ * Le serveur, lui, le DIT déjà : `x-compose-drawn` vaut `0` contre `32`, et `x-compose-sprites`,
+ * `-regions`, `-texts`, `-skipped` détaillent. Une balise `<img>` ne peut pas lire un en-tête ;
+ * un `fetch` le peut. La page montre donc l'image quand le moteur a dessiné, et rapporte ses
+ * comptes quand il n'a rien dessiné.
+ *
+ * ## La paresse est conservée
+ *
+ * Une fiche porte jusqu'à 24 écrans et le plus lourd mesuré fait 1,2 Mio, chacun composé à la
+ * demande côté serveur. Les demander tous au montage ferait payer 24 compositions pour en
+ * regarder une : un `IntersectionObserver` ne déclenche la requête qu'à l'approche de l'écran,
+ * ce que `loading="lazy"` faisait pour la balise.
  */
 function ScreenRender({ screen }: { screen: ModeScreen }) {
-	const [failed, setFailed] = useState(false);
+	const [state, setState] = useState<RenderState>({ kind: "idle" });
+	const holder = useRef<HTMLElement | null>(null);
+
+	useEffect(() => {
+		const element = holder.current;
+		if (!element || state.kind !== "idle") return;
+		// Sans `IntersectionObserver` (environnement de test, navigateur ancien), on demande tout
+		// de suite : mieux vaut une fiche coûteuse qu'une fiche vide.
+		if (typeof IntersectionObserver === "undefined") {
+			setState({ kind: "loading" });
+			return;
+		}
+		const observer = new IntersectionObserver((entries) => {
+			if (entries.some((entry) => entry.isIntersecting)) {
+				setState({ kind: "loading" });
+				observer.disconnect();
+			}
+		}, { rootMargin: "400px" });
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, [state.kind]);
+
+	useEffect(() => {
+		if (state.kind !== "loading") return;
+		const controller = new AbortController();
+		let url: string | null = null;
+		fetch(`/api/v1/menu/render/${encodeURIComponent(screen.screen)}`, { signal: controller.signal })
+			.then(async (response) => {
+				if (!response.ok) throw new Error(String(response.status));
+				const drawn = Number(response.headers.get("x-compose-drawn") ?? "0");
+				const skipped = Number(response.headers.get("x-compose-skipped") ?? "0");
+				if (drawn === 0) return { kind: "blank", drawn, skipped } as const;
+				url = URL.createObjectURL(await response.blob());
+				return { kind: "drawn", url, drawn, skipped } as const;
+			})
+			.then((next) => {
+				if (!controller.signal.aborted) setState(next);
+			})
+			.catch((cause: unknown) => {
+				if (controller.signal.aborted) return;
+				setState({ kind: "failed", status: cause instanceof Error ? cause.message : "?" });
+			});
+		return () => {
+			controller.abort();
+			if (url) URL.revokeObjectURL(url);
+		};
+	}, [state.kind, screen.screen]);
+
 	return (
-		<figure className="space-y-2">
+		<figure className="space-y-2" ref={holder}>
 			<figcaption className="text-sm">
 				<code>{screen.screen}</code> — {screen.layers.length} calques, {screen.focus} focalisables,{" "}
 				{screen.bytes.toLocaleString("fr")} o de réglages
 			</figcaption>
-			{failed ? (
-				// Le serveur n'a pas rendu cet écran. C'est une mesure, pas un trou à combler :
-				// l'afficher vide laisserait croire que l'écran est vide.
+			{state.kind === "drawn" ? (
+				<>
+					<img alt={screen.screen} className="max-w-full rounded" src={state.url} />
+					<p className="text-xs text-ink-faint">
+						{state.drawn} objets dessinés
+						{state.skipped > 0 ? `, ${state.skipped} sautés faute de pixels` : ""}
+					</p>
+				</>
+			) : null}
+			{state.kind === "blank" ? (
+				// Le moteur a composé et n'a rien dessiné. C'est une mesure sur lui, pas un trou
+				// d'affichage : montrer la toile transparente ferait passer le vide pour l'écran.
 				<p className="text-sm text-ink-faint">
-					Le serveur n'a pas rendu cet écran. Les fichiers qu'il liste, eux, sont là.
+					Le moteur n'a dessiné aucun objet de cet écran. Les fichiers qu'il liste, eux, sont là.
 				</p>
-			) : (
-				<img
-					alt={screen.screen}
-					className="max-w-full rounded"
-					loading="lazy"
-					onError={() => setFailed(true)}
-					src={`/api/v1/menu/render/${encodeURIComponent(screen.screen)}`}
-				/>
-			)}
+			) : null}
+			{state.kind === "failed" ? (
+				<p className="text-sm text-ink-faint">
+					Le serveur n'a pas rendu cet écran ({state.status}). Les fichiers qu'il liste sont là.
+				</p>
+			) : null}
+			{state.kind === "idle" || state.kind === "loading" ? (
+				<p className="text-sm text-ink-faint">Rendu…</p>
+			) : null}
 		</figure>
 	);
 }

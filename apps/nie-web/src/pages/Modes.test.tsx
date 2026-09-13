@@ -15,6 +15,7 @@ import { Modes } from "./Modes";
 let root: Root | null;
 let container: HTMLDivElement;
 let fetchMock: ReturnType<typeof spyOn>;
+let observerOriginal: typeof IntersectionObserver;
 
 const reactEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 const previousActEnvironment = reactEnvironment.IS_REACT_ACT_ENVIRONMENT;
@@ -63,11 +64,44 @@ const FICHE = {
 
 beforeEach(() => {
 	reactEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+	// happy-dom FOURNIT `IntersectionObserver` (vérifié, pas supposé) — mais rien n'y déclenche
+	// jamais d'intersection, faute de mise en page. Sans ce pilote, la page reste sur son état
+	// d'attente et le test lit « Rendu… » en croyant lire un résultat : c'est exactement ce qui
+	// s'est produit avant de mesurer. On le remplace par un observateur qui signale l'entrée
+	// dans le champ dès qu'on observe un élément, ce que fait un vrai navigateur pour une
+	// fiche ouverte en haut de page.
+	URL.createObjectURL = () => "blob:rendu";
+	URL.revokeObjectURL = () => {};
+	observerOriginal = globalThis.IntersectionObserver;
+	globalThis.IntersectionObserver = class {
+		constructor(private readonly rappel: IntersectionObserverCallback) {}
+		observe(cible: Element) {
+			this.rappel([{ isIntersecting: true, target: cible } as IntersectionObserverEntry], this);
+		}
+		disconnect() {}
+		unobserve() {}
+		takeRecords() { return []; }
+		readonly root = null;
+		readonly rootMargin = "";
+		readonly thresholds = [];
+	} as unknown as typeof IntersectionObserver;
 	container = document.createElement("div");
 	document.body.append(container);
 	root = createRoot(container);
 	const respond = Object.assign(async (input: RequestInfo | URL) => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+		if (url.includes("/api/v1/menu/render/")) {
+			// Le premier écran a été dessiné, le second ne l'a pas été : c'est la mesure de
+			// production, où `victory_road_final_tournament_menu` ne rend rien.
+			const dessine = url.includes("victory_road_top_menu");
+			return new Response(new Blob([new Uint8Array([137, 80, 78, 71])]), {
+				headers: {
+					"content-type": "image/png",
+					"x-compose-drawn": dessine ? "32" : "0",
+					"x-compose-skipped": "0",
+				},
+			});
+		}
 		if (url.includes("/api/v1/modes/")) return Response.json(FICHE);
 		if (url.includes("/api/v1/modes")) return Response.json(CATALOGUE);
 		if (url.includes("/api/v1/graphql")) {
@@ -86,13 +120,27 @@ afterEach(async () => {
 	root = null;
 	container.remove();
 	fetchMock.mockRestore();
+	globalThis.IntersectionObserver = observerOriginal;
 	reactEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
 });
 
 async function mount(route: string) {
 	await act(async () => root?.render(<Modes prefix="" route={route} />));
-	// Deux effets en chaîne : le catalogue, puis la résolution des libellés.
-	await act(async () => { await Promise.resolve(); });
+	await flush();
+}
+
+/**
+ * Vide la file d'attente jusqu'à ce que les effets en chaîne soient retombés.
+ *
+ * Il y en a plusieurs : le catalogue, puis la résolution des libellés, puis — par écran — le
+ * `fetch` du rendu, la lecture de son `Blob` et l'état qui en découle. Un seul
+ * `await Promise.resolve()` n'en franchit qu'un, et le test lisait « Rendu… » en croyant lire
+ * un résultat.
+ */
+async function flush() {
+	for (let i = 0; i < 8; i += 1) {
+		await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+	}
 }
 
 describe("la page des modes", () => {
@@ -108,24 +156,25 @@ describe("la page des modes", () => {
 		expect(liens.some((h) => h?.includes("-"))).toBe(false);
 	});
 
-	test("la fiche rend les écrans, et chaque image vise la route de rendu", async () => {
+	test("un écran dessiné est montré, avec le compte que le moteur publie", async () => {
 		await mount("modes/victory_road");
-		const images = [...container.querySelectorAll("img")].map((i) => i.getAttribute("src"));
-		expect(images).toEqual([
-			"/api/v1/menu/render/victory_road_top_menu",
-			"/api/v1/menu/render/victory_road_final_tournament_menu",
-		]);
-		// Les comptes affichés sont CEUX DU SERVEUR : la page n'en calcule aucun.
+		await flush();
+		const images = [...container.querySelectorAll("img")];
+		expect(images.length).toBe(1);
+		expect(images[0]!.getAttribute("alt")).toBe("victory_road_top_menu");
+		expect(container.textContent).toContain("32 objets dessinés");
+		// Les comptes de la fiche sont CEUX DU SERVEUR : la page n'en calcule aucun.
 		expect(container.textContent).toContain("235");
 	});
 
-	test("un écran que le serveur ne rend pas le dit, au lieu de laisser un cadre", async () => {
-		// `victory_road_final_tournament_menu` répond 504 en production : c'est une mesure sur le
-		// moteur, pas un trou d'affichage. Une image vide laisserait croire que l'écran est vide.
+	test("un écran que le moteur n'a pas dessiné le DIT, au lieu d'une toile vide", async () => {
+		// `/api/v1/menu/render/<ecran>` répond 200 avec un PNG entièrement transparent quand la
+		// composition ne dessine rien — mesuré : 1280×720, 1 couleur, 0 pixel opaque sur 921 600.
+		// Une balise `<img>` l'afficherait comme un rendu ; `x-compose-drawn: 0` dit la vérité.
 		await mount("modes/victory_road");
-		const cassee = container.querySelectorAll("img")[1]!;
-		await act(async () => cassee.dispatchEvent(new Event("error")));
+		await flush();
+		expect(container.textContent).toContain("n'a dessiné aucun objet");
+		// Et surtout : aucune image pour cet écran-là.
 		expect(container.querySelectorAll("img").length).toBe(1);
-		expect(container.textContent).toContain("n'a pas rendu cet écran");
 	});
 });
