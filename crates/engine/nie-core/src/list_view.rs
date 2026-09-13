@@ -216,11 +216,24 @@ impl ListScroll {
 /// deux sens. 256 octets contre 820 : la redéfinition est plus SIMPLE, pas plus riche — pas de
 /// fenêtre, juste un curseur circulaire.
 ///
-/// Les quatre classes qui redéfinissent les trois créneaux portés ici — `CharaFilter`,
-/// `ItemFilter`, `SoccerSpiritFilter`, `UniverseChara` — sont toutes des listes de filtre, ce
-/// qui rend ce modèle cohérent : un filtre est court et se parcourt en boucle, une liste de
-/// contenu est longue et s'arrête au bout. Seul `CharaFilter` est PROUVÉ ; les trois autres
-/// partagent le nom, pas encore la mesure.
+Les quatre classes qui redéfinissent les trois créneaux portés ici sont toutes des listes de
+/// filtre, ce qui rend le modèle cohérent : un filtre est court et se parcourt en boucle, une
+/// liste de contenu est longue et s'arrête au bout. Mais elles ne partagent PAS une
+/// implémentation — mesuré sur leur créneau 58 :
+///
+/// - `CharaFilter` `0x14102B170`, 256 o — le seul PROUVÉ, et celui que cette fonction porte ;
+/// - `ItemFilter` `0x14109ADD0` et `SoccerSpiritFilter` `0x14119B5F0`, **207 o chacun, 13
+///   octets de différence sur 207** : le même template, instancié deux fois ;
+/// - `UniverseChara` `0x141152A40`, **10 octets** — `mov rax,[rcx] ; jmp qword [rax+1C8h]`, un
+///   thunk qui délègue inconditionnellement au créneau 57. La base fait la même délégation,
+///   mais seulement sous condition.
+///
+/// Donc « les quatre bouclent » reste une inférence pour trois d'entre elles. Les deux jumelles
+/// à 6 % d'écart la rendent probable ; le thunk ne calcule rien du tout.
+///
+/// Autre forme rencontrée : `MenuListViewArmedChara` remplace son créneau 60 par
+/// `0x14004D760`, la souche `ret` — elle DÉSACTIVE la ré-indexation des cellules au lieu de la
+/// redéfinir.
 #[must_use]
 pub fn filter_step(count: i32, selected: i32, step: Step) -> i32 {
     if count <= 0 {
