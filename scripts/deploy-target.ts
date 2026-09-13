@@ -261,8 +261,14 @@ async function deployBinaryService(
 
 async function deployWeb(context: TargetContext): Promise<void> {
 	const bundle = `${context.releaseDirectory}/bundle`;
-	if (!(await Bun.file("apps/nie-web/public/static/game/nie_wasm_bg.wasm").exists())) {
-		throw new Error("The validated WebAssembly artifact is missing; deploy the wasm target first.");
+	// `vite build` COPIES `public/` into the bundle; it does not build these. The guard is
+	// therefore the only thing between a deploy and a bundle missing a renderer. The second
+	// module serves browsers without WebGPU: absent, they fall silently to the CPU rasteriser,
+	// which works and is far slower — a degradation nothing else would report.
+	for (const module of ["nie_wasm_bg.wasm", "nie_viewer_web_bg.wasm"]) {
+		if (!(await Bun.file(`apps/nie-web/public/static/game/${module}`).exists())) {
+			throw new Error(`The validated WebAssembly artifact ${module} is missing; deploy the wasm target first.`);
+		}
 	}
 	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "typecheck"]);
 	// Run from `apps/nie-web`, NOT from the repository root. From the root, `bunx vite` resolves
