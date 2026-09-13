@@ -116,6 +116,15 @@ chrome (background, plates, frames, text labels) and the React host paints the c
 rows, portraits, prices). Closing that is what "real game rendering" means here, and it is
 blocked on the same `CMenuListView` reversal.
 
+**That reversal is anchored, not blocked.** `CMenuListView` lives in namespace `lives` (not
+`game`), its Complete Object Locator slot is `0x141A5FFB8` **in `dist/nie.exe` itself** — read by
+scanning the target, not taken from the knowledge base — and its methods begin at `0x141A5FFC0`,
+7 real ones among the first 14 slots. The knowledge base's different build does not stand in the
+way: all 1 745 class names it shares with the target carry the same `vtable_vaddr`. What remains
+is identifying WHICH method moves the cursor and proving it with the uemu oracle, which is
+function-level work, not an anchoring problem. `scripts/re/vtable.py` is the reusable entry
+point.
+
 ---
 
 ## Product direction — two complementary delivery goals

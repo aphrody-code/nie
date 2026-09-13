@@ -199,6 +199,23 @@ it needs emsdk, which is exactly why it went stale.
   `nie-game`, `nie-wasm`); an absent palette paints white, never a guessed hue. `L`, which
   `nie.exe` carries as `[CL]`, is in NEITHER measured palette — do not invent a colour for it.
 
+- **The knowledge base's build differs from `dist/nie.exe` — but its CLASS addresses hold.**
+  `var/niers.sqlite` is anchored on `nie_eacpatched.exe` (31 468 032 B, `4c2b91fb…`); the target
+  is 33 918 464 B, `b1fa04ea…`. The blanket warning "do not cite its numbers" is too strong:
+  measured 2026-09-13, 1 745 class names are common and **all 1 745 carry the same
+  `vtable_vaddr`**, zero divergence (only `GDSGroupCaptureCustomConfig`, `PostEventState` and
+  `UniformBlockDataNode` are KB-only). Coverage COUNTS remain unusable as target measurements;
+  class and vtable addresses are usable. Re-extract onto the target in one command — insert a
+  `binary` row, then `niers rtti --exe dist/nie.exe --db <new.sqlite>` (2 906 COLs, 1 745
+  classes).
+- **`rtti_class.vtable_vaddr` is the COL slot, not the methods.** It holds the Complete Object
+  Locator pointer; methods start at `+8`. Reading from it yields an `.rdata` address where a
+  method is expected, which reads as a corrupt table rather than an off-by-one. Use
+  `scripts/re/vtable.py`, which resolves the class by SCANNING the binary you name — so a build
+  mismatch surfaces as "not found" instead of as a wrong address. Slots repeating one address
+  are default stubs, not methods: on `CMenuListView@lives` (7 real methods of the first 14),
+  `0x14004D760` is `C2 00 00` (`ret`) and `0x14004D780` is `32 C0 C3` (`xor al,al; ret`).
+
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 
