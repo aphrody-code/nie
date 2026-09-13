@@ -100,6 +100,14 @@ it needs emsdk, which is exactly why it went stale.
   without one of its own. A client MUST read `pages` and fetch the rest; a fixed `per_page` is a
   bug waiting for the corpus to grow. Ask a route what it returns before trusting a parameter.
 
+- **The browser Lua VM has 32-bit integers, and the game keys everything by CRC-32.**
+  `LUA_INTEGER` is `ptrdiff_t` (`vendor/lua-src/lua-5.2.4/luaconf.h:462`) — 4 bytes on
+  `wasm32-unknown-emscripten`, 8 on `x86-64`. `LUA_NUMBER` stays `double`, so arithmetic agrees,
+  but an id past `i32::MAX` (half of all CRC-32 values) cannot round-trip as a `lua_Integer`.
+  Measured 2026-09-13: the same command logs `0x88154DF4` as a Lua string in the browser and
+  `2283097588` as a number natively, and `CMD_SET_TEXT` branches on that type. Do not read an
+  `n/14` differential gap as a logic bug before ruling this out.
+
 ## Traps measured on this machine (2026-09-07)
 
 - **`bun test --root <dir>` sweeps `var/releases/`; the packages' own scripts do not.** A

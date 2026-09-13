@@ -159,9 +159,24 @@ natif  : "2283097588, 1739028016 (cmd 0x88154df4/0x0bf14058)"
 is the **string** `"0x88154DF4"`. Same value, different type — and `CMD_SET_TEXT` branches on
 exactly that distinction, which is why one host stores a text and the other does not.
 
-Where a number becomes a hex string is the remaining question. `menu_host.rs` formats
-`0x{:08X}` in several places, including `CMD_SET_TEXT`'s own number branch, so a value written by
-one command and read back by another is a plausible path — unverified. It is one slot
+Where a number becomes a hex string has a source-backed answer: **this VM's Lua integers are
+32-bit**. `vendor/lua-src/lua-5.2.4/luaconf.h` line 462 reads
+
+```c
+#define LUA_INTEGER	ptrdiff_t
+```
+
+which is 4 bytes on `wasm32-unknown-emscripten` and 8 on `x86-64`. `LUA_NUMBER` stays `double`
+on both, so arithmetic agrees — but anything crossing as `lua_Integer` truncates here.
+
+The game keys its menu objects and commands by CRC-32, and `0x88154DF4` is 2 283 097 588, past
+`i32::MAX`. Such an id cannot round-trip through a 32-bit `lua_Integer`, so the value arrives as
+something other than an integer and the code downstream sees a different Lua type.
+
+That is not a defect of this crate; it is a property of the only wasm target that can host
+PUC-Rio Lua's C. Every hash-keyed command in the game is above `i32::MAX` roughly half the time,
+which bounds what a 32-bit browser VM can reproduce faithfully — and is worth knowing before
+counting on `n/14` to reach 14. It is one slot
 on three screens, and the three replays otherwise match object for object. `shop_menu` remains
 scriptless on both sides.
 
