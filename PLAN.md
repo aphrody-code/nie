@@ -968,3 +968,31 @@ Ranked by what unblocks the most:
 
 Files: `crates/engine/nie-lua-web/{Cargo.toml,src/lib.rs,.cargo/config.toml,README.md,
 js/nie-lua-web.ts,scripts/differential.ts}`.
+
+### Suite mesurée — 2026-09-13
+
+Les deux blocages décrits ci-dessus sont levés, et la distance qui reste à « un seul module » est
+désormais un nombre plutôt qu'une impression.
+
+1. **L'avortement de la VM** venait de `lua-src`, qui compile Lua en C++ sur emscripten
+   (`.cpp(true)`, `-fexceptions`) : le `throw` remontait par l'unwinder C++, `mlua` le rencontrait
+   comme exception étrangère et Rust abandonnait (`Rust cannot catch foreign exceptions`). La
+   copie vendorisée (`vendor/lua-src`, `[patch.crates-io]`) le compile en C, donc `LUAI_THROW`
+   redevient `longjmp`. Le drapeau qui l'accompagne, `-sSUPPORT_LONGJMP=wasm`, n'est pas un
+   bricolage : emscripten l'impose quand du C côtoie du C++ compilé `-fwasm-exceptions`, ce qui
+   est exactement le cas ici (cf. `nie-lua-web/README.md`).
+2. **Le bytecode 64 bits** était refusé par une VM 32 bits (`incompatible precompiled chunk`).
+   `nie_lua::bytecode` a gagné un encodeur et un transcodeur, prouvés byte-exacts par round-trip.
+3. **Ce que le rejeu réclame encore**, mesuré par `crates/engine/nie-lua/tests/menu_host_gap.rs`
+   sur un échantillon régulier de 93 écrans : 398 unités, **19 écrans complets**. Le champ
+   `ReplayOutput::missing` les nomme — avant, `complete: false` ne disait pas quoi.
+4. **La distance à une VM Lua en Rust pur** (la seule voie vers un module unique) :
+   `opcode_survey.rs` mesure 38 opcodes sur 40 réellement atteints, `LOADKX` et `EXTRAARG`
+   jamais. L'interpréteur est donc la petite moitié. La grande est l'hôte : 6 686 globales lues
+   sur le corpus, dont l'hôte Rust n'en fournit aucune — mais ce nombre borne la SURFACE, pas le
+   travail, et la mesure dynamique dit 398.
+5. **Les cinq globales en tête de file ne sont ni du Lua ni du binaire** : 0 `SETTABUP _ENV` sur
+   l'extraction VFS (651 fichiers), et ni leurs noms ni leurs CRC-32 dans `nie.exe`. Le hachage
+   du jeu n'est donc pas forcément `zlib.crc32` pour cet usage, ou les noms sont stockés
+   autrement ; trancher demande de reverser le répartiteur de globales de la VM du jeu — pilier
+   C3, pas une mesure de plus sur le corpus.
