@@ -221,9 +221,36 @@ through `0x1404F8F60` with `[this+0x11C]`, and writes `+0x154` on THAT child. So
 `OnEnter` reports is set on the cell widget, not on the list view — which is why no sibling
 appeared to "move the selection" while one plainly does.
 
-It is the next target, and it is a different SHAPE from the two ported steps: it mutates a child
-object obtained from a lookup, so it is not a pure function over scalars and will need the lookup
-stubbed or modelled before uemu can judge it.
+Reading it settles what it is, and it is not a selection step either: it is a LOOP over the
+visible cells (`cmp [this+0xE8],esi` with `ebp` as the counter), each iteration looking a cell up
+through `0x140533940` and assigning it an index. It is the re-indexer that runs after a scroll.
+
+**And at the CELL level, the index WRAPS** — which qualifies a rule confirmed earlier at the view
+level:
+
+    mov [rbx+156h],si          ; cell.raw = si
+    cmp dword [rbx+148h],0 ; je -> skip
+    movzx ecx,word [rbx+150h]  ; count ; jle -> skip
+    mov [rbx+154h],si
+    cmp si,cx ; jl ...          ; si >= count  -> 0
+    xor eax,eax
+    ...  test si,si ; jns ...   ; si <  0      -> count-1
+    lea eax,[rcx-1]
+    mov [rbx+154h],ax
+    cmp dx,ax ; jne -> [rbx+161h] = 1   ; « a change »
+
+So the VIEW clamps and does not wrap (proven, `step_row`/`step_page`), while the CELL index is
+modular over `[cell+0x150]`. `list-page.ts` stated "it does not wrap" as one global rule; the
+binary has two levels with opposite behaviour. That also explains the shape of the whole
+subsystem: the list view does not hold a selected item, the CELLS hold their indices and the view
+scrolls over them.
+
+**Read, not proven, and here is what proving it needs.** The write sits inside a loop behind two
+lookups, and `Emu.call` seeds only `rcx/rdx/r8/r9/rax` — it cannot put a scratch pointer in `rbx`.
+`stub_calls=True` returns a fresh bump-allocated pointer per call, which is the right mechanism,
+but the cell fields (`+0x148`, `+0x150`) must be written into that pointer BEFORE the function
+reads them, so the harness has to pre-seed the stub heap at a predicted address. That is a small
+addition to `uemu.py`, not a new technique.
 
 Until that is found, `nie_core::list_view` cannot replace `list-page.ts` in a screen: adopting it
 for scrolling while selection stays on the TypeScript model would put two models in one screen,
