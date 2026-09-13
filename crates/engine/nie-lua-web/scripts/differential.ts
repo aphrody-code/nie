@@ -11,7 +11,9 @@
 // `data/common/gamedata/menu/cfg/`, fetched from the site's `/f/{path}`.
 import { createLuaRuntime } from "../js/nie-lua-web.ts";
 
-const SITE = "http://127.0.0.1:8085";
+// Surchargeable, comme `scripts/validation/compare-menu-layout.ts` : deux outils avec deux
+// ports codés en dur font lancer le mauvais serveur, et l'échec ressemble alors à un résultat.
+const SITE = process.env.NIE_SITE_BASE ?? "http://127.0.0.1:8085";
 // L'artefact vit à la RACINE du profil, pas sous `deps/` : `cargo build` y dépose le cdylib
 // final, et `deps/` ne porte que les objets intermédiaires. Le chemin `deps/` de la première
 // version n'existait déjà plus au moment où ce script a servi.
