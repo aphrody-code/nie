@@ -146,6 +146,15 @@ export async function buildMenuLayout(
 ): Promise<BuiltLayout | null> {
 	const [detail] = await Promise.all([screenDetail(screen), ensureWasm()]);
 	if (detail === null) return null;
+	// Un serveur qui ne publie pas `companions` ne peut pas résoudre un seul nom logique, donc
+	// aucun objet n'aura de pose et `loadMenuLayout` retombera de toute façon sur la route. Le
+	// vérifier ICI économise le tour de chauffe : sans ce test, la Banque téléchargeait ses 25
+	// `.objbin` (27 728 octets, mesurés le 2026-09-12) avant de conclure qu'elle n'en ferait
+	// rien. C'est un contrôle sur la DONNÉE, pas sur une version : le jour où le champ est
+	// servi, il s'efface de lui-même.
+	if (!detail.items.some((item) => item.companions && Object.keys(item.companions).length > 0)) {
+		return null;
+	}
 
 	const builder = new MenuScreenBuilder(
 		JSON.stringify({
@@ -257,6 +266,10 @@ interface LayoutDiagnostics {
  * Le repli se décide donc sur une MESURE, pas sur une exception : si aucun objet n'a de
  * transformation résolue alors que l'écran en déclare, la page demande le layout au serveur. La
  * condition se désarme d'elle-même le jour où le champ est servi ; rien à retirer ensuite.
+ *
+ * [`buildMenuLayout`] coupe même avant : un détail d'écran sans un seul `companions` rend `null`
+ * sans rien télécharger, parce que la construction ne peut alors rien résoudre. Sans cette
+ * coupe, chaque visite d'un écran payait ses `.objbin` pour finir sur la route de toute façon.
  *
  * Le coût mesuré du chemin navigateur sur `chara_bank_menu`, le 2026-09-12 : 25 requêtes,
  * 27 728 octets au total, servis en `max-age=86400` — donc une fois par jour et par visiteur.

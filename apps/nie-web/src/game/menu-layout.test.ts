@@ -161,6 +161,27 @@ describe("buildMenuLayout", () => {
 		expect(journal.built[0]).toStartWith("fr|");
 	});
 
+	test("ne télécharge RIEN quand le serveur ne publie pas `companions`", async () => {
+		// Sans ce champ, aucun nom logique ne se résout, donc aucune pose : la construction est
+		// perdue d'avance et ses 25 `.objbin` avec elle. Mesuré sur la Banque : 27 728 octets
+		// téléchargés pour retomber sur la route.
+		const sansCompagnons = {
+			...DETAIL,
+			items: DETAIL.items.map(({ companions, ...reste }) => ({ ...reste, companions: undefined })),
+		};
+		globalThis.fetch = (async (url: string) => {
+			const chemin = String(url);
+			if (chemin.startsWith("/api/v1/screens/")) return Response.json(sansCompagnons);
+			if (chemin.startsWith("/f/")) {
+				journal.files.push(chemin);
+				return new Response(new Uint8Array([1]), { status: 200 });
+			}
+			return new Response("", { status: 404 });
+		}) as unknown as typeof fetch;
+		expect(await buildMenuLayout("chara_bank_menu", "fr")).toBeNull();
+		expect(journal.files).toEqual([]);
+	});
+
 	test("rend null quand le site ne connaît pas l'écran", async () => {
 		globalThis.fetch = (async () => new Response("", { status: 404 })) as unknown as typeof fetch;
 		expect(await buildMenuLayout("inconnu", "fr")).toBeNull();
