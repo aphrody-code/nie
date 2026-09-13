@@ -9,8 +9,22 @@
  * type libre, plutôt que recopiée dans chaque écran — une seconde implémentation de la même
  * règle finirait par diverger sur le cas limite (liste vide, curseur hors bornes).
  *
- * La règle reproduite est celle des listes du jeu : le curseur ne défile pas d'une ligne, il
- * change de page dès qu'il sort de la page courante, et il ne boucle pas.
+ * ## ⚠ La règle reproduite ici n'est PAS celle du jeu, en partie
+ *
+ * Ce module affirmait « le curseur ne défile pas d'une ligne, il change de page dès qu'il sort
+ * de la page courante, et il ne boucle pas ». Le binaire a été lu le 2026-09-13
+ * (`lives::CMenuListView`, créneau 59 de la vtable, `0x140542B80` dans `dist/nie.exe`) :
+ *
+ * - « il ne boucle pas » est **confirmé** — les deux branches retournent sans rien changer
+ *   quand la liste est déjà en butée ;
+ * - « il ne défile pas d'une ligne » est **contredit** — ce chemin déplace la ligne de tête
+ *   (`[this+0x12C]`) de exactement ±1, puis borne au dernier écran.
+ *
+ * Ce qui reste non prouvé : quelle entrée est reliée à ce créneau plutôt qu'à l'un des cinq
+ * frères qui partagent son prologue ; un pas par page peut donc exister ailleurs. Tant que
+ * l'oracle uemu ne l'a pas tranché, `listPage` reste une pagination d'HÔTE assumée, et non une
+ * reproduction du jeu. Ne pas la porter en Rust en l'état : cela figerait la moitié fausse.
+ * Détail du désassemblage et disposition des champs dans `PLAN.md`.
  */
 
 /** Une page de liste : son rang, son contenu, et le curseur ramené dans les bornes. */

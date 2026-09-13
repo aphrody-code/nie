@@ -143,6 +143,34 @@ Its slot 0 is the destructor (rewrites the vtable pointer, decrements a refcount
 `0x141E78F84`). The cursor rule therefore sits in `lives::CMenuListView`, and nothing here yet
 proves which method holds it. Do not port `list-page.ts` on the strength of this section.
 
+**Read from `CMenuListView` itself — and it contradicts the TypeScript.** The vtable is 79 slots
+(slot 79 already belongs to the next class), 38 of them the `ret` stub, leaving ~22 real methods.
+Slots 56-61 are six consecutive siblings sharing one prologue — the same guard bytes at
+`[this+1B6h]`, `[this+1AFh]`, `[this+1ACh]` — and each takes a BYTE parameter.
+
+Slot 59, `0x140542B80` (87 bytes of body, `.pdata`-rooted), is a scroll step. Its two branches
+are symmetric on that byte:
+
+    forward : lea eax,[r10+rcx] ; add eax,esi ; cmp eax,r8d ; jge -> RETURN UNCHANGED
+              lea edx,[rsi+1]   ; mov [this+12Ch],edx          <- top row += 1
+              clamp so top never exceeds rows - visible
+    backward: neg ecx ; cmp esi,ecx ; jle -> RETURN UNCHANGED
+              lea eax,[rsi-1]   ; mov [this+12Ch],eax          <- top row -= 1
+              clamp to the first page
+
+Field layout read off the same code: `[+0x140]` total items, `[+0xD4]` columns (the `idiv`
+divisor), `[+0x12C]` top row, `[+0x134]` a second index kept at a constant delta from the top,
+`[+0x138]` the selected index, `[+0xC0]`/`[+0xC4]` the visible extent. It ends by calling two
+virtuals, `[vt+1E0h]` with `[+0x138]` and `[vt+230h]`.
+
+`apps/nie-web/src/game/list-page.ts` states the game's rule as *"the cursor does not scroll by a
+row, it changes page as soon as it leaves the current page, and it does not wrap"*. Half of that
+is confirmed: **both branches return unchanged at the ends — no wrap.** The other half is
+contradicted: this path moves the top row by **exactly ±1**, which is row scrolling, not page
+flipping. What is NOT yet proven is which input binds here rather than to one of the five
+siblings, so a page-step path may also exist. That is the next uemu target — and it is why the
+rule must be reversed before it is ported, not after.
+
 ---
 
 ## Product direction — two complementary delivery goals
