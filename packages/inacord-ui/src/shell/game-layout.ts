@@ -68,7 +68,7 @@ export interface SlotTexte {
 export interface ObjetLayout {
 	name: string;
 	/** Missing on legacy exports; explicit unresolved objects must not be painted. */
-	placementSource?: "unresolved" | "g4pkm-pose" | "g4pkm-ancestor-fallback" | "attach-locator";
+	placementSource?: "unresolved" | "g4pkm-pose" | "g4pkm-ancestor-fallback" | "attach-locator" | "bone-region";
 	/** Ordre de peinture. Croissant = dessine par-dessus, cf. [`objetsTries`]. */
 	drawPriority: number;
 	visible: boolean;
@@ -147,7 +147,7 @@ export function lireLayout(valeur: unknown): LayoutJeu {
 		if (!candidate || typeof candidate.name !== "string" || (!candidate.transform && candidate.placementSource !== "unresolved")) {
 			throw new Error(`layout : l'objet ${index} n'a ni nom ni transformation`);
 		}
-		if (candidate.placementSource !== undefined && !["unresolved", "g4pkm-pose", "g4pkm-ancestor-fallback", "attach-locator"].includes(candidate.placementSource)) {
+		if (candidate.placementSource !== undefined && !["unresolved", "g4pkm-pose", "g4pkm-ancestor-fallback", "attach-locator", "bone-region"].includes(candidate.placementSource)) {
 			throw new Error(`layout : unknown placement source for object ${index}`);
 		}
 		return {

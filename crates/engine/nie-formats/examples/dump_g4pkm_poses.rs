@@ -45,9 +45,10 @@ fn main() {
             }
             _ => String::new(),
         };
+        let lp = bone.local_bind_pose;
         println!(
-            "{i:3}: scale={:9.2}x{:<9.2} pos={:9.2},{:<9.2} rot={:6.3}{note}",
-            wp.scale_x, wp.scale_y, wp.x, wp.y, wp.rot
+            "{i:3}: {:30} parent={:3} monde=({:9.2},{:<9.2}) local=({:8.2},{:<8.2}) scale={:8.2}x{:<8.2}{note}",
+            bone.name, bone.parent_index, wp.x, wp.y, lp.x, lp.y, wp.scale_x, wp.scale_y
         );
     }
 }

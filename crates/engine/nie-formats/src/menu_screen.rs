@@ -138,6 +138,19 @@ fn resolved_static_transform(
         .then_some(transform)
 }
 
+/// Le sprite d'une partie : l'atlas de l'objet, plus la région à en découper.
+///
+/// Le chemin logique ne change pas — c'est le même fichier — mais `region` dit quel rectangle
+/// dessiner. Un consommateur qui ignore le champ dessine l'atlas entier, ce qu'il faisait déjà.
+fn sprite_of_region(sprite: &Value, region: &str) -> Value {
+    let Some(objet) = sprite.as_object() else {
+        return Value::Null;
+    };
+    let mut copie = objet.clone();
+    copie.insert("region".to_owned(), json!(region));
+    Value::Object(copie)
+}
+
 /// Le texte d'un hash, pris de la DERNIÈRE entrée qui le porte.
 ///
 /// Même règle que `nie_data::text::find_text`, réécrite ici pour que ce module ne dépende pas de
@@ -260,6 +273,10 @@ pub fn build(
 
         let mut sprite = Value::Null;
         let mut sprite_size = (0u32, 0u32);
+        // Les régions que l'atlas déclare, dans son ordre. Elles servent à retrouver ce qu'un os
+        // NOMME : c'est la seule clé fiable, la taille ne suffit pas (une plaque s'étire, deux
+        // régions peuvent partager des dimensions).
+        let mut regions: Vec<(String, u32, u32)> = Vec::new();
 
         let skeleton = object
             .g4pkm_path
@@ -287,6 +304,17 @@ pub fn build(
                     u32::try_from(main.height.max(0)).unwrap_or(0),
                 );
                 sprite_size = (width, height);
+                regions = main
+                    .sub_textures
+                    .iter()
+                    .map(|sub| {
+                        (
+                            sub.name.clone(),
+                            u32::try_from(sub.width.max(0)).unwrap_or(0),
+                            u32::try_from(sub.height.max(0)).unwrap_or(0),
+                        )
+                    })
+                    .collect();
                 let logical = texture_path.strip_prefix("data/").unwrap_or(texture_path);
                 let stem = logical.strip_suffix(".g4tx").unwrap_or(logical);
                 sprite = json!({
@@ -303,6 +331,25 @@ pub fn build(
             .as_ref()
             .and_then(|layout| resolved_static_transform(&object, layout, sprite_size));
 
+        // Un objet SANS placement, dont le squelette nomme des régions de son atlas : il ne
+        // dessine pas une image, il en dessine PLUSIEURS, une par os.
+        //
+        // C'est ce qui rendait des écrans entiers vides. `resolved_static_transform` cherche un os
+        // à ±30 % de l'ATLAS ; sur `vroad01_71` l'atlas fait 912×532 et aucun os n'y est, alors
+        // que `_notice_base01`, `_notice_base02` et `_icon_trophy01` collent au pixel près aux
+        // trois régions du même nom. Mesuré le 2026-09-13 : 9 des 51 écrans des modes officiels ne
+        // dessinaient rien, et 8 d'entre eux avaient TOUS leurs transforms non résolus.
+        //
+        // Le repli est volontairement ÉTROIT : il ne s'applique qu'aux objets qui ne résolvent
+        // rien aujourd'hui. Un objet déjà placé garde son placement, donc les 42 écrans qui
+        // dessinent ne peuvent pas régresser par ce chemin.
+        let parts = match (&skeleton, static_transform) {
+            (Some(layout), None) if !regions.is_empty() => {
+                placement::bone_region_parts(layout, &regions)
+            }
+            _ => Vec::new(),
+        };
+
         let name_hash = cfgbin::crc32(object.name.as_bytes());
         let positions = attaches.get(&name_hash).cloned().map_or_else(
             || vec![None],
@@ -313,6 +360,47 @@ pub fn build(
         }
         for (position_index, attach_position) in positions.into_iter().enumerate() {
             let positioned = serialize_transform(static_transform, attach_position);
+
+            // L'objet n'a pas de place, mais ses os en ont : on publie les PARTIES, chacune
+            // avec sa région et son transform. L'objet lui-même n'est pas publié — le publier
+            // en plus dessinerait l'atlas entier PAR-DESSUS ses propres morceaux.
+            if positioned.is_null() && !parts.is_empty() {
+                for part in &parts {
+                    objects.push(json!({
+                        "name": object.name.clone(),
+                        "layer": layer.clone(),
+                        "instance": position_index,
+                        // La région que cet os nomme : c'est elle qui distingue deux parties du
+                        // même objet, là où `name` et `instance` sont identiques.
+                        "part": part.region.clone(),
+                        "parent": Value::Null,
+                        "placementSource": placement::PlacementSource::BoneRegion.as_str(),
+                        "transform": json!({
+                            "x": part.transform.x_px,
+                            "y": part.transform.y_px,
+                            "scaleX": part.transform.scale_x,
+                            "scaleY": part.transform.scale_y,
+                            "rot": part.transform.rot,
+                            "anchorX": 0.5,
+                            "anchorY": 0.5,
+                        }),
+                        "drawPriority": draw_priority,
+                        "drawType": draw_type,
+                        "camera": format!("0x{camera:08X}"),
+                        "sprite": sprite_of_region(&sprite, &part.region),
+                        "text": Value::Null,
+                        "anim": anim.clone(),
+                        "primitive": Value::Null,
+                        "charModel": Value::Null,
+                        "visible": visibility
+                            .get(&cfgbin::crc32(object.name.as_bytes()))
+                            .map_or(Value::Null, |visible| json!(visible)),
+                        "runtime": Value::Null,
+                    }));
+                }
+                continue;
+            }
+
             if positioned.is_null() {
                 unresolved_transforms += 1;
             }

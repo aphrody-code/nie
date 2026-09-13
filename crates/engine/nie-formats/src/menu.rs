@@ -26,6 +26,34 @@ pub enum PlacementSource {
     G4pkmPose,
     G4pkmAncestorFallback,
     AttachLocator,
+    /// One named region of an object's atlas, placed at the bone that names it.
+    ///
+    /// Emitted only for an object that resolves no placement of its own: its skeleton carries
+    /// several geometry bones whose names match the atlas' sub-textures, so the object draws
+    /// several parts rather than one image.
+    BoneRegion,
+}
+
+/// La porte de placement doit laisser passer une partie posée par son os.
+///
+/// Sans cette entrée, `menu_screen` publie les parties et `MenuLayout::from_json` les jette :
+/// l'écran reste vide, et rien dans le layout ne dit pourquoi.
+#[cfg(test)]
+mod tests_placement_source {
+    use super::PlacementSource;
+
+    #[test]
+    fn la_porte_laisse_passer_une_partie_posee_par_son_os() {
+        assert!(PlacementSource::allows_rendering(Some("bone-region"), true));
+        assert_eq!(PlacementSource::BoneRegion.as_str(), "bone-region");
+        assert!(PlacementSource::BoneRegion.has_placement());
+    }
+
+    #[test]
+    fn une_source_inconnue_reste_refusee() {
+        assert!(!PlacementSource::allows_rendering(Some("guessed"), true));
+        assert!(!PlacementSource::allows_rendering(Some("bone-region"), false));
+    }
 }
 
 impl PlacementSource {
@@ -35,7 +63,9 @@ impl PlacementSource {
         has_transform
             && matches!(
                 source,
-                None | Some("g4pkm-pose" | "g4pkm-ancestor-fallback" | "attach-locator")
+                None | Some(
+                    "g4pkm-pose" | "g4pkm-ancestor-fallback" | "attach-locator" | "bone-region"
+                )
             )
     }
     #[must_use]
@@ -45,6 +75,7 @@ impl PlacementSource {
             Self::G4pkmPose => "g4pkm-pose",
             Self::G4pkmAncestorFallback => "g4pkm-ancestor-fallback",
             Self::AttachLocator => "attach-locator",
+            Self::BoneRegion => "bone-region",
         }
     }
 
@@ -335,6 +366,107 @@ pub fn taille_designee(layout: &G4pkmLayout, sprite_w: u32, sprite_h: u32) -> Op
     let placement = crate::g4pkm_motion::motion_final_pose(layout, false).pose;
     let pose = pick_best_pose(layout, placement, sprite_w, sprite_h);
     (pose.scale_x > 1.0 && pose.scale_y > 1.0).then_some((pose.scale_x, pose.scale_y))
+}
+
+/// Une partie dessinée : la région qu'un os nomme, et le transform écran de cet os.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoneRegionPart {
+    /// Le nom de la région de l'atlas, tel que le `g4tx` l'écrit.
+    pub region: alloc::string::String,
+    /// Où et à quelle échelle cet os pose cette région.
+    pub transform: ScreenTransform,
+}
+
+/// Retire l'underscore de tête et le suffixe de miroir d'un nom d'os.
+///
+/// `_log_tail01_r` et `_log_tail01_l` désignent la MÊME région `log_tail01`, posée à droite et à
+/// gauche. Le suffixe est donc une position, pas une texture.
+fn region_name_of_bone(bone: &str) -> &str {
+    let sans_tete = bone.strip_prefix('_').unwrap_or(bone);
+    sans_tete
+        .strip_suffix("_r")
+        .or_else(|| sans_tete.strip_suffix("_l"))
+        .unwrap_or(sans_tete)
+}
+
+/// Les régions que les os de ce squelette NOMMENT, avec le transform de chacun.
+///
+/// ## La règle, et comment elle a été établie
+///
+/// Un os de géométrie porte le nom de la région qu'il dessine, précédé d'un underscore. Mesuré le
+/// 2026-09-13 sur `vroad01_71` : les os `_notice_base01`, `_notice_base02` et `_icon_trophy01`
+/// mesurent 912×196, 912×244 et 84×84, soit **exactement** les trois régions que son atlas
+/// déclare sous ces mêmes noms. Recoupé sur cinq autres atlas (`team00_21`, `town05_04`,
+/// `town01_10`, `win15_06`, `soccer25_01`). Sur 534 os porteurs de géométrie relevés sur sept
+/// écrans, **216 se résolvent ainsi** et 108 sont des slots de texte (`_text_*`).
+///
+/// ## Pourquoi le NOM et pas la taille
+///
+/// [`pick_best_pose`] rapproche un os d'un sprite par ses dimensions, à ±30 %. Cela échoue dès que
+/// l'atlas porte plusieurs régions : sur `vroad01_71` aucun os n'est à ±30 % de l'atlas 912×532,
+/// alors que chacun colle au pixel près à une région. Et la taille ne suffit pas davantage dans
+/// l'autre sens : `town01_10` a un os de 468×68 pour une région `town_name_telop01` de 240×68 —
+/// une plaque qui s'étire — que seule la correspondance de nom retrouve ; et `win15_06` déclare
+/// `log_stamp_base01` et `log_stamp_base02` à la même taille 128×116, que seule le nom départage.
+///
+/// ## Ce que ça ne dit PAS
+///
+/// Deux explications séduisantes ont été mesurées et RÉFUTÉES, elles ne doivent pas revenir :
+/// « un atlas multi-régions échoue » (les objets placés sont MOINS souvent mono-région que les
+/// non placés : 43 % contre 87 %) et « une pose hors canvas échoue » (`win15_06`, `town05_04`,
+/// `town01_10` et `team00_21` sont vides avec 0 % d'os hors canvas, quand `vroad03_05` dessine
+/// avec 75 %).
+#[must_use]
+pub fn bone_region_parts(
+    layout: &G4pkmLayout,
+    regions: &[(alloc::string::String, u32, u32)],
+) -> alloc::vec::Vec<BoneRegionPart> {
+    let mut parts = alloc::vec::Vec::new();
+    for bone in &layout.bones {
+        let pose = bone.world_bind_pose;
+        // Un locator identité ne dessine rien : il positionne. Le filtrer ici évite de poser une
+        // région à l'échelle 1 sur un os qui n'en désigne aucune.
+        if pose.scale_x <= 1.0 || pose.scale_y <= 1.0 {
+            continue;
+        }
+        let cherche = region_name_of_bone(&bone.name);
+        let Some((region, w, h)) = regions
+            .iter()
+            .find(|(nom, _, _)| nom.eq_ignore_ascii_case(cherche))
+        else {
+            continue;
+        };
+        parts.push(BoneRegionPart {
+            region: region.clone(),
+            transform: transform_for_pose(pose, *w, *h),
+        });
+    }
+    parts
+}
+
+/// Le transform écran d'une pose qui dessine une image de `w`×`h`.
+///
+/// Même conversion que [`place_on_canvas`], à ceci près que la pose est DONNÉE au lieu d'être
+/// cherchée : c'est l'os qui a déjà nommé ce qu'il dessine.
+fn transform_for_pose(pose: crate::g4pkm::Transform2D, w: u32, h: u32) -> ScreenTransform {
+    let (x_px, y_px) = pose.to_css_1280x720();
+    let scale_x = if w > 0 {
+        pose.scale_x * (CANVAS_W / REF_W) / w as f32
+    } else {
+        1.0
+    };
+    let scale_y = if h > 0 {
+        pose.scale_y * (CANVAS_H / REF_H) / h as f32
+    } else {
+        1.0
+    };
+    ScreenTransform {
+        x_px,
+        y_px,
+        scale_x,
+        scale_y,
+        rot: pose.rot,
+    }
 }
 
 /// Raffine une pose de placement pour un sprite donné (port de `PickBestPoseForSprite`).
@@ -936,6 +1068,75 @@ mod tests {
 
         let locator = layout(alloc::vec![bone("_atc", tf(10.0, 20.0, 1.0, 1.0))]);
         assert!(taille_designee(&locator, 2640, 1364).is_none());
+    }
+
+    /// Cas réel `vroad01_71_vroad_tournament_notice` : l'atlas fait 912×532 et déclare trois
+    /// régions ; les os les NOMMENT et les mesurent exactement. C'est pour cela qu'un écran
+    /// entier ne dessinait rien — [`pick_best_pose`] cherchait un os à ±30 % de l'ATLAS, et
+    /// aucun n'y est (les ratios en hauteur tombent à 0,368 et 0,459).
+    #[test]
+    fn un_os_nomme_la_region_qu_il_dessine() {
+        let l = layout(alloc::vec![
+            bone("_pos_offset01", tf(5760.0, 0.0, 1.0, 1.0)),
+            bone("_notice_base01", tf(7054.0, -14.0, 912.0, 196.0)),
+            bone("_notice_base02", tf(7054.0, -14.0, 912.0, 244.0)),
+            bone("_icon_trophy01", tf(7116.0, -22.0, 84.0, 84.0)),
+            bone("_text_title01", tf(7203.0, -40.0, 720.0, 36.0)),
+        ]);
+        let regions = alloc::vec![
+            ("notice_base02".into(), 912_u32, 244_u32),
+            ("notice_base01".into(), 912, 196),
+            ("icon_trophy01".into(), 84, 84),
+        ];
+        let parts = bone_region_parts(&l, &regions);
+        let noms: alloc::vec::Vec<&str> = parts.iter().map(|p| p.region.as_str()).collect();
+        // Trois parties, dans l'ordre des os — et PAS le slot de texte, qui ne nomme aucune
+        // région : un `_text_*` est rempli par le texte du jeu, pas par un morceau d'atlas.
+        assert_eq!(noms, alloc::vec!["notice_base01", "notice_base02", "icon_trophy01"]);
+        // Le locator identité n'est pas une partie : il positionne, il ne dessine pas.
+        assert_eq!(parts.len(), 3);
+        // L'échelle est calculée contre la RÉGION, pas contre l'atlas : un os de 912 de large
+        // qui dessine une région de 912 rend l'échelle du canvas, sans déformation.
+        assert!((parts[0].transform.scale_x - 1280.0 / 1920.0).abs() < 1e-4);
+    }
+
+    /// Le suffixe `_l`/`_r` est une POSITION, pas une texture : les deux côtés d'une bulle
+    /// dessinent la même région. Mesuré sur `win15_06_screen_out_pop_item`, qui porte
+    /// `_log_tail01_r` et `_log_tail01_l` pour la seule région `log_tail01`.
+    #[test]
+    fn le_suffixe_de_miroir_ne_change_pas_la_region() {
+        let l = layout(alloc::vec![
+            bone("_log_tail01_r", tf(100.0, 0.0, 36.0, 32.0)),
+            bone("_log_tail01_l", tf(-100.0, 0.0, 36.0, 32.0)),
+        ]);
+        let regions = alloc::vec![("log_tail01".into(), 36_u32, 32_u32)];
+        let parts = bone_region_parts(&l, &regions);
+        assert_eq!(parts.len(), 2, "les deux côtés dessinent");
+        assert!(parts.iter().all(|p| p.region == "log_tail01"));
+        // Et ils ne sont PAS au même endroit.
+        assert!(parts[0].transform.x_px > parts[1].transform.x_px);
+    }
+
+    /// La taille ne suffit pas, le nom si : `town01_10` porte un os de 468×68 pour une région
+    /// `town_name_telop01` de 240×68 — une plaque qui s'étire au contenu. Une règle
+    /// dimensionnelle la rate ; la règle de nom la retrouve.
+    #[test]
+    fn une_plaque_etiree_reste_reconnue_par_son_nom() {
+        let l = layout(alloc::vec![bone("_town_name_telop01", tf(0.0, 0.0, 468.0, 68.0))]);
+        let regions = alloc::vec![("town_name_telop01".into(), 240_u32, 68_u32)];
+        let parts = bone_region_parts(&l, &regions);
+        assert_eq!(parts.len(), 1);
+        // L'os est plus large que la région : l'échelle horizontale l'étire, ce qui est le
+        // comportement du jeu pour une plaque à contenu variable.
+        assert!(parts[0].transform.scale_x > parts[0].transform.scale_y);
+    }
+
+    /// Un os qui ne nomme aucune région n'en invente pas une.
+    #[test]
+    fn un_os_sans_region_ne_dessine_rien() {
+        let l = layout(alloc::vec![bone("_touch_list01", tf(0.0, 0.0, 400.0, 200.0))]);
+        let regions = alloc::vec![("autre_chose01".into(), 400_u32, 200_u32)];
+        assert!(bone_region_parts(&l, &regions).is_empty());
     }
 
     /// Un `CMenuAttachLocator` rend un emplacement **par quadruplet**, résolu sur le squelette

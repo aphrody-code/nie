@@ -576,7 +576,13 @@ fn region_hash_pixels(
     None
 }
 
-/// Texture entière du conteneur nommé par `sprite.logicalPath`.
+/// Texture du conteneur nommé par `sprite.logicalPath` — entière, ou la région que l'objet nomme.
+///
+/// `sprite.region` est publié par `menu_screen` pour les parties qu'un os NOMME : un objet dont le
+/// squelette désigne trois régions dessine trois morceaux de son atlas, pas trois fois l'atlas.
+/// Sans la découpe, chaque partie peindrait l'atlas entier à l'échelle de sa région, ce qui est
+/// pire que de ne rien peindre — la mesure qui a mené ici est que ces objets ne peignaient rien
+/// du tout (`x-compose-drawn: 0`). Un layout sans ce champ garde le comportement d'avant.
 fn static_pixels(
     object: &Value,
     assets: &dyn MenuAssets,
@@ -588,7 +594,20 @@ fn static_pixels(
     let container = parsed(cache, assets, key)?;
     let texture = g4tx::select_main_texture(container, stem)?;
     let bytes = assets.g4tx(key)?;
-    g4tx_decode::decode_texture_rgba(bytes, texture)
+    let (full_w, full_h, full) = g4tx_decode::decode_texture_rgba(bytes, texture)?;
+    let Some(region) = object["sprite"]["region"].as_str() else {
+        return Some((full_w, full_h, full));
+    };
+    // Une région nommée que le conteneur ne porte pas ne se devine pas : on rend l'atlas, ce que
+    // faisait le code d'avant, plutôt qu'un rectangle inventé.
+    let Some(sub) = texture
+        .sub_textures
+        .iter()
+        .find(|sub| sub.name.eq_ignore_ascii_case(region))
+    else {
+        return Some((full_w, full_h, full));
+    };
+    crop_rgba(&full, full_w, full_h, (sub.x, sub.y, sub.width, sub.height))
 }
 
 /// Le nom de fichier d'un chemin logique VFS.
