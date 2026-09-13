@@ -1051,4 +1051,64 @@ mod tests {
         assert_ne!(valeur, [255, 255, 255, 255], "la valeur prend la couleur du jeu");
         assert_eq!(valeur[3], 255);
     }
+
+    /// La palette LIVE, lue dans le VFS monté, sur les jetons que le corpus porte vraiment.
+    ///
+    /// Les autres tests de palette emploient la fixture de `tests/fixtures/`. Celui-ci prouve
+    /// que le fichier que les hôtes lisent RÉELLEMENT — `data/common/font/font_color.cfg.bin`
+    /// via le VFS, exactement le chemin de `nie-site` et de `nie-game` — résout les jetons
+    /// mesurés sur les trois arbres de texte : 56 noms distincts, dont 54 dans la palette.
+    ///
+    /// `TEAMPARAM01` est ici pour une raison précise : un premier relevé, limité à
+    /// `data/dx11/text/`, l'avait déclaré inexistant. Il apparaît 96 fois dans `data/`, et
+    /// `soccer_formation_menu` le sert dans son layout statique.
+    #[cfg(feature = "std")]
+    #[test]
+    fn the_live_palette_resolves_the_tokens_the_corpus_actually_carries() {
+        // Le fichier EXTRAIT, pas le VFS. Monter le VFS puis lire charge le CPK entier dans un
+        // cache dont le budget par défaut est de 16 Gio (`nie_formats::vfs`), et cette machine
+        // en a déjà 18 engagés par `nie-model-serve` et `nie-site` : la première version de ce
+        // test s'est fait tuer par l'OOM. Le montage lui-même reste couvert par
+        // `vfs::tests::vfs_init_monte_le_vrai_jeu` ; ce qui est vérifié ici est le CONTENU du
+        // fichier livré, et il est le même des deux côtés.
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let chemin = std::path::Path::new(&dir).join("data/common/font/font_color.cfg.bin");
+        let Ok(octets) = std::fs::read(&chemin) else {
+            eprintln!("skip : {} absent", chemin.display());
+            return;
+        };
+        let palette = parse_font_palette(&octets);
+        assert_eq!(palette.len(), 70, "70 couleurs dans le fichier livré");
+
+        for nom in ["TEAMPARAM01", "PASSIVE01", "FUNCBTN01", "R", "G", "N", "Y", "UP", "DN"] {
+            assert!(
+                palette.contains_key(&cfgbin::crc32(nom.as_bytes())),
+                "{nom} est porté par le corpus et doit être dans la palette"
+            );
+        }
+        // Mesuré : ces trois-là ne sont dans AUCUNE palette. Le test les fixe pour qu'une
+        // couleur inventée un jour se signale comme une régression.
+        for absent in ["L", "G2", "R2"] {
+            assert!(
+                !palette.contains_key(&cfgbin::crc32(absent.as_bytes())),
+                "{absent} n'est pas dans la palette — ne pas lui en inventer une"
+            );
+        }
+
+        // La chaîne réelle de `soccer_formation_menu`, telle que la route la sert.
+        let spans = colour_spans("[CTEAMPARAM01]Bonus d'équipe[C]");
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].text, "Bonus d'équipe");
+        let police = MenuFont {
+            atlas: Vec::new(),
+            atlas_width: 0,
+            metrics: font::FontMetrics::default(),
+            palette,
+        };
+        assert_ne!(
+            span_rgba(&police, &spans[0]),
+            [255, 255, 255, 255],
+            "le libellé doit prendre la couleur du jeu, pas le blanc du non-résolu"
+        );
+    }
 }
