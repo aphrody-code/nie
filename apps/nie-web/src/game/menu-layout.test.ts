@@ -47,7 +47,7 @@ class MenuScreenBuilderDouble {
 mock.module("../wasm/nie_wasm.js", () => ({ MenuScreenBuilder: MenuScreenBuilderDouble }));
 mock.module("./bridge", () => ({ ensureWasm: async () => {} }));
 
-const { buildMenuLayout, loadMenuLayout } = await import("./menu-layout");
+const { buildMenuLayout, compareLayoutWithServer, loadMenuLayout } = await import("./menu-layout");
 
 /** Le détail d'écran que `/api/v1/screens/{screen}` publie. */
 const DETAIL = {
@@ -167,5 +167,43 @@ describe("loadMenuLayout", () => {
 		layoutRendu = JSON.stringify({ objects: [], diagnostics: { transformsUnresolved: 0 } });
 		await loadMenuLayout("chara_bank_menu", "fr");
 		expect(serveurAppele).toBe(1);
+	});
+});
+
+describe("compareLayoutWithServer", () => {
+	test("dit « égal » quand les deux surfaces rendent les mêmes objets", async () => {
+		layoutRendu = JSON.stringify({ objects: [{ name: "a" }], diagnostics: { transformsUnresolved: 0 } });
+		layoutServeur = { objects: [{ name: "a" }] };
+		const verdict = await compareLayoutWithServer("chara_bank_menu", "fr");
+		expect(verdict?.equal).toBe(true);
+	});
+
+	test("dit « différent » dès qu'un objet diverge", async () => {
+		// C'est tout l'intérêt : les deux surfaces compilent la MÊME fonction Rust mais ne lisent
+		// pas les octets par le même chemin, et c'est là que deux implémentations se séparent.
+		layoutRendu = JSON.stringify({ objects: [{ name: "a" }], diagnostics: { transformsUnresolved: 0 } });
+		layoutServeur = { objects: [{ name: "b" }] };
+		const verdict = await compareLayoutWithServer("chara_bank_menu", "fr");
+		expect(verdict?.equal).toBe(false);
+		expect(verdict?.browser).toEqual([{ name: "a" }]);
+		expect(verdict?.server).toEqual([{ name: "b" }]);
+	});
+
+	test("ne compare PAS les diagnostics : ils dépendent du montage, pas du calcul", async () => {
+		layoutRendu = JSON.stringify({
+			objects: [{ name: "a" }],
+			diagnostics: { transformsUnresolved: 0, layersMissing: ["x"] },
+		});
+		layoutServeur = { objects: [{ name: "a" }], diagnostics: { layersMissing: [] } };
+		expect((await compareLayoutWithServer("chara_bank_menu", "fr"))?.equal).toBe(true);
+	});
+
+	test("rend null quand le serveur ne répond pas — il n'y a rien à comparer", async () => {
+		const origine = globalThis.fetch;
+		globalThis.fetch = (async (url: string) =>
+			String(url).startsWith("/api/v1/menu/layout/")
+				? new Response("", { status: 503 })
+				: await (origine as typeof fetch)(url)) as unknown as typeof fetch;
+		expect(await compareLayoutWithServer("chara_bank_menu", "fr")).toBeNull();
 	});
 });
