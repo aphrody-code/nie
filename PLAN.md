@@ -168,8 +168,30 @@ row, it changes page as soon as it leaves the current page, and it does not wrap
 is confirmed: **both branches return unchanged at the ends — no wrap.** The other half is
 contradicted: this path moves the top row by **exactly ±1**, which is row scrolling, not page
 flipping. What is NOT yet proven is which input binds here rather than to one of the five
-siblings, so a page-step path may also exist. That is the next uemu target — and it is why the
-rule must be reversed before it is ported, not after.
+siblings, so a page-step path may also exist.
+
+**It does, and the data model is the real finding.** Slot 58, `0x140542840`, is the same shape
+but moves by the VISIBLE EXTENT rather than by one: it reads `[+0xC0]`/`[+0xC4]` and writes the
+new top row as `top - visible` and friends, including an outright `mov dword [this+134h],0`.
+Slot 59 moves by exactly ±1. Both clamp, neither wraps. So the engine has a row step AND a
+view-sized step, side by side — which is what `stepCursor`'s `"item" | "row" | "page"` was
+guessing at.
+
+Both functions are TWO `.pdata` chunks, contiguous and chained:
+`0x140542840..0x1405428D3` + `..0x140542B6C` (812 bytes), `0x140542B80..0x140542BD7` +
+`..0x140542DBD` (573). The second chunk of each opens `mov [rsp+58h],rbp` with no prologue — a
+continuation, not a function. Reading only the first `.pdata` entry truncates the body at the
+point where the interesting arithmetic starts, which is how a scroll step can look like a stub.
+
+The structural gap: the engine keeps **independent** state — `[+0x12C]` top row, `[+0x138]`
+selected index, and `[+0x134]` held at a CONSTANT DELTA from the top (`edi = [134h] - [12Ch]`
+on entry, `[134h] = new_top + edi` on exit). `listPage(items, cursor, pageSize)` derives
+everything from `cursor` via `floor(cursor / pageSize)`, and a derived page cannot represent a
+view that scrolls one row while the selection stays put. This is not a wrong constant, it is a
+different model — which is why the rule had to be reversed before it was ported, not after.
+
+Next uemu target: bind an input to slot 58 versus slot 59, and confirm the field offsets against
+a live `CMenuListView` instance.
 
 ---
 

@@ -20,11 +20,20 @@
  * - « il ne défile pas d'une ligne » est **contredit** — ce chemin déplace la ligne de tête
  *   (`[this+0x12C]`) de exactement ±1, puis borne au dernier écran.
  *
- * Ce qui reste non prouvé : quelle entrée est reliée à ce créneau plutôt qu'à l'un des cinq
- * frères qui partagent son prologue ; un pas par page peut donc exister ailleurs. Tant que
- * l'oracle uemu ne l'a pas tranché, `listPage` reste une pagination d'HÔTE assumée, et non une
- * reproduction du jeu. Ne pas la porter en Rust en l'état : cela figerait la moitié fausse.
- * Détail du désassemblage et disposition des champs dans `PLAN.md`.
+ * Le pas par page existe bel et bien, mais ailleurs : créneau 58, `0x140542840`, qui déplace la
+ * vue de l'étendue visible (`[this+0xC0]`/`[this+0xC4]`). Les deux pas coexistent donc.
+ *
+ * ## L'écart est un MODÈLE, pas une constante
+ *
+ * Le moteur garde trois champs INDÉPENDANTS : la ligne de tête `[this+0x12C]`, l'index
+ * sélectionné `[this+0x138]`, et `[this+0x134]` maintenu à un delta CONSTANT de la tête.
+ * `listPage` dérive tout du curseur par `floor(cursor / pageSize)` — or une page dérivée ne peut
+ * pas représenter une vue qui défile d'une ligne pendant que la sélection ne bouge pas.
+ *
+ * Donc : ne pas porter ce module en Rust tel quel. Ce n'est pas une constante à corriger, c'est
+ * une structure d'état à reprendre. En attendant, `listPage` reste une pagination d'HÔTE
+ * assumée, correcte pour l'usage qu'en font les écrans, et qui ne prétend plus reproduire le
+ * jeu. Désassemblage, bornes des fragments et disposition des champs dans `PLAN.md`.
  */
 
 /** Une page de liste : son rang, son contenu, et le curseur ramené dans les bornes. */
