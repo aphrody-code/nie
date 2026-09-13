@@ -552,12 +552,88 @@ fn fourni<'a>(assets: &dyn MenuAssets, logical: &'a str) -> Option<&'a str> {
     assets.g4tx(name).map(|_| name)
 }
 
+/// Un fragment de libellé, avec le jeton de couleur que le balisage du jeu lui attribue.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ColourSpan {
+    /// Le texte affichable, balisage retiré.
+    pub text: String,
+    /// Le nom ouvert par `[C…]`, SANS le `C` du marqueur — `[CR]` donne `"R"` —, ou `None`
+    /// hors de tout balisage. `[C]`, dont le nom est vide, referme.
+    pub colour: Option<String>,
+}
+
+/// Découpe un libellé du jeu selon son balisage de couleur `[C…]` … `[C]`.
+///
+/// Le balisage est MESURÉ, pas supposé. Dans les neuf locales livrées
+/// (`data/dx11/text/*/`) on compte 46 `[C]`, 28 `[CR]` et 18 `[CG]` ; `nie.exe` porte en plus
+/// les formes longues `[CN]`, `[CL]`, `[CWG]`, `[CTACTICS01]`, `[CSEASON_TIME03]` et
+/// `[CSEASON_TIME05]`, d'où le nom de longueur libre accepté ici. `[C]` seul referme.
+///
+/// Le JETON est conservé, jamais traduit en teinte : la table qui associe `CR` à une couleur
+/// vit dans le jeu et n'a pas été mesurée ici. La passe texte du compositeur rend d'ailleurs
+/// encore en monochrome — deviner un RGB ferait passer une invention pour une donnée.
+#[must_use]
+pub fn colour_spans(label: &str) -> Vec<ColourSpan> {
+    let mut spans = Vec::new();
+    let mut colour: Option<String> = None;
+    let mut rest = label;
+    while let Some(open) = rest.find("[C") {
+        let Some(close) = rest[open..].find(']') else {
+            break;
+        };
+        let name = &rest[open + 2..open + close];
+        // `[Cfoo]` où `foo` n'est pas un nom de jeton — `[Choisir]` par exemple — n'est pas du
+        // balisage : tous les jetons attestés sont en capitales, chiffres et soulignés.
+        if !name
+            .bytes()
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
+        {
+            let (head, tail) = rest.split_at(open + close + 1);
+            push_span(&mut spans, head, colour.clone());
+            rest = tail;
+            continue;
+        }
+        push_span(&mut spans, &rest[..open], colour.clone());
+        colour = if name.is_empty() {
+            None
+        } else {
+            Some(name.to_string())
+        };
+        rest = &rest[open + close + 1..];
+    }
+    push_span(&mut spans, rest, colour);
+    spans
+}
+
+fn push_span(spans: &mut Vec<ColourSpan>, text: &str, colour: Option<String>) {
+    if !text.is_empty() {
+        spans.push(ColourSpan {
+            text: text.to_string(),
+            colour,
+        });
+    }
+}
+
+/// Le texte affichable d'un libellé, balisage de couleur retiré.
+#[must_use]
+pub fn plain_label(label: &str) -> String {
+    colour_spans(label)
+        .into_iter()
+        .map(|span| span.text)
+        .collect()
+}
+
 /// Le libellé RÉSOLU d'un objet de layout.
 ///
 /// Le champ `text` est hétérogène : un hash `"0x…"` non résolu ou un nombre ne donnent rien à
 /// rendre ; un tableau `[{slot, text}]` — la forme que produit le résolveur de texte universel —
 /// donne la concaténation de ses `text` non vides. Un hash rendu tel quel afficherait une adresse
 /// à la place d'un mot.
+///
+/// Le balisage de couleur est retiré ICI, au seul endroit qui PEINT. Le laisser passer faisait
+/// dessiner `[CR]` glyphe par glyphe au milieu d'une phrase : la chaîne est pourtant correcte du
+/// point de vue de l'export, donc rien en amont ne pouvait le signaler. Les routes qui SERVENT le
+/// texte continuent de rendre la chaîne du jeu telle quelle — c'est la donnée.
 #[must_use]
 pub fn resolved_text_label(text: &Value) -> Option<String> {
     let entries = text.as_array()?;
@@ -569,7 +645,11 @@ pub fn resolved_text_label(text: &Value) -> Option<String> {
     if parts.is_empty() {
         return None;
     }
-    Some(parts.join(" "))
+    let label = plain_label(&parts.join(" "));
+    if label.is_empty() {
+        return None;
+    }
+    Some(label)
 }
 
 /// Rend un libellé dans sa propre boîte RGBA, recadrée sur l'avance RÉELLE.
@@ -737,5 +817,58 @@ mod tests {
         let composed = parsed.compose_over(vec![9u8; 3], 4, 2, &NoAssets);
         assert_eq!(composed.rgba.len(), 4 * 2 * 4);
         assert!(composed.rgba.iter().all(|byte| *byte == 0));
+    }
+
+    /// Les trois jetons que portent VRAIMENT les neuf locales livrées : 46 `[C]`, 28 `[CR]`,
+    /// 18 `[CG]` comptés sur `data/dx11/text/*/`. La phrase vient de
+    /// `data/dx11/text/fr/menu_text_platform.cfg.bin.json`, telle quelle.
+    #[test]
+    fn shipped_colour_markup_is_split_not_painted() {
+        let ligne = "Maintenez enfoncé le bouton.\n[CG]* Modifiable dans Options.[C]";
+        assert_eq!(
+            colour_spans(ligne),
+            vec![
+                ColourSpan { text: "Maintenez enfoncé le bouton.\n".into(), colour: None },
+                ColourSpan { text: "* Modifiable dans Options.".into(), colour: Some("G".into()) },
+            ]
+        );
+        assert_eq!(
+            plain_label(ligne),
+            "Maintenez enfoncé le bouton.\n* Modifiable dans Options."
+        );
+    }
+
+    /// Les formes longues n'existent que dans `nie.exe` — aucune locale livrée n'en porte —
+    /// mais le binaire les connaît, donc le découpage ne doit pas se limiter à deux lettres.
+    #[test]
+    fn long_colour_tokens_from_the_binary_are_recognised() {
+        // Le nom retenu est ce qui SUIT le `C` : `[CTACTICS01]` ouvre « TACTICS01 ».
+        for nom in ["N", "L", "WG", "TACTICS01", "SEASON_TIME03", "SEASON_TIME05"] {
+            let ligne = format!("[C{nom}]texte[C]suite");
+            assert_eq!(
+                colour_spans(&ligne),
+                vec![
+                    ColourSpan { text: "texte".into(), colour: Some(nom.into()) },
+                    ColourSpan { text: "suite".into(), colour: None },
+                ],
+                "jeton C{nom}"
+            );
+        }
+    }
+
+    /// Un crochet qui n'est pas un jeton reste du texte : `[Choisir]` s'affiche, il ne colore
+    /// rien. Sans ce garde, toute phrase commençant par `[C` perdrait son premier mot.
+    #[test]
+    fn a_bracket_that_is_not_a_token_survives_unchanged() {
+        assert_eq!(plain_label("[Choisir] une option"), "[Choisir] une option");
+        assert_eq!(plain_label("[$gaiji_system02] Écraser ?"), "[$gaiji_system02] Écraser ?");
+        assert_eq!(plain_label("sans balisage"), "sans balisage");
+    }
+
+    /// Un libellé qui n'est QUE du balisage ne donne rien à peindre : le rendre « vide » vaut
+    /// mieux qu'une boîte de texte haute de rien posée au milieu de l'écran.
+    #[test]
+    fn a_label_made_only_of_markup_resolves_to_nothing() {
+        assert_eq!(resolved_text_label(&serde_json::json!([{"text":"[CR][C]"}])), None);
     }
 }

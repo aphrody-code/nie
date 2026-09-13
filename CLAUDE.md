@@ -182,6 +182,16 @@ it needs emsdk, which is exactly why it went stale.
   `instances` array size in `tests/routes.rs`, `declarees.len()`, and `vus`.
 - **The Rust site is the only game/wiki deployment.** Verify the exact service checkout before
   editing; never edit a tree while its build is running.
+- **Game text carries markup: serving it raw is right, PAINTING it raw is a bug.** `[CR]`…`[C]`
+  opens and closes a named colour; `[$gaiji_system02]` substitutes an icon. Measured on
+  `data/dx11/text/` (2026-09-13): 46 `[C]`, 28 `[CR]`, 18 `[CG]`, all in `menu_text_platform`;
+  `nie.exe` adds the long forms `[CN]`, `[CL]`, `[CWG]`, `[CTACTICS01]`, `[CSEASON_TIME03]`,
+  `[CSEASON_TIME05]`. The retained token is what FOLLOWS the `C` (`[CR]` → `"R"`), and an empty
+  name closes. One implementation only — `nie_formats::menu_layout::colour_spans` /
+  `plain_label`, on the side that paints. The browser has none: `ui-text-map.test.ts` fails if a
+  mapped UI string ever carries one. Gaiji is left alone on purpose — it names a glyph the game
+  DRAWS, so stripping it would delete an icon rather than a style.
+
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 
