@@ -221,15 +221,20 @@ impl ListScroll {
 /// liste de contenu est longue et s'arrête au bout. Mais elles ne partagent PAS une
 /// implémentation — mesuré sur leur créneau 58 :
 ///
-/// - `CharaFilter` `0x14102B170`, 256 o — le seul PROUVÉ, et celui que cette fonction porte ;
-/// - `ItemFilter` `0x14109ADD0` et `SoccerSpiritFilter` `0x14119B5F0`, **207 o chacun, 13
-///   octets de différence sur 207** : le même template, instancié deux fois ;
+/// - `CharaFilter` `0x14102B170`, 256 o — compte LU dans `[this+0xC8]` ;
+/// - `ItemFilter` `0x14109ADD0` et `SoccerSpiritFilter` `0x14119B5F0`, 207 o chacun à 13 octets
+///   près — même forme, mais le compte est **codé en dur à 2** (`mov r11d,1` / `cmp r11d,2`) :
+///   un basculement à deux états, pas un curseur sur N ;
 /// - `UniverseChara` `0x141152A40`, **10 octets** — `mov rax,[rcx] ; jmp qword [rax+1C8h]`, un
 ///   thunk qui délègue inconditionnellement au créneau 57. La base fait la même délégation,
-///   mais seulement sous condition.
+///   mais seulement sous condition. Il ne calcule rien.
 ///
-/// Donc « les quatre bouclent » reste une inférence pour trois d'entre elles. Les deux jumelles
-/// à 6 % d'écart la rendent probable ; le thunk ne calcule rien du tout.
+/// Les TROIS qui calculent sont prouvés (`validate_listview_filter_step.py`, 24 ✓ / 0 ✗) et
+/// cette fonction les couvre toutes : l'appelant fournit le compte, `2` pour les jumelles.
+///
+/// La leçon des jumelles vaut d'être gardée : 194 octets identiques sur 207, et la différence
+/// tient entièrement dans les 13 autres — le modulo. « Presque le même code » ne dit rien du
+/// comportement ; c'est la constante qui décide.
 ///
 /// Autre forme rencontrée : `MenuListViewArmedChara` remplace son créneau 60 par
 /// `0x14004D760`, la souche `ret` — elle DÉSACTIVE la ré-indexation des cellules au lieu de la

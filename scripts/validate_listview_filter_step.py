@@ -26,6 +26,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from uemu import Emu, SCRATCH  # noqa: E402
 
+# (fonction, arret, compte) — l'arret est juste apres le `cmovge`, quand l'index est calcule.
+# `CharaFilter` lit son compte dans `[this+0xC8]` ; les deux autres le CODENT EN DUR a 2, ce que
+# le compte ci-dessous reproduit cote miroir. 207 octets a 13 pres pour les jumelles, et c'est
+# precisement dans ces 13 octets que tient la difference qui compte.
+CIBLES = [
+    ("CharaFilter",        0x14102B170, 0x14102B1B9, None),
+    ("ItemFilter",         0x14109ADD0, 0x14109AE12, 2),
+    ("SoccerSpiritFilter", 0x14119B5F0, 0x14119B632, 2),
+]
 FN = 0x14102B170
 STOP = 0x14102B1B9
 THIS = SCRATCH + 0x3000
@@ -63,17 +72,23 @@ CASES = [
 ]
 
 e = Emu()
-ok = bad = 0
-for count, selected in CASES:
-    for forward in (True, False):
-        want = mirror(count, selected, forward)
-        out = e.call(FN, rcx=THIS, rdx=1 if forward else 0, r8=0, r9=0,
-                     mem={THIS: build(count, selected)}, stop=STOP)
-        got = i32(out["reg"]["rcx"])
-        if got == want:
-            ok += 1
-        else:
-            bad += 1
-            print(f"✗ count={count} selected={selected} avant={forward} : jeu={got} miroir={want}")
-print(f"{ok} ✓ / {bad} ✗  sur {len(CASES) * 2} cas")
+ok = bad = total = 0
+for nom, fn, stop, fixe in CIBLES:
+    # Le registre qui porte l'index differe : `ecx` chez CharaFilter, `r11d` chez les jumelles.
+    registre = "rcx" if fixe is None else "r11"
+    cas = CASES if fixe is None else [(fixe, s) for s in range(fixe)]
+    for count, selected in cas:
+        for forward in (True, False):
+            total += 1
+            want = mirror(count, selected, forward)
+            out = e.call(fn, rcx=THIS, rdx=1 if forward else 0, r8=0, r9=0,
+                         mem={THIS: build(count, selected)}, stop=stop)
+            got = i32(out["reg"][registre])
+            if got == want:
+                ok += 1
+            else:
+                bad += 1
+                print(f"✗ {nom} count={count} selected={selected} avant={forward} :"
+                      f" jeu={got} miroir={want}")
+print(f"{ok} ✓ / {bad} ✗  sur {total} cas ({len(CIBLES)} classes)")
 sys.exit(1 if bad else 0)
