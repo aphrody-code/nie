@@ -129,7 +129,24 @@ as `None`, the other as `Some("")`. It is not a shortage of the table either: th
 2 755 lines for `menu_text`, `total_unfiltered` says 2 755, and none of them is empty — so no
 empty line was dropped on the way in.
 
-What produces `Some("")` on the native side and `None` here is not established. It is one slot
+What produces it is now narrowed to one argument. `menu_host.rs`'s `CMD_SET_TEXT` writes
+`Some(...)` only when argument 2 is a Lua string or number, and `None` otherwise:
+
+```rust
+let text = match args.get(2) {
+    Some(Value::String(s)) => Some(s.to_string_lossy()),
+    Some(v @ Value::Number(_)) | Some(v @ Value::Integer(_)) => Some(format!("0x{:08X}", …)),
+    _ => None,
+};
+```
+
+So natively the script calls `SetText(obj, idx, "")` with an EMPTY string, and in this module it
+calls it with `nil`. The divergence is upstream of the command, in whatever computes that third
+argument — not in the text table (proved identical, see
+`crates/tools/nie-site/tests/menu_text_shape.rs`) and not in the command handler, which is the
+same code on both sides.
+
+What computes that argument is not established. It is one slot
 on three screens, and the three replays otherwise match object for object. `shop_menu` remains
 scriptless on both sides.
 
