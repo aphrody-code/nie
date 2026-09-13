@@ -254,6 +254,36 @@ pub fn filter_step(count: i32, selected: i32, step: Step) -> i32 {
     suivant
 }
 
+/// Une matrice affine 4×3 telle que la table de placement les stocke : trois rangées de
+/// 16 octets, la translation dans la dernière colonne.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CellTransform {
+    /// Translation lue à `+0x0C`, `+0x1C`, `+0x2C` de l'entrée.
+    pub translation: [f32; 3],
+}
+
+/// La position d'une cellule : `base + translation[index]`.
+///
+/// Séquence `0x140544DF6`..`0x140544E4E` du créneau 73 (`0x140544BD0`), la passe de placement
+/// que le créneau 9 appelle par `[vt+0x248]` quand l'écran est STABILISÉ. Prouvée par
+/// `scripts/validate_listview_cell_position.py`, **5 ✓ / 0 ✗**.
+///
+/// Le pas de la table est de 48 octets (`index * 6 * 8`) et x/y/z sont espacés de 16 : c'est la
+/// colonne de translation d'une affine 4×3. Le jeu additionne ensuite une position de base lue
+/// dans un registre, puis remet le tout au widget.
+///
+/// Ce qui n'est PAS porté : d'où vient la base, et le chemin ANIMÉ. Tant que `[+0x1B6]` (le
+/// drapeau « animation en cours ») vaut 0, la vue n'interpole pas et cette addition suffit ;
+/// pendant une animation la position dépend du temps et ce module ne la décrit pas.
+#[must_use]
+pub fn cell_position(base: [f32; 3], cell: CellTransform) -> [f32; 3] {
+    [
+        base[0] + cell.translation[0],
+        base[1] + cell.translation[1],
+        base[2] + cell.translation[2],
+    ]
+}
+
 /// Le rang d'anneau qu'une cellule occupe, depuis l'état de la vue.
 ///
 /// `0x1405438CD`..`0x1405438E8` : `mov ecx,[this+0x198]` ; `cmp ecx,-1` ; `mov eax,[this+0x12C]` ;
@@ -480,5 +510,20 @@ mod tests {
         let mut vue = scroll(40, 4, 7, 7, 28, 3, 0);
         assert!(!vue.step_row(Step::Forward), "la vue de contenu s'arrete");
         assert_eq!(filter_step(8, 7, Step::Forward), 0, "le filtre revient au debut");
+    }
+
+    /// Les cas de `scripts/validate_listview_cell_position.py` : ce que le jeu calcule.
+    #[test]
+    fn a_cell_sits_at_the_base_plus_its_translation() {
+        let cas = [
+            ([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]),
+            ([0.0, 0.0, 0.0], [10.0, 20.0, 30.0], [10.0, 20.0, 30.0]),
+            ([1.0, 2.0, 3.0], [10.0, 20.0, 30.0], [11.0, 22.0, 33.0]),
+            ([0.5, 0.5, 0.5], [100.0, 200.0, 300.0], [100.5, 200.5, 300.5]),
+            ([640.0, 100.0, 0.0], [0.0, 216.0, 0.0], [640.0, 316.0, 0.0]),
+        ];
+        for (base, translation, attendu) in cas {
+            assert_eq!(cell_position(base, CellTransform { translation }), attendu);
+        }
     }
 }

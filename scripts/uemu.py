@@ -209,7 +209,7 @@ class Emu:
         self.uc = uc
         self.SCRATCH = SCRATCH
 
-    def call(self, vaddr, rcx=0, rdx=0, r8=0, r9=0, rax=0, xmm=(0.0, 0.0, 0.0, 0.0), mem=None, read=None, stop=None, stub_calls=False, xmm_in=None, read_xmm=None):
+    def call(self, vaddr, rcx=0, rdx=0, r8=0, r9=0, rax=0, xmm=(0.0, 0.0, 0.0, 0.0), mem=None, read=None, stop=None, stub_calls=False, xmm_in=None, read_xmm=None, reg_in=None):
         """Émule de `vaddr` à `stop` (ou fin .pdata). `xmm`=xmm0-3 (tuple de scalaires, legacy) ;
         `xmm_in`={idx: (x,y,z,w)} injecte n'importe quel XMM0-15 (pour émuler de la math SSE inlinée) ;
         `read_xmm`=[idx,…] lit ces XMM à l'arrêt → out["xmm"][idx] = (x,y,z,w). Permet de valider
@@ -239,6 +239,13 @@ class Emu:
             uc.reg_write((UC_X86_REG_XMM0, UC_X86_REG_XMM1, UC_X86_REG_XMM2, UC_X86_REG_XMM3)[i], int.from_bytes(data, "little"))
         for idx, vec in (xmm_in or {}).items():
             uc.reg_write(xmm_regs[idx], int.from_bytes(struct.pack("<4f", *vec), "little"))
+        # `reg_in` pose N'IMPORTE QUEL GPR, ce que les quatre registres d'arguments ne permettent
+        # pas. Emuler une TRANCHE de fonction — depuis un point choisi, pas depuis son prologue —
+        # demande de reconstituer l'etat que le prologue avait deja etabli : `rbx`, `rdi`, `r13`
+        # y portent couramment le `this`, une table ou une position de base. Sans cela une
+        # sequence interessante au milieu d'une grosse fonction reste hors de portee.
+        for nom, val in (reg_in or {}).items():
+            uc.reg_write(getattr(_xc, f"UC_X86_REG_{nom.upper()}"), val & 0xFFFFFFFFFFFFFFFF)
         err = None
         try:
             uc.emu_start(vaddr, stop or SENTINEL, count=500_000)
@@ -248,7 +255,8 @@ class Emu:
         # fonction (`stop=`) lit son resultat dans le registre que le code utilisait a cet
         # instant, et ce n'est presque jamais `rax`. Ajout purement additif : `out["rax"]`
         # continue de repondre comme avant.
-        out = {"rax": uc.reg_read(UC_X86_REG_RAX), "error": err, "mem": {}, "xmm": {}, "reg": {}}
+        out = {"rax": uc.reg_read(UC_X86_REG_RAX), "error": err, "mem": {}, "xmm": {}, "reg": {},
+               "rsp_in": rsp}
         for _nom in ("rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp",
                      *(f"r{_i}" for _i in range(8, 16))):
             out["reg"][_nom] = uc.reg_read(getattr(_xc, f"UC_X86_REG_{_nom.upper()}"))
