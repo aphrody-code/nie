@@ -221,6 +221,15 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   which is how the parse convention was confirmed independently. `MenuFont.palette` carries it
   and all three hosts fill it (`nie-site`, `nie-game`, `nie-wasm`); an absent palette paints
   white, never a guessed hue.
+- **The wiki does NOT need a markup decoder — the Rust exporters already emit a display form.**
+  `export_passives.rs` writes both `text_raw` (the game's string, markup intact, 1 694 marked
+  entries per locale) and `description` (markup removed AND `<VALUE>` interpolated AND `\n`
+  unescaped). The components read `description`; `text_raw` appears in their TYPES and is never
+  rendered. Verified 2026-09-13 by walking all 5 082 marked strings in `passives-full.json` to
+  their paths — every one is under `player[].text_raw`. So "the browser has no decoder" is not a
+  gap: raw is preserved for fidelity, display is derived in Rust at export time, and adding a
+  TypeScript stripper would duplicate a pass that already runs. Check which FIELD a component
+  reads before concluding the brackets reach a user.
 
 - **The knowledge base's build differs from `dist/nie.exe` — but its CLASS addresses hold.**
   `var/niers.sqlite` is anchored on `nie_eacpatched.exe` (31 468 032 B, `4c2b91fb…`); the target
