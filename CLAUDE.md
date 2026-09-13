@@ -257,6 +257,12 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   `curl` against the running site; and `cargo test` on an ALREADY-BUILT test binary in
   `target/debug/deps/` if the source has not changed. Reverse-engineering and measurement are
   therefore not blocked by a full disk cache — only shipping is.
+  **`cargo check` survives where `cargo build` does not**, including for wasm: measured the same
+  day, `cargo check -p nie-wasm --target wasm32-unknown-unknown` finishes in 13 s while
+  `build-wasm.ts` (release, fat LTO, `wasm-opt`) is killed. So a change can be written and proven
+  to COMPILE under this pressure; it just cannot be turned into a module. Do not read one failure
+  as the other's — and do not assume either without retesting, since the two crates differ by an
+  order of magnitude in link cost.
 
 - **The uemu oracle WORKS; the 49 old proofs are anchored on a build that is gone.** Measured
   2026-09-13: `nie.exe`, `nie_eacpatched.exe` and `dist/nie.exe` are all the SAME file
