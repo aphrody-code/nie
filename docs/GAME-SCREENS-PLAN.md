@@ -12,12 +12,12 @@ scripts and the game data say, and the profile is derived from the game's own ta
 | Layer | Owner | Surface |
 |---|---|---|
 | Screen catalogue (475) | `nie-site` | `GET /api/v1/menu/screens[/{stem}]` |
-| Static layout + resolved sprites | `nie-site` | `GET /api/v1/menu/layout/{screen}` (`canvas 1280×720`) |
+| Static layout + resolved sprites | `nie_formats::menu_screen`, in BOTH hosts | the page builds it (`game/menu-layout.ts`, `MenuScreenBuilder`); `GET /api/v1/menu/layout/{screen}` is the same code over the site's VFS, and the fallback |
 | Lua runtime scene (layers, objects, callbacks) | `nie-lua::menu_host` via `nie-site` | `GET/POST /api/v1/menu/runtime/{screen}` (`events`, `itemCounts`, `observedNative`) |
 | Compiled presentation (title, options row, avatar) | `nie-wasm` | `menu_presentation_json(id)` |
 | Game data, one call per family (26) | `nie-app::game_data` via `nie-site` | `GET /api/v1/game-data/{family}`, `POST …/calculate_stats` |
 | Wiki tables | `nie-site` | `/api/v1/wiki/*`, `/api/v1/entites/{table}` |
-| Renderers | `@niers/inacord-ui` | `LayoutRender`, `GameCanvas`, `NativeSceneLayers`, `NativeSprite`, `NativeText` |
+| Renderers | `@niers/inacord-ui` + `nie-wasm` | `GameCanvas`, `NativeSceneLayers`, `NativeSprite`, `NativeText`; the pixels come from `LayoutCanvas` → `MenuComposer` (the game's compositor in WebAssembly), not from DOM `<img>` |
 | Main menu bindings | `apps/nie-web/src/pages/MainMenu.tsx` | `title_menu_2` runtime, `bindMenuActions` |
 | Captures (33, 2560×1440) + manifest | `data/menu/` | `manifest.json` → `canonical_screen` per capture |
 
@@ -59,8 +59,10 @@ Lua scripts see a finished game.
 
 ## How a screen is built (the contract every agent follows)
 
-1. `apps/nie-web/src/screens/<screen>.tsx` renders `LayoutRender` from `/api/v1/menu/layout/{screen}`
-   and overlays the runtime scene from `/api/v1/menu/runtime/{screen}` (`createMenuRuntime`).
+1. `apps/nie-web/src/screens/<screen>.tsx` calls `loadMenuLayout(screen, locale)`
+   (`game/menu-layout.ts`), which BUILDS the layout in the page from the game's own bytes and
+   falls back to `GET /api/v1/menu/layout/{screen}` when nothing resolved; it paints with
+   `LayoutCanvas` and overlays the runtime scene (`createMenuRuntime`).
 2. Data comes from `/api/v1/game-data/*` and `/api/v1/profile/complete`, bound to the screen's
    list layers through `itemCounts` and text objects; lists paginate the way the Lua does.
 3. Filters use `GameFilterPanel` (already the game's FILTRES dialog); navigation, W/C tabs and
