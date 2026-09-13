@@ -251,6 +251,24 @@ binary has two levels with opposite behaviour. That also explains the shape of t
 subsystem: the list view does not hold a selected item, the CELLS hold their indices and the view
 scrolls over them.
 
+**The focus is NOT owned by the list view — checked, not assumed.** `[this+0x198]` feeds the ring
+slot, so whatever writes it is the "item" step the screens need. Across `CMenuListView`'s 19
+`.pdata`-rooted methods (7 of its 26 vtable entries are shared stubs with no `.pdata` root), it
+is **read once and never written**: `mov ecx,[rdi+198h]` at `0x1405438CD`, inside the re-indexer,
+with `rdi = this`. The other two `+198h` accesses in those methods — `0x140540FC2` and
+`0x140544E13` — are 64-bit POINTER loads on other objects, not this field.
+
+Two false results on the way to that, both worth naming. A byte-pattern scan for `89 /r disp32`
+found 340 writes to `+0x198` across `.text` and zero inside the class, but a pattern scan cannot
+prove a negative — forms with a SIB byte or a REX prefix move the displacement. Re-running it
+through iced-x86 confirmed the count, and surfaced the second trap: a text filter on `198h]`
+matches `mov [rel 1422D3198h],r14`, a write to a GLOBAL whose address merely ends in those
+digits. A negative needs a disassembler and an operand check, not a grep.
+
+So the focus is set by the OWNING menu class — one of the `game::CMenu*` classes, 28 of which
+call the `OnEnter` notifier. That is where the item step lives, and it is a different search
+than the six siblings.
+
 **Read, not proven, and here is what proving it needs.** The write sits inside a loop behind two
 lookups, and `Emu.call` seeds only `rcx/rdx/r8/r9/rax` — it cannot put a scratch pointer in `rbx`.
 `stub_calls=True` returns a fresh bump-allocated pointer per call, which is the right mechanism,
