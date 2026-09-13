@@ -5,9 +5,11 @@ assembled GLB payloads and `services.decodeBase64`; the component has no desktop
 API, VFS transport, filesystem, or application-alias imports. Rust continues to
 own native format decoding and model assembly.
 
-The desktop `components/editor/Viewport3D.tsx` is a compatibility binding. Its
-existing callers (`EditorView` and lazy `ModelPreview`) retain their props and
-type imports. It injects the existing byte conversion utility.
+The desktop `components/editor/Viewport3D.tsx` is a compatibility binding. It injects the
+existing byte conversion utility. Its only caller is `EditorView`: `ModelPreview`, the
+Explorer's preview pane, moved to `RustModelViewport` on 2026-09-13 — it showed one model with
+`selectedId` permanently `null` and no gizmo, so it was paying for a second rendering engine and
+using none of what distinguishes it.
 
 Preserved capabilities include multi-asset loading and disposal, scene outliner
 records and statistics, raycast selection, transform gizmos and callbacks,

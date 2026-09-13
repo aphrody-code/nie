@@ -18,7 +18,16 @@ export interface RustModelCamera {
 }
 
 interface RustModelViewportProps {
+	/** Identity of the model shown, and the default place to fetch it from. */
 	url: string | null;
+	/**
+	 * Alternative source of the GLB bytes, keyed by `url`.
+	 *
+	 * A host that already holds the bytes — the desktop Explorer assembles them over its own
+	 * API — would otherwise have to publish them as a blob URL just to have them fetched back.
+	 * `url` remains the identity that decides when to reload.
+	 */
+	loadBytes?: (signal: AbortSignal) => Promise<Uint8Array>;
 	createViewer: CreateRustModelViewer;
 	label?: string;
 	onReady?: () => void;
@@ -36,6 +45,7 @@ function asError(value: unknown): Error {
 /** A new recipe preserves the camera. Failed/stale loads never replace the current selection. */
 export function RustModelViewport({
 	url,
+	loadBytes,
 	createViewer,
 	label = "Avatar",
 	onReady,
@@ -139,12 +149,19 @@ export function RustModelViewport({
 		setLoading(true);
 		setError(null);
 		(async () => {
-			const response = await fetch(url, { signal: abort.signal });
-			if (!response.ok) throw new Error(`Model response failed (${response.status})`);
-			if (Number(response.headers.get("content-length")) > maxBytes) throw new Error("Model too large");
-			const buffer = await response.arrayBuffer();
-			if (buffer.byteLength > maxBytes) throw new Error("Model too large");
-			const bytes = new Uint8Array(buffer);
+			let bytes: Uint8Array;
+			if (loadBytes) {
+				bytes = await loadBytes(abort.signal);
+			} else {
+				const response = await fetch(url, { signal: abort.signal });
+				if (!response.ok) throw new Error(`Model response failed (${response.status})`);
+				if (Number(response.headers.get("content-length")) > maxBytes) throw new Error("Model too large");
+				const buffer = await response.arrayBuffer();
+				bytes = new Uint8Array(buffer);
+			}
+			// Le plafond vaut pour les deux sources : un hôte qui fournit ses octets ne doit pas
+			// contourner la limite que le chemin réseau respecte.
+			if (bytes.byteLength > maxBytes) throw new Error("Model too large");
 			if (abort.signal.aborted || instance !== viewer.current) return;
 			instance.load_glb(bytes);
 			modelLoaded.current = true;
@@ -152,7 +169,7 @@ export function RustModelViewport({
 			needsRender.current = true;
 		})().catch((cause) => { if (!abort.signal.aborted) { setError(asError(cause)); setLoading(false); } });
 		return () => abort.abort();
-	}, [instance, maxBytes, url]);
+	}, [instance, loadBytes, maxBytes, url]);
 
 	const orbit = (dx: number, dy: number) => {
 		camera.current.yaw += dx * 0.01;
