@@ -75,6 +75,16 @@ that price on keeper, menu and match-sim.
 
 ## Traps measured on this machine (2026-09-07)
 
+- **`bun test --root <dir>` sweeps `var/releases/`; the packages' own scripts do not.** A
+  deployment snapshot under `var/` carries a full copy of the sources, so running bun from the
+  repository root reports failures that belong to an old release. Use `bun run test` (which fans
+  out to each package) or a package's own script from its directory: `apps/nie-web` gives
+  189 pass / 0 fail where `--root apps/nie-web/src` gives 3 phantom failures.
+- **A stale `target/release/libnie_ffi.so` fails `@aphrody/nie` as a version desync.** Its test
+  asserts the FFI library reports the crate's version; on 2026-09-13 both manifests said 0.6.0
+  and the `.so`, dated 11 September, answered 0.5.11. Nothing is desynchronised — the artefact is
+  old. `cargo build -p nie-ffi --release` fixes it, and no version should be bumped to "fix" it.
+
 - **`data/lua_scripts/` DIVERGES from the game's VFS — do not analyse it.** It is a flat dump,
   and its `main_menu_inc_3.00.01.00.lua.bin` is 13 362 bytes where the VFS carries 13 092
   (`niers vfs find`, measured 2026-09-12). The larger copy DEFINES five globals the real file
