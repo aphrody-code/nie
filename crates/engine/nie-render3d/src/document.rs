@@ -118,8 +118,13 @@ pub struct SceneObjectV2 {
     /// V1 migration derives a deterministic initial value from object order. That value is not
     /// stable across a fresh migration after the v1 objects have been reordered; once saved as
     /// v2, the identifier is data and must be preserved by editors.
+    ///
+    /// Absent from an incoming payload, it is empty; the editing session mints one. Once saved,
+    /// it is data and must be preserved.
+    #[serde(default)]
     pub id: String,
     /// Optional parent object identifier.
+    #[serde(default)]
     pub parent: Option<String>,
     pub name: String,
     pub asset: String,
@@ -147,6 +152,51 @@ impl Default for SceneDocumentV2 {
             version: 2,
             objects: vec![],
         }
+    }
+}
+
+impl SceneObjectV2 {
+    /// Upgrades one v1 object, keeping its yaw as a rotation about Y.
+    ///
+    /// The identifier is left EMPTY: only the owner of the whole document knows which ones are
+    /// already taken, so minting one here would invent a collision.
+    #[must_use]
+    pub fn from_v1_object(object: &SceneObject) -> Self {
+        let mut upgraded = Self {
+            id: String::new(),
+            parent: None,
+            name: object.name.clone(),
+            asset: object.asset.clone(),
+            position: object.position,
+            rotation: [0.0, 0.0, 0.0, 1.0],
+            scale: object.scale,
+            visible: object.visible,
+        };
+        upgraded.set_yaw_degrees(object.yaw);
+        upgraded
+    }
+
+    /// Le lacet, en degrés : la rotation autour de Y que porte le quaternion.
+    ///
+    /// Le document v1 ne savait exprimer que celle-là, et l'éditeur natif n'expose toujours
+    /// qu'elle. La lire du quaternion plutôt que de la stocker à côté évite deux sources de
+    /// vérité pour la même rotation.
+    #[must_use]
+    pub fn yaw_degrees(&self) -> f32 {
+        let [x, y, z, w] = self.rotation;
+        let sin = 2.0f32.mul_add(w * y, 2.0 * x * z);
+        let cos = 2.0f32.mul_add(-(y * y + z * z), 1.0);
+        sin.atan2(cos).to_degrees()
+    }
+
+    /// Remplace la rotation par ce seul lacet.
+    ///
+    /// C'est un REMPLACEMENT, pas une composition : une inclinaison posée par le gizmo du
+    /// viewport disparaît. L'éditeur natif n'offre pas d'autre axe, donc il ne peut pas en
+    /// détruire un qu'il montrerait.
+    pub fn set_yaw_degrees(&mut self, degrees: f32) {
+        let half = degrees.to_radians() * 0.5;
+        self.rotation = [0.0, half.sin(), 0.0, half.cos()];
     }
 }
 
@@ -182,18 +232,9 @@ impl SceneDocumentV2 {
             .objects
             .iter()
             .enumerate()
-            .map(|(index, object)| {
-                let half_yaw = object.yaw.to_radians() * 0.5;
-                SceneObjectV2 {
-                    id: format!("object-{index}"),
-                    parent: None,
-                    name: object.name.clone(),
-                    asset: object.asset.clone(),
-                    position: object.position,
-                    rotation: [0.0, half_yaw.sin(), 0.0, half_yaw.cos()],
-                    scale: object.scale,
-                    visible: object.visible,
-                }
+            .map(|(index, object)| SceneObjectV2 {
+                id: format!("object-{index}"),
+                ..SceneObjectV2::from_v1_object(object)
             })
             .collect();
         Self {
@@ -435,6 +476,45 @@ impl From<&SceneDocument> for SceneDocumentV2 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn le_lacet_se_lit_et_se_recrit_dans_le_quaternion() {
+        let mut object = SceneObjectV2 {
+            id: "a".into(),
+            parent: None,
+            name: "a".into(),
+            asset: "a.glb".into(),
+            position: [0.0; 3],
+            rotation: [0.0, 0.0, 0.0, 1.0],
+            scale: [1.0; 3],
+            visible: true,
+        };
+        for degrees in [-179.0, -90.0, -0.5, 0.0, 37.5, 90.0, 179.0] {
+            object.set_yaw_degrees(degrees);
+            assert!(
+                (object.yaw_degrees() - degrees).abs() < 1e-3,
+                "{degrees} -> {}",
+                object.yaw_degrees()
+            );
+        }
+    }
+
+    #[test]
+    fn la_migration_v1_conserve_le_lacet() {
+        let v1 = SceneDocument {
+            version: 1,
+            objects: vec![SceneObject {
+                name: "a".into(),
+                asset: "a.glb".into(),
+                position: [0.0; 3],
+                yaw: 42.0,
+                scale: [1.0; 3],
+                visible: true,
+            }],
+        };
+        let v2 = SceneDocumentV2::from_v1(&v1);
+        assert!((v2.objects[0].yaw_degrees() - 42.0).abs() < 1e-3);
+    }
+
     #[test]
     fn document_roundtrip_et_validation() {
         let mut document = SceneDocument {

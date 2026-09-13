@@ -4,7 +4,7 @@ use clap::Parser;
 use eframe::{egui, egui_wgpu, wgpu};
 use nie_editor::EditorSession;
 use nie_render3d::{
-    document::{SceneDocument, SceneObject},
+    document::{SceneDocumentV2, SceneObjectV2},
     glb,
     gpu::{Backend, Camera, GpuModel, GpuRenderer},
 };
@@ -55,7 +55,7 @@ struct Studio {
     /// entre deux redimensionnements : éviter de la réenregistrer à chaque frame.
     texture_size: Option<[u32; 2]>,
     session: EditorSession,
-    pending_edit: Option<SceneDocument>,
+    pending_edit: Option<SceneDocumentV2>,
     assets: HashMap<String, glb::Model>,
     camera: Camera,
     framing: Option<([f32; 3], f32)>,
@@ -103,7 +103,7 @@ impl Studio {
         Ok(studio)
     }
 
-    fn checkpoint(&mut self, before: SceneDocument) {
+    fn checkpoint(&mut self, before: SceneDocumentV2) {
         match self.session.commit(before) {
             Ok(true) => self.dirty = true,
             Ok(false) => {}
@@ -117,7 +117,10 @@ impl Studio {
             .with_context(|| format!("asset {}", path.display()))?;
         let key = path.to_string_lossy().into_owned();
         let model = glb::parse(&std::fs::read(&path)?)?;
-        self.session.add_object(SceneObject {
+        self.session.add_object(SceneObjectV2 {
+            // Vide : la session frappe l'identifiant, qui est une donnée du document.
+            id: String::new(),
+            parent: None,
             name: path
                 .file_stem()
                 .unwrap_or_default()
@@ -125,7 +128,7 @@ impl Studio {
                 .into_owned(),
             asset: key.clone(),
             position: [0.; 3],
-            yaw: 0.,
+            rotation: [0., 0., 0., 1.],
             scale: [1.; 3],
             visible: true,
         })?;
@@ -261,7 +264,16 @@ impl Studio {
                             );
                         });
                     }
-                    pane.add(egui::Slider::new(&mut object.yaw, -180.0..=180.0).text("Rotation Y"));
+                    // Le document porte un quaternion complet ; cet éditeur n'expose que le
+                    // lacet, donc il le lit et ne le réécrit qu'une fois déplacé — sinon il
+                    // écraserait à chaque image une inclinaison posée ailleurs.
+                    let mut yaw = object.yaw_degrees();
+                    if pane
+                        .add(egui::Slider::new(&mut yaw, -180.0..=180.0).text("Rotation Y"))
+                        .changed()
+                    {
+                        object.set_yaw_degrees(yaw);
+                    }
                     for axis in 0..3 {
                         pane.add(
                             egui::Slider::new(&mut object.scale[axis], 0.01..=10.)

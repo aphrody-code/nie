@@ -503,17 +503,10 @@ pub fn headless_inspect_json(bytes: &[u8]) -> Result<String, String> {
 }
 
 fn editor_add_object_impl(project_json: &str, object_json: &str) -> Result<String, String> {
-    if object_json.len() > nie_editor::MAX_PROJECT_BYTES {
-        return Err(format!(
-            "scene object JSON exceeds {} bytes",
-            nie_editor::MAX_PROJECT_BYTES
-        ));
-    }
     let mut session = nie_editor::EditorSession::from_json(project_json.as_bytes())
         .map_err(|error| error.to_string())?;
-    let object = serde_json::from_str(object_json).map_err(|error| error.to_string())?;
     session
-        .add_object(object)
+        .add_object_json(object_json)
         .map_err(|error| error.to_string())?;
     let bytes = session
         .to_json_pretty()
@@ -568,16 +561,11 @@ impl WasmEditorSession {
             .map_err(|error| JsValue::from_str(&error.to_string()))
     }
 
-    /// Adds a validated JSON scene object and returns its index.
+    /// Adds a validated JSON scene object of either persisted version, and returns its index.
     pub fn add_object_json(&mut self, object_json: &str) -> Result<u32, JsValue> {
-        if object_json.len() > nie_editor::MAX_PROJECT_BYTES {
-            return Err(JsValue::from_str("scene object JSON exceeds project limit"));
-        }
-        let object = serde_json::from_str(object_json)
-            .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let index = self
             .inner
-            .add_object(object)
+            .add_object_json(object_json)
             .map_err(|error| JsValue::from_str(&error.to_string()))?;
         u32::try_from(index).map_err(|error| JsValue::from_str(&error.to_string()))
     }
@@ -3337,8 +3325,16 @@ mod tests {
                 .expect("valid object should be added"),
         )
         .expect("edited project should be valid JSON");
-        assert_eq!(json["version"], 1);
+        // Un projet v1 s'ouvre et se réenregistre en v2 : c'est la migration, pas une perte.
+        assert_eq!(json["version"], 2);
         assert_eq!(json["objects"][0]["name"], "mainmenu01-preview");
+        assert_eq!(json["objects"][0]["rotation"], serde_json::json!([0.0, 0.0, 0.0, 1.0]));
+        assert!(
+            json["objects"][0]["id"]
+                .as_str()
+                .is_some_and(|id| !id.is_empty()),
+            "la session frappe un identifiant : {json}"
+        );
         assert_eq!(
             json["objects"][0]["asset"],
             "data/common/gamedata/menu/obj/mainmenu01_00_background.glb"

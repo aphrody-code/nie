@@ -13,26 +13,14 @@ name = "nie-editor"
 path = "src/main.rs"
 required-features = ["host"]
 
-[[bin]]
-name = "nie-editor-legacy"
-path = "src/legacy_main.rs"
-required-features = ["legacy-fyrox"]
-
 [features]
 default = ["host"]
 host = ["dep:clap", "dep:eframe", "nie-render3d/gpu"]
-legacy-fyrox = ["host", "dep:fyrox", "dep:fyroxed_base", "dep:nie-formats"]
 
 [lints]
 workspace = true
 
 [dependencies]
-# Legacy host kept on request; the default binary uses the shared NIE renderer.
-fyrox = { workspace = true, optional = true }
-fyroxed_base = { workspace = true, optional = true }
-
-# Real game assets: mount the CPK VFS and assemble the model (G4MD+G4MG+G4TX).
-nie-formats = { workspace = true, optional = true, features = ["textures"], default-features = true }
 nie-render3d.workspace = true
 # Version compatible with the engine's single wgpu 29 dependency.
 eframe = { workspace = true, optional = true, features = ["default_fonts", "wgpu", "x11", "wayland"] }

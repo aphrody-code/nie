@@ -204,8 +204,6 @@ criterion = { version = "0.8" }
 dirs-next = { version = "2" }
 eframe = { version = "=0.34.1", default-features = false }
 flate2 = { version = "1" }
-fyrox = { version = "1.0.1" }
-fyroxed_base = { version = "1.0.1" }
 googletest = { version = "0.14" }
 http-body-util = { version = "0.1.4" }
 ievr-tools = { version = "0.6.0", path = "crates/tools/ievr-tools", default-features = false }

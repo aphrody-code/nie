@@ -23,21 +23,23 @@ their complete feature contract can be migrated. The native Rust renderer remain
 the separate reconstructed-game target; this authoring viewport is not evidence
 of native rendering parity.
 
-## Preview and reconstruction adapters
+## The other renderer, and what still separates them
 
-`ModelViewerSurface` owns the shared gallery/detail lifecycle of the existing model-viewer
-adapter. Azalee wrappers retain their dialogs, downloads, visibility suspension, availability
-checks, rotation and shadow settings. The host loader retains local Draco, Basis and Meshopt
-configuration. Do not replace this adapter with the editor's unconfigured GLTFLoader and lose
-compressed-model support. This is a compatibility rendering backend, not another editor.
+`RustModelViewport` (`../shell/rust-model-viewport.tsx`) is the OTHER model surface in this
+repository, and it is the one every page uses: `/avatar`, `/models-3d` and the game viewer all
+reach `nie-render3d` through WebGPU, its WebGL 2 backend in `nie-viewer-web`, or the CPU
+rasteriser, in that order (`apps/nie-web/src/game/native-viewer.ts`). That chain replaced a
+445-line TypeScript WebGL viewer in 2026-09; this file is what is left of the same class.
 
-The optional `character-renderer.ts` implementation has one library home here and an Azalee
-re-export. No current mounted consumer was found; its cel/outline behavior is retained without
-claiming that it is an active application feature.
+What keeps them apart is measured, not rhetorical. `WebViewer` holds ONE model and exposes
+orbit, resize and render. This viewport holds several assets at once and adds ray picking, a
+node outliner with per-mesh statistics, transform gizmos, wireframe and a grid. Nothing in
+`nie-render3d` performs picking today — `rg 'raycast|ray_'` over the crate returns only
+`depth_or_array_layers`. Retiring this file therefore means writing multi-asset scenes,
+picking and gizmo interaction in Rust first; until then, deleting it would remove editing,
+not duplication.
 
-The Rust `RustModelViewport` remains the separate game reconstruction adapter. It is not the
-Inacord editor renderer and does not currently implement the editor's selection/TRS contracts.
-All new editor features extend `Viewport3D`; all preview lifecycle changes extend the shared
-preview adapter. Consolidating these rendering backends requires measured compressed-format,
-material, camera and editing parity first; source ownership is unified, backend parity is not
-asserted by this extraction.
+The scene DOCUMENT is no longer duplicated: `SceneDocumentV2` in `nie-render3d` is the one
+model, and `nie-editor`'s `EditorSession` is the one session, shared by the native editor and
+the browser bindings. This component still keeps its own React state for the loaded GLB nodes,
+which are sub-nodes of an asset and have no representation in that document.
