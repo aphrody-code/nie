@@ -364,7 +364,7 @@ pub fn parse_metrics(cfg: &CfgBinFile) -> FontMetrics {
 ///
 /// // Atlas 4×4 BGRA8: page 0 uses the red mask at (col=2, row=1), R=200.
 /// let mut atlas = [0u8; 4 * 4 * 4];
-/// atlas[(4 + 2) * 4 + 2] = 200;
+/// atlas[(4 + 2) * 4] = 200;
 ///
 /// let metric = GlyphMetric {
 ///     font: 0, base: 0, codepoint: 65,
@@ -389,7 +389,14 @@ pub fn glyph_blitter(
     dst_y: i32,
     color: [u8; 4],
 ) {
-    let Some(&mask_channel) = [2usize, 1, 0, 3].get(usize::from(metric.page)) else {
+    // `metric.page` EST l'index du canal, sans permutation : le plan 0 est le rouge, et
+    // `g4tx_decode::decode_texture_rgba` a déjà normalisé l'atlas natif BGRA8 en RGBA. La table
+    // `[2, 1, 0, 3]` qui vivait ici appliquait la permutation une SECONDE fois : le latin
+    // (plan 0) était lu dans le bleu, et « Histoire étendue » s'affichait en kanji. Mesuré sur
+    // `font_def` le 2026-09-13 — à la cellule du `A` (x=1157, y=1), le canal 0 porte `ABCDEFGHI`
+    // et le canal 2 porte `痔痕痘痙痛`.
+    let Some(mask_channel) = (usize::from(metric.page) < 4).then(|| usize::from(metric.page))
+    else {
         return;
     };
     let Some(atlas_stride) = (atlas_w as usize).checked_mul(4) else {
@@ -758,13 +765,15 @@ mod tests {
 
     /// Synthétique : [`glyph_blitter`] trace correctement un pixel alpha depuis un atlas minimal.
     ///
-    /// Atlas 4×4 BGRA8, un seul pixel opaque en (2, 1). Le blitter doit le retrouver
+    /// Atlas 4×4 RGBA8 décodé, un seul pixel opaque en (2, 1). Le blitter doit le retrouver
     /// et l'écrire à la bonne position du canevas.
     #[test]
     fn glyph_blitter_synthetic() {
-        // Page 0 selects the red coverage byte of the BGRA8 atlas.
+        // Le plan 0 est le canal 0 du tampon DÉCODÉ (RGBA). L'ancienne version posait l'octet
+        // en `+2` et passait, ce qui gravait la double permutation dans la suite de tests :
+        // le blitter et son test étaient faux du même écart, donc d'accord entre eux.
         let mut atlas = [0u8; 4 * 4 * 4];
-        atlas[6 * 4 + 2] = 200;
+        atlas[6 * 4] = 200;
 
         // Glyphe : x=2, y=1, width=1, cell_height=2.
         let metric = GlyphMetric {
@@ -811,7 +820,7 @@ mod tests {
     #[test]
     fn glyph_blitter_color_alpha_modulation() {
         let mut atlas = [0u8; 4 * 4];
-        atlas[2] = 200; // Pixel (0,0), page 0 coverage=200.
+        atlas[0] = 200; // Pixel (0,0), plan 0 = canal 0 du tampon décodé.
 
         let metric = GlyphMetric {
             font: 0,
@@ -848,7 +857,7 @@ mod tests {
     /// Synthétique : pixels hors canevas sont ignorés sans panique.
     #[test]
     fn glyph_blitter_clip_out_of_bounds() {
-        let atlas = [0u8, 0, 255, 0]; // Page 0, one opaque pixel.
+        let atlas = [255u8, 0, 0, 0]; // Plan 0 = canal 0, un pixel opaque.
         let metric = GlyphMetric {
             font: 0,
             base: 0,
@@ -922,8 +931,11 @@ mod tests {
 
     #[test]
     fn glyph_blitter_selects_each_independent_plane() {
+        // Le plan N EST le canal N du tampon décodé : aucune permutation. L'ancienne table
+        // `[2, 1, 0, 3]` attendait l'ordre BGRA des octets DDS natifs, que seul un test
+        // fournissait — la production décode en RGBA.
         let atlas = [17, 53, 109, 211];
-        for (page, coverage) in [(0, 109), (1, 53), (2, 17), (3, 211)] {
+        for (page, coverage) in [(0, 17), (1, 53), (2, 109), (3, 211)] {
             let mut canvas = [0; 4];
             glyph_blitter(
                 &atlas,
@@ -958,7 +970,7 @@ mod tests {
 
     #[test]
     fn glyph_blitter_composites_straight_alpha_without_erasing() {
-        let atlas = [0, 0, 128, 0];
+        let atlas = [128, 0, 0, 0];
         let mut canvas = [0, 0, 255, 255];
         glyph_blitter(
             &atlas,
@@ -1052,7 +1064,9 @@ mod tests {
             ],
         };
         let metrics = parse_metrics(&cfg);
-        let atlas = [0, 0, 71, 0, 0, 149, 0, 0];
+        // Deux plans DIFFERENTS : le premier glyphe est page 0 (canal 0 du pixel 0), le
+        // second page 1 (canal 1 du pixel 1).
+        let atlas = [71, 0, 0, 0, 0, 149, 0, 0];
         let mut canvas = [0; 5 * 4];
         assert!(metrics.glyph('é' as u32).is_none());
         assert_eq!(metrics.measure_text("éœ🦀"), 5);
@@ -1281,12 +1295,15 @@ mod tests {
         let g4tx = crate::g4tx::parse(&g4tx_bytes).expect("parse G4TX");
         let tex = &g4tx.textures[0];
         assert!(tex.is_dds, "atlas doit être un DDS");
-        // Pixels mip0 : data_offset + 128 (DDS magic 4 + DDS_HEADER 124 = 128, sans DX10 ext).
-        let pixel_start = tex.data_offset + 128;
-        let atlas = g4tx_bytes
-            .get(pixel_start..)
-            .expect("pixels atlas hors limites");
-        let atlas_w = 4096u32;
+        // DÉCODÉ, pas brut. Cette version lisait `data_offset + 128` — les octets DDS natifs,
+        // en BGRA Level-5 — alors que tout appelant de production (`bitmap_font`,
+        // `menu_layout::render_label`) passe la sortie de `decode_texture_rgba`, en RGBA. Le
+        // test était donc le SEUL à respecter l'ordre que le blitter supposait, et il validait
+        // une convention que personne n'employait : en production le plan latin était lu dans le
+        // bleu, et « Histoire étendue » sortait en kanji (mesuré le 2026-09-13).
+        let (atlas_w, _atlas_h, atlas_px) =
+            crate::g4tx_decode::decode_texture_rgba(&g4tx_bytes, tex).expect("décodage atlas");
+        let atlas = atlas_px.as_slice();
 
         // Canevas 200×71 RGBA8.
         let canvas_w = 200usize;

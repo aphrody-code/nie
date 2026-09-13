@@ -3,7 +3,7 @@ use crate::{cfgbin, font, g4tx, g4tx_decode};
 
 /// Decoded atlas and native glyph metrics, reusable across text runs.
 pub struct BitmapFont {
-    atlas_bgra: Vec<u8>,
+    atlas_rgba: Vec<u8>,
     metrics: font::FontMetrics,
 }
 
@@ -58,7 +58,7 @@ impl BitmapFont {
             }
         }
         Ok(Self {
-            atlas_bgra: pixels,
+            atlas_rgba: pixels,
             metrics,
         })
     }
@@ -98,7 +98,7 @@ impl BitmapFont {
         for (index, line) in lines.iter().enumerate() {
             let baseline = index as i32 * cell_height as i32 + i32::from(self.metrics.dims.ascent);
             font::draw_text(
-                &self.atlas_bgra,
+                &self.atlas_rgba,
                 self.metrics.atlas_width,
                 &self.metrics,
                 line,
@@ -135,7 +135,8 @@ mod tests {
             page: 0,
         };
         BitmapFont {
-            atlas_bgra: vec![0, 0, 211, 0],
+            // Plan 0 = canal 0 : le tampon est celui de `decode_texture_rgba`.
+            atlas_rgba: vec![211, 0, 0, 0],
             metrics: FontMetrics {
                 atlas_width: 1,
                 atlas_height: 1,
