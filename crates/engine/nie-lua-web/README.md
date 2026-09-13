@@ -146,7 +146,22 @@ argument — not in the text table (proved identical, see
 `crates/tools/nie-site/tests/menu_text_shape.rs`) and not in the command handler, which is the
 same code on both sides.
 
-What computes that argument is not established. It is one slot
+What computes it is not established, but the two hosts demonstrably hold DIFFERENT LUA TYPES for
+the same value. Comparing each side's `missing` on `main_menu` shows the same unhandled command
+logged with the same id and different argument rendering:
+
+```text
+module : "0x88154DF4, 1739028016 (cmd 0x88154df4/0x0bf14058)"
+natif  : "2283097588, 1739028016 (cmd 0x88154df4/0x0bf14058)"
+```
+
+`2283097588 == 0x88154DF4`. Natively that first argument is a Lua **number**; in this module it
+is the **string** `"0x88154DF4"`. Same value, different type — and `CMD_SET_TEXT` branches on
+exactly that distinction, which is why one host stores a text and the other does not.
+
+Where a number becomes a hex string is the remaining question. `menu_host.rs` formats
+`0x{:08X}` in several places, including `CMD_SET_TEXT`'s own number branch, so a value written by
+one command and read back by another is a plausible path — unverified. It is one slot
 on three screens, and the three replays otherwise match object for object. `shop_menu` remains
 scriptless on both sides.
 
