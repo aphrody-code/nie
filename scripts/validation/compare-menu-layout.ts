@@ -8,14 +8,18 @@
  * ```sh
  * ./target/release/nie-site --listen 127.0.0.1:18099 &
  * bun --bun scripts/validation/compare-menu-layout.ts chara_bank_menu
+ * bun --bun scripts/validation/compare-menu-layout.ts --sweep 30   # échantillon régulier
  * # ou, contre le site que `differential.ts` utilise :
  * NIE_SITE_BASE=http://127.0.0.1:8085 bun --bun scripts/validation/compare-menu-layout.ts main_menu
  * ```
  *
- * Mesuré le 2026-09-13 sur **30 écrans** — un échantillon de 24 tirés du catalogue plus six
- * nommés (`chara_bank_menu` 78 objets, `shop_menu` 62, `gallery_menu` 7, `chara_edit_menu` 18,
- * `main_menu`, `title_menu`) : **29 identiques au caractère près, 1 identique hors arrondi,
- * 0 divergent**. `shop_menu` : un écart sur 62, une rotation dont les deux `f32` sont voisins d'un
+ * Mesuré le 2026-09-13, `--sweep 30` : **27 identiques au caractère près, 3 identiques hors
+ * arrondi, 0 divergent**. Les trois écarts sont des `f32` voisins d'un ULP ; aucun objet ne
+ * diverge au-delà. (Un premier relevé, sur un échantillon partiellement choisi à la main,
+ * donnait 29/1/0 — le balayage régulier tire simplement plus d'écrans à rotation.)
+ *
+ * Le mode `--sweep` sort en échec dès qu'un écran DIVERGE au-delà de l'arrondi, ce qui en fait
+ * une porte utilisable avant un déploiement, et pas seulement un outil de lecture. `shop_menu` : un écart sur 62, une rotation dont les deux `f32` sont voisins d'un
  * ULP (`-0.05235987529158592` contre `-0.05235988274216652`). La rotation vient de
  * `r10.atan2(r00)` et le chemin passe aussi par `sin`/`cos` : des fonctions de libm, différentes
  * sur `wasm32` (celle de Rust) et sur `x86-64` (celle du système). Le code est le même, la
@@ -31,10 +35,51 @@ import { readFileSync } from "node:fs";
 // écoute sur 8085. Avoir deux valeurs codées en dur fait lancer le mauvais serveur et rend des
 // résultats vides qui ressemblent à un échec de comparaison.
 const BASE = process.env.NIE_SITE_BASE ?? "http://127.0.0.1:18099";
-const ECRAN = process.argv[2] ?? "chara_bank_menu";
+const ARGS = process.argv.slice(2);
+/** `--sweep <n>` compare un ÉCHANTILLON RÉGULIER du catalogue au lieu d'un seul écran. */
+const SWEEP = ARGS.includes("--sweep") ? Number(ARGS[ARGS.indexOf("--sweep") + 1] ?? 24) : 0;
+const ECRAN = ARGS.find((a) => !a.startsWith("--") && Number.isNaN(Number(a))) ?? "chara_bank_menu";
 
 const glue = await import("/home/ubuntu/niers/apps/nie-web/src/wasm/nie_wasm.js");
 glue.initSync({ module: readFileSync("/home/ubuntu/niers/apps/nie-web/public/static/game/nie_wasm_bg.wasm") });
+
+/** Compare un écran et rend son verdict, sans rien imprimer. */
+async function verdictDe(ecran: string): Promise<string> {
+  const proc = Bun.spawn(["bun", "--bun", import.meta.path, ecran], {
+    env: { ...process.env, NIE_SITE_BASE: BASE },
+    stdout: "pipe",
+  });
+  const sortie = await new Response(proc.stdout).text();
+  await proc.exited;
+  const ligne = sortie.split("\n").find((l) => /IDENTIQUES|DIFFÉRENTS|inconnu/.test(l));
+  return ligne?.trim() ?? "sans verdict";
+}
+
+if (SWEEP > 0) {
+  // Un échantillon RÉGULIER, pas les premiers : le catalogue est alphabétique et ses premiers
+  // écrans sont tous de la même famille, ce qui mesurerait une famille plutôt que le jeu.
+  const catalogue = await (await fetch(`${BASE}/api/v1/menu/screens`)).json();
+  const noms: string[] = (catalogue.screens ?? [])
+    .map((x: unknown) => (typeof x === "string" ? x : ((x as { screen?: string }).screen ?? "")))
+    .filter(Boolean);
+  const pas = Math.max(1, Math.ceil(noms.length / SWEEP));
+  const echantillon = noms.filter((_, i) => i % pas === 0).slice(0, SWEEP);
+  const comptes = { identiques: 0, arrondi: 0, divergents: 0, inconnus: 0 };
+  for (const nom of echantillon) {
+    const verdict = await verdictDe(nom);
+    if (verdict.includes("hors arrondi")) comptes.arrondi += 1;
+    else if (verdict.startsWith("IDENTIQUES")) comptes.identiques += 1;
+    else if (verdict.includes("inconnu")) comptes.inconnus += 1;
+    else {
+      comptes.divergents += 1;
+      console.log(`  ${nom} : ${verdict}`);
+    }
+  }
+  console.log(
+    `${echantillon.length} écrans | identiques ${comptes.identiques} | hors arrondi ${comptes.arrondi} | divergents ${comptes.divergents} | inconnus ${comptes.inconnus}`,
+  );
+  process.exit(comptes.divergents === 0 ? 0 : 1);
+}
 
 const reponse = await fetch(`${BASE}/api/v1/screens/${ECRAN}`);
 if (!reponse.ok) {
