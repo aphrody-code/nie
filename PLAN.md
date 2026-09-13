@@ -986,12 +986,28 @@ désormais un nombre plutôt qu'une impression.
 3. **Ce que le rejeu réclame encore**, mesuré par `crates/engine/nie-lua/tests/menu_host_gap.rs`
    sur un échantillon régulier de 93 écrans : 398 unités, **19 écrans complets**. Le champ
    `ReplayOutput::missing` les nomme — avant, `complete: false` ne disait pas quoi.
+3bis. **Les deux hôtes comparés pour de bon.** Deux portes existent désormais, chacune sortant en
+   échec sur régression (recette dans `CLAUDE.md`) :
+   - `scripts/validation/compare-menu-layout.ts --sweep 30` — le MÊME `nie_formats::menu_screen`
+     exécuté en `wasm32` et en natif : **27 identiques, 3 à un ULP près, 0 divergent**. Les trois
+     écarts viennent de `atan2`/`sin`/`cos`, dont libm diffère d'une cible à l'autre.
+   - `crates/engine/nie-lua-web/scripts/differential.ts` — la VM Lua du navigateur contre celle du
+     site : **10/14**, contre 0/14 la veille. L'ABI `nie_lua_web_load_text` a fermé l'écart de
+     texte sur huit écrans ; l'unification de `value_repr` a fait coïncider les listes `missing`
+     des deux hôtes, qui ne divergeaient que par la largeur de `lua_Integer`.
 4. **La distance à une VM Lua en Rust pur** (la seule voie vers un module unique) :
    `opcode_survey.rs` mesure 38 opcodes sur 40 réellement atteints, `LOADKX` et `EXTRAARG`
    jamais. L'interpréteur est donc la petite moitié. La grande est l'hôte : 6 686 globales lues
    sur le corpus, dont l'hôte Rust n'en fournit aucune — mais ce nombre borne la SURFACE, pas le
    travail, et la mesure dynamique dit 398.
-5. **Les cinq globales en tête de file ne sont ni du Lua ni du binaire** : 0 `SETTABUP _ENV` sur
+5. **Le plafond de la VM 32 bits est identifié.** `LUA_INTEGER` suit `ptrdiff_t`
+   (`vendor/lua-src/lua-5.2.4/luaconf.h:462`) : 32 bits sur wasm32. Le jeu clé tout par CRC-32 et
+   la moitié de ces valeurs dépassent `i32::MAX`, donc elles ne franchissent pas la frontière de
+   la même façon sur les deux cibles. Élargir a été TENTÉ le 2026-09-13 — `mlua-sys` vendorisé,
+   `lua_Integer` en `i64`, `LUA_INTEGER=long long` — et fait tomber le différentiel de 10/14 à
+   **3/14** (`nie_lua_web_alloc returned null`). Annulé ; `luaconf.h` dérive plus que la largeur
+   depuis cette macro, et le désaccord sort en épuisement du tas, pas en erreur de type.
+6. **Les cinq globales en tête de file ne sont ni du Lua ni du binaire** : 0 `SETTABUP _ENV` sur
    l'extraction VFS (651 fichiers), et ni leurs noms ni leurs CRC-32 dans `nie.exe`. Le hachage
    du jeu n'est donc pas forcément `zlib.crc32` pour cet usage, ou les noms sont stockés
    autrement ; trancher demande de reverser le répartiteur de globales de la VM du jeu — pilier
