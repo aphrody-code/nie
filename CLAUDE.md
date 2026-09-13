@@ -167,6 +167,14 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   host state, not this repository's). Measured 2026-09-12: `-j 1` builds `wgpu` + `naga` under
   the profile's own `lto = "fat"` in 2 min 28 s. Dropping to `thin` costs 367 bytes and buys
   nothing; dropping LTO entirely costs 297 736. Lower the job count, keep the profile.
+- **That pressure is CONFIGURED, not accidental — 18 GiB of CPK cache on a 45 GiB box.** The two
+  services declare their own LRU budgets in `deploy/systemd/`: `NIE_CPK_CACHE_BUDGET_GIB=12` for
+  `nie-model-serve`, `=6` for `nie-site` (default in `nie_formats::vfs` is 16). Measured
+  2026-09-13, both sit UNDER budget — 11.1 GiB and 3.6 GiB — so a build that dies has lost to a
+  design decision, not to a leak. `nie-site` grew from 0.35 to 3.6 GiB in half an hour of
+  cross-host gate traffic, which is the LRU filling exactly as intended; do not read that curve
+  as a regression, and do not restart a production service over it. Budget `-j 1`, or run the
+  heavy gate when neither cache is warm.
 - **`wgpu/webgl` costs +2.24 MiB and blows the 6 MiB module budget** (4 518 833 → 6 865 774,
   measured 2026-09-12). Serving WebGL from a *separate* crate costs 2 855 742 bytes paid only by
   browsers without WebGPU — the pattern to reach for when a backend is needed by a minority path.
