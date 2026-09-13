@@ -119,6 +119,16 @@ native filesystem/database modules out of the `wasm32-unknown-unknown` graph. Th
 explicit `web` output, `wasm-opt` feature validation, the runtime smoke test, the 6 MiB bound and
 atomic publication. Add the corresponding wasm-target clippy gate for target-specific changes.
 
+**Three browser modules, and each exists for a measured reason** — adding a fourth needs one too.
+`nie-wasm` is the main module every visitor downloads, under the 6 MiB bound. `nie-viewer-web`
+carries only the 3D viewer with `wgpu`'s WebGL 2 backend, because folding that backend into
+`nie-wasm` measured 4 518 833 → 6 865 774 bytes (2026-09-12) and blew the bound for everyone to
+serve a minority path; it is fetched only when `navigator.gpu` does not answer, and built by
+`build-viewer-wasm.ts` — a sibling build step wired into `bun run build`, not a competing
+orchestrator. `nie-lua-web` targets `wasm32-unknown-emscripten` because `mlua` compiles PUC-Rio
+Lua's C, which needs `setjmp`/`longjmp`; it sits OUTSIDE `bun run build` (it needs emsdk), which
+is why it silently went stale once — see the artefact table in `CLAUDE.md`.
+
 The single whole-repository release entrypoint is `scripts/release-all.ts`, exposed as
 `bun run release:all`. Do not create a competing orchestrator. It must preserve the fixed phase
 order `lint → typecheck → tests → Rust clippy → build → release/push → deploy → live validation`.
