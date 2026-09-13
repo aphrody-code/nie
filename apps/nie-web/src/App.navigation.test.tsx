@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "./App";
 import { loadMenuPresentation } from "./game/bridge";
+import { setSettings } from "@niers/inacord-ui/lib/settings";
 
 let root: Root | null;
 let container: HTMLDivElement;
@@ -253,5 +254,26 @@ describe("game navigation in the mounted host", () => {
 		expect(window.location.pathname).toBe("/chara_edit_menu");
 		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
 		await expectMenu();
+	});
+});
+
+describe("le texte du jeu est fourni à l'arbre entier", () => {
+	test("l'hôte monte GameTextProvider — sinon la substitution est muette", async () => {
+		// `useGameText` rend le libellé écrit à la main quand aucun fournisseur n'est monté :
+		// retirer `GameTextProvider` de `App` ne casse RIEN de visible, l'interface repasse
+		// simplement en français figé et la carte mesurée cesse de servir. C'est exactement la
+		// dormance reprochée à `useNativeText`, qui a vécu des semaines sans appelant.
+		//
+		// Ce test observe la conséquence réseau plutôt que l'arbre : monté avec une locale de
+		// jeu autre que celle de la mesure, le fournisseur demande le lot GraphQL. Aucun appel
+		// signifie aucun fournisseur.
+		setSettings({ gameLocale: "en" });
+		try {
+			await mount("/menu");
+			const appels = fetchMock.mock.calls.map((appel: unknown[]) => String(appel[0]));
+			expect(appels.some((url: string) => url.includes("/api/v1/graphql"))).toBe(true);
+		} finally {
+			setSettings({ gameLocale: "fr" });
+		}
 	});
 });
