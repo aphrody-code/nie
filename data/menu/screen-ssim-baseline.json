@@ -1,0 +1,15 @@
+{
+  "mesure": "2026-09-13",
+  "commentaire": "SSIM niveaux de gris 1280x720, rendu /api/v1/menu/render vs capture reelle. Ce n'est PAS une note de conformite : le compositeur ne dessine ni personnages 3D ni fonds animes, donc un ecran correct plafonne bas. Le garde-fou detecte une CHUTE par rapport a ces valeurs.",
+  "tolerance": 0.02,
+  "valeurs": {
+    "main_menu|main_menu.png": 0.4961,
+    "story_mode_top_menu|story_mode.png": 0.4687,
+    "main_menu|main_menu_alt.png": 0.4794,
+    "advent_calendar_menu|event_calendar.png": 0.0342,
+    "shop_menu|shop.png": 0.4024,
+    "chronicle_mode_top_menu|chronicle_mode.png": 0.3592,
+    "players_universe_menu|player_universe.png": 0.4786,
+    "ability_learning_board_menu|player_skill_tree.png": 0.4835
+  }
+}
