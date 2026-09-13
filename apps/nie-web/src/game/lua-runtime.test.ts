@@ -53,6 +53,16 @@ describe("le module de la VM Lua", () => {
 		expect(octets.includes(Buffer.from("missing"))).toBe(true);
 	});
 
+	test("exporte tout ce que la page appelle", () => {
+		// `loadText` a été ajouté après coup, et la page l'appelle à chaque rejeu : un module
+		// publié sans lui ferait lever chaque écran. Le test vérifie les TROIS noms que la glue
+		// invoque, pas seulement le nouveau — le même oubli peut frapper les autres.
+		const octets = readFileSync(MODULE);
+		for (const symbole of ["nie_lua_web_load_text", "nie_lua_web_load_script", "nie_lua_web_replay"]) {
+			expect(octets.includes(Buffer.from(symbole))).toBe(true);
+		}
+	});
+
 	test("déclare une section `tag` — il EXIGE donc les exceptions WebAssembly", () => {
 		const bytes = new Uint8Array(readFileSync(MODULE));
 		// 13 = `tag`, la section que seule la proposition « exception handling » définit. Elle
