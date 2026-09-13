@@ -4856,3 +4856,49 @@ impl ModelRenderer {
         vec![self.width, self.height]
     }
 }
+
+#[cfg(test)]
+mod tests_screen_spec {
+    use super::NwScreenSpec;
+
+    /// La spécification que le navigateur ENVOIE se relit ici, au champ près.
+    ///
+    /// `MenuScreenBuilder::new` n'existe que sur `wasm32`, donc rien ne vérifiait la seule chose
+    /// qui puisse casser silencieusement entre les deux côtés : le nom des champs. La route
+    /// `/api/v1/screens/{screen}` rend `layers_missing` en snake_case, `menu-layout.ts` le
+    /// convertit en `layersMissing`, et une divergence ne se verrait qu'à l'écran — un layout
+    /// sans calques manquants déclarés, donc des diagnostics faux.
+    #[test]
+    fn la_specification_envoyee_par_le_navigateur_se_relit() {
+        // Copie littérale de ce que `buildMenuLayout` sérialise.
+        let json = r#"{
+            "screen": "chara_bank_menu",
+            "cfg": "data/common/gamedata/menu/cfg/chara_bank_menu_setting.cfg.bin",
+            "canvas": [1280, 720],
+            "items": [
+                { "layer": "team14_01_chara_bank_list", "objbin": "data/x.objbin" },
+                { "layer": "sans_objbin", "objbin": null }
+            ],
+            "layersMissing": ["declare_mais_absent"]
+        }"#;
+        let spec: NwScreenSpec = serde_json::from_str(json).expect("spécification relisible");
+        let spec: nie_formats::menu_screen::ScreenSpec = spec.into();
+        assert_eq!(spec.screen, "chara_bank_menu");
+        assert_eq!(spec.canvas, [1280, 720]);
+        assert_eq!(spec.items.len(), 2);
+        assert_eq!(spec.items[1].objbin, None);
+        assert_eq!(spec.layers_missing, ["declare_mais_absent"]);
+    }
+
+    /// Les champs facultatifs le sont vraiment : un écran sans calque manquant ne doit pas
+    /// faire échouer la lecture, sinon le navigateur perdrait les écrans les plus sains.
+    #[test]
+    fn les_champs_facultatifs_tolerent_labsence() {
+        let json = r#"{ "screen": "x", "canvas": [1280, 720] }"#;
+        let spec: nie_formats::menu_screen::ScreenSpec =
+            serde_json::from_str::<NwScreenSpec>(json).expect("relisible").into();
+        assert!(spec.items.is_empty());
+        assert!(spec.layers_missing.is_empty());
+        assert_eq!(spec.cfg, "");
+    }
+}
