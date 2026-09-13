@@ -31,17 +31,16 @@ import {
 	useAssetSource,
 } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
+import { listPage, stepCursor } from "../game/list-page";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayoutCanvas } from "../game/LayoutCanvas";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
 import {
 	filterRoster,
-	moveCursor,
 	PROFILE_LEVEL,
 	ROSTER_STATS,
 	rosterFamilies,
 	rosterFromCharas,
-	rosterPage,
 	type RosterChara,
 	type RosterEntry,
 	type RosterFilter,
@@ -160,7 +159,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 		const list = filterRoster(entries ?? [], filter, search);
 		return byName ? [...list].sort((a, b) => a.chara.name.localeCompare(b.chara.name, "fr")) : list;
 	}, [entries, filter, search, byName]);
-	const page = useMemo(() => rosterPage(retained, cursor, PAGE_SIZE), [retained, cursor]);
+	const page = useMemo(() => listPage(retained, cursor, PAGE_SIZE), [retained, cursor]);
 	const focused = page.cursor >= 0 ? retained[page.cursor] ?? null : null;
 
 	// Le Lua reçoit chaque changement de curseur : c'est lui qui décide de l'état de la liste.
@@ -171,7 +170,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	}, [session, receive, page.cursorInPage]);
 
 	const move = useCallback((step: "item" | "row" | "page", direction: 1 | -1) => {
-		setCursor((current) => moveCursor(current, retained.length, step, direction, COLUMNS, PAGE_SIZE));
+		setCursor((current) => stepCursor(current, retained.length, step, direction, COLUMNS, PAGE_SIZE));
 	}, [retained.length]);
 
 	// Les flèches et Échap : la navigation de la grille, hors des dialogues.

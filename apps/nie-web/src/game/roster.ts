@@ -14,6 +14,7 @@
  * que la donnée ne porte pas ne s'affiche donc jamais — et une valeur ajoutée par une mise à
  * jour du jeu apparaît sans toucher au code.
  */
+import { fold } from "./list-page";
 
 /** Un personnage de la banque, tel que `/api/v1/game-data/charas` le sert. */
 export interface RosterChara {
@@ -154,66 +155,15 @@ export function filterRoster(
 	);
 }
 
-/** Minuscule sans accent — la forme comparée par la recherche par nom. */
-function fold(value: string): string {
-	return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
-}
-
-/** Une page de la grille : son rang, son contenu, et le curseur ramené dans les bornes. */
-export interface RosterPage {
-	/** Index de la page affichée, à partir de 0. */
-	index: number;
-	/** Nombre total de pages ; `1` même quand la liste est vide (le jeu montre la grille vide). */
-	count: number;
-	/** Le curseur, ramené dans `[0, items.length - 1]` — `-1` quand la liste est vide. */
-	cursor: number;
-	/** Le curseur dans la page, `-1` quand la liste est vide. */
-	cursorInPage: number;
-	items: readonly RosterEntry[];
-}
-
-/**
- * La page qui contient le curseur, comme la liste du jeu : le curseur ne « défile » pas d'une
- * ligne, il change de page quand il sort de la page courante.
- *
- * `pageSize` vaut 24 sur cet écran — 6 colonnes × 4 rangées, mesurées sur
- * `data/menu/bank_character_detail.png`.
- */
-export function rosterPage(
-	items: readonly RosterEntry[],
-	cursor: number,
-	pageSize: number,
-): RosterPage {
-	if (!(pageSize > 0)) throw new Error("rosterPage: pageSize must be positive");
-	const count = Math.max(1, Math.ceil(items.length / pageSize));
-	if (items.length === 0) return { index: 0, count, cursor: -1, cursorInPage: -1, items: [] };
-	const clamped = Math.min(Math.max(cursor, 0), items.length - 1);
-	const index = Math.floor(clamped / pageSize);
-	return {
-		index,
-		count,
-		cursor: clamped,
-		cursorInPage: clamped - index * pageSize,
-		items: items.slice(index * pageSize, index * pageSize + pageSize),
-	};
-}
-
-/**
- * Le curseur après un déplacement, dans une grille de `columns` colonnes.
- *
- * `page` est le pas des onglets `W`/`C` du jeu (une page entière), `row` celui des flèches
- * haut/bas, `item` celui des flèches gauche/droite. Le curseur ne boucle pas : le jeu s'arrête
- * au premier et au dernier.
- */
-export function moveCursor(
-	cursor: number,
-	total: number,
-	step: "item" | "row" | "page",
-	direction: 1 | -1,
-	columns: number,
-	pageSize: number,
-): number {
-	if (total <= 0) return -1;
-	const delta = step === "item" ? 1 : step === "row" ? columns : pageSize;
-	return Math.min(Math.max(cursor + delta * direction, 0), total - 1);
-}
+// --- Ce qui a quitté ce fichier le 2026-09-13 ------------------------------------------------
+//
+// `rosterPage`, `moveCursor` et `fold` vivaient ici en DOUBLE : leurs corps étaient identiques,
+// au caractère près, à `listPage`, `stepCursor` et `fold` de `./list-page`, que `gallery.ts` et
+// `shop.ts` importaient déjà. Le module d'en face déclarait pourtant exister « plutôt que
+// recopiée dans chaque écran » — la copie qu'il voulait éviter était ici. `PlayerBank` appelle
+// désormais la version partagée, comme les deux autres écrans.
+//
+// La copie affirmait aussi, comme l'originale, que « le curseur ne défile pas d'une ligne, il
+// change de page quand il sort de la page courante ». Le binaire dit le contraire
+// (`nie_core::list_view::step_row`, prouvé byte-exact). Ne corriger qu'un exemplaire aurait
+// laissé la règle fausse se propager depuis l'autre.

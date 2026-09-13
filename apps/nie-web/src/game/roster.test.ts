@@ -1,13 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
 	filterRoster,
-	moveCursor,
 	PROFILE_LEVEL,
 	rosterFamilies,
 	rosterFromCharas,
-	rosterPage,
 	type RosterChara,
 } from "./roster";
+import { listPage } from "./list-page";
 
 function chara(name: string, element: string, position: string, team: string | null): RosterChara {
 	return {
@@ -74,30 +73,10 @@ describe("roster binding", () => {
 		expect(filterRoster(entries, {}, "zzz")).toEqual([]);
 	});
 
-	test("pagination follows the cursor instead of scrolling", () => {
+	test("a page of the real roster keeps the source order", () => {
+		// L'algorithme lui-même est couvert par `list-page.test.ts` ; ce qui est vérifié ici est
+		// que la découpe appliquée aux VRAIES entrées rend les bons personnages, dans l'ordre.
 		const entries = rosterFromCharas(CHARAS);
-		expect(rosterPage(entries, 0, 2)).toMatchObject({ index: 0, count: 2, cursor: 0, cursorInPage: 0 });
-		expect(rosterPage(entries, 3, 2)).toMatchObject({ index: 1, count: 2, cursor: 3, cursorInPage: 1 });
-		expect(rosterPage(entries, 3, 2).items.map((e) => e.chara.name)).toEqual(["Axel", "Nathan"]);
-		// Out of bounds is clamped, never wrapped: the game stops at the last one.
-		expect(rosterPage(entries, 99, 2).cursor).toBe(3);
-		expect(rosterPage(entries, -5, 2).cursor).toBe(0);
-	});
-
-	test("an empty list still has one page and no cursor", () => {
-		expect(rosterPage([], 0, 24)).toEqual({ index: 0, count: 1, cursor: -1, cursorInPage: -1, items: [] });
-	});
-
-	test("pagination refuses a non-positive page size instead of dividing by zero", () => {
-		expect(() => rosterPage(rosterFromCharas(CHARAS), 0, 0)).toThrow();
-	});
-
-	test("the cursor moves by item, row and page, and clamps at both ends", () => {
-		expect(moveCursor(0, 100, "item", 1, 6, 24)).toBe(1);
-		expect(moveCursor(0, 100, "row", 1, 6, 24)).toBe(6);
-		expect(moveCursor(0, 100, "page", 1, 6, 24)).toBe(24);
-		expect(moveCursor(0, 100, "item", -1, 6, 24)).toBe(0);
-		expect(moveCursor(99, 100, "page", 1, 6, 24)).toBe(99);
-		expect(moveCursor(0, 0, "item", 1, 6, 24)).toBe(-1);
+		expect(listPage(entries, 3, 2).items.map((e) => e.chara.name)).toEqual(["Axel", "Nathan"]);
 	});
 });
