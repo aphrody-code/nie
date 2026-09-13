@@ -344,6 +344,26 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   which is the size of a near-empty canvas and worth checking before citing them as reproductions.
   A page that lists a mode's screens should show the render and state the miss, not leave a frame.
 
+- **A render that answers 200 is not a render — read `x-compose-drawn`.** The route returns a
+  fully transparent 1280×720 PNG when the composition draws nothing, and it is indistinguishable
+  from a screen in an `<img>` tag. Measured 2026-09-13: `victory_load_mode_menu` comes back with
+  **ONE distinct colour and ZERO opaque pixels out of 921 600**, 5 209 bytes — that byte count is
+  the signature of the empty canvas — where `victory_road_top_menu` is 1 248 427 bytes and 29 959
+  colours. The headers say it plainly (`x-compose-drawn` 0 against 32, plus `-sprites`,
+  `-regions`, `-texts`, `-skipped`), so a consumer must `fetch` rather than point an `<img>` at
+  it.
+
+- **What blocks those screens is POSITION, not assets.** Measured over the 51 screens of the five
+  official modes: 42 draw, 9 do not, 0 error. Of the nine, **eight have every one of their
+  objects carrying an unresolved transform**, and there is **no counter-example** — not one screen
+  in 51 draws while all its transforms are unresolved. The ninth, `kizuna_town_access_shortcut_menu`,
+  simply has zero objects. And **six of the nine have their sprites resolved**: the textures are
+  found, the compositor has nowhere to put them. Two (`victory_load_mode_menu`,
+  `victory_road_mode_menu`) are a second, distinct gap — 7 objects and 0 sprites resolved.
+  So "the engine cannot draw this screen" is a transform-resolution problem
+  (cf. `CMenuAttachLocator`: a widget's position lives in its locator's skeleton), and extracting
+  more assets would not move it.
+
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 
