@@ -38,10 +38,12 @@ Il n'existe plus de délégation vers un binaire C++, une assembly .NET, CMake o
 
 ## Les crates Rust
 
-**41 membres** (`cargo metadata --no-deps --format-version 1 | jq '.packages | length'`, mesuré
-2026-09-08 : 10 forge + 19 engine + 12 tools), rangés par rôle ci-dessous, colonne `tests` =
-`rg -c '#\[test\]' <dossier>` le même jour. `crates/archive/*` (2 crates, hors des 38) est **hors
-du workspace** : `nie-engine` en est exclu explicitement (`exclude = […]` dans le `Cargo.toml`
+**46 membres** (`cargo metadata --no-deps --format-version 1 | jq '.packages | length'`, mesuré
+2026-09-13 : 10 forge + 23 engine + 12 tools, plus `apps/inacord/src-tauri`), rangés par rôle
+ci-dessous. La colonne `tests` est un INSTANTANÉ, pas un invariant : elle datait du 2026-09-08 et
+`nie-wasm` y disait 32 pour 66 réels. La lire comme un ordre de grandeur ; la source est
+`cargo test -p <crate> --lib`. `crates/archive/*` (2 crates, hors des 46) est **hors du
+workspace** : `nie-engine` en est exclu explicitement (`exclude = […]` dans le `Cargo.toml`
 racine — ~15 000 lignes portées des fichiers C décompilés, 434 marqueurs `// EXTERN:`, consommées
 par aucune crate vivante) ; `nie-rs` n'a jamais figuré dans `members` (son propre `Cargo.lock`
 autonome, origine dans l'outil externe `iecode-re`, pas un livrable niers). Les deux restent en
