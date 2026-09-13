@@ -422,8 +422,16 @@ pub fn bone_region_parts(
     regions: &[(alloc::string::String, u32, u32)],
 ) -> alloc::vec::Vec<BoneRegionPart> {
     let mut parts = alloc::vec::Vec::new();
-    for bone in &layout.bones {
-        let pose = bone.world_bind_pose;
+    for (index, bone) in layout.bones.iter().enumerate() {
+        // Un menu range hors du cadre ce qu'il n'affiche pas encore : sur
+        // `vroad01_71_vroad_tournament_notice`, trois locators `_pos_*` ajoutent chacun une
+        // largeur d'écran et ses plaques reposent à x = 7 054 dans un espace qui s'arrête à 960.
+        // La règle du jeu pour ce cas existe déjà, portée d'iecode : prendre la position du
+        // premier ancêtre resté visible en gardant l'échelle de la feuille. Sans elle, les
+        // parties étaient publiées hors canevas et le compositeur ne peignait rien — l'écran
+        // répondait 200 avec zéro pixel opaque, exactement comme avant.
+        let pose = crate::g4pkm_motion::on_screen_ancestor_pose(layout, index)
+            .map_or(bone.world_bind_pose, |(_, pose)| pose);
         // Un locator identité ne dessine rien : il positionne. Le filtrer ici évite de poser une
         // région à l'échelle 1 sur un os qui n'en désigne aucune.
         if pose.scale_x <= 1.0 || pose.scale_y <= 1.0 {

@@ -64,38 +64,13 @@ pub fn motion_final_pose(layout: &G4pkmLayout, has_open_motion: bool) -> MotionF
 
     // 3. Hors-écran : remonter la hiérarchie jusqu'au 1er ancêtre visible, en conservant la
     //    scale/rotation du bone feuille (candidat).
-    let best_sx = candidate_pose.scale_x;
-    let best_sy = candidate_pose.scale_y;
-    let best_rot = candidate_pose.rot;
-
-    let mut current = candidate_idx;
-    let bone_count = layout.bones.len();
-    loop {
-        let parent_idx = layout.bones[current].parent_index;
-        if parent_idx < 0 || (parent_idx as usize) >= bone_count {
-            break;
-        }
-        let parent_idx = parent_idx as usize;
-        let parent = &layout.bones[parent_idx];
-        let parent_pose = parent.world_bind_pose;
-
-        if !parent_pose.is_off_screen_1920() {
-            return MotionFinalPose {
-                bone_name: parent.name.clone(),
-                pose: Transform2D {
-                    x: parent_pose.x,
-                    y: parent_pose.y,
-                    scale_x: best_sx,
-                    scale_y: best_sy,
-                    rot: best_rot,
-                    anchor_x: parent_pose.anchor_x,
-                    anchor_y: parent_pose.anchor_y,
-                },
-                used_ancestor_fallback: true,
-                has_open_motion,
-            };
-        }
-        current = parent_idx;
+    if let Some((parent_index, pose)) = on_screen_ancestor_pose(layout, candidate_idx) {
+        return MotionFinalPose {
+            bone_name: layout.bones[parent_index].name.clone(),
+            pose,
+            used_ancestor_fallback: true,
+            has_open_motion,
+        };
     }
 
     // 4. Tous les ancêtres hors-écran (rarissime) → bind pose telle quelle.
@@ -104,6 +79,54 @@ pub fn motion_final_pose(layout: &G4pkmLayout, has_open_motion: bool) -> MotionF
         pose: candidate_pose,
         used_ancestor_fallback: false,
         has_open_motion,
+    }
+}
+
+/// Le premier ancêtre VISIBLE de `bone_index`, avec sa position et l'échelle de la feuille.
+///
+/// Rend `None` quand l'os est déjà à l'écran ou qu'aucun ancêtre ne l'est.
+///
+/// Un menu range ce qu'il n'affiche pas encore hors du cadre : mesuré le 2026-09-13 sur
+/// `vroad01_71_vroad_tournament_notice`, la chaîne `_pos_base01` → `_pos_slide01` →
+/// `_pos_offset01` ajoute **exactement une largeur d'écran (1920) à chaque cran**, si bien que ses
+/// plaques reposent à x = 7 054 dans un espace qui s'arrête à 960. Ce sont les états d'une
+/// animation d'ouverture ; la pose de repos qu'un rendu statique peut connaître est celle de
+/// l'ancêtre resté visible. C'est la règle que `GetMotionFinalPose` applique déjà pour l'objet ;
+/// elle est ici extraite pour qu'un appelant l'applique aussi os par os.
+#[must_use]
+pub fn on_screen_ancestor_pose(
+    layout: &G4pkmLayout,
+    bone_index: usize,
+) -> Option<(usize, Transform2D)> {
+    let leaf = layout.bones.get(bone_index)?.world_bind_pose;
+    if !leaf.is_off_screen_1920() {
+        return None;
+    }
+    let mut current = bone_index;
+    loop {
+        let parent_index = layout.bones[current].parent_index;
+        if parent_index < 0 || (parent_index as usize) >= layout.bones.len() {
+            return None;
+        }
+        let parent_index = parent_index as usize;
+        let parent_pose = layout.bones[parent_index].world_bind_pose;
+        if !parent_pose.is_off_screen_1920() {
+            return Some((
+                parent_index,
+                Transform2D {
+                    x: parent_pose.x,
+                    y: parent_pose.y,
+                    // L'échelle et la rotation restent celles de la FEUILLE : c'est elle qui
+                    // désigne ce qui est dessiné, l'ancêtre ne fait que donner un point d'ancrage.
+                    scale_x: leaf.scale_x,
+                    scale_y: leaf.scale_y,
+                    rot: leaf.rot,
+                    anchor_x: parent_pose.anchor_x,
+                    anchor_y: parent_pose.anchor_y,
+                },
+            ));
+        }
+        current = parent_index;
     }
 }
 

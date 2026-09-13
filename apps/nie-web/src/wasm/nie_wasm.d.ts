@@ -266,7 +266,7 @@ export class WasmEditorSession {
     free(): void;
     [Symbol.dispose](): void;
     /**
-     * Adds a validated JSON scene object and returns its index.
+     * Adds a validated JSON scene object of either persisted version, and returns its index.
      */
     add_object_json(object_json: string): number;
     /**
@@ -498,6 +498,10 @@ export class WebGpuViewer {
      */
     backend_info(): string;
     /**
+     * Oublie les assets déposés ; le modèle déjà affiché n'est pas touché.
+     */
+    clear_assets(): void;
+    /**
      * Initialise une surface WebGPU compatible avec le canvas ; échec sans fallback.
      */
     static create(canvas: HTMLCanvasElement): Promise<WebGpuViewer>;
@@ -510,9 +514,23 @@ export class WebGpuViewer {
      */
     load_glb(bytes: Uint8Array): void;
     /**
+     * Compose et affiche un document de scène v2 depuis les assets déposés.
+     *
+     * Plusieurs objets, leur hiérarchie et leur TRS complet : ce qu'un éditeur montre, là où
+     * `load_glb` n'affiche qu'un modèle. `pick_json` nomme alors l'objet touché.
+     */
+    load_scene(document_json: string): void;
+    /**
      * Angles absolus en radians ; distance positive en rayons. NaN/infini rejetés.
      */
     orbit(yaw: number, pitch: number, distance: number): void;
+    /**
+     * La surface sous le pixel `(x, y)` du backing store, en JSON, ou `undefined` sur le fond.
+     *
+     * `{"primitive":n,"triangle":n,"distance":f,"point":[x,y,z]}`. La caméra inversée est celle
+     * de l'image courante, par la même base orbitale que la matrice de vue.
+     */
+    pick_json(x: number, y: number): string | undefined;
     /**
      * Présente via la texture GPU partagée ; false demande de réessayer à la prochaine frame.
      */
@@ -521,6 +539,10 @@ export class WebGpuViewer {
      * Backing store en pixels entiers strictement positifs, sans changer le CSS.
      */
     resize(width: number, height: number): void;
+    /**
+     * Décode un asset GLB et le garde sous le chemin que le document de scène lui donne.
+     */
+    stage_asset(asset: string, bytes: Uint8Array): void;
 }
 
 /**
@@ -1121,19 +1143,23 @@ export interface InitOutput {
     readonly wasmtaskplan_snapshot_json: (a: number, b: number) => void;
     readonly wasmtaskplan_start: (a: number, b: number) => void;
     readonly webgpuviewer_backend_info: (a: number, b: number) => void;
+    readonly webgpuviewer_clear_assets: (a: number) => void;
     readonly webgpuviewer_create: (a: number) => number;
     readonly webgpuviewer_create_transparent: (a: number) => number;
     readonly webgpuviewer_load_glb: (a: number, b: number, c: number, d: number) => void;
+    readonly webgpuviewer_load_scene: (a: number, b: number, c: number, d: number) => void;
     readonly webgpuviewer_orbit: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly webgpuviewer_pick_json: (a: number, b: number, c: number, d: number) => void;
     readonly webgpuviewer_render: (a: number, b: number) => void;
     readonly webgpuviewer_resize: (a: number, b: number, c: number, d: number) => void;
+    readonly webgpuviewer_stage_asset: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4107: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4122: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3116: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3116_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4216: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4231: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3225: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3225_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;
