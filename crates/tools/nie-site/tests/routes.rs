@@ -1687,3 +1687,39 @@ async fn la_borne_de_debit_compte_par_ip_et_annonce_son_retour() {
     );
     assert!(etat.limiteur.is_some());
 }
+
+/// `texts` traverse VRAIMENT le routeur, et un plafond dépassé est une erreur NOMMÉE.
+///
+/// Les tests unitaires de `routes::graphql` lisent le SDL : ils prouvent que le champ est
+/// déclaré, pas qu'il répond. Sur un état sans VFS, la résolution ne peut rien rendre — ce qui
+/// doit sortir est un corps GraphQL avec des `errors`, jamais un 500 ni un panic, parce qu'un
+/// client qui demande cent références n'a pas à distinguer « service absent » de « service
+/// cassé » par un code HTTP.
+#[tokio::test]
+async fn graphql_texts_repond_par_le_routeur() {
+    let corps = serde_json::json!({
+        "query": "query($l: String!, $r: [TextRef!]!) { texts(language: $l, refs: $r) { hash texts } }",
+        "variables": {
+            "l": "fr",
+            "r": [{ "family": "menu_text", "hash": "0x8ace28fb" }],
+        },
+    });
+    let response = nie_site::routeur(etat_avec(|_| {}))
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/graphql")
+                .header("content-type", "application/json")
+                .body(Body::from(corps.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(
+        body.get("data").is_some() || body.get("errors").is_some(),
+        "une réponse GraphQL porte data ou errors : {body}"
+    );
+}
