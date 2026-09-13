@@ -40,6 +40,7 @@
 		"./shell/game-canvas": "./src/shell/game-canvas.tsx"
 	},
 	"scripts": {
+		"test": "bun test --preload ../nie-plugin/src/register.ts --preload ../nie-plugin/src/happydom.ts src/",
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
