@@ -393,8 +393,19 @@ component on the same object. Right about the location, wrong about the key — 
 written down as a lead and not as a mapping.
 
 That closes the provenance chain for step 3. State comes from the Lua runtime, index mapping is
-ported and proven, geometry is proven, and the parameters those need are now shown to sit in a
-file the export already reads. What remains is wiring, not reversing.
+ported and proven, geometry is proven, and the parameters those need sit in a file the export
+already reads — `objbin::list_view_params` now extracts them, verified against the shipped
+`team14_01_chara_bank_list.objbin` (1, 7, 6, 54).
+
+**The chain stops one step short of a screen, deliberately.** Surfacing the parameters through
+`/api/v1/menu/layout` is safe — `lireLayout` ignores keys it does not name, so nothing breaks —
+but nothing CONSUMES them yet, and an exported capability without a caller is untested surface
+that reads like a guarantee. This session applied that rule five times to other people's code;
+applying it here means the extraction waits in `nie-formats` until a screen asks for it.
+
+The remaining work is therefore a SCREEN, not a pipeline: adopt `ListScroll` in one of the three
+that exist, feed it `scroll_index`/`selected_index` from the runtime and the declared parameters
+from the objbin, and let `just ecrans` say whether the picture improved.
 
 Which also answers the earlier question more cheaply than expected: are the cell transforms the
 skeleton bone poses the static export ALREADY reads (`menu.rs`, `local_bind_pose`)? If so the compositor has the geometry
