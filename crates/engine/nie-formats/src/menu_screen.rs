@@ -449,7 +449,17 @@ mod tests {
     ///
     /// Ce test ne couvre PAS l'émission de `instance` sur un gabarit répliqué : les `.objbin` de
     /// menu vivent dans les CPK et ce montage ne les extrait pas, donc rien ici ne peut poser un
-    /// locator réel. Cette partie est exercée par le chemin de `nie-site`, qui monte le VFS.
+    /// locator réel. Cette partie a été vérifiée sur un `nie-site` lancé en local avec le VFS
+    /// monté, le 2026-09-13 — `GET /api/v1/menu/layout/chara_bank_menu` :
+    ///
+    /// ```text
+    /// objets 78, tous porteurs de `instance` ; rangs 0→25 objets, 1..5→4 chacun
+    /// placementSource : attach-locator 67, g4pkm-pose 7, unresolved 4
+    /// diagnostics : attachInstancesExtra 53, visibilityResolved 76
+    /// ```
+    ///
+    /// Les 53 exemplaires supplémentaires sont la réplication que `docs/AVATAR.md` décrit ; sans
+    /// le rang, ils sortaient tous sous le même `crc32(nom)`.
     #[test]
     fn sans_octets_aucun_objet_ni_exemplaire_supplementaire() {
         let layout = build(&Vide, &spec(), "fr", &[], &BTreeMap::new());
