@@ -125,6 +125,24 @@ is identifying WHICH method moves the cursor and proving it with the uemu oracle
 function-level work, not an anchoring problem. `scripts/re/vtable.py` is the reusable entry
 point.
 
+**Located, read, not yet proven — the `OnEnter` notifier.** `"OnEnter"` IS a literal string in
+the target, at `0x14190D2D8` and `0x14190D350` (`grep -c` says 0 on the binary; `strings -a` says
+2 — the documented binary-grep trap, again). All four `lea` references sit inside ONE function,
+`0x1410C74C0`..`0x1410C77F9` (825 bytes), which dispatches the Lua callback three different ways
+and is called from **28** sites (`scripts/re/xref.py --calls`).
+
+What the disassembly says, and only that: it passes **2** arguments (`mov r9d,2` on both
+dispatch paths) through a descriptor pair at `[rbp-20h]`/`[rbp-30h]`; the second value comes from
+`movsx ebx, word [rax+154h]`, a 16-bit signed field — consistent with an index, not proof of one;
+and it discriminates the Lua return by type (5 → `0x140493EA0`, 2 → `cvttss2si`, else raw int),
+short-circuiting the caller when it is non-zero.
+
+This is the NOTIFIER, not the mover: the 28 call sites live in `0x140F…`–`0x1412…`, the `game::`
+screen classes, whereas `lives::CMenuListView`'s own seven methods are at `0x1400A…`–`0x14054…`.
+Its slot 0 is the destructor (rewrites the vtable pointer, decrements a refcount at
+`0x141E78F84`). The cursor rule therefore sits in `lives::CMenuListView`, and nothing here yet
+proves which method holds it. Do not port `list-page.ts` on the strength of this section.
+
 ---
 
 ## Product direction — two complementary delivery goals
