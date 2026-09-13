@@ -272,9 +272,20 @@ pub struct CellTransform {
 /// colonne de translation d'une affine 4×3. Le jeu additionne ensuite une position de base lue
 /// dans un registre, puis remet le tout au widget.
 ///
-/// Ce qui n'est PAS porté : d'où vient la base, et le chemin ANIMÉ. Tant que `[+0x1B6]` (le
-/// drapeau « animation en cours ») vaut 0, la vue n'interpole pas et cette addition suffit ;
-/// pendant une animation la position dépend du temps et ce module ne la décrit pas.
+/// ## D'où vient la base — lu dans les instructions, pas émulé
+///
+/// `mov r13,r8` au prologue : la base est le TROISIÈME argument du créneau 73. Le créneau 9 lui
+/// passe `lea r8,[rsp+30h]`, un tampon qu'il vient de mettre à zéro (`xorps xmm0,xmm0` puis
+/// `movdqa [rsp+30h],xmm0`). Sur un écran STABILISÉ ce tampon reste nul, donc
+/// `position == translation[index]`, sans plus.
+///
+/// Le chemin ANIMÉ écrit dans `[rsp+34h]` — la composante Y de ce même vecteur (cf. le créneau 9,
+/// `movss [rsp+34h],xmm1` après la courbe). Le modèle complet est donc : les rangées restent à
+/// la translation de leur table, et c'est la LISTE ENTIÈRE qui glisse d'un décalage Y adouci.
+/// Ce module ne porte pas ce décalage : il dépend du temps.
+///
+/// Voir [`settled_cell_position`] pour le cas stabilisé, qui est celui qu'un compositeur
+/// mono-image peut reproduire.
 #[must_use]
 pub fn cell_position(base: [f32; 3], cell: CellTransform) -> [f32; 3] {
     [
@@ -282,6 +293,16 @@ pub fn cell_position(base: [f32; 3], cell: CellTransform) -> [f32; 3] {
         base[1] + cell.translation[1],
         base[2] + cell.translation[2],
     ]
+}
+
+/// La position d'une cellule sur un écran STABILISÉ — la base y est nulle.
+///
+/// C'est le cas qu'un compositeur mono-image reproduit exactement : tant que `[+0x1B6]` vaut 0,
+/// le créneau 9 saute son bloc d'accélération et transmet un vecteur de base nul, si bien que la
+/// position se réduit à la translation de la table.
+#[must_use]
+pub fn settled_cell_position(cell: CellTransform) -> [f32; 3] {
+    cell_position([0.0; 3], cell)
 }
 
 /// Le rang d'anneau qu'une cellule occupe, depuis l'état de la vue.
