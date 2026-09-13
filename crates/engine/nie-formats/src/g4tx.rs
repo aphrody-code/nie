@@ -181,11 +181,19 @@ fn is_dummy_texture(tex: &G4txTexture) -> bool {
 /// `basename` est le nom de fichier du `.g4tx` sans extension (ex. `title02_07`).
 #[must_use]
 pub fn select_main_texture<'a>(g4tx: &'a G4tx, basename: &str) -> Option<&'a G4txTexture> {
-    // 1. Nom exact == basename (insensible casse), DDS.
+    // 1. Nom exact == basename (insensible casse), DDS, et NON-DUMMY.
+    //
+    // Le filtre `is_dummy_texture` a été ajouté à la règle 2 et oublié ici. Mesuré le 2026-09-13
+    // sur `calendar01_00.g4tx` — 14,4 Mo, 192 textures : le conteneur porte une texture nommée
+    // exactement comme lui et large de 4×4, que cette règle retournait de préférence au contenu
+    // réel. Le sprite du fond sortait donc à 4×4, aucun os ne collait à cette taille, la pose
+    // restait le centre identité, `resolved_static_transform` la classait « unresolved », et
+    // `advent_calendar_menu` composait un écran vide (SSIM 0,0342 contre ~0,40 ailleurs).
+    // C'est exactement le symptôme que la doc de cette fonction décrit et que la règle 2 évite.
     if let Some(t) = g4tx
         .textures
         .iter()
-        .find(|t| t.is_dds && t.name.eq_ignore_ascii_case(basename))
+        .find(|t| t.is_dds && !is_dummy_texture(t) && t.name.eq_ignore_ascii_case(basename))
     {
         return Some(t);
     }
