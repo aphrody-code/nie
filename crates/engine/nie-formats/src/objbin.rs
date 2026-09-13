@@ -304,6 +304,55 @@ pub struct UnknownComponent {
     pub params: Vec<(String, Vec<PropValue>)>,
 }
 
+/// Les paramètres qu'un objet DÉCLARE pour sa vue-liste, quand il en porte une.
+///
+/// Les noms sont ceux du MOTEUR : `0x1400AB120` construit dans `nie.exe` une table de
+/// descripteurs où chaque propriété de `CMenuListView` déclare son nom, son offset et sa taille
+/// (44 champs, `docs/re/cmenulistview-fields.md`). Les mêmes noms sortent du fichier ici, si
+/// bien que la correspondance entre les deux est mesurée et non déduite.
+///
+/// Relevé sur `team14_01_chara_bank_list.objbin` : `mViewStart 1`, `mViewNum 7`, `mLineNum 6`,
+/// `mLocatorNum 54`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct ListViewParams {
+    /// `mViewStart` — champ `[this+0xC0]` du moteur.
+    pub view_start: i32,
+    /// `mViewNum` — `[this+0xC4]`.
+    pub view_num: i32,
+    /// `mLineNum` — `[this+0xC8]`. À NE PAS confondre avec le diviseur de l'`idiv`, qui est
+    /// `[this+0xD4]` et que la table de descripteurs ne déclare pas : celui-là est de l'état
+    /// d'exécution.
+    pub line_num: i32,
+    /// `mLocatorNum` — `[this+0xE8]`, le nombre d'emplacements de l'anneau de widgets.
+    pub locator_num: i32,
+}
+
+/// Les paramètres de vue-liste d'un objet de menu, ou `None` s'il n'en déclare pas.
+///
+/// Le composant est reconnu par le PRÉFIXE de son nom RTTI : `CMenuListView` a 94 classes
+/// dérivées (`CMenuListViewCharaBank`, `CMenuListViewChara`…), et chercher un nom exact n'en
+/// verrait qu'une. Les paramètres, eux, sont déclarés au même endroit pour toutes.
+#[must_use]
+pub fn list_view_params(object: &MenuObject) -> Option<ListViewParams> {
+    let composant = object.components.iter().find_map(|c| match c {
+        MenuComponent::Unknown(u) if u.type_name.starts_with("CMenuListView") => Some(u),
+        _ => None,
+    })?;
+    let entier = |cle: &str| -> i32 {
+        match composant.get(cle) {
+            Some([PropValue::Int(n), ..]) => *n,
+            _ => 0,
+        }
+    };
+    Some(ListViewParams {
+        view_start: entier("mViewStart"),
+        view_num: entier("mViewNum"),
+        line_num: entier("mLineNum"),
+        locator_num: entier("mLocatorNum"),
+    })
+}
+
 impl UnknownComponent {
     /// Valeurs du paramètre `key`, ou `None` s'il est absent.
     #[must_use]
@@ -1551,5 +1600,45 @@ mod tests_personnage {
             obj.skeleton_path.as_deref(),
             Some("common/chr/_face/11_VICTORY/c11010057/c11010057.g4pkm")
         );
+    }
+
+    /// Les paramètres RÉELS de la banque, lus dans le fichier livré.
+    ///
+    /// `mViewStart 1`, `mViewNum 7`, `mLineNum 6`, `mLocatorNum 54` — et `mLocatorNum` concorde
+    /// avec les ~53 positions d'instances mesurées sur l'écran, ce qui est la seule des quatre
+    /// correspondances confirmée par la géométrie. Les trois autres tiennent par la table de
+    /// descripteurs du binaire, pas par leurs noms.
+    #[cfg(feature = "std")]
+    #[test]
+    fn les_parametres_de_la_banque_sortent_du_fichier() {
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let chemin = std::path::Path::new(&dir)
+            .join("data/common/gamedata/menu/obj/team14_01_chara_bank_list.objbin");
+        let Ok(octets) = std::fs::read(&chemin) else {
+            eprintln!("skip : {} absent", chemin.display());
+            return;
+        };
+        let objet = parse(&octets).expect("objbin lisible");
+        let params = list_view_params(&objet).expect("cet objet DÉCLARE une vue-liste");
+        assert_eq!(params.view_start, 1, "mViewStart");
+        assert_eq!(params.view_num, 7, "mViewNum");
+        assert_eq!(params.line_num, 6, "mLineNum");
+        assert_eq!(params.locator_num, 54, "mLocatorNum");
+    }
+
+    /// Un objet SANS vue-liste n'en invente pas une : la carte de personnage ne porte que trois
+    /// composants et aucun paramètre de mise en page.
+    #[cfg(feature = "std")]
+    #[test]
+    fn une_carte_ne_declare_aucune_vue_liste() {
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let chemin = std::path::Path::new(&dir)
+            .join("data/common/gamedata/menu/obj/team00_01_p1_chara_card_blank.objbin");
+        let Ok(octets) = std::fs::read(&chemin) else {
+            eprintln!("skip : {} absent", chemin.display());
+            return;
+        };
+        let objet = parse(&octets).expect("objbin lisible");
+        assert!(list_view_params(&objet).is_none());
     }
 }
