@@ -193,7 +193,6 @@ export {
 } from "./lib/settings";
 export {
 	applyTransform,
-	findUiText,
 	UI_TEXT_MAP,
 	UI_TEXT_NOT_FOUND,
 	UI_TEXT_VARIANTS,

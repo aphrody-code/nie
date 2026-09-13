@@ -12,7 +12,6 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	applyTransform,
-	findUiText,
 	UI_TEXT_MAP,
 	UI_TEXT_VARIANTS,
 	UI_TEXT_NOT_FOUND,
@@ -112,13 +111,5 @@ describe("UI_TEXT_NOT_FOUND", () => {
 		const homonymes = UI_TEXT_NOT_FOUND.filter(miss => miss.homonymFamilies !== undefined);
 		expect(homonymes.length).toBeGreaterThan(0);
 		for (const miss of homonymes) expect(miss.homonymFamilies?.length).toBeGreaterThan(0);
-	});
-});
-
-describe("findUiText", () => {
-	test("retrouve une entrée des deux tables, et rien d'autre", () => {
-		expect(findUiText(UI_TEXT_MAP[0].label)?.hash).toBe(UI_TEXT_MAP[0].hash);
-		expect(findUiText(UI_TEXT_VARIANTS[0].label)?.hash).toBe(UI_TEXT_VARIANTS[0].hash);
-		expect(findUiText("un libellé que personne n'écrit")).toBeUndefined();
 	});
 });

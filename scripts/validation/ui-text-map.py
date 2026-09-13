@@ -590,12 +590,6 @@ export function applyTransform(transform: UiTextVariant["transform"], text: stri
 \t\t\treturn text.replaceAll("'", "’");
 \t}
 }
-
-/** Retrouve une entrée par son libellé écrit à la main. */
-export function findUiText(label: string): UiTextEntry | undefined {
-\treturn UI_TEXT_MAP.find(entry => entry.label === label)
-\t\t?? UI_TEXT_VARIANTS.find(entry => entry.label === label);
-}
 '''
 
     return (

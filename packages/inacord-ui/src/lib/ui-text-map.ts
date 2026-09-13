@@ -2693,9 +2693,3 @@ export function applyTransform(transform: UiTextVariant["transform"], text: stri
 			return text.replaceAll("'", "’");
 	}
 }
-
-/** Retrouve une entrée par son libellé écrit à la main. */
-export function findUiText(label: string): UiTextEntry | undefined {
-	return UI_TEXT_MAP.find(entry => entry.label === label)
-		?? UI_TEXT_VARIANTS.find(entry => entry.label === label);
-}
