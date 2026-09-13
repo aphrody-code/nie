@@ -249,6 +249,25 @@ was actually wrong was the text (mojibake, fixed) and unresolved shared sprites.
 That changes the estimate for pillar 3 on this screen: the geometry is there, the ring mapping is
 ported and proven, and the gap is narrower than the composed PNG suggested.
 
+### The runtime-placement limit is not a list-view quirk
+
+Composing `players_universe_menu` (387 objects) and looking at it shows the skill tree's stars
+piled on one another. Measured: the 30 `universe01_05_NN_star` objects each have their OWN
+sprite — 30 distinct `.g4tx` paths — and their OWN layer, hence their own skeleton, yet all 30
+resolve through `g4pkm-pose` to the SAME (419, 139). Their pose files are all exactly 5 504
+bytes: templates.
+
+So a second, independent subsystem — a skill tree, not a list view — carries a template pose in
+the files and receives its real positions from the engine. The overlap is not a compositor
+defect; it is the same structural limit found for `CMenuListView` cells, reached from a different
+direction.
+
+That matters for the pillar-3 estimate: "static composition is complete for chrome and
+incomplete for runtime-placed content" is a general property of this engine's menu data, not a
+property of lists. Any screen whose content is instanced will need the same three-step chain
+(state → index → geometry), and the one built for list views is a template for the rest rather
+than a special case.
+
 ### What is left: where the affine table comes from
 
 The table hangs off `[obj+0x198]` of an object reached by a multiple-inheritance base adjustment
