@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 141] = [
+    let instances: [(&str, &[u16]); 142] = [
         ("/healthz", &[200]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
@@ -161,6 +161,7 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/api/v1/wiki/search", &[200, 400, 503]),
         ("/api/v1/wiki/gallery", &[200, 400, 503]),
         ("/api/v1/wiki/names", &[200, 400, 503]),
+        ("/api/v1/wiki/names/search", &[200, 400, 503]),
         ("/api/v1/wiki/characters/0", &[404, 503]),
         ("/api/v1/wiki/skills/0", &[404, 503]),
         ("/api/v1/wiki/items/0", &[404, 503]),
@@ -304,7 +305,7 @@ async fn toutes_les_routes_declarees_repondent() {
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 139, "le routeur monte 139 routes");
+    assert_eq!(declarees.len(), 140, "le routeur monte 140 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -336,7 +337,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 141, "141 instances interrogees pour 139 routes");
+    assert_eq!(vus, 142, "142 instances interrogees pour 140 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).
@@ -507,25 +508,24 @@ async fn documents_well_known() {
     );
     let texte = String::from_utf8(corps).unwrap();
     assert!(texte.starts_with("<?xml"));
-    // 5 routes x 4 langues, et chaque entree porte le groupe complet de ses traductions.
-    // Cinq : l'accueil (le jeu), les Options, l'editeur d'avatar, Inacord et ses
-    // telechargements. Les catalogues et l'explorateur restent SERVIS avec leurs metadonnees,
-    // mais le plan ne les annonce plus.
-    assert_eq!(texte.matches("<url>").count(), 20);
-    assert_eq!(texte.matches("<loc>").count(), 20);
+    // 4 routes x 4 langues, et chaque entree porte le groupe complet de ses traductions.
+    // Quatre : l'accueil (le jeu), les Options, l'editeur d'avatar et les telechargements.
+    // Les catalogues et l'explorateur restent SERVIS avec leurs metadonnees, mais le plan ne
+    // les annonce plus.
+    assert_eq!(texte.matches("<url>").count(), 16);
+    assert_eq!(texte.matches("<loc>").count(), 16);
     assert_eq!(
         texte.matches("xhtml:link").count(),
-        100,
+        80,
         "5 alternates par entree"
     );
-    assert_eq!(texte.matches(r#"hreflang="x-default""#).count(), 20);
+    assert_eq!(texte.matches(r#"hreflang="x-default""#).count(), 16);
     // Sans la declaration de l'espace de noms, les `xhtml:link` ne sont que du bruit.
     assert!(texte.contains(r#"xmlns:xhtml="http://www.w3.org/1999/xhtml""#));
     for attendu in [
         "<loc>https://exemple.test/setting_menu</loc>",
         "<loc>https://exemple.test/en/setting_menu</loc>",
         "<loc>https://exemple.test/chara_edit_menu</loc>",
-        "<loc>https://exemple.test/inacord</loc>",
         "<loc>https://exemple.test/ja/downloads</loc>",
     ] {
         assert!(texte.contains(attendu), "{attendu} absent du plan");
@@ -1185,12 +1185,11 @@ async fn routes_inconnues_repondent_selon_leur_espace() {
         // inventee devenait une page indexable de plus (`/gallery`, `/tools/compare`…).
         ("/une/route/du/bundle", 404, false),
         // Les routes servies, elles, restent en 200.
-        ("/medias", 200, false),
         ("/explorateur", 200, false),
         ("/recherche", 200, false),
         ("/settings", 200, false),
     ];
-    assert_eq!(cas.len(), 8);
+    assert_eq!(cas.len(), 7);
     for (uri, code, en_json) in cas {
         let (statut, entetes, corps) = reponse(&etat, uri).await;
         assert_eq!(statut.as_u16(), code, "{uri}");
@@ -1215,6 +1214,12 @@ async fn routes_inconnues_repondent_selon_leur_espace() {
             );
         }
     }
+
+    // L'ancien conteneur media est compris, mais une seule URL canonique possede chaque
+    // catalogue. Sans vue explicite, les textures sont la destination par defaut.
+    let (statut, entetes, _) = reponse(&etat, "/medias").await;
+    assert_eq!(statut, StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(entetes[header::LOCATION], "/textures");
 }
 
 #[tokio::test]
