@@ -449,6 +449,29 @@ fn read_local_bind_poses(sk: &[u8], bone_count: usize) -> Result<Vec<Transform2D
     Ok(poses)
 }
 
+/// Recomputes every world pose, and the by-name map, from the bones' current local poses.
+///
+/// For a caller that has REPLACED local poses — [`crate::g4pkm_motion::apply_open_motion`] poses
+/// bones the way a state's clip leaves them — so the world column cannot keep describing the
+/// bind pose it was computed from.
+pub fn recompose_world_poses(layout: &mut G4pkmLayout) {
+    let local: Vec<Transform2D> = layout
+        .bones
+        .iter()
+        .map(|bone| bone.local_bind_pose)
+        .collect();
+    let parents: Vec<i32> = layout.bones.iter().map(|bone| bone.parent_index).collect();
+    let world = compute_world_poses(&local, &parents);
+    layout.world_pose_by_name.clear();
+    for (bone, pose) in layout.bones.iter_mut().zip(world) {
+        bone.world_bind_pose = pose;
+        layout
+            .world_pose_by_name
+            .entry(bone.name.clone())
+            .or_insert(pose);
+    }
+}
+
 // ── Composition de la hiérarchie ──────────────────────────────────────────────
 
 /// Compose les matrices 2D à travers la hiérarchie pour obtenir les poses monde.

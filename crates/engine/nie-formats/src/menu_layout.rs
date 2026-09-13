@@ -219,12 +219,7 @@ impl MenuLayout {
         for (rank, text) in layouts.iter().enumerate() {
             let document: Value = serde_json::from_str(text)
                 .map_err(|error| format!("layout JSON #{rank} invalide : {error}"))?;
-            objects.extend(
-                document["objects"]
-                    .as_array()
-                    .cloned()
-                    .unwrap_or_default(),
-            );
+            objects.extend(document["objects"].as_array().cloned().unwrap_or_default());
         }
         objects.retain(|object| {
             PlacementSource::allows_rendering(
@@ -309,7 +304,12 @@ impl MenuLayout {
     /// Compose le layout sur un canevas transparent de `width × height`.
     #[must_use]
     pub fn compose(&self, assets: &dyn MenuAssets, width: u32, height: u32) -> ComposedLayout {
-        self.compose_over(vec![0u8; (width as usize) * (height as usize) * 4], width, height, assets)
+        self.compose_over(
+            vec![0u8; (width as usize) * (height as usize) * 4],
+            width,
+            height,
+            assets,
+        )
     }
 
     /// Compose par-dessus un canevas déjà peint (fond opaque du menu, capture de référence).
@@ -590,7 +590,9 @@ fn static_pixels(
 ) -> Option<Pixels> {
     let logical = object["sprite"]["logicalPath"].as_str()?;
     let key = fourni(assets, logical)?;
-    let stem = basename(key).strip_suffix(".g4tx").unwrap_or_else(|| basename(key));
+    let stem = basename(key)
+        .strip_suffix(".g4tx")
+        .unwrap_or_else(|| basename(key));
     let container = parsed(cache, assets, key)?;
     let texture = g4tx::select_main_texture(container, stem)?;
     let bytes = assets.g4tx(key)?;
@@ -856,7 +858,10 @@ mod tests {
         let parsed = MenuLayout::from_json(&[&json]).expect("layout lisible");
         let composed = parsed.compose(&NoAssets, 8, 4);
         assert_eq!(composed.rgba.len(), 8 * 4 * 4);
-        assert!(composed.rgba.iter().all(|byte| *byte == 0), "canevas intact");
+        assert!(
+            composed.rgba.iter().all(|byte| *byte == 0),
+            "canevas intact"
+        );
         assert_eq!(composed.report.drawn, 0);
         assert_eq!(composed.report.skipped, 1);
     }
@@ -869,8 +874,10 @@ mod tests {
             None
         );
         assert_eq!(
-            resolved_text_label(&serde_json::json!([{"text":"MODE"},{"text":""},{"text":"HISTOIRE"}]))
-                .as_deref(),
+            resolved_text_label(
+                &serde_json::json!([{"text":"MODE"},{"text":""},{"text":"HISTOIRE"}])
+            )
+            .as_deref(),
             Some("MODE HISTOIRE")
         );
     }
@@ -889,8 +896,15 @@ mod tests {
             ]"#,
         );
         let parsed = MenuLayout::from_json(&[&json]).expect("layout lisible");
-        assert_eq!(parsed.object_count(), 1, "seul l'objet placé passe la porte");
-        assert_eq!(parsed.required_assets(), ["menu/measured.g4tx", "measured.g4tx"]);
+        assert_eq!(
+            parsed.object_count(),
+            1,
+            "seul l'objet placé passe la porte"
+        );
+        assert_eq!(
+            parsed.required_assets(),
+            ["menu/measured.g4tx", "measured.g4tx"]
+        );
     }
 
     #[test]
@@ -901,7 +915,10 @@ mod tests {
                  "sprite":{"logicalPath":"menu/one.g4tx"}}]"#,
         );
         let declared = MenuLayout::from_json(&[&json]).expect("layout lisible");
-        assert!(declared.required_assets().is_empty(), "rien n'est déclaré visible");
+        assert!(
+            declared.required_assets().is_empty(),
+            "rien n'est déclaré visible"
+        );
         let statique = MenuLayout::from_json(&[&json])
             .expect("layout lisible")
             .with_visibility(Visibility::UnknownCounts);
@@ -918,7 +935,10 @@ mod tests {
             let parsed = MenuLayout::from_json(&[&json])
                 .expect("layout lisible")
                 .with_visibility(politique);
-            assert!(parsed.required_assets().is_empty(), "caché sous {politique:?}");
+            assert!(
+                parsed.required_assets().is_empty(),
+                "caché sous {politique:?}"
+            );
         }
     }
 
@@ -939,8 +959,14 @@ mod tests {
         assert_eq!(
             colour_spans(ligne),
             vec![
-                ColourSpan { text: "Maintenez enfoncé le bouton.\n".into(), colour: None },
-                ColourSpan { text: "* Modifiable dans Options.".into(), colour: Some("G".into()) },
+                ColourSpan {
+                    text: "Maintenez enfoncé le bouton.\n".into(),
+                    colour: None
+                },
+                ColourSpan {
+                    text: "* Modifiable dans Options.".into(),
+                    colour: Some("G".into())
+                },
             ]
         );
         assert_eq!(
@@ -954,13 +980,26 @@ mod tests {
     #[test]
     fn long_colour_tokens_from_the_binary_are_recognised() {
         // Le nom retenu est ce qui SUIT le `C` : `[CTACTICS01]` ouvre « TACTICS01 ».
-        for nom in ["N", "L", "WG", "TACTICS01", "SEASON_TIME03", "SEASON_TIME05"] {
+        for nom in [
+            "N",
+            "L",
+            "WG",
+            "TACTICS01",
+            "SEASON_TIME03",
+            "SEASON_TIME05",
+        ] {
             let ligne = format!("[C{nom}]texte[C]suite");
             assert_eq!(
                 colour_spans(&ligne),
                 vec![
-                    ColourSpan { text: "texte".into(), colour: Some(nom.into()) },
-                    ColourSpan { text: "suite".into(), colour: None },
+                    ColourSpan {
+                        text: "texte".into(),
+                        colour: Some(nom.into())
+                    },
+                    ColourSpan {
+                        text: "suite".into(),
+                        colour: None
+                    },
                 ],
                 "jeton C{nom}"
             );
@@ -972,7 +1011,10 @@ mod tests {
     #[test]
     fn a_bracket_that_is_not_a_token_survives_unchanged() {
         assert_eq!(plain_label("[Choisir] une option"), "[Choisir] une option");
-        assert_eq!(plain_label("[$gaiji_system02] Écraser ?"), "[$gaiji_system02] Écraser ?");
+        assert_eq!(
+            plain_label("[$gaiji_system02] Écraser ?"),
+            "[$gaiji_system02] Écraser ?"
+        );
         assert_eq!(plain_label("sans balisage"), "sans balisage");
     }
 
@@ -980,9 +1022,11 @@ mod tests {
     /// mieux qu'une boîte de texte haute de rien posée au milieu de l'écran.
     #[test]
     fn a_label_made_only_of_markup_resolves_to_nothing() {
-        assert_eq!(resolved_text_label(&serde_json::json!([{"text":"[CR][C]"}])), None);
+        assert_eq!(
+            resolved_text_label(&serde_json::json!([{"text":"[CR][C]"}])),
+            None
+        );
     }
-
 
     /// Le jeton `[C…]` désigne une entrée de la palette de texte du jeu, par CRC-32 de son nom.
     ///
@@ -1040,7 +1084,6 @@ mod tests {
         assert_eq!(r[3], 255, "l'alpha reste opaque");
     }
 
-
     /// La ligne que `chara_bank_menu` rend VRAIMENT, relevée sur
     /// `POST /api/v1/menu/runtime/chara_bank_menu` le 2026-09-13.
     ///
@@ -1054,8 +1097,14 @@ mod tests {
         assert_eq!(
             spans,
             vec![
-                ColourSpan { text: "7Filtre : ".into(), colour: None },
-                ColourSpan { text: "ON".into(), colour: Some("FUNCBTN01".into()) },
+                ColourSpan {
+                    text: "7Filtre : ".into(),
+                    colour: None
+                },
+                ColourSpan {
+                    text: "ON".into(),
+                    colour: Some("FUNCBTN01".into())
+                },
             ]
         );
 
@@ -1065,9 +1114,17 @@ mod tests {
             metrics: font::FontMetrics::default(),
             palette: parse_font_palette(include_bytes!("../tests/fixtures/font_color.cfg.bin")),
         };
-        assert_eq!(span_rgba(&police, &spans[0]), [255, 255, 255, 255], "hors balisage");
+        assert_eq!(
+            span_rgba(&police, &spans[0]),
+            [255, 255, 255, 255],
+            "hors balisage"
+        );
         let valeur = span_rgba(&police, &spans[1]);
-        assert_ne!(valeur, [255, 255, 255, 255], "la valeur prend la couleur du jeu");
+        assert_ne!(
+            valeur,
+            [255, 255, 255, 255],
+            "la valeur prend la couleur du jeu"
+        );
         assert_eq!(valeur[3], 255);
     }
 
@@ -1090,7 +1147,9 @@ mod tests {
         // test s'est fait tuer par l'OOM. Le montage lui-même reste couvert par
         // `vfs::tests::vfs_init_monte_le_vrai_jeu` ; ce qui est vérifié ici est le CONTENU du
         // fichier livré, et il est le même des deux côtés.
-        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let dir = crate::vfs::resolve_game_dir()
+            .to_string_lossy()
+            .into_owned();
         let chemin = std::path::Path::new(&dir).join("data/common/font/font_color.cfg.bin");
         let Ok(octets) = std::fs::read(&chemin) else {
             eprintln!("skip : {} absent", chemin.display());
@@ -1099,7 +1158,17 @@ mod tests {
         let palette = parse_font_palette(&octets);
         assert_eq!(palette.len(), 70, "70 couleurs dans le fichier livré");
 
-        for nom in ["TEAMPARAM01", "PASSIVE01", "FUNCBTN01", "R", "G", "N", "Y", "UP", "DN"] {
+        for nom in [
+            "TEAMPARAM01",
+            "PASSIVE01",
+            "FUNCBTN01",
+            "R",
+            "G",
+            "N",
+            "Y",
+            "UP",
+            "DN",
+        ] {
             assert!(
                 palette.contains_key(&cfgbin::crc32(nom.as_bytes())),
                 "{nom} est porté par le corpus et doit être dans la palette"

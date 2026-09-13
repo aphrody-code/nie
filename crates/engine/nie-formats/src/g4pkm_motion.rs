@@ -1,17 +1,20 @@
-//! Ancestor-based placement fallback for menu objects.
+//! Placement of menu objects: the pose their OPEN motion leaves, and the ancestor fallback.
 //!
-//! Compatibility port of `G4pkmMotion.cs` placement selection. This module does
-//! not sample animation or establish the actual final pose. When placement is
+//! [`apply_open_motion`] reads the package's G4RA state bindings and G4MT clips and poses each
+//! bound bone at the last frame of the open state's clip. [`motion_final_pose`] is the
+//! compatibility port of `G4pkmMotion.cs` placement selection: when placement is still
 //! off-screen it selects an on-screen ancestor while preserving leaf scale.
 //!
-//! Real motion keys do exist: loading01 G4MT includes translation, scale, and
-//! Euler channels. Faithful playback additionally requires the G4RA resource
-//! binding and state transitions, which this fallback does not decode.
+//! Neither plays animation: no timing, blending or state transition is modelled, only where
+//! the open motion ENDS.
 //!
 //! Compatible with `no_std + alloc`.
 
 extern crate alloc;
 use alloc::string::String;
+
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 
 use crate::g4pkm::{G4pkmLayout, Transform2D};
 
@@ -29,6 +32,141 @@ pub struct MotionFinalPose {
     /// `true` si l'objet a une motion d'ouverture (`AnimationComponent.mot_open_hash != 0`).
     /// **Annotation seulement** — n'influe pas sur la pose (conforme iecode `:79-82`).
     pub has_open_motion: bool,
+}
+
+/// Poses each bone the way the object's OPEN motion leaves it, and recomposes the world poses.
+///
+/// `open_state_hash` is `AnimationComponent::mot_open_hash` (`crc32("in")` on 2 242 of the
+/// 3 373 menu objects; 0 means the object has no open motion and nothing changes). Returns how
+/// many bones moved. After a call, `local_bind_pose` and `world_bind_pose` hold that pose.
+///
+/// ## Why
+///
+/// A menu parks what it has not opened yet outside the frame, and the BIND pose is that parked
+/// state. Measured 2026-09-13 on `vroad01_71_vroad_tournament_notice`: `_pos_base01`,
+/// `_pos_slide01` and `_pos_offset01` each bind at local x = 1920, so its plates rest at
+/// x = 7 054. Its G4RA binds each of those bones, per state, to a clip — `_pos_slide01` to
+/// `_smt_right_in_01` in `in` — and every clip writes all of its translation and scale
+/// components (checked with a sentinel rest: none survived). `_smt_right_in_01` runs x 120 → 0;
+/// the other two open clips end at (0, 1) and (0, 0). So the widget's position on an opened
+/// screen is ANIMATION DATA, which the ancestor fallback could only approximate by collapsing
+/// every part onto one anchor.
+///
+/// ## What it assumes, and refuses
+///
+/// Clip channels REPLACE the local pose (the clips are not additive, `Clip::is_additive`), and
+/// the resting pose is the clip's last frame. A clip with several targets, a rotation off the
+/// screen plane, or two open bindings disagreeing on one bone leaves that bone at its bind pose
+/// rather than guessing which one the game keeps.
+pub fn apply_open_motion(
+    g4pkm_data: &[u8],
+    layout: &mut G4pkmLayout,
+    open_state_hash: u32,
+) -> usize {
+    if open_state_hash == 0 {
+        return 0;
+    }
+    let Ok(pack) = crate::g4pk::parse(g4pkm_data) else {
+        return 0;
+    };
+    let sub = |extension: &str| {
+        pack.files
+            .iter()
+            .find(|file| file.name.ends_with(extension))
+            .and_then(|file| g4pkm_data.get(file.offset..file.offset.checked_add(file.size)?))
+    };
+    let (Some(bindings), Some(clips)) = (sub(".g4ra"), sub(".g4mt")) else {
+        return 0;
+    };
+    let Ok(reference) = crate::g4ra::parse(bindings) else {
+        return 0;
+    };
+    let Some(motion) = crate::g4mt::Motion::parse(clips) else {
+        return 0;
+    };
+    let hashes: Vec<u32> = layout
+        .bones
+        .iter()
+        .map(|bone| crate::cfgbin::crc32(bone.name.as_bytes()))
+        .collect();
+
+    let mut posed: BTreeMap<usize, Option<Transform2D>> = BTreeMap::new();
+    for binding in reference
+        .skeletal_bindings
+        .iter()
+        .filter(|binding| binding.state_hash == open_state_hash)
+    {
+        let Some(bone) = hashes.iter().position(|hash| *hash == binding.target_hash) else {
+            continue;
+        };
+        let pose = open_pose(
+            &motion,
+            clips,
+            binding.clip_hash,
+            layout.bones[bone].local_bind_pose,
+        );
+        posed
+            .entry(bone)
+            .and_modify(|kept| {
+                if *kept != pose {
+                    *kept = None;
+                }
+            })
+            .or_insert(pose);
+    }
+
+    let mut moved = 0;
+    for (bone, pose) in posed {
+        if let Some(pose) = pose
+            && pose != layout.bones[bone].local_bind_pose
+        {
+            layout.bones[bone].local_bind_pose = pose;
+            moved += 1;
+        }
+    }
+    if moved > 0 {
+        crate::g4pkm::recompose_world_poses(layout);
+    }
+    moved
+}
+
+/// The local pose `clip_hash` ends on, starting from `bind` for any channel it lacks.
+fn open_pose(
+    motion: &crate::g4mt::Motion,
+    data: &[u8],
+    clip_hash: u32,
+    bind: Transform2D,
+) -> Option<Transform2D> {
+    let clip = motion.find_clip_by_hash(clip_hash)?;
+    let [target] = motion.target_indices(clip)[..] else {
+        return None;
+    };
+    let half = bind.rot * 0.5;
+    let rest = crate::g4sk::LocalTrs {
+        scale: [bind.scale_x, bind.scale_y, 1.0],
+        quat: [0.0, 0.0, half.sin(), half.cos()],
+        translation: [bind.x, bind.y, 0.0],
+    };
+    let pose = motion.sample_local_trs(data, clip, target, f32::from(clip.end_frame), rest)?;
+    let [qx, qy, qz, qw] = pose.quat;
+    if qx.abs() > 1e-4 || qy.abs() > 1e-4 {
+        return None;
+    }
+    // Only a channel the clip carries may move the bone: re-deriving an untouched angle through
+    // a quaternion would report float noise as motion.
+    let rot = if pose.quat == rest.quat {
+        bind.rot
+    } else {
+        2.0 * qz.atan2(qw)
+    };
+    Some(Transform2D {
+        x: pose.translation[0],
+        y: pose.translation[1],
+        scale_x: pose.scale[0],
+        scale_y: pose.scale[1],
+        rot,
+        ..bind
+    })
 }
 
 /// Retourne la pose finale du bone de placement de cet objet-menu, avec fallback d'ancêtre
@@ -316,6 +454,52 @@ mod tests {
         assert!(!contains_ic("_cursor01", "base"));
         assert!(contains_ic("anything", ""));
         assert!(!contains_ic("ab", "abc"));
+    }
+
+    /// Golden VFS: the open motion brings back what the bind pose parks off-stage.
+    #[test]
+    fn le_mouvement_d_ouverture_ramene_les_os_gares_hors_scene() {
+        let Some((chemin, data)) = crate::g4pk::tests_vfs::lire_par_suffixe("vroad01_71.g4pkm")
+        else {
+            return;
+        };
+        let local_x = |layout: &G4pkmLayout, name: &str| {
+            layout
+                .bones
+                .iter()
+                .find(|bone| bone.name == name)
+                .map(|bone| bone.local_bind_pose.x)
+        };
+        let parsed = crate::g4pkm::parse(&data).expect("parse vroad01_71.g4pkm");
+        assert_eq!(local_x(&parsed, "_pos_slide01"), Some(1920.0), "{chemin}");
+
+        let mut unopened = parsed.clone();
+        assert_eq!(apply_open_motion(&data, &mut unopened, 0), 0);
+
+        let mut opened = parsed;
+        let moved = apply_open_motion(&data, &mut opened, crate::cfgbin::crc32(b"in"));
+        assert_eq!(moved, 3, "{chemin}");
+        for name in ["_pos_base01", "_pos_slide01", "_pos_offset01"] {
+            let x = local_x(&opened, name).expect("bone present");
+            assert!(x.abs() < 1e-3, "{name} still parked at x = {x}");
+        }
+        for bone in opened.bones.iter().filter(|bone| {
+            matches!(
+                bone.name.as_str(),
+                "_notice_base01" | "_notice_base02" | "_icon_trophy01"
+            )
+        }) {
+            // Once opened, the ancestors add nothing on X: a plate's world X is its own local X.
+            // What that local X is — 1 294 for `_notice_base01`, still outside a frame that
+            // ends at 960 — the open motion does NOT explain, so this does not claim the plates
+            // end on screen; the ancestor fallback still handles them.
+            assert!(
+                (bone.world_bind_pose.x - bone.local_bind_pose.x).abs() < 1e-3,
+                "{} still carries a parked ancestor: {:?}",
+                bone.name,
+                bone.world_bind_pose
+            );
+        }
     }
 
     /// Golden VFS : le fallback d'ancêtre sur les **vrais** paquets menu.

@@ -52,7 +52,10 @@ mod tests_placement_source {
     #[test]
     fn une_source_inconnue_reste_refusee() {
         assert!(!PlacementSource::allows_rendering(Some("guessed"), true));
-        assert!(!PlacementSource::allows_rendering(Some("bone-region"), false));
+        assert!(!PlacementSource::allows_rendering(
+            Some("bone-region"),
+            false
+        ));
     }
 }
 
@@ -1100,7 +1103,10 @@ mod tests {
         let noms: alloc::vec::Vec<&str> = parts.iter().map(|p| p.region.as_str()).collect();
         // Trois parties, dans l'ordre des os — et PAS le slot de texte, qui ne nomme aucune
         // région : un `_text_*` est rempli par le texte du jeu, pas par un morceau d'atlas.
-        assert_eq!(noms, alloc::vec!["notice_base01", "notice_base02", "icon_trophy01"]);
+        assert_eq!(
+            noms,
+            alloc::vec!["notice_base01", "notice_base02", "icon_trophy01"]
+        );
         // Le locator identité n'est pas une partie : il positionne, il ne dessine pas.
         assert_eq!(parts.len(), 3);
         // L'échelle est calculée contre la RÉGION, pas contre l'atlas : un os de 912 de large
@@ -1130,7 +1136,10 @@ mod tests {
     /// dimensionnelle la rate ; la règle de nom la retrouve.
     #[test]
     fn une_plaque_etiree_reste_reconnue_par_son_nom() {
-        let l = layout(alloc::vec![bone("_town_name_telop01", tf(0.0, 0.0, 468.0, 68.0))]);
+        let l = layout(alloc::vec![bone(
+            "_town_name_telop01",
+            tf(0.0, 0.0, 468.0, 68.0)
+        )]);
         let regions = alloc::vec![("town_name_telop01".into(), 240_u32, 68_u32)];
         let parts = bone_region_parts(&l, &regions);
         assert_eq!(parts.len(), 1);
@@ -1142,7 +1151,10 @@ mod tests {
     /// Un os qui ne nomme aucune région n'en invente pas une.
     #[test]
     fn un_os_sans_region_ne_dessine_rien() {
-        let l = layout(alloc::vec![bone("_touch_list01", tf(0.0, 0.0, 400.0, 200.0))]);
+        let l = layout(alloc::vec![bone(
+            "_touch_list01",
+            tf(0.0, 0.0, 400.0, 200.0)
+        )]);
         let regions = alloc::vec![("autre_chose01".into(), 400_u32, 200_u32)];
         assert!(bone_region_parts(&l, &regions).is_empty());
     }

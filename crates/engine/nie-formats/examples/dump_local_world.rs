@@ -14,18 +14,29 @@
 //!
 //! ```sh
 //! niers vfs extract data/common/menu/75_vroad/vroad01/vroad01_71/vroad01_71.g4pkm --out /tmp/x
-//! cargo run -p nie-formats --example dump_local_world -- /tmp/x
+//! cargo run -p nie-formats --example dump_local_world -- /tmp/x [--open]
 //! ```
 
 use nie_formats::g4pkm;
 
 fn main() {
-    let Some(path) = std::env::args().nth(1) else {
-        eprintln!("usage: dump_local_world <file.g4pkm>");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let Some(path) = args.iter().find(|arg| !arg.starts_with("--")) else {
+        eprintln!("usage: dump_local_world <file.g4pkm> [--open]");
         std::process::exit(2);
     };
-    let data = std::fs::read(&path).expect("lecture g4pkm");
-    let layout = g4pkm::parse(&data).expect("layout g4pkm");
+    let data = std::fs::read(path).expect("lecture g4pkm");
+    let mut layout = g4pkm::parse(&data).expect("layout g4pkm");
+    // `--open`: pose the bones the way the `in` state's clips leave them, as the compositor does
+    // for an object whose open motion is `crc32("in")`.
+    if args.iter().any(|arg| arg == "--open") {
+        let moved = nie_formats::g4pkm_motion::apply_open_motion(
+            &data,
+            &mut layout,
+            nie_formats::cfgbin::crc32(b"in"),
+        );
+        println!("open motion moved {moved} bones");
+    }
     println!(
         "{:<30} {:>4} | {:>9} {:>9} {:>7} {:>7} | {:>9} {:>9} {:>7} {:>7}",
         "os", "pere", "loc.x", "loc.y", "loc.sx", "loc.sy", "mnd.x", "mnd.y", "mnd.sx", "mnd.sy"

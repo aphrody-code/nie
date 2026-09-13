@@ -1611,7 +1611,9 @@ mod tests_personnage {
     #[cfg(feature = "std")]
     #[test]
     fn les_parametres_de_la_banque_sortent_du_fichier() {
-        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let dir = crate::vfs::resolve_game_dir()
+            .to_string_lossy()
+            .into_owned();
         let chemin = std::path::Path::new(&dir)
             .join("data/common/gamedata/menu/obj/team14_01_chara_bank_list.objbin");
         let Ok(octets) = std::fs::read(&chemin) else {
@@ -1631,7 +1633,9 @@ mod tests_personnage {
     #[cfg(feature = "std")]
     #[test]
     fn une_carte_ne_declare_aucune_vue_liste() {
-        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let dir = crate::vfs::resolve_game_dir()
+            .to_string_lossy()
+            .into_owned();
         let chemin = std::path::Path::new(&dir)
             .join("data/common/gamedata/menu/obj/team00_01_p1_chara_card_blank.objbin");
         let Ok(octets) = std::fs::read(&chemin) else {

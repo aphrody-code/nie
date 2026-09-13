@@ -119,6 +119,32 @@ fn serialize_transform(
     }
 }
 
+/// The object's skeleton, posed the way its open motion leaves it.
+///
+/// One reader for the attach locators and for placement: posing one and not the other would put
+/// a list's cells where its un-opened frame was parked.
+fn opened_skeleton(
+    source: &dyn MenuSource,
+    object: &objbin::MenuObject,
+) -> Option<g4pkm::G4pkmLayout> {
+    let bytes = object
+        .g4pkm_path
+        .as_deref()
+        .and_then(|logical| source.resolve_companion(logical))
+        .and_then(|path| source.read(&path))?;
+    let mut layout = g4pkm::parse(&bytes).ok()?;
+    let open = object
+        .components
+        .iter()
+        .find_map(|component| match component {
+            objbin::MenuComponent::Animation(animation) => Some(animation.mot_open_hash),
+            _ => None,
+        })
+        .unwrap_or(0);
+    crate::g4pkm_motion::apply_open_motion(&bytes, &mut layout, open);
+    Some(layout)
+}
+
 /// Rejette le placement identité que produit un squelette sans géométrie visible.
 ///
 /// Un objet réellement centré reste résolu quand son squelette désigne une taille.
@@ -203,13 +229,7 @@ pub fn build(
     // setting n'est pas un ordre de parenté et le porteur peut apparaître après sa cible.
     let mut attaches: BTreeMap<u32, Vec<(f32, f32)>> = BTreeMap::new();
     for (_, object) in &parsed {
-        let Some(layout) = object
-            .g4pkm_path
-            .as_deref()
-            .and_then(|logical| source.resolve_companion(logical))
-            .and_then(|path| source.read(&path))
-            .and_then(|bytes| g4pkm::parse(&bytes).ok())
-        else {
+        let Some(layout) = opened_skeleton(source, object) else {
             continue;
         };
         for slot in placement::attach_slots(object, &layout) {
@@ -278,12 +298,7 @@ pub fn build(
         // régions peuvent partager des dimensions).
         let mut regions: Vec<(String, u32, u32)> = Vec::new();
 
-        let skeleton = object
-            .g4pkm_path
-            .as_deref()
-            .and_then(|logical| source.resolve_companion(logical))
-            .and_then(|path| source.read(&path))
-            .and_then(|bytes| g4pkm::parse(&bytes).ok());
+        let skeleton = opened_skeleton(source, &object);
 
         let texture = texture_logical_path(&object)
             .as_deref()
@@ -485,8 +500,8 @@ pub fn build(
 
 #[cfg(test)]
 mod tests {
-    use alloc::string::ToString;
     use super::*;
+    use alloc::string::ToString;
 
     /// Une source qui ne porte rien — le cas d'un montage incomplet.
     struct Vide;
@@ -648,7 +663,10 @@ mod tests {
         let serialise = serialize_transform(Some(transform), Some((100.0, 200.0)));
         assert_eq!(serialise["x"], 100.0);
         assert_eq!(serialise["y"], 200.0);
-        assert_eq!(serialise["scaleX"], 1.5, "l'échelle vient toujours de la pose");
+        assert_eq!(
+            serialise["scaleX"], 1.5,
+            "l'échelle vient toujours de la pose"
+        );
         assert_eq!(serialise["rot"], 0.25);
     }
 }
