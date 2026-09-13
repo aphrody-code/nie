@@ -103,13 +103,21 @@ diff, so the list exists to be re-run rather than remembered.
 | `packages/inacord-ui/src/shell/game-screens.css` | `cargo run -p nie-ui --bin game_screens_css -- --verify` | same, `--write` |
 | `packages/inacord-ui/src/shell/game-tokens.css` | `cargo test -p nie-aphrody` | `cargo run -p nie-aphrody --bin design` |
 | `packages/inacord-ui/src/lib/ui-text-map.ts` | re-run the generator and `git diff` | `python3 scripts/validation/ui-text-map.py` |
-| `apps/nie-web/public/static/game/nie_wasm_bg.wasm` | rebuilt by `bun run build` | `bun run build:wasm` |
-| `apps/nie-web/public/static/game/nie_viewer_web_bg.wasm` | rebuilt by `bun run build` | `bun run build:wasm-viewer` |
+| `apps/nie-web/public/static/game/nie_wasm_bg.wasm` | compare its mtime/size against `crates/engine/nie-wasm/` | `bun run --filter nie-web build:wasm` |
+| `apps/nie-web/public/static/game/nie_viewer_web_bg.wasm` | same | `bun run --filter nie-web build:wasm-viewer` |
 | `apps/nie-web/public/static/game/nie_lua_web.wasm` | `lua-runtime.test.ts` (directional) | emsdk recipe in `nie-lua-web/README.md` |
 | `target/release/libnie_ffi.so` | `bun run --filter '@aphrody/nie' test` | `cargo build -p nie-ffi --release` |
 
 Only the first three are outside the build chain by design; `nie-lua-web` is outside it because
 it needs emsdk, which is exactly why it went stale.
+
+**Two corrections measured 2026-09-13.** `bun run build:wasm` does not exist at the repository
+root — the script lives in `apps/nie-web/package.json`, so it needs `--filter nie-web` or a direct
+`bun --bun apps/nie-web/scripts/build-wasm.ts`. And the old "verify" column said `bun run build`,
+which is **not a verification**: it chains `vite build`, and `apps/nie-web/dist` is a symlink into
+`var/deployments/…`, so that command PUBLISHES to `nie.aphrody.com`. Checking an artefact must
+never be done with a command that deploys. The wasm scripts themselves are safe — they write to
+`public/`, which vite only copies at build time.
 
 - **Every list route of `nie-site` paginates, and CLIPS in silence.** `PER_PAGE_DEFAUT = 50`,
   `PER_PAGE_MAX = 200` (`crates/tools/nie-site/src/config.rs`): asking for more returns 200
