@@ -14,7 +14,7 @@ export type Locale = "fr" | "en" | "ja";
  * substitute an authored translation for a missing game string.
  */
 export type { GameLocale } from "@niers/asset-source";
-export { GAME_LOCALES } from "@niers/asset-source";
+export { GAME_LOCALES, SHIPPED_GAME_LOCALES } from "@niers/asset-source";
 
 /** Variante de palette sombre — mêmes noms et mêmes valeurs que les thèmes de
  * `var/spaceui/packages/tokens/src/css/themes/*.css`. `spacedrive` = la palette de base

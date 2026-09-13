@@ -24,7 +24,7 @@
 import type { CapacitesSource } from "@niers/asset-source";
 import {
 	ACCENT_THEMES,
-	GAME_LOCALES,
+	SHIPPED_GAME_LOCALES,
 	type AccentTheme,
 	type GameLocale,
 	type ListDensity,
@@ -103,7 +103,13 @@ export const LOCALE_OPTIONS: readonly SettingOption<Locale>[] = [
 ];
 
 /** Identifiers are native VFS locale folders; availability is checked by the host catalogue. */
-export const GAME_LOCALE_OPTIONS: readonly SettingOption<GameLocale>[] = GAME_LOCALES.map((value) => ({ value, label: value }));
+/**
+ * Les langues proposées : celles que le jeu livre, pas l'alphabet du format.
+ *
+ * `GAME_LOCALES` porte `ko` parce qu'un chemin `<LG>` peut l'écrire ; ce build ne livre aucune
+ * ligne coréenne, et la choisir laissait l'interface sur ses libellés français sans rien dire.
+ */
+export const GAME_LOCALE_OPTIONS: readonly SettingOption<GameLocale>[] = SHIPPED_GAME_LOCALES.map((value) => ({ value, label: value }));
 
 const THEME_OPTIONS: readonly SettingOption<ThemeMode>[] = [
 	{ value: "system", label: "Système" },

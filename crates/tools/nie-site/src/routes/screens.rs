@@ -464,7 +464,7 @@ pub async fn icon(
 // ═══ Modes de jeu ════════════════════════════════════════════════════════════
 
 /// Shared menu catalogue; aggregation and HTTP caching remain local to this service.
-pub use nie_explore::menu_modes::{MODES, ModeDef};
+pub use nie_explore::menu_modes::{MODES, ModeDef, find_mode};
 
 /// Préfixe VFS des écrans de menu (`*_setting.cfg.bin`).
 pub const SCREENS_ROOT: &str = "data/common/gamedata/menu/cfg/";
@@ -942,8 +942,11 @@ fn collect(vfs: &Vfs, paths: &MenuPaths, def: &ModeDef, funclua: &Funclua) -> Mo
 /// Un mode, tel que le catalogue le résume.
 #[derive(Debug, Clone, Serialize)]
 pub struct ModeSummary {
-    /// Identifiant stable, utilisable en URL.
+    /// Le nom que le VFS donne au mode — `victory_road`, `kizuna_town` — en `snake_case`.
     pub slug: &'static str,
+    /// L'adresse que ce mode servait avant de porter son nom du VFS, quand il en a une.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_slug: Option<&'static str>,
     /// Libellé de repli.
     pub label: &'static str,
     /// Les préfixes VFS qui définissent son périmètre.
@@ -966,6 +969,7 @@ impl From<&'static ModeDef> for ModeSummary {
     fn from(d: &'static ModeDef) -> Self {
         Self {
             slug: d.slug,
+            legacy_slug: d.legacy_slug,
             label: d.label,
             prefixes: d.prefixes,
             official: d.official,
@@ -1038,7 +1042,7 @@ pub async fn modes(Query(query): Query<DemandePage>) -> Result<Json<ModeCatalog>
 ///
 /// `Introuvable` (404) quand le slug n'est pas au catalogue.
 fn resolve_mode(slug: &str) -> Result<&'static ModeDef, ErreurSite> {
-    MODES.iter().find(|d| d.slug == slug).ok_or_else(|| {
+    find_mode(slug).ok_or_else(|| {
         ErreurSite::Introuvable(format!(
             "mode inconnu `{slug}` ; les {} modes catalogues sont : {}",
             MODES.len(),
@@ -1049,7 +1053,7 @@ fn resolve_mode(slug: &str) -> Result<&'static ModeDef, ErreurSite> {
 
 /// `GET /api/v1/modes/{slug}` — le contenu mesuré d'un mode.
 ///
-/// Le coût est réel : sur `victory-road`, l'agrégation ouvre 28 écrans, 204 objets de menu et
+/// Le coût est réel : sur `victory_road`, l'agrégation ouvre 28 écrans, 204 objets de menu et
 /// 32 scripts. C'est pour cela que `elapsed_ms` est publié à chaque appel plutôt qu'affirmé une
 /// fois en commentaire — et que l'énumération du VFS, elle, ne se paie qu'une seule fois
 /// ([`MENU_PATHS`]).
@@ -1916,12 +1920,23 @@ mod tests {
         let mut vus = std::collections::BTreeSet::new();
         for d in MODES {
             assert!(vus.insert(d.slug), "slug duplique : {}", d.slug);
+            // Le format est celui du VFS : `snake_case`. Le tiret est refuse parce qu'aucun
+            // fichier du jeu n'en porte — `victory-road` etait une forme web, pas un nom.
             assert!(
                 d.slug
                     .bytes()
-                    .all(|b| b.is_ascii_lowercase() || b == b'-' || b.is_ascii_digit()),
-                "`{}` n'est pas un slug d'URL",
+                    .all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit()),
+                "`{}` n'est pas au format du VFS",
                 d.slug
+            );
+            // Le slug sort des prefixes que l'agregation cherche vraiment dans le VFS, sauf
+            // pour `competition`, dont la note dit qu'AUCUN ecran ne le porte.
+            assert!(
+                d.prefixes.is_empty()
+                    || d.prefixes.iter().any(|p| p.starts_with(d.slug) || d.slug.starts_with(p)),
+                "`{}` ne se retrouve dans aucun de ses prefixes {:?}",
+                d.slug,
+                d.prefixes
             );
             assert!(!d.label.is_empty());
             assert!(!d.note.is_empty(), "`{}` doit dire ce qu'il est", d.slug);
@@ -1941,11 +1956,11 @@ mod tests {
         assert_eq!(
             officiels,
             vec![
-                "victory-road",
+                "victory_road",
                 "competition",
-                "story",
-                "chronicle",
-                "kizuna-station"
+                "story_mode",
+                "chronicle_mode",
+                "kizuna_town"
             ]
         );
         // Falsification : tous ne le sont pas.
@@ -1965,7 +1980,7 @@ mod tests {
             c.results
                 .elements
                 .iter()
-                .any(|m| m.content_route == "/api/v1/modes/victory-road")
+                .any(|m| m.content_route == "/api/v1/modes/victory_road")
         );
     }
 
@@ -1986,7 +2001,7 @@ mod tests {
             sans.results.total
         );
         assert_eq!(avec.results.total, 1);
-        assert_eq!(avec.results.elements[0].slug, "victory-road");
+        assert_eq!(avec.results.elements[0].slug, "victory_road");
         // Le motif applique est republie : un filtre invisible est un filtre qu'on accuse.
         assert_eq!(avec.q.as_deref(), Some("victory"));
         // Sur le libelle aussi, pas seulement sur le slug.
@@ -1998,7 +2013,7 @@ mod tests {
         .unwrap()
         .0;
         assert_eq!(par_libelle.results.total, 1);
-        assert_eq!(par_libelle.results.elements[0].slug, "chara-edit");
+        assert_eq!(par_libelle.results.elements[0].slug, "chara_edit");
         // Et un motif absent rend 0, pas tout.
         let vide = modes(Query(DemandePage {
             q: Some("zzz_inexistant".to_owned()),
@@ -2012,10 +2027,17 @@ mod tests {
 
     #[test]
     fn un_slug_inconnu_cite_ceux_qui_existent() {
-        assert_eq!(resolve_mode("victory-road").unwrap().slug, "victory-road");
-        let e = resolve_mode("victory_road").unwrap_err();
-        assert_eq!(e.statut().as_u16(), 404, "l'underscore n'est pas le slug");
-        assert!(format!("{e}").contains("victory-road"), "{e}");
+        // Le nom du VFS est le slug, et la reponse le porte.
+        assert_eq!(resolve_mode("victory_road").unwrap().slug, "victory_road");
+        // L'adresse publiee avant le renommage repond toujours, et rend le nom canonique :
+        // une adresse publiee ne se casse pas pour un renommage, et deux noms ne doivent pas
+        // se disputer une page.
+        assert_eq!(resolve_mode("victory-road").unwrap().slug, "victory_road");
+        assert_eq!(resolve_mode("kizuna-station").unwrap().slug, "kizuna_town");
+        // Un nom qui n'a jamais existe reste un 404 qui cite ceux qui existent.
+        let e = resolve_mode("victoryroad").unwrap_err();
+        assert_eq!(e.statut().as_u16(), 404);
+        assert!(format!("{e}").contains("victory_road"), "{e}");
         assert_eq!(resolve_mode("").unwrap_err().statut().as_u16(), 404);
     }
 

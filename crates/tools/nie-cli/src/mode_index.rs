@@ -877,10 +877,10 @@ mod tests {
 
     #[test]
     fn coverage_uses_the_same_prefixes_as_mode_index() {
-        assert_eq!(classify_screen("chara_edit_top"), vec!["chara-edit"]);
+        assert_eq!(classify_screen("chara_edit_top"), vec!["chara_edit"]);
         assert_eq!(
             classify_screen("victory_road_top_menu"),
-            vec!["victory-road"]
+            vec!["victory_road"]
         );
         assert_eq!(MODES.iter().filter(|def| def.official).count(), 5);
     }

@@ -648,7 +648,7 @@ enum ModeOp {
     ///
     /// `export` rend l'inventaire (quels fichiers) ; celui-ci rend ce qu'ils contiennent.
     Contenu {
-        /// Identifiant du mode (`victory-road`, `chronicle`, …).
+        /// Identifiant du mode, au nom du VFS (`victory_road`, `chronicle_mode`, …).
         slug: String,
         /// Fichier de sortie ; `-` ou absent = stdout.
         #[arg(long, short = 'o')]

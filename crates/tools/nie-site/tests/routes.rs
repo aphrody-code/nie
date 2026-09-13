@@ -261,7 +261,7 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/api/v1/icons", &[503]),
         ("/api/v1/icons/inconnue", &[404, 503]),
         ("/api/v1/modes", &[200]),
-        ("/api/v1/modes/victory-road", &[503]),
+        ("/api/v1/modes/victory_road", &[503]),
         // La couverture des ecrans : elle lit les 479 `_setting.cfg.bin` du VFS, donc 503 sans
         // montage. Un ecran inconnu est un 404 — jamais un objet vide qu'on prendrait pour un
         // ecran sans contenu.

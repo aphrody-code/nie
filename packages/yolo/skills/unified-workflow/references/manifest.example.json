@@ -1,0 +1,41 @@
+{
+  "run_id": "2026-09-07T120000Z-asset-check",
+  "requested_scope": "inspect one bounded asset and publish its validated report",
+  "tool_versions": {
+    "aphrody": "record --version output",
+    "niers": "record --version output",
+    "ghidra": "record active CodeBrowser version when used"
+  },
+  "inputs": [
+    {
+      "path": "local/input.bin",
+      "sha256": "record-before-run",
+      "sensitivity": "local"
+    }
+  ],
+  "actions": [
+    {
+      "id": "triage",
+      "surface": "aphrody-re",
+      "command": "record exact command or MCP call",
+      "exit_code": 0,
+      "started_at": "2026-09-07T12:00:00Z",
+      "finished_at": "2026-09-07T12:00:01Z"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "results/report.json",
+      "sha256": "record-after-inspection",
+      "proof_level": "P2"
+    }
+  ],
+  "status": "complete",
+  "evidence": [
+    {
+      "path": "evidence/triage.json",
+      "kind": "artifact",
+      "proof_level": "P2"
+    }
+  ]
+}

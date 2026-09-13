@@ -1,0 +1,57 @@
+{
+  "name": "@aphrody/yolo",
+  "version": "3.2.0",
+  "description": "Universal Autonomous Multi-Agent Execution Engine & Agent Layer (2026 Edition)",
+  "type": "module",
+  "license": "MIT",
+  "author": "aphrody-code",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aphrody-code/YOLO.git"
+  },
+  "scripts": {
+    "grind": "bun run scripts/yolo-grind.ts",
+    "autopilot:pwsh": "pwsh scripts/autopilot.ps1",
+    "autopilot:sh": "bash scripts/autopilot.sh",
+    "typecheck": "bun --bun tsc --noEmit",
+    "test": "bun test",
+    "verify": "bun run typecheck && bun test",
+    "detector:bun": "bun run scripts/polyglot-detector.ts",
+    "detector:py": "python scripts/polyglot-detector.py",
+    "autopilot:py": "python scripts/yolo-autopilot.py"
+  },
+  "devDependencies": {
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "keywords": [
+    "skill",
+    "skills",
+    "agent-skills",
+    "skills-sh",
+    "vercel-agent-skills",
+    "claude-skill",
+    "codex-skill",
+    "antigravity-skill",
+    "mcp",
+    "autonomous",
+    "yolo",
+    "orchestration",
+    "multi-agent",
+    "a2a",
+    "autopilot"
+  ],
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./detector": {
+      "import": "./scripts/polyglot-detector.ts",
+      "types": "./scripts/polyglot-detector.ts"
+    }
+  }
+}

@@ -16,6 +16,7 @@ export {
 	type NativeAssetResolver,
 	type GameLocale,
 	GAME_LOCALES,
+	SHIPPED_GAME_LOCALES,
 	isGameLocale,
 	fetchNativeAsset,
 } from "./native-locale";

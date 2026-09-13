@@ -1124,16 +1124,16 @@ mod tests {
     fn les_modes_sont_une_page_servie_et_decrite() {
         assert!(route_servie("/modes"), "/modes doit être servi");
         assert!(
-            route_servie("/modes/victory-road"),
+            route_servie("/modes/victory_road"),
             "la fiche d'un mode est servie par le même segment"
         );
         assert_eq!(metadonnees("/modes", Langue::Fr).0, "Modes — nie");
         assert_eq!(metadonnees("/modes", Langue::En).0, "Modes — nie");
         // Le type Open Graph d'une page de catalogue, pas d'un article : la fiche d'un mode
         // décrit des fichiers du jeu, elle n'est pas une publication datée.
-        assert_eq!(metadonnees("/modes/victory-road", Langue::Fr).2, "website");
+        assert_eq!(metadonnees("/modes/victory_road", Langue::Fr).2, "website");
         // Le canonique ne déplace pas la fiche vers la liste : ce sont deux pages.
-        assert_eq!(route_canonique("/modes/victory-road"), "/modes/victory-road");
+        assert_eq!(route_canonique("/modes/victory_road"), "/modes/victory_road");
     }
 
     #[test]

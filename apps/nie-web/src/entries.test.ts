@@ -5,11 +5,11 @@ import { readGameNavigation } from "./game/navigation";
 
 describe("sections", () => {
 	test("la fiche d'un mode est portée par l'entrée, pas par le catalogue", () => {
-		// `/modes/victory-road` n'est PAS dans la liste des entrées — les slugs vivent côté
+		// `/modes/victory_road` n'est PAS dans la liste des entrées — les slugs vivent côté
 		// serveur. Sans `sectionEntry`, `requestedEntry` ne le trouve pas et le site affiche
 		// l'accueil sur une adresse que `nie-site` sert : la page existerait pour un moteur et
 		// pas pour un visiteur.
-		expect(sectionEntry("/modes/victory-road")).toBe("modes/victory-road");
+		expect(sectionEntry("/modes/victory_road")).toBe("modes/victory_road");
 		expect(sectionEntry("/modes/story")).toBe("modes/story");
 	});
 
@@ -17,7 +17,7 @@ describe("sections", () => {
 		// `/ja/modes/story` désigne la même fiche que `/modes/story`, dans une autre langue :
 		// comparer sans retirer le préfixe donnerait la section « ja », qui n'existe pas.
 		expect(sectionEntry("/ja/modes/story")).toBe("modes/story");
-		expect(sectionEntry("/en/modes/victory-road")).toBe("modes/victory-road");
+		expect(sectionEntry("/en/modes/victory_road")).toBe("modes/victory_road");
 	});
 
 	test("la liste elle-même n'est pas une section", () => {
@@ -45,10 +45,10 @@ describe("les modes dans le catalogue de l'hôte", () => {
 		// Le cas qui casse en premier : un lien partagé, ou un moteur qui suit le plan du site.
 		const navigation = readGameNavigation(
 			recognizedRoutes(null),
-			{ pathname: "/modes/victory-road" },
+			{ pathname: "/modes/victory_road" },
 			null,
 		);
-		expect(navigation.view).toBe("modes/victory-road");
+		expect(navigation.view).toBe("modes/victory_road");
 		expect(navigation.openingPhase).toBe("menu");
 	});
 

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://code.claude.com/schema/plugin.json",
+  "name": "yolo",
+  "version": "3.2.0",
+  "description": "Universal Autonomous Multi-Agent Execution Engine & Polyglot Skills Suite (2026 Edition). 60 production skills, polyglot AST code parsing, dual-agent autopilot daemons, and sovereign persona.",
+  "author": {
+    "name": "aphrody-code",
+    "email": "noreply@aphrody-code.dev",
+    "url": "https://github.com/aphrody-code/YOLO"
+  },
+  "homepage": "https://github.com/aphrody-code/YOLO",
+  "repository": "https://github.com/aphrody-code/YOLO",
+  "license": "Apache-2.0",
+  "keywords": [
+    "yolo",
+    "skills",
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "antigravity",
+    "rust",
+    "material-design-3",
+    "polyglot",
+    "autopilot"
+  ],
+  "category": "developer-tools",
+  "skills": "./skills"
+}

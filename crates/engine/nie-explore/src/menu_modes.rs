@@ -3,7 +3,21 @@
 /// A stable game menu mode definition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModeDef {
+    /// Le nom que le VFS donne au mode, dans le format du VFS.
+    ///
+    /// C'est le jeton que portent ses fichiers — `victory_road`, `kizuna_town`,
+    /// `chronicle_mode` — et non un nom traduit. `kizuna-station` disait « Station » là où les
+    /// fichiers disent `kizuna_town` : un troisieme nom pour la meme chose, que rien dans le
+    /// jeu ne pouvait confirmer. Le format est celui du VFS : `snake_case`, jamais de tiret.
+    ///
+    /// `competition` est la seule exception, et elle est mesuree : AUCUN ecran du VFS ne porte
+    /// ce mode (cf. sa note), donc le VFS ne lui donne aucun nom. Le sien vient de `menu_text`.
     pub slug: &'static str,
+    /// L'adresse que ce mode servait avant de porter son nom du VFS.
+    ///
+    /// `/api/v1/modes/victory-road` est publiee ; une adresse publiee ne se casse pas pour un
+    /// renommage. Elle reste resolue, et la reponse porte le slug canonique.
+    pub legacy_slug: Option<&'static str>,
     pub label: &'static str,
     pub prefixes: &'static [&'static str],
     pub icon_region: Option<&'static str>,
@@ -16,7 +30,8 @@ pub struct ModeDef {
 /// Menu modes backed by real VFS screens or game text.
 pub const MODES: &[ModeDef] = &[
     ModeDef {
-        slug: "victory-road",
+        slug: "victory_road",
+        legacy_slug: Some("victory-road"),
         label: "Victory Road",
         prefixes: &[
             "victory_road",
@@ -38,6 +53,7 @@ pub const MODES: &[ModeDef] = &[
     },
     ModeDef {
         slug: "competition",
+        legacy_slug: None,
         label: "Mode Competition",
         prefixes: &[],
         icon_region: None,
@@ -51,7 +67,8 @@ pub const MODES: &[ModeDef] = &[
         key_pattern: None,
     },
     ModeDef {
-        slug: "story",
+        slug: "story_mode",
+        legacy_slug: Some("story"),
         label: "Histoire",
         prefixes: &["story_mode"],
         icon_region: None,
@@ -61,7 +78,8 @@ pub const MODES: &[ModeDef] = &[
         key_pattern: Some("story_mode"),
     },
     ModeDef {
-        slug: "chronicle",
+        slug: "chronicle_mode",
+        legacy_slug: Some("chronicle"),
         label: "Mode Chronique",
         prefixes: &["chronicle_mode"],
         icon_region: Some("mode_base07"),
@@ -72,7 +90,8 @@ pub const MODES: &[ModeDef] = &[
         key_pattern: Some("chronicle"),
     },
     ModeDef {
-        slug: "kizuna-station",
+        slug: "kizuna_town",
+        legacy_slug: Some("kizuna-station"),
         label: "Station Kizuna",
         prefixes: &["kizuna_town"],
         icon_region: None,
@@ -84,7 +103,8 @@ pub const MODES: &[ModeDef] = &[
         key_pattern: Some("kizuna"),
     },
     ModeDef {
-        slug: "chara-edit",
+        slug: "chara_edit",
+        legacy_slug: Some("chara-edit"),
         label: "Editeur d'avatar",
         prefixes: &["chara_edit"],
         icon_region: None,
@@ -99,6 +119,7 @@ pub const MODES: &[ModeDef] = &[
     },
     ModeDef {
         slug: "soccer",
+        legacy_slug: None,
         label: "Match",
         prefixes: &["soccer_top_menu", "soccer_game_mode"],
         icon_region: Some("mode_base03"),
@@ -109,7 +130,8 @@ pub const MODES: &[ModeDef] = &[
         key_pattern: None,
     },
     ModeDef {
-        slug: "bb-stadium",
+        slug: "bb_stadium",
+        legacy_slug: Some("bb-stadium"),
         label: "BB Stadium",
         prefixes: &["bb_stadium"],
         icon_region: Some("mode_base10"),
@@ -119,7 +141,8 @@ pub const MODES: &[ModeDef] = &[
         key_pattern: Some("bb_stadium"),
     },
     ModeDef {
-        slug: "play-guide",
+        slug: "play_guide",
+        legacy_slug: Some("play-guide"),
         label: "Guide de jeu",
         prefixes: &["play_guide"],
         icon_region: Some("mode_base05"),
@@ -130,6 +153,7 @@ pub const MODES: &[ModeDef] = &[
     },
     ModeDef {
         slug: "setting",
+        legacy_slug: None,
         label: "Parametres",
         prefixes: &["setting_top_menu"],
         icon_region: Some("mode_base06"),
@@ -140,6 +164,7 @@ pub const MODES: &[ModeDef] = &[
     },
     ModeDef {
         slug: "information",
+        legacy_slug: None,
         label: "Informations",
         prefixes: &["information_top_menu", "information_"],
         icon_region: Some("mode_base09"),
@@ -149,7 +174,8 @@ pub const MODES: &[ModeDef] = &[
         key_pattern: None,
     },
     ModeDef {
-        slug: "team-dock",
+        slug: "team_dock",
+        legacy_slug: Some("team-dock"),
         label: "Equipe",
         prefixes: &["team_dock"],
         icon_region: None,
@@ -169,7 +195,14 @@ pub fn matches_stem(def: &ModeDef, stem: &str) -> bool {
 /// Resolve a mode by its stable slug.
 #[must_use]
 pub fn find_mode(slug: &str) -> Option<&'static ModeDef> {
-    MODES.iter().find(|definition| definition.slug == slug)
+    MODES
+        .iter()
+        .find(|definition| definition.slug == slug)
+        .or_else(|| {
+            MODES
+                .iter()
+                .find(|definition| definition.legacy_slug == Some(slug))
+        })
 }
 
 #[cfg(test)]
@@ -197,7 +230,7 @@ mod tests {
 
     #[test]
     fn victory_road_covers_vfs_variants_without_unrelated_stems() {
-        let victory_road = find_mode("victory-road").expect("catalogued mode");
+        let victory_road = find_mode("victory_road").expect("catalogued mode");
         assert!(matches_stem(victory_road, "victory_lode_top_menu"));
         assert!(matches_stem(victory_road, "vroad_match_setting"));
         assert!(!matches_stem(victory_road, "fake_vroad_top_menu"));
