@@ -233,6 +233,19 @@ describe("compareLayoutWithServer", () => {
 		expect(verdict?.server).toEqual([{ name: "b" }]);
 	});
 
+	test("ne compare PAS `visible` : il vient du rejeu, pas du constructeur", async () => {
+		// Le serveur exécute le Lua et résout la visibilité ; la page passe ce que
+		// `resolveMenuVisibility` lui a rendu, souvent rien. Comparer ce champ mesurerait
+		// l'écart des ENTRÉES et rendrait « différent » à chaque appel — mesuré sur
+		// `chara_bank_menu`, où c'était le SEUL écart des 78 objets.
+		layoutRendu = JSON.stringify({
+			objects: [{ name: "a", visible: null }],
+			diagnostics: { transformsUnresolved: 0 },
+		});
+		layoutServeur = { objects: [{ name: "a", visible: false }] };
+		expect((await compareLayoutWithServer("chara_bank_menu", "fr"))?.equal).toBe(true);
+	});
+
 	test("ne compare PAS les diagnostics : ils dépendent du montage, pas du calcul", async () => {
 		layoutRendu = JSON.stringify({
 			objects: [{ name: "a" }],

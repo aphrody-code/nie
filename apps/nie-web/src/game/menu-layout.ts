@@ -224,8 +224,29 @@ export async function buildMenuLayout(
  *
  * C'est la seule façon honnête d'affirmer « le même code » : les deux surfaces compilent la même
  * fonction, mais elles ne lisent pas les octets par le même chemin, et c'est là que deux
- * implémentations se mettent à diverger. Les diagnostics sont exclus de la comparaison —
- * `layersMissing` dépend du montage, pas du calcul.
+ * implémentations se mettent à diverger.
+ *
+ * ## Ce qui est exclu, et pourquoi
+ *
+ * - **Les diagnostics** : `layersMissing` dépend du montage, pas du calcul.
+ * - **`visible`** : il vient du REJEU, pas du constructeur. Le serveur exécute le Lua et résout
+ *   76 objets sur 78 ; la page passe la table que `resolveMenuVisibility` lui a rendue, souvent
+ *   vide. Le comparer mesurerait l'écart des ENTRÉES et rendrait « différent » à chaque appel.
+ *
+ * ## Ce que la comparaison a DÉJÀ trouvé
+ *
+ * Exécutée hors navigateur contre un `nie-site` local (2026-09-13, module chargé dans Bun) :
+ * `chara_bank_menu` 78 objets, `gallery_menu` 7, `chara_edit_menu` 18 — **identiques**. Sur
+ * `shop_menu`, un seul écart sur 62 objets, et il est instructif :
+ *
+ * ```text
+ * rot  nav -0.05235987529158592   srv -0.05235988274216652
+ * ```
+ *
+ * Deux `f32` voisins d'un ULP : `wasm32` et `x86-64` n'arrondissent pas identiquement la même
+ * expression. Le code est bien le même ; c'est l'arithmétique flottante de la cible qui diffère,
+ * sur une rotation de −3°. Une comparaison exacte le rapporte donc comme une différence — ce
+ * qu'elle est, et ce qu'il faut savoir avant de conclure à une divergence de logique.
  */
 export async function compareLayoutWithServer(
 	screen: string,
@@ -240,8 +261,15 @@ export async function compareLayoutWithServer(
 	if (built === null || !response?.ok) return null;
 	const server = (await response.json()) as Record<string, unknown>;
 	const browser = built.layout as Record<string, unknown>;
+	const comparable = (objets: unknown) =>
+		JSON.stringify(
+			(Array.isArray(objets) ? objets : []).map((objet) => {
+				const { visible, ...reste } = objet as Record<string, unknown>;
+				return reste;
+			}),
+		);
 	return {
-		equal: JSON.stringify(browser.objects) === JSON.stringify(server.objects),
+		equal: comparable(browser.objects) === comparable(server.objects),
 		browser: browser.objects,
 		server: server.objects,
 	};
