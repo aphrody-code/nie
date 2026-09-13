@@ -328,6 +328,22 @@ more than one distinct position and got "93 % spread", which hides a widget that
 19. The metric that survives is per instance: does this one share its position with a sibling?
 A truncated list and a coarse denominator each produced a confident number, and neither was true.
 
+**And the 28 % is exactly what the reversal models.** Naming the widgets that contribute stacked
+instances: `team00_01_chara_card_blank` and `team00_01_chara_card_for_soccer` (11 each on
+`chara_bank_menu`, 16 each on `soccer_formation_menu`), `cmn06_20_list_tab_item` (51 on
+`shop_menu`), `cmn05_01_cursor`, `win05_02_general_sub_list_item`. Cells, tabs and cursors —
+the widgets a `CMenuListView` positions.
+
+So the gap between what the files place and what a faithful screen needs is not a diffuse
+problem: it is list-view content, and `nie_core::list_view` already carries that model proven
+byte-exact — `step_row`, `step_page`, `cell_index`, `cell_ring_slot`, `filter_step`,
+`cell_position`. The two threads of this session meet here, with a number: **72 % of instances
+come from the files, and the remaining 28 % are what the ported model computes.**
+
+`cmn06_20_list_tab_item` is the case to keep in view — stacked 51 times on `shop_menu`, spread
+across 11 distinct positions on `chara_bank_menu`. The same widget, placed by the files on one
+screen and by the engine on another, which is why the metric had to be per instance.
+
 That matters for the pillar-3 estimate: "static composition is complete for chrome and
 incomplete for runtime-placed content" is a general property of this engine's menu data, not a
 property of lists. Any screen whose content is instanced will need the same three-step chain
