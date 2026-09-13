@@ -494,10 +494,24 @@ mod tests {
 
         let avant = quad(vec![0, 1, 2, 0, 2, 3]);
         let arriere = quad(vec![2, 1, 0, 3, 2, 0]);
-        assert!(peints_reference(&avant) > 500, "la face avant doit être dessinée");
-        assert!(peints_scene(&avant) > 500, "la face avant doit être dessinée");
-        assert_eq!(peints_reference(&arriere), 0, "la face arrière doit être écartée");
-        assert_eq!(peints_scene(&arriere), 0, "la face arrière doit être écartée");
+        assert!(
+            peints_reference(&avant) > 500,
+            "la face avant doit être dessinée"
+        );
+        assert!(
+            peints_scene(&avant) > 500,
+            "la face avant doit être dessinée"
+        );
+        assert_eq!(
+            peints_reference(&arriere),
+            0,
+            "la face arrière doit être écartée"
+        );
+        assert_eq!(
+            peints_scene(&arriere),
+            0,
+            "la face arrière doit être écartée"
+        );
     }
 
     #[test]

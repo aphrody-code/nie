@@ -1145,7 +1145,6 @@ fn mat_mul(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
     out
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1388,7 +1387,9 @@ mod tests {
             .expect("rendu sans lecture CPU");
 
         for (w, h) in [(128u32, 128u32), (256, 128), (128, 256)] {
-            let gpu_px = renderer.render(&gpu_model, camera, w, h).expect("rendu GPU");
+            let gpu_px = renderer
+                .render(&gpu_model, camera, w, h)
+                .expect("rendu GPU");
             let cpu_px = crate::render::render(&model, angle, w, h);
 
             let (mut inter, mut union) = (0usize, 0usize);

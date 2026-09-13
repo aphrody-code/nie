@@ -332,10 +332,16 @@ impl SceneDocumentV2 {
         }
     }
 
-    /// Evaluates the world-space transform (translation, rotation quat, scale) of an object.
+    /// The world matrix of `id`, column-major (`m[col][row]`): its ancestors' local `T·R·S`
+    /// matrices multiplied root first.
     ///
-    /// Evaluates all ancestral transforms along the parent hierarchy using full TRS composition.
-    pub fn evaluate_world_transform(&self, id: &str) -> Result<([f32; 3], [f32; 4], [f32; 3])> {
+    /// The same product as the game's forward kinematics, `nie_formats::g4sk::
+    /// rest_world_matrices`, and a test holds the two to 1e-6. It is written here rather than
+    /// called because `nie-formats` is only a DEV dependency of this crate: `nie-viewer-web`
+    /// ships this renderer alone to browsers without WebGPU, and pulling the format crate (and
+    /// its Lua decoder) into that module would charge every such visitor for code a scene
+    /// document never runs.
+    pub fn world_matrix(&self, id: &str) -> Result<[[f32; 4]; 4]> {
         self.validate()?;
         let objects: HashMap<&str, &SceneObjectV2> = self
             .objects
@@ -346,45 +352,36 @@ impl SceneDocumentV2 {
             .get(id)
             .copied()
             .ok_or_else(|| anyhow::anyhow!("objet introuvable"))?;
-
         let mut chain = vec![current];
         while let Some(parent) = current.parent.as_deref() {
             current = objects[parent];
             chain.push(current);
         }
-
-        // chain is [child, ..., root]. Reverse to evaluate [root, ..., child]
-        chain.reverse();
-
-        let mut world_pos = [0.0f32; 3];
-        let mut world_rot = [0.0f32, 0.0, 0.0, 1.0];
-        let mut world_scale = [1.0f32; 3];
-
-        for obj in chain {
-            // Apply parent scale to local translation
-            let scaled_local_pos = [
-                obj.position[0] * world_scale[0],
-                obj.position[1] * world_scale[1],
-                obj.position[2] * world_scale[2],
-            ];
-            // Rotate scaled local translation by world rotation
-            let rotated_pos = rotate_vector_by_quat(scaled_local_pos, world_rot);
-            world_pos = [
-                world_pos[0] + rotated_pos[0],
-                world_pos[1] + rotated_pos[1],
-                world_pos[2] + rotated_pos[2],
-            ];
-            // Hamilton product of quaternions
-            world_rot = quat_multiply(world_rot, obj.rotation);
-            // Multiply scale
-            world_scale = [
-                world_scale[0] * obj.scale[0],
-                world_scale[1] * obj.scale[1],
-                world_scale[2] * obj.scale[2],
-            ];
+        let mut world = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+        for object in chain.iter().rev() {
+            world = mat_mul(&world, &trs_matrix(object));
         }
+        Ok(world)
+    }
 
-        Ok((world_pos, world_rot, world_scale))
+    /// Evaluates the world-space transform (translation, rotation quat, scale) of an object.
+    ///
+    /// Read back from [`Self::world_matrix`], which is the composition that renders. Accumulating
+    /// the three parts separately gave a second answer that disagreed as soon as a stretched
+    /// parent held a turned child: that chain shears, and a triplet cannot say so. Scales are
+    /// validated positive, so the decomposition needs no sign handling, and it is exact whenever
+    /// the chain carries no shear.
+    pub fn evaluate_world_transform(&self, id: &str) -> Result<([f32; 3], [f32; 4], [f32; 3])> {
+        let m = self.world_matrix(id)?;
+        let length = |c: &[f32; 4]| (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]).sqrt();
+        let scale = [length(&m[0]), length(&m[1]), length(&m[2])];
+        let r = |row: usize, col: usize| m[col][row] / scale[col].max(1e-12);
+        Ok(([m[3][0], m[3][1], m[3][2]], quat_from_rotation(r), scale))
     }
 
     /// Composes objects in a v2 document into a single Model, accounting for hierarchy and full TRS.
@@ -417,35 +414,28 @@ impl SceneDocumentV2 {
             let mut model = resolve(&object.asset)?;
             let produced = model.primitives.len();
             let texture_base = scene.textures.len();
-            let (pos, rot, scale) = self.evaluate_world_transform(&object.id)?;
+            let m = self.world_matrix(&object.id)?;
+            let column = |c: usize| [m[c][0], m[c][1], m[c][2]];
+            let (a0, a1, a2) = (column(0), column(1), column(2));
+            // Normals take the inverse transpose; its columns are the cross products of the
+            // matrix's columns, up to the determinant, whose sign is positive for validated
+            // scales and whose magnitude the normalisation removes.
+            let cofactor = [cross(a1, a2), cross(a2, a0), cross(a0, a1)];
 
             for primitive in &mut model.primitives {
                 for point in &mut primitive.positions {
-                    let scaled = [
-                        point[0] * scale[0],
-                        point[1] * scale[1],
-                        point[2] * scale[2],
-                    ];
-                    let rotated = rotate_vector_by_quat(scaled, rot);
-                    *point = [
-                        rotated[0] + pos[0],
-                        rotated[1] + pos[1],
-                        rotated[2] + pos[2],
-                    ];
+                    let p = *point;
+                    *point = std::array::from_fn(|k| {
+                        a0[k] * p[0] + a1[k] * p[1] + a2[k] * p[2] + m[3][k]
+                    });
                 }
                 for normal in &mut primitive.normals {
-                    let inv_scaled = [
-                        normal[0] / scale[0],
-                        normal[1] / scale[1],
-                        normal[2] / scale[2],
-                    ];
-                    let rotated = rotate_vector_by_quat(inv_scaled, rot);
-                    let length = rotated.iter().map(|v| v * v).sum::<f32>().sqrt().max(1e-12);
-                    *normal = [
-                        rotated[0] / length,
-                        rotated[1] / length,
-                        rotated[2] / length,
-                    ];
+                    let n = *normal;
+                    let turned: [f32; 3] = std::array::from_fn(|k| {
+                        cofactor[0][k] * n[0] + cofactor[1][k] * n[1] + cofactor[2][k] * n[2]
+                    });
+                    let length = turned.iter().map(|v| v * v).sum::<f32>().sqrt().max(1e-12);
+                    *normal = turned.map(|v| v / length);
                 }
                 primitive.texture = primitive.texture.map(|t| t + texture_base);
             }
@@ -457,29 +447,96 @@ impl SceneDocumentV2 {
     }
 }
 
-fn rotate_vector_by_quat(v: [f32; 3], q: [f32; 4]) -> [f32; 3] {
-    let [x, y, z, w] = q;
-    let tx = 2.0 * (y * v[2] - z * v[1]);
-    let ty = 2.0 * (z * v[0] - x * v[2]);
-    let tz = 2.0 * (x * v[1] - y * v[0]);
-
+/// `T·R·S` of one object, column-major (`m[col][row]`).
+fn trs_matrix(object: &SceneObjectV2) -> [[f32; 4]; 4] {
+    let [x, y, z, w] = object.rotation;
+    let rotation = [
+        [
+            1.0 - 2.0 * (y * y + z * z),
+            2.0 * (x * y - w * z),
+            2.0 * (x * z + w * y),
+        ],
+        [
+            2.0 * (x * y + w * z),
+            1.0 - 2.0 * (x * x + z * z),
+            2.0 * (y * z - w * x),
+        ],
+        [
+            2.0 * (x * z - w * y),
+            2.0 * (y * z + w * x),
+            1.0 - 2.0 * (x * x + y * y),
+        ],
+    ];
+    let [sx, sy, sz] = object.scale;
+    let [tx, ty, tz] = object.position;
+    let column = |c: usize, scale: f32| {
+        [
+            rotation[0][c] * scale,
+            rotation[1][c] * scale,
+            rotation[2][c] * scale,
+            0.0,
+        ]
+    };
     [
-        v[0] + w * tx + (y * tz - z * ty),
-        v[1] + w * ty + (z * tx - x * tz),
-        v[2] + w * tz + (x * ty - y * tx),
+        column(0, sx),
+        column(1, sy),
+        column(2, sz),
+        [tx, ty, tz, 1.0],
     ]
 }
 
-fn quat_multiply(q1: [f32; 4], q2: [f32; 4]) -> [f32; 4] {
-    let [x1, y1, z1, w1] = q1;
-    let [x2, y2, z2, w2] = q2;
-    let out_x = x2 * w1 + w2 * x1 + z2 * y1 - y2 * z1;
-    let out_y = w2 * y1 + w1 * y2 + x2 * z1 - x1 * z2;
-    let out_z = w1 * z2 + w2 * z1 + x1 * y2 - x2 * y1;
-    let out_w = w1 * w2 - x2 * x1 - y1 * y2 - z2 * z1;
-    let len = (out_x * out_x + out_y * out_y + out_z * out_z + out_w * out_w).sqrt();
-    if len > 1e-12 {
-        [out_x / len, out_y / len, out_z / len, out_w / len]
+/// `a·b` for column-major 4×4 matrices.
+fn mat_mul(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
+    std::array::from_fn(|c| std::array::from_fn(|r| (0..4).map(|k| a[k][r] * b[c][k]).sum()))
+}
+
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+/// The unit quaternion `[x, y, z, w]` of a rotation matrix given as `r(row, col)`.
+fn quat_from_rotation(r: impl Fn(usize, usize) -> f32) -> [f32; 4] {
+    let trace = r(0, 0) + r(1, 1) + r(2, 2);
+    let q = if trace > 0.0 {
+        let s = 0.5 / (trace + 1.0).sqrt();
+        [
+            (r(2, 1) - r(1, 2)) * s,
+            (r(0, 2) - r(2, 0)) * s,
+            (r(1, 0) - r(0, 1)) * s,
+            0.25 / s,
+        ]
+    } else if r(0, 0) > r(1, 1) && r(0, 0) > r(2, 2) {
+        let s = 2.0 * (1.0 + r(0, 0) - r(1, 1) - r(2, 2)).sqrt();
+        [
+            0.25 * s,
+            (r(1, 0) + r(0, 1)) / s,
+            (r(0, 2) + r(2, 0)) / s,
+            (r(2, 1) - r(1, 2)) / s,
+        ]
+    } else if r(1, 1) > r(2, 2) {
+        let s = 2.0 * (1.0 - r(0, 0) + r(1, 1) - r(2, 2)).sqrt();
+        [
+            (r(1, 0) + r(0, 1)) / s,
+            0.25 * s,
+            (r(2, 1) + r(1, 2)) / s,
+            (r(0, 2) - r(2, 0)) / s,
+        ]
+    } else {
+        let s = 2.0 * (1.0 - r(0, 0) - r(1, 1) + r(2, 2)).sqrt();
+        [
+            (r(0, 2) + r(2, 0)) / s,
+            (r(2, 1) + r(1, 2)) / s,
+            0.25 * s,
+            (r(1, 0) - r(0, 1)) / s,
+        ]
+    };
+    let length = q.iter().map(|v| v * v).sum::<f32>().sqrt();
+    if length > 1e-12 {
+        q.map(|v| v / length)
     } else {
         [0.0, 0.0, 0.0, 1.0]
     }
@@ -835,5 +892,95 @@ mod tests {
         assert!((composed.primitives[0].positions[0][1] - 10.0).abs() < 1e-5);
         // Child point at (0, 10, -2)
         assert!((composed.primitives[1].positions[0][2] - (-2.0)).abs() < 1e-5);
+    }
+
+    /// A parent scaled along X with a child turned about Z: a matrix chain SHEARS the child, a
+    /// position/quaternion/scale triplet cannot. The game composes matrices (`g4sk::
+    /// rest_world_matrices`), and so do glTF and three.js, so the triplet is the one that is wrong.
+    #[test]
+    fn un_parent_etire_cisaille_un_enfant_tourne_comme_le_jeu() {
+        let quarter = std::f32::consts::FRAC_PI_8;
+        let object =
+            |id: &str, parent: Option<&str>, rotation: [f32; 4], scale: [f32; 3]| SceneObjectV2 {
+                id: id.into(),
+                parent: parent.map(Into::into),
+                name: id.into(),
+                asset: if id == "child" {
+                    "mesh.glb".into()
+                } else {
+                    "empty.glb".into()
+                },
+                position: [0.0; 3],
+                rotation,
+                scale,
+                visible: true,
+            };
+        let document = SceneDocumentV2 {
+            version: 2,
+            objects: vec![
+                object("parent", None, [0.0, 0.0, 0.0, 1.0], [2.0, 1.0, 1.0]),
+                object(
+                    "child",
+                    Some("parent"),
+                    [0.0, 0.0, quarter.sin(), quarter.cos()],
+                    [1.0; 3],
+                ),
+            ],
+        };
+        let (composed, owners) = document
+            .compose_indexed(|asset| {
+                Ok(Model {
+                    textures: vec![],
+                    primitives: if asset == "mesh.glb" {
+                        vec![crate::glb::Primitive {
+                            // A surface containing the X axis and the Z axis, whose normal
+                            // therefore has to stay perpendicular to both once transformed.
+                            positions: vec![[0.0; 3], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+                            normals: vec![[0.0, 1.0, 0.0]; 3],
+                            uv: vec![],
+                            indices: vec![0, 1, 2],
+                            texture: None,
+                        }]
+                    } else {
+                        vec![]
+                    },
+                })
+            })
+            .unwrap();
+        assert_eq!(owners, ["child"]);
+        let primitive = &composed.primitives[0];
+        let h = std::f32::consts::FRAC_1_SQRT_2;
+        // R(45°)·(1,0,0) = (h, h, 0), then the parent doubles X.
+        let [x, y, z] = primitive.positions[1];
+        assert!(
+            (x - 2.0 * h).abs() < 1e-5 && (y - h).abs() < 1e-5 && z.abs() < 1e-5,
+            "{x} {y} {z}"
+        );
+
+        let n = primitive.normals[0];
+        let dot = |a: [f32; 3], b: [f32; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        assert!(dot(n, primitive.positions[1]).abs() < 1e-5, "normal {n:?}");
+        assert!(dot(n, primitive.positions[2]).abs() < 1e-5, "normal {n:?}");
+        assert!((dot(n, n) - 1.0).abs() < 1e-5);
+
+        // The same chain through the game's own forward kinematics.
+        let pose = |o: &SceneObjectV2| nie_formats::g4sk::BonePose {
+            local: nie_formats::g4sk::LocalTrs {
+                scale: o.scale,
+                quat: o.rotation,
+                translation: o.position,
+            },
+            inverse_bind: [[0.0; 4]; 4],
+        };
+        let game = nie_formats::g4sk::rest_world_matrices(
+            &[pose(&document.objects[0]), pose(&document.objects[1])],
+            &[-1, 0],
+        );
+        let ours = document.world_matrix("child").unwrap();
+        for (column, expected) in ours.iter().zip(&game[1]) {
+            for (a, b) in column.iter().zip(expected) {
+                assert!((a - b).abs() < 1e-6, "{ours:?} != {:?}", game[1]);
+            }
+        }
     }
 }

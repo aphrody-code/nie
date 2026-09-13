@@ -50,6 +50,10 @@ struct Studio {
     renderer: GpuRenderer,
     render_state: egui_wgpu::RenderState,
     gpu_model: Option<GpuModel>,
+    /// The composed scene, kept for picking: the GPU holds the uploaded copy, not the triangles.
+    pickable: Option<glb::Model>,
+    /// Which object produced each primitive of `pickable`, parallel to its primitives.
+    owners: Vec<String>,
     texture: Option<egui::TextureId>,
     /// Dimensions physiques de la vue inscrite auprès d'egui. La texture cible est persistante
     /// entre deux redimensionnements : éviter de la réenregistrer à chaque frame.
@@ -78,6 +82,8 @@ impl Studio {
             renderer: GpuRenderer::from_device(info, state.device.clone(), state.queue.clone()),
             render_state: state,
             gpu_model: None,
+            pickable: None,
+            owners: Vec::new(),
             texture: None,
             texture_size: None,
             session: EditorSession::default(),
@@ -160,7 +166,7 @@ impl Studio {
     }
 
     fn rebuild(&mut self) -> Result<()> {
-        let model = self.session.document().compose(|path| {
+        let (model, owners) = self.session.document().compose_indexed(|path| {
             self.assets
                 .get(path)
                 .cloned()
@@ -172,12 +178,40 @@ impl Studio {
             .get_or_insert_with(|| nie_render3d::render::bounds(&model));
         gpu_model.set_framing(center, radius.max(0.001))?;
         self.gpu_model = Some(gpu_model);
+        self.pickable = Some(glb::Model {
+            primitives: model.primitives,
+            textures: Vec::new(),
+        });
+        self.owners = owners;
         self.dirty = false;
         Ok(())
     }
 }
 
 impl Studio {
+    /// Select the object under a pixel of the rendered texture.
+    ///
+    /// Inverts the frame against the framing the GPU model was drawn with, not against the
+    /// bounds of the current scene: `framing` is kept across rebuilds so the view does not jump
+    /// on every edit, and a ray cast from recomputed bounds would miss what is on screen.
+    fn pick_at(&mut self, x: f32, y: f32, size: [u32; 2]) {
+        let (Some(model), Some((center, radius))) = (&self.pickable, self.framing) else {
+            return;
+        };
+        let camera = self.camera.clamped();
+        let basis = nie_render3d::pick::orbital_basis(
+            center,
+            radius.max(0.001),
+            camera.yaw,
+            camera.pitch,
+            camera.distance,
+        );
+        let ray = nie_render3d::pick::ray_for_pixel_orbital(&basis, x, y, size[0], size[1]);
+        let hit = nie_render3d::pick::pick(model, &ray);
+        let owner = hit.and_then(|hit| self.owners.get(hit.primitive));
+        self.session.select_by_id(owner.map(String::as_str));
+    }
+
     fn studio_ui(&mut self, ui: &mut egui::Ui) {
         let mut result: Result<()> = Ok(());
         ui.horizontal(|ui| {
@@ -344,8 +378,18 @@ impl Studio {
                             id
                         };
                         drop(painter);
-                        let response =
-                            pane.add(egui::Image::new((id, size)).sense(egui::Sense::drag()));
+                        let response = pane
+                            .add(egui::Image::new((id, size)).sense(egui::Sense::click_and_drag()));
+                        if response.clicked()
+                            && let Some(pointer) = response.interact_pointer_pos()
+                        {
+                            let local = pointer - response.rect.min;
+                            self.pick_at(
+                                local.x / size.x * texture_size[0] as f32,
+                                local.y / size.y * texture_size[1] as f32,
+                                texture_size,
+                            );
+                        }
                         if response.dragged() {
                             let delta = pane.input(|i| i.pointer.delta());
                             self.camera.yaw -= delta.x * 0.008;

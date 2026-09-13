@@ -333,7 +333,10 @@ mod tests {
                     }
                 }
             }
-            assert!(peints > 50, "angle {angle} ne dessine presque rien : {peints}");
+            assert!(
+                peints > 50,
+                "angle {angle} ne dessine presque rien : {peints}"
+            );
             // Le rastériseur écarte les faces arrière, la sélection non : tout pixel peint doit
             // être touchable. On tolère le liseré d'anticrénelage du bord.
             assert!(

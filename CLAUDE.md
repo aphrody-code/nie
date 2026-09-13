@@ -289,7 +289,7 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   2026-09-13: `nie.exe`, `nie_eacpatched.exe` and `dist/nie.exe` are all the SAME file
   (`b1fa04ea…`, 33 918 464 B), so `NIE_EXE` changes nothing — and the build the knowledge base
   and the validators were written against (`4c2b91fb…`, 31 468 032 B) is nowhere on this machine.
-  Two proofs written that day pass (`just preuves listview` → 2 ✓, 44 cases). The sampled old
+  The list-view proofs pass (`just preuves listview` → 5 ✓ / 0 ✗, re-run 2026-09-13 evening; the morning count was 2 ✓, 44 cases). The sampled old
   ones fail with stale EXPECTATIONS, not emulator errors: `validate_ball_ctor` reads 0 where it
   wants `-9.8f`, `validate_bezier` returns `(0,0,0)`, `validate_category_lookup` reports 600
   mismatches with every branch at zero. Do not read "47/47 failing" as "do not write proofs".

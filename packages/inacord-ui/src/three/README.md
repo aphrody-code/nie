@@ -33,13 +33,14 @@ reach `nie-render3d` through WebGPU, its WebGL 2 backend in `nie-viewer-web`, or
 rasteriser, in that order (`apps/nie-web/src/game/native-viewer.ts`). That chain replaced a
 445-line TypeScript WebGL viewer in 2026-09; this file is what is left of the same class.
 
-What keeps them apart is measured, not rhetorical. `WebViewer` holds ONE model and exposes
-orbit, resize and render. This viewport holds several assets at once and adds ray picking, a
-node outliner with per-mesh statistics, transform gizmos, wireframe and a grid. Nothing in
-`nie-render3d` performs picking today — `rg 'raycast|ray_'` over the crate returns only
-`depth_or_array_layers`. Retiring this file therefore means writing multi-asset scenes,
-picking and gizmo interaction in Rust first; until then, deleting it would remove editing,
-not duplication.
+What keeps them apart is measured, not rhetorical. This viewport adds a node outliner with
+per-mesh statistics, transform gizmos, wireframe and a grid, none of which `nie-render3d` draws.
+Multi-object scenes and ray picking are no longer on that list: `WebViewer::stage_asset` and
+`load_scene` hold a `SceneDocumentV2`, and `pick_json` names the object under a pixel through
+`crate::pick`, whose orbital basis is the one the GPU view matrix reads (exposed by both
+`nie-wasm` and `nie-viewer-web`). Retiring this file therefore means writing the outliner,
+wireframe, grid and gizmo interaction in Rust first; until then, deleting it would remove
+editing, not duplication.
 
 The scene DOCUMENT is no longer duplicated: `SceneDocumentV2` in `nie-render3d` is the one
 model, and `nie-editor`'s `EditorSession` is the one session, shared by the native editor and

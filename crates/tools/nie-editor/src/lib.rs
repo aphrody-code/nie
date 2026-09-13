@@ -106,6 +106,21 @@ impl EditorSession {
         Ok(())
     }
 
+    /// Select the object a viewport click landed on, or clear the selection on a miss.
+    ///
+    /// A click resolves to a PRIMITIVE, and `SceneDocumentV2::compose_indexed` names the object
+    /// behind each one. This takes that name rather than an index, because indices shift when an
+    /// object above is removed while identifiers do not. An identifier the document no longer
+    /// holds clears the selection instead of keeping a stale one.
+    pub fn select_by_id(&mut self, id: Option<&str>) {
+        self.selected = id.and_then(|id| {
+            self.document
+                .objects
+                .iter()
+                .position(|object| object.id == id)
+        });
+    }
+
     /// Return whether an undo state is available.
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty()
@@ -351,6 +366,21 @@ mod tests {
     }
 
     #[test]
+    fn un_clic_selectionne_par_identifiant_et_un_clic_dans_le_vide_deselectionne() {
+        let mut session = EditorSession::default();
+        session.add_object(object("c01000010")).unwrap();
+        session.add_object(object("c01000020")).unwrap();
+        let second = session.document().objects[1].id.clone();
+        session.select_by_id(Some(&second));
+        assert_eq!(session.selected(), Some(1));
+        session.select_by_id(Some("absent"));
+        assert_eq!(session.selected(), None);
+        session.select_by_id(Some(&second));
+        session.select_by_id(None);
+        assert_eq!(session.selected(), None);
+    }
+
+    #[test]
     fn un_projet_v1_s_ouvre_et_se_reenregistre_en_v2() {
         let v1 = br#"{"version":1,"objects":[
             {"name":"a","asset":"a.glb","position":[0.0,0.0,0.0],"yaw":90.0,
@@ -361,7 +391,10 @@ mod tests {
         assert!((session.document().objects[0].yaw_degrees() - 90.0).abs() < 1e-3);
 
         let bytes = session.to_json_pretty().unwrap();
-        assert_eq!(EditorSession::from_json(&bytes).unwrap().document(), session.document());
+        assert_eq!(
+            EditorSession::from_json(&bytes).unwrap().document(),
+            session.document()
+        );
     }
 
     #[test]
@@ -408,7 +441,10 @@ mod tests {
 
         let bytes = session.to_json_pretty().unwrap();
         let restored = EditorSession::from_json(&bytes).unwrap();
-        assert_eq!(restored.document().objects[1].parent.as_deref(), Some("root"));
+        assert_eq!(
+            restored.document().objects[1].parent.as_deref(),
+            Some("root")
+        );
     }
 
     #[test]
@@ -431,7 +467,10 @@ mod tests {
     #[test]
     fn un_objet_illisible_rend_l_erreur_de_la_version_courante() {
         let mut session = EditorSession::default();
-        let error = session.add_object_json("{\"name\":\"a\"}").unwrap_err().to_string();
+        let error = session
+            .add_object_json("{\"name\":\"a\"}")
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("asset"), "{error}");
     }
 

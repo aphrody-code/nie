@@ -365,7 +365,10 @@ mod browser {
         /// remettre un par un évite de faire traverser une table à la frontière `wasm_bindgen`,
         /// et permet de ne recharger que ce qui change entre deux scènes.
         pub fn stage_asset(&mut self, asset: &str, bytes: &[u8]) -> Result<()> {
-            ensure!(!asset.is_empty() && asset.len() <= 4096, "référence d'asset invalide");
+            ensure!(
+                !asset.is_empty() && asset.len() <= 4096,
+                "référence d'asset invalide"
+            );
             ensure!(bytes.len() <= 64 * 1024 * 1024, "GLB supérieur à 64 Mio");
             let model = glb::parse_with_texture_budget(bytes, MAX_DECODED_TEXTURE_BYTES)?;
             self.staged.insert(asset.to_owned(), model);
@@ -395,7 +398,10 @@ mod browser {
             self.pickable = None;
             self.owners = Vec::new();
             let uploaded = self.renderer.try_upload(&model)?;
-            ensure!(uploaded.triangle_count > 0, "scène sans triangle exploitable");
+            ensure!(
+                uploaded.triangle_count > 0,
+                "scène sans triangle exploitable"
+            );
             self.model = Some(uploaded);
             self.pickable = Some(glb::Model {
                 primitives: model.primitives,
