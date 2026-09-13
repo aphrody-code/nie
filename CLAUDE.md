@@ -73,6 +73,25 @@ that price on keeper, menu and match-sim.
   `feat(inacord): [peer-agent] <scope>` with `Co-authored-by: <Agent>`.
 - Rebase on `origin/main` before pushing — peers push to the same branch.
 
+## Generated and prebuilt artefacts — how to check each one (audited 2026-09-13)
+
+Two of these were STALE when audited, and both failed silently: a binary that answers an old
+version, a WebAssembly module that ignores a field the caller reads. Neither is visible in a
+diff, so the list exists to be re-run rather than remembered.
+
+| Artefact | Verify | Regenerate |
+| --- | --- | --- |
+| `packages/inacord-ui/src/shell/game-screens.css` | `cargo run -p nie-ui --bin game_screens_css -- --verify` | same, `--write` |
+| `packages/inacord-ui/src/shell/game-tokens.css` | `cargo test -p nie-aphrody` | `cargo run -p nie-aphrody --bin design` |
+| `packages/inacord-ui/src/lib/ui-text-map.ts` | re-run the generator and `git diff` | `python3 scripts/validation/ui-text-map.py` |
+| `apps/nie-web/public/static/game/nie_wasm_bg.wasm` | rebuilt by `bun run build` | `bun run build:wasm` |
+| `apps/nie-web/public/static/game/nie_viewer_web_bg.wasm` | rebuilt by `bun run build` | `bun run build:wasm-viewer` |
+| `apps/nie-web/public/static/game/nie_lua_web.wasm` | `lua-runtime.test.ts` (directional) | emsdk recipe in `nie-lua-web/README.md` |
+| `target/release/libnie_ffi.so` | `bun run --filter '@aphrody/nie' test` | `cargo build -p nie-ffi --release` |
+
+Only the first three are outside the build chain by design; `nie-lua-web` is outside it because
+it needs emsdk, which is exactly why it went stale.
+
 ## Traps measured on this machine (2026-09-07)
 
 - **`bun test --root <dir>` sweeps `var/releases/`; the packages' own scripts do not.** A
