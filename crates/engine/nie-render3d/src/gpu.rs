@@ -1334,6 +1334,12 @@ mod tests {
     ///
     /// Le test compare donc les SILHOUETTES : la couleur diffère légitimement (ombrage lissé
     /// contre plat, filtrage linéaire contre plus proche voisin), la couverture non.
+    ///
+    /// Et il la compare à TROIS formats, pas seulement au carré. Tant qu'il ne mesurait que
+    /// 128x128, il ne pouvait pas voir que les deux rastériseurs fixaient des demi-champs
+    /// différents : mesuré le 2026-09-13, 256x128 donnait 26 % de recouvrement, le modèle étant
+    /// deux fois plus grand en linéaire côté CPU. Un format non carré est le cas NORMAL d'un
+    /// viewport ; le carré était l'exception qui masquait l'écart.
     #[test]
     fn gpu_et_cpu_cadrent_la_meme_vue() {
         let Ok(mut renderer) = GpuRenderer::new() else {
@@ -1362,8 +1368,6 @@ mod tests {
             textures: vec![],
         };
 
-        const W: u32 = 128;
-        const H: u32 = 128;
         let angle = 0.6_f32;
         let gpu_model = renderer.upload(&model);
         // Conversion de convention, la même que celle du binaire : orbiter de +θ montre ce que
@@ -1376,37 +1380,38 @@ mod tests {
         let limit = renderer.device().limits().max_texture_dimension_2d;
         assert!(
             renderer
-                .render_to_texture(&gpu_model, camera, limit + 1, H)
+                .render_to_texture(&gpu_model, camera, limit + 1, 128)
                 .is_err()
         );
         renderer
-            .render_to_texture(&gpu_model, camera, W, H)
+            .render_to_texture(&gpu_model, camera, 128, 128)
             .expect("rendu sans lecture CPU");
-        let gpu_px = renderer
-            .render(&gpu_model, camera, W, H)
-            .expect("rendu GPU");
-        let cpu_px = crate::render::render(&model, angle, W, H);
 
-        let (mut inter, mut union) = (0usize, 0usize);
-        for y in 0..H {
-            let fond = crate::render::couleur_fond(y, H);
-            for x in 0..W {
-                let i = ((y * W + x) * 4) as usize;
-                let c = cpu_px[i..i + 4] != fond;
-                let g = gpu_px[i + 3] > 0;
-                union += usize::from(c || g);
-                inter += usize::from(c && g);
+        for (w, h) in [(128u32, 128u32), (256, 128), (128, 256)] {
+            let gpu_px = renderer.render(&gpu_model, camera, w, h).expect("rendu GPU");
+            let cpu_px = crate::render::render(&model, angle, w, h);
+
+            let (mut inter, mut union) = (0usize, 0usize);
+            for y in 0..h {
+                let fond = crate::render::couleur_fond(y, h);
+                for x in 0..w {
+                    let i = ((y * w + x) * 4) as usize;
+                    let c = cpu_px[i..i + 4] != fond;
+                    let g = gpu_px[i + 3] > 0;
+                    union += usize::from(c || g);
+                    inter += usize::from(c && g);
+                }
             }
+            assert!(
+                union > 500,
+                "{w}x{h} : les deux rendus sont quasi vides ({union} px couverts)"
+            );
+            let iou = inter as f64 / union as f64;
+            assert!(
+                iou > 0.95,
+                "{w}x{h} : silhouettes divergentes, IoU {:.1} % — champ de vision, cadrage ou sens de rotation",
+                iou * 100.0,
+            );
         }
-        assert!(
-            union > 500,
-            "les deux rendus sont quasi vides ({union} px couverts)"
-        );
-        let iou = inter as f64 / union as f64;
-        assert!(
-            iou > 0.95,
-            "silhouettes divergentes : IoU {:.1} % — champ de vision, cadrage ou sens de rotation",
-            iou * 100.0,
-        );
     }
 }

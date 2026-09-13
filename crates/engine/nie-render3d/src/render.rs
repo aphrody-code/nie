@@ -92,7 +92,18 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
 
     let cam_d = DISTANCE_CAMERA; // distance caméra (sur +z), modèle normalisé ~[-1,1]
     let focal = FOCALE;
-    let scale = w as f32 * 0.5;
+    // Échelle prise sur la HAUTEUR, sur les deux axes : `FOCALE` fixe alors le demi-champ
+    // VERTICAL, ce que fait déjà `gpu::view_projection` (`fovy = 2·atan(1/FOCALE)`) et ce que
+    // fait `scene::render_scene` (`h * 0.5`). Cette ligne prenait la largeur, donc fixait le
+    // demi-champ HORIZONTAL, et les deux ne coïncident que sur un viewport carré.
+    //
+    // Mesuré le 2026-09-13 avec `gpu_et_cpu_cadrent_la_meme_vue` élargi hors du carré :
+    // 128x128 donnait 100 % de recouvrement et 2 527 pixels de chaque côté, mais 256x128 donnait
+    // 26 % — 9 736 pixels au CPU contre 2 527 au GPU, soit un modèle deux fois plus grand en
+    // linéaire. Le test historique ne mesurait que le carré, donc ne pouvait pas le voir. En
+    // navigateur, la chaîne de repli de `native-viewer.ts` descend au rastériseur CPU quand
+    // WebGPU manque : le même modèle changeait de taille selon le navigateur.
+    let scale = h as f32 * 0.5;
 
     let light = normv([0.35, 0.75, 0.55]);
     let mut px = vec![0u8; (w * h * 4) as usize];

@@ -16,8 +16,12 @@
 //!
 //! Les deux chemins cadrent la même vue — champ de vision, distance, inclinaison et sens de
 //! rotation sont partagés (`render::FOCALE`, `DISTANCE_CAMERA`, `TILT`), et
-//! `gpu::tests::gpu_et_cpu_cadrent_la_meme_vue` le vérifie. Ils ne rendent pas les mêmes octets
-//! pour autant, et trois écarts sont **assumés** :
+//! `gpu::tests::gpu_et_cpu_cadrent_la_meme_vue` le vérifie **à trois formats**, pas seulement au
+//! carré : jusqu'au 2026-09-13 il ne regardait que 128×128, et le CPU fixait en réalité son
+//! demi-champ HORIZONTAL là où le GPU fixe le VERTICAL, ce qui donnait 26 % de recouvrement en
+//! 256×128 et un modèle deux fois plus grand. La chaîne de repli du navigateur descend au
+//! rastériseur CPU quand WebGPU manque : le même modèle changeait donc de taille selon le
+//! navigateur. Ils ne rendent pas les mêmes octets pour autant, et trois écarts sont **assumés** :
 //!
 //! | | CPU | GPU |
 //! |---|---|---|

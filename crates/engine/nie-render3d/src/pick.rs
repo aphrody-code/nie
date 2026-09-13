@@ -5,14 +5,16 @@
 //! three.js `Raycaster`, which meant the editing viewport could not run on this renderer and the
 //! two could not be merged.
 //!
-//! ## The camera is the reference camera, not another one
+//! ## One camera, one inversion
 //!
-//! [`ray_for_pixel`] inverts EXACTLY the projection [`crate::render::render`] applies — same
-//! `FOCALE`, same `DISTANCE_CAMERA`, same `TILT`, same `w * 0.5` scale on both axes. A picking ray
+//! [`orbital_basis`] is the single definition of where the camera sits and how it is oriented.
+//! [`crate::gpu::view_projection`] builds its view matrix from it, [`ray_for_pixel_orbital`]
+//! inverts it, and [`ray_for_pixel`] is that same inversion with the turntable convention applied:
+//! rotating the MODEL by `+angle` shows what orbiting the CAMERA by `-angle` shows. A picking ray
 //! derived from its own copy of those constants selects a surface next to the one under the
 //! cursor, and the error grows with the angle, so it reads as a flaky hit test rather than as two
-//! cameras. `un_pixel_du_modele_touche_le_modele` pins the two together by rendering and picking
-//! the same frame.
+//! cameras. `un_pixel_du_modele_touche_le_modele` pins ray and rasteriser together by rendering
+//! and picking the same frame.
 //!
 //! ## Both faces count
 //!
@@ -160,11 +162,8 @@ pub fn orbital_basis(center: V3, radius: f32, yaw: f32, pitch: f32, distance: f3
 /// The world-space ray through pixel `(x, y)` for the ORBITAL camera the GPU path uses.
 ///
 /// That path is the one every browser surface renders with, so it is the one a click must be
-/// inverted against. It does not frame identically to [`ray_for_pixel`]: measured on
-/// 2026-09-13, the CPU rasteriser scales both screen axes by `w * 0.5`, fixing its HORIZONTAL
-/// half-angle at `atan(1 / FOCALE)`, while the GPU passes `fovy = 2 * atan(1 / FOCALE)` and fixes
-/// its VERTICAL one. The two agree on a square viewport and nowhere else, so picking cannot share
-/// one inversion between them.
+/// inverted against — and since the CPU rasteriser adopted the same vertical field of view, it is
+/// the only inversion this crate needs.
 #[must_use]
 pub fn ray_for_pixel_orbital(basis: &OrbitalBasis, x: f32, y: f32, w: u32, h: u32) -> Ray {
     // A hidden canvas reports 0x0; a division by it would send NaN into every later comparison,
@@ -190,51 +189,25 @@ pub fn ray_for_pixel_orbital(basis: &OrbitalBasis, x: f32, y: f32, w: u32, h: u3
     }
 }
 
-/// Undo [`crate::render`]'s orientation: inverse tilt about X, then inverse turntable about Y.
-fn unorient(v: V3, cy: f32, sy: f32, cx: f32, sx: f32) -> V3 {
-    // Inverse of the X tilt.
-    let y = v[1] * cx + v[2] * sx;
-    let z = -v[1] * sx + v[2] * cx;
-    // Inverse of the Y turntable.
-    let x = v[0] * cy - z * sy;
-    let z = v[0] * sy + z * cy;
-    [x, y, z]
-}
-
 /// The world-space ray through pixel `(x, y)` of a `w`×`h` image of `model` seen at `angle`.
 ///
 /// `x` and `y` are in pixels, with `y` downwards, as they arrive from a pointer event.
+///
+/// The CPU rasteriser turns the MODEL in front of a fixed camera while the GPU orbits the camera
+/// around a fixed model; the two show the same thing when the yaw is negated, which is the
+/// conversion `nie-render3d --gpu --verify` already performs. So this is not a second inversion,
+/// it is the same one under that conversion.
 #[must_use]
 pub fn ray_for_pixel(model: &Model, angle: f32, x: f32, y: f32, w: u32, h: u32) -> Ray {
     let (center, radius) = crate::render::bounds(model);
-    let (cy, sy) = (angle.cos(), angle.sin());
-    let (cx, sx) = (crate::render::TILT.cos(), crate::render::TILT.sin());
-    // The rasteriser scales BOTH axes by `w * 0.5`; reusing `h` here would skew every pick on a
-    // non-square viewport, and only on a non-square one.
-    #[allow(clippy::cast_precision_loss)]
-    let scale = w as f32 * 0.5;
-    #[allow(clippy::cast_precision_loss)]
-    let (half_w, half_h) = (w as f32 * 0.5, h as f32 * 0.5);
-    let u = (x - half_w) / (crate::render::FOCALE * scale);
-    let v = (half_h - y) / (crate::render::FOCALE * scale);
-
-    // In oriented, normalised space the camera sits on +z and looks down -z: a point at depth `t`
-    // is `(u * t, v * t, DISTANCE_CAMERA - t)`, so the direction is `(u, v, -1)`.
-    let origin = unorient([0.0, 0.0, crate::render::DISTANCE_CAMERA], cy, sy, cx, sx);
-    let direction = unorient([u, v, -1.0], cy, sy, cx, sx);
-    Ray {
-        // Back to world units: the projection normalises by the bounding radius about the centre.
-        origin: [
-            origin[0] * radius + center[0],
-            origin[1] * radius + center[1],
-            origin[2] * radius + center[2],
-        ],
-        direction: [
-            direction[0] * radius,
-            direction[1] * radius,
-            direction[2] * radius,
-        ],
-    }
+    let basis = orbital_basis(
+        center,
+        radius,
+        -angle,
+        crate::render::TILT,
+        crate::render::DISTANCE_CAMERA,
+    );
+    ray_for_pixel_orbital(&basis, x, y, w, h)
 }
 
 #[cfg(test)]
