@@ -82,6 +82,12 @@ mod browser {
         config: wgpu::SurfaceConfiguration,
         renderer: GpuRenderer,
         model: Option<GpuModel>,
+        /// La géométrie du modèle chargé, SANS ses textures, gardée pour répondre à un clic.
+        ///
+        /// Les atlas sont ce qui pèse (budget de 128 Mio décodés) ; positions et indices ne
+        /// servent qu'à `pick`, et les retéléverser depuis le GPU n'est pas possible. Un viewport
+        /// qui ne sait pas dire QUELLE surface a été cliquée n'est pas un éditeur.
+        pickable: Option<glb::Model>,
         camera: Camera,
         layout: wgpu::BindGroupLayout,
         pipeline: wgpu::RenderPipeline,
@@ -246,6 +252,7 @@ mod browser {
                 config,
                 renderer,
                 model: None,
+                pickable: None,
                 camera: Camera::default(),
                 layout,
                 pipeline,
@@ -331,10 +338,59 @@ mod browser {
             // Drop obsolete buffers/textures before allocating the replacement model. This keeps
             // peak VRAM close to one model instead of temporarily retaining both generations.
             self.model = None;
+            self.pickable = None;
             let uploaded = self.renderer.try_upload(&model)?;
             ensure!(uploaded.triangle_count > 0, "GLB sans triangle exploitable");
             self.model = Some(uploaded);
+            self.pickable = Some(glb::Model {
+                primitives: model.primitives,
+                textures: Vec::new(),
+            });
             Ok(())
+        }
+
+        /// La surface sous le pixel `(x, y)`, dans le backing store courant.
+        ///
+        /// Rend `(primitive, triangle, x, y, z)` du point de contact, ou `None` si le rayon ne
+        /// rencontre rien — ce qui est le cas normal d'un clic sur le fond.
+        ///
+        /// La caméra inversée est celle de l'image courante : même base orbitale que la matrice
+        /// de vue, cf. `pick::orbital_basis`.
+        pub fn pick(&self, x: f32, y: f32) -> Option<crate::pick::Hit> {
+            let model = self.pickable.as_ref()?;
+            let (center, radius) = crate::render::bounds(model);
+            let basis = crate::pick::orbital_basis(
+                center,
+                radius,
+                self.camera.yaw,
+                self.camera.pitch,
+                self.camera.distance,
+            );
+            let ray = crate::pick::ray_for_pixel_orbital(
+                &basis,
+                x,
+                y,
+                self.config.width,
+                self.config.height,
+            );
+            crate::pick::pick(model, &ray)
+        }
+
+        /// La même mesure, en JSON, pour les enveloppes `wasm_bindgen`.
+        ///
+        /// Mise en forme ICI et pas dans chaque enveloppe : `nie-wasm` et `nie-viewer-web`
+        /// exposent la même surface exprès, pour qu'un hôte permute les deux sans adaptateur, et
+        /// deux sérialisations écrites séparément finissent par diverger sur un nom de champ.
+        pub fn pick_json(&self, x: f32, y: f32) -> Option<String> {
+            self.pick(x, y).map(|hit| {
+                serde_json::json!({
+                    "primitive": hit.primitive,
+                    "triangle": hit.triangle,
+                    "distance": hit.distance,
+                    "point": hit.point,
+                })
+                .to_string()
+            })
         }
 
         /// Règle la caméra absolue (radians, distance en rayons), sans dessiner.

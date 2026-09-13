@@ -74,6 +74,14 @@ impl WebGpuViewer {
         self.inner.render().map_err(js_error)
     }
 
+    /// La surface sous le pixel `(x, y)` du backing store, en JSON, ou `undefined` sur le fond.
+    ///
+    /// `{"primitive":n,"triangle":n,"distance":f,"point":[x,y,z]}`. La caméra inversée est celle
+    /// de l'image courante, par la même base orbitale que la matrice de vue.
+    pub fn pick_json(&self, x: f32, y: f32) -> Option<String> {
+        self.inner.pick_json(x, y)
+    }
+
     /// JSON d'identité mesurée. Le navigateur peut anonymiser nom/vendor/device.
     pub fn backend_info(&self) -> String {
         let info = self.inner.adapter_info();

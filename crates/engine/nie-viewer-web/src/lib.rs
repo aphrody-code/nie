@@ -93,6 +93,14 @@ impl ModelViewer {
         self.inner.render().map_err(js_error)
     }
 
+    /// La surface sous le pixel `(x, y)` du backing store, en JSON, ou `undefined` sur le fond.
+    ///
+    /// `{"primitive":n,"triangle":n,"distance":f,"point":[x,y,z]}`. La caméra inversée est celle
+    /// de l'image courante, par la même base orbitale que la matrice de vue.
+    pub fn pick_json(&self, x: f32, y: f32) -> Option<String> {
+        self.inner.pick_json(x, y)
+    }
+
     /// Le backend RÉELLEMENT obtenu, en JSON — WebGPU ou WebGL selon ce que le moteur offrait.
     ///
     /// Publié parce que la différence est observable à l'écran et qu'un diagnostic vaut mieux

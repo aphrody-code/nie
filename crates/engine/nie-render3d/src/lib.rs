@@ -37,6 +37,7 @@ pub mod document;
 pub mod glb;
 #[cfg(feature = "gpu")]
 pub mod gpu;
+pub mod pick;
 pub mod render;
 pub mod scene;
 mod vecmath;

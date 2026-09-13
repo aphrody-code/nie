@@ -26,6 +26,7 @@ use wgpu::util::{DeviceExt, StagingBelt};
 
 use crate::glb::Model;
 use crate::render::bounds;
+use crate::vecmath::dot;
 
 /// API graphique demandée. Un choix explicite ne bascule jamais vers une autre API.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -884,7 +885,7 @@ impl GpuRenderer {
         let camera = camera.clamped();
         let view_proj = view_projection(model, camera, width as f32 / height as f32);
         let normal_rot = rotation_normales(camera);
-        let light = normalize3([0.35, 0.75, 0.55]);
+        let light = crate::vecmath::normv([0.35, 0.75, 0.55]);
 
         let uniform = CameraUniform {
             view_proj,
@@ -1047,14 +1048,15 @@ impl Drop for GpuRenderer {
 fn view_projection(model: &GpuModel, camera: Camera, aspect: f32) -> [[f32; 4]; 4] {
     let r = model.radius.max(1e-3);
     let dist = camera.distance * r;
-    let (cy, sy) = (camera.yaw.cos(), camera.yaw.sin());
-    let (cp, sp) = (camera.pitch.cos(), camera.pitch.sin());
-
-    let eye = [
-        model.center[0] + dist * cp * sy,
-        model.center[1] + dist * sp,
-        model.center[2] + dist * cp * cy,
-    ];
+    // La MÊME base que celle qu'inverse `pick::ray_for_pixel_orbital`. Écrites séparément, les
+    // deux s'accordaient sur la première image et divergeaient dès que le lacet quittait zéro.
+    let basis = crate::pick::orbital_basis(
+        model.center,
+        model.radius,
+        camera.yaw,
+        camera.pitch,
+        camera.distance,
+    );
 
     // Plans de coupe relatifs à la taille du modèle : des valeurs fixes feraient disparaître un
     // modèle minuscule (coupé par le plan proche) ou un modèle immense (au-delà du plan lointain).
@@ -1070,8 +1072,7 @@ fn view_projection(model: &GpuModel, camera: Camera, aspect: f32) -> [[f32; 4]; 
         near,
         far,
     );
-    let view = look_at(eye, model.center, [0.0, 1.0, 0.0]);
-    mat_mul(proj, view)
+    mat_mul(proj, view_from_basis(&basis))
 }
 
 /// Rotation appliquée aux normales pour l'éclairage — l'équivalent GPU de `render::orient`.
@@ -1119,15 +1120,18 @@ fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> [[f32; 4]; 4] {
     ]
 }
 
-fn look_at(eye: [f32; 3], target: [f32; 3], up: [f32; 3]) -> [[f32; 4]; 4] {
-    let f = normalize3(sub3(target, eye));
-    let s = normalize3(cross3(f, up));
-    let u = cross3(s, f);
+/// Matrice de vue d'une base orbitale : la caméra regarde son `-z`, `x` à droite, `y` en haut.
+///
+/// Les quatre helpers vectoriels que ce module portait (`sub3`, `dot3`, `cross3`, `normalize3`)
+/// réécrivaient `vecmath`, qui existe précisément pour éviter ça — cf. son propre en-tête, qui
+/// documente la même dédup entre `render` et `scene`.
+fn view_from_basis(basis: &crate::pick::OrbitalBasis) -> [[f32; 4]; 4] {
+    let (s, u, f, eye) = (basis.right, basis.up, basis.forward, basis.eye);
     [
         [s[0], u[0], -f[0], 0.0],
         [s[1], u[1], -f[1], 0.0],
         [s[2], u[2], -f[2], 0.0],
-        [-dot3(s, eye), -dot3(u, eye), dot3(f, eye), 1.0],
+        [-dot(s, eye), -dot(u, eye), dot(f, eye), 1.0],
     ]
 }
 
@@ -1141,27 +1145,6 @@ fn mat_mul(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
     out
 }
 
-fn sub3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-fn dot3(a: [f32; 3], b: [f32; 3]) -> f32 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-}
-fn cross3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
-fn normalize3(v: [f32; 3]) -> [f32; 3] {
-    let n = dot3(v, v).sqrt();
-    if n <= 1e-6 {
-        [0.0, 1.0, 0.0]
-    } else {
-        [v[0] / n, v[1] / n, v[2] / n]
-    }
-}
 
 #[cfg(test)]
 mod tests {
