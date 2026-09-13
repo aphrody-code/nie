@@ -22,9 +22,11 @@ const GENERATED_TYPESCRIPT = fileURLToPath(new URL("../src/wasm/nie_wasm.d.ts", 
 const GENERATED_WASM_TYPESCRIPT = fileURLToPath(
 	new URL("../src/wasm/nie_wasm_bg.wasm.d.ts", import.meta.url)
 );
-const PUBLIC_WASM = fileURLToPath(
+const TRACKED_PUBLIC_WASM = fileURLToPath(
 	new URL("../public/static/game/nie_wasm_bg.wasm", import.meta.url)
 );
+const PUBLIC_WASM = process.env.NIERS_WASM_PUBLIC_OUTPUT ?? TRACKED_PUBLIC_WASM;
+const VERIFY_TRACKED_BINDINGS = PUBLIC_WASM !== TRACKED_PUBLIC_WASM;
 const MAX_WASM_BYTES = 6 * 1024 * 1024;
 
 const workspaceManifest = readFileSync(new URL("../../../Cargo.toml", import.meta.url), "utf8");
@@ -139,13 +141,27 @@ try {
 		throw new Error("wasm-bindgen smoke test returned an unexpected empty-buffer format");
 	}
 
-	mkdirSync(dirname(PUBLIC_WASM), { recursive: true });
-	for (const [source, destination] of [
+	const generatedBindings = [
 		[temporaryJavaScript, GENERATED_JAVASCRIPT],
 		[temporaryTypeScript, GENERATED_TYPESCRIPT],
 		[temporaryWasmTypeScript, GENERATED_WASM_TYPESCRIPT],
-		[temporaryWasm, PUBLIC_WASM],
-	] as const) {
+	] as const;
+	if (VERIFY_TRACKED_BINDINGS) {
+		for (const [source, destination] of generatedBindings) {
+			if (!readFileSync(source).equals(readFileSync(destination))) {
+				throw new Error(`generated WASM binding drifted from tracked file: ${destination}`);
+			}
+		}
+	} else {
+		for (const [source, destination] of generatedBindings) {
+			const next = `${destination}.next-${process.pid}`;
+			copyFileSync(source, next);
+			renameSync(next, destination);
+		}
+	}
+
+	mkdirSync(dirname(PUBLIC_WASM), { recursive: true });
+	for (const [source, destination] of [[temporaryWasm, PUBLIC_WASM]] as const) {
 		const next = `${destination}.next-${process.pid}`;
 		copyFileSync(source, next);
 		renameSync(next, destination);

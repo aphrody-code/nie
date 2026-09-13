@@ -195,7 +195,10 @@ const stages: Stage[] = [
 			// TypeScript project build; keep that library in the canonical release target too.
 			{ argv: ["cargo", "build", "--release", "--locked", "-p", "nie-ffi"] },
 			{ argv: ["cargo", "check", "--locked", "-p", "inacord"] },
-			{ argv: ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"] },
+			{
+				argv: ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"],
+				env: { NIERS_WASM_PUBLIC_OUTPUT: "<STAGE>/wasm/nie_wasm_bg.wasm" },
+			},
 			{ argv: ["bun", "run", "--cwd", "apps/nie-web", "typecheck"] },
 			{
 				argv: [
@@ -206,6 +209,13 @@ const stages: Stage[] = [
 					"--outDir",
 					"<STAGE>/bundle",
 					"--emptyOutDir",
+				],
+			},
+			{
+				argv: [
+					"cp",
+					"<STAGE>/wasm/nie_wasm_bg.wasm",
+					"<STAGE>/bundle/static/game/nie_wasm_bg.wasm",
 				],
 			},
 			{ argv: ["bun", "apps/nie-web/scripts/precompress.ts", "<STAGE>/bundle"] },
