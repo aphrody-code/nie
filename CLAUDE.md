@@ -59,6 +59,13 @@ that price on keeper, menu and match-sim.
 
 ## Multi-agent watch and Git
 
+> **État au 2026-09-13 :** `cargo clippy --workspace --all-targets` ÉCHOUE sur des fichiers
+> **non suivis** laissés par un pair — `crates/engine/nie-aphrody/src/bridge.rs` et
+> `tests/bridge.rs`. Le module n'est pas déclaré (`lib.rs` n'a pas de `mod bridge;`) et le test
+> importe deux constantes qui n'existent nulle part (`BUNDLED_FAVICON_ICO`, `BUNDLED_ICON_SVG`).
+> Le gate passe avec `--exclude nie-aphrody`. Validé, non adopté : la règle ci-dessous dit de ne
+> committer pour un pair qu'une fois que ça passe, et ça ne passe pas.
+
 - Read the A2A channel continuously; publish progress there rather than assuming a peer knows.
 - When Codex or Gemini leaves a diff, **validate it before adopting it**: `cargo check`, the
   narrow clippy gate, the relevant tests. Report counts, not exit codes.
