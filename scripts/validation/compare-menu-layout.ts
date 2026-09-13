@@ -8,6 +8,8 @@
  * ```sh
  * ./target/release/nie-site --listen 127.0.0.1:18099 &
  * bun --bun scripts/validation/compare-menu-layout.ts chara_bank_menu
+ * # ou, contre le site que `differential.ts` utilise :
+ * NIE_SITE_BASE=http://127.0.0.1:8085 bun --bun scripts/validation/compare-menu-layout.ts main_menu
  * ```
  *
  * Mesuré le 2026-09-13 sur **30 écrans** — un échantillon de 24 tirés du catalogue plus six
@@ -25,7 +27,10 @@
  */
 import { readFileSync } from "node:fs";
 
-const BASE = "http://127.0.0.1:18099";
+// Le port est surchargeable : `differential.ts`, l'autre outil qui a besoin d'un site local,
+// écoute sur 8085. Avoir deux valeurs codées en dur fait lancer le mauvais serveur et rend des
+// résultats vides qui ressemblent à un échec de comparaison.
+const BASE = process.env.NIE_SITE_BASE ?? "http://127.0.0.1:18099";
 const ECRAN = process.argv[2] ?? "chara_bank_menu";
 
 const glue = await import("/home/ubuntu/niers/apps/nie-web/src/wasm/nie_wasm.js");
