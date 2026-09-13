@@ -170,9 +170,20 @@ update, and it reads as easing rather than layout — read, not proven:
 `[+0xE0]` is the duration slot 56 copies into `[+0x144]` when a scroll starts. So a cell's
 on-screen position is a function of TIME, not of the ring slot alone: the view interpolates
 between rows. A faithful list therefore needs the animation state as well as the index, and a
-single-frame composer cannot reproduce a screen mid-scroll. Whether a settled screen reduces to
-a static formula (timer at 0) is the first thing to check — it would make most screens tractable
-without an animation clock.
+single-frame composer cannot reproduce a screen mid-scroll.
+
+**But a settled screen skips the curve entirely — checked.** `[+0x1B6]` is the "animation in
+flight" flag: slot 9 tests it FIRST and jumps past the whole easing block when it is 0
+(`cmp byte [rdi+1B6h],0 ; je 0x14054143A`). When the timer runs out the method writes
+`[+0x144] = 0` and clears the flag itself. So a settled screen never evaluates the curve, and a
+single-frame composer is CORRECT for it — animation is the exception, not the model. Most screens
+are therefore tractable without an animation clock.
+
+That answers, after the fact, a guard the proofs had to pin without understanding it:
+`validate_listview_scroll.py` sets `0x1B6 = 0` because the scroll steps return early otherwise.
+They return early because the engine REFUSES to scroll while an animation runs. The flag the
+proofs needed and the flag that gates the easing are the same one — pinning it to 0 was pinning
+the settled state, which is exactly the state a composer can reproduce.
 
 The first candidate for the static case was `0x1405439B0`, called from the re-indexer with
 `(this, cell, index)`. Eliminated: it reads 16-bit record tables and carries no float

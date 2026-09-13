@@ -29,6 +29,12 @@ SIZE = 0x200
 
 # Les gardes lues dans le prologue. Une seule mal posee et la fonction sort sans rien ecrire,
 # ce qui se lit comme « le pas ne fait rien » au lieu de « le cas de test est mal monte ».
+#
+# `0x1B6` est le drapeau « ANIMATION EN COURS », identifie le 2026-09-13 : le creneau 9
+# (`0x1405410D0`, la mise a jour par image) le teste en premier et saute tout son bloc
+# d'acceleration quand il vaut 0. Le poser a 0 ici n'est donc pas une commodite de montage :
+# c'est l'etat STABILISE, celui ou la position d'une cellule ne depend plus du temps. Un pas de
+# defilement est d'ailleurs REFUSE tant qu'une animation tourne, ce qui est coherent.
 GUARDS = {0x1B6: 0, 0x1AF: 0, 0x1AC: 1, 0x1BB: 0, 0x1AE: 1}
 
 
