@@ -72,8 +72,8 @@ fn les_octets_du_jeu_deviennent_des_pixels_de_modele() {
 fn des_octets_qui_ne_sont_pas_un_glb_sont_refuses() {
     let erreur = nie_wasm::model_render_rgba(b"pas un glb", 0.0, 8, 8).expect_err("doit refuser");
     assert!(
-        erreur.contains("glTF"),
-        "l'erreur doit nommer ce qui manque : {erreur}"
+        erreur.contains("GLB 2.0"),
+        "l'erreur doit nommer le conteneur et sa version : {erreur}"
     );
 }
 
