@@ -189,6 +189,32 @@ The first candidate for the static case was `0x1405439B0`, called from the re-in
 `(this, cell, index)`. Eliminated: it reads 16-bit record tables and carries no float
 arithmetic at all.
 
+**Step 3 is located — read, not proven.** The settled branch of slot 9 (`0x14054143A`) compares
+`[+0x12C]` against `[+0x130]` and `[+0xD8]` against `[+0xDC]` to raise a dirty flag, stores the
+current values as the previous ones, and calls the virtual at `[vt+0x248]` — slot **73**,
+`0x140544BD0`, the method the float scan had flagged with 10 float instructions. Inside it:
+
+    mov r8d,[rcx+rdx*4]                 ; index de cellule
+    lea rcx,[rax+rax*2] ; add rcx,rcx   ; rcx = index * 6
+    mov rax,[rax+198h]                  ; pointeur de table (sur un AUTRE objet, 64 bits)
+    movss xmm0,[rax+rcx*8+0Ch]          ; x
+    movss xmm1,[rax+rcx*8+1Ch]          ; y
+    movss xmm0,[rax+rcx*8+2Ch]          ; z
+    movups xmm2,[r13] ; addps xmm2,[rsp+60h]   ; POSITION = base + translation
+    call 0x140567CC0                    ; appliquée au widget
+
+`index * 6 * 8` is a stride of **48 bytes**, and x/y/z sit 16 bytes apart — that is the
+translation column of a 4×3 affine matrix, three 16-byte rows. So per-cell transforms live in a
+table of affine matrices and a cell's position is `base + translation[index]`.
+
+Note the `[+0x198]` here is a 64-bit POINTER on a different object than the list view, not the
+32-bit field the ring slot uses. Reading it as "the same field" would merge two unrelated things
+that share an offset — which is why the earlier elimination pass recorded that distinction
+instead of counting `+198h` hits.
+
+Next: prove it with uemu (the table can be synthesised, the base seeded) and port
+`base + translation[index]` next to the ring slot in `nie_core::list_view`.
+
 The 6 unresolved objects on that screen are shared components — headers, button guides, a lock
 icon — that the owning screen positions at runtime. The compositor does not paint them, which is
 correct and already gated by `an_unresolved_placement_is_never_painted`.
