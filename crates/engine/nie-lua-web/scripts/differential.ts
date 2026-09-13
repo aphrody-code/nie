@@ -168,6 +168,16 @@ async function main() {
     console.log(`| ${row.screen} | ${row.status} | ${row.detail} |`);
   }
   console.log(`\n${identical}/${screens.length} identical`);
+
+  // Un PLANCHER, pas une cible : ce relevé doit dire NON quand on casse ce qui marchait, sans
+  // exiger un 14/14 que les entiers 32 bits de cette VM empêchent (cf. README). Il valait 10 le
+  // 2026-09-13 ; l'expérience d'élargissement de `lua_Integer` l'a fait tomber à 3 et seul un
+  // regard l'a vu. `NIE_DIFFERENTIAL_FLOOR` le relève quand le plancher monte.
+  const plancher = Number(process.env.NIE_DIFFERENTIAL_FLOOR ?? 10);
+  if (identical < plancher) {
+    console.error(`RÉGRESSION : ${identical} identiques pour un plancher de ${plancher}`);
+    process.exit(1);
+  }
 }
 
 await main();
