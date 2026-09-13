@@ -15,6 +15,19 @@
 //! l'ANCRE de la marge au lieu de la tête de 1. Validé de la même façon,
 //! `scripts/validate_listview_page.py`, **18 ✓ / 0 ✗** dont 13 qui écrivent.
 //!
+//! ## Les noms viennent du MOTEUR depuis le 2026-09-13
+//!
+//! `0x1400AB120` construit dans `dist/nie.exe` une table de descripteurs où chaque propriété de
+//! `CMenuListView` déclare son nom, son offset et sa taille — 44 champs. Les noms employés ici
+//! en viennent : `mViewStart` (`0xC0`), `mViewNum` (`0xC4`), `mLineNum` (`0xC8`),
+//! `mMoveTime` (`0xE0`), `mLocatorNum` (`0xE8`), `mIsListMoveForce` (`0x1B3`),
+//! `mLockFocusIdx` (`0x198`). Carte complète : `docs/re/cmenulistview-fields.md`.
+//!
+//! Deux corrections que cette table impose : `0xC0` n'est pas « l'étendue visible » mais
+//! `mViewStart`, et `0xC4` n'est pas une « marge » mais `mViewNum` — les deux étaient des noms
+//! posés faute de mieux. Et `0x198`, le champ dont le rôle avait été qualifié d'« interprétation
+//! à ne pas citer comme un fait », s'appelle `mLockFocusIdx` : la lecture initiale était juste.
+//!
 //! ## ⚠ C'est le comportement de BASE, et 94 dérivées peuvent le remplacer
 //!
 //! `lives::CMenuListView` a **94 classes dérivées** dans `dist/nie.exe`, et une vtable dérivée
@@ -59,13 +72,16 @@ pub struct ListScroll {
     pub anchor: i32,
     /// `[this+0x138]` — l'index sélectionné. Le pas d'une ligne n'y touche presque jamais.
     pub selected: i32,
-    /// `[this+0xC0]` — l'étendue visible. Borne aussi le défilement vers le haut, à `-visible`.
-    pub visible: i32,
-    /// `[this+0xC4]` — une marge qui s'ajoute à `visible` dans la borne vers le bas.
-    pub margin: i32,
+    /// `[this+0xC0]` — **`mViewStart`**, le nom du moteur. Borne le défilement vers le haut, à
+    /// `-mViewStart`. Le champ s'appelait `visible` ici tant que le nom n'était pas mesuré.
+    pub view_start: i32,
+    /// `[this+0xC4]` — **`mViewNum`**. S'ajoute à `mViewStart` dans la borne vers le bas.
+    /// S'appelait `margin` ici, également par défaut de mesure.
+    pub view_num: i32,
     /// `[this+0x1C7]` — le drapeau qui décide si une dernière ligne partielle compte.
     pub counts_partial_row: bool,
-    /// `[this+0x1B3]` — change la façon dont le pas PAR PAGE recalcule la ligne de tête.
+    /// `[this+0x1B3]` — **`mIsListMoveForce`**. Change la façon dont le pas PAR PAGE recalcule
+    /// la ligne de tête.
     ///
     /// Mesuré : sur le même départ, le pas avant rend `top = 5` à 0 et `top = 8` à 1. Ce n'est
     /// donc pas un réglage cosmétique, et le deviner aurait décalé la vue d'une page entière.
@@ -113,13 +129,13 @@ impl ListScroll {
 
         match step {
             Step::Forward => {
-                if self.margin + self.visible + self.top >= rows {
+                if self.view_num + self.view_start + self.top >= rows {
                     return false;
                 }
-                let probe = self.margin + self.visible + self.top + 1;
+                let probe = self.view_num + self.view_start + self.top + 1;
                 let mut top = self.top + 1;
                 if probe > rows {
-                    top = rows - self.visible - self.margin;
+                    top = rows - self.view_start - self.view_num;
                 }
                 self.top = top;
                 self.anchor = top + delta;
@@ -129,7 +145,7 @@ impl ListScroll {
                 true
             }
             Step::Backward => {
-                let floor = -self.visible;
+                let floor = -self.view_start;
                 if self.top <= floor {
                     return false;
                 }
@@ -163,19 +179,19 @@ impl ListScroll {
                 if last <= self.anchor {
                     return false;
                 }
-                let anchor = (self.anchor + self.margin).min(last);
-                if self.margin >= rows {
+                let anchor = (self.anchor + self.view_num).min(last);
+                if self.view_num >= rows {
                     self.anchor = anchor;
                     return true; // seule l'ancre bouge : la vue tient déjà tout
                 }
                 let delta = self.anchor - self.top;
                 let mut top = if self.keeps_relative_top {
-                    if delta >= self.margin { anchor - self.margin } else { anchor - self.visible }
+                    if delta >= self.view_num { anchor - self.view_num } else { anchor - self.view_start }
                 } else {
-                    anchor - self.visible - self.margin + 1
+                    anchor - self.view_start - self.view_num + 1
                 };
-                if self.keeps_relative_top && top + self.margin >= last {
-                    top = rows - self.margin - 1;
+                if self.keeps_relative_top && top + self.view_num >= last {
+                    top = rows - self.view_num - 1;
                 }
                 self.top = top;
                 self.anchor = anchor;
@@ -185,17 +201,17 @@ impl ListScroll {
                 if self.anchor <= 0 {
                     return false;
                 }
-                let mut anchor = (self.anchor - self.margin).max(0);
-                if self.margin >= rows {
+                let mut anchor = (self.anchor - self.view_num).max(0);
+                if self.view_num >= rows {
                     self.anchor = anchor;
                     return true;
                 }
-                let mut top = anchor - self.visible;
+                let mut top = anchor - self.view_start;
                 if self.keeps_relative_top {
-                    let candidate = (self.top - self.margin).max(-self.visible);
+                    let candidate = (self.top - self.view_num).max(-self.view_start);
                     if candidate < top {
                         top = candidate;
-                        anchor = candidate + self.visible;
+                        anchor = candidate + self.view_start;
                     }
                 }
                 self.top = top;
@@ -369,8 +385,8 @@ mod tests {
     /// Ce ne sont pas des attentes rédigées à la main : chaque triplet est la sortie mesurée de
     /// `0x140542B80` émulée sur `dist/nie.exe`. Les recopier ici fait que ce test échoue si le
     /// port dérive, sans exiger unicorn dans `cargo test`.
-    fn scroll(total: i32, columns: i32, top: i32, anchor: i32, selected: i32, visible: i32, margin: i32) -> ListScroll {
-        ListScroll { total, columns, top, anchor, selected, visible, margin, counts_partial_row: false, keeps_relative_top: false }
+    fn scroll(total: i32, columns: i32, top: i32, anchor: i32, selected: i32, view_start: i32, view_num: i32) -> ListScroll {
+        ListScroll { total, columns, top, anchor, selected, view_start, view_num, counts_partial_row: false, keeps_relative_top: false }
     }
 
     /// Un départ et les deux triplets `(top, anchor, selected)` que le jeu écrit.
