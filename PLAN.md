@@ -116,13 +116,22 @@ Keep that route in the loop. Cross-host comparison, uemu proofs and unit tests a
 two implementations AGREE or that a function reproduces measured bytes. None of them asks
 whether the picture is right.
 
-**Placement is the other half, and it is still open.** On `story_mode_top_menu`, the 13 list
-items sit at `x = 0` with y correct to the row (148, 220, 292, 364 — exactly 72 apart). The
-tempting reading is that their locator is unresolved and they fall back to local coordinates:
-`story01_02_story_mode_top_locator` IS unresolved. **Tested and rejected** —
-`chronicle_mode_top_menu` has a RESOLVED locator and still puts 6 instances at `x = 0`, while
-`chara_bank_menu` has no locator at all and spreads its 53 instances across 53, 107, 160, 213…
-So `x = 0` is not a consequence of locator resolution, and the cause is unknown.
+**Placement: `x = 0` is FAITHFUL, not a bug.** On `story_mode_top_menu` the 13 list items sit at
+`x = 0` with y correct to the row (148, 220, 292, 364 — exactly 72 apart). The first reading was
+that their locator is unresolved and they fall back to local coordinates; that locator IS
+unresolved, which made it convincing. Rejected: `chronicle_mode_top_menu` has a RESOLVED locator
+and still puts 8 instances at `x = 0`.
+
+What holds instead, checked on four screens: the objects at `x = 0` are exactly those the ENGINE
+positions at runtime — `*_list_item*` on both top menus, and `open_particle` / `cursor` on
+`advent_calendar_menu`. `chara_bank_menu` has NONE, and it is a grid whose cells carry real
+coordinates (53, 107, 160, 213…). `AttachSlot::to_css` is a pure multiply, so `x = 0` out means
+the attach bone holds 0 in — the export reproduces the file exactly.
+
+This is the same fact the `CMenuListView` reversal found from the other side: the cells are a
+RING of reused widgets whose positions the engine computes, so the static files cannot carry
+them. Static composition is therefore complete for chrome and structurally incomplete for
+runtime-placed content, and no amount of compositor work closes that — it needs the runtime.
 
 The 6 unresolved objects on that screen are shared components — headers, button guides, a lock
 icon — that the owning screen positions at runtime. The compositor does not paint them, which is
