@@ -198,22 +198,29 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   `instances` array size in `tests/routes.rs`, `declarees.len()`, and `vus`.
 - **The Rust site is the only game/wiki deployment.** Verify the exact service checkout before
   editing; never edit a tree while its build is running.
+- **`data/` has THREE text trees; surveying one and calling it the corpus is off by 400×.**
+  `data/dx11/text`, `data/common/text` and `data/oc/astro-lor/game/text`. A first pass over
+  `data/dx11/text` alone reported 46 `[C]`, 28 `[CR]`, 18 `[CG]` and concluded `[CTEAMPARAM01]`
+  was invented. Over all of `data/`: **38 455 markup occurrences, 56 distinct named tokens**,
+  led by `[CPASSIVE01]` (11 722), `[CG]` (2 545), `[CN]` (731), `[CR]` (606) — and
+  `"[CTEAMPARAM01]Bonus d'équipe[C]"` sits in `data/common/text/fr/menu_text.cfg.bin.json`,
+  exactly as an older comment claimed. Same shape as the `data/lua_scripts/` trap below: two
+  mounts, one surveyed.
 - **Game text carries markup: serving it raw is right, PAINTING it raw is a bug.** `[CR]`…`[C]`
-  opens and closes a named colour; `[$gaiji_system02]` substitutes an icon. Measured on
-  `data/dx11/text/` (2026-09-13): 46 `[C]`, 28 `[CR]`, 18 `[CG]`, all in `menu_text_platform`;
-  `nie.exe` adds the long forms `[CN]`, `[CL]`, `[CWG]`, `[CTACTICS01]`, `[CSEASON_TIME03]`,
-  `[CSEASON_TIME05]`. The retained token is what FOLLOWS the `C` (`[CR]` → `"R"`), and an empty
-  name closes. One implementation only — `nie_formats::menu_layout::colour_spans` /
-  `plain_label`, on the side that paints. The browser has none: `ui-text-map.test.ts` fails if a
-  mapped UI string ever carries one. Gaiji is left alone on purpose — it names a glyph the game
-  DRAWS, so stripping it would delete an icon rather than a style.
+  opens and closes a named colour; `[$gaiji_system02]` substitutes an icon. The retained token is
+  what FOLLOWS the `C` (`[CR]` → `"R"`), and an empty name closes. One implementation only —
+  `nie_formats::menu_layout::colour_spans` / `plain_label`, on the side that paints. The browser
+  has none: `ui-text-map.test.ts` fails if a mapped UI string ever carries one. Gaiji is left
+  alone on purpose — it names a glyph the game DRAWS, so stripping it would delete an icon
+  rather than a style.
 - **That token NAMES a colour: `fontColorId == crc32(name)` in `font_color.cfg.bin`.** Measured
-  2026-09-13 over the 70 entries: `R`, `G`, `N`, `WG`, `TACTICS01`, `MODE03`, `FUNCBTN01`,
-  `SEASON_TIME03` and `SEASON_TIME05` all resolve; `CR`, `CG`, `CFUNCBTN01` — the same names
-  keeping the marker's `C` — resolve to nothing, which is how the parse convention was confirmed
-  independently. `MenuFont.palette` carries it and all three hosts fill it (`nie-site`,
-  `nie-game`, `nie-wasm`); an absent palette paints white, never a guessed hue. `L`, which
-  `nie.exe` carries as `[CL]`, is in NEITHER measured palette — do not invent a colour for it.
+  2026-09-13 over the full corpus: **54 of the 56 distinct tokens resolve in the 70-entry
+  palette, covering 99 % of the 18 683 named occurrences.** Only `G2` and `R2` do not, and
+  neither does `L` (which `nie.exe` carries as `[CL]`) — do not invent colours for those three.
+  The same names keeping the marker's `C` — `CR`, `CG`, `CTEAMPARAM01` — resolve to nothing,
+  which is how the parse convention was confirmed independently. `MenuFont.palette` carries it
+  and all three hosts fill it (`nie-site`, `nie-game`, `nie-wasm`); an absent palette paints
+  white, never a guessed hue.
 
 - **The knowledge base's build differs from `dist/nie.exe` — but its CLASS addresses hold.**
   `var/niers.sqlite` is anchored on `nie_eacpatched.exe` (31 468 032 B, `4c2b91fb…`); the target
