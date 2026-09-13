@@ -193,15 +193,42 @@ different model — which is why the rule had to be reversed before it was porte
 Both are now ported and proven: `nie_core::list_view::step_row` (`validate_listview_scroll.py`,
 26 ✓) and `step_page` (`validate_listview_page.py`, 18 ✓).
 
-**Next target, and it is the big one.** Slot 56, `0x140542080`, is what moves the SELECTION:
-2 writes to `[+0x138]` and 14 to `[+0x12C]`, so it carries selection and scrolling together —
-the "item" step the screens actually need for arrow keys. It is **1 971 bytes across 7 chunks**
-against 580 and 820 for the two already done, so it is a session of its own, not an increment.
+**Correction — slot 56 does NOT move the selection.** It was recorded here as the "item" step on
+the strength of a write COUNT: 2 writes to `[+0x138]`, 14 to `[+0x12C]`. Reading both write sites
+settles it — each is `selected = remainder - 1`, guarded by the same partial-last-row condition
+already modelled in `step_row`:
 
-Until it exists, `nie_core::list_view` cannot replace `list-page.ts` in a screen: adopting it for
-scrolling while selection stays on the TypeScript model would put two models in one screen, which
-is worse than one honest approximation. That is why the port has no caller yet, and why that is
-not the usual dead-surface smell.
+    test sil,sil        ; le drapeau « derniere ligne partielle »
+    cmp ebp,r11d        ; selection vs reste
+    cmp edi,r10d        ; derniere ligne vs nouvelle ancre
+    lea eax,[r11-1] ; mov [rbx+138h],eax
+
+So `0x140542080` (1 971 bytes, 7 chunks) is a THIRD scroll path — richer, with float state at
+`[+0xE0]`/`[+0x144]` and a `comiss`, so probably the animated one — and it CLAMPS the selection
+without ever stepping it. A write count is not a semantics; that inference was wrong and is
+corrected here rather than left to propagate.
+
+**Where the selection moves, found by following the data.** The `OnEnter` notifier reads its
+index from `movsx ebx, word [rax+154h]`, on the object returned by `0x140533940` — a DIFFERENT
+object than the list view, so `[+0x138]` was the wrong field to chase. Scanning `.text` for
+16-bit writes to `+0x154` (`66 89 /r` with displacement `54 01 00 00`) gives 61 sites, and two of
+them — `0x140543912`, `0x14054392D` — fall inside `0x140543760..0x1405439AB`: **slot 60**, one of
+the same six siblings.
+
+That function is 587 bytes over 5 chunks, against 1 971 for slot 56. It computes a linear index
+from its arguments (`imul eax,[this+0xC8]` ; `add eax,r8d` ; `div [this+0xE8]`), looks a child up
+through `0x1404F8F60` with `[this+0x11C]`, and writes `+0x154` on THAT child. So the index
+`OnEnter` reports is set on the cell widget, not on the list view — which is why no sibling
+appeared to "move the selection" while one plainly does.
+
+It is the next target, and it is a different SHAPE from the two ported steps: it mutates a child
+object obtained from a lookup, so it is not a pure function over scalars and will need the lookup
+stubbed or modelled before uemu can judge it.
+
+Until that is found, `nie_core::list_view` cannot replace `list-page.ts` in a screen: adopting it
+for scrolling while selection stays on the TypeScript model would put two models in one screen,
+which is worse than one honest approximation. That is why the port has no caller yet, and why
+that is not the usual dead-surface smell.
 
 The remaining siblings write neither field: `0x140542DD0` (901 bytes, 5 chunks) and `0x140543760`
 (587, 5) touch other state, `0x140543B10` (421, single chunk) writes `[+0x138]` once.
