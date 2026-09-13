@@ -2176,16 +2176,16 @@
       "entry": "vfs_decode_cfgbin_typed",
       "capability": "vfs-decode-cfgbin-typed",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "vfs_decode_cfgbin_typed delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "fn vfs_decode_cfgbin_typed"
+          "game_data::decode_cfgbin_typed("
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "nie_data::typed::family_key"
+          "crates/engine/nie-app/src/game_data.rs",
+          "pub fn decode_cfgbin_typed"
         ]
       ]
     },
@@ -2274,16 +2274,16 @@
       "entry": "encode_cfgbin_config",
       "capability": "encode-cfgbin-config",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
       "rationale": "encode_cfgbin_config delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "fn encode_cfgbin_config"
+          "nie_explore::game_data::encode_cfgbin("
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "nie_formats::cfgbin::parse"
+          "crates/engine/nie-explore/src/game_data.rs",
+          "pub fn encode_cfgbin"
         ]
       ]
     },

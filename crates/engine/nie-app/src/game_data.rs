@@ -1838,19 +1838,24 @@ mod tests {
             );
         }
 
-        let typed = decode_cfgbin_typed(
-            &vfs,
-            "data/common/gamedata/formation_config.cfg.bin",
-        )
-        .expect("decode known typed family");
+        let typed = decode_cfgbin_typed(&vfs, "data/common/gamedata/formation_config.cfg.bin")
+            .expect("decode known typed family");
         assert_eq!(typed.cle, "formation_config");
         assert_eq!(typed.famille.as_deref(), Some("formation"));
-        assert_eq!(typed.json, "[]");
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&typed.json).expect("typed JSON"),
+            serde_json::json!({
+                "curve_points": [],
+                "formations": [],
+                "line_curves": [],
+                "placements": [],
+                "positions": [],
+            })
+        );
         assert_eq!(typed.brut, r#"{"entries":[]}"#);
 
-        let generic =
-            decode_cfgbin_typed(&vfs, "data/common/gamedata/unknown_config.cfg.bin")
-                .expect("decode unknown typed family");
+        let generic = decode_cfgbin_typed(&vfs, "data/common/gamedata/unknown_config.cfg.bin")
+            .expect("decode unknown typed family");
         assert_eq!(generic.cle, "unknown_config");
         assert_eq!(generic.famille, None);
         assert!(generic.json.is_empty());

@@ -2096,38 +2096,13 @@ fn vfs_decode_cfgbin_typed(
     game_dir: Option<String>,
     state: tauri::State<VfsState>,
 ) -> Result<CfgbinTyped, String> {
-    let root = with_vfs(game_dir, &state, |vfs| game_data::decode_cfgbin(vfs, &path))?;
-    let brut = serde_json::to_string(&root).map_err(|e| e.to_string())?;
-    let cle = nie_data::typed::family_key(&path);
-    match nie_data::typed::decode_by_key(&cle, &root) {
-        Some((label, valeur)) => Ok(CfgbinTyped {
-            cle,
-            famille: Some(label.to_string()),
-            json: serde_json::to_string(&valeur).map_err(|e| e.to_string())?,
-            brut,
-        }),
-        None => Ok(CfgbinTyped {
-            cle,
-            famille: None,
-            json: String::new(),
-            brut,
-        }),
-    }
+    with_vfs(game_dir, &state, |vfs| {
+        game_data::decode_cfgbin_typed(vfs, &path)
+    })
 }
 
-/// Résultat d'un décodage typé : la forme générique est toujours rendue, la forme nommée
-/// seulement quand la famille est couverte.
-#[derive(serde::Serialize, specta::Type)]
-struct CfgbinTyped {
-    /// Clé de famille dérivée du nom de fichier (`skill_config`, `formation_config`…).
-    cle: String,
-    /// Étiquette du parseur qui a répondu (`skill`, `formation`…), `None` si aucun.
-    famille: Option<String>,
-    /// Données typées sérialisées, vide si `famille` est `None`.
-    json: String,
-    /// Forme générique du conteneur — toujours présente.
-    brut: String,
-}
+/// Compatibility name retained for the generated Tauri/Specta contract.
+type CfgbinTyped = game_data::CfgbinTyped;
 
 /// Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
 /// RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
@@ -2158,19 +2133,9 @@ fn encode_cfgbin_config(
 ) -> Result<String, String> {
     let value: serde_json::Value =
         serde_json::from_str(&json).map_err(|e| format!("JSON invalide : {e}"))?;
-    let bytes = if value.get("lists").is_some() {
-        with_vfs(game_dir, &state, |vfs| {
-            let raw = vfs.read(&path).map_err(|e| e.to_string())?;
-            let rdbn =
-                nie_formats::cfgbin::parse(&raw).map_err(|e| format!("parse RDBN {path} : {e}"))?;
-            let original = nie_formats::cfgbin::read_values(&rdbn, &raw);
-            let lists = nie_explore::bridge::json_to_rdbn_lists(&original, &value)?;
-            nie_formats::cfgbin::encode_rdbn(&lists)
-        })?
-    } else {
-        let entries = nie_explore::bridge::json_to_t2b_entries(&value)?;
-        nie_formats::cfgbin::encode_t2b(&entries)
-    };
+    let bytes = with_vfs(game_dir, &state, |vfs| {
+        nie_explore::game_data::encode_cfgbin(vfs, &path, &value)
+    })?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
 }
 

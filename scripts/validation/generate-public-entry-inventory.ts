@@ -138,6 +138,8 @@ const explicitNativeProof: Record<string, { owner: string; sourceEvidence: [stri
   raw_cpk_video_preview_b64: { owner: "crates/engine/nie-explore/src/cinema/browser_video.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "video_mp4_b64_from_bytes("], ["apps/inacord/src-tauri/src/lib.rs", "video::mp4_depuis_usm("], ["apps/inacord/src-tauri/src/video.rs", "nie_explore::native_video::web_video_stream("]] },
   vfs_video_preview_b64: { owner: "crates/engine/nie-explore/src/cinema/browser_video.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "fn vfs_video_preview_b64"], ["apps/inacord/src-tauri/src/lib.rs", "video::mp4_depuis_usm("], ["apps/inacord/src-tauri/src/video.rs", "nie_explore::native_video::web_video_stream("]] },
   vfs_decode_cfgbin: { owner: "crates/engine/nie-app/src/game_data.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "game_data::decode_cfgbin("], ["crates/engine/nie-app/src/game_data.rs", "pub fn decode_cfgbin"], ["crates/engine/nie-app/src/game_data.rs", "nie_explore::game_data::decode_cfgbin("]] },
+  vfs_decode_cfgbin_typed: { owner: "crates/engine/nie-app/src/game_data.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "game_data::decode_cfgbin_typed("], ["crates/engine/nie-app/src/game_data.rs", "pub fn decode_cfgbin_typed"]] },
+  encode_cfgbin_config: { owner: "crates/engine/nie-explore/src/game_data.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "nie_explore::game_data::encode_cfgbin("], ["crates/engine/nie-explore/src/game_data.rs", "pub fn encode_cfgbin"]] },
 };
 for (const method of ["exec", "attach", "broadcast", "eval", "set_global", "globals", "reload", "drain", "api_report"]) {
   explicitNativeProof[`lua_session_${method}`] = {
