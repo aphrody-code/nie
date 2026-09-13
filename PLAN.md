@@ -133,6 +133,30 @@ RING of reused widgets whose positions the engine computes, so the static files 
 them. Static composition is therefore complete for chrome and structurally incomplete for
 runtime-placed content, and no amount of compositor work closes that — it needs the runtime.
 
+### The runtime half, and exactly where it stops
+
+`POST /api/v1/menu/runtime/{screen}` replays the screen's Lua and returns visibility, sprite
+hashes, colours, text — and **`scroll_index` / `selected_index`**, which is precisely the state
+`nie_core::list_view` consumes. Measured on `story_mode_top_menu`: `selected_index = 0` on one
+object plus `visible_par_index` maps; `scroll_index` is in the schema and null on a screen that
+has not scrolled.
+
+So the chain for runtime-placed content is:
+
+1. **State** — from the Lua runtime. Available, 10/14 families identical cross-host. ✔
+2. **Index mapping** — which ring slot each cell takes and what index it shows.
+   `nie_core::list_view`, ported and proven byte-exact (`step_row`, `step_page`, `cell_index`,
+   `cell_ring_slot`, `filter_step`). ✔
+3. **Pixel geometry** — where each cell lands on screen. **NOT reversed.** The reversal found
+   `[+0x12C]` top row, `[+0x134]` anchor and the ring arithmetic, but not the layout pass that
+   turns a ring slot into coordinates. ✘
+
+The Lua carries NO position field — checked exhaustively across three screens' runtime output.
+That is not a gap in the replay: positions are C++ engine state, which is why step 3 is a
+reversal task and not an API to call. It is the single remaining blocker between the composer
+and a faithful list screen, and the tools built this session (`scripts/re/vtable.py`,
+`xref.py`, `extent.py`, the uemu harness with GPR read-back) are what it needs.
+
 The 6 unresolved objects on that screen are shared components — headers, button guides, a lock
 icon — that the owning screen positions at runtime. The compositor does not paint them, which is
 correct and already gated by `an_unresolved_placement_is_never_painted`.
