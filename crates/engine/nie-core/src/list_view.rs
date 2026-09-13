@@ -11,10 +11,15 @@
 //! le second n'a pas de prologue. Ne lire que le premier tronque le corps là où l'arithmétique
 //! commence, et le pas se lit alors comme une souche.
 //!
+//! `0x140542840` (créneau 58) : le pas PAR PAGE, même prologue de gardes, mais il déplace
+//! l'ANCRE de la marge au lieu de la tête de 1. Validé de la même façon,
+//! `scripts/validate_listview_page.py`, **18 ✓ / 0 ✗** dont 13 qui écrivent.
+//!
 //! ## Ce qui n'est PAS prouvé
 //!
-//! Quelle entrée appelle ce créneau. Le créneau 58 (`0x140542840`) est son frère et déplace la
-//! vue de l'étendue visible — le pas « par page ». Il n'est pas porté ici.
+//! Quelle entrée appelle quel créneau. Le pas par page porte aussi un chemin de DÉLÉGATION
+//! (`[this+0xC8] > 1` et son quatrième paramètre nul donnent un `jmp [vt+1C8h]`) : il sort vers
+//! une vtable, il ne calcule rien, et il n'est pas modélisé ici.
 //!
 //! ## Pourquoi ce n'est pas `list-page.ts`
 //!
@@ -43,6 +48,11 @@ pub struct ListScroll {
     pub margin: i32,
     /// `[this+0x1C7]` — le drapeau qui décide si une dernière ligne partielle compte.
     pub counts_partial_row: bool,
+    /// `[this+0x1B3]` — change la façon dont le pas PAR PAGE recalcule la ligne de tête.
+    ///
+    /// Mesuré : sur le même départ, le pas avant rend `top = 5` à 0 et `top = 8` à 1. Ce n'est
+    /// donc pas un réglage cosmétique, et le deviner aurait décalé la vue d'une page entière.
+    pub keeps_relative_top: bool,
 }
 
 /// Le sens d'un pas.
@@ -115,6 +125,70 @@ impl ListScroll {
     }
 }
 
+impl ListScroll {
+    /// Applique un pas d'une PAGE. Rend `false` quand la liste est déjà en butée.
+    ///
+    /// Le nombre de lignes se calcule ici sans le drapeau `counts_partial_row` : ce créneau
+    /// emploie un simple `cmovge` sur la sélection, là où le pas d'une ligne teste en plus
+    /// `[this+0x1C7]`. Les deux frères ne comptent donc PAS les lignes de la même manière —
+    /// une observation qu'aucune symétrie n'aurait laissé supposer.
+    pub fn step_page(&mut self, step: Step) -> bool {
+        if self.columns == 0 {
+            return false;
+        }
+        let quotient = self.total / self.columns;
+        let remainder = self.total % self.columns;
+        let rows = if self.selected >= remainder { quotient } else { quotient + 1 };
+
+        match step {
+            Step::Forward => {
+                let last = rows - 1;
+                if last <= self.anchor {
+                    return false;
+                }
+                let anchor = (self.anchor + self.margin).min(last);
+                if self.margin >= rows {
+                    self.anchor = anchor;
+                    return true; // seule l'ancre bouge : la vue tient déjà tout
+                }
+                let delta = self.anchor - self.top;
+                let mut top = if self.keeps_relative_top {
+                    if delta >= self.margin { anchor - self.margin } else { anchor - self.visible }
+                } else {
+                    anchor - self.visible - self.margin + 1
+                };
+                if self.keeps_relative_top && top + self.margin >= last {
+                    top = rows - self.margin - 1;
+                }
+                self.top = top;
+                self.anchor = anchor;
+                true
+            }
+            Step::Backward => {
+                if self.anchor <= 0 {
+                    return false;
+                }
+                let mut anchor = (self.anchor - self.margin).max(0);
+                if self.margin >= rows {
+                    self.anchor = anchor;
+                    return true;
+                }
+                let mut top = anchor - self.visible;
+                if self.keeps_relative_top {
+                    let candidate = (self.top - self.margin).max(-self.visible);
+                    if candidate < top {
+                        top = candidate;
+                        anchor = candidate + self.visible;
+                    }
+                }
+                self.top = top;
+                self.anchor = anchor;
+                true
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,7 +199,7 @@ mod tests {
     /// `0x140542B80` émulée sur `dist/nie.exe`. Les recopier ici fait que ce test échoue si le
     /// port dérive, sans exiger unicorn dans `cargo test`.
     fn scroll(total: i32, columns: i32, top: i32, anchor: i32, selected: i32, visible: i32, margin: i32) -> ListScroll {
-        ListScroll { total, columns, top, anchor, selected, visible, margin, counts_partial_row: false }
+        ListScroll { total, columns, top, anchor, selected, visible, margin, counts_partial_row: false, keeps_relative_top: false }
     }
 
     /// Un départ et les deux triplets `(top, anchor, selected)` que le jeu écrit.
@@ -190,5 +264,44 @@ mod tests {
         }
         assert!(!v.step_row(Step::Forward), "top=14 est la butee mesuree");
         assert_eq!((v.top, v.anchor), (14, 16), "rien n'est ecrit en butee");
+    }
+
+    /// Les cas de `scripts/validate_listview_page.py`, avec ce que le JEU écrit.
+    #[test]
+    fn one_page_forward_and_backward_match_the_emulated_game() {
+        let cas: &[Cas] = &[
+            (scroll(40, 4, 0, 3, 0, 3, 3), (1, 6, 0), (-3, 0, 0)),
+            (scroll(40, 4, 2, 5, 12, 3, 3), (3, 8, 12), (-1, 2, 12)),
+            (scroll(100, 5, 4, 8, 55, 4, 4), (5, 12, 55), (0, 4, 55)),
+            (scroll(41, 4, 1, 4, 1, 2, 2), (3, 6, 1), (0, 2, 1)),
+        ];
+        for (depart, avant, arriere) in cas {
+            let mut v = *depart;
+            v.step_page(Step::Forward);
+            assert_eq!((v.top, v.anchor, v.selected), *avant, "avant sur {depart:?}");
+            let mut v = *depart;
+            v.step_page(Step::Backward);
+            assert_eq!((v.top, v.anchor, v.selected), *arriere, "arriere sur {depart:?}");
+        }
+    }
+
+    /// `keeps_relative_top` n'est pas cosmétique : même départ, une page d'écart sur la tête.
+    #[test]
+    fn the_relative_top_flag_changes_where_the_view_lands() {
+        let mut colle = scroll(100, 5, 4, 8, 55, 4, 4);
+        assert!(colle.step_page(Step::Forward));
+        assert_eq!((colle.top, colle.anchor), (5, 12));
+
+        let mut relatif = ListScroll { keeps_relative_top: true, ..scroll(100, 5, 4, 8, 55, 4, 4) };
+        assert!(relatif.step_page(Step::Forward));
+        assert_eq!((relatif.top, relatif.anchor), (8, 12), "trois lignes plus bas");
+    }
+
+    /// Une ancre déjà en tête refuse le pas arrière — et n'écrit rien.
+    #[test]
+    fn a_page_step_at_the_top_reports_that_nothing_moved() {
+        let mut v = scroll(40, 4, 0, 0, 0, 3, 3);
+        assert!(!v.step_page(Step::Backward));
+        assert_eq!((v.top, v.anchor), (0, 0));
     }
 }
