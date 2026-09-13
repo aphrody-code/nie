@@ -189,6 +189,34 @@ impl ListScroll {
     }
 }
 
+/// L'index que porte une CELLULE, ramené dans ses bornes — et il BOUCLE.
+///
+/// `0x140543912` / `0x14054392D` dans `dist/nie.exe` (créneau 60, la boucle qui ré-indexe les
+/// cellules visibles après un défilement). Prouvé par
+/// `scripts/validate_listview_cell_index.py`, **9 ✓ / 0 ✗**.
+///
+/// C'est le contraire de la vue : `step_row` et `step_page` ÉCRÊTENT et ne bouclent jamais,
+/// alors qu'ici un index hors borne revient au début et un index négatif va au dernier. Le
+/// commentaire de `list-page.ts` énonçait « il ne boucle pas » comme une règle unique ; le
+/// binaire a deux niveaux au comportement opposé.
+///
+/// Le `count` est `[cell+0x150]`. Un `count` nul laisse le champ INTACT côté jeu (garde
+/// `test cx,cx ; jle`) — ici la fonction est pure, donc l'appelant ne doit pas l'appeler dans ce
+/// cas ; `0` est rendu faute de mieux et non parce que le jeu l'écrirait.
+#[must_use]
+pub fn cell_index(raw: i16, count: i16) -> i16 {
+    if count <= 0 {
+        return 0;
+    }
+    if raw >= count {
+        return 0;
+    }
+    if raw < 0 {
+        return count - 1;
+    }
+    raw
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,5 +331,26 @@ mod tests {
         let mut v = scroll(40, 4, 0, 0, 0, 3, 3);
         assert!(!v.step_page(Step::Backward));
         assert_eq!((v.top, v.anchor), (0, 0));
+    }
+
+    /// Les cas de `scripts/validate_listview_cell_index.py` : le jeu écrit `[cell+0x154]`.
+    #[test]
+    fn a_cell_index_wraps_where_the_view_clamps() {
+        // (brut, nombre d'éléments de la cellule, index attendu)
+        let cas = [
+            (0, 8, 0),
+            (3, 8, 3),
+            (3, 2, 0), // brut hors borne -> retour au début
+            (7, 8, 7),
+            (7, 4, 0),
+            (5, 6, 5),
+            (4, 8, 4),
+        ];
+        for (brut, count, attendu) in cas {
+            assert_eq!(cell_index(brut, count), attendu, "brut={brut} count={count}");
+        }
+        // La borne basse est l'autre moitié du modulo, lue au même endroit.
+        assert_eq!(cell_index(-1, 8), 7);
+        assert_eq!(cell_index(-1, 1), 0);
     }
 }
