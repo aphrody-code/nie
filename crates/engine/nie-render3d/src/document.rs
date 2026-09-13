@@ -388,8 +388,24 @@ impl SceneDocumentV2 {
     }
 
     /// Composes objects in a v2 document into a single Model, accounting for hierarchy and full TRS.
-    pub fn compose(&self, mut resolve: impl FnMut(&str) -> Result<Model>) -> Result<Model> {
+    pub fn compose(&self, resolve: impl FnMut(&str) -> Result<Model>) -> Result<Model> {
+        Ok(self.compose_indexed(resolve)?.0)
+    }
+
+    /// The same composition, saying WHICH object produced each emitted primitive.
+    ///
+    /// Picking answers with a primitive index; an editor needs an object identifier. Building the
+    /// mapping in the same pass that builds the model is the only arrangement where the two
+    /// cannot drift: a second walk over the document would re-decide visibility, and an object
+    /// hidden by an ancestor contributes no primitive at all.
+    ///
+    /// The returned vector is parallel to `Model::primitives`.
+    pub fn compose_indexed(
+        &self,
+        mut resolve: impl FnMut(&str) -> Result<Model>,
+    ) -> Result<(Model, Vec<String>)> {
         self.validate()?;
+        let mut owners: Vec<String> = Vec::new();
         let mut scene = Model {
             primitives: vec![],
             textures: vec![],
@@ -399,6 +415,7 @@ impl SceneDocumentV2 {
                 continue;
             }
             let mut model = resolve(&object.asset)?;
+            let produced = model.primitives.len();
             let texture_base = scene.textures.len();
             let (pos, rot, scale) = self.evaluate_world_transform(&object.id)?;
 
@@ -434,8 +451,9 @@ impl SceneDocumentV2 {
             }
             scene.primitives.extend(model.primitives);
             scene.textures.extend(model.textures);
+            owners.extend(std::iter::repeat_n(object.id.clone(), produced));
         }
-        Ok(scene)
+        Ok((scene, owners))
     }
 }
 
@@ -476,6 +494,55 @@ impl From<&SceneDocument> for SceneDocumentV2 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn la_composition_dit_quel_objet_a_produit_chaque_primitive() {
+        let primitive = || crate::glb::Primitive {
+            positions: vec![[0.0; 3], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            normals: vec![[0.0, 0.0, 1.0]; 3],
+            uv: vec![[0.0; 2]; 3],
+            indices: vec![0, 1, 2],
+            texture: None,
+        };
+        let document = SceneDocumentV2 {
+            version: 2,
+            objects: vec![
+                SceneObjectV2 {
+                    id: "visible".into(),
+                    parent: None,
+                    name: "visible".into(),
+                    asset: "deux.glb".into(),
+                    position: [0.0; 3],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    scale: [1.0; 3],
+                    visible: true,
+                },
+                SceneObjectV2 {
+                    id: "cache".into(),
+                    parent: None,
+                    name: "cache".into(),
+                    asset: "deux.glb".into(),
+                    position: [0.0; 3],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    scale: [1.0; 3],
+                    visible: false,
+                },
+            ],
+        };
+        let (model, owners) = document
+            .compose_indexed(|_| {
+                Ok(Model {
+                    primitives: vec![primitive(), primitive()],
+                    textures: vec![],
+                })
+            })
+            .unwrap();
+
+        // Le vecteur est PARALLÈLE aux primitives, et l'objet caché n'en produit aucune : c'est
+        // exactement ce qu'une seconde passe sur le document se tromperait à recalculer.
+        assert_eq!(model.primitives.len(), owners.len());
+        assert_eq!(owners, vec!["visible".to_owned(), "visible".to_owned()]);
+    }
+
     #[test]
     fn le_lacet_se_lit_et_se_recrit_dans_le_quaternion() {
         let mut object = SceneObjectV2 {

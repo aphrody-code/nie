@@ -93,6 +93,24 @@ impl ModelViewer {
         self.inner.render().map_err(js_error)
     }
 
+    /// Décode un asset GLB et le garde sous le chemin que le document de scène lui donne.
+    pub fn stage_asset(&mut self, asset: &str, bytes: &[u8]) -> Result<(), JsValue> {
+        self.inner.stage_asset(asset, bytes).map_err(js_error)
+    }
+
+    /// Oublie les assets déposés ; le modèle déjà affiché n'est pas touché.
+    pub fn clear_assets(&mut self) {
+        self.inner.clear_assets();
+    }
+
+    /// Compose et affiche un document de scène v2 depuis les assets déposés.
+    ///
+    /// Plusieurs objets, leur hiérarchie et leur TRS complet : ce qu'un éditeur montre, là où
+    /// `load_glb` n'affiche qu'un modèle. `pick_json` nomme alors l'objet touché.
+    pub fn load_scene(&mut self, document_json: &str) -> Result<(), JsValue> {
+        self.inner.load_scene(document_json).map_err(js_error)
+    }
+
     /// La surface sous le pixel `(x, y)` du backing store, en JSON, ou `undefined` sur le fond.
     ///
     /// `{"primitive":n,"triangle":n,"distance":f,"point":[x,y,z]}`. La caméra inversée est celle

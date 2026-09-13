@@ -88,6 +88,13 @@ mod browser {
         /// servent qu'à `pick`, et les retéléverser depuis le GPU n'est pas possible. Un viewport
         /// qui ne sait pas dire QUELLE surface a été cliquée n'est pas un éditeur.
         pickable: Option<glb::Model>,
+        /// Pour chaque primitive de `pickable`, l'objet du document qui l'a produite.
+        ///
+        /// Vide quand un GLB seul est chargé : il n'y a pas de document, donc pas d'objet à
+        /// nommer. Parallèle à `pickable.primitives` par construction — cf. `compose_indexed`.
+        owners: Vec<String>,
+        /// Les assets décodés que le document peut référencer, par chemin logique.
+        staged: std::collections::BTreeMap<String, glb::Model>,
         camera: Camera,
         layout: wgpu::BindGroupLayout,
         pipeline: wgpu::RenderPipeline,
@@ -253,6 +260,8 @@ mod browser {
                 renderer,
                 model: None,
                 pickable: None,
+                owners: Vec::new(),
+                staged: std::collections::BTreeMap::new(),
                 camera: Camera::default(),
                 layout,
                 pipeline,
@@ -339,6 +348,7 @@ mod browser {
             // peak VRAM close to one model instead of temporarily retaining both generations.
             self.model = None;
             self.pickable = None;
+            self.owners = Vec::new();
             let uploaded = self.renderer.try_upload(&model)?;
             ensure!(uploaded.triangle_count > 0, "GLB sans triangle exploitable");
             self.model = Some(uploaded);
@@ -346,6 +356,52 @@ mod browser {
                 primitives: model.primitives,
                 textures: Vec::new(),
             });
+            Ok(())
+        }
+
+        /// Décode un asset et le garde sous le chemin que le document lui donne.
+        ///
+        /// Un document nomme ses assets ; le navigateur seul sait aller chercher les octets. Les
+        /// remettre un par un évite de faire traverser une table à la frontière `wasm_bindgen`,
+        /// et permet de ne recharger que ce qui change entre deux scènes.
+        pub fn stage_asset(&mut self, asset: &str, bytes: &[u8]) -> Result<()> {
+            ensure!(!asset.is_empty() && asset.len() <= 4096, "référence d'asset invalide");
+            ensure!(bytes.len() <= 64 * 1024 * 1024, "GLB supérieur à 64 Mio");
+            let model = glb::parse_with_texture_budget(bytes, MAX_DECODED_TEXTURE_BYTES)?;
+            self.staged.insert(asset.to_owned(), model);
+            Ok(())
+        }
+
+        /// Oublie les assets déposés. Le modèle déjà téléversé n'est pas touché.
+        pub fn clear_assets(&mut self) {
+            self.staged.clear();
+        }
+
+        /// Compose un document de scène v2 depuis les assets déposés, puis le téléverse.
+        ///
+        /// C'est ce qui distingue un éditeur d'une visionneuse : la scène porte PLUSIEURS objets,
+        /// chacun avec sa place dans la hiérarchie, et un clic doit pouvoir nommer lequel.
+        pub fn load_scene(&mut self, document_json: &str) -> Result<()> {
+            self.ready()?;
+            let document = crate::document::SceneDocumentV2::from_json(document_json)?;
+            let (model, owners) = document.compose_indexed(|asset| {
+                self.staged
+                    .get(asset)
+                    .cloned()
+                    .ok_or_else(|| anyhow::anyhow!("asset absent de la scène : {asset}"))
+            })?;
+            ensure!(!model.primitives.is_empty(), "scène sans primitive");
+            self.model = None;
+            self.pickable = None;
+            self.owners = Vec::new();
+            let uploaded = self.renderer.try_upload(&model)?;
+            ensure!(uploaded.triangle_count > 0, "scène sans triangle exploitable");
+            self.model = Some(uploaded);
+            self.pickable = Some(glb::Model {
+                primitives: model.primitives,
+                textures: Vec::new(),
+            });
+            self.owners = owners;
             Ok(())
         }
 
@@ -388,6 +444,9 @@ mod browser {
                     "triangle": hit.triangle,
                     "distance": hit.distance,
                     "point": hit.point,
+                    // Absent quand un GLB seul est affiché : il n'y a alors aucun objet à nommer,
+                    // et rendre une chaîne vide se lirait comme un objet dont l'identifiant l'est.
+                    "object": self.owners.get(hit.primitive),
                 })
                 .to_string()
             })
