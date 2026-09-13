@@ -248,6 +248,16 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   are default stubs, not methods: on `CMenuListView@lives` (7 real methods of the first 14),
   `0x14004D760` is `C2 00 00` (`ret`) and `0x14004D780` is `32 C0 C3` (`xor al,al; ret`).
 
+- **What still works when a Rust build cannot run.** With `nie-model-serve` holding ~10.5 GiB of
+  its 12 GiB budget and ~14 GiB left, `cargo build` is killed regardless of profile (measured
+  2026-09-13: release `-j2`, release `-j1`, debug `-j1`, and debug with
+  `CARGO_PROFILE_DEV_DEBUG=0`). What does still run, and carried most of that session's findings:
+  `bun run test` and `bun run typecheck` in full; the uemu proofs (`just preuves`), since they
+  read `dist/nie.exe` from Python; disassembly through `.venv` and `scripts/re/*.py`; any
+  `curl` against the running site; and `cargo test` on an ALREADY-BUILT test binary in
+  `target/debug/deps/` if the source has not changed. Reverse-engineering and measurement are
+  therefore not blocked by a full disk cache — only shipping is.
+
 - **The uemu oracle WORKS; the 49 old proofs are anchored on a build that is gone.** Measured
   2026-09-13: `nie.exe`, `nie_eacpatched.exe` and `dist/nie.exe` are all the SAME file
   (`b1fa04ea…`, 33 918 464 B), so `NIE_EXE` changes nothing — and the build the knowledge base
