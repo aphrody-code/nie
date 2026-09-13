@@ -68,6 +68,9 @@ const DETAIL = {
 	],
 };
 
+/** Les pages de texte que l'appelant a demandées. */
+let textPagesDemandees: number[] = [];
+
 /** Les chemins que le faux serveur refuse de rendre. */
 let absents = new Set<string>();
 let layoutServeur: unknown = { objects: ["du serveur"] };
@@ -77,12 +80,23 @@ function installerFetch() {
 	journal.files = [];
 	journal.companions = [];
 	journal.built = [];
+	textPagesDemandees = [];
 	serveurAppele = 0;
 	globalThis.fetch = (async (url: string) => {
 		const chemin = String(url);
 		if (chemin.startsWith("/api/v1/screens/")) return Response.json(DETAIL);
 		if (chemin.startsWith("/api/v1/text/")) {
-			return Response.json({ results: { elements: [{ hash: 1, text: "Banque" }] } });
+			// La route plafonne `per_page` à 200 et annonce le nombre de pages : le double le
+			// reproduit, sinon un appelant qui ne pagine pas passerait le test.
+			const page = Number(new URL(chemin, "http://x").searchParams.get("page") ?? "1");
+			textPagesDemandees.push(page);
+			return Response.json({
+				results: {
+					elements: [{ hash: page, text: `ligne ${page}` }],
+					pages: 3,
+					per_page: 200,
+				},
+			});
 		}
 		if (chemin.startsWith("/api/v1/menu/layout/")) {
 			serveurAppele += 1;
@@ -130,6 +144,15 @@ describe("buildMenuLayout", () => {
 		expect(built?.fetched.received).toBe(built!.fetched.requested - 1);
 		// Le fichier absent n'est pas passé au constructeur sous une forme vide.
 		expect(journal.files).not.toContain("data/common/gamedata/menu/tex/team14_01.g4tx");
+	});
+
+	test("lit TOUTES les pages de texte — la route en plafonne une à 200 lignes", async () => {
+		// Mesuré le 2026-09-13 : `menu_text` compte 2 755 lignes en français et demander
+		// `per_page=5000` en rend 200, sans erreur. Une version antérieure construisait donc ses
+		// layouts avec 7 % du texte du jeu, et rien ne le disait.
+		await buildMenuLayout("chara_bank_menu", "fr");
+		expect(textPagesDemandees.sort()).toEqual([1, 2, 3]);
+		expect(journal.built[0]).toContain("ligne 3");
 	});
 
 	test("la visibilité passe en clés textuelles, comme l'ABI l'attend", async () => {
