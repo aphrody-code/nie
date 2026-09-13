@@ -9,7 +9,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 import { initSync } from "../wasm/nie_wasm.js";
-import { crc32, wasmExceptionsAvailable } from "./lua-runtime";
+import { catalogue, crc32, wasmExceptionsAvailable } from "./lua-runtime";
 
 // `crc32` est maintenant celui du module (`nie_formats::cfgbin::crc32`), pas une boucle écrite
 // ici : il faut donc charger le module pour l'éprouver. C'est le même artefact que la page
@@ -95,5 +95,31 @@ describe("crc32", () => {
 		// Vecteur canonique du CRC-32 (IEEE 802.3) : « 123456789 » → 0xCBF43926.
 		expect(crc32("123456789")).toBe(0xcbf43926);
 		expect(crc32("")).toBe(0);
+	});
+});
+
+describe("le catalogue de scripts", () => {
+	test("lit toutes les pages — la route en rend 50 par défaut", async () => {
+		// Mesuré le 2026-09-13 : `?q=chara_edit` annonce 51 scripts et en rend 50. Le rejeu d'un
+		// écran de l'éditeur d'avatar tournait donc déjà sans l'un des siens, sans rien dire.
+		const pagesDemandees: number[] = [];
+		const origine = globalThis.fetch;
+		globalThis.fetch = (async (url: string) => {
+			const adresse = new URL(String(url), "http://x");
+			if (!adresse.pathname.startsWith("/api/v1/lua/scripts")) return new Response("", { status: 404 });
+			const page = Number(adresse.searchParams.get("page") ?? "1");
+			pagesDemandees.push(page);
+			return Response.json({
+				elements: [{ chemin: `data/common/script/lua/menu/p${page}.lua.bin` }],
+				pages: 4,
+			});
+		}) as unknown as typeof fetch;
+		try {
+			const chemins = await catalogue("q=chara_edit");
+			expect([...new Set(pagesDemandees)].sort()).toEqual([1, 2, 3, 4]);
+			expect(chemins).toHaveLength(4);
+		} finally {
+			globalThis.fetch = origine;
+		}
 	});
 });

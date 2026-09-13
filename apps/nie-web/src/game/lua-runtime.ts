@@ -121,6 +121,45 @@ interface ScriptEntry {
 	chemin: string;
 }
 
+/** Une page du catalogue. */
+interface ScriptPage {
+	elements?: ScriptEntry[];
+	pages?: number;
+}
+
+/**
+ * TOUTES les pages d'une requête au catalogue, pas la première.
+ *
+ * La route pagine par 50 par défaut et plafonne `per_page` à 200 — et elle le fait sans erreur,
+ * en annonçant simplement `pages` dans sa réponse. Mesuré le 2026-09-13 : `?q=chara_edit` rend
+ * 50 scripts sur 51, donc le rejeu d'un écran de l'éditeur d'avatar tournait déjà sans l'un des
+ * siens. C'est le même défaut que la table de texte tronquée à 200 lignes sur 2 755, et il se
+ * corrige de la même façon : lire `pages`, aller chercher le reste.
+ *
+ * Exporté pour être éprouvé seul : `resolveMenuVisibility` rend une table vide avant d'y arriver
+ * dès que la VM ne se charge pas, ce qui est le cas dans un moteur de test sans WebAssembly —
+ * la pagination ne serait donc jamais atteinte par un test qui passe par elle.
+ */
+export async function catalogue(query: string): Promise<string[]> {
+	const lire = async (page: number): Promise<ScriptPage | null> => {
+		const response = await fetch(`/api/v1/lua/scripts?${query}&page=${page}&per_page=200`, {
+			headers: { accept: "application/json" },
+		}).catch(() => null);
+		return response?.ok ? ((await response.json()) as ScriptPage) : null;
+	};
+	const premiere = await lire(1);
+	if (premiere === null) return [];
+	const entrees = [...(premiere.elements ?? [])];
+	const pages = premiere.pages ?? 1;
+	if (pages > 1) {
+		const suivantes = await Promise.all(
+			Array.from({ length: pages - 1 }, (_, index) => lire(index + 2)),
+		);
+		for (const page of suivantes) entrees.push(...(page?.elements ?? []));
+	}
+	return entrees.map(entry => entry.chemin);
+}
+
 /**
  * Les scripts d'un écran, par leur chemin VFS RÉEL.
  *
@@ -128,14 +167,9 @@ interface ScriptEntry {
  * deviner : elle la demande au catalogue, qui la lit dans le VFS.
  */
 async function scriptPaths(screen: string): Promise<string[]> {
-	const response = await fetch(`/api/v1/lua/scripts?q=${encodeURIComponent(screen)}`, {
-		headers: { accept: "application/json" },
-	});
-	if (!response.ok) return [];
-	const body = (await response.json()) as { elements?: ScriptEntry[] };
-	return (body.elements ?? [])
-		.map((entry) => entry.chemin)
-		.filter((path) => path.startsWith("data/common/script/lua/menu/") && path.endsWith(".lua.bin"));
+	return (await catalogue(`q=${encodeURIComponent(screen)}`)).filter(
+		(path) => path.startsWith("data/common/script/lua/menu/") && path.endsWith(".lua.bin"),
+	);
 }
 
 let includesPromise: Promise<string[]> | null = null;
@@ -162,16 +196,10 @@ let includesPromise: Promise<string[]> | null = null;
  * session et partagés par tous les écrans, pas une fois par écran.
  */
 function includePaths(): Promise<string[]> {
-	includesPromise ??= (async () => {
-		const response = await fetch("/api/v1/lua/scripts?q=include&per_page=500", {
-			headers: { accept: "application/json" },
-		});
-		if (!response.ok) return [];
-		const body = (await response.json()) as { elements?: ScriptEntry[] };
-		return (body.elements ?? [])
-			.map((entry) => entry.chemin)
-			.filter((path) => path.startsWith("data/common/script/lua/include/") && path.endsWith(".lua.bin"));
-	})().catch(() => {
+	includesPromise ??= (async () =>
+		(await catalogue("q=include")).filter(
+			(path) => path.startsWith("data/common/script/lua/include/") && path.endsWith(".lua.bin"),
+		))().catch(() => {
 		// Un catalogue indisponible ne doit pas figer l'absence d'includes pour la session : le
 		// rejeu suivant réessaie, et en attendant il se déroule sans eux comme avant.
 		includesPromise = null;
