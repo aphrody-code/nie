@@ -131,15 +131,20 @@ is why it silently went stale once — see the artefact table in `CLAUDE.md`.
 
 Measured 2026-09-13, so a fourth module — or a fatter third — knows what room is left:
 
-| Module | Octets | Budget | Marge |
-| --- | ---: | ---: | ---: |
-| `nie_wasm_bg.wasm` | 4 519 026 | 6 MiB | 1 772 430 (28 %) |
-| `nie_viewer_web_bg.wasm` | 2 855 742 | 4 MiB | 1 338 562 |
-| `nie_lua_web.wasm` | 887 502 | aucun | — |
+| Module | Octets | Budget | Marge | Brotli q11 |
+| --- | ---: | ---: | ---: | ---: |
+| `nie_wasm_bg.wasm` | 4 537 432 | 6 MiB | 1 754 024 (28 %) | 932 318 (−80 %) |
+| `nie_viewer_web_bg.wasm` | 2 855 742 | 4 MiB | 1 338 562 | 804 693 (−72 %) |
+| `nie_lua_web.wasm` | 887 551 | aucun | — | 277 174 (−69 %) |
 
-A browser without WebGPU that opens a 3D model and replays a menu fetches all three: 8 262 270
-bytes uncompressed, ~2.6 MiB over the wire since `.wasm` is precompressed with Brotli (−80 % and
-−72 % measured). Only the first is paid by every visitor.
+A browser without WebGPU that opens a 3D model and replays a menu fetches all three: 8 280 725
+bytes uncompressed and **2 014 185 over the wire** (1,92 MiB), since `precompress.ts` runs Brotli
+at `BROTLI_MAX_QUALITY`. Only the first is paid by every visitor — 932 318 bytes.
+
+Measure at the build's quality or not at all: the same three modules at `-q 5` give −76 %, −65 %
+and a total that would make this table look wrong when it is right. The earlier figure of
+"~2,6 MiB over the wire" matched no measurement at any quality, at either the old sizes or the
+current ones.
 
 The single whole-repository release entrypoint is `scripts/release-all.ts`, exposed as
 `bun run release:all`. Do not create a competing orchestrator. It must preserve the fixed phase
