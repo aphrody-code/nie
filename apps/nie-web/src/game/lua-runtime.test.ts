@@ -42,6 +42,17 @@ function sections(bytes: Uint8Array): number[] {
 }
 
 describe("le module de la VM Lua", () => {
+	test("connaît le champ `missing` — sinon il est plus vieux que le code qui le lit", () => {
+		// Rien dans le build n'impose de reconstruire ce module quand un type Rust qui le
+		// traverse change : il vit hors de la chaîne `bun run build` parce qu'il exige emsdk.
+		// Le nom du champ sérialisé est dans ses données ; s'il en est absent, l'artefact
+		// précède `ReplayOutput::missing` et le navigateur ne rapporterait jamais un manque.
+		// Le test est DIRECTIONNEL : la présence ne prouve pas la fraîcheur, l'absence prouve
+		// l'obsolescence.
+		const octets = readFileSync(MODULE);
+		expect(octets.includes(Buffer.from("missing"))).toBe(true);
+	});
+
 	test("déclare une section `tag` — il EXIGE donc les exceptions WebAssembly", () => {
 		const bytes = new Uint8Array(readFileSync(MODULE));
 		// 13 = `tag`, la section que seule la proposition « exception handling » définit. Elle
