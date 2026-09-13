@@ -228,3 +228,17 @@ all-check: fmt-check clippy
 # Full local readiness gate; fails at the first red check and prints each gate name.
 verify:
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-monorepo.ps1
+
+# Les deux portes INTER-HÔTES : le même Rust compilé pour wasm32 et pour l'hôte doit rendre la
+# même chose. Aucun test unitaire ne les remplace — ils ont déjà attrapé un module publié plus
+# vieux que son code, une comparaison qui rendait « différent » à chaque appel, et une
+# régression 10/14 → 3/14. Démarre un `nie-site` LOCAL (jamais celui de production) et l'arrête.
+cross-host ecrans="30":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ./target/release/nie-site --listen 127.0.0.1:18099 > /tmp/nie-site-cross-host.log 2>&1 &
+    site=$!
+    trap 'kill "$site" 2>/dev/null || true' EXIT
+    sleep 25
+    NIE_SITE_BASE=http://127.0.0.1:18099 bun --bun scripts/validation/compare-menu-layout.ts --sweep {{ecrans}}
+    NIE_SITE_BASE=http://127.0.0.1:18099 bun --bun crates/engine/nie-lua-web/scripts/differential.ts
