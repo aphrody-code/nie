@@ -172,6 +172,44 @@ async function scriptPaths(screen: string): Promise<string[]> {
 	);
 }
 
+const textesPromises = new Map<string, Promise<[number, string][]>>();
+
+/**
+ * Les libellés de menu de la langue demandée, `[[hash, ligne], …]`.
+ *
+ * Le site natif les lit dans son VFS avant de rejouer ; le module ne les avait pas, et le
+ * différentiel (`crates/engine/nie-lua-web/scripts/differential.ts`) mesurait treize écrans sur
+ * quatorze divergents rien que là-dessus. L'ABI `nie_lua_web_load_text` existe depuis le
+ * 2026-09-13 ; ceci est ce qui la relie à la page.
+ *
+ * Mémorisé par langue : 2 755 lignes en français, quatorze pages de 200, servies en
+ * `max-age=86400` — une fois par session, pas une fois par écran.
+ */
+function menuTextLines(locale: string): Promise<[number, string][]> {
+	const memo = textesPromises.get(locale);
+	if (memo) return memo;
+	const charge = (async () => {
+		const lignes: [number, string][] = [];
+		for (let page = 1; ; page += 1) {
+			const reponse = await fetch(
+				`/api/v1/text/${encodeURIComponent(locale)}/menu_text?page=${page}&per_page=200`,
+				{ headers: { accept: "application/json" } },
+			).catch(() => null);
+			if (!reponse?.ok) break;
+			const corps = (await reponse.json()) as {
+				results?: { elements?: { hash: number; text: string }[]; pages?: number };
+			};
+			for (const ligne of corps.results?.elements ?? []) lignes.push([ligne.hash, ligne.text]);
+			if (page >= (corps.results?.pages ?? 1)) break;
+		}
+		// Une table vide n'est pas mémorisée : le rejeu suivant réessaie, comme pour les includes.
+		if (lignes.length === 0) textesPromises.delete(locale);
+		return lignes;
+	})();
+	textesPromises.set(locale, charge);
+	return charge;
+}
+
 let includesPromise: Promise<string[]> | null = null;
 
 /**
@@ -306,6 +344,7 @@ export async function resolveMenuVisibility(screen: string): Promise<ResolvedVis
 	if (ecran.length === 0) return echec(`aucun script de menu nommé ${screen}`);
 
 	runtime.clearScripts();
+	runtime.loadText(await menuTextLines("fr"));
 	const setting = settingPath(screen);
 	const fichiers = await Promise.all([setting, ...paths].map(async (path) => [path, await vfsBytes(path)] as const));
 	let charges = 0;
@@ -347,3 +386,6 @@ export async function resolveMenuVisibility(screen: string): Promise<ResolvedVis
 
 /** Exposé pour le test : la mémoïsation d'un échec ne se voit qu'en interrogeant deux fois. */
 export const includePathsForTests = includePaths;
+
+/** Exposé pour le test : la non-mémoïsation d'un échec ne se voit qu'en interrogeant deux fois. */
+export const menuTextLinesForTests = menuTextLines;

@@ -171,3 +171,32 @@ describe("resolveMenuVisibility", () => {
 		}
 	});
 });
+
+describe("le texte de menu du rejeu", () => {
+	test("lit toutes les pages et ne mémorise pas une table vide", async () => {
+		let tentatives = 0;
+		const pagesVues: number[] = [];
+		const origine = globalThis.fetch;
+		globalThis.fetch = (async (url: string) => {
+			const adresse = new URL(String(url), "http://x");
+			if (!adresse.pathname.startsWith("/api/v1/text/")) return new Response("", { status: 404 });
+			tentatives += 1;
+			// La toute première interrogation échoue : la table vide ne doit pas être mémorisée,
+			// sinon le rejeu tournerait sans libellés jusqu'au rechargement de la page.
+			if (tentatives === 1) return new Response("", { status: 503 });
+			const page = Number(adresse.searchParams.get("page") ?? "1");
+			pagesVues.push(page);
+			return Response.json({
+				results: { elements: [{ hash: page, text: `ligne ${page}` }], pages: 3, per_page: 200 },
+			});
+		}) as unknown as typeof fetch;
+		try {
+			const { menuTextLinesForTests } = await import("./lua-runtime");
+			expect(await menuTextLinesForTests("fr")).toEqual([]);
+			expect(await menuTextLinesForTests("fr")).toHaveLength(3);
+			expect(pagesVues.sort()).toEqual([1, 2, 3]);
+		} finally {
+			globalThis.fetch = origine;
+		}
+	});
+});
