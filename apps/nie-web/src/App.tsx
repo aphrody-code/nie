@@ -34,10 +34,11 @@ import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-i
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { useTheme } from "next-themes";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
-import { AVATAR, BANK, DOWNLOADS, EXPLORER, GALLERY, INACORD, LEGACY_ROUTES, MEDIA, SETTINGS, SHOP, canonicalRoute, recognizedRoutes } from "./entries";
+import { AVATAR, BANK, DOWNLOADS, EXPLORER, GALLERY, INACORD, LEGACY_ROUTES, MEDIA, MODES, SETTINGS, SHOP, canonicalRoute, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
 import { GAME_REACHABLE } from "./host";
+import { Modes } from "./pages/Modes";
 import { Catalog } from "./pages/Catalog";
 import { Avatar } from "./pages/Avatar";
 import { Notice } from "./pages/screen-parts";
@@ -200,6 +201,7 @@ function Site() {
 				onOpenAvatar={() => setVue(AVATAR)}
 				onOpenSettings={() => setVue(SETTINGS)}
 				onOpenMedia={() => setVue(MEDIA)}
+				onOpenModes={() => setVue(MODES)}
 				onOpenExplorer={() => setVue(EXPLORER)}
 				onOpenInacord={() => setVue(INACORD)}
 			/>
@@ -234,6 +236,12 @@ function Site() {
 	}
 	if (route === DOWNLOADS) {
 		return shell(<div className="inacord-downloads"><DownloadPage /></div>);
+	}
+
+	// Les modes portent leur fiche dans le chemin : `/modes` liste, `/modes/<slug>` ouvre.
+	// La page lit le slug elle-meme, ce qui evite d'inscrire les douze slugs du serveur ici.
+	if (route === MODES || route.startsWith(`${MODES}/`)) {
+		return shell(<Modes prefix={prefixe} route={route} />);
 	}
 
 	// The Explorer is ONE implementation. `/explorateur` and the two URLs inherited from the

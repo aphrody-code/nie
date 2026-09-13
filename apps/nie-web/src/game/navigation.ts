@@ -1,4 +1,4 @@
-import { MENU } from "../entries";
+import { MENU, sectionEntry } from "../entries";
 import { HOME, pathForEntry, requestedEntry, splitLanguagePrefix } from "../routing";
 import { OPENING_PHASES, type OpeningPhase } from "./opening-sequence";
 
@@ -23,7 +23,12 @@ export function readGameNavigation(
 	historyState: unknown,
 	serverRoute?: string | null,
 ): GameNavigationState {
-	const requested = requestedEntry(routes, location, serverRoute) ?? HOME;
+	// Une fiche de section (`modes/victory-road`) n'est pas dans le catalogue des entrées —
+	// elle est PORTÉE par l'une d'elles. Sans ce repli, le serveur sert la page et le client
+	// affiche l'accueil : la même adresse existe pour un moteur et pas pour un visiteur.
+	const requested = requestedEntry(routes, location, serverRoute)
+		?? sectionEntry(location.pathname)
+		?? HOME;
 	if (requested !== HOME) {
 		return { view: requested === MENU ? HOME : requested, openingPhase: "menu" };
 	}
@@ -70,7 +75,7 @@ export function internalGameLink(
 	if (url.origin !== current.origin || target.prefix !== splitLanguagePrefix(current.pathname).prefix) {
 		return null;
 	}
-	const view = target.route === "/" ? HOME : requestedEntry(routes, url);
+	const view = target.route === "/" ? HOME : requestedEntry(routes, url) ?? sectionEntry(url.pathname);
 	if (!view) return null;
 	return { view, url };
 }

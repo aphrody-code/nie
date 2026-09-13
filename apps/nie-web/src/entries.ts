@@ -17,6 +17,7 @@
 import type { SanteApi as SiteHealth } from "@niers/asset-source";
 import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
 import { IDS_VUES } from "./desktop/lib/vues";
+import { splitLanguagePrefix } from "./routing";
 
 /**
  * L'explorateur — **la seule page**, décidé par l'utilisateur le 2026-09-06.
@@ -98,6 +99,16 @@ export const GALLERY = "gallery_menu";
  */
 export const SHOP = "shop_menu";
 
+/**
+ * Les modes de jeu — les onglets du menu principal, et ce dont chacun est fait.
+ *
+ * La page existait sur le wiki et en a été retirée pour être reprise ici : `nie` sait rendre les
+ * écrans d'un mode (`/api/v1/menu/render/<ecran>`), ce qu'un wiki adossé à des JSON ne pouvait
+ * pas faire. Le catalogue lui-même vient du serveur (`/api/v1/modes`) — aucun slug n'est écrit
+ * ici, sinon la liste dériverait de celle qui fait autorité.
+ */
+export const MODES = "modes";
+
 /** Published alias that enters the main menu at `/` without replaying startup. */
 export const MENU = "menu";
 
@@ -120,6 +131,32 @@ export const LEGACY_ROUTES: Readonly<Record<string, string>> = {
 	gallery: GALLERY,
 	shop: SHOP,
 };
+
+/**
+ * Les entrées dont le SOUS-CHEMIN appartient à la page.
+ *
+ * `/modes/victory-road` est la fiche d'un mode, pas une adresse inconnue : sans cette liste,
+ * `requestedEntry` ne trouve pas `modes/victory-road` dans le catalogue des entrées et le site
+ * affiche l'accueil, alors que le serveur, lui, sert la page — il décide sur le PREMIER segment
+ * (`routes::pages::route_servie`). Les deux côtés doivent trancher pareil, sinon l'adresse
+ * existe pour un moteur et pas pour un visiteur.
+ *
+ * Une entrée n'y figure que si sa page sait lire son sous-chemin. `/textures/x` n'en est pas :
+ * le catalogue n'a pas de fiche par fichier, et prétendre le contraire rendrait une page vide.
+ */
+export const SECTIONS: readonly string[] = [MODES];
+
+/**
+ * La route complète quand un chemin tombe dans une section, sinon `null`.
+ *
+ * Le préfixe de langue est retiré d'abord : `/ja/modes/story` désigne la même fiche que
+ * `/modes/story`, dans une autre langue.
+ */
+export function sectionEntry(pathname: string): string | null {
+	const route = splitLanguagePrefix(pathname).route.replace(/^\//, "");
+	const first = route.split("/")[0] ?? "";
+	return first && route !== first && SECTIONS.includes(first) ? route : null;
+}
 
 /** La route canonique d'une adresse, héritée ou non. */
 export function canonicalRoute(route: string): string {
@@ -154,6 +191,7 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[SHOP]: { label: "Boutique", glyph: "cube" },
 	[INACORD]: { label: "Inacord", glyph: "livre" },
 	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
+	[MODES]: { label: "Modes", glyph: "livre" },
 };
 
 /** Le libellé d'une entrée, ou son nom brut si le site ne la connaît pas. */
@@ -174,6 +212,7 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
 		MENU,
 		...menuEntries(health).map((entry) => entry.route),
 		DOWNLOADS,
+		MODES,
 		...INACORD_VIEW_ROUTES,
 		...ALIAS,
 		...CATALOGS,
@@ -195,7 +234,7 @@ export const INACORD_VIEW_ROUTES: readonly string[] = IDS_VUES.map((id) => `${IN
  * signature for existing consumers; it does not currently supply native action availability.
  */
 export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
-	return [MEDIA, BANK, GALLERY, SHOP, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => ({
+	return [MEDIA, MODES, BANK, GALLERY, SHOP, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => ({
 		route,
 		label: entryLabel(route),
 		glyph: PRESENTATION[route]?.glyph ?? "arbre",
