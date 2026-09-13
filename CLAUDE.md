@@ -216,6 +216,15 @@ it needs emsdk, which is exactly why it went stale.
   are default stubs, not methods: on `CMenuListView@lives` (7 real methods of the first 14),
   `0x14004D760` is `C2 00 00` (`ret`) and `0x14004D780` is `32 C0 C3` (`xor al,al; ret`).
 
+- **One function, several `.pdata` entries — read only the first and you truncate the body.**
+  MSVC splits a function into chunks whose ranges touch end-to-end, each with its own unwind
+  info. Measured on `lives::CMenuListView`: `0x140542B80` is 87 bytes in its own entry and 580
+  across three chunks, with ALL its arithmetic in the second; `0x140542080` is 118 bytes in its
+  entry and **1 971 across seven**. Truncated, a scroll step reads as a stub and a method that
+  writes a field reads as one that does not — that misread happened three times before the tool
+  existed. `scripts/re/extent.py` chains chunks by adjacency (previous `end` == next `start`),
+  which is checkable from the file alone. Use it before disassembling anything.
+
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 

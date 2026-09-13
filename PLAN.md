@@ -190,8 +190,21 @@ everything from `cursor` via `floor(cursor / pageSize)`, and a derived page cann
 view that scrolls one row while the selection stays put. This is not a wrong constant, it is a
 different model — which is why the rule had to be reversed before it was ported, not after.
 
-Next uemu target: bind an input to slot 58 versus slot 59, and confirm the field offsets against
-a live `CMenuListView` instance.
+Both are now ported and proven: `nie_core::list_view::step_row` (`validate_listview_scroll.py`,
+26 ✓) and `step_page` (`validate_listview_page.py`, 18 ✓).
+
+**Next target, and it is the big one.** Slot 56, `0x140542080`, is what moves the SELECTION:
+2 writes to `[+0x138]` and 14 to `[+0x12C]`, so it carries selection and scrolling together —
+the "item" step the screens actually need for arrow keys. It is **1 971 bytes across 7 chunks**
+against 580 and 820 for the two already done, so it is a session of its own, not an increment.
+
+Until it exists, `nie_core::list_view` cannot replace `list-page.ts` in a screen: adopting it for
+scrolling while selection stays on the TypeScript model would put two models in one screen, which
+is worse than one honest approximation. That is why the port has no caller yet, and why that is
+not the usual dead-surface smell.
+
+The remaining siblings write neither field: `0x140542DD0` (901 bytes, 5 chunks) and `0x140543760`
+(587, 5) touch other state, `0x140543B10` (421, single chunk) writes `[+0x138]` once.
 
 ---
 
