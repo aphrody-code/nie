@@ -306,6 +306,17 @@ the files and receives its real positions from the engine. The overlap is not a 
 defect; it is the same structural limit found for `CMenuListView` cells, reached from a different
 direction.
 
+**But it is not uniform, and the same screen proves it.** On `chara_bank_menu`,
+`cmn06_20_list_tab_item` gets 12 instances at DISTINCT, evenly pitched positions — 53, 107, 160,
+213, 267, 320, 373 at y=129, about 53 px apart — while `team00_01_chara_card_for_soccer` and
+`team00_01_p1_chara_card_blank` get 19 instances each, all at (929, 355). Same screen, same
+mechanism, opposite outcomes.
+
+So an attach-locator DOES declare per-instance positions for some widgets and not for others.
+The tabs are placed by the files; the cards are not. "Runtime-placed" is therefore a property of
+a WIDGET, not of a screen or of instancing in general — and a composer can already draw the
+widgets whose locator declares their positions, which is more than the earlier reading allowed.
+
 That matters for the pillar-3 estimate: "static composition is complete for chrome and
 incomplete for runtime-placed content" is a general property of this engine's menu data, not a
 property of lists. Any screen whose content is instanced will need the same three-step chain
