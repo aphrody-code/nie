@@ -11,5 +11,9 @@
     "chronicle_mode_top_menu|chronicle_mode.png": 0.3592,
     "players_universe_menu|player_universe.png": 0.4786,
     "ability_learning_board_menu|player_skill_tree.png": 0.4835
+  },
+  "notes": {
+    "advent_calendar_menu|event_calendar.png": "0.0342 est un DEFAUT constate, pas une note de passage : l'ecran ne compose presque rien. Cause identifiee le 2026-09-13 — son fond 'calendar01_00_background' a placementSource=unresolved, et un objet non resolu n'est jamais peint (par conception, teste par an_unresolved_placement_is_never_painted). Les 23 textures de l'ecran existent pourtant et sont servies, fond compris (14,4 Mo). Comparer : story_mode_top_menu a son fond en g4pkm-pose et rend un vrai decor.",
+    "shop_menu|shop.png": "212 objets tous a visible=null et pourtant 0.4024 : la route de rendu dessine donc les objets de visibilite INCONNUE. La visibilite n'explique pas le cas du calendrier."
   }
 }
