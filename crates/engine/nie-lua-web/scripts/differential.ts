@@ -12,8 +12,11 @@
 import { createLuaRuntime } from "../js/nie-lua-web.ts";
 
 const SITE = "http://127.0.0.1:8085";
+// L'artefact vit à la RACINE du profil, pas sous `deps/` : `cargo build` y dépose le cdylib
+// final, et `deps/` ne porte que les objets intermédiaires. Le chemin `deps/` de la première
+// version n'existait déjà plus au moment où ce script a servi.
 const WASM_PATH = new URL(
-  "../../../../target/wasm32-unknown-emscripten/release/deps/nie_lua_web.wasm",
+  "../../../../target/wasm32-unknown-emscripten/release/nie_lua_web.wasm",
   import.meta.url,
 ).pathname;
 

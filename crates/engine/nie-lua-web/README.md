@@ -98,6 +98,33 @@ what the work is, and settling it means reading `SETTABUP` on `_ENV`, not counti
 Both surveys are checked in so the numbers are re-measured rather than remembered — and so the
 day either drops, it drops visibly.
 
+## The differential, re-run on 2026-09-13 — still 0/14, and nothing like before
+
+`scripts/differential.ts` replays fourteen screens through this module and through the native
+site, then deep-compares. The result is the same number and a completely different situation:
+
+```text
+before (2026-09-12) : 13 aborted the wasm instance, 1 had no script
+now    (2026-09-13) : 0 abort, 13 replay and DIFFER, 1 has no script
+```
+
+Every remaining difference is `$.scene…objects….text` or `$.missing`. Neither is a divergence
+of the VM:
+
+- **`.text`** — `run_replay` passes an EMPTY localised-text map, as `src/lib.rs` states: the
+  caller was not given a way to supply one. The native site loads `menu_text`, so its scene
+  carries labels and this one does not. Closing it means an ABI to hand the table over, exactly
+  as `apps/nie-web/src/game/menu-layout.ts` already does for the layout.
+- **`.missing`** — the field added on 2026-09-13 so that `complete: false` names what failed.
+  The two hosts do not lack the same things, which is precisely what it is for.
+
+`shop_menu` still reports `script not loaded`: the game ships no top-level `shop_menu.lua.bin`,
+only `shop_menu_basara_*`/`_buy_*`/`_sell`. The native route fails on it too, differently worded.
+
+One incidental fix: the script looked for the module under `release/deps/`, where `cargo` puts
+intermediate objects. The cdylib is at the root of the profile, and the path had been wrong since
+the script was written.
+
 ## What the official documentation says about the flag this crate depends on
 
 The patched `vendor/lua-src` passes `-sSUPPORT_LONGJMP=wasm` when it compiles Lua **as C**. That
