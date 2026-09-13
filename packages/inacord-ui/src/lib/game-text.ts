@@ -63,7 +63,8 @@ const BATCH_QUERY = `query($language: String!, $refs: [TextRef!]!) {
 }`;
 
 interface BatchResponse {
-	data?: { texts?: { family: string; hash: string; texts: string[] }[] };
+	data?: { texts?: { family: string; hash: string; texts: string[] }[] } | null;
+	errors?: { message?: string }[];
 }
 
 /**
@@ -80,6 +81,14 @@ export const fetchGameText: GameTextResolver = async (locale, refs) => {
 	});
 	if (!response.ok) throw new Error(`/api/v1/graphql → HTTP ${response.status}`);
 	const body = (await response.json()) as BatchResponse;
+	// GraphQL répond 200 même quand il refuse la requête : une origine qui ne sert pas encore
+	// `texts` rend `{"data":null,"errors":[{"message":"Unknown field \"texts\"…"}]}` (mesuré en
+	// production le 2026-09-13). Sans cette levée, la table revenait VIDE et l'interface gardait
+	// ses libellés — le bon comportement, avec la cause invisible. C'est le défaut que
+	// `ReplayOutput::missing` a corrigé côté Rust : « ça n'a pas marché » doit dire pourquoi.
+	if (!body.data?.texts && body.errors?.length) {
+		throw new Error(body.errors[0]?.message ?? "requête GraphQL refusée");
+	}
 	const resolved = new Map<string, readonly string[]>();
 	for (const entry of body.data?.texts ?? []) {
 		resolved.set(refKey(entry.family, entry.hash), entry.texts);

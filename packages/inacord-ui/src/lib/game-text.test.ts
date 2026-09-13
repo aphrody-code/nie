@@ -111,6 +111,20 @@ describe("fetchGameText", () => {
 		}
 	});
 
+	test("une origine qui ne sert pas `texts` est NOMMÉE, pas avalée", () => {
+		// Mesuré en production le 2026-09-13 : GraphQL rend 200 avec `data: null` et une erreur
+		// « Unknown field "texts" ». Une table vide serait le bon comportement mais une cause
+		// muette ; l'appelant retombe de toute façon sur ses libellés, en le sachant.
+		const origine = globalThis.fetch;
+		globalThis.fetch = (async () =>
+			Response.json({ data: null, errors: [{ message: 'Unknown field "texts" on type "Query".' }] })) as unknown as typeof fetch;
+		try {
+			expect(fetchGameText("en", [])).rejects.toThrow("Unknown field");
+		} finally {
+			globalThis.fetch = origine;
+		}
+	});
+
 	test("une réponse en erreur remonte, pour que l'appelant retombe sur le texte en dur", () => {
 		const origine = globalThis.fetch;
 		globalThis.fetch = (async () => new Response("", { status: 503 })) as unknown as typeof fetch;
