@@ -24,6 +24,11 @@
  *   reste affiché. Choisir la première serait deviner, et c'est précisément ce que la carte
  *   refuse (cf. `UiTextEntry.occurrences`).
  * - Un libellé absent de la carte reste tel quel, pour toujours : le jeu ne l'a jamais écrit.
+ * - Rien n'est nettoyé ici. Le texte du jeu porte des codes de contrôle Level-5 (`[CG]…[C]`),
+ *   mais `/api/v1/text` les retire déjà (`nie_data::text`) : vérifié le 2026-09-13 sur les 115
+ *   valeurs françaises de la carte et sur 40 de leurs lignes ANGLAISES — zéro code résiduel.
+ *   Ajouter un formatage ici dupliquerait `nie_core::azalee::game_text::format_game_text`, qui
+ *   existe pour les textes que l'on décode SOI-MÊME, pas pour ceux que la route a assainis.
  */
 import { useEffect, useSyncExternalStore } from "react";
 
