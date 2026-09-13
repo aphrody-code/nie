@@ -265,9 +265,21 @@ through iced-x86 confirmed the count, and surfaced the second trap: a text filte
 matches `mov [rel 1422D3198h],r14`, a write to a GLOBAL whose address merely ends in those
 digits. A negative needs a disassembler and an operand check, not a grep.
 
-So the focus is set by the OWNING menu class — one of the `game::CMenu*` classes, 28 of which
-call the `OnEnter` notifier. That is where the item step lives, and it is a different search
-than the six siblings.
+**And the 28 `OnEnter` callers do not write it either.** Disassembling all 27 distinct functions
+behind those call sites gives three `+198h` accesses — `0x140FFFFF7`, `0x1410B480B`,
+`0x1410DA4F1` — and all three are READS. So both natural candidate sets are eliminated: neither
+the view nor its callers set this field.
+
+**Which means "the focus" was my word, not a measured fact.** What is established is narrower:
+`[this+0x198]` is a 32-bit field, compared against `-1`, that offsets the ring slot — proven by
+`validate_listview_cell_index.py`. Calling it a focus index is a consistent reading of one
+computation, not a finding. `+0x198` carries 340 writes across `.text`, a spread that suggests a
+common offset across unrelated classes rather than a field this subsystem owns.
+
+The item step is therefore still unlocated, and the next search should start from what writes
+this field on an object of THIS type — which needs a type-aware cross-reference, not another
+offset scan. Two candidate sets eliminated with a validated method is the result here; a name
+for the field is not.
 
 **Read, not proven, and here is what proving it needs.** The write sits inside a loop behind two
 lookups, and `Emu.call` seeds only `rcx/rdx/r8/r9/rax` — it cannot put a scratch pointer in `rbx`.

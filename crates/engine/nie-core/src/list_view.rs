@@ -200,9 +200,13 @@ impl ListScroll {
 /// dit quel widget sert, jamais quel élément il montre. Ne pas le confondre avec un index
 /// d'élément — c'est ce que `cell_index` borne ensuite sur le compte propre de la cellule.
 ///
-/// `focus` est `[this+0x198]`. La valeur `-1` signifie « pas de focus » : le jeu bascule alors
-/// sur un rang calculé depuis les arguments de l'appel, que ce module ne modélise pas, d'où le
-/// `None`.
+/// `focus` est `[this+0x198]`. Le NOM est une lecture, pas une mesure : ce qui est établi, c'est
+/// un champ 32 bits comparé à `-1` qui décale le rang. Rien dans `CMenuListView` ni dans les 28
+/// appelants du notificateur `OnEnter` ne l'ÉCRIT (vérifié au désassembleur le 2026-09-13), donc
+/// son propriétaire reste inconnu et « focus » ne doit pas être cité comme un fait.
+///
+/// `-1` fait basculer le jeu sur un rang calculé depuis les arguments de l'appel, que ce module
+/// ne modélise pas : d'où le `None`.
 #[must_use]
 pub fn cell_ring_slot(top: i32, focus: i32, cells: i32) -> Option<u32> {
     if focus < 0 || cells <= 0 {
