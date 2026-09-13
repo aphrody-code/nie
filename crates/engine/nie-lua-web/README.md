@@ -191,8 +191,18 @@ pub type lua_Integer = i32;
 
 — so the C side would push 64 bits where the Rust side reads 32. Widening safely means patching
 `mlua-sys` in step with `lua-src`, i.e. vendoring a second crate and keeping the two definitions
-in agreement. That is a real piece of work with a real corruption risk if half-done, and it is
-the actual price of closing the last four screens. It is one slot
+in agreement.
+
+**Tried on 2026-09-13, and it makes things worse.** With `mlua-sys` vendored, `lua_Integer`
+widened to `i64` on every target, and `LUA_INTEGER=long long` defined for the emscripten build —
+both halves moved together, which is the condition stated above — the differential falls from
+10/14 to **3/14**, and eleven screens die with `nie_lua_web_alloc returned null`. Moving the two
+declarations in step is therefore NECESSARY and NOT SUFFICIENT: `luaconf.h` derives more from
+`LUA_INTEGER` than its width (`lua_Unsigned` stays `c_uint` in `mlua-sys`'s 5.2 module, for one),
+and the mismatch shows up as heap exhaustion rather than as a type error.
+
+Reverted, and the differential is back to 10/14. Whoever attempts this again should expect to
+audit every type `luaconf.h` derives from `LUA_INTEGER`, not just the integer itself. It is one slot
 on three screens, and the three replays otherwise match object for object. `shop_menu` remains
 scriptless on both sides.
 
