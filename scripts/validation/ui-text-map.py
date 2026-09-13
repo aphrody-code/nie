@@ -377,7 +377,7 @@ def transform_of(record: dict) -> str:
     sys.exit(f"no transformation relates {fr!r} to {label!r}")
 
 
-def emit(mapped: dict, misses: list[dict], label_count: int) -> str:
+def emit(mapped: dict, misses: list[dict], label_count: int, mesure: datetime.date) -> str:
     js = lambda value: json.dumps(value, ensure_ascii=False)
     rel = lambda location: str(Path(location).relative_to(REPO))
     order = lambda record: (-len(record["locations"]), record["label"])
@@ -412,7 +412,7 @@ def emit(mapped: dict, misses: list[dict], label_count: int) -> str:
     families = lambda rows: ", ".join(
         f"{f} ({c})" for f, c in collections.Counter(r["family"] for r in rows).most_common()
     )
-    today = datetime.date.today().isoformat()
+    today = mesure.isoformat()
 
     def entry_lines(record: dict, extra: str = "") -> str:
         occurrences = ", ".join(
@@ -656,7 +656,11 @@ def main() -> None:
     if wanted == 3:
         return
 
-    OUT.write_text(emit(mapped, misses, len(labels)), encoding="utf-8")
+    # La date est celle de la MESURE, pas celle de l'exécution : la prendre à l'horloge rendait
+    # le fichier différent chaque jour sans qu'aucun octet mesuré n'ait changé, et `git diff`
+    # cessait de pouvoir dire si la carte était à jour.
+    mesure = datetime.date.fromtimestamp((work / "map.json").stat().st_mtime)
+    OUT.write_text(emit(mapped, misses, len(labels), mesure), encoding="utf-8")
     print(f"written: {OUT.relative_to(REPO)}", file=sys.stderr)
 
 
