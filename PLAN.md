@@ -80,22 +80,28 @@ Inacord, the half that IS here, is a Cargo workspace of 46 members already.
 
 ### Pillar 1 — what the browser still runs as TypeScript
 
-`apps/nie-web/src/game/` holds **2 863 lines** of non-test TypeScript, of which **848** are pure
+`apps/nie-web/src/game/` holds **2 836 lines** of non-test TypeScript, of which **848** are pure
 wasm wiring (`bridge.ts`, `menu-composer.ts`, `lua-runtime.ts`) and therefore not migration debt:
 a binding is not a second implementation. The remaining ~2 000 lines are the real surface, led by
-`menu-layout.ts` (285), `gallery.ts` (221), `roster.ts` (219), `native-resources.ts` (192),
-`model-render.ts` (164), `shop.ts` (149).
+`menu-layout.ts` (285), `gallery.ts` (221), `native-resources.ts` (192), `roster.ts` (169),
+`model-render.ts` (164), `shop.ts` (149), `list-page.ts` (90).
 
 Three modules published: `nie_wasm_bg.wasm` 4 537 432 B, `nie_viewer_web_bg.wasm` 2 855 742 B,
 `nie_lua_web.wasm` 887 551 B.
 
-Not all of that TypeScript *should* become Rust. `list-page.ts` (67 lines) is the worked example:
-it reproduces the game's list-cursor rule ("the cursor changes page rather than scrolling, and
-does not wrap"), `roster.ts` carries the same mechanic a second time — and the rule is **not
-backed by any reversal**. `CMenuListView` cursor movement is engine code in `nie.exe`, not Lua
+Not all of that TypeScript *should* become Rust, and `list-page.ts` is the worked example of
+BOTH halves of that. It reproduced the game's list rule from a guess, `roster.ts` carried the
+same mechanic a second time, and cursor movement is engine code in `nie.exe` rather than Lua
 (`SetCursor`/`GetCursor`/`MoveCursor` appear in 6/5/2 files of the 651-script corpus, while
-`OnEnter` — the callback the host calls — appears in 272). Porting it today would relocate a
-guess into Rust and make it look measured. Reverse first, then port.
+`OnEnter` — the callback the host calls — appears in 272).
+
+Reversed since (see below), the guess turned out **partly wrong**: the view scrolls by a row and
+does not wrap, the CELL index wraps, and scroll and selection are independent where `listPage`
+derives both from one cursor. So the model now lives in `nie_core::list_view`, proven; the
+TypeScript stayed, deduplicated into one copy, and says in its own header that it is an assumed
+HOST pagination rather than a reproduction of the game. Reversing first is what kept a wrong
+model out of the engine — and what showed that the honest thing was to keep, not port, the
+TypeScript until a screen can adopt the real one.
 
 ### Pillar 3 — how much of the game is actually painted
 
