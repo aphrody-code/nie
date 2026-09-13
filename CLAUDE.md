@@ -216,6 +216,17 @@ it needs emsdk, which is exactly why it went stale.
   are default stubs, not methods: on `CMenuListView@lives` (7 real methods of the first 14),
   `0x14004D760` is `C2 00 00` (`ret`) and `0x14004D780` is `32 C0 C3` (`xor al,al; ret`).
 
+- **The uemu oracle WORKS; the 49 old proofs are anchored on a build that is gone.** Measured
+  2026-09-13: `nie.exe`, `nie_eacpatched.exe` and `dist/nie.exe` are all the SAME file
+  (`b1fa04ea…`, 33 918 464 B), so `NIE_EXE` changes nothing — and the build the knowledge base
+  and the validators were written against (`4c2b91fb…`, 31 468 032 B) is nowhere on this machine.
+  Two proofs written that day pass (`just preuves listview` → 2 ✓, 44 cases). The sampled old
+  ones fail with stale EXPECTATIONS, not emulator errors: `validate_ball_ctor` reads 0 where it
+  wants `-9.8f`, `validate_bezier` returns `(0,0,0)`, `validate_category_lookup` reports 600
+  mismatches with every branch at zero. Do not read "47/47 failing" as "do not write proofs".
+  Also: `just preuves` with no pattern chains 49 validators that each map the 33 MB PE and gets
+  OOM-killed — filter it, which likely explains part of the historical "timeouts".
+
 - **One function, several `.pdata` entries — read only the first and you truncate the body.**
   MSVC splits a function into chunks whose ranges touch end-to-end, each with its own unwind
   info. Measured on `lives::CMenuListView`: `0x140542B80` is 87 bytes in its own entry and 580
