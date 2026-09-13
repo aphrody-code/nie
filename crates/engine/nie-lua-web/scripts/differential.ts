@@ -153,7 +153,15 @@ async function main() {
       const { missing, ...reste } = v as Record<string, unknown>;
       return reste;
     };
-    const diff = firstDifferingPath(sansMissing(wasmJson), sansMissing(nativeJson));
+    // `missing` EST comparé depuis le 2026-09-13 : il ne divergeait que parce que `value_repr`
+    // rendait une même valeur en décimal ou en hexadécimal selon la largeur de `lua_Integer`.
+    // Les deux hôtes rapportent désormais les mêmes manques, donc l'exclure masquerait un écart
+    // réel au lieu d'en éviter un faux. `NIE_DIFFERENTIAL_SKIP_MISSING=1` revient à l'ancien
+    // comportement pour isoler une régression.
+    const brut = process.env.NIE_DIFFERENTIAL_SKIP_MISSING === "1";
+    const diff = brut
+      ? firstDifferingPath(sansMissing(wasmJson), sansMissing(nativeJson))
+      : firstDifferingPath(wasmJson, nativeJson);
     if (diff === null) {
       identical += 1;
       rows.push({ screen, status: "IDENTICAL", detail: "-" });

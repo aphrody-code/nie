@@ -655,14 +655,26 @@ fn lua_table_to_i32_vec(v: Option<&Value>) -> Vec<i32> {
 
 /// Représentation textuelle d'une valeur Lua (pour le journal de découverte).
 fn value_repr(v: &Value) -> String {
+    // `Integer` et `Number` doivent rendre la MÊME chaîne pour la même valeur.
+    //
+    // Lua 5.2 n'a pas de sous-type entier : tout est un `double`, et c'est `mlua` qui décide de
+    // rapporter `Integer` quand la valeur tient dans `lua_Integer`. Or `lua_Integer` suit
+    // `ptrdiff_t` : 64 bits en natif, 32 bits sur wasm32. Un identifiant CRC-32 comme
+    // `0x88154DF4` (2 283 097 588) tient donc dans l'un et pas dans l'autre, et la MÊME valeur
+    // sortait en `2283097588` d'un côté et `0x88154DF4` de l'autre — ce qui rendait les journaux
+    // des deux hôtes incomparables alors que rien ne divergeait (mesuré le 2026-09-13).
+    let entier_hex = |u: u32| format!("0x{u:08X}");
     match v {
         Value::Nil => "nil".to_string(),
         Value::Boolean(b) => b.to_string(),
-        Value::Integer(i) => format!("{i}"),
+        Value::Integer(i) => match u32::try_from(*i) {
+            Ok(u) => entier_hex(u),
+            Err(_) => format!("{i}"),
+        },
         Value::Number(n) => {
             let u = *n as i64 as u32;
             if u as f64 == *n {
-                format!("0x{u:08X}")
+                entier_hex(u)
             } else {
                 format!("{n}")
             }

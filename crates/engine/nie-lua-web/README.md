@@ -227,8 +227,11 @@ of the VM:
   caller was not given a way to supply one. The native site loads `menu_text`, so its scene
   carries labels and this one does not. Closing it means an ABI to hand the table over, exactly
   as `apps/nie-web/src/game/menu-layout.ts` already does for the layout.
-- **`.missing`** — the field added on 2026-09-13 so that `complete: false` names what failed.
-  The two hosts do not lack the same things, which is precisely what it is for.
+- **`.missing`** — the field added on 2026-09-13 so that `complete: false` names what failed. It
+  DIVERGED, and not for a good reason: `value_repr` rendered the same value in decimal or in hex
+  depending on whether `mlua` reported it as `Integer` or `Number` — a decision that follows
+  `lua_Integer`, hence the target. Unified on 2026-09-13; both hosts now report the SAME gaps and
+  the differential compares the field again.
 
 `shop_menu` still reports `script not loaded`: the game ships no top-level `shop_menu.lua.bin`,
 only `shop_menu_basara_*`/`_buy_*`/`_sell`. The native route fails on it too, differently worded.
