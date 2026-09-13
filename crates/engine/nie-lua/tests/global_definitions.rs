@@ -26,8 +26,30 @@
 //! SetStandAloneTopCtrlGuideLayerCrc : défini par 0 script(s), lu par 36
 //! ```
 //!
-//! **Aucune n'est définie en Lua.** Les cinq sont donc fournies par `nie.exe`, et les porter est
-//! un travail de reverse — pas de câblage.
+//! **Aucune n'est définie en Lua sur les montages balayés.** La conclusion évidente — « ce sont
+//! donc des fonctions de `nie.exe` » — ne tient pas non plus : cherchées dans le binaire
+//! (`pefile`, 2026-09-12), ni les noms ni leurs CRC-32 n'y figurent.
+//!
+//! ```text
+//! SetCtrlGuideTextCommon            chaîne absente de nie.exe, 0xB1245F8B absent
+//! ShowTitleChangeChildButtonCommon  chaîne absente de nie.exe, 0x7A47702C absent
+//! SetTitleTextureCommon             chaîne absente de nie.exe, 0x85CC3989 absent
+//! SetStandAloneMenuCrc              chaîne absente de nie.exe, 0xE3B17AEC absent
+//! SetStandAloneTopCtrlGuideLayerCrc chaîne absente de nie.exe, 0xEC8A95DB absent
+//! ```
+//!
+//! (Les CRC-32 sont les bons : `menu-crc32-dictionary.json` donne exactement les mêmes valeurs
+//! que `zlib.crc32`, donc le hachage du jeu est bien celui-là.)
+//!
+//! Ni Lua, ni binaire. Ce qui reste est que les montages EXTRAITS sont incomplets : le fichier
+//! qui les définit existe dans le VFS du jeu mais pas dans `data/lua_dump/` ni dans
+//! `data/re/40-derived/dumps/lua-vfs-all/`. Un indice va dans ce sens sans le prouver :
+//! `data/lua_scripts/`, le dump plat, porte une copie de `main_menu_inc_3.00.01.00.lua.bin` de
+//! 270 octets de PLUS que celle du VFS, et c'est elle qui définit les cinq.
+//!
+//! Trancher demande d'extraire le VFS entier et de rejouer ce relevé dessus — une opération,
+//! pas une mesure de plus. Tant que ce n'est pas fait, ces cinq noms ne doivent être attribués
+//! ni au moteur ni au Lua.
 //!
 //! ## Par où les reverser : pas par `funcLuaMenuCommand`
 //!
