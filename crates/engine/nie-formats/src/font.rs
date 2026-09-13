@@ -1263,6 +1263,13 @@ mod tests {
     }
 
     /// Native A mask, measured on 2026-09-08: page 0, red coverage, 544 nonzero pixels.
+    ///
+    /// Gated on `textures`: this test decodes the atlas through `g4tx_decode`, which is what
+    /// every production caller feeds the blitter, and that module only exists under that
+    /// feature. Without the gate, `cargo test -p nie-formats` does not COMPILE on the default
+    /// feature set — measured 2026-09-13, `error[E0433]: cannot find g4tx_decode in the crate
+    /// root`, on a crate whose own tests were green under `--features textures`.
+    #[cfg(feature = "textures")]
     #[test]
     fn real_glyph_blitter_a() {
         let dir = crate::vfs::resolve_game_dir()

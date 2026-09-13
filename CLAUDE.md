@@ -364,6 +364,29 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   (cf. `CMenuAttachLocator`: a widget's position lives in its locator's skeleton), and extracting
   more assets would not move it.
 
+- **A placement bone measures a REGION, and `pick_best_pose` is handed the ATLAS.** An object with
+  no real placement pose falls back to searching for the leaf bone whose `world_bind_pose` scale
+  matches the sprite within ±30 % (`menu::pick_best_pose`). Measured on
+  `vroad01_71_vroad_tournament_notice` with `cargo run -p nie-formats --example dump_g4pkm_poses`:
+  its bones measure **912×196, 912×244, 84×84**, which are EXACTLY the three regions its atlas
+  declares (`notice_base01`, `notice_base02`, `icon_trophy01`) — while the matcher receives the
+  atlas, **912×532**, so the height ratios come out at 0.368 and 0.459 and nothing matches. The
+  same shape holds on `chronicle_mode_soccer_vs_menu`, `team00_21_item_detail`,
+  `win15_06_screen_out_pop_item` and `town05_04_…`: no bone within ±30 % of the atlas, several
+  bones within ±5 % of a region. `taille_designee`'s own doc states the rule ("cette taille est
+  celle de la région, pas de l'atlas"); the call site does not follow it.
+
+- **But "a multi-region atlas is what fails" is REFUTED — do not build on it.** Measured on two
+  screens that draw: of `victory_road_top_menu`'s objects, the PLACED ones are 43 % single-region
+  and the UNPLACED ones 87 %; on `victory_road_ranking_menu`, 15 % against 80 %. The correlation
+  runs the other way, so region count does not decide placement. What decides it is whether
+  `motion_final_pose` already carries geometry — `pick_best_pose` is consulted only when it does
+  not. And the region idea cannot be applied as a simple fallback either: on every blank screen
+  measured, SEVERAL bones match SEVERAL regions (three on `vroad_tournament_notice`), so one
+  object maps to several drawn parts. Picking one would be a guess; the model that is missing is
+  object → parts, one sprite per bone, and the compositor already has the crop path for it
+  (`menu_layout` resolves a region by CRC-32 for the runtime `SetIconSprite` commands).
+
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
 
