@@ -1328,6 +1328,24 @@ mod tests {
             544
         );
 
+        // Le canal 2 au MÊME emplacement porte un AUTRE plan — c'est celui que le blitter lisait
+        // quand il permutait, et c'est pourquoi « Histoire étendue » sortait en kanji. L'écart
+        // est vérifié ici pour qu'un retour de la permutation échoue avec un message qui dit
+        // pourquoi, plutôt qu'en cassant quatre fixtures synthétiques loin de la cause.
+        let plan_bleu = (0..usize::from(cell_height))
+            .flat_map(|ligne| (0..usize::from(a_metric.width)).map(move |col| (ligne, col)))
+            .filter(|&(ligne, col)| {
+                let y = usize::from(a_metric.y) + ligne;
+                let x = usize::from(a_metric.x) + col;
+                atlas[(y * atlas_w as usize + x) * 4 + 2] != 0
+            })
+            .count();
+        assert_ne!(
+            plan_bleu, 544,
+            "le canal 2 doit porter un autre glyphe que le plan 0 : sinon ce test ne distingue \
+             plus les deux conventions"
+        );
+
         // La zone supérieure [0..19] doit être entièrement nulle (blank rows).
         for row in 0..21 {
             for col in 0..38 {
