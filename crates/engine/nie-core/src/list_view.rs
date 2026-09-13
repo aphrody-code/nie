@@ -97,6 +97,53 @@ pub enum Step {
     Backward,
 }
 
+/// Les paramètres qu'un `.objbin` DÉCLARE pour sa vue-liste.
+///
+/// La correspondance n'est pas déduite des noms : la table de descripteurs que `0x1400AB120`
+/// construit dans `dist/nie.exe` associe elle-même chaque nom à son offset, et
+/// `nie_formats::objbin` parse déjà ces paramètres typés depuis le fichier. Les deux bouts se
+/// rejoignent donc sur une mesure — `docs/re/cmenulistview-fields.md`.
+///
+/// Relevé sur `team14_01_chara_bank_list.objbin` : `mViewStart 1`, `mViewNum 7`, `mLineNum 6`,
+/// `mLocatorNum 54`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DeclaredParams {
+    /// `mViewStart` → `[this+0xC0]`.
+    pub view_start: i32,
+    /// `mViewNum` → `[this+0xC4]`.
+    pub view_num: i32,
+    /// `mLineNum` → `[this+0xC8]`. Ce module ne s'en sert pas encore : le diviseur de l'`idiv`
+    /// est `[this+0xD4]`, que la table NE déclare PAS — c'est donc de l'état d'exécution, pas un
+    /// paramètre de fichier, et les confondre remettrait une supposition dans le moteur.
+    pub line_num: i32,
+    /// `mLocatorNum` → `[this+0xE8]`, le nombre d'emplacements de l'anneau.
+    pub locator_num: i32,
+}
+
+impl ListScroll {
+    /// Monte l'état de défilement à partir des paramètres DÉCLARÉS et de l'état d'EXÉCUTION.
+    ///
+    /// La séparation est la mesure elle-même : `mViewStart` et `mViewNum` viennent du fichier,
+    /// tandis que `total`, `columns`, `top`, `anchor` et `selected` vivent à des offsets que la
+    /// table de descripteurs ne déclare pas (`0x140`, `0xD4`, `0x12C`, `0x134`, `0x138`). Un
+    /// appelant doit donc fournir les seconds — le runtime Lua rend `scroll_index` et
+    /// `selected_index`, et le reste se compte sur la donnée de l'écran.
+    #[must_use]
+    pub fn from_declared(params: DeclaredParams, total: i32, columns: i32) -> Self {
+        Self {
+            total,
+            columns,
+            top: 0,
+            anchor: 0,
+            selected: 0,
+            view_start: params.view_start,
+            view_num: params.view_num,
+            counts_partial_row: false,
+            keeps_relative_top: false,
+        }
+    }
+}
+
 impl ListScroll {
     /// Le nombre de lignes, `idiv` compris.
     ///
@@ -562,5 +609,28 @@ mod tests {
         for (base, translation, attendu) in cas {
             assert_eq!(cell_position(base, CellTransform { translation }), attendu);
         }
+    }
+
+    /// Les paramètres RÉELS de `team14_01_chara_bank_list.objbin`, décodés par `niers decode`.
+    ///
+    /// Ce test ne prouve pas un comportement du jeu : il fixe le PONT entre un fichier et le
+    /// modèle, pour qu'un changement d'offset ou de nom se voie. La correspondance elle-même
+    /// vient de la table de descripteurs du binaire, pas d'une lecture des noms.
+    #[test]
+    fn declared_params_of_the_player_bank_reach_the_model() {
+        let params = DeclaredParams { view_start: 1, view_num: 7, line_num: 6, locator_num: 54 };
+        let vue = ListScroll::from_declared(params, 600, 6);
+        assert_eq!(vue.view_start, 1, "mViewStart -> [0xC0]");
+        assert_eq!(vue.view_num, 7, "mViewNum -> [0xC4]");
+        assert_eq!((vue.total, vue.columns), (600, 6), "etat d execution, fourni par l appelant");
+        assert_eq!((vue.top, vue.anchor, vue.selected), (0, 0, 0), "position initiale");
+
+        // La butée descendante emploie `mViewStart + mViewNum`, soit 8 lignes ici : un pas est
+        // donc refusé dès que la tête atteint `rows - 8`. C'est ce que `step_row` calcule.
+        let mut v = ListScroll { total: 60, columns: 6, ..vue };   // 10 lignes
+        v.top = 1;
+        assert!(v.step_row(Step::Forward), "1 + 8 < 10");
+        assert_eq!(v.top, 2);
+        assert!(!v.step_row(Step::Forward), "2 + 8 == 10 : butee");
     }
 }
