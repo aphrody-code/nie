@@ -189,6 +189,29 @@ impl ListScroll {
     }
 }
 
+/// Le rang d'anneau qu'une cellule occupe, depuis l'état de la vue.
+///
+/// `0x1405438CD`..`0x1405438E8` : `mov ecx,[this+0x198]` ; `cmp ecx,-1` ; `mov eax,[this+0x12C]` ;
+/// `add eax,ecx` ; `div [this+0xE8]` — division NON SIGNÉE, le reste est le rang. Prouvé par les
+/// 9 cas de `scripts/validate_listview_cell_index.py`, qui comparent la valeur écrite par le jeu
+/// à ce calcul.
+///
+/// Les cellules sont un ANNEAU de `cells` widgets réutilisés, pas une liste d'éléments : ce rang
+/// dit quel widget sert, jamais quel élément il montre. Ne pas le confondre avec un index
+/// d'élément — c'est ce que `cell_index` borne ensuite sur le compte propre de la cellule.
+///
+/// `focus` est `[this+0x198]`. La valeur `-1` signifie « pas de focus » : le jeu bascule alors
+/// sur un rang calculé depuis les arguments de l'appel, que ce module ne modélise pas, d'où le
+/// `None`.
+#[must_use]
+pub fn cell_ring_slot(top: i32, focus: i32, cells: i32) -> Option<u32> {
+    if focus < 0 || cells <= 0 {
+        return None;
+    }
+    let somme = u32::try_from(top).ok()?.checked_add(u32::try_from(focus).ok()?)?;
+    Some(somme % u32::try_from(cells).ok()?)
+}
+
 /// L'index que porte une CELLULE, ramené dans ses bornes — et il BOUCLE.
 ///
 /// `0x140543912` / `0x14054392D` dans `dist/nie.exe` (créneau 60, la boucle qui ré-indexe les
@@ -352,5 +375,20 @@ mod tests {
         // La borne basse est l'autre moitié du modulo, lue au même endroit.
         assert_eq!(cell_index(-1, 8), 7);
         assert_eq!(cell_index(-1, 1), 0);
+    }
+
+    /// Le rang d'anneau, sur les mêmes triplets que l'émulateur a validés.
+    #[test]
+    fn the_ring_slot_comes_from_the_view_state_not_from_the_arguments() {
+        // (top, focus, cells) -> rang, tels que mesurés dans validate_listview_cell_index.py
+        assert_eq!(cell_ring_slot(0, 0, 4), Some(0));
+        assert_eq!(cell_ring_slot(1, 2, 4), Some(3));
+        assert_eq!(cell_ring_slot(3, 4, 8), Some(7));
+        assert_eq!(cell_ring_slot(0, 5, 8), Some(5));
+        // L'anneau se referme : c'est un modulo, pas un écrêtage.
+        assert_eq!(cell_ring_slot(6, 3, 4), Some(1));
+        // `-1` = pas de focus ; le jeu prend alors un autre chemin, non modélisé ici.
+        assert_eq!(cell_ring_slot(0, -1, 4), None);
+        assert_eq!(cell_ring_slot(0, 0, 0), None);
     }
 }
