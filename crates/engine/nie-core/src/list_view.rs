@@ -15,6 +15,23 @@
 //! l'ANCRE de la marge au lieu de la tête de 1. Validé de la même façon,
 //! `scripts/validate_listview_page.py`, **18 ✓ / 0 ✗** dont 13 qui écrivent.
 //!
+//! ## ⚠ C'est le comportement de BASE, et 94 dérivées peuvent le remplacer
+//!
+//! `lives::CMenuListView` a **94 classes dérivées** dans `dist/nie.exe`, et une vtable dérivée
+//! remplace un créneau quand l'écran veut autre chose. Mesuré le 2026-09-13 sur les 94 :
+//!
+//! | créneau | porté ici | redéfini par |
+//! | --- | --- | --- |
+//! | 58 | `step_page` | 5 — `CharaFilter`, `DropRateList`, `ItemFilter`, `SoccerSpiritFilter`, `UniverseChara` |
+//! | 59 | `step_row` | 6 — les mêmes plus `CharaEditParts`, `InacodeComment` |
+//! | 60 | `cell_index` | 5 — les mêmes plus `MenuListViewArmedChara` |
+//!
+//! Donc ce module est juste pour ~94 % des vues-listes et FAUX pour celles-là. Vérifier la
+//! classe de l'écran avant de s'en servir ; `scripts/re/vtable.py --class <nom>` le dit en une
+//! commande. `CMenuListViewCharaBank` — l'écran `PlayerBank` — ne redéfinit AUCUN des trois,
+//! donc le port le décrit exactement ; il redéfinit en revanche le créneau 56, que ce module ne
+//! porte pas (23 dérivées sur 94 le font, ce qui est la raison de ne pas l'avoir porté).
+//!
 //! ## Ce qui n'est PAS prouvé
 //!
 //! Quelle entrée appelle quel créneau. Le pas par page porte aussi un chemin de DÉLÉGATION
