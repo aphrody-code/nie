@@ -216,7 +216,7 @@ impl ListScroll {
 /// deux sens. 256 octets contre 820 : la redéfinition est plus SIMPLE, pas plus riche — pas de
 /// fenêtre, juste un curseur circulaire.
 ///
-Les quatre classes qui redéfinissent les trois créneaux portés ici sont toutes des listes de
+/// Les quatre classes qui redéfinissent les trois créneaux portés ici sont toutes des listes de
 /// filtre, ce qui rend le modèle cohérent : un filtre est court et se parcourt en boucle, une
 /// liste de contenu est longue et s'arrête au bout. Mais elles ne partagent PAS une
 /// implémentation — mesuré sur leur créneau 58 :
