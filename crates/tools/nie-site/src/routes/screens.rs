@@ -1638,20 +1638,24 @@ fn inspect_layer(vfs: &Vfs, index: &IndexVfs, paths: &MenuPaths, layer: &str) ->
         None => reason = Some("l'objet ne declare aucun SkeletonAnime"),
         Some(logique) => match super::inspect::resolve_companion(index, logique, SCREEN_LOCALE) {
             None => reason = Some("chemin de squelette declare mais absent de ce montage"),
-            Some(p) => match {
+            Some(p) => {
+                // Le compagnon est publié dès qu'il est RÉSOLU, même si sa lecture échoue
+                // ensuite : un client qui construit le layout lui-même a besoin du chemin pour
+                // aller le chercher par son propre transport, pas de savoir que CE montage l'a lu.
                 companions.insert(logique.to_owned(), p.clone());
-                vfs
+                let squelette = vfs
                     .read(&p)
                     .ok()
-                    .and_then(|d| nie_formats::g4pkm::parse(&d).ok())
-            } {
-                None => reason = Some("squelette lu mais illisible par g4pkm::parse"),
-                Some(layout) => {
-                    let t = nie_formats::menu::assemble_object(&obj, &layout, 0, 0).transform;
-                    position = Some([t.x_px, t.y_px]);
-                    positioned = true;
+                    .and_then(|d| nie_formats::g4pkm::parse(&d).ok());
+                match squelette {
+                    None => reason = Some("squelette lu mais illisible par g4pkm::parse"),
+                    Some(layout) => {
+                        let t = nie_formats::menu::assemble_object(&obj, &layout, 0, 0).transform;
+                        position = Some([t.x_px, t.y_px]);
+                        positioned = true;
+                    }
                 }
-            },
+            }
         },
     }
 
