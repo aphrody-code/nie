@@ -176,7 +176,23 @@ something other than an integer and the code downstream sees a different Lua typ
 That is not a defect of this crate; it is a property of the only wasm target that can host
 PUC-Rio Lua's C. Every hash-keyed command in the game is above `i32::MAX` roughly half the time,
 which bounds what a 32-bit browser VM can reproduce faithfully — and is worth knowing before
-counting on `n/14` to reach 14. It is one slot
+counting on `n/14` to reach 14.
+
+### Can it be widened? Yes, and not in one line
+
+`LUA_INTEGER` is a `luaconf.h` macro, so the vendored build script could define it as
+`long long`. That alone would CORRUPT the boundary: `mlua-sys` mirrors the same rule in Rust —
+
+```rust
+// mlua-sys-0.10.0/src/lua51/lua.rs
+#[cfg(target_pointer_width = "32")]
+pub type lua_Integer = i32;
+```
+
+— so the C side would push 64 bits where the Rust side reads 32. Widening safely means patching
+`mlua-sys` in step with `lua-src`, i.e. vendoring a second crate and keeping the two definitions
+in agreement. That is a real piece of work with a real corruption risk if half-done, and it is
+the actual price of closing the last four screens. It is one slot
 on three screens, and the three replays otherwise match object for object. `shop_menu` remains
 scriptless on both sides.
 
