@@ -4431,13 +4431,25 @@ impl MenuComposer {
         self.assets.octets.insert(key.to_owned(), bytes.to_vec());
     }
 
-    /// Dépose la police : l'atlas `font.g4tx` et les métriques `font.cfg.bin`, bruts.
+    /// Dépose la police : l'atlas `font.g4tx`, les métriques `font.cfg.bin` et, facultativement,
+    /// la palette `font_color.cfg.bin`.
+    ///
+    /// La palette est ce qui donne un RVB au jeton `[C…]` d'un libellé. Sans elle les libellés
+    /// colorés sortent en blanc — le comportement d'avant le 2026-09-13 — plutôt qu'avec une
+    /// teinte devinée. Elle pèse 7 525 octets contre 42 MiB pour l'atlas : son coût n'est pas la
+    /// raison pour laquelle elle est facultative ; sa disponibilité chez l'hôte l'est.
     ///
     /// # Errors
     ///
-    /// Rejette quand l'un des deux est illisible — une police à moitié chargée dessinerait des
-    /// glyphes faux, ce qui est pire qu'aucun libellé.
-    pub fn provide_font(&mut self, atlas_g4tx: &[u8], metrics_cfgbin: &[u8]) -> Result<(), JsValue> {
+    /// Rejette quand l'atlas ou les métriques sont illisibles — une police à moitié chargée
+    /// dessinerait des glyphes faux, ce qui est pire qu'aucun libellé. Une palette illisible ne
+    /// rejette pas : elle se lit vide, et le texte reste blanc.
+    pub fn provide_font(
+        &mut self,
+        atlas_g4tx: &[u8],
+        metrics_cfgbin: &[u8],
+        palette_cfgbin: Option<Box<[u8]>>,
+    ) -> Result<(), JsValue> {
         let conteneur = nie_formats::g4tx::parse(atlas_g4tx)
             .map_err(|e| JsValue::from_str(&format!("atlas de police illisible : {e}")))?;
         let texture = nie_formats::g4tx::select_main_texture(&conteneur, "font_def")
@@ -4451,6 +4463,9 @@ impl MenuComposer {
             atlas,
             atlas_width,
             metrics: nie_formats::font::parse_metrics(&cfg),
+            palette: palette_cfgbin
+                .map(|octets| nie_formats::menu_layout::parse_font_palette(&octets))
+                .unwrap_or_default(),
         });
         Ok(())
     }

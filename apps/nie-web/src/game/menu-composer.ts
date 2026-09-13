@@ -55,6 +55,30 @@ export interface ComposedScreen {
  * il rendrait une image vide — d'où ce choix, qui appartient à l'appelant et se nomme.
  * @param canvas dimensions du canevas, en pixels du jeu.
  */
+/** Le chemin VFS de la palette de texte, servie comme n'importe quel asset du jeu. */
+const FONT_PALETTE_PATH = "common/font/font_color.cfg.bin";
+
+/**
+ * La palette de texte du jeu, ou `null` si l'hôte ne la sert pas.
+ *
+ * Mémoïsée sur la valeur : contrairement à l'atlas de police, elle est minuscule et ne change
+ * pas d'un écran à l'autre, donc la relire à chaque composition serait une requête par écran
+ * pour le même kilo-octet.
+ */
+let palettePromise: Promise<Uint8Array | null> | null = null;
+function loadFontPalette(): Promise<Uint8Array | null> {
+	palettePromise ??= (async () => {
+		const response = await fetch(`${VFS_SPACE}${FONT_PALETTE_PATH}`).catch(() => null);
+		if (!response?.ok) return null;
+		return new Uint8Array(await response.arrayBuffer());
+	})().catch(() => {
+		// Un échec réseau ne doit pas figer l'absence : la page peut avoir été hors ligne.
+		palettePromise = null;
+		return null;
+	});
+	return palettePromise;
+}
+
 export async function composeMenuScreen(
 	layout: unknown,
 	assumeUnknownVisible: boolean,
@@ -73,9 +97,12 @@ export async function composeMenuScreen(
 			}),
 		);
 		// La police ne descend que si un libellé RÉSOLU va s'en servir : son atlas pèse 42 MiB.
+		// La palette de texte l'accompagne : 7 525 octets qui donnent un RVB MESURÉ au jeton
+		// `[C…]` d'un libellé (`crc32("R")` tombe dans les 70 entrées de `font_color.cfg.bin`).
+		// Son absence n'arrête rien — le texte reste blanc, comme avant qu'elle existe.
 		if (composer.needs_font) {
-			const [metrics, atlas] = await loadFont();
-			composer.provide_font(atlas, metrics);
+			const [[metrics, atlas], palette] = await Promise.all([loadFont(), loadFontPalette()]);
+			composer.provide_font(atlas, metrics, palette ?? undefined);
 		}
 		const report = JSON.parse(composer.render(canvas.width, canvas.height)) as ComposeReport;
 		const memory = moduleMemory();

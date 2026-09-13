@@ -112,23 +112,33 @@ export class MenuComposer {
         wasm.menucomposer_provide_asset(this.__wbg_ptr, ptr0, len0, ptr1, len1);
     }
     /**
-     * Dépose la police : l'atlas `font.g4tx` et les métriques `font.cfg.bin`, bruts.
+     * Dépose la police : l'atlas `font.g4tx`, les métriques `font.cfg.bin` et, facultativement,
+     * la palette `font_color.cfg.bin`.
+     *
+     * La palette est ce qui donne un RVB au jeton `[C…]` d'un libellé. Sans elle les libellés
+     * colorés sortent en blanc — le comportement d'avant le 2026-09-13 — plutôt qu'avec une
+     * teinte devinée. Elle pèse 7 525 octets contre 42 MiB pour l'atlas : son coût n'est pas la
+     * raison pour laquelle elle est facultative ; sa disponibilité chez l'hôte l'est.
      *
      * # Errors
      *
-     * Rejette quand l'un des deux est illisible — une police à moitié chargée dessinerait des
-     * glyphes faux, ce qui est pire qu'aucun libellé.
+     * Rejette quand l'atlas ou les métriques sont illisibles — une police à moitié chargée
+     * dessinerait des glyphes faux, ce qui est pire qu'aucun libellé. Une palette illisible ne
+     * rejette pas : elle se lit vide, et le texte reste blanc.
      * @param {Uint8Array} atlas_g4tx
      * @param {Uint8Array} metrics_cfgbin
+     * @param {Uint8Array | null} [palette_cfgbin]
      */
-    provide_font(atlas_g4tx, metrics_cfgbin) {
+    provide_font(atlas_g4tx, metrics_cfgbin, palette_cfgbin) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             const ptr0 = passArray8ToWasm0(atlas_g4tx, wasm.__wbindgen_export);
             const len0 = WASM_VECTOR_LEN;
             const ptr1 = passArray8ToWasm0(metrics_cfgbin, wasm.__wbindgen_export);
             const len1 = WASM_VECTOR_LEN;
-            wasm.menucomposer_provide_font(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1);
+            var ptr2 = isLikeNone(palette_cfgbin) ? 0 : passArray8ToWasm0(palette_cfgbin, wasm.__wbindgen_export);
+            var len2 = WASM_VECTOR_LEN;
+            wasm.menucomposer_provide_font(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             if (r1) {

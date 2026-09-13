@@ -191,6 +191,13 @@ it needs emsdk, which is exactly why it went stale.
   `plain_label`, on the side that paints. The browser has none: `ui-text-map.test.ts` fails if a
   mapped UI string ever carries one. Gaiji is left alone on purpose — it names a glyph the game
   DRAWS, so stripping it would delete an icon rather than a style.
+- **That token NAMES a colour: `fontColorId == crc32(name)` in `font_color.cfg.bin`.** Measured
+  2026-09-13 over the 70 entries: `R`, `G`, `N`, `WG`, `TACTICS01`, `MODE03`, `FUNCBTN01`,
+  `SEASON_TIME03` and `SEASON_TIME05` all resolve; `CR`, `CG`, `CFUNCBTN01` — the same names
+  keeping the marker's `C` — resolve to nothing, which is how the parse convention was confirmed
+  independently. `MenuFont.palette` carries it and all three hosts fill it (`nie-site`,
+  `nie-game`, `nie-wasm`); an absent palette paints white, never a guessed hue. `L`, which
+  `nie.exe` carries as `[CL]`, is in NEITHER measured palette — do not invent a colour for it.
 
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.

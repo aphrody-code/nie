@@ -57,6 +57,61 @@ pub struct MenuFont {
     pub atlas_width: u32,
     /// Métriques lues dans le `cfg.bin` de la police.
     pub metrics: font::FontMetrics,
+    /// La palette de texte du jeu, pour résoudre les jetons `[C…]`. Vide = tout en blanc.
+    pub palette: FontPalette,
+}
+
+/// La palette de texte du jeu, indexée par le CRC-32 du nom de la couleur.
+///
+/// Elle vient de `data/common/font/font_color.cfg.bin` et c'est ce qui donne un SENS au jeton
+/// que `colour_spans` conserve : `[CR]` ouvre la couleur nommée `R`, dont l'identifiant est
+/// `crc32("R")`. Mesuré le 2026-09-13 sur les 70 entrées du fichier — `R`, `G`, `N`, `WG`,
+/// `TACTICS01`, `SEASON_TIME03`, `SEASON_TIME05` et `MODE03` y tombent tous, tandis que `CR`,
+/// `CG` et `CTACTICS01` n'y tombent pas : c'est la preuve indépendante que le nom retenu est
+/// bien ce qui SUIT le `C`.
+///
+/// `nie_data::font_color` lit le même fichier avec plus de détail (les rubis, l'ordre du
+/// fichier) pour le pipeline de données ; ici seul le triplet du texte sert, et l'accès doit
+/// être par identifiant plutôt que par rang.
+pub type FontPalette = BTreeMap<u32, [u8; 3]>;
+
+/// Lit la palette de texte depuis les octets de `font_color.cfg.bin`.
+///
+/// Passe par `cfgbin::to_iecode_json` plutôt que par l'ordre des champs de la ligne : les noms
+/// (`fontColorId`, `red`, `green`, `blue`) sont stables, une position ne l'est pas.
+#[must_use]
+pub fn parse_font_palette(bytes: &[u8]) -> FontPalette {
+    let Some(root) = cfgbin::to_iecode_json(bytes) else {
+        return FontPalette::new();
+    };
+    let mut palette = FontPalette::new();
+    // `lists` est un TABLEAU de listes typées, pas un objet indexé par leur nom : la liste se
+    // choisit par son `typeName`, qui est ce que le fichier déclare, et non par son rang.
+    let Some(rows) = root["lists"]
+        .as_array()
+        .and_then(|listes| {
+            listes
+                .iter()
+                .find(|liste| liste["typeName"].as_str() == Some("FONT_COLOR"))
+        })
+        .and_then(|liste| liste["values"].as_array())
+    else {
+        return palette;
+    };
+    for row in rows {
+        let Some(id) = row["fontColorId"]
+            .as_str()
+            .and_then(|texte| u32::from_str_radix(texte.trim_start_matches("0x"), 16).ok())
+            .or_else(|| row["fontColorId"].as_u64().map(|n| n as u32))
+        else {
+            continue;
+        };
+        let comp = |cle: &str| -> u8 {
+            u8::try_from(row[cle].as_i64().unwrap_or(0).clamp(0, 255)).unwrap_or(0)
+        };
+        palette.insert(id, [comp("red"), comp("green"), comp("blue")]);
+    }
+    palette
 }
 
 /// Les octets que l'hôte met à disposition du compositeur.
@@ -337,10 +392,10 @@ impl MenuLayout {
                 if !self.visibility.draws(object) {
                     continue;
                 }
-                let Some(label) = resolved_text_label(&object["text"]) else {
+                let Some(spans) = resolved_text_spans(&object["text"]) else {
                     continue;
                 };
-                let Some((label_w, label_h, pixels)) = render_label(menu_font, &label) else {
+                let Some((label_w, label_h, pixels)) = render_label(menu_font, &spans) else {
                     continue;
                 };
                 let transform = &object["transform"];
@@ -636,6 +691,17 @@ pub fn plain_label(label: &str) -> String {
 /// texte continuent de rendre la chaîne du jeu telle quelle — c'est la donnée.
 #[must_use]
 pub fn resolved_text_label(text: &Value) -> Option<String> {
+    let spans = resolved_text_spans(text)?;
+    Some(spans.into_iter().map(|span| span.text).collect())
+}
+
+/// Le libellé résolu d'un objet, DÉCOUPÉ par son balisage de couleur.
+///
+/// C'est la forme que consomme la passe texte : `resolved_text_label` en est la projection nue,
+/// pour les appelants qui n'ont qu'à savoir s'il reste quelque chose à écrire. Rend `None` quand
+/// il ne reste aucun segment — un libellé fait uniquement de balisage ne donne rien à peindre.
+#[must_use]
+pub fn resolved_text_spans(text: &Value) -> Option<Vec<ColourSpan>> {
     let entries = text.as_array()?;
     let parts: Vec<&str> = entries
         .iter()
@@ -645,11 +711,11 @@ pub fn resolved_text_label(text: &Value) -> Option<String> {
     if parts.is_empty() {
         return None;
     }
-    let label = plain_label(&parts.join(" "));
-    if label.is_empty() {
+    let spans = colour_spans(&parts.join(" "));
+    if spans.is_empty() {
         return None;
     }
-    Some(label)
+    Some(spans)
 }
 
 /// Rend un libellé dans sa propre boîte RGBA, recadrée sur l'avance RÉELLE.
@@ -657,26 +723,52 @@ pub fn resolved_text_label(text: &Value) -> Option<String> {
 /// La boîte de départ est une borne haute (une cellule carrée par caractère) ; la recadrer sur
 /// l'avance rendue est nécessaire pour pouvoir l'ancrer, faute de quoi le texte serait décalé de
 /// la moitié de son excédent.
-fn render_label(menu_font: &MenuFont, label: &str) -> Option<Pixels> {
+fn render_label(menu_font: &MenuFont, spans: &[ColourSpan]) -> Option<Pixels> {
     let cell = u32::from(menu_font.metrics.dims.cell_height).max(1);
-    let box_w = ((label.chars().count() as u32).max(1) * cell).max(cell);
+    let total_chars: u32 = spans
+        .iter()
+        .map(|span| span.text.chars().count() as u32)
+        .sum();
+    let box_w = (total_chars.max(1) * cell).max(cell);
     let mut buffer = vec![0u8; (box_w as usize) * (cell as usize) * 4];
-    let advance = font::draw_text(
-        &menu_font.atlas,
-        menu_font.atlas_width,
-        &menu_font.metrics,
-        label,
-        &mut buffer,
-        box_w * 4,
-        0,
-        i32::from(menu_font.metrics.dims.ascent),
-        [255, 255, 255, 255],
-    );
-    if advance <= 0 {
+    // Un segment par couleur, la plume avancant de l'avance RENDUE du precedent. Rendre le
+    // libelle entier d'un coup puis le teinter appliquerait une seule couleur a une phrase qui
+    // en porte deux.
+    let mut pen = 0i32;
+    for span in spans {
+        pen = font::draw_text(
+            &menu_font.atlas,
+            menu_font.atlas_width,
+            &menu_font.metrics,
+            &span.text,
+            &mut buffer,
+            box_w * 4,
+            pen,
+            i32::from(menu_font.metrics.dims.ascent),
+            span_rgba(menu_font, span),
+        );
+    }
+    if pen <= 0 {
         return None; // aucun glyphe résolu
     }
-    let width = u32::try_from(advance).unwrap_or(box_w).clamp(1, box_w);
+    let width = u32::try_from(pen).unwrap_or(box_w).clamp(1, box_w);
     crop_rgba(&buffer, box_w, cell, (0, 0, width as i16, cell as i16))
+}
+
+/// La couleur d'un segment : celle que la palette du jeu associe au jeton, blanc à défaut.
+///
+/// Un jeton ABSENT de la palette rend blanc plutôt qu'une teinte approchée — la seule autre
+/// option serait d'inventer un RVB, et un texte blanc se lit comme « non résolu » au lieu de se
+/// faire passer pour mesuré. Mesuré le 2026-09-13 : `L`, que `nie.exe` porte sous `[CL]`, ne
+/// tombe dans aucune des 70 entrées ; les sept autres jetons connus y tombent.
+fn span_rgba(menu_font: &MenuFont, span: &ColourSpan) -> [u8; 4] {
+    let Some(name) = span.colour.as_deref() else {
+        return [255, 255, 255, 255];
+    };
+    menu_font
+        .palette
+        .get(&cfgbin::crc32(name.as_bytes()))
+        .map_or([255, 255, 255, 255], |[r, g, b]| [*r, *g, *b, 255])
 }
 
 #[cfg(test)]
@@ -870,5 +962,93 @@ mod tests {
     #[test]
     fn a_label_made_only_of_markup_resolves_to_nothing() {
         assert_eq!(resolved_text_label(&serde_json::json!([{"text":"[CR][C]"}])), None);
+    }
+
+
+    /// Le jeton `[C…]` désigne une entrée de la palette de texte du jeu, par CRC-32 de son nom.
+    ///
+    /// C'est la preuve que le découpage retient le BON nom : `R`, `G`, `N`, `WG`, `TACTICS01` et
+    /// `MODE03` tombent dans la palette, alors que les mêmes précédés du `C` du marqueur — `CR`,
+    /// `CG`, `CTACTICS01` — n'y tombent pas. Une correspondance fortuite est exclue : 70 entrées
+    /// dans un espace de 2^32.
+    ///
+    /// La fixture est un AUTRE build que `data/common/font/font_color.cfg.bin` (6 925 octets
+    /// contre 7 525) et porte les mêmes identifiants : la table survit aux mises à jour.
+    #[test]
+    fn a_colour_token_names_an_entry_of_the_game_palette() {
+        let palette = parse_font_palette(include_bytes!("../tests/fixtures/font_color.cfg.bin"));
+        assert_eq!(palette.len(), 64, "la fixture porte 64 couleurs");
+        for nom in ["R", "G", "N", "WG", "TACTICS01", "MODE03"] {
+            assert!(
+                palette.contains_key(&cfgbin::crc32(nom.as_bytes())),
+                "{nom} devrait nommer une couleur"
+            );
+        }
+        for avec_c in ["CR", "CG", "CTACTICS01"] {
+            assert!(
+                !palette.contains_key(&cfgbin::crc32(avec_c.as_bytes())),
+                "{avec_c} garde le C du marqueur et ne doit RIEN nommer"
+            );
+        }
+    }
+
+    /// Un segment prend la couleur que la palette lui donne ; un jeton inconnu reste blanc.
+    ///
+    /// `L`, que `nie.exe` porte sous `[CL]`, n'est dans aucune des deux palettes mesurées : il
+    /// sert ici de jeton inconnu, et le blanc se lit comme « non résolu » au lieu de se faire
+    /// passer pour une teinte mesurée.
+    #[test]
+    fn an_unknown_token_stays_white_instead_of_being_guessed() {
+        let police = MenuFont {
+            atlas: Vec::new(),
+            atlas_width: 0,
+            metrics: font::FontMetrics::default(),
+            palette: parse_font_palette(include_bytes!("../tests/fixtures/font_color.cfg.bin")),
+        };
+        let couleur = |jeton: Option<&str>| {
+            span_rgba(
+                &police,
+                &ColourSpan {
+                    text: String::from("x"),
+                    colour: jeton.map(ToString::to_string),
+                },
+            )
+        };
+        assert_eq!(couleur(None), [255, 255, 255, 255], "hors balisage");
+        assert_eq!(couleur(Some("L")), [255, 255, 255, 255], "jeton inconnu");
+        let r = couleur(Some("R"));
+        assert_ne!(r, [255, 255, 255, 255], "R est dans la palette");
+        assert_eq!(r[3], 255, "l'alpha reste opaque");
+    }
+
+
+    /// La ligne que `chara_bank_menu` rend VRAIMENT, relevée sur
+    /// `POST /api/v1/menu/runtime/chara_bank_menu` le 2026-09-13.
+    ///
+    /// C'est le cas qui a motivé tout ceci : l'écran est l'un des trois que le navigateur peint,
+    /// et il peignait `[CFUNCBTN01]` et `[C]` glyphe par glyphe au milieu de son libellé. Le
+    /// jeton nomme une couleur RÉELLE de la palette, ce qui donne la troisième confirmation
+    /// indépendante de la convention : `FUNCBTN01` y est, `CFUNCBTN01` n'y est pas.
+    #[test]
+    fn the_filter_label_of_the_player_bank_paints_its_value_in_the_game_colour() {
+        let spans = colour_spans("7Filtre : [CFUNCBTN01]ON[C]");
+        assert_eq!(
+            spans,
+            vec![
+                ColourSpan { text: "7Filtre : ".into(), colour: None },
+                ColourSpan { text: "ON".into(), colour: Some("FUNCBTN01".into()) },
+            ]
+        );
+
+        let police = MenuFont {
+            atlas: Vec::new(),
+            atlas_width: 0,
+            metrics: font::FontMetrics::default(),
+            palette: parse_font_palette(include_bytes!("../tests/fixtures/font_color.cfg.bin")),
+        };
+        assert_eq!(span_rgba(&police, &spans[0]), [255, 255, 255, 255], "hors balisage");
+        let valeur = span_rgba(&police, &spans[1]);
+        assert_ne!(valeur, [255, 255, 255, 255], "la valeur prend la couleur du jeu");
+        assert_eq!(valeur[3], 255);
     }
 }

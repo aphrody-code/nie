@@ -52,14 +52,21 @@ export class MenuComposer {
      */
     provide_asset(key: string, bytes: Uint8Array): void;
     /**
-     * Dépose la police : l'atlas `font.g4tx` et les métriques `font.cfg.bin`, bruts.
+     * Dépose la police : l'atlas `font.g4tx`, les métriques `font.cfg.bin` et, facultativement,
+     * la palette `font_color.cfg.bin`.
+     *
+     * La palette est ce qui donne un RVB au jeton `[C…]` d'un libellé. Sans elle les libellés
+     * colorés sortent en blanc — le comportement d'avant le 2026-09-13 — plutôt qu'avec une
+     * teinte devinée. Elle pèse 7 525 octets contre 42 MiB pour l'atlas : son coût n'est pas la
+     * raison pour laquelle elle est facultative ; sa disponibilité chez l'hôte l'est.
      *
      * # Errors
      *
-     * Rejette quand l'un des deux est illisible — une police à moitié chargée dessinerait des
-     * glyphes faux, ce qui est pire qu'aucun libellé.
+     * Rejette quand l'atlas ou les métriques sont illisibles — une police à moitié chargée
+     * dessinerait des glyphes faux, ce qui est pire qu'aucun libellé. Une palette illisible ne
+     * rejette pas : elle se lit vide, et le texte reste blanc.
      */
-    provide_font(atlas_g4tx: Uint8Array, metrics_cfgbin: Uint8Array): void;
+    provide_font(atlas_g4tx: Uint8Array, metrics_cfgbin: Uint8Array, palette_cfgbin?: Uint8Array | null): void;
     /**
      * Compose l'écran et rend le RAPPORT en JSON (`drawn`, `sprites`, `regions`, `texts`,
      * `skipped`). Les pixels restent en mémoire WebAssembly, cf. [`MenuComposer::frame_ptr`].
@@ -1028,7 +1035,7 @@ export interface InitOutput {
     readonly menucomposer_new: (a: number, b: number, c: number, d: number) => void;
     readonly menucomposer_object_count: (a: number) => number;
     readonly menucomposer_provide_asset: (a: number, b: number, c: number, d: number, e: number) => void;
-    readonly menucomposer_provide_font: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly menucomposer_provide_font: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly menucomposer_render: (a: number, b: number, c: number, d: number) => void;
     readonly menucomposer_required_assets: (a: number, b: number) => void;
     readonly menuscreenbuilder_build: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;

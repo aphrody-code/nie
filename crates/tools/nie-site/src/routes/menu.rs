@@ -44,6 +44,8 @@ pub const RENDER_ROUTE: &str = "/api/v1/menu/render/{screen}";
 /// L'atlas de la police de menu et ses métriques, dans le VFS.
 const FONT_ATLAS: &str = "data/dx11/font/font_def/font.g4tx";
 const FONT_METRICS: &str = "data/common/font/font/font_def/font.cfg.bin";
+/// La palette de texte du jeu : ce qui donne un RVB au jeton `[C…]` des libellés.
+const FONT_PALETTE: &str = "data/common/font/font_color.cfg.bin";
 
 /// Le canevas du jeu, en pixels. Les transforms du layout y sont exprimés.
 const CANVAS: (u32, u32) = (1280, 720);
@@ -371,10 +373,17 @@ fn lire_police(vfs: &Vfs, index: &IndexVfs, locale: &str) -> Option<menu_layout:
         nie_formats::g4tx_decode::decode_texture_rgba(&atlas_octets, texture)?;
     let metriques_octets = lire_asset(vfs, index, FONT_METRICS, locale)?;
     let cfg = cfgbin::parse_t2b(&metriques_octets).ok()?;
+    // La palette est FACULTATIVE : sans elle, les libellés colorés sortent en blanc, ce qui est
+    // le comportement d'avant. Une police à moitié chargée, elle, dessine des glyphes faux —
+    // d'où le `?` sur l'atlas et les métriques, et le repli vide ici.
+    let palette = lire_asset(vfs, index, FONT_PALETTE, locale)
+        .map(|octets| menu_layout::parse_font_palette(&octets))
+        .unwrap_or_default();
     Some(menu_layout::MenuFont {
         atlas,
         atlas_width,
         metrics: nie_formats::font::parse_metrics(&cfg),
+        palette,
     })
 }
 

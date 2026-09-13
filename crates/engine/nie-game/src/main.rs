@@ -845,16 +845,28 @@ fn alloc_canvas(w: u32, h: u32) -> Vec<u8> {
 
 /// Charge la police de menu : atlas `font_def/font.g4tx` (RGBA8, legacy BGRA8) + métriques
 /// `font_def/font.cfg.bin` (T2B). Renvoie `(atlas_rgba, atlas_w, metrics)` ou `None` si absent.
-fn load_menu_font(game_dir: &Path) -> Option<(Vec<u8>, u32, font::FontMetrics)> {
+fn load_menu_font(game_dir: &Path) -> Option<menu_layout::MenuFont> {
     const ATLAS: &str = "data/dx11/font/font_def/font.g4tx";
     const METRICS: &str = "data/common/font/font/font_def/font.cfg.bin";
+    const PALETTE: &str = "data/common/font/font_color.cfg.bin";
     let (_, ab) = obtenir_g4tx_bytes(game_dir, ATLAS).ok()?;
     let parsed = g4tx::parse(&ab).ok()?;
     let tex = g4tx::select_main_texture(&parsed, "font_def")?;
     let (aw, _ah, atlas) = g4tx_decode::decode_texture_rgba(&ab, tex)?;
     let (_, mb) = obtenir_g4tx_bytes(game_dir, METRICS).ok()?;
     let cfg = cfgbin::parse_t2b(&mb).ok()?;
-    Some((atlas, aw, font::parse_metrics(&cfg)))
+    // La palette est facultative : sans elle les libellés colorés sortent en blanc. L'atlas et
+    // les métriques, eux, restent obligatoires — à moitié chargés ils dessinent des glyphes faux.
+    let palette = obtenir_g4tx_bytes(game_dir, PALETTE)
+        .ok()
+        .map(|(_, octets)| menu_layout::parse_font_palette(&octets))
+        .unwrap_or_default();
+    Some(menu_layout::MenuFont {
+        atlas,
+        atlas_width: aw,
+        metrics: font::parse_metrics(&cfg),
+        palette,
+    })
 }
 
 
@@ -997,11 +1009,7 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
         }
     }
     let police = if layout.has_text_labels() {
-        load_menu_font(game_dir).map(|(atlas, atlas_width, metrics)| menu_layout::MenuFont {
-            atlas,
-            atlas_width,
-            metrics,
-        })
+        load_menu_font(game_dir)
     } else {
         None
     };
