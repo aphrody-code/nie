@@ -133,6 +133,14 @@ What produces `Some("")` on the native side and `None` here is not established. 
 on three screens, and the three replays otherwise match object for object. `shop_menu` remains
 scriptless on both sides.
 
+The obvious suspect — the two hosts being fed different tables — was NOT ruled out, and the
+attempt is worth recording so it is not repeated blindly. The native replay builds its map with
+`routes::menu::load_menu_text` (raw `.cfg.bin` → `nie_data::text::parse_text_file`); the browser
+receives `/api/v1/text/{lang}/menu_text` (→ `nie_data::typed::decode_by_key`). Comparing the two
+line counts inside a `nie-site` test does not work: the VFS mounts asynchronously and a unit test
+has no way to await it, so the test skips itself and proves nothing. Measuring this needs the
+running server on both sides, not a test.
+
 Every remaining difference is `$.scene…objects….text` or `$.missing`. Neither is a divergence
 of the VM:
 
