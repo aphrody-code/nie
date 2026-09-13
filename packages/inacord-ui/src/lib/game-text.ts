@@ -17,6 +17,12 @@
  * en un aller-retour, et décode chaque famille une seule fois côté serveur. Ce module envoie
  * donc la carte ENTIÈRE en une requête par langue, une fois.
  *
+ * Vérifié de bout en bout le 2026-09-13, contre un `nie-site` local portant le VFS : les 103
+ * références distinctes de la carte partent en UNE requête, 103 reviennent résolues en anglais,
+ * 102 sans ambiguïté — `Retour` → `Back`, `Paramètres` → `Settings`, `Agilité` → `Agility`. La
+ * seule ambiguë porte deux textes pour un hash, et [`gameText`] garde alors le libellé écrit à
+ * la main plutôt que d'en choisir un.
+ *
  * ## Ce que ça ne fait pas
  *
  * - Rien n'est traduit ici. Une langue que le jeu ne livre pas n'existe pas pour ce module.
