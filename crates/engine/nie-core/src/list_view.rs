@@ -206,6 +206,36 @@ impl ListScroll {
     }
 }
 
+/// Le pas d'une vue-liste de FILTRE : la sélection bouge de ±1 et BOUCLE.
+///
+/// `0x14102B170` — créneau 58 de `game::CMenuListViewCharaFilter`, qui redéfinit le pas par page
+/// de la base. Prouvé par `scripts/validate_listview_filter_step.py`, **16 ✓ / 0 ✗**.
+///
+/// Ce n'est pas une variante de [`ListScroll::step_page`], c'est un autre MODÈLE. La base
+/// déplace la ligne de tête et écrête ; celle-ci déplace l'index sélectionné et boucle dans les
+/// deux sens. 256 octets contre 820 : la redéfinition est plus SIMPLE, pas plus riche — pas de
+/// fenêtre, juste un curseur circulaire.
+///
+/// Les quatre classes qui redéfinissent les trois créneaux portés ici — `CharaFilter`,
+/// `ItemFilter`, `SoccerSpiritFilter`, `UniverseChara` — sont toutes des listes de filtre, ce
+/// qui rend ce modèle cohérent : un filtre est court et se parcourt en boucle, une liste de
+/// contenu est longue et s'arrête au bout. Seul `CharaFilter` est PROUVÉ ; les trois autres
+/// partagent le nom, pas encore la mesure.
+#[must_use]
+pub fn filter_step(count: i32, selected: i32, step: Step) -> i32 {
+    if count <= 0 {
+        return selected;
+    }
+    let suivant = selected + if step == Step::Forward { 1 } else { -1 };
+    if suivant < 0 {
+        return count - 1;
+    }
+    if suivant >= count {
+        return 0;
+    }
+    suivant
+}
+
 /// Le rang d'anneau qu'une cellule occupe, depuis l'état de la vue.
 ///
 /// `0x1405438CD`..`0x1405438E8` : `mov ecx,[this+0x198]` ; `cmp ecx,-1` ; `mov eax,[this+0x12C]` ;
@@ -411,5 +441,26 @@ mod tests {
         // `-1` = pas de focus ; le jeu prend alors un autre chemin, non modélisé ici.
         assert_eq!(cell_ring_slot(0, -1, 4), None);
         assert_eq!(cell_ring_slot(0, 0, 0), None);
+    }
+
+    /// Les cas de `scripts/validate_listview_filter_step.py` : le jeu écrit ces index.
+    #[test]
+    fn a_filter_list_wraps_where_the_content_list_clamps() {
+        let cas = [
+            (5, 0, 1, 4),
+            (5, 4, 0, 3),
+            (8, 7, 0, 6),
+            (8, 0, 1, 7),
+            (2, 1, 0, 0),
+            (1, 0, 0, 0),
+        ];
+        for (count, selected, avant, arriere) in cas {
+            assert_eq!(filter_step(count, selected, Step::Forward), avant, "avant {count}/{selected}");
+            assert_eq!(filter_step(count, selected, Step::Backward), arriere, "arriere {count}/{selected}");
+        }
+        // Le contraste, sur un même départ : la vue de contenu ne bouclerait pas.
+        let mut vue = scroll(40, 4, 7, 7, 28, 3, 0);
+        assert!(!vue.step_row(Step::Forward), "la vue de contenu s'arrete");
+        assert_eq!(filter_step(8, 7, Step::Forward), 0, "le filtre revient au debut");
     }
 }

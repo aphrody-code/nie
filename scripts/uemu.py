@@ -244,7 +244,14 @@ class Emu:
             uc.emu_start(vaddr, stop or SENTINEL, count=500_000)
         except UcError as e:
             err = str(e)  # ret bancal (émulation mi-fonction) : on capture quand même la mémoire.
-        out = {"rax": uc.reg_read(UC_X86_REG_RAX), "error": err, "mem": {}, "xmm": {}}
+        # Tous les GPR, pas seulement `rax` : une preuve qui s'ARRETE en plein milieu d'une
+        # fonction (`stop=`) lit son resultat dans le registre que le code utilisait a cet
+        # instant, et ce n'est presque jamais `rax`. Ajout purement additif : `out["rax"]`
+        # continue de repondre comme avant.
+        out = {"rax": uc.reg_read(UC_X86_REG_RAX), "error": err, "mem": {}, "xmm": {}, "reg": {}}
+        for _nom in ("rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp",
+                     *(f"r{_i}" for _i in range(8, 16))):
+            out["reg"][_nom] = uc.reg_read(getattr(_xc, f"UC_X86_REG_{_nom.upper()}"))
         for addr, n in (read or {}).items():
             out["mem"][addr] = uc.mem_read(addr, n)
         for idx in read_xmm or []:
