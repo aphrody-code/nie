@@ -370,9 +370,26 @@ Its readable strings include **`DispMaxValue`**, a direct candidate for the visi
 no layout data — so the parameters live on the list object, which is where the reversal says the
 state lives too.
 
-Not claimed: that `DispMaxValue` IS `[+0xC0]`. The names line up and the location is right, and
-that is a lead rather than a mapping. Reading the component's parsed params on a screen whose
-visible count is known would settle it in one measurement.
+**Measured, and it settles the question.** `niers decode` on that objbin — the CLI was already
+built, so no compile was needed — prints the `CMenuListViewCharaBank` component in full:
+
+    mViewStart 1   mViewNum 7   mLineNum 6   mLocatorNum 54
+    mMoveVert 1    mScrollVert 1
+    mLocatorStartName / mListItemName / mScrollLocatorPoseName / …MeshName  (hachages CRC-32)
+
+So the list view's layout is DECLARED in the file, not computed. `mViewNum` and `mLineNum` are
+the visible extent and the line width that `ListScroll` reads at `[this+0xC0]` and `[this+0xD4]`;
+`mLocatorNum = 54` matches the ~53 instance positions measured on that screen. The names are the
+engine's own, and `nie_formats::objbin` already parses them typed — they sit unused in a structure
+the composer loads for every screen.
+
+`DispMaxValue`, the candidate named a moment earlier, is NOT among them: it belongs to another
+component on the same object. Right about the location, wrong about the key — which is why it was
+written down as a lead and not as a mapping.
+
+That closes the provenance chain for step 3. State comes from the Lua runtime, index mapping is
+ported and proven, geometry is proven, and the parameters those need are now shown to sit in a
+file the export already reads. What remains is wiring, not reversing.
 
 Which also answers the earlier question more cheaply than expected: are the cell transforms the
 skeleton bone poses the static export ALREADY reads (`menu.rs`, `local_bind_pose`)? If so the compositor has the geometry
