@@ -103,6 +103,31 @@ HOST pagination rather than a reproduction of the game. Reversing first is what 
 model out of the engine — and what showed that the honest thing was to keep, not port, the
 TypeScript until a screen can adopt the real one.
 
+### Looking at the output was never in the loop — and it found the biggest defect
+
+`GET /api/v1/menu/render/{screen}` composes a screen to PNG through the reference
+compositor. One look at `story_mode_top_menu` showed menu text rendering as kanji. No gate
+caught it: the blitter and its four synthetic tests were wrong by the same amount, so they
+agreed with each other, and the only real-data test fed raw DDS bytes — the one input shape no
+production caller uses. Fixed in `nie_formats::font` (see the commit); every host was affected,
+not just the menu compositor.
+
+Keep that route in the loop. Cross-host comparison, uemu proofs and unit tests all check that
+two implementations AGREE or that a function reproduces measured bytes. None of them asks
+whether the picture is right.
+
+**Placement is the other half, and it is still open.** On `story_mode_top_menu`, the 13 list
+items sit at `x = 0` with y correct to the row (148, 220, 292, 364 — exactly 72 apart). The
+tempting reading is that their locator is unresolved and they fall back to local coordinates:
+`story01_02_story_mode_top_locator` IS unresolved. **Tested and rejected** —
+`chronicle_mode_top_menu` has a RESOLVED locator and still puts 6 instances at `x = 0`, while
+`chara_bank_menu` has no locator at all and spreads its 53 instances across 53, 107, 160, 213…
+So `x = 0` is not a consequence of locator resolution, and the cause is unknown.
+
+The 6 unresolved objects on that screen are shared components — headers, button guides, a lock
+icon — that the owning screen positions at runtime. The compositor does not paint them, which is
+correct and already gated by `an_unresolved_placement_is_never_painted`.
+
 ### Pillar 3 — how much of the game is actually painted
 
 | | count |
