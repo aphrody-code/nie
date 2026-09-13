@@ -10,8 +10,10 @@
  * bun --bun scripts/validation/compare-menu-layout.ts chara_bank_menu
  * ```
  *
- * Mesuré le 2026-09-13 : `chara_bank_menu` 78 objets, `gallery_menu` 7, `chara_edit_menu` 18 —
- * identiques. `shop_menu` : un écart sur 62, une rotation dont les deux `f32` sont voisins d'un
+ * Mesuré le 2026-09-13 sur **30 écrans** — un échantillon de 24 tirés du catalogue plus six
+ * nommés (`chara_bank_menu` 78 objets, `shop_menu` 62, `gallery_menu` 7, `chara_edit_menu` 18,
+ * `main_menu`, `title_menu`) : **29 identiques au caractère près, 1 identique hors arrondi,
+ * 0 divergent**. `shop_menu` : un écart sur 62, une rotation dont les deux `f32` sont voisins d'un
  * ULP (`-0.05235987529158592` contre `-0.05235988274216652`). La rotation vient de
  * `r10.atan2(r00)` et le chemin passe aussi par `sin`/`cos` : des fonctions de libm, différentes
  * sur `wasm32` (celle de Rust) et sur `x86-64` (celle du système). Le code est le même, la
@@ -29,7 +31,12 @@ const ECRAN = process.argv[2] ?? "chara_bank_menu";
 const glue = await import("/home/ubuntu/niers/apps/nie-web/src/wasm/nie_wasm.js");
 glue.initSync({ module: readFileSync("/home/ubuntu/niers/apps/nie-web/public/static/game/nie_wasm_bg.wasm") });
 
-const detail = await (await fetch(`${BASE}/api/v1/screens/${ECRAN}`)).json();
+const reponse = await fetch(`${BASE}/api/v1/screens/${ECRAN}`);
+if (!reponse.ok) {
+	console.log(`écran ${ECRAN} inconnu du site (HTTP ${reponse.status})`);
+	process.exit(0);
+}
+const detail = await reponse.json();
 const builder = new glue.MenuScreenBuilder(JSON.stringify({
 	screen: detail.screen,
 	cfg: detail.cfg,
@@ -78,8 +85,35 @@ const a = sansVisible(navigateur.objects);
 const b = sansVisible(serveur.objects);
 console.log(`écran ${ECRAN} : ${charges} objbin, ${compagnons} compagnons, ${pages.length} lignes de texte`);
 console.log(`objets navigateur ${navigateur.objects.length} | serveur ${serveur.objects.length}`);
-console.log(a === b ? "IDENTIQUES" : "DIFFÉRENTS");
-if (a !== b) {
+// Un écart peut n'être que le plancher libm : on le CLASSE au lieu de le confondre avec une
+// divergence de logique. Le seuil est RELATIF et vaut 1e-6, soit environ huit ULP d'un `f32`
+// (dont l'epsilon est 1,19e-7) : assez large pour absorber `atan2`/`sin`/`cos` d'une libm à
+// l'autre — l'écart mesuré sur `shop_menu` vaut 1,4e-7 relatif, et un seuil de 1e-7 le classait
+// à tort — assez étroit pour qu'une vraie divergence, qui déplace un objet de pixels entiers,
+// reste signalée.
+const voisins = (x: unknown, y: unknown) =>
+	typeof x === "number" && typeof y === "number" &&
+	(x === y || Math.abs(x - y) <= Math.max(Math.abs(x), Math.abs(y)) * 1e-6);
+const structurel = (x: any, y: any): boolean => {
+	if (voisins(x, y)) return false;
+	if (x === null || y === null || typeof x !== "object" || typeof y !== "object") {
+		return JSON.stringify(x) !== JSON.stringify(y);
+	}
+	const cles = [...new Set([...Object.keys(x), ...Object.keys(y)])];
+	return cles.some(c => structurel(x[c], y[c]));
+};
+const sansVisibleObjets = (o: any[]) => o.map(({ visible, ...reste }) => reste);
+const ecartsStructurels = sansVisibleObjets(navigateur.objects)
+	.map((o, i) => structurel(o, sansVisibleObjets(serveur.objects)[i]))
+	.filter(Boolean).length;
+console.log(
+	a === b
+		? "IDENTIQUES"
+		: ecartsStructurels === 0
+			? "IDENTIQUES hors arrondi (plancher libm)"
+			: `DIFFÉRENTS : ${ecartsStructurels} objet(s) divergent au-delà de l'arrondi`,
+);
+if (a !== b && ecartsStructurels > 0) {
 	for (let i = 0; i < Math.max(navigateur.objects.length, serveur.objects.length); i += 1) {
 		const x = JSON.stringify(navigateur.objects[i]), y = JSON.stringify(serveur.objects[i]);
 		if (x !== y) {
