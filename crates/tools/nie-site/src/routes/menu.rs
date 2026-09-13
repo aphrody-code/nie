@@ -159,7 +159,7 @@ pub async fn setting(
 /// Le résolveur de texte de `nie-data` travaille sur la forme IECode historique, tandis que le
 /// parseur T2B rend une arborescence typée. Cette conversion est locale au service et ne modifie
 /// jamais les octets du VFS.
-fn t2b_siblings_to_iecode(siblings: &[cfgbin::CfgEntry]) -> Vec<Value> {
+pub fn t2b_siblings_to_iecode(siblings: &[cfgbin::CfgEntry]) -> Vec<Value> {
     let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
     siblings
         .iter()
