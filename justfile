@@ -231,6 +231,21 @@ verify:
 
 # Les deux portes INTER-HÔTES : le même Rust compilé pour wasm32 et pour l'hôte doit rendre la
 # même chose. Aucun test unitaire ne les remplace — ils ont déjà attrapé un module publié plus
+# Le seul garde-fou qui demande si l'IMAGE est juste : les autres vérifient que deux
+# implémentations s'accordent ou qu'une fonction reproduit des octets, et c'est ainsi que le texte
+# des menus a pu sortir en kanji dans les quatre hôtes sans qu'aucune porte ne bronche.
+# Référence PAR ÉCRAN dans `data/menu/screen-ssim-baseline.json` ; échoue sur une CHUTE, pas sur
+# un absolu — le compositeur ne dessine ni personnages 3D ni fonds animés.
+# Compare chaque écran composé à la capture réelle du jeu (SSIM), sur les 8 paires exactes.
+ecrans:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ./target/release/nie-site --listen 127.0.0.1:18099 > /tmp/nie-site-ecrans.log 2>&1 &
+    site=$!
+    trap 'kill "$site" 2>/dev/null || true' EXIT
+    sleep 25
+    NIE_SITE_BASE=http://127.0.0.1:18099 bun --bun scripts/validation/gate-screens.ts
+
 # vieux que son code, une comparaison qui rendait « différent » à chaque appel, et une
 # régression 10/14 → 3/14. Démarre un `nie-site` LOCAL (jamais celui de production) et l'arrête.
 cross-host ecrans="30":
