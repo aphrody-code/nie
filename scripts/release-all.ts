@@ -537,10 +537,21 @@ function validateSiteHealth(value: unknown): void {
 async function validateLive(): Promise<void> {
 	validateSiteHealth(await (await fetchResponse("https://nie.aphrody.com/api/v1/health")).json());
 	const icons = object(await (await fetchResponse("https://nie.aphrody.com/api/v1/icons")).json());
-	if (Number(icons.total_indexed) < 1 || Number(icons.atlases) < 1 || !Array.isArray(icons.results))
+	const iconResults = object(icons.results);
+	if (
+		Number(icons.total_indexed) < 1 ||
+		Number(icons.atlases) < 1 ||
+		!Array.isArray(iconResults.elements) ||
+		iconResults.elements.length < 1
+	)
 		throw new Error("Icon catalogue is empty or malformed.");
 	const modes = object(await (await fetchResponse("https://nie.aphrody.com/api/v1/modes")).json());
-	if (Number(modes.total_modes) < 1 || !Array.isArray(modes.results) || modes.results.length < 1)
+	const modeResults = object(modes.results);
+	if (
+		Number(modes.total_modes) < 1 ||
+		!Array.isArray(modeResults.elements) ||
+		modeResults.elements.length < 1
+	)
 		throw new Error("Mode catalogue is empty or malformed.");
 	const home = await (await fetchResponse("https://nie.aphrody.com/")).text();
 	const scriptPath = home.match(/src="(\/static\/[^"]+\.js)"/u)?.[1];
