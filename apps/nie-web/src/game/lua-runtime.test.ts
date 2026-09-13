@@ -123,3 +123,32 @@ describe("le catalogue de scripts", () => {
 		}
 	});
 });
+
+describe("le catalogue d'includes", () => {
+	test("ne mémorise pas un échec pour toute la session", async () => {
+		// `catalogue` ne LÈVE pas quand le réseau échoue : il rend une liste vide. Mémoriser
+		// cette liste retirerait à chaque écran, jusqu'au rechargement de la page, les fonctions
+		// que ses includes définissent — le défaut que `menu_host_gap.rs` mesure comme le plus
+		// bloquant. Un `.catch()` ne l'attrapait pas, puisqu'il n'était jamais atteint.
+		let tentatives = 0;
+		const origine = globalThis.fetch;
+		globalThis.fetch = (async (url: string) => {
+			const adresse = new URL(String(url), "http://x");
+			if (!adresse.pathname.startsWith("/api/v1/lua/scripts")) return new Response("", { status: 404 });
+			tentatives += 1;
+			// La première interrogation échoue, la seconde répond.
+			if (tentatives === 1) return new Response("", { status: 503 });
+			return Response.json({
+				elements: [{ chemin: "data/common/script/lua/include/menu/main_menu_inc.lua.bin" }],
+				pages: 1,
+			});
+		}) as unknown as typeof fetch;
+		try {
+			const { includePathsForTests } = await import("./lua-runtime");
+			expect(await includePathsForTests()).toEqual([]);
+			expect(await includePathsForTests()).toHaveLength(1);
+		} finally {
+			globalThis.fetch = origine;
+		}
+	});
+});

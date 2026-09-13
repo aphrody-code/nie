@@ -196,15 +196,19 @@ let includesPromise: Promise<string[]> | null = null;
  * session et partagés par tous les écrans, pas une fois par écran.
  */
 function includePaths(): Promise<string[]> {
-	includesPromise ??= (async () =>
-		(await catalogue("q=include")).filter(
+	includesPromise ??= (async () => {
+		const chemins = (await catalogue("q=include")).filter(
 			(path) => path.startsWith("data/common/script/lua/include/") && path.endsWith(".lua.bin"),
-		))().catch(() => {
-		// Un catalogue indisponible ne doit pas figer l'absence d'includes pour la session : le
-		// rejeu suivant réessaie, et en attendant il se déroule sans eux comme avant.
-		includesPromise = null;
-		return [];
-	});
+		);
+		// Un catalogue indisponible ne doit pas figer l'absence d'includes pour la SESSION.
+		// `catalogue` ne lève pas — il rend une liste vide quand le réseau échoue — donc un
+		// `.catch()` ne suffisait pas : il n'était jamais atteint, et une panne passagère
+		// mémorisait « aucun include » jusqu'au rechargement de la page, ce qui retire à chaque
+		// écran les fonctions que ses includes définissent. Seul un résultat NON VIDE est
+		// mémorisé ; le vide est réessayé au rejeu suivant.
+		if (chemins.length === 0) includesPromise = null;
+		return chemins;
+	})();
 	return includesPromise;
 }
 
@@ -336,3 +340,6 @@ export async function resolveMenuVisibility(screen: string): Promise<ResolvedVis
 		missing: output.missing ?? [],
 	};
 }
+
+/** Exposé pour le test : la mémoïsation d'un échec ne se voit qu'en interrogeant deux fois. */
+export const includePathsForTests = includePaths;
