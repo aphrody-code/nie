@@ -227,9 +227,16 @@ pub fn render_scene(
                 }
                 let s: Vec<_> = poly.iter().map(|v| to_screen(v.c)).collect();
                 // Backface culling (aire signée écran) sauf instances deux-faces (maps).
+                //
+                // glTF définit les faces AVANT en CCW ; l'écran a son Y vers le bas, donc cette
+                // aire signée y est NÉGATIVE. Ce test gardait les positives : il écartait les
+                // faces avant et dessinait l'intérieur des maillages. Mesuré le 2026-09-13 sur un
+                // quad, `render::render` en peignait 1 200 pixels et `render_scene` zéro ; le quad
+                // enroulé à l'envers donnait l'inverse. Le pipeline GPU ne cule rien
+                // (`cull_mode: None`), donc rien ne pouvait arbitrer entre les deux.
                 if !inst.two_sided
                     && (s[1].0 - s[0].0) * (s[2].1 - s[0].1) - (s[1].1 - s[0].1) * (s[2].0 - s[0].0)
-                        <= 0.0
+                        >= 0.0
                 {
                     continue;
                 }
@@ -418,6 +425,81 @@ fn fill_tex(
 mod tests {
     use super::*;
 
+    /// Les deux rastériseurs CPU gardent la même face, celle que glTF appelle l'avant.
+    ///
+    /// Ils ont vécu avec des tests opposés sans que rien ne le signale : `render` écartait les
+    /// aires signées positives, `render_scene` les négatives, et le pipeline GPU ne cule rien, si
+    /// bien qu'aucune comparaison ne pouvait les départager. Seul `match3d` passe
+    /// `two_sided: false`, donc seul lui montrait l'intérieur de ses maillages.
+    #[test]
+    fn les_deux_rasteriseurs_cpu_gardent_la_face_avant() {
+        let quad = |indices: Vec<u32>| crate::glb::Model {
+            primitives: vec![crate::glb::Primitive {
+                positions: vec![
+                    [-1.0, -1.0, 0.0],
+                    [1.0, -1.0, 0.0],
+                    [1.0, 1.0, 0.0],
+                    [-1.0, 1.0, 0.0],
+                ],
+                normals: vec![[0.0, 0.0, 1.0]; 4],
+                uv: Vec::new(),
+                indices,
+                texture: None,
+            }],
+            textures: Vec::new(),
+        };
+        let (w, h) = (64u32, 64u32);
+
+        let peints_reference = |model: &crate::glb::Model| {
+            let px = crate::render::render(model, 0.0, w, h);
+            (0..h)
+                .map(|y| {
+                    let fond = crate::render::couleur_fond(y, h);
+                    (0..w)
+                        .filter(|x| {
+                            let i = ((y * w + x) * 4) as usize;
+                            px[i..i + 4] != fond
+                        })
+                        .count()
+                })
+                .sum::<usize>()
+        };
+        let peints_scene = |model: &crate::glb::Model| {
+            let cam = Camera {
+                eye: [0.0, 0.0, crate::render::DISTANCE_CAMERA],
+                target: [0.0, 0.0, 0.0],
+                up: [0.0, 1.0, 0.0],
+                fov_y: 2.0 * (1.0 / crate::render::FOCALE).atan(),
+            };
+            let instance = Instance {
+                model,
+                transform: mat_identity(),
+                two_sided: false,
+            };
+            let px = render_scene(&[], &[instance], &cam, w, h, [24, 28, 40], [50, 58, 74]);
+            (0..h)
+                .map(|y| {
+                    let t = y as f32 / h as f32;
+                    let mix = |a: u8, b: u8| (f32::from(a) * (1.0 - t) + f32::from(b) * t) as u8;
+                    let fond = [mix(24, 50), mix(28, 58), mix(40, 74), 255u8];
+                    (0..w)
+                        .filter(|x| {
+                            let i = ((y * w + x) * 4) as usize;
+                            px[i..i + 4] != fond
+                        })
+                        .count()
+                })
+                .sum::<usize>()
+        };
+
+        let avant = quad(vec![0, 1, 2, 0, 2, 3]);
+        let arriere = quad(vec![2, 1, 0, 3, 2, 0]);
+        assert!(peints_reference(&avant) > 500, "la face avant doit être dessinée");
+        assert!(peints_scene(&avant) > 500, "la face avant doit être dessinée");
+        assert_eq!(peints_reference(&arriere), 0, "la face arrière doit être écartée");
+        assert_eq!(peints_scene(&arriere), 0, "la face arrière doit être écartée");
+    }
+
     #[test]
     fn rend_un_quad_au_sol() {
         // Un quad vert au sol (y=0), caméra au-dessus qui regarde l'origine.
@@ -458,7 +540,9 @@ mod tests {
                 positions: vec![[-0.6, 0.0, 0.0], [0.6, 0.0, 0.0], [0.0, 1.2, 0.0]],
                 normals: vec![[0.0, 0.0, 1.0]; 3],
                 uv: vec![[0.0, 1.0], [1.0, 1.0], [0.5, 0.0]],
-                indices: vec![0, 2, 1], // front-facing (cf. backface culling)
+                // CCW vu de +z : la face AVANT au sens glTF. Ce test portait `0, 2, 1`, donc la
+                // face ARRIÈRE, parce qu'il avait été écrit contre le test de culling inversé.
+                indices: vec![0, 1, 2],
                 texture: Some(0),
             }],
             textures: vec![Texture {
