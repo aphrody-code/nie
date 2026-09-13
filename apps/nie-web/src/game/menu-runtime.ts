@@ -1,4 +1,5 @@
 /** Thin transport for bounded native Lua menu replay; no source evaluation or simulated success. */
+import type { GameLocale } from "@niers/asset-source";
 export const MENU_CALLBACKS = [
 	"PreStep", "Step", "PostStep", "SceneStep", "OnInit", "OnEnter", "OnSubEnter", "OnFunction", "OnBack",
 	"OnSetupLayer", "OnOpenLayer", "OnCloseLayer", "OnOpenEndLayer", "OnCloseEndLayer", "OnUpdateLayer",
@@ -11,7 +12,7 @@ export interface MenuRuntimeEvent {
 	args?: readonly (number | boolean | string | null)[];
 }
 export interface MenuRuntimeRequest {
-	locale?: "fr" | "en" | "ja";
+	locale?: GameLocale;
 	events?: readonly MenuRuntimeEvent[];
 	itemCounts?: Readonly<Record<number, number>>;
 	/** Pass only observed native state; the Rust owner validates its existing wire schema. */

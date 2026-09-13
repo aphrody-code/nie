@@ -7,6 +7,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./source": "./src/source.tsx",
+		"./entities/EntityExplorer": "./src/entities/EntityExplorer.tsx",
 		"./explorer/explorer-tabs": "./src/explorer/explorer-tabs.ts",
 		"./explorer/explorer-surface": "./src/explorer/explorer-surface.tsx",
 		"./explorer/explorer-surface.css": "./src/explorer/explorer-surface.css",

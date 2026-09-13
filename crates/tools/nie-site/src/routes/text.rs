@@ -277,12 +277,14 @@ impl Survey {
     /// façades, un seul catalogue mesuré.
     #[must_use]
     pub fn families_of_language(&self, language: &str) -> Vec<(&str, usize, usize)> {
-        self.languages.get(language).map_or_else(Vec::new, |familles| {
-            familles
-                .iter()
-                .map(|(nom, releve)| (nom.as_str(), releve.paths.len(), releve.lines))
-                .collect()
-        })
+        self.languages
+            .get(language)
+            .map_or_else(Vec::new, |familles| {
+                familles
+                    .iter()
+                    .map(|(nom, releve)| (nom.as_str(), releve.paths.len(), releve.lines))
+                    .collect()
+            })
     }
 
     /// Les chemins d'un couple (langue, famille), ou `None` si le couple n'existe pas.
@@ -585,7 +587,11 @@ pub async fn catalog(State(state): State<EtatSite>) -> Result<Json<Catalog>, Err
 ///
 /// `Introuvable` (404) — un segment d'URL désigne une ressource, pas un paramètre : c'est un
 /// `404`, et le message cite ce qui existe pour que l'appelant n'ait pas à deviner.
-pub(super) fn resolve(s: &'static Survey, language: &str, family: &str) -> Result<Vec<String>, ErreurSite> {
+pub(super) fn resolve(
+    s: &'static Survey,
+    language: &str,
+    family: &str,
+) -> Result<Vec<String>, ErreurSite> {
     let Some(families) = s.languages.get(language) else {
         return Err(ErreurSite::Introuvable(format!(
             "langue inconnue `{language}` ; les langues mesurees dans ce jeu sont : {}",
@@ -1383,11 +1389,12 @@ mod tests {
     fn la_pagination_se_deserialise_depuis_la_query_string() {
         // Par l'extracteur d'axum, celui qui tourne réellement — pas par un déserialiseur voisin
         // qui pourrait réussir là où la route échoue.
-        let uri: axum::http::Uri = "/api/v1/text/fr/menu_text?page=2&per_page=5&q=ballon&format=txt"
-            .parse()
-            .expect("uri");
-        let Query(demande) = Query::<DemandeTexte>::try_from_uri(&uri)
-            .expect("la query string doit se lire");
+        let uri: axum::http::Uri =
+            "/api/v1/text/fr/menu_text?page=2&per_page=5&q=ballon&format=txt"
+                .parse()
+                .expect("uri");
+        let Query(demande) =
+            Query::<DemandeTexte>::try_from_uri(&uri).expect("la query string doit se lire");
         assert_eq!(demande.page, Some(2));
         assert_eq!(demande.per_page, Some(5));
         assert_eq!(demande.q.as_deref(), Some("ballon"));

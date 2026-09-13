@@ -46,7 +46,11 @@ fn include() -> Option<PathBuf> {
         |_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."),
         PathBuf::from,
     );
-    for base in ["data", "data/lua_dump", "data/re/40-derived/dumps/lua-vfs-all"] {
+    for base in [
+        "data",
+        "data/lua_dump",
+        "data/re/40-derived/dumps/lua-vfs-all",
+    ] {
         let dossier = depot.join(base).join("common/script/lua/include/menu");
         let Ok(entrees) = std::fs::read_dir(&dossier) else {
             continue;
@@ -88,7 +92,10 @@ fn ce_que_linclude_reclame_avant_de_definir() {
     match nie_lua::discover_host_calls(&octets, &nom) {
         Ok(globales) => {
             eprintln!("{nom} : {} globales hôte réclamées", globales.len());
-            eprintln!("  premières : {:?}", globales.iter().take(25).collect::<Vec<_>>());
+            eprintln!(
+                "  premières : {:?}",
+                globales.iter().take(25).collect::<Vec<_>>()
+            );
             // La question à laquelle ce relevé répond : l'include va-t-il jusqu'au bout ?
             // S'il définit bien ses cinq fonctions dans une VM qui stube tout, alors ce n'est
             // pas SA faute — c'est le rejeu qui ne l'exécute pas. Sinon, c'est ici que ça casse.
@@ -238,7 +245,10 @@ fn ou_vit_lappel_include_dans_un_ecran() {
         "écrans lisant une fonction de main_menu_inc : {examines} — INCLUDE au niveau principal : \
          {au_principal}, dans une fonction : {enfoui} {exemples:?}"
     );
-    assert!(examines > 0, "aucun écran concerné : le relevé ne mesure rien");
+    assert!(
+        examines > 0,
+        "aucun écran concerné : le relevé ne mesure rien"
+    );
 }
 
 /// À quelle PROFONDEUR l'include définit-il ses fonctions ?

@@ -1,0 +1,71 @@
+/* The shell leaves 296 px of content width on a 320 px viewport. Keep the model catalogue's
+   controls inside that measured box; horizontal scrolling hides submit and pagination actions. */
+.models-3d-page {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.models-3d-filters > button {
+  flex: 0 0 auto;
+}
+
+.models-3d-filters__page-size > span {
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  /* ViewTitle owns a measured desktop minimum of 280 px. Inside the mobile shell its actual
+	   available width is only 216 px after page gutters, so this one page must allow the title
+	   and its count to wrap without changing the shared desktop component. */
+  .models-3d-page > h2 {
+    box-sizing: border-box;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding-inline: 24px !important;
+    flex-wrap: wrap;
+    column-gap: 12px !important;
+    row-gap: 2px !important;
+  }
+
+  .models-3d-filters {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .models-3d-filters__search,
+  .models-3d-filters__page-size {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .models-3d-filters > button {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 8px !important;
+  }
+
+  .models-3d-filters__page-size {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .models-3d-pagination {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--jeu-espace-s) !important;
+  }
+
+  .models-3d-pagination > span {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    text-align: center;
+  }
+
+  .models-3d-pagination > button {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 8px !important;
+  }
+}

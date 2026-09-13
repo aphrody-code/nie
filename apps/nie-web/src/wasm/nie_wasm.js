@@ -472,6 +472,30 @@ export class ModelRenderer {
         }
     }
     /**
+     * Replace one decoded model texture with a bounded PNG for this renderer session.
+     *
+     * The GLB bytes and the VFS stay unchanged. Subsequent [`ModelRenderer::render`] calls use
+     * the replacement, so an exported PNG is proof of the real Rust-side mutation rather than a
+     * CSS overlay. The public index addresses glTF `textures[]`, not `images[]`.
+     * @param {number} index
+     * @param {Uint8Array} png
+     */
+    replace_texture_png(index, png) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(png, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.modelrenderer_replace_texture_png(retptr, this.__wbg_ptr, index, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      * Les dimensions du dernier rendu, `[largeur, hauteur]` — `[0, 0]` avant le premier.
      * @returns {Uint32Array}
      */
@@ -479,6 +503,45 @@ export class ModelRenderer {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.modelrenderer_size(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayU32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Measured glTF texture name, falling back to its image name when present.
+     * @param {number} index
+     * @returns {string | undefined}
+     */
+    texture_name(index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.modelrenderer_texture_name(retptr, this.__wbg_ptr, index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_export4(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Dimensions `[width, height]` of one decoded texture, or an empty array for a bad index.
+     * @param {number} index
+     * @returns {Uint32Array}
+     */
+    texture_size(index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.modelrenderer_texture_size(retptr, this.__wbg_ptr, index);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var v1 = getArrayU32FromWasm0(r0, r1).slice();
@@ -1941,6 +2004,44 @@ export function avatar_composition_json(catalog_json, state_json) {
 }
 
 /**
+ * Validate and import an editable OC project or a reference-only canonical player identity.
+ * @param {string} catalog_json
+ * @param {string} state_json
+ * @param {string} reference
+ * @returns {string}
+ */
+export function avatar_reference_import_json(catalog_json, state_json, reference) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(catalog_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(state_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(reference, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.avatar_reference_import_json(retptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        var ptr4 = r0;
+        var len4 = r1;
+        if (r3) {
+            ptr4 = 0; len4 = 0;
+            throw takeObject(r2);
+        }
+        deferred5_0 = ptr4;
+        deferred5_1 = len4;
+        return getStringFromWasm0(ptr4, len4);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred5_0, deferred5_1, 1);
+    }
+}
+
+/**
  * Inspects PE/ELF bytes with the shared pure-Rust reverse-engineering engine.
  * The string sample is capped at 256 entries to keep the browser result bounded.
  * @param {Uint8Array} bytes
@@ -2401,6 +2502,44 @@ export function editor_add_object_json(project_json, object_json) {
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         wasm.__wbindgen_export4(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Serialize a validated portable OC document through the shared Rust schema owner.
+ * @param {string} catalog_json
+ * @param {string} state_json
+ * @param {string} metadata_json
+ * @returns {string}
+ */
+export function export_avatar_oc_document_json(catalog_json, state_json, metadata_json) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(catalog_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(state_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(metadata_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.export_avatar_oc_document_json(retptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        var ptr4 = r0;
+        var len4 = r1;
+        if (r3) {
+            ptr4 = 0; len4 = 0;
+            throw takeObject(r2);
+        }
+        deferred5_0 = ptr4;
+        deferred5_1 = len4;
+        return getStringFromWasm0(ptr4, len4);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred5_0, deferred5_1, 1);
     }
 }
 
@@ -3163,6 +3302,36 @@ export function minidump_summary_json(bytes) {
 }
 
 /**
+ * Replace one embedded GLB image with PNG bytes and return a reparsed GLB.
+ * @param {Uint8Array} glb
+ * @param {number} index
+ * @param {Uint8Array} png
+ * @returns {Uint8Array}
+ */
+export function model_replace_texture_glb(glb, index, png) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArray8ToWasm0(glb, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(png, wasm.__wbindgen_export);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.model_replace_texture_glb(retptr, ptr0, len0, index, ptr1, len1);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        if (r3) {
+            throw takeObject(r2);
+        }
+        var v3 = getArrayU8FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export4(r0, r1 * 1, 1);
+        return v3;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * Assemble une paire G4MD+G4MG (octets bruts) en GLB, in-browser.
  * @param {Uint8Array} g4md
  * @param {Uint8Array} g4mg
@@ -3186,6 +3355,32 @@ export function model_to_glb(g4md, g4mg) {
         var v3 = getArrayU8FromWasm0(r0, r1).slice();
         wasm.__wbindgen_export4(r0, r1 * 1, 1);
         return v3;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * Decode a standalone editor PNG in Rust and return `[width, height]`.
+ * @param {Uint8Array} png
+ * @returns {Uint32Array}
+ */
+export function model_validate_editor_png(png) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArray8ToWasm0(png, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.model_validate_editor_png(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        if (r3) {
+            throw takeObject(r2);
+        }
+        var v2 = getArrayU32FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export4(r0, r1 * 4, 4);
+        return v2;
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
@@ -4125,7 +4320,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wasm_bindgen_func_elem_4231(a, state0.b, arg0, arg1);
+                        return __wasm_bindgen_func_elem_4449(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -4770,18 +4965,18 @@ function __wbg_get_imports() {
             getObject(arg0).writeTexture(getObject(arg1), getArrayU8FromWasm0(arg2, arg3), getObject(arg4), getObject(arg5));
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1251, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3225);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1358, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3443);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1311, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4216);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1418, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4434);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1251, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3225_2);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1358, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3443_2);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000004: function(arg0) {
@@ -4813,18 +5008,18 @@ function __wbg_get_imports() {
     };
 }
 
-function __wasm_bindgen_func_elem_3225(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3225(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3443(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3443(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_3225_2(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3225_2(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3443_2(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3443_2(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_4216(arg0, arg1, arg2) {
+function __wasm_bindgen_func_elem_4434(arg0, arg1, arg2) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.__wasm_bindgen_func_elem_4216(retptr, arg0, arg1, addHeapObject(arg2));
+        wasm.__wasm_bindgen_func_elem_4434(retptr, arg0, arg1, addHeapObject(arg2));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         if (r1) {
@@ -4835,8 +5030,8 @@ function __wasm_bindgen_func_elem_4216(arg0, arg1, arg2) {
     }
 }
 
-function __wasm_bindgen_func_elem_4231(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_4231(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wasm_bindgen_func_elem_4449(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_4449(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 

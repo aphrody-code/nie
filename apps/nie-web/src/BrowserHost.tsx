@@ -13,7 +13,7 @@ import "./app.css";
 export default function BrowserHost() {
 	return (
 		<ErrorBoundary zone="Application">
-			<ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+			<ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
 				<App />
 			</ThemeProvider>
 		</ErrorBoundary>

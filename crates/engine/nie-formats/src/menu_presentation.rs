@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn title_menu_preserves_all_native_controls_and_observed_bindings() {
         let scene = parse_scene(&scene_json("title-menu").unwrap()).unwrap();
-        assert_eq!(scene.controls.len(), 12);
+        assert_eq!(scene.controls.len(), 13);
         assert_eq!(
             scene
                 .controls
@@ -419,7 +419,23 @@ mod tests {
             .iter()
             .filter_map(|c| c.host_action_id.as_deref())
             .collect();
-        assert_eq!(bindings, ["settings", "avatar"]);
+        assert_eq!(
+            bindings,
+            [
+                "mode-story_mode",
+                "mode-chronicle_mode",
+                "mode-kizuna_town",
+                "mode-competition",
+                "mode-bb_stadium",
+                "mode-victory_road",
+                "shop",
+                "mode-play_guide",
+                "settings",
+                "mode-information",
+                "bank",
+                "avatar",
+            ]
+        );
         assert!(
             scene
                 .layers

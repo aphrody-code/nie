@@ -36,6 +36,9 @@ import { MenuScreenBuilder } from "../wasm/nie_wasm.js";
 /** L'espace de fichiers du VFS servi par `nie-site`. */
 const VFS_SPACE = "/f/";
 
+/** The server layout handler currently builds with its fixed native fallback locale. */
+const SERVER_LAYOUT_LOCALE = "fr";
+
 /** Un calque, tel que `/api/v1/screens/{screen}` le publie. */
 interface ScreenItem {
 	layer: string;
@@ -211,9 +214,12 @@ export async function compareLayoutWithServer(
 	screen: string,
 	locale: string,
 ): Promise<{ equal: boolean; browser: unknown; server: unknown } | null> {
+	// The handler has no locale query contract. Comparing a localized browser layout with its
+	// fixed French output would report a renderer divergence when only the inputs differ.
+	if (locale !== SERVER_LAYOUT_LOCALE) return null;
 	const [built, response] = await Promise.all([
 		buildMenuLayout(screen, locale),
-		fetch(`/api/v1/menu/layout/${encodeURIComponent(screen)}?locale=${encodeURIComponent(locale)}`, {
+		fetch(`/api/v1/menu/layout/${encodeURIComponent(screen)}`, {
 			headers: { accept: "application/json" },
 		}).catch(() => null),
 	]);
@@ -267,8 +273,11 @@ export async function loadMenuLayout(
 	signal?: AbortSignal,
 ): Promise<unknown> {
 	const serveur = async () => {
+		if (locale !== SERVER_LAYOUT_LOCALE) {
+			throw new Error(`Server layout is unavailable for locale ${locale}`);
+		}
 		const response = await fetch(
-			`/api/v1/menu/layout/${encodeURIComponent(screen)}?locale=${encodeURIComponent(locale)}`,
+			`/api/v1/menu/layout/${encodeURIComponent(screen)}`,
 			{ signal, headers: { accept: "application/json" } },
 		);
 		if (!response.ok) throw new Error("Layout unavailable");

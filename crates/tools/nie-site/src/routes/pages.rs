@@ -123,7 +123,7 @@ struct Entree {
 /// segment d'URL brut, en minuscule, identique dans les trois langues — parce qu'il tombait
 /// dans la branche générique de [`metadonnees`]. Une entrée du menu que le serveur ne connaît
 /// pas est une page sans titre, absente du plan du site et non déclarée à `robots.txt`.
-const ENTREES: [Entree; 15] = [
+const ENTREES: [Entree; 17] = [
     Entree {
         // La navigation, qui occupait la racine jusqu'au 2026-09-07. La racine sert le jeu ;
         // le menu a donc son adresse. Il n'est PAS au plan du site : une page de liens vers
@@ -133,30 +133,17 @@ const ENTREES: [Entree; 15] = [
         // Les quatre titres sont ceux du jeu, lus sur `menu_text/0x2d2a69a2`.
         titres: ["Menu", "Menu", "Menú", "メニュー"],
         descriptions: [
-            "Les catalogues, l'explorateur et les Options, depuis un seul écran.",
-            "The catalogues, the file browser and the Settings, from a single screen.",
+            "Chara Edit, l'explorateur, l'éditeur 3D, la galerie et les catalogues, depuis le menu du jeu.",
+            "Chara Edit, the file browser, 3D editor, gallery and catalogues from the game menu.",
             "",
             "カタログ・ファイルブラウザー・オプションを、ひとつの画面から。",
         ],
     },
     Entree {
-        // `/medias` manquait, alors que c'est l'une des DEUX entrées du menu et qu'elle figure
-        // au plan du site : elle sortait donc en `<title>medias — nie</title>`, description
-        // générique et `og:type` d'article — le défaut corrigé pour `/explorateur`, laissé
-        // intact sur la page qui rassemble les quatre catalogues.
-        segment: "medias",
-        heritage: &[],
-        titres: ["Médias", "Media", "Media", "メディア"],
-        descriptions: [
-            "Textures, modèles, sons et vidéos du jeu, dans une seule page filtrable.",
-            "The game's textures, models, sounds and videos, in a single filterable page.",
-            "",
-            "ゲームのテクスチャ・モデル・サウンド・ムービーを、ひとつの絞り込み可能なページにまとめています。",
-        ],
-    },
-    Entree {
         segment: "textures",
-        heritage: &[],
+        // `/medias` used to be a fifth address for this landing. It remains understood, but
+        // canonical metadata and the client both replace it with the concrete catalogue route.
+        heritage: &["medias"],
         titres: ["Textures", "Textures", "Textures", "テクスチャ"],
         descriptions: [
             "Toutes les textures du jeu, à leur chemin d'origine, converties à la demande.",
@@ -210,17 +197,50 @@ const ENTREES: [Entree; 15] = [
         ],
     },
     Entree {
-        // Les Options : l'écran des réglages du jeu, avec les réglages d'Inacord dedans.
-        // Segment anglais, comme toute URL nouvelle (CLAUDE.md § Language).
+        segment: "editor_3d",
+        heritage: &[],
+        titres: ["Éditeur 3D", "3D Editor", "Editor 3D", "3Dエディター"],
+        descriptions: [
+            "Inspecter et manipuler les modèles du VFS dans l'éditeur 3D partagé.",
+            "Inspect and manipulate VFS models in the shared 3D editor.",
+            "",
+            "共有3DエディターでVFSモデルを確認・操作します。",
+        ],
+    },
+    Entree {
+        segment: "recherche",
+        heritage: &[],
+        titres: ["Recherche", "Search", "Search", "検索"],
+        descriptions: [
+            "Rechercher les personnages et techniques par leur nom ou leur identifiant dans le miroir du jeu.",
+            "Search characters and skills by name or identity in the game mirror.",
+            "",
+            "ゲームのミラーから、名前または識別子で選手と必殺技を検索します。",
+        ],
+    },
+    Entree {
+        segment: "donnees",
+        heritage: &[],
+        titres: ["Données", "Data", "Data", "データ"],
+        descriptions: [
+            "Parcourir les familles de données décodées du jeu.",
+            "Browse the game's decoded data families.",
+            "",
+            "デコード済みゲームデータを閲覧します。",
+        ],
+    },
+    Entree {
+        // Les Options publiques : uniquement les réglages portables du jeu. L'espace auteur
+        // conserve ses réglages supplémentaires sous `/inacord/settings`.
         segment: "setting_menu",
         heritage: &["settings"],
         // Les quatre titres sont ceux du jeu, lus sur `menu_text/0x82c9a2b3`.
         titres: ["Paramètres", "Settings", "Ajustes", "設定"],
         descriptions: [
-            "Langue, thème, densité des listes, taille du texte : les réglages de nie, dans l'écran des Options du jeu.",
-            "Language, theme, list density, text size: nie's settings, in the game's Options screen.",
+            "Langue, densité des listes, mouvement et taille du texte : les réglages de nie, dans l'écran des Options du jeu.",
+            "Language, list density, motion and text size: nie's settings, in the game's Options screen.",
             "",
-            "言語・テーマ・リストの密度・文字サイズなど、nie の設定をゲームのオプション画面で。",
+            "言語・リスト密度・動き・文字サイズなど、nie の設定をゲームのオプション画面で。",
         ],
     },
     Entree {
@@ -316,33 +336,28 @@ const ENTREES: [Entree; 15] = [
     },
 ];
 
-/// Les deux URL héritées des écrans fusionnés : elles mènent à l'explorateur.
-///
-/// Le bundle les reconnaît (`apps/nie-web/src/entries.ts`, `ALIAS`) ; le serveur doit donc les
-/// reconnaître aussi, sinon il les traite en route inconnue et leur pose un `noindex` que le
-/// client contredit à l'écran.
-const ALIAS: [&str; 2] = ["recherche", "donnees"];
+/// Deep-link diagnostics and authoring workspaces that are served but never advertised to a
+/// player, indexed, or inserted in the server-rendered navigation.
+const ROUTES_INTERNES: [&str; 2] = ["inacord", "modes"];
+
+fn route_interne(route: &str) -> bool {
+    let premier = route
+        .trim_start_matches('/')
+        .trim_end_matches('/')
+        .split('/')
+        .next()
+        .unwrap_or("");
+    ROUTES_INTERNES.contains(&premier)
+}
 
 /// La route canonique d'une route servie.
-///
-/// `/recherche` et `/donnees` sont les deux adresses héritées des écrans fusionnés dans
-/// l'explorateur : elles montrent la MÊME page. Servies telles quelles, elles sortaient avec
-/// leur segment brut en titre (« donnees — nie ») et un canonique sur elles-mêmes — trois
-/// URL pour une page, c'est-à-dire la dilution que le plan du site évite en ne les annonçant
-/// pas. Le canonique les ramène donc à `/explorateur`.
 #[must_use]
 pub fn route_canonique(route: &str) -> String {
     let nu = route.trim_start_matches('/').trim_end_matches('/');
     let premier = nu.split('/').next().unwrap_or("");
-    if ALIAS.contains(&premier) {
-        return "/explorateur".to_owned();
-    }
     // Une adresse héritée décrit la même page que celle qui porte le nom du jeu : le canonique
     // les réunit, sinon deux URL indexées se disputeraient un seul écran.
-    if let Some(e) = ENTREES
-        .iter()
-        .find(|e| e.heritage.contains(&premier))
-    {
+    if let Some(e) = ENTREES.iter().find(|e| e.heritage.contains(&premier)) {
         return format!("/{}", e.segment);
     }
     route.to_owned()
@@ -358,12 +373,17 @@ pub fn route_canonique(route: &str) -> String {
 #[must_use]
 pub fn route_servie(route: &str) -> bool {
     let nu = route.trim_start_matches('/').trim_end_matches('/');
-    let premier = nu.split('/').next().unwrap_or("");
-    premier.is_empty()
-        || ENTREES
-            .iter()
-            .any(|e| e.segment == premier || e.heritage.contains(&premier))
-        || ALIAS.contains(&premier)
+    let mut segments = nu.split('/');
+    let premier = segments.next().unwrap_or("");
+    if premier.is_empty() {
+        return true;
+    }
+    if segments.next().is_some() {
+        return matches!(premier, "modes" | "inacord");
+    }
+    ENTREES
+        .iter()
+        .any(|e| e.segment == premier || e.heritage.contains(&premier))
 }
 
 /// Index de la langue dans les tables de libellés.
@@ -823,10 +843,11 @@ pub fn construire(
     // `data-route` garde la route demandee, pour que le bundle se comporte a l'identique.
     let canonique = route_canonique(route);
     let (titre, description, type_og) = metadonnees(&canonique, langue);
-    let noindex = !route_servie(route);
+    let noindex = !route_servie(route) || route_interne(route);
     let i = rang(langue);
     let catalogues = ENTREES
         .iter()
+        .filter(|e| !ROUTES_INTERNES.contains(&e.segment))
         .map(|e| Lien {
             href: format!("{}/{}", langue.prefixe(), e.segment),
             libelle: e.titres[i].to_owned(),
@@ -973,19 +994,70 @@ fn charger_catalogue(
     })
 }
 
+/// Converts the retired `/medias?vue=…` entry point into the catalogue route that owns the
+/// content. The view selector is consumed while every other query parameter is preserved: a
+/// bookmarked search must not lose its filters during canonicalisation.
+fn legacy_media_target(langue: Langue, query: Option<&str>) -> String {
+    let mut vue = crate::vfs_index::Vue::Textures;
+    let mut reste = Vec::new();
+
+    for paire in query
+        .unwrap_or_default()
+        .split('&')
+        .filter(|p| !p.is_empty())
+    {
+        match paire.split_once('=') {
+            Some(("vue", valeur)) => {
+                if let Some(demandee) = crate::vfs_index::Vue::depuis_segment(valeur) {
+                    vue = demandee;
+                }
+            }
+            _ if paire == "vue" => {}
+            _ => reste.push(paire),
+        }
+    }
+
+    let mut cible = langue.url("", &format!("/{}", vue.segment()));
+    if !reste.is_empty() {
+        cible.push('?');
+        cible.push_str(&reste.join("&"));
+    }
+    cible
+}
+
+fn route_with_query(langue: Langue, route: &str, query: Option<&str>) -> String {
+    let mut cible = langue.url("", route);
+    if cible.is_empty() {
+        cible.push('/');
+    }
+    if let Some(query) = query.filter(|value| !value.is_empty()) {
+        cible.push('?');
+        cible.push_str(query);
+    }
+    cible
+}
+
+/// Canonicalise language aliases and trailing slashes before the SPA reads `data-route`.
+fn navigation_redirect(uri: &Uri) -> Option<String> {
+    let demande = Langue::separer(uri.path());
+    let normalized = if demande.route == "/" {
+        demande.route.as_str()
+    } else {
+        demande.route.trim_end_matches('/')
+    };
+    if normalized == "/medias" {
+        return Some(legacy_media_target(demande.langue, uri.query()));
+    }
+    (demande.rediriger || normalized != demande.route)
+        .then(|| route_with_query(demande.langue, normalized, uri.query()))
+}
+
 /// Sert la coquille pour une route de navigation.
 pub async fn coquille(State(etat): State<EtatSite>, uri: Uri) -> Response {
     let demande = Langue::separer(uri.path());
-    if demande.rediriger {
-        // `/fr/x` est compris mais n'est pas la forme canonique. Un 308 — et non un 301 —
-        // parce qu'il préserve la méthode et se laisse revenir en arrière : un 301 se grave
-        // dans le cache des navigateurs déjà passés, et ne s'en retire plus.
-        let cible = demande.langue.url("", &demande.route);
-        let cible = if cible.is_empty() {
-            "/".to_owned()
-        } else {
-            cible
-        };
+    if let Some(cible) = navigation_redirect(&uri) {
+        // A single 308 handles `/fr`, trailing slashes and the retired media selector while
+        // retaining every query field owned by the destination catalogue.
         return Redirect::permanent(&cible).into_response();
     }
     let (feuille, script) =
@@ -1063,6 +1135,46 @@ mod tests {
             .expect("rendu")
     }
 
+    #[test]
+    fn legacy_media_route_redirects_to_the_selected_catalogue_and_keeps_filters() {
+        assert_eq!(legacy_media_target(Langue::Fr, None), "/textures");
+        assert_eq!(
+            legacy_media_target(Langue::Fr, Some("vue=modeles&q=mark&ext=g4md&page=3")),
+            "/modeles?q=mark&ext=g4md&page=3"
+        );
+        assert_eq!(
+            legacy_media_target(Langue::Ja, Some("vue=sons&ordre=desc")),
+            "/ja/sons?ordre=desc"
+        );
+        assert_eq!(
+            legacy_media_target(Langue::Fr, Some("vue=inconnue&glob=data%2F*&cpk=a")),
+            "/textures?glob=data%2F*&cpk=a"
+        );
+        assert_eq!(
+            legacy_media_target(Langue::Fr, Some("vue=videos&vue=modeles&q=x")),
+            "/modeles?q=x",
+            "the last valid selector wins, like repeated form controls"
+        );
+    }
+
+    #[test]
+    fn navigation_redirect_normalizes_slashes_language_and_real_response_headers() {
+        let cases = [
+            ("/medias/?vue=modeles&q=mark", "/modeles?q=mark"),
+            ("/ja/medias/?vue=sons&ordre=desc", "/ja/sons?ordre=desc"),
+            ("/fr/textures/?q=ball&page=2", "/textures?q=ball&page=2"),
+            ("/ja/modeles/?q=mark", "/ja/modeles?q=mark"),
+        ];
+        for (request, expected) in cases {
+            let uri: Uri = request.parse().expect("valid request URI");
+            let target = navigation_redirect(&uri).expect("redirect target");
+            assert_eq!(target, expected, "{request}");
+            let response = Redirect::permanent(&target).into_response();
+            assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT);
+            assert_eq!(response.headers().get(header::LOCATION).unwrap(), expected);
+        }
+    }
+
     /// Un catalogue synthétique : `n` entrées sur un total annoncé, à la page `page`.
     fn catalogue(n: usize, total: usize, page: usize) -> Catalogue {
         let pages = total.div_ceil(PAR_PAGE).max(1);
@@ -1084,22 +1196,19 @@ mod tests {
     }
 
     #[test]
-    fn alias_canonique_vers_explorateur() {
-        // Les deux alias montrent la page de l'explorateur : ils doivent la DESIGNER, sinon
-        // trois URL se declarent trois pages pour un seul ecran.
-        for alias in ["/recherche", "/donnees"] {
+    fn recherche_et_donnees_sont_des_pages_canoniques_distinctes() {
+        for route in ["/recherche", "/donnees"] {
             let c = construire(
                 "https://nie.aphrody.com",
-                alias,
+                route,
                 Langue::Fr,
                 None,
                 None,
                 None,
             );
-            assert_eq!(c.url, "https://nie.aphrody.com/explorateur", "{alias}");
-            assert_eq!(c.titre, "Explorer — nie", "{alias}");
-            assert!(!c.noindex, "{alias} est servie");
-            assert_eq!(c.route, alias, "le bundle garde la route demandee");
+            assert_eq!(c.url, format!("https://nie.aphrody.com{route}"));
+            assert!(!c.noindex, "{route} est servie");
+            assert_eq!(c.route, route, "le bundle garde la route demandee");
         }
         // `/gallery` est desormais une entree servie : la route inventee doit rester inconnue.
         let inconnue = construire(
@@ -1111,6 +1220,49 @@ mod tests {
             None,
         );
         assert!(inconnue.noindex, "une route inventee ne s'indexe pas");
+    }
+
+    #[test]
+    fn seuls_les_espaces_internes_acceptent_un_sous_chemin() {
+        for route in [
+            "/textures/x",
+            "/explorateur/x",
+            "/editor_3d/x",
+            "/chara_edit_menu/x",
+        ] {
+            assert!(
+                !route_servie(route),
+                "{route} ne doit pas hydrater une autre page que le SSR"
+            );
+        }
+        assert!(route_servie("/modes/victory_road"));
+        assert!(route_servie("/inacord/editor"));
+    }
+
+    #[test]
+    fn routes_outils_restant_servies_sans_etre_publiees() {
+        for route in ["/modes", "/modes/story_mode", "/inacord", "/inacord/lua"] {
+            assert!(
+                route_servie(route),
+                "{route} reste accessible par lien profond"
+            );
+            let shell = construire(
+                "https://nie.aphrody.com",
+                route,
+                Langue::Fr,
+                None,
+                None,
+                None,
+            );
+            assert!(shell.noindex, "{route} ne doit pas etre indexee");
+        }
+        let public = construire("https://nie.aphrody.com", "/", Langue::Fr, None, None, None);
+        assert!(
+            public
+                .catalogues
+                .iter()
+                .all(|link| link.href != "/modes" && link.href != "/inacord")
+        );
     }
 
     #[test]
@@ -1166,7 +1318,10 @@ mod tests {
         // décrit des fichiers du jeu, elle n'est pas une publication datée.
         assert_eq!(metadonnees("/modes/victory_road", Langue::Fr).2, "website");
         // Le canonique ne déplace pas la fiche vers la liste : ce sont deux pages.
-        assert_eq!(route_canonique("/modes/victory_road"), "/modes/victory_road");
+        assert_eq!(
+            route_canonique("/modes/victory_road"),
+            "/modes/victory_road"
+        );
     }
 
     #[test]
@@ -1388,8 +1543,16 @@ mod tests {
                 .map(|r| metadonnees(r, langue).1)
                 .filter(|d| !d.is_empty())
                 .collect();
-            let attendu = if langue == Langue::Es { 0 } else { routes.len() };
-            assert_eq!(descriptions.len(), attendu, "descriptions dupliquées en {langue}");
+            let attendu = if langue == Langue::Es {
+                0
+            } else {
+                routes.len()
+            };
+            assert_eq!(
+                descriptions.len(),
+                attendu,
+                "descriptions dupliquées en {langue}"
+            );
         }
     }
 

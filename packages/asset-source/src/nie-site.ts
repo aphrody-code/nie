@@ -31,7 +31,7 @@ export const urlDossier = (
 		tailleMax?: number;
 		parPage?: number;
 		page?: number;
-	} = {},
+	} = {}
 ) => {
 	const base = prefixe ? `/b/${prefixe}` : "/b";
 	const params = new URLSearchParams();
@@ -61,6 +61,27 @@ export interface Page<T> {
 	per_page: number;
 	total: number;
 	pages: number;
+}
+
+/** Les filtres que `nie-site` confirme avoir réellement appliqués à une vue. */
+export interface AppliedCatalogFilters {
+	q: string | null;
+	glob: string | null;
+	glob_vide: boolean;
+	prefixe: string | null;
+	ext: string | null;
+	ext_inconnue: boolean;
+	cpk: string | null;
+	cpk_inconnu: boolean;
+	taille_min: number | null;
+	taille_max: number | null;
+	tri: "nom" | "taille";
+	ordre: "asc" | "desc";
+}
+
+/** Une page catalogue HTTP, accompagnée de l'état de filtre confirmé par le serveur. */
+export interface CatalogPage<T> extends Page<T> {
+	filtres: AppliedCatalogFilters;
 }
 
 /** Une entree du VFS (`index_vfs::Fichier`). */
@@ -114,38 +135,110 @@ async function lire<T>(url: string, signal?: AbortSignal): Promise<T> {
 	return (await r.json()) as T;
 }
 
-/** Une page d'un catalogue. `per_page` est borne a 200 par le serveur. */
-export function catalogue(
+const DEFAULT_PAGE = 1;
+const DEFAULT_PER_PAGE = 60;
+const MAX_PER_PAGE = 200;
+const MAX_U32 = 0xffff_ffff;
+
+/** Les filtres et la pagination servis par `/api/v1/{vue}`. */
+export interface CatalogOptions {
+	/** Numéro de page, à partir de 1. */
+	page?: number;
+	/** Taille de page, bornée dans `1..=200`. */
+	parPage?: number;
+	/** Motif de recherche, comparé sans casse au chemin entier. */
+	q?: string;
+	/** Motif glob `nie-viola`, exclusions `!` et listes séparées par des virgules comprises. */
+	glob?: string;
+	/** Sous-arbre VFS, normalisé sans barre initiale et avec une barre finale. */
+	prefixe?: string;
+	/** Extension exacte, sans le point. */
+	ext?: string;
+	/** Nom exact du CPK d'origine. */
+	cpk?: string;
+	/** Taille minimale en octets, incluse. */
+	tailleMin?: number;
+	/** Taille maximale en octets, incluse. */
+	tailleMax?: number;
+	/** Critère de tri. */
+	tri?: "nom" | "taille";
+	/** Sens de tri. */
+	ordre?: "asc" | "desc";
+	signal?: AbortSignal;
+}
+
+/**
+ * Un entier compatible avec les bornes `u32` de `nie-site`.
+ *
+ * Une valeur non finie est absente plutôt que sérialisée en `NaN`/`Infinity`, deux chaînes que
+ * `serde` refuserait. Les décimales sont tronquées : une taille et un numéro de page comptent des
+ * unités entières.
+ */
+function normalizeU32(value: number | undefined): number | undefined {
+	if (value === undefined || !Number.isFinite(value)) return undefined;
+	return Math.trunc(Math.min(MAX_U32, Math.max(0, value)));
+}
+
+/** L'URL canonique d'une vue : mêmes valeurs logiques, même clé de cache. */
+export function catalogueUrl(
 	vue: VueCatalogue,
 	{
-		page = 1,
-		parPage = 60,
+		page,
+		parPage,
 		q,
+		glob,
+		prefixe,
 		ext,
+		cpk,
+		tailleMin,
+		tailleMax,
 		tri,
 		ordre,
-		signal,
-	}: {
-		page?: number;
-		parPage?: number;
-		q?: string;
-		ext?: string;
-		tri?: string;
-		ordre?: string;
-		signal?: AbortSignal;
-	} = {},
-): Promise<Page<Fichier>> {
+	}: CatalogOptions = {}
+): string {
+	const normalizedPage = Math.max(DEFAULT_PAGE, normalizeU32(page) ?? DEFAULT_PAGE);
+	const normalizedPerPage = Math.min(
+		MAX_PER_PAGE,
+		Math.max(1, normalizeU32(parPage) ?? DEFAULT_PER_PAGE)
+	);
 	// `q` est comparé sans casse au chemin ENTIER côté serveur : chercher `chr/` fonctionne
 	// autant qu'un nom de fichier. `URLSearchParams` encode tout, ce qui compte ici : un chemin
 	// du jeu contient des `/`, et un motif tapé par un humain peut contenir un `&`.
-	const params = new URLSearchParams({ page: String(page), per_page: String(parPage) });
+	const params = new URLSearchParams({
+		page: String(normalizedPage),
+		per_page: String(normalizedPerPage),
+	});
 	// Une valeur vide n'est PAS envoyée : `?ext=` est un 400 côté serveur, et il a raison — ni
 	// « pas de filtre » ni « extension vide » ne sont devinables.
-	if (q?.trim()) params.set("q", q.trim());
-	if (ext?.trim()) params.set("ext", ext.trim().replace(/^\./, ""));
+	const normalizedQuery = q?.trim().toLowerCase();
+	const normalizedGlob = glob?.trim();
+	const trimmedPrefix = prefixe?.trim();
+	const normalizedPrefix = trimmedPrefix ? `${trimmedPrefix.replace(/^\/+|\/+$/g, "")}/` : "";
+	const normalizedExtension = ext?.trim().replace(/^\.+/, "").toLowerCase();
+	const normalizedCpk = cpk?.trim().toLowerCase();
+	if (normalizedQuery) params.set("q", normalizedQuery);
+	if (normalizedGlob) params.set("glob", normalizedGlob);
+	if (normalizedPrefix) params.set("prefixe", normalizedPrefix);
+	if (normalizedExtension) params.set("ext", normalizedExtension);
+	if (normalizedCpk) params.set("cpk", normalizedCpk);
+	let min = normalizeU32(tailleMin);
+	let max = normalizeU32(tailleMax);
+	// Le serveur remet lui aussi les bornes croisées dans l'ordre. Le faire avant le réseau évite
+	// deux URL de cache pour exactement la même sélection.
+	if (min !== undefined && max !== undefined && min > max) [min, max] = [max, min];
+	if (min !== undefined) params.set("taille_min", String(min));
+	if (max !== undefined) params.set("taille_max", String(max));
 	if (tri?.trim()) params.set("tri", tri.trim());
 	if (ordre?.trim()) params.set("ordre", ordre.trim());
-	return lire(`/api/v1/${vue}?${params}`, signal);
+	return `/api/v1/${vue}?${params}`;
+}
+
+/** Une page d'un catalogue. `per_page` est borne a 200 par le serveur. */
+export function catalogue(
+	vue: VueCatalogue,
+	options: CatalogOptions = {}
+): Promise<CatalogPage<Fichier>> {
+	return lire(catalogueUrl(vue, options), options.signal);
 }
 
 /** L'etat du serveur. */

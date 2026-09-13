@@ -45,7 +45,7 @@ class MenuScreenBuilderDouble {
 }
 
 mock.module("../wasm/nie_wasm.js", () => ({ MenuScreenBuilder: MenuScreenBuilderDouble }));
-mock.module("./bridge", () => ({ ensureWasm: async () => {} }));
+mock.module("./bridge", () => ({ ensureWasm: async () => {}, crc32: () => 0 }));
 
 const { buildMenuLayout, compareLayoutWithServer, loadMenuLayout } = await import("./menu-layout");
 
@@ -75,6 +75,7 @@ let textPagesDemandees: number[] = [];
 let absents = new Set<string>();
 let layoutServeur: unknown = { objects: ["du serveur"] };
 let serveurAppele = 0;
+let urlsLayoutServeur: string[] = [];
 
 function installerFetch() {
 	journal.files = [];
@@ -82,6 +83,7 @@ function installerFetch() {
 	journal.built = [];
 	textPagesDemandees = [];
 	serveurAppele = 0;
+	urlsLayoutServeur = [];
 	globalThis.fetch = (async (url: string) => {
 		const chemin = String(url);
 		if (chemin.startsWith("/api/v1/screens/")) return Response.json(DETAIL);
@@ -100,6 +102,7 @@ function installerFetch() {
 		}
 		if (chemin.startsWith("/api/v1/menu/layout/")) {
 			serveurAppele += 1;
+			urlsLayoutServeur.push(chemin);
 			return Response.json(layoutServeur);
 		}
 		if (chemin.startsWith("/f/")) {
@@ -205,6 +208,7 @@ describe("loadMenuLayout", () => {
 		const layout = (await loadMenuLayout("chara_bank_menu", "fr")) as { objects: unknown[] };
 		expect(layout.objects).toEqual(["du serveur"]);
 		expect(serveurAppele).toBe(1);
+		expect(urlsLayoutServeur).toEqual(["/api/v1/menu/layout/chara_bank_menu"]);
 	});
 
 	test("retombe sur le serveur quand l'écran est inconnu de la page", async () => {
@@ -212,14 +216,28 @@ describe("loadMenuLayout", () => {
 		await loadMenuLayout("chara_bank_menu", "fr");
 		expect(serveurAppele).toBe(1);
 	});
+
+	test("ne prétend pas que le repli serveur accepte une locale qu'il ignore", async () => {
+		layoutRendu = JSON.stringify({ objects: [], diagnostics: { transformsUnresolved: 0 } });
+		await expect(loadMenuLayout("chara_bank_menu", "ja")).rejects.toThrow(
+			"Server layout is unavailable for locale ja",
+		);
+		expect(serveurAppele).toBe(0);
+	});
 });
 
 describe("compareLayoutWithServer", () => {
+	test("ne compare pas deux locales différentes", async () => {
+		expect(await compareLayoutWithServer("chara_bank_menu", "ja")).toBeNull();
+		expect(serveurAppele).toBe(0);
+	});
+
 	test("dit « égal » quand les deux surfaces rendent les mêmes objets", async () => {
 		layoutRendu = JSON.stringify({ objects: [{ name: "a" }], diagnostics: { transformsUnresolved: 0 } });
 		layoutServeur = { objects: [{ name: "a" }] };
 		const verdict = await compareLayoutWithServer("chara_bank_menu", "fr");
 		expect(verdict?.equal).toBe(true);
+		expect(urlsLayoutServeur).toEqual(["/api/v1/menu/layout/chara_bank_menu"]);
 	});
 
 	test("dit « différent » dès qu'un objet diverge", async () => {

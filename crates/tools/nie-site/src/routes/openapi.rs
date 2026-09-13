@@ -149,7 +149,10 @@ mod tests {
                 CHEMINS_HORS_GET.contains(&motif.as_str()),
                 "{motif} : le document doit déclarer le POST si et seulement si le routeur l'accepte"
             );
-            assert!(operations.get("get").is_some(), "{motif} doit répondre à GET");
+            assert!(
+                operations.get("get").is_some(),
+                "{motif} doit répondre à GET"
+            );
         }
     }
 

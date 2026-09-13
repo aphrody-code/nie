@@ -12,12 +12,12 @@
  * Un paramètre de requête n'est de toute façon pas une page distincte pour un moteur, et il ne
  * se traduit pas : `/ja/textures` doit désigner la version japonaise du catalogue de textures.
  *
- * ## La compatibilité `?vue=` a été retirée
+ * ## Une seule compatibilité `?vue=` subsiste à la frontière
  *
- * Elle datait de la forme précédente du routage et n'a jamais servi qu'à elle : le site n'est
- * pas encore public sous cette adresse, aucun lien `?vue=` n'existe hors du dépôt, et la
- * réécriture qui l'accompagnait ajoutait un effet de bord à chaque rendu de l'application pour
- * un cas qui ne se produit pas. Une URL inconnue mène à l'accueil, comme n'importe quelle autre.
+ * Les routes canoniques ne la lisent jamais. Seule l'ancienne page agrégée `/medias?vue=...`
+ * est comprise par `Catalog`, puis immédiatement remplacée par `/textures`, `/modeles`, `/sons`
+ * ou `/videos`. Cela préserve les liens déjà partagés sans laisser deux états concurrents vivre
+ * après le premier rendu. Une URL inconnue mène à l'accueil, comme n'importe quelle autre.
  */
 
 /**
@@ -101,8 +101,8 @@ export function requestedEntry(
 	serverRoute?: string | null
 ): string | null {
 	const candidates = [
-		splitLanguagePrefix(location.pathname).route.replace(/^\//, ""),
-		(serverRoute ?? "").replace(/^\//, ""),
+		splitLanguagePrefix(location.pathname).route.replace(/^\//, "").replace(/\/$/, ""),
+		(serverRoute ?? "").replace(/^\//, "").replace(/\/$/, ""),
 	];
 	for (const candidate of candidates) {
 		if (candidate && entries.includes(candidate)) {

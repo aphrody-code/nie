@@ -97,11 +97,7 @@ pub unsafe extern "C" fn nie_lua_web_free_string(ptr: *mut c_char) {
 /// `path` must be a NUL-terminated UTF-8 string; `data`/`len` must describe a valid, readable
 /// byte slice for the duration of the call. Both are copied out; no ownership is taken.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn nie_lua_web_load_script(
-    path: *const c_char,
-    data: *const u8,
-    len: usize,
-) {
+pub unsafe extern "C" fn nie_lua_web_load_script(path: *const c_char, data: *const u8, len: usize) {
     let path = cstr_to_string(path);
     if path.is_empty() {
         return;
@@ -137,11 +133,7 @@ fn portable_chunk(bytes: Vec<u8>) -> Vec<u8> {
     if size_int as usize == size_of::<i32>() && size_size_t as usize == size_of::<usize>() {
         return bytes; // déjà aux largeurs de cette plateforme
     }
-    match nie_lua::bytecode::transcode(
-        &bytes,
-        size_of::<i32>() as u8,
-        size_of::<usize>() as u8,
-    ) {
+    match nie_lua::bytecode::transcode(&bytes, size_of::<i32>() as u8, size_of::<usize>() as u8) {
         Ok(portable) => portable,
         // Un chunk illisible reste tel quel : c'est à Lua de rendre son erreur, pas à ce pont
         // d'inventer un tampon vide qui se lirait comme un script sans instruction.
@@ -260,7 +252,11 @@ fn run_replay(screen: &str, request_json: &str) -> Result<ReplayOutput, String> 
             let root = nie_formats::cfgbin::to_iecode_json(&config_bytes)
                 .ok_or("menu config bytes did not decode as cfg.bin")?;
             let setting = nie_data::menu_setting::parse(&root);
-            setting.layers.iter().map(|layer| layer.layer_id.0).collect()
+            setting
+                .layers
+                .iter()
+                .map(|layer| layer.layer_id.0)
+                .collect()
         }
         None => Vec::new(),
     };

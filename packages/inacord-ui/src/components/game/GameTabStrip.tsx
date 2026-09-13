@@ -11,7 +11,7 @@
  * `useGameKeys` — la barre expose `onPrevious`/`onNext` pour cela, elle ne pose aucun écouteur
  * global elle-même.
  */
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { GameKeyCap, cx } from "./GameKeyHint";
 
 export interface GameTab {
@@ -27,6 +27,7 @@ export function GameTabStrip({
 	previousKey = "W",
 	nextKey = "C",
 	showLabel = true,
+	ariaLabel = "Familles",
 	className,
 }: {
 	tabs: readonly GameTab[];
@@ -37,16 +38,23 @@ export function GameTabStrip({
 	nextKey?: string | null;
 	/** Écrit le libellé de l'onglet actif sous la rangée, comme le jeu. */
 	showLabel?: boolean;
+	/** Nom accessible du groupe : « Type de média », « Catégorie d'avatar », etc. */
+	ariaLabel?: string;
 	className?: string;
 }) {
+	const tabButtons = useRef<Array<HTMLButtonElement | null>>([]);
 	const index = Math.max(
 		0,
 		tabs.findIndex((tab) => tab.id === value),
 	);
-	const step = (delta: number) => {
+	const step = (delta: number, moveFocus = false) => {
 		if (tabs.length === 0) return;
-		const next = tabs[(index + delta + tabs.length) % tabs.length];
-		if (next) onChange(next.id);
+		const nextIndex = (index + delta + tabs.length) % tabs.length;
+		const next = tabs[nextIndex];
+		if (next) {
+			onChange(next.id);
+			if (moveFocus) tabButtons.current[nextIndex]?.focus();
+		}
 	};
 	const current = tabs[index];
 
@@ -54,15 +62,15 @@ export function GameTabStrip({
 		<div className={cx("game-tab-strip", className)} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
 			<div
 				role="tablist"
-				aria-label="Familles"
+				aria-label={ariaLabel}
 				style={{ display: "flex", alignItems: "center", gap: 8 }}
 				onKeyDown={(event) => {
 					if (event.key === "ArrowRight") {
 						event.preventDefault();
-						step(1);
+						step(1, true);
 					} else if (event.key === "ArrowLeft") {
 						event.preventDefault();
-						step(-1);
+						step(-1, true);
 					}
 				}}
 			>
@@ -82,6 +90,9 @@ export function GameTabStrip({
 					return (
 						<button
 							key={tab.id}
+							ref={(node) => {
+								tabButtons.current[tabs.indexOf(tab)] = node;
+							}}
 							type="button"
 							role="tab"
 							aria-selected={active}

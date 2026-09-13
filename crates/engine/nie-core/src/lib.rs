@@ -91,11 +91,11 @@ pub mod fixed_slot;
 pub mod growth;
 pub mod handle_table;
 pub mod imm_batcher;
-/// Défilement d'une liste de menu, porté byte-exact de `lives::CMenuListView`.
-pub mod list_view;
 pub mod intrusive_map;
 pub mod keeper;
 pub mod keyed_record_table;
+/// Défilement d'une liste de menu, porté byte-exact de `lives::CMenuListView`.
+pub mod list_view;
 pub mod mat4;
 pub mod match_fsm;
 pub mod match_sim;

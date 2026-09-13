@@ -9,13 +9,10 @@
  * ancre, teinte, mélange additif — et elle ne pouvait pas les apprendre : un navigateur empile
  * des boîtes, il ne compose pas des sprites.
  *
- * Depuis le 2026-09-12, les écrans composent avec le compositeur du jeu lui-même
- * (`nie_formats::menu_layout`, en WebAssembly) et peignent un `<canvas>`. Le garde de placement
- * — un objet dont la position n'est pas établie ne se dessine pas — est parti avec lui, dans le
- * compositeur, qui l'applique désormais pour les trois surfaces à la fois.
- *
- * Ce qui reste ici est ce que le compositeur ne fait pas : donner au canevas la taille de sa
- * zone, et mesurer cette zone au lieu de la supposer.
+ * Le compositeur Rust/WASM peint les écrans qu'il prend en charge. Quelques scènes encore
+ * partielles, dont le menu titre, placent temporairement des sprites VFS mesurés en DOM/CSS.
+ * `GameCanvas` n'est donc pas un moteur de rendu : il possède uniquement le repère natif et sa
+ * mise à l'échelle responsive, quel que soit le compositeur employé par l'écran.
  */
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -84,14 +81,17 @@ export function GameCanvas({
 		>
 			<div
 				style={{
-					position: "relative",
+					position: "absolute",
+					left: "50%",
+					top: "50%",
 					width: `${canvas.w}px`,
 					height: `${canvas.h}px`,
 					flex: "0 0 auto",
 					// Tant que la zone n'est pas mesuree, l'echelle vaut 0 : afficher le canevas a
 					// taille reelle pendant une frame provoquerait un saut visible. On le garde
 					// invisible plutot que faux.
-					transform: `scale(${echelle || 1})`,
+					transform: `translate(-50%, -50%) scale(${echelle || 1})`,
+					transformOrigin: "center",
 					visibility: echelle > 0 ? "visible" : "hidden",
 				}}
 			>

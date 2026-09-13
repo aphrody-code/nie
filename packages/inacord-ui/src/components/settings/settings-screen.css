@@ -1,0 +1,99 @@
+/* Host geometry around the native Options row material. The desktop widths are inherited from
+   the measured compatibility screen; narrower hosts reserve explicit safe margins so the
+   skewed tabs and row controls cannot be clipped by the viewport. */
+.game-screen--settings,
+.game-screen--settings .game-screen__body,
+.game-settings-tabs,
+.game-screen--settings .game-setting-list {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.game-settings-tabs {
+  width: 46%;
+}
+
+.game-screen--settings .game-setting-list {
+  width: 62.5%;
+}
+
+@media (max-width: 720px) {
+  .game-screen--settings .game-screen__body {
+    gap: var(--jeu-espace-m) !important;
+    padding-block: var(--jeu-espace-l) !important;
+  }
+
+  .game-settings-tabs,
+  .game-screen--settings .game-setting-list {
+    width: calc(100% - 2rem);
+  }
+
+  .game-settings-tabs .game-tab-strip {
+    width: 100%;
+    transform: none;
+  }
+
+  .game-settings-tabs .game-tab-strip > * {
+    transform: none;
+  }
+
+  .game-settings-tabs .game-tab-strip > [role="tablist"] {
+    width: 100%;
+    gap: 2px !important;
+  }
+
+  .game-settings-tabs .game-tab-strip__key,
+  .game-settings-tabs .game-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 0;
+  }
+
+  .game-screen--settings .game-setting-row {
+    grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 42%);
+    max-width: 100%;
+  }
+
+  .game-screen--settings .game-setting-row__label,
+  .game-screen--settings .game-setting-row__value,
+  .game-screen--settings .game-setting-row__input,
+  .game-screen--settings .game-setting-row__text {
+    min-width: 0;
+  }
+
+  .game-screen--settings .game-setting-row__label {
+    overflow: hidden;
+    gap: var(--jeu-espace-s) !important;
+    padding-inline: var(--jeu-espace-s);
+  }
+
+  .game-screen--settings .game-setting-row__label > span:first-child {
+    width: 24px !important;
+    flex: 0 0 24px;
+  }
+
+  .game-screen--settings .game-setting-row__label > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .game-screen--settings .game-setting-row__text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-screen--settings .game-setting-row__label,
+  .game-screen--settings .game-setting-row__value {
+    font-size: 0.875rem;
+  }
+
+  .game-screen--settings .game-setting-row__value {
+    gap: 2px;
+  }
+}

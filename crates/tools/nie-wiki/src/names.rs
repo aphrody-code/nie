@@ -26,6 +26,15 @@ pub struct NamePage {
     pub unavailable_kinds: Vec<String>,
 }
 
+/// Bounded reverse lookup used when a visible localized label must lead back to its VFS code.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NameSearchPage {
+    pub locale: String,
+    pub records: Vec<ResolvedName>,
+    pub unavailable_kinds: Vec<String>,
+}
+
 pub fn validate(codes: &[String], locale: &str) -> Result<(), &'static str> {
     if !matches!(
         locale,
@@ -164,6 +173,92 @@ pub fn resolve(conn: &Connection, codes: &[String], locale: &str) -> anyhow::Res
     Ok(page)
 }
 
+/// Search localized names and return their exact native resource codes.
+pub fn search(
+    conn: &Connection,
+    query: &str,
+    locale: &str,
+    limit: usize,
+) -> anyhow::Result<NameSearchPage> {
+    validate(&[], locale).map_err(anyhow::Error::msg)?;
+    let query = query.trim();
+    if query.is_empty() || query.len() > 128 || !(1..=50).contains(&limit) {
+        anyhow::bail!("Require a nonempty query up to 128 bytes and limit 1..50");
+    }
+    let snapshot = conn.unchecked_transaction()?;
+    let mut page = NameSearchPage {
+        locale: locale.into(),
+        records: Vec::new(),
+        unavailable_kinds: Vec::new(),
+    };
+    let mut seen = BTreeSet::new();
+    for &(kind, table, column) in SOURCES {
+        if page.records.len() >= limit {
+            break;
+        }
+        let exists: bool = snapshot.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = ?1 AND type IN ('table', 'view'))",
+            [table],
+            |row| row.get(0),
+        )?;
+        if !exists {
+            page.unavailable_kinds.push(kind.into());
+            continue;
+        }
+        let columns = {
+            let mut statement = snapshot.prepare("SELECT name FROM pragma_table_info(?1)")?;
+            statement
+                .query_map([table], |row| row.get::<_, String>(0))?
+                .collect::<Result<BTreeSet<_>, _>>()?
+        };
+        if [column, "id", "name_fr", "name_en", "name_ja"]
+            .iter()
+            .any(|required| !columns.contains(*required))
+        {
+            page.unavailable_kinds.push(kind.into());
+            continue;
+        }
+        let remaining = limit - page.records.len();
+        let sql = format!(
+            "SELECT {column}, id, name_fr, name_en, name_ja FROM {table} \
+             WHERE instr(lower(COALESCE({column}, '')), lower(?1)) > 0 \
+                OR instr(lower(COALESCE(id, '')), lower(?1)) > 0 \
+                OR instr(lower(COALESCE(name_fr, '')), lower(?1)) > 0 \
+                OR instr(lower(COALESCE(name_en, '')), lower(?1)) > 0 \
+                OR instr(lower(COALESCE(name_ja, '')), lower(?1)) > 0 \
+             ORDER BY {column}, id LIMIT ?2"
+        );
+        let mut statement = snapshot.prepare(&sql)?;
+        let rows = statement.query_map(rusqlite::params![query, remaining], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                [
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                ],
+            ))
+        })?;
+        for row in rows {
+            let (code, id, names) = row?;
+            if !seen.insert((kind, code.clone(), id.clone())) {
+                continue;
+            }
+            let (name, locale_used) = display_name(locale, &id, &names);
+            page.records.push(ResolvedName {
+                code,
+                kind: kind.into(),
+                name: name.into(),
+                locale_used: locale_used.map(str::to_owned),
+                id,
+            });
+        }
+    }
+    snapshot.commit()?;
+    Ok(page)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,6 +352,15 @@ mod tests {
         )
         .unwrap();
         assert!(resolve(&conn, &["c01000100".into()], "fr").is_err());
+    }
+
+    #[test]
+    fn localized_name_search_returns_the_exact_vfs_code() {
+        let page = search(&fixture(), "Marc", "fr", 10).unwrap();
+        assert_eq!(page.records.len(), 1);
+        assert_eq!(page.records[0].code, "c01000100");
+        assert_eq!(page.records[0].name, "Marc");
+        assert_eq!(page.unavailable_kinds, ["skill", "item", "team", "soul"]);
     }
 
     #[test]

@@ -1,15 +1,26 @@
 import { describe, expect, test } from "bun:test";
 import { AssetSourceProvider } from "@niers/inacord-ui";
 import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu.ts";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import scene from "../../../../crates/engine/nie-formats/src/menu_scenes/title-menu.json";
-import { MainMenu, NativeMainMenu, type MainMenuAction } from "./MainMenu";
+import { localizeNativeTitleScene, MainMenu, NativeMainMenu, type MainMenuAction } from "./MainMenu";
 
 const ACTIONS: readonly MainMenuAction[] = [
 	{ id: "media", label: "Médias", glyph: "image", onActivate: () => {} },
+	{ id: "bank", label: "Banque", glyph: "livre", onActivate: () => {} },
+	{ id: "gallery", label: "Galerie", glyph: "image", onActivate: () => {}, priority: "primary" },
+	{ id: "shop", label: "Boutique", glyph: "cube", onActivate: () => {} },
 	{ id: "avatar", label: "Avatar", glyph: "ballon", onActivate: () => {} },
-	{ id: "explorer", label: "Explorer", glyph: "arbre", onActivate: () => {} },
+	{ id: "explorer", label: "Explorer", glyph: "arbre", onActivate: () => {}, priority: "primary" },
+	{ id: "editor", label: "Éditeur 3D", glyph: "cube", onActivate: () => {}, priority: "primary" },
+	{ id: "search", label: "Recherche", glyph: "arbre", onActivate: () => {} },
+	{ id: "data", label: "Données", glyph: "livre", onActivate: () => {} },
 	{ id: "settings", label: "Options", glyph: "engrenage", onActivate: () => {} },
+	...[
+		"story_mode", "chronicle_mode", "kizuna_town", "competition", "bb_stadium", "victory_road", "play_guide", "information",
+	].map((slug) => ({ id: `mode-${slug}`, label: slug, glyph: "livre" as const, onActivate: () => {}, disabled: true })),
 ];
 const SOURCE = { urlTexture: (path: string) => `/assets/tex/${path}.png` } as never;
 function renderScene(actions = ACTIONS) {
@@ -25,10 +36,10 @@ describe("native title-menu presentation", () => {
 		expect(html).not.toContain("data-menu-target");
 	});
 
-	test("renders eleven native tiles and the avatar with VFS regions and native masks", () => {
+	test("renders eleven native tiles plus both measured banners with VFS regions and native masks", () => {
 		const html = renderScene();
 		expect(html).toContain('data-scene-id="title-menu"');
-		expect(html.match(/data-menu-target=/g)).toHaveLength(12);
+		expect(html.match(/data-menu-target=/g)).toHaveLength(16);
 		expect(html.match(/data-native-layer="title-item-\d+-icon"/g)).toHaveLength(11);
 		expect(html).toContain("title02_01/fr/title02_01.g4tx/logo02.png");
 		expect(html).toContain("title00_07.g4tx/icon_btn07.png");
@@ -39,26 +50,89 @@ describe("native title-menu presentation", () => {
 		expect(html).not.toContain("main_menu_alt.png");
 	});
 
-	test("binds only documented host actions and retains native labels and order", () => {
+	test("selects translated packs and the measured unsuffixed Japanese title sprites", () => {
+		const localized = localizeNativeTitleScene(scene as NativeMenuScene, "de");
+		const paths = localized.layers.map(layer => layer.assetPath);
+		expect(paths.some(path => path.includes("/title02_01/de/"))).toBeTrue();
+		expect(paths.some(path => path.includes("/title02_10/de/"))).toBeTrue();
+		expect(paths.some(path => path.includes("/title02_11/de/"))).toBeTrue();
+		expect(paths.some(path => path.includes("/fr/"))).toBeFalse();
+		const japanese = localizeNativeTitleScene(scene as NativeMenuScene, "ja").layers.map(layer => layer.assetPath);
+		expect(japanese.some(path => path.includes("/title02_01/title02_01.g4tx"))).toBeTrue();
+		expect(japanese.some(path => path.includes("/title02_10/title02_10.g4tx"))).toBeTrue();
+		expect(japanese.some(path => path.includes("/title02_11/title02_11.g4tx"))).toBeTrue();
+		expect(japanese.some(path => /\/title02_(?:01|10|11)\/ja\//u.test(path))).toBeFalse();
+	});
+
+	test("binds the public host actions onto native controls and retains native control order", () => {
 		const html = renderScene();
-		const buttons = [...html.matchAll(/<button\b[^>]*>/g)].map((match) => match[0]);
-		expect(buttons.filter((button) => !button.includes('disabled=""'))).toHaveLength(2);
-		expect(buttons.find((button) => button.includes('aria-label="Options"'))).toContain('aria-current="true"');
+		const nativeHtml = html.split('<div class="runtime-main-menu__site-nav">')[0]!;
+		const buttons = [...nativeHtml.matchAll(/<button\b[^>]*>/g)].map((match) => match[0]);
+		expect(buttons.filter((button) => !button.includes('disabled=""'))).toHaveLength(4);
+		expect(buttons.find((button) => button.includes('aria-label="Mode Histoire"'))).toContain('disabled=""');
+		expect(buttons.find((button) => button.includes('aria-label="Marché"'))).toContain('aria-current="true"');
 		expect(buttons.find((button) => button.includes('aria-label="Créer avatar"'))).not.toContain('disabled=""');
-		expect(buttons.find((button) => button.includes('aria-label="Mode Histoire"'))).toContain('aria-disabled="true"');
+		expect(buttons.find((button) => button.includes('aria-label="Stade BB"'))).toContain('disabled=""');
+		expect(buttons.find((button) => button.includes('aria-label="Station Kizuna"'))).toContain('disabled=""');
+		expect(buttons.find((button) => button.includes('aria-label="Guide joueur"'))).toContain('disabled=""');
+		expect(buttons.find((button) => button.includes('aria-label="Informations"'))).toContain('disabled=""');
 		expect(buttons.map((button) => button.match(/aria-label="([^"]+)"/)?.[1])).toEqual([
 			"Mode Histoire", "Mode Chronique", "Station Kizuna", "Mode Compétition", "Stade BB", "Victory Road", "Marché", "Sauvegarder",
-			"Guide joueur", "Options", "Informations", "Créer avatar",
+			"Guide joueur", "Options", "Informations", "Votre équipe", "Créer avatar",
 		]);
+		expect(html).toContain('aria-label="Accès principaux"');
+		expect(html).toContain('data-host-action="editor"');
+		expect(html).toContain('aria-label="Fonctions secondaires du site"');
 		expect(html).not.toContain('data-menu-target="media"');
-		expect(html).not.toContain('data-menu-target="explorer"');
+		expect(html).toContain('data-menu-target="explorer"');
 	});
 
 	test("skips a disabled host binding when selecting initial focus", () => {
-		const html = renderScene(ACTIONS.map((action) => ({ ...action, disabled: action.id === "settings" })));
-		const buttons = [...html.matchAll(/<button\b[^>]*>/g)].map((match) => match[0]);
+		const html = renderScene(ACTIONS.map((action) => ({ ...action, disabled: action.disabled || action.id === "settings" })));
+		const buttons = [...html.split('<div class="runtime-main-menu__site-nav">')[0]!.matchAll(/<button\b[^>]*>/g)].map((match) => match[0]);
 		expect(buttons.find((button) => button.includes('aria-label="Options"'))).toContain('disabled=""');
-		expect(buttons.find((button) => button.includes('aria-label="Créer avatar"'))).toContain('aria-current="true"');
+		expect(buttons.find((button) => button.includes('aria-label="Marché"'))).toContain('aria-current="true"');
 		expect(html.match(/aria-current="true"/g)).toHaveLength(1);
+	});
+
+	test("reaches and activates every primary destination from the native graph with keyboard input", async () => {
+		const actEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+		const previousActEnvironment = actEnvironment.IS_REACT_ACT_ENVIRONMENT;
+		actEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+		const activated: string[] = [];
+		const actions = ACTIONS.map((action) => ({
+			...action,
+			onActivate: () => activated.push(action.id),
+		}));
+		const host = document.createElement("div");
+		document.body.append(host);
+		const root = createRoot(host);
+		await act(async () => root.render(<AssetSourceProvider source={SOURCE}>
+			<NativeMainMenu scene={scene as NativeMenuScene} actions={actions} />
+		</AssetSourceProvider>));
+
+		const key = async (value: string) => act(async () => {
+			window.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true }));
+			await Promise.resolve();
+		});
+		await key("ArrowDown");
+		await key("ArrowDown");
+		expect(host.querySelector('[data-host-action="explorer"]')?.getAttribute("aria-current")).toBe("true");
+		await key("Enter");
+		await Promise.resolve();
+		await key("ArrowLeft");
+		expect(host.querySelector('[data-host-action="gallery"]')?.getAttribute("aria-current")).toBe("true");
+		await key("Enter");
+		await Promise.resolve();
+		await key("ArrowRight");
+		await key("ArrowRight");
+		expect(host.querySelector('[data-host-action="editor"]')?.getAttribute("aria-current")).toBe("true");
+		await key("Enter");
+		await Promise.resolve();
+		expect(activated).toEqual(["explorer", "gallery", "editor"]);
+
+		await act(async () => root.unmount());
+		host.remove();
+		actEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
 	});
 });

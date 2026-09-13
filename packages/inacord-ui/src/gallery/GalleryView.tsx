@@ -44,6 +44,8 @@ import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 
 /** Illustrations affichées d'un coup — au-delà, un bouton « en afficher plus ». */
 const PAR_PAGE = 60;
+/** Delay between visible URL/input state and a remote gallery search. */
+const SEARCH_DEBOUNCE_MS = 250;
 
 /**
  * Images PLEINE RÉSOLUTION gardées par la visionneuse.
@@ -110,10 +112,6 @@ function chargerPleine(chemin: string, gameDir?: string): Promise<string> {
 return { load: chargerPleine, peek: (path: string, gameDir?: string) => pleineDuCache(JSON.stringify([gameDir ?? "", path])) };
 }
 type ImageCache = ReturnType<typeof createImageCache>;
-
-/** Plafond de listage d'une catégorie. `telop_waza` en porte 12 460 (neuf langues) : le plus gros
- * dossier de la galerie tient largement en dessous, et la borne protège d'un dossier inattendu. */
-const MAX_PAR_CATEGORIE = 30000;
 
 /** Vignette d'une illustration — même fabrique que l'Explorateur et l'Éditeur. */
 function Vignette({ chemin, gameDir }: { chemin: string; gameDir?: string }) {
@@ -211,8 +209,8 @@ function Visionneuse({
   if (!item) return null;
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col bg-app/95 backdrop-blur-sm">
-      <div className="flex items-center gap-3 border-b border-app-line px-4 py-2">
+    <div role="dialog" aria-modal="true" aria-label="Aperçu de l’illustration" className="absolute inset-0 z-50 flex flex-col bg-app/95 backdrop-blur-sm">
+      <div className="flex flex-wrap items-center gap-3 border-b border-app-line px-4 py-2">
         <div className="min-w-0 flex-1">
           <p className="truncate type-title-small text-on-surface">{item.titre}</p>
           <p className="truncate type-label-small text-on-surface-variant">{item.chemin}</p>
@@ -287,27 +285,73 @@ function Visionneuse({
 export interface GalleryViewProps {
   services: GalleryServices;
   onOpenFile?: (path: string) => void;
+  query?: string;
+  category?: string | null;
+  subfolder?: string | null;
+  serverSearch?: boolean;
+  onQueryChange?: (query: string) => void;
+  onCategoryChange?: (category: string | null) => void;
+  onSubfolderChange?: (subfolder: string | null) => void;
 }
 
 const resourceCode = (path: string) => path.split("/").pop()!.replace(/\.[^.]+$/, "");
 
-export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
+export function GalleryView({
+  services, onOpenFile, query, category, subfolder, serverSearch = false,
+  onQueryChange, onCategoryChange, onSubfolderChange,
+}: GalleryViewProps) {
   const images = useMemo(() => createImageCache(services), [services]);
   const settings = useSettings();
   const [categories, setCategories] = useState<VfsDir[]>([]);
-  const [categorie, setCategorie] = useState<string | null>(null);
+  const [localCategory, setLocalCategory] = useState<string | null>(null);
   const [sousDossiers, setSousDossiers] = useState<VfsDir[]>([]);
-  const [sousDossier, setSousDossier] = useState<string | null>(null);
+  const [subfoldersLoadedFor, setSubfoldersLoadedFor] = useState<string | null>(null);
+  const [localSubfolder, setLocalSubfolder] = useState<string | null>(null);
   const [items, setItems] = useState<Illustration[]>([]);
-  const [recherche, setRecherche] = useState("");
-  const [visibles, setVisibles] = useState(PAR_PAGE);
+  const [totalItems, setTotalItems] = useState(0);
+  const [localQuery, setLocalQuery] = useState("");
+  const categorie = category === undefined ? localCategory : category;
+  const sousDossier = subfolder === undefined ? localSubfolder : subfolder;
+  const recherche = query === undefined ? localQuery : query;
+  const [serverQuery, setServerQuery] = useState(recherche);
+  const selectCategory = (value: string | null) => {
+    setLocalCategory(value);
+    if (value !== categorie) {
+      setLocalSubfolder(null);
+      onSubfolderChange?.(null);
+    }
+    onCategoryChange?.(value);
+  };
+  const selectSubfolder = (value: string | null) => { setLocalSubfolder(value); onSubfolderChange?.(value); };
+  const changeQuery = (value: string) => { setLocalQuery(value); onQueryChange?.(value); };
   const [chargement, setChargement] = useState(true);
+  const [chargementSuite, setChargementSuite] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [ouvert, setOuvert] = useState<number | null>(null);
   /** `gallery_config` indexé par nom de fichier — chargé une fois, réutilisé par toutes les pages. */
   const [enrichissements, setEnrichissements] = useState<Map<string, EnrichissementGalerie>>(
     new Map(),
   );
+  /** Invalidates a late page when the selected prefix changes. */
+  const requestGeneration = useRef(0);
+  /** Cancels whichever server page or cross-index search currently owns the grid. */
+  const activeRequest = useRef<AbortController | null>(null);
+
+  // The input and URL remain immediate, while the remote query waits for a short pause. This
+  // prevents one cross-index search per keystroke and leaves local desktop filtering immediate.
+  useEffect(() => {
+    if (!serverSearch) {
+      setServerQuery(recherche);
+      return;
+    }
+    // Invalidate and abort old results immediately; only issuing the replacement request is
+    // debounced. A slow response can therefore never flash after the visible query changed.
+    activeRequest.current?.abort();
+    activeRequest.current = null;
+    requestGeneration.current += 1;
+    const timer = setTimeout(() => setServerQuery(recherche), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [recherche, serverSearch]);
 
   // Catégories = sous-dossiers RÉELS de la racine. Aucune liste écrite d'avance : un dossier
   // ajouté par une mise à jour du jeu apparaît de lui-même.
@@ -320,7 +364,8 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
       .then((l) => {
         if (!active) return;
         setCategories(l.dirs);
-        setCategorie((c) => l.dirs.some((d) => d.name === c) ? c : l.dirs[0]?.name ?? null);
+        const selected = l.dirs.some((d) => d.name === categorie) ? categorie : l.dirs[0]?.name ?? null;
+        selectCategory(selected);
         return null;
       })
       .catch((e) => { if (active) setErreur(String(e)); })
@@ -353,47 +398,118 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
   // de `ev_pic`/`ev_telop`).
   useEffect(() => {
     let active = true;
-    setSousDossier(null);
     setSousDossiers([]);
+    setSubfoldersLoadedFor(null);
     if (!categorie) return;
     services
       .ls(`${RACINE_GALERIE}/${categorie}`, settings.gameDir)
-      .then((l) => { if (active) setSousDossiers(l.dirs); })
-      .catch(() => { if (active) setSousDossiers([]); });
+      .then((l) => {
+        if (!active) return;
+        setSousDossiers(l.dirs);
+        setSubfoldersLoadedFor(categorie);
+      })
+      .catch(() => {
+        if (active) {
+          setSousDossiers([]);
+          setSubfoldersLoadedFor(categorie);
+        }
+      });
     return () => { active = false; };
   }, [categorie, settings.gameDir, services]);
 
-  // Contenu de la catégorie (ou du sous-dossier). Chargé EN ENTIER une fois : la base est un
-  // fichier local, et tout garder en mémoire permet de chercher et paginer sans rappeler le VFS
-  // à chaque frappe.
+  // A controlled URL subfolder survives mount, reload and popstate when the VFS confirms it.
+  // Only an invalid value is removed after that category's directory list has actually loaded.
   useEffect(() => {
-    if (!categorie) { setItems([]); return; }
+    if (subfoldersLoadedFor !== categorie || !sousDossier) return;
+    if (!sousDossiers.some((folder) => folder.name === sousDossier)) selectSubfolder(null);
+  }, [categorie, sousDossier, sousDossiers, subfoldersLoadedFor]);
+
+  // First bounded page of the current category (or subfolder). Further pages are requested only
+  // when the sentinel is reached; a 12,460-entry folder no longer becomes one 30,000-row query.
+  useEffect(() => {
+    if (!categorie) {
+      activeRequest.current?.abort();
+      activeRequest.current = null;
+      setItems([]);
+      setTotalItems(0);
+      return;
+    }
     let annule = false;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    const generation = ++requestGeneration.current;
     setChargement(true);
+    setChargementSuite(false);
     setErreur(null);
-    setVisibles(PAR_PAGE);
+    setItems([]);
+    setTotalItems(0);
     services
       .findPaged(
         prefixeCategorie(categorie, sousDossier),
         EXT_GALERIE,
-        MAX_PAR_CATEGORIE,
+        PAR_PAGE,
         0,
         settings.gameDir,
+        serverSearch ? serverQuery : undefined,
+        controller.signal,
       )
       .then((page) => {
-        if (!annule) setItems(construireIllustrations(page.files, enrichissements));
+        if (!annule && generation === requestGeneration.current) {
+          setItems(construireIllustrations(page.files, enrichissements));
+          setTotalItems(page.total);
+        }
         return null;
       })
       .catch((e) => {
-        if (!annule) setErreur(String(e));
+        if (!annule && !controller.signal.aborted) setErreur(String(e));
       })
       .finally(() => {
+        if (activeRequest.current === controller) activeRequest.current = null;
         if (!annule) setChargement(false);
       });
     return () => {
       annule = true;
+      controller.abort();
     };
-  }, [categorie, sousDossier, enrichissements, settings.gameDir, services]);
+  }, [categorie, sousDossier, enrichissements, settings.gameDir, services, serverSearch, serverQuery]);
+
+  const chargerSuite = useCallback(() => {
+    if (!categorie || chargement || chargementSuite || items.length >= totalItems) return;
+    const generation = requestGeneration.current;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    const offset = items.length;
+    setChargementSuite(true);
+    setErreur(null);
+    services
+      .findPaged(
+        prefixeCategorie(categorie, sousDossier),
+        EXT_GALERIE,
+        PAR_PAGE,
+        offset,
+        settings.gameDir,
+        serverSearch ? serverQuery : undefined,
+        controller.signal,
+      )
+      .then((page) => {
+        if (generation !== requestGeneration.current) return null;
+        setItems((current) => [
+          ...current,
+          ...construireIllustrations(page.files, enrichissements),
+        ]);
+        setTotalItems(page.total);
+        return null;
+      })
+      .catch((e) => {
+        if (generation === requestGeneration.current && !controller.signal.aborted) setErreur(String(e));
+      })
+      .finally(() => {
+        if (activeRequest.current === controller) activeRequest.current = null;
+        if (generation === requestGeneration.current) setChargementSuite(false);
+      });
+  }, [categorie, chargement, chargementSuite, enrichissements, items.length, settings.gameDir, services, sousDossier, totalItems, serverSearch, serverQuery]);
 
   const codes = useMemo(() => items.map(item => resourceCode(item.chemin)), [items]);
   const names = useResolvedNames(services.resolveNames, services.nameSource ?? "", settings.gameLocale, codes);
@@ -401,12 +517,12 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
     const name = names.get(resourceCode(item.chemin));
     return name ? { ...item, titre: nameWithId(name.name, name.id ?? resourceCode(item.chemin)) } : item;
   });
-  const filtres = filtrerIllustrations(namedItems, recherche);
-  const affiches = useMemo(() => filtres.slice(0, visibles), [filtres, visibles]);
+  const filtres = serverSearch ? namedItems : filtrerIllustrations(namedItems, recherche);
+  const affiches = filtres;
 
   /** Sentinelle de fin de grille : sa venue à l'écran déclenche la page suivante. */
   const sentinelle = useRef<HTMLButtonElement | null>(null);
-  const reste = visibles < filtres.length;
+  const reste = items.length < totalItems;
 
   // Chargement automatique au défilement. La marge de 300 px déclenche AVANT que la sentinelle
   // n'entre réellement dans le champ : les vignettes suivantes sont donc déjà demandées quand
@@ -423,14 +539,14 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          setVisibles((v) => Math.min(v + PAR_PAGE, filtres.length));
+          chargerSuite();
         }
       },
       { rootMargin: "300px" },
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [reste, filtres.length]);
+  }, [reste, chargerSuite]);
   const total = useMemo(
     () => categories.reduce((somme, d) => somme + d.count, 0),
     [categories],
@@ -442,10 +558,10 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
         <h2 className="type-title-small text-on-surface">Galerie</h2>
         <Badge variant="secondary">{total.toLocaleString(settings.locale)} illustrations</Badge>
         <Input
-          className="ml-auto w-64"
+          className="w-full sm:ml-auto sm:w-64"
           placeholder="Rechercher une illustration…"
           value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
+          onChange={(e) => changeQuery(e.target.value)}
         />
       </div>
 
@@ -456,8 +572,8 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
         </Alert>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(180px,220px)_1fr] gap-3">
-        <ScrollArea className="min-h-0 rounded-2xl border border-app-line bg-app-dark-box">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[8rem_minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(180px,220px)_minmax(0,1fr)] sm:grid-rows-1">
+        <ScrollArea className="h-32 min-h-0 rounded-2xl border border-app-line bg-app-dark-box sm:h-auto">
           <div className="divide-y divide-app-line">
             {categories.map((c) => (
               <button
@@ -468,7 +584,7 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
                     ? "bg-secondary-container text-on-secondary-container"
                     : "text-on-surface"
                 }`}
-                onClick={() => setCategorie(c.name)}
+                onClick={() => selectCategory(c.name)}
               >
                 <span className="min-w-0 flex-1 truncate">{libelleCategorie(c.name)}</span>
                 <span className="tabular-nums type-label-small text-on-surface-variant">
@@ -484,11 +600,11 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
           </div>
         </ScrollArea>
 
-        <div className="flex min-h-0 flex-col gap-2">
+        <div className="flex min-h-0 min-w-0 flex-col gap-2">
           {sousDossiers.length > 0 && (
             <GalleryFilters
               currentCategory={sousDossier ?? ""}
-              onCategoryChange={(value) => setSousDossier(value || null)}
+              onCategoryChange={(value) => selectSubfolder(value || null)}
               categories={[
                 { value: "", label: "Tout", count: items.length },
                 ...sousDossiers.map((folder) => ({
@@ -504,9 +620,9 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
           <div className="flex items-center gap-2 type-label-small text-on-surface-variant">
             {chargement
               ? "chargement…"
-              : `${filtres.length.toLocaleString(settings.locale)} illustration(s)${
-                  recherche.trim() ? ` sur ${items.length.toLocaleString(settings.locale)}` : ""
-                }`}
+              : `${filtres.length.toLocaleString(settings.locale)} illustration(s) affichée(s) sur ${
+                  totalItems.toLocaleString(settings.locale)
+                }${recherche.trim() && !serverSearch ? ` · recherche dans ${items.length.toLocaleString(settings.locale)} chargée(s)` : ""}`}
           </div>
 
           <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box p-2">
@@ -530,9 +646,12 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
                 ref={sentinelle}
                 type="button"
                 className="state-layer mt-2 w-full rounded-lg py-2 type-label-medium text-on-surface-variant"
-                onClick={() => setVisibles((v) => Math.min(v + PAR_PAGE, filtres.length))}
+                disabled={chargementSuite}
+                onClick={chargerSuite}
               >
-                Chargement… ({(filtres.length - visibles).toLocaleString(settings.locale)} restantes)
+                {chargementSuite ? "Chargement…" : "Afficher la suite"} ({
+                  (totalItems - items.length).toLocaleString(settings.locale)
+                } restantes)
               </button>
             )}
             {!chargement && filtres.length === 0 && (

@@ -207,6 +207,7 @@ declarer_routes! {
     "/api/v1/wiki/search" => crate::routes::wiki::search,
     "/api/v1/wiki/gallery" => crate::routes::wiki::gallery,
     "/api/v1/wiki/names" => crate::routes::wiki::names,
+    "/api/v1/wiki/names/search" => crate::routes::wiki::search_names,
     "/api/v1/wiki/characters/{id}" => crate::routes::wiki::character,
     "/api/v1/wiki/skills/{id}" => crate::routes::wiki::skill,
     "/api/v1/wiki/items/{id}" => crate::routes::wiki::item,
@@ -440,10 +441,7 @@ pub fn routeur(etat: EtatSite) -> Router {
             CHEMINS_HORS_GET[10],
             post(crate::routes::game_data::calculate_stats),
         )
-        .route(
-            CHEMINS_HORS_GET[11],
-            post(crate::routes::graphql::execute),
-        )
+        .route(CHEMINS_HORS_GET[11], post(crate::routes::graphql::execute))
         // Les deux inspecteurs qui prennent des PIXELS en entrée : `imgmetric::comparer` reçoit
         // deux images RGBA, `planche::mesurer` en reçoit une. Aucune query string ne les porte,
         // et ni l'une ni l'autre n'écrit quoi que ce soit.
@@ -580,7 +578,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 139, "139 routes mounted");
+        assert_eq!(routes.len(), 140, "140 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

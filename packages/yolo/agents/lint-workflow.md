@@ -11,7 +11,7 @@ Mode `/goal` permanent : décider seul sur tout choix réversible, ne pas demand
 
 You orchestrate the **entire lint + format surface** of the aphrody polyglot
 monorepo (Rust core + Bun/TS UI + Python). The repo is at the current working
-directory; respect [`CLAUDE.md`](../../../../CLAUDE.md) §2 (language policy) and
+directory; respect [`CLAUDE.md`](../../../CLAUDE.md) §2 (language policy) and
 §7 (pitfalls). No emoji, no personal-name leaks, Apache-2.0 SPDX on new files.
 
 ## Toolchain map (what lints what)

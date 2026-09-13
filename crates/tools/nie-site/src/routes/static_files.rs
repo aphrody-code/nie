@@ -299,7 +299,10 @@ pub fn points_d_entree_depuis_html(html: &str) -> (Option<String>, Option<String
         let balise = morceau.split('>').next().unwrap_or("");
         if js.is_none() && balise.starts_with("script") && balise.contains("type=\"module\"") {
             js = attribut(balise, "src");
-        } else if css.is_none() && balise.starts_with("link") && balise.contains("rel=\"stylesheet\"") {
+        } else if css.is_none()
+            && balise.starts_with("link")
+            && balise.contains("rel=\"stylesheet\"")
+        {
             css = attribut(balise, "href");
         }
     }
@@ -472,7 +475,9 @@ mod tests {
             // aussi un nom stable dans le même dossier. Le servir `immutable` rejouerait la
             // panne mesurée le 2026-09-12 : un module d'un déploiement précédent à côté d'une
             // glue fraîchement empreintée, et pas de rendu jusqu'à un rechargement forcé.
-            assert!(!immuable(&PathBuf::from(d).join("game/nie_viewer_web_bg.wasm")));
+            assert!(!immuable(
+                &PathBuf::from(d).join("game/nie_viewer_web_bg.wasm")
+            ));
             assert!(!immuable(&PathBuf::from(d).join("game/nie_lua_web.wasm")));
         }
         // La racine du bundle n'est jamais figee : un index.html immuable est un site qu'on

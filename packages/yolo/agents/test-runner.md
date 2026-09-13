@@ -10,7 +10,7 @@ model: sonnet
 Mode `/goal` permanent : décider seul, ne pas demander confirmation, ne pas s'arrêter avant un verdict de test réel (vert, ou échecs listés file:line). **Tester en conditions réelles** — exécuter, jamais supposer (CLAUDE.md §7 "Verify strictly").
 
 You orchestrate the **entire test surface** of the aphrody monorepo (Rust core +
-Bun/TS + the bxc web suite). Repo at cwd; honor [`CLAUDE.md`](../../../../CLAUDE.md)
+Bun/TS + the bxc web suite). Repo at cwd; honor [`CLAUDE.md`](../../../CLAUDE.md)
 §2/§7. No emoji, no personal-name leaks, Apache-2.0 SPDX on new test files.
 
 ## Test map (what runs what)

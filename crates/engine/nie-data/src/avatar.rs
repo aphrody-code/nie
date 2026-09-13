@@ -198,6 +198,42 @@ pub struct AvatarCatalog {
     pub palette_colors: BTreeMap<String, AvatarPaletteColor>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub presets: Vec<AvatarPreset>,
+    #[cfg_attr(feature = "serde", serde(default, rename = "voix"))]
+    pub voices: Vec<AvatarVoice>,
+    #[cfg_attr(feature = "serde", serde(default, rename = "personnalites"))]
+    pub personalities: Vec<AvatarPersonality>,
+    #[cfg_attr(feature = "serde", serde(default, rename = "codePartage"))]
+    pub share_code: Option<crate::avatar_reference::AvatarShareCodeSpec>,
+}
+
+/// Voice rows exported from the game's `chara_edit` table.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AvatarVoice {
+    #[cfg_attr(feature = "serde", serde(default, rename = "banque"))]
+    pub bank: String,
+    #[cfg_attr(feature = "serde", serde(default, rename = "genre"))]
+    pub gender: i64,
+    #[cfg_attr(feature = "serde", serde(default, rename = "personnalite"))]
+    pub personality: i64,
+    #[cfg_attr(feature = "serde", serde(default, rename = "ton"))]
+    pub voice_type: i64,
+    #[cfg_attr(feature = "serde", serde(default, rename = "itemNo"))]
+    pub item_no: i64,
+}
+
+/// Personality rows exported from the game's `chara_edit` table.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AvatarPersonality {
+    #[cfg_attr(feature = "serde", serde(default, rename = "type"))]
+    pub personality_type: i64,
+    #[cfg_attr(feature = "serde", serde(default, rename = "presentation"))]
+    pub performance_type: i64,
+    #[cfg_attr(feature = "serde", serde(default, rename = "texte"))]
+    pub text_id: String,
+    #[cfg_attr(feature = "serde", serde(default, rename = "libelle"))]
+    pub label: Option<String>,
 }
 
 /// Native preset records retain exact part identifiers; names alone are ambiguous across slots.
@@ -287,7 +323,53 @@ pub struct AvatarState {
     pub height: Option<u8>,
     pub palette_selections: BTreeMap<u32, usize>,
     pub custom_colors: BTreeMap<u32, String>,
+    pub profile: AvatarProfile,
 }
+
+/// Non-geometric Chara Edit fields. They travel through the same Rust resolver as the mesh
+/// recipe so browser drafts cannot silently keep decorative state that the engine never saw.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(default, rename_all = "camelCase"))]
+pub struct AvatarProfile {
+    pub name: String,
+    pub nickname: String,
+    pub uniform_name: String,
+    pub shirt_number: Option<u8>,
+    /// Native element button index, in the order of `chara_edit_stats` (0..=3).
+    pub element: Option<u8>,
+    /// Game position convention used by the shared stat engine (1=GK, 2=FW, 3=MF, 4=DF).
+    pub main_position: Option<u8>,
+    pub sub_position: Option<u8>,
+    /// Raw build row selected by the native screen; its label mapping is not inferred here.
+    pub build_type: Option<u8>,
+    /// Index into [`AvatarCatalog::personalities`].
+    pub personality: Option<usize>,
+    /// Index into [`AvatarCatalog::voices`].
+    pub voice: Option<usize>,
+    /// Base OC stats. Bounds are the maxima observed in the canonical installed-game mirror
+    /// (`var/miroir/inagle-2026-09-13T04-14-51.sqlite`, measured 2026-09-13).
+    pub kick: Option<u16>,
+    pub control: Option<u16>,
+    pub technique: Option<u16>,
+    pub pressure: Option<u16>,
+    pub physical: Option<u16>,
+    pub agility: Option<u16>,
+    pub intelligence: Option<u16>,
+}
+
+/// Per-axis maxima observed in the canonical installed-game character mirror on 2026-09-13.
+/// Keeping the bounds per axis prevents an OC document from smuggling arbitrary `u16` values
+/// while avoiding an invented universal game cap.
+pub const AVATAR_PROFILE_STAT_MAXIMA: [(&str, u16); 7] = [
+    ("kick", 279),
+    ("control", 265),
+    ("technique", 267),
+    ("pressure", 250),
+    ("physical", 242),
+    ("agility", 256),
+    ("intelligence", 279),
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -331,6 +413,7 @@ pub struct AvatarComposition {
     pub skin_color: Option<String>,
     pub iris_color: Option<String>,
     pub hair_color: Option<String>,
+    pub profile: AvatarProfile,
     pub warnings: Vec<AvatarWarning>,
 }
 
@@ -371,6 +454,73 @@ fn invalid_state(field: &str) -> AvatarResolveError {
     AvatarResolveError::InvalidState {
         field: field.to_string(),
     }
+}
+
+fn valid_profile_text(value: &str) -> bool {
+    value.chars().count() <= 32 && !value.chars().any(char::is_control)
+}
+
+fn validate_profile(
+    catalog: &AvatarCatalog,
+    state: &AvatarState,
+) -> Result<(), AvatarResolveError> {
+    let profile = &state.profile;
+    for (field, value) in [
+        ("profile.name", profile.name.as_str()),
+        ("profile.nickname", profile.nickname.as_str()),
+        ("profile.uniformName", profile.uniform_name.as_str()),
+    ] {
+        if !valid_profile_text(value) {
+            return Err(invalid_state(field));
+        }
+    }
+    if profile.shirt_number.is_some_and(|number| number > 99) {
+        return Err(invalid_state("profile.shirtNumber"));
+    }
+    if profile.element.is_some_and(|element| element > 3) {
+        return Err(invalid_state("profile.element"));
+    }
+    if profile
+        .main_position
+        .is_some_and(|position| !(1..=4).contains(&position))
+    {
+        return Err(invalid_state("profile.mainPosition"));
+    }
+    if profile
+        .sub_position
+        .is_some_and(|position| !(1..=4).contains(&position))
+    {
+        return Err(invalid_state("profile.subPosition"));
+    }
+    if profile
+        .personality
+        .is_some_and(|index| index >= catalog.personalities.len())
+    {
+        return Err(invalid_state("profile.personality"));
+    }
+    if let Some(index) = profile.voice {
+        let voice = catalog
+            .voices
+            .get(index)
+            .ok_or_else(|| invalid_state("profile.voice"))?;
+        if voice.gender != i64::from(state.gender) + 1 {
+            return Err(invalid_state("profile.voice"));
+        }
+    }
+    for (field, value, maximum) in [
+        ("profile.kick", profile.kick, 279),
+        ("profile.control", profile.control, 265),
+        ("profile.technique", profile.technique, 267),
+        ("profile.pressure", profile.pressure, 250),
+        ("profile.physical", profile.physical, 242),
+        ("profile.agility", profile.agility, 256),
+        ("profile.intelligence", profile.intelligence, 279),
+    ] {
+        if value.is_some_and(|stat| stat > maximum) {
+            return Err(invalid_state(field));
+        }
+    }
+    Ok(())
 }
 
 fn missing(kind: &str) -> AvatarResolveError {
@@ -598,6 +748,7 @@ pub fn resolve_avatar(
     if state.height.is_some_and(|height| height > 14) {
         return Err(invalid_state("height"));
     }
+    validate_profile(catalog, state)?;
     let initial_morphology = catalog
         .base_models
         .morphologies
@@ -788,6 +939,7 @@ pub fn resolve_avatar(
         skin_color: color(catalog, state, 3, &mut warnings)?,
         iris_color: color(catalog, state, 6, &mut warnings)?,
         hair_color: color(catalog, state, 4, &mut warnings)?,
+        profile: state.profile.clone(),
         warnings,
     })
 }

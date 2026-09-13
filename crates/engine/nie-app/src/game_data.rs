@@ -480,6 +480,43 @@ pub fn decode_cfgbin(vfs: &Vfs, path: &str) -> Result<serde_json::Value, String>
     nie_explore::game_data::decode_cfgbin(vfs, path)
 }
 
+/// Result of the shared generic + typed cfg.bin decoding pipeline.
+///
+/// Field names preserve the established Inacord IPC contract. `brut` always contains the
+/// transport-neutral bridge JSON; `famille`/`json` describe the typed `nie-data` projection when
+/// the filename identifies one of its supported families.
+#[derive(Debug, PartialEq, Eq, Serialize, specta::Type)]
+pub struct CfgbinTyped {
+    pub cle: String,
+    pub famille: Option<String>,
+    pub json: String,
+    pub brut: String,
+}
+
+/// Decode one cfg.bin from the VFS and run the canonical typed-family dispatcher.
+///
+/// Hosts only supply their VFS and serialize this DTO; family-key derivation and the fallback to
+/// the generic representation remain identical for desktop and any future native caller.
+pub fn decode_cfgbin_typed(vfs: &Vfs, path: &str) -> Result<CfgbinTyped, String> {
+    let root = decode_cfgbin(vfs, path)?;
+    let brut = serde_json::to_string(&root).map_err(|error| error.to_string())?;
+    let cle = nie_data::typed::family_key(path);
+    match nie_data::typed::decode_by_key(&cle, &root) {
+        Some((label, value)) => Ok(CfgbinTyped {
+            cle,
+            famille: Some(label.to_owned()),
+            json: serde_json::to_string(&value).map_err(|error| error.to_string())?,
+            brut,
+        }),
+        None => Ok(CfgbinTyped {
+            cle,
+            famille: None,
+            json: String::new(),
+            brut,
+        }),
+    }
+}
+
 // ─── Modules nie-data supplémentaires (§4.1 ROADMAP) ─────────────────────────────────────────
 //
 // Même patron que `list_items`/`list_auras` : `load_t2b` (bridge déjà testé) → parseur typé de
@@ -1775,6 +1812,52 @@ pub fn list_noms(vfs: &Vfs) -> Result<Vec<NomsDto>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typed_cfgbin_pipeline_preserves_typed_and_generic_results() {
+        let bytes = nie_formats::cfgbin::encode_t2b(&[]);
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let disk_path = std::env::temp_dir().join(format!(
+            "nie-app-typed-cfgbin-{}-{stamp}.cfg.bin",
+            std::process::id()
+        ));
+        std::fs::write(&disk_path, &bytes).expect("write cfg.bin fixture");
+
+        let mut vfs = Vfs::new();
+        for path in [
+            "data/common/gamedata/formation_config.cfg.bin",
+            "data/common/gamedata/unknown_config.cfg.bin",
+        ] {
+            vfs.add_overlay_file(
+                path.to_owned(),
+                disk_path.clone(),
+                u32::try_from(bytes.len()).expect("small fixture"),
+            );
+        }
+
+        let typed = decode_cfgbin_typed(
+            &vfs,
+            "data/common/gamedata/formation_config.cfg.bin",
+        )
+        .expect("decode known typed family");
+        assert_eq!(typed.cle, "formation_config");
+        assert_eq!(typed.famille.as_deref(), Some("formation"));
+        assert_eq!(typed.json, "[]");
+        assert_eq!(typed.brut, r#"{"entries":[]}"#);
+
+        let generic =
+            decode_cfgbin_typed(&vfs, "data/common/gamedata/unknown_config.cfg.bin")
+                .expect("decode unknown typed family");
+        assert_eq!(generic.cle, "unknown_config");
+        assert_eq!(generic.famille, None);
+        assert!(generic.json.is_empty());
+        assert_eq!(generic.brut, typed.brut);
+
+        std::fs::remove_file(disk_path).expect("remove cfg.bin fixture");
+    }
 
     /// Vérifie le pont bytes→JSON→`nie-data` de bout en bout sur le VRAI jeu, pas juste la
     /// compilation. Valeur de référence issue du doc-comment de `nie_data::skill`

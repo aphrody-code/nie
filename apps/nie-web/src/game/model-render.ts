@@ -31,7 +31,11 @@
  * primitives, mesuré le 2026-09-12) et que l'angle change l'image.
  */
 import { ensureWasm, moduleMemory } from "./bridge";
-import { ModelRenderer } from "../wasm/nie_wasm.js";
+import {
+	ModelRenderer,
+	model_replace_texture_glb,
+	model_validate_editor_png,
+} from "../wasm/nie_wasm.js";
 
 /** Ce qu'un modèle chargé permet de faire, et ce qu'il contient. */
 export interface LoadedModel {
@@ -41,6 +45,12 @@ export interface LoadedModel {
 	readonly primitives: number;
 	/** Nombre de textures décodées que le modèle porte. */
 	readonly textures: number;
+	/** Replace one decoded texture in the Rust renderer session. */
+	replaceTexturePng(index: number, png: Uint8Array): void;
+	/** Decoded dimensions of one indexed texture. */
+	textureSize(index: number): readonly [number, number] | null;
+	/** Measured glTF texture name, or null when the document carries none. */
+	textureName(index: number): string | null;
 	/** Libère la mémoire du module. Après cet appel, `render` n'est plus utilisable. */
 	free(): void;
 }
@@ -57,6 +67,16 @@ function modelFromGlb(glb: Uint8Array): LoadedModel | null {
 	return {
 		primitives: renderer.primitives,
 		textures: renderer.textures,
+		replaceTexturePng(index: number, png: Uint8Array) {
+			renderer.replace_texture_png(index, png);
+		},
+		textureSize(index: number) {
+			const size = renderer.texture_size(index);
+			return size.length === 2 ? [size[0]!, size[1]!] as const : null;
+		},
+		textureName(index: number) {
+			return renderer.texture_name(index) ?? null;
+		},
 		free: () => renderer.free(),
 		render(angle: number, width: number, height: number): ImageData {
 			renderer.render(angle, width, height);
@@ -73,6 +93,94 @@ function modelFromGlb(glb: Uint8Array): LoadedModel | null {
 			return new ImageData(new Uint8ClampedArray(pixels), width, height);
 		},
 	};
+}
+
+/** Result of parsing a GLB through the repository-owned Rust reader. */
+export interface ModelGlbInspection {
+	primitives: number;
+	textures: number;
+	textureSizes: readonly (readonly [number, number])[];
+	textureNames: readonly (string | null)[];
+}
+
+/**
+ * Validate an imported GLB with `nie_render3d::glb`, compiled in `nie-wasm`.
+ *
+ * `GLTFLoader` remains the interactive presentation backend, but it is not the authority that
+ * admits a file into the editor: the same bounded Rust parser used by the native renderer is.
+ */
+export async function inspectModelGlb(glb: Uint8Array): Promise<ModelGlbInspection> {
+	await ensureWasm();
+	const model = modelFromGlb(glb);
+	if (model === null) throw new Error("GLB refusé par le lecteur Rust de nie-render3d");
+	try {
+		return {
+			primitives: model.primitives,
+			textures: model.textures,
+			textureSizes: Array.from({ length: model.textures }, (_, index) => model.textureSize(index)).filter(
+				(size): size is readonly [number, number] => size !== null,
+			),
+			textureNames: Array.from({ length: model.textures }, (_, index) => model.textureName(index)),
+		};
+	} finally {
+		model.free();
+	}
+}
+
+/** Replace one embedded GLB image through the bounded Rust GLB writer. */
+export async function replaceModelTextureGlb(
+	glb: Uint8Array,
+	index: number,
+	png: Uint8Array,
+): Promise<Uint8Array> {
+	await ensureWasm();
+	return new Uint8Array(model_replace_texture_glb(glb, index, png));
+}
+
+/** Decode a standalone PNG through the bounded Rust owner before browser presentation. */
+export async function validateEditorPng(
+	png: Uint8Array,
+): Promise<readonly [number, number]> {
+	await ensureWasm();
+	const dimensions = model_validate_editor_png(png);
+	if (dimensions.length !== 2) {
+		throw new Error("Le décodeur Rust n’a pas retourné les dimensions PNG");
+	}
+	return [dimensions[0]!, dimensions[1]!] as const;
+}
+
+/**
+ * Render a GLB through the Rust CPU renderer and encode the resulting RGBA frame as PNG.
+ *
+ * Canvas is only the browser's PNG encoder here; geometry, textures, camera angle and pixels are
+ * evaluated by `nie_render3d::render`. This intentionally exports one asset, not a merged editor
+ * scene: the scene-document GLB exporter required for that does not exist yet.
+ */
+export async function renderModelPng(
+	glb: Uint8Array,
+	options: { angle?: number; width?: number; height?: number; texture?: { index: number; png: Uint8Array } } = {},
+): Promise<Uint8Array> {
+	await ensureWasm();
+	const model = modelFromGlb(glb);
+	if (model === null) throw new Error("GLB refusé par le lecteur Rust de nie-render3d");
+	const width = Math.max(1, Math.min(2048, Math.floor(options.width ?? 1024)));
+	const height = Math.max(1, Math.min(2048, Math.floor(options.height ?? 1024)));
+	try {
+		if (options.texture) model.replaceTexturePng(options.texture.index, options.texture.png);
+		const frame = model.render(options.angle ?? 0, width, height);
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
+		const context = canvas.getContext("2d");
+		if (context === null) throw new Error("contexte 2D indisponible pour encoder le PNG");
+		context.putImageData(frame, 0, 0);
+		const blob = await new Promise<Blob>((resolve, reject) => {
+			canvas.toBlob((value) => value ? resolve(value) : reject(new Error("encodage PNG refusé par le navigateur")), "image/png");
+		});
+		return new Uint8Array(await blob.arrayBuffer());
+	} finally {
+		model.free();
+	}
 }
 
 /**

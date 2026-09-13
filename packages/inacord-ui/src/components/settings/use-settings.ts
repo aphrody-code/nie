@@ -8,7 +8,6 @@
  */
 import { useEffect } from "react";
 import {
-	ACCENT_THEMES,
 	getSettings,
 	SETTINGS_DEFAULTS,
 	type Settings,
@@ -42,16 +41,6 @@ export function resetSettings(ids: readonly SettingId[]): void {
 /** La taille de police de base, en pixels, avant l'échelle. */
 const BASE_FONT_SIZE_PX = 16;
 
-/** Les classes des variantes de palette sombre — les mêmes que `apps/inacord/src/lib/appearance.ts`. */
-const ACCENT_CLASS: Record<(typeof ACCENT_THEMES)[number], string> = {
-	spacedrive: "",
-	midnight: "midnight-theme",
-	noir: "noir-theme",
-	slate: "slate-theme",
-	nord: "nord-theme",
-	mocha: "mocha-theme",
-};
-
 /** Le thème résolu : `system` est tranché par `prefers-color-scheme`. */
 export function resolveTheme(theme: Settings["theme"]): "light" | "dark" {
 	if (theme !== "system") return theme;
@@ -63,43 +52,24 @@ export function resolveTheme(theme: Settings["theme"]): "light" | "dark" {
  * Applique les réglages d'apparence au document.
  *
  * Un réglage enregistré qui ne change rien est un défaut : ce crochet est ce qui le fait
- * changer quelque chose. Il pose sur `<html>` — `data-theme`, `data-density`, `data-motion`,
- * `font-size` — ce que les feuilles de style lisent ; le `zoom` va sur `<body>`, comme sous
- * Inacord. L'hôte le monte une fois, à sa racine.
+ * changer quelque chose. Il pose sur `<html>` — `data-density`, `data-motion`, `font-size` — ce
+ * que les feuilles de style lisent. Font scale and interface zoom multiply the root `rem`
+ * scale rather than CSS `body.zoom`: the latter expands `100vw` beyond the visual viewport and
+ * cuts off controls above 100 %. Native pixel canvases keep their measured geometry. La couleur
+ * n'est plus un réglage : les rôles mesurés du jeu sont l'unique autorité visuelle.
  *
  * La langue n'est PAS appliquée ici : sous nie, changer de langue est une navigation
  * entière servie par `nie-site`, et c'est l'hôte qui la fait.
  */
 export function useApplySettings(): void {
-	const { theme, accentTheme, fontScale, uiZoom, reducedMotion, listDensity } =
+	const { fontScale, uiZoom, reducedMotion, listDensity } =
 		useSettingsStore();
 
 	useEffect(() => {
-		const root = document.documentElement;
-		const apply = () => {
-			const resolved = resolveTheme(theme);
-			root.dataset.theme = resolved;
-			for (const cls of Object.values(ACCENT_CLASS)) if (cls) root.classList.remove(cls);
-			if (resolved === "dark" && ACCENT_CLASS[accentTheme]) {
-				root.classList.add(ACCENT_CLASS[accentTheme]);
-			}
-		};
-		apply();
-		// `system` doit suivre le système quand il change, pas seulement au chargement.
-		if (theme !== "system" || !window.matchMedia) return;
-		const media = window.matchMedia("(prefers-color-scheme: dark)");
-		media.addEventListener("change", apply);
-		return () => media.removeEventListener("change", apply);
-	}, [theme, accentTheme]);
-
-	useEffect(() => {
-		document.documentElement.style.fontSize = `${BASE_FONT_SIZE_PX * fontScale}px`;
-	}, [fontScale]);
-
-	useEffect(() => {
-		// `zoom` n'est pas dans le typage CSSStyleDeclaration standard.
-		(document.body.style as unknown as { zoom: string }).zoom = String(uiZoom);
-	}, [uiZoom]);
+		document.documentElement.style.fontSize = `${BASE_FONT_SIZE_PX * fontScale * uiZoom}px`;
+		// Clear inline state left by profiles opened with the former body-zoom implementation.
+		(document.body.style as unknown as { zoom: string }).zoom = "";
+	}, [fontScale, uiZoom]);
 
 	useEffect(() => {
 		document.documentElement.dataset.motion = reducedMotion ? "reduced" : "full";

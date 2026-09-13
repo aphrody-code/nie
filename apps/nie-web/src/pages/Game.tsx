@@ -3,7 +3,7 @@ import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-i
 import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
 import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AVATAR, BANK, EXPLORER, GALLERY, INACORD, MEDIA, MODES, SETTINGS, SHOP, menuEntries } from "../entries";
+import { AVATAR, BANK, DATA, EDITOR_3D, EXPLORER, GALLERY, MEDIA_LANDING, SEARCH, SETTINGS, SHOP, menuEntries } from "../entries";
 import { bindMenuActions } from "../game/menu-actions";
 import {
 	advanceOpeningPhase,
@@ -25,12 +25,14 @@ export interface GameProps {
 	onOpenAvatar: () => void;
 	onOpenSettings: () => void;
 	onOpenMedia: () => void;
-	onOpenModes: () => void;
 	onOpenExplorer: () => void;
-	onOpenInacord: () => void;
+	onOpenEditor: () => void;
+	onOpenSearch: () => void;
+	onOpenData: () => void;
 	startupReady?: boolean;
 	health?: SiteHealth | null;
 	startupFailed?: boolean;
+	onRetryStartup?: () => void;
 }
 
 /** Runs the VFS/component startup sequence before mounting the layered menu. */
@@ -44,12 +46,14 @@ export function Game({
 	onOpenAvatar,
 	onOpenSettings,
 	onOpenMedia,
-	onOpenModes,
 	onOpenExplorer,
-	onOpenInacord,
+	onOpenEditor,
+	onOpenSearch,
+	onOpenData,
 	startupReady = false,
 	health = null,
 	startupFailed = false,
+	onRetryStartup,
 }: GameProps) {
 	const localGamepadSampler = useRef(createStandardGamepadMenuSampler());
 	const gamepadSampler = suppliedGamepadSampler ?? localGamepadSampler.current;
@@ -58,17 +62,31 @@ export function Game({
 	}, [phase, onPhaseChange]);
 
 	if (phase === "menu") {
-		const actions = bindMenuActions(menuEntries(null), {
-			[MEDIA]: { id: "media", onActivate: onOpenMedia },
-			[MODES]: { id: "modes", onActivate: onOpenModes },
+		const hostActions = bindMenuActions(menuEntries(null), {
+			[MEDIA_LANDING]: { id: "media", onActivate: onOpenMedia },
 			[BANK]: { id: "bank", onActivate: onOpenBank },
 			[GALLERY]: { id: "gallery", onActivate: onOpenGallery },
 			[SHOP]: { id: "shop", onActivate: onOpenShop },
 			[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },
 			[EXPLORER]: { id: "explorer", onActivate: onOpenExplorer },
-			[INACORD]: { id: "inacord", onActivate: onOpenInacord },
+			[EDITOR_3D]: { id: "editor", onActivate: onOpenEditor },
+			[SEARCH]: { id: "search", onActivate: onOpenSearch },
+			[DATA]: { id: "data", onActivate: onOpenData },
 			[SETTINGS]: { id: "settings", onActivate: onOpenSettings },
 		});
+		const actions = [
+			...hostActions,
+			// `/modes` is internal, and the current Rust flow does not yet implement distinct native
+			// gameplay for these choices. Keep the measured tiles visible but unavailable rather than
+			// presenting the shared local simulation as five faithful game modes.
+			...["story_mode", "chronicle_mode", "kizuna_town", "competition", "bb_stadium", "victory_road", "play_guide", "information"].map((slug) => ({
+				id: `mode-${slug}`,
+				label: slug,
+				glyph: "livre" as const,
+				onActivate: () => {},
+				disabled: true,
+			})),
+		];
 		return (
 			<MainMenu
 				actions={actions}
@@ -85,6 +103,7 @@ export function Game({
 			startupReady={startupReady}
 			health={health}
 			startupFailed={startupFailed}
+			onRetryStartup={onRetryStartup}
 		/>
 	);
 }
@@ -96,6 +115,7 @@ function OpeningScreen({
 	startupReady,
 	health,
 	startupFailed,
+	onRetryStartup,
 }: {
 	phase: Exclude<OpeningPhase, "menu">;
 	onAdvance: (event: OpeningEvent) => void;
@@ -103,6 +123,7 @@ function OpeningScreen({
 	startupReady: boolean;
 	health: SiteHealth | null;
 	startupFailed: boolean;
+	onRetryStartup?: () => void;
 }) {
 	const frame = OPENING_FRAMES[phase];
 	const movie = frame.advanceOn === "media-ended";
@@ -148,7 +169,7 @@ function OpeningScreen({
 			data-opening-phase={phase}
 			className={`opening-screen opening-screen--${phase}`}
 		>
-			<OpeningVisual phase={phase} health={health} failed={startupFailed} onReady={onReady} onEnded={movie ? () => advanceOnce("media-ended") : undefined}
+			<OpeningVisual phase={phase} health={health} failed={startupFailed} onRetry={onRetryStartup} onReady={onReady} onEnded={movie ? () => advanceOnce("media-ended") : undefined}
 				onConfirm={frame.advanceOn === "confirm" ? () => advanceOnce("confirm") : undefined} />
 		</section>
 	);

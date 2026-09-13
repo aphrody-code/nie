@@ -80,7 +80,7 @@ For full API documentation:
 - **Do**: {recommendation}
 - **Avoid**: {anti-pattern}
 
-See [best-practices.md](references/best-practices.md) for detailed guidance.
+See `references/best-practices.md` for detailed guidance.
 
 ## Learn More
 

@@ -70,7 +70,11 @@ fn collecter(dossier: &Path, dans: &mut Vec<PathBuf>) {
 }
 
 /// Parcourt un prototype et tous ses enfants.
-fn parcourir(proto: &Prototype, opcodes: &mut BTreeMap<u8, usize>, globales: &mut BTreeSet<String>) {
+fn parcourir(
+    proto: &Prototype,
+    opcodes: &mut BTreeMap<u8, usize>,
+    globales: &mut BTreeSet<String>,
+) {
     for raw in &proto.code {
         let instruction = bytecode::decode_instruction(*raw);
         *opcodes.entry(instruction.opcode).or_default() += 1;
@@ -173,12 +177,20 @@ fn la_surface_lua_reellement_employee_par_le_jeu() {
     );
     eprintln!(
         "globales          : {}",
-        globales.iter().take(50).cloned().collect::<Vec<_>>().join(" ")
+        globales
+            .iter()
+            .take(50)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" ")
     );
 
     // Le relevé doit porter sur le corpus, pas sur un échantillon : un montage qui ne rend que
     // quelques scripts donnerait une surface faussement petite, donc une VM faussement facile.
-    assert!(lus >= 100, "corpus trop mince pour conclure : {lus} scripts");
+    assert!(
+        lus >= 100,
+        "corpus trop mince pour conclure : {lus} scripts"
+    );
     assert!(
         !atteints.is_empty(),
         "aucun opcode atteint : le décodeur ou le corpus est cassé"

@@ -29,7 +29,7 @@
  * | X | réinitialise la famille affichée à ses valeurs par défaut |
  * | W / C | onglet précédent / suivant |
  *
- * Une valeur changée par ← → est écrite tout de suite : le thème et la taille du texte se
+ * Une valeur changée par ← → est écrite tout de suite : la densité et la taille du texte se
  * voient pendant qu'on les règle, comme dans le jeu. « Appliquer » sert à ce qui ne peut pas
  * se voir sans recharger — la langue.
  */
@@ -48,6 +48,8 @@ import { useGameKeys } from "../game/keys";
 import { SettingList } from "./SettingList";
 import {
 	cycleValue,
+	isPublicSetting,
+	SETTING_DEFINITIONS,
 	SETTING_FAMILIES,
 	type SettingFamily,
 	type SettingId,
@@ -55,6 +57,7 @@ import {
 	visibleSettings,
 } from "./settings-model";
 import { useSettings } from "./use-settings";
+import "./settings-screen.css";
 
 /** Le glyphe de chaque onglet — les formes de `menu-screen`, aucune n'est inventée ici. */
 const FAMILY_ICON: Record<SettingFamily, ReactNode> = {
@@ -72,6 +75,7 @@ export function SettingsScreen({
 	initialFamily,
 	nativeScene,
 	inline = false,
+	publicOnly = false,
 }: {
 	title?: string;
 	/** Optional native row template; host setting identities and behavior are preserved. */
@@ -96,11 +100,16 @@ export function SettingsScreen({
 	 * Par défaut `false` : le comportement plein écran d'origine est inchangé.
 	 */
 	inline?: boolean;
+	/** Hide filesystem, bridge and specialist-tool preferences on the public game surface. */
+	publicOnly?: boolean;
 }) {
 	const capacites = useCapacites();
 	const { settings, set, reset } = useSettings();
 
-	const families = useMemo(() => visibleFamilies(capacites), [capacites]);
+	const families = useMemo(
+		() => visibleFamilies(capacites).filter((entry) => !publicOnly || visibleSettings(entry.id, capacites).some(isPublicSetting)),
+		[capacites, publicOnly],
+	);
 	const [family, setFamily] = useState<SettingFamily>(
 		initialFamily ?? SETTING_FAMILIES[0]!.id,
 	);
@@ -115,8 +124,8 @@ export function SettingsScreen({
 	);
 	const current = families[familyIndex] ?? families[0];
 	const definitions = useMemo(
-		() => (current ? visibleSettings(current.id, capacites) : []),
-		[current, capacites],
+		() => (current ? visibleSettings(current.id, capacites).filter((entry) => !publicOnly || isPublicSetting(entry)) : []),
+		[current, capacites, publicOnly],
 	);
 	const focusIndex = Math.min(focus, Math.max(0, definitions.length - 1));
 	const focused = definitions[focusIndex];
@@ -161,7 +170,7 @@ export function SettingsScreen({
 	}, [focused, cycle]);
 
 	const apply = useCallback(() => {
-		const ids = Object.keys(settings) as SettingId[];
+		const ids = SETTING_DEFINITIONS.map((definition) => definition.id);
 		const changed = ids.filter((id) => settings[id] !== opening.current[id]);
 		opening.current = settings;
 		onApply?.(settings, changed);
@@ -249,15 +258,14 @@ export function SettingsScreen({
 				}}
 			>
 				{current ? (
-					<div style={{ width: "46%" }}>
-						<GameTabStrip tabs={tabs} value={current.id} onChange={selectFamily} />
+					<div className="game-settings-tabs">
+						<GameTabStrip ariaLabel="Catégories de paramètres" tabs={tabs} value={current.id} onChange={selectFamily} />
 					</div>
 				) : null}
 				{current ? (
 					<SettingList
 						label={current.label}
 						nativeScene={nativeScene}
-						style={{ width: "62.5%" }}
 						definitions={definitions}
 						values={settings}
 						focus={focusIndex}

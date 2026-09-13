@@ -20,7 +20,19 @@
  * Les méthodes hors du socle portable sont donc **optionnelles** : leur présence se teste, et
  * `capacites` dit à l'avance ce qui répondra.
  */
-import type { Capacites, Fichier, Page, SanteApi, VueCatalogue } from "./nie-site";
+import type {
+	AppliedCatalogFilters as SiteAppliedCatalogFilters,
+	Capacites,
+	CatalogOptions,
+	Fichier,
+	Page,
+	SanteApi,
+	VueCatalogue,
+} from "./nie-site";
+import type { EntityCatalog, EntityRowsOptions, EntityRowsPage } from "./entities";
+
+/** État de filtre confirmé par `nie-site`, exposé aux composants via le contrat partagé. */
+export type AppliedCatalogFilters = SiteAppliedCatalogFilters;
 
 /** Ce qu'un hôte sait faire. Mesuré à l'exécution, jamais supposé. */
 export interface CapacitesSource {
@@ -118,18 +130,17 @@ export interface OptionsParcours {
 }
 
 /** Options communes aux listes paginées. `parPage` est borné par le serveur. */
-export interface OptionsPage {
-	page?: number;
-	parPage?: number;
-	/** Motif de recherche, comparé sans casse au chemin entier. Absent : aucun filtre. */
-	q?: string;
-	/** Extension exacte, sans le point. Absente : aucun filtre. */
-	ext?: string;
-	/** Critère de tri : `nom` (défaut) ou `taille`. */
-	tri?: "nom" | "taille";
-	/** Sens de tri : `asc` (défaut) ou `desc`. */
-	ordre?: "asc" | "desc";
-	signal?: AbortSignal;
+export interface OptionsPage extends CatalogOptions {}
+
+/**
+ * Une page catalogue rendue par un hôte.
+ *
+ * `nie-site` fournit toujours `filtres`. Le champ reste optionnel au niveau de la porte partagée
+ * seulement pour un adaptateur desktop qui ne saurait pas encore confirmer l'état réellement
+ * appliqué ; le client HTTP direct, lui, le type comme obligatoire.
+ */
+export interface SourceCatalogPage<T> extends Page<T> {
+	filtres?: AppliedCatalogFilters;
 }
 
 /**
@@ -139,7 +150,7 @@ export interface OptionsPage {
  * lui, l'interface ne peut rien afficher. Tout le reste se déclare.
  */
 export interface AssetSource {
-	/** Nom de l'hôte, pour les diagnostics (`inacord`, `aphrody`). */
+	/** Nom de l'hôte, pour les diagnostics (`inacord`, `nie`). */
 	readonly hote: string;
 
 	/** Ce que cet hôte sait faire, ici et maintenant. */
@@ -167,7 +178,7 @@ export interface AssetSource {
 	 * la symétrie coûte plus cher qu'une méthode absente : l'absence se teste, le résultat faux
 	 * se découvre en production.
 	 */
-	catalogue?(vue: VueCatalogue, options?: OptionsPage): Promise<Page<EntreeVfs>>;
+	catalogue?(vue: VueCatalogue, options?: OptionsPage): Promise<SourceCatalogPage<EntreeVfs>>;
 
 	/**
 	 * L'URL d'une ressource par son chemin VFS **verbatim**, extension du jeu conservée.
@@ -211,6 +222,14 @@ export interface AssetSource {
 
 	/** Lecture d'une table du wiki. Absent si `capacites().wiki` est faux. */
 	wiki?<T>(table: string, options?: OptionsPage): Promise<Page<T>>;
+
+	/** Schema-backed catalogue of the read-only SQLite mirrors. Web-only until a native adapter
+	 * can prove the same query semantics. */
+	entityCatalog?(options?: Pick<EntityRowsOptions, "page" | "perPage" | "q" | "signal">): Promise<EntityCatalog>;
+	/** A filtered, paginated table page. All column names are validated by the server schema. */
+	entityRows?(table: string, options?: EntityRowsOptions): Promise<EntityRowsPage>;
+	/** Download URL for the exact same filtered page as CSV. */
+	entityExportUrl?(table: string, options?: EntityRowsOptions): string;
 }
 
 /** Les capacités d'un hôte qui ne sait rien faire — base d'un objet partiel. */

@@ -23,6 +23,10 @@ body,
 	height: 100%;
 }
 
+html {
+	color-scheme: light;
+}
+
 body {
 	margin: 0;
 	font-family: system-ui, sans-serif;
@@ -41,32 +45,32 @@ body {
 /* ── La passerelle : les variables de shadcn, dans la DA du jeu ────────────────────────────
  *
  * Les primitives lisent quinze variables (`--background`, `--border`, `--primary`…) qui
- * n'existent pas ici : la palette d'Aphrody est celle du MENU DU JEU, mesurée sur ses captures
- * (`game-tokens.css`), pas le thème sombre d'Inacord. Sans ce pont, chaque primitive s'afficherait
+ * n'existent pas ici. Les surfaces de menu mesurées vivent dans `game-screens.css`; quelques
+ * rôles sémantiques sans équivalent mesuré gardent leur repli dans `game-tokens.css`. Sans ce pont, chaque primitive s'afficherait
  * transparente sur transparent — visible dans le DOM, invisible à l'écran, exactement le défaut
  * que ce dépôt a déjà payé (« une palette est un contraste »).
  *
- * Aucune couleur n'est inventée ici : chaque ligne pointe vers un jeton déjà mesuré. */
+ * Les rôles structurants pointent directement vers les mesures de `data/menu`. */
 @theme inline {
-	--color-background: var(--jeu-ciel-clair);
-	--color-foreground: var(--jeu-nuit-profonde);
-	--color-card: #fff;
-	--color-card-foreground: var(--jeu-nuit-profonde);
-	--color-popover: #fff;
-	--color-popover-foreground: var(--jeu-nuit-profonde);
-	--color-primary: var(--jeu-tuile-haut);
-	--color-primary-foreground: var(--jeu-ciel-clair);
-	--color-secondary: var(--jeu-surface-glace);
-	--color-secondary-foreground: var(--jeu-nuit-profonde);
-	--color-muted: var(--jeu-surface-craie);
-	--color-muted-foreground: var(--jeu-texte-doux);
-	--color-accent: var(--jeu-surface-glace);
-	--color-accent-foreground: var(--jeu-nuit-profonde);
+	--color-background: var(--screen-canvas-pale);
+	--color-foreground: var(--screen-row-label);
+	--color-card: var(--screen-row-white);
+	--color-card-foreground: var(--screen-row-label);
+	--color-popover: var(--screen-row-white);
+	--color-popover-foreground: var(--screen-row-label);
+	--color-primary: var(--screen-header-blue);
+	--color-primary-foreground: var(--screen-row-white);
+	--color-secondary: var(--screen-tab-light);
+	--color-secondary-foreground: var(--screen-row-label);
+	--color-muted: var(--screen-canvas-pale);
+	--color-muted-foreground: var(--screen-section-title);
+	--color-accent: var(--screen-tab-light);
+	--color-accent-foreground: var(--screen-row-label);
 	--color-destructive: var(--jeu-accent-brique);
 	--color-destructive-foreground: var(--jeu-ciel-clair);
-	--color-border: var(--jeu-tuile-bord);
-	--color-input: var(--jeu-tuile-bord);
-	--color-ring: var(--jeu-accent-azur);
+	--color-border: var(--screen-tab-light);
+	--color-input: var(--screen-tab-light);
+	--color-ring: var(--screen-row-focus);
 	--radius: var(--jeu-rayon);
 
 	/* ── Les rôles Material 3, pour les composants venus du wiki ────────────────────────────
@@ -180,22 +184,72 @@ body {
 	 * correctif est de retirer ce rôle du composant partagé, hors périmètre d'un seul fichier. */
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════════════════
- * Les réglages d'apparence, tels que `useApplySettings()` les pose sur `<html>`.
- *
- * `data-theme`, `data-density` et `data-motion` sont écrits par le paquet partagé depuis le
- * magasin d'Inacord (`nie-explorer:settings`) ; ces règles sont ce qui les fait CHANGER quelque
- * chose. Aucune couleur n'est inventée : le thème sombre réaffecte des jetons déjà mesurés.
- * ══════════════════════════════════════════════════════════════════════════════════════════ */
-html[data-theme="dark"] {
-	color-scheme: dark;
-	--jeu-ciel-clair: var(--jeu-fond-abysse);
-	--jeu-ciel-brume: var(--jeu-fond-nuit);
-	--jeu-surface-glace: var(--jeu-fond-profond);
-	--jeu-surface-brume: var(--jeu-fond-moyen);
-	--jeu-surface-craie: var(--jeu-fond-nuit);
-	--jeu-nuit-profonde: var(--jeu-texte-vif);
-	--jeu-texte-doux: var(--jeu-accent-cyan);
+/* Density and motion remain adjustable accessibility settings. Colour is not: every host is
+ * forced to the single measured menu palette, including native form controls. */
+
+/* Secondary game destinations are still framed by the shared application navigation, but that
+ * frame must not introduce a second dark visual language around them. Every value below is a
+ * role measured in `data/menu` and emitted by `game-screens.css`; no screenshot is used at
+ * runtime and no colour is invented here. Authoring-tool views keep their denser tool roles. */
+.game-screen-shell {
+	--color-app: var(--screen-canvas-pale);
+	--color-app-box: var(--screen-row-white);
+	--color-app-dark-box: var(--screen-canvas-pale);
+	--color-app-darker-box: var(--screen-canvas-pale);
+	--color-app-light-box: var(--screen-row-white);
+	--color-app-overlay: var(--screen-row-white);
+	--color-app-input: var(--screen-row-white);
+	--color-app-line: var(--screen-tab-light);
+	--color-app-divider: var(--screen-header-blue-deep);
+	--color-app-button: var(--screen-row-white);
+	--color-app-selected: var(--screen-tab-active);
+	--color-app-selected-item: var(--screen-tab-light);
+	--color-app-hover: var(--screen-tab-light);
+	--color-app-active: var(--screen-header-blue);
+	--color-app-frame: var(--screen-header-blue-deep);
+	--color-sidebar: var(--screen-canvas-pale);
+	--color-sidebar-box: var(--screen-row-white);
+	--color-sidebar-line: var(--screen-tab-light);
+	--color-sidebar-button: var(--screen-row-white);
+	--color-sidebar-selected: var(--screen-tab-active);
+	--color-sidebar-ink: var(--jeu-nuit-profonde);
+	--color-sidebar-ink-dull: var(--jeu-nuit-profonde);
+	--color-sidebar-ink-faint: var(--screen-section-title);
+	--color-ink: var(--jeu-nuit-profonde);
+	--color-ink-dull: var(--screen-section-title);
+	--color-ink-faint: var(--screen-section-title);
+	background: var(--screen-canvas-pale);
+	color: var(--jeu-nuit-profonde);
+}
+
+.game-shell-return {
+	position: fixed;
+	right: max(1rem, env(safe-area-inset-right));
+	bottom: max(0.75rem, env(safe-area-inset-bottom));
+	z-index: 90;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-height: 2.5rem;
+	padding: 0.45rem 0.8rem;
+	border: 1px solid color-mix(in srgb, var(--screen-header-blue-deep) 55%, transparent);
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--screen-header-blue-deep) 92%, transparent);
+	color: var(--screen-row-white);
+	font-weight: 700;
+	box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--screen-panel-body) 22%, transparent);
+}
+
+.game-shell-return kbd {
+	padding: 0.1rem 0.3rem;
+	border-radius: 0.25rem;
+	background: color-mix(in srgb, var(--screen-row-white) 18%, transparent);
+	font: inherit;
+}
+
+.game-screen-shell .game-host-topbar {
+	border-bottom: 1px solid var(--screen-tab-light);
+	background: color-mix(in oklab, var(--screen-row-white) 92%, transparent);
 }
 
 html[data-density="compact"] {

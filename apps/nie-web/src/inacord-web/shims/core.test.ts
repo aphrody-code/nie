@@ -29,6 +29,21 @@ describe("read-only web command adapter", () => {
 		expect(paths[1]).toContain("ext=bin");
 	});
 
+	test("entry metadata crosses every server-bounded folder page", async () => {
+		const paths = stub(url => {
+			const page = Number(new URL(url, "https://nie.test").searchParams.get("page"));
+			const fichiers = page === 1
+				? Array.from({ length: 200 }, (_, index) => ({ chemin: `data/f${index}.bin`, nom: `f${index}.bin`, taille: index }))
+				: [{ chemin: "data/target.bin", nom: "target.bin", taille: 999 }];
+			return Response.json({ dossiers: [], fichiers, total_fichiers: 201 });
+		});
+		expect(await invoke("vfs_entry_meta", { path: "data/target.bin" })).toMatchObject({
+			path: "data/target.bin",
+			size: 999,
+		});
+		expect(paths).toEqual(["/b/data?page=1&per_page=200", "/b/data?page=2&per_page=200"]);
+	});
+
 	test("preserves typed errors and rejects native commands", async () => {
 		stub(() => Response.json({ message: "VFS en cours" }, { status: 503 }));
 		await expect(invoke("vfs_stats")).rejects.toBe("VFS en cours");
@@ -67,14 +82,36 @@ describe("byte-carrying commands", () => {
 		await invoke("vfs_audio_cue_wav_b64", { path: "data/sound/bgm.acb", awbId: 42 });
 		expect(seen[0]).toBe("/assets/audio/data/sound/bgm.acb?id=42");
 	});
+
+	test("menu PNG uses the real composed-image endpoint", async () => {
+		const seen = stub(() => new Response(new Uint8Array([137, 80, 78, 71])));
+		await invoke("model_service_menu_png_b64", { screen: "main menu" });
+		expect(seen).toEqual(["/api/v1/menu/render/main%20menu"]);
+	});
 });
 
 describe("dispatch tables", () => {
+	test("related resources send only the locale understood by the server", async () => {
+		const seen = stub(() => Response.json({ related: [] }));
+		await invoke("vfs_related", { needle: "data/common/a.bin", limit: 50, locale: "ja" });
+		await invoke("vfs_related", { needle: "data/common/b.bin", limit: 10 });
+		expect(seen).toEqual([
+			"/api/v1/resources/related/data/common/a.bin?locale=ja",
+			"/api/v1/resources/related/data/common/b.bin",
+		]);
+	});
+
 	test("game_data_* dispatches on the family segment", async () => {
 		const seen = stub(() => Response.json([]));
 		await invoke("game_data_special_tactics", { gameDir: null });
 		await invoke("game_data_capsule_rates", { gameDir: null });
 		expect(seen).toEqual(["/api/v1/game-data/special_tactics", "/api/v1/game-data/capsule_rates"]);
+	});
+
+	test("avatar editor loads the avatar composition catalogue, not the model list", async () => {
+		const seen = stub(() => Response.json({ version: 1, pieces: {} }));
+		await invoke("model_service_avatar_catalog", { baseUrl: "http://127.0.0.1:8085" });
+		expect(seen).toEqual(["/assets/avatar/catalog.json"]);
 	});
 
 	test("game_data_calculate_stats posts the command arguments", async () => {

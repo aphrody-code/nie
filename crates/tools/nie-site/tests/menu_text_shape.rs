@@ -51,12 +51,19 @@ fn le_chemin_natif_et_la_route_comptent_les_memes_lignes() {
     eprintln!("route        : 2 755 lignes, 0 vide (mesuré le 2026-09-13)");
     eprintln!(
         "premiers hash du chemin natif : {:?}",
-        lignes.iter().take(5).map(|(id, _)| format!("{:#010x}", id.0)).collect::<Vec<_>>()
+        lignes
+            .iter()
+            .take(5)
+            .map(|(id, _)| format!("{:#010x}", id.0))
+            .collect::<Vec<_>>()
     );
     // 80 hash sont DUPLIQUÉS (2 755 lignes pour 2 675 distincts) : la valeur retenue dépend donc
     // de l'ORDRE, des deux côtés. Si les deux chemins ne rendent pas les lignes dans le même
     // ordre, ils ne résolvent pas le même texte pour ces 80 hash.
     let doublons = lignes.len() - distincts.len();
     eprintln!("hash dupliqués : {doublons} — la résolution dépend de l'ordre");
-    assert!(!lignes.is_empty(), "le fichier porte du texte mais rien n'est lu");
+    assert!(
+        !lignes.is_empty(),
+        "le fichier porte du texte mais rien n'est lu"
+    );
 }

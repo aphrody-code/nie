@@ -32,9 +32,9 @@
  * jouent par `NativeMoviePlayer`.
  */
 import { LayoutCanvas } from "../game/LayoutCanvas";
-import { GameCanvas, GameHintBar, GameSearchBar } from "@niers/inacord-ui";
+import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useSettings } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
 	filterGallery,
 	galleryCollections,
@@ -49,8 +49,18 @@ import { listPage, stepCursor } from "../game/list-page";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 import { NativeText } from "../pages/NativeText";
+import { WebGallery } from "../pages/WebGallery";
 import "./trophy-gallery.css";
 import { loadMenuLayout } from "../game/menu-layout";
+import {
+	browserLocationSnapshot,
+	subscribeBrowserLocation,
+	writeBrowserHistory,
+} from "@niers/inacord-ui/lib/browser-navigation";
+import {
+	trophyGalleryHistoryMode,
+	trophyGalleryHrefForSurface,
+} from "./trophy-gallery-navigation";
 
 /** L'écran du jeu dont cette page est la reproduction. */
 const SCREEN = "gallery_menu";
@@ -74,8 +84,8 @@ function crc32(value: string): number {
 const LIST_LAYER = crc32("gallery01_01_list_base");
 
 /** Le layout de l'écran, validé par `lireLayout` — un JSON mal formé échoue bruyamment. */
-async function loadLayout(signal: AbortSignal): Promise<LayoutJeu> {
-	return lireLayout(await loadMenuLayout(SCREEN, "fr", signal));
+async function loadLayout(locale: GameLocale, signal: AbortSignal): Promise<LayoutJeu> {
+	return lireLayout(await loadMenuLayout(SCREEN, locale, signal));
 }
 
 /** Une réponse `game-data` : un tableau, ou l'échec. */
@@ -110,6 +120,9 @@ export interface TrophyGalleryProps {
 }
 
 export function TrophyGallery({ onBack }: TrophyGalleryProps) {
+	const { settings: { gameLocale } } = useSettings();
+	const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
+	const assetBrowserOpen = new URL(location, "http://localhost").searchParams.get("display") === "gallery";
 	const [layout, setLayout] = useState<LayoutJeu | null>(null);
 	const [layoutFailed, setLayoutFailed] = useState(false);
 	const [data, setData] = useState<GalleryData | null>(null);
@@ -127,7 +140,9 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		loadLayout(controller.signal).then(setLayout, () => { if (!controller.signal.aborted) setLayoutFailed(true); });
+		setLayout(null);
+		setLayoutFailed(false);
+		loadLayout(gameLocale, controller.signal).then(setLayout, () => { if (!controller.signal.aborted) setLayoutFailed(true); });
 		Promise.all([
 			loadFamily("trophies", controller.signal),
 			loadFamily("gallery", controller.signal),
@@ -141,11 +156,11 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 		}), () => { if (!controller.signal.aborted) setDataFailed(true); });
 		loadProfile(controller.signal).then(setProfile, () => { /* le repli typé couvre l'absence */ });
 		return () => controller.abort();
-	}, []);
+	}, [gameLocale]);
 
 	const session = useMemo(
-		() => createMenuRuntime(SCREEN, { locale: "fr", itemCounts: { [LIST_LAYER]: PAGE_SIZE } }),
-		[],
+		() => createMenuRuntime(SCREEN, { locale: gameLocale, itemCounts: { [LIST_LAYER]: PAGE_SIZE } }),
+		[gameLocale],
 	);
 	const receive = useCallback((result: MenuRuntimeResult) => {
 		setRuntime(result);
@@ -189,7 +204,25 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 		setPlaying((value) => focused.moviePath && value !== focused.moviePath ? focused.moviePath : null);
 	}, [focused]);
 
+	const setAssetBrowserOpen = useCallback((open: boolean) => {
+		const surface = open ? "assets" : "native";
+		const url = new URL(trophyGalleryHrefForSurface(window.location.href, surface), window.location.origin);
+		writeBrowserHistory(url, window.history.state, trophyGalleryHistoryMode(surface));
+	}, []);
+
 	useEffect(() => {
+		if (assetBrowserOpen) {
+			const closeAssetBrowser = (event: KeyboardEvent) => {
+				if (event.defaultPrevented || event.key !== "Escape") return;
+				// The asset preview owns its first Escape. Once it is closed, Escape returns to
+				// the native gallery without leaving an extension entry that Back would reopen.
+				if (document.querySelector('.trophy-gallery-assets [role="dialog"]')) return;
+				event.preventDefault();
+				setAssetBrowserOpen(false);
+			};
+			window.addEventListener("keydown", closeAssetBrowser);
+			return () => window.removeEventListener("keydown", closeAssetBrowser);
+		}
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
 			const target = event.target;
@@ -212,7 +245,7 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [move, onBack, searchOpen, playing]);
+	}, [move, onBack, searchOpen, playing, assetBrowserOpen, setAssetBrowserOpen]);
 
 	// Ce que la composition a RÉELLEMENT dessiné, publié sur la section : `drawn` et `skipped`
 	// viennent du compositeur lui-même, au lieu d'un décompte de balises `<img>` chargées.
@@ -229,6 +262,27 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 		{ key: "Escape", keyLabel: "Esc", label: "Retour", onActivate: onBack, fromInputs: true },
 	], [confirm, changeFamily, current, onBack]);
 
+	if (assetBrowserOpen) {
+		return (
+			<section
+				className="trophy-gallery-assets"
+				role="dialog"
+				aria-modal="true"
+				aria-label="Assets de la galerie"
+				data-screen="gallery-assets"
+			>
+				<header className="trophy-gallery-assets__header">
+					<button type="button" onClick={() => setAssetBrowserOpen(false)}>Galerie du jeu</button>
+					<div>
+						<p>Extension de l’hôte</p>
+						<h1>Assets de la galerie</h1>
+					</div>
+				</header>
+				<div className="trophy-gallery-assets__browser"><WebGallery /></div>
+			</section>
+		);
+	}
+
 	return (
 		<section
 			className="trophy-gallery"
@@ -244,7 +298,7 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 			data-retained={retained.length}
 			data-origin={current?.origin ?? "none"}
 		>
-			<GameCanvas canvas={layout?.canvas ?? { w: 1280, h: 720 }}>
+			<GameCanvas className="trophy-gallery__canvas" canvas={layout?.canvas ?? { w: 1280, h: 720 }}>
 				{layout ? <LayoutCanvas layout={layout} screen={SCREEN} assumeUnknownVisible={false} onReport={onCompose} /> : null}
 
 				<header className="trophy-gallery__title">
@@ -336,7 +390,12 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 				) : null}
 			</GameCanvas>
 
-			<GameHintBar className="trophy-gallery__hints" hints={hints} />
+			<div className="trophy-gallery__footer">
+				<GameHintBar className="trophy-gallery__hints" hints={hints} />
+				<button className="trophy-gallery__asset-entry" type="button" onClick={() => setAssetBrowserOpen(true)}>
+					Parcourir les assets
+				</button>
+			</div>
 		</section>
 	);
 }

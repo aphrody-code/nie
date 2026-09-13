@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use nie_aphrody::{probe_surfaces, resolve_aphrody_dir, BUNDLED_FAVICON_ICO, BUNDLED_ICON_SVG};
+use nie_aphrody::{BUNDLED_FAVICON_ICO, BUNDLED_ICON_SVG, probe_surfaces, resolve_aphrody_dir};
 
 #[test]
 fn test_aphrody_surfaces_probe() {

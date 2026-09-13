@@ -45,7 +45,7 @@ export function SplitPane({
   children,
   className,
 }: SplitPaneProps) {
-  const [size, setSize] = useState(() => loadSize(storageKey, defaultSize));
+  const [size, setSize] = useState(() => Math.max(min, Math.min(max, loadSize(storageKey, defaultSize))));
   const dragging = useRef(false);
   const hostRef = useRef<HTMLDivElement | null>(null);
 
@@ -82,6 +82,29 @@ export function SplitPane({
     if (storageKey) localStorage.setItem(`nie-explorer:split:${storageKey}`, String(size));
   }, [size, storageKey]);
 
+  const commitSize = useCallback((next: number) => {
+    const bounded = Math.max(min, Math.min(max, Math.round(next)));
+    setSize(bounded);
+    if (storageKey) localStorage.setItem(`nie-explorer:split:${storageKey}`, String(bounded));
+  }, [max, min, storageKey]);
+
+  const onKeyDown = useCallback((event: React.KeyboardEvent) => {
+    const decrease = axis === "x" ? "ArrowLeft" : "ArrowUp";
+    const increase = axis === "x" ? "ArrowRight" : "ArrowDown";
+    const step = event.shiftKey ? 40 : 10;
+    if (event.key === "Home") {
+      event.preventDefault();
+      commitSize(side === "start" ? min : max);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      commitSize(side === "start" ? max : min);
+    } else if (event.key === decrease || event.key === increase) {
+      event.preventDefault();
+      const coordinateDelta = event.key === decrease ? -step : step;
+      commitSize(size + (side === "start" ? coordinateDelta : -coordinateDelta));
+    }
+  }, [axis, commitSize, max, min, side, size]);
+
   // Un pointerup hors de la poignée (relâché au-dessus d'un autre panneau) doit terminer le
   // glissé : sans ce filet, la poignée reste « collée » au curseur.
   useEffect(() => {
@@ -93,6 +116,12 @@ export function SplitPane({
     <div
       role="separator"
       aria-orientation={axis === "x" ? "vertical" : "horizontal"}
+	  aria-label="Redimensionner le panneau"
+	  aria-valuemin={min}
+	  aria-valuemax={max}
+	  aria-valuenow={size}
+	  tabIndex={0}
+	  onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

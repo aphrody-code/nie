@@ -20,12 +20,12 @@
  * state in `App.tsx` — which is what makes a workspace view addressable, shareable and reachable
  * from the game side without a reload.
  */
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent } from "@niers/inacord-ui/components/ui/tabs";
 import { ExplorerView } from "@/components/ExplorerView";
 import { ExplorerTabsBar } from "@/components/ExplorerTabsBar";
-import type { EditorViewState } from "@/components/editor/EditorView";
+import type { EditorViewProps, EditorViewState } from "./components/editor/EditorView";
 import { DetailPane } from "@/components/DetailPane";
 import { useAppMenuShortcuts, type AppMenuActions } from "@/components/AppMenu";
 import { useBridge } from "@/lib/bridge";
@@ -39,7 +39,10 @@ import type { WorkspaceActions } from "../shell/workspace-actions";
 /** Les vues hors parcours Explorer sont chargées à leur première ouverture. Cela laisse le
  * démarrage et les changements de dossier libres des bundles Monaco, vidéo, forge et catalogue. */
 const DashboardView = lazy(() => import("@/components/DashboardView").then(({ DashboardView }) => ({ default: DashboardView })));
-const EditorView = lazy(() => import("@/components/editor/EditorView").then(({ EditorView }) => ({ default: EditorView })));
+const EditorView = lazy(async (): Promise<{ default: ComponentType<EditorViewProps> }> => {
+  const module = await import("./components/editor/EditorView");
+  return { default: module.EditorView };
+});
 const GameDataView = lazy(() => import("@/components/GameDataView").then(({ GameDataView }) => ({ default: GameDataView })));
 const SearchView = lazy(() => import("@/components/SearchView").then(({ SearchView }) => ({ default: SearchView })));
 const ModsView = lazy(() => import("@/components/ModsView").then(({ ModsView }) => ({ default: ModsView })));
@@ -52,13 +55,16 @@ const CinemaView = lazy(() => import("@/components/CinemaView").then(({ CinemaVi
 const GalleryView = lazy(() => import("@/components/GalleryView").then(({ GalleryView }) => ({ default: GalleryView })));
 const ToolsView = lazy(() => import("@/components/ToolsView").then(({ ToolsView }) => ({ default: ToolsView })));
 const SaveView = lazy(() => import("@/components/SaveView").then(({ SaveView }) => ({ default: SaveView })));
-const SettingsView = lazy(() => import("@/components/SettingsView").then(({ SettingsView }) => ({ default: SettingsView })));
 
 function VueEnChargement() {
   return <div className="grid h-full place-items-center text-sm text-ink-faint">Ouverture de la vue…</div>;
 }
 
-export function Workspace({ view, actions }: { view: string; actions: WorkspaceActions }) {
+export function Workspace({ view, actions, publicMode = false }: {
+  view: string;
+  actions: WorkspaceActions;
+  publicMode?: boolean;
+}) {
   const t = useT();
   const externalPath = useExternalPath();
   // Onglets de l'Explorateur — état module-level persistant (`lib/explorerTabs.ts`), pas un
@@ -96,7 +102,7 @@ export function Workspace({ view, actions }: { view: string; actions: WorkspaceA
       else if (kind === "error") toast.error(message);
       else toast(message);
     },
-  });
+  }, !publicMode);
 
   // Barre de menu Fichier/Édition/Affichage : ses accélérateurs restent posés ici, là où les vues
   // qu'ils sélectionnent se rendent. `Ctrl+1…9` change de vue, donc de ROUTE, comme un clic.
@@ -106,7 +112,7 @@ export function Workspace({ view, actions }: { view: string; actions: WorkspaceA
     // Le menu Affichage lit le même registre que la barre latérale.
     tabLabels: libellesVues(t),
   };
-  useAppMenuShortcuts(menuActions);
+  useAppMenuShortcuts(menuActions, !publicMode);
 
   // Raccourcis d'onglets. Ctrl+1…9 sélectionnent déjà une VUE (`AppMenu`), Ctrl+D épingle et
   // Ctrl+K ouvre la palette : restent les gestes de navigateur, Ctrl+T / Ctrl+W / Ctrl+Tab.
@@ -159,16 +165,17 @@ export function Workspace({ view, actions }: { view: string; actions: WorkspaceA
   return (
     <Tabs value={view} className="h-full min-h-0">
       <Suspense fallback={<VueEnChargement />}>
-        <TabsContent value="dashboard" className="h-full min-h-0">
+        {!publicMode ? <TabsContent value="dashboard" className="h-full min-h-0">
           <DashboardView onSelectTab={(id) => actions.openView(id)} />
-        </TabsContent>
-        <TabsContent value="editor" className="h-full min-h-0">
+        </TabsContent> : null}
+        {!publicMode || view === "editor" ? <TabsContent value="editor" className="h-full min-h-0">
           <EditorView
             state={editor}
             onStateChange={setEditor}
             onOpenInExplorer={actions.revealInExplorer}
+            authoring={!publicMode}
           />
-        </TabsContent>
+        </TabsContent> : null}
         {/* `keepMounted` : le panneau de `@base-ui/react` DÉMONTE son contenu quand il
             n'est pas actif (`keepMounted` vaut `false` par défaut). Sans lui, quitter
             l'Explorateur détruirait les N instances d'onglet — listings, caches `.cpk` et
@@ -192,7 +199,8 @@ export function Workspace({ view, actions }: { view: string; actions: WorkspaceA
                   className="h-full min-h-0"
                   style={tb.id === tabsState.activeId ? undefined : { display: "none" }}
                 >
-                  <ExplorerView
+				  <ExplorerView
+					authoring={!publicMode}
                     state={tb}
                     active={tb.id === tabsState.activeId}
                     onStateChange={(patch) => explorerTabs.update(tb.id, patch)}
@@ -210,47 +218,44 @@ export function Workspace({ view, actions }: { view: string; actions: WorkspaceA
             </div>
           </div>
         </TabsContent>
-        <TabsContent value="cinema" className="h-full min-h-0">
+        {!publicMode ? <TabsContent value="cinema" className="h-full min-h-0">
           <CinemaView onOpenFile={actions.revealInExplorer} />
-        </TabsContent>
+        </TabsContent> : null}
         <TabsContent value="search" className="h-full min-h-0">
           <SearchView onOpenFile={actions.revealInExplorer} />
         </TabsContent>
         <TabsContent value="data" className="h-full min-h-0">
-          <GameDataView onOpenFile={actions.revealInExplorer} />
+          <GameDataView onOpenFile={actions.revealInExplorer} publicMode={publicMode} />
         </TabsContent>
-        <TabsContent value="gallery" className="h-full min-h-0">
+        {!publicMode ? <TabsContent value="gallery" className="h-full min-h-0">
           <GalleryView onOpenFile={actions.revealInExplorer} />
-        </TabsContent>
-        <TabsContent value="tools" className="h-full min-h-0">
+        </TabsContent> : null}
+        {!publicMode ? <TabsContent value="tools" className="h-full min-h-0">
           {/* « Ses fichiers » du Traducteur : le code interne part dans la Recherche de
               l'onglet actif — c'est le geste que le wiki ne peut pas offrir. */}
           <ToolsView onOpenSearch={actions.openSearch} />
-        </TabsContent>
-        <TabsContent value="mods" className="h-full min-h-0">
+        </TabsContent> : null}
+        {!publicMode ? <TabsContent value="mods" className="h-full min-h-0">
           <ModsView onOpenFile={actions.revealInExplorer} />
-        </TabsContent>
-        <TabsContent value="cpk" className="h-full min-h-0">
+        </TabsContent> : null}
+        {!publicMode ? <TabsContent value="cpk" className="h-full min-h-0">
           <RawCpkView />
-        </TabsContent>
-        <TabsContent value="viola" className="h-full min-h-0">
+        </TabsContent> : null}
+        {!publicMode ? <TabsContent value="viola" className="h-full min-h-0">
           <ViolaView />
-        </TabsContent>
-        <TabsContent value="livemod" className="h-full min-h-0 overflow-auto">
+        </TabsContent> : null}
+        {!publicMode ? <TabsContent value="livemod" className="h-full min-h-0 overflow-auto">
           <LiveModView />
-        </TabsContent>
-        <TabsContent value="lua" className="h-full min-h-0">
+        </TabsContent> : null}
+        {!publicMode ? <TabsContent value="lua" className="h-full min-h-0">
           <LuaView />
-        </TabsContent>
-        <TabsContent value="re" className="h-full min-h-0">
+        </TabsContent> : null}
+        {!publicMode ? <TabsContent value="re" className="h-full min-h-0">
           <ReToolsView />
-        </TabsContent>
-        <TabsContent value="save" className="h-full min-h-0 overflow-auto">
+        </TabsContent> : null}
+        {!publicMode ? <TabsContent value="save" className="h-full min-h-0 overflow-auto">
           <SaveView />
-        </TabsContent>
-        <TabsContent value="settings" className="h-full min-h-0 overflow-auto">
-          <SettingsView />
-        </TabsContent>
+        </TabsContent> : null}
       </Suspense>
     </Tabs>
   );

@@ -31,7 +31,7 @@ const mcp = await text(manifest.registries.mcp);
 const cliBlock = cli.match(/enum Cmd \{([\s\S]*?)\n\}/)?.[1] ?? "";
 const cliCommands = [...cliBlock.matchAll(/^    (?:#\[[^\n]+\]\n    )*([A-Z][A-Za-z0-9_]*)/gm)].map(match => match[1]);
 const siteRoutes = [...site.matchAll(/^\s*"(\/[^" ]+)"\s*=>/gm)].map(match => match[1]);
-const tauriCommands = [...tauri.matchAll(/#\[tauri::command\][\s\S]{0,120}?\n(?:pub )?(?:async )?fn ([a-z][a-z0-9_]*)/g)].map(match => match[1]);
+const tauriCommands = [...tauri.matchAll(/^\s*#\[tauri::command(?:\([^)]*\))?\]\s*\n(?:\s*#\[[^\n]+\]\s*\n)*\s*(?:pub )?(?:async )?fn ([a-z][a-z0-9_]*)/gm)].map(match => match[1]);
 const registered = tauri.match(/collect_commands!\[([\s\S]*?)\n\s*\]\)/)?.[1] ?? "";
 for (const command of tauriCommands) if (!registered.includes(command)) failures.push(`inacord registry omits #[tauri::command] ${command}`);
 if (!mcp.includes('nie_cli::main_entry_with(["niers", "mcp"])')) failures.push("MCP is not an in-process CLI adapter");
@@ -40,7 +40,7 @@ if (!siteRoutes.length || new Set(siteRoutes).size !== siteRoutes.length) failur
 if (!tauriCommands.length) failures.push("Inacord registry parsed zero commands");
 
 const bySurface = (surface: string) => inventory.entries.filter(entry => entry.surface === surface);
-const expectedCounts = { cli: 44, mcp: 19, inacord: 160, site: 140 };
+const expectedCounts = { cli: 44, mcp: 19, inacord: 160, site: 152 };
 for (const [surface, expected] of Object.entries(expectedCounts)) {
   const entries = bySurface(surface);
   if (entries.length !== expected) failures.push(`${surface}: mapped ${entries.length}, expected ${expected} authoritative entries`);

@@ -34,7 +34,11 @@ import { TextCatalog } from "./TextCatalog";
  * que le menu principal. La page était auparavant rendue sur fond noir, avec ses propres
  * bandeaux et ses propres pastilles — un second thème pour le même site.
  */
-import type { EntreeVfs as VfsEntry, VueCatalogue as CatalogView } from "@niers/asset-source";
+import type {
+	EntreeVfs as VfsEntry,
+	SourceCatalogPage,
+	VueCatalogue as CatalogView,
+} from "@niers/asset-source";
 import {
 	describeFilters,
 	GameCountBadge,
@@ -48,15 +52,16 @@ import {
 	type GameTab,
 	GameTabStrip,
 	GLYPHES,
+	useRouter,
 	useAssetSource,
 	useCapacites as useCapabilities,
 } from "@niers/inacord-ui";
-import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
 import { ExplorerEntries, ExplorerSurface } from "@niers/inacord-ui/explorer/explorer-surface";
 import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-controls";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
-import { entryLabel } from "../entries";
+import { entryLabel, MEDIA } from "../entries";
+import { pathForEntry, splitLanguagePrefix } from "../routing";
 import { agree, Notice, readableSize, ViewTitle } from "./screen-parts";
 import { Modeles3D as Models3D } from "./Models3D";
 import { CatalogAudioBank, CatalogMoviePreview } from "./CatalogMedia";
@@ -78,26 +83,69 @@ const DEFAULT_PAGE_SIZE = 60;
  * indexable — et parce que la mesure du 2026-09-06 a montré que le serveur servait **41 filtres
  * sur 48** dont la page n'utilisait qu'un seul.
  */
-type FilterState = {
+export type FilterState = {
 	q: string;
+	glob: string;
+	prefixe: string;
 	ext: string;
 	sort: "nom" | "taille";
 	order: "asc" | "desc";
+	cpk: string;
+	tailleMin: number | undefined;
+	tailleMax: number | undefined;
 	pageSize: number;
 	page: number;
 };
 
+type AppliedCatalogFilters = NonNullable<SourceCatalogPage<VfsEntry>["filtres"]>;
+
+/** Describe what the server confirms it applied; the local query string is not evidence. */
+function appliedFilterSummary(filters: AppliedCatalogFilters): string[] {
+	const parts: string[] = [];
+	if (filters.q) parts.push(`recherche « ${filters.q} »`);
+	if (filters.glob) parts.push(`glob ${filters.glob}`);
+	if (filters.prefixe) parts.push(`sous-arbre ${filters.prefixe}`);
+	if (filters.ext) parts.push(`extension ${filters.ext}`);
+	if (filters.cpk) parts.push(`CPK ${filters.cpk}`);
+	if (filters.taille_min !== null && filters.taille_min !== undefined) parts.push(`taille ≥ ${filters.taille_min.toLocaleString("fr")} octets`);
+	if (filters.taille_max !== null && filters.taille_max !== undefined) parts.push(`taille ≤ ${filters.taille_max.toLocaleString("fr")} octets`);
+	parts.push(`tri ${filters.tri ?? "nom"} ${filters.ordre === "desc" ? "décroissant" : "croissant"}`);
+	return parts;
+}
+
+function appliedFilterWarnings(filters: AppliedCatalogFilters): string[] {
+	return [
+		filters.ext_inconnue ? "L’extension demandée n’existe pas dans l’index." : null,
+		filters.cpk_inconnu ? "L’archive CPK demandée n’existe pas dans l’index." : null,
+		filters.glob_vide ? "Le motif glob ne retient aucun motif applicable." : null,
+	].filter((message): message is string => message !== null);
+}
+
+/** An unsigned integer carried by a filter URL, or no bound when it is absent/invalid. */
+function optionalSize(value: string | null): number | undefined {
+	if (value === null || value.trim() === "") return undefined;
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
 /** Lit l'état depuis l'URL courante. Une valeur illisible retombe sur son défaut. */
-function filterStateFromUrl(search = window.location.search): FilterState {
+export function filterStateFromUrl(search = window.location.search): FilterState {
 	const params = new URLSearchParams(search);
-	const pageSize = Number(params.get("par_page"));
+	// `par_page` was the first UI spelling. The HTTP contract has always been `per_page`:
+	// accept the former only as input so shared API URLs and browser URLs now agree.
+	const pageSize = Number(params.has("per_page") ? params.get("per_page") : params.get("par_page"));
 	const page = Number(params.get("page"));
 	return {
 		q: params.get("q") ?? "",
+		glob: params.get("glob")?.trim() ?? "",
+		prefixe: params.get("prefixe")?.trim() ?? "",
 		ext: params.get("ext") ?? "",
 		sort: params.get("tri") === "taille" ? "taille" : "nom",
 		order: params.get("ordre") === "desc" ? "desc" : "asc",
-		// `includes` sur la liste servie, jamais la valeur brute : un `par_page=100000` tapé
+		cpk: params.get("cpk")?.trim() ?? "",
+		tailleMin: optionalSize(params.get("taille_min")),
+		tailleMax: optionalSize(params.get("taille_max")),
+		// `includes` sur la liste servie, jamais la valeur brute : un `per_page=100000` tapé
 		// dans la barre d'adresse ne doit pas devenir une promesse que le serveur rabotera.
 		pageSize: PAGE_SIZES.includes(pageSize as (typeof PAGE_SIZES)[number])
 			? pageSize
@@ -116,10 +164,15 @@ function writeUrl(state: FilterState) {
 	const url = new URL(window.location.href);
 	const pairs: [string, string][] = [
 		["q", state.q],
+		["glob", state.glob],
+		["prefixe", state.prefixe],
 		["ext", state.ext],
 		["tri", state.sort === "nom" ? "" : state.sort],
 		["ordre", state.order === "asc" ? "" : state.order],
-		["par_page", state.pageSize === DEFAULT_PAGE_SIZE ? "" : String(state.pageSize)],
+		["cpk", state.cpk],
+		["taille_min", state.tailleMin === undefined ? "" : String(state.tailleMin)],
+		["taille_max", state.tailleMax === undefined ? "" : String(state.tailleMax)],
+		["per_page", state.pageSize === DEFAULT_PAGE_SIZE ? "" : String(state.pageSize)],
 		["page", state.page === 1 ? "" : String(state.page)],
 	];
 	// Un défaut ne s'écrit pas dans l'URL : `?tri=nom&ordre=asc&page=1` est du bruit qui rend
@@ -132,24 +185,111 @@ function writeUrl(state: FilterState) {
 }
 
 /**
- * Les extensions que chaque vue retient — MESURÉES sur le service le 2026-09-07, en lisant les
- * 200 premiers éléments de chaque vue triés dans les deux sens (`textures` → `g4tx`, `sons` →
- * `acb`, `videos` → `usm`). Le catalogue ne publie pas de facettes ; sans cette liste le
- * panneau proposerait les 40 extensions du VFS, dont 37 que la vue refuse (`ext_inconnue`).
+ * Canonical target for a media tab.
+ *
+ * The path owns the selected catalogue. Only filters meaningful to the destination survive;
+ * type-specific filters and the page are dropped when the user changes catalogue.
  */
+export function catalogHrefForView(
+	location: string,
+	nextView: CatalogView,
+	options: { resetPage?: boolean } = {},
+): string {
+	const current = new URL(location, "http://localhost");
+	const prefix = splitLanguagePrefix(current.pathname).prefix;
+	const target = new URL(pathForEntry(prefix, nextView), current.origin);
+	const source = current.searchParams;
+	if (splitLanguagePrefix(current.pathname).route.replace(/^\//, "") === MEDIA) {
+		// The HTTP boundary performs the same migration. Preserve every non-selector pair
+		// verbatim so SSR and client-only hosts produce the identical Location, including repeated
+		// parameters; the destination screen may later discard fields it does not understand.
+		for (const [key, value] of source) if (key !== "vue") target.searchParams.append(key, value);
+		return `${target.pathname}${target.search}`;
+	}
+	const filters = filterStateFromUrl(current.search);
+	if (filters.q) target.searchParams.set("q", filters.q);
+	if (nextView === "modeles") {
+		const family = source.get("famille")?.trim();
+		if (family) target.searchParams.set("famille", family);
+		const rawPageSize = Number(source.has("per_page") ? source.get("per_page") : source.get("par_page"));
+		if (Number.isSafeInteger(rawPageSize) && rawPageSize >= 1 && rawPageSize <= 200) {
+			target.searchParams.set("per_page", String(rawPageSize));
+		}
+	} else {
+		if (filters.glob) target.searchParams.set("glob", filters.glob);
+		if (filters.prefixe) target.searchParams.set("prefixe", filters.prefixe);
+		if (filters.sort !== "nom") target.searchParams.set("tri", filters.sort);
+		if (filters.order !== "asc") target.searchParams.set("ordre", filters.order);
+		if (filters.pageSize !== DEFAULT_PAGE_SIZE) target.searchParams.set("per_page", String(filters.pageSize));
+		if (filters.cpk) target.searchParams.set("cpk", filters.cpk);
+		if (filters.tailleMin !== undefined) target.searchParams.set("taille_min", String(filters.tailleMin));
+		if (filters.tailleMax !== undefined) target.searchParams.set("taille_max", String(filters.tailleMax));
+		const extension = filters.ext;
+		if (extension && EXTENSIONS_BY_VIEW[nextView]?.includes(extension)) {
+			target.searchParams.set("ext", extension);
+		}
+		if (nextView === "textures") {
+			const display = source.get("display");
+			if (display === "gallery" || display === "text") target.searchParams.set("display", display);
+		}
+	}
+	if (options.resetPage === false && filters.page > 1) target.searchParams.set("page", String(filters.page));
+	return `${target.pathname}${target.search}`;
+}
+
+/** Extensions accepted by the three VFS catalogues (`Vue::extensions` on the server). */
 const EXTENSIONS_BY_VIEW: Record<string, readonly string[]> = {
-	textures: ["g4tx"],
-	// Un AWB est le payload d'une banque, pas une piste. Les cues nommés viennent de l'ACB.
-	sons: ["acb"],
-	videos: ["usm"],
+	textures: ["g4tx", "dds", "png"],
+	sons: ["acb", "awb", "hca", "adx", "wav"],
+	videos: ["usm", "mp4", "webm"],
 };
 
 /** Les touches de la page : « F » ouvre les filtres, « X » donne le focus à la recherche. */
 const FILTER_KEY = "f";
 const SEARCH_KEY = "x";
 
-/** Le dialogue FILTRES du jeu, sur les trois réglages que le catalogue sert. */
-function catalogFamilies(view: CatalogView): GameFilterFamily[] {
+type ExtraFilterState = Pick<FilterState, "glob" | "prefixe" | "cpk" | "tailleMin" | "tailleMax">;
+
+/** A free-form server filter presented inside the game's filter-family frame. */
+function filterField(
+	label: string,
+	value: string,
+	onChange: (value: string) => void,
+	options?: { type?: "text" | "number"; placeholder?: string },
+) {
+	return (
+		<label style={{ display: "grid", gap: 6, fontWeight: 700 }}>
+			<span>{label}</span>
+			<input
+				type={options?.type ?? "text"}
+				min={options?.type === "number" ? 0 : undefined}
+				step={options?.type === "number" ? 1 : undefined}
+				value={value}
+				onChange={(event) => onChange(event.currentTarget.value)}
+				placeholder={options?.placeholder}
+				aria-label={label}
+				style={{
+					width: "100%",
+					border: "1px solid var(--jeu-tuile-bord)",
+					borderRadius: "var(--jeu-rayon)",
+					padding: "var(--jeu-espace-s) var(--jeu-espace-m)",
+					background: "var(--jeu-surface-craie)",
+					color: "var(--jeu-nuit-profonde)",
+					font: "inherit",
+				}}
+			/>
+		</label>
+	);
+}
+
+/** Le dialogue FILTRES du jeu, sur tous les réglages que le catalogue sert. */
+function catalogFamilies(
+	view: CatalogView,
+	extra: ExtraFilterState,
+	onExtra: (next: ExtraFilterState) => void,
+): GameFilterFamily[] {
+	const sizeValue = (value: number | undefined) => value === undefined ? "" : String(value);
+	const selectedOption = (value: string, label: string) => value ? [{ value, label }] : [];
 	return [
 		{
 			id: "ext",
@@ -159,6 +299,53 @@ function catalogFamilies(view: CatalogView): GameFilterFamily[] {
 				value: extension,
 				label: extension,
 			})),
+		},
+		{
+			id: "glob",
+			label: "Motif glob",
+			icon: GLYPHES.arbre,
+			options: selectedOption(extra.glob, extra.glob),
+			extra: filterField("Motif glob du jeu", extra.glob, (glob) => onExtra({ ...extra, glob }), {
+				placeholder: "data/dx11/**,!**/movie/**",
+			}),
+		},
+		{
+			id: "prefixe",
+			label: "Sous-arbre VFS",
+			icon: GLYPHES.arbre,
+			options: selectedOption(extra.prefixe, extra.prefixe),
+			extra: filterField("Préfixe VFS", extra.prefixe, (prefixe) => onExtra({ ...extra, prefixe }), {
+				placeholder: "data/dx11/menu",
+			}),
+		},
+		{
+			id: "cpk",
+			label: "Archive CPK",
+			icon: GLYPHES.arbre,
+			options: selectedOption(extra.cpk, extra.cpk),
+			extra: filterField("Nom exact de l’archive CPK", extra.cpk, (cpk) => onExtra({ ...extra, cpk }), {
+				placeholder: "data_1.cpk",
+			}),
+		},
+		{
+			id: "taille_min",
+			label: "Taille minimale",
+			icon: GLYPHES.cube,
+			options: selectedOption(sizeValue(extra.tailleMin), extra.tailleMin === undefined ? "" : `≥ ${extra.tailleMin.toLocaleString("fr")} octets`),
+			extra: filterField("Minimum en octets", sizeValue(extra.tailleMin), (value) => onExtra({ ...extra, tailleMin: optionalSize(value) }), {
+				type: "number",
+				placeholder: "0",
+			}),
+		},
+		{
+			id: "taille_max",
+			label: "Taille maximale",
+			icon: GLYPHES.cube,
+			options: selectedOption(sizeValue(extra.tailleMax), extra.tailleMax === undefined ? "" : `≤ ${extra.tailleMax.toLocaleString("fr")} octets`),
+			extra: filterField("Maximum en octets", sizeValue(extra.tailleMax), (value) => onExtra({ ...extra, tailleMax: optionalSize(value) }), {
+				type: "number",
+				placeholder: "1048576",
+			}),
 		},
 		{
 			id: "tri",
@@ -171,7 +358,7 @@ function catalogFamilies(view: CatalogView): GameFilterFamily[] {
 			],
 		},
 		{
-			id: "par_page",
+			id: "per_page",
 			label: "Par page",
 			icon: GLYPHES.image,
 			options: PAGE_SIZES.filter((size) => size !== DEFAULT_PAGE_SIZE).map((size) => ({
@@ -185,17 +372,27 @@ function catalogFamilies(view: CatalogView): GameFilterFamily[] {
 function panelValue(state: FilterState): GameFilterValue {
 	return {
 		ext: state.ext ? [state.ext] : [],
+		glob: state.glob ? [state.glob] : [],
+		prefixe: state.prefixe ? [state.prefixe] : [],
+		cpk: state.cpk ? [state.cpk] : [],
+		taille_min: state.tailleMin === undefined ? [] : [String(state.tailleMin)],
+		taille_max: state.tailleMax === undefined ? [] : [String(state.tailleMax)],
 		tri:
 			state.sort === "nom" && state.order === "asc" ? [] : [`${state.sort}-${state.order}`],
-		par_page: state.pageSize === DEFAULT_PAGE_SIZE ? [] : [String(state.pageSize)],
+		per_page: state.pageSize === DEFAULT_PAGE_SIZE ? [] : [String(state.pageSize)],
 	};
 }
 
 function stateFromPanel(value: GameFilterValue): Partial<FilterState> {
 	const [sort, order] = (value.tri?.[0] ?? "nom-asc").split("-");
-	const pageSize = Number(value.par_page?.[0] ?? DEFAULT_PAGE_SIZE);
+	const pageSize = Number(value.per_page?.[0] ?? DEFAULT_PAGE_SIZE);
 	return {
 		ext: value.ext?.[0] ?? "",
+		glob: value.glob?.[0]?.trim() ?? "",
+		prefixe: value.prefixe?.[0]?.trim() ?? "",
+		cpk: value.cpk?.[0]?.trim() ?? "",
+		tailleMin: optionalSize(value.taille_min?.[0] ?? null),
+		tailleMax: optionalSize(value.taille_max?.[0] ?? null),
 		sort: sort === "taille" ? "taille" : "nom",
 		order: order === "desc" ? "desc" : "asc",
 		pageSize: PAGE_SIZES.includes(pageSize as (typeof PAGE_SIZES)[number])
@@ -220,21 +417,21 @@ const VIEW_ICONS: Record<string, React.ReactNode> = {
 	videos: GLYPHES.film,
 };
 
-/** Les quatre vues, dans l'ordre où elles s'affichent, avec leur libellé. */
-const VIEWS: { view: CatalogView; label: string }[] = [
-	{ view: "textures", label: "Textures" },
-	{ view: "modeles", label: "Modèles" },
-	{ view: "sons", label: "Sons" },
-	{ view: "videos", label: "Vidéos" },
+/** Les quatre routes, dans l'ordre où la barre d'onglets du jeu les affiche. */
+const VIEWS: readonly (GameTab & { id: CatalogView })[] = [
+	{ id: "textures", label: "Textures", icon: VIEW_ICONS.textures },
+	{ id: "modeles", label: "Modèles", icon: VIEW_ICONS.modeles },
+	{ id: "sons", label: "Sons", icon: VIEW_ICONS.sons },
+	{ id: "videos", label: "Vidéos", icon: VIEW_ICONS.videos },
 ];
 
 /**
  * Les médias — **une seule page**, décidé par l'utilisateur le 2026-09-06.
  *
  * Quatre entrées de menu pour quatre filtres du même index faisaient quatre destinations là où
- * il n'y a qu'une question : *montre-moi ce que le jeu contient, de ce type-là*. Passer des
- * textures aux sons obligeait à repasser par l'accueil, et le filtre en cours était perdu en
- * chemin. La vue est donc un **réglage de la page**, au même titre que le tri.
+ * il n'y a qu'une question : *montre-moi ce que le jeu contient, de ce type-là*. Elles restent
+ * groupées dans une barre, mais leur identité vit dans le CHEMIN : le serveur, l'historique et le
+ * composant lisent ainsi tous la même source de vérité.
  *
  * Les quatre URL (`/textures`, `/modeles`, `/sons`, `/videos`) continuent de mener ici, sur
  * leur vue : casser une adresse publiée pour changer un menu, ce serait payer une décision
@@ -254,60 +451,54 @@ const VIEWS: { view: CatalogView; label: string }[] = [
  */
 export function Catalog({ view: route }: { view: CatalogView }) {
 	const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
-	const params = new URL(location, "http://localhost").searchParams;
-	const requested = params.get("vue");
+	const currentUrl = new URL(location, "http://localhost");
+	const params = currentUrl.searchParams;
+	const hasLegacyView = params.has("vue");
+	const hasLegacyPageSize = params.has("par_page");
+	const currentRoute = splitLanguagePrefix(currentUrl.pathname).route.replace(/^\//, "");
+	const legacyView = currentRoute === MEDIA
+		? params.getAll("vue").reduce<CatalogView | undefined>(
+			(selected, candidate) => VIEWS.some((item) => item.id === candidate) ? candidate as CatalogView : selected,
+			undefined,
+		)
+		: undefined;
+	const router = useRouter();
 	const gallery = params.get("display") === "gallery";
 	const text = params.get("display") === "text";
-	const view = VIEWS.some(item => item.view === requested) ? requested as CatalogView : route;
+	const view = legacyView ?? route;
+
+	// `/medias` is the historical entry to the group, not a fifth catalogue. Its former `?vue=`
+	// value is read exactly once as compatibility input; on canonical paths the path always wins.
+	useEffect(() => {
+		if (currentRoute !== MEDIA && !hasLegacyView && !hasLegacyPageSize) return;
+		const href = catalogHrefForView(location, view, { resetPage: false });
+		if (`${currentUrl.pathname}${currentUrl.search}` !== href) router.replace(href, { scroll: false });
+	}, [currentRoute, currentUrl.pathname, currentUrl.search, hasLegacyPageSize, hasLegacyView, location, router, view]);
 
 	/**
-	 * Change de vue, et n'emporte AUCUN filtre.
+	 * Change de route en conservant seulement les filtres qui gardent le même sens.
 	 *
-	 * `ext=dds` n'a aucun sens sur les sons, et `tri=taille` sur des modèles trie des codes.
-	 * Transporter les filtres donnerait des réglages qui semblent suivre et qui, en réalité,
-	 * changent de sens en chemin.
+	 * `q`, le tri, le CPK et les bornes de taille restent utiles entre catalogues VFS. `ext`,
+	 * `display`, `famille` et `page` sont propres à un type et ne fuient pas vers un autre.
 	 */
 	const setView = (nextView: CatalogView) => {
-		const url = new URL(window.location.href);
-		url.search = `vue=${nextView}`;
-		if (url.href !== window.location.href) writeBrowserHistory(url, window.history.state, "replace");
+		if (nextView === view) return;
+		router.push(catalogHrefForView(location, nextView));
 	};
 
 	return (
 		<>
-			{/*
-			  * La primitive PARTAGÉE, pas un `role="tablist"` réécrit à la main.
-			  *
-			  * `packages/inacord-ui` en expose 37, éprouvées par Inacord, et cet hôte n'en
-			  * utilisait aucune : il redessinait ses contrôles en style inline, écran par écran.
-			  * Ce qu'elle apporte ici et qu'un `<div role>` n'a pas : le déplacement au clavier
-			  * entre onglets, le `aria-controls` posé sur le bon panneau, et l'anneau de focus.
-			  *
-			  * Elle ne s'affiche correctement que parce que Tailwind est désormais branché sur
-			  * cet hôte ET que la palette du jeu est mappée sur les variables de shadcn
-			  * (`base.css`) : sans ce pont, la primitive se rendrait transparente sur
-			  * transparent — visible dans le DOM, invisible à l'écran.
-			  */}
-			<Tabs value={view} onValueChange={(value) => setView(value as CatalogView)}>
-				{/*
-				  * La taille par défaut de la primitive est celle d'Inacord — une application
-				  * dense, aux onglets discrets. Ici c'est le SEUL sélecteur de la page, et le
-				  * bandeau de titre qui le suit fait trois fois sa hauteur : à taille égale, il
-				  * se lisait comme une note de bas de page. La primitive est reprise telle
-				  * quelle, seule son échelle est réglée.
-				  */}
-				<TabsList aria-label="Type de média" className="mb-4 h-auto gap-1 p-1 text-base">
-					{VIEWS.map((item) => (
-						<TabsTrigger
-							key={item.view}
-							value={item.view}
-							className="px-4 py-2 font-bold data-[selected]:font-extrabold"
-						>
-							<GameText>{item.label}</GameText>
-						</TabsTrigger>
-					))}
-				</TabsList>
-			</Tabs>
+			{/* One shared game tab strip: keyboard focus, selected state and the visual material
+			    remain identical to the texture sub-view and the other reconstructed screens. */}
+			<GameTabStrip
+				tabs={VIEWS}
+				value={view}
+				onChange={(value) => setView(value as CatalogView)}
+				previousKey={null}
+				nextKey={null}
+				ariaLabel="Type de média"
+				className="mb-4"
+			/>
 
 			{/*
 			  * The three ways of reading the textures — files, gallery, native texts — are the
@@ -326,6 +517,7 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 					}}
 					previousKey={null}
 					nextKey={null}
+					ariaLabel="Affichage des textures"
 					className="mb-3"
 				/>
 			) : null}
@@ -341,7 +533,7 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 	const state = useMemo(() => filterStateFromUrl(new URL(location, "http://localhost").search), [location]);
 	// The URL owns submitted filters. Reading notifications never writes back an older render.
 	const setState = (update: (current: FilterState) => FilterState) => writeUrl(update(filterStateFromUrl()));
-	const { page, q: filter, ext, sort, order, pageSize } = state;
+	const { page, q: filter, glob, prefixe, ext, sort, order, cpk, tailleMin, tailleMax, pageSize } = state;
 	// Changer de vue remet TOUT à zéro — page comprise : garder la page 900 en passant d'un
 	// catalogue de 904 pages à un catalogue de 4 afficherait un vide que rien n'expliquerait,
 	// et `ext=dds` n'a aucun sens sur les sons.
@@ -356,18 +548,42 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 	const [pages, setPages] = useState(0);
 	const [error, setError] = useState(false);
 	const [loaded, setLoaded] = useState(false);
+	const [appliedFilters, setAppliedFilters] = useState<AppliedCatalogFilters | null>(null);
 	const [requestAttempt, setRequestAttempt] = useState(0);
 	// `saisie` suit le champ, `etat.q` ce qui a ete envoye : sans ce decalage, chaque frappe
 	// declencherait une requete sur 143 246 chemins.
 	const [input, setInput] = useState(state.q);
 	useEffect(() => { setInput(state.q); }, [state.q]);
 	const [panelOpen, setPanelOpen] = useState(false);
+	const [panelExtra, setPanelExtra] = useState<ExtraFilterState>(() => ({
+		glob: state.glob,
+		prefixe: state.prefixe,
+		cpk: state.cpk,
+		tailleMin: state.tailleMin,
+		tailleMax: state.tailleMax,
+	}));
 	const [bankPath, setBankPath] = useState<string | null>(null);
-	const panelFamilies = useMemo(() => catalogFamilies(view), [view]);
-	const filterValue = useMemo(() => panelValue(state), [state]);
+	const openPanel = useCallback(() => {
+		setPanelExtra({
+			glob: state.glob,
+			prefixe: state.prefixe,
+			cpk: state.cpk,
+			tailleMin: state.tailleMin,
+			tailleMax: state.tailleMax,
+		});
+		setPanelOpen(true);
+	}, [state.cpk, state.glob, state.prefixe, state.tailleMax, state.tailleMin]);
+	const panelFamilies = useMemo(
+		() => catalogFamilies(view, panelExtra, setPanelExtra),
+		[panelExtra, view],
+	);
+	const filterValue = useMemo(
+		() => panelValue(panelOpen ? { ...state, ...panelExtra } : state),
+		[panelExtra, panelOpen, state],
+	);
 	const hints = useMemo<GameHint[]>(
-		() => [{ key: FILTER_KEY, label: "Filtres", onActivate: () => setPanelOpen(true) }],
-		[],
+		() => [{ key: FILTER_KEY, label: "Filtres", onActivate: openPanel }],
+		[openPanel],
 	);
 
 	useEffect(() => {
@@ -377,21 +593,32 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 		const ac = new AbortController();
 		setLoaded(false);
 		setError(false);
+		setAppliedFilters(null);
 		source
 			.catalogue(view, {
 				page,
 				parPage: pageSize,
 				q: filter,
+				glob,
+				prefixe,
 				ext,
+				cpk,
+				tailleMin,
+				tailleMax,
 				tri: sort,
 				ordre: order,
 				signal: ac.signal,
 			})
 			.then((response) => {
 				if (ac.signal.aborted) return;
+				if (response.pages > 0 && page > response.pages) {
+					setState((current) => ({ ...current, page: response.pages }));
+					return;
+				}
 				setEntries(response.elements);
 				setTotal(response.total);
 				setPages(response.pages);
+				setAppliedFilters(response.filtres ?? null);
 				setLoaded(true);
 				return undefined;
 			})
@@ -402,7 +629,7 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 				if (!ac.signal.aborted) setError(true);
 			});
 		return () => ac.abort();
-	}, [source, capabilities?.vfs, view, state, page, filter, ext, sort, order, pageSize, requestAttempt]);
+	}, [source, capabilities?.vfs, view, page, filter, glob, prefixe, ext, cpk, tailleMin, tailleMax, sort, order, pageSize, requestAttempt]);
 
 	const title = entryLabel(view);
 
@@ -429,8 +656,8 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 
 			{/* ── La barre du jeu : recherche avec sa touche, bouton FILTRES, effacement ───────
 			    Reprise de `data/menu/bank_character_detail.png` (« X Chercher par nom de joueur »).
-			    L'extension, le tri et la taille de page — les trois réglages que le serveur sert,
-			    plafonnés à 200 — vivent dans le dialogue FILTRES, comme dans la Banque du jeu. */}
+			    Les filtres VFS, les bornes, le tri et la taille de page vivent dans le dialogue
+			    FILTRES, comme dans la Banque du jeu ; la taille de page reste plafonnée à 200. */}
 			<ExplorerSurface
 				error={error ? <>Ce catalogue n’a pas pu être chargé. <button type="button"
 					onClick={() => setRequestAttempt(value => value + 1)}><GameText>Réessayer</GameText></button></> : undefined}
@@ -459,8 +686,8 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 						hotkey={SEARCH_KEY}
 					/>
 				</div>
-				<GameHintBar hints={hints} enabled={!panelOpen} />
-				{filter || ext || sort !== "nom" || order !== "asc" || pageSize !== DEFAULT_PAGE_SIZE ? (
+					<GameHintBar hints={hints} enabled={!panelOpen} />
+				{filter || glob || prefixe || ext || cpk || tailleMin !== undefined || tailleMax !== undefined || sort !== "nom" || order !== "asc" || pageSize !== DEFAULT_PAGE_SIZE ? (
 					<button
 						type="button"
 						onClick={() => {
@@ -468,7 +695,12 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 							setState((current) => ({
 								...current,
 								q: "",
+								glob: "",
+								prefixe: "",
 								ext: "",
+								cpk: "",
+								tailleMin: undefined,
+								tailleMax: undefined,
 								sort: "nom",
 								order: "asc",
 								pageSize: DEFAULT_PAGE_SIZE,
@@ -485,8 +717,25 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 
 			{describeFilters(panelFamilies, filterValue).length > 0 ? (
 				<p style={{ margin: "0 0 var(--jeu-espace-s)", fontSize: "0.9rem", fontWeight: 700 }}>
-					{describeFilters(panelFamilies, filterValue).join(" · ")}
+					Demandé : {describeFilters(panelFamilies, filterValue).join(" · ")}
 				</p>
+			) : null}
+
+			{appliedFilters ? (
+				<div
+					data-catalog-applied-filters
+					aria-live="polite"
+					style={{ margin: "0 0 var(--jeu-espace-s)", fontSize: "0.82rem" }}
+				>
+					<p style={{ margin: 0 }}>
+						Appliqué par l’index : {appliedFilterSummary(appliedFilters).join(" · ")}
+					</p>
+					{appliedFilterWarnings(appliedFilters).map((warning) => (
+						<p key={warning} data-catalog-filter-warning style={{ margin: "var(--jeu-espace-s) 0 0", fontWeight: 800 }}>
+							{warning}
+						</p>
+					))}
+				</div>
 			) : null}
 
 			{panelOpen ? (
@@ -508,6 +757,13 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 					<GameFilterPanel
 						families={panelFamilies}
 						value={filterValue}
+						onReset={() => setPanelExtra({
+							glob: "",
+							prefixe: "",
+							cpk: "",
+							tailleMin: undefined,
+							tailleMax: undefined,
+						})}
 						onConfirm={(value) => {
 							setState((current) => ({ ...current, ...stateFromPanel(value) }));
 							setPanelOpen(false);

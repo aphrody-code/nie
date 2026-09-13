@@ -138,8 +138,10 @@ TypeScript until a screen can adopt the real one.
 compositor. One look at `story_mode_top_menu` showed menu text rendering as kanji. No gate
 caught it: the blitter and its four synthetic tests were wrong by the same amount, so they
 agreed with each other, and the only real-data test fed raw DDS bytes — the one input shape no
-production caller uses. Fixed in `nie_formats::font` (see the commit); every host was affected,
-not just the menu compositor.
+production caller uses. An earlier change attempted to correct `nie_formats::font`, but the
+2026-09-13 real-font fixture is still red (536 alpha pixels observed, 544 expected). The font
+path therefore remains unresolved across every host; no green synthetic fixture upgrades it to
+a visual proof.
 
 Keep that route in the loop. Cross-host comparison, uemu proofs and unit tests all check that
 two implementations AGREE or that a function reproduces measured bytes. None of them asks
@@ -273,7 +275,8 @@ are eyeballed and that uncertainty is larger than the residual.
 And the rows really do start at `x = 0`: in the capture they are full-width bars anchored to the
 LEFT EDGE. So `x = 0` is not merely a faithful export of the file, it is what the game draws. The
 earlier impression that the composed screen looked "scattered" was wrong about placement; what
-was actually wrong was the text (mojibake, fixed) and unresolved shared sprites.
+was actually wrong was the text (the mojibake remains unresolved in the real-font gate) and
+unresolved shared sprites.
 
 That changes the estimate for pillar 3 on this screen: the geometry is there, the ring mapping is
 ported and proven, and the gap is narrower than the composed PNG suggested.
@@ -284,7 +287,8 @@ Composed and inspected: `main_menu`, `story_mode_top_menu`, `chara_bank_menu`, `
 `advent_calendar_menu`, `players_universe_menu`, `ability_learning_board_menu`. Every visible
 anomaly across all seven reduces to one of three already-named causes:
 
-1. **font path** — labels drawn through `font::draw_text` came out as kanji (fixed, cc1e05d3);
+1. **font path** — labels drawn through `font::draw_text` came out as kanji; `cc1e05d3` was an
+   attempted correction, but the 2026-09-13 real-font fixture still fails;
 2. **dummy texture** — the exact-name rule returned a 4×4 placeholder (fixed, e2322fc4);
 3. **runtime placement** — instanced content carries a template pose and the engine spreads it,
    so the composer stacks it (structural, documented above).
@@ -684,39 +688,36 @@ one half of the product only, and **three** files entered Tailwind (`base.css`,
 `desktop/styles.css`, `inacord-web.css`), so the document got three preflights and sixty design
 tokens defined twice — whichever sheet loaded last won, and that depended on the visitor's path.
 
-What the merge establishes:
+The 2026-09-13 convergence lot supersedes the original shell policy above:
 
-- **One shell** (`src/shell/UnifiedShell.tsx`): the workspace's own `Sidebar`, driven by data —
-  the game screens of `entries.ts`, then the workspace views of `desktop/lib/vues.ts`, then the
-  Explorer's places, pins and recents. Top bar, command palette and notifications on every
-  screen. The game at `/` stays unframed and owns the viewport.
-- **One route state**: `useGameNavigation`. A workspace view is a route (`/inacord/<viewId>`),
-  so it is addressable and shareable, and moving between a tool and a game screen is a render,
-  not a page load. Verified in Chromium: a marker set on `window` survives `/bank` → sidebar
-  click → `/inacord/explorer`.
-- **One Explorer**. `pages/ExplorerInacord.tsx` (a reduced copy, with its own tab store and its
-  own `position: fixed` overlay that covered the shell) is gone; `/explorateur`, `/recherche` and
-  `/donnees` open the mature one. `pages/Explorer.tsx`, `pages/DataPanel.tsx` and
-  `pages/PetAphrody.tsx` were already unreachable and went with it.
-- **One Options screen**: `/inacord/settings` is `/settings`, which already carried the
-  workspace's tool actions.
-- **One stylesheet** (`src/app.css`): Tailwind entered once, sources declared once, the three
-  token layers ordered on purpose. One preflight in the built CSS, measured.
-- **One theme owner**: the settings store. `next-themes` still paints the class, but no longer
-  decides — its default (`dark`) and the store's (`system`) were two writers on `<html>`, and
-  merely opening the Options screen adopted one into the other and flipped the product to dark
-  for good.
-- **One TypeScript project**: `tsconfig.desktop.json` is gone, the `exclude` on `src/desktop` with
-  it. `apps/inacord` keeps `src-tauri`, its public assets and its Tauri configuration — it has no
-  frontend of its own.
-- Native-only chrome stops being drawn in a page: the window controls, the resize handles and the
-  job manager (which needs `sqlite_*` Tauri commands and logged an error on every page load), and
-  the MCP bridge no longer dials the READER's `ws://127.0.0.1:8791`.
+- **One route state**: `useGameNavigation`. Public game and reader routes render in place and
+  keep browser history; explicit `/inacord/*` routes preserve the author workspace.
+- **Two deliberate chrome boundaries, not two frontends**: public screens are unframed and own
+  the viewport. Sidebar, top bar, command palette, native bridge, raw CPK/hex/config controls,
+  Lua, mods and RE stay behind `/inacord/*`. The same components receive an explicit read-only
+  or authoring capability instead of being copied.
+- **Four primary public surfaces**: native `chara_edit_menu`, Explorer, 3D editor and Gallery.
+  Explorer, editor and Gallery are direct main-menu actions; Chara Edit is the measured native
+  Avatar control. Secondary catalogues remain reachable without displacing those surfaces.
+  `/modes` is internal and no public mode tile claims to launch a distinct game mode while the
+  WASM runtime still maps those candidates to one kickoff world.
+- **One Explorer owner**. `/explorateur` is its browser/read-only surface; `/recherche` and
+  `/donnees` are purpose-specific readers over the same API contracts. Generic SQLite, physical
+  CPK paths, editing and native context menus remain author-only.
+- **One Settings owner with two capability sets**: public `setting_menu` exposes locale,
+  game locale, density, reduced motion, font scale and UI zoom. `/inacord/settings` keeps the
+  author settings. The public host forces the game-derived light role palette; it offers no
+  second accent or dark theme.
+- **One stylesheet entry** (`src/app.css`) and one shared component library
+  (`packages/inacord-ui`). Tailwind enters once; the public structural roles derive from measured
+  `data/menu` colors. Individual wiki illustrations and elemental/stat colors still require a
+  separate provenance audit and are not claimed to be a single native palette yet.
+- **One TypeScript project**: `tsconfig.desktop.json` is gone. `apps/inacord` keeps only its
+  Tauri host and compatibility entrypoints.
 
-Gates on `vps-203bea89`, 2026-09-12: `bunx tsc --noEmit` clean on the single project and
-`bun run typecheck` clean across the workspace; 164 nie-web tests pass; `vite build` and
-`vite build --mode desktop` both succeed; Chromium checked nine routes against the live
-`nie-site` — shell present, titles correct, no console error but the pre-existing `/bank` 404s.
+The earlier 2026-09-12 gates prove the first frontend merge only. They do not prove the current
+visual lot, WASM parity or Chara Edit completeness; the latter must publish its own test counts,
+browser geometry and `just ecrans` result before release.
 
 ### Inacord distribution lane — 2026-09-09
 
@@ -1036,6 +1037,62 @@ The avatar-editor fixture TypeScript diagnostics were corrected in
 passes. Its targeted test run is 9/10: the remaining Escape-bubbling failure is a separate
 pre-existing happy-dom/React event error (`getNodeFromInstance(null)`), so the editor integration
 gate remains open.
+
+#### Chara Edit portable OC interchange — implemented bounded session slice, 2026-09-13
+
+`nie-data::avatar_reference` now owns import and export of the versioned
+`niers.oc.avatar-document/v1` document. The WASM host is a thin JSON binding: Rust validates the
+slug, optional `cXXXXXXXX` code, complete `AvatarState`, at most 32 references, provenance and
+file metadata before serializing. The document carries filename, byte length and SHA-256 for
+local GLB/PNG references, never the binary payload and never a write into `data/oc`. The
+`nie-ocgen` adapter accepts an embedded typed `Recipe` only when its slug/code match; absence of a
+recipe remains an explicit blocker rather than a guessed filesystem generation.
+
+Chara Edit accepts the real Zukan `?q=` form through `nie_zukan::forge::decode_q`, real Azalée
+`/chara/<slug|code>` links through the canonical character mirror, and direct NIE character
+codes. These player imports are reference-only: their canonical GLB can be viewed/exported, but
+no player is converted into editable parts because no measured recipe mapping exists. Native
+410-bit share codes are decoded only into `rawSlots`, retained as OC provenance, and are not
+mapped onto sorted catalogue categories. Declared GLB/PNG paths are provenance only. A local GLB
+file is admitted by the bounded Rust `nie-render3d` parser; a local PNG is applied only to an
+explicit embedded texture index by `model_replace_texture_glb`, then the resulting GLB is reparsed
+and the exact modified bytes are used for preview/export.
+
+`AvatarProfile` now owns the seven editable base stats (`kick`, `control`, `technique`, `pressure`,
+`physical`, `agility`, `intelligence`). Per-axis maxima were measured with SQLite on 2026-09-13
+from `var/miroir/inagle-2026-09-13T04-14-51.sqlite`: 279, 265, 267, 250, 242, 256 and 279. Rust
+rejects values above those observed bounds. A reference player's stats enter the OC only through
+the explicit “Copier les statistiques vers l’OC” action; loading the reference never mutates the
+editable recipe automatically.
+
+Measured on the local Linux checkout on 2026-09-13: `cargo test` passes 104 `nie-data`, 45
+`nie-render3d`, 3 `nie-ocgen` and 72 `nie-wasm` unit tests; strict native Clippy passes for those
+four crates and target Clippy passes for `nie-wasm` on `wasm32-unknown-unknown`. The complete
+`apps/nie-web` suite passes 290/290 with 1,580 assertions, `packages/inacord-ui` passes 100/100
+with 2,707 assertions, `packages/asset-source` passes 46/46 with 75 assertions, and the root plus
+app TypeScript checks pass. `apps/nie-web/scripts/build-wasm.ts` produced the final canonical
+`nie_wasm_bg.wasm` at 4,778,318 bytes, below the 6 MiB gate. A three-pass adversarial review
+closed URL redirects/origin escapes, bounded streaming and integrity checks, encoded VFS
+traversal, PNG decompression, GLB chunk/geometry/node-graph amplification and share-code aliases;
+its final verdict contains no remaining P0/P1 in that audited slice.
+
+The visual oracle remains red and is not hidden by those functional gates. `just ecrans`, run on
+the same host and date against `crates/engine/nie-render3d/tests/fixtures/menu-oracles.json`,
+rendered 5/8 cases with mean SSIM 0.4333; only 3 were within the 0.02 reference tolerance. The
+individual SSIM results were main menu 0.4426, story 0.4507, alternate main menu 0.4352, advent
+0.4856 and chronicle 0.3526; shop, players universe and ability returned HTTP 504. The real-font
+fixture also remains 536 alpha pixels versus 544 expected. Remaining limits are therefore
+explicit: clothes categories 19–21 still do not alter the assembled GLB, URL/file references are
+session-only, no automatic `data/oc` write exists, and neither pixel parity nor complete
+`nie.exe` equivalence is claimed.
+
+The next CLI convergence lot must remain bindings-only: add import/validate/export commands under
+`crates/tools/nie-cli/src/avatar_cmd.rs` that call `nie_data::avatar_reference`, delegate typed
+generation admission to `nie_ocgen::avatar_document`, GLB/PNG admission and replacement to
+`nie_render3d::glb`, and Zukan query decoding to `nie_zukan::forge`. CLI path handling and output
+formatting belong in `nie-cli`; schema validation, player/share decoding, texture mutation and OC
+generation rules do not. Prove byte-identical OC JSON and GLB outputs between CLI and WASM before
+adding another host surface.
 
 ---
 

@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { AvatarComposition } from "./contract";
+import { INITIAL_AVATAR_STATE, type AvatarComposition } from "./contract";
 import { avatarModelUrl } from "./request";
 
 const composition: AvatarComposition = {
 	pieces: [{ directory: "_bodySK", name: "skeleton" }, { directory: "_facebase", name: "face" }],
 	faceLayers: ["00_face/face_00", "01_eye/eye_01"], morphology: "female", morphologyIndex: 1,
 	skeleton: "skeleton", height: 0, skinColor: "ABCDEF", irisColor: "112233", hairColor: "445566", warnings: [],
+	profile: { ...INITIAL_AVATAR_STATE.profile },
 };
 
 describe("shared avatar HTTP binding", () => {

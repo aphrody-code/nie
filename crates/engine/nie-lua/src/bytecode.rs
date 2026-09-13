@@ -750,7 +750,8 @@ pub fn encode(chunk: &Chunk) -> Vec<u8> {
     w.out.push(chunk.header.size_instruction);
     w.out.push(chunk.header.size_number);
     w.out.push(u8::from(chunk.header.number_is_integral));
-    w.out.extend_from_slice(&[0x19, 0x93, b'\r', b'\n', 0x1A, b'\n']);
+    w.out
+        .extend_from_slice(&[0x19, 0x93, b'\r', b'\n', 0x1A, b'\n']);
     write_prototype(&mut w, &chunk.main);
     w.out
 }

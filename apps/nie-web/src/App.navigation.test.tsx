@@ -12,6 +12,13 @@ let fetchMock: ReturnType<typeof spyOn>;
 const reactEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 const previousActEnvironment = reactEnvironment.IS_REACT_ACT_ENVIRONMENT;
 
+function wasmResponse(url: string): Response | null {
+	if (!url.endsWith("/static/game/nie_wasm_bg.wasm")) return null;
+	return new Response(Bun.file(new URL("../public/static/game/nie_wasm_bg.wasm", import.meta.url)), {
+		headers: { "content-type": "application/wasm" },
+	});
+}
+
 beforeEach(() => {
 	reactEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
 	(window as unknown as { happyDOM: { setURL: (url: string) => void } }).happyDOM.setURL("http://localhost:3000/");
@@ -22,11 +29,8 @@ beforeEach(() => {
 	// Keep the VFS pending: navigation must still expose Return and the Options screen.
 	const respond = Object.assign(async (input: RequestInfo | URL) => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-		if (url.endsWith("/static/game/nie_wasm_bg.wasm")) {
-			return new Response(Bun.file(new URL("../public/static/game/nie_wasm_bg.wasm", import.meta.url)), {
-				headers: { "content-type": "application/wasm" },
-			});
-		}
+		const wasm = wasmResponse(url);
+		if (wasm) return wasm;
 		if (url.endsWith("/api/v1/health")) return Response.json({
 			api: "test",
 			capacites: { vfs: "en_cours", vfs_entrees: 0, vfs_dump: false, vfs_contenu: false, gisement: false, anime: false, bundle: true },
@@ -91,9 +95,10 @@ describe("game navigation in the mounted host", () => {
 			await expectMenu();
 			(pad.buttons[0] as { pressed: boolean }).pressed = false;
 			await tick();
+			await act(async () => container.querySelector<HTMLButtonElement>('[data-host-action="avatar"] button')!.focus());
 			(pad.buttons[0] as { pressed: boolean }).pressed = true;
 			await tick();
-			expect(window.location.pathname).toBe("/setting_menu");
+			expect(window.location.pathname).toBe("/chara_edit_menu");
 		} finally {
 			await act(async () => root?.unmount()); root = null;
 			raf.mockRestore(); cancel.mockRestore();
@@ -105,12 +110,17 @@ describe("game navigation in the mounted host", () => {
 		await mount("/");
 		expect(container.querySelector('[data-opening-phase="loading"]')).not.toBeNull();
 		const requested = (fetchMock.mock.calls as Array<[unknown, ...unknown[]]>).map((call) => String(call[0]));
+		// `ensureWasm` is a process-wide singleton: an earlier route may already have compiled it.
+		// This mount must still start the health oracle and must not pull heavyweight VFS media.
+		expect(requested.some((url: string) => url.includes("/api/v1/health"))).toBeTrue();
 		expect(requested.some((url: string) => url.includes("/video/") || url.includes("/runtime/audio"))).toBeFalse();
 	});
 
 	test("opens the menu directly after the VFS and both databases are ready", async () => {
 		fetchMock.mockImplementation(Object.assign(async (input: RequestInfo | URL) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const wasm = wasmResponse(url);
+			if (wasm) return wasm;
 			if (url.endsWith("/api/v1/health")) return Response.json({
 				api: "v1",
 				capacites: { vfs: "pret", vfs_entrees: 250_800, vfs_dump: false, vfs_contenu: true, gisement: true, anime: true, bundle: true },
@@ -121,6 +131,7 @@ describe("game navigation in the mounted host", () => {
 		await mount("/");
 		await expectMenu();
 		const requested = (fetchMock.mock.calls as Array<[unknown, ...unknown[]]>).map((call) => String(call[0]));
+		expect(requested.some((url: string) => url.includes("/api/v1/health"))).toBeTrue();
 		expect(requested.some((url: string) => url.includes("/video/"))).toBeFalse();
 	});
 
@@ -142,16 +153,30 @@ describe("game navigation in the mounted host", () => {
 		await expectMenu("/ja");
 	});
 
-	test("every direct secondary route keeps an immediate menu return while resources load", async () => {
-		for (const route of ["medias", "chara_edit_menu", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
+	test("every public secondary route is unframed and keeps an immediate menu return", async () => {
+		for (const route of ["medias", "chara_edit_menu", "editor_3d", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
 			await mount(`/${route}`);
-			// The return to the game is the first item of the ONE sidebar (`shell/UnifiedShell.tsx`),
-			// where the secondary shell used to put its `nie` title button.
-			await click('button[title="Jeu"], [data-avatar-control="back"], .inacord-explorer-sidebar button[title="Éditeur"]');
+			expect(container.querySelector(".tool-shell")).toBeNull();
+			expect(container.querySelector('[data-surface-owner="game"]')).not.toBeNull();
+			await click('.game-shell-return, [data-avatar-control="back"]');
 			await expectMenu();
 			await act(async () => root?.unmount());
 			root = createRoot(container);
 		}
+	});
+
+	test("the native title menu directly exposes public features and hides authoring tools", async () => {
+		await mount("/menu");
+		for (const action of ["bank", "gallery", "shop", "avatar", "media", "explorer", "editor", "search", "data", "settings"]) {
+			const button = container.querySelector<HTMLButtonElement>(`button[data-host-action="${action}"], [data-host-action="${action}"] button`);
+			expect(button).not.toBeNull();
+			expect(button?.disabled).toBeFalse();
+		}
+		for (const hidden of ["modes", "inacord", "mods", "lua", "re"]) {
+			expect(container.querySelector(`[data-host-action="${hidden}"]`)).toBeNull();
+		}
+		await click('[data-host-action="bank"] button');
+		expect(window.location.pathname).toBe("/chara_bank_menu");
 	});
 
 	test("browser Back and Forward restore the real menu and Options without replaying loading", async () => {
@@ -175,7 +200,7 @@ describe("game navigation in the mounted host", () => {
 	});
 
 	test("Escape returns every direct secondary route to the menu while resources load", async () => {
-		for (const route of ["medias", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
+		for (const route of ["medias", "editor_3d", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
 			await mount(`/${route}`);
 			await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
 			await expectMenu();

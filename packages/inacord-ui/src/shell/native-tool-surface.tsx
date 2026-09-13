@@ -20,7 +20,7 @@ export function NativeToolSurface({ active, onStateChange }: {
 	const source = useAssetSource();
 	return <svg className="native-tool-surface" aria-hidden="true"
 		data-native-presentation="host-row-material"
-		viewBox={`0 0 ${NATIVE_TOOL_ROW.width} ${NATIVE_TOOL_ROW.height}`} preserveAspectRatio="none">
+		viewBox={`0 0 ${NATIVE_TOOL_ROW.width} ${NATIVE_TOOL_ROW.height}`} preserveAspectRatio="xMidYMid slice">
 		<foreignObject width={NATIVE_TOOL_ROW.width} height={NATIVE_TOOL_ROW.height}>
 			<div style={{ position: "relative", width: NATIVE_TOOL_ROW.width, height: NATIVE_TOOL_ROW.height }}>
 				<NativeSprite source={source} assetPath={NATIVE_TOOL_ROW.assetPath}

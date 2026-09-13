@@ -83,6 +83,19 @@ async function list(args: Arguments) {
 	};
 }
 
+/** Read every direct file page while retaining the folder structure returned on each page. */
+async function completeFolder(prefix: string): Promise<ApiFolder> {
+	const perPage = 200;
+	const first = await folder(prefix, perPage, 0);
+	const files = [...first.fichiers];
+	for (let offset = perPage; offset < first.total_fichiers; offset += perPage) {
+		const page = await folder(prefix, perPage, offset);
+		files.push(...page.fichiers);
+		if (page.fichiers.length === 0) break;
+	}
+	return { ...first, fichiers: files };
+}
+
 async function search(args: Arguments, paged: boolean) {
 	const limit = positive(args.limit, 200);
 	const offset = paged ? nonNegative(args.offset) : 0;
@@ -100,7 +113,7 @@ async function entryMeta(args: Arguments) {
 	const full = text(args.path).replace(/^\/+/u, "");
 	const cut = full.lastIndexOf("/");
 	const parent = cut < 0 ? "" : full.slice(0, cut);
-	const response = await folder(parent, 20_000, 0);
+	const response = await completeFolder(parent);
 	const found = response.fichiers.find(file => file.chemin === full);
 	return found ? entry(found) : null;
 }
@@ -117,7 +130,7 @@ async function allEntries(): Promise<Array<ReturnType<typeof entry>>> {
 	const queue = [""];
 	while (queue.length > 0 && out.length < 400_000) {
 		const prefix = queue.shift() ?? "";
-		const response = await folder(prefix, 20_000, 0);
+		const response = await completeFolder(prefix);
 		for (const file of response.fichiers) out.push(entry(file));
 		queue.push(...response.dossiers);
 	}
@@ -395,7 +408,13 @@ export function invoke<T>(command: string, args: Arguments = {}): Promise<T> {
 				: Promise.reject("Chemin introuvable dans l’index VFS."));
 			break;
 		case "vfs_related":
-			result = getJson(`/api/v1/resources/related/${path({ path: args.needle })}?${new URLSearchParams({ limit: String(positive(args.limit, 50)) })}`)
+			result = getJson((() => {
+				const query = new URLSearchParams();
+				const locale = text(args.locale).trim();
+				if (locale) query.set("locale", locale);
+				const suffix = query.toString();
+				return `/api/v1/resources/related/${path({ path: args.needle })}${suffix ? `?${suffix}` : ""}`;
+			})())
 				.then(payload => array(Array.isArray(payload) ? payload : record(payload).fichiers ?? record(payload).entries ?? record(payload).related)
 					.map(item => { const it = record(item); return entry({ chemin: text(it.chemin ?? it.path), nom: text(it.nom ?? it.name), taille: typeof it.taille === "number" ? it.taille : typeof it.size === "number" ? it.size : 0, cpk: text(it.cpk) }); }));
 			break;
@@ -466,7 +485,7 @@ export function invoke<T>(command: string, args: Arguments = {}): Promise<T> {
 					written += 1;
 					bytes += data.byteLength;
 				}
-				return { count: written, bytes, dest: dir?.name ?? "téléchargements" };
+				return { ecrits: written, octets: bytes, echecs: [] };
 			})();
 			break;
 		}
@@ -480,14 +499,14 @@ export function invoke<T>(command: string, args: Arguments = {}): Promise<T> {
 		case "lua_disassemble": result = getJson(`/api/v1/lua/desassemblage/${path(args)}`); break;
 
 		// --- 3D services ------------------------------------------------------
-		case "model_service_avatar_catalog": result = getJson("/api/v1/3d/modeles"); break;
+		case "model_service_avatar_catalog": result = getJson("/assets/avatar/catalog.json"); break;
 		case "model_service_avatar_glb_b64": {
 			const model = text(args.modelPath);
 			const [family, file] = model.includes("/") ? [model.slice(0, model.indexOf("/")), model.slice(model.indexOf("/") + 1)] : ["chara", model];
 			result = getBase64(`/model/${encodeURIComponent(family)}/${encodeURIComponent(file)}`);
 			break;
 		}
-		case "model_service_menu_png_b64": result = getBase64(`/api/v1/menu/runtime/${encodeURIComponent(text(args.screen))}?format=png`); break;
+		case "model_service_menu_png_b64": result = getBase64(`/api/v1/menu/render/${encodeURIComponent(text(args.screen))}`); break;
 
 		// --- Aphrody pet -------------------------------------------------------
 		case "aphrody_pet_etat": result = getJson("/pet/aphrody.json"); break;

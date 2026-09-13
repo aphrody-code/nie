@@ -16,7 +16,6 @@
  * L'installation de l'application web (`beforeinstallprompt`) vient de la modale : c'est le seul
  * geste qu'elle offrait et que cette page n'avait pas.
  */
-import { Button, Card, CardContent, Divider } from "@aphrody/spaceui";
 import { useEffect, useMemo, useState } from "react";
 import { formatBytes, normalizeCatalog, type DownloadItem, type ProductKind } from "./catalog";
 
@@ -40,8 +39,8 @@ function Artifact({ item }: { item: DownloadItem }) {
 	const meta = [item.platform, item.architecture, item.version ? `v${item.version.replace(/^v/u, "")}` : undefined, formatBytes(item.bytes)]
 		.filter(Boolean)
 		.join(" · ");
-	return <Card className="artifact" role="listitem">
-		<CardContent className="artifact__content">
+	return <article className="artifact" role="listitem">
+		<div className="artifact__content">
 			<div className="artifact__heading">
 				<span className="artifact__kind">{groupNames[item.kind]}</span>
 				<h2>{item.name}</h2>
@@ -49,14 +48,14 @@ function Artifact({ item }: { item: DownloadItem }) {
 			{meta && <p className="artifact__meta">{meta}</p>}
 			{item.description && <p className="artifact__description">{item.description}</p>}
 			{item.sha256 && <details><summary>SHA-256</summary><code>{item.sha256}</code></details>}
-		</CardContent>
+		</div>
 		<div className="artifact__actions">
 			{item.status === "available" && item.url
-				? <Button href={item.url} variant="accent" size="md" rounding="full">Télécharger <span aria-hidden="true">↓</span></Button>
+				? <a href={item.url} className="game-button-primary"><span>Télécharger <span aria-hidden="true">↓</span></span></a>
 				: <span className="artifact__status">{item.status === "planned" ? "Prévu" : "Indisponible"}</span>}
-			{item.signatureUrl && <Button href={item.signatureUrl} variant="bare" size="xs">Signature</Button>}
+			{item.signatureUrl && <a href={item.signatureUrl} className="game-button-secondary"><span>Signature</span></a>}
 		</div>
-	</Card>;
+	</article>;
 }
 
 /**
@@ -88,10 +87,9 @@ function InstallWebApp() {
 	if (installed) return <p className="artifact__status">Application web installée.</p>;
 	if (!prompt) return null;
 	return (
-		<Button
-			variant="gray"
-			size="md"
-			rounding="full"
+		<button
+			type="button"
+			className="game-button-secondary"
 			onClick={async () => {
 				await prompt.prompt();
 				const choice = await prompt.userChoice;
@@ -99,8 +97,8 @@ function InstallWebApp() {
 				setPrompt(null);
 			}}
 		>
-			Installer l’application web
-		</Button>
+			<span>Installer l’application web</span>
+		</button>
 	);
 }
 
@@ -143,15 +141,13 @@ export default function DownloadPage() {
 				autour de cette page.
 			</p>
 			<div className="hero__actions"><InstallWebApp /></div>
-			{state === "loading" && <Card className="notice" role="status">Chargement du catalogue…</Card>}
-			{state === "error" && <Card className="notice notice--error" role="alert"><strong>Catalogue temporairement inaccessible.</strong><span>Aucun lien non vérifié n’est affiché.</span></Card>}
+			{state === "loading" && <div className="notice" role="status">Chargement du catalogue…</div>}
+			{state === "error" && <div className="notice notice--error" role="alert"><strong>Catalogue temporairement inaccessible.</strong><span>Aucun lien non vérifié n’est affiché.</span></div>}
 			{state === "ready" && <div className="artifact-grid" role="list">
 				{sortedItems.map(item => <Artifact key={item.id} item={item}/>)}
-				{sortedItems.length === 0 && <Card className="notice">Aucun artefact publié.</Card>}
+				{sortedItems.length === 0 && <div className="notice">Aucun artefact publié.</div>}
 			</div>}
 		</section>
-
-		<Divider />
 
 		<section className="quickstart" id="docs">
 			<div className="section-heading"><h2>Docs rapides</h2><p>Commencer sans détour.</p></div>

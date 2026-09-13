@@ -1,0 +1,174 @@
+import { describe, expect, spyOn, test } from "bun:test";
+import type { AssetSource } from "@niers/asset-source";
+import {
+	createWebGalleryServices,
+	webGalleryFiltersForCategory,
+	webGalleryFiltersFromUrl,
+	webGalleryHrefForFilters,
+	webGalleryTextureHref,
+} from "./WebGallery";
+
+describe("createWebGalleryServices", () => {
+	test("round-trips q, categorie and dossier while preserving the public gallery surface", () => {
+		const href = webGalleryHrefForFilters("https://nie.test/gallery_menu?display=gallery&stale=1", {
+			query: "portrait",
+			category: "gallery_img2",
+			subfolder: "fr",
+		});
+		expect(href).toBe("/gallery_menu?display=gallery&stale=1&q=portrait&categorie=gallery_img2&dossier=fr");
+		expect(webGalleryFiltersFromUrl(href)).toEqual({
+			query: "portrait",
+			category: "gallery_img2",
+			subfolder: "fr",
+		});
+		expect(webGalleryFiltersForCategory(webGalleryFiltersFromUrl(href), "gallery_img2").subfolder).toBe("fr");
+		expect(webGalleryFiltersForCategory(webGalleryFiltersFromUrl(href), "ev_pic").subfolder).toBeNull();
+	});
+
+	test("opens an asset in the canonical localized texture catalogue", () => {
+		expect(webGalleryTextureHref("https://nie.test/gallery_menu?display=gallery&categorie=ev_pic", "data/dx11/menu/a.g4tx"))
+			.toBe("/textures?q=data%2Fdx11%2Fmenu%2Fa.g4tx");
+		expect(webGalleryTextureHref("https://nie.test/ja/gallery_menu?display=gallery", "data/dx11/menu/a.g4tx"))
+			.toBe("/ja/textures?q=data%2Fdx11%2Fmenu%2Fa.g4tx");
+	});
+
+	test("exports the decoded texture through a PNG download", async () => {
+		const fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(new Response(new Blob(["png"]), { status: 200 }));
+		const createUrl = spyOn(URL, "createObjectURL").mockReturnValue("blob:gallery-export");
+		const revokeUrl = spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+		const timer = spyOn(globalThis, "setTimeout").mockImplementation(((handler: TimerHandler) => {
+			if (typeof handler === "function") handler();
+			return 0;
+		}) as typeof setTimeout);
+		const downloaded: { current: { href: string; name: string } | null } = { current: null };
+		const anchorPrototype = Object.getPrototypeOf(document.createElement("a")) as HTMLAnchorElement;
+		const click = spyOn(anchorPrototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+			downloaded.current = { href: this.href, name: this.download };
+		});
+		try {
+			const source = { urlTexture: () => "/api/v1/texture/a" } as unknown as AssetSource;
+			await createWebGalleryServices(source).exportPng("data/menu/gallery/example.g4tx");
+			expect(fetchMock).toHaveBeenCalledWith("/api/v1/texture/a");
+			expect(downloaded.current).toEqual({ href: "blob:gallery-export", name: "example.png" });
+			expect(revokeUrl).toHaveBeenCalledWith("blob:gallery-export");
+		} finally {
+			click.mockRestore();
+			timer.mockRestore();
+			revokeUrl.mockRestore();
+			createUrl.mockRestore();
+			fetchMock.mockRestore();
+		}
+	});
+
+	test("lists an exact prefix through one bounded catalogue page", async () => {
+		const calls: Array<Record<string, unknown>> = [];
+		const source = {
+			catalogue: async (_view: string, options: Record<string, unknown>) => {
+				calls.push(options);
+				return {
+					elements: [{ chemin: "data/dx11/menu/220_img/gallery_img2/a.g4tx", nom: "a.g4tx", taille: 42 }],
+					page: 2,
+					per_page: 60,
+					total: 121,
+					pages: 3,
+					filtres: {},
+				};
+			},
+		} as unknown as AssetSource;
+
+		const page = await createWebGalleryServices(source).findPaged(
+			"data/dx11/menu/220_img/gallery_img2",
+			"g4tx",
+			60,
+			60,
+		);
+
+		expect(calls).toEqual([{
+			prefixe: "data/dx11/menu/220_img/gallery_img2",
+			ext: "g4tx",
+			page: 2,
+			parPage: 60,
+		}]);
+		expect(page).toEqual({
+			files: [{ path: "data/dx11/menu/220_img/gallery_img2/a.g4tx", size: 42 }],
+			total: 121,
+			offset: 60,
+		});
+	});
+
+	test("never asks the site for more than its 200-row bound", async () => {
+		let requested: Record<string, unknown> | undefined;
+		const source = {
+			catalogue: async (_view: string, options: Record<string, unknown>) => {
+				requested = options;
+				return { elements: [], page: 1, per_page: 200, total: 0, pages: 0, filtres: {} };
+			},
+		} as unknown as AssetSource;
+
+		await createWebGalleryServices(source).findPaged("data/dx11/menu/220_img", "g4tx", 30_000, 0);
+		expect(requested?.parPage).toBe(200);
+		expect(requested).not.toHaveProperty("q");
+	});
+
+	test("passes the visible query to the full server collection", async () => {
+		let requested: Record<string, unknown> | undefined;
+		const source = {
+			catalogue: async (_view: string, options: Record<string, unknown>) => {
+				requested = options;
+				return { elements: [], dossiers: [], total: 0 };
+			},
+		} as unknown as AssetSource;
+		await createWebGalleryServices(source).findPaged("data/dx11/menu/220_img", "g4tx", 60, 0, undefined, "  goal  ");
+		expect(requested?.q).toBe("goal");
+	});
+
+	test("finds a gallery asset by its localized visible name", async () => {
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = Object.assign(async (input: RequestInfo | URL) => {
+			expect(String(input)).toContain("/api/v1/wiki/names/search?");
+			return Response.json({ records: [{ code: "c01000100" }] });
+		}, { preconnect: originalFetch.preconnect });
+		try {
+			const source = {
+				catalogue: async (_view: string, options: { q?: string }) => options.q === "Marc"
+					? { elements: [], total: 0, pages: 0 }
+					: { elements: [{ chemin: "data/dx11/menu/220_img/gallery_img2/c01000100.g4tx", taille: 42 }], total: 1, pages: 1 },
+			} as unknown as AssetSource;
+			const page = await createWebGalleryServices(source, undefined, "fr").findPaged(
+				"data/dx11/menu/220_img/gallery_img2", "g4tx", 60, 0, undefined, "Marc",
+			);
+			expect(page.files.map(file => file.path)).toEqual([
+				"data/dx11/menu/220_img/gallery_img2/c01000100.g4tx",
+			]);
+			expect(page.total).toBe(1);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	test("bounds localized-name expansion and forwards cancellation to every request", async () => {
+		const originalFetch = globalThis.fetch;
+		const controller = new AbortController();
+		let catalogueCalls = 0;
+		globalThis.fetch = Object.assign(async (_input: RequestInfo | URL, init?: RequestInit) => {
+			expect(init?.signal).toBe(controller.signal);
+			return Response.json({ records: Array.from({ length: 30 }, (_, index) => ({ code: `c${index}` })) });
+		}, { preconnect: originalFetch.preconnect });
+		try {
+			const source = {
+				catalogue: async (_view: string, options: { signal?: AbortSignal }) => {
+					catalogueCalls += 1;
+					expect(options.signal).toBe(controller.signal);
+					return { elements: [], total: 0, pages: 0 };
+				},
+			} as unknown as AssetSource;
+			await createWebGalleryServices(source).findPaged(
+				"data/dx11/menu/220_img", "g4tx", 60, 0, undefined, "Marc", controller.signal,
+			);
+			// One native-path query plus at most twelve exact-code expansions.
+			expect(catalogueCalls).toBe(13);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+});

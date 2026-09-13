@@ -13,6 +13,8 @@ export interface LoadingProps {
 	health: SiteHealth | null;
 	/** Whether the host failed to reach its resources at all. */
 	failed?: boolean;
+	/** Retry the failed WASM readiness request without reloading the page. */
+	onRetry?: () => void;
 }
 
 /**
@@ -28,12 +30,13 @@ export function loadingFallbackMessage(health: SiteHealth | null, failed: boolea
 }
 
 /** Renders the real loading layout, or a neutral factual failure state. */
-export function Loading({ health, failed = false }: LoadingProps) {
+export function Loading({ health, failed = false, onRetry }: LoadingProps) {
 	const fallback = loadingFallbackMessage(health, failed);
 	if (fallback) {
 		return (
 			<div role="alert" style={FALLBACK_STYLE}>
-				{fallback}
+				<span>{fallback}</span>
+				{onRetry ? <button type="button" onClick={onRetry}>Réessayer</button> : null}
 			</div>
 		);
 	}
@@ -44,6 +47,7 @@ export function Loading({ health, failed = false }: LoadingProps) {
 const LOADING_STYLE: CSSProperties = {
 	height: "100%",
 	display: "grid",
+	gap: "0.75rem",
 	placeItems: "center",
 	background: "#000",
 	color: "#fff",

@@ -21,7 +21,7 @@ export function TopBar({
 }) {
   return (
     <div
-      className="absolute top-0 z-[60] h-12"
+      className="game-host-topbar absolute top-0 z-[60] h-12"
       data-tauri-drag-region
       style={{ left: sidebarWidth, right: 0 }}
     >
@@ -43,7 +43,7 @@ export function TopBar({
         <button
           type="button"
           onClick={onOpenPalette}
-          className="flex shrink-0 items-center gap-1.5 rounded-md border border-app-line bg-app-box/60 px-2.5 py-1 text-xs text-ink-faint transition-colors hover:bg-app-hover hover:text-ink-dull"
+          className="flex shrink-0 items-center gap-1.5 rounded-md border border-app-line bg-app-box/60 px-2.5 py-1 text-xs text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
         >
           <Icon name="search" size={13} />
           <span>Rechercher…</span>

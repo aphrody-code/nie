@@ -18,13 +18,14 @@
  *
  * ## Les touches — toutes branchées, ou pas dessinées
  *
- * `Tab` remet tout à « Tout », `Entrée` et `Alt` confirment, `V` bascule la famille courante,
+ * `R` remet tout à « Tout », `Entrée` et `Alt` confirment, `V` bascule la famille courante,
  * `W`/`C` changent de famille, `Escape` ferme sans appliquer, et les flèches parcourent la
  * grille en colonnes comme dans le jeu (la lecture y est verticale : Vent, Feu | Forêt,
  * Montagne). Chaque guide affiché est un bouton qui fait la même chose à la souris.
  *
- * `Tab` est détourné SEULEMENT dans le panneau : c'est le geste du jeu et il est annoncé en
- * pied, mais les flèches et `Escape` restent disponibles pour circuler et sortir.
+ * Sur le Web, `Tab` et `Maj+Tab` gardent leur contrat d'accessibilité et restent enfermés dans
+ * le dialogue. Le raccourci natif est donc exposé sur `R`, à côté du bouton visible, au lieu de
+ * rendre les commandes du panneau inaccessibles au clavier.
  */
 import { type CSSProperties, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import { GameCheck } from "./GameCheck";
@@ -90,6 +91,7 @@ export function GameFilterPanel({
 	value,
 	onConfirm,
 	onClose,
+	onReset,
 	count,
 	total,
 	countUnit,
@@ -105,6 +107,8 @@ export function GameFilterPanel({
 	onConfirm: (value: GameFilterValue) => void;
 	/** Fermer sans appliquer (`Escape`, ou un clic hors du panneau chez l'appelant). */
 	onClose?: () => void;
+	/** Synchronise les contrôles libres rendus par `family.extra` avec le reset du brouillon. */
+	onReset?: () => void;
 	/** Le compte retenu par le BROUILLON, si l'appelant sait le mesurer ; sinon par la valeur appliquée. */
 	count?: number;
 	total?: number;
@@ -123,6 +127,7 @@ export function GameFilterPanel({
 	const [cursor, setCursor] = useState(-1);
 	const inputs = useRef<(HTMLInputElement | null)[]>([]);
 	const panel = useRef<HTMLElement | null>(null);
+	const previousFocus = useRef<HTMLElement | null>(null);
 
 	// Un nouvel état appliqué de l'extérieur (l'URL, un « Effacer ») remplace le brouillon.
 	useEffect(() => setDraft(value), [value]);
@@ -130,16 +135,22 @@ export function GameFilterPanel({
 	const family = useMemo(() => families.find((f) => f.id === familyId) ?? families[0], [families, familyId]);
 	const rows = family ? Math.ceil(family.options.length / 2) : 0;
 
-	useEffect(() => {
-		// Le curseur suit le focus, et le focus suit le curseur : l'un ou l'autre peut bouger en
-		// premier (souris, flèches), les deux racontent la même chose.
-		inputs.current[cursor + 1]?.focus();
-	}, [cursor]);
-
 	// Au montage, le focus entre dans le dialogue sur « Tout » : c'est là que le jeu pose son curseur.
 	useEffect(() => {
+		previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		inputs.current[0]?.focus();
+		return () => {
+			const target = previousFocus.current;
+			if (target?.isConnected) target.focus();
+		};
 	}, []);
+
+	useEffect(() => {
+		// Le curseur suit le focus, et le focus suit le curseur : l'un ou l'autre peut bouger en
+		// premier (souris, flèches), les deux racontent la même chose. Cette synchronisation vient
+		// après la capture du focus extérieur pour ne jamais mémoriser une case du dialogue.
+		inputs.current[cursor + 1]?.focus();
+	}, [cursor]);
 
 	if (!family) return null;
 
@@ -150,8 +161,22 @@ export function GameFilterPanel({
 		setDraft((d) => ({ ...d, [family.id]: all || first === undefined ? [] : [first] }));
 	};
 	const toggleAll = () => setAll(!isAll(draft, family.id));
-	const reset = () => setDraft(Object.fromEntries(families.map((f) => [f.id, []])));
-	const confirm = () => onConfirm(draft);
+	const reset = () => {
+		setDraft(Object.fromEntries(families.map((f) => [f.id, []])));
+		onReset?.();
+	};
+	const restorePreviousFocus = () => {
+		const target = previousFocus.current;
+		if (target?.isConnected) target.focus();
+	};
+	const confirm = () => {
+		onConfirm(draft);
+		restorePreviousFocus();
+	};
+	const close = () => {
+		onClose?.();
+		restorePreviousFocus();
+	};
 	const step = (delta: number) => {
 		const i = families.findIndex((f) => f.id === family.id);
 		const next = families[(i + delta + families.length) % families.length];
@@ -167,11 +192,27 @@ export function GameFilterPanel({
 			event.preventDefault();
 			setCursor(Math.max(-1, Math.min(n - 1, to)));
 		};
+		// Tab keeps the modal focus trap; Enter/Alt confirm and Escape closes from every target.
+		// Editable controls get their remaining keys before the game's grid navigation so arrows
+		// retain their native caret/number-step behaviour and ordinary letters remain editable.
 		switch (event.key) {
-			case "Tab":
-				event.preventDefault();
-				reset();
+			case "Tab": {
+				const focusable = Array.from(
+					panel.current?.querySelectorAll<HTMLElement>(
+						'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]',
+					) ?? [],
+				).filter((element) => element.tabIndex >= 0);
+				const first = focusable[0];
+				const last = focusable.at(-1);
+				if (event.shiftKey && document.activeElement === first && last) {
+					event.preventDefault();
+					last.focus();
+				} else if (!event.shiftKey && document.activeElement === last && first) {
+					event.preventDefault();
+					first.focus();
+				}
 				return;
+			}
 			case "Enter":
 			case "Alt":
 				event.preventDefault();
@@ -179,8 +220,13 @@ export function GameFilterPanel({
 				return;
 			case "Escape":
 				event.preventDefault();
-				onClose?.();
+				close();
 				return;
+			default:
+				break;
+		}
+		if (isEditableTarget(event.target) && !(event.target instanceof HTMLInputElement && event.target.type === "checkbox")) return;
+		switch (event.key) {
 			case "ArrowDown":
 				// De « Tout » on descend sur la première ; en bas d'une colonne on s'arrête.
 				if (cursor === -1) return move(0);
@@ -197,8 +243,10 @@ export function GameFilterPanel({
 			default:
 				break;
 		}
-		if (isEditableTarget(event.target) && !(event.target instanceof HTMLInputElement && event.target.type === "checkbox")) return;
-		if (keyMatches(event, "v")) {
+		if (keyMatches(event, "r")) {
+			event.preventDefault();
+			reset();
+		} else if (keyMatches(event, "v")) {
 			event.preventDefault();
 			toggleAll();
 		} else if (keyMatches(event, "w")) {
@@ -227,6 +275,7 @@ export function GameFilterPanel({
 			onKeyDown={onKeyDown}
 			header={
 				<GameTabStrip
+					ariaLabel="Familles de filtres"
 					tabs={families}
 					value={family.id}
 					onChange={(id) => {
@@ -238,7 +287,7 @@ export function GameFilterPanel({
 			watermark={family.watermark}
 			footer={
 				<>
-					<GameKeyHint keyLabel="Tab" onActivate={reset} className="game-button-secondary">
+					<GameKeyHint keyLabel="R" onActivate={reset} className="game-button-secondary">
 						Réinitialiser
 					</GameKeyHint>
 					<GameKeyHint keyLabel="Alt" onActivate={confirm} className="game-button-primary">

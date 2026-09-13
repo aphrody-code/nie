@@ -140,8 +140,9 @@ type Visibilite = std::collections::BTreeMap<u32, bool>;
 /// 2026-09-12 sur `chara_bank_menu` : le replay seul coûte 0,19 s — ce n'est PAS lui qui domine
 /// les 2,5 s du layout servi (le parsing `objbin`/`g4pkm`/`g4tx` de chaque objet les porte, et ce
 /// coût-là précède cette jointure). Le cache est borné par le nombre d'écrans demandés.
-static VISIBILITE: OnceLock<std::sync::Mutex<std::collections::HashMap<(String, String), Visibilite>>> =
-    OnceLock::new();
+static VISIBILITE: OnceLock<
+    std::sync::Mutex<std::collections::HashMap<(String, String), Visibilite>>,
+> = OnceLock::new();
 
 /// La visibilité RÉSOLUE de chaque objet d'un écran, par identifiant runtime.
 ///

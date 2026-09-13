@@ -1560,7 +1560,7 @@
       "entry": "game_data_skills",
       "capability": "game-data-skills",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_skills delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1568,11 +1568,11 @@
           "game_data::list_skills"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_skills"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1582,7 +1582,7 @@
       "entry": "game_data_items",
       "capability": "game-data-items",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_items delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1590,11 +1590,11 @@
           "game_data::list_items"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_items"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1604,7 +1604,7 @@
       "entry": "game_data_auras",
       "capability": "game-data-auras",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_auras delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1612,11 +1612,11 @@
           "game_data::list_auras"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_auras"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1626,7 +1626,7 @@
       "entry": "game_data_trophies",
       "capability": "game-data-trophies",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_trophies delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1634,11 +1634,11 @@
           "game_data::list_trophies"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_trophies"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1648,7 +1648,7 @@
       "entry": "game_data_quests",
       "capability": "game-data-quests",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_quests delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1656,11 +1656,11 @@
           "game_data::list_quests"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_quests"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1670,7 +1670,7 @@
       "entry": "game_data_shops",
       "capability": "game-data-shops",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_shops delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1678,11 +1678,11 @@
           "game_data::list_shops"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_shops"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1692,7 +1692,7 @@
       "entry": "game_data_stadiums",
       "capability": "game-data-stadiums",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_stadiums delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1700,11 +1700,11 @@
           "game_data::list_stadiums"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_stadiums"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1714,7 +1714,7 @@
       "entry": "game_data_passives",
       "capability": "game-data-passives",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_passives delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1722,11 +1722,11 @@
           "game_data::list_passives"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_passives"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1736,7 +1736,7 @@
       "entry": "game_data_special_tactics",
       "capability": "game-data-special-tactics",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_special_tactics delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1744,11 +1744,11 @@
           "game_data::list_special_tactics"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_special_tactics"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1758,7 +1758,7 @@
       "entry": "game_data_emblems",
       "capability": "game-data-emblems",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_emblems delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1766,11 +1766,11 @@
           "game_data::list_emblems"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_emblems"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1780,7 +1780,7 @@
       "entry": "game_data_gallery",
       "capability": "game-data-gallery",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_gallery delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1788,11 +1788,11 @@
           "game_data::list_gallery"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_gallery"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1802,7 +1802,7 @@
       "entry": "game_data_tricks",
       "capability": "game-data-tricks",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_tricks delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1810,11 +1810,11 @@
           "game_data::list_tricks"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_tricks"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1824,7 +1824,7 @@
       "entry": "game_data_activities",
       "capability": "game-data-activities",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_activities delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1832,11 +1832,11 @@
           "game_data::list_activities"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_activities"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1846,7 +1846,7 @@
       "entry": "game_data_belong_teams",
       "capability": "game-data-belong-teams",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_belong_teams delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1854,11 +1854,11 @@
           "game_data::list_belong_teams"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_belong_teams"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1868,7 +1868,7 @@
       "entry": "game_data_formations",
       "capability": "game-data-formations",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_formations delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1876,11 +1876,11 @@
           "game_data::list_formations"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_formations"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1890,7 +1890,7 @@
       "entry": "game_data_uniforms",
       "capability": "game-data-uniforms",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_uniforms delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1898,11 +1898,11 @@
           "game_data::list_uniforms"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_uniforms"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1912,7 +1912,7 @@
       "entry": "game_data_chara_picker",
       "capability": "game-data-chara-picker",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_chara_picker delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1920,11 +1920,11 @@
           "game_data::list_chara_picker"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_chara_picker"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1934,7 +1934,7 @@
       "entry": "game_data_charas",
       "capability": "game-data-charas",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_charas delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1942,11 +1942,11 @@
           "game_data::list_charas"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_charas"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1956,7 +1956,7 @@
       "entry": "game_data_opponent_teams",
       "capability": "game-data-opponent-teams",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_opponent_teams delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1964,11 +1964,11 @@
           "game_data::list_opponent_teams"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_opponent_teams"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -1978,7 +1978,7 @@
       "entry": "game_data_movies",
       "capability": "game-data-movies",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_movies delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1986,11 +1986,11 @@
           "game_data::list_movies"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_movies"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -2000,7 +2000,7 @@
       "entry": "game_data_musics",
       "capability": "game-data-musics",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_musics delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2008,11 +2008,11 @@
           "game_data::list_musics"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_musics"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -2022,7 +2022,7 @@
       "entry": "game_data_dictionary",
       "capability": "game-data-dictionary",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_dictionary delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2030,11 +2030,11 @@
           "game_data::list_dictionary"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_dictionary"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -2044,7 +2044,7 @@
       "entry": "game_data_exp_table",
       "capability": "game-data-exp-table",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_exp_table delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2052,11 +2052,11 @@
           "game_data::list_exp_table"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_exp_table"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -2066,7 +2066,7 @@
       "entry": "game_data_drops",
       "capability": "game-data-drops",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_drops delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2074,11 +2074,11 @@
           "game_data::list_drops"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_drops"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -2088,7 +2088,7 @@
       "entry": "game_data_capsule_rates",
       "capability": "game-data-capsule-rates",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_capsule_rates delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2096,11 +2096,11 @@
           "game_data::list_capsule_rates"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_capsule_rates"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -2110,7 +2110,7 @@
       "entry": "game_data_noms",
       "capability": "game-data-noms",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_noms delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2118,11 +2118,11 @@
           "game_data::list_noms"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "pub fn list_noms"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
+          "crates/engine/nie-app/src/game_data.rs",
           "use nie_explore::game_data::"
         ]
       ]
@@ -2132,24 +2132,20 @@
       "entry": "game_data_calculate_stats",
       "capability": "game-data-calculate-stats",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "game_data_calculate_stats delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "fn game_data_calculate_stats"
+          "game_data::calculate_character_stats"
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "game_data::calculate_character_stats("
+          "crates/engine/nie-app/src/game_data.rs",
+          "pub fn calculate_character_stats"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
-          "fn calculate_character_stats"
-        ],
-        [
-          "apps/inacord/src-tauri/src/game_data.rs",
-          "nie_data::chara_param::parse_all_chara_params"
+          "crates/engine/nie-app/src/game_data.rs",
+          "use nie_explore::game_data::"
         ]
       ]
     },
@@ -2158,24 +2154,20 @@
       "entry": "vfs_decode_cfgbin",
       "capability": "vfs-decode-cfgbin",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
       "rationale": "vfs_decode_cfgbin delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn vfs_decode_cfgbin"
-        ],
         [
           "apps/inacord/src-tauri/src/lib.rs",
           "game_data::decode_cfgbin("
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
-          "fn decode_cfgbin"
+          "crates/engine/nie-app/src/game_data.rs",
+          "pub fn decode_cfgbin"
         ],
         [
-          "apps/inacord/src-tauri/src/game_data.rs",
-          "nie_explore::game_data::decode_cfgbin"
+          "crates/engine/nie-app/src/game_data.rs",
+          "nie_explore::game_data::decode_cfgbin("
         ]
       ]
     },
@@ -2184,7 +2176,7 @@
       "entry": "vfs_decode_cfgbin_typed",
       "capability": "vfs-decode-cfgbin-typed",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine/nie-data/src/lib.rs",
       "rationale": "vfs_decode_cfgbin_typed delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2193,15 +2185,7 @@
         ],
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "game_data::decode_cfgbin("
-        ],
-        [
-          "apps/inacord/src-tauri/src/game_data.rs",
-          "fn decode_cfgbin"
-        ],
-        [
-          "apps/inacord/src-tauri/src/game_data.rs",
-          "nie_explore::game_data::decode_cfgbin"
+          "nie_data::typed::family_key"
         ]
       ]
     },
@@ -2644,24 +2628,12 @@
       "entry": "blender_build_skill_scene",
       "capability": "blender-build-skill-scene",
       "classification": "host_only",
-      "owner": "crates/engine/nie-data/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
       "rationale": "blender_build_skill_scene requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
           "fn blender_build_skill_scene"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "game_data::find_skill("
-        ],
-        [
-          "apps/inacord/src-tauri/src/game_data.rs",
-          "fn find_skill"
-        ],
-        [
-          "apps/inacord/src-tauri/src/game_data.rs",
-          "nie_data::skill::join_skill_text"
         ]
       ]
     },
@@ -4027,6 +3999,14 @@
     },
     {
       "surface": "site",
+      "entry": "GET /es/manifest.webmanifest",
+      "capability": "get-es-manifest-webmanifest",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/well_known.rs",
+      "rationale": "GET /es/manifest.webmanifest is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
       "entry": "GET /ja/manifest.webmanifest",
       "capability": "get-ja-manifest-webmanifest",
       "classification": "transport",
@@ -4407,6 +4387,18 @@
     },
     {
       "surface": "site",
+      "entry": "GET /api/v1/menu/render/{screen}",
+      "capability": "get-api-v1-menu-render-screen",
+      "classification": "portable",
+      "owner": "crates/engine/nie-formats/src/menu.rs",
+      "rationale": "GET /api/v1/menu/render/{screen} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/menu.rs",
+        "nie_formats"
+      ]
+    },
+    {
+      "surface": "site",
       "entry": "GET /api/v1/formats",
       "capability": "get-api-v1-formats",
       "classification": "portable",
@@ -4496,6 +4488,18 @@
       "classification": "portable",
       "owner": "crates/tools/nie-wiki/src/lib.rs",
       "rationale": "GET /api/v1/wiki/names delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/names/search",
+      "capability": "get-api-v1-wiki-names-search",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/names/search delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/wiki.rs",
         "nie_wiki"
@@ -5247,6 +5251,22 @@
     },
     {
       "surface": "site",
+      "entry": "GET /api/v1/graphql",
+      "capability": "get-api-v1-graphql",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/graphql.rs",
+      "rationale": "GET /api/v1/graphql is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/openapi.json",
+      "capability": "get-api-v1-openapi-json",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/openapi.rs",
+      "rationale": "GET /api/v1/openapi.json is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
       "entry": "GET /api/v1/text",
       "capability": "get-api-v1-text",
       "classification": "portable",
@@ -5455,6 +5475,66 @@
     },
     {
       "surface": "site",
+      "entry": "GET /api/v1/game-data/skills/{id}",
+      "capability": "get-api-v1-game-data-skills-id",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "GET /api/v1/game-data/skills/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/game-data/calculate_stats",
+      "capability": "get-api-v1-game-data-calculate-stats",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "GET /api/v1/game-data/calculate_stats delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/game-data/decode_cfgbin",
+      "capability": "get-api-v1-game-data-decode-cfgbin",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "GET /api/v1/game-data/decode_cfgbin delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/game-data/{family}",
+      "capability": "get-api-v1-game-data-family",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "GET /api/v1/game-data/{family} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/profile/complete",
+      "capability": "get-api-v1-profile-complete",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/complete_profile.rs",
+      "rationale": "GET /api/v1/profile/complete delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/profile.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
       "entry": "POST /api/v1/regles/comparaison",
       "capability": "post-api-v1-regles-comparaison",
       "classification": "portable",
@@ -5524,6 +5604,26 @@
         "crates/tools/nie-site/src/routes/wiki.rs",
         "nie_wiki"
       ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/game-data/calculate_stats",
+      "capability": "post-api-v1-game-data-calculate-stats",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "POST /api/v1/game-data/calculate_stats delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/graphql",
+      "capability": "post-api-v1-graphql",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/graphql.rs",
+      "rationale": "POST /api/v1/graphql is HTTP delivery or service metadata."
     },
     {
       "surface": "site",

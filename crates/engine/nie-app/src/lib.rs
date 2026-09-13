@@ -9,6 +9,9 @@
 //! flows do not establish fidelity with the native executable or its screens.
 
 pub mod character;
+/// Complete-profile application model, built from the typed game-data readers.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod complete_profile;
 /// Effectif réel chargé depuis le VFS — natif seulement : le VFS lit des fichiers, ce que le web
 /// ne fait pas (il reçoit ses octets par `fetch`).
 #[cfg(not(target_arch = "wasm32"))]

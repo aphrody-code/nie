@@ -199,6 +199,22 @@ export class ModelRenderer {
      */
     render(angle: number, width: number, height: number): void;
     /**
+     * Replace one decoded model texture with a bounded PNG for this renderer session.
+     *
+     * The GLB bytes and the VFS stay unchanged. Subsequent [`ModelRenderer::render`] calls use
+     * the replacement, so an exported PNG is proof of the real Rust-side mutation rather than a
+     * CSS overlay. The public index addresses glTF `textures[]`, not `images[]`.
+     */
+    replace_texture_png(index: number, png: Uint8Array): void;
+    /**
+     * Measured glTF texture name, falling back to its image name when present.
+     */
+    texture_name(index: number): string | undefined;
+    /**
+     * Dimensions `[width, height]` of one decoded texture, or an empty array for a bad index.
+     */
+    texture_size(index: number): Uint32Array;
+    /**
      * Le nombre de primitives du modèle — ce qui sera réellement rasterisé.
      */
     readonly primitives: number;
@@ -601,6 +617,11 @@ export function aura_lookup(aura_config_json: string, skill_config_json: string)
 export function avatar_composition_json(catalog_json: string, state_json: string): string;
 
 /**
+ * Validate and import an editable OC project or a reference-only canonical player identity.
+ */
+export function avatar_reference_import_json(catalog_json: string, state_json: string, reference: string): string;
+
+/**
  * Inspects PE/ELF bytes with the shared pure-Rust reverse-engineering engine.
  * The string sample is capped at 256 entries to keep the browser result bounded.
  */
@@ -710,6 +731,11 @@ export function detect_format(bytes: Uint8Array): string;
  * Adds one validated scene object through the editor's shared bounded session core.
  */
 export function editor_add_object_json(project_json: string, object_json: string): string;
+
+/**
+ * Serialize a validated portable OC document through the shared Rust schema owner.
+ */
+export function export_avatar_oc_document_json(catalog_json: string, state_json: string, metadata_json: string): string;
 
 /**
  * Encode le score final du match : `minutes * 10000 + secondes`.
@@ -862,9 +888,19 @@ export function menu_static_layer_json(objbin_bytes: Uint8Array, g4pkm_bytes: Ui
 export function minidump_summary_json(bytes: Uint8Array): string;
 
 /**
+ * Replace one embedded GLB image with PNG bytes and return a reparsed GLB.
+ */
+export function model_replace_texture_glb(glb: Uint8Array, index: number, png: Uint8Array): Uint8Array;
+
+/**
  * Assemble une paire G4MD+G4MG (octets bruts) en GLB, in-browser.
  */
 export function model_to_glb(g4md: Uint8Array, g4mg: Uint8Array): Uint8Array;
+
+/**
+ * Decode a standalone editor PNG in Rust and return `[width, height]`.
+ */
+export function model_validate_editor_png(png: Uint8Array): Uint32Array;
 
 /**
  * Resolves and hashes bounded ranges in a caller-supplied linear `nie.exe` image.
@@ -1014,6 +1050,7 @@ export interface InitOutput {
     readonly audio_to_wav: (a: number, b: number, c: number) => void;
     readonly aura_lookup: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly avatar_composition_json: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly avatar_reference_import_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly binary_triage_json: (a: number, b: number, c: number, d: number) => void;
     readonly calculate_stats: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly cfgbin_menu_setting_json: (a: number, b: number, c: number) => void;
@@ -1028,6 +1065,7 @@ export interface InitOutput {
     readonly crilayla_decompress: (a: number, b: number, c: number) => void;
     readonly detect_format: (a: number, b: number, c: number) => void;
     readonly editor_add_object_json: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly export_avatar_oc_document_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly final_score: (a: number, b: number) => number;
     readonly forge_lift_x64_json: (a: number, b: number, c: number, d: bigint) => void;
     readonly format_catalog_validate_json: (a: number, b: number, c: number) => void;
@@ -1067,13 +1105,18 @@ export interface InitOutput {
     readonly menuscreenbuilder_required_companions: (a: number, b: number) => void;
     readonly menuscreenbuilder_required_files: (a: number, b: number) => void;
     readonly minidump_summary_json: (a: number, b: number, c: number) => void;
+    readonly model_replace_texture_glb: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly model_to_glb: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly model_validate_editor_png: (a: number, b: number, c: number) => void;
     readonly modelrenderer_frame_len: (a: number) => number;
     readonly modelrenderer_frame_ptr: (a: number) => number;
     readonly modelrenderer_new: (a: number, b: number, c: number) => void;
     readonly modelrenderer_primitives: (a: number) => number;
     readonly modelrenderer_render: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly modelrenderer_replace_texture_png: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly modelrenderer_size: (a: number, b: number) => void;
+    readonly modelrenderer_texture_name: (a: number, b: number, c: number) => void;
+    readonly modelrenderer_texture_size: (a: number, b: number, c: number) => void;
     readonly modelrenderer_textures: (a: number) => number;
     readonly offline_image_inspect_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly parse_save_json: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -1156,10 +1199,10 @@ export interface InitOutput {
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4216: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4231: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3225: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3225_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4434: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4449: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3443: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3443_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

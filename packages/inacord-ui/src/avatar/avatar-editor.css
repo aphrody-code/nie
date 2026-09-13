@@ -17,8 +17,21 @@
 .native-avatar-editor__field-text > canvas { object-position: center; }
 .native-avatar-editor__control { z-index: 700; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; cursor: pointer; outline: none; }
 .native-avatar-editor__control:disabled { cursor: default; }
-.native-avatar-editor__control:focus-visible { outline: 2px solid #01fecc; outline-offset: -2px; }
-.native-avatar-editor__name { z-index: 710; border: 0; outline: none; padding: 0; background: transparent; color: transparent; caret-color: #087fff; font-size: 32px; text-align: center; }
+.native-avatar-editor__control:focus-visible { outline: 2px solid var(--screen-check-cyan); outline-offset: -2px; }
+.native-avatar-editor__name { z-index: 710; border: 0; outline: none; padding: 0; background: transparent; color: transparent; caret-color: var(--screen-row-focus); font-size: 32px; text-align: center; }
 .native-avatar-editor__field-text { justify-content: center; }
-.native-avatar-editor__height { z-index: 710; margin: 0; padding: 0; accent-color: #01fecc; cursor: ew-resize; }
+.native-avatar-editor__height { z-index: 710; margin: 0; padding: 0; accent-color: var(--screen-check-cyan); cursor: ew-resize; }
+.native-avatar-editor__panel-mode { position: absolute; left: 1610px; top: 235px; z-index: 720; display: flex; gap: 6px; }
+.native-avatar-editor__panel-mode button { min-width: 92px; min-height: 36px; border: 1px solid color-mix(in srgb, var(--screen-check-cyan) 58%, transparent); background: color-mix(in srgb, var(--screen-panel-body) 90%, transparent); color: var(--jeu-texte-vif); font: inherit; cursor: pointer; }
+.native-avatar-editor__panel-mode button[aria-pressed="true"] { border-color: var(--screen-check-cyan); background: color-mix(in srgb, var(--screen-row-focus) 72%, transparent); }
+.native-avatar-editor__swatch { position: absolute; z-index: 260; box-sizing: border-box; border: 10px solid color-mix(in srgb, var(--screen-panel-body) 55%, transparent); box-shadow: inset 0 0 0 3px color-mix(in srgb, white 72%, transparent); pointer-events: none; }
+.native-avatar-editor__swatch--selected { outline: 4px solid var(--screen-check-cyan); outline-offset: -6px; }
+.native-avatar-editor__profile-select { position: absolute; left: 1256px; top: 300px; z-index: 720; display: grid; gap: 10px; width: 570px; color: var(--jeu-texte-vif); font: inherit; }
+.native-avatar-editor__profile-select select { min-height: 64px; border: 2px solid var(--screen-check-cyan); background: color-mix(in srgb, var(--screen-panel-body) 92%, transparent); color: var(--jeu-texte-vif); font: inherit; padding: 0 18px; }
+.native-avatar-editor__profile-value { justify-content: center; }
+.native-avatar-editor__stat-grid { position: absolute; left: 520px; top: 790px; z-index: 720; width: 700px; min-height: 150px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 14px; padding: 12px 18px 16px; border: 2px solid color-mix(in srgb, var(--screen-check-cyan) 72%, transparent); background: color-mix(in srgb, var(--screen-panel-body) 88%, transparent); color: var(--jeu-texte-vif); }
+.native-avatar-editor__stat-grid legend { padding: 0 8px; font-weight: 700; }
+.native-avatar-editor__stat-grid label { display: grid; gap: 4px; font-size: 18px; }
+.native-avatar-editor__stat-grid input { min-width: 0; height: 36px; border: 1px solid var(--screen-check-cyan); background: color-mix(in srgb, var(--screen-panel-body) 96%, black); color: var(--jeu-texte-vif); font: inherit; padding: 0 8px; }
+.native-avatar-editor__unavailable { justify-content: flex-end; opacity: 0.78; }
 .native-avatar-editor__error { position: absolute; left: 36px; bottom: 80px; z-index: 750; }

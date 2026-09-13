@@ -18,8 +18,9 @@ describe("loading screen evidence boundary", () => {
 	});
 
 	test("does not render the game layout in the failed fallback", () => {
-		const html = renderToStaticMarkup(<Loading health={null} failed />);
+		const html = renderToStaticMarkup(<Loading health={null} failed onRetry={() => {}} />);
 		expect(html).toContain('role="alert"');
+		expect(html).toContain("Réessayer");
 		expect(html).not.toContain("loading01_01_fade_loading");
 		expect(html).not.toContain("/pet/");
 	});

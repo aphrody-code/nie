@@ -406,6 +406,7 @@ export interface ExplorerEntriesProps {
   gridSize?: number;
   onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
   ariaLabel?: string;
+	activeDescendant?: string;
   className?: string;
 }
 
@@ -415,6 +416,7 @@ export const ExplorerEntries = forwardRef<HTMLDivElement, ExplorerEntriesProps>(
   gridSize = 96,
   onKeyDown,
   ariaLabel = "Files and folders",
+	activeDescendant,
   className,
 }, ref) {
   return (
@@ -422,8 +424,9 @@ export const ExplorerEntries = forwardRef<HTMLDivElement, ExplorerEntriesProps>(
       ref={ref}
       className={joinClassName("inacord-explorer-entries", `inacord-explorer-entries--${viewMode}`, className)}
       style={viewMode === "grid" ? ({ "--explorer-grid-size": `${gridSize}px` } as CSSProperties) : undefined}
-      role="list"
+	  role="listbox"
       aria-label={ariaLabel}
+	  aria-activedescendant={activeDescendant}
       tabIndex={0}
       onKeyDown={onKeyDown}
     >

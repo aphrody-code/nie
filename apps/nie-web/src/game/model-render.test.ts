@@ -10,7 +10,7 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 /** Les appels reçus par le double du module. */
-const appels: { render: [number, number, number][]; libere: number } = { render: [], libere: 0 };
+const appels: { render: [number, number, number][]; textures: [number, number[]][]; libere: number } = { render: [], textures: [], libere: 0 };
 
 /** `true` quand le double doit refuser le GLB qu'on lui donne. */
 let refuseGlb = false;
@@ -24,6 +24,15 @@ class ModelRendererDouble {
 	}
 	get textures() {
 		return 2;
+	}
+	replace_texture_png(index: number, bytes: Uint8Array) {
+		appels.textures.push([index, [...bytes]]);
+	}
+	texture_size(index: number) {
+		return index < 2 ? new Uint32Array([64, 32]) : new Uint32Array();
+	}
+	texture_name(index: number) {
+		return index === 0 ? "shirt" : undefined;
 	}
 	render(angle: number, width: number, height: number) {
 		appels.render.push([angle, width, height]);
@@ -56,6 +65,11 @@ function rang(nom: string) {
 mock.module("../wasm/nie_wasm.js", () => ({
 	ModelRenderer: ModelRendererDouble,
 	model_to_glb: (a: Uint8Array, b: Uint8Array) => new Uint8Array([...a, ...b]),
+	model_replace_texture_glb: (glb: Uint8Array, index: number, png: Uint8Array) => new Uint8Array([...glb, index, ...png]),
+	model_validate_editor_png: (png: Uint8Array) => {
+		if (png[0] === 0) throw new Error("PNG refusé");
+		return new Uint32Array([320, 180]);
+	},
 	WebGpuViewer: {
 		create: async () => rang("webgpu"),
 		create_transparent: async () => rang("webgpu"),
@@ -74,7 +88,7 @@ mock.module("./bridge", () => ({
 	moduleMemory: () => ({ buffer: new ArrayBuffer(4 * 1024 * 1024) }),
 }));
 
-const { createCpuModelViewer } = await import("./model-render");
+const { createCpuModelViewer, inspectModelGlb, renderModelPng, replaceModelTextureGlb, validateEditorPng } = await import("./model-render");
 const { createOpaqueNativeViewer } = await import("./native-viewer");
 
 /** Un canvas suffisant pour la présentation : un contexte 2D qui enregistre ce qu'on lui pose. */
@@ -95,6 +109,7 @@ function faireCanvas() {
 
 beforeEach(() => {
 	appels.render = [];
+	appels.textures = [];
 	appels.libere = 0;
 	refuseGlb = false;
 	// `ImageData` et `OffscreenCanvas` n'existent pas dans ce moteur de test : des doubles
@@ -191,6 +206,59 @@ describe("createCpuModelViewer", () => {
 	test("refuse un canvas sans contexte 2D plutôt que de dessiner dans le vide", async () => {
 		const canvas = { getContext: () => null } as unknown as HTMLCanvasElement;
 		expect(createCpuModelViewer(canvas)).rejects.toThrow("contexte 2D");
+	});
+});
+
+describe("editor GLB interchange", () => {
+	test("validates imports through the Rust model reader and releases it", async () => {
+			expect(await inspectModelGlb(new Uint8Array([1, 2, 3]))).toEqual({
+			primitives: 3,
+			textures: 2,
+			textureSizes: [[64, 32], [64, 32]],
+			textureNames: ["shirt", null],
+		});
+		expect(appels.libere).toBe(1);
+
+		refuseGlb = true;
+		expect(inspectModelGlb(new Uint8Array([1]))).rejects.toThrow("lecteur Rust");
+	});
+
+	test("returns the GLB rewritten by the Rust texture owner", async () => {
+		expect([...(await replaceModelTextureGlb(new Uint8Array([1, 2]), 3, new Uint8Array([4, 5])))]).toEqual([1, 2, 3, 4, 5]);
+	});
+
+	test("admits standalone PNG references through the Rust decoder", async () => {
+		expect(await validateEditorPng(new Uint8Array([1]))).toEqual([320, 180]);
+		expect(validateEditorPng(new Uint8Array([0]))).rejects.toThrow("PNG refusé");
+	});
+
+	test("exports bounded PNG dimensions from a Rust-rendered frame", async () => {
+		const originalDocument = globalThis.document;
+		Object.defineProperty(globalThis, "document", {
+			configurable: true,
+			value: {
+				createElement: () => ({
+					width: 0,
+					height: 0,
+					getContext: () => ({ putImageData: () => {} }),
+					toBlob: (callback: (blob: Blob) => void) => callback(new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" })),
+				}),
+			},
+		});
+		try {
+			const png = await renderModelPng(new Uint8Array([1]), {
+				angle: 0.5,
+				width: 9999,
+				height: 0,
+				texture: { index: 1, png: new Uint8Array([137, 80]) },
+			});
+			expect([...png]).toEqual([137, 80, 78, 71]);
+			expect(appels.render).toEqual([[0.5, 2048, 1]]);
+			expect(appels.textures).toEqual([[1, [137, 80]]]);
+			expect(appels.libere).toBe(1);
+		} finally {
+			Object.defineProperty(globalThis, "document", { configurable: true, value: originalDocument });
+		}
 	});
 });
 

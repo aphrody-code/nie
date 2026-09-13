@@ -32,11 +32,11 @@ import {
 } from "@niers/inacord-ui";
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { useTheme } from "next-themes";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
-import { AVATAR, BANK, DOWNLOADS, EXPLORER, GALLERY, INACORD, LEGACY_ROUTES, MEDIA, MODES, SETTINGS, SHOP, canonicalRoute, recognizedRoutes } from "./entries";
+import { AVATAR, BANK, DATA, DOWNLOADS, EDITOR_3D, EXPLORER, GALLERY, INACORD, LEGACY_ROUTES, MEDIA, MEDIA_LANDING, MODES, SEARCH, SETTINGS, SHOP, canonicalRoute, recognizedRoutes } from "./entries";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
+import { useWasmReadiness } from "./game/wasm-readiness";
 import { GAME_REACHABLE } from "./host";
 import { Modes } from "./pages/Modes";
 import { Catalog } from "./pages/Catalog";
@@ -99,22 +99,14 @@ function Site() {
 	const capacites = useCapacites();
 	const erreurSource = useErreurSource();
 	const [etat, setEtat] = useState<SanteApi | null>(null);
+	// Compile the core module while the server warms the VFS index and both read-only databases.
+	// This deliberately preloads no VFS texture, movie, audio bank or secondary scene.
+	const { ready: wasmReady, failed: wasmFailed, retry: retryWasm } = useWasmReadiness(GAME_REACHABLE);
 
-	// Les réglages d'apparence (thème, densité, mouvement, taille du texte, zoom) prennent
+	// Les réglages d'accessibilité (densité, mouvement, taille du texte, zoom) prennent
 	// effet sur `<html>` dès ici, sur TOUS les écrans — un réglage enregistré qui ne change
 	// rien serait un défaut, et l'écran des Options ne doit pas être le seul à le voir.
 	useApplySettings();
-
-	// ONE theme owner: the settings store. next-themes keeps painting the `light`/`dark` class the
-	// Inacord palette reads, but it no longer decides anything — before this, its own default
-	// ("dark") and the store's ("system") were two writers on the same `<html>`, and merely opening
-	// the Options screen adopted next-themes' value into the store, flipping the whole product to
-	// dark for good. Measured on 2026-09-12: `/settings` then `/medias` came back dark.
-	const { setTheme } = useTheme();
-	const { theme } = useSettings();
-	useEffect(() => {
-		setTheme(theme);
-	}, [theme, setTheme]);
 
 	// Le prefixe de langue de l'URL courante. Il ne change pas pendant la session : changer de
 	// langue est une navigation entiere, servie par nie-site, pas un changement d'etat local.
@@ -127,7 +119,11 @@ function Site() {
 		navigate: setVue,
 		navigateLink: naviguer,
 	} = useGameNavigation(INITIAL_ROUTES, document.getElementById("racine")?.dataset.route);
-	const actions = useMemo(() => createWorkspaceActions(setVue), [setVue]);
+	const publicWorkspaceRoute = GAME_REACHABLE && vue !== INACORD && !vue.startsWith(`${INACORD}/`);
+	const actions = useMemo(
+		() => createWorkspaceActions(setVue, publicWorkspaceRoute ? EXPLORER : undefined),
+		[setVue, publicWorkspaceRoute],
+	);
 
 	// Une adresse héritée mène à l'écran, puis s'efface : `/avatar` ouvre `chara_edit_menu` et
 	// l'URL devient celle du jeu, en REMPLAÇANT l'entrée d'historique — un « précédent » qui
@@ -143,6 +139,7 @@ function Site() {
 	// l'état n'est pas tranché, et on s'arrête dès qu'il l'est (`pret` comme `absent`).
 	const vfs = etat?.capacites?.vfs ?? null;
 	const startupReady = Boolean(
+		wasmReady &&
 		etat?.capacites.vfs === "pret" &&
 		etat.capacites.vfs_entrees > 0 &&
 		etat.capacites.vfs_contenu &&
@@ -193,17 +190,19 @@ function Site() {
 				phase={openingPhase}
 				startupReady={startupReady}
 				health={etat}
-				startupFailed={vfs === "absent"}
+				startupFailed={vfs === "absent" || wasmFailed}
+				onRetryStartup={wasmFailed ? retryWasm : undefined}
 				onPhaseChange={setOpeningPhase}
 				onOpenBank={() => setVue(BANK)}
 				onOpenGallery={() => setVue(GALLERY)}
 				onOpenShop={() => setVue(SHOP)}
 				onOpenAvatar={() => setVue(AVATAR)}
 				onOpenSettings={() => setVue(SETTINGS)}
-				onOpenMedia={() => setVue(MEDIA)}
-				onOpenModes={() => setVue(MODES)}
+				onOpenMedia={() => setVue(MEDIA_LANDING)}
 				onOpenExplorer={() => setVue(EXPLORER)}
-				onOpenInacord={() => setVue(INACORD)}
+				onOpenEditor={() => setVue(EDITOR_3D)}
+				onOpenSearch={() => setVue(SEARCH)}
+				onOpenData={() => setVue(DATA)}
 			/>
 		);
 	}
@@ -212,15 +211,15 @@ function Site() {
 	// Explorer, which is what the desktop application has always opened on.
 	const route = vue === HOME ? workspaceRoute("explorer") : vue;
 
-	// Every screen but the game is framed by the ONE shell: the sidebar, its collapse state, the
-	// top bar, the command palette and the notifications.
+	// Public game screens use the measured game frame. Explicit `/inacord/*` authoring routes keep
+	// the desktop sidebar, top bar, command palette and notifications through this same shell.
 	const shell = (content: ReactNode) =>
 		withHost(<UnifiedShell current={route} onSelect={setVue}>{content}</UnifiedShell>);
 
 	// The Options screen is the game's, and it already carries the workspace's own tool actions
 	// (`pages/Settings.tsx`). `/inacord/settings` is therefore the same screen, not a second one.
 	if (route === SETTINGS || route === workspaceRoute("settings")) {
-		return shell(<Settings prefixe={prefixe} onRetour={() => setVue(HOME)} />);
+		return shell(<Settings prefixe={prefixe} onRetour={() => setVue(HOME)} publicOnly={route === SETTINGS} />);
 	}
 	if (route === BANK) {
 		return shell(<PlayerBank onBack={() => setVue(HOME)} />);
@@ -244,15 +243,14 @@ function Site() {
 		return shell(<Modes prefix={prefixe} route={route} />);
 	}
 
-	// The Explorer is ONE implementation. `/explorateur` and the two URLs inherited from the
-	// screens it absorbed (`/recherche`, `/donnees`) open the workspace's Explorer, the mature one
-	// — tabs, pins, thumbnails, context menus, mod staging — instead of the reduced copy the site
-	// used to carry beside it.
+	// Public Explorer, Search and Data have distinct implementations and URL-state contracts, but
+	// share the same workspace host. Authoring-only views remain reachable solely through explicit
+	// `/inacord/*` deep links and are never advertised by the public game menu.
 	const workspaceView = workspaceViewOf(route);
 	if (workspaceView !== null) {
 		return shell(
 			<Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-faint">Ouverture de la vue…</div>}>
-				<Workspace view={workspaceView} actions={actions} />
+				<Workspace view={workspaceView} actions={actions} publicMode={publicWorkspaceRoute} />
 			</Suspense>
 		);
 	}

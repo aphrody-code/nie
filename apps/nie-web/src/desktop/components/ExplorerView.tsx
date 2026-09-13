@@ -1,5 +1,5 @@
 import { nameWithId } from "@niers/inacord-ui/lib/resolved-names";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
@@ -21,7 +21,6 @@ import { SplitPane } from "@niers/inacord-ui/components/ui/split-pane";
 import {
   ExplorerBreadcrumbs,
   ExplorerEntries,
-  ExplorerFilters,
   ExplorerStatus,
   ExplorerSurface,
   ExplorerToolbar,
@@ -41,7 +40,20 @@ import { DetailPane, type DetailTarget } from "@/components/DetailPane";
 import { PropertyEditor } from "@/components/PropertyEditor";
 import { SelectionBar } from "@/components/SelectionBar";
 import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
-import { GameText } from "@niers/inacord-ui";
+import {
+  type GameFilterFamily,
+  GameFilterPanel,
+  type GameFilterValue,
+  GameText,
+  GLYPHES,
+} from "@niers/inacord-ui";
+import {
+  browserLocationSnapshot,
+  subscribeBrowserLocation,
+  writeBrowserHistory,
+} from "@niers/inacord-ui/lib/browser-navigation";
+import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-controls";
+import { NATIVE_WINDOW } from "../../host";
 
 type SortKey = "name" | "size";
 
@@ -83,8 +95,241 @@ let openedCpkPrefix: string | null = null;
 /** Fichiers montés d'un coup dans la liste/grille (cf. `visibles`). */
 const PAGE_FICHIERS = 300;
 
-/** Correspondances ramenées par page de recherche — le TOTAL est rendu à part (`FindPage.total`). */
-const PAGE_RECHERCHE = 500;
+/** Server default and upper bound for browser folder/search pages. */
+const PAGE_RECHERCHE = 200;
+
+export interface ExplorerSearchFilters {
+  q: string;
+  ext: string;
+  prefixe: string;
+  glob: string;
+  cpk: string;
+  tailleMin?: number;
+  tailleMax?: number;
+  sort: "nom" | "taille";
+  order: "asc" | "desc";
+  page: number;
+  perPage: number;
+}
+
+export interface ExplorerSearchPage {
+  files: Row[];
+  total: number;
+  page: number;
+  pages: number;
+  applied: ExplorerAppliedFilters | null;
+}
+
+export interface ExplorerAppliedFilters {
+  q: string | null;
+  ext: string | null;
+  cpk: string | null;
+  taille_min: number | null;
+  taille_max: number | null;
+  tri: "nom" | "taille";
+  ordre: "asc" | "desc";
+  prefixe: string | null;
+  glob: string | null;
+  glob_vide: boolean;
+  ext_inconnue: boolean;
+  cpk_inconnu: boolean;
+}
+
+const EMPTY_SEARCH_FILTERS: ExplorerSearchFilters = {
+  q: "",
+  ext: "",
+  prefixe: "",
+  glob: "",
+  cpk: "",
+  sort: "nom",
+  order: "asc",
+  page: 1,
+  perPage: PAGE_RECHERCHE,
+};
+
+function optionalBound(raw: string | null): number | undefined {
+  if (raw === null || raw.trim() === "") return undefined;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
+/** The browser URL is the source of truth for every server-side VFS search control. */
+export function explorerSearchFiltersFromUrl(search: string): ExplorerSearchFilters {
+  const params = new URLSearchParams(search);
+  const page = Number(params.get("page"));
+  const perPage = Number(params.get("per_page"));
+  return {
+    q: params.get("q") ?? "",
+    ext: params.get("ext")?.trim().replace(/^\./u, "") ?? "",
+    prefixe: params.get("prefixe")?.trim() ?? "",
+    glob: params.get("glob")?.trim() ?? "",
+    cpk: params.get("cpk")?.trim() ?? "",
+    tailleMin: optionalBound(params.get("taille_min")),
+    tailleMax: optionalBound(params.get("taille_max")),
+    sort: params.get("tri") === "taille" ? "taille" : "nom",
+    order: params.get("ordre") === "desc" ? "desc" : "asc",
+    page: Number.isSafeInteger(page) && page >= 1 ? page : 1,
+    perPage: Number.isSafeInteger(perPage) && perPage >= 1 ? Math.min(perPage, 200) : PAGE_RECHERCHE,
+  };
+}
+
+/** Canonical server request; every accepted filter is represented once. */
+export function explorerSearchUrl(filters: ExplorerSearchFilters): string {
+  const params = new URLSearchParams();
+  const pairs: Array<[string, string]> = [
+    ["q", filters.q],
+    ["ext", filters.ext],
+    ["prefixe", filters.prefixe],
+    ["glob", filters.glob],
+    ["cpk", filters.cpk],
+    ["taille_min", filters.tailleMin === undefined ? "" : String(filters.tailleMin)],
+    ["taille_max", filters.tailleMax === undefined ? "" : String(filters.tailleMax)],
+    ["tri", filters.sort === "nom" ? "" : filters.sort],
+    ["ordre", filters.order === "asc" ? "" : filters.order],
+    ["page", String(filters.page)],
+    ["per_page", String(filters.perPage)],
+  ];
+  for (const [key, value] of pairs) if (value) params.set(key, value);
+  return `/api/v1/recherche?${params}`;
+}
+
+type WebSearchPayload = {
+  fichiers?: Array<{ chemin: string; nom: string; taille: number }>;
+  total?: number;
+  page?: number;
+  per_page?: number;
+  filtres?: ExplorerAppliedFilters;
+};
+
+/** Browser adapter only; native Tauri keeps its typed IPC command unchanged. */
+export async function fetchExplorerSearchPage(
+  filters: ExplorerSearchFilters,
+  signal?: AbortSignal,
+  request: typeof fetch = fetch,
+): Promise<ExplorerSearchPage> {
+  const response = await request(explorerSearchUrl(filters), { signal });
+  if (!response.ok) throw new Error(`VFS search failed (${response.status})`);
+  const payload = await response.json() as WebSearchPayload;
+  const perPage = Math.max(1, payload.per_page ?? filters.perPage);
+  const total = Math.max(0, payload.total ?? 0);
+  return {
+    files: (payload.fichiers ?? []).map((file) => ({
+      path: file.chemin,
+      name: file.nom,
+      size: file.taille,
+    })),
+    total,
+    page: Math.max(1, payload.page ?? filters.page),
+    pages: Math.ceil(total / perPage),
+    applied: payload.filtres ?? null,
+  };
+}
+
+export function explorerSearchIsActive(filters: ExplorerSearchFilters): boolean {
+  return Boolean(
+    filters.q || filters.ext || filters.prefixe || filters.glob || filters.cpk ||
+    filters.tailleMin !== undefined || filters.tailleMax !== undefined,
+  );
+}
+
+/** Shareable browser location, preserving query fields owned by the surrounding host. */
+export function explorerLocationHref(location: string, filters: ExplorerSearchFilters): string {
+  const url = new URL(location, "http://localhost");
+  const request = new URL(explorerSearchUrl(filters), url.origin);
+  const managed = ["q", "ext", "prefixe", "glob", "cpk", "taille_min", "taille_max", "tri", "ordre", "page", "per_page"];
+  for (const key of managed) url.searchParams.delete(key);
+  for (const [key, value] of request.searchParams) {
+    if (!(key === "per_page" && value === String(PAGE_RECHERCHE)) && !(key === "page" && value === "1")) {
+      url.searchParams.set(key, value);
+    }
+  }
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function writeExplorerSearchUrl(filters: ExplorerSearchFilters): void {
+  if (NATIVE_WINDOW) return;
+  const href = explorerLocationHref(window.location.href, filters);
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== href) {
+    writeBrowserHistory(href, window.history.state, "replace");
+  }
+}
+
+function explorerFilterField(
+  label: string,
+  value: string,
+  onChange: (value: string) => void,
+  type: "text" | "number" = "text",
+) {
+  return (
+    <label className="grid gap-1 text-xs font-medium">
+      <span>{label}</span>
+      <input
+        type={type}
+        min={type === "number" ? 0 : undefined}
+        step={type === "number" ? 1 : undefined}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        aria-label={label}
+        className="rounded-md border border-app-line bg-app-box px-2 py-1.5 text-ink"
+      />
+    </label>
+  );
+}
+
+function explorerFilterFamilies(
+  draft: ExplorerSearchFilters,
+  onDraft: (draft: ExplorerSearchFilters) => void,
+): GameFilterFamily[] {
+  const bound = (value: number | undefined) => value === undefined ? "" : String(value);
+  return [
+    {
+      id: "advanced",
+      label: "Index VFS",
+      icon: GLYPHES.arbre,
+      options: [],
+      extra: (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {explorerFilterField("Extension", draft.ext, (ext) => onDraft({ ...draft, ext: ext.replace(/^\./u, "") }))}
+          {explorerFilterField("Préfixe VFS", draft.prefixe, (prefixe) => onDraft({ ...draft, prefixe }))}
+          {explorerFilterField("Motif glob", draft.glob, (glob) => onDraft({ ...draft, glob }))}
+          {explorerFilterField("Archive CPK", draft.cpk, (cpk) => onDraft({ ...draft, cpk }))}
+          {explorerFilterField("Taille minimale", bound(draft.tailleMin), (value) => onDraft({ ...draft, tailleMin: optionalBound(value) }), "number")}
+          {explorerFilterField("Taille maximale", bound(draft.tailleMax), (value) => onDraft({ ...draft, tailleMax: optionalBound(value) }), "number")}
+          {explorerFilterField("Résultats par page", String(draft.perPage), (value) => {
+            const requested = Number(value);
+            onDraft({ ...draft, perPage: Number.isSafeInteger(requested) && requested >= 1 ? Math.min(requested, 200) : PAGE_RECHERCHE });
+          }, "number")}
+        </div>
+      ),
+    },
+    {
+      id: "sort",
+      label: "Tri",
+      icon: GLYPHES.engrenage,
+      options: [
+        { value: "nom-desc", label: "Nom (Z→A)" },
+        { value: "taille-asc", label: "Taille croissante" },
+        { value: "taille-desc", label: "Taille décroissante" },
+      ],
+    },
+  ];
+}
+
+function explorerPanelValue(filters: ExplorerSearchFilters): GameFilterValue {
+  return {
+    sort: filters.sort === "nom" && filters.order === "asc"
+      ? []
+      : [`${filters.sort}-${filters.order}`],
+  };
+}
+
+function explorerSortFromPanel(value: GameFilterValue): Pick<ExplorerSearchFilters, "sort" | "order"> {
+  const [sort, order] = (value.sort?.[0] ?? "nom-asc").split("-");
+  return {
+    sort: sort === "taille" ? "taille" : "nom",
+    order: order === "desc" ? "desc" : "asc",
+  };
+}
 
 /** Vignette lazy de la vue grille — cf. demande utilisatrice « compare l'UI de nie-explorer et
  * azalee cpk explorer et fusionne le meilleur des deux » : la vue grille + vignettes est la
@@ -131,6 +376,7 @@ export function ExplorerView({
   onForward,
   canGoBack = false,
   canGoForward = false,
+  authoring = true,
 }: {
   state: ExplorerTab;
   /** Applique un PATCH à l'onglet — `id`/historique restent la propriété du store. */
@@ -144,6 +390,8 @@ export function ExplorerView({
   onForward?: () => void;
   canGoBack?: boolean;
   canGoForward?: boolean;
+  /** Property editing/RTTI belongs only to explicit authoring routes. */
+  authoring?: boolean;
 }) {
   const settings = useSettings();
   const t = useT();
@@ -154,6 +402,7 @@ export function ExplorerView({
   const [files, setFiles] = useState<Row[]>([]);
   /** Correspondances TOTALES de la recherche courante, avant troncature à `PAGE_RECHERCHE`. */
   const [searchTotal, setSearchTotal] = useState(0);
+  const [folderTotal, setFolderTotal] = useState(0);
   const [role, setRole] = useState<FolderRole | null>(null);
   // Cache du `.cpk` brut actuellement ouvert (vue fusionnée VFS/CPK) — évite de relire tout le
   // fichier à chaque sous-dossier visité À L'INTÉRIEUR du même `.cpk` (`open_raw_cpk` relit le
@@ -162,20 +411,63 @@ export function ExplorerView({
   /** `.cpk` dont CET onglet détient la table des matières en cache — distinct du témoin backend
    * `openedCpkPrefix` (module-level), qui ne dit que ce que le lecteur Rust a ouvert en DERNIER. */
   const cpkCachedPrefix = useRef<string | null>(null);
-  const cpkBoundary = useMemo(() => detectCpkBoundary(state.prefix), [state.prefix]);
-  const [query, setQuery] = useState(state.query ?? "");
+  const cpkBoundary = useMemo(() => NATIVE_WINDOW ? detectCpkBoundary(state.prefix) : null, [state.prefix]);
+  const location = useSyncExternalStore(
+    subscribeBrowserLocation,
+    browserLocationSnapshot,
+    browserLocationSnapshot,
+  );
+  const urlFilters = useMemo(
+    () => explorerSearchFiltersFromUrl(new URL(location, "http://localhost").search),
+    [location],
+  );
+  const [nativeFilters, setNativeFilters] = useState<ExplorerSearchFilters>(() => ({
+    ...EMPTY_SEARCH_FILTERS,
+    q: state.query ?? "",
+    ext: state.ext ?? "",
+    sort: state.sortKey === "size" ? "taille" : "nom",
+    order: state.sortKey === "size" ? "desc" : "asc",
+  }));
+  const filters = NATIVE_WINDOW ? nativeFilters : urlFilters;
+  const { q: query, ext, page: searchPage } = filters;
+  const sortKey: SortKey = filters.sort === "taille" ? "size" : "name";
+  const [searchPages, setSearchPages] = useState(0);
+  const [searchApplied, setSearchApplied] = useState<ExplorerAppliedFilters | null>(null);
+  const [folderPages, setFolderPages] = useState(0);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [filterDraft, setFilterDraft] = useState<ExplorerSearchFilters>(filters);
+  const filterFamilies = useMemo(
+    () => explorerFilterFamilies(filterDraft, setFilterDraft),
+    [filterDraft],
+  );
+  const filterValue = useMemo(() => explorerPanelValue(filterDraft), [filterDraft]);
+
+  function applyFilters(next: ExplorerSearchFilters): void {
+    if (NATIVE_WINDOW) setNativeFilters(next);
+    else writeExplorerSearchUrl(next);
+    previousExternalQuery.current = next.q;
+    onStateChange({
+      query: next.q,
+      ext: next.ext,
+      sortKey: next.sort === "taille" ? "size" : "name",
+    });
+  }
 
   // Requête poussée depuis l'extérieur (palette de commandes Ctrl+K) — l'instance de cet onglet
   // reste montée en permanence (`keepMounted` sur le panneau + `display:none` sur les onglets
-  // inactifs), donc un simple état initial ne suffit pas : il faut resynchroniser à chaque
-  // nouvelle valeur de `state.query`.
+  // inactifs). Dans le navigateur l'URL reste toutefois prioritaire au premier montage : seule
+  // une NOUVELLE valeur poussée par la palette remplace la recherche partageable.
+  const previousExternalQuery = useRef(state.query);
   useEffect(() => {
-    if (state.query !== undefined) setQuery(state.query);
+    if (state.query === previousExternalQuery.current) return;
+    previousExternalQuery.current = state.query;
+    if (state.query !== undefined) applyFilters({ ...filters, q: state.query, page: 1 });
+    // `filters` follows the URL/native state; reacting to it here would turn ordinary navigation
+    // into an external palette update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.query]);
-  const [ext, setExt] = useState(state.ext ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>(state.sortKey ?? "name");
   // Vue liste (défaut, dense — navigation clavier/multi-sélection) ou grille (vignettes, façon
   // azalee `/cpk` — cf. demande utilisatrice de fusion des deux UI). Le choix appartient à
   // l'ONGLET (remonté au store, donc restauré au prochain lancement), pas à l'application : la
@@ -207,7 +499,7 @@ export function ExplorerView({
 
   // Recherche VFS globale non disponible À L'INTÉRIEUR d'un `.cpk` ouvert (portée volontairement
   // limitée pour cette fusion — la recherche continue de fonctionner normalement partout ailleurs).
-  const searching = query.trim().length > 0 && !cpkBoundary;
+  const searching = explorerSearchIsActive(filters) && !cpkBoundary;
 
   useEffect(() => {
     setLoading(true);
@@ -270,7 +562,7 @@ export function ExplorerView({
       return;
     }
 
-    if (state.prefix === "data/packs") {
+    if (NATIVE_WINDOW && state.prefix === "data/packs") {
       // `data/packs` : le VFS n'expose JAMAIS les conteneurs `.cpk` eux-mêmes comme entrées
       // navigables (seuls les chemins internes du jeu le sont) — pont vers les VRAIS fichiers
       // physiques, chacun cliquable comme un dossier pour descendre dedans (cf. `cpkBoundary`
@@ -292,25 +584,68 @@ export function ExplorerView({
     }
 
     const req = searching
-      ? // Paginée : la page de 500 s'accompagne enfin de son dénominateur, sinon « 500 trouvés »
-        // et « 500 existants » s'écrivent pareil et l'utilisatrice ne sait pas qu'elle en rate.
-        api.findPaged(query.trim(), ext.trim() || undefined, PAGE_RECHERCHE, 0, settings.gameDir).then((page) => {
+      ? (NATIVE_WINDOW
+          // The native command remains the typed Tauri boundary. It currently owns q/ext and
+          // pagination; advanced server-index controls are exposed only by the web host.
+          ? api.findPaged(
+              query.trim(),
+              ext.trim() || undefined,
+              filters.perPage,
+              (searchPage - 1) * filters.perPage,
+              settings.gameDir,
+            ).then((result) => ({
+              files: result.files,
+              total: result.total,
+              page: searchPage,
+              pages: Math.ceil(result.total / filters.perPage),
+              applied: null,
+            }))
+          : fetchExplorerSearchPage(filters))
+        .then((result) => {
           if (!fresh()) return;
           setDirs([]);
-          setFiles(page.files);
-          setSearchTotal(page.total);
+          setFiles(result.files);
+          setSearchTotal(result.total);
+          setSearchPages(result.pages);
+          setSearchApplied(result.applied);
+          setFolderTotal(0);
+          setFolderPages(0);
           setRole(null);
         })
-      : api.ls(state.prefix, settings.gameDir).then((r) => {
+      : api.ls(
+          state.prefix,
+          settings.gameDir,
+          NATIVE_WINDOW ? undefined : filters.perPage,
+          NATIVE_WINDOW ? undefined : (filters.page - 1) * filters.perPage,
+        ).then((r) => {
           if (!fresh()) return;
           setDirs(r.dirs);
           setFiles(r.files);
           setSearchTotal(0);
+          setSearchPages(0);
+          setSearchApplied(null);
+          setFolderTotal(r.file_total);
+          setFolderPages(Math.max(1, Math.ceil(r.file_total / filters.perPage)));
           setRole(r.role);
         });
     req.catch((e) => fresh() && setError(String(e))).finally(() => fresh() && setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.prefix, query, ext, settings.gameDir, cpkBoundary]);
+  }, [
+    state.prefix,
+    query,
+    ext,
+    filters.prefixe,
+    filters.glob,
+    filters.cpk,
+    filters.tailleMin,
+    filters.tailleMax,
+    filters.sort,
+    filters.order,
+    filters.perPage,
+    searchPage,
+    settings.gameDir,
+    cpkBoundary,
+  ]);
 
   // Resynchronisation du lecteur `.cpk` backend quand CET onglet (re)devient actif : le témoin
   // `openedCpkPrefix` est partagé, un autre onglet a pu ouvrir un autre `.cpk` entre-temps et les
@@ -339,9 +674,13 @@ export function ExplorerView({
   );
   const sortedFiles = useMemo(() => {
     const arr = [...files];
-    arr.sort((a, b) => (sortKey === "size" ? b.size - a.size : a.name.localeCompare(b.name)));
+    // The browser index already returned the requested stable order. Re-sorting that page alone
+    // would make page boundaries inconsistent with the server's full result set.
+    if (searching && !NATIVE_WINDOW) return arr;
+    arr.sort((a, b) => (sortKey === "size" ? a.size - b.size : a.name.localeCompare(b.name)));
+    if (filters.order === "desc") arr.reverse();
     return arr;
-  }, [files, sortKey]);
+  }, [files, filters.order, searching, sortKey]);
 
   // Le VFS a des dossiers de plus de 12 000 fichiers (`.../10_icon_chr/uniform` : 12 560 `.g4tx`).
   // Chaque entrée est un bouton riche — et, pour une texture, un observateur d'intersection : les
@@ -523,6 +862,10 @@ export function ExplorerView({
 
   /** Menu contextuel d'un fichier — même dispatch VFS/CPK-brut que la vue liste. */
   function handleFileContextMenu(f: Row, e: React.MouseEvent) {
+    if (!NATIVE_WINDOW) {
+      onStateChange({ selected: f.path });
+      return;
+    }
     e.preventDefault();
     if (f.entryIndex !== undefined) {
       showRawCpkFileContextMenu({
@@ -539,8 +882,9 @@ export function ExplorerView({
         size: f.size,
         gameDir: settings.gameDir,
         blenderExe: settings.blenderExe,
+        authoring,
         onOpen: () => onStateChange({ selected: f.path }),
-        onStageIntoMod: () => void stageIntoMod(f.path),
+        onStageIntoMod: authoring ? () => void stageIntoMod(f.path) : undefined,
       });
     }
   }
@@ -586,7 +930,22 @@ export function ExplorerView({
       toast.error("Rien à copier — sélectionnez d'abord un fichier ou un dossier");
       return;
     }
-    writeText(paths.join("\n")).then(() => toast.success(`${paths.length} chemin(s) copié(s)`));
+    const copy = NATIVE_WINDOW ? writeText(paths.join("\n")) : navigator.clipboard.writeText(paths.join("\n"));
+    copy.then(() => toast.success(`${paths.length} chemin(s) copié(s)`)).catch((error) => toast.error(String(error)));
+  }
+
+  async function exportSelectionInBrowser() {
+    const paths = [...multiSelected].filter((p) => sortedFiles.some((f) => f.path === p));
+    if (paths.length === 0) {
+      toast.error("Aucun fichier dans la sélection — un dossier ne s'exporte pas");
+      return;
+    }
+    try {
+      const result = await api.exportMany(paths, "", "raw", settings.gameDir);
+      toast.success(`${result.ecrits} fichier(s) téléchargé(s) (${humanSize(result.octets)})`);
+    } catch (error) {
+      toast.error(String(error));
+    }
   }
 
   /** Ctrl+V — VRAI collage (cf. demande utilisatrice « editer doit vraiment copier coller »),
@@ -634,11 +993,11 @@ export function ExplorerView({
   // s'enregistrerait (la dernière montée gagnerait, pas celle qu'on regarde) et le nettoyage d'un
   // onglet fermé effacerait l'enregistrement d'un onglet bien vivant.
   useEffect(() => {
-    if (!active) return;
+    if (!active || !authoring) return;
     registerFileOps({ selectAll: doSelectAll, copySelection: doCopySelection, paste: doPaste });
     return () => registerFileOps(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, multiSelected, state.selected, sortedDirs, sortedFiles, state.prefix, searching]);
+  }, [active, authoring, multiSelected, state.selected, sortedDirs, sortedFiles, state.prefix, searching]);
 
   // Ctrl+D « Add to sidebar » — raccourci réel de cosmic-files (confirmé sur capture du menu
   // File), adapté ici pour épingler le dossier COURANT (pas une sélection multi-fichiers).
@@ -662,7 +1021,7 @@ export function ExplorerView({
   // `editBus`), pas ici — un accélérateur de menu natif est global (fonctionne même si la liste
   // n'a pas le focus DOM), donc un doublon local ferait potentiellement doubler l'action.
   function onListKeyDown(e: React.KeyboardEvent) {
-    if (searching || flatEntries.length === 0) return;
+    if (flatEntries.length === 0) return;
     // Le curseur prime sur la sélection : c'est lui que les flèches déplacent, et il peut être
     // posé sur un dossier, que `state.selected` n'accepte pas.
     const idx = flatEntries.findIndex((en) => en.path === (curseur ?? state.selected));
@@ -714,7 +1073,7 @@ export function ExplorerView({
       min={240}
       max={880}
       storageKey="explorer-inspector"
-      className="h-full min-h-0"
+      className={`inacord-explorer-split h-full min-h-0 ${target ? "has-selection" : ""}`}
       panel={
         <>
           {/* Inspecteur : aperçu du fichier, ET éditeur de propriétés de l'ENTITÉ à laquelle il
@@ -722,7 +1081,13 @@ export function ExplorerView({
            * adresses de `nie.exe` qui le manipulent). Sélectionner la texture d'un joueur ouvre donc
            * la fiche du joueur, pas seulement un aperçu d'image. */}
           <div className="flex h-full min-w-0 flex-col gap-2 p-2 pl-0">
-            <Tabs value={inspectorTab} onValueChange={(v) => v && setInspectorTab(v as "preview" | "properties")}>
+            <div className="inacord-explorer__compact-detail-header">
+              <span>Aperçu</span>
+              <button type="button" aria-label="Fermer l’aperçu" onClick={() => onStateChange({ selected: null })}>
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+            {authoring ? <Tabs value={inspectorTab} onValueChange={(v) => v && setInspectorTab(v as "preview" | "properties")}>
               <TabsList variant="line">
                 <TabsTrigger value="preview" className="text-xs">
                   Aperçu
@@ -731,22 +1096,23 @@ export function ExplorerView({
                   Propriétés
                 </TabsTrigger>
               </TabsList>
-            </Tabs>
+            </Tabs> : null}
             <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-app-line bg-app-box/60">
-              {inspectorTab === "properties" && selectedCode ? (
+              {authoring && inspectorTab === "properties" && selectedCode ? (
                 <PropertyEditor
                   code={selectedCode}
                   className="h-full p-3"
                   onOpenFile={(p) => onStateChange({ selected: p })}
                 />
               ) : (
-                <DetailPane target={target} />
+                <DetailPane target={target} readOnly={!authoring} />
               )}
             </div>
           </div>
         </>
       }
     >
+      <>
       <ExplorerSurface
         toolbar={
           <ExplorerToolbar
@@ -797,8 +1163,12 @@ export function ExplorerView({
                   label={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
                   onClick={() => {
                     const next = sortKey === "name" ? "size" : "name";
-                    setSortKey(next);
-                    onStateChange({ sortKey: next });
+                    applyFilters({
+                      ...filters,
+                      sort: next === "size" ? "taille" : "nom",
+                      order: next === "size" ? "desc" : "asc",
+                      page: 1,
+                    });
                   }}
                 />
             <Popover>
@@ -856,20 +1226,49 @@ export function ExplorerView({
           />
         }
         filters={
-          <ExplorerFilters
-            query={query}
-            extension={ext}
-            queryPlaceholder={t("explorer.search_placeholder")}
-            extensionPlaceholder={t("explorer.ext_placeholder")}
-            onQueryChange={(value) => {
-              setQuery(value);
-              onStateChange({ query: value });
-            }}
-            onExtensionChange={(value) => {
-              setExt(value);
-              onStateChange({ ext: value });
-            }}
-          />
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <input
+              className="inacord-explorer-filters__query min-w-48 flex-1"
+              type="search"
+              value={query}
+              placeholder={t("explorer.search_placeholder")}
+              aria-label={t("explorer.search_placeholder")}
+              onChange={(event) => applyFilters({ ...filters, q: event.currentTarget.value, page: 1 })}
+            />
+            {NATIVE_WINDOW ? (
+              <input
+                className="inacord-explorer-filters__extension"
+                value={ext}
+                placeholder={t("explorer.ext_placeholder")}
+                aria-label={t("explorer.ext_placeholder")}
+                onChange={(event) => applyFilters({
+                  ...filters,
+                  ext: event.currentTarget.value.replace(/^\./u, ""),
+                  page: 1,
+                })}
+              />
+            ) : (
+              <button
+                type="button"
+                className="game-button-secondary"
+                onClick={() => {
+                  setFilterDraft(filters);
+                  setFilterPanelOpen(true);
+                }}
+              >
+                Filtres
+              </button>
+            )}
+            {searching ? (
+              <button
+                type="button"
+                className="game-button-secondary"
+                onClick={() => applyFilters({ ...EMPTY_SEARCH_FILTERS })}
+              >
+                Effacer
+              </button>
+            ) : null}
+          </div>
         }
         error={error}
         notice={!searching && role ? (
@@ -880,7 +1279,7 @@ export function ExplorerView({
               </Badge>
             </div>
           ) : undefined}
-        status={
+        status={<>
           <ExplorerStatus
             primary={
               loading
@@ -889,7 +1288,9 @@ export function ExplorerView({
                   ? searchTotal > files.length
                     ? `${t("explorer.results", { n: files.length })} · sur ${searchTotal.toLocaleString("fr-FR")}`
                     : t("explorer.results", { n: files.length })
-                  : t("explorer.count", { dirs: dirs.length, files: files.length })
+                  : folderTotal > files.length
+                    ? `${t("explorer.count", { dirs: dirs.length, files: files.length })} · sur ${folderTotal.toLocaleString("fr-FR")} fichiers`
+                    : t("explorer.count", { dirs: dirs.length, files: files.length })
             }
             secondary={
               multiSelected.size > 0
@@ -899,7 +1300,42 @@ export function ExplorerView({
                 : undefined
             }
           />
-        }
+          {searching && searchApplied ? (
+            <span className="text-xs text-ink-dull" data-explorer-applied-filters>
+              Index : {[
+                searchApplied.q && `q ${searchApplied.q}`,
+                searchApplied.ext && `ext ${searchApplied.ext}`,
+                searchApplied.prefixe && `préfixe ${searchApplied.prefixe}`,
+                searchApplied.glob && `glob ${searchApplied.glob}`,
+                searchApplied.cpk && `cpk ${searchApplied.cpk}`,
+                `tri ${searchApplied.tri} ${searchApplied.ordre}`,
+              ].filter(Boolean).join(" · ")}
+              {searchApplied.ext_inconnue ? " · extension inconnue" : ""}
+              {searchApplied.cpk_inconnu ? " · archive inconnue" : ""}
+              {searchApplied.glob_vide ? " · motif vide" : ""}
+            </span>
+          ) : null}
+          {searching && searchPages > 1 ? (
+            <PaginationControls
+              currentPage={searchPage}
+              totalPages={searchPages}
+              baseUrl={window.location.pathname}
+              disabled={loading || Boolean(error)}
+              onPageChange={(page) => applyFilters({ ...filters, page })}
+              pageLabel={(current, total) => `Page ${current} sur ${total}`}
+            />
+          ) : null}
+          {!searching && !NATIVE_WINDOW && folderPages > 1 ? (
+            <PaginationControls
+              currentPage={filters.page}
+              totalPages={folderPages}
+              baseUrl={window.location.pathname}
+              disabled={loading || Boolean(error)}
+              onPageChange={(page) => applyFilters({ ...filters, page })}
+              pageLabel={(current, total) => `Page ${current} sur ${total}`}
+            />
+          ) : null}
+        </>}
         selectionBar={
           <SelectionBar
             count={multiSelected.size}
@@ -909,8 +1345,8 @@ export function ExplorerView({
               setFolderAnchor(null);
             }}
             onCopyPaths={doCopySelection}
-            onStageIntoMod={() => void stageSelectionIntoMod()}
-            onExport={() => void exportSelection()}
+            onStageIntoMod={authoring ? () => void stageSelectionIntoMod() : undefined}
+            onExport={() => void (NATIVE_WINDOW ? exportSelection() : exportSelectionInBrowser())}
           />
         }
       >
@@ -920,6 +1356,7 @@ export function ExplorerView({
             gridSize={gridSize}
             onKeyDown={onListKeyDown}
             ariaLabel="Fichiers et dossiers"
+			activeDescendant={curseur ? `explorer-entry-${encodeURIComponent(curseur)}` : undefined}
           >
               {!searching &&
                 sortedDirs.map((d) => {
@@ -933,6 +1370,10 @@ export function ExplorerView({
                     return (
                       <button
                         key={d.name}
+						id={`explorer-entry-${encodeURIComponent(path)}`}
+						role="option"
+						aria-selected={isMultiSelected}
+						tabIndex={-1}
                         data-path={path}
                         className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
                           isMultiSelected ? "bg-primary-container/40" : ""
@@ -951,6 +1392,10 @@ export function ExplorerView({
                   return (
                     <button
                       key={d.name}
+					  id={`explorer-entry-${encodeURIComponent(path)}`}
+					  role="option"
+					  aria-selected={isMultiSelected}
+					  tabIndex={-1}
                       data-path={path}
                       className={`state-layer flex w-full items-center gap-2 px-3 py-2 text-left type-body-medium ${
                         isMultiSelected ? "bg-primary-container/40 text-on-surface" : "text-on-surface"
@@ -973,6 +1418,10 @@ export function ExplorerView({
                   return (
                     <button
                       key={f.path}
+					  id={`explorer-entry-${encodeURIComponent(f.path)}`}
+					  role="option"
+					  aria-selected={state.selected === f.path || isMultiSelected}
+					  tabIndex={-1}
                       data-path={f.path}
                       className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
                         curseur === f.path ? "ring-1 ring-inset ring-accent " : ""
@@ -1008,6 +1457,10 @@ export function ExplorerView({
                 return (
                   <button
                     key={f.path}
+					id={`explorer-entry-${encodeURIComponent(f.path)}`}
+					role="option"
+					aria-selected={state.selected === f.path || isMultiSelected}
+					tabIndex={-1}
                     data-path={f.path}
                     className={`state-layer flex w-full items-center justify-between gap-2 px-3 py-2 text-left type-body-medium ${
                       state.selected === f.path
@@ -1036,6 +1489,7 @@ export function ExplorerView({
                   </button>
                 );
               })}
+		  </ExplorerEntries>
               {sortedFiles.length > visibles && (
                 <button
                   type="button"
@@ -1049,8 +1503,35 @@ export function ExplorerView({
               {!loading && dirs.length === 0 && files.length === 0 && (
                 <p className="p-4 type-body-small text-on-surface-variant">{t("explorer.empty")}</p>
               )}
-          </ExplorerEntries>
       </ExplorerSurface>
+      {filterPanelOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setFilterPanelOpen(false);
+          }}
+        >
+          <GameFilterPanel
+            families={filterFamilies}
+            value={filterValue}
+            onReset={() => setFilterDraft({ ...EMPTY_SEARCH_FILTERS })}
+            onConfirm={(value) => {
+              applyFilters({
+                ...filterDraft,
+                ...explorerSortFromPanel(value),
+                page: 1,
+              });
+              setFilterPanelOpen(false);
+            }}
+            onClose={() => setFilterPanelOpen(false)}
+            count={searchTotal}
+            countUnit="fichier"
+            countIcon={GLYPHES.arbre}
+            style={{ width: "min(900px, 100%)", maxHeight: "90vh" }}
+          />
+        </div>
+      ) : null}
+      </>
     </SplitPane>
   );
 }

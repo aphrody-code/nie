@@ -6,13 +6,18 @@ import { api } from "@/lib/api";
 import { AvatarPipelinePanel } from "./AvatarPipelinePanel";
 
 const catalog: AvatarCatalog = {
-	categories: [{ faceSettingType: 4, parts: [{ id: "hair", itemNo: 1, resource: "hair", modeles: [], modeles2: [] }] }],
+	categories: [
+		{ faceSettingType: 4, prefixe: "hair", parts: [{ id: "hair", itemNo: 1, resource: "hair", modeles: ["data/common/chr/_face/20_EDIT/_hairF/hair.g4md"], modeles2: [] }] },
+		{ faceSettingType: 5, prefixe: "unsupported", parts: [{ id: "decorative", itemNo: 1, resource: "decorative", modeles: [], modeles2: [] }] },
+	],
 	modelesDeBase: { morphologies: ["male", "female"], visages: [] },
 };
 const composition: AvatarComposition = {
 	pieces: [{ directory: "_bodySK", name: "native_skeleton" }, { directory: "_facebase", name: "native_face" }],
 	faceLayers: ["00_face/skin", "01_eye/eye"], morphology: "female", morphologyIndex: 1,
-	skeleton: "native_skeleton", height: null, skinColor: null, irisColor: null, hairColor: null, warnings: [],
+	skeleton: "native_skeleton", height: null, skinColor: null, irisColor: null, hairColor: null,
+	profile: { name: "", nickname: "", uniformName: "", shirtNumber: null, element: null, mainPosition: null, subPosition: null, buildType: null, personality: null, voice: null },
+	warnings: [],
 };
 let root: Root;
 let container: HTMLDivElement;
@@ -49,6 +54,8 @@ async function build() {
 
 test("desktop selections invoke shared Rust resolution before requesting its assembled model", async () => {
 	await mount();
+	expect(container.querySelector('select[title="hair"]')).not.toBeNull();
+	expect(container.querySelector('select[title="unsupported"]')).toBeNull();
 	await act(async () => {
 		const morphology = container.querySelector<HTMLSelectElement>("select")!;
 		morphology.value = "1";

@@ -136,9 +136,9 @@ pub struct PageFiltree {
 /// combinant à `?ext=`, `?q=` ou `?cpk=`. Ce n'est pas une route de plus, c'est une valeur du
 /// segment déjà routé.
 ///
-/// Query acceptée : `page`, `per_page`, `q`, `ext`, `cpk`, `taille_min`, `taille_max`, `tri`
-/// (`nom`|`taille`), `ordre` (`asc`|`desc`). Une valeur inconnue est bornée ou ignorée, jamais
-/// refusée — et la réponse dit ce qui a compté.
+/// Query acceptée : `page`, `per_page`, `q`, `glob`, `prefixe`, `ext`, `cpk`, `taille_min`,
+/// `taille_max`, `tri` (`nom`|`taille`), `ordre` (`asc`|`desc`). Une valeur inconnue est bornée
+/// ou ignorée, jamais refusée — et la réponse dit ce qui a compté.
 ///
 /// # Errors
 ///

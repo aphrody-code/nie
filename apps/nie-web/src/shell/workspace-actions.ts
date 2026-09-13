@@ -40,20 +40,23 @@ export interface WorkspaceActions {
 	openView(viewId: string): void;
 }
 
-export function createWorkspaceActions(navigate: (route: string) => void): WorkspaceActions {
+export function createWorkspaceActions(
+	navigate: (route: string) => void,
+	explorerRoute: string = EXPLORER_ROUTE,
+): WorkspaceActions {
 	const active = () => getExplorerTabs().activeId;
 	return {
 		gotoPlace(prefix) {
 			recordVisit(prefix);
 			setExternalPath(null);
 			explorerTabs.update(active(), { prefix, selected: null });
-			navigate(EXPLORER_ROUTE);
+			navigate(explorerRoute);
 		},
 		gotoPlaceInNewTab(prefix) {
 			recordVisit(prefix);
 			setExternalPath(null);
 			explorerTabs.open(prefix);
-			navigate(EXPLORER_ROUTE);
+			navigate(explorerRoute);
 		},
 		revealInExplorer(path) {
 			// The prefix is the parent folder; a path without `/` designates the VFS root, which is
@@ -64,12 +67,12 @@ export function createWorkspaceActions(navigate: (route: string) => void): Works
 			recordVisit(folder);
 			setExternalPath(null);
 			explorerTabs.update(active(), { prefix: folder, selected: path });
-			navigate(EXPLORER_ROUTE);
+			navigate(explorerRoute);
 		},
 		openSearch(query) {
 			setExternalPath(null);
 			explorerTabs.update(active(), { query });
-			navigate(EXPLORER_ROUTE);
+			navigate(explorerRoute);
 		},
 		openView(viewId) {
 			setExternalPath(null);

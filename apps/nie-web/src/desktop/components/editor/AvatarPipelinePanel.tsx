@@ -8,6 +8,9 @@ import { cn } from "@niers/inacord-ui/lib/utils";
 import { INITIAL_AVATAR_STATE, type AvatarCatalog as Catalogue } from "@niers/inacord-ui/avatar/contract";
 import { avatarModelUrl } from "@niers/inacord-ui/avatar/request";
 
+/** Categories proven to change a mesh, a face layer, or the resolved face-base recipe. */
+const RENDERABLE_CATEGORIES = new Set([3, 4, 6, 7, 8, 9, 10, 11, 12, 13]);
+
 function isCatalogue(value: unknown): value is Catalogue {
   if (!value || typeof value !== "object") return false;
   const c = value as Partial<Catalogue>;
@@ -73,7 +76,7 @@ export function AvatarPipelinePanel({
       <select className="h-7 rounded border border-app-line bg-app-box px-1 text-tiny text-ink" value={morpho} onChange={(e) => setMorpho(Number(e.target.value))}>
         {catalogue.modelesDeBase.morphologies.map((name, index) => <option key={name} value={index}>{name}</option>)}
       </select>
-      {catalogue.categories.filter((c) => c.parts.length && c.faceSettingType >= 3 && c.faceSettingType <= 14).map((category) => (
+      {catalogue.categories.filter((c) => c.parts.length && RENDERABLE_CATEGORIES.has(c.faceSettingType)).map((category) => (
         <select key={category.faceSettingType} className="h-7 max-w-28 rounded border border-app-line bg-app-box px-1 text-tiny text-ink" value={choices[category.faceSettingType] ?? category.parts[0]?.id ?? ""}
           title={category.prefixe || `catégorie ${category.faceSettingType}`}
           onChange={(e) => setChoices((old) => ({ ...old, [category.faceSettingType]: e.target.value }))}>

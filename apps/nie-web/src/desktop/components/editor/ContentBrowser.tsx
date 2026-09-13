@@ -21,6 +21,7 @@ import { showVfsFileContextMenu, showVfsFolderContextMenu } from "@/lib/contextM
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { useThumbnail } from "@niers/inacord-ui/lib/thumbs";
 import { cn } from "@niers/inacord-ui/lib/utils";
+import { NATIVE_WINDOW } from "../../../host";
 
 /** Familles d'assets — le filtre qu'un éditeur propose (Unreal : Static Mesh / Texture / Audio…). */
 type AssetFilter = "all" | "models" | "textures" | "audio" | "configs";
@@ -151,9 +152,9 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
   }, [files]);
 
   return (
-    <div className={cn("flex min-h-0 flex-col bg-app-dark-box", className)}>
+    <div className={cn("content-browser flex min-h-0 min-w-0 flex-col bg-app-dark-box", className)}>
       {/* Barre d'outils du navigateur */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-app-line px-2 py-1.5">
+      <div className="content-browser__toolbar flex shrink-0 items-center gap-2 border-b border-app-line px-2 py-1.5">
         <button
           type="button"
           className="rounded p-1 text-ink-dull transition-colors hover:bg-app-hover hover:text-ink disabled:opacity-40"
@@ -164,7 +165,7 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
         >
           <Icon name="arrow_back" size={14} />
         </button>
-        <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden text-tiny">
+        <nav className="content-browser__breadcrumbs flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden text-tiny">
           <button
             type="button"
             className="rounded px-1 py-0.5 text-ink-faint transition-colors hover:bg-app-hover hover:text-ink"
@@ -189,12 +190,12 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
           placeholder="Filtrer…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-6 w-40 shrink-0 text-xs"
+          className="content-browser__query h-6 w-40 shrink-0 text-xs"
         />
         <ToggleGroup
           value={[filter]}
           onValueChange={(v) => v[0] && setFilter(v[0] as AssetFilter)}
-          className="shrink-0"
+          className="content-browser__filters shrink-0"
         >
           {(Object.keys(FILTER_LABELS) as AssetFilter[]).map((f) => (
             <ToggleGroupItem key={f} value={f} className="px-2 text-tiny">
@@ -202,14 +203,14 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <span className="shrink-0 text-tiny text-ink-faint">
+        <span className="content-browser__count shrink-0 text-tiny text-ink-faint">
           {loading ? "…" : `${shown.length}/${files.length}`}
         </span>
       </div>
 
       {error && <p className="px-2 py-1 text-tiny text-status-error">{error}</p>}
 
-      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="no-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-2">
         {/* Dossiers d'abord, comme tout navigateur d'assets */}
         {dirs.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1">
@@ -222,6 +223,7 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
                   className="flex items-center gap-1.5 rounded border border-app-line bg-app-box px-2 py-1 text-tiny text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
                   onClick={() => onNavigate(path)}
                   onContextMenu={(e) => {
+					if (!NATIVE_WINDOW) return;
                     e.preventDefault();
                     showVfsFolderContextMenu({ path, onOpen: () => onNavigate(path) });
                   }}
@@ -259,6 +261,7 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
                 )}
                 onClick={(e) => onSelect(f.path, openable && (e.ctrlKey || e.metaKey))}
                 onContextMenu={(e) => {
+				  if (!NATIVE_WINDOW) return;
                   e.preventDefault();
                   showVfsFileContextMenu({
                     path: f.path,

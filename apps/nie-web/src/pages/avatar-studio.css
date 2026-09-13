@@ -10,47 +10,168 @@
    title read through the sidebar items. */
 
 .avatar-screen {
-	position: relative;
-	flex: 1 1 auto;
-	min-height: 0;
-	height: 100%;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-	background: var(--jeu-fond-abysse, #05070d);
-	color: var(--jeu-texte, #e9eef7);
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--jeu-fond-abysse);
+  color: var(--jeu-texte-vif);
 }
 
 .avatar-screen__stage {
-	position: relative;
-	flex: 1 1 auto;
-	min-height: 0;
-	overflow: hidden;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* The bottom chrome is the game's own: the tab strip, then the key hints. */
 .avatar-screen__chrome {
-	flex: 0 0 auto;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 24px;
-	padding: 6px 20px 8px;
-	background: linear-gradient(180deg, rgba(5, 9, 18, 0) 0%, rgba(5, 9, 18, 0.92) 45%);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 6px 20px 8px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--screen-panel-body) 0%, transparent) 0%,
+    color-mix(in srgb, var(--screen-panel-body) 92%, transparent) 45%
+  );
 }
 
 .avatar-screen[data-avatar-tab="chara-edit"] .avatar-screen__chrome {
-	/* Over the native scene, which draws its own footer guides. */
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	z-index: 800;
-	pointer-events: none;
+  /* Over the native scene, which draws its own footer guides. */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 800;
+  pointer-events: none;
 }
 
 .avatar-screen[data-avatar-tab="chara-edit"] .avatar-screen__chrome > * {
-	pointer-events: auto;
+  pointer-events: auto;
+}
+
+.avatar-extensions {
+  position: relative;
+}
+
+.avatar-extensions__toggle,
+.avatar-extensions button,
+.avatar-reference button {
+  border: 1px solid color-mix(in srgb, var(--jeu-accent-cyan) 70%, white);
+  border-radius: 4px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--jeu-fond-abysse) 88%, transparent);
+  color: var(--jeu-texte-vif);
+}
+
+.avatar-extensions__panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--jeu-accent-cyan);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--jeu-fond-abysse) 96%, black);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+.avatar-extensions__panel header,
+.avatar-extensions__row,
+.avatar-extensions__actions,
+.avatar-extensions__references li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-extensions__panel header {
+  justify-content: space-between;
+}
+
+.avatar-extensions__row input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.avatar-extensions input,
+.avatar-extensions select {
+  border: 1px solid color-mix(in srgb, var(--jeu-accent-cyan) 50%, transparent);
+  border-radius: 4px;
+  padding: 7px;
+  background: #08162c;
+  color: var(--jeu-texte-vif);
+}
+
+.avatar-extensions__actions {
+  flex-wrap: wrap;
+}
+
+.avatar-extensions__references {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.avatar-extensions__references span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.avatar-extensions__limit {
+  color: color-mix(in srgb, var(--jeu-texte-vif) 72%, transparent);
+  font-size: 0.82rem;
+}
+
+.avatar-reference {
+  position: absolute;
+  z-index: 790;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  gap: 4px;
+  max-width: min(360px, calc(100% - 32px));
+  padding: 10px;
+  border: 1px solid var(--jeu-accent-cyan);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--jeu-fond-abysse) 92%, transparent);
+  font-size: 0.82rem;
+}
+
+/* At 320 px the shell leaves 296 px to this screen. Stack the remaining Return hint without
+   changing the authored 16:9 scene or inventing another aspect ratio. */
+@media (max-width: 480px) {
+  .avatar-screen__chrome {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 4px 8px 6px;
+  }
+
+  .avatar-screen__hints {
+    min-height: 24px;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    padding-inline: 0;
+  }
+
+  .avatar-screen__hints .game-key-hint {
+    font-size: 0.875rem;
+  }
 }
 
 /* The avatar scenes are authored at 1920×1080 — WIDER than the viewport — and a CSS grid item
@@ -64,30 +185,30 @@
    same component; only the overflow alignment changes, hence the `!important` against the inline
    declaration. */
 .avatar-screen .native-avatar-editor > div {
-	display: flex !important;
-	align-items: center !important;
-	justify-content: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .avatar-workspace__state {
-	display: grid;
-	place-items: center;
-	height: 100%;
-	margin: 0;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  margin: 0;
 }
 
 .avatar-resource-state {
-	/* Même raison que `.avatar-screen` : l'état de chargement occupe la place de l'écran, pas
+  /* Même raison que `.avatar-screen` : l'état de chargement occupe la place de l'écran, pas
 	   celle de la fenêtre — sinon il recouvrirait la barre latérale. */
-	position: relative;
-	flex: 1 1 auto;
-	min-height: 0;
-	height: 100%;
-	display: grid;
-	place-content: center;
-	gap: 12px;
-	padding: 24px;
-	background: var(--jeu-fond-abysse, #05070d);
-	color: var(--jeu-texte, #e9eef7);
-	text-align: center;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: var(--jeu-fond-abysse);
+  color: var(--jeu-texte-vif);
+  text-align: center;
 }

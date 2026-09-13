@@ -90,11 +90,7 @@ impl Query {
     async fn languages(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<String>> {
         let state = ctx.data_unchecked::<EtatSite>().clone();
         let survey = super::text::survey(&state).await.map_err(erreur)?;
-        Ok(survey
-            .languages()
-            .into_iter()
-            .map(str::to_owned)
-            .collect())
+        Ok(survey.languages().into_iter().map(str::to_owned).collect())
     }
 
     /// Les familles, filtrées par langue quand on en donne une.
@@ -110,11 +106,7 @@ impl Query {
         // ce que le champ `languages` de chaque entrée dit.
         let langues: Vec<String> = match language {
             Some(demandee) => vec![demandee],
-            None => survey
-                .languages()
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
+            None => survey.languages().into_iter().map(str::to_owned).collect(),
         };
         let mut par_famille: std::collections::BTreeMap<String, (Vec<String>, usize, usize)> =
             std::collections::BTreeMap::new();
@@ -325,7 +317,10 @@ mod tests {
         let sdl = Schema::build(Query, EmptyMutation, EmptySubscription)
             .finish()
             .sdl();
-        assert!(sdl.contains("input TextRef"), "la référence est une entrée typée");
+        assert!(
+            sdl.contains("input TextRef"),
+            "la référence est une entrée typée"
+        );
         assert!(
             sdl.contains("type ResolvedText"),
             "le résultat nomme la famille et le hash qu'il résout"
@@ -334,7 +329,12 @@ mod tests {
         // (120 libellés mesurés) sans permettre de se servir de la route comme d'un export.
         // Vérifié à la COMPILATION : baisser la constante sous le besoin réel ne doit pas
         // attendre qu'un test tourne.
-        const { assert!(MAX_REFS >= 120, "un écran entier doit tenir dans une requête") };
+        const {
+            assert!(
+                MAX_REFS >= 120,
+                "un écran entier doit tenir dans une requête"
+            )
+        };
         const { assert!(MAX_REFS < 5_000, "le lot ne doit pas devenir un export") };
     }
 

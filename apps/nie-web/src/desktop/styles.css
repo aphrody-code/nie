@@ -1,10 +1,8 @@
 @import "./sprites.css";
-@import "../../../../packages/inacord-ui/src/shell/inacord-tool-theme.css";
 
-/* `dark` est le thème PAR DÉFAUT (comme spacedrive : `tokens/src/css/theme.css` EST la palette
- * sombre, `themes/light.css` n'est qu'un override) — la variante Tailwind `dark:` reste posée par
- * next-themes (`attribute="class"`), donc les composants shadcn qui l'utilisent continuent de
- * fonctionner tels quels. */
+/* `dark:` reste compris par les composants importés, mais les deux hôtes forcent la classe claire
+ * et le dernier adaptateur de `app.css` mappe leurs rôles vers le thème mesuré du jeu. Les anciens
+ * blocs de compatibilité ci-dessous ne sont plus proposés dans les Options. */
 @custom-variant dark (&:is(.dark *));
 
 /* ── Polices auto-hébergées (offline-safe) ───────────────────────────────
@@ -37,71 +35,70 @@
     font-display: optional;
 }
 
-/* Compatibility tokens for mature tools. The default palette is bound to the
- * shared game-derived roles by inacord-tool-theme.css. Alternate palettes and
- * existing semantic class names remain available to every tool component. */
+/* Compatibility names for mature tools. Values are aliases of the one measured menu palette;
+ * the final adapter repeats this binding after all generated theme layers. */
 @theme {
     /* Accent */
-    --color-accent: hsl(208, 100%, 57%);
-    --color-accent-faint: hsl(208, 100%, 64%);
-    --color-accent-deep: hsl(208, 100%, 47%);
+    --color-accent: var(--screen-header-blue);
+    --color-accent-faint: var(--screen-tab-light);
+    --color-accent-deep: var(--screen-header-blue-deep);
 
     /* Text */
-    --color-ink: hsl(235, 35%, 92%);
-    --color-ink-dull: hsl(235, 10%, 70%);
-    --color-ink-faint: hsl(235, 10%, 55%);
+    --color-ink: var(--screen-row-label);
+    --color-ink-dull: var(--screen-section-title);
+    --color-ink-faint: var(--screen-row-label);
 
     /* App surfaces */
-    --color-app: hsl(235, 15%, 13%);
-    --color-app-box: hsl(235, 15%, 18%);
-    --color-app-dark-box: hsl(235, 15%, 15%);
-    --color-app-darker-box: hsl(235, 16%, 11%);
-    --color-app-light-box: hsl(235, 15%, 34%);
-    --color-app-overlay: hsl(235, 15%, 17%);
-    --color-app-input: hsl(235, 15%, 20%);
-    --color-app-focus: hsl(235, 15%, 10%);
-    --color-app-line: hsl(235, 15%, 23%);
-    --color-app-divider: hsl(235, 15%, 5%);
-    --color-app-button: hsl(235, 15%, 17%);
-    --color-app-selected: hsl(235, 15%, 24%);
-    --color-app-selected-item: hsl(235, 15%, 18%);
-    --color-app-hover: hsl(235, 15%, 19%);
-    --color-app-active: hsl(235, 15%, 30%);
-    --color-app-shade: hsl(235, 15%, 0%);
-    --color-app-frame: hsl(235, 15%, 25%);
-    --color-app-slider: hsl(235, 15%, 20%);
-    --color-app-explorer-scrollbar: hsl(235, 20%, 25%);
+    --color-app: var(--screen-canvas-pale);
+    --color-app-box: var(--screen-row-white);
+    --color-app-dark-box: var(--screen-canvas-pale);
+    --color-app-darker-box: var(--screen-canvas-pale);
+    --color-app-light-box: var(--screen-row-white);
+    --color-app-overlay: var(--screen-row-white);
+    --color-app-input: var(--screen-row-white);
+    --color-app-focus: var(--screen-row-value-strip);
+    --color-app-line: var(--screen-tab-light);
+    --color-app-divider: var(--screen-header-blue-deep);
+    --color-app-button: var(--screen-row-white);
+    --color-app-selected: var(--screen-tab-light);
+    --color-app-selected-item: var(--screen-tab-light);
+    --color-app-hover: var(--screen-canvas-pale);
+    --color-app-active: var(--screen-header-blue);
+    --color-app-shade: var(--screen-panel-body);
+    --color-app-frame: var(--screen-header-blue-deep);
+    --color-app-slider: var(--screen-row-value-strip);
+    --color-app-explorer-scrollbar: var(--screen-scrollbar-track);
 
     /* Sidebar */
-    --color-sidebar: hsl(235, 15%, 7%);
-    --color-sidebar-box: hsl(235, 15%, 16%);
-    --color-sidebar-line: hsl(235, 15%, 23%);
-    --color-sidebar-ink: hsl(235, 15%, 92%);
-    --color-sidebar-ink-dull: hsl(235, 10%, 70%);
-    --color-sidebar-ink-faint: hsl(235, 10%, 55%);
-    --color-sidebar-divider: hsl(235, 15%, 17%);
-    --color-sidebar-button: hsl(235, 15%, 18%);
-    --color-sidebar-selected: hsl(235, 15%, 24%);
-    --color-sidebar-shade: hsl(235, 15%, 23%);
+    --color-sidebar: var(--screen-canvas-pale);
+    --color-sidebar-box: var(--screen-row-white);
+    --color-sidebar-line: var(--screen-tab-light);
+    --color-sidebar-ink: var(--screen-row-label);
+    --color-sidebar-ink-dull: var(--screen-section-title);
+    --color-sidebar-ink-faint: var(--screen-row-label);
+    --color-sidebar-divider: var(--screen-tab-light);
+    --color-sidebar-button: var(--screen-row-white);
+    --color-sidebar-selected: var(--screen-tab-active);
+    --color-sidebar-shade: var(--screen-header-blue-deep);
 
     /* Menu */
-    --color-menu: hsl(235, 15%, 10%);
-    --color-menu-line: hsl(235, 15%, 14%);
-    --color-menu-ink: hsl(235, 25%, 92%);
-    --color-menu-faint: hsl(235, 5%, 80%);
-    --color-menu-hover: hsl(235, 15%, 30%);
-    --color-menu-selected: hsl(235, 5%, 30%);
-    --color-menu-shade: hsl(235, 5%, 0%);
+    --color-menu: var(--screen-row-white);
+    --color-menu-line: var(--screen-tab-light);
+    --color-menu-ink: var(--screen-row-label);
+    --color-menu-faint: var(--screen-section-title);
+    --color-menu-hover: var(--screen-canvas-pale);
+    --color-menu-selected: var(--screen-tab-light);
+    --color-menu-shade: var(--screen-panel-body);
 
     /* Status */
-    --color-status-success: hsl(142, 76%, 36%);
-    --color-status-warning: hsl(38, 92%, 50%);
-    --color-status-error: hsl(0, 84%, 60%);
-    --color-status-info: hsl(208, 100%, 57%);
+    --color-status-success: var(--screen-cursor-green);
+    --color-status-warning: var(--screen-cursor-yellow);
+    --color-status-error: var(--screen-chip-fire);
+    --color-status-info: var(--screen-header-blue);
 
     /* Bordure sous le chrome custom (fenêtre frameless Windows — pas d'équivalent spacedrive,
      * qui garde une barre de titre native). */
-    --color-chrome-border: hsl(235, 15%, 23%);
+    --color-chrome-border: var(--screen-tab-light);
 
     /* Border radius */
     --radius-window: 10px;
@@ -128,13 +125,13 @@
      * `prefers-reduced-motion` annule les durées plus bas : rien n'est codé en dur
      * dans les composants, donc l'annulation vaut partout d'un coup.
      */
-    --ombre-carte: 0 1px 2px hsl(235 15% 0% / 0.3);
-    --ombre-carte-survol: 0 8px 24px -4px hsl(235 15% 0% / 0.55);
-    --ombre-flottante: 0 16px 48px -8px hsl(235 15% 0% / 0.7);
+    --ombre-carte: 0 1px 2px color-mix(in srgb, var(--screen-panel-body) 30%, transparent);
+    --ombre-carte-survol: 0 8px 24px -4px color-mix(in srgb, var(--screen-panel-body) 55%, transparent);
+    --ombre-flottante: 0 16px 48px -8px color-mix(in srgb, var(--screen-panel-body) 70%, transparent);
 
     /* Le voile de lisibilité, et sa variante haute pour un bandeau de tête. */
-    --voile-bas: linear-gradient(to top, hsl(235 15% 4% / 0.95) 0%, hsl(235 15% 4% / 0.7) 28%, transparent 70%);
-    --voile-heros: linear-gradient(to top, hsl(235 15% 8%) 0%, hsl(235 15% 8% / 0.6) 35%, transparent 75%);
+    --voile-bas: linear-gradient(to top, color-mix(in srgb, var(--screen-panel-body) 95%, transparent) 0%, color-mix(in srgb, var(--screen-panel-body) 70%, transparent) 28%, transparent 70%);
+    --voile-heros: linear-gradient(to top, var(--screen-panel-body) 0%, color-mix(in srgb, var(--screen-panel-body) 60%, transparent) 35%, transparent 75%);
 
     /* Rythme. `--duree-vignette` sert au grossissement d'une carte au survol :
      * volontairement plus lente que le reste, parce qu'elle déplace de la surface. */
@@ -164,279 +161,12 @@
     --text-7xl: 5rem;
 }
 
-/* Thème clair — portage littéral de `tokens/src/css/themes/light.css`. next-themes pose
- * `class="light"` sur `<html>` quand le thème résolu est clair. */
-.light {
-    --color-accent: hsl(208, 100%, 57%);
-    --color-accent-faint: hsl(208, 100%, 67%);
-    --color-accent-deep: hsl(208, 100%, 47%);
-    --color-ink: hsl(235, 5%, 25%);
-    --color-ink-dull: hsl(235, 5%, 40%);
-    --color-ink-faint: hsl(235, 5%, 60%);
-    --color-sidebar: hsl(235, 5%, 96%);
-    --color-sidebar-box: hsl(235, 5%, 100%);
-    --color-sidebar-line: hsl(235, 10%, 85%);
-    --color-sidebar-ink: hsl(235, 5%, 25%);
-    --color-sidebar-ink-dull: hsl(235, 5%, 35%);
-    --color-sidebar-ink-faint: hsl(235, 5%, 45%);
-    --color-sidebar-divider: hsl(235, 15%, 93%);
-    --color-sidebar-button: hsl(235, 15%, 100%);
-    --color-sidebar-selected: hsl(235, 10%, 80%);
-    --color-sidebar-shade: hsl(235, 15%, 100%);
-    --color-app: hsl(235, 5%, 100%);
-    --color-app-box: hsl(235, 5%, 98%);
-    --color-app-dark-box: hsl(235, 5%, 97%);
-    --color-app-darker-box: hsl(235, 5%, 95%);
-    --color-app-light-box: hsl(235, 5%, 100%);
-    --color-app-overlay: hsl(235, 5%, 100%);
-    --color-app-input: hsl(235, 5%, 100%);
-    --color-app-focus: hsl(235, 5%, 98%);
-    --color-app-line: hsl(235, 5%, 90%);
-    --color-app-button: hsl(235, 5%, 100%);
-    --color-app-divider: hsl(235, 5%, 80%);
-    --color-app-selected: hsl(235, 5%, 93%);
-    --color-app-selected-item: hsl(235, 5%, 96%);
-    --color-app-hover: hsl(235, 5%, 97%);
-    --color-app-active: hsl(235, 5%, 87%);
-    --color-app-shade: hsl(235, 15%, 50%);
-    --color-app-frame: hsl(0, 0%, 100%);
-    --color-app-slider: hsl(235, 5%, 95%);
-    --color-app-explorer-scrollbar: hsl(235, 5%, 75%);
-    --color-menu: hsl(235, 5%, 98%);
-    --color-menu-line: hsl(235, 5%, 95%);
-    --color-menu-ink: hsl(235, 5%, 20%);
-    --color-menu-faint: hsl(235, 5%, 80%);
-    --color-menu-hover: hsl(235, 15%, 20%);
-    --color-menu-selected: hsl(235, 5%, 30%);
-    --color-menu-shade: hsl(235, 5%, 0%);
-    --color-chrome-border: hsl(235, 5%, 85%);
-}
-
-/* Variantes sombres supplémentaires — portage littéral de `tokens/src/css/themes/*.css`.
- * Posées sur `<html>` par `lib/appearance.ts` (`accentTheme`), orthogonales au clair/sombre. */
-.midnight-theme {
-    --color-ink: hsl(240, 20%, 88%);
-    --color-ink-dull: hsl(240, 8%, 65%);
-    --color-ink-faint: hsl(240, 8%, 50%);
-    --color-sidebar: hsl(240, 30%, 4%);
-    --color-sidebar-box: hsl(240, 25%, 8%);
-    --color-sidebar-line: hsl(240, 20%, 15%);
-    --color-sidebar-ink: hsl(240, 20%, 88%);
-    --color-sidebar-ink-dull: hsl(240, 8%, 65%);
-    --color-sidebar-ink-faint: hsl(240, 8%, 50%);
-    --color-sidebar-divider: hsl(240, 25%, 9%);
-    --color-sidebar-button: hsl(240, 25%, 10%);
-    --color-sidebar-selected: hsl(240, 25%, 16%);
-    --color-sidebar-shade: hsl(240, 20%, 15%);
-    --color-app: hsl(240, 25%, 8%);
-    --color-app-box: hsl(240, 20%, 12%);
-    --color-app-dark-box: hsl(240, 25%, 9%);
-    --color-app-darker-box: hsl(240, 28%, 6%);
-    --color-app-light-box: hsl(240, 20%, 24%);
-    --color-app-overlay: hsl(240, 25%, 11%);
-    --color-app-input: hsl(240, 20%, 14%);
-    --color-app-focus: hsl(240, 25%, 6%);
-    --color-app-line: hsl(240, 20%, 16%);
-    --color-app-divider: hsl(240, 25%, 3%);
-    --color-app-button: hsl(240, 20%, 16%);
-    --color-app-hover: hsl(240, 20%, 18%);
-    --color-app-selected: hsl(240, 20%, 20%);
-    --color-app-selected-item: hsl(240, 20%, 12%);
-    --color-app-active: hsl(240, 20%, 22%);
-    --color-app-shade: hsl(240, 25%, 0%);
-    --color-app-frame: hsl(240, 20%, 18%);
-    --color-app-slider: hsl(240, 20%, 14%);
-    --color-app-explorer-scrollbar: hsl(240, 25%, 20%);
-    --color-menu: hsl(240, 25%, 6%);
-    --color-menu-line: hsl(240, 20%, 10%);
-    --color-menu-ink: hsl(240, 20%, 88%);
-    --color-menu-faint: hsl(240, 5%, 75%);
-    --color-menu-hover: hsl(240, 20%, 22%);
-    --color-menu-selected: hsl(240, 10%, 22%);
-    --color-menu-shade: hsl(240, 10%, 0%);
-    --color-chrome-border: hsl(240, 20%, 16%);
-}
-
-.noir-theme {
-    --color-ink: hsl(0, 0%, 90%);
-    --color-ink-dull: hsl(0, 0%, 70%);
-    --color-ink-faint: hsl(0, 0%, 50%);
-    --color-sidebar: hsl(0, 0%, 0%);
-    --color-sidebar-box: hsl(0, 0%, 4%);
-    --color-sidebar-line: hsl(0, 0%, 12%);
-    --color-sidebar-ink: hsl(0, 0%, 90%);
-    --color-sidebar-ink-dull: hsl(0, 0%, 70%);
-    --color-sidebar-ink-faint: hsl(0, 0%, 50%);
-    --color-sidebar-divider: hsl(0, 0%, 5%);
-    --color-sidebar-button: hsl(0, 0%, 6%);
-    --color-sidebar-selected: hsl(0, 0%, 12%);
-    --color-sidebar-shade: hsl(0, 0%, 0%);
-    --color-app: hsl(0, 0%, 3%);
-    --color-app-box: hsl(0, 0%, 8%);
-    --color-app-dark-box: hsl(0, 0%, 5%);
-    --color-app-darker-box: hsl(0, 0%, 2%);
-    --color-app-light-box: hsl(0, 0%, 18%);
-    --color-app-overlay: hsl(0, 0%, 7%);
-    --color-app-input: hsl(0, 0%, 10%);
-    --color-app-focus: hsl(0, 0%, 2%);
-    --color-app-line: hsl(0, 0%, 14%);
-    --color-app-divider: hsl(0, 0%, 0%);
-    --color-app-button: hsl(0, 0%, 12%);
-    --color-app-hover: hsl(0, 0%, 14%);
-    --color-app-selected: hsl(0, 0%, 16%);
-    --color-app-selected-item: hsl(0, 0%, 8%);
-    --color-app-active: hsl(0, 0%, 18%);
-    --color-app-shade: hsl(0, 0%, 0%);
-    --color-app-frame: hsl(0, 0%, 14%);
-    --color-app-slider: hsl(0, 0%, 10%);
-    --color-app-explorer-scrollbar: hsl(0, 0%, 18%);
-    --color-menu: hsl(0, 0%, 2%);
-    --color-menu-line: hsl(0, 0%, 8%);
-    --color-menu-ink: hsl(0, 0%, 90%);
-    --color-menu-faint: hsl(0, 0%, 70%);
-    --color-menu-hover: hsl(0, 0%, 16%);
-    --color-menu-selected: hsl(0, 0%, 18%);
-    --color-menu-shade: hsl(0, 0%, 0%);
-    --color-chrome-border: hsl(0, 0%, 14%);
-}
-
-.slate-theme {
-    --color-ink: hsl(220, 10%, 88%);
-    --color-ink-dull: hsl(220, 5%, 65%);
-    --color-ink-faint: hsl(220, 5%, 50%);
-    --color-sidebar: hsl(220, 10%, 6%);
-    --color-sidebar-box: hsl(220, 8%, 10%);
-    --color-sidebar-line: hsl(220, 8%, 16%);
-    --color-sidebar-ink: hsl(220, 10%, 88%);
-    --color-sidebar-ink-dull: hsl(220, 5%, 65%);
-    --color-sidebar-ink-faint: hsl(220, 5%, 50%);
-    --color-sidebar-divider: hsl(220, 10%, 8%);
-    --color-sidebar-button: hsl(220, 8%, 11%);
-    --color-sidebar-selected: hsl(220, 10%, 18%);
-    --color-sidebar-shade: hsl(220, 10%, 0%);
-    --color-app: hsl(220, 8%, 9%);
-    --color-app-box: hsl(220, 8%, 13%);
-    --color-app-dark-box: hsl(220, 10%, 10%);
-    --color-app-darker-box: hsl(220, 10%, 7%);
-    --color-app-light-box: hsl(220, 8%, 22%);
-    --color-app-overlay: hsl(220, 8%, 12%);
-    --color-app-input: hsl(220, 8%, 15%);
-    --color-app-focus: hsl(220, 10%, 7%);
-    --color-app-line: hsl(220, 8%, 18%);
-    --color-app-divider: hsl(220, 10%, 4%);
-    --color-app-button: hsl(220, 8%, 17%);
-    --color-app-hover: hsl(220, 8%, 19%);
-    --color-app-selected: hsl(220, 8%, 21%);
-    --color-app-selected-item: hsl(220, 8%, 13%);
-    --color-app-active: hsl(220, 8%, 23%);
-    --color-app-shade: hsl(220, 10%, 0%);
-    --color-app-frame: hsl(220, 8%, 19%);
-    --color-app-slider: hsl(220, 8%, 15%);
-    --color-app-explorer-scrollbar: hsl(220, 8%, 22%);
-    --color-menu: hsl(220, 10%, 7%);
-    --color-menu-line: hsl(220, 8%, 12%);
-    --color-menu-ink: hsl(220, 10%, 88%);
-    --color-menu-faint: hsl(220, 5%, 70%);
-    --color-menu-hover: hsl(220, 8%, 20%);
-    --color-menu-selected: hsl(220, 8%, 22%);
-    --color-menu-shade: hsl(220, 10%, 0%);
-    --color-chrome-border: hsl(220, 8%, 18%);
-}
-
-.nord-theme {
-    --color-ink: hsl(220, 15%, 90%);
-    --color-ink-dull: hsl(220, 12%, 70%);
-    --color-ink-faint: hsl(220, 10%, 55%);
-    --color-sidebar: hsl(220, 20%, 9%);
-    --color-sidebar-box: hsl(220, 18%, 13%);
-    --color-sidebar-line: hsl(220, 15%, 20%);
-    --color-sidebar-ink: hsl(220, 15%, 90%);
-    --color-sidebar-ink-dull: hsl(220, 12%, 70%);
-    --color-sidebar-ink-faint: hsl(220, 10%, 55%);
-    --color-sidebar-divider: hsl(220, 20%, 11%);
-    --color-sidebar-button: hsl(220, 18%, 14%);
-    --color-sidebar-selected: hsl(220, 18%, 22%);
-    --color-sidebar-shade: hsl(220, 20%, 5%);
-    --color-app: hsl(220, 18%, 12%);
-    --color-app-box: hsl(220, 16%, 16%);
-    --color-app-dark-box: hsl(220, 18%, 13%);
-    --color-app-darker-box: hsl(220, 20%, 10%);
-    --color-app-light-box: hsl(220, 15%, 26%);
-    --color-app-overlay: hsl(220, 16%, 15%);
-    --color-app-input: hsl(220, 16%, 18%);
-    --color-app-focus: hsl(220, 20%, 10%);
-    --color-app-line: hsl(220, 15%, 22%);
-    --color-app-divider: hsl(220, 20%, 8%);
-    --color-app-button: hsl(220, 15%, 21%);
-    --color-app-hover: hsl(220, 15%, 23%);
-    --color-app-selected: hsl(220, 15%, 25%);
-    --color-app-selected-item: hsl(220, 16%, 16%);
-    --color-app-active: hsl(220, 15%, 27%);
-    --color-app-shade: hsl(220, 20%, 5%);
-    --color-app-frame: hsl(220, 15%, 23%);
-    --color-app-slider: hsl(220, 16%, 18%);
-    --color-app-explorer-scrollbar: hsl(220, 15%, 26%);
-    --color-menu: hsl(220, 20%, 10%);
-    --color-menu-line: hsl(220, 16%, 15%);
-    --color-menu-ink: hsl(220, 15%, 90%);
-    --color-menu-faint: hsl(220, 10%, 70%);
-    --color-menu-hover: hsl(220, 15%, 24%);
-    --color-menu-selected: hsl(220, 15%, 26%);
-    --color-menu-shade: hsl(220, 20%, 5%);
-    --color-chrome-border: hsl(220, 15%, 22%);
-}
-
-.mocha-theme {
-    --color-ink: hsl(25, 15%, 88%);
-    --color-ink-dull: hsl(25, 10%, 65%);
-    --color-ink-faint: hsl(25, 8%, 50%);
-    --color-sidebar: hsl(25, 20%, 7%);
-    --color-sidebar-box: hsl(25, 18%, 11%);
-    --color-sidebar-line: hsl(25, 15%, 18%);
-    --color-sidebar-ink: hsl(25, 15%, 88%);
-    --color-sidebar-ink-dull: hsl(25, 10%, 65%);
-    --color-sidebar-ink-faint: hsl(25, 8%, 50%);
-    --color-sidebar-divider: hsl(25, 20%, 9%);
-    --color-sidebar-button: hsl(25, 18%, 12%);
-    --color-sidebar-selected: hsl(25, 18%, 20%);
-    --color-sidebar-shade: hsl(25, 20%, 3%);
-    --color-app: hsl(25, 18%, 10%);
-    --color-app-box: hsl(25, 16%, 14%);
-    --color-app-dark-box: hsl(25, 18%, 11%);
-    --color-app-darker-box: hsl(25, 20%, 8%);
-    --color-app-light-box: hsl(25, 15%, 24%);
-    --color-app-overlay: hsl(25, 16%, 13%);
-    --color-app-input: hsl(25, 16%, 16%);
-    --color-app-focus: hsl(25, 20%, 8%);
-    --color-app-line: hsl(25, 15%, 20%);
-    --color-app-divider: hsl(25, 20%, 6%);
-    --color-app-button: hsl(25, 15%, 19%);
-    --color-app-hover: hsl(25, 15%, 21%);
-    --color-app-selected: hsl(25, 15%, 23%);
-    --color-app-selected-item: hsl(25, 16%, 14%);
-    --color-app-active: hsl(25, 15%, 25%);
-    --color-app-shade: hsl(25, 20%, 3%);
-    --color-app-frame: hsl(25, 15%, 21%);
-    --color-app-slider: hsl(25, 16%, 16%);
-    --color-app-explorer-scrollbar: hsl(25, 15%, 24%);
-    --color-menu: hsl(25, 20%, 8%);
-    --color-menu-line: hsl(25, 16%, 13%);
-    --color-menu-ink: hsl(25, 15%, 88%);
-    --color-menu-faint: hsl(25, 10%, 70%);
-    --color-menu-hover: hsl(25, 15%, 22%);
-    --color-menu-selected: hsl(25, 15%, 24%);
-    --color-menu-shade: hsl(25, 20%, 3%);
-    --color-chrome-border: hsl(25, 15%, 20%);
-}
-
 /* ── Pont vers les primitives shadcn/base-ui déjà en place ────────────────────────────────
  * Les ~40 composants de `components/ui/` (et tout le code applicatif écrit avant ce portage)
  * lisent des rôles shadcn (`--background`, `--muted`, …) et des rôles MD3 hérités
  * (`bg-surface-container`, `text-on-surface-variant`, …). Plutôt que de réécrire 7 000 lignes de
- * JSX, ces rôles sont REDIRIGÉS une fois pour toutes vers les tokens spacedrive ci-dessus : tout
- * l'écran suit la palette exacte de spaceui, quel que soit le vocabulaire utilisé à l'appel.
- * Une seule exception délibérée : `accent` (shadcn = « survol de menu », spacedrive = LE bleu
- * d'accent) — non redirigé, l'unique usage (`ui/select.tsx`) a été réécrit en `app-hover`. */
+ * JSX, ces rôles sont REDIRIGÉS une fois pour toutes vers les rôles communs ci-dessus : tout
+ * l'écran suit la palette mesurée du menu, quel que soit le vocabulaire utilisé à l'appel. */
 :root {
     --background: var(--color-app);
     --foreground: var(--color-ink);
@@ -445,13 +175,13 @@
     --popover: var(--color-app-overlay);
     --popover-foreground: var(--color-ink);
     --primary: var(--color-accent);
-    --primary-foreground: hsl(0, 0%, 100%);
+    --primary-foreground: var(--screen-row-white);
     --secondary: var(--color-app-selected);
     --secondary-foreground: var(--color-ink);
     --muted: var(--color-app-box);
     --muted-foreground: var(--color-ink-dull);
     --destructive: var(--color-status-error);
-    --destructive-foreground: hsl(0, 0%, 100%);
+    --destructive-foreground: var(--screen-row-white);
     --border: var(--color-app-line);
     --input: var(--color-app-input);
     --ring: var(--color-accent);
@@ -464,7 +194,7 @@
     --sidebar: var(--color-sidebar);
     --sidebar-foreground: var(--color-sidebar-ink);
     --sidebar-primary: var(--color-accent);
-    --sidebar-primary-foreground: hsl(0, 0%, 100%);
+    --sidebar-primary-foreground: var(--screen-row-white);
     --sidebar-accent: var(--color-sidebar-selected);
     --sidebar-accent-foreground: var(--color-sidebar-ink);
     --sidebar-border: var(--color-sidebar-line);
@@ -480,7 +210,7 @@
     --color-secondary: var(--secondary);
     --color-on-secondary: var(--secondary-foreground);
     --color-secondary-container: var(--color-accent);
-    --color-on-secondary-container: hsl(0, 0%, 100%);
+    --color-on-secondary-container: var(--screen-row-white);
     --color-tertiary: var(--color-ink-dull);
     --color-on-tertiary: var(--color-app);
     --color-tertiary-container: var(--color-app-box);
@@ -502,7 +232,7 @@
     --color-surface-bright: var(--color-app-light-box);
     --color-scrim: var(--color-app-shade);
     --color-error: var(--color-status-error);
-    --color-on-error: hsl(0, 0%, 100%);
+    --color-on-error: var(--screen-row-white);
     --color-error-container: var(--color-app-box);
     --color-on-error-container: var(--color-status-error);
 
@@ -757,6 +487,27 @@
  * cartes ne grossissent plus et les transitions tombent à une durée nulle. Écrit ici,
  * une seule fois, plutôt que dans chaque composant — un composant qui oublierait la
  * règle serait le seul à bouger, et c'est exactement ce qui gêne. */
+@media (max-width: 719px) {
+    .inacord-editor__toolbar {
+        max-width: 100%;
+        scrollbar-width: thin;
+    }
+
+    .inacord-editor__viewport-split {
+        flex-direction: column;
+    }
+
+    .inacord-editor__viewport-split > [role="separator"] {
+        display: none;
+    }
+
+    .inacord-editor__viewport-split > div:last-child {
+        width: 100% !important;
+        height: 12rem !important;
+        flex: 0 0 auto;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     :root {
         --duree-rapide: 0ms;

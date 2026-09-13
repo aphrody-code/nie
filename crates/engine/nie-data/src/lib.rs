@@ -40,6 +40,7 @@ pub mod ai;
 pub mod ai_type;
 pub mod aura;
 pub mod avatar;
+pub mod avatar_reference;
 pub mod banner;
 pub mod basara;
 pub mod belong_team;

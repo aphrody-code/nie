@@ -23,18 +23,15 @@
  */
 import type { CapacitesSource } from "@niers/asset-source";
 import {
-	ACCENT_THEMES,
 	SHIPPED_GAME_LOCALES,
-	type AccentTheme,
 	type GameLocale,
 	type ListDensity,
 	type Locale,
 	type Settings,
-	type ThemeMode,
 } from "../../lib/settings";
 
-/** L'identifiant d'un réglage : une clé du magasin partagé, rien d'autre. */
-export type SettingId = keyof Settings;
+/** Theme fields remain in storage only to read older profiles; the measured game theme is fixed. */
+export type SettingId = Exclude<keyof Settings, "theme" | "accentTheme">;
 
 /** Une famille de réglages — un onglet de l'écran Options. */
 export type SettingFamily = "general" | "display" | "paths" | "tools";
@@ -112,22 +109,6 @@ export const LOCALE_OPTIONS: readonly SettingOption<Locale>[] = [
  */
 export const GAME_LOCALE_OPTIONS: readonly SettingOption<GameLocale>[] = SHIPPED_GAME_LOCALES.map((value) => ({ value, label: value }));
 
-const THEME_OPTIONS: readonly SettingOption<ThemeMode>[] = [
-	{ value: "system", label: "Système" },
-	{ value: "light", label: "Clair" },
-	{ value: "dark", label: "Sombre" },
-];
-
-/** Les mêmes libellés qu'Inacord (`ACCENT_THEME_LABELS`), dans le même ordre. */
-const ACCENT_LABELS: Record<AccentTheme, string> = {
-	spacedrive: "Spacedrive",
-	midnight: "Midnight",
-	noir: "Noir",
-	slate: "Slate",
-	nord: "Nord",
-	mocha: "Mocha",
-};
-
 const DENSITY_OPTIONS: readonly SettingOption<ListDensity>[] = [
 	{ value: "comfortable", label: "Confortable" },
 	{ value: "compact", label: "Compacte" },
@@ -197,26 +178,6 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 	},
 
 	// ── Affichage ───────────────────────────────────────────────────────────────────────────
-	{
-		id: "theme",
-		family: "display",
-		kind: "choice",
-		label: "Thème",
-		description: "Clair, sombre, ou celui du système.",
-		options: THEME_OPTIONS,
-		default: "system",
-		portable: true,
-	},
-	{
-		id: "accentTheme",
-		family: "display",
-		kind: "choice",
-		label: "Palette sombre",
-		description: "La variante de palette utilisée en thème sombre.",
-		options: ACCENT_THEMES.map((value) => ({ value, label: ACCENT_LABELS[value] })),
-		default: "spacedrive",
-		portable: true,
-	},
 	{
 		id: "fontScale",
 		family: "display",
@@ -297,6 +258,20 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 		portable: true,
 	},
 ];
+
+/** Explicit allow-list for the player-facing Options screen; authoring preferences stay deep. */
+export const PUBLIC_SETTING_IDS: readonly SettingId[] = [
+	"locale",
+	"gameLocale",
+	"listDensity",
+	"reducedMotion",
+	"fontScale",
+	"uiZoom",
+];
+
+export function isPublicSetting(definition: SettingDefinition): boolean {
+	return PUBLIC_SETTING_IDS.includes(definition.id);
+}
 
 /**
  * Un réglage est-il visible pour cet hôte ?

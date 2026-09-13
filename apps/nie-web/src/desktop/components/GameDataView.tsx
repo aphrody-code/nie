@@ -21,7 +21,7 @@
 // interne, ses champs de recherche. Le rendu est UNIQUE — ajouter une famille n'ajoute pas une
 // branche de `if` de plus (c'était le défaut de la version précédente : 16 blocs `kind === …`
 // copiés-collés, chacun avec sa propre mise en page).
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
@@ -53,6 +53,7 @@ import {
   type Uniform,
 } from "@/lib/api";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { EntityExplorer, useAssetSource } from "@niers/inacord-ui";
 import { Alert, AlertDescription, AlertTitle } from "@niers/inacord-ui/components/ui/alert";
 import { Badge } from "@niers/inacord-ui/components/ui/badge";
 import { Button } from "@niers/inacord-ui/components/ui/button";
@@ -81,6 +82,8 @@ import { PropertyEditor } from "@/components/PropertyEditor";
 import { StatCalculator } from "@/components/tools/StatCalculator";
 import { estAbsent } from "@/lib/valeurs";
 import { cn } from "@niers/inacord-ui/lib/utils";
+import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
+import { NATIVE_WINDOW } from "../../host";
 
 /** Valeur affichable d'une cellule — `null` rend une cellule vide, jamais la chaîne « null ». */
 type Cellule = string | number | boolean | null;
@@ -655,6 +658,26 @@ const STATS = "stats";
 
 const GROUPES = [...new Set(REGISTRE.map((f) => f.groupe))];
 
+export function decodedStateFromUrl(search: string) {
+  const params = new URLSearchParams(search);
+  const family = params.get("decoded_family") ?? REGISTRE[0].cle;
+  return {
+    family: family === STATS || REGISTRE.some((entry) => entry.cle === family) ? family : REGISTRE[0].cle,
+    query: params.get("decoded_q") ?? "",
+    sort: params.get("decoded_tri")
+      ? { key: params.get("decoded_tri")!, dir: params.get("decoded_order") === "desc" ? "desc" as const : "asc" as const }
+      : null,
+    view: params.get("decoded_view") === "cartes" ? "cartes" as const : "table" as const,
+  };
+}
+
+export function dataSurfaceUrl(href: string, next: "database" | "decoded"): URL {
+  const url = new URL(href);
+  if (next === "decoded") url.searchParams.set("surface", "decoded");
+  else url.searchParams.delete("surface");
+  return url;
+}
+
 // ─── Utilitaires ─────────────────────────────────────────────────────────────────────────────
 
 function texte(v: Cellule): string {
@@ -673,9 +696,37 @@ function csvCell(v: Cellule): string {
 
 // ─── Vue ─────────────────────────────────────────────────────────────────────────────────────
 
-export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => void }) {
+/** Web reads the schema-backed mirror; desktop retains direct VFS decoding and edit actions. */
+export function GameDataView({ onOpenFile, publicMode = false }: {
+  onOpenFile?: (path: string) => void;
+  publicMode?: boolean;
+}) {
+  const source = useAssetSource();
+  const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
+  if (!source.entityCatalog) return <NativeGameDataView onOpenFile={onOpenFile} publicMode={publicMode} />;
+  if (publicMode) return <NativeGameDataView onOpenFile={onOpenFile} publicMode />;
+  const surface = new URL(location, "http://localhost").searchParams.get("surface") === "decoded" ? "decoded" : "database";
+  const selectSurface = (next: "database" | "decoded") => {
+    const url = dataSurfaceUrl(window.location.href, next);
+    writeBrowserHistory(url, window.history.state, "push");
+  };
+  return <div className="flex h-full min-h-0 flex-col">
+    <nav className="flex shrink-0 justify-center gap-2 border-b border-app-line bg-app-box p-2" aria-label="Source des données">
+      <Button type="button" variant={surface === "database" ? "default" : "outline"} onClick={() => selectSurface("database")}>Base SQLite filtrable</Button>
+      <Button type="button" variant={surface === "decoded" ? "default" : "outline"} onClick={() => selectSurface("decoded")}>Données du jeu décodées</Button>
+    </nav>
+    <div className="min-h-0 flex-1">{surface === "database" ? <EntityExplorer /> : <NativeGameDataView onOpenFile={onOpenFile} />}</div>
+  </div>;
+}
+
+function NativeGameDataView({ onOpenFile, publicMode = false }: {
+  onOpenFile?: (path: string) => void;
+  publicMode?: boolean;
+}) {
+  const source = useAssetSource();
   const settings = useSettings();
-  const [cle, setCle] = useState<string>(REGISTRE[0].cle);
+  const initialUrlState = decodedStateFromUrl(typeof window === "undefined" ? "" : window.location.search);
+  const [cle, setCle] = useState<string>(initialUrlState.family);
   /**
    * Les lignes portent la clé de LEUR famille — jamais un simple tableau.
    *
@@ -692,17 +743,43 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
   const setLignes = (r: unknown[]) => setDonnees({ cle, lignes: r });
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [filtre, setFiltre] = useState("");
+  const [filtre, setFiltre] = useState(initialUrlState.query);
   /** The game's FILTERS dialog, opened from the toolbar button and by « F ». */
   const [filtresOuverts, setFiltresOuverts] = useState(false);
-  const [tri, setTri] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  const [tri, setTri] = useState<{ key: string; dir: "asc" | "desc" } | null>(initialUrlState.sort);
   const [selection, setSelection] = useState<number | null>(null);
   const [hauteur, setHauteur] = useState(480);
   /** Tableau (toutes les colonnes, triable) ou cartes (mise en page du wiki). */
-  const [vue, setVue] = useState<"table" | "cartes">("table");
+  const [vue, setVue] = useState<"table" | "cartes">(initialUrlState.view);
   /** Cartes affichées d'un coup — 6 101 personnages en DOM figeraient la fenêtre. */
   const [limiteCartes, setLimiteCartes] = useState(120);
   const zone = useRef<HTMLDivElement | null>(null);
+  const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
+
+  useEffect(() => {
+    if (!source.entityCatalog) return;
+    const next = decodedStateFromUrl(new URL(location, "http://localhost").search);
+    setCle(next.family);
+    setFiltre(next.query);
+    setTri(next.sort);
+    setVue(next.view);
+  }, [location, source.entityCatalog]);
+
+  useEffect(() => {
+    if (!source.entityCatalog) return;
+    const url = new URL(window.location.href);
+    const values: Record<string, string> = {
+      decoded_family: cle === REGISTRE[0].cle ? "" : cle,
+      decoded_q: filtre,
+      decoded_tri: tri?.key ?? "",
+      decoded_order: tri?.dir === "desc" ? "desc" : "",
+      decoded_view: vue === "cartes" ? "cartes" : "",
+    };
+    for (const [key, value] of Object.entries(values)) {
+      if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
+    }
+    if (url.href !== window.location.href) writeBrowserHistory(url, window.history.state, "replace");
+  }, [cle, filtre, source.entityCatalog, tri, vue]);
 
   // Cache par (racine du jeu, famille) : revenir sur un onglet déjà vu est instantané, et
   // changer de racine invalide tout — un décodage de `chara_param` coûte plusieurs secondes.
@@ -847,8 +924,6 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
   async function exporter(format: "csv" | "json") {
     if (!famille) return;
     const nom = `${famille.cle}-${ordre.length}.${format}`;
-    const dest = await save({ defaultPath: nom, filters: [{ name: format.toUpperCase(), extensions: [format] }] });
-    if (!dest) return;
     const contenu =
       format === "csv"
         ? [
@@ -860,6 +935,18 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
             null,
             2,
           );
+    if (!NATIVE_WINDOW) {
+      const url = URL.createObjectURL(new Blob([contenu], { type: format === "csv" ? "text/csv;charset=utf-8" : "application/json" }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = nom;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`${ordre.length.toLocaleString("fr-FR")} ligne(s) exportée(s)`);
+      return;
+    }
+    const dest = await save({ defaultPath: nom, filters: [{ name: format.toUpperCase(), extensions: [format] }] });
+    if (!dest) return;
     try {
       await api.writeTextFile(dest, contenu);
       toast.success(`${ordre.length.toLocaleString("fr-FR")} ligne(s) → ${dest}`);
@@ -873,9 +960,9 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
     ligneSelectionnee && famille?.code ? famille.code(ligneSelectionnee) : null;
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="flex h-full min-h-0 min-w-0 flex-col sm:flex-row">
       {/* Catégories — 24 familles ne tiennent pas dans une barre d'onglets lisible. */}
-      <ScrollArea className="w-[188px] min-w-[188px] border-r border-app-line">
+      <ScrollArea className="h-28 w-full min-w-0 border-b border-app-line sm:h-auto sm:w-[188px] sm:min-w-[188px] sm:border-b-0 sm:border-r">
         <div className="space-y-3 p-2">
           {GROUPES.map((groupe) => (
             <div key={groupe} className="space-y-0.5">
@@ -926,7 +1013,7 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
           <StatCalculator />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 p-2">
           {filtresOuverts ? (
             <div
               className="fixed inset-0 z-100 flex items-center justify-center p-6 backdrop-blur-xs"
@@ -1022,7 +1109,7 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
             </Alert>
           )}
 
-          <div className="flex min-h-0 flex-1 gap-2">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:flex-row">
             {famille?.carte && vue === "cartes" ? (
               <ScrollArea className="min-h-0 min-w-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2 p-2">
@@ -1093,7 +1180,7 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
 
             {/* Détail — toujours utile : la fiche clé/valeur complète, et l'éditeur de propriétés
              * quand l'entité porte un code interne (ses fichiers, ses cfg.bin, ses fonctions). */}
-            <div className="flex h-full w-[340px] min-w-[340px] flex-col gap-2">
+            <div className="flex h-64 w-full min-w-0 flex-col gap-2 lg:h-full lg:w-[340px] lg:min-w-[340px]">
               {ligneSelectionnee ? (
                 <>
                   <ScrollArea className="max-h-[45%] rounded-lg border border-app-line bg-app-box/60">
@@ -1109,21 +1196,21 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
                       })}
                     </dl>
                   </ScrollArea>
-                  {codeSelectionne ? (
+                  {!publicMode && codeSelectionne ? (
                     <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-app-line bg-app-box/60">
                       <PropertyEditor code={codeSelectionne} className="h-full p-3" onOpenFile={onOpenFile} />
                     </div>
                   ) : (
                     <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-app-line px-4 text-center text-xs text-ink-faint">
-                      Cette entrée n'a pas de code interne : aucun asset ne s'y rattache dans le VFS.
+                      {codeSelectionne ? "La fiche complète est affichée ci-dessus." : "Cette entrée n'a pas de code interne : aucun asset ne s'y rattache dans le VFS."}
                     </div>
                   )}
                 </>
               ) : (
                 <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-app-line px-4 text-center text-xs text-ink-faint">
                   {vue === "cartes" && famille?.carte
-                    ? "Choisissez une carte pour voir sa fiche complète, et l'éditeur de propriétés (fichiers, données, moteur) si elle porte un code interne."
-                    : "Sélectionnez une ligne pour voir sa fiche complète, et l'éditeur de propriétés (fichiers, données, moteur) si elle porte un code interne."}
+                    ? "Choisissez une carte pour voir sa fiche complète."
+                    : "Sélectionnez une ligne pour voir sa fiche complète."}
                 </div>
               )}
             </div>

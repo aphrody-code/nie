@@ -12,6 +12,7 @@ export {
 	useCapacites,
 	useErreurSource,
 } from "./source";
+export { EntityExplorer, entityStateFromUrl } from "./entities/EntityExplorer";
 
 // --- Coquilles : la direction artistique du jeu ------------------------------------------
 //

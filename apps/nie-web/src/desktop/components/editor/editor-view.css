@@ -1,0 +1,149 @@
+/* Responsive ownership for the public 3D editor. The desktop proportions still come from the
+ * split panes; this file only prevents their intrinsic content from widening a narrow host. */
+.inacord-editor {
+	inline-size: 100%;
+	max-inline-size: 100vw;
+	contain: inline-size;
+	overflow: hidden;
+}
+
+.inacord-editor__body,
+.inacord-editor__viewport-split,
+.content-browser {
+	inline-size: 100%;
+	max-inline-size: 100%;
+}
+
+.inacord-editor__extensions {
+	max-block-size: min(15rem, 40vh);
+	overflow: auto;
+}
+
+.inacord-editor__extension-button {
+	display: inline-flex;
+	min-block-size: 2rem;
+	min-inline-size: 0;
+	align-items: center;
+	justify-content: center;
+	gap: 0.3rem;
+	border: 1px solid var(--color-app-line);
+	border-radius: 0.3rem;
+	padding: 0.25rem 0.55rem;
+	color: var(--color-ink-dull);
+	font-size: 0.6875rem;
+}
+
+.inacord-editor__extension-button:hover:not(:disabled) {
+	background: var(--color-app-hover);
+	color: var(--color-ink);
+}
+
+.inacord-editor__extension-button:disabled {
+	opacity: 0.45;
+}
+
+@media (max-width: 900px) {
+	.inacord-editor__toolbar {
+		flex-wrap: wrap;
+		align-content: flex-start;
+		overflow-x: hidden;
+		gap: 0.375rem 0.5rem;
+	}
+
+	.inacord-editor__selection {
+		flex: 1 0 100%;
+	}
+
+	.inacord-editor__workspaces,
+	.inacord-editor__stats {
+		max-inline-size: 100%;
+		flex-wrap: wrap;
+	}
+
+	.inacord-editor__viewport-split {
+		flex-direction: column;
+	}
+
+	.inacord-editor__viewport-split > [role="separator"] {
+		display: none;
+	}
+
+	.inacord-editor__viewport-split > div:last-child {
+		inline-size: 100% !important;
+		block-size: 12rem !important;
+		flex: 0 0 auto;
+	}
+
+	.content-browser__toolbar {
+		flex-wrap: wrap;
+		overflow-x: hidden;
+	}
+
+	.content-browser__breadcrumbs {
+		flex: 1 1 calc(100% - 2.5rem);
+	}
+
+	.content-browser__query {
+		order: 2;
+		inline-size: auto;
+		min-inline-size: 0;
+		flex: 1 1 10rem;
+	}
+
+	.content-browser__count {
+		order: 2;
+	}
+
+	.content-browser__filters {
+		order: 3;
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		inline-size: 100%;
+	}
+
+	.content-browser__filters > * {
+		min-inline-size: 0;
+		padding-inline: 0.25rem;
+	}
+
+	.inacord-editor__extension-actions > .inacord-editor__extension-button {
+		flex: 1 1 8rem;
+	}
+}
+
+@media (max-width: 480px) {
+	.inacord-editor__toolbar {
+		padding-inline: 0.375rem;
+	}
+
+	.inacord-editor__gizmos,
+	.inacord-editor__workspaces,
+	.inacord-editor__stats {
+		border-inline-end: 0;
+		padding-inline-end: 0;
+	}
+
+	.inacord-editor__stats {
+		inline-size: 100%;
+		justify-content: space-between;
+		border-inline-start: 0;
+		padding-inline-start: 0;
+		gap: 0.25rem;
+	}
+
+	.inacord-editor__extensions {
+		padding-inline: 0.375rem;
+	}
+
+	.inacord-editor__extension-actions > span {
+		inline-size: 100%;
+	}
+
+	.inacord-editor__extension-actions > .inacord-editor__extension-button {
+		flex-basis: calc(50% - 0.25rem);
+	}
+
+	.inacord-editor__extension-state > div {
+		inline-size: 100%;
+	}
+}

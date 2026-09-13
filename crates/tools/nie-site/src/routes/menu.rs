@@ -513,5 +513,4 @@ mod tests {
             assert!(setting_path(stem).is_err(), "stem accepté : {stem:?}");
         }
     }
-
 }

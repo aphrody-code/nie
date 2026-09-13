@@ -93,6 +93,26 @@ pub fn decode_cfgbin(vfs: &Vfs, path: &str) -> Result<Value, String> {
     }
 }
 
+/// Encode an edited cfg.bin bridge value for one path already mounted in `vfs`.
+///
+/// T2B documents carry an `entries` root and can be rebuilt from the edited JSON alone. RDBN
+/// documents carry a `lists` root; their JSON representation does not retain each column's wire
+/// type, so the original VFS bytes remain the required schema template. Keeping that dispatch and
+/// template handling here prevents native hosts from growing their own format writer.
+pub fn encode_cfgbin(vfs: &Vfs, path: &str, edited: &Value) -> Result<Vec<u8>, String> {
+    if edited.get("lists").is_some() {
+        let raw = vfs.read(path).map_err(|error| error.to_string())?;
+        let rdbn = nie_formats::cfgbin::parse(&raw)
+            .map_err(|error| format!("parse RDBN {path} : {error}"))?;
+        let original = nie_formats::cfgbin::read_values(&rdbn, &raw);
+        let lists = crate::bridge::json_to_rdbn_lists(&original, edited)?;
+        nie_formats::cfgbin::encode_rdbn(&lists)
+    } else {
+        let entries = crate::bridge::json_to_t2b_entries(edited)?;
+        Ok(nie_formats::cfgbin::encode_t2b(&entries))
+    }
+}
+
 /// Load one localized text family as indexed JSON.
 pub fn load_text_json_lang(vfs: &Vfs, text_type: &str, language: &str) -> Result<Value, String> {
     let stem = nie_data::text::text_file_name(text_type).ok_or_else(|| {
@@ -123,6 +143,29 @@ pub fn load_text(vfs: &Vfs, text_type: &str) -> Result<Vec<(nie_data::HashId, St
 mod tests {
     use super::*;
     use nie_formats::cfgbin::Value as CfgValue;
+
+    fn unique_temp_file(label: &str) -> std::path::PathBuf {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "nie-explore-{label}-{}-{stamp}.cfg.bin",
+            std::process::id()
+        ))
+    }
+
+    fn overlay(bytes: &[u8], logical_path: &str) -> (Vfs, std::path::PathBuf) {
+        let disk_path = unique_temp_file("cfgbin-encode");
+        std::fs::write(&disk_path, bytes).expect("write cfg.bin fixture");
+        let mut vfs = Vfs::new();
+        vfs.add_overlay_file(
+            logical_path.to_owned(),
+            disk_path.clone(),
+            u32::try_from(bytes.len()).expect("small fixture"),
+        );
+        (vfs, disk_path)
+    }
 
     #[test]
     fn duplicate_siblings_and_children_receive_stable_indices() {
@@ -157,5 +200,39 @@ mod tests {
             "item_text.cfg.bin"
         );
         assert_eq!(base_name("item_text.cfg.bin"), "item_text.cfg.bin");
+    }
+
+    #[test]
+    fn encode_cfgbin_owns_t2b_dispatch_and_round_trip() {
+        let original = vec![CfgEntry {
+            name: "ROOT_BEGIN".to_owned(),
+            variables: vec![CfgValue::Int(7)],
+            children: vec![],
+        }];
+        let bytes = nie_formats::cfgbin::encode_t2b(&original);
+        let logical_path = "data/common/gamedata/test_config.cfg.bin";
+        let (vfs, disk_path) = overlay(&bytes, logical_path);
+        let edited = decode_cfgbin(&vfs, logical_path).expect("decode T2B fixture");
+
+        let encoded = encode_cfgbin(&vfs, logical_path, &edited).expect("encode T2B fixture");
+        let reparsed = nie_formats::cfgbin::parse_t2b(&encoded).expect("reparse T2B fixture");
+        assert_eq!(reparsed.entries, original);
+
+        std::fs::remove_file(disk_path).expect("remove T2B fixture");
+    }
+
+    #[test]
+    fn encode_cfgbin_owns_rdbn_template_dispatch() {
+        let bytes = nie_formats::cfgbin::encode_rdbn(&[]).expect("encode empty RDBN fixture");
+        let logical_path = "data/common/gamedata/empty_config.cfg.bin";
+        let (vfs, disk_path) = overlay(&bytes, logical_path);
+        let edited = decode_cfgbin(&vfs, logical_path).expect("decode RDBN fixture");
+
+        let encoded = encode_cfgbin(&vfs, logical_path, &edited).expect("encode RDBN fixture");
+        assert!(nie_formats::cfgbin::is_rdbn(&encoded));
+        let reparsed = nie_formats::cfgbin::parse(&encoded).expect("reparse RDBN fixture");
+        assert!(nie_formats::cfgbin::read_values(&reparsed, &encoded).is_empty());
+
+        std::fs::remove_file(disk_path).expect("remove RDBN fixture");
     }
 }

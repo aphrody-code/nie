@@ -869,7 +869,6 @@ fn load_menu_font(game_dir: &Path) -> Option<menu_layout::MenuFont> {
     })
 }
 
-
 /// Chemin du fichier listant les atlas d'icônes de menu (un chemin VFS logique par ligne, `#`=commentaire).
 const MENU_ICON_ATLASES: &str = "data/re/menu-icon-atlases.txt";
 

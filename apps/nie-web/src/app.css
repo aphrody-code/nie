@@ -14,17 +14,17 @@
  * Here Tailwind is entered ONCE, the sources are declared once, and the three token layers are
  * ordered on purpose:
  *
- *  1. `base.css` — the bridge from the shadcn and Material role names to the game tokens measured
- *     on the menu captures (`--jeu-*`), plus the appearance settings (`data-theme`, `data-density`,
- *     `data-motion`).
+ *  1. `base.css` — the bridge from the shadcn and Material role names to the shared game roles,
+ *     plus the density and motion accessibility settings.
  *  2. `desktop/styles.css` — the application roles of the mature workspace (`app-*`, `ink-*`,
  *     `sidebar-*`), its utilities (`frame`, `no-scrollbar`, `mask-fade-out`, `rounded-window`) and
  *     its self-hosted fonts. It comes second, so the roles the chrome uses everywhere are its own.
- *  3. `inacord-tool-theme.css` (imported by the sheet above) — which binds those application roles
- *     back onto the game tokens. The chrome is therefore game-derived too, not a second palette.
+ *  3. `inacord-tool-theme.css` — loaded last so every application role resolves to the measured
+ *     `data/menu` roles emitted by `game-screens.css`, not a second character/tool palette.
  *
- * The game screens are untouched by all of it: they read `--jeu-*` and `--screen-*` directly, and
- * no role name of the application layer collides with those.
+ * Game screens read `--jeu-*` and `--screen-*` directly. The final adapter preserves the legacy
+ * names but resolves every colour role to a measured menu surface. Geometry, spacing and motion
+ * remain non-colour structural tokens. No user-selectable palette rewrites either set.
  */
 @import "tailwindcss";
 
@@ -34,11 +34,9 @@
 @source ".";
 @source "../../../packages/inacord-ui/src";
 @source "../../../packages/ui/src/components";
-@source "../../../packages/spaceui";
 @source "../node_modules/@spacedrive/primitives/dist";
 
 @import "tw-animate-css";
-@import "@aphrody/spaceui/styles.css";
 
 @import "./base.css";
 @import "./desktop/styles.css";
@@ -46,3 +44,5 @@
 @import "@niers/inacord-ui/shell/game-tokens.css";
 /* Les classes `game-*` des écrans du jeu (Options, filtres), engendrées depuis les captures. */
 @import "@niers/inacord-ui/shell/game-screens.css";
+/* Final adapter: every host role resolves to the measured menu roles above. */
+@import "@niers/inacord-ui/shell/inacord-tool-theme.css";

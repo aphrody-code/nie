@@ -51,7 +51,7 @@
         "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/src/routes/donnees.rs","nie_data::typed"]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/Cargo.toml","nie-data ="]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
-        "inacord": {"kind":"adapter","evidence":[["apps/inacord/src-tauri/src/game_data.rs","nie_data::"]]},
+        "inacord": {"kind":"adapter","evidence":[["apps/inacord/src-tauri/src/lib.rs","pub use nie_app::game_data"],["crates/engine/nie-app/src/game_data.rs","use nie_data::"]]},
         "browser": {"kind":"adapter","evidence":[["apps/nie-web/src/desktop/lib/bindings.ts","gameData"]]}
       },
       "proofTests": ["cargo test -p nie-data --locked"]

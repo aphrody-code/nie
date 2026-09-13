@@ -11,7 +11,7 @@
  *
  * Here there is one sidebar, and it is the workspace's own component
  * (`desktop/components/Sidebar.tsx`) — data-driven by `SidebarSection[]`, so this file builds the
- * data and never re-implements the rendering, the collapse button, the theme switch, the job
+ * data and never re-implements the rendering, the collapse button, the job
  * manager or the download button. Its first section, `JEU`, lists the game screens declared by
  * `entries.ts`; then come the workspace views declared by `desktop/lib/vues.ts`, each routed to
  * `/inacord/<viewId>`; then the places, the pins and the recents of the Explorer.
@@ -31,13 +31,15 @@ import { useExternalPath } from "@/lib/externalPath";
 import { useT } from "@/lib/i18n";
 import { PINNED_PLACES, usePinnedPlaces, useRecentPlaces } from "@/lib/places";
 import { LIBELLE_GROUPE, vue as viewById, vuesDuGroupe, type GroupeVue } from "@/lib/vues";
+import { GameText } from "@niers/inacord-ui";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { Toaster } from "@niers/inacord-ui/components/ui/sonner";
 import { TooltipProvider } from "@niers/inacord-ui/components/ui/tooltip";
+import { SkipToContent } from "@niers/inacord-ui/components/wiki/accessibility/SkipToContent";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ALIAS, EXPLORER, INACORD, SETTINGS, entryLabel, menuEntries } from "../entries";
+import { AVATAR, BANK, CATALOGS, DATA, EDITOR_3D, EXPLORER, GALLERY, INACORD, MEDIA_LANDING, MODES, SEARCH, SETTINGS, SHOP, entryLabel, menuEntries } from "../entries";
 import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
 import { GAME_REACHABLE, NATIVE_WINDOW } from "../host";
 import { HOME } from "../routing";
@@ -48,6 +50,9 @@ const SIDEBAR_WIDTH = 200;
 
 /** Collapse persistence key — the same one the workspace used, so the state follows the user. */
 const COLLAPSED_KEY = "nie-explorer:sidebar:repliee";
+
+/** Below this width the fixed 200 px rail would consume most of a phone viewport. */
+const COMPACT_NAVIGATION_QUERY = "(max-width: 719px)";
 
 /**
  * Icon for a game entry.
@@ -80,13 +85,15 @@ export function inacordViewOf(route: string): string | null {
 /**
  * The workspace view a route opens, whatever the route is called.
  *
- * `/explorateur` and the two addresses inherited from the screens it absorbed (`/recherche`,
- * `/donnees`) open the Explorer, the same one `/inacord/explorer` opens. One function answers for
- * all of them, so the router and the top bar cannot disagree — they did: the title bar showed the
- * raw segment, « recherche », on a screen that is the Explorer.
+ * Public `/explorateur`, `/recherche` and `/donnees` open their matching workspace views. Explicit
+ * `/inacord/<view>` deep links use the same registry for authoring tools, so routing and the
+ * workspace title cannot disagree.
  */
 export function workspaceViewOf(route: string): string | null {
-	if (route === EXPLORER || (ALIAS as readonly string[]).includes(route)) return "explorer";
+	if (route === EDITOR_3D) return "editor";
+	if (route === EXPLORER) return "explorer";
+	if (route === SEARCH) return "search";
+	if (route === DATA) return "data";
 	return inacordViewOf(route);
 }
 
@@ -119,7 +126,9 @@ export function gameSection(current: string): SidebarSection {
 				id: entry.route,
 				label: entry.label,
 				icon: GLYPH_ICON[entry.glyph] ?? "folder_open",
-				active: entry.route === current,
+				active:
+					entry.route === current ||
+					(entry.route === MEDIA_LANDING && (CATALOGS as readonly string[]).includes(current)),
 			})),
 		],
 	};
@@ -165,10 +174,26 @@ export function UnifiedShell({
 	const externalPath = useExternalPath();
 	const pins = usePinnedPlaces();
 	const recents = useRecentPlaces();
-	const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
+	const [collapsed, setCollapsed] = useState(() =>
+		localStorage.getItem(COLLAPSED_KEY) === "1" || window.matchMedia?.(COMPACT_NAVIGATION_QUERY).matches,
+	);
+	// Browser routes reached from the title menu remain in the game surface. The authoring shell
+	// is reserved for explicit `/inacord/*` deep links and for the native desktop host.
+	const publicGameFlow = GAME_REACHABLE && current !== INACORD && !current.startsWith(INACORD_VIEW_PREFIX);
+	const ownsNativeReturn = [AVATAR, BANK, GALLERY, SETTINGS, SHOP].includes(current)
+		|| current === MODES || current.startsWith(`${MODES}/`);
 	useEffect(() => {
 		localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
 	}, [collapsed]);
+	useEffect(() => {
+		if (!window.matchMedia) return;
+		const media = window.matchMedia(COMPACT_NAVIGATION_QUERY);
+		const collapseOnCompact = (event: MediaQueryListEvent) => {
+			if (event.matches) setCollapsed(true);
+		};
+		media.addEventListener("change", collapseOnCompact);
+		return () => media.removeEventListener("change", collapseOnCompact);
+	}, []);
 	// Ctrl+B — the same toggle as the button, already the workspace's shortcut.
 	useEffect(() => {
 		const onKey = (ev: KeyboardEvent) => {
@@ -274,13 +299,42 @@ export function UnifiedShell({
 		}
 	}, [title]);
 
+	if (publicGameFlow) {
+		return (
+			<TooltipProvider>
+				<SkipToContent />
+				<div
+					className="game-screen-shell relative flex h-dvh w-full select-none flex-col overflow-hidden bg-app text-ink"
+					data-surface-owner="game"
+				>
+					<main id="main-content" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
+						{children}
+					</main>
+					{!ownsNativeReturn ? <button
+						type="button"
+						className="game-shell-return"
+						onClick={() => onSelect(HOME)}
+						aria-label="Retour au menu principal"
+					>
+						<kbd>Esc</kbd> <GameText>Retour</GameText>
+					</button> : null}
+				</div>
+				<Toaster position="bottom-right" />
+			</TooltipProvider>
+		);
+	}
+
 	return (
 		<TooltipProvider>
+			<SkipToContent />
 			{/* Shell — portage de `ShellLayout.tsx` (spacedrive) : fond `bg-app`, coins arrondis
 			    `radius-window` (10 px, cf. `apply_rounded_corners` côté Rust pour que Windows
 			    arrondisse AUSSI la fenêtre elle-même), barre supérieure en absolu au-dessus d'un
 			    contenu décalé de `pt-12`. */}
-			<div className="relative flex h-screen w-screen select-none flex-col overflow-hidden rounded-window bg-app text-ink">
+			<div
+				className="tool-shell relative flex h-dvh w-full select-none flex-col overflow-hidden rounded-window bg-app text-ink"
+				data-surface-owner="tool"
+			>
 				<TopBar
 					sidebarWidth={collapsed ? 0 : SIDEBAR_WIDTH}
 					title={title}
@@ -311,7 +365,7 @@ export function UnifiedShell({
 							onBasculerRepli={() => setCollapsed(true)}
 						/>
 					)}
-					<main className="relative z-[38] flex min-w-0 flex-1 flex-col overflow-auto pt-12">{children}</main>
+					<main id="main-content" className="relative z-[38] flex min-w-0 flex-1 flex-col overflow-auto pt-12">{children}</main>
 				</div>
 			</div>
 			<WindowResizeHandles />

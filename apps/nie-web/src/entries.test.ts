@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { MODES, SECTIONS, menuEntries, recognizedRoutes, sectionEntry } from "./entries";
+import { INACORD, MODES, SECTIONS, menuEntries, recognizedRoutes, sectionEntry } from "./entries";
 import { readGameNavigation } from "./game/navigation";
 
 describe("sections", () => {
@@ -38,7 +38,12 @@ describe("sections", () => {
 describe("les modes dans le catalogue de l'hôte", () => {
 	test("la liste est une adresse reconnue et une tuile", () => {
 		expect(recognizedRoutes(null)).toContain(MODES);
-		expect(menuEntries(null).map((entry) => entry.route)).toContain(MODES);
+		expect(menuEntries(null).map((entry) => entry.route)).not.toContain(MODES);
+	});
+
+	test("les outils d'auteur ne sont pas publiés dans le menu du jeu", () => {
+		expect(recognizedRoutes(null)).toContain(INACORD);
+		expect(menuEntries(null).map((entry) => entry.route)).not.toContain(INACORD);
 	});
 
 	test("arriver directement sur une fiche ouvre la fiche, pas l'accueil", () => {

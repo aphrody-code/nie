@@ -11,7 +11,6 @@
 //
 // Le rendu d'un item reprend `SpaceItem.tsx` : `rounded-md`, icône 16 px, libellé tronqué,
 // actif = `bg-accent`.
-import { useTheme } from "next-themes";
 import { useState } from "react";
 import { NativeToolSurface } from "@niers/inacord-ui/shell/native-tool-surface.tsx";
 
@@ -19,7 +18,6 @@ import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { JobManagerButton } from "@/components/JobManager";
 import { useT } from "@/lib/i18n";
-import { setSettings } from "@niers/inacord-ui/lib/settings";
 import { DOWNLOADS } from "../../entries";
 import { NATIVE_WINDOW } from "../../host";
 import { cn } from "@niers/inacord-ui/lib/utils";
@@ -86,12 +84,6 @@ export function Sidebar({
   onBasculerRepli?: () => void;
 }) {
   const t = useT();
-  // Le thème appartient au magasin de réglages, pas à next-themes : deux propriétaires écrivaient
-  // la même classe sur `<html>`, et ouvrir les Options suffisait à basculer toute l'application
-  // dans le thème par défaut de next-themes, définitivement. next-themes ne fait plus que peindre
-  // ce que le magasin dit (`App.tsx`), et ce bouton écrit le magasin, comme l'écran des Options.
-  const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme !== "light";
   const [focusedItem, setFocusedItem] = useState<string | null>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
@@ -117,6 +109,7 @@ export function Sidebar({
                 )}
                 {section.items.map((item) => {
                   const active = item.active ?? current === item.id;
+                  const highlighted = active || focusedItem === item.id || hoveredItem === item.id;
                   return (
                     <button
                       key={item.id}
@@ -133,12 +126,12 @@ export function Sidebar({
                       title={item.title ?? item.label}
                       className={cn(
                         "native-tool-navigation-row flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium transition-colors",
-                        active
-                          ? "bg-accent text-white"
-                          : "text-sidebar-ink-dull hover:bg-sidebar-selected/20 hover:text-sidebar-ink",
+                        highlighted
+                          ? "text-white"
+                          : "text-[var(--jeu-nuit-profonde)] hover:text-[var(--jeu-nuit-profonde)]",
                       )}
                     >
-                      <NativeToolSurface active={active || focusedItem === item.id || hoveredItem === item.id} />
+                      <NativeToolSurface active={highlighted} />
                       <span className={cn("shrink-0", !active && item.iconClassName)}>
                         <Icon name={item.icon} size={16} />
                       </span>
@@ -153,13 +146,6 @@ export function Sidebar({
           {/* Pied — même disposition que l'amont : actions à gauche, Paramètres à droite. */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CircleButton
-                icon={dark ? "light_mode" : "dark_mode"}
-                size="sm"
-                title={dark ? "Thème clair" : "Thème sombre"}
-                aria-label={dark ? "Thème clair" : "Thème sombre"}
-                onClick={() => setSettings({ theme: dark ? "light" : "dark" })}
-              />
               <CircleButton
                 icon="search"
                 size="sm"

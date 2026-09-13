@@ -9,8 +9,11 @@ export interface GalleryServices {
   resolveNames?: NameResolver;
   nameSource?: string;
   ls(prefix: string, gameDir?: string): Promise<{ dirs: GalleryDirectory[] }>;
-  findPaged(query: string, ext: string, limit: number, offset: number, gameDir?: string): Promise<{
+  /** List one bounded page below an exact VFS prefix. */
+  findPaged(prefix: string, ext: string, limit: number, offset: number, gameDir?: string, query?: string, signal?: AbortSignal): Promise<{
     files: { path: string; size: number }[];
+    total: number;
+    offset: number;
   }>;
   gameDataGallery(gameDir?: string): Promise<{
     img_path: string;

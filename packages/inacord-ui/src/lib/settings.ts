@@ -16,13 +16,10 @@ export type Locale = "fr" | "en" | "es" | "ja";
 export type { GameLocale } from "@niers/asset-source";
 export { GAME_LOCALES, SHIPPED_GAME_LOCALES } from "@niers/asset-source";
 
-/** Variante de palette sombre — mêmes noms et mêmes valeurs que les thèmes de
- * `var/spaceui/packages/tokens/src/css/themes/*.css`. `spacedrive` = la palette de base
- * (`theme.css`, hue 235) ; les autres sont ses variantes officielles. Ignorée en thème clair
- * (`.light` de spaceui est la seule palette claire fournie), cf. `lib/appearance.ts`. */
+/** Former palette values kept only so persisted pre-migration JSON remains readable. */
 export type AccentTheme = "spacedrive" | "midnight" | "noir" | "slate" | "nord" | "mocha";
 
-/** Ordre d'affichage dans Paramètres (libellés côté UI). */
+/** Compatibility allow-list for persisted profiles; no palette selector is rendered. */
 export const ACCENT_THEMES: readonly AccentTheme[] = [
   "spacedrive",
   "midnight",
@@ -40,12 +37,8 @@ export type ListDensity = "comfortable" | "compact";
 
 export interface Settings {
   /**
-   * Thème clair/sombre/système.
-   *
-   * Sous Inacord, `next-themes` reste la source de vérité (sa propre clé `theme`) : ce champ y
-   * est ignoré. Sous nie, où il n'y a pas de `ThemeProvider`, c'est ce champ que l'hôte
-   * applique — `useApplySettings()` pose `data-theme` sur `<html>`. Le porter ici, avec le même
-   * identifiant que la clé de `next-themes`, rend la synchronisation future triviale.
+   * Compatibility-only value read from profiles created before the measured game theme became
+   * the single visual authority. It is no longer exposed or applied.
    */
   theme: ThemeMode;
   /** Réduit les mouvements de l'interface (les durées `--jeu-duree-*` tombent à zéro). */
@@ -65,7 +58,7 @@ export interface Settings {
   fontScale: number;
   /** Zoom global de l'interface (CSS `zoom`, WebView2/Chromium). */
   uiZoom: number;
-  /** Variante de palette sombre — cf. [`AccentTheme`]. */
+  /** Compatibility-only former dark palette; retained so old settings JSON remains readable. */
   accentTheme: AccentTheme;
   /**
    * Autorise le serveur MCP `nie-mcp` à piloter cette fenêtre (naviguer, ouvrir un asset,
@@ -87,11 +80,13 @@ export interface Settings {
   outilsAvances: boolean;
 }
 
-// Le thème clair/sombre/système est géré par next-themes (sa propre clé localStorage
-// "theme") — pas dupliqué ici pour éviter deux sources de vérité qui divergent.
+// `theme` et `accentTheme` restent dans le JSON pour relire sans erreur les profils historiques.
+// Les hôtes forcent désormais l'unique thème mesuré du jeu et aucun contrôle ne les modifie.
 const KEY = "nie-explorer:settings";
 const DEFAULTS: Settings = {
-  theme: "system",
+  // The native menus have one measured light palette. A fresh install and an old profile must
+  // therefore open on that stable oracle instead of an unrelated desktop preference.
+  theme: "light",
   reducedMotion: false,
   listDensity: "comfortable",
   gameDir: "",
@@ -148,5 +143,5 @@ function subscribe(cb: () => void): () => void {
 
 /** Hook réactif : re-render au moindre `setSettings`, sans provider/context. */
 export function useSettings(): Settings {
-  return useSyncExternalStore(subscribe, getSettings);
+  return useSyncExternalStore(subscribe, getSettings, getSettings);
 }

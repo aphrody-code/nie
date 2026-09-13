@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@niers/inacord-ui/components/ui/select";
+import { NATIVE_WINDOW } from "../../host";
 
 // Monaco et ses workers ne sont utiles qu'après le décodage explicite d'un `.cfg.bin`.
 // Les garder hors du chunk de l'Explorateur évite de payer l'éditeur de texte pour chaque dossier.
@@ -81,7 +82,7 @@ function rendreLisible(valeur: unknown, locale: Locale): unknown {
   return valeur;
 }
 
-export function DetailPane({ target }: { target: DetailTarget | null }) {
+export function DetailPane({ target, readOnly = false }: { target: DetailTarget | null; readOnly?: boolean }) {
   const settings = useSettings();
   const [lines, setLines] = useState<string[]>([]);
   const [pngUrl, setPngUrl] = useState<string | null>(null);
@@ -187,9 +188,10 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
   }, [target, ext, settings.gameDir]);
 
   useEffect(() => {
-    modsDb.listMods().then(setMods).catch(() => {});
+    if (!readOnly) modsDb.listMods().then(setMods).catch(() => {});
+    else setMods([]);
     if (target) modsDb.addRecent(target.path, target.kind === "vfs" ? "vfs" : "disk").catch(() => {});
-  }, [target]);
+  }, [target, readOnly]);
 
   async function stageIntoMod() {
     // Le staging de mod (`stageReplacement`) cible un chemin VFS/disque réel, pas l'index d'une
@@ -264,7 +266,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
 
   async function extract() {
     if (!target) return;
-    const dest = await save({ defaultPath: name });
+    const dest = NATIVE_WINDOW ? await save({ defaultPath: name }) : name;
     if (!dest) return;
     setBusy(true);
     try {
@@ -287,7 +289,8 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
    * un `.g4tx` extrait reste un `.g4tx`, illisible hors du jeu. */
   async function exportAs() {
     if (!target || target.kind !== "vfs" || !exportFormat) return;
-    const dest = await save({ defaultPath: await api.exportDefaultName(target.path, exportFormat) });
+    const defaultName = await api.exportDefaultName(target.path, exportFormat);
+    const dest = NATIVE_WINDOW ? await save({ defaultPath: defaultName }) : defaultName;
     if (!dest) return;
     setBusy(true);
     try {
@@ -354,7 +357,8 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
 
   async function copyPath() {
     if (!target) return;
-    await writeText(target.path);
+    if (NATIVE_WINDOW) await writeText(target.path);
+    else await navigator.clipboard.writeText(target.path);
     toast.success("Chemin copié");
   }
 
@@ -544,7 +548,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
         <Button size="sm" variant="outline" onClick={copyPath}>
           Copier le chemin
         </Button>
-        {target.kind === "vfs" && BLENDER_EXTS.has(ext) && (
+        {!readOnly && target.kind === "vfs" && BLENDER_EXTS.has(ext) && (
           <Button size="sm" variant="outline" onClick={openBlender} disabled={busy}>
             🧊 Ouvrir dans Blender
           </Button>
@@ -559,7 +563,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
             {audioLoading ? "Décodage HCA/ADX…" : "🔊 Aperçu audio"}
           </Button>
         )}
-        {target.kind === "vfs" && isCfgBin && !configJson && (
+        {!readOnly && target.kind === "vfs" && isCfgBin && !configJson && (
           <Button size="sm" variant="outline" onClick={loadConfig} disabled={configLoading}>
             {configLoading ? "Décodage…" : "🗂️ Décoder (config)"}
           </Button>
@@ -571,9 +575,11 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
             <p className="type-label-small text-on-surface-variant">
-              {configFormat === "t2b"
-                ? "Décodé (T2B → JSON) — éditable, ré-encodable (encode_t2b, vérifié par round-trip réel)."
-                : "Décodé (RDBN → JSON) — éditable (valeurs uniquement, pas de champs ajoutés/retirés), ré-encodable (encode_rdbn, vérifié par round-trip réel)."}
+              {readOnly
+                ? `Décodé (${(configFormat ?? "cfg").toUpperCase()} → JSON) — lecture seule.`
+                : configFormat === "t2b"
+                  ? "Décodé (T2B → JSON) — éditable, ré-encodable (encode_t2b, vérifié par round-trip réel)."
+                  : "Décodé (RDBN → JSON) — éditable (valeurs uniquement, pas de champs ajoutés/retirés), ré-encodable (encode_rdbn, vérifié par round-trip réel)."}
             </p>
             <Button
               size="sm"
@@ -610,10 +616,10 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
               value={configJson}
               onChange={setConfigJson}
               format={configFormat ?? "t2b"}
-              readOnly={target.kind !== "vfs"}
+              readOnly={readOnly || target.kind !== "vfs"}
             />
           </Suspense>
-          <div className="flex flex-wrap gap-2">
+          {!readOnly ? <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={saveConfigAs} disabled={configSaving}>
               Enregistrer sous…
             </Button>
@@ -622,7 +628,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
                 {isLoose ? "Enregistrer en place" : "⚠️ Enregistrer en override loose"}
               </Button>
             )}
-          </div>
+          </div> : null}
         </div>
       )}
 
@@ -642,7 +648,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
         <video src={videoUrl} controls className="max-h-72 w-full rounded-xl border border-app-line bg-black" />
       )}
 
-      {target.kind !== "raw_cpk" && (
+      {!readOnly && target.kind !== "raw_cpk" && (
         <div className="flex flex-wrap items-center gap-2">
           {/* `Select` du design system (base-ui) — l'ancien `<select>` HTML brut était le seul
            * contrôle de l'app à ne pas suivre la palette ni le clavier des autres listes. */}
@@ -704,25 +710,25 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
         * visé, champ de vision) : la tracer sur une échelle de frames commune rend une
         * trajectoire lisible, là où le JSON du décodeur demande de reconstituer mentalement
         * des milliers de nombres. */}
-      {target.kind === "vfs" && ext === "g4cm" && <CameraTrackView path={target.path} />}
+      {!readOnly && target.kind === "vfs" && ext === "g4cm" && <CameraTrackView path={target.path} />}
 
       {/* Un navmesh se lit en plan, vue de dessus : c'est la seule projection où la topologie
         * d'une zone marchable apparaît d'un coup d'œil. */}
-      {target.kind === "vfs" && ext === "g4nv" && <NavmeshView path={target.path} />}
+      {!readOnly && target.kind === "vfs" && ext === "g4nv" && <NavmeshView path={target.path} />}
 
       <ScrollArea className="min-h-0 flex-1 rounded-lg border border-app-line bg-app-dark-box">
         <pre className="whitespace-pre-wrap p-3 font-mono text-xs leading-relaxed text-on-surface">{lines.join("\n") || "…"}</pre>
       </ScrollArea>
 
-      <Tabs defaultValue="hex" className="shrink-0">
+      {!readOnly ? <Tabs defaultValue="hex" className="shrink-0">
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="hex" className="type-label-large state-layer" onClick={loadRaw}>
               Hex (lecture)
             </TabsTrigger>
-            <TabsTrigger value="edit" className="type-label-large state-layer" onClick={loadRaw}>
+            {!readOnly ? <TabsTrigger value="edit" className="type-label-large state-layer" onClick={loadRaw}>
               Éditer (copie)
-            </TabsTrigger>
+            </TabsTrigger> : null}
           </TabsList>
           {busy && <span className="type-label-small text-on-surface-variant">chargement…</span>}
         </div>
@@ -733,7 +739,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
             </pre>
           </ScrollArea>
         </TabsContent>
-        <TabsContent value="edit" className="space-y-2">
+        {!readOnly ? <TabsContent value="edit" className="space-y-2">
           <textarea
             className="h-40 w-full resize-none rounded-lg border border-app-line bg-app-box p-2 font-mono text-[11px] leading-relaxed text-on-surface outline-none"
             spellCheck={false}
@@ -756,8 +762,8 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
               </Button>
             )}
           </div>
-        </TabsContent>
-      </Tabs>
+        </TabsContent> : null}
+      </Tabs> : null}
     </div>
   );
 }

@@ -34,6 +34,13 @@ import {
 	urlFichier as urlFichierSite,
 	type VueCatalogue,
 } from "./nie-site";
+import {
+	entityCatalogUrl,
+	entityRowsUrl,
+	type EntityCatalog,
+	type EntityRowsOptions,
+	type EntityRowsPage,
+} from "./entities";
 
 /** Réglages de la source web. L'origine vide vise le serveur qui a servi la page. */
 export interface OptionsWebSource {
@@ -58,7 +65,7 @@ export function creerWebSource({ origine = "" }: OptionsWebSource = {}): AssetSo
 	const abs = (chemin: string) => `${origine}${chemin}`;
 
 	return {
-		hote: "aphrody",
+		hote: "nie",
 
 		async capacites(): Promise<CapacitesSource> {
 			try {
@@ -137,6 +144,18 @@ export function creerWebSource({ origine = "" }: OptionsWebSource = {}): AssetSo
 		wiki<T>(table: string, options: OptionsPage = {}): Promise<Page<T>> {
 			const { page = 1, parPage = 60, signal } = options;
 			return lire<Page<T>>(abs(`/api/v1/${table}?page=${page}&per_page=${parPage}`), signal);
+		},
+
+		entityCatalog(options = {}): Promise<EntityCatalog> {
+			return lire<EntityCatalog>(abs(entityCatalogUrl(options)), options.signal);
+		},
+
+		entityRows(table: string, options: EntityRowsOptions = {}): Promise<EntityRowsPage> {
+			return lire<EntityRowsPage>(abs(entityRowsUrl(table, options)), options.signal);
+		},
+
+		entityExportUrl(table: string, options: EntityRowsOptions = {}): string {
+			return abs(entityRowsUrl(table, options, "csv"));
 		},
 	};
 }

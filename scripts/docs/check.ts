@@ -53,10 +53,29 @@ for (const path of manifest.instructionFiles) {
 }
 
 const linkPattern = /!?(?:\[[^\]]*\])\(([^)]+)\)/g;
+function markdownProse(source: string): string {
+  let fence: { marker: "`" | "~"; length: number } | undefined;
+  return source
+    .split(/\r?\n/)
+    .map((line) => {
+      const opening = line.match(/^\s*(`{3,}|~{3,})/);
+      if (fence) {
+        if (opening?.[1]?.[0] === fence.marker && opening[1].length >= fence.length) fence = undefined;
+        return "";
+      }
+      if (opening) {
+        fence = { marker: opening[1][0] as "`" | "~", length: opening[1].length };
+        return "";
+      }
+      // Markdown-looking examples inside code spans are prose data, not links.
+      return line.replace(/`+[^`\n]*`+/g, "");
+    })
+    .join("\n");
+}
 let linkCount = 0;
 for (const path of tracked) {
   const source = readFileSync(resolve(root, path), "utf8");
-  for (const match of source.matchAll(linkPattern)) {
+  for (const match of markdownProse(source).matchAll(linkPattern)) {
     const raw = match[1].trim().split(/\s+/)[0].replace(/^<|>$/g, "");
     if (!raw || raw.startsWith("#") || raw.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(raw)) continue;
     if (manifest.externalSitePrefixes.some((prefix) => raw.startsWith(prefix))) continue;

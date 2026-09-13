@@ -197,6 +197,25 @@
       }
     },
     {
+      "id": "team-focus",
+      "assetPath": "data/dx11/menu/50_title/title02/title02_10/fr/title02_10.g4tx",
+      "region": "myteam_base01_ol",
+      "rect": {
+        "x": 746,
+        "y": 152,
+        "w": 680,
+        "h": 189.33333333333334
+      },
+      "drawOrder": 202,
+      "actionId": "team",
+      "visibleWhen": "focused",
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_10/title02_10.g4pkm",
+        "record": "_myteam_base01_ol",
+        "method": "G4PKM open-motion pose x,-y,width,height divided by 1.5; title02_10_my_team_banner.objbin names the measured asset."
+      }
+    },
+    {
       "id": "title-item-1-shadow",
       "assetPath": "data/dx11/menu/50_title/title00/title00_07/title00_07.g4tx",
       "region": "btn_shadow01",
@@ -1036,6 +1055,7 @@
   "controls": [
     {
       "id": "title-item-1",
+      "hostActionId": "mode-story_mode",
       "label": "Mode Histoire",
       "nativeActionHash": 296576821,
       "rect": {
@@ -1052,6 +1072,7 @@
     },
     {
       "id": "title-item-2",
+      "hostActionId": "mode-chronicle_mode",
       "label": "Mode Chronique",
       "nativeActionHash": 130186018,
       "rect": {
@@ -1068,6 +1089,7 @@
     },
     {
       "id": "title-item-7",
+      "hostActionId": "mode-kizuna_town",
       "label": "Station Kizuna",
       "nativeActionHash": 2071851632,
       "rect": {
@@ -1084,6 +1106,7 @@
     },
     {
       "id": "title-item-3",
+      "hostActionId": "mode-competition",
       "label": "Mode Compétition",
       "nativeActionHash": 2477753773,
       "rect": {
@@ -1100,6 +1123,7 @@
     },
     {
       "id": "title-item-9",
+      "hostActionId": "mode-bb_stadium",
       "label": "Stade BB",
       "nativeActionHash": 3009621826,
       "rect": {
@@ -1116,6 +1140,7 @@
     },
     {
       "id": "title-item-4",
+      "hostActionId": "mode-victory_road",
       "label": "Victory Road",
       "nativeActionHash": 127937052,
       "rect": {
@@ -1132,6 +1157,7 @@
     },
     {
       "id": "title-item-11",
+      "hostActionId": "shop",
       "label": "Marché",
       "nativeActionHash": 1806468555,
       "rect": {
@@ -1164,6 +1190,7 @@
     },
     {
       "id": "title-item-6",
+      "hostActionId": "mode-play_guide",
       "label": "Guide joueur",
       "nativeActionHash": 1188921684,
       "rect": {
@@ -1197,6 +1224,7 @@
     },
     {
       "id": "title-item-8",
+      "hostActionId": "mode-information",
       "label": "Informations",
       "nativeActionHash": 695801987,
       "rect": {
@@ -1209,6 +1237,22 @@
         "source": "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
         "record": "item 8; label hash 1080589229; action hash 695801987",
         "method": "L6/L7 ordering, L9 label hashes resolved in data/common/text/fr/menu_text.cfg.bin, L11 action hashes. data/common/gamedata/menu/cfg/title_menu_2_setting.cfg.bin upper/lower repeated instances."
+      }
+    },
+    {
+      "id": "team",
+      "label": "Votre équipe",
+      "hostActionId": "bank",
+      "rect": {
+        "x": 800,
+        "y": 158.66666666666666,
+        "w": 570.6666666666666,
+        "h": 175.33333333333334
+      },
+      "provenance": {
+        "source": "data/common/menu/50_title/title02/title02_10/title02_10.g4pkm",
+        "record": "_touch_btn01",
+        "method": "G4PKM open-motion pose x,-y,width,height divided by 1.5; label is the adjacent gtxt_myteam01 region visible in the reference capture."
       }
     },
     {
@@ -1236,7 +1280,7 @@
   "unresolved": [
     "Native G4RA timing, selection expansion and instance-specific Lua projection remain incomplete.",
     "Team roster, victory totals, save state, notices, edition/store availability and other dynamic native state are not reconstructed.",
-    "Only Options and Create avatar have implemented host bindings; remaining native actions are unavailable.",
+    "Save and dynamic edition/store availability remain unavailable; measured mode entries, Options, Avatar and My Team have host destinations.",
     "Sprite bind-pose convention is cross-checked against the PC reference, not yet replayed by the full native animation runtime."
   ]
 }

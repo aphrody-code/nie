@@ -12,9 +12,9 @@ const cliEvidence: Record<string, [string, string]> = {
   Recover: ["crates/tools/nie-cli/src/main.rs", "nie_re::workflow::recover_with_observer("],
   Vn: ["crates/tools/nie-cli/src/vn_cmd.rs", "casting_entries("],
 };
-const siteOwners: Record<string, string> = { downloads:"crates/tools/nie-site/src/update_policy.rs", feed:"crates/tools/nie-wiki/src/episodes.rs", vfs:"crates/engine/nie-explore/src/vfs_policy.rs", couverture:"crates/tools/nie-site/src/couverture/mod.rs", api_v1:"crates/tools/nie-wiki/src/catalog.rs", episodes:"crates/tools/nie-wiki/src/episodes.rs", recherche:"crates/engine/nie-explore/src/search_query.rs", formats:"crates/engine/nie-explore/src/lib.rs", inspect:"crates/engine/nie-formats/src/lib.rs", menu:"crates/engine/nie-formats/src/menu.rs", menu_runtime:"crates/engine/nie-lua/src/menu_runtime.rs", menu_audio:"crates/engine/nie-explore/src/menu_audio.rs", screens:"crates/engine/nie-explore/src/menu_mode_analysis.rs", lua:"crates/engine/nie-lua/src/lib.rs", wiki:"crates/tools/nie-wiki/src/lib.rs", save:"crates/engine/nie-save/src/lib.rs", zukan:"crates/tools/nie-zukan/src/lib.rs", motion:"crates/engine/nie-explore/src/motion.rs", spatial_preview:"crates/engine/nie-explore/src/spatial_preview.rs", growth:"crates/engine/nie-core/src/lib.rs", regles:"crates/engine/nie-core/src/lib.rs", team:"crates/engine/nie-core/src/lib.rs", donnees:"crates/engine/nie-data/src/lib.rs", passives:"crates/engine/nie-data/src/passives.rs", playstyles:"crates/engine/nie-data/src/playstyle.rs", conditions:"crates/engine/nie-data/src/unlock_condition.rs", text:"crates/engine/nie-data/src/text.rs", entites:"crates/tools/nie-wiki/src/entities.rs", aphrody:"crates/engine/nie-aphrody/src/lib.rs", modeles3d:"crates/engine/nie-render3d/src/lib.rs", native_export:"crates/engine/nie-explore/src/export.rs", related:"crates/engine/nie-explore/src/related.rs" };
+const siteOwners: Record<string, string> = { downloads:"crates/tools/nie-site/src/update_policy.rs", feed:"crates/tools/nie-wiki/src/episodes.rs", vfs:"crates/engine/nie-explore/src/vfs_policy.rs", couverture:"crates/tools/nie-site/src/couverture/mod.rs", api_v1:"crates/tools/nie-wiki/src/catalog.rs", episodes:"crates/tools/nie-wiki/src/episodes.rs", recherche:"crates/engine/nie-explore/src/search_query.rs", formats:"crates/engine/nie-explore/src/lib.rs", inspect:"crates/engine/nie-formats/src/lib.rs", menu:"crates/engine/nie-formats/src/menu.rs", menu_runtime:"crates/engine/nie-lua/src/menu_runtime.rs", menu_audio:"crates/engine/nie-explore/src/menu_audio.rs", screens:"crates/engine/nie-explore/src/menu_mode_analysis.rs", lua:"crates/engine/nie-lua/src/lib.rs", wiki:"crates/tools/nie-wiki/src/lib.rs", save:"crates/engine/nie-save/src/lib.rs", zukan:"crates/tools/nie-zukan/src/lib.rs", motion:"crates/engine/nie-explore/src/motion.rs", spatial_preview:"crates/engine/nie-explore/src/spatial_preview.rs", growth:"crates/engine/nie-core/src/lib.rs", regles:"crates/engine/nie-core/src/lib.rs", team:"crates/engine/nie-core/src/lib.rs", donnees:"crates/engine/nie-data/src/lib.rs", passives:"crates/engine/nie-data/src/passives.rs", playstyles:"crates/engine/nie-data/src/playstyle.rs", conditions:"crates/engine/nie-data/src/unlock_condition.rs", text:"crates/engine/nie-data/src/text.rs", entites:"crates/tools/nie-wiki/src/entities.rs", aphrody:"crates/engine/nie-aphrody/src/lib.rs", modeles3d:"crates/engine/nie-render3d/src/lib.rs", native_export:"crates/engine/nie-explore/src/export.rs", related:"crates/engine/nie-explore/src/related.rs", game_data:"crates/engine/nie-app/src/game_data.rs", profile:"crates/engine/nie-app/src/complete_profile.rs" };
 const ownerNeedle = (owner: string) => owner.match(/\/(nie-[a-z0-9-]+)\//)?.[1].replaceAll("-", "_") ?? "";
-const nativeOwner = (entry: string) => entry.startsWith("sqlite::") ? "crates/engine/nie-explore/src/database.rs" : entry.startsWith("game_data_") || entry === "resolve_avatar_composition" ? "crates/engine/nie-data/src/lib.rs" : entry.startsWith("aphrody_") ? "crates/engine/nie-aphrody/src/lib.rs" : entry.startsWith("viola::") ? "crates/engine/nie-viola/src/lib.rs" : entry.includes("save") ? "crates/engine/nie-save/src/lib.rs" : entry.includes("wiki") ? "crates/tools/nie-wiki/src/lib.rs" : entry.startsWith("vfs_") ? "crates/engine/nie-explore/src/lib.rs" : entry.includes("lua") ? "crates/engine/nie-lua/src/lib.rs" : entry.startsWith("video_") || entry.includes("texture") || entry.includes("pixel") || entry.includes("cpk") || entry.startsWith("encode_cfgbin") ? "crates/engine/nie-formats/src/lib.rs" : entry.includes("model") || entry.includes("glb") ? "crates/engine/nie-render3d/src/lib.rs" : "apps/inacord/src-tauri/src/lib.rs";
+const nativeOwner = (entry: string) => entry.startsWith("sqlite::") ? "crates/engine/nie-explore/src/database.rs" : entry.startsWith("game_data_") ? "crates/engine/nie-app/src/game_data.rs" : entry === "resolve_avatar_composition" ? "crates/engine/nie-data/src/lib.rs" : entry.startsWith("aphrody_") ? "crates/engine/nie-aphrody/src/lib.rs" : entry.startsWith("viola::") ? "crates/engine/nie-viola/src/lib.rs" : entry.includes("save") ? "crates/engine/nie-save/src/lib.rs" : entry.includes("wiki") ? "crates/tools/nie-wiki/src/lib.rs" : entry.startsWith("vfs_") ? "crates/engine/nie-explore/src/lib.rs" : entry.includes("lua") ? "crates/engine/nie-lua/src/lib.rs" : entry.startsWith("video_") || entry.includes("texture") || entry.includes("pixel") || entry.includes("cpk") || entry.startsWith("encode_cfgbin") ? "crates/engine/nie-formats/src/lib.rs" : entry.includes("model") || entry.includes("glb") ? "crates/engine/nie-render3d/src/lib.rs" : "apps/inacord/src-tauri/src/lib.rs";
 const mapping = (surface: string, entry: string, owner: string, classification: "portable"|"host_only"|"transport", rationale: string) => ({
   surface, entry, capability: entry.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase(),
   classification, owner, rationale
@@ -137,6 +137,7 @@ const explicitNativeProof: Record<string, { owner: string; sourceEvidence: [stri
   aphrody_pixel_vectoriser: { owner: "crates/engine/nie-aphrody/src/lib.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "aphrody::vectoriser_fichier("], ["apps/inacord/src-tauri/src/aphrody.rs", "fn vectoriser_fichier"], ["apps/inacord/src-tauri/src/aphrody.rs", "vectoriser("]] },
   raw_cpk_video_preview_b64: { owner: "crates/engine/nie-explore/src/cinema/browser_video.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "video_mp4_b64_from_bytes("], ["apps/inacord/src-tauri/src/lib.rs", "video::mp4_depuis_usm("], ["apps/inacord/src-tauri/src/video.rs", "nie_explore::native_video::web_video_stream("]] },
   vfs_video_preview_b64: { owner: "crates/engine/nie-explore/src/cinema/browser_video.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "fn vfs_video_preview_b64"], ["apps/inacord/src-tauri/src/lib.rs", "video::mp4_depuis_usm("], ["apps/inacord/src-tauri/src/video.rs", "nie_explore::native_video::web_video_stream("]] },
+  vfs_decode_cfgbin: { owner: "crates/engine/nie-app/src/game_data.rs", sourceEvidence: [["apps/inacord/src-tauri/src/lib.rs", "game_data::decode_cfgbin("], ["crates/engine/nie-app/src/game_data.rs", "pub fn decode_cfgbin"], ["crates/engine/nie-app/src/game_data.rs", "nie_explore::game_data::decode_cfgbin("]] },
 };
 for (const method of ["exec", "attach", "broadcast", "eval", "set_global", "globals", "reload", "drain", "api_report"]) {
   explicitNativeProof[`lua_session_${method}`] = {
@@ -156,14 +157,14 @@ const inacord = registry.split(",").map(value => value.trim()).filter(value => /
     const transport = /^(remote_|model_service_|raw_cpk_read_b64$|viola_cancel$|vfs_read_b64$|vfs_all_entries$|vfs_cache_|video_precharger$)/.test(leaf);
     const forcedHost = /^(save_bytes_b64|save_export|vfs_extract_to|vfs_write_b64|vfs_write_loose_override_b64)$/.test(leaf);
     const gameDataCall = name.startsWith("game_data_")
-      ? functionByName(leaf)?.body.match(/game_data::(list_[a-z0-9_]+)\b/)?.[1]
+      ? functionByName(leaf)?.body.match(/game_data::([a-z0-9_]+)\b/)?.[1]
       : undefined;
     const proof = explicitNativeProof[name] ?? (gameDataCall ? {
-      owner: "crates/engine/nie-explore/src/game_data.rs",
+      owner: "crates/engine/nie-app/src/game_data.rs",
       sourceEvidence: [
         ["apps/inacord/src-tauri/src/lib.rs", `game_data::${gameDataCall}`],
-        ["apps/inacord/src-tauri/src/game_data.rs", `pub fn ${gameDataCall}`],
-        ["apps/inacord/src-tauri/src/game_data.rs", "use nie_explore::game_data::"],
+        ["crates/engine/nie-app/src/game_data.rs", `pub fn ${gameDataCall}`],
+        ["crates/engine/nie-app/src/game_data.rs", "use nie_explore::game_data::"],
       ] as [string, string][],
     } : proveNativeDelegation(name));
     const classification = transport ? "transport" : host || forcedHost ? "host_only" : "portable";
@@ -172,15 +173,15 @@ const inacord = registry.split(",").map(value => value.trim()).filter(value => /
   });
 
 const siteSource = await read("crates/tools/nie-site/src/app.rs");
+const postPaths = [...(siteSource.match(/pub const CHEMINS_HORS_GET[\s\S]*?=\s*&\[([\s\S]*?)\];/)?.[1].matchAll(/"([^"]+)"/g) ?? [])]
+  .map(match => match[1]);
 const getRoutes = [...siteSource.matchAll(/^\s*"(\/[^" ]+)"\s*=>\s*crate::routes::([a-z0-9_]+)::/gm)]
   .map(match => ({ path: match[1], module: match[2] }));
 const posts = [...siteSource.matchAll(/\.route\(\s*CHEMINS_HORS_GET\[(\d+)\],\s*post\(crate::routes::([a-z0-9_]+)::/g)]
-  .map(match => ({ path: getRoutes.find(route => route.path === [
-    "/api/v1/regles/comparaison", "/api/v1/team/synergy", "/api/v1/save/roster", "/api/v1/inspect/compare", "/api/v1/inspect/plate", "/api/v1/menu/runtime/{screen}", "/api/v1/zukan/rank", "/api/save/resolve-roster", "/api/v1/wiki/compare", "/api/v1/wiki/random-team"
-  ][Number(match[1])])?.path ?? `CHEMINS_HORS_GET[${match[1]}]`, module: match[2] }));
+  .map(match => ({ path: postPaths[Number(match[1])] ?? `CHEMINS_HORS_GET[${match[1]}]`, module: match[2] }));
 const site = [...getRoutes.map(route => ({...route, method:"GET"})), ...posts.map(route => ({...route, method:"POST"}))]
   .map(route => {
-    const transport = /^(health|well_known|downloads|feed|assets|static_files|pages|vfs|couverture)$/.test(route.module) || route.path === "/api/v1/health";
+    const transport = /^(health|well_known|downloads|feed|assets|static_files|pages|vfs|couverture|graphql|openapi)$/.test(route.module) || route.path === "/api/v1/health";
     const owner = siteOwners[route.module] ?? `crates/tools/nie-site/src/routes/${route.module}.rs`;
     return { ...mapping("site", `${route.method} ${route.path}`, owner, transport ? "transport" : "portable", transport ? `${route.method} ${route.path} is HTTP delivery or service metadata.` : `${route.method} ${route.path} delegates portable work to the named library owner.`), ...(transport ? {} : { sourceEvidence: [`crates/tools/nie-site/src/routes/${route.module}.rs`, ownerNeedle(owner)] }) };
   });

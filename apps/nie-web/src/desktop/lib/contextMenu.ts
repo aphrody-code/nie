@@ -149,6 +149,8 @@ export interface FileContextMenuOptions {
   onOpen?: () => void;
   /** Ajoute l'entrée « Ajouter à un mod… » si au moins un mod existe (cf. `ModsView`). */
   onStageIntoMod?: () => void;
+  /** Enables desktop authoring integrations. Public game routes keep read-only export actions. */
+  authoring?: boolean;
 }
 
 /**
@@ -200,7 +202,7 @@ export async function showVfsFileContextMenu(opts: FileContextMenuOptions): Prom
           toast.success("Nom copié");
         },
       },
-      ...(BLENDER_EXTS.has(ext) || opts.onStageIntoMod
+      ...(opts.authoring && (BLENDER_EXTS.has(ext) || opts.onStageIntoMod)
         ? [
             await PredefinedMenuItem.new({ item: "Separator" }),
             ...(BLENDER_EXTS.has(ext)
@@ -221,15 +223,17 @@ export async function showVfsFileContextMenu(opts: FileContextMenuOptions): Prom
             ...(opts.onStageIntoMod ? [{ text: "Ajouter à un mod…", action: () => opts.onStageIntoMod?.() }] : []),
           ]
         : []),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      {
-        text: "Propriétés",
-        action: () => {
-          toast.message(opts.name, {
-            description: `${opts.path}\n${humanSize(opts.size)}`,
-          });
+      ...(opts.authoring ? [
+        await PredefinedMenuItem.new({ item: "Separator" }),
+        {
+          text: "Propriétés",
+          action: () => {
+            toast.message(opts.name, {
+              description: `${opts.path}\n${humanSize(opts.size)}`,
+            });
+          },
         },
-      },
+      ] : []),
     ],
   });
   await popupOrReport(menu);

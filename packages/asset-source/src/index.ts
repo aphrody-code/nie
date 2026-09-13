@@ -9,6 +9,7 @@
  * liaisons `tauri-specta`, qui vivent chez lui et sont régénérées à chaque build.
  */
 export * from "./contract";
+export * from "./entities";
 export { ResourceLoader } from "./resource-loader";
 export { creerWebSource, type OptionsWebSource } from "./web-source";
 export {

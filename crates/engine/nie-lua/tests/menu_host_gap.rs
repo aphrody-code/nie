@@ -133,7 +133,13 @@ fn calques(racine: &Path, ecran: &str) -> Option<Vec<u32>> {
     let octets = std::fs::read(chemin).ok()?;
     let root = nie_formats::cfgbin::to_iecode_json(&octets)?;
     let setting = nie_data::menu_setting::parse(&root);
-    Some(setting.layers.iter().map(|layer| layer.layer_id.0).collect())
+    Some(
+        setting
+            .layers
+            .iter()
+            .map(|layer| layer.layer_id.0)
+            .collect(),
+    )
 }
 
 #[test]
@@ -163,7 +169,8 @@ fn la_file_dattente_des_globales_hote() {
 
     // Combien d'écrans chaque manque bloque, et un exemple d'écran pour chacun.
     let mut par_manque: BTreeMap<String, (usize, String)> = BTreeMap::new();
-    let (mut rejoues, mut complets, mut refuses, mut sans_setting) = (0usize, 0usize, 0usize, 0usize);
+    let (mut rejoues, mut complets, mut refuses, mut sans_setting) =
+        (0usize, 0usize, 0usize, 0usize);
 
     // Un échantillon RÉGULIER, pas les premiers : dans l'ordre alphabétique les 60 premiers sont
     // les `ability_*`, `avatar_*` et `chara_edit_*`, et une file bâtie sur eux classerait ce qui
@@ -254,5 +261,8 @@ fn la_file_dattente_des_globales_hote() {
 
     // Le relevé doit porter sur des rejeux réels : zéro écran rejoué rendrait une file vide qui
     // se lirait comme « rien ne manque ».
-    assert!(rejoues > 0, "aucun écran rejoué : la VM ou le montage est cassé");
+    assert!(
+        rejoues > 0,
+        "aucun écran rejoué : la VM ou le montage est cassé"
+    );
 }

@@ -7,6 +7,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./contract": "./src/contract.ts",
+		"./chara": "./src/chara.ts",
 		"./nie-site": "./src/nie-site.ts",
 		"./web-source": "./src/web-source.ts",
 		"./url-conventions": "./src/url-conventions.ts"

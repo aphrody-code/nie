@@ -9,7 +9,7 @@
  *  - the resource source, built on the Rust command surface instead of HTTP;
  *  - the startup work a window does once — the mods database, the interrupted-jobs reconciliation,
  *    the wiki mirror, the VFS preload and its SQL index;
- *  - the Windows 11 title-bar chrome, which follows the resolved theme.
+ *  - the Windows 11 title-bar chrome, fixed to the measured light game theme.
  *
  * These used to sit inside the workspace component, which is why they only ran when someone opened
  * `/inacord`, and ran again as a second application on top of the site.
@@ -36,7 +36,7 @@ import "../app.css";
  */
 function useNativeBootstrap(): void {
   // Resynchronise le chrome natif Windows 11 (Mica, barre de titre/légende) sur le thème
-  // clair/sombre RÉSOLU (`resolvedTheme` tient compte de "system", pas juste `theme`).
+  // clair unique imposé par le host.
   // Best-effort silencieux (no-op hors Windows 11 côté backend).
   const { resolvedTheme } = useTheme();
   useEffect(() => {
@@ -135,7 +135,7 @@ function NativeApp() {
 export default function DesktopHost() {
   return (
     <ErrorBoundary zone="Application">
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
         <NativeApp />
       </ThemeProvider>
     </ErrorBoundary>

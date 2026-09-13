@@ -3,6 +3,8 @@ import { SETTINGS_DEFAULTS } from "../../lib/settings";
 import {
 	cycleValue,
 	formatValue,
+	isPublicSetting,
+	PUBLIC_SETTING_IDS,
 	isSettingVisible,
 	SETTING_DEFINITIONS,
 	visibleFamilies,
@@ -31,10 +33,13 @@ describe("le modèle des réglages", () => {
 		for (const def of SETTING_DEFINITIONS) {
 			expect(def.default).toBe(SETTINGS_DEFAULTS[def.id]);
 		}
-		// Et réciproquement : un réglage du magasin sans définition serait invisible partout.
-		for (const key of Object.keys(SETTINGS_DEFAULTS)) {
+		// Et réciproquement, hors les deux champs de lecture d'anciens profils : le produit ne
+		// propose plus de palette concurrente au thème mesuré du jeu.
+		for (const key of Object.keys(SETTINGS_DEFAULTS).filter((key) => !["theme", "accentTheme"].includes(key))) {
 			expect(ids as string[]).toContain(key);
 		}
+		expect(ids).not.toContain("theme");
+		expect(ids).not.toContain("accentTheme");
 	});
 
 	test("un réglage non portable nomme la capacité qui le rend visible", () => {
@@ -52,8 +57,6 @@ describe("le modèle des réglages", () => {
 			"listDensity",
 			"reducedMotion",
 			"outilsAvances",
-			"theme",
-			"accentTheme",
 			"fontScale",
 			"uiZoom",
 			"gameDir",
@@ -88,6 +91,13 @@ describe("le modèle des réglages", () => {
 		]);
 	});
 
+	test("l'écran Options public ne divulgue aucun réglage d'auteur", () => {
+		expect(SETTING_DEFINITIONS.filter(isPublicSetting).map((definition) => definition.id)).toEqual([...PUBLIC_SETTING_IDS]);
+		for (const hidden of ["outilsAvances", "bridgeEnabled", "gameDir", "wikiDb", "blenderExe", "modelServiceUrl"]) {
+			expect(PUBLIC_SETTING_IDS as readonly string[]).not.toContain(hidden);
+		}
+	});
+
 	test("← → bouclent sur les choix et les bascules, s'arrêtent aux bornes d'une plage", () => {
 		const locale = SETTING_DEFINITIONS.find((d) => d.id === "locale")!;
 		expect(cycleValue(locale, "fr", 1)).toBe("en");
@@ -103,8 +113,6 @@ describe("le modèle des réglages", () => {
 	});
 
 	test("la valeur affichée est un libellé, jamais un identifiant brut", () => {
-		const theme = SETTING_DEFINITIONS.find((d) => d.id === "theme")!;
-		expect(formatValue(theme, "dark")).toBe("Sombre");
 		const zoom = SETTING_DEFINITIONS.find((d) => d.id === "uiZoom")!;
 		expect(formatValue(zoom, 1.2)).toBe("120 %");
 		const gameDir = SETTING_DEFINITIONS.find((d) => d.id === "gameDir")!;

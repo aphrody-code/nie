@@ -22,7 +22,7 @@ const APP_VERSION = inacordPackage.version;
  *
  * @returns `true` tant qu'un serveur MCP est connecté.
  */
-export function useBridge(handlers: BridgeHandlers): boolean {
+export function useBridge(handlers: BridgeHandlers, enabled = true): boolean {
   const [connected, setConnected] = useState(false);
   const ref = useRef(handlers);
   ref.current = handlers;
@@ -32,7 +32,7 @@ export function useBridge(handlers: BridgeHandlers): boolean {
     // A page served to a visitor has no such neighbour: opening that socket would make the site
     // probe the READER's own loopback, on every screen now that the shell is one. The workspace
     // used to do it behind `/inacord`; it stops here.
-    if (!NATIVE_WINDOW || getSettings().bridgeEnabled === false) return;
+    if (!enabled || !NATIVE_WINDOW || getSettings().bridgeEnabled === false) return;
 
     const client = connectBridge(
       {
@@ -45,7 +45,7 @@ export function useBridge(handlers: BridgeHandlers): boolean {
       { app: "nie-explorer", version: APP_VERSION, onStatus: setConnected },
     );
     return () => client.close();
-  }, []);
+  }, [enabled]);
 
   return connected;
 }

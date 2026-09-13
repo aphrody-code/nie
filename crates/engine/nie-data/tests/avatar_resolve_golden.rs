@@ -1,7 +1,7 @@
 //! Resolver behavior plus opt-in checks against the real, untracked resolved catalogue.
 
 use nie_data::avatar::{
-    AvatarCatalog, AvatarPreset, AvatarRecipeEntry, AvatarResolveError, AvatarState,
+    AvatarCatalog, AvatarPreset, AvatarProfile, AvatarRecipeEntry, AvatarResolveError, AvatarState,
     AvatarWarningCode, resolve_avatar,
 };
 use serde_json::json;
@@ -38,6 +38,78 @@ fn catalog() -> AvatarCatalog {
             "hair-color":{"rgb":"556677","alpha":255}
         }
     })).unwrap()
+}
+
+#[test]
+fn non_geometric_profile_fields_round_trip_through_the_rust_owner() {
+    let profile = AvatarProfile {
+        name: "Arion".into(),
+        nickname: "Capitaine".into(),
+        uniform_name: "Raimon".into(),
+        shirt_number: Some(10),
+        element: Some(2),
+        main_position: Some(2),
+        sub_position: Some(3),
+        build_type: Some(1),
+        kick: Some(279),
+        control: Some(265),
+        technique: Some(267),
+        pressure: Some(250),
+        physical: Some(242),
+        agility: Some(256),
+        intelligence: Some(279),
+        ..AvatarProfile::default()
+    };
+    let result = resolve_avatar(
+        &catalog(),
+        &AvatarState {
+            profile: profile.clone(),
+            ..AvatarState::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(result.profile, profile);
+}
+
+#[test]
+fn invalid_profile_values_are_rejected_instead_of_becoming_decorative_state() {
+    for profile in [
+        AvatarProfile {
+            name: "x".repeat(33),
+            ..AvatarProfile::default()
+        },
+        AvatarProfile {
+            element: Some(4),
+            ..AvatarProfile::default()
+        },
+        AvatarProfile {
+            main_position: Some(0),
+            ..AvatarProfile::default()
+        },
+        AvatarProfile {
+            shirt_number: Some(100),
+            ..AvatarProfile::default()
+        },
+        AvatarProfile {
+            voice: Some(0),
+            ..AvatarProfile::default()
+        },
+        AvatarProfile {
+            kick: Some(280),
+            ..AvatarProfile::default()
+        },
+    ] {
+        assert!(matches!(
+            resolve_avatar(
+                &catalog(),
+                &AvatarState {
+                    profile,
+                    ..AvatarState::default()
+                }
+            ),
+            Err(AvatarResolveError::InvalidState { .. })
+        ));
+    }
 }
 
 #[test]

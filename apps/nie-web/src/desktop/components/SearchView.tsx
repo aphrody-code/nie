@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { api, type VfsEntry } from "@/lib/api";
 import { vfsIndexDb } from "@/lib/vfsIndexDb";
 import { wikiDb } from "@/lib/wikiDb";
@@ -10,8 +10,40 @@ import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@niers/inacord-ui/components/ui/alert";
 import { humanSize } from "@/lib/bytes";
+import {
+  browserLocationSnapshot,
+  subscribeBrowserLocation,
+  writeBrowserHistory,
+} from "@niers/inacord-ui/lib/browser-navigation";
+import { NATIVE_WINDOW } from "../../host";
 
 type Kind = "chara" | "waza";
+
+/** `/api/v1/wiki/search` has a bounded `limit` and deliberately no offset contract. */
+export const WIKI_SEARCH_LIMIT = 50;
+
+export interface SearchViewState {
+  kind: Kind;
+  q: string;
+}
+
+export function searchViewStateFromUrl(search: string): SearchViewState {
+  const params = new URLSearchParams(search);
+  return {
+    kind: params.get("kind") === "waza" ? "waza" : "chara",
+    q: params.get("q")?.trim() ?? "",
+  };
+}
+
+/** Preserve query fields owned by the shell while replacing only this screen's state. */
+export function searchViewHref(location: string, state: SearchViewState): string {
+  const url = new URL(location, "http://localhost");
+  url.searchParams.delete("q");
+  url.searchParams.delete("kind");
+  if (state.q.trim()) url.searchParams.set("q", state.q.trim());
+  if (state.kind !== "chara") url.searchParams.set("kind", state.kind);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
 
 /** Display shape returned by the Rust wiki mirror query. */
 interface Row {
@@ -29,16 +61,37 @@ interface Row {
 
 export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void }) {
   const settings = useSettings();
-  const [kind, setKind] = useState<Kind>("chara");
-  const [query, setQuery] = useState("");
+  const location = useSyncExternalStore(
+    subscribeBrowserLocation,
+    browserLocationSnapshot,
+    browserLocationSnapshot,
+  );
+  const urlState = useMemo(
+    () => searchViewStateFromUrl(new URL(location, "http://localhost").search),
+    [location],
+  );
+  const [nativeKind, setNativeKind] = useState<Kind>("chara");
+  const [nativeQuery, setNativeQuery] = useState("");
+  const kind = NATIVE_WINDOW ? nativeKind : urlState.kind;
+  const committedQuery = NATIVE_WINDOW ? nativeQuery : urlState.q;
+  const [query, setQuery] = useState(committedQuery);
   const [results, setResults] = useState<Row[]>([]);
   const [related, setRelated] = useState<Record<string, VfsEntry[]>>({});
   const [notices, setNotices] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const requestGeneration = useRef(0);
 
-  async function run() {
-    const q = query.trim();
+  function writeWebState(state: SearchViewState): boolean {
+    const href = searchViewHref(window.location.href, state);
+    if (`${window.location.pathname}${window.location.search}${window.location.hash}` === href) return false;
+    writeBrowserHistory(href, window.history.state, "push");
+    return true;
+  }
+
+  async function load(requestedQuery: string, requestedKind: Kind) {
+    const q = requestedQuery.trim();
     if (!q) return;
+    const generation = ++requestGeneration.current;
     setLoading(true);
     setNotices([]);
     setResults([]);
@@ -46,11 +99,13 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
     const rows: Row[] = [];
     const notes: string[] = [];
 
-    // The Rust-owned local mirror is the only IEVR source.
-    if (settings.wikiDb.trim()) {
+    // The command is one typed boundary in both hosts. Tauri needs the configured SQLite path;
+    // the browser shim ignores this harmless sentinel and owns `/api/v1/wiki/search`.
+    const wikiSource = NATIVE_WINDOW ? settings.wikiDb.trim() : "wiki-http";
+    if (wikiSource) {
       try {
-        if (kind === "chara") {
-          const r = await wikiDb.searchCharacter(settings.wikiDb, q);
+        if (requestedKind === "chara") {
+          const r = await wikiDb.searchCharacter(wikiSource, q);
           for (const c of r) {
             rows.push({
               source: "local",
@@ -66,7 +121,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
             });
           }
         } else {
-          const r = await wikiDb.searchSkill(settings.wikiDb, q);
+          const r = await wikiDb.searchSkill(wikiSource, q);
           for (const s of r) {
             rows.push({
               source: "local",
@@ -83,13 +138,49 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
           }
         }
       } catch (e) {
-        notes.push(`miroir local : ${e}`);
+        notes.push(`${NATIVE_WINDOW ? "miroir local" : "miroir HTTP"} : ${e}`);
       }
     }
 
-    setResults(rows);
+    if (generation !== requestGeneration.current) return;
+    setResults(rows.slice(0, WIKI_SEARCH_LIMIT));
     setNotices(notes);
     setLoading(false);
+  }
+
+  function run() {
+    const q = query.trim();
+    if (!q) return;
+    if (NATIVE_WINDOW) {
+      setNativeQuery(q);
+      void load(q, nativeKind);
+      return;
+    }
+    if (!writeWebState({ kind: urlState.kind, q })) void load(q, urlState.kind);
+  }
+
+  useEffect(() => {
+    if (NATIVE_WINDOW) return;
+    setQuery(urlState.q);
+    if (urlState.q) void load(urlState.q, urlState.kind);
+    else {
+      requestGeneration.current += 1;
+      setResults([]);
+      setRelated({});
+      setNotices([]);
+      setLoading(false);
+    }
+    // The URL is the trigger. `load` intentionally remains an event-like operation here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlState.kind, urlState.q]);
+
+  function changeKind(next: Kind) {
+    if (NATIVE_WINDOW) {
+      setNativeKind(next);
+      return;
+    }
+    const q = query.trim();
+    if (!writeWebState({ kind: next, q }) && q) void load(q, next);
   }
 
   async function loadRelated(code: string) {
@@ -117,7 +208,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
   return (
     <div className="flex h-full flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Tabs value={kind} onValueChange={(v) => setKind(v as Kind)}>
+        <Tabs value={kind} onValueChange={(v) => changeKind(v as Kind)}>
           <TabsList>
             <TabsTrigger value="chara">Personnage</TabsTrigger>
             <TabsTrigger value="waza">Technique (waza)</TabsTrigger>
@@ -133,6 +224,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
         <Button onClick={run} disabled={loading}>
           Chercher
         </Button>
+        <Badge variant="outline">jusqu’à {WIKI_SEARCH_LIMIT} résultats · sans pagination</Badge>
       </div>
 
       {notices.map((n) => (
@@ -154,7 +246,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="type-title-small text-on-surface">{r.name_fr ?? r.name_en ?? r.name_ja ?? "?"}</span>
                   {r.name_en && <span className="type-body-small text-on-surface-variant">{r.name_en}</span>}
-                  <Badge variant="secondary">local Rust mirror</Badge>
+                  <Badge variant="secondary">{NATIVE_WINDOW ? "miroir Rust local" : "miroir Rust HTTP"}</Badge>
                   {r.is_hyper && <Badge>hyper</Badge>}
                   {r.element && <Badge variant="outline">{r.element}</Badge>}
                   {r.position && <Badge variant="outline">{r.position}</Badge>}

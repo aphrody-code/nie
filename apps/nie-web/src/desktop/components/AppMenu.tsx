@@ -114,11 +114,12 @@ async function viewMenu(a: AppMenuActions): Promise<Menu> {
  * (champ de recherche, éditeur Monaco, champ de renommage) doit garder le copier/coller du
  * navigateur. La vue active les expose déjà via `editBus` pour les listes de fichiers.
  */
-export function useAppMenuShortcuts(a: AppMenuActions): void {
+export function useAppMenuShortcuts(a: AppMenuActions, enabled = true): void {
   const ref = useRef(a);
   ref.current = a;
 
   useEffect(() => {
+    if (!enabled) return;
     function onKeyDown(e: KeyboardEvent) {
       if (!e.ctrlKey && !e.metaKey) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
@@ -146,7 +147,7 @@ export function useAppMenuShortcuts(a: AppMenuActions): void {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [enabled]);
 }
 
 export function AppMenu({ actions, className }: { actions: AppMenuActions; className?: string }) {

@@ -83,7 +83,7 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 			hmr: desktop && host ? { protocol: "ws", host, port: 1421 } : undefined,
 			watch: { ignored: ["**/src-tauri/**"] },
 			proxy: Object.fromEntries(
-				["/api", "/f", "/b", "/assets", "/downloads", "/healthz"].map(path => [
+				["/api", "/f", "/b", "/assets", "/model", "/downloads", "/healthz"].map(path => [
 					path,
 					{ target: "http://127.0.0.1:8085", changeOrigin: true },
 				]),

@@ -19,24 +19,20 @@ import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
 import { IDS_VUES } from "./desktop/lib/vues";
 import { splitLanguagePrefix } from "./routing";
 
-/**
- * L'explorateur — **la seule page**, décidé par l'utilisateur le 2026-09-06.
- *
- * Parcourir un dossier, chercher dans les 255 308 entrées et lire ce que le serveur sait d'un
- * asset étaient trois destinations de menu. C'est un seul geste : *où est ce fichier, et que
- * sait-on de lui*. La page a donc une barre de filtres, une liste, et un panneau de droite qui
- * parle du **dossier courant** ou de l'**asset sélectionné**.
- */
+/** The VFS explorer, backed by the path-oriented VFS API. */
 export const EXPLORER = "explorateur";
 
+/** Host 3D workspace, promoted beside avatar creation and VFS browsing. */
+export const EDITOR_3D = "editor_3d";
+
 /**
- * Les deux URL héritées des écrans fusionnés.
- *
- * Elles restent **reconnues** — elles mènent à l'explorateur — sans être des entrées de menu :
- * casser une adresse déjà publiée (`sitemap.xml` compris) pour changer un menu, ce serait payer
- * une décision d'affichage avec les liens des autres.
+ * Distinct public workspace surfaces. Search queries the cross-source index; Data exposes only
+ * decoded game-data families. Generic SQLite remains on explicit authoring routes. These views
+ * share the workspace host, not an implementation or a canonical URL.
  */
-export const ALIAS = ["recherche", "donnees"] as const;
+export const SEARCH = "recherche";
+export const DATA = "donnees";
+export const PUBLIC_WORKSPACE_ROUTES = [EDITOR_3D, SEARCH, DATA] as const;
 
 /**
  * Les catalogues que le serveur publie sous forme d'URL, dans son document d'accueil.
@@ -57,8 +53,11 @@ export const CATALOGS = ["textures", "modeles", "sons", "videos"] as const;
  */
 export const MEDIA = "medias";
 
+/** The single canonical landing of the media catalogue. `/medias` is read-only compatibility. */
+export const MEDIA_LANDING = CATALOGS[0];
+
 /**
- * Les Options — l'écran des réglages du jeu, avec les réglages d'Inacord dedans.
+ * Les Options — l'écran public des réglages portables du jeu.
  *
  * L'URL porte le nom du jeu : `setting_menu`, le stem de son `_setting.cfg.bin`. La tuile porte
  * l'engrenage du jeu.
@@ -72,9 +71,8 @@ export const SETTINGS = "setting_menu";
 export const AVATAR = "chara_edit_menu";
 
 /**
- * Inacord — the full workspace (explorer, editor, RE tools, mods, cinema, gallery, tools,
- * saves), merged into this site on 2026-09-12. It used to live on its own host; one origin now
- * serves the game, the catalogues and the workspace.
+ * Inacord — the explicit authoring workspace (RE, mods, Lua, raw CPK and native-only tools).
+ * It shares the frontend/library owners with public views, but is not advertised to readers.
  */
 export const INACORD = "inacord";
 
@@ -100,7 +98,8 @@ export const GALLERY = "gallery_menu";
 export const SHOP = "shop_menu";
 
 /**
- * Les modes de jeu — les onglets du menu principal, et ce dont chacun est fait.
+ * Internal mode-analysis route. Native mode tiles belong to the game/WASM flow and must never
+ * send a player to this diagnostic page.
  *
  * La page existait sur le wiki et en a été retirée pour être reprise ici : `nie` sait rendre les
  * écrans d'un mode (`/api/v1/menu/render/<ecran>`), ce qu'un wiki adossé à des JSON ne pouvait
@@ -169,6 +168,8 @@ export interface MenuEntry {
 	route: string;
 	label: string;
 	glyph: GlyphName;
+	/** Player-facing emphasis inside the host-owned menu extension. */
+	priority?: "primary" | "secondary";
 }
 
 /**
@@ -184,6 +185,9 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	videos: { label: "Vidéos", glyph: "film" },
 	[MEDIA]: { label: "Médias", glyph: "image" },
 	[EXPLORER]: { label: "Explorer", glyph: "arbre" },
+	[EDITOR_3D]: { label: "Éditeur 3D", glyph: "cube" },
+	[SEARCH]: { label: "Recherche", glyph: "arbre" },
+	[DATA]: { label: "Données", glyph: "livre" },
 	[SETTINGS]: { label: "Options", glyph: "engrenage" },
 	[AVATAR]: { label: "Avatar", glyph: "ballon" },
 	[BANK]: { label: "Banque", glyph: "livre" },
@@ -200,21 +204,24 @@ export function entryLabel(route: string): string {
 }
 
 /**
- * Routes recognized by the host, including compatibility aliases.
+ * Routes recognized by the host, including compatibility inputs.
  *
- * `/recherche` et `/donnees` mènent à l'explorateur ; `/textures`, `/modeles`, `/sons` et
- * `/videos` mènent aux médias, sur leur vue. Aucune n'est une tuile, et toutes restent
- * servies : casser une adresse déjà publiée (`sitemap.xml` compris) pour changer un menu, ce
- * serait payer une décision d'affichage avec les liens des autres.
+ * `/recherche` and `/donnees` are independent pages. `/textures`, `/modeles`, `/sons` and
+ * `/videos` are canonical catalogue views; `/medias` remains a compatibility input that
+ * redirects to one of them.
  */
 export function recognizedRoutes(health: SiteHealth | null): string[] {
 	return [
 		MENU,
+		// Compatibility input, deliberately not in LEGACY_ROUTES: Catalog must read `?vue=`
+		// before replacing this retired container with the selected canonical catalogue.
+		MEDIA,
 		...menuEntries(health).map((entry) => entry.route),
 		DOWNLOADS,
 		MODES,
+		INACORD,
 		...INACORD_VIEW_ROUTES,
-		...ALIAS,
+		...PUBLIC_WORKSPACE_ROUTES,
 		...CATALOGS,
 		...Object.keys(LEGACY_ROUTES),
 	];
@@ -234,9 +241,17 @@ export const INACORD_VIEW_ROUTES: readonly string[] = IDS_VUES.map((id) => `${IN
  * signature for existing consumers; it does not currently supply native action availability.
  */
 export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
-	return [MEDIA, MODES, BANK, GALLERY, SHOP, AVATAR, EXPLORER, INACORD, SETTINGS].map((route) => ({
-		route,
-		label: entryLabel(route),
-		glyph: PRESENTATION[route]?.glyph ?? "arbre",
-	}));
+	return [
+		// One menu destination, one canonical URL. `MEDIA` remains recognized so old `/medias`
+		// links can be replaced by Catalog after it has read their legacy `?vue=` value.
+		{ route: MEDIA_LANDING, label: entryLabel(MEDIA), glyph: PRESENTATION[MEDIA]!.glyph },
+		// The public title screen is the navigation owner. The broad Inacord workspace route is
+		// intentionally absent: RE, Mods and Lua remain deep-link/native tools, not game entries.
+		...[AVATAR, EXPLORER, EDITOR_3D, BANK, GALLERY, SHOP, SEARCH, DATA, SETTINGS].map((route) => ({
+			route,
+			label: entryLabel(route),
+			glyph: PRESENTATION[route]?.glyph ?? "arbre",
+			priority: route === EXPLORER || route === EDITOR_3D || route === GALLERY ? "primary" as const : "secondary" as const,
+		})),
+	];
 }

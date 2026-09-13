@@ -1933,7 +1933,9 @@ mod tests {
             // pour `competition`, dont la note dit qu'AUCUN ecran ne le porte.
             assert!(
                 d.prefixes.is_empty()
-                    || d.prefixes.iter().any(|p| p.starts_with(d.slug) || d.slug.starts_with(p)),
+                    || d.prefixes
+                        .iter()
+                        .any(|p| p.starts_with(d.slug) || d.slug.starts_with(p)),
                 "`{}` ne se retrouve dans aucun de ses prefixes {:?}",
                 d.slug,
                 d.prefixes

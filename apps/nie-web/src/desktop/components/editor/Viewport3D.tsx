@@ -12,6 +12,7 @@ export type {
   ViewportStats,
   GizmoMode,
   NodeTransform,
+  ViewportReferenceImage,
 } from "@niers/inacord-ui/three/Viewport3D";
 
 export type Viewport3DProps = Omit<SharedViewport3DProps, "services">;

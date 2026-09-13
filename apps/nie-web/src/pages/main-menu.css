@@ -4,6 +4,34 @@
 	overflow: hidden;
 }
 
+.wasm-game-surface {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	overflow: hidden;
+	background: #000;
+	color: #fff;
+}
+
+.wasm-game-surface canvas {
+	max-width: 100%;
+	max-height: 100%;
+	aspect-ratio: 16 / 9;
+	image-rendering: pixelated;
+}
+
+.wasm-game-surface > p:not(.wasm-game-surface__score) {
+	position: absolute;
+}
+
+.wasm-game-surface__score {
+	position: absolute;
+	top: 1rem;
+	margin: 0;
+	font: 600 1.25rem/1 system-ui, sans-serif;
+}
+
 .runtime-main-menu__layer {
 	position: absolute;
 	display: block;
@@ -33,6 +61,11 @@
 	cursor: not-allowed;
 }
 
+.runtime-main-menu__control button:focus-visible {
+	outline: 3px solid var(--screen-check-cyan);
+	outline-offset: -3px;
+}
+
 .runtime-main-menu__asset-state {
 	position: absolute;
 	width: 1px;
@@ -40,4 +73,64 @@
 	overflow: hidden;
 	clip-path: inset(50%);
 	white-space: nowrap;
+}
+
+.runtime-main-menu__site-nav {
+	position: fixed;
+	right: max(0.75rem, env(safe-area-inset-right));
+	bottom: max(0.75rem, env(safe-area-inset-bottom));
+	z-index: 850;
+	max-width: min(34rem, calc(100vw - 1.5rem));
+	color: var(--screen-row-white);
+	display: grid;
+	justify-items: end;
+	gap: 0.45rem;
+}
+
+.runtime-main-menu__site-nav summary {
+	margin-left: auto;
+	width: max-content;
+	cursor: pointer;
+	border: 1px solid color-mix(in srgb, var(--screen-row-white) 55%, transparent);
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--screen-header-blue-deep) 92%, transparent);
+	padding: 0.55rem 0.9rem;
+	font-weight: 800;
+	box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--screen-panel-body) 22%, transparent);
+}
+
+.runtime-main-menu__site-nav details nav {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.4rem;
+	margin-top: 0.45rem;
+	border: 1px solid color-mix(in srgb, var(--screen-tab-light) 70%, transparent);
+	border-radius: 0.75rem;
+	background: color-mix(in srgb, var(--screen-canvas-pale) 96%, transparent);
+	padding: 0.6rem;
+	color: var(--screen-header-blue-deep);
+	box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--screen-panel-body) 24%, transparent);
+}
+
+.runtime-main-menu__site-primary {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.4rem;
+}
+
+.runtime-main-menu__site-nav .runtime-main-menu__site-primary button {
+	border-color: color-mix(in srgb, var(--screen-check-cyan) 70%, var(--screen-header-blue-deep));
+	background: var(--screen-header-blue-deep);
+	color: var(--screen-row-white);
+	box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--screen-panel-body) 24%, transparent);
+}
+
+.runtime-main-menu__site-nav button {
+	border: 1px solid var(--screen-tab-light);
+	border-radius: 0.35rem;
+	background: var(--screen-row-white);
+	padding: 0.4rem 0.65rem;
+	font-weight: 700;
 }

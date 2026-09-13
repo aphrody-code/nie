@@ -82,6 +82,46 @@ pub async fn names(
     Ok(Json(page))
 }
 
+/// Query parameters for localized label to native resource-code lookup.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NameSearchQuery {
+    /// Visible localized label or native identity fragment.
+    pub q: String,
+    /// Requested game locale.
+    pub locale: String,
+    /// Optional maximum number of matching identities.
+    pub limit: Option<usize>,
+}
+
+/// Search visible game names while retaining the original VFS identity.
+pub async fn search_names(
+    State(state): State<EtatSite>,
+    Query(input): Query<NameSearchQuery>,
+) -> Result<Json<nie_wiki::names::NameSearchPage>, ErreurSite> {
+    let limit = input.limit.unwrap_or(30);
+    if !valid_query(&input.q) || !(1..=50).contains(&limit) {
+        return Err(ErreurSite::Demande(
+            "Require a nonempty query up to 128 bytes and limit 1..50".into(),
+        ));
+    }
+    nie_wiki::names::validate(&[], &input.locale)
+        .map_err(|message| ErreurSite::Demande(message.into()))?;
+    let permit = Arc::clone(limiter())
+        .try_acquire_owned()
+        .map_err(|_| unavailable("Name search capacity busy"))?;
+    let data = Arc::clone(&state.gisement);
+    let page = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        data.lire(|connection| {
+            nie_wiki::names::search(connection, &input.q, &input.locale, limit).map_err(unavailable)
+        })
+        .map_err(unavailable)
+    })
+    .await??;
+    Ok(Json(page))
+}
+
 /// Enrich original gallery resources from the same mirror used by wiki search.
 pub async fn gallery(
     State(state): State<EtatSite>,

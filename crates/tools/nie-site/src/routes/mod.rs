@@ -13,6 +13,8 @@ pub mod feed;
 pub mod formats;
 pub mod game_data;
 pub mod geometrie;
+/// GraphQL en lecture seule sur le corpus de texte (cf. `routes::text`).
+pub mod graphql;
 pub mod growth;
 pub mod health;
 pub mod inspect;
@@ -24,6 +26,8 @@ pub mod menu_runtime;
 pub mod modeles3d;
 pub mod motion;
 pub mod native_export;
+/// OpenAPI généré depuis le routeur — cf. le module pour ce qu'il décrit et ce qu'il ne décrit pas.
+pub mod openapi;
 pub mod pages;
 pub mod passives;
 pub mod playstyles;
@@ -36,10 +40,6 @@ pub mod screens;
 pub mod spatial_preview;
 pub mod static_files;
 pub mod team;
-/// GraphQL en lecture seule sur le corpus de texte (cf. `routes::text`).
-pub mod graphql;
-/// OpenAPI généré depuis le routeur — cf. le module pour ce qu'il décrit et ce qu'il ne décrit pas.
-pub mod openapi;
 pub mod text;
 pub mod vfs;
 pub mod well_known;

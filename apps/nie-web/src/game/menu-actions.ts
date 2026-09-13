@@ -18,6 +18,6 @@ export function bindMenuActions(
 ): MainMenuAction[] {
 	return entries.flatMap((entry) => {
 		const binding = Object.hasOwn(bindings, entry.route) ? bindings[entry.route] : undefined;
-		return binding ? [{ ...binding, label: entry.label, glyph: entry.glyph }] : [];
+		return binding ? [{ ...binding, label: entry.label, glyph: entry.glyph, priority: entry.priority }] : [];
 	});
 }

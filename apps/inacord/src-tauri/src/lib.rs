@@ -3,7 +3,7 @@
 //! moteur que `niers vfs cat`, cf. `CLAUDE.md` anti-doublon) ; ce module n'est qu'une façade
 //! IPC (JSON) au-dessus de ces crates + une recherche chara/waza via le miroir `nie-wiki`.
 
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 
 use base64::Engine as _;
@@ -2609,6 +2609,52 @@ fn disk_file_exists(path: String) -> bool {
     std::fs::metadata(&path).is_ok_and(|m| m.is_file())
 }
 
+/// Resolve an application-data-relative path without letting an IPC argument escape the
+/// application workspace.
+///
+/// Checking only `base.join(relative)` is not confinement: an absolute argument replaces
+/// `base`, `..` walks above it, and an existing symlink can point outside it.  The frontend builds
+/// these paths itself today, but every `#[tauri::command]` is a trust boundary and must enforce
+/// the contract it documents.
+fn confined_appdata_path(base: &Path, relative: &str) -> Result<PathBuf, String> {
+    if relative.is_empty() || relative.contains('\0') {
+        return Err("chemin AppData relatif invalide".to_string());
+    }
+    let relative_path = Path::new(relative);
+    if relative_path
+        .components()
+        .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err("chemin AppData relatif invalide".to_string());
+    }
+
+    std::fs::create_dir_all(base)
+        .map_err(|error| format!("création de {} : {error}", base.display()))?;
+    let canonical_base = std::fs::canonicalize(base)
+        .map_err(|error| format!("résolution de {} : {error}", base.display()))?;
+    let target = canonical_base.join(relative_path);
+
+    // Canonicalize the nearest existing path. `symlink_metadata` deliberately detects broken
+    // symlinks too: following one during the later write could otherwise create its target
+    // outside AppData even though `Path::exists` returned false.
+    let mut existing = target.as_path();
+    while std::fs::symlink_metadata(existing).is_err() {
+        existing = existing
+            .parent()
+            .ok_or_else(|| "chemin AppData sans parent existant".to_string())?;
+    }
+    let canonical_existing = std::fs::canonicalize(existing).map_err(|error| {
+        format!(
+            "résolution du chemin AppData {} : {error}",
+            existing.display()
+        )
+    })?;
+    if canonical_existing != canonical_base && !canonical_existing.starts_with(&canonical_base) {
+        return Err("le chemin AppData sort de l'espace de travail".to_string());
+    }
+    Ok(target)
+}
+
 /// Copie un fichier disque ARBITRAIRE (hors de toute portée `fs:scope` JS — même famille que
 /// [`read_disk_file_b64`]/[`describe_disk_file`], `std::fs` direct) vers un chemin relatif sous
 /// `AppData` (espace de travail des mods, `mods/<modId>/…`, `crates`/… JS `modWorkspace.ts`).
@@ -2631,10 +2677,13 @@ fn copy_disk_file_to_appdata(
 ) -> Result<f64, String> {
     use tauri::Manager;
     let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let dest = base.join(&dest_appdata_rel);
+    let mut dest = confined_appdata_path(&base, &dest_appdata_rel)?;
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
+    // Recheck after creating parents so a pre-existing symlink at any newly visible component is
+    // rejected before the copy follows it.
+    dest = confined_appdata_path(&base, &dest_appdata_rel)?;
     let n = std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
     Ok(n as f64)
 }
@@ -2658,11 +2707,11 @@ fn trash_appdata_files(
 ) -> Result<(), String> {
     use tauri::Manager;
     let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let existing: Vec<PathBuf> = appdata_rel_paths
+    let resolved: Result<Vec<PathBuf>, String> = appdata_rel_paths
         .iter()
-        .map(|rel| base.join(rel))
-        .filter(|p| p.exists())
+        .map(|rel| confined_appdata_path(&base, rel))
         .collect();
+    let existing: Vec<PathBuf> = resolved?.into_iter().filter(|path| path.exists()).collect();
     if existing.is_empty() {
         return Ok(());
     }
@@ -2758,10 +2807,11 @@ fn stage_texture_replacement(
     })?;
 
     let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let dest = base.join(&dest_appdata_rel);
+    let mut dest = confined_appdata_path(&base, &dest_appdata_rel)?;
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
+    dest = confined_appdata_path(&base, &dest_appdata_rel)?;
     std::fs::write(&dest, &g4tx_bytes).map_err(|e| e.to_string())?;
     Ok(g4tx_bytes.len() as f64)
 }
@@ -2795,7 +2845,7 @@ fn export_mod_as_cpk(
     let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let mut entries = Vec::with_capacity(files.len());
     for f in &files {
-        let staged_path = base.join(&f.staged_appdata_rel);
+        let staged_path = confined_appdata_path(&base, &f.staged_appdata_rel)?;
         let data = std::fs::read(&staged_path)
             .map_err(|e| format!("lecture '{}' : {e}", staged_path.display()))?;
         let base_name = f.vfs_path.rsplit('/').next().unwrap_or(&f.vfs_path);
@@ -4824,36 +4874,86 @@ impl specta::Type for RawJson {
 // renderer de menus. Le desktop transporte ses artefacts finis vers le viewport WebGL, sans en
 // créer une seconde implémentation. Les requêtes sortent du thread UI.
 const MODEL_SERVICE_DEFAULT_URL: &str = "https://nie.aphrody.com";
+const MODEL_SERVICE_CATALOG_MAX_BYTES: usize = 2 * 1024 * 1024;
+const MODEL_SERVICE_GLB_MAX_BYTES: usize = 256 * 1024 * 1024;
+const MODEL_SERVICE_PNG_MAX_BYTES: usize = 32 * 1024 * 1024;
 
-fn model_service_base(base_url: &str) -> Result<&str, String> {
+fn model_service_base(base_url: &str) -> Result<String, String> {
     let base = if base_url.trim().is_empty() {
         MODEL_SERVICE_DEFAULT_URL
     } else {
         base_url.trim()
     };
-    if !(base.starts_with("https://") || base.starts_with("http://"))
-        || base.contains('?')
-        || base.contains('#')
-    {
+    let authority = base
+        .strip_prefix("https://")
+        .or_else(|| base.strip_prefix("http://"))
+        .map(|rest| rest.strip_suffix('/').unwrap_or(rest));
+    let valid = authority.is_some_and(|authority| {
+        !authority.is_empty()
+            && !authority.contains('/')
+            && !authority.contains('@')
+            && !authority.contains('?')
+            && !authority.contains('#')
+            && !authority.chars().any(char::is_control)
+            && !authority.chars().any(char::is_whitespace)
+    });
+    if !valid {
         return Err(
             "l'URL du service de modèles doit être une origine http(s), sans chemin ni paramètre"
                 .to_string(),
         );
     }
-    Ok(base.trim_end_matches('/'))
+    Ok(base.trim_end_matches('/').to_string())
 }
 
-fn model_service_get(base_url: &str, path: &str) -> Result<Vec<u8>, String> {
+fn read_to_end_bounded(
+    reader: impl std::io::Read,
+    max_bytes: usize,
+    label: &str,
+) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    let limit = u64::try_from(max_bytes)
+        .unwrap_or(u64::MAX)
+        .saturating_add(1);
+    std::io::Read::read_to_end(&mut reader.take(limit), &mut bytes)
+        .map_err(|error| format!("lecture de {label} : {error}"))?;
+    if bytes.len() > max_bytes {
+        return Err(format!(
+            "réponse de {label} trop volumineuse (maximum {max_bytes} octets)"
+        ));
+    }
+    Ok(bytes)
+}
+
+fn model_service_get(base_url: &str, path: &str, max_bytes: usize) -> Result<Vec<u8>, String> {
     let base = model_service_base(base_url)?;
     let url = format!("{base}/{path}");
-    let response = ureq::get(&url)
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(30))
+        // A configured origin must not become a trampoline to an unrelated or local service.
+        .redirects(0)
+        .build();
+    let response = agent
+        .get(&url)
         .call()
         .map_err(|e| format!("service de modèles injoignable ({url}) : {e}"))?;
-    let mut reader = response.into_reader();
-    let mut bytes = Vec::new();
-    std::io::Read::read_to_end(&mut reader, &mut bytes)
-        .map_err(|e| format!("lecture de {url} : {e}"))?;
-    Ok(bytes)
+    if !(200..300).contains(&response.status()) {
+        return Err(format!(
+            "réponse inattendue du service de modèles ({url}) : HTTP {}",
+            response.status()
+        ));
+    }
+    if response
+        .header("Content-Length")
+        .and_then(|value| value.parse::<usize>().ok())
+        .is_some_and(|length| length > max_bytes)
+    {
+        return Err(format!(
+            "réponse de {url} trop volumineuse (maximum {max_bytes} octets)"
+        ));
+    }
+    read_to_end_bounded(response.into_reader(), max_bytes, &url)
 }
 
 /// Charge le catalogue réellement exporté par `niers avatar export` depuis le service de modèles.
@@ -4861,7 +4961,11 @@ fn model_service_get(base_url: &str, path: &str) -> Result<Vec<u8>, String> {
 #[specta::specta]
 async fn model_service_avatar_catalog(base_url: String) -> Result<RawJson, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let bytes = model_service_get(&base_url, "avatar/catalog.json")?;
+        let bytes = model_service_get(
+            &base_url,
+            "avatar/catalog.json",
+            MODEL_SERVICE_CATALOG_MAX_BYTES,
+        )?;
         serde_json::from_slice(&bytes)
             .map(RawJson)
             .map_err(|e| format!("catalogue avatar invalide : {e}"))
@@ -4912,7 +5016,7 @@ async fn model_service_avatar_glb_b64(
         {
             return Err("route d'avatar invalide".to_string());
         }
-        let bytes = model_service_get(&base_url, path)?;
+        let bytes = model_service_get(&base_url, path, MODEL_SERVICE_GLB_MAX_BYTES)?;
         Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
     })
     .await
@@ -4933,11 +5037,116 @@ async fn model_service_menu_png_b64(base_url: String, screen: String) -> Result<
         {
             return Err("nom d'écran invalide".to_string());
         }
-        let bytes = model_service_get(&base_url, &format!("menu-render/{screen}.png"))?;
+        let bytes = model_service_get(
+            &base_url,
+            &format!("menu-render/{screen}.png"),
+            MODEL_SERVICE_PNG_MAX_BYTES,
+        )?;
         Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
     })
     .await
     .map_err(|e| format!("tâche de rendu de menu interrompue : {e}"))?
+}
+
+#[cfg(test)]
+mod confinement_tests {
+    use super::{confined_appdata_path, model_service_base, read_to_end_bounded};
+    use std::path::PathBuf;
+
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("horloge système")
+            .as_nanos();
+        std::env::temp_dir().join(format!("inacord-{label}-{}-{stamp}", std::process::id()))
+    }
+
+    #[test]
+    fn appdata_path_accepts_only_confined_relative_paths() {
+        let base = unique_temp_dir("appdata-confined");
+        std::fs::create_dir_all(base.join("mods/example")).unwrap();
+
+        assert_eq!(
+            confined_appdata_path(&base, "mods/example/texture.g4tx").unwrap(),
+            std::fs::canonicalize(&base)
+                .unwrap()
+                .join("mods/example/texture.g4tx")
+        );
+        assert!(confined_appdata_path(&base, "../outside.txt").is_err());
+        assert!(confined_appdata_path(&base, "mods/../outside.txt").is_err());
+        assert!(confined_appdata_path(&base, "bad\0name").is_err());
+        assert!(confined_appdata_path(&base, "").is_err());
+
+        let absolute = unique_temp_dir("absolute").join("outside.txt");
+        assert!(confined_appdata_path(&base, absolute.to_string_lossy().as_ref()).is_err());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn appdata_path_rejects_symlink_to_outside_on_unix() {
+        use std::os::unix::fs::symlink;
+
+        let base = unique_temp_dir("appdata-symlink-base");
+        let outside = unique_temp_dir("appdata-symlink-outside");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        symlink(&outside, base.join("mods")).unwrap();
+
+        assert!(confined_appdata_path(&base, "mods/escaped.bin").is_err());
+        std::fs::remove_dir_all(base).unwrap();
+        std::fs::remove_dir_all(outside).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn appdata_path_rejects_symlink_to_outside_on_windows() {
+        use std::os::windows::fs::symlink_dir;
+
+        let base = unique_temp_dir("appdata-symlink-base");
+        let outside = unique_temp_dir("appdata-symlink-outside");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        // Creating a directory symlink requires Developer Mode or the corresponding privilege on
+        // older Windows installations. The assertion still runs whenever the platform permits it.
+        if symlink_dir(&outside, base.join("mods")).is_ok() {
+            assert!(confined_appdata_path(&base, "mods/escaped.bin").is_err());
+        }
+        std::fs::remove_dir_all(base).unwrap();
+        std::fs::remove_dir_all(outside).unwrap();
+    }
+
+    #[test]
+    fn model_service_requires_a_bare_http_origin() {
+        assert_eq!(
+            model_service_base("https://models.example:8443/").unwrap(),
+            "https://models.example:8443"
+        );
+        for invalid in [
+            "ftp://models.example",
+            "https://",
+            "https://user:password@models.example",
+            "https://models.example/api",
+            "https://models.example//",
+            "https://models.example?x=1",
+            "https://models.example#fragment",
+            "https://models.example\n.invalid",
+        ] {
+            assert!(
+                model_service_base(invalid).is_err(),
+                "origine acceptée à tort : {invalid:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn model_service_body_reader_enforces_its_byte_cap() {
+        assert_eq!(
+            read_to_end_bounded(std::io::Cursor::new(b"1234"), 4, "fixture").unwrap(),
+            b"1234"
+        );
+        assert!(read_to_end_bounded(std::io::Cursor::new(b"12345"), 4, "fixture").is_err());
+    }
 }
 
 // --- Aphrody : le pet, et la chaine pixel-perfect -------------------------------------------

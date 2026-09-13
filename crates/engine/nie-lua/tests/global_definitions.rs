@@ -224,7 +224,10 @@ fn qui_definit_les_globales_en_tete_de_file() {
         let nom_court = chemin.to_string_lossy().into_owned();
         for cible in NOMS {
             if ecrit.contains(cible) {
-                definit.entry(cible.to_owned()).or_default().push(nom_court.clone());
+                definit
+                    .entry(cible.to_owned())
+                    .or_default()
+                    .push(nom_court.clone());
             }
             if lit.contains(cible) {
                 *appelle.entry(cible.to_owned()).or_default() += 1;

@@ -33,6 +33,15 @@ export interface ViewportAsset {
   key: string;
   /** GLB en base64 (`api.glbBytesB64`). */
   glbB64: string;
+  /** Increment when the same logical asset key receives new GLB bytes. */
+  revision?: number;
+}
+
+/** A non-scene image shown behind the transparent viewport as a modelling reference. */
+export interface ViewportReferenceImage {
+  dataUrl: string;
+  name: string;
+  opacity?: number;
 }
 
 /** Un noeud de la scène chargée, à plat — alimente l'outliner. */
@@ -80,6 +89,7 @@ export interface Viewport3DProps {
   notice?: string | null;
   wireframe?: boolean;
   showGrid?: boolean;
+  referenceImage?: ViewportReferenceImage | null;
   className?: string;
 }
 
@@ -96,6 +106,7 @@ interface GlState {
   grid: THREE.GridHelper;
   /** Racine de chaque asset, par chemin VFS. */
   assets: Map<string, THREE.Group>;
+  assetRevisions: Map<string, number>;
   byId: Map<string, THREE.Object3D>;
   selectionBox: THREE.BoxHelper | null;
   raf: number;
@@ -125,6 +136,7 @@ function disposeAsset(state: GlState, key: string) {
   });
   disposeObjectResources(group);
   state.assets.delete(key);
+  state.assetRevisions.delete(key);
 }
 
 /** Cadre la caméra sur la boîte englobante de TOUS les assets — sans ça, un modèle de 2 unités et
@@ -162,6 +174,7 @@ export function Viewport3D({
   notice = null,
   wireframe = false,
   showGrid = true,
+  referenceImage = null,
   className,
 }: Viewport3DProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -187,8 +200,9 @@ export function Viewport3D({
   servicesRef.current = services;
 
   // Signature de la scène : l'identité du tableau `assets` change à chaque rendu du parent, pas son
-  // contenu. Le GLB d'une clé donnée ne change jamais — les clés suffisent donc à décider.
-  const assetsKey = JSON.stringify(assets.map((a) => a.key));
+  // contenu. Les imports de texture conservent la clé logique mais incrémentent `revision` afin
+  // de recharger le GLB réécrit par Rust sans inventer un deuxième asset.
+  const assetsKey = JSON.stringify(assets.map((a) => [a.key, a.revision ?? 0]));
 
   // Montage : renderer, scène, caméra, éclairage, boucle. Une seule fois — le contexte WebGL est
   // coûteux à recréer et le perdre à chaque changement de fichier ferait clignoter le viewport.
@@ -260,6 +274,7 @@ export function Viewport3D({
       gizmoTarget: null,
       grid,
       assets: new Map(),
+      assetRevisions: new Map(),
       byId: new Map(),
       selectionBox: null,
       raf: 0,
@@ -351,6 +366,11 @@ export function Viewport3D({
 
     const wanted = new Set(assetsRef.current.map((a) => a.key));
     for (const key of [...state.assets.keys()]) if (!wanted.has(key)) disposeAsset(state, key);
+    for (const asset of assetsRef.current) {
+      if (state.assets.has(asset.key) && state.assetRevisions.get(asset.key) !== (asset.revision ?? 0)) {
+        disposeAsset(state, asset.key);
+      }
+    }
 
     const missing = assetsRef.current.filter((a) => !state.assets.has(a.key));
     if (missing.length === 0) {
@@ -392,6 +412,7 @@ export function Viewport3D({
               gltf.scene.userData.nieAsset = asset.key;
               gl.current.scene.add(gltf.scene);
               gl.current.assets.set(asset.key, gltf.scene);
+              gl.current.assetRevisions.set(asset.key, asset.revision ?? 0);
             } catch (e) {
               setError(`Ajout du modèle à la scène : ${e instanceof Error ? e.message : String(e)}`);
             }
@@ -577,7 +598,15 @@ export function Viewport3D({
 
   return (
     <div className={className} style={{ position: "relative" }}>
-      <div ref={hostRef} className="h-full w-full" onPointerDown={onPointerDown} />
+      {referenceImage && (
+        <img
+          src={referenceImage.dataUrl}
+          alt={`Référence ${referenceImage.name}`}
+          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+          style={{ opacity: Math.max(0.05, Math.min(1, referenceImage.opacity ?? 0.4)) }}
+        />
+      )}
+      <div ref={hostRef} className="relative h-full w-full" onPointerDown={onPointerDown} />
       {assets.length > 0 && !loading && !error && (
         <div className="absolute bottom-2 left-2 flex gap-1" aria-label="Orientation de la caméra">
           {([["front", "Face"], ["side", "Côté"], ["back", "Dos"]] as const).map(([direction, label]) => (

@@ -1,4 +1,4 @@
-import { GameCanvas, type NomGlyphe, useAssetSource } from "@niers/inacord-ui";
+import { GameCanvas, type GameLocale, type NomGlyphe, useAssetSource, useSettings } from "@niers/inacord-ui";
 import {
 	initialMenuState,
 	createStandardGamepadMenuSampler,
@@ -13,6 +13,7 @@ import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
+import { localizeMenuSceneAssets } from "../game/menu-locale";
 import "./main-menu.css";
 import { GameText } from "@niers/inacord-ui";
 
@@ -23,6 +24,7 @@ export interface MainMenuAction {
 	glyph: NomGlyphe;
 	onActivate: () => void;
 	disabled?: boolean;
+	priority?: "primary" | "secondary";
 }
 
 export interface MainMenuProps {
@@ -40,8 +42,10 @@ const TITLE_LAYERS = [
 ] as const;
 const TITLE_OBJECT = "data/common/gamedata/menu/obj/title00_07_item_button.objbin";
 const AVATAR_OBJECT = "data/common/gamedata/menu/obj/title02_11_avatar_banner.objbin";
+const TEAM_OBJECT = "data/common/gamedata/menu/obj/title02_10_my_team_banner.objbin";
 function nativeBinding(id: string) {
 	if (id === "avatar") return { layer: 1526508152, index: 0, objectPath: AVATAR_OBJECT };
+	if (id === "team") return { layer: 4086303486, index: 0, objectPath: TEAM_OBJECT };
 	for (const layer of TITLE_LAYERS) {
 		const index = layer.items.findIndex(item => id === `title-item-${item}`);
 		if (index >= 0) return { layer: layer.id, index, objectPath: TITLE_OBJECT };
@@ -55,10 +59,14 @@ interface TitleObservation {
 	enter: (id: string) => Promise<void>;
 }
 
-function ObservedMainMenu(props: MainMenuProps & { scene: NativeMenuScene }) {
+export function localizeNativeTitleScene(scene: NativeMenuScene, locale: GameLocale): NativeMenuScene {
+	return localizeMenuSceneAssets(scene, locale);
+}
+
+function ObservedMainMenu(props: MainMenuProps & { scene: NativeMenuScene; locale: GameLocale }) {
 	const runtime = useMemo(() => createMenuRuntime("title_menu_2", {
-		locale: "fr", itemCounts: { 2250456639: 8, 3873872512: 3 },
-	}), []);
+		locale: props.locale, itemCounts: { 2250456639: 8, 3873872512: 3 },
+	}), [props.locale]);
 	const [result, setResult] = useState<MenuRuntimeResult | null>(null);
 	const [state, setState] = useState<TitleObservation["state"]>("loading");
 	const mounted = useRef(false);
@@ -87,6 +95,7 @@ function ObservedMainMenu(props: MainMenuProps & { scene: NativeMenuScene }) {
 
 /** The browser supplies destinations; the engine supplies the native scene and control identities. */
 export function MainMenu(props: MainMenuProps) {
+	const { settings: { gameLocale } } = useSettings();
 	const [scene, setScene] = useState<NativeMenuScene | null>(null);
 	const [failed, setFailed] = useState(false);
 	useEffect(() => {
@@ -112,23 +121,49 @@ export function MainMenu(props: MainMenuProps) {
 			{props.onCancel ? <button type="button" onClick={props.onCancel}><GameText>Retour</GameText></button> : null}
 		</section>
 	);
-	return <ObservedMainMenu scene={scene} {...props} />;
+	return <ObservedMainMenu scene={localizeNativeTitleScene(scene, gameLocale)} locale={gameLocale} {...props} />;
 }
 
 /** Presentation of a compiled scene, also used for deterministic host-binding checks. */
 export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler, observation }: MainMenuProps & { scene: NativeMenuScene; observation?: TitleObservation }) {
 	const source = useAssetSource();
+	const nativeHostIds = useMemo(() => new Set(scene.controls.map(control => control.hostActionId).filter(Boolean)), [scene.controls]);
+	const siteActions = useMemo(() => actions.filter(action => !nativeHostIds.has(action.id)), [actions, nativeHostIds]);
+	const primarySiteActions = useMemo(() => siteActions.filter(action => action.priority === "primary"), [siteActions]);
+	const secondarySiteActions = useMemo(() => siteActions.filter(action => action.priority !== "primary"), [siteActions]);
 	const boundActions = useMemo(() => scene.controls.map((control) => {
 		const host = actions.find((action) => action.id === control.hostActionId);
 		const binding = nativeBinding(control.id);
 		const nativeLayer = binding && observation?.result?.complete ? observation.result.scene.layers[binding.layer] : undefined;
 		return { ...control, disabled: !host || Boolean(host.disabled) || nativeLayer?.enabled === false || nativeLayer?.visible === false, onActivate: host?.onActivate };
 	}), [scene, actions, observation?.result]);
-	const items = useMemo<MenuInteractionItem[]>(() => boundActions.map((action) => ({
-		id: action.id,
-		disabled: action.disabled,
-		rect: { x: action.rect.x, y: action.rect.y, width: action.rect.w, height: action.rect.h },
-	})), [boundActions]);
+	const items = useMemo<MenuInteractionItem[]>(() => {
+		const primaryWidth = 180;
+		const primaryGap = 24;
+		const primaryTotal = primarySiteActions.length * primaryWidth
+			+ Math.max(0, primarySiteActions.length - 1) * primaryGap;
+		const primaryStart = (scene.canvas.width - primaryTotal) / 2;
+		return [
+			...boundActions.map((action) => ({
+				id: action.id,
+				disabled: action.disabled,
+				rect: { x: action.rect.x, y: action.rect.y, width: action.rect.w, height: action.rect.h },
+			})),
+			// These rectangles extend the measured native focus graph with the three public
+			// destinations rendered directly below it. They model host navigation only; they
+			// are never presented as VFS/native scene geometry.
+			...primarySiteActions.map((action, index) => ({
+				id: action.id,
+				disabled: action.disabled,
+				rect: {
+					x: primaryStart + index * (primaryWidth + primaryGap),
+					y: scene.canvas.height + 64,
+					width: primaryWidth,
+					height: 64,
+				},
+			})),
+		];
+	}, [boundActions, primarySiteActions, scene.canvas.height, scene.canvas.width]);
 	const [focusedId, setFocusedId] = useState(() => initialMenuState(items).focusedId);
 	const focusState = useRef(initialMenuState(items));
 	const [pressedId, setPressedId] = useState<string | null>(null);
@@ -149,17 +184,18 @@ export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler, obser
 
 	const activate = useCallback((id: string | null) => {
 		const action = boundActions.find((candidate) => candidate.id === id);
-		if (!action || action.disabled || activationPending.current) return;
+		const siteAction = primarySiteActions.find((candidate) => candidate.id === id);
+		if ((!action && !siteAction) || action?.disabled || siteAction?.disabled || activationPending.current) return;
 		activationPending.current = true;
-		const binding = nativeBinding(action.id);
+		const binding = action ? nativeBinding(action.id) : null;
 		if (binding) emitNativeCommand(binding.objectPath, "CMD_ENTER");
 		const finish = () => {
-			try { if (alive.current) action.onActivate?.(); }
+			try { if (alive.current) (action?.onActivate ?? siteAction?.onActivate)?.(); }
 			finally { queueMicrotask(() => { activationPending.current = false; }); }
 		};
-		if (observation) void observation.enter(action.id).then(finish, finish);
+		if (action && observation) void observation.enter(action.id).then(finish, finish);
 		else finish();
-	}, [boundActions, observation]);
+	}, [boundActions, observation, primarySiteActions]);
 
 	const applyIntent = useCallback((intent: MenuIntent) => {
 		if (activationPending.current) return;
@@ -241,6 +277,29 @@ export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler, obser
 					{assetState === "failed" ? "Ressources visuelles indisponibles." : ""}
 				</span>
 			</GameCanvas>
+			{siteActions.length ? <div className="runtime-main-menu__site-nav">
+				{primarySiteActions.length ? <nav className="runtime-main-menu__site-primary" aria-label="Accès principaux">
+					{primarySiteActions.map(action => <span key={action.id} data-menu-target={action.id}>
+						<button type="button" data-host-action={action.id}
+							aria-current={focusedId === action.id ? "true" : undefined}
+							data-state={pressedId === action.id ? "pressed" : focusedId === action.id ? "focused" : "idle"}
+							onPointerEnter={() => applyIntent({ type: "focus", id: action.id })}
+							onFocus={() => applyIntent({ type: "focus", id: action.id })}
+							onPointerDown={(event) => { if (event.button === 0 && !action.disabled) setPressedId(action.id); }}
+							onPointerLeave={() => setPressedId(null)} onClick={() => activate(action.id)} disabled={action.disabled}>
+							{action.label}
+						</button>
+					</span>)}
+				</nav> : null}
+				{secondarySiteActions.length ? <details>
+					<summary>Bibliothèque du site</summary>
+					<nav aria-label="Fonctions secondaires du site">
+						{secondarySiteActions.map(action => <button key={action.id} type="button" data-host-action={action.id} onClick={action.onActivate} disabled={action.disabled}>
+							{action.label}
+						</button>)}
+					</nav>
+				</details> : null}
+			</div> : null}
 		</section>
 	);
 }

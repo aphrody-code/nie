@@ -21,7 +21,7 @@ export function SelectionBar({
   totalSize: number;
   onClear: () => void;
   onCopyPaths: () => void;
-  onStageIntoMod: () => void;
+  onStageIntoMod?: () => void;
   /** Export en lot vers un dossier, au format choisi (cf. `api.exportMany`). */
   onExport?: () => void;
 }) {
@@ -39,7 +39,9 @@ export function SelectionBar({
         {onExport && (
           <SelectionAction icon="download" label="Exporter au format…" onClick={onExport} />
         )}
-        <SelectionAction icon="extension" label="Ajouter à un mod…" onClick={onStageIntoMod} />
+        {onStageIntoMod ? (
+          <SelectionAction icon="extension" label="Ajouter à un mod…" onClick={onStageIntoMod} />
+        ) : null}
         <SelectionAction icon="close" label="Tout désélectionner" onClick={onClear} />
       </div>
     </div>

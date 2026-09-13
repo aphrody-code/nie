@@ -14,8 +14,14 @@
 }
 .game-setting-row--native:has([data-native-asset-state="ready"]) {
 	background: transparent;
+	color: var(--screen-tile-deep);
 	box-shadow: none;
 }
 .game-setting-row--native:has([data-native-asset-state="ready"]) > .game-setting-row__value {
 	background: transparent;
+	color: var(--screen-tile-deep);
+}
+.game-setting-row--native.game-setting-row--focused:has([data-native-asset-state="ready"]),
+.game-setting-row--native.game-setting-row--focused:has([data-native-asset-state="ready"]) > .game-setting-row__value {
+	color: var(--jeu-texte-vif);
 }

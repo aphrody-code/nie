@@ -1683,6 +1683,137 @@ pub fn avatar_composition_json(catalog_json: &str, state_json: &str) -> Result<S
     avatar_composition_json_impl(catalog_json, state_json)
 }
 
+fn avatar_reference_import_json_impl(
+    catalog_json: &str,
+    state_json: &str,
+    reference: &str,
+) -> Result<String, String> {
+    if catalog_json.len() > 16 * 1024 * 1024
+        || state_json.len() > 64 * 1024
+        || reference.len() > 100_000
+    {
+        return Err("Avatar reference input exceeds size limit".into());
+    }
+    let catalog = serde_json::from_str::<nie_data::avatar::AvatarCatalog>(catalog_json)
+        .map_err(|error| error.to_string())?;
+    let state = serde_json::from_str::<nie_data::avatar::AvatarState>(state_json)
+        .map_err(|error| error.to_string())?;
+    let imported = nie_data::avatar_reference::import_avatar_reference(&catalog, &state, reference)
+        .map_err(|error| error.to_string())?;
+    match imported {
+        nie_data::avatar_reference::AvatarReferenceImport::ZukanQuery {
+            query,
+            reference_only,
+        } => {
+            let internal_code = zukan_character_id(&query)?;
+            serde_json::to_string(&serde_json::json!({
+                "kind": "zukan_player",
+                "internalCode": internal_code,
+                "referenceOnly": reference_only,
+            }))
+            .map_err(|error| error.to_string())
+        }
+        other => serde_json::to_string(&other).map_err(|error| error.to_string()),
+    }
+}
+
+fn export_avatar_oc_document_json_impl(
+    catalog_json: &str,
+    state_json: &str,
+    metadata_json: &str,
+) -> Result<String, String> {
+    if catalog_json.len() > 16 * 1024 * 1024
+        || state_json.len() > 64 * 1024
+        || metadata_json.len() > 100_000
+    {
+        return Err("Avatar OC export input exceeds size limit".into());
+    }
+    let catalog = serde_json::from_str::<nie_data::avatar::AvatarCatalog>(catalog_json)
+        .map_err(|error| error.to_string())?;
+    let state = serde_json::from_str::<nie_data::avatar::AvatarState>(state_json)
+        .map_err(|error| error.to_string())?;
+    let metadata =
+        serde_json::from_str::<nie_data::avatar_reference::OcAvatarExportMetadata>(metadata_json)
+            .map_err(|error| error.to_string())?;
+    let document =
+        nie_data::avatar_reference::export_avatar_oc_document(&catalog, &state, metadata)
+            .map_err(|error| error.to_string())?;
+    serde_json::to_string_pretty(&document).map_err(|error| error.to_string())
+}
+
+/// Serialize a validated portable OC document through the shared Rust schema owner.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn export_avatar_oc_document_json(
+    catalog_json: &str,
+    state_json: &str,
+    metadata_json: &str,
+) -> Result<String, JsValue> {
+    export_avatar_oc_document_json_impl(catalog_json, state_json, metadata_json)
+        .map_err(|error| JsValue::from_str(&error))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn export_avatar_oc_document_json(
+    catalog_json: &str,
+    state_json: &str,
+    metadata_json: &str,
+) -> Result<String, String> {
+    export_avatar_oc_document_json_impl(catalog_json, state_json, metadata_json)
+}
+
+fn zukan_character_id(query: &str) -> Result<String, String> {
+    let decoded = nie_zukan::forge::decode_q(query).map_err(|error| error.to_string())?;
+    let value: serde_json::Value =
+        serde_json::from_str(&decoded).map_err(|error| error.to_string())?;
+    let internal_code = ["character_id", "filter_chara_id_str"]
+        .iter()
+        .find_map(|key| value.get(key)?.as_array()?.first()?.as_str())
+        .filter(|code| {
+            let bytes = code.as_bytes();
+            bytes.len() == 9
+                && bytes[0].eq_ignore_ascii_case(&b'c')
+                && bytes[1..].iter().all(u8::is_ascii_digit)
+        })
+        .ok_or_else(|| "Zukan query does not identify one character".to_string())?;
+    Ok(internal_code.to_ascii_lowercase())
+}
+
+#[cfg(test)]
+mod avatar_reference_tests {
+    use super::zukan_character_id;
+
+    #[test]
+    fn decodes_the_measured_zukan_model_query_through_nie_zukan() {
+        assert_eq!(
+            zukan_character_id("hN2cl56NnpyLmo2glpvdxaTdnM_Kz83LyM_P3aKC").as_deref(),
+            Ok("c05024700")
+        );
+        assert!(zukan_character_id("not-a-zukan-query").is_err());
+    }
+}
+
+/// Validate and import an editable OC project or a reference-only canonical player identity.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn avatar_reference_import_json(
+    catalog_json: &str,
+    state_json: &str,
+    reference: &str,
+) -> Result<String, JsValue> {
+    avatar_reference_import_json_impl(catalog_json, state_json, reference)
+        .map_err(|error| JsValue::from_str(&error))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn avatar_reference_import_json(
+    catalog_json: &str,
+    state_json: &str,
+    reference: &str,
+) -> Result<String, String> {
+    avatar_reference_import_json_impl(catalog_json, state_json, reference)
+}
+
 /// Compile a measured native screen through the shared portable scene owner.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
@@ -3328,7 +3459,10 @@ mod tests {
         // Un projet v1 s'ouvre et se réenregistre en v2 : c'est la migration, pas une perte.
         assert_eq!(json["version"], 2);
         assert_eq!(json["objects"][0]["name"], "mainmenu01-preview");
-        assert_eq!(json["objects"][0]["rotation"], serde_json::json!([0.0, 0.0, 0.0, 1.0]));
+        assert_eq!(
+            json["objects"][0]["rotation"],
+            serde_json::json!([0.0, 0.0, 0.0, 1.0])
+        );
         assert!(
             json["objects"][0]["id"]
                 .as_str()
@@ -4627,9 +4761,7 @@ impl MenuScreenBuilder {
     /// Les octets d'un chemin, tels que `/f/{path}` les a rendus.
     #[wasm_bindgen]
     pub fn provide_file(&mut self, path: &str, bytes: &[u8]) {
-        self.source
-            .fichiers
-            .insert(path.to_owned(), bytes.to_vec());
+        self.source.fichiers.insert(path.to_owned(), bytes.to_vec());
     }
 
     /// Où vit un nom logique sur ce montage.
@@ -4766,6 +4898,7 @@ pub fn crc32(value: &str) -> u32 {
 #[wasm_bindgen]
 pub struct ModelRenderer {
     model: nie_render3d::glb::Model,
+    texture_references: Vec<nie_render3d::glb::TextureReference>,
     frame: FrameBuffer,
     width: u32,
     height: u32,
@@ -4779,6 +4912,84 @@ const MODEL_TEXTURE_BUDGET: usize = 256 * 1024 * 1024;
 fn model_parse_impl(glb: &[u8]) -> Result<nie_render3d::glb::Model, String> {
     nie_render3d::glb::parse_with_texture_budget(glb, MODEL_TEXTURE_BUDGET)
         .map_err(|error| error.to_string())
+}
+
+fn model_replace_texture_glb_impl(glb: &[u8], index: usize, png: &[u8]) -> Result<Vec<u8>, String> {
+    nie_render3d::glb::replace_texture_png(glb, index, png, MODEL_TEXTURE_BUDGET)
+        .map_err(|error| error.to_string())
+}
+
+fn model_validate_editor_png_impl(png: &[u8]) -> Result<Vec<u32>, String> {
+    let (width, height) =
+        nie_render3d::glb::validate_editor_png(png).map_err(|error| error.to_string())?;
+    Ok(vec![width, height])
+}
+
+/// Decode a standalone editor PNG in Rust and return `[width, height]`.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn model_validate_editor_png(png: &[u8]) -> Result<Vec<u32>, JsValue> {
+    model_validate_editor_png_impl(png).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native counterpart used by cross-host and unit tests.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn model_validate_editor_png(png: &[u8]) -> Result<Vec<u32>, String> {
+    model_validate_editor_png_impl(png)
+}
+
+/// Replace one embedded GLB image with PNG bytes and return a reparsed GLB.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn model_replace_texture_glb(glb: &[u8], index: usize, png: &[u8]) -> Result<Vec<u8>, JsValue> {
+    model_replace_texture_glb_impl(glb, index, png).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native counterpart used by cross-host and unit tests.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn model_replace_texture_glb(glb: &[u8], index: usize, png: &[u8]) -> Result<Vec<u8>, String> {
+    model_replace_texture_glb_impl(glb, index, png)
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn model_replace_texture_png_impl(
+    model: &mut nie_render3d::glb::Model,
+    texture_references: &[nie_render3d::glb::TextureReference],
+    index: usize,
+    png: &[u8],
+) -> Result<(), String> {
+    let source = texture_references
+        .get(index)
+        .ok_or_else(|| {
+            format!(
+                "texture index {index} out of range (model has {})",
+                texture_references.len()
+            )
+        })?
+        .source;
+    if png.len() > nie_render3d::glb::EDITOR_MAX_PNG_BYTES {
+        return Err("PNG exceeds the 32 MiB editor limit".to_owned());
+    }
+    let retained = model
+        .textures
+        .iter()
+        .enumerate()
+        .filter(|(position, _)| *position != source)
+        .try_fold(0usize, |total, (_, texture)| {
+            total.checked_add(texture.rgba.len())
+        })
+        .ok_or_else(|| "texture budget overflow".to_owned())?;
+    let remaining = MODEL_TEXTURE_BUDGET
+        .checked_sub(retained)
+        .ok_or_else(|| "model already exceeds the texture budget".to_owned())?;
+    let replacement = nie_render3d::glb::decode_png(png, remaining)
+        .map_err(|error| format!("replacement PNG: {error}"))?;
+    let target = model
+        .textures
+        .get_mut(source)
+        .ok_or_else(|| format!("texture {index}: image source {source} out of range"))?;
+    *target = replacement;
+    Ok(())
 }
 
 /// Rend un GLB en image RGBA8 — le pendant natif de [`ModelRenderer`].
@@ -4808,9 +5019,12 @@ impl ModelRenderer {
     /// `.g4md`/`.g4mg` du jeu, ou tout autre GLB que l'appelant possède.
     #[wasm_bindgen(constructor)]
     pub fn new(glb: &[u8]) -> Result<ModelRenderer, JsValue> {
+        let texture_references = nie_render3d::glb::texture_references(glb)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let model = model_parse_impl(glb).map_err(|error| JsValue::from_str(&error))?;
         Ok(ModelRenderer {
             model,
+            texture_references,
             frame: FrameBuffer::default(),
             width: 0,
             height: 0,
@@ -4826,7 +5040,35 @@ impl ModelRenderer {
     /// Le nombre de textures décodées que le modèle porte.
     #[wasm_bindgen(getter)]
     pub fn textures(&self) -> usize {
-        self.model.textures.len()
+        self.texture_references.len()
+    }
+
+    /// Dimensions `[width, height]` of one decoded texture, or an empty array for a bad index.
+    pub fn texture_size(&self, index: usize) -> Vec<u32> {
+        let Some(reference) = self.texture_references.get(index) else {
+            return Vec::new();
+        };
+        self.model
+            .textures
+            .get(reference.source)
+            .map_or_else(Vec::new, |texture| vec![texture.width, texture.height])
+    }
+
+    /// Measured glTF texture name, falling back to its image name when present.
+    pub fn texture_name(&self, index: usize) -> Option<String> {
+        self.texture_references
+            .get(index)
+            .and_then(|texture| texture.name.clone())
+    }
+
+    /// Replace one decoded model texture with a bounded PNG for this renderer session.
+    ///
+    /// The GLB bytes and the VFS stay unchanged. Subsequent [`ModelRenderer::render`] calls use
+    /// the replacement, so an exported PNG is proof of the real Rust-side mutation rather than a
+    /// CSS overlay. The public index addresses glTF `textures[]`, not `images[]`.
+    pub fn replace_texture_png(&mut self, index: usize, png: &[u8]) -> Result<(), JsValue> {
+        model_replace_texture_png_impl(&mut self.model, &self.texture_references, index, png)
+            .map_err(|error| JsValue::from_str(&error))
     }
 
     /// Rend une image à `angle` radians autour de l'axe vertical.
@@ -4842,8 +5084,12 @@ impl ModelRenderer {
         if !angle.is_finite() {
             return Err(JsValue::from_str("angle non fini"));
         }
-        self.frame
-            .replace(nie_render3d::render::render(&self.model, angle, width, height));
+        self.frame.replace(nie_render3d::render::render(
+            &self.model,
+            angle,
+            width,
+            height,
+        ));
         self.width = width;
         self.height = height;
         Ok(())
@@ -4865,6 +5111,77 @@ impl ModelRenderer {
     #[wasm_bindgen(getter)]
     pub fn size(&self) -> Vec<u32> {
         vec![self.width, self.height]
+    }
+}
+
+#[cfg(test)]
+mod tests_model_texture_session {
+    use super::{model_replace_texture_png_impl, model_validate_editor_png_impl};
+    use nie_render3d::glb::{Model, Primitive, Texture, TextureReference};
+
+    fn textured_quad(color: [u8; 4]) -> Model {
+        Model {
+            primitives: vec![Primitive {
+                positions: vec![
+                    [-1.0, -1.0, 0.0],
+                    [1.0, -1.0, 0.0],
+                    [1.0, 1.0, 0.0],
+                    [-1.0, 1.0, 0.0],
+                ],
+                normals: vec![[0.0, 0.0, 1.0]; 4],
+                uv: vec![[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]],
+                indices: vec![0, 1, 2, 0, 2, 3],
+                texture: Some(0),
+            }],
+            textures: vec![Texture {
+                width: 1,
+                height: 1,
+                rgba: color.to_vec(),
+            }],
+        }
+    }
+
+    #[test]
+    fn png_replacement_changes_rust_rendered_pixels() {
+        let mut model = textured_quad([255, 0, 0, 255]);
+        let before = nie_render3d::render::render(&model, 0.0, 96, 96);
+        let blue_png = nie_formats::g4tx_decode::encode_rgba_to_png(&[0, 0, 255, 255], 1, 1)
+            .expect("encode fixture PNG");
+
+        let references = [TextureReference {
+            source: 0,
+            name: Some("albedo".to_owned()),
+        }];
+        model_replace_texture_png_impl(&mut model, &references, 0, &blue_png)
+            .expect("replace texture");
+        let after = nie_render3d::render::render(&model, 0.0, 96, 96);
+
+        assert_ne!(
+            before, after,
+            "the Rust renderer must consume the replacement"
+        );
+        assert!(before.chunks_exact(4).any(|p| p[0] > p[2] + 40));
+        assert!(after.chunks_exact(4).any(|p| p[2] > p[0] + 40));
+    }
+
+    #[test]
+    fn png_replacement_rejects_bad_indices_and_payloads() {
+        let mut model = textured_quad([255, 0, 0, 255]);
+        let references = [TextureReference {
+            source: 0,
+            name: None,
+        }];
+        assert!(model_replace_texture_png_impl(&mut model, &references, 1, b"png").is_err());
+        assert!(model_replace_texture_png_impl(&mut model, &references, 0, b"not png").is_err());
+    }
+
+    #[test]
+    fn standalone_editor_png_is_decoded_by_rust() {
+        let png =
+            nie_formats::g4tx_decode::encode_rgba_to_png(&[255, 0, 0, 255, 0, 255, 0, 255], 2, 1)
+                .expect("encode fixture PNG");
+        assert_eq!(model_validate_editor_png_impl(&png).unwrap(), [2, 1]);
+        assert!(model_validate_editor_png_impl(b"\x89PNG\r\n\x1a\ninvalid").is_err());
     }
 }
 
@@ -4906,8 +5223,9 @@ mod tests_screen_spec {
     #[test]
     fn les_champs_facultatifs_tolerent_labsence() {
         let json = r#"{ "screen": "x", "canvas": [1280, 720] }"#;
-        let spec: nie_formats::menu_screen::ScreenSpec =
-            serde_json::from_str::<NwScreenSpec>(json).expect("relisible").into();
+        let spec: nie_formats::menu_screen::ScreenSpec = serde_json::from_str::<NwScreenSpec>(json)
+            .expect("relisible")
+            .into();
         assert!(spec.items.is_empty());
         assert!(spec.layers_missing.is_empty());
         assert_eq!(spec.cfg, "");
