@@ -101,6 +101,20 @@ encodes a WRONG model of the game. That is the honest size of pillar 1's remaini
 roughly a fifth of what the first estimate implied, and most of it presentation rather than
 engine logic.
 
+**And the three shaping modules have ONE migration path, not a port.** `shopStock` joins three
+API responses — shops, items, profile — into a screen model; `gallery.ts` and `roster.ts` do the
+same for their screens. A join over data the Rust site already serves belongs in the site, not in
+the browser: one request instead of three, and the logic in the language that owns the data.
+That is the "server components" angle, and it is a genuine pillar-1 move rather than a
+line-for-line port.
+
+Its cost is known and non-trivial: a new `nie-site` route breaks four counters (the assertion in
+`app.rs`, the `instances` array in `tests/routes.rs`, `declarees.len()`, `vus`), and an
+already-served API is renamed in a dedicated batch, never in passing. It therefore needs the full
+`nie-site` suite to land safely — which is exactly what could NOT be built on 2026-09-13, three
+attempts killed for memory. Recorded as the next move with its blocker named, rather than
+attempted half-way.
+
 Three modules published: `nie_wasm_bg.wasm` 4 537 432 B, `nie_viewer_web_bg.wasm` 2 855 742 B,
 `nie_lua_web.wasm` 887 551 B.
 
