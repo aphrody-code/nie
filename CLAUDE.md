@@ -73,6 +73,25 @@ that price on keeper, menu and match-sim.
   `feat(inacord): [peer-agent] <scope>` with `Co-authored-by: <Agent>`.
 - Rebase on `origin/main` before pushing — peers push to the same branch.
 
+## Cross-host verification — the two gates no unit test replaces
+
+Both need a local `nie-site` (never the production one) and both EXIT NON-ZERO on regression:
+
+```sh
+./target/release/nie-site --listen 127.0.0.1:18099 &
+bun --bun scripts/validation/compare-menu-layout.ts --sweep 30
+#   30 écrans | identiques 27 | hors arrondi 3 | divergents 0    (2026-09-13)
+
+./target/release/nie-site --listen 127.0.0.1:8085 &
+bun --bun crates/engine/nie-lua-web/scripts/differential.ts
+#   10/14 identical, plancher 10 (NIE_DIFFERENTIAL_FLOOR)        (2026-09-13)
+```
+
+They compare the SAME Rust compiled for two targets, which is the only way to check that
+`wasm32` and the native host agree. Between them they have already caught a stale published
+module, a comparison that reported "different" on every call, and a 10/14 → 3/14 regression that
+no test noticed. Stop the server by explicit PID afterwards; never `pkill -f`.
+
 ## Generated and prebuilt artefacts — how to check each one (audited 2026-09-13)
 
 Two of these were STALE when audited, and both failed silently: a binary that answers an old
