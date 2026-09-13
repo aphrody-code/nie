@@ -116,9 +116,22 @@ have no reason to coincide. Comparing it measured the mounts, exactly as compari
 did in the layout comparison.
 
 Three screens still differ, all on `$.scene…objects….text` — `chara_bank_menu`, `main_menu`,
-`soccer_formation_menu`. The table supplied is `menu_text` alone, which is what the native
-`load_menu_text` reads too, so the cause is not obviously the family and is not established
-here. `shop_menu` remains scriptless on both sides.
+`soccer_formation_menu` — and the difference is NOT missing text. Probed on all three, the same
+shape each time:
+
+```text
+wasm  : null
+natif : ""
+```
+
+Absent against empty. The object's text slot resolves to nothing on both sides; one records it
+as `None`, the other as `Some("")`. It is not a shortage of the table either: the route serves
+2 755 lines for `menu_text`, `total_unfiltered` says 2 755, and none of them is empty — so no
+empty line was dropped on the way in.
+
+What produces `Some("")` on the native side and `None` here is not established. It is one slot
+on three screens, and the three replays otherwise match object for object. `shop_menu` remains
+scriptless on both sides.
 
 Every remaining difference is `$.scene…objects….text` or `$.missing`. Neither is a divergence
 of the VM:
