@@ -47,9 +47,25 @@
 //! `data/lua_scripts/`, le dump plat, porte une copie de `main_menu_inc_3.00.01.00.lua.bin` de
 //! 270 octets de PLUS que celle du VFS, et c'est elle qui définit les cinq.
 //!
-//! Trancher demande d'extraire le VFS entier et de rejouer ce relevé dessus — une opération,
-//! pas une mesure de plus. Tant que ce n'est pas fait, ces cinq noms ne doivent être attribués
-//! ni au moteur ni au Lua.
+//! ## L'extraction a été faite — et elle confirme
+//!
+//! `niers vfs extract data/common/script/lua/ --out <dir>` rend 651 fichiers, dont un
+//! `main_menu_inc_3.00.01.00.lua.bin` de 13 092 octets : la copie du jeu, celle de
+//! `data/lua_dump/`, pas celle de `data/lua_scripts/`. Le relevé rejoué dessus
+//! (`NIE_LUA_MOUNT=<dir>`) rend **0 définition** pour les cinq, 40 lectures pour la première.
+//!
+//! Donc : lues par les scripts du jeu, définies nulle part dans son Lua, et absentes du binaire
+//! sous forme de chaîne comme de constante CRC-32.
+//!
+//! ## Ce que cela laisse, et la limite de la preuve
+//!
+//! `menu-crc32-dictionary.json` est une table CALCULÉE (nom → `zlib.crc32`), pas un extrait du
+//! binaire : qu'elle coïncide avec `zlib` ne prouve rien sur la façon dont `nie.exe` hache ses
+//! noms. Le moteur peut donc les adresser par un autre hachage, ou les stocker compressés — et
+//! la recherche par chaîne comme par CRC-32 passerait à côté dans les deux cas.
+//!
+//! Ce qui reste est du reverse binaire : trouver le répartiteur de globales de la VM Lua du jeu.
+//! C'est le pilier C3, pas une mesure de plus sur le corpus.
 //!
 //! ## Par où les reverser : pas par `funcLuaMenuCommand`
 //!
@@ -110,6 +126,17 @@ fn scripts() -> Vec<PathBuf> {
         |_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."),
         PathBuf::from,
     );
+    // Un montage FRAÎCHEMENT extrait a priorité : `niers vfs extract data/common/script/lua/
+    // --out <dir>` produit la seule copie dont on sache qu'elle vient du jeu, et c'est ce que
+    // `NIE_LUA_MOUNT` désigne. Sans lui, on retombe sur les dumps du dépôt.
+    if let Ok(mount) = std::env::var("NIE_LUA_MOUNT") {
+        let mut depuis_vfs = Vec::new();
+        collecter(Path::new(&mount), &mut depuis_vfs);
+        if !depuis_vfs.is_empty() {
+            depuis_vfs.sort();
+            return depuis_vfs;
+        }
+    }
     let mut trouves = Vec::new();
     // SEULEMENT les montages en forme de VFS. `data/lua_scripts/` est un dump PLAT qui diverge
     // du jeu : sa copie de `main_menu_inc_3.00.01.00.lua.bin` fait 13 362 octets là où le VFS
