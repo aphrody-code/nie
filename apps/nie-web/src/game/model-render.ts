@@ -13,9 +13,14 @@
  * dans le module du navigateur, donc la chaîne entière tient dans la page :
  *
  * ```text
- *   /f/…/c05024700.g4md  ┐
- *   /f/…/c05024700.g4mg  ┴→ model_to_glb (wasm) → ModelRenderer (wasm) → <canvas>
+ *   un GLB (servi, ou assemblé par `model_to_glb`) → ModelRenderer (wasm) → <canvas>
  * ```
+ *
+ * Ce module n'expose que ce que la chaîne de repli appelle. Deux enveloppes qui allaient
+ * chercher les octets elles-mêmes (`loadGameModel`, `loadGameModelFromGlb`) ont été retirées le
+ * 2026-09-13 : personne ne les appelait, et une capacité exportée sans appelant se lit comme une
+ * garantie. La chaîne `.g4md`/`.g4mg` → GLB → pixels reste prouvée, en Rust et sur les vrais
+ * octets du jeu, par `crates/engine/nie-wasm/tests/model_render.rs`.
  *
  * ## Ce que ça ne prétend pas
  *
@@ -26,10 +31,7 @@
  * primitives, mesuré le 2026-09-12) et que l'angle change l'image.
  */
 import { ensureWasm, moduleMemory } from "./bridge";
-import { ModelRenderer, model_to_glb } from "../wasm/nie_wasm.js";
-
-/** L'espace de fichiers du VFS servi par `nie-site`. */
-const VFS_SPACE = "/f/";
+import { ModelRenderer } from "../wasm/nie_wasm.js";
 
 /** Ce qu'un modèle chargé permet de faire, et ce qu'il contient. */
 export interface LoadedModel {
@@ -41,31 +43,6 @@ export interface LoadedModel {
 	readonly textures: number;
 	/** Libère la mémoire du module. Après cet appel, `render` n'est plus utilisable. */
 	free(): void;
-}
-
-/** Les octets d'un chemin du VFS, ou `null` quand le site ne le rend pas. */
-async function vfsBytes(path: string): Promise<Uint8Array | null> {
-	const response = await fetch(`${VFS_SPACE}${path}`).catch(() => null);
-	if (!response?.ok) return null;
-	return new Uint8Array(await response.arrayBuffer());
-}
-
-/**
- * Charge un modèle du jeu par ses deux chemins VFS et rend un objet prêt à dessiner.
- *
- * Les deux fichiers sont indissociables : `.g4md` porte la description, `.g4mg` la géométrie.
- * L'un sans l'autre n'est pas un modèle dégradé, c'est pas de modèle — d'où le `null`.
- */
-export async function loadGameModel(g4mdPath: string, g4mgPath: string): Promise<LoadedModel | null> {
-	await ensureWasm();
-	const [g4md, g4mg] = await Promise.all([vfsBytes(g4mdPath), vfsBytes(g4mgPath)]);
-	if (g4md === null || g4mg === null) return null;
-
-	try {
-		return modelFromGlb(model_to_glb(g4md, g4mg));
-	} catch {
-		return null;
-	}
 }
 
 /** Enveloppe un GLB déjà en mémoire dans un modèle rendu par le module. */
@@ -96,25 +73,6 @@ function modelFromGlb(glb: Uint8Array): LoadedModel | null {
 			return new ImageData(new Uint8ClampedArray(pixels), width, height);
 		},
 	};
-}
-
-/**
- * Charge un modèle depuis un GLB déjà assemblé, à l'URL que l'appelant a résolue.
- *
- * C'est la même URL que le viewport WebGPU consomme (`rust-model-viewport`), ce qui fait de ce
- * rendu un repli exact plutôt qu'une seconde source de modèles.
- *
- * Aucun chemin n'est deviné ici. Le VFS ne range PAS un personnage sous
- * `chr/{code}/{code}.g4md` : `c05024700` vit sous `data/common/chr/_face/05_GO2/c05024700/`
- * (mesuré le 2026-09-12, `niers vfs find`), et la catégorie ne se déduit pas du code. Un
- * appelant qui a les deux chemins passe par [`loadGameModel`] ; les autres passent par une URL
- * qu'un catalogue a mesurée.
- */
-export async function loadGameModelFromGlb(url: string, signal?: AbortSignal): Promise<LoadedModel | null> {
-	await ensureWasm();
-	const response = await fetch(url, { signal }).catch(() => null);
-	if (!response?.ok) return null;
-	return modelFromGlb(new Uint8Array(await response.arrayBuffer()));
 }
 
 /**
