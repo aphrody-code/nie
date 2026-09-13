@@ -94,7 +94,7 @@ pub struct EntreePlan {
 /// L'ordre est *route par route*, langues groupées : les trois versions d'une même page se
 /// suivent, ce qui rend le document lisible et le diff d'une modification local.
 #[must_use]
-pub fn plan_trilingue(origine: &str) -> Vec<EntreePlan> {
+pub fn plan_multilingue(origine: &str) -> Vec<EntreePlan> {
     let mut entrees = Vec::with_capacity(PLAN.len() * Langue::TOUTES.len());
     for u in &PLAN {
         let groupe = alternatives(origine, u.chemin);
@@ -270,15 +270,17 @@ pub async fn manifeste(uri: axum::http::Uri) -> Response {
             SITE,
             "Browse, decode and export the files of Inazuma Eleven: Victory Road.",
         ),
+        // Aucune description espagnole n'est redigee ici : le manifeste OMET la cle plutot
+        // que de porter une phrase que personne n'a mesuree (cf. `pages::accueil`).
+        Langue::Es => (SITE, ""),
         Langue::Ja => (
             SITE,
             "イナズマイレブン Victory Road のファイルを閲覧・デコード・書き出しできます。",
         ),
     };
-    let doc = serde_json::json!({
+    let mut doc = serde_json::json!({
         "name": nom,
         "short_name": nom,
-        "description": description,
         "lang": langue.code(),
         "start_url": depart,
         "scope": "/",
@@ -297,6 +299,13 @@ pub async fn manifeste(uri: axum::http::Uri) -> Response {
             { "src": "/static/icon.svg", "type": "image/svg+xml", "purpose": "any maskable" },
         ],
     });
+    // La cle n'est posee que si elle porte quelque chose : un manifeste avec une description
+    // vide dit « voici ma description » et n'en donne aucune.
+    if !description.is_empty()
+        && let Some(objet) = doc.as_object_mut()
+    {
+        objet.insert("description".to_owned(), description.into());
+    }
     texte(
         Ok(doc.to_string()),
         "application/manifest+json; charset=utf-8",
@@ -305,7 +314,7 @@ pub async fn manifeste(uri: axum::http::Uri) -> Response {
 
 /// `/sitemap.xml`.
 pub async fn sitemap(State(etat): State<EtatSite>) -> Response {
-    let urls = plan_trilingue(&etat.config.origine);
+    let urls = plan_multilingue(&etat.config.origine);
     texte(
         Plan {
             urls: &urls,
@@ -366,15 +375,15 @@ mod tests {
     #[test]
     fn plan_complet() {
         assert_eq!(PLAN.len(), 5);
-        let urls = plan_trilingue("https://nie.aphrody.com");
-        assert_eq!(urls.len(), 15, "5 routes x 3 langues");
+        let urls = plan_multilingue("https://nie.aphrody.com");
+        assert_eq!(urls.len(), 20, "5 routes x 4 langues");
         let rendu = Plan {
             urls: &urls,
             lastmod: Some("2026-09-05".to_owned()),
         }
         .render()
         .unwrap();
-        assert_eq!(rendu.matches("<url>").count(), 15);
+        assert_eq!(rendu.matches("<url>").count(), 20);
         assert!(rendu.starts_with("<?xml"));
         // Le catalogue est RELÉGUÉ : `/medias`, `/explorateur` et les quatre vues restent
         // servies et gardent leurs métadonnées, mais le plan du site ne les annonce plus. Ce
@@ -409,17 +418,17 @@ mod tests {
         ] {
             assert!(!rendu.contains(heritee), "{heritee} est héritée, pas canonique");
         }
-        // Chaque entrée porte son groupe complet : 15 x 4 liens alternatifs.
-        assert_eq!(rendu.matches("xhtml:link").count(), 60);
-        assert_eq!(rendu.matches("hreflang=\"x-default\"").count(), 15);
-        assert_eq!(rendu.matches("<lastmod>2026-09-05</lastmod>").count(), 15);
+        // Chaque entrée porte son groupe complet : 20 x 5 liens alternatifs.
+        assert_eq!(rendu.matches("xhtml:link").count(), 100);
+        assert_eq!(rendu.matches("hreflang=\"x-default\"").count(), 20);
+        assert_eq!(rendu.matches("<lastmod>2026-09-05</lastmod>").count(), 20);
         // L'espace de noms xhtml doit être déclaré, sinon les `xhtml:link` sont du bruit.
         assert!(rendu.contains("xmlns:xhtml=\"http://www.w3.org/1999/xhtml\""));
     }
 
     #[test]
     fn un_gisement_absent_n_invente_pas_de_date() {
-        let urls = plan_trilingue("https://nie.aphrody.com");
+        let urls = plan_multilingue("https://nie.aphrody.com");
         let rendu = Plan {
             urls: &urls,
             lastmod: None,
@@ -450,12 +459,13 @@ mod tests {
     }
 
     #[test]
-    fn robots_autorise_les_trois_langues() {
+    fn robots_autorise_les_quatre_langues() {
         let chemins = chemins_autorises();
-        // 5 routes x 3 langues, moins la racine française déjà couverte par `Allow: /$`.
-        assert_eq!(chemins.len(), 14);
+        // 5 routes x 4 langues, moins la racine française déjà couverte par `Allow: /$`.
+        assert_eq!(chemins.len(), 19);
         for attendu in [
             "/en",
+            "/es",
             "/ja",
             "/setting_menu",
             "/ja/setting_menu",
@@ -475,11 +485,11 @@ mod tests {
         }
         .render()
         .unwrap();
-        // 22 : 14 chemins + `/$` + `/llms.txt` + `/feed.atom` pour le regime general, puis les
+        // 27 : 19 chemins + `/$` + `/llms.txt` + `/feed.atom` pour le regime general, puis les
         // 5 du regime des agents (`/`, `/llms.txt`, `/llms-full.txt`, `/feed.atom`, `/api/v1/`).
         assert_eq!(
             r.matches("Allow: ").count(),
-            22,
+            27,
             "les deux regimes, chemin par chemin"
         );
         assert!(r.contains("Allow: /$"));

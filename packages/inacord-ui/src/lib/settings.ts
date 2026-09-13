@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import { isGameLocale, type GameLocale } from "@niers/asset-source";
 
 /** Language of the host shell and its URL. The public site currently serves these routes. */
-export type Locale = "fr" | "en" | "ja";
+export type Locale = "fr" | "en" | "es" | "ja";
 
 /**
  * A language measured in the game's VFS text catalogue.

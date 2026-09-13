@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 140] = [
+    let instances: [(&str, &[u16]); 141] = [
         ("/healthz", &[200]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
@@ -107,6 +107,7 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/llms-full.txt", &[200]),
         ("/manifest.webmanifest", &[200]),
         ("/en/manifest.webmanifest", &[200]),
+        ("/es/manifest.webmanifest", &[200]),
         ("/ja/manifest.webmanifest", &[200]),
         ("/api/v1/textures", &[200]),
         ("/f/data/dx11/menu/title/a.g4tx", &[503]), // index sans contenu
@@ -303,7 +304,7 @@ async fn toutes_les_routes_declarees_repondent() {
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 138, "le routeur monte 138 routes");
+    assert_eq!(declarees.len(), 139, "le routeur monte 139 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -335,7 +336,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 140, "140 instances interrogees pour 138 routes");
+    assert_eq!(vus, 141, "141 instances interrogees pour 139 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).
@@ -506,18 +507,18 @@ async fn documents_well_known() {
     );
     let texte = String::from_utf8(corps).unwrap();
     assert!(texte.starts_with("<?xml"));
-    // 5 routes x 3 langues, et chaque entree porte le groupe complet de ses traductions.
+    // 5 routes x 4 langues, et chaque entree porte le groupe complet de ses traductions.
     // Cinq : l'accueil (le jeu), les Options, l'editeur d'avatar, Inacord et ses
     // telechargements. Les catalogues et l'explorateur restent SERVIS avec leurs metadonnees,
     // mais le plan ne les annonce plus.
-    assert_eq!(texte.matches("<url>").count(), 15);
-    assert_eq!(texte.matches("<loc>").count(), 15);
+    assert_eq!(texte.matches("<url>").count(), 20);
+    assert_eq!(texte.matches("<loc>").count(), 20);
     assert_eq!(
         texte.matches("xhtml:link").count(),
-        60,
-        "4 alternates par entree"
+        100,
+        "5 alternates par entree"
     );
-    assert_eq!(texte.matches(r#"hreflang="x-default""#).count(), 15);
+    assert_eq!(texte.matches(r#"hreflang="x-default""#).count(), 20);
     // Sans la declaration de l'espace de noms, les `xhtml:link` ne sont que du bruit.
     assert!(texte.contains(r#"xmlns:xhtml="http://www.w3.org/1999/xhtml""#));
     for attendu in [
@@ -1026,7 +1027,7 @@ async fn bundle_statique_precompresse_et_empreinte() {
 }
 
 #[tokio::test]
-async fn le_manifeste_repond_dans_les_trois_langues() {
+async fn le_manifeste_repond_dans_les_quatre_langues() {
     // Ce test passe par le ROUTEUR, pas par le handler. La version qui appelait le handler
     // directement etait verte alors que `/en/manifest.webmanifest` tombait dans le repli et
     // rendait du HTML : le handler savait lire le prefixe, le routeur ne connaissait pas l'URL.
@@ -1034,6 +1035,7 @@ async fn le_manifeste_repond_dans_les_trois_langues() {
     for (chemin, code, depart) in [
         ("/manifest.webmanifest", "fr", "/"),
         ("/en/manifest.webmanifest", "en", "/en"),
+        ("/es/manifest.webmanifest", "es", "/es"),
         ("/ja/manifest.webmanifest", "ja", "/ja"),
     ] {
         let (statut, entetes, corps) = reponse(&etat, chemin).await;
@@ -1048,6 +1050,14 @@ async fn le_manifeste_repond_dans_les_trois_langues() {
         assert_eq!(v["lang"], code, "{chemin}");
         assert_eq!(v["start_url"], depart, "{chemin}");
         assert_eq!(v["icons"].as_array().expect("icones").len(), 9, "{chemin}");
+        // Aucune description espagnole n'a ete redigee : la cle est ABSENTE, jamais vide.
+        // Un manifeste qui porte `"description": ""` annonce une description et n'en donne
+        // aucune — c'est pire que de ne pas l'annoncer.
+        assert_eq!(
+            v.get("description").is_some(),
+            code != "es",
+            "{chemin} : la description est posee si et seulement si elle existe"
+        );
     }
 }
 
@@ -1058,19 +1068,20 @@ async fn la_coquille_porte_les_balises_og_de_la_route() {
     assert_eq!(statut, StatusCode::OK);
     assert_eq!(entetes[header::CONTENT_TYPE], "text/html; charset=utf-8");
     let html = String::from_utf8(corps).unwrap();
-    // 12 : type, site_name, locale, 2 locale:alternate, title, description, url, puis la
+    // 13 : type, site_name, locale, 3 locale:alternate, title, description, url, puis la
     // vignette et ses trois attributs. La vignette est servie PAR DEFAUT — elle ne l'etait
-    // jamais avant, et aucun test ne le voyait parce qu'ils l'injectaient a la main.
+    // jamais avant, et aucun test ne le voyait parce qu'ils l'injectaient a la main. Les
+    // alternates sont passees de 2 a 3 le jour ou l'espagnol est devenu une langue servie.
     assert_eq!(
         html.matches("<meta property=\"og:").count(),
-        12,
+        13,
         "og: avec vignette"
     );
     assert!(html.contains(r#"content="https://nie.aphrody.com/static/og.png""#));
     assert_eq!(
         html.matches("og:locale:alternate").count(),
-        2,
-        "les deux autres langues"
+        3,
+        "les trois autres langues"
     );
     assert!(html.contains("data-route=\"/\""));
     assert!(html.contains("data-langue=\"fr\""));
@@ -1117,7 +1128,7 @@ async fn la_coquille_porte_les_balises_og_de_la_route() {
         // le lien du flux Atom, qui est un `rel="alternate"` sans `hreflang`.
         assert_eq!(
             html.matches("rel=\"alternate\" hreflang=").count(),
-            4,
+            5,
             "{chemin} : hreflang"
         );
         assert!(

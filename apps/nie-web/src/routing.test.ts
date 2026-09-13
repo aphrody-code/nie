@@ -45,6 +45,19 @@ describe("splitLanguagePrefix", () => {
 		expect(splitLanguagePrefix("/textures")).toEqual({ prefix: "", route: "/textures" });
 	});
 
+	test("l'espagnol est servi comme les autres", () => {
+		// Le jeu livre 91 familles et 70 555 lignes en `es` — autant qu'en francais. Le prefixe
+		// doit donc etre reconnu ici exactement comme `/en` et `/ja`, sinon `/es/textures`
+		// tombe sur l'accueil alors que `nie-site` sert la page et annonce son `hreflang="es"`.
+		expect(splitLanguagePrefix("/es/textures")).toEqual({ prefix: "/es", route: "/textures" });
+		expect(splitLanguagePrefix("/es")).toEqual({ prefix: "/es", route: "/" });
+		expect(localeFromPrefix("/es")).toBe("es");
+		expect(prefixForLocale("es")).toBe("/es");
+		expect(pathForEntry(prefixForLocale("es"), "modes")).toBe("/es/modes");
+		// Et une route qui commence par les memes lettres n'en est pas une.
+		expect(splitLanguagePrefix("/escape")).toEqual({ prefix: "", route: "/escape" });
+	});
+
 	test("les deux autres langues sont un segment", () => {
 		expect(splitLanguagePrefix("/en/textures")).toEqual({ prefix: "/en", route: "/textures" });
 		expect(splitLanguagePrefix("/ja/sons")).toEqual({ prefix: "/ja", route: "/sons" });

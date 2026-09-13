@@ -112,8 +112,8 @@ struct Entree {
     /// Les anciennes adresses restent servies et canonisées vers la nouvelle : elles sont
     /// publiées, et une adresse publiée ne se casse pas pour un renommage.
     heritage: &'static [&'static str],
-    titres: [&'static str; 3],
-    descriptions: [&'static str; 3],
+    titres: [&'static str; 4],
+    descriptions: [&'static str; 4],
 }
 
 /// Les entrées de nie, dans l'ordre où elles sont présentées.
@@ -130,10 +130,12 @@ const ENTREES: [Entree; 15] = [
         // des pages déjà listées ne se référence pas deux fois.
         segment: "menu",
         heritage: &[],
-        titres: ["Menu", "Menu", "メニュー"],
+        // Les quatre titres sont ceux du jeu, lus sur `menu_text/0x2d2a69a2`.
+        titres: ["Menu", "Menu", "Menú", "メニュー"],
         descriptions: [
             "Les catalogues, l'explorateur et les Options, depuis un seul écran.",
             "The catalogues, the file browser and the Settings, from a single screen.",
+            "",
             "カタログ・ファイルブラウザー・オプションを、ひとつの画面から。",
         ],
     },
@@ -144,60 +146,66 @@ const ENTREES: [Entree; 15] = [
         // intact sur la page qui rassemble les quatre catalogues.
         segment: "medias",
         heritage: &[],
-        titres: ["Médias", "Media", "メディア"],
+        titres: ["Médias", "Media", "Media", "メディア"],
         descriptions: [
             "Textures, modèles, sons et vidéos du jeu, dans une seule page filtrable.",
             "The game's textures, models, sounds and videos, in a single filterable page.",
+            "",
             "ゲームのテクスチャ・モデル・サウンド・ムービーを、ひとつの絞り込み可能なページにまとめています。",
         ],
     },
     Entree {
         segment: "textures",
         heritage: &[],
-        titres: ["Textures", "Textures", "テクスチャ"],
+        titres: ["Textures", "Textures", "Textures", "テクスチャ"],
         descriptions: [
             "Toutes les textures du jeu, à leur chemin d'origine, converties à la demande.",
             "Every texture in the game, at its original path, converted on demand.",
+            "",
             "ゲーム内のすべてのテクスチャを、元のパスのまま、必要に応じて変換して配信します。",
         ],
     },
     Entree {
         segment: "modeles",
         heritage: &[],
-        titres: ["Modèles", "Models", "モデル"],
+        titres: ["Modèles", "Models", "Models", "モデル"],
         descriptions: [
             "Les modèles du jeu, assemblés et exportables, à leur chemin d'origine.",
             "The game's models, assembled and exportable, at their original path.",
+            "",
             "ゲーム内のモデルを、組み立て済みかつ書き出し可能な形で、元のパスのまま提供します。",
         ],
     },
     Entree {
         segment: "sons",
         heritage: &[],
-        titres: ["Sons", "Sounds", "サウンド"],
+        titres: ["Sons", "Sounds", "Sounds", "サウンド"],
         descriptions: [
             "Les banques audio du jeu (ACB, AWB, HCA), décodées à la demande.",
             "The game's audio banks (ACB, AWB, HCA), decoded on demand.",
+            "",
             "ゲームのオーディオバンク（ACB・AWB・HCA）を、必要に応じてデコードします。",
         ],
     },
     Entree {
         segment: "videos",
         heritage: &[],
-        titres: ["Vidéos", "Videos", "ムービー"],
+        titres: ["Vidéos", "Videos", "Videos", "ムービー"],
         descriptions: [
             "Les vidéos du jeu (USM), lisibles depuis leur chemin d'origine.",
             "The game's videos (USM), playable from their original path.",
+            "",
             "ゲームのムービー（USM）を、元のパスから再生できます。",
         ],
     },
     Entree {
         segment: "explorateur",
         heritage: &[],
-        titres: ["Explorer", "Browse", "ファイルを辿る"],
+        titres: ["Explorer", "Browse", "Browse", "ファイルを辿る"],
         descriptions: [
             "Parcourir l'arborescence du jeu dossier par dossier, telle qu'elle existe dedans.",
             "Walk the game's directory tree folder by folder, exactly as it exists inside.",
+            "",
             "ゲーム内のディレクトリ構造を、フォルダーごとにそのまま辿れます。",
         ],
     },
@@ -206,10 +214,12 @@ const ENTREES: [Entree; 15] = [
         // Segment anglais, comme toute URL nouvelle (CLAUDE.md § Language).
         segment: "setting_menu",
         heritage: &["settings"],
-        titres: ["Options", "Settings", "オプション"],
+        // Les quatre titres sont ceux du jeu, lus sur `menu_text/0x82c9a2b3`.
+        titres: ["Paramètres", "Settings", "Ajustes", "設定"],
         descriptions: [
             "Langue, thème, densité des listes, taille du texte : les réglages de nie, dans l'écran des Options du jeu.",
             "Language, theme, list density, text size: nie's settings, in the game's Options screen.",
+            "",
             "言語・テーマ・リストの密度・文字サイズなど、nie の設定をゲームのオプション画面で。",
         ],
     },
@@ -218,10 +228,12 @@ const ENTREES: [Entree; 15] = [
         // leur fiche et le dialogue FILTRES. Segment anglais, comme toute URL nouvelle.
         segment: "chara_bank_menu",
         heritage: &["bank"],
-        titres: ["Banque", "Bank", "バンク"],
+        // Les quatre titres sont ceux du jeu, lus sur `menu_text/0xd50fe606`.
+        titres: ["Banque", "Player Bank", "Banco", "選手バンク"],
         descriptions: [
             "Les personnages de la banque, leur fiche et leurs techniques, dans l'écran du jeu.",
             "The characters in the bank, their sheet and their skills, in the game's own screen.",
+            "",
             "バンクの選手・ステータス・必殺技を、ゲームの画面そのままで。",
         ],
     },
@@ -230,10 +242,11 @@ const ENTREES: [Entree; 15] = [
         // images de la galerie, les cinématiques et les musiques du profil complet.
         segment: "gallery_menu",
         heritage: &["gallery"],
-        titres: ["Galerie", "Gallery", "ギャラリー"],
+        titres: ["Galerie", "Gallery", "Gallery", "ギャラリー"],
         descriptions: [
             "Les succès, les images, les cinématiques et les musiques du jeu, dans l'écran de la Galerie des succès.",
             "The game's achievements, images, movies and music, in its own achievement gallery screen.",
+            "",
             "ゲームの実績・イラスト・ムービー・楽曲を、実績ギャラリーの画面そのままで。",
         ],
     },
@@ -241,20 +254,24 @@ const ENTREES: [Entree; 15] = [
         // Le Marché : l'écran `shop_menu` du jeu — les 16 boutiques et tout leur stock.
         segment: "shop_menu",
         heritage: &["shop"],
-        titres: ["Boutique", "Shop", "ショップ"],
+        // Les quatre titres sont ceux du jeu, lus sur `menu_text/0xe13104fe`.
+        titres: ["Boutique", "Shop", "Tienda", "ショップ"],
         descriptions: [
             "Les seize boutiques du jeu et tout leur stock, avec les prix et les descriptions des objets.",
             "The game's sixteen shops and their full stock, with each item's price and description.",
+            "",
             "ゲーム内の16店舗と全在庫を、価格とアイテム説明つきで。",
         ],
     },
     Entree {
         segment: "chara_edit_menu",
         heritage: &["avatar"],
-        titres: ["Avatar", "Avatar", "アバター"],
+        // Les quatre titres sont ceux du jeu, lus sur `chara_text/0x0d7a7728`.
+        titres: ["Avatar", "Avatar", "Avatar", "アバター"],
         descriptions: [
             "Composer un personnage joueur à partir des pièces et réglages du jeu.",
             "Compose a player character from the game's parts and settings.",
+            "",
             "ゲームのパーツと設定から選手キャラクターを組み立てます。",
         ],
     },
@@ -263,20 +280,22 @@ const ENTREES: [Entree; 15] = [
         // workspace now lives here, framed by the game's secondary shell.
         segment: "inacord",
         heritage: &[],
-        titres: ["Inacord", "Inacord", "Inacord"],
+        titres: ["Inacord", "Inacord", "Inacord", "Inacord"],
         descriptions: [
             "L'espace de travail Inacord dans le navigateur : explorateur, éditeur, outils RE, mods, cinéma, galerie et sauvegardes.",
             "The Inacord workspace in the browser: explorer, editor, RE tools, mods, cinema, gallery and saves.",
+            "",
             "ブラウザーで使える Inacord ワークスペース：エクスプローラー、エディター、RE ツール、MOD、シネマ、ギャラリー、セーブ。",
         ],
     },
     Entree {
         segment: "downloads",
         heritage: &[],
-        titres: ["Téléchargements", "Downloads", "ダウンロード"],
+        titres: ["Téléchargements", "Downloads", "Downloads", "ダウンロード"],
         descriptions: [
             "Les distributions natives d'Inacord : Desktop, Mobile, CLI, MCP et extensions, signées.",
             "Inacord's native distributions: Desktop, Mobile, CLI, MCP and plugins, signed.",
+            "",
             "Inacord のネイティブ配布物：Desktop、Mobile、CLI、MCP、拡張機能（署名付き）。",
         ],
     },
@@ -287,10 +306,11 @@ const ENTREES: [Entree; 15] = [
         // maillages et les textures. La page les compte sur le VFS, et rend les ecrans.
         segment: "modes",
         heritage: &[],
-        titres: ["Modes", "Modes", "モード"],
+        titres: ["Modes", "Modes", "Modes", "モード"],
         descriptions: [
             "Les modes de jeu, les écrans dont chacun est fait, et le rendu de ces écrans.",
             "The game modes, the screens each one is made of, and those screens rendered.",
+            "",
             "ゲームモードと、それぞれを構成する画面、そしてその画面のレンダリング。",
         ],
     },
@@ -351,7 +371,8 @@ const fn rang(langue: Langue) -> usize {
     match langue {
         Langue::Fr => 0,
         Langue::En => 1,
-        Langue::Ja => 2,
+        Langue::Es => 2,
+        Langue::Ja => 3,
     }
 }
 
@@ -398,6 +419,10 @@ fn accueil(langue: Langue) -> (String, String) {
             "Reconstructed Rust prototype of Inazuma Eleven: Victory Road in the browser."
                 .to_owned(),
         ),
+        // Le jeu n'ecrit aucune description, et aucune n'est redigee ici en espagnol : une
+        // description vide fait OMETTRE la balise, ce qui est verifiable, la ou une phrase
+        // traduite par l'hote serait invisible et invérifiable.
+        Langue::Es => (SITE.to_owned(), String::new()),
         Langue::Ja => (
             SITE.to_owned(),
             "イナズマイレブン Victory Road の再構築中の Rust プロトタイプ。".to_owned(),
@@ -668,6 +693,7 @@ pub fn metadonnees(route: &str, langue: Langue) -> (String, String, &'static str
     let generique = match langue {
         Langue::Fr => "Explorer les fichiers d'Inazuma Eleven: Victory Road.",
         Langue::En => "Browse the files of Inazuma Eleven: Victory Road.",
+        Langue::Es => "",
         Langue::Ja => "イナズマイレブン Victory Road のファイルを閲覧します。",
     };
     (
@@ -829,18 +855,25 @@ pub fn construire(
     let (libelle_catalogues, libelle_langues) = match langue {
         Langue::Fr => ("Entrées", "Langues"),
         Langue::En => ("Sections", "Languages"),
+        // Le jeu n'ecrit aucun de ces mots (mesure : seul « Suivant » existe, sous
+        // `menu_text/0x3f766533`). L'espagnol reprend donc l'anglais plutot qu'une
+        // traduction redigee ici — un mot emprunte se verifie, un mot invente non.
+        Langue::Es => ("Sections", "Languages"),
         Langue::Ja => ("セクション", "言語"),
     };
     let (libelle_precedent, libelle_suivant) = match langue {
         Langue::Fr => ("Page précédente", "Page suivante"),
         Langue::En => ("Previous page", "Next page"),
+        Langue::Es => ("Previous page", "Next page"),
         Langue::Ja => ("前のページ", "次のページ"),
     };
     let libelle_total = catalogue
         .as_ref()
         .map_or_else(String::new, |c| match langue {
             Langue::Fr => format!("{} fichiers · page {} sur {}", c.total, c.page, c.pages),
-            Langue::En => format!("{} files · page {} of {}", c.total, c.page, c.pages),
+            Langue::En | Langue::Es => {
+                format!("{} files · page {} of {}", c.total, c.page, c.pages)
+            }
             Langue::Ja => format!("{} 件 · {} / {} ページ", c.total, c.page, c.pages),
         });
     // La page courante fait partie de l'identite de l'URL : sans `?page=` au canonique, les
@@ -1160,7 +1193,7 @@ mod tests {
     }
 
     #[test]
-    fn les_trois_langues_ont_des_titres_distincts() {
+    fn les_quatre_langues_ont_des_titres_distincts() {
         let fr = metadonnees("/modeles", Langue::Fr).0;
         let en = metadonnees("/modeles", Langue::En).0;
         let ja = metadonnees("/modeles", Langue::Ja).0;
@@ -1170,9 +1203,18 @@ mod tests {
         // Une traduction oubliée se voit ici, pas en production.
         assert_ne!(fr, en);
         assert_ne!(en, ja);
+        // L'espagnol a un TITRE dans les quatre langues — celui du jeu quand le jeu nomme
+        // la page, l'anglais sinon — mais pas de description : aucune n'a ete redigee, et la
+        // balise est omise plutot que vide (cf. `Entree::descriptions`).
+        assert_eq!(metadonnees("/modeles", Langue::Es).0, "Models — nie");
         for langue in Langue::TOUTES {
             let (t, d, _) = metadonnees("/sons", langue);
-            assert!(!t.is_empty() && !d.is_empty(), "libellé vide en {langue}");
+            assert!(!t.is_empty(), "titre vide en {langue}");
+            assert_eq!(
+                d.is_empty(),
+                langue == Langue::Es,
+                "seul l'espagnol est sans description : {langue}"
+            );
         }
     }
 
@@ -1226,7 +1268,7 @@ mod tests {
         // Les deux autres locales sont annoncées, jamais celle de la page.
         let ja = page("/", Langue::Ja);
         assert!(ja.contains("og:locale:alternate"));
-        assert_eq!(ja.matches("og:locale:alternate").count(), 2);
+        assert_eq!(ja.matches("og:locale:alternate").count(), 3);
     }
 
     #[test]
@@ -1236,6 +1278,7 @@ mod tests {
             for attendu in [
                 r#"hreflang="fr" href="https://nie.aphrody.com/textures""#,
                 r#"hreflang="en" href="https://nie.aphrody.com/en/textures""#,
+                r#"hreflang="es" href="https://nie.aphrody.com/es/textures""#,
                 r#"hreflang="ja" href="https://nie.aphrody.com/ja/textures""#,
                 r#"hreflang="x-default" href="https://nie.aphrody.com/textures""#,
             ] {
@@ -1245,7 +1288,7 @@ mod tests {
             // `<head>` porte aussi le lien du flux Atom, qui est un `rel="alternate"` sans
             // `hreflang`. Compter le premier mesurait l'intention ; compter le second
             // confondait deux mécanismes qui n'ont en commun que le mot.
-            assert_eq!(html.matches("rel=\"alternate\" hreflang=").count(), 4);
+            assert_eq!(html.matches("rel=\"alternate\" hreflang=").count(), 5);
             assert_eq!(
                 html.matches(r#"<link rel="alternate" type="application/atom+xml""#)
                     .count(),
@@ -1337,13 +1380,16 @@ mod tests {
             let titres: std::collections::BTreeSet<_> =
                 routes.iter().map(|r| metadonnees(r, langue).0).collect();
             assert_eq!(titres.len(), routes.len(), "titres dupliqués en {langue}");
-            let descriptions: std::collections::BTreeSet<_> =
-                routes.iter().map(|r| metadonnees(r, langue).1).collect();
-            assert_eq!(
-                descriptions.len(),
-                routes.len(),
-                "descriptions dupliquées en {langue}"
-            );
+            // Une description ABSENTE ne se dispute rien : les cinq pages espagnoles n'en
+            // portent aucune, et compter ces vides comme des doublons ferait echouer un test
+            // sur la seule chose qu'il n'a pas a verifier.
+            let descriptions: std::collections::BTreeSet<_> = routes
+                .iter()
+                .map(|r| metadonnees(r, langue).1)
+                .filter(|d| !d.is_empty())
+                .collect();
+            let attendu = if langue == Langue::Es { 0 } else { routes.len() };
+            assert_eq!(descriptions.len(), attendu, "descriptions dupliquées en {langue}");
         }
     }
 

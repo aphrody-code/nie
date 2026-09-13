@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ titre }}</title>
-<meta name="description" content="{{ description }}">
-{% if noindex %}<meta name="robots" content="noindex, follow">
+{# Une description vide fait OMETTRE la balise. Le jeu n'ecrit pas de description, et
+   aucune n'est redigee ici dans une langue ou nous n'en avons pas : une balise vide dit
+   « voici ma description » et n'en donne aucune, ce qui est pire que son absence. #}
+{% if !description.is_empty() %}<meta name="description" content="{{ description }}">
+{% endif %}{% if noindex %}<meta name="robots" content="noindex, follow">
 {% endif %}<link rel="canonical" href="{{ url }}">
 {# Les trois langues plus `x-default`, sur CHAQUE page et calcules depuis la meme route nue :
    c'est ce qui rend le groupe reciproque. Un groupe non reciproque est ignore en entier, et
@@ -16,8 +19,8 @@
 <meta property="og:locale" content="{{ og_locale }}">
 {% for l in og_locales_alternes %}<meta property="og:locale:alternate" content="{{ l }}">
 {% endfor %}<meta property="og:title" content="{{ titre }}">
-<meta property="og:description" content="{{ description }}">
-<meta property="og:url" content="{{ url }}">
+{% if !description.is_empty() %}<meta property="og:description" content="{{ description }}">
+{% endif %}<meta property="og:url" content="{{ url }}">
 {% if let Some(img) = image %}<meta property="og:image" content="{{ img }}">
 <meta property="og:image:width" content="{{ vignette_l }}">
 <meta property="og:image:height" content="{{ vignette_h }}">
@@ -26,8 +29,8 @@
 <meta name="twitter:image" content="{{ img }}">
 {% else %}<meta name="twitter:card" content="summary">
 {% endif %}<meta name="twitter:title" content="{{ titre }}">
-<meta name="twitter:description" content="{{ description }}">
-{# Palette MESUREE du menu principal du jeu : la DA
+{% if !description.is_empty() %}<meta name="twitter:description" content="{{ description }}">
+{% endif %}{# Palette MESUREE du menu principal du jeu : la DA
    du site est celle de nie, pas Material Design. `theme-color` n'accepte pas de variable CSS. #}
 {% if let Some(cat) = catalogue %}{% if let Some(prec) = cat.precedent %}<link rel="prev" href="{{ prec }}">
 {% endif %}{% if let Some(suiv) = cat.suivant %}<link rel="next" href="{{ suiv }}">
@@ -55,7 +58,7 @@
 <div id="racine" data-route="{{ route }}" data-langue="{{ lang }}">
 <main>
 <h1>{{ titre }}</h1>
-<p>{{ description }}</p>
+{% if !description.is_empty() %}<p>{{ description }}</p>{% endif %}
 {% if let Some(cat) = catalogue %}<p>{{ libelle_total }}</p>
 <ol start="{{ cat.page * 60 - 59 }}">
 {% for e in cat.elements %}<li><a href="{{ e.href }}">{{ e.nom }}</a> <span>{{ e.chemin }}</span> <span>{{ e.taille }}</span></li>

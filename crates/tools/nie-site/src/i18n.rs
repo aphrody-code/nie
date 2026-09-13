@@ -1,4 +1,4 @@
-//! Les trois langues de nie — français, anglais, japonais.
+//! Les quatre langues de nie — français, anglais, espagnol, japonais.
 //!
 //! ## Pourquoi le segment d'URL et pas le sous-domaine ni le paramètre
 //!
@@ -14,7 +14,7 @@
 //!
 //! ## Pourquoi le français est à la racine
 //!
-//! `/` est en français, `/en/…` en anglais, `/ja/…` en japonais. Le français n'a **pas** de
+//! `/` est en français, `/en/…` en anglais, `/es/…` en espagnol, `/ja/…` en japonais. Le français n'a **pas** de
 //! préfixe : lui en donner un obligerait soit à rediriger `/` vers `/fr/` (une redirection sur
 //! chaque première visite), soit à servir le même contenu à deux URL — c'est-à-dire à créer le
 //! doublon que le `canonical` existe pour éviter. Le préfixe `/fr/` est donc accepté en entrée
@@ -41,13 +41,18 @@ pub enum Langue {
     Fr,
     /// Anglais — servi sous `/en/`.
     En,
+    /// Espagnol — servi sous `/es/`.
+    ///
+    /// Le jeu le livre : `GET /api/v1/text` mesure 91 familles et 70 555 lignes en `es`, autant
+    /// qu'en français. Ce n'est donc pas une langue à traduire, c'en est une à LIRE.
+    Es,
     /// Japonais — servi sous `/ja/`, la langue d'origine du jeu.
     Ja,
 }
 
 impl Langue {
-    /// Les trois langues, dans l'ordre où elles sont émises dans le `<head>` et le plan du site.
-    pub const TOUTES: [Self; 3] = [Self::Fr, Self::En, Self::Ja];
+    /// Les quatre langues, dans l'ordre où elles sont émises dans le `<head>` et le plan du site.
+    pub const TOUTES: [Self; 4] = [Self::Fr, Self::En, Self::Es, Self::Ja];
 
     /// Le code ISO 639-1, tel qu'il apparaît dans `<html lang>` et `hreflang`.
     #[must_use]
@@ -55,6 +60,7 @@ impl Langue {
         match self {
             Self::Fr => "fr",
             Self::En => "en",
+            Self::Es => "es",
             Self::Ja => "ja",
         }
     }
@@ -65,6 +71,7 @@ impl Langue {
         match self {
             Self::Fr => "fr_FR",
             Self::En => "en_US",
+            Self::Es => "es_ES",
             Self::Ja => "ja_JP",
         }
     }
@@ -78,6 +85,7 @@ impl Langue {
         match self {
             Self::Fr => "",
             Self::En => "/en",
+            Self::Es => "/es",
             Self::Ja => "/ja",
         }
     }
@@ -88,6 +96,7 @@ impl Langue {
         match self {
             Self::Fr => "Français",
             Self::En => "English",
+            Self::Es => "Español",
             Self::Ja => "日本語",
         }
     }
@@ -101,6 +110,10 @@ impl Langue {
         match self {
             Self::Fr => "name_fr",
             Self::En => "name_en",
+            // Le gisement n'a pas de colonne espagnole : ses noms viennent des tables
+            // `inagle_*`, qui portent `name_fr`, `name_en` et `name_ja`. Servir `name_en`
+            // est le repli honnête — un nom anglais, pas un nom inventé.
+            Self::Es => "name_en",
             Self::Ja => "name_ja",
         }
     }
@@ -120,6 +133,7 @@ impl Langue {
         match base.as_str() {
             "fr" => Some(Self::Fr),
             "en" => Some(Self::En),
+            "es" => Some(Self::Es),
             "ja" => Some(Self::Ja),
             _ => None,
         }
@@ -147,6 +161,11 @@ impl Langue {
         match tete {
             "en" => Demande {
                 langue: Self::En,
+                route: reste,
+                rediriger: false,
+            },
+            "es" => Demande {
+                langue: Self::Es,
                 route: reste,
                 rediriger: false,
             },
@@ -331,22 +350,26 @@ mod tests {
     fn negociation_respecte_les_facteurs_q() {
         assert_eq!(Langue::negocier("ja,en;q=0.8,fr;q=0.5"), Langue::Ja);
         assert_eq!(Langue::negocier("en-GB;q=0.9,ja;q=0.2"), Langue::En);
-        // Une langue que le site ne sert pas ne doit pas l'emporter.
-        assert_eq!(Langue::negocier("de,es;q=0.9"), Langue::Fr);
+        // L'espagnol EST servi depuis que le jeu s'est revele en porter 70 555 lignes :
+        // ce cas mesurait « une langue inconnue ne l'emporte pas », il le mesure toujours,
+        // avec une langue qui l'est vraiment.
+        assert_eq!(Langue::negocier("es,ja;q=0.4"), Langue::Es);
+        assert_eq!(Langue::negocier("de,it;q=0.9"), Langue::Fr);
         assert_eq!(Langue::negocier(""), Langue::Fr);
     }
 
     #[test]
     fn les_alternatives_sont_reciproques_et_completes() {
         let liens = alternatives("https://nie.aphrody.com", "/textures");
-        assert_eq!(liens.len(), 4, "trois langues plus x-default");
+        assert_eq!(liens.len(), 5, "quatre langues plus x-default");
         let codes: Vec<_> = liens.iter().map(|l| l.hreflang).collect();
-        assert_eq!(codes, ["fr", "en", "ja", "x-default"]);
+        assert_eq!(codes, ["fr", "en", "es", "ja", "x-default"]);
         assert_eq!(liens[0].url, "https://nie.aphrody.com/textures");
         assert_eq!(liens[1].url, "https://nie.aphrody.com/en/textures");
-        assert_eq!(liens[2].url, "https://nie.aphrody.com/ja/textures");
+        assert_eq!(liens[2].url, "https://nie.aphrody.com/es/textures");
+        assert_eq!(liens[3].url, "https://nie.aphrody.com/ja/textures");
         // x-default et fr visent la MEME url : c'est voulu, la racine est la version de repli.
-        assert_eq!(liens[3].url, liens[0].url);
+        assert_eq!(liens[4].url, liens[0].url);
 
         // Réciprocité : partir de n'importe quelle langue rend le même groupe.
         for langue in Langue::TOUTES {

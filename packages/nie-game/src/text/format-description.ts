@@ -89,10 +89,13 @@ const PLACE_NAME_TAGS: Record<string, { en?: string; fr?: string; jp?: string }>
 function resolveTag(
 	_tagType: string,
 	tagName: string,
-	lang: "en" | "fr" | "jp" | "ja" = "fr"
+	lang: "en" | "fr" | "es" | "jp" | "ja" = "fr"
 ): string {
 	const upperName = tagName.toUpperCase();
-	const normalizedLang = lang === "ja" ? "jp" : lang;
+	// `es` n'a pas de colonne dans ces tables : elles portent `en`, `fr` et `jp`, et un nom
+	// propre espagnol n'est ecrit nulle part dans le jeu. On retombe donc sur l'anglais plutot
+	// que de traduire un nom.
+	const normalizedLang = lang === "ja" ? "jp" : lang === "es" ? "en" : lang;
 
 	// Check character names first
 	const charMapping = CHARACTER_NAME_TAGS[upperName];
@@ -119,7 +122,7 @@ function resolveTag(
  */
 export function formatDescription(
 	description: string | undefined | null,
-	lang: "en" | "fr" | "jp" | "ja" = "fr"
+	lang: "en" | "fr" | "es" | "jp" | "ja" = "fr"
 ): string {
 	if (!description) {
 		return "";

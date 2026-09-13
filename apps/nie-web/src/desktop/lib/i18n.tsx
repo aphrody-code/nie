@@ -152,11 +152,17 @@ const ja: Dict = {
   "settings.reset": "リセット",
 };
 
-const DICTS: Record<Locale, Dict> = { fr, en, ja };
+/**
+ * Les dictionnaires ECRITS A LA MAIN de l'atelier. Ils ne couvrent pas toutes les langues
+ * servies : l'espagnol n'en a pas, et aucun n'a ete redige pour lui. Le type le dit — un
+ * `Record` complet aurait exige d'en inventer un.
+ */
+const DICTS: Partial<Record<Locale, Dict>> = { fr, en, ja };
 
 export const LOCALE_LABELS: Record<Locale, string> = {
   fr: "Français",
   en: "English",
+  es: "Español",
   ja: "日本語",
 };
 
@@ -172,6 +178,8 @@ export type TFn = (key: string, vars?: Record<string, string | number>) => strin
 
 export function useT(): TFn {
   const { locale } = useSettings();
-  const dict = DICTS[locale] ?? fr;
+  // Une langue sans dictionnaire retombe sur l'ANGLAIS, pas sur le francais : servir du
+  // francais sous `/es` donnerait une page qui se contredit elle-meme.
+  const dict = DICTS[locale] ?? en;
   return (key, vars) => interpolate(dict[key] ?? fr[key] ?? key, vars);
 }

@@ -77,9 +77,22 @@ export function localizedName(row: { name_fr: string | null; name_en: string | n
 	return [requested, row.name_en, row.name_fr, row.name_ja].find(name => name?.trim())?.trim() ?? id;
 }
 
-const KIND_LABELS: Record<Locale, Record<ResolvedName["kind"], string>> = {
+/**
+ * Les noms de familles d'entites, ecrits a la main.
+ *
+ * Le jeu ne les ecrit PAS : mesure le 2026-09-13, seul « Technique » existe dans le corpus
+ * (`help_list_text/0xb6418521`, qui rend « Tecnica » en espagnol) ; « Personnage »,
+ * « Objet », « Tactique », « Equipe » et « Esprit guerrier » n'y figurent sous aucune forme,
+ * et « Totem » n'y est qu'un NOM PROPRE de personnage. Aucune colonne espagnole n'est donc
+ * ecrite ici, et le type dit que la table est partielle plutot que de faire croire qu'elle
+ * couvre les quatre langues servies.
+ */
+const KIND_LABELS: Partial<Record<Locale, Record<ResolvedName["kind"], string>>> = {
   fr: { chara: "personnage", skill: "technique", item: "objet", tactic: "tactique", team: "équipe", keshin: "esprit guerrier", soul: "totem" },
   en: { chara: "character", skill: "skill", item: "item", tactic: "tactic", team: "team", keshin: "fighting spirit", soul: "soul" },
   ja: { chara: "キャラクター", skill: "必殺技", item: "アイテム", tactic: "タクティクス", team: "チーム", keshin: "化身", soul: "ソウル" },
 };
-export function resolvedKindLabel(kind: ResolvedName["kind"], locale: Locale) { return KIND_LABELS[locale][kind]; }
+/** Le nom de la famille dans la langue demandee, ou en anglais quand elle n'en a pas. */
+export function resolvedKindLabel(kind: ResolvedName["kind"], locale: Locale) {
+	return (KIND_LABELS[locale] ?? KIND_LABELS.en!)[kind];
+}

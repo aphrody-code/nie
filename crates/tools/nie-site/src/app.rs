@@ -134,6 +134,7 @@ declarer_routes! {
     // d'URL qu'on peut en inventer.
     "/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/en/manifest.webmanifest" => crate::routes::well_known::manifeste,
+    "/es/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/ja/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/sitemap.xml" => crate::routes::well_known::sitemap,
     // Inacord updater manifest.
@@ -579,7 +580,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 138, "138 routes mounted");
+        assert_eq!(routes.len(), 139, "139 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

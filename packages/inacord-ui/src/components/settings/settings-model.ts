@@ -99,6 +99,7 @@ export const SETTING_FAMILIES: readonly { id: SettingFamily; label: string }[] =
 export const LOCALE_OPTIONS: readonly SettingOption<Locale>[] = [
 	{ value: "fr", label: "Français" },
 	{ value: "en", label: "English" },
+	{ value: "es", label: "Español" },
 	{ value: "ja", label: "日本語" },
 ];
 

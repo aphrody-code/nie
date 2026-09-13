@@ -20,18 +20,28 @@
  * un cas qui ne se produit pas. Une URL inconnue mène à l'accueil, comme n'importe quelle autre.
  */
 
-/** Les préfixes de langue servis par `nie-site`. Le français est à la racine, sans préfixe. */
-export const LANGUAGE_PREFIXES = ["/en", "/ja"] as const;
+/**
+ * Les préfixes de langue servis par `nie-site`. Le français est à la racine, sans préfixe.
+ *
+ * L'espagnol s'est ajouté le 2026-09-13 : le jeu en livre 91 familles et 70 555 lignes, autant
+ * qu'en français (`GET /api/v1/text`). La liste doit rester celle du serveur — un préfixe connu
+ * ici et pas là-bas donne une page que le client rend et que le serveur marque `noindex`.
+ */
+export const LANGUAGE_PREFIXES = ["/en", "/es", "/ja"] as const;
+
+/** Une des langues que ce site sert sous forme d'URL. */
+export type SiteLocale = "fr" | "en" | "es" | "ja";
 
 /** La langue que sert un préfixe : `""` est le français. */
-export function localeFromPrefix(prefix: string): "fr" | "en" | "ja" {
+export function localeFromPrefix(prefix: string): SiteLocale {
 	if (prefix === "/en") return "en";
+	if (prefix === "/es") return "es";
 	if (prefix === "/ja") return "ja";
 	return "fr";
 }
 
 /** Le préfixe qui sert une langue — l'inverse de [`localeFromPrefix`]. */
-export function prefixForLocale(locale: "fr" | "en" | "ja"): string {
+export function prefixForLocale(locale: SiteLocale): string {
 	return locale === "fr" ? "" : `/${locale}`;
 }
 
