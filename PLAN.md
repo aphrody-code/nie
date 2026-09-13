@@ -212,8 +212,30 @@ Note the `[+0x198]` here is a 64-bit POINTER on a different object than the list
 that share an offset — which is why the earlier elimination pass recorded that distinction
 instead of counting `+198h` hits.
 
-Next: prove it with uemu (the table can be synthesised, the base seeded) and port
-`base + translation[index]` next to the ring slot in `nie_core::list_view`.
+**Proven and ported** — `validate_listview_cell_position.py`, 5 ✓ / 0 ✗, and
+`nie_core::list_view::cell_position`. Emulating a SLICE (400 bytes into a 1 324-byte method)
+needed `uemu.py` to seed arbitrary GPRs and to expose `rsp_in` for stack slots; both additive,
+the four earlier validators re-ran unchanged.
+
+**And on a settled screen the base is ZERO, so position IS the translation.** `mov r13,r8` makes
+the base slot 73's third argument; slot 9 passes `lea r8,[rsp+30h]` after zeroing that buffer
+(`xorps` + `movdqa`). The animated path writes `[rsp+34h]`, its Y component, from the easing
+curve. The whole model in one sentence: rows stay at their table translations and the LIST slides
+by an eased Y offset.
+
+### What is left: where the affine table comes from
+
+The table hangs off `[obj+0x198]` of an object reached by a multiple-inheritance base adjustment
+(`lea rcx,[rax-60h]` / `lea rax,[rcx+70h]`), built lazily — `test byte [rax+1EEh],1`, and if
+clear, `0x140509BF0`. That initialiser is 985 bytes with **13 calls and ZERO float
+instructions**: it wires structures, it does not compute matrices. So the per-cell transforms are
+DATA, loaded from files, not derived at runtime.
+
+Which raises the question worth asking next, and cheaply: are they the skeleton bone poses the
+static export ALREADY reads (`menu.rs`, `local_bind_pose`)? If so the compositor has the geometry
+in hand and only lacks the ring-slot mapping — which is ported and proven. That would close
+pillar 3 for settled list screens without further reversal. Not assumed: `0x140509BF0` delegates
+to 13 callees and none has been read.
 
 The 6 unresolved objects on that screen are shared components — headers, button guides, a lock
 icon — that the owning screen positions at runtime. The compositor does not paint them, which is
