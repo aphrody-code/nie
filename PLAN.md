@@ -377,11 +377,16 @@ built, so no compile was needed — prints the `CMenuListViewCharaBank` componen
     mMoveVert 1    mScrollVert 1
     mLocatorStartName / mListItemName / mScrollLocatorPoseName / …MeshName  (hachages CRC-32)
 
-So the list view's layout is DECLARED in the file, not computed. `mViewNum` and `mLineNum` are
-the visible extent and the line width that `ListScroll` reads at `[this+0xC0]` and `[this+0xD4]`;
-`mLocatorNum = 54` matches the ~53 instance positions measured on that screen. The names are the
-engine's own, and `nie_formats::objbin` already parses them typed — they sit unused in a structure
-the composer loads for every screen.
+So the list view's layout is DECLARED in the file, not computed, and `nie_formats::objbin`
+already parses these parameters typed — they sit unused in a structure the composer loads for
+every screen. `mLocatorNum = 54` matches the ~53 instance positions measured on that screen.
+
+⚠ **But their mapping onto the reversed fields is NOT established.** Reading `mViewNum = 7` as
+`[this+0xC0]` and `mLineNum = 6` as `[this+0xD4]` is what the names suggest, and the geometry
+refuses it: on that screen the 19 card instances occupy 4 distinct x and 8 distinct y —
+(929, 1103, 1141, 1178) — which is no 6-column grid. The tabs are a single row of 12 at a 53 px
+pitch, also not 6. So the obvious reading fails its first check, and the bridge from these
+parameters to `ListScroll` must be measured rather than named.
 
 `DispMaxValue`, the candidate named a moment earlier, is NOT among them: it belongs to another
 component on the same object. Right about the location, wrong about the key — which is why it was
