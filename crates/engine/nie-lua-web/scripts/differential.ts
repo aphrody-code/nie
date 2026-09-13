@@ -97,6 +97,19 @@ async function main() {
   }
   console.log(`Loaded ${loaded}/${toLoad.length} files into the wasm registry`);
 
+  // Le texte localisé, que le site natif lit dans le VFS et que le module ne pouvait pas avoir
+  // avant l'ABI `nie_lua_web_load_text` (2026-09-13). Sans lui, les scènes comparées n'ont pas
+  // de libellés d'un côté et en ont de l'autre, et treize écrans sur quatorze divergeaient
+  // là-dessus sans que la VM soit en cause.
+  const menuText: Array<[number, string]> = [];
+  for (let page = 1; ; page += 1) {
+    const body = await (await fetch(`${SITE}/api/v1/text/fr/menu_text?page=${page}&per_page=200`)).json();
+    for (const ligne of body.results?.elements ?? []) menuText.push([ligne.hash, ligne.text]);
+    if (page >= (body.results?.pages ?? 1)) break;
+  }
+  runtime.loadText(menuText);
+  console.log(`Loaded ${menuText.length} localised menu lines`);
+
   let identical = 0;
   const rows: Array<{ screen: string; status: string; detail: string }> = [];
   for (const screen of screens) {
@@ -129,7 +142,16 @@ async function main() {
       rows.push({ screen, status: "WASM ERROR", detail: wasmError });
       continue;
     }
-    const diff = firstDifferingPath(wasmJson, nativeJson);
+    // `missing` décrit ce qui manque À CHAQUE HÔTE, pas ce que la VM calcule : le site a un VFS,
+    // le module a ce que JS lui a déposé, et leurs manques n'ont aucune raison de coïncider. Le
+    // comparer mesurerait l'écart des MONTAGES — le même piège que `visible` dans la comparaison
+    // de layouts, qui rendait « différent » à chaque appel.
+    const sansMissing = (v: unknown) => {
+      if (!v || typeof v !== "object") return v;
+      const { missing, ...reste } = v as Record<string, unknown>;
+      return reste;
+    };
+    const diff = firstDifferingPath(sansMissing(wasmJson), sansMissing(nativeJson));
     if (diff === null) {
       identical += 1;
       rows.push({ screen, status: "IDENTICAL", detail: "-" });

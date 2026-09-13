@@ -149,6 +149,35 @@ fn portable_chunk(bytes: Vec<u8>) -> Vec<u8> {
     }
 }
 
+thread_local! {
+    /// Localised menu text, `hash -> line`, supplied by JS before a replay.
+    ///
+    /// The native site reads it from the VFS (`load_menu_text`); the browser has no VFS, so it
+    /// hands the table over the same way it hands scripts. Empty until then, which is what this
+    /// crate did unconditionally until 2026-09-13 — and why `scripts/differential.ts` found the
+    /// two hosts differing on `$.scene…objects….text` on thirteen screens out of fourteen.
+    static MENU_TEXT: RefCell<BTreeMap<u32, String>> = const { RefCell::new(BTreeMap::new()) };
+}
+
+/// Registers the localised menu text for the following replays.
+///
+/// `json` is `[[hash, "line"], …]` — the shape `/api/v1/text/{lang}/menu_text` yields once
+/// paginated. An unreadable payload leaves the table untouched rather than clearing it: losing
+/// the text silently is the failure this function exists to end.
+///
+/// # Safety
+/// `json` must be a NUL-terminated UTF-8 string valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_lua_web_load_text(json: *const c_char) {
+    let json = cstr_to_string(json);
+    let Ok(lignes) = serde_json::from_str::<Vec<(u32, String)>>(&json) else {
+        return;
+    };
+    MENU_TEXT.with(|table| {
+        *table.borrow_mut() = lignes.into_iter().collect();
+    });
+}
+
 /// Clears every registered script/config. Call between menu screens to bound memory use.
 #[unsafe(no_mangle)]
 pub extern "C" fn nie_lua_web_clear_scripts() {
@@ -256,9 +285,9 @@ fn run_replay(screen: &str, request_json: &str) -> Result<ReplayOutput, String> 
         .cloned()
         .ok_or_else(|| format!("script not loaded for screen: {screen}"))?;
 
-    // Localised text (`load_menu_text`'s job on the native site) is out of scope for this
-    // first browser bring-up: the caller passes an empty map, matching an unlocalised replay.
-    let localized_text = BTreeMap::new();
+    // Le texte localisé, tel que JS l'a déposé. Vide tant que personne ne l'a fourni — le
+    // rejeu rend alors une scène sans libellé, ce qui est exact et se voit dans la sortie.
+    let localized_text = MENU_TEXT.with(|table| table.borrow().clone());
 
     nie_lua::menu_runtime::replay(
         paths,

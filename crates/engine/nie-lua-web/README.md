@@ -98,15 +98,27 @@ what the work is, and settling it means reading `SETTABUP` on `_ENV`, not counti
 Both surveys are checked in so the numbers are re-measured rather than remembered — and so the
 day either drops, it drops visibly.
 
-## The differential, re-run on 2026-09-13 — still 0/14, and nothing like before
+## The differential: 10/14 identical (2026-09-13)
 
 `scripts/differential.ts` replays fourteen screens through this module and through the native
 site, then deep-compares. The result is the same number and a completely different situation:
 
 ```text
-before (2026-09-12) : 13 aborted the wasm instance, 1 had no script
-now    (2026-09-13) : 0 abort, 13 replay and DIFFER, 1 has no script
+2026-09-12 : 13 aborted the wasm instance, 1 had no script        →  0/14
+2026-09-13 : 0 abort, text supplied, per-host gaps excluded       → 10/14
 ```
+
+Two changes got there. `nie_lua_web_load_text` lets JS hand over the localised table the native
+site reads from its VFS — without it, one scene had labels and the other did not, on thirteen
+screens. And the comparison now excludes `missing`, which reports what EACH HOST lacks rather
+than what the VM computes: the site has a VFS, the module has what JS deposited, and their gaps
+have no reason to coincide. Comparing it measured the mounts, exactly as comparing `visible`
+did in the layout comparison.
+
+Three screens still differ, all on `$.scene…objects….text` — `chara_bank_menu`, `main_menu`,
+`soccer_formation_menu`. The table supplied is `menu_text` alone, which is what the native
+`load_menu_text` reads too, so the cause is not obviously the family and is not established
+here. `shop_menu` remains scriptless on both sides.
 
 Every remaining difference is `$.scene…objects….text` or `$.missing`. Neither is a divergence
 of the VM:

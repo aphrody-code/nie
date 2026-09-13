@@ -18,6 +18,14 @@
 export interface LuaRuntime {
   loadScript(path: string, bytes: Uint8Array): void;
   clearScripts(): void;
+  /**
+   * Dépose le texte localisé des menus, `[[hash, "ligne"], …]`.
+   *
+   * Le site natif le lit dans le VFS ; le navigateur n'en a pas, donc il le passe comme il passe
+   * les scripts. Sans lui, la scène rejouée n'a aucun libellé — ce que le différentiel mesurait
+   * comme treize écrans divergents sur quatorze.
+   */
+  loadText(lines: readonly (readonly [number, string])[]): void;
   /** Returns the raw JSON string produced by `nie_lua_web_replay` (a `ReplayOutput` or `{"error": "..."}`). */
   replay(screen: string, requestJson: string): string;
 }
@@ -153,6 +161,11 @@ export async function createLuaRuntime(wasmBytes: BufferSource): Promise<LuaRunt
       exportsFn.nie_lua_web_load_script(pathPtr, dataPtr, bytes.length);
       exportsFn.nie_lua_web_dealloc(pathPtr, pathLen);
       exportsFn.nie_lua_web_dealloc(dataPtr, dataLen);
+    },
+    loadText(lines) {
+      const { ptr, len } = writeCString(JSON.stringify(lines));
+      (instance.exports as { nie_lua_web_load_text(p: number): void }).nie_lua_web_load_text(ptr);
+      exportsFn.nie_lua_web_dealloc(ptr, len);
     },
     clearScripts() {
       (instance.exports as { nie_lua_web_clear_scripts(): void }).nie_lua_web_clear_scripts();
