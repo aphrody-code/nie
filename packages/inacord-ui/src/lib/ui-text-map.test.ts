@@ -112,4 +112,27 @@ describe("UI_TEXT_NOT_FOUND", () => {
 		expect(homonymes.length).toBeGreaterThan(0);
 		for (const miss of homonymes) expect(miss.homonymFamilies?.length).toBeGreaterThan(0);
 	});
+
+	/**
+	 * Le balisage de couleur du jeu n'a PLUS de decodeur cote navigateur.
+	 *
+	 * `[CR]`…`[C]` ouvre et referme une couleur nommee. `packages/inacord-ui` en portait un
+	 * decoupeur en TypeScript (`segmentsTexte`/`texteNu`, supprime le 2026-09-13) qui doublait
+	 * celui du compositeur ; l'implementation unique vit maintenant dans
+	 * `nie_formats::menu_layout::colour_spans`, du cote qui PEINT. Une ligne balisee qui
+	 * arriverait jusqu'a `GameText` afficherait donc ses crochets tels quels.
+	 *
+	 * Mesure du 2026-09-13 sur `data/dx11/text/` : 46 `[C]`, 28 `[CR]`, 18 `[CG]`, tous dans
+	 * `menu_text_platform` — des dialogues systeme qu'aucune entree de cette carte ne vise.
+	 * `UI_TEXT_NOT_FOUND` en porte quatre dans ses voisins (`[CMODE03]`, `%[C]`), ce qui montre
+	 * que la rencontre est possible : d'ou ce garde, qui echouera le jour ou l'une d'elles
+	 * passera du cote UTILISE.
+	 */
+	test("aucun texte servi a l'interface ne porte de balisage de couleur", () => {
+		const balise = /\[C[A-Z0-9_]*\]/;
+		for (const entree of [...UI_TEXT_MAP, ...UI_TEXT_VARIANTS]) {
+			expect(entree.fr).not.toMatch(balise);
+			expect(entree.label).not.toMatch(balise);
+		}
+	});
 });

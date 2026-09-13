@@ -75,25 +75,13 @@ export {
 	PENTE_TUILE,
 } from "./shell/main-menu-geometry";
 export {
-	auCentreParDefaut,
-	type BilanLayout,
-	bilanLayout,
 	type CanvasLayout,
-	cheminVfsSprite,
-	dansCanvas,
 	echellePourZone,
-	estMuet,
 	type LayoutJeu,
 	lireLayout,
 	type ObjetLayout,
-	objetsTries,
-	type SegmentTexte,
-	segmentsTexte,
 	type SlotTexte,
 	type SpriteLayout,
-	styleObjet,
-	tailleObjet,
-	texteNu,
 	type TransformLayout,
 } from "./shell/game-layout";
 export { GameCanvas, useEchelleCanvas } from "./shell/game-canvas";
