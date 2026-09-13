@@ -141,6 +141,12 @@ line counts inside a `nie-site` test does not work: the VFS mounts asynchronousl
 has no way to await it, so the test skips itself and proves nothing. Measuring this needs the
 running server on both sides, not a test.
 
+Nor does the CLI shortcut work: `niers decode` on the extracted
+`text/fr/menu_text.cfg.bin` renders the RAW container structure, not the `{entries}` iecode form
+`nie_data::text::parse_text_file` consumes, so counting lines from it answers a different
+question. The conversion is `nie_formats::cfgbin::to_iecode_json`, which the CLI exposes only
+through `refresh-typed-json`.
+
 Every remaining difference is `$.scene…objects….text` or `$.missing`. Neither is a divergence
 of the VM:
 
