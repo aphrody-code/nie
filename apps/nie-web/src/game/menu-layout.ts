@@ -243,10 +243,15 @@ export async function buildMenuLayout(
  * rot  nav -0.05235987529158592   srv -0.05235988274216652
  * ```
  *
- * Deux `f32` voisins d'un ULP : `wasm32` et `x86-64` n'arrondissent pas identiquement la même
- * expression. Le code est bien le même ; c'est l'arithmétique flottante de la cible qui diffère,
- * sur une rotation de −3°. Une comparaison exacte le rapporte donc comme une différence — ce
- * qu'elle est, et ce qu'il faut savoir avant de conclure à une divergence de logique.
+ * Deux `f32` voisins d'un ULP, et la cause est localisable : la rotation vient de
+ * `r10.atan2(r00)` (`nie_formats::g4pkm`), et le chemin de transformation passe encore par `sin`
+ * et `cos`. Ce sont des fonctions de libm, dont l'implémentation N'EST PAS la même sur `wasm32`
+ * (celle que Rust embarque) et sur `x86-64` (celle du système) ; `sqrt`, lui, est exact par
+ * IEEE-754 et ne peut pas y contribuer. Le code est le même — c'est la bibliothèque
+ * mathématique de la cible qui diffère, et aucun réglage de ce dépôt ne l'aligne.
+ *
+ * Une comparaison exacte le rapporte donc comme une différence. C'en est une, d'un ULP sur une
+ * rotation de −3°, et il faut le savoir avant de conclure à une divergence de logique.
  */
 export async function compareLayoutWithServer(
 	screen: string,

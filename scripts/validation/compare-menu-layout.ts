@@ -12,8 +12,10 @@
  *
  * Mesuré le 2026-09-13 : `chara_bank_menu` 78 objets, `gallery_menu` 7, `chara_edit_menu` 18 —
  * identiques. `shop_menu` : un écart sur 62, une rotation dont les deux `f32` sont voisins d'un
- * ULP (`-0.05235987529158592` contre `-0.05235988274216652`). Le code est le même ;
- * `wasm32` et `x86-64` n'arrondissent pas identiquement.
+ * ULP (`-0.05235987529158592` contre `-0.05235988274216652`). La rotation vient de
+ * `r10.atan2(r00)` et le chemin passe aussi par `sin`/`cos` : des fonctions de libm, différentes
+ * sur `wasm32` (celle de Rust) et sur `x86-64` (celle du système). Le code est le même, la
+ * bibliothèque mathématique ne l'est pas.
  *
  * La première exécution a trouvé autre chose : le module publié ne portait pas encore le champ
  * `instance`, ajouté le jour même à `menu_screen::build`. Un artefact préconstruit ne suit pas
