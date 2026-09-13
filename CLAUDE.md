@@ -196,6 +196,22 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   outage rather than a binary with no certificate authority.
 - **Adding a route to `nie-site` breaks four counters**: the assertion in `app.rs`, the
   `instances` array size in `tests/routes.rs`, `declarees.len()`, and `vus`.
+- **Adding a LANGUAGE breaks eleven, and the compiler only finds five of them.** Measured
+  2026-09-13 adding `Langue::Es`: `rustc` names the five non-exhaustive `match` arms and stops
+  there. The six it cannot see are all counts — `alternatives().len()` 4→5,
+  `matches("rel=\"alternate\" hreflang=")` 4→5, `og:locale:alternate` 2→3,
+  `<meta property="og:` 12→13, the sitemap's `<url>`/`<loc>`/`x-default` 15→20, and
+  `xhtml:link` 60→100 — plus `[&'static str; 3]` widening to 4 on FIFTEEN entries, where a
+  wrong insertion position silently shifts every title by one language. Widen the arrays with a
+  script that asserts how many it rewrote (`assert n == 15`), then run the suite before reading
+  any of it as correct.
+- **A language-prefixed route is mounted ONE BY ONE, on purpose, and that is where `/es` fell
+  through.** `declarer_routes!` lists `/manifest.webmanifest`, `/en/…`, `/ja/…` separately
+  because a `/{langue}/manifest…` parameter would capture any segment and serve the French
+  manifest under as many URLs as one can invent. So `Langue::separer` learning `es` is NOT
+  enough: the handler read the prefix, the router answered 404. The comment on
+  `le_manifeste_repond_dans_les_quatre_langues` describes this exact defect happening before,
+  for `/en`, which is why the test goes through the router and not the handler.
 - **The Rust site is the only game/wiki deployment.** Verify the exact service checkout before
   editing; never edit a tree while its build is running.
 - **`data/` has THREE text trees; surveying one and calling it the corpus is off by 400×.**
@@ -298,6 +314,14 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   existed. `scripts/re/extent.py` chains chunks by adjacency (previous `end` == next `start`),
   which is checkable from the file alone. Use it before disassembling anything.
 
+- **A scripted multi-line comment loses its prefix on every line but the first — three times
+  in one session.** Writing `"\t// première ligne\n" "\tdeuxième ligne\n"` in a Python
+  replacement produces valid-looking output and a file that will not parse: `error TS1434` or
+  `error: expected one of '!' or '::'`, pointing at the orphaned prose rather than at the edit.
+  It cost a non-compiling commit (`a0d55ed0`) and two near-misses. Build the block by prefixing
+  every line programmatically, or re-read the inserted lines before compiling — a `sed -n` over
+  the touched range is enough, and `sed -i` is silent when it matches nothing.
+
 - **Never put a gate and a `git commit` in the same shell invocation.** Measured the hard way on
   2026-09-13: `cargo test … ; cargo clippy … ; git commit …` ran the gate, printed its failure,
   and committed anyway — the output arrives after the commit has already happened, so it reads as
@@ -305,6 +329,20 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   '::', found 'quatre'` — a scripted doc-block replacement had dropped a `/// ` prefix). Run the
   gate, READ it, then commit in a separate call. This repository has no commit hook
   (`.git/hooks` holds only samples and is untracked), so nothing catches it for you.
+
+- **Probing a Next page's assets without decoding HTML entities accuses the wrong thing.**
+  Extracting `src=`/`href=` from `azalee.rosegriffon.fr` yields
+  `_next/image?url=…&amp;w=768&amp;q=75`; requested literally, Next answers `400`, and the sweep
+  reported "21 broken resources on the home page". Decoded (`sed 's/&amp;/\&/g'`), the same four
+  pages give **0 broken out of 88 / 39 / 161 / 1779**. Decode before requesting, and treat a
+  uniform `400` across one URL SHAPE as a defect of the probe until proven otherwise.
+
+- **`/api/v1/menu/render/<screen>` draws a real screen, and it is keyed by the setting stem.**
+  Measured 2026-09-13 over `victory_road`: **23 of its 24 screens come back as PNG**, from 5 209
+  to 1 248 427 bytes; `victory_road_final_tournament_menu` answers `504` through nginx. `mainmenu01`
+  answers 404 — that is a LAYER name, not a screen. Three screens render at exactly 5 209 bytes,
+  which is the size of a near-empty canvas and worth checking before citing them as reproductions.
+  A page that lists a mode's screens should show the render and state the miss, not leave a frame.
 
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
