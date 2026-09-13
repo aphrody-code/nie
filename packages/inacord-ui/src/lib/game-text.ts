@@ -149,10 +149,33 @@ function storeOf(resolver: GameTextResolver) {
 }
 
 /**
+ * La langue dans laquelle la carte a été MESURÉE.
+ *
+ * `UiTextEntry.fr` porte la ligne française du jeu, et `UI_TEXT_MAP` ne contient que des
+ * libellés dont le français est identique au texte écrit dans le composant. Dans cette langue,
+ * la substitution rend donc exactement ce qui est déjà à l'écran : la requête coûterait un
+ * aller-retour pour n'afficher aucune différence. C'est la langue par défaut du site
+ * (`SETTINGS_DEFAULTS.gameLocale`), donc le cas le plus fréquent de tous.
+ */
+const LOCALE_MESUREE = "fr";
+
+/**
+ * Faut-il demander le catalogue pour cette langue ?
+ *
+ * Extrait en fonction pure pour que la règle s'éprouve sans rendre un arbre React : un hook qui
+ * décide de ne rien faire ne se teste autrement qu'en observant une absence de requête.
+ */
+export function needsCatalogue(locale: GameLocale): boolean {
+	return locale !== LOCALE_MESUREE;
+}
+
+/**
  * Charge, une fois par langue, la ligne du jeu de chaque libellé de la carte.
  *
  * Monté à la racine par l'hôte. Les composants appellent [`gameText`] ; ce hook est ce qui rend
  * leur appel non vide.
+ *
+ * Ne demande RIEN dans la langue où la carte a été mesurée : voir [`LOCALE_MESUREE`].
  */
 export function useGameTextCatalogue(
 	locale: GameLocale,
@@ -161,6 +184,7 @@ export function useGameTextCatalogue(
 	const store = storeOf(resolver);
 	useSyncExternalStore(store.subscribe, store.snapshot, () => 0);
 	useEffect(() => {
+		if (!needsCatalogue(locale)) return;
 		const existing = store.slots.get(locale);
 		if (existing?.value || existing?.pending) return;
 		const slot: Slot = {};

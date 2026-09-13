@@ -207,6 +207,7 @@ export {
 	type GameTextRef,
 	type GameTextResolver,
 	mappedRefs,
+	needsCatalogue,
 	refKey,
 	useGameTextCatalogue,
 } from "./lib/game-text";

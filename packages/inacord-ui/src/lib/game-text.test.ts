@@ -7,7 +7,8 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import { fetchGameText, gameText, mappedRefs, refKey } from "./game-text";
+import { fetchGameText, gameText, mappedRefs, needsCatalogue, refKey } from "./game-text";
+import { GAME_LOCALES } from "./settings";
 import { UI_TEXT_MAP, UI_TEXT_VARIANTS } from "./ui-text-map";
 
 const exemple = UI_TEXT_MAP[0];
@@ -69,6 +70,21 @@ describe("mappedRefs", () => {
 		const cles = new Set(mappedRefs().map(ref => refKey(ref.family, ref.hash)));
 		for (const entry of [...UI_TEXT_MAP, ...UI_TEXT_VARIANTS]) {
 			expect(cles.has(refKey(entry.family, entry.hash))).toBe(true);
+		}
+	});
+});
+
+describe("useGameTextCatalogue", () => {
+	test("ne demande RIEN dans la langue où la carte a été mesurée", () => {
+		// La carte ne retient que des libellés dont le français est identique au texte écrit
+		// dans le composant : en français la requête n'afficherait aucune différence, et c'est
+		// la langue par défaut du site.
+		expect(needsCatalogue("fr")).toBe(false);
+	});
+
+	test("demande le catalogue dans toutes les autres langues du jeu", () => {
+		for (const locale of GAME_LOCALES) {
+			expect(needsCatalogue(locale)).toBe(locale !== "fr");
 		}
 	});
 });
