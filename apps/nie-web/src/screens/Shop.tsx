@@ -47,6 +47,7 @@ import {
 	type StockItem,
 } from "../game/shop";
 import { NativeText } from "../pages/NativeText";
+import { ScreenStatus } from "../pages/screen-parts";
 import "./shop.css";
 import { loadMenuLayout } from "../game/menu-layout";
 
@@ -273,7 +274,7 @@ export function Shop({ onBack }: ShopProps) {
 							<span className="shop__shop-count">{shop.declared}</span>
 						</button>
 					))}
-					{stock.length === 0 ? <p className="shop__empty">{dataFailed ? "Le marché est indisponible." : "Chargement…"}</p> : null}
+					{stock.length === 0 ? <ScreenStatus state={dataFailed ? "unavailable" : "loading"} className="shop__empty" /> : null}
 				</nav>
 
 				<div className="shop__tabs" role="tablist" aria-label="Catégories">
@@ -332,7 +333,7 @@ export function Shop({ onBack }: ShopProps) {
 					<span>Retenus : {retained.length} / {current?.items.length ?? 0}</span>
 					<span>Page {page.index + 1} / {page.count}</span>
 					<span>Stock total : {stockTotal(stock)}</span>
-					{layoutFailed ? <span role="alert">Le layout du jeu est indisponible.</span> : null}
+					{layoutFailed ? <span className="screen-status__a11y" role="alert">Le décor de cet écran ne peut pas être affiché pour le moment.</span> : null}
 				</footer>
 
 				<aside className="shop__detail" aria-label="Fiche de l'objet" data-pinned={selected !== null}>

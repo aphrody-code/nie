@@ -53,6 +53,7 @@ import {
 	type RosterFilter,
 } from "../game/roster";
 import { NativeText } from "../pages/NativeText";
+import { ScreenStatus } from "../pages/screen-parts";
 import "./player-bank.css";
 import { loadMenuLayout } from "../game/menu-layout";
 import {
@@ -592,7 +593,11 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 							</button>
 						);
 					})}
-					{page.items.length === 0 ? <p className="player-bank__empty">{rosterFailed || catalogueFailed ? "La banque est indisponible." : entries && (!usingServerPage || catalogue) ? "Aucun personnage retenu." : "Chargement…"}</p> : null}
+					{page.items.length === 0 ? (
+						rosterFailed || catalogueFailed ? <ScreenStatus state="unavailable" className="player-bank__empty" /> :
+						entries && (!usingServerPage || catalogue) ? <p className="player-bank__empty">Aucun personnage retenu.</p> :
+						<ScreenStatus state="loading" className="player-bank__empty" />
+					) : null}
 				</div>
 
 				<footer className="player-bank__counts">
@@ -604,7 +609,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 						</span>
 					) : null}
 						{teamFallback ? <span>Équipe : profil local · rareté et noms EN/JA indisponibles</span> : null}
-					{layoutFailed ? <span role="alert">Le layout du jeu est indisponible.</span> : null}
+					{layoutFailed ? <span className="screen-status__a11y" role="alert">Le décor de cet écran ne peut pas être affiché pour le moment.</span> : null}
 				</footer>
 
 				<aside className="player-bank__detail" aria-label="Fiche du personnage">

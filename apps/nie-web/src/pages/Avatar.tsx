@@ -33,6 +33,7 @@ import { avatarModelUrl, resolveAvatar } from "../game/avatar-runtime";
 import { loadMenuPresentation } from "../game/bridge";
 import { createCpuNativeViewer, createNativeViewer } from "../game/native-viewer";
 import { NativeText } from "./NativeText";
+import { ScreenStatus } from "./screen-parts";
 import "@niers/inacord-ui/avatar/avatar-editor.css";
 import "./avatar-studio.css";
 import { GameText } from "@niers/inacord-ui";
@@ -243,16 +244,10 @@ export function Avatar({
             <GameText>Retour</GameText>
           </button>
         </header>
-        {error ? (
-          <p role="alert">
-            Les ressources de l’avatar n’ont pas pu être chargées.{" "}
-            <button type="button" onClick={() => setAttempt((v) => v + 1)}>
-              <GameText>Réessayer</GameText>
-            </button>
-          </p>
-        ) : (
-          <p role="status">Chargement de l’avatar…</p>
-        )}
+        <ScreenStatus
+          state={error ? "unavailable" : "loading"}
+          onRetry={error ? () => setAttempt((v) => v + 1) : undefined}
+        />
         {compositionError && (
           <button
             type="button"

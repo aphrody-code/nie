@@ -49,6 +49,7 @@ import { listPage, stepCursor } from "../game/list-page";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 import { NativeText } from "../pages/NativeText";
+import { ScreenStatus } from "../pages/screen-parts";
 import { WebGallery } from "../pages/WebGallery";
 import "./trophy-gallery.css";
 import { loadMenuLayout } from "../game/menu-layout";
@@ -350,16 +351,16 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 						);
 					})}
 					{page.items.length === 0 ? (
-						<p className="trophy-gallery__empty">
-							{dataFailed ? "La galerie est indisponible." : data ? "Aucune entrée retenue." : "Chargement…"}
-						</p>
+						dataFailed ? <ScreenStatus state="unavailable" className="trophy-gallery__empty" /> :
+						data ? <p className="trophy-gallery__empty">Aucune entrée retenue.</p> :
+						<ScreenStatus state="loading" className="trophy-gallery__empty" />
 					) : null}
 				</div>
 
 				<footer className="trophy-gallery__counts">
 					<span>Retenues : {retained.length}</span>
 					<span>Page {page.index + 1} / {page.count}</span>
-					{layoutFailed ? <span role="alert">Le layout du jeu est indisponible.</span> : null}
+					{layoutFailed ? <span className="screen-status__a11y" role="alert">Le décor de cet écran ne peut pas être affiché pour le moment.</span> : null}
 				</footer>
 
 				<aside className="trophy-gallery__detail" aria-label="Détail">

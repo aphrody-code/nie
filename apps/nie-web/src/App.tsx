@@ -41,7 +41,7 @@ import { GAME_REACHABLE } from "./host";
 import { Modes } from "./pages/Modes";
 import { Catalog } from "./pages/Catalog";
 import { Avatar } from "./pages/Avatar";
-import { Notice } from "./pages/screen-parts";
+import { Notice, ScreenStatus } from "./pages/screen-parts";
 import { UnifiedShell, workspaceViewOf } from "./shell/UnifiedShell";
 import { createWorkspaceActions, workspaceRoute } from "./shell/workspace-actions";
 import { Game } from "./pages/Game";
@@ -154,17 +154,24 @@ function Site() {
 		if (!GAME_REACHABLE || vfs === "absent") return;
 		const ac = new AbortController();
 		let minuteur: ReturnType<typeof setTimeout> | undefined;
+		let requestActive = false;
 		const delay = startupReady ? 30_000 : PERIODE_SONDE_MS;
 		const sonder = () => {
-			if (document.visibilityState === "hidden") return;
+			if (document.visibilityState === "hidden" || requestActive || ac.signal.aborted) return;
+			if (minuteur !== undefined) {
+				clearTimeout(minuteur);
+				minuteur = undefined;
+			}
+			requestActive = true;
 			sante(ac.signal)
 				.then(setEtat)
 				.catch(() => {
 					/* l'erreur est déjà portée par le fournisseur */
 				})
 				.finally(() => {
-				if (!ac.signal.aborted) minuteur = setTimeout(sonder, delay);
-			});
+					requestActive = false;
+					if (!ac.signal.aborted) minuteur = setTimeout(sonder, delay);
+				});
 		};
 		sonder();
 		const reprendre = () => {
@@ -269,15 +276,11 @@ function Site() {
 				{erreurSource ? (
 					// Le detail technique de la panne ne s'affiche pas : il ne dit rien a qui consulte
 					// le site, et le seul geste utile — reessayer — ne depend pas de lui.
-					<Notice tone="alerte">
-						Le site ne parvient pas à joindre ses ressources. Réessayez dans un instant.
-					</Notice>
+					<ScreenStatus state="unavailable" />
 				) : !capacites || vfs === null || vfs === "en_cours" ? (
-					<Notice>Chargement…</Notice>
+					<ScreenStatus state="loading" />
 				) : !pret ? (
-					<Notice>
-						Le catalogue est en cours de préparation. Il s'affichera dès qu'il sera prêt.
-					</Notice>
+					<ScreenStatus state="loading" />
 				) : (
 					// `/medias` et les quatre URL heritees menent toutes ici. La seconde arrive sur
 					// SA vue ; la premiere, qui n'en designe aucune, ouvre sur les textures — le

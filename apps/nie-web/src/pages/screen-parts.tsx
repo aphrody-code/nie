@@ -10,6 +10,7 @@
  * leur propre contenu.
  */
 import type { ReactNode } from "react";
+import "./screen-status.css";
 
 /**
  * Le titre d'un écran : le bandeau bleu biseauté du menu, à sa taille de section.
@@ -75,6 +76,43 @@ export function Notice({ children, tone = "info" }: { children: ReactNode; tone?
 		>
 			{children}
 		</p>
+	);
+}
+
+/**
+ * An in-world transition marker for a screen that is still preparing or cannot be shown.
+ *
+ * A bare browser sentence in the middle of a game screen breaks the composition more than the
+ * wait itself.  The state remains exposed to assistive technology, and recovery remains a real
+ * button, but the visible surface stays a neutral game-panel transition rather than a diagnostic.
+ */
+export function ScreenStatus({
+	state,
+	onRetry,
+	className,
+}: {
+	state: "loading" | "unavailable";
+	onRetry?: () => void;
+	className?: string;
+}) {
+	const label = state === "loading" ? "Préparation de l'écran" : "Cet écran ne peut pas être affiché pour le moment";
+	return (
+		<div
+			className={["screen-status", className].filter(Boolean).join(" ")}
+			data-state={state}
+			role={state === "unavailable" ? "alert" : "status"}
+			aria-live="polite"
+			aria-busy={state === "loading" || undefined}
+		>
+			<span className="screen-status__emblem" aria-hidden="true"><i /><i /><i /></span>
+			<span className="screen-status__a11y">{label}</span>
+			{onRetry ? (
+				<button type="button" className="screen-status__retry" onClick={onRetry} aria-label="Réessayer" title="Réessayer">
+					<span aria-hidden="true">↻</span>
+					<span className="screen-status__a11y">Réessayer</span>
+				</button>
+			) : null}
+		</div>
 	);
 }
 

@@ -10,6 +10,7 @@ import {
 	loadGame,
 	simulationTiming,
 } from "../game/bridge";
+import { ScreenStatus } from "./screen-parts";
 
 export const WASM_MODE_INDEX = {
 	story_mode: 0,
@@ -152,8 +153,7 @@ export function WasmGameSurface({ mode, onBack, gamepadSampler }: {
 			height: displaySize ? `${displaySize.height}px` : "auto",
 			visibility: state === "ready" ? "visible" : "hidden",
 		}}>{label}</canvas>
-		{state === "loading" ? <p role="status" aria-live="polite">Chargement du mode…</p> : null}
-		{state === "failed" ? <p role="alert">Ce mode n’a pas pu démarrer.</p> : null}
+		{state !== "ready" ? <ScreenStatus state={state === "failed" ? "unavailable" : "loading"} /> : null}
 		{score ? <p className="wasm-game-surface__score" aria-live="polite">{score[0]} — {score[1]}</p> : null}
 		<button type="button" className="game-shell-return" onClick={onBack}><kbd>Esc</kbd> Retour</button>
 	</section>;

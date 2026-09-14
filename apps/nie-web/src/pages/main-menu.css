@@ -4,6 +4,12 @@
 	overflow: hidden;
 }
 
+.runtime-main-menu > .screen-status {
+	position: absolute;
+	inset: 0;
+	display: grid;
+}
+
 .wasm-game-surface {
 	position: fixed;
 	inset: 0;

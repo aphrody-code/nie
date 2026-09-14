@@ -70,7 +70,7 @@ async function click(label: string) {
 describe("native opening movies", () => {
 	test("loading renders no media or native asset request", async () => {
 		await mount(<OpeningVisual phase="loading" />);
-		expect(container.textContent).toContain("Chargement des données");
+		expect(container.querySelector(".screen-status")).not.toBeNull();
 		expect(container.querySelector("video, audio, img, canvas")).toBeNull();
 		const requestedUrls = (fetchMock.mock.calls as Array<[unknown, ...unknown[]]>).map((call) => String(call[0]));
 		expect(requestedUrls.some((url: string) => url.includes("/assets/"))).toBeFalse();

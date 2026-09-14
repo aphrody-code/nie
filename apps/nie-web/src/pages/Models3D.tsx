@@ -42,7 +42,7 @@ import {
   writeBrowserHistory,
 } from "@niers/inacord-ui/lib/browser-navigation";
 import { createCpuNativeViewer, createOpaqueNativeViewer } from "../game/native-viewer";
-import { agree, Notice, ViewTitle } from "./screen-parts";
+import { agree, Notice, ScreenStatus, ViewTitle } from "./screen-parts";
 import "./models-3d.css";
 
 /** 24 cartes par défaut : une grille pleine sans imposer 60 rendus à froid au serveur. */
@@ -263,15 +263,10 @@ export function Modeles3D() {
 
   const familleCourante = familles.find((f) => f.segment === famille);
 
-  if (capacitesKo) {
-    return (
-      <Notice tone="alerte">
-        La couche 3D ne répond pas. Le service de décodage est peut-être arrêté
-        ; réessayez dans un instant.
-      </Notice>
-    );
+	if (capacitesKo) {
+		return <ScreenStatus state="unavailable" />;
   }
-  if (!capacites) return <Notice>Chargement…</Notice>;
+  if (!capacites) return <ScreenStatus state="loading" />;
 
   return (
     <section className="models-3d-page">
@@ -405,11 +400,9 @@ export function Modeles3D() {
       ) : null}
 
       {listeKo ? (
-        <Notice tone="alerte">
-          Ce catalogue n'a pas pu être chargé. Réessayez dans un instant.
-        </Notice>
+        <ScreenStatus state="unavailable" />
       ) : !liste ? (
-        <Notice>Chargement…</Notice>
+        <ScreenStatus state="loading" />
       ) : liste.elements.length === 0 ? (
         <Notice>Aucun modèle ne correspond à cette recherche.</Notice>
       ) : (
@@ -504,11 +497,11 @@ function Carte({
           background: FOND_RENDU,
         }}
       >
-        {echec ? (
+		{echec ? (
           // Un aperçu qui échoue ne laisse pas une case vide : il DIT que le rendu de ce
           // modèle n'aboutit pas. Le GLB, lui, reste souvent servable — d'où le bouton,
           // qui reste actif.
-          <span style={MESSAGE_APERCU}>Aperçu indisponible</span>
+			<ScreenStatus state="unavailable" />
         ) : (
           <img
             src={modele.apercu}
@@ -695,17 +688,6 @@ const CARTE: React.CSSProperties = {
   cursor: "pointer",
   font: "inherit",
   textAlign: "left",
-};
-
-const MESSAGE_APERCU: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  display: "grid",
-  placeItems: "center",
-  color: "#cbd5e1",
-  fontSize: "0.78rem",
-  padding: "var(--jeu-espace-s)",
-  textAlign: "center",
 };
 
 const PANNEAU: React.CSSProperties = {

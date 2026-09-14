@@ -15,6 +15,7 @@ import { loadMenuPresentation } from "../game/bridge";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
 import { localizeMenuSceneAssets } from "../game/menu-locale";
 import "./main-menu.css";
+import { ScreenStatus } from "./screen-parts";
 import { GameText } from "@niers/inacord-ui";
 
 export interface MainMenuAction {
@@ -117,7 +118,7 @@ export function MainMenu(props: MainMenuProps) {
 	}, [scene, props.onCancel]);
 	if (!scene) return (
 		<section className="runtime-main-menu" aria-label="Menu principal" aria-busy={!failed}>
-			{failed ? <p role="alert">Le menu est indisponible.</p> : null}
+			<ScreenStatus state={failed ? "unavailable" : "loading"} />
 			{props.onCancel ? <button type="button" onClick={props.onCancel}><GameText>Retour</GameText></button> : null}
 		</section>
 	);

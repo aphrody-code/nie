@@ -1,0 +1,86 @@
+.screen-status {
+	--status-color: var(--jeu-accent-azur, #18d8e4);
+	display: inline-grid;
+	min-width: 7rem;
+	min-height: 4.5rem;
+	place-items: center;
+	position: relative;
+	color: var(--status-color);
+}
+
+.screen-status__emblem {
+	display: flex;
+	align-items: end;
+	justify-content: center;
+	gap: 0.25rem;
+	width: 4rem;
+	height: 2.75rem;
+	padding: 0.55rem 0.65rem;
+	clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+	background: color-mix(in srgb, var(--status-color) 24%, var(--jeu-nuit-profonde, #0d2149));
+	border: 1px solid color-mix(in srgb, var(--status-color) 78%, transparent);
+	box-shadow: 0 0 1.35rem color-mix(in srgb, var(--status-color) 30%, transparent), inset 0 0 0.7rem color-mix(in srgb, white 20%, transparent);
+}
+
+.screen-status__emblem i {
+	display: block;
+	width: 0.3rem;
+	height: 1rem;
+	background: currentcolor;
+	box-shadow: 0 0 0.45rem currentcolor;
+	transform-origin: center bottom;
+}
+
+.screen-status__emblem i:nth-child(2) { height: 1.55rem; }
+.screen-status__emblem i:nth-child(3) { height: 0.7rem; }
+
+.screen-status[data-state="loading"] .screen-status__emblem {
+	animation: screen-status-pulse 1.05s ease-in-out infinite alternate;
+}
+
+.screen-status[data-state="loading"] .screen-status__emblem i {
+	animation: screen-status-bars 0.9s ease-in-out infinite alternate;
+}
+
+.screen-status[data-state="loading"] .screen-status__emblem i:nth-child(2) { animation-delay: 0.16s; }
+.screen-status[data-state="loading"] .screen-status__emblem i:nth-child(3) { animation-delay: 0.32s; }
+
+.screen-status[data-state="unavailable"] {
+	--status-color: var(--jeu-accent-brique, #e36b5b);
+}
+
+.screen-status__retry {
+	position: absolute;
+	right: -0.6rem;
+	bottom: 0.15rem;
+	display: grid;
+	width: 1.7rem;
+	height: 1.7rem;
+	place-items: center;
+	border: 1px solid currentcolor;
+	border-radius: 50%;
+	background: var(--jeu-nuit-profonde, #0d2149);
+	color: inherit;
+	cursor: pointer;
+	font: 800 1.1rem/1 system-ui, sans-serif;
+}
+
+.screen-status__retry:hover,
+.screen-status__retry:focus-visible { background: color-mix(in srgb, currentcolor 26%, var(--jeu-nuit-profonde, #0d2149)); }
+
+.screen-status__a11y {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+@keyframes screen-status-pulse { to { filter: brightness(1.35); transform: translateY(-0.12rem); } }
+@keyframes screen-status-bars { to { transform: scaleY(0.45); } }
+
+@media (prefers-reduced-motion: reduce) {
+	.screen-status[data-state="loading"] .screen-status__emblem,
+	.screen-status[data-state="loading"] .screen-status__emblem i { animation: none; }
+}
