@@ -83,6 +83,23 @@ export function useGameNavigation(routes: readonly string[], serverRoute?: strin
 		else window.location.assign(href);
 	}, [navigate, routes]);
 
+	useEffect(() => {
+		// Vite's shell is mounted for every public game route. Intercept plain same-origin
+		// anchors too (not only the shared Link component) so a menu, gallery or catalogue
+		// deep link keeps its React state and never flashes through a full document load.
+		const follow = (event: MouseEvent) => {
+			if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+			const source = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null;
+			if (!source || source.target || source.hasAttribute("download")) return;
+			const href = source.href;
+			if (!internalGameLink(href, new URL(window.location.href), routes)) return;
+			event.preventDefault();
+			navigateLink(href);
+		};
+		document.addEventListener("click", follow);
+		return () => document.removeEventListener("click", follow);
+	}, [navigateLink, routes]);
+
 	const setOpeningPhase = useCallback((openingPhase: OpeningPhase) => {
 		if (current.current.view !== HOME) return;
 		const next = { ...current.current, openingPhase };

@@ -37,9 +37,13 @@ import { createCpuModelViewer } from "./model-render";
  */
 let adapterProbe: Promise<boolean> | null = null;
 function hasWebGpu(): Promise<boolean> {
-	const gpu = typeof navigator === "undefined" ? undefined : (navigator as { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
+	const gpu = typeof navigator === "undefined" ? undefined : (navigator as {
+		gpu?: { requestAdapter(options?: { powerPreference?: "high-performance" }): Promise<unknown> };
+	}).gpu;
 	if (!gpu) return Promise.resolve(false);
-	adapterProbe ??= gpu.requestAdapter().then(adapter => adapter !== null && adapter !== undefined, () => false);
+	// The Rust renderer requests the same preference. Probe it here as well so a low-power
+	// adapter does not decide the backend before wgpu has a chance to create its surface.
+	adapterProbe ??= gpu.requestAdapter({ powerPreference: "high-performance" }).then(adapter => adapter !== null && adapter !== undefined, () => false);
 	return adapterProbe;
 }
 

@@ -151,23 +151,32 @@ function Site() {
 		// `sante()` reads the HTTP origin that serves the site. The native window has none: polling
 		// it there would retry a rejected promise every two seconds, forever, for a screen that is
 		// not drawn.
-		if (!GAME_REACHABLE || startupReady || vfs === "absent") return;
+		if (!GAME_REACHABLE || vfs === "absent") return;
 		const ac = new AbortController();
 		let minuteur: ReturnType<typeof setTimeout> | undefined;
+		const delay = startupReady ? 30_000 : PERIODE_SONDE_MS;
 		const sonder = () => {
+			if (document.visibilityState === "hidden") return;
 			sante(ac.signal)
 				.then(setEtat)
 				.catch(() => {
 					/* l'erreur est déjà portée par le fournisseur */
 				})
 				.finally(() => {
-					if (!ac.signal.aborted) minuteur = setTimeout(sonder, PERIODE_SONDE_MS);
-				});
+				if (!ac.signal.aborted) minuteur = setTimeout(sonder, delay);
+			});
 		};
 		sonder();
+		const reprendre = () => {
+			if (!ac.signal.aborted && document.visibilityState === "visible") sonder();
+		};
+		window.addEventListener("focus", reprendre);
+		document.addEventListener("visibilitychange", reprendre);
 		return () => {
 			ac.abort();
 			if (minuteur !== undefined) clearTimeout(minuteur);
+			window.removeEventListener("focus", reprendre);
+			document.removeEventListener("visibilitychange", reprendre);
 		};
 	}, [startupReady, vfs]);
 
