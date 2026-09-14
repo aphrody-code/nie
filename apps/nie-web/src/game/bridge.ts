@@ -31,6 +31,26 @@ const FONT_G4TX_URL = "/static/game/font.g4tx.gz";
 let initPromise: Promise<void> | null = null;
 let wasmMemory: WebAssembly.Memory | null = null;
 
+type MenuPresentationId =
+	| "loading"
+	| "start"
+	| "autosave"
+	| "title-menu"
+	| "options-row"
+	| "avatar-top"
+	| "avatar-style"
+	| "avatar-hair"
+	| "avatar-clothes"
+	| "avatar-stats"
+	| "avatar-name";
+
+// Menu presentations are immutable compile-time data from nie-wasm. Re-reading a presentation
+// after a route unmount re-enters wasm-bindgen while the page is also disposing a menu runtime;
+// a failed re-entry used to turn an otherwise valid Return into an unavailable main menu. Keep
+// the decoded scene for the browser session, but evict failed work so a transient wasm failure
+// remains retryable.
+const menuPresentations = new Map<MenuPresentationId, Promise<NativeMenuScene>>();
+
 /** Compile the immutable Wasm code off the UI thread when module workers are available. */
 export function compileWasmInWorker(url: string): Promise<WebAssembly.Module | null> {
 	if (typeof Worker !== "function") return Promise.resolve(null);
@@ -83,9 +103,15 @@ export async function ensureWasm(): Promise<void> {
 }
 
 /** The engine owns screen identity and geometry; the browser supplies only the host. */
-export async function loadMenuPresentation(id: "loading" | "start" | "autosave" | "title-menu" | "options-row" | "avatar-top" | "avatar-style" | "avatar-hair" | "avatar-clothes" | "avatar-stats" | "avatar-name"): Promise<NativeMenuScene> {
-	await ensureWasm();
-	return JSON.parse(menu_presentation_json(id)) as NativeMenuScene;
+export function loadMenuPresentation(id: MenuPresentationId): Promise<NativeMenuScene> {
+	const cached = menuPresentations.get(id);
+	if (cached) return cached;
+	const presentation = ensureWasm().then(() => JSON.parse(menu_presentation_json(id)) as NativeMenuScene);
+	menuPresentations.set(id, presentation);
+	void presentation.catch(() => {
+		if (menuPresentations.get(id) === presentation) menuPresentations.delete(id);
+	});
+	return presentation;
 }
 
 /**
