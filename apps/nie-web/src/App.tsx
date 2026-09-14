@@ -41,7 +41,7 @@ import { GAME_REACHABLE } from "./host";
 import { Modes } from "./pages/Modes";
 import { Catalog } from "./pages/Catalog";
 import { Avatar } from "./pages/Avatar";
-import { Notice, ScreenStatus } from "./pages/screen-parts";
+import { ScreenStatus } from "./pages/screen-parts";
 import { UnifiedShell, workspaceViewOf } from "./shell/UnifiedShell";
 import { createWorkspaceActions, workspaceRoute } from "./shell/workspace-actions";
 import { Game } from "./pages/Game";
