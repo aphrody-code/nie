@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { RustModelViewport } from "@niers/inacord-ui/shell/rust-model-viewport";
 import { api } from "@/lib/api";
 import { b64ToBytes } from "@/lib/bytes";
-import { createOpaqueNativeViewer } from "../../game/native-viewer";
+import { createCpuNativeViewer, createOpaqueNativeViewer } from "../../game/native-viewer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /**
@@ -43,6 +43,7 @@ export function ModelPreview({
             url={path}
             loadBytes={loadBytes}
             createViewer={createOpaqueNativeViewer}
+			createFallbackViewer={createCpuNativeViewer}
             label={`Aperçu 3D de ${path}`}
             initialCamera={camera}
             loadingFallback={<p className="p-3">Assemblage du modèle…</p>}

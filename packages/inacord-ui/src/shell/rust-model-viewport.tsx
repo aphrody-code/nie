@@ -29,6 +29,12 @@ interface RustModelViewportProps {
 	 */
 	loadBytes?: (signal: AbortSignal) => Promise<Uint8Array>;
 	createViewer: CreateRustModelViewer;
+	/**
+	 * Last-resort renderer used on a fresh canvas when a GPU backend claimed the original
+	 * context before failing. A canvas cannot change context type, so retrying on it cannot
+	 * make the CPU renderer available.
+	 */
+	createFallbackViewer?: CreateRustModelViewer;
 	label?: string;
 	onReady?: () => void;
 	initialCamera?: RustModelCamera;
@@ -47,6 +53,7 @@ export function RustModelViewport({
 	url,
 	loadBytes,
 	createViewer,
+	createFallbackViewer,
 	label = "Avatar",
 	onReady,
 	initialCamera = { yaw: 0, pitch: 0, distance: 3.1 },
@@ -66,6 +73,7 @@ export function RustModelViewport({
 	readyCallback.current = onReady;
 	const [instance, setInstance] = useState<RustModelViewer | null>(null);
 	const [attempt, setAttempt] = useState(0);
+	const [usingFallback, setUsingFallback] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [hasPresentedModel, setHasPresentedModel] = useState(false);
@@ -81,7 +89,13 @@ export function RustModelViewport({
 		readyPending.current = false;
 		setHasPresentedModel(false);
 		delete target.dataset.modelReady;
-		createViewer(target).then(value => {
+		const factory = usingFallback ? createFallbackViewer : createViewer;
+		if (!factory) {
+			setError(new Error("No fallback model viewer is available"));
+			setLoading(false);
+			return;
+		}
+		factory(target).then(value => {
 			if (disposed) { value.free(); return; }
 			owned = value;
 			viewer.current = value;
@@ -116,7 +130,15 @@ export function RustModelViewport({
 				} catch (cause) { setError(asError(cause)); setLoading(false); }
 			};
 			raf = requestAnimationFrame(frame);
-		}).catch((cause) => { if (!disposed) { setError(asError(cause)); setLoading(false); } });
+		}).catch((cause) => {
+			if (disposed) return;
+			if (!usingFallback && createFallbackViewer) {
+				setUsingFallback(true);
+				return;
+			}
+			setError(asError(cause));
+			setLoading(false);
+		});
 		return () => {
 			disposed = true;
 			cancelAnimationFrame(raf);
@@ -125,7 +147,13 @@ export function RustModelViewport({
 			if (viewer.current === owned) viewer.current = null;
 			owned?.free();
 		};
-	}, [createViewer, attempt]);
+	}, [attempt, createFallbackViewer, createViewer, usingFallback]);
+
+	const retry = () => {
+		// A fresh primary canvas is required after a WebGPU/WebGL construction failure.
+		setUsingFallback(false);
+		setAttempt(value => value + 1);
+	};
 
 	useEffect(() => {
 		camera.current = { ...initialCamera };
@@ -177,7 +205,7 @@ export function RustModelViewport({
 		needsRender.current = true;
 	};
 	return <div style={{ position: "relative", width: "100%", height: "100%" }} aria-busy={loading}>
-			<canvas ref={canvas} width={640} height={720} aria-label={label} tabIndex={0}
+			<canvas key={`${usingFallback ? "fallback" : "primary"}-${attempt}`} ref={canvas} width={640} height={720} aria-label={label} tabIndex={0}
 				data-native-renderer="nie-render3d" style={{ width: "100%", height: "100%", touchAction: "none", outline: "none", ...canvasStyle, visibility: !url || (!hasPresentedModel && (loading || error)) ? "hidden" : "visible" }}
 			onPointerDown={event => { if (event.button !== 0) return; event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId); pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY }; }}
 			onPointerMove={event => { const p = pointer.current; if (p?.id !== event.pointerId) return; orbit(event.clientX - p.x, event.clientY - p.y); p.x = event.clientX; p.y = event.clientY; }}
@@ -185,6 +213,6 @@ export function RustModelViewport({
 			onWheel={event => { camera.current.distance = Math.max(1.2, Math.min(10, camera.current.distance * Math.exp(event.deltaY * 0.001))); needsRender.current = true; }}
 			onKeyDown={event => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { orbit(event.key === "ArrowLeft" ? -5 : 5, 0); event.preventDefault(); event.stopPropagation(); } }} />
 		{loading ? loadingFallback : null}
-		{error ? (renderError?.(error, () => setAttempt(value => value + 1)) ?? <div role="alert" style={{ position: "absolute", bottom: 16, left: 16 }}>Le modèle n’a pas pu être affiché. <button type="button" onClick={() => setAttempt(value => value + 1)}><GameText>Réessayer</GameText></button></div>) : null}
+		{error ? (renderError?.(error, retry) ?? <div role="alert" style={{ position: "absolute", bottom: 16, left: 16 }}>Le modèle n’a pas pu être affiché. <button type="button" onClick={retry}><GameText>Réessayer</GameText></button></div>) : null}
 	</div>;
 }

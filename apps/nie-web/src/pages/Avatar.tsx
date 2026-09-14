@@ -31,7 +31,7 @@ import { RustModelViewport } from "@niers/inacord-ui/shell/rust-model-viewport";
 import { GameHintBar } from "@niers/inacord-ui/components/game/GameHintBar";
 import { avatarModelUrl, resolveAvatar } from "../game/avatar-runtime";
 import { loadMenuPresentation } from "../game/bridge";
-import { createNativeViewer } from "../game/native-viewer";
+import { createCpuNativeViewer, createNativeViewer } from "../game/native-viewer";
 import { NativeText } from "./NativeText";
 import "@niers/inacord-ui/avatar/avatar-editor.css";
 import "./avatar-studio.css";
@@ -227,6 +227,7 @@ export function Avatar({
       <RustModelViewport
         url={playerReference?.modelUrl ?? (composition ? avatarModelUrl(composition) : null)}
         createViewer={createNativeViewer}
+		createFallbackViewer={createCpuNativeViewer}
         label={playerReference ? `Référence ${playerReference.name}` : "Aperçu de l’avatar"}
       />
     ),

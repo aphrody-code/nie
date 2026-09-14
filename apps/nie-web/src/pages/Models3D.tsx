@@ -41,7 +41,7 @@ import {
   subscribeBrowserLocation,
   writeBrowserHistory,
 } from "@niers/inacord-ui/lib/browser-navigation";
-import { createOpaqueNativeViewer } from "../game/native-viewer";
+import { createCpuNativeViewer, createOpaqueNativeViewer } from "../game/native-viewer";
 import { agree, Notice, ViewTitle } from "./screen-parts";
 import "./models-3d.css";
 
@@ -615,6 +615,7 @@ function Viewport({
         <RustModelViewport
           url={modele.glb}
           createViewer={createOpaqueNativeViewer}
+		  createFallbackViewer={createCpuNativeViewer}
           label={`Vue 3D de ${titre}`}
           initialCamera={{
             yaw: 0.6,

@@ -130,6 +130,11 @@ export async function createNativeViewer(canvas: HTMLCanvasElement) {
 	return build(canvas, true);
 }
 
+/** CPU-only renderer for a new canvas after a GPU context has failed and locked the old one. */
+export async function createCpuNativeViewer(canvas: HTMLCanvasElement) {
+	return createCpuModelViewer(canvas);
+}
+
 /** Opaque renderer for standalone model viewports. */
 export async function createOpaqueNativeViewer(canvas: HTMLCanvasElement) {
 	return build(canvas, false);

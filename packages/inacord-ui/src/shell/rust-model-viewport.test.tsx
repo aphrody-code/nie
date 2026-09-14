@@ -70,9 +70,12 @@ afterEach(async () => {
 
 async function mount(
 	url: string | null,
-	createViewer: (canvas: HTMLCanvasElement) => Promise<RustModelViewer>
+	createViewer: (canvas: HTMLCanvasElement) => Promise<RustModelViewer>,
+	createFallbackViewer?: (canvas: HTMLCanvasElement) => Promise<RustModelViewer>,
 ) {
-	await act(async () => root?.render(<RustModelViewport url={url} createViewer={createViewer} />));
+	await act(async () => root?.render(
+		<RustModelViewport url={url} createViewer={createViewer} createFallbackViewer={createFallbackViewer} />
+	));
 	const canvas = container.querySelector("canvas")!;
 	canvas.getBoundingClientRect = () => ({
 		x: 0,
@@ -203,12 +206,39 @@ test("GPU initialization failure can retry and the successful viewer is freed on
 	expect(createViewer).toHaveBeenCalledTimes(2);
 	expect(container.querySelector("[role=alert]")).toBeNull();
 	expect(viewer.load_glb).toHaveBeenCalledTimes(1);
+	const retriedCanvas = container.querySelector("canvas")!;
+	retriedCanvas.getBoundingClientRect = () => ({
+		x: 0, y: 0, width: 320, height: 360, top: 0, left: 0, right: 320, bottom: 360,
+		toJSON() {},
+	});
 	await presentFrame();
 	expect(viewer.render).toHaveBeenCalledTimes(1);
 	await act(async () => root?.unmount());
 	root = null;
 	expect(viewer.free).toHaveBeenCalledTimes(1);
 	expect(frames.size).toBe(0);
+});
+
+test("a rejected GPU factory remounts a fresh canvas for the CPU fallback", async () => {
+	const viewer = fakeViewer();
+	const primaryCanvases: HTMLCanvasElement[] = [];
+	const fallbackCanvases: HTMLCanvasElement[] = [];
+	const createViewer = async (canvas: HTMLCanvasElement) => {
+		primaryCanvases.push(canvas);
+		throw new Error("GPU unavailable");
+	};
+	const createFallbackViewer = async (canvas: HTMLCanvasElement) => {
+		fallbackCanvases.push(canvas);
+		return viewer;
+	};
+	mockFetch(async () => new Response(new Uint8Array([1])));
+	await mount("/model/a.glb", createViewer, createFallbackViewer);
+	expect(primaryCanvases).toHaveLength(1);
+	expect(fallbackCanvases).toHaveLength(1);
+	expect(fallbackCanvases[0]).not.toBe(primaryCanvases[0]);
+	expect(viewer.load_glb).toHaveBeenCalledWith(new Uint8Array([1]));
+	await presentFrame();
+	expect(container.querySelector("canvas")?.dataset.modelReady).toBe("true");
 });
 
 test("a host can preserve its fallback and error detail while enforcing a smaller byte limit", async () => {
