@@ -330,6 +330,14 @@ describe("la chaîne de repli du viewer", () => {
 		expect(await createOpaqueNativeViewer(canvasChaine)).toMatchObject({ rang: "webgl" });
 		expect(rangs).toEqual(["webgpu", "webgl"]);
 	});
+
+	test("le CPU reste disponible quand les deux backends GPU refusent le canvas", async () => {
+		sondes({ gpu: true, webgl2: true });
+		rangsEnEchec = new Set(["webgpu", "webgl"]);
+		const viewer = await createOpaqueNativeViewer(canvasChaine);
+		expect(typeof (viewer as { load_glb?: unknown }).load_glb).toBe("function");
+		expect(rangs).toEqual(["webgpu", "webgl", "cpu"]);
+	});
 });
 
 // `navigator` et `document` sont GLOBAUX et ce moteur exécute tous les fichiers dans le même

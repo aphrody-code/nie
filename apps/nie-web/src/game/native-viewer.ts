@@ -92,12 +92,16 @@ async function build(canvas: HTMLCanvasElement, transparent: boolean) {
 		try {
 			await ensureWasm();
 			return transparent ? await WebGpuViewer.create_transparent(canvas) : await WebGpuViewer.create(canvas);
-		} catch (cause) {
+		} catch {
 			// The canvas may already hold the failed WebGPU context; the second module then
-			// refuses it too, and the original cause is the honest one to report.
+			// refuses it too. The CPU renderer has no GPU adapter requirement and remains
+			// the final usable path for browsers that expose `navigator.gpu` but cannot
+			// actually construct the wgpu backend.
 			try {
 				return await createLazyViewer(canvas, transparent);
-			} catch { throw cause; }
+			} catch {
+				return createCpuModelViewer(canvas);
+			}
 		}
 	}
 	if (hasWebGl2()) {
