@@ -202,17 +202,21 @@ mod tests {
     fn l_echelle_des_ailes_est_le_quotient_des_hauteurs_mesurees() {
         // Si un jour l'un des deux modèles change de boîte, ce test le dit — alors qu'un facteur
         // « joli » choisi à la main se serait tu.
-        let hauteur_visage = 1.645_367_7_f32 - 0.894_007_0;
+        let hauteur_visage = 1.645_367_7_f32 - 0.894_007;
         let hauteur_ailes = 3.761_226_2_f32 - 0.239_548_16;
         let attendu = hauteur_visage / hauteur_ailes;
         assert!(
             (ECHELLE_AILES_VERS_PERSONNAGE - attendu).abs() < 1e-5,
             "{ECHELLE_AILES_VERS_PERSONNAGE} vs {attendu}"
         );
-        assert!(
-            ECHELLE_AILES_VERS_PERSONNAGE < 1.0,
-            "les ailes sont à l'échelle du cut-in, donc PLUS GRANDES que le personnage"
-        );
+        // Bloc `const` : la comparaison ne dépend d'aucune mesure, donc elle doit échouer à la
+        // compilation si la constante repasse au-dessus de 1, pas au moment où le test tourne.
+        const {
+            assert!(
+                ECHELLE_AILES_VERS_PERSONNAGE < 1.0,
+                "les ailes sont à l'échelle du cut-in, donc PLUS GRANDES que le personnage"
+            );
+        }
     }
 
     #[test]
