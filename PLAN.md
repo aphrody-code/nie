@@ -1564,3 +1564,37 @@ into `niers`:
      - Subsystem Breakdown: `standalone`: 22,904, `menu`: 19,096, `chara`: 16,623, `physics`: 16,475, `gameplay`: 15,099, `script`: 8,747, `animation`: 8,672, `audio`: 5,607, `render`: 1,316, `level`: 907, `network`: 640, `vfs`: 525, `input`: 457.
    - **RE Surface Atlas (`var/nie-atlas.sqlite`)**:
      - 6,821 tracked files (1.05 GB), 49 crates, 1,071 docs, 14,462 doc references, 49,350 indexed symbols, 48 tables (2,584,334 rows), mirrored to Redis db4 with 98,895 keys.
+
+8. **IEVR Ultimate Team Ecosystem Extraction, Mirroring & Integration (`nie-launcher::ut`) — (measured 2026-09-19)**:
+   - **Target**: `https://ievr-ultimate-team.fly.dev/` and Supabase backend `https://ovgasnwnfnlvczmtpfrb.supabase.co`.
+   - **BXC Autonomous Reconnaissance & Mirroring**:
+     - `bxc detect`: Caddy HTTP/2 reverse proxy on Fly.io edge (`66.241.124.240`), Vite/React SPA, hardened CSP.
+     - `bxc recon`: DOM and 64 CSS selector rules mapped.
+     - `bxc mirror`: 118 code-split chunks downloaded into `var/mirror/ievr-ut/site/`.
+     - Asset pipeline: 722 asset URLs extracted; 663 assets (28 MB) mirrored in `var/mirror/ievr-ut/assets/` with `var/mirror/ievr-ut/assets_manifest.json`.
+   - **Database Mirroring & Parity**:
+     - 26 Supabase tables extracted, compiled into `data/ievr-ut.sqlite` (2,325 rows) and `var/mirror/ievr-ut/ievr_ut.sqlite`:
+       - 497 players (`jugadores`) with CRC32 parameter IDs matching `nie.exe`, elements, positions, stats, portraits.
+       - 69 teams (`equipos`) with Level-5 32-bit `emblem_id` (e.g. `2048855606`).
+       - 8 card packs (`sobres`) with exact drop probabilities (`prob_comun`, `prob_raro`, `prob_legendario`, `prob_icono`, `prob_basara`).
+       - 926 special moves, 70 tactics, 180 uniforms, 377 auras, 8 formations.
+       - 23 quick sell price tiers (`precios_venta_rapida`).
+       - VR Draft configuration and probabilities.
+   - **Rust Core Engine (`nie-launcher::ut`)**:
+     - Formations 2D Pitch Layout Engine: 9 canonical layouts (4-3-3, 3-5-2 Libertad, 3-6-1 Hexa, 4-3-3 Delta, 4-3-3 Triangulo, 4-4-2 Caja, 4-4-2 Diamante, 4-5-1 Equilibrio, 5-4-1 Doble Volante) + dynamic Level-5 pitch math algorithm `A(numbers)` for arbitrary formations (3-4-3, 5-3-2...).
+     - Pack Opening Simulator: mathematical drop rate evaluation, player selection weighted by `peso`, quick-sell valuation.
+     - Squad Valuation Engine: market and quick-sell calculation for decrypted lineups.
+     - Thread-safe SQLite reader (`UtDatabase`).
+   - **CLI & MCP Surface (`nie-cli`)**:
+     - `niers launcher ut packs [--json]`: lists all packs with prices & drop rates.
+     - `niers launcher ut open <pack-id> [--seed <n>] [--json]`: simulates opening packs with exact odds.
+     - `niers launcher ut players [-q <query>] [-e <element>] [-r <rarity>] [--limit <n>] [--json]`: searches player database.
+     - `niers launcher ut formation <name> [--json]`: displays 2D pitch slot coordinates.
+     - `niers launcher ut value <file> [--passphrase <key>] [--json]`: calculates market/quick-sell value.
+     - Integrated into native MCP server `cli_launcher`.
+   - **Automated Quality Gates**:
+     - `cargo test -p nie-launcher`: 8/8 passed.
+     - `cargo clippy -p nie-launcher -- -D warnings`: 0 warnings, passed.
+     - `cargo clippy -p nie-cli -- -D warnings`: 0 warnings, passed.
+     - `bun run typecheck`: 23/23 packages passed (0 errors).
+     - `bun run --cwd apps/nie-web test`: 291/291 passed (48 files).

@@ -104,7 +104,7 @@ define_cli_tools!(
         CliLauncher,
         "cli_launcher",
         "launcher",
-        "Run IEVR Ultimate Team launcher operations: team decrypt/encrypt, package info, and save parking/injection."
+        "Run IEVR Ultimate Team launcher operations: team decrypt/encrypt, package info, save parking/injection, EAC bypass, and UT packs/players/formations."
     ),
     (
         CliViola,

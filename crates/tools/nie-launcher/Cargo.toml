@@ -30,6 +30,8 @@ pbkdf2 = "0.12"
 aes-gcm = "0.10"
 aes.workspace = true
 byteorder.workspace = true
+rusqlite = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 tempfile = { version = "3" }

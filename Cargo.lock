@@ -5216,6 +5216,8 @@ dependencies = [
  "nie-formats",
  "nie-save",
  "pbkdf2",
+ "rand 0.8.7",
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2 0.10.9",

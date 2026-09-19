@@ -1301,6 +1301,69 @@ pub enum LauncherOp {
         #[command(subcommand)]
         cmd: LauncherSpiritOp,
     },
+    /// Base de données, packs, formations et simulateur IEVR Ultimate Team.
+    Ut {
+        #[command(subcommand)]
+        cmd: LauncherUtOp,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum LauncherUtOp {
+    /// Liste les packs de cartes IEVR Ultimate Team avec leurs prix et taux de drop.
+    Packs {
+        /// Format JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Simule l'ouverture d'un pack de cartes selon les probabilités officielles.
+    Open {
+        /// Identifiant du pack (ex: sobre-bronce, sobre-oro, sobre-icono).
+        pack: String,
+        /// Graine aléatoire déterministe (optionnel).
+        #[arg(long)]
+        seed: Option<u64>,
+        /// Format JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Recherche ou liste les joueurs du catalogue Ultimate Team (497 joueurs).
+    Players {
+        /// Terme de recherche optionnel (nom, apodo, ID).
+        #[arg(long, short = 'q')]
+        query: Option<String>,
+        /// Filtre par élément (Aire, Fuego, Bosque, Montaña).
+        #[arg(long, short = 'e')]
+        element: Option<String>,
+        /// Filtre par rareté (Común, Raro, Legendario, Ícono, Basara).
+        #[arg(long, short = 'r')]
+        rarity: Option<String>,
+        /// Nombre maximal de résultats (défaut : 20).
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+        /// Format JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Affiche les coordonnées 2D des slots de terrain pour une formation.
+    Formation {
+        /// Nom de la formation (ex: 4-3-3, 4-4-2, 3-5-2 Libertad, 3-4-3).
+        name: String,
+        /// Format JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Évalue la valeur marchande / vente rapide d'une composition d'équipe.
+    Value {
+        /// Chemin vers le fichier JSON d'équipe (clair ou chiffré).
+        file: std::path::PathBuf,
+        /// Phrase de passe de déchiffrement si le fichier est chiffré.
+        #[arg(long, default_value = nie_launcher::DEFAULT_PASSPHRASE)]
+        passphrase: String,
+        /// Format JSON.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -4841,6 +4904,137 @@ fn launcher_cmd(op: LauncherOp) -> anyhow::Result<()> {
                 }
             }
         },
+        LauncherOp::Ut { cmd } => launcher_ut_cmd(cmd)?,
+    }
+    Ok(())
+}
+
+fn launcher_ut_cmd(op: LauncherUtOp) -> anyhow::Result<()> {
+    match op {
+        LauncherUtOp::Packs { json } => {
+            let db = nie_launcher::UtDatabase::open_default().ok();
+            let packs = if let Some(ref d) = db {
+                d.get_packs().unwrap_or_default()
+            } else {
+                vec![]
+            };
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(&packs)?);
+            } else {
+                println!("{:<18} | {:<22} | {:>7} | {:>6} | {:>6} | {:>6} | {:>6} | {:>6}",
+                    "ID", "Nom", "Prix", "Comun", "Raro", "Legend", "Icono", "Basara");
+                println!("{:-<18}-+-{:-<22}-+-{:-<7}-+-{:-<6}-+-{:-<6}-+-{:-<6}-+-{:-<6}-+-{:-<6}",
+                    "", "", "", "", "", "", "", "");
+                for p in &packs {
+                    println!("{:<18} | {:<22} | {:>7} | {:>5.1}% | {:>5.1}% | {:>5.1}% | {:>5.2}% | {:>5.3}%",
+                        p.id,
+                        p.name,
+                        p.price,
+                        p.prob_common * 100.0,
+                        p.prob_rare * 100.0,
+                        p.prob_legendary * 100.0,
+                        p.prob_icon * 100.0,
+                        p.prob_basara * 100.0,
+                    );
+                }
+            }
+        }
+        LauncherUtOp::Open { pack, seed, json } => {
+            let db = nie_launcher::UtDatabase::open_default()
+                .context("ouverture de data/ievr-ut.sqlite")?;
+            let packs = db.get_packs()?;
+            let pack_def = packs
+                .into_iter()
+                .find(|p| p.id.eq_ignore_ascii_case(&pack))
+                .ok_or_else(|| anyhow::anyhow!("Pack inconnu: {pack}"))?;
+            let players = db.get_players()?;
+            let result = nie_launcher::open_pack_with_optional_seed(&pack_def, &players, seed);
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                println!("OUVERTURE PACK: {} ({} cartes, {} pièces)",
+                    result.pack_name, result.cards.len(), pack_def.price);
+                println!("{:-<60}", "");
+                for (i, c) in result.cards.iter().enumerate() {
+                    println!("  Card #{}: [{:<18}] {:<24} ({} | {}) -> {:>6} pièces",
+                        i + 1,
+                        c.rolled_rarity,
+                        c.player.name,
+                        c.player.element,
+                        c.player.position,
+                        c.quicksell_coins,
+                    );
+                }
+                println!("{:-<60}", "");
+                println!("VALEUR VENTE RAPIDE TOTALE: {} pièces", result.total_quicksell_value);
+            }
+        }
+        LauncherUtOp::Players { query, element, rarity, limit, json } => {
+            let db = nie_launcher::UtDatabase::open_default()
+                .context("ouverture de data/ievr-ut.sqlite")?;
+            let players = db.search_players(query.as_deref(), element.as_deref(), rarity.as_deref(), limit)?;
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(&players)?);
+            } else {
+                println!("{:<10} | {:<26} | {:<8} | {:<4} | {:<16} | {:<12}",
+                    "CRC32", "Nom", "Élément", "Pos", "Équipe", "Rareté");
+                println!("{:-<10}-+-{:-<26}-+-{:-<8}-+-{:-<4}-+-{:-<16}-+-{:-<12}",
+                    "", "", "", "", "", "");
+                for p in &players {
+                    println!("{:<10} | {:<26} | {:<8} | {:<4} | {:<16} | {:<12}",
+                        p.id, p.name, p.element, p.position, p.team_id, p.rarity);
+                }
+                println!("Total: {} joueurs affichés", players.len());
+            }
+        }
+        LauncherUtOp::Formation { name, json } => {
+            let layout = nie_launcher::formation_layout(&name);
+            if json {
+                println!("{}", serde_json::to_string_pretty(&layout)?);
+            } else {
+                println!("FORMATION: {} ({} slots terrain)", layout.name, layout.slots.len());
+                println!("{:<8} | {:<6} | {:>6} | {:>6}", "Key", "Poste", "X (%)", "Y (%)");
+                println!("{:-<8}-+-{:-<6}-+-{:-<6}-+-{:-<6}", "", "", "", "");
+                for s in &layout.slots {
+                    println!("{:<8} | {:<6} | {:>5.1}% | {:>5.1}%", s.key, s.label, s.x, s.y);
+                }
+                println!("\nRépartition par ligne de terrain :");
+                for (bande, slots) in layout.group_by_pitch_third() {
+                    let keys: Vec<_> = slots.iter().map(|s| format!("{}({:.0}%)", s.label, s.x)).collect();
+                    println!("  {:<15}: {}", bande, keys.join(", "));
+                }
+            }
+        }
+        LauncherUtOp::Value { file, passphrase, json } => {
+            let content = std::fs::read_to_string(&file)
+                .with_context(|| format!("lecture {}", file.display()))?;
+
+            let lineup = if let Ok(envelope) = serde_json::from_str::<nie_launcher::TeamExportEnvelope>(&content) {
+                nie_launcher::decrypt_team_envelope(&envelope, &passphrase)
+                    .map_err(|e| anyhow::anyhow!("déchiffrement équipe : {e}"))?
+            } else {
+                serde_json::from_str::<nie_launcher::TeamLineup>(&content)
+                    .context("désérialisation composition équipe")?
+            };
+
+            let db = nie_launcher::UtDatabase::open_default().ok();
+            let valuation = nie_launcher::calculate_squad_valuation(&lineup, db.as_ref());
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(&valuation)?);
+            } else {
+                println!("ÉVALUATION EFFECTIF : '{}'", valuation.team_name);
+                println!("  Nombre de joueurs : {}", valuation.total_players);
+                println!("  Valeur marchande vente rapide : {} pièces", valuation.total_quicksell_value);
+                println!("  Distribution des raretés :");
+                for (rar, count) in &valuation.rarity_counts {
+                    println!("    - {:<18}: {} cartes", rar, count);
+                }
+            }
+        }
     }
     Ok(())
 }

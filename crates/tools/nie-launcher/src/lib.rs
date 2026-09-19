@@ -14,6 +14,7 @@ pub mod package;
 pub mod save;
 pub mod spirit;
 pub mod team;
+pub mod ut;
 pub mod vfs;
 
 pub use eac::{patch_eac_buffer, patch_eac_file, scan_eac_sites, EacCheckSite, EacScanReport};
@@ -28,6 +29,11 @@ pub use spirit::{
 pub use team::{
     decrypt_team_envelope, encrypt_team_envelope, TeamCharacter, TeamExportEnvelope, TeamLineup,
     DEFAULT_PASSPHRASE,
+};
+pub use ut::{
+    calculate_squad_valuation, formation_layout, open_pack, open_pack_with_optional_seed,
+    quick_sell_value, DrawnCard, PackOpeningResult, SquadValuation, UtDatabase,
+    UtFormationLayout, UtFormationSlot, UtPack, UtPlayer, UtTeam,
 };
 pub use vfs::VfsServer;
 
