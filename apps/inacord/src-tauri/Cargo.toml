@@ -7,7 +7,7 @@ version.workspace = true
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+license-file.workspace = true
 repository.workspace = true
 # Tauri invokes cargo run; select the application rather than the development binaries.
 default-run = "inacord"

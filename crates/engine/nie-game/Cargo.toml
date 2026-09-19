@@ -3,7 +3,8 @@ name = "nie-game"
 description = "Hôte GUI natif wgpu — rend les vrais assets IEVR (pilier D1/C4 pixel-perfect)"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

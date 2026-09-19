@@ -3,7 +3,8 @@ name = "nie-lua-web"
 description = "Browser-callable surface over the real nie-lua VM (mlua, vendored Lua 5.2.4 C), built for wasm32-unknown-emscripten only. Mirrors crates/tools/nie-site's POST /api/v1/menu/runtime/{screen} contract: JS supplies the .lua.bin scripts and *_setting.cfg.bin bytes fetched from the site's VFS (/f/{path}), this crate replays them through the same nie_lua::menu_runtime::replay used natively. wasm32-unknown-unknown cannot host this crate: mlua-sys compiles PUC-Rio Lua's C sources, which need libc + setjmp/longjmp only present under emscripten's libc shim."
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

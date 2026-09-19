@@ -3,7 +3,8 @@ name = "nie-launcher"
 description = "Native Rust launcher, save editor, and mod package manager for Inazuma Eleven: Victory Road"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

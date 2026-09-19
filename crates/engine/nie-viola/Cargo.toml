@@ -3,7 +3,8 @@ name = "nie-viola"
 description = "Opérations de modding LEVEL-5 (dump, pack, merge, crypto Criware) en Rust — périmètre de l'outil Viola, ordonnancement et empreinte mémoire revus"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

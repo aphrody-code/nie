@@ -3,7 +3,8 @@ name = "nie-explore"
 description = "Moteur partagé d'aperçu/description des entrées VFS (CPK) par format — utilisé par `niers vfs cat` (nie-cli) et l'app desktop `nie-explorer` (Tauri)"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

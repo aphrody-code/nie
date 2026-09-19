@@ -3,7 +3,8 @@ name = "nie-runtime"
 description = "Moteur de jeu niers : boucle intégrée monde + physique + rendu top-down → frames/MP4 (headless, déterministe)"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

@@ -4,7 +4,8 @@ default-run = "nie-editor"
 description = "Native NIE 3D editor with a shared DirectX 12, Vulkan, or OpenGL viewport"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

@@ -3,7 +3,8 @@ name = "nie-ocgen"
 description = "Pipeline de génération 3D d'un personnage original : références mesurées → CHARA_EDIT_PARAM → composition → plan d'assemblage"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

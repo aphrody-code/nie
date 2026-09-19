@@ -3,7 +3,8 @@ name = "nie-model-serve"
 description = "Portable IEVR model catalogs and menu compositor with an optional live GLB HTTP server"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

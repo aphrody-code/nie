@@ -3,7 +3,8 @@ name = "nie-aphrody"
 description = "Runtime typé du pet Codex Aphrody v2 : atlas RGBA, animations et directions"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

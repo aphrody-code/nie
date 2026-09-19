@@ -3,7 +3,8 @@ name = "nie-trace"
 description = "RE en direct (runtime) : lecture de la mémoire live d'un nie.exe — process_vm_readv(2) si Wine/Linux, ReadProcessMemory si Windows natif. Résolution de module, hex dump, dump de plages, scan. Binaire nie-mem cross-compilable depuis WSL."
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

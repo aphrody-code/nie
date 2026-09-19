@@ -3,7 +3,8 @@ name = "nie-ui"
 description = "Source unique, typée, des jetons de design du jeu (couleurs OKLCH, géométrie, mouvement) — génère le CSS de packages/inacord-ui/src/shell/game-tokens.css et relie nie_formats::sprite_sheet (icônes) aux jetons pour le Rust qui compose des images"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

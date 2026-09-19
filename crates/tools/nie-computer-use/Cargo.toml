@@ -3,7 +3,8 @@ name = "nie-computer-use"
 description = "Native, bounded Computer Use probes for nie.exe and Ghidra."
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

@@ -3,7 +3,8 @@ name = "nie-lua"
 description = "VM Lua 5.2 réelle (mlua, PUC-Rio 5.2.4 vendored) — exécute les vrais scripts .lua.bin du jeu (logique de menus/scènes). Cœur de la boucle moteur."
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

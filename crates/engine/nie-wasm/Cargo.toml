@@ -3,7 +3,8 @@ name = "nie-wasm"
 description = "Bindings WebAssembly pour le savoir niers vérifié : nie-formats (detect/CRILAYLA/@UTF/G4*), nie-core (stats growth + FSM de match) et nie-data (lookup skill/aura/item) exposés au navigateur via wasm-bindgen"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

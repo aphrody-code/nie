@@ -3,7 +3,8 @@ name = "nie-geom"
 description = "Types géométriques POD partagés (Vec2/Vec3) + math scalaire — source unique du workspace (dédup Phase 2). no_std + alloc-free ; les méthodes à sqrt sont derrière la feature `std`."
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

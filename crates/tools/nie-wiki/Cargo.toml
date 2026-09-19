@@ -3,7 +3,8 @@ name = "nie-wiki"
 description = "Explore IEVR game data from the SQLite mirror"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

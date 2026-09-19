@@ -3,7 +3,8 @@ name = "nie-index"
 description = "Bounded in-memory and host-backed knowledge indexes for nie.exe reverse engineering"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

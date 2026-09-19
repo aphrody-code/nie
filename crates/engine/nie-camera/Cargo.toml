@@ -3,7 +3,8 @@ name = "nie-camera"
 description = "Caméra d'Inazuma Eleven: Victory Road — modèle, contrôleurs portés (CCameraCtrl*), codec G4CM (décode/encode byte-exact), configs cfg.bin, carte RE et pilotage live du process."
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

@@ -3,7 +3,8 @@ name = "nie-app"
 description = "Cœur du jeu niers : la machine à états (GameState) + le rendu abstrait (trait Renderer), extraits en bibliothèque réutilisable. nie-play (headless/golden) et nie-game (interactif GPU) en sont deux front-ends. Câble match nie-core, dialogues + police nie-formats, perso 3D nie-render3d."
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

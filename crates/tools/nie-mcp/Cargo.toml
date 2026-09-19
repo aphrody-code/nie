@@ -3,7 +3,8 @@ name = "nie-mcp"
 description = "Native Rust MCP stdio server for the complete niers tool surface"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

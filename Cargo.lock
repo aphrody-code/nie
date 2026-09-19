@@ -5281,6 +5281,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-net"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "nie-core",
+ "nie-geom",
+ "nie-runtime",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
 name = "nie-ocgen"
 version = "0.6.0"
 dependencies = [

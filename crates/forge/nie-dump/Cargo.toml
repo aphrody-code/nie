@@ -3,7 +3,8 @@ name = "nie-dump"
 description = "Lecture et scan AOB d'un minidump Windows de nie.exe — zéro dépendance hors thiserror"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

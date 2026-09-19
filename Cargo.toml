@@ -28,7 +28,14 @@ exclude = ["crates/archive/nie-engine"]
 [workspace.package]
 edition = "2024"
 version = "0.6.0"
-license = "MIT"
+# `license-file` et non `license = "MIT"` : le fichier LICENSE de ce dépôt est l'accord
+# commercial d'exploitation RG-L5-VR-2026-001, qui n'est pas une licence OSI. Déclarer MIT
+# faisait porter à toutes les crates une concession qu'aucun document n'accorde.
+# `publish = false` en découle : un `cargo publish` accidentel publierait du code sous accord
+# commercial. C'est aussi ce qui rend `private = { ignore = true }` de deny.toml applicable,
+# sans quoi cargo-deny rapporte chaque crate « unlicensed » (le texte de LICENSE score 0.08).
+publish = false
+license-file = "LICENSE"
 authors = ["Aphrody"]
 repository = "https://github.com/aphrody-code/nie"
 rust-version = "1.97"

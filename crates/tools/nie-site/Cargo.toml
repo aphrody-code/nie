@@ -3,7 +3,8 @@ name = "nie-site"
 description = "nie — serveur HTTP 100 % Rust (Axum 0.8) : bundle nie-web, /api/v1, espaces VFS /f et /b, proxy nie-model-serve"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

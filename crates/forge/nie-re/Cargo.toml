@@ -3,7 +3,8 @@ name = "nie-re"
 description = "Moteur RE niers : RTTI MSVC, indexation goblin/iced-x86, propagation de labels sur le call-graph"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
