@@ -43,3 +43,34 @@ Aucun secret ne doit entrer dans le dépôt. Les jetons de service vivent dans
 `~/.config/niers/` (permissions `0600`) et dans les unités systemd du VPS. Un secret
 committé par erreur doit être révoqué avant d'être retiré de l'historique — retirer sans
 révoquer ne protège rien.
+
+## Avis ouverts, et pourquoi ils ne sont pas exploitables ici
+
+État mesuré le **2026-09-19**. Cette section se re-mesure, elle ne se cite pas.
+
+Dependabot signale trois avis sur `rmcp` 1.8.0, le SDK Model Context Protocol :
+
+| Avis | Sévérité | Ce qu'il vise | Corrigé en |
+|---|---|---|---|
+| `GHSA-9pj6-vhgr-3mwh` | haute (7.5) | fuite permanente de la table de sessions du transport **HTTP streamable** (déni de service) | 2.0.0 |
+| `GHSA-33f5-2c5q-wgwj` | haute (8.2) | absence de validation du champ `resource` dans la découverte de métadonnées **OAuth** | 2.0.0 |
+| `GHSA-9g45-5xwm-f3wc` | moyenne (6.8) | en-têtes HTTP personnalisés fuités vers une cible de **redirection cross-origin** | 2.1.0 |
+
+Les trois portent sur des chemins HTTP. `nie-mcp` est un serveur **stdio**, et les features
+`rmcp` réellement compilées sont au nombre de sept — `base64`, `default`, `macros`, `schemars`,
+`server`, `transport-async-rw`, `transport-io` — **aucune HTTP** :
+
+```sh
+cargo tree -p nie-mcp -i rmcp -e features | grep -o 'rmcp feature "[^"]*"' | sort -u
+cargo tree -p nie-mcp -i rmcp -e features | grep -Ei "http|auth|axum|hyper|reqwest|sse|oauth"
+```
+
+La seconde commande ne doit **rien** rendre. Si elle rend quoi que ce soit, les trois avis
+deviennent vivants et le pin `rmcp = "1.8.0"` doit tomber avant que la feature ne soit fusionnée.
+Ce pin est délibéré (cf. le commentaire de `Cargo.toml`) : il suit la révision revue du frère de
+production `aphrody-mcp`, et la montée en 2.x est une rupture d'API attendant sa suite de
+compatibilité.
+
+**`cargo deny check advisories` rend `ok` sur cet état** : la base RustSec qu'il consulte ne porte
+pas ces trois GHSA. Les deux sources ne se recouvrent donc pas, et passer l'une ne dispense pas de
+lire l'autre.
