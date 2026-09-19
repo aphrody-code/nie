@@ -28,7 +28,7 @@
  * sans son gestionnaire.
  */
 import { LayoutCanvas } from "../game/LayoutCanvas";
-import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useSettings } from "@niers/inacord-ui";
+import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useGameTextResolver, useSettings } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listPage, stepCursor } from "../game/list-page";
@@ -122,6 +122,8 @@ export function Shop({ onBack }: ShopProps) {
 	const [compose, setCompose] = useState({ drawn: 0, skipped: 0 });
 	const seen = useRef(new Set<string>());
 	const { settings: { gameLocale } } = useSettings();
+	// Les mots du jeu quand il les écrit ; le libellé du code sinon.
+	const motJeu = useGameTextResolver();
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -231,7 +233,7 @@ export function Shop({ onBack }: ShopProps) {
 
 	const hints = useMemo(() => [
 		{
-			key: "Enter", keyLabel: "Entrée", label: selected ? "Relâcher" : "Confirmer",
+			key: "Enter", keyLabel: "Entrée", label: selected ? "Relâcher" : motJeu("Confirmer"),
 			// « Confirmer » fige la fiche sur l'objet choisi ; la touche le relâche ensuite.
 			onActivate: () => setSelected((value) => value ? null : focused),
 		},
@@ -243,7 +245,7 @@ export function Shop({ onBack }: ShopProps) {
 				if (index >= 0) selectShop(index);
 			},
 		},
-		{ key: "Escape", keyLabel: "Esc", label: "Retour", onActivate: onBack, fromInputs: true },
+		{ key: "Escape", keyLabel: "Esc", label: motJeu("Retour"), onActivate: onBack, fromInputs: true },
 	], [stock, selectShop, onBack, selected, focused]);
 
 	return (
@@ -268,7 +270,7 @@ export function Shop({ onBack }: ShopProps) {
 					<NativeText text={current ? current.label : SHOP_TITLE} height={28} />
 				</header>
 
-				<nav className="shop__shops" aria-label="Boutiques">
+				<nav className="shop__shops" aria-label={motJeu("Boutiques")}>
 					{stock.map((shop, index) => (
 						<button
 							key={shop.id}

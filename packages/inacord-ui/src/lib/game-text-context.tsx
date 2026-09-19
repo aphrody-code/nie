@@ -44,6 +44,22 @@ export function useGameText(label: string): string {
 }
 
 /**
+ * Un résolveur, pour les libellés qu'un hook ne peut pas atteindre.
+ *
+ * [`useGameText`] en résout UN, et c'est un hook : il ne s'appelle ni dans une boucle, ni dans
+ * une condition, ni dans le `useMemo` où vivent la plupart des tables de libellés d'un écran.
+ * Ce hook-ci s'appelle une fois et rend une fonction ordinaire, utilisable partout ensuite —
+ * y compris pour un libellé calculé.
+ *
+ * `<GameText>` reste le bon outil dans le JSX ; celui-ci sert aux attributs, aux tableaux
+ * d'options et aux barres d'indices, qui portent des chaînes et non des nœuds.
+ */
+export function useGameTextResolver(): (label: string) => string {
+	const catalogue = useContext(ContexteTexteJeu);
+	return (label: string) => gameText(catalogue, label);
+}
+
+/**
  * Le texte du jeu, posé dans le JSX.
  *
  * Un composant plutôt qu'un appel à [`useGameText`] parce qu'un hook ne peut pas être appelé

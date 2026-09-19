@@ -199,7 +199,7 @@ export {
 	refKey,
 	useGameTextCatalogue,
 } from "./lib/game-text";
-export { GameText, GameTextProvider, useGameText } from "./lib/game-text-context";
+export { GameText, GameTextProvider, useGameText, useGameTextResolver } from "./lib/game-text-context";
 export {
 	type NativeTextMatches,
 	type NativeTextOccurrence,

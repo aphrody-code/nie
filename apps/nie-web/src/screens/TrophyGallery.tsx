@@ -32,7 +32,7 @@
  * jouent par `NativeMoviePlayer`.
  */
 import { LayoutCanvas } from "../game/LayoutCanvas";
-import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useSettings } from "@niers/inacord-ui";
+import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useGameTextResolver, useSettings } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -122,6 +122,8 @@ export interface TrophyGalleryProps {
 
 export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 	const { settings: { gameLocale } } = useSettings();
+	// Les mots du jeu quand il les écrit ; le libellé du code sinon.
+	const motJeu = useGameTextResolver();
 	const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
 	const assetBrowserOpen = new URL(location, "http://localhost").searchParams.get("display") === "gallery";
 	const [layout, setLayout] = useState<LayoutJeu | null>(null);
@@ -257,10 +259,10 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 	);
 
 	const hints = useMemo(() => [
-		{ key: "Enter", keyLabel: "Entrée", label: "Confirmer", onActivate: confirm },
+		{ key: "Enter", keyLabel: "Entrée", label: motJeu("Confirmer"), onActivate: confirm },
 		{ key: "Tab", keyLabel: "Tab", label: current ? `Famille : ${current.label}` : "Famille", onActivate: () => changeFamily(1) },
 		{ key: "x", keyLabel: "X", label: "Chercher", onActivate: () => setSearchOpen(true) },
-		{ key: "Escape", keyLabel: "Esc", label: "Retour", onActivate: onBack, fromInputs: true },
+		{ key: "Escape", keyLabel: "Esc", label: motJeu("Retour"), onActivate: onBack, fromInputs: true },
 	], [confirm, changeFamily, current, onBack]);
 
 	if (assetBrowserOpen) {

@@ -31,6 +31,7 @@ import {
 	useCapacites as useCapabilities,
 	useAssetSource,
 	useSettings,
+	useGameTextResolver,
 	type GameLocale,
 } from "@niers/inacord-ui";
 import {
@@ -359,6 +360,9 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	}, [webCatalogue, urlState, writeWebState]);
 
 	const { settings: { gameLocale } } = useSettings();
+	// Les mots du JEU, quand il les écrit. Un libellé absent de la carte mesurée reste celui
+	// du code : la carte refuse de deviner, et cet écran ne devine pas non plus.
+	const motJeu = useGameTextResolver();
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -531,7 +535,9 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	const families = useMemo<readonly GameFilterFamily[]>(() => {
 		if (!webCatalogue) return localFamilies;
 		const labels: Record<CharaFacet, string> = {
-			element: "Élément", position: "Poste", rarity: "Rareté", series: "Série",
+			// Les quatre familles portent les mots du JEU quand il les écrit. « Poste » n'est pas
+			// dans la carte mesurée : il reste donc tel quel, comme la carte le prescrit.
+			element: motJeu("Élément"), position: "Poste", rarity: motJeu("Rareté"), series: motJeu("Série"),
 		};
 		const serverFamilies = (Object.keys(labels) as CharaFacet[]).map((id) => ({
 			id,
@@ -596,19 +602,19 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 			|| urlState.order !== "asc" || urlState.page !== 1 || urlState.perPage !== PAGE_SIZE)
 		: Object.values(filter).some((value) => value.length > 0);
 	const hints = useMemo(() => [
-		{ key: "Tab", keyLabel: "Tab", label: sortByName ? "Par nom" : "Par acquisition", onActivate: toggleNameSort },
+		{ key: "Tab", keyLabel: "Tab", label: sortByName ? motJeu("Par nom") : motJeu("Par acquisition"), onActivate: toggleNameSort },
 		{ key: "v", keyLabel: "V", label: hideStats ? "Afficher les stats" : "Cacher les stats", onActivate: () => setHideStats((v) => !v) },
 		{ key: "x", keyLabel: "X", label: "Chercher par nom de joueur", onActivate: () => setSearchOpen(true) },
 		{ key: "Alt", keyLabel: "Alt", label: `Filtre : ${filtersActive ? "ON" : "OFF"}`, onActivate: () => setFilterOpen(true) },
 		...(page.index > 0 ? [{ key: "w", keyLabel: "W", label: "Page précédente", onActivate: () => move("page", -1) }] : []),
 		...(page.index + 1 < page.count ? [{ key: "c", keyLabel: "C", label: "Page suivante", onActivate: () => move("page", 1) }] : []),
-		{ key: "Escape", keyLabel: "Esc", label: "Retour", onActivate: onBack, fromInputs: true },
+		{ key: "Escape", keyLabel: "Esc", label: motJeu("Retour"), onActivate: onBack, fromInputs: true },
 	], [sortByName, toggleNameSort, hideStats, filtersActive, page.index, page.count, move, onBack]);
 
 	return (
 		<section
 			className="player-bank"
-			aria-label="Banque"
+			aria-label={motJeu("Banque")}
 			data-screen={SCREEN}
 			data-render-source="vfs-layout"
 			data-lua-observation={runtimeState}
@@ -625,7 +631,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 				) : null}
 
 				<header className="player-bank__title">
-					<NativeText text="Banque" height={28} />
+					<NativeText text={motJeu("Banque")} height={28} />
 				</header>
 
 				<div className="player-bank__grid" role="listbox" aria-label="Personnages de la banque" aria-activedescendant={focused ? `bank-item-${focused.chara.chara_param_id}` : undefined}>
