@@ -27,16 +27,41 @@ echecs=()
 for f in scripts/validate_*"$filtre"*.py; do
     [ -e "$f" ] || { echo "aucune preuve ne correspond à « $filtre »"; exit 1; }
     nom=$(basename "$f" .py)
+    # Sur QUEL binaire cette preuve est-elle ancrée ? Deux builds coexistent sur cette machine
+    # et leurs adresses ne coïncident pas :
+    #
+    #   nie.exe                                            33 918 464 o  b1fa04ea…  ← la CIBLE RE
+    #   ~/.local/share/iecode/patched/nie.exe.patched      31 468 032 o  4c2b91fb…  ← build hérité
+    #
+    # Ce choix était IMPLICITE et il coûtait cher : tout ce qui n'était pas `validate_listview_*`
+    # partait sur le build hérité, y compris une preuve écrite contre la cible. Le symptôme n'est
+    # pas un écart de valeurs mais un TIMEOUT — l'adresse tombe sur d'autres octets, l'émulation
+    # part en boucle — donc il se lit comme « preuve trop lente » et non comme « mauvais binaire ».
+    # Mesuré le 2026-09-19 sur validate_g4_component_decode : 1,3 s ✓ sur la cible, ⧗ 60 s sur
+    # l'hérité. Une preuve DÉCLARE donc désormais son ancrage, en tête de fichier :
+    #
+    #     # uemu-anchor: target     → nie.exe (la cible RE)
+    #     # uemu-anchor: legacy     → le build hérité patché
+    #
+    # Sans déclaration, le comportement historique est conservé : les 49 preuves antérieures ont
+    # été écrites contre l'hérité, les basculer en bloc serait un changement non mesuré.
     exe_env=""
     if [ -z "${NIE_EXE:-}" ]; then
-        case "$nom" in
-            validate_listview_*)
-                exe_env="NIE_EXE=nie.exe"
-                ;;
+        ancrage=$(grep -m1 -oE '^# uemu-anchor: *(target|legacy)' "$f" | awk '{print $3}')
+        case "${ancrage:-}" in
+            target) exe_env="NIE_EXE=nie.exe" ;;
+            legacy) exe_env="NIE_EXE=/home/ubuntu/.local/share/iecode/patched/nie.exe.patched" ;;
             *)
-                if [ -f "/home/ubuntu/.local/share/iecode/patched/nie.exe.patched" ]; then
-                    exe_env="NIE_EXE=/home/ubuntu/.local/share/iecode/patched/nie.exe.patched"
-                fi
+                case "$nom" in
+                    validate_listview_*)
+                        exe_env="NIE_EXE=nie.exe"
+                        ;;
+                    *)
+                        if [ -f "/home/ubuntu/.local/share/iecode/patched/nie.exe.patched" ]; then
+                            exe_env="NIE_EXE=/home/ubuntu/.local/share/iecode/patched/nie.exe.patched"
+                        fi
+                        ;;
+                esac
                 ;;
         esac
     fi
