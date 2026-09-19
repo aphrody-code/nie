@@ -155,6 +155,47 @@ Les magics marqués « confirmé » ont été localisés dans `.rdata` de `nie.e
 | **MEVBIN** — motion-events | `MEVBIN` | Déclencheurs d'animation indexés par code de personnage |
 | **OBJB** — objets-menu | `OBJB` | Définitions d'objets de menu |
 
+### G4TX — recoloration d'un conteneur
+
+`nie_formats::recolor` (maths couleur, alloc-only) et `nie_formats::g4tx_recolor` (round-trip
+conteneur) portent la recoloration : décalage TSV cyclique, facteurs de saturation et de valeur,
+et rampe de luminance à arrêts arbitraires. L'alpha n'est jamais touché — une aura de technique
+est un dégradé alpha, et le repeindre détruirait sa découpe.
+
+`g4tx_recolor::reencode_with_payloads` est la **source unique** de la reconstruction partielle
+d'un conteneur : charges non touchées recopiées octet pour octet, régions d'atlas reportées,
+relecture immédiate vérifiant noms, ids et comptes de régions. `niers mod texture` et
+`niers mod recolor` passent tous deux par elle.
+
+Surface CLI :
+
+```sh
+niers mod recolor data/dx11/menu/220_img/telop_waza/fr/<skill_id>.g4tx --teinte 120
+niers mod recolor <chemin-vfs> --rampe '#FF4400,#FF8800,#FFCC00' --force 0.8
+```
+
+`recolor` accepte les conteneurs découpés en régions, là où `texture` les refuse : une
+recoloration est une transformation par pixel **à dimensions constantes**, donc chaque rectangle
+de région reste exact, tandis que « remplacer » une texture partagée par plusieurs régions n'a
+pas de sens univoque.
+
+**Provenance, et une mise en garde mesurée.** Le modèle couleur vient de « INAZUMA ELEVEN
+Hissatsu Recolor Tool » (GameBanana [22383](https://gamebanana.com/tools/22383), fichier
+1671783 ; licence explicitement permissive — « use parts of this Tool in another Tool »).
+**Seule la transformation couleur a été reprise, et le trio `primary`/`secondary`/`accent` de
+l'outil n'est que la rampe à trois arrêts `0.0` / `0.5` / `1.0` (`Ramp::from_three`).** Son
+lecteur `.g4tx`, lui, est une invention : magic, puis trois `u32` (version, largeur, hauteur),
+puis des pixels RGBA bruts à offset fixe — là où le format réel est le conteneur décrit
+ci-dessus. Son propre rapport de validation l'admet à mots couverts (« returns original if
+parsing fails ») : en pratique il recopiait les fichiers sans les modifier. Le test
+`le_lecteur_g4tx_de_l_outil_gamebanana_ne_decrit_pas_le_format_reel` fige cette mesure sur un
+conteneur produit par l'encodeur du dépôt. Archive d'origine conservée hors git sous
+`var/thirdparty/` (sha256 `84f9a94c8f950b766f4b6d12024404b2437e959fde40088b7c9ab9d1733b6ea9`).
+
+L'outil déclarait aussi une limitation n°1 — « cannot automatically link Hissatsu skills to
+effect textures » — que ce dépôt ne partage pas : `nie_data::skill` construit le chemin
+`data/dx11/menu/220_img/telop_waza/<lang>/<skill_id>.g4tx` depuis l'identifiant de technique.
+
 ### `cfg.bin` — configuration
 
 | Champ | Valeur |

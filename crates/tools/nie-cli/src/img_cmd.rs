@@ -53,6 +53,24 @@ fn filter_of(name: &str) -> Result<FilterType> {
     })
 }
 
+/// `niers img recolor` — applique le filtre couleur de [`nie_formats::recolor`] à une image.
+///
+/// L'image est forcée en RGBA8 : le filtre travaille sur quatre octets par pixel, et une source
+/// en niveaux de gris ou en RGB doit donc porter un canal alpha avant d'y entrer. L'alpha
+/// ressort intact — ce filtre ne touche jamais qu'aux trois premiers canaux.
+pub fn recolor(src: &Path, dst: &Path, filtre: &nie_formats::recolor::Recolor) -> Result<()> {
+    if filtre.is_identity() {
+        bail!("le filtre ne change rien — préciser --teinte, --saturation, --valeur ou --rampe");
+    }
+    let img = load(src)?;
+    let (w, h) = img.dimensions();
+    let mut rgba = img.to_rgba8();
+    filtre.apply_rgba(rgba.as_mut());
+    save(&image::DynamicImage::ImageRgba8(rgba), dst)?;
+    println!("recoloré  {} → {} ({w}×{h})", src.display(), dst.display());
+    Ok(())
+}
+
 /// `niers img info` — dimensions, format et couleur, sans rien réécrire.
 pub fn info(src: &Path) -> Result<()> {
     let reader = ImageReader::open(src)
@@ -291,6 +309,11 @@ pub enum Op {
         filter: String,
         exact: bool,
     },
+    Recolor {
+        src: PathBuf,
+        out: PathBuf,
+        filtre: nie_formats::recolor::Recolor,
+    },
     Crop {
         src: PathBuf,
         out: PathBuf,
@@ -324,6 +347,7 @@ pub enum Op {
 pub fn run(op: &Op) -> Result<()> {
     match op {
         Op::Info { src } => info(src),
+        Op::Recolor { src, out, filtre } => recolor(src, out, filtre),
         Op::Resize {
             src,
             out,

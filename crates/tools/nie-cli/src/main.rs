@@ -755,6 +755,33 @@ enum ImgOp {
         #[arg(long)]
         exact: bool,
     },
+    /// Recolore une image : décalage TSV et/ou rampe de luminance, alpha préservé.
+    ///
+    /// Même filtre que `niers mod recolor` (`nie_formats::recolor`) — de quoi régler les
+    /// paramètres sur un PNG avant de les appliquer à un `.g4tx` du jeu.
+    Recolor {
+        src: PathBuf,
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// Décalage de teinte en degrés (cyclique).
+        #[arg(long, default_value_t = 0.0, allow_negative_numbers = true)]
+        teinte: f32,
+        /// Facteur de saturation (`1` = inchangé, `0` = gris).
+        #[arg(long, default_value_t = 1.0)]
+        saturation: f32,
+        /// Facteur de luminosité (`1` = inchangé).
+        #[arg(long, default_value_t = 1.0)]
+        valeur: f32,
+        /// Rampe de luminance `#RRGGBB[@position]`, séparée par des virgules.
+        #[arg(long)]
+        rampe: Option<String>,
+        /// Force du mélange de la rampe, de `0` (original) à `1` (rampe pure).
+        #[arg(long, default_value_t = 1.0)]
+        force: f32,
+        /// Alpha en dessous duquel un pixel est laissé intact.
+        #[arg(long, default_value_t = 1)]
+        alpha_min: u8,
+    },
     /// Recadre une région.
     Crop {
         src: PathBuf,
@@ -2913,6 +2940,34 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         },
         Cmd::Img { op } => img_cmd::run(&match op {
             ImgOp::Info { src } => img_cmd::Op::Info { src },
+            ImgOp::Recolor {
+                src,
+                out,
+                teinte,
+                saturation,
+                valeur,
+                rampe,
+                force,
+                alpha_min,
+            } => img_cmd::Op::Recolor {
+                src,
+                out,
+                filtre: nie_formats::recolor::Recolor {
+                    hue_shift: teinte,
+                    saturation,
+                    value: valeur,
+                    ramp: match rampe {
+                        Some(spec) => {
+                            let mut r = nie_formats::recolor::Ramp::parse(&spec)
+                                .map_err(|e| anyhow::anyhow!("--rampe : {e}"))?;
+                            r.strength = force;
+                            Some(r)
+                        }
+                        None => None,
+                    },
+                    alpha_min,
+                },
+            },
             ImgOp::Resize {
                 src,
                 out,

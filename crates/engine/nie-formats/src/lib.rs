@@ -100,6 +100,10 @@ pub mod g4tx_decode;
 /// écriture de [`g4tx_decode`], même gating (ses tests round-trip en dépendent).
 #[cfg(feature = "textures")]
 pub mod g4tx_encode;
+/// Recoloration d'un conteneur G4TX entier : décodage réel, filtre [`recolor`], réencodage réel.
+/// Porte aussi la reconstruction partielle partagée d'un conteneur (`reencode_with_payloads`).
+#[cfg(feature = "textures")]
+pub mod g4tx_recolor;
 #[cfg(feature = "std")]
 pub mod g4vs;
 /// Encodage d'une image RGBA8 vers les formats d'échange (WebP sans perte, GIF, JPEG, BMP, TGA,
@@ -147,6 +151,8 @@ pub mod planche;
 pub mod raster2d;
 pub mod rdbn_patch;
 /// Atlas d'icônes `.g4tx` → feuille de sprites CSS / SVG / JSON, pour le web et l'explorateur.
+/// Recoloration d'une image RGBA8 (décalage TSV + rampe de luminance), alloc-only.
+pub mod recolor;
 #[cfg(feature = "std")]
 pub mod sprite_sheet;
 /// `strcmp` byte-exact (`FUN_14168b570`, MSVC SIMD) — comparaison C non signée, no_std.

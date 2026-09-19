@@ -38,6 +38,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, bail};
 use clap::Subcommand;
 use nie_formats::cfgbin;
+use nie_formats::g4tx_recolor::NouvelleCharge;
 use nie_viola::manifeste::{self, Manifeste};
 use serde_json::Value;
 
@@ -139,6 +140,41 @@ pub enum ModOp {
         png: PathBuf,
         /// Nom de la texture principale à remplacer — requis si le conteneur en porte plusieurs
         /// (les icônes de portrait en ont deux : `<code>_1_l00` et `<code>_2_l00`).
+        #[arg(long)]
+        texture: Option<String>,
+        #[arg(long, short = 'd', default_value = ".")]
+        dir: PathBuf,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Recolore un `.g4tx` sans toucher à sa géométrie : décalage TSV et/ou rampe de luminance.
+    ///
+    /// Contrairement à `texture`, accepte les conteneurs découpés en régions d'atlas — une
+    /// recoloration est une transformation par pixel à dimensions constantes, donc chaque
+    /// rectangle de région reste exact.
+    Recolor {
+        /// Chemin VFS du `.g4tx`.
+        chemin: String,
+        /// Décalage de teinte en degrés (cyclique) : `120` fait passer le rouge au vert.
+        #[arg(long, default_value_t = 0.0, allow_negative_numbers = true)]
+        teinte: f32,
+        /// Facteur de saturation (`1` = inchangé, `0` = gris).
+        #[arg(long, default_value_t = 1.0)]
+        saturation: f32,
+        /// Facteur de luminosité (`1` = inchangé).
+        #[arg(long, default_value_t = 1.0)]
+        valeur: f32,
+        /// Rampe de luminance `#RRGGBB[@position]` séparée par des virgules — trois couleurs
+        /// sans position donnent le trio ombre / mi-teinte / haute lumière.
+        #[arg(long)]
+        rampe: Option<String>,
+        /// Force du mélange de la rampe, de `0` (original) à `1` (rampe pure).
+        #[arg(long, default_value_t = 1.0)]
+        force: f32,
+        /// Alpha en dessous duquel un pixel est laissé intact (remplissage transparent d'atlas).
+        #[arg(long, default_value_t = 1)]
+        alpha_min: u8,
+        /// Restreint la recoloration à une texture principale ; par défaut, toutes.
         #[arg(long)]
         texture: Option<String>,
         #[arg(long, short = 'd', default_value = ".")]
@@ -329,6 +365,31 @@ pub fn executer(op: ModOp) -> anyhow::Result<()> {
             dir,
             game_dir,
         } => texture(&chemin, &png, nom.as_deref(), &dir, game_dir),
+        ModOp::Recolor {
+            chemin,
+            teinte,
+            saturation,
+            valeur,
+            rampe,
+            force,
+            alpha_min,
+            texture: nom,
+            dir,
+            game_dir,
+        } => recolor(
+            &chemin,
+            Filtre {
+                teinte,
+                saturation,
+                valeur,
+                rampe: rampe.as_deref(),
+                force,
+                alpha_min,
+            },
+            nom.as_deref(),
+            &dir,
+            game_dir,
+        ),
         ModOp::Status { dir, game_dir } => status(&dir, game_dir),
         ModOp::Validate { dir, game_dir } => validate(&dir, game_dir).map(|_| ()),
         ModOp::Install {
@@ -589,89 +650,23 @@ fn texture(
         .map_err(|e| anyhow::anyhow!("encodage DDS : {e}"))?;
     let (li, hi) = (i16::try_from(l)?, i16::try_from(h)?);
 
-    // Les payloads des textures NON remplacées sont recopiés octet pour octet depuis le fichier
-    // d'origine : rien n'est ré-encodé, donc rien ne peut se dégrader au passage.
-    let mut entrees = Vec::with_capacity(atlas.textures.len());
-    for (i, t) in atlas.textures.iter().enumerate() {
-        if i == index {
-            entrees.push(nie_formats::g4tx_encode::TextureAEcrire {
-                name: t.name.as_str(),
-                id: t.id,
-                width: li,
-                height: hi,
-                dds: &dds,
-            });
-            continue;
-        }
-        let fin = t.data_offset.saturating_add(t.data_size);
-        let payload = octets.get(t.data_offset..fin).ok_or_else(|| {
-            anyhow::anyhow!(
-                "« {chemin} » : payload de « {} » hors limites ({}..{fin} sur {} octets)",
-                t.name,
-                t.data_offset,
-                octets.len()
-            )
-        })?;
-        entrees.push(nie_formats::g4tx_encode::TextureAEcrire {
-            name: t.name.as_str(),
-            id: t.id,
-            width: i16::try_from(t.width).unwrap_or(0),
-            height: i16::try_from(t.height).unwrap_or(0),
-            dds: payload,
-        });
-    }
-
-    // Régions d'atlas des autres textures, reportées avec leur texture parente.
-    let mut regions = Vec::new();
-    for (i, t) in atlas.textures.iter().enumerate() {
-        for s in &t.sub_textures {
-            regions.push(nie_formats::g4tx_encode::RegionAEcrire {
-                entry_index: i16::try_from(i)?,
-                name: s.name.as_str(),
-                id: s.id,
-                x: s.x,
-                y: s.y,
-                width: s.width,
-                height: s.height,
-            });
-        }
-    }
-
-    let nouveaux = nie_formats::g4tx_encode::encode_g4tx_multi_texture(&entrees, &regions)
-        .map_err(|e| anyhow::anyhow!("encodage G4TX : {e}"))?;
-
-    // Relire ce qu'on vient d'écrire, tout de suite : un conteneur qui ne se reparse pas doit
-    // échouer ici, pas dans le jeu. On vérifie que TOUTES les textures reviennent, pas seulement
-    // celle qui a été remplacée.
-    let relu = nie_formats::g4tx::parse(&nouveaux)
-        .map_err(|e| anyhow::anyhow!("le G4TX réencodé ne se relit pas : {e}"))?;
-    if relu.textures.len() != atlas.textures.len() {
-        bail!(
-            "le G4TX réencodé rend {} texture(s) au lieu de {} — modification refusée",
-            relu.textures.len(),
-            atlas.textures.len()
-        );
-    }
-    for (avant, apres) in atlas.textures.iter().zip(&relu.textures) {
-        if avant.name != apres.name || avant.id != apres.id {
-            bail!(
-                "le G4TX réencodé rend « {} » (id {}) là où « {} » (id {}) était attendu — \
-                 modification refusée",
-                apres.name,
-                apres.id,
-                avant.name,
-                avant.id
-            );
-        }
-        if avant.sub_textures.len() != apres.sub_textures.len() {
-            bail!(
-                "le G4TX réencodé rend {} région(s) sur « {} » au lieu de {} — modification refusée",
-                apres.sub_textures.len(),
-                avant.name,
-                avant.sub_textures.len()
-            );
-        }
-    }
+    // La reconstruction du conteneur — charges non touchées recopiées octet pour octet, régions
+    // d'atlas reportées, relecture immédiate du résultat — vit dans `nie_formats::g4tx_recolor`.
+    // C'est la source unique, partagée avec `niers mod recolor` : deux reconstructions
+    // dériveraient, et celle-ci a déjà à tenir quatre invariants (noms, ids, comptes de régions,
+    // reparse).
+    let mut charges: Vec<NouvelleCharge> = atlas
+        .textures
+        .iter()
+        .map(|_| NouvelleCharge::Inchangee)
+        .collect();
+    charges[index] = NouvelleCharge::Dds {
+        dds,
+        width: li,
+        height: hi,
+    };
+    let nouveaux = nie_formats::g4tx_recolor::reencode_with_payloads(&octets, &atlas, &charges)
+        .map_err(|e| anyhow::anyhow!("« {chemin} » : {e} — modification refusée"))?;
 
     let p = ecrire_dans_le_mod(dir, chemin, &nouveaux)?;
     println!("texture   {} — {l}×{h}", atlas.textures[index].name);
@@ -690,6 +685,63 @@ fn texture(
     }
     println!("fichier   {}", p.display());
     println!("octets    {} → {}", octets.len(), nouveaux.len());
+    Ok(())
+}
+
+/// Les réglages de `niers mod recolor`, regroupés — sept arguments de plus sur `recolor` auraient
+/// déclenché `clippy::too_many_arguments` et se seraient lus comme une suite de flottants anonymes.
+struct Filtre<'a> {
+    teinte: f32,
+    saturation: f32,
+    valeur: f32,
+    rampe: Option<&'a str>,
+    force: f32,
+    alpha_min: u8,
+}
+
+fn recolor(
+    chemin: &str,
+    filtre: Filtre<'_>,
+    nom_texture: Option<&str>,
+    dir: &Path,
+    game_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    let rampe = match filtre.rampe {
+        Some(spec) => {
+            let mut r = nie_formats::recolor::Ramp::parse(spec)
+                .map_err(|e| anyhow::anyhow!("--rampe : {e}"))?;
+            r.strength = filtre.force;
+            Some(r)
+        }
+        None => None,
+    };
+    let f = nie_formats::recolor::Recolor {
+        hue_shift: filtre.teinte,
+        saturation: filtre.saturation,
+        value: filtre.valeur,
+        ramp: rampe,
+        alpha_min: filtre.alpha_min,
+    };
+
+    let octets = octets_courants(dir, chemin, game_dir)?;
+    let r = nie_formats::g4tx_recolor::recolour(&octets, &f, nom_texture)
+        .map_err(|e| anyhow::anyhow!("« {chemin} » : {e}"))?;
+
+    let p = ecrire_dans_le_mod(dir, chemin, &r.octets)?;
+    for (nom, l, h) in &r.recolorees {
+        println!("recoloré  {nom} — {l}×{h}");
+    }
+    if !r.hors_cible.is_empty() {
+        println!("hors cible {}", r.hors_cible.join(", "));
+    }
+    // Une charge illisible est RECOPIÉE, jamais remplacée par du vide : il faut donc la dire, et
+    // séparément de `hors cible` — sinon un conteneur à moitié recoloré passe pour entièrement
+    // recoloré, et la seule ligne qui l'aurait signalé se confond avec un choix de l'appelant.
+    if !r.illisibles.is_empty() {
+        println!("ILLISIBLES {} — recopiées telles quelles", r.illisibles.join(", "));
+    }
+    println!("fichier   {}", p.display());
+    println!("octets    {} → {}", octets.len(), r.octets.len());
     Ok(())
 }
 
