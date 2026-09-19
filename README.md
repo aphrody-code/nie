@@ -7,8 +7,8 @@
 
 <p align="center">
   <a href="https://github.com/aphrody-code/nie/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/aphrody-code/nie/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.11-blue">
-  <img alt="rust" src="https://img.shields.io/badge/rust-nightly--2026--05--17-orange">
+  <img alt="version" src="https://img.shields.io/badge/version-0.6.0-blue">
+  <img alt="rust" src="https://img.shields.io/badge/rust-1.98.1--stable-orange">
   <img alt="edition" src="https://img.shields.io/badge/edition-2024-orange">
   <img alt="forge" src="https://img.shields.io/badge/forge-74.06%25%20of%20nie.exe-yellow">
   <img alt="license" src="https://img.shields.io/badge/license-RG--L5--VR--2026--001-red">
@@ -26,6 +26,7 @@
 - [The reverse-engineering workflow](#the-reverse-engineering-workflow)
 - [Quick start](#quick-start)
 - [Repository layout](#repository-layout)
+- [The five shipped surfaces](#the-five-shipped-surfaces)
 - [Platform support](#platform-support)
 - [Development](#development)
 - [Reverse-engineering bridge](#reverse-engineering-bridge)
@@ -201,17 +202,18 @@ also carries its own README ([`crates/`](crates/README.md), [`packages/`](packag
 [`apps/`](apps/README.md), [`scripts/`](scripts/README.md)). Historical port provenance is
 tracked in [`docs/IECODE-MIGRATION.md`](docs/IECODE-MIGRATION.md).
 
-### Rust crates (38 directories, 36 compiled — `cargo metadata --no-deps`)
+### Rust crates (48 directories, 46 compiled — `cargo metadata --no-deps`)
 
 - **`crates/forge/`** (10) — `nie-pe` (byte-exact PE64 read/write), `nie-asm` (x86-64 encoder in the
   MSVC dialect), `nie-forge` (the loop and the measurement), plus the RE scaffolding: `nie-re`,
   `nie-dump`, `nie-index`, `nie-seed`, `nie-queue`, `nie-trace`, `aphrody-re`.
-- **`crates/engine/`** (18) — `nie-formats` (38 parsers: CPK, cfg.bin, the G4* family, Criware
+- **`crates/engine/`** (23) — `nie-formats` (38 parsers: CPK, cfg.bin, the G4* family, Criware
   audio, DXBC, collision, navmesh), `nie-data` (121 typed config families), `nie-core` (ported
   game logic), `nie-lua` (the game's real Lua 5.2 VM), `nie-game` (wgpu host), `nie-wasm`,
   `nie-save`, and others.
-- **`crates/tools/`** (8) — `nie-cli` (the `niers` binary), `nie-wiki`, `nie-zukan`, `nie-steam`,
-  `nie-model-serve`, `nie-editor`, `nie-bench`, `nie-tasks`.
+- **`crates/tools/`** (13) — `nie-cli` (the `niers` binary), `nie-mcp`, `nie-site`,
+  `nie-model-serve`, `nie-wiki`, `nie-zukan`, `nie-steam`, `nie-editor`, `nie-bench`,
+  `nie-tasks`, `nie-launcher`, `nie-computer-use`, `ievr-tools`.
 - **`crates/archive/`** (2) — excluded from the build. Read-only RE reference, compiled by nobody.
 
 ### Everything Inazuma Eleven lives here
@@ -236,6 +238,32 @@ niers vfs find "mark" --json
 
 Every IEVR query is implemented in Rust and reads only the local VFS or its read-only mirror.
 See [`PLAN.md`](PLAN.md) for the measured ownership and verification ledger.
+
+## The five shipped surfaces
+
+Each one is built, released and deployed **on its own**. `bun run surfaces list` prints this with
+the crate counts derived live from `cargo metadata`:
+
+| Surface | Artefact | Root crate | Release tag |
+| --- | --- | --- | --- |
+| `cli` | `niers` — VFS, formats, the atlas | `nie-cli` | `cli-v*` |
+| `mcp` | `nie-mcp` — native Model Context Protocol server | `nie-mcp` | `mcp-v*` |
+| `site` | `nie-site` + the WebAssembly module it serves | `nie-site`, `nie-wasm` | `site-v*` |
+| `desktop` | Inacord, the Tauri application | `inacord` | `desktop-v*` |
+| `model` | `nie-model-serve`, the asset server | `nie-model-serve` | `model-v*` |
+
+```bash
+bun run surfaces plan            # which surfaces your diff can have broken
+bun run gate                     # clippy, scoped to exactly those
+bun run surfaces build site      # then build / smoke / deploy, one surface at a time
+```
+
+They are **not** separate CI lanes, and that is measured rather than assumed: the five closures
+overlap so much (36 of 47 workspace members; `cli` owns none) that a lane each costs 19 638
+crate-compilations over the last 400 commits against 18 800 for a single `clippy --workspace`.
+One job scoped to the *union* of the affected surfaces costs **10 026** — 46.7 % less — because
+34.5 % of commits reach no surface at all. The reasoning is in
+[`CONTRIBUTING.md`](CONTRIBUTING.md#the-gate) and the code in `scripts/surfaces.ts`.
 
 ## Platform support
 
@@ -285,40 +313,25 @@ separate `nodejs` target; the browser/Vite artifact remains `web` with explicit 
 Tests backed by the game's JSON dumps resolve their corpus from `NIE_GAMEDATA_JSON` and **announce
 on stderr when they skip** — a golden that silently does nothing is a false green.
 
-### Whole-repository release orchestration
+### Releasing
 
-The repository has one ordered release entrypoint: `scripts/release-all.ts`, exposed as
-`bun run release:all`. It executes `lint → typecheck → tests → Rust clippy → build →
-release/push → deploy → live validation`, in that order.
+Per surface, with a prefixed tag — `git tag cli-v0.6.1` builds and publishes the CLI alone. A
+single repository-wide tag would force all five to be rebuilt together, which in practice means
+never publishing: the site moves on 17.2 % of commits, the CLI on 0.5 %.
 
-Default mode verifies a clean checkout and builds into an isolated staging directory, then stops.
-It may create local build artifacts, but it must not release, push, deploy, restart services, or
-otherwise mutate production. Production mutation
-requires explicit `--deploy`. That mode freezes and stages the candidate tree on `main`, runs all
-verification and build phases against that immutable candidate, then creates the release commit
-and pushes it immediately before deployment. It verifies that the resulting commit exactly
-matches `origin/main`, publishes artifacts atomically with rollback on failure, and finally runs
-the meaningful live checks.
+The whole-repository entrypoint still exists for a coordinated release (`bun run release:all`,
+`lint → typecheck → tests → clippy → build → push → deploy → live validation`; production
+mutation needs an explicit `--deploy`), and its inverse is `bun run sync:main`, a read-only dry
+run by default that only ever fast-forwards. Both are documented, with their guarantees and their
+limits, in [`CONTRIBUTING.md`](CONTRIBUTING.md#shipping).
 
-Passing the orchestrator proves only the gates it actually ran on the reported host and commit.
-Live validation inspects meaningful response bodies and interactions, not merely HTTP status or
-service activity. Source-delegation evidence still does not prove that adapters contain no
-residual portable logic. Every command also streams to a redacted file under
-`var/log/releases/<run-id>/`; that directory is retained and reported on success or failure. Site
-and Rust artifacts are built under `var/releases/*.staging`, never through the live
-`apps/nie-web/dist` symlink, and the prior bundle and binaries are preserved for rollback.
-
-The inverse entrypoint is `bun run sync:main`. It is a read-only dry run by default; add
-`--apply` to reconcile `main` with `origin/main` and the VPS using fast-forward operations only.
-It never resets or force-pushes. Missing release artifacts move in either direction only when the
-same-commit `var/releases/<commit>/manifest.json` names them and their SHA-256 matches; replacement
-is atomic. Each command is recorded under `var/log/sync-main/<run-id>/`.
+**A tag deploys nothing.** Production goes through `scripts/deploy-target.ts`, by hand, with its
+own lock, per-target deadlines and live health checks.
 
 Further reading: [`PLAN.md`](PLAN.md) (the canonical active plan and gate ledger) ·
 [`docs/FORGE.md`](docs/FORGE.md) (producing the binary) ·
 [`docs/RE.md`](docs/RE.md) (the target and the loop) ·
-[`docs/FORMATS.md`](docs/FORMATS.md) (file formats). The Inacord desktop/mobile roadmap is now
-part of the canonical [`PLAN.md`](PLAN.md).
+[`docs/FORMATS.md`](docs/FORMATS.md) (file formats).
 
 ## Reverse-engineering bridge
 
@@ -375,18 +388,22 @@ week plan: [`PLAN.md`](PLAN.md); build and security rules: [`AGENTS.md`](AGENTS.
 
 ## Contributing
 
-This repository is worked on by **several agents at once** (Claude Code, Codex), and the rules that
-make that possible are written down once, each in exactly one place:
+Start with **[`CONTRIBUTING.md`](CONTRIBUTING.md)**: the gate, the scope rules, how to commit, and
+how to ship a surface. [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) is two pages and worth the two
+minutes.
+
+Two things before you read either: the gate before any commit is `bun run gate` (scoped clippy,
+0 warnings), and identifiers, URLs and documentation are in **English** — French is for prose
+addressed to a human.
+
+This repository is also worked on by **several agents at once** (Claude Code, Codex), and the
+rules that make that possible are written down once, each in exactly one place:
 
 | What | Where |
 |---|---|
 | The entry point every agent reads first, whatever its engine | [`AGENTS.md`](AGENTS.md) |
 | Every rule about this repository — tools, gates, traps, data, forge, RE | [`CLAUDE.md`](CLAUDE.md) |
 | The agent-to-agent wire protocol | [`docs/A2A-CODEX.md`](docs/A2A-CODEX.md) |
-
-Two things worth knowing before you read them: identifiers, URLs and documentation are in
-**English** (this is a worldwide project — [`CLAUDE.md`](CLAUDE.md) § *Language*), and the gate
-before any commit is `cargo clippy -p <crate> --lib --tests` with **0 warnings**.
 
 ## Legal
 

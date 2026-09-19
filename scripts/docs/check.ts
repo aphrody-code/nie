@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 type Manifest = {
@@ -103,8 +103,21 @@ const generatedWriterStalePatterns = generatedWriters.flatMap((writer) => manife
 failures.push(...generatedWriterStalePatterns);
 if (generatedWriters.length) console.log(`notice: checked generated document writers: ${generatedWriters.join(", ")}`);
 
+// Chaque document de `docs/` doit être atteignable depuis `docs/README.md`. Mesuré le
+// 2026-09-19 : 16 des 34 y manquaient, dont ARCHITECTURE.md que 22 autres fichiers citent. Un
+// index qui couvre la moitié du corpus est pire qu'aucun index, parce qu'il se lit comme exhaustif.
+const docsIndexPath = "docs/README.md";
+const docsIndex = readFileSync(resolve(root, docsIndexPath), "utf8");
+const indexable = readdirSync(resolve(root, "docs"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() || entry.name.endsWith(".md") || entry.name.endsWith(".txt"))
+  .map((entry) => (entry.isDirectory() ? `${entry.name}/` : entry.name))
+  .filter((name) => name !== "README.md" && name !== "docs-manifest.json")
+  .sort();
+const unindexed = indexable.filter((name) => !docsIndex.includes(`(${name})`) && !docsIndex.includes(`(${name}README.md)`));
+for (const name of unindexed) failures.push(`${docsIndexPath}: docs/${name} is not listed in the index`);
+
 const allowedBrokenLinkCount = Object.values(manifest.allowedBrokenLinks).reduce((count, links) => count + links.length, 0);
-console.log(JSON.stringify({ markdownFiles: tracked.length, internalLinks: linkCount, allowedBrokenLinks: allowedBrokenLinkCount, instructionFiles: manifest.instructionFiles.length, failures: failures.length }, null, 2));
+console.log(JSON.stringify({ markdownFiles: tracked.length, internalLinks: linkCount, allowedBrokenLinks: allowedBrokenLinkCount, instructionFiles: manifest.instructionFiles.length, docsIndexed: indexable.length - unindexed.length, docsTotal: indexable.length, failures: failures.length }, null, 2));
 if (failures.length) {
   console.error(failures.map((failure) => `ERROR ${failure}`).join("\n"));
   process.exit(1);
