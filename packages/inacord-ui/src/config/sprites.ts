@@ -13,19 +13,22 @@ export const SPRITE_SHEET_SRC = "/icon_common2.webp";
 /**
  * Où l'hôte courant trouve la feuille de sprites.
  *
- * `SPRITE_SHEET_SRC` désigne un fichier posé à la racine publique, ce qui est vrai pour Inacord
- * (`apps/inacord/public/icon_common2.webp`) et pour la construction bureau de `nie-web`
- * (`dist-desktop/`), mais PAS pour sa construction web : `apps/nie-web/public/` ne l'a pas, et
- * `https://nie.aphrody.com/icon_common2.webp` répond 404 (mesuré 2026-09-19). Tout composant qui
- * s'appuie dessus dans une page dessine donc des étiquettes vides, sans erreur.
+ * `SPRITE_SHEET_SRC` désigne un fichier posé à la racine publique. Il existe pour Inacord et pour
+ * la construction bureau ; la construction web ne le portait pas, et la requête répondait 404 —
+ * les icônes se dessinaient donc vides, sans erreur. Le fichier est désormais dans
+ * `apps/nie-web/public/` aussi.
  *
- * Y recopier un QUATRIÈME exemplaire serait un recul : `nie-site` sert déjà la texture depuis le
- * VFS du jeu, et PAR LANGUE —
- * `/assets/tex/dx11/menu/200_icon/15_icon_common2/fr/icon_common2.png` rend 74 158 octets. C'est
- * la même image que le jeu dessine, pas une copie qui dérivera de lui.
+ * ── NE PAS Y SUBSTITUER LA TEXTURE DU JEU ──────────────────────────────────
+ * Tentant, puisque `nie-site` sert `icon_common2.g4tx` depuis le VFS et par langue. Mesuré le
+ * 2026-09-19, et RÉFUTÉ : l'atlas du jeu fait bien 516×568 comme cette feuille, mais il déclare
+ * 29 régions nommées `icon_town_size01`, `gtxt_day01`… et AUCUN des 33 noms de `SPRITES` n'y
+ * figure. Les deux images ont la même taille et des dispositions différentes ; échanger l'une
+ * pour l'autre ne rend pas des icônes vides, il rend les MAUVAISES — ce qu'aucune erreur ne
+ * signale. `/api/v1/inspect/spritesheet/{chemin}` rend les régions réelles d'un atlas, et c'est
+ * par là qu'il faudra passer pour s'adosser au jeu : en lisant ses noms, jamais en réutilisant
+ * ces rectangles-ci sur son image.
  *
- * L'hôte pose donc sa source ; le défaut reste le fichier racine, pour ne rien changer là où il
- * existe déjà.
+ * Le crochet reste : un hôte qui sert la feuille ailleurs le déclare, plutôt que de la recopier.
  */
 let feuilleSprites = SPRITE_SHEET_SRC;
 
