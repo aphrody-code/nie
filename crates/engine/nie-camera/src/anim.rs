@@ -157,28 +157,17 @@ impl<'a> CameraTrack<'a> {
 
 /// `true` si la table de temps de ce canal est exploitable, c'est-à-dire **non décroissante**.
 ///
-/// # Pourquoi ce garde-fou existe
+/// # Pourquoi ce garde-fou existe, alors que le corpus est sain
 ///
-/// [`Channel::times`] rend aujourd'hui des tranches **non monotones** pour une part importante
-/// du corpus : mesuré le 2026-09-19 sur les 1 215 fichiers, **714 n'admettent aucun décalage
-/// constant** (cherché dans `0..=64`) qui rendrait tous leurs canaux croissants. Sur
-/// `ev60_00340`, le canal `fov` de l'objet 0 part de la frame 1110 et « finit » à 1042.
+/// Il n'écarte plus rien aujourd'hui : depuis que `nie_formats::g4cm` aligne la section des
+/// temps sur `align * 4` et non sur `align`, les **1 215 fichiers** du corpus ont toutes leurs
+/// tables croissantes. C'est précisément ce garde-fou qui a permis de trouver le défaut, en
+/// refusant de rendre une valeur plutôt qu'en rendant une valeur fausse.
 ///
-/// Le désassemblage dit que `time_index` est pourtant bien un index d'élément :
-///
-/// ```text
-///   0x1405AAF00  mov   eax, dword ptr [rbx + 8]   ; time_index
-///   0x1405AAF16  lea   rdx, [rax*2]               ; × 2 octets
-///   0x1405AAF1E  add   rdx, r13                   ; + base de la table de temps
-/// ```
-///
-/// Ce n'est donc pas la sémantique de `time_index` qui manque, mais la **base** : `decode` place
-/// la table à `(fin des canaux + 15) & !15`, et les 0, 1, 8, 16 ou 24 zéros de tête selon les
-/// fichiers montrent que ce n'est pas toujours le bon endroit. Un décalage global ne suffit pas
-/// non plus — la question reste ouverte et se tranche en désassemblant le calcul de `r13`.
-///
-/// En attendant, interpoler sur une table décroissante rendrait des valeurs fausses **en
-/// silence**, ce qui est le seul résultat inacceptable. On refuse.
+/// Il reste parce que la panne qu'il attrape est **muette** : une table décroissante
+/// s'interpole sans erreur et rend une position de caméra plausible et fausse. Un décodeur mal
+/// aligné est le genre de régression qu'aucun test de ré-encodage ne voit — le fichier
+/// ressortait byte-exact pendant tout ce temps.
 fn table_exploitable(temps: &[u16]) -> bool {
     temps.windows(2).all(|w| w[0] <= w[1])
 }
@@ -332,11 +321,21 @@ mod tests {
         }
     }
 
-    /// Épingle l'ampleur du défaut de [`Channel::times`] sur un fichier réel. Ce test n'exige
-    /// pas qu'il soit corrigé — il exige qu'on sache **exactement** ce qu'il coûte, pour que la
-    /// correction se mesure au lieu de se raconter.
+    /// Toutes les tables de temps d'un fichier réel doivent être croissantes.
+    ///
+    /// ## Historique — ce test a d'abord épinglé un défaut, puis sa correction
+    ///
+    /// Écrit pour MESURER un défaut plutôt que pour le masquer, il constatait
+    /// **10 canaux invalides sur 40** : `decode` alignait la table de temps sur `align` (16
+    /// octets) au lieu de `align * 4` (64), ce qui la plaçait jusqu'à 48 octets trop tôt et
+    /// décalait tous les `time_index`. Le symptôme était muet — les tranches sortaient
+    /// décroissantes et un interpolateur les lisait à l'envers sans rien signaler.
+    ///
+    /// La correction est vérifiée sur le corpus : **1 215 / 1 215 fichiers** n'ont plus un seul
+    /// canal décroissant, contre 714 fichiers atteints auparavant. Le compte attendu est donc
+    /// passé de 10 à **0**, et ce test garde la trace du chemin.
     #[test]
-    fn l_ampleur_du_defaut_de_table_de_temps_est_mesuree() {
+    fn toutes_les_tables_de_temps_sont_croissantes() {
         let Some(anim) = charger(REEL) else {
             eprintln!("asset absent : test ignoré");
             return;
@@ -354,12 +353,10 @@ mod tests {
             }
         }
         assert!(total > 0, "aucun canal : la mesure ne prouverait rien");
-        // Mesuré le 2026-09-19 sur ev60_00340. Si ce nombre BAISSE, la base de la table a été
-        // corrigée et ce test doit être mis à jour — en le disant.
         assert_eq!(
             (total, invalides),
-            (40, 10),
-            "l'ampleur du défaut a changé : remesurer avant de toucher à ce chiffre"
+            (40, 0),
+            "une table de temps décroît de nouveau : l'alignement de la section a régressé"
         );
     }
 

@@ -11,6 +11,12 @@
 //!   2. La déquantification `u16/65535 × échelle` est bornée par construction : toute valeur
 //!      décodée doit rester dans **±échelle**. Une table fausse ferait déborder.
 //!
+//! Un troisième invariant, sans rapport avec le barème, surveille l'**alignement de la section
+//! des temps** : une table de keyframes est croissante par nature. C'est ce contrôle qui a
+//! révélé que `decode` alignait cette section sur `align` (16 octets) au lieu de `align * 4`
+//! (64), la plaçant jusqu'à 48 octets trop tôt. La panne était muette — le fichier ressortait
+//! byte-exact, et seuls les `time_index` étaient décalés.
+//!
 //! ```sh
 //! cargo run -p nie-formats --release --example g4cm_scale_census -- var/tmp/allcams
 //! ```
@@ -35,6 +41,9 @@ fn main() {
     // Ce qui n'est pas résolu, par (mode, taille).
     let mut inconnus: Vec<((u8, u8), u32)> = Vec::new();
     let mut sans_echelle = 0u32;
+    // Invariant 3 : les tables de temps sont-elles croissantes ? C'est ce que l'alignement de
+    // la section décide, et une table décroissante s'interpole en silence.
+    let (mut temps_total, mut temps_croissants) = (0u32, 0u32);
     let mut exemples = Vec::new();
 
     for chemin in &fichiers {
@@ -61,6 +70,13 @@ fn main() {
 
         let echelles = anim.scales();
         for canal in &anim.channels {
+            let t = canal.times(&anim);
+            if t.len() > 1 {
+                temps_total += 1;
+                if t.windows(2).all(|w| w[0] <= w[1]) {
+                    temps_croissants += 1;
+                }
+            }
             let echelle = echelles.get(canal.scale_index as usize).copied();
             match canal.quant() {
                 Quant::Float32 => {
@@ -128,6 +144,12 @@ fn main() {
     println!(
         "  {quant_bornes}/{quant_total} ({:.2} %), {quant_deborde} débordent, {sans_echelle} sans échelle",
         pct(quant_bornes, quant_total)
+    );
+    println!();
+    println!("INVARIANT 3 — les tables de temps sont croissantes");
+    println!(
+        "  {temps_croissants}/{temps_total} ({:.2} %)",
+        pct(temps_croissants, temps_total)
     );
     println!();
     println!("NON RÉSOLU — (mode, taille) sans décodeur prouvé");

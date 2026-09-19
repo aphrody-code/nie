@@ -681,8 +681,22 @@ pub fn decode(data: &[u8]) -> Result<CameraAnim> {
     }
     let channels_end = o_channels + total * CHANNEL_ENTRY_LEN;
 
-    // Table de temps : commence après les canaux (aligné 16), longueur = max(time_index + count).
-    let o_times = (channels_end + 15) & !15;
+    // Table de temps : commence après les canaux, longueur = max(time_index + count).
+    //
+    // L'alignement est `align * 4`, soit **64 octets**, et non `align` (16). Toute la géométrie
+    // du conteneur est exprimée en dwords — `section(i) = ((compteur[i] << shift) + align) * 4` —
+    // et le pas d'alignement suit la même unité. Aligner sur 16 place la table jusqu'à 48 octets
+    // trop tôt, ce qui décale TOUS les `time_index` du fichier.
+    //
+    // Le symptôme était muet : les tranches de temps sortaient non croissantes, donc un
+    // interpolateur les lisait à l'envers sans rien signaler. Mesuré le 2026-09-19 sur les
+    // 1 215 fichiers du corpus : avec `align`, 714 fichiers portent au moins un canal dont la
+    // table décroît ; avec `align * 4`, **1 215 / 1 215 sont intégralement croissants**.
+    //
+    // Le ré-encodage reste byte-exact par construction : les octets déplacés passent dans
+    // `gap_channels_times`, que [`encode`] réécrit verbatim.
+    let granule = usize::from(header.align).max(1) * 4;
+    let o_times = channels_end.div_ceil(granule) * granule;
     let ntimes = raws
         .iter()
         .map(|r| r.time_index as usize + r.count as usize)
@@ -1135,7 +1149,9 @@ mod tests {
         d.extend_from_slice(&0u32.to_le_bytes());
         d.extend_from_slice(&0u32.to_le_bytes());
         d.extend_from_slice(&2u32.to_le_bytes());
-        let o_times = (d.len() + 15) & !15;
+        // Même granule que le décodeur : `align * 4`. Un fichier synthétique aligné sur 16
+        // décrirait une géométrie que le jeu n'écrit pas.
+        let o_times = d.len().div_ceil(64) * 64;
         d.resize(o_times, 0);
         d.extend_from_slice(&1000u16.to_le_bytes());
         d.extend_from_slice(&1001u16.to_le_bytes());
