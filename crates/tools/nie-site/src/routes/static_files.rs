@@ -300,17 +300,18 @@ pub fn points_d_entree_depuis_html(html: &str) -> (Option<String>, Option<String
         let balise = morceau.split('>').next().unwrap_or("");
         if js.is_none() && balise.starts_with("script") && balise.contains("type=\"module\"") {
             js = attribut(balise, "src");
-        } else if balise.starts_with("link") && balise.contains("rel=\"stylesheet\"") {
-            if let Some(href) = attribut(balise, "href") {
-                if href
-                    .rsplit('/')
-                    .next()
-                    .is_some_and(|n| n.starts_with("index-"))
-                {
-                    index_css = Some(href);
-                } else if css.is_none() {
-                    css = Some(href);
-                }
+        } else if balise.starts_with("link")
+            && balise.contains("rel=\"stylesheet\"")
+            && let Some(href) = attribut(balise, "href")
+        {
+            if href
+                .rsplit('/')
+                .next()
+                .is_some_and(|n| n.starts_with("index-"))
+            {
+                index_css = Some(href);
+            } else if css.is_none() {
+                css = Some(href);
             }
         }
     }
