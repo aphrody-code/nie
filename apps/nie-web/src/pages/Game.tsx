@@ -58,15 +58,16 @@ export function Game({
 
 	if (phase === "menu") {
 		const hostActions = bindMenuActions(menuEntries(null), {
-			// La Banque est MY TEAM, et le menu du jeu a déjà sa bannière.
+			// La Banque EST « Votre équipe », et elle l'était déjà.
 			//
-			// `MainMenu.nativeBinding` ne connaît que trois familles d'identifiants : `avatar`,
-			// `team` et `title-item-N`. `bank` n'en fait partie d'aucune, donc la Banque se
-			// dessinait en tuile générique pendant que `title02_10_my_team_banner` (calque
-			// 4086303486) — la bannière MY TEAM du jeu — restait sans action, visible et morte.
-			// L'identifiant est ce qui relie une entrée de l'hôte à un objet du menu natif : le
-			// changer ici suffit à rendre la bannière cliquable, sans dupliquer un écran.
-			[BANK]: { id: "team", onActivate: onOpenBank },
+			// L'appariement ne se fait pas par `MainMenu.nativeBinding` mais par la SCÈNE :
+			// `menu_scenes/title-menu.json` déclare un contrôle `team` portant
+			// `hostActionId: "bank"` et le libellé « Votre équipe », et `NativeMainMenu` lie
+			// `actions.find(a => a.id === control.hostActionId)`. L'identifiant attendu ici est
+			// donc bien `bank`. Poser `team` le décroche : plus aucun contrôle natif ne le
+			// réclame, et la Banque retombe dans `siteActions`, en bouton générique à côté du
+			// menu — ce qui ressemble à une correction et est une régression.
+			[BANK]: { id: "bank", onActivate: onOpenBank },
 			[GALLERY]: { id: "gallery", onActivate: onOpenGallery },
 			[SHOP]: { id: "shop", onActivate: onOpenShop },
 			[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },

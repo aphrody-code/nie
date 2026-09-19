@@ -167,9 +167,7 @@ describe("game navigation in the mounted host", () => {
 
 	test("the native title menu directly exposes public features and hides authoring tools", async () => {
 		await mount("/menu");
-		// `team` et non `bank` : la Banque est portée par la bannière MY TEAM du menu natif
-		// (`title02_10_my_team_banner`), le seul identifiant que `nativeBinding` sache lier.
-		for (const action of ["team", "shop", "avatar", "settings"]) {
+		for (const action of ["bank", "shop", "avatar", "settings"]) {
 			const button = container.querySelector<HTMLButtonElement>(`button[data-host-action="${action}"], [data-host-action="${action}"] button`);
 			expect(button).not.toBeNull();
 			expect(button?.disabled).toBeFalse();
@@ -177,10 +175,7 @@ describe("game navigation in the mounted host", () => {
 		for (const hidden of ["media", "explorer", "editor", "search", "data", "modes", "inacord", "mods", "lua", "re"]) {
 			expect(container.querySelector(`[data-host-action="${hidden}"]`)).toBeNull();
 		}
-		// Une entrée liée au menu NATIF *est* le bouton ; une tuile générique en contient un. Le
-		// sélecteur accepte les deux, comme la boucle ci-dessus — sinon le test mesure la forme du
-		// rendu au lieu de mesurer la navigation.
-		await click('button[data-host-action="team"], [data-host-action="team"] button');
+		await click('[data-host-action="bank"] button');
 		expect(window.location.pathname).toBe("/chara_bank_menu");
 	});
 
