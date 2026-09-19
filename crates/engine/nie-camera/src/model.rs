@@ -231,9 +231,12 @@ impl CameraState {
         ];
     }
 
-    /// Matrice de vue look-at (repère main droite, `up` = `+Y` tourné de [`Self::roll_deg`]).
-    #[must_use]
-    pub fn view_matrix(&self) -> Mat4 {
+    /// La base look-at de cette caméra : `(avant, droite, haut)`, `haut` portant le roulis.
+    ///
+    /// Une seule implémentation du roulis, partagée par [`Self::view_matrix`] et
+    /// [`Self::basis`] : deux calculs séparés dériveraient, et l'écart serait une image
+    /// légèrement tournée que personne ne relie à sa cause.
+    fn repere(&self) -> (V3, V3, V3) {
         let f = normalize(sub(self.ref_pos, self.pos));
         let roll = self.roll_deg.to_radians();
         // `up` de base tourné de `roll` autour de l'axe de visée.
@@ -248,6 +251,34 @@ impl CameraState {
         ];
         let r = normalize(cross(f, up));
         let u = cross(r, f);
+        (f, r, u)
+    }
+
+    /// Ce qu'attend un rastériseur look-at : `(œil, cible, haut, fov vertical en RADIANS)`.
+    ///
+    /// # Pourquoi cette forme, et pas une paire de matrices
+    ///
+    /// C'est le pont vers `nie-render3d`, et il est fait **par la donnée** : ces quatre valeurs
+    /// sont des primitives, donc ni `nie-camera` ni `nie-render3d` n'a besoin de connaître
+    /// l'autre. Un appelant écrit directement
+    /// `scene::Camera { eye, target, up, fov_y }`.
+    ///
+    /// Le rastériseur de `nie-render3d` construit déjà sa base depuis `eye`/`target`/`up` et sa
+    /// focale depuis `fov_y` — il accepte donc une caméra arbitraire sans modification. Lui
+    /// ajouter une entrée matricielle aurait été du travail pour rien.
+    ///
+    /// Le `fov` rendu est [`Self::fov_deg`], qui reste la valeur par défaut tant que l'unité des
+    /// canaux `fov` d'un `.g4cm` n'est pas prouvée (cf. `nie_camera::anim`).
+    #[must_use]
+    pub fn basis(&self) -> (V3, V3, V3, f32) {
+        let (_, _, u) = self.repere();
+        (self.pos, self.ref_pos, u, self.fov_deg.to_radians())
+    }
+
+    /// Matrice de vue look-at (repère main droite, `up` = `+Y` tourné de [`Self::roll_deg`]).
+    #[must_use]
+    pub fn view_matrix(&self) -> Mat4 {
+        let (f, r, u) = self.repere();
         [
             [r[0], r[1], r[2], -dot(r, self.pos)],
             [u[0], u[1], u[2], -dot(u, self.pos)],
@@ -393,6 +424,65 @@ mod tests {
         let z: f32 = (0..4).map(|i| v[2][i] * p[i]).sum();
         assert!(x.abs() < 1e-5 && y.abs() < 1e-5);
         assert!((z + 10.0).abs() < 1e-4, "la cible est à 10 devant : z={z}");
+    }
+
+    /// La base rendue par [`CameraState::basis`] doit être EXACTEMENT celle que porte
+    /// [`CameraState::view_matrix`]. Les deux passent par `repere()`, et ce test est ce qui
+    /// interdit de les réimplémenter séparément plus tard.
+    #[test]
+    fn la_base_et_la_matrice_de_vue_decrivent_le_meme_repere() {
+        for roll in [0.0f32, 15.0, -40.0, 179.0] {
+            let etat = CameraState {
+                pos: [3.0, 4.0, -5.0],
+                ref_pos: [-1.0, 0.5, 2.0],
+                roll_deg: roll,
+                ..CameraState::default()
+            };
+            let (oeil, cible, haut, fov_rad) = etat.basis();
+            assert_eq!(oeil, etat.pos);
+            assert_eq!(cible, etat.ref_pos);
+            assert!((fov_rad - etat.fov_deg.to_radians()).abs() < 1e-6);
+
+            // Ligne 1 de la matrice de vue = le vecteur « haut » du repère.
+            let v = etat.view_matrix();
+            for k in 0..3 {
+                assert!(
+                    (v[1][k] - haut[k]).abs() < 1e-6,
+                    "roll={roll} axe {k} : matrice {} != base {}",
+                    v[1][k],
+                    haut[k]
+                );
+            }
+        }
+    }
+
+    /// Le rastériseur de `nie-render3d` reconstruit sa base à partir de `(eye, target, up)`.
+    /// Ces trois lignes sont RECOPIÉES de `scene::render_scene` : si sa convention change, ce
+    /// test doit tomber, parce que le pont passe par ces valeurs et par rien d'autre.
+    ///
+    /// C'est ce qui rend le pont sûr sans créer de dépendance entre les deux crates.
+    #[test]
+    fn la_base_survit_a_la_reconstruction_du_rasteriseur() {
+        let etat = CameraState {
+            pos: [10.0, 6.0, 0.0],
+            ref_pos: [0.0, 1.0, 0.0],
+            roll_deg: 25.0,
+            ..CameraState::default()
+        };
+        let (oeil, cible, haut, _) = etat.basis();
+
+        // --- copie conforme de scene::render_scene ---
+        let f = normalize(sub(cible, oeil));
+        let r = normalize(cross(f, haut));
+        let u = cross(r, f);
+        // --- fin de la copie ---
+
+        let (f0, r0, u0) = etat.repere();
+        for k in 0..3 {
+            assert!((f[k] - f0[k]).abs() < 1e-6, "avant, axe {k}");
+            assert!((r[k] - r0[k]).abs() < 1e-6, "droite, axe {k}");
+            assert!((u[k] - u0[k]).abs() < 1e-6, "haut, axe {k}");
+        }
     }
 
     #[test]
