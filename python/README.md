@@ -229,3 +229,16 @@ d'attraper une erreur de chemin d'asset avant de lancer le jeu.
 Ren'Py embarque son propre Python, où installer des roues tierces est une source d'ennuis sans
 fin. `niepy` n'utilise donc que la bibliothèque standard : tout le travail réel est fait par la
 couche Rust.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — 117 068 functions of `nie.exe`
+- `coverage` — binary coverage rates
+- `hash_name` — VFS and UI CRC32 name entries
+- `pdata_func` — `.pdata` function entry boundaries
+
+Key binary addresses:
+- `0x1404ecd60` — Core character controller
+- `0x1406d5840` — Core game tick loop
+

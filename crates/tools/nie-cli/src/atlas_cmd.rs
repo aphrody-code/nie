@@ -164,6 +164,14 @@ pub enum AtlasCmd {
         #[arg(long, default_value = "atlas")]
         prefix: String,
     },
+    /// Lie et marque les symboles nommés de la KB apparaissant dans le code source Rust du workspace.
+    Link {
+        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        db: PathBuf,
+        /// Racine du dépôt.
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 pub fn run(cmd: AtlasCmd) -> Result<()> {
@@ -227,6 +235,7 @@ pub fn run(cmd: AtlasCmd) -> Result<()> {
         AtlasCmd::Docs { db, orphans, limit } => docs(&db, orphans, limit),
         AtlasCmd::Dupes { db, zone, limit } => dupes(&db, zone.as_deref(), limit),
         AtlasCmd::Sync { db, redis, prefix } => sync(&db, &redis, &prefix),
+        AtlasCmd::Link { db, root } => link(&db, &root),
     }
 }
 
@@ -685,6 +694,17 @@ fn sync(db: &Path, redis: &str, prefix: &str) -> Result<()> {
         .sync_redis(redis, prefix)
         .with_context(|| format!("miroir redis {redis}"))?;
     println!("atlas-sync redis={redis} prefix={prefix} keys={keys}");
+    Ok(())
+}
+
+fn link(db: &Path, root: &Path) -> Result<()> {
+    let mut atlas = Atlas::open(db)?;
+    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let linked = atlas
+        .link_ported_symbols(&root)
+        .context("appariement symbole → source Rust")?;
+    let gaps = atlas.refresh_gaps().context("calcul des écarts")?;
+    println!("atlas-link linked={linked} gaps_updated={gaps}");
     Ok(())
 }
 

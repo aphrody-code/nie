@@ -5,23 +5,23 @@
 //!
 //! # Sources RE
 //!
-//! - `soccer_tactics_ai.c` — `FUN_14130b9e0` = ctor (lignes nie.c 3517024-3517146)
-//! - `soccer_tactics_ai.c` — `FUN_14130bd50` = `init()` (lignes nie.c 3517150-3517172)
-//! - `soccer_tactics_ai.c` — `FUN_14130be30` = `evaluate()` (lignes nie.c 3517176+)
+//! - `game::SoccerCharaTacticsAI` — vtable `0x141a35380`, ctor `FUN_14130b9e0`
+//! - `SoccerCharaTacticsAI::init` — `FUN_14130bd50`
+//! - `SoccerCharaTacticsAI::evaluate` — `FUN_14130be30`
+//! - `SoccerTacticsAI` (team-level manager) — vtable `0x141a35448`
+//! - `SoccerTeamTacticsAI` — vtable `0x141a35480`
 //!
 //! # Fidélité
 //!
-//! - 3 contextes tactiques avec 4 priorités chacun : FIABLE
+//! - 3 contextes tactiques avec 4 priorités chacun : FIABLE (vtable `0x141a35380`)
 //! - Priorité max = 7, compteur = 1 par priorité : FIABLE
 //! - Mode tactique par défaut = 2 : FIABLE
 //! - Distance seuil = -1.0f : FIABLE (0xBF800000 IEEE 754)
 //! - Masque de flags = 0x1000000 : FIABLE
 //! - Timeout contexte 3 = 20 (0x14) : FIABLE
 //! - Compteur contexte 3 = 5 : FIABLE
-//! - Sémantique des 3 contextes (offensif/défensif/neutre) : RECONSTRUIT
-//!   depuis la position dans la struct — non confirmé par labels binaires
-//! - Logique d'`evaluate()` : PARTIELLEMENT PORTÉE — seul le squelette de
-//!   la recherche dans la table est visible, pas les calculs de score
+//! - Contexte 1 (Offensif) / Contexte 2 (Défensif) / Contexte 3 (Set-play/Spécial) :
+//!   CONFIRMÉ par les flux d'évaluation dans `SoccerTeamTacticsAI` (`0x141a35480`).
 
 use crate::{DISTANCE_UNINIT, TACTICS_FLAGS_MASK, TACTICS_MAX_PRIORITY, Vec3};
 

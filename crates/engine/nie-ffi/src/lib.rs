@@ -374,6 +374,8 @@ pub unsafe extern "C" fn nie_bytes_free_fields(data_ptr: *mut u8, len: usize, ca
 /// |  15 | LIP         |
 const FORMAT_UNKNOWN: u32 = 0;
 const FORMAT_LIP: u32 = 15;
+const FORMAT_DXBC: u32 = 16;
+const FORMAT_COL: u32 = 17;
 
 fn fileformat_to_u32(f: nie_formats::FileFormat) -> u32 {
     use nie_formats::FileFormat as F;
@@ -393,13 +395,16 @@ fn fileformat_to_u32(f: nie_formats::FileFormat) -> u32 {
         F::G4sk => 12,
         F::G4pk => 13,
         F::G4nv => 14,
+        F::Lip => FORMAT_LIP,
+        F::Dxbc => FORMAT_DXBC,
+        F::Col => FORMAT_COL,
     }
 }
 
 /// Détecte le format d'un tampon à partir de ses octets magiques.
 ///
 /// Retourne un discriminant `u32` stable (voir la table dans [`nie_bytes_free`] doc).
-/// `15` = `lip\0` (non couvert par `nie_formats::detect`) ; `0` = inconnu.
+/// `0` = inconnu.
 ///
 /// # Safety
 ///
@@ -412,10 +417,6 @@ pub unsafe extern "C" fn nie_detect(ptr: *const u8, len: usize) -> u32 {
     }
     // SAFETY: l'appelant garantit ptr..len valides.
     let data = unsafe { core::slice::from_raw_parts(ptr, len) };
-    // lip\0 n'est pas dans nie_formats::detect → vérifier en premier.
-    if data.len() >= 4 && data[..4] == *b"lip\0" {
-        return FORMAT_LIP;
-    }
     fileformat_to_u32(nie_formats::detect(data))
 }
 
@@ -448,6 +449,8 @@ pub extern "C" fn nie_format_name(kind: u32) -> *const c_char {
         13 => b"G4PK\0",
         14 => b"G4NV\0",
         15 => b"LIP\0",
+        16 => b"DXBC\0",
+        17 => b"COL\0",
         _ => b"?\0",
     };
     s.as_ptr().cast()

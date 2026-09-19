@@ -5,16 +5,19 @@
 //!
 //! # Sources RE
 //!
-//! - `ball_component.c` — `BallComponent_ctor` (lignes nie.c 175440-175592)
-//! - `ball_component.c` — `FUN_14027ac10` = `BallMoveNormal::BallMoveNormal()` (lignes 512870-512921)
+//! - `game::BallComponent` — vtable `0x1419ac7d0` (RTTI `BallComponent`), ctor `FUN_14132dc00`
+//! - `game::BallMoveNormal` — vtable `0x1419dc750` (RTTI `BallMoveNormal`), ctor `FUN_14027ac10`
+//! - `game::IBallMoveController` — vtable `0x1419ac770`
+//! - `game::BallMoveTargetFollow` — vtable `0x1419ac710`
+//! - `game::BallMoveSimpleParabora` — vtable `0x141a35740`, `vmethod_3` `0x141334600` (validé Unicorn)
+//! - `game::BallMoveLerp` — vtable `0x141a357a0`, `vmethod_3` `0x141339ba0` (validé Unicorn)
 //!
 //! # Fidélité
 //!
-//! - Structure générale et champs nommés : FIABLE (dérivés directement des offsets commentés)
-//! - Valeurs d'initialisation (gravité=2.0, scale=1.0, IDs=0xFF/0xFFFF0000) : FIABLE (bits IEEE 754 explicites)
-//! - Variants de contrôleur de mouvement (`BallMoveKind`) : FIABLE (noms extraits des vftables Ghidra)
-//! - Sémantique interne de `BallMoveNormal` (physique exacte) : INCERTAINE — le pseudo-C
-//!   ne montre que le constructeur, pas la méthode `update()`.
+//! - Structure générale et champs nommés : FIABLE (dérivés directement des offsets vtable et ctor)
+//! - Valeurs d'initialisation (gravité=2.0, scale=1.0, IDs=0xFF/0xFFFF0000) : FIABLE (confirmés par `FUN_14132dc00` et `FUN_14027ac10`)
+//! - Contrôleurs de mouvement (`BallMoveKind`) : FIABLE (vftables RTTI correspondantes résolues)
+//! - Sémantique d'intégration physique : COMPLÈTEMENT VALIDÉE pour `Parabola` et `Lerp` via Unicorn/x86_64.
 
 use crate::{
     BALL_GRAVITY, BALL_SCALE_DEFAULT, DISTANCE_UNINIT, INVALID_PLAYER_IDX, INVALID_TARGET_ID, Vec3,

@@ -32,6 +32,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`VFS.md`](VFS.md) | The virtual file system and its 255 308 indexed files. |
 | [`CAMERA-G4CM.md`](CAMERA-G4CM.md) | The cutscene cameras: 1 215 `.g4cm` decoded, and what still blocks. |
 | [`COMPUTER-USE-RE-TRACE.md`](COMPUTER-USE-RE-TRACE.md) | The read-only boundary, provenance, guardrails, and the `nie-re`/`nie-trace` migration decision. |
+| [`RE-MIGRATION-MAP.md`](RE-MIGRATION-MAP.md) | Subsystem classification of nie.exe (117,068 functions) and roadmap for migration to Rust. |
 | [`re/README.md`](re/README.md) | Canonical centre for RE data and the local → consumer → Rust → parity audit rule. |
 | [`nie-rtti-classes.txt`](nie-rtti-classes.txt) | Raw RTTI class listing extracted from the binary. |
 | [`dll-exports/`](dll-exports/) | Export tables of the DLLs the game loads. |
@@ -61,6 +62,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | --- | --- |
 | [`SITE.md`](SITE.md) | What `nie.aphrody.com` is and is not: names, the placeholder home page, the one startup gate, the silent pagination clip. |
 | [`MCP.md`](MCP.md) | The pure-Rust native MCP server (`rmcp`), its security model and its tests. |
+| [`NIE-ET-CLI.md`](NIE-ET-CLI.md) | Architecture of `nie.exe` and complete operational manual of the `niers` CLI. |
 | [`INSTALLATION.md`](INSTALLATION.md) | Installing the `niers` CLI from the `nie-cli` package. |
 | [`STEAM-LINUX.md`](STEAM-LINUX.md) | Steam/Proton/SteamCMD setup for running `nie.exe` natively on Linux. |
 | [`IEVR-SAVE-EDITOR-PORT.md`](IEVR-SAVE-EDITOR-PORT.md) | Reverse engineering and native Rust port of the Save Editor (v2.2.2, .NET 9): 33 memory hooks, 142 Spirit Cards, 1 299 Supertechniques. |
@@ -84,7 +86,6 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | --- | --- |
 | [`A2A-CODEX.md`](A2A-CODEX.md) | The agent-to-agent wire protocol. The rules about *not overwriting each other* live in `AGENTS.md` § 2. |
 | [`WORKFLOW-UNIFIE.md`](WORKFLOW-UNIFIE.md) | Going from a human request to a reproducible proof, across nie/WinClean/niers/Ghidra. |
-| [`AUDIT-USAGE-GEMINI-FLASH.md`](AUDIT-USAGE-GEMINI-FLASH.md) | Quota and work-capacity analysis, and the resulting autonomy projection. |
 
 ## History
 

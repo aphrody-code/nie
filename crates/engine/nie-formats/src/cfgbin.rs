@@ -803,6 +803,28 @@ pub struct CfgBinFile {
     pub entries: Vec<CfgEntry>,
 }
 
+/// Vérifie si un tampon commence par un en-tête valide de conteneur T2B Level-5.
+#[must_use]
+pub fn is_t2b(data: &[u8]) -> bool {
+    if data.len() < 16 {
+        return false;
+    }
+    let entries_count = i32::from_le_bytes(data[0..4].try_into().unwrap());
+    let string_table_off_i = i32::from_le_bytes(data[4..8].try_into().unwrap());
+    let string_table_len_i = i32::from_le_bytes(data[8..12].try_into().unwrap());
+
+    if entries_count <= 0 || string_table_off_i < 16 || string_table_len_i <= 0 {
+        return false;
+    }
+    let string_table_off = string_table_off_i as usize;
+    let string_table_len = string_table_len_i as usize;
+
+    let Some(string_table_end) = string_table_off.checked_add(string_table_len) else {
+        return false;
+    };
+    string_table_end <= data.len()
+}
+
 /// Parse un fichier cfg.bin (T2B).
 pub fn cfgbin_parse(data: &[u8]) -> Result<CfgBinFile, FormatError> {
     parse_t2b(data)

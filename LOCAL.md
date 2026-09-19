@@ -143,3 +143,17 @@ reverse, `-WithRe` ne vous apporte rien.
 Un dernier réflexe, qui vaut pour tout ce fichier : **un compte, une commande, une date — sinon
 ce n'est pas fait.** Un `systemctl active`, un « copié », un build vert ne prouvent rien tant
 qu'on n'a pas interrogé la chose et obtenu un nombre.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — 117 068 functions of `nie.exe`
+- `coverage` — binary classification coverage
+- `pdata_func` — `.pdata` function entry boundaries
+- `hash_name` — VFS and UI CRC32 name entries
+- `forge_unit` — forge physical units registry
+
+Key binary addresses:
+- `0x1406d5840` — Main engine tick loop
+- `0x1404ecd60` — Mesh transform dispatch
+

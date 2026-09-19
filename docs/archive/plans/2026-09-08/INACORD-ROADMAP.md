@@ -333,3 +333,16 @@ cargo run -p nie-viola --example valider_reel --release
 cargo test -p nie-formats --test dump_vs_packs -- --nocapture
 NIE_DUMP_DIR=<dump> cargo run -p nie-formats --example dump_couverture
 ```
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — 117 068 functions of `nie.exe`
+- `coverage` — binary classification coverage
+- `hash_name` — VFS and UI hash entries
+- `pdata_func` — `.pdata` function entry boundaries
+
+Key binary addresses:
+- `0x1405410d0` — Menu list view update
+- `0x1406d5840` — Core game state tick loop
+

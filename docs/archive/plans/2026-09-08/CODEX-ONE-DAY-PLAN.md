@@ -281,3 +281,16 @@ approuver.
 
 Ce qui n'aura pas été atteint se dit tel quel, avec son compte et sa raison. Un plan à moitié
 fait et annoncé fini coûte plus cher qu'un plan à moitié fait.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — 117 068 functions of `nie.exe`
+- `coverage` — binary coverage rate
+- `pdata_func` — 55 351 authoritative function start addresses
+- `hash_name` — VFS and UI hash tables
+
+Key binary addresses:
+- `0x1406d5840` — Core game state tick loop
+- `0x1404ecd60` — Core character controller
+

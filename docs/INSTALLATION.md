@@ -66,6 +66,8 @@ Bun. Un gestionnaire de paquets et un utilisateur final doivent cibler
 exclusivement le paquet `nie-cli` et le binaire `niers` avec les commandes
 ci-dessus.
 
+Pour le manuel d'utilisation complet de toutes les commandes de la CLI et l'architecture du binaire original `nie.exe`, consulter [`NIE-ET-CLI.md`](NIE-ET-CLI.md).
+
 ## RE anchors
 
 Knowledge base (`var/niers.sqlite`) tables:

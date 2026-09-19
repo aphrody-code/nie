@@ -97,7 +97,15 @@ pub fn decode(data: &[u8]) -> Option<Decoded> {
                 .ok()
                 .and_then(|v| serde_json::to_vec(&v).ok()),
             "cfg.bin",
-        ),
+        )
+        .or_else(|| {
+            done(
+                crate::cfgbin::parse_t2b(data)
+                    .ok()
+                    .and_then(|v| serde_json::to_vec(&v).ok()),
+                "cfg.bin (T2B)",
+            )
+        }),
         FileFormat::Cpk => done(
             crate::cpk::parse_cpk(data)
                 .ok()
@@ -135,6 +143,24 @@ pub fn decode(data: &[u8]) -> Option<Decoded> {
                 .ok()
             }),
             "awb",
+        ),
+        FileFormat::Lip => done(
+            crate::lip::parse(data)
+                .ok()
+                .and_then(|v| serde_json::to_vec(&v).ok()),
+            "lip",
+        ),
+        FileFormat::Dxbc => done(
+            crate::dxbc::parse(data)
+                .ok()
+                .and_then(|v| serde_json::to_vec(&v).ok()),
+            "dxbc",
+        ),
+        FileFormat::Col => done(
+            crate::col::parse(data)
+                .ok()
+                .and_then(|v| serde_json::to_vec(&v).ok()),
+            "col (PXCL)",
         ),
         // Un `G4MG` ne se décode PAS seul : sa géométrie n'a de sens qu'avec le `G4MD` frère,
         // qui porte la description des sous-maillages et des attributs de sommet. Le reconnaître

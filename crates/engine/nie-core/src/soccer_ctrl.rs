@@ -23,11 +23,11 @@
 /// Index de phase de jeu (`CSoccerCtrl` offset 0x700-0x702).
 ///
 /// La valeur `0` est une sentinelle de fallback — elle déclenche la restauration
-/// de `phase_prev` lors d'une transition.
-/// La valeur `1` est la phase par défaut ("normal match play").
-///
-/// RE incertain: la sémantique exacte des index (ex. 1=kickoff, 2=play,
-/// 3=goal, 4=halftime...) n'est pas décodée dans ce fichier C.
+/// de `phase_prev` lors d'une transition (`MatchState::Init`).
+/// La valeur `1` est la phase par défaut ("normal match play" / `MatchState::WaitTimer`).
+/// Les phases suivantes correspondent à la machine à états de match de `FUN_1412aa4a0`
+/// (cf. [`crate::match_fsm::MatchState`]) : 2=ResultUi, 3=CheckTelop, 4=WaitAnim,
+/// 5=Transition/Restart, 6=Fade, 7=Cleanup/Score, 8=PostMatch, 9=FadeOut, 10=LoadNext.
 pub type PhaseIndex = u8;
 
 /// Phase en cours du contrôleur.

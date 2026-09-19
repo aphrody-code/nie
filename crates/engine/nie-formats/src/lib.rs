@@ -240,6 +240,12 @@ pub enum FileFormat {
     G4pk,
     /// Navmesh Level-5 (magic réel `NAVM`, extension `.g4nv`).
     G4nv,
+    /// Synchronisation labiale (`lip\0`, extension `.p3lip`).
+    Lip,
+    /// DirectX Bytecode shader Microsoft (`DXBC`, extensions `.vfxo`/`.pfxo`/`.cfxo`/`.gfxo`).
+    Dxbc,
+    /// Collision Level-5 (`PXCL`, extension `.col`).
+    Col,
     /// Inconnu.
     Unknown,
 }
@@ -263,6 +269,9 @@ impl FileFormat {
             Self::G4sk => "G4SK",
             Self::G4pk => "G4PK",
             Self::G4nv => "G4NV",
+            Self::Lip => "p3lip",
+            Self::Dxbc => "DXBC",
+            Self::Col => "col",
             Self::Unknown => "?",
         }
     }
@@ -310,7 +319,13 @@ pub fn detect(bytes: &[u8]) -> FileFormat {
         // Le magic réel des fichiers .g4nv est `NAVM` (vérifié sur 159 vrais fichiers).
         // La variante `G4NV` n'apparaît jamais dans les assets IEVR.
         FileFormat::G4nv
-    } else if starts(bytes, b"RDBN") {
+    } else if starts(bytes, b"lip\0") {
+        FileFormat::Lip
+    } else if starts(bytes, b"DXBC") {
+        FileFormat::Dxbc
+    } else if starts(bytes, b"PXCL") {
+        FileFormat::Col
+    } else if starts(bytes, b"RDBN") || cfgbin::is_t2b(bytes) {
         FileFormat::CfgBin
     } else {
         FileFormat::Unknown

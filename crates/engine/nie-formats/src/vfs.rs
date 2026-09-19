@@ -255,8 +255,8 @@ impl Vfs {
                     crate::cfgbin::Value::String(s) => s,
                     _ => continue,
                 };
-                let file_size = match &child.variables[4] {
-                    crate::cfgbin::Value::Int(v) => *v as u32,
+                let file_size = match child.variables.get(4) {
+                    Some(crate::cfgbin::Value::Int(v)) => *v as u32,
                     _ => 0,
                 };
 
@@ -1190,6 +1190,17 @@ pub fn resolve_game_dir() -> PathBuf {
         && let Some(racine) = candidat(dir.to_path_buf())
     {
         return racine;
+    }
+    // Vérifier les chemins d'installation Steam standardisés sous Linux.
+    let standard_steam_paths = [
+        "/home/ubuntu/.local/share/Steam/iecode/inazuma",
+        "/home/ubuntu/.local/share/Steam/steamapps/common/INAZUMA ELEVEN Victory Road",
+    ];
+    for p in standard_steam_paths {
+        let path = PathBuf::from(p);
+        if path.join(MARQUEUR_RACINE).is_file() {
+            return path;
+        }
     }
     // Aucune installation en vue : un dump extrait sert les mêmes chemins logiques et suffit
     // à faire tourner le moteur. Il ne vient qu'ici, après l'installation — un dump est une
