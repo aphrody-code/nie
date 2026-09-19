@@ -244,3 +244,39 @@ Les polices gaiji pour Switch sont présentes dans le binaire malgré l'absence 
 publiée : le loader couvre huit plateformes (PS4, PS5, Xbox, SteamDeck, Key, NX, Game, Game2).
 Les métriques de glyphes vivent dans `font_def/font.cfg.bin` (T2B, entrées `INF`/`CHR`), pas dans
 un `.g4tg` — les pixels sont pré-cuits dans l'atlas `font_def/font.g4tx`.
+
+## Formats Communautaires & Modding
+
+Les formats issus des outils et mods de l'écosystème communautaire (IEVR Ultimate Team, Save Editor)
+sont pris en charge nativement dans `nie-launcher` et `nie-save` :
+
+### `.utmod` / `UTMOD2` — Conteneur de mod chiffré
+
+Format d'archive binaire utilisé par `UTLauncher` pour distribuer des packs de mods et CPK :
+
+| Déplacement | Taille | Type | Rôle |
+|---|---|---|---|
+| `0x00..0x08` | 9 octets | ASCII | Magic `UTMOD2\r\n\x1a` (`0x55544D4F44320D0A1A`) |
+| `0x09..0x18` | 16 octets | GUID LE | Identifiant unique du package (128-bit) |
+| `0x19..0x1C` | 4 octets | uint32 LE | Taille de l'en-tête de métadonnées |
+| `0x1D..` | variable | Chiffré | Charge utile chiffrée en AES-256 avec authentification HMAC-SHA256 |
+
+Inspecteur natif : `nie_launcher::package::inspect_package_header` (`niers launcher package info <file>`).
+
+### Enveloppe d'équipe exportée (`exportarPlantilla`)
+
+Format JSON chiffré produit par l'application web `ievr-ultimate-team.fly.dev` pour transférer
+les compositions d'équipes vers le jeu :
+- **Chiffrement** : AES-256-GCM
+- **Dérivation de clé** : PBKDF2-SHA256 (210 000 itérations)
+- **Clé canonique** : `Rmfr4Dic6EAQaSgmLF__S64v7AgTNXb3q7-BLsBO5_0`
+- **Champs** : `v` (version=1), `alg` (`AES-GCM`), `salt` (16 bytes base64), `iv` (12 bytes base64), `datos` (ciphertext base64).
+- **Moteur natif** : `nie_launcher::team` (`niers launcher team decrypt/encrypt`).
+
+### Conteneur de sauvegarde `002AB8F4-USERDATALIVE`
+
+Format de sauvegarde Steam PC de `nie.exe` :
+- Magic : `0x9DCE66C3` little-endian en tête d'en-tête `0x800` octets.
+- Keystream : Dérivé par CRC32 de la clé de compte sur les décalages alignés.
+- Corps : 8 descripteurs `0x80` octets pour `AUTOSAVE_data.bin` (27 chunks) et `HEADERSAVE_data.bin`.
+- Gestionnaire natif : `nie_save` et `nie_launcher::save` (`niers launcher save park/restore/inject-team`).

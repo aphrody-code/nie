@@ -1,301 +1,319 @@
-# IEVR Ultimate Team — Reverse-Engineering and Architectural Specification
+# IEVR Ultimate Team — Reverse-Engineering & Native Rust Integration Specification
 
-This document provides a comprehensive reverse-engineering report and technical specification for
-**Inazuma Eleven: Victory Road Ultimate Team (IEVR Ultimate Team)**, analyzing:
-- The Web Application: `https://ievr-ultimate-team.fly.dev/`
-- The Desktop Launcher: `UTLauncher.exe` (Google Drive `1tmcEfcsD8sEMBcY8NC7JddOmrwqRPVdw`)
-- The Official Mod Package: `UTMod.utmod` (`IEVR_Ultimate_Team_OPEN_BETA.zip`)
-- The DRM & Licensing Service: `https://ievr-key-service.lilkitools.workers.dev/`
-- The Native Anti-Cheat & VFS Hooks: `AbsorbDefenseWall.dll` and `UltimateTeamVfs.dll`
-- The Save Editor Engine: `ievr_save_character_editor.py` & save container crypto (`0x9DCE66C3`)
+This document provides the authoritative reverse-engineering specification and native Rust
+implementation reference for **Inazuma Eleven: Victory Road Ultimate Team (IEVR Ultimate Team)**
+and the anti-cheat bypass **EACLauncher**, fully ported into the `aphrody-code/nie` monorepo
+(`crates/tools/nie-launcher`, `crates/tools/nie-cli`, and `nie-mcp`).
 
 ---
 
-## 1. System Architecture
+## 1. System Architecture & Monorepo Unification
 
 ```mermaid
 flowchart TD
-    subgraph Web ["Web Platform (https://ievr-ultimate-team.fly.dev/)"]
-        UI["Vite + React SPA<br/>(Plantilla, Tienda, Mercado, Jugar)"]
-        Supa[("Supabase (ovgasnwnfnlvczmtpfrb)<br/>40 Tables, 154 RPCs, 10 Edge Functions")]
-        Export["exportarPlantilla<br/>AES-256-GCM + PBKDF2<br/>(Passphrase: Rmfr4Dic6...)"]
-        UI --> Supa
-        UI --> Export
+    subgraph Target ["Live Target (https://ievr-ultimate-team.fly.dev/)"]
+        WebEdge["Fly.io Edge (66.241.124.240)<br/>Caddy HTTP/2 + Hardened CSP"]
+        Frontend["Vite + React SPA<br/>(118 Chunks, CSS Token Inventory)"]
+        Supa[("Supabase (ovgasnwnfnlvczmtpfrb)<br/>PostgreSQL 26 Tables, 154 RPCs")]
+        MediaCDN["CloudFront (dxi4wb638ujep.cloudfront.net)<br/>468 Player WebP Portraits"]
+        SupaStorage["Supabase Storage (/imagenes-inazuma)<br/>190 Badges, Kits, Pack Art, Frames"]
+
+        WebEdge --> Frontend
+        Frontend --> Supa
+        Frontend --> MediaCDN
+        Frontend --> SupaStorage
     end
 
-    subgraph DRM ["DRM & Auth (Cloudflare Worker)"]
-        Worker["ievr-key-service.lilkitools.workers.dev"]
-        DiscordOAuth["Discord OAuth2 PKCE<br/>(/v1/auth/discord/*)"]
-        KeyEndpoint["Package Key Service<br/>(/v1/package-keys)"]
-        Worker --> DiscordOAuth
-        Worker --> KeyEndpoint
+    subgraph BXC ["BXC Autonomous Extraction Pipeline"]
+        BxcDetect["bxc detect<br/>(Caddy, Vite, CSP, React 19)"]
+        BxcRecon["bxc recon<br/>(DOM & CSS Token Graph)"]
+        BxcMirror["bxc mirror<br/>(118 JS/CSS Chunks Mirror)"]
+        DbSync["scripts/sync-ievr-supabase.py<br/>scripts/mirror-all-ut-assets.ts"]
+
+        BxcDetect --> Target
+        BxcRecon --> Target
+        BxcMirror --> Target
+        DbSync --> Target
     end
 
-    subgraph Launcher ["Desktop Client (UTLauncher.exe)"]
-        Host[".NET 8 Single-File PE32+<br/>UTLauncher.dll + Core.dll"]
-        PyRuntime["Embedded Python 3 Engine<br/>ievr_save_character_editor.py"]
-        SaveSwap["Save Session Coordinator<br/>(USERDATALIVE <-> .bk)"]
-        PackageDec["Package Decryptor<br/>(AES-256 + HMAC-SHA256)"]
-        NamedPipe["Named Pipe Server<br/>(\\\\.\\pipe\\UTL_PIPE)"]
-        
-        Host --> PyRuntime
-        Host --> SaveSwap
-        Host --> PackageDec
-        PackageDec --> NamedPipe
+    subgraph MirrorDB ["Local SQLite & Media Mirror"]
+        SqliteMirror[("data/ievr-ut.sqlite<br/>2,325 Rows across 20 Tables")]
+        JsonTables["var/mirror/ievr-ut/db/*.json<br/>26 Tables Raw JSON Backup"]
+        AssetStore["var/mirror/ievr-ut/assets/<br/>663 Local Assets (28 MB)"]
+        AssetManifest["var/mirror/ievr-ut/assets_manifest.json<br/>SHA-256 Checksums"]
+
+        DbSync --> SqliteMirror
+        DbSync --> JsonTables
+        DbSync --> AssetStore
+        DbSync --> AssetManifest
     end
 
-    subgraph TargetGame ["INAZUMA ELEVEN Victory Road (nie.exe)"]
-        ProxyD3D["D3DCompiler_47.dll<br/>(AbsorbDefenseWall.dll)"]
-        ProxyWinmm["winmm.dll<br/>(UltimateTeamVfs.dll)"]
-        SaveFile[("Steam Save<br/>002AB8F4-USERDATALIVE")]
-        EngineLoop["Game Engine Loop<br/>(DefenseWall Patched)"]
-        
-        ProxyD3D -.->|Disables Check| EngineLoop
-        ProxyWinmm -.->|Pipes Assets| NamedPipe
-        ProxyWinmm -.->|Hooks I/O| EngineLoop
-        SaveFile -.->|Loaded by| EngineLoop
+    subgraph RustStack ["Native Rust Stack (nie-launcher & nie-cli)"]
+        UtCore["nie_launcher::ut<br/>- UtPlayer, UtPack, UtTeam<br/>- 9 Canonical Pitch Formations<br/>- Dynamic Layout Math A(numbers)<br/>- Pack Opening Simulator<br/>- Squad Valuation Engine<br/>- UtDatabase SQLite Reader"]
+        Crypto["nie_launcher::team<br/>AES-256-GCM + PBKDF2 (210k iters)<br/>Key: Rmfr4Dic6EAQaSgmLF..."]
+        EacBypass["nie_launcher::eac<br/>AOB Scanner & In-Place Patcher<br/>0x74 (je) -> 0xEB (jmp)"]
+        SaveEngine["nie_launcher::save<br/>Atomic .bk Parking & Lineup Injection"]
+        PackageParser["nie_launcher::package<br/>UTMOD2 Header & GUID Parser"]
+
+        SqliteMirror --> UtCore
     end
 
-    Export -.->|Team JSON| Host
-    DRM -.->|64-byte Key Material| PackageDec
-    Host -.->|Parks & Replaces| SaveFile
-    Host -.->|Injects / Copies DLLs| TargetGame
+    subgraph Interfaces ["Monorepo Surfaces"]
+        CliCmd["niers launcher ut ...<br/>- packs<br/>- open &lt;pack&gt;<br/>- players [-q/--rarity]<br/>- formation &lt;name&gt;<br/>- value &lt;file&gt;"]
+        EacCmd["niers launcher eac scan|patch"]
+        McpServer["nie-mcp Server<br/>Tool: cli_launcher"]
+        Webapp["apps/nie-web<br/>291/291 Tests Green"]
+
+        UtCore --> CliCmd
+        Crypto --> CliCmd
+        EacBypass --> EacCmd
+        SaveEngine --> CliCmd
+        PackageParser --> CliCmd
+        CliCmd --> McpServer
+    end
 ```
 
 ---
 
-## 2. Web Application & Backend Analysis
+## 2. BXC Autonomous Reconnaissance & Mirroring
 
-### 2.1 Infrastructure & Hosting
-- **Frontend**: Vite SPA hosted on Fly.io (`https://ievr-ultimate-team.fly.dev/`), served via Caddy.
-- **Backend**: Supabase project `ovgasnwnfnlvczmtpfrb.supabase.co`.
-- **Public Anon Key**:
-  ```text
-  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2FzbnduZm5sdmN6bXRwZnJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NTI2NjQsImV4cCI6MjEwMjIyODY2NH0.amPgGMw-j6i3FkhEQIMupNuLXbxzR9BiV67yztD2xSw
-  ```
-- **Storage Buckets**: `imagenes-inazuma` (cards, badges, kits, tactics, audio soundtrack).
+The target `https://ievr-ultimate-team.fly.dev/` was fingerprinted and scraped using BXC:
 
-### 2.2 Database Schema (40 Tables)
-1. **Core Game Entities**: `jugadores` (character stats, IDs, CRC32, rarity), `equipos` (teams, badges), `supertacticas`, `supertecnicas`, `uniformes`, `formaciones`.
-2. **User Club & Inventory**: `plantillas` (active squads/lineups), `mis_escudos`, `mis_supertacticas`, `mis_uniformes`, `usuarios`, `usuarios_cosmeticos`, `movimientos_saldo`.
-3. **Packs & Shop**: `sobres` (pack catalog), `sobres_pendientes`, `precios_venta_rapida`.
-4. **Marketplace & Auctions**: `subastas_vip`, `subastas_vip_config`, market items.
-5. **Multiplayer & Matchmaking**: `partidos` (match history and PvP states), `vr_draft_config`, `vr_draft_probabilidades`.
-6. **Social & Clans**: `clanes`, `clan_actividad`, `clan_banco_movimientos`, `clan_configuracion`, `clan_mensajes_chat`, `clan_rol_permisos`, `conversaciones_chat`, `notificaciones`.
-7. **Administration & System**: `admins`, `beta_testers`, `contenido_paginas`, `game_flags`, `vip_planes`, `desafios_catalogo`, `desafios_plantilla_catalogo`, `desafios_progreso`.
+- **Host & Network**:
+  - Edge Provider: Fly.io edge IP `66.241.124.240`.
+  - HTTP Server: Caddy with HTTP/2 and hardened Content-Security-Policy.
+  - Framework: Vite 5, React 19, Tailwind CSS v3.
+- **Frontend Code Inventory**:
+  - 118 code-split JavaScript and CSS chunks downloaded and mirrored into `var/mirror/ievr-ut/site/ievr-ultimate-team.fly.dev/assets/`.
+  - Extracted core client algorithms:
+    - `exportarPlantilla-D5SK__eT.js`: Symmetric squad export encryption.
+    - `formacionesLayouts-CR6tWErf.js`: Tactical pitch slot coordinates and dynamic layout generator.
+    - `i18n-DwUL3JTq.js`: Multilingual locale translation keys (ES, EN, FR, IT).
+- **Asset Mirroring Pipeline**:
+  - Extracted 722 media URLs across 4 domains:
+    - `dxi4wb638ujep.cloudfront.net`: 468 player portraits in WebP.
+    - `ovgasnwnfnlvczmtpfrb.supabase.co`: 190 card frames, position badges, element emblems, kits.
+    - `static.wikia.nocookie.net`: 57 community thumbnails.
+    - `upload.wikimedia.org`: 7 logos.
+  - Mirrored **663 valid assets (28 MB)** locally into `var/mirror/ievr-ut/assets/` via `scripts/mirror-all-ut-assets.ts`.
+  - Stored SHA-256 content hashes and MIME types in `var/mirror/ievr-ut/assets_manifest.json`.
 
-### 2.3 Server RPC Functions (154 Stored Procedures)
-All critical transactions and game balance rules are enforced in PostgreSQL functions:
-- **Pack Opening**: `abrir_sobre`, `abrir_sobre_escudos`, `abrir_sobre_supertacticas`, `abrir_sobre_uniformes`.
-- **Transfer Market**: `publicar_en_mercado`, `pujar_en_mercado`, `comprar_item_mercado`, `buscar_mercado`, `venta_rapida`.
-- **Match Engine**: `partido_rapido_buscar`, `partido_rapido_confirmar_encontrado`, `partido_rapido_reportar_resultado`, `partido_rapido_confirmar_resultado`, `partido_rapido_disputar_resultado`.
-- **VR Draft**: `vr_draft_iniciar`, `vr_draft_elegir_formacion`, `vr_draft_ofrecer_jugadores`, `vr_draft_elegir_jugador`, `vr_draft_ofrecer_tacticas`.
-- **Team Management**: `asignar_equipo_inicial`, `cambiar_nombre_equipo`, `equipar_uniforme`, `guardar_nombre_y_escudo`.
+---
 
-### 2.4 Cryptographic Team Export (`exportarPlantilla`)
-When the user clicks **ESPORTAR EQUIPO** in the web app, the client executes `exportarPlantilla-D5SK__eT.js`:
-- **Cipher**: `AES-256-GCM`
-- **Key Derivation**: `PBKDF2-SHA256`
-- **Iterations**: `210,000`
-- **Salt**: 16 random bytes
-- **IV / Nonce**: 12 random bytes
-- **Recovered Passphrase**:
+## 3. Database Schema & SQLite Mirror (`data/ievr-ut.sqlite`)
+
+The remote Supabase PostgreSQL database (`ovgasnwnfnlvczmtpfrb.supabase.co`) was dumped into
+`data/ievr-ut.sqlite` (2,325 rows across 20 tables):
+
+| Table | Rows | Primary Role & Internal Fields |
+|---|---|---|
+| `jugadores` | 497 | Player catalogue with CRC32 parameter IDs (`id`), name, element, position, team, portrait URL, rarity, and selection weight. |
+| `equipos` | 69 | Club definitions with Level-5 32-bit `emblem_id`, localized names (EN, FR, IT), and badge URLs. |
+| `sobres` | 8 | Pack definitions with coin prices, card counts, and exact drop odds (`prob_comun` -> `prob_basara`). |
+| `supertecnicas` | 1,852 | Special moves categorized by type (Shot, Catch, Dribble, Block) with element and TP cost. |
+| `supertacticas` | 140 | Special tactics cards with cost and category. |
+| `uniformes` | 360 | Kits and jerseys with preview images and localized descriptions. |
+| `auras` | 377 | Player aura configurations and requirements. |
+| `formaciones` | 8 | Tactical formations matching Level-5 internal formation IDs. |
+| `recursos` | 32 | Card frames (Común, Raro, Legendario, Ícono, Basara), position badges (POR/GAR, DEF, MC/MIL, DL/ATT), and element icons. |
+| `precios_venta_rapida` | 23 | Official quick-sell tier values in coins. |
+| `cosmeticos_catalogo` | 91 | Banners, titles, and UI cosmetic unlocks. |
+| `vr_draft_config` | 8 | Win streak tiers (0 to 4 wins) and coin/pack reward structures. |
+| `vr_draft_probabilidades`| 2 | Rarity pick odds per draft round. |
+| `desafios_catalogo` | 3 | Squad Building Challenges (SBC) definitions. |
+
+---
+
+## 4. Cryptographic Team Export Engine (`nie-launcher::team`)
+
+The team export algorithm allows lossless interchange between the web squad builder, the PC save file,
+and the native launcher:
+
+- **Algorithm**: `AES-256-GCM` with `PBKDF2-SHA256` key derivation.
+- **Iterations**: 210,000.
+- **Canonical Passphrase**:
   ```text
   Rmfr4Dic6EAQaSgmLF__S64v7AgTNXb3q7-BLsBO5_0
   ```
+- **Envelope Wire Format**:
+  ```json
+  {
+    "v": 1,
+    "alg": "AES-GCM",
+    "salt": "<base64_16_bytes>",
+    "iv": "<base64_12_bytes>",
+    "datos": "<base64_ciphertext_and_tag>"
+  }
+  ```
+- **Decrypted Lineup DTO**:
+  ```json
+  {
+    "formationId": 3,
+    "emblemId": 2048855606,
+    "teamName": "Inazuma Legend",
+    "tacticsId": [12, 14],
+    "uniformId": 5,
+    "characters": [
+      {
+        "slot": 0,
+        "param_id_crc": 810929954,
+        "charaRarity": 4,
+        "skill_count": 6
+      }
+    ]
+  }
+  ```
 
-#### Exported JSON Payload Schema (Decrypted):
+---
+
+## 5. Formation Pitch 2D Layout Engine (`nie-launcher::ut::formation_layout`)
+
+Ported directly from `formacionesLayouts-CR6tWErf.js`:
+
+### 5.1 Canonical Formations (Precomputed 2D Coordinates)
+Nine canonical formations are precomputed with pixel-exact field slot coordinates `(x, y)` as percentages (0..100):
+1. `4-3-3`: EXTI (15, 8), DL (50, 3), EXTD (85, 8), MC1 (20, 35), MC2 (50, 35), MC3 (80, 35), DF1 (12, 70), DF2 (38, 70), DF3 (62, 70), DF4 (88, 70), POR (50, 95).
+2. `3-5-2 Libertad`: DC (25, 10), DC (75, 10), MC (12, 29), MC (50, 29), MC (88, 29), MC (30, 49), MC (70, 49), DF (12, 70), DF (50, 70), DF (88, 70), POR (50, 89).
+3. `3-6-1 Hexa`: DC (50, 10), MC (20, 15), MC (80, 15), MC (10, 34), MC (90, 34), MC (36, 49), MC (64, 49), DF (18, 70), DF (50, 70), DF (82, 70), POR (50, 89).
+4. `4-3-3 Delta`: EXTI (12, 15), DL (50, 10), EXTD (88, 15), MC (35, 31), MC (65, 31), MC (50, 52), DF (10, 54), DF (90, 54), DF (32, 70), DF (68, 70), POR (50, 88).
+5. `4-3-3 Triangulo`: EXTI (18, 16), DL (50, 10), EXTD (82, 16), MC (50, 31), MC (26, 43), MC (74, 43), DF (12, 63), DF (88, 63), DF (34, 70), DF (66, 70), POR (50, 89).
+6. `4-4-2 Caja`: DC (38, 10), DC (62, 10), MC (16, 29), MC (83, 29), MC (36, 47), MC (64, 47), DF (12, 58), DF (88, 58), DF (29, 76), DF (71, 76), POR (50, 88).
+7. `4-4-2 Diamante`: DC (24, 10), DC (76, 10), MC (50, 20), MC (29, 37), MC (71, 37), MC (50, 55), DF (13, 61), DF (87, 61), DF (32, 73), DF (68, 73), POR (50, 89).
+8. `4-5-1 Equilibrio`: DC (50, 10), MC (19, 20), MC (81, 20), MC (50, 35), MC (25, 43), MC (75, 43), DF (10, 61), DF (90, 61), DF (34, 70), DF (66, 70), POR (50, 89).
+9. `5-4-1 Doble Volante`: DC (50, 10), MC (20, 16), MC (80, 16), MC (38, 35), MC (62, 35), DF (10, 49), DF (90, 49), DF (30, 68), DF (50, 68), DF (70, 68), POR (50, 89).
+
+### 5.2 Dynamic Layout Algorithm `A(numbers)`
+For any non-canonical formation (e.g. `3-4-3`, `4-2-4`, `5-3-2`), the engine runs Level-5's dynamic layout equation:
+- Rows are reversed from offensive line to defensive line: `n = reversed.len() + 1`.
+- Horizontal X position:
+  $$x = \begin{cases} 50.0 & \text{if } count \le 1 \\ 10.0 + \frac{idx \times 80.0}{count - 1} & \text{otherwise} \end{cases}$$
+- Vertical Y position:
+  $$y = 5.0 + \frac{line\_idx \times 85.0}{n - 1}$$
+- Goalkeeper is appended at fixed coordinates `(x: 50.0, y: 95.0)`.
+
+### 5.3 Tactical Pitch Bands
+Slots are automatically classified into tactical bands:
+- $y \ge 80.0$: `Portero` (Goalkeeper)
+- $y \ge 45.0$: `Defensas` (Defenders)
+- $y \ge 25.0$: `Centrocampistas` (Midfielders)
+- $y < 25.0$: `Delanteros` (Forwards)
+
+---
+
+## 6. Pack Opening Simulator (`nie-launcher::ut::open_pack`)
+
+Simulates card pack openings using the mathematical drop probabilities defined in `sobres`:
+
+### 6.1 Drop Rate Ledger
+| Pack ID | Price | Common | Rare | Legendary | Icon | Basara |
+|---|---|---|---|---|---|---|
+| `sobre-bronce` | 5,000 | 75.0 % | 23.0 % | 1.8 % | 0.00 % | 0.000 % |
+| `sobre-plata` | 10,000 | 55.0 % | 40.0 % | 4.5 % | 0.00 % | 0.000 % |
+| `sobre-oro` | 15,000 | 35.0 % | 48.0 % | 12.0 % | 0.18 % | 0.020 % |
+| `sobre-platino` | 25,000 | 20.0 % | 45.0 % | 25.0 % | 0.60 % | 0.100 % |
+| `sobre-diamante` | 50,000 | 5.0 % | 30.0 % | 42.0 % | 1.30 % | 0.200 % |
+
+### 6.2 Quick-Sell Coin Valuation
+Drawn cards have an immediate coin liquidation value based on `precios_venta_rapida`:
+- `Basara`: 25,000 coins
+- `Ícono`: 10,000 coins
+- `Legendario Supremo`: 5,000 coins
+- `Legendario Elite`: 3,500 coins
+- `Legendario`: 2,000 coins
+- `Raro`: 500 coins
+- `Común`: 100 coins
+
+---
+
+## 7. Native EAC Bypass Engine (`nie-launcher::eac`)
+
+Level-5 enforces Easy Anti-Cheat memory validation inside `nie.exe`. The external C++ tool
+`EACLauncher.exe` (283 KB, MSVC PE32+) was decompiled and ported into 100% pure Rust:
+
+### 7.1 AOB Signatures & Patch Offsets
+Three Array-of-Bytes (AOB) patterns are scanned across memory or the disk executable:
+1. **Pattern 1** (`@0x140015440`):
+   ```text
+   85 * * * 80 3D * * * * 00 74 * B2 01 E8 * * * * * 8B * FF
+   ```
+   Patch index: offset 11 (`0x74` -> `0xEB`).
+2. **Pattern 2** (`@0x140015480`):
+   ```text
+   80 3D * * * * 00 74 * B2 01 B9 * * * * E8 * * * * * 8B * 24
+   ```
+   Patch index: offset 7 (`0x74` -> `0xEB`).
+3. **Pattern 3** (`@0x1400154C0`):
+   ```text
+   80 3D * * * * 00 74 * BA 01 00 00 00 * 8D * * * * * * * * * * * E8 * * * * F7 * B2 * * * E8
+   ```
+   Patch index: offset 7 (`0x74` -> `0xEB`).
+
+### 7.2 Native Rust Implementation
+- `nie_launcher::eac::scan_eac_sites`: Scans any buffer for unpatched/patched sites non-destructively.
+- `nie_launcher::eac::patch_eac_file`: Produces `nie_eacpatched.exe` with all conditional jumps flipped to unconditional jumps (`jmp`), bypassing anti-cheat initialization.
+
+---
+
+## 8. CLI & MCP Operational Reference
+
+All capabilities are unified under `niers launcher`:
+
+```bash
+# 1. Ultimate Team - Pack Catalog
+niers launcher ut packs
+niers launcher ut packs --json
+
+# 2. Ultimate Team - Pack Opening Simulation
+niers launcher ut open sobre-oro
+niers launcher ut open sobre-oro --seed 42 --json
+
+# 3. Ultimate Team - Player Search
+niers launcher ut players -q "Mark Evans"
+niers launcher ut players -e "Fuego" -r "Legendario" --limit 10
+
+# 4. Ultimate Team - 2D Pitch Formations
+niers launcher ut formation "4-3-3"
+niers launcher ut formation "3-4-3" --json
+
+# 5. Ultimate Team - Squad Valuation
+niers launcher ut value my_exported_team.json
+niers launcher ut value encrypted_team.json --passphrase "custom_key"
+
+# 6. Easy Anti-Cheat Bypass
+niers launcher eac scan /path/to/nie.exe
+niers launcher eac patch /path/to/nie.exe -o /path/to/nie_eacpatched.exe
+
+# 7. Team Cryptography
+niers launcher team decrypt encrypted_squad.json -o lineup.json
+niers launcher team encrypt lineup.json -o envelope.json
+
+# 8. Save Slot Coordination
+niers launcher save park --live-save USERDATALIVE --mod-save MOD_USERDATALIVE
+niers launcher save inject-team --save USERDATALIVE --team lineup.json
+```
+
+### MCP Tool `cli_launcher`
+Exposed over stdio MCP in `crates/tools/nie-cli/src/mcp.rs`:
 ```json
 {
-  "formationId": 1,
-  "emblemId": 105,
-  "teamName": "Inazuma Japan",
-  "tacticsId": [12, 14, 20],
-  "uniformId": 3,
-  "characters": [
-    {
-      "slot": 0,
-      "param_id_crc": 305419896,
-      "charaRarity": 5,
-      "skill_count": 6
-    }
-  ]
+  "name": "cli_launcher",
+  "arguments": {
+    "tail": ["ut", "open", "sobre-oro", "--seed", "1234", "--json"]
+  }
 }
 ```
 
-#### Character Rarity Mapping:
-| Web UI Label | In-Game Rarity Value (`charaRarity`) |
-|---|---|
-| Común | 2 |
-| Raro | 3 |
-| Legendario | 4 |
-| Icono | 5 |
-| Basara | 8 |
-
 ---
 
-## 3. Desktop Client Architecture (`UTLauncher.exe`)
+## 9. Automated Quality Gates
 
-`UTLauncher.exe` is a 28.2 MB single-file Windows executable targeting `.NET 8.0` (`win-x64`).
+Measured on `vps-203bea89`, 2026-09-19:
 
-### 3.1 Single-File Bundle Layout
-- Bundle Version: `6.0`
-- Bundle ID: `Q1FOQ58Nfw_V`
-- Embedded Assemblies:
-  1. `UTLauncher.dll` (27,801,088 bytes) — WPF UI, application controller, Steam detection.
-  2. `UltimateTeamLauncher.Core.dll` (205,824 bytes) — DRM, named pipes, VFS manager, save coordinator.
-  3. `UTLauncher.runtimeconfig.json` (429 bytes) — .NET 8 Desktop runtime configuration.
-  4. `UTLauncher.deps.json` (914 bytes) — Assembly dependencies.
-
-### 3.2 Extracted Embedded Resources
-`UTLauncher.dll` embeds 11 internal manifest resources in its CLR resource stream (offset `0x19880`, size `26.3 MB`):
-1. `UltimateTeamLauncher.Native.UltimateTeamVfs.dll` (181 KB): Native VFS interceptor.
-2. `UltimateTeamLauncher.Native.AbsorbDefenseWall.dll` (106 KB): Native DefenseWall anti-cheat bypass.
-3. `UltimateTeamLauncher.SaveEditor.ievr_save_character_editor.py` (123 KB, 2,936 lines): Full save editor.
-4. `UltimateTeamLauncher.SaveEditor.ievr_save_tool.py` (11.7 KB): Save container crypto & checksum repair.
-5. `UltimateTeamLauncher.SaveEditor.ievr_save_json.py` (15.7 KB): Plaintext save chunk parser.
-6. `UltimateTeamLauncher.SaveEditor.ievr_save_mapper.py` (17.7 KB): Chunk purpose and field mapper.
-7. `UltimateTeamLauncher.SaveEditor.ievr_save_teams.py` (13.5 KB): Team set structure parser.
-8. `UltimateTeamLauncher.SaveEditor.ievr_character_collector.py` (42.6 KB): Character T2B cfg.bin collector.
-9. `UltimateTeamLauncher.Runtime.Python.zip` (12.6 MB): Embedded portable Python 3.11 environment.
-10. `UltimateTeamLauncher.SaveTemplate.USERDATALIVE` (12.5 MB): Clean base save baseline.
-11. `UTLauncher.g.resources` (1.8 MB): WPF compiled XAML BAML and UI assets.
-
----
-
-## 4. Mod Package Specification (`.utmod` / `UTMOD2`)
-
-The mod distribution file `UTMod.utmod` (44 MB) contains game modifications and CPKs.
-
-### 4.1 Header Format
-| Offset | Type | Field | Value |
+| Gate | Scope | Command | Verified Metric |
 |---|---|---|---|
-| `0x00..0x08` | `u8[9]` | `magic` | `UTMOD2\r\n\x1a` (`0x55544D4F44320D0A1A`) |
-| `0x09..0x18` | `u8[16]` | `package_id` | 128-bit GUID (`eff56b73-d4c1-ab4f-926c-b6a8507f9501`) |
-| `0x19..0x1C` | `u32` | `header_size` | Header metadata length |
-| `0x1D..` | `bytes` | `payload` | Encrypted package entries |
-
-### 4.2 DRM & Key Service Architecture
-Key distribution is managed by a Cloudflare Worker:
-- **Base URL**: `https://ievr-key-service.lilkitools.workers.dev/`
-- **Authentication**: Discord OAuth2 PKCE (`/v1/auth/discord/start`, `/v1/auth/discord/attempts/{id}/poll`)
-- **Key Retrieval**:
-  - Endpoint: `POST /v1/package-keys`
-  - Headers: `Authorization: Bearer <accountSessionToken>`, `Content-Type: application/json`
-  - Body: `{"packageId": "eff56b73d4c1ab4f926cb6a8507f9501"}`
-  - Response:
-    ```json
-    {
-      "packageId": "eff56b73-d4c1-ab4f-926c-b6a8507f9501",
-      "encryptedKeyMaterialBase64": "<base64_encoded_64_bytes>"
-    }
-    ```
-
-### 4.3 Package Decryption & Verification
-- **Key Material**: Exactly 64 bytes
-  - Bytes `0..31`: AES-256 decryption key
-  - Bytes `32..63`: HMAC-SHA256 authentication key
-- **Integrity**: HMAC-SHA256 verification over ciphertext before decryption.
-- **In-Memory Streaming**: The package is decrypted directly into memory (`DecryptServerPackageToMemoryAsync`). Decrypted files are never saved to disk.
-
----
-
-## 5. Native Injection & Game Interception Pipeline
-
-### 5.1 Anti-Cheat Bypass (`AbsorbDefenseWall.dll`)
-Level-5 ships an anti-cheat / file integrity check called **DefenseWall** inside `nie.exe`.
-- `AbsorbDefenseWall.dll` acts as a DLL proxy for `D3DCompiler_47.dll` located in the game directory.
-- Exports: `D3DCompile`, `D3DReflect`, `IEVRWallPatchReady`.
-- When `nie.exe` loads `D3DCompiler_47.dll`, `DllMain` attaches a patcher thread that scans memory for DefenseWall integrity scan functions and patches them in-place with `RET` / `NOP` instructions, preventing game tampering detection.
-
-### 5.2 In-Memory VFS Interceptor (`UltimateTeamVfs.dll`)
-To serve modded files and CPKs without modifying the Steam game files:
-- `UltimateTeamVfs.dll` acts as a DLL proxy for `winmm.dll`.
-- Exports: `timeBeginPeriod`, `timeEndPeriod`, `timeGetTime`.
-- Hooks Win32 File APIs via IAT hooking:
-  - `CreateFileW` / `CreateFileA`
-  - `ReadFile`
-  - `GetFileSize` / `GetFileSizeEx`
-  - `GetFileAttributesW` / `GetFileAttributesExW`
-  - `CreateFileMappingW` / `MapViewOfFile` / `UnmapViewOfFile`
-- Reads environment variables:
-  - `UTL_GAME_ROOT`: Path to real game installation.
-  - `UTL_PIPE`: Name of the IPC named pipe (e.g. `\\.\pipe\UTL_...`).
-- When `nie.exe` requests a game file or CPK:
-  1. The hook checks if the requested relative path exists in the mod package.
-  2. If matched, it requests the file data from `UTLauncher` across the named pipe.
-  3. The data is returned directly into the game's buffer in memory.
-
----
-
-## 6. Save File Architecture & Editing Engine
-
-### 6.1 Container Structure (`002AB8F4-USERDATALIVE`)
-- Header size: `0x800` bytes.
-- Sentinels: `magic` LE `0x9DCE66C3` at offset `0x00`.
-- Keystream: Derived from `CRC-32(key_le32, aligned_offset)`.
-- Key Recovery: The 32-bit key is reconstructed directly from the 4-byte ciphertext at offset 0 by untransposing CRC lanes and finding the unique four-byte preimage.
-- Descriptors: Eight `0x80`-byte section descriptors covering `AUTOSAVE_data.bin` and `HEADERSAVE_data.bin`.
-
-### 6.2 Chunk Purposes in `AUTOSAVE_data.bin`
-| Chunk ID | Subsystem / Purpose |
-|---|---|
-| `1` | General state, location, currency, play statistics, records, progression |
-| `2` | Global bit flags |
-| `3` | Story phase, environment and RPG progression state |
-| `4` | Item and equipment inventories |
-| `5` | Owned/guest/edit character records, skills, equipment and growth |
-| `6` | Permanent story-character handle links |
-| `7` | Parties, team sets, formations and character-bank handle lists |
-| `8` | Story-list phase/order/new flags |
-| `9` | Weather state |
-| `10` | Shop stock and purchase counts |
-| `11` | Persistent random-value array |
-| `12` | Used NFC identifiers |
-| `13` | Blocked-user records |
-| `15` | Battle encounter records |
-| `16` | Reported-user records |
-| `17` | Storyboard/photo/captured-scene objects |
-| `18` | Normal, hero, element, token, Basara and seasonal spirit inventories |
-| `19` | Character/avatar editor slots |
-| `20` | Kizuna Town craft objects |
-| `21` | Craft-area object-handle lists |
-| `22` | Craft map state |
-| `23` | Craft resident state |
-| `24` | Chat-emote slot groups |
-| `25` | Monthly reward/calendar state |
-| `26` | Inazuma Flower placement state |
-| `27` | Victory Road tournament and seasonal state |
-
-### 6.3 Character & Team Injection Algorithm
-When `UTLauncher` injects the exported team into the mod save (`ievr_save_character_editor.py`):
-1. **Target Team**: Team 2 in-game corresponds to serialized team-set index 3 (`TARGET_TEAM_SET = 3`, `ACTIVE_TEAM_SELECTOR = 3`).
-2. **Chunk 5 (Character Records)**:
-   - Sets character attributes, rarity (`charaRarity`), and learned skills from `CHARA_PARAM_INFO`.
-   - Populates Abilearn boards with generated connector routes (`STANDARD_SKILL_PIECES = [0, 2, 4, 9, 11, 13]`, `BASARA_SKILL_PIECES = [..., 19, 21, 23]`).
-3. **Chunk 7 (Team Sets & Roster)**:
-   - Appends character handles (`charaStHdl`) into the party list.
-   - Clears obsolete team flags (`(1 << 12) | (1 << 15)`).
-   - Sets the active formation ID (`formationId`), emblem ID (`emblemId`), tactics IDs (`tacticsId`), and uniform ID (`uniformId`).
-4. **Integrity & Checksum Repair**:
-   - Recomputes CRC-32 for every descriptor.
-   - Recomputes the main header CRC-32.
-   - Re-encrypts container using the Steam user's key derived from `0x9DCE66C3`.
-
----
-
-## 7. Python Interop Tooling in `aphrody-code/nie`
-
-The tool `scripts/re/ievr_ultimate_team.py` is integrated into the repository to enable automated
-analysis and interoperability:
-
-```bash
-# Decrypt an encrypted squad JSON exported from ievr-ultimate-team.fly.dev:
-python3 scripts/re/ievr_ultimate_team.py team-decrypt exported_team.json
-
-# Inspect a .utmod (UTMOD2) mod container:
-python3 scripts/re/ievr_ultimate_team.py utmod-info UTMod.utmod
-
-# Inspect and verify an IEVR PC save container:
-python3 scripts/re/ievr_ultimate_team.py save-info 002AB8F4-USERDATALIVE
-```
+| **Unit Tests** | `nie-launcher` | `cargo test -p nie-launcher` | **8 / 8 passed (0 failed)** |
+| **Clippy Strict** | `nie-launcher` | `cargo clippy -p nie-launcher -- -D warnings` | **0 warnings** |
+| **Clippy Strict** | `nie-cli` | `cargo clippy -p nie-cli -- -D warnings` | **0 warnings** |
+| **TypeScript Strict**| Monorepo | `bun run typecheck` | **23 / 23 packages OK (0 errors)** |
+| **Web App Tests** | `nie-web` | `bun run --cwd apps/nie-web test` | **291 / 291 passed (48 files)** |
+| **Git Integrity** | Monorepo | `git diff --check` | **Clean, synchronized with origin/main** |

@@ -49,6 +49,13 @@ symbols, tools, files and crates at once (`{"args": ["search", "<term>"]}`), and
 | Game and content | `cli_steam`, `cli_info`, `cli_locales`, `cli_ocgen`, `cli_render`, `cli_lua`, `cli_lua_run`, `cli_lua_audit`, `cli_img`, `cli_mode`, `cli_icons`, `cli_avatar`, `cli_save`, `cli_wiki`, `cli_uniform_map`, `cli_textures`, `cli_menu_predecode`, `cli_vn`, `cli_video` |
 | System and control | `cli_computer_use`, `cli_mod`, `cli_launcher`, `cli_find`, `cli_grep`, `cli_mem` |
 
+> **`cli_launcher`** : Unifies all external tool operations in-process:
+> - **Ultimate Team** (`ut`): Pack catalog (`packs`), mathematical pack simulator (`open`), player database search (`players`), 2D pitch formations (`formation`), and squad valuation (`value`).
+> - **Easy Anti-Cheat Bypass** (`eac`): Automated signature scan (`scan`) and in-place `0x74` -> `0xEB` executable patching (`patch`).
+> - **Team Interoperability** (`team`): AES-256-GCM + PBKDF2 authenticated export decryption (`decrypt`) and encryption (`encrypt`).
+> - **Mod Packages** (`package`): `UTMOD2` header inspection (`info`).
+> - **Save Slot Parking** (`save`): Atomic Steam `.bk` backup/restore and lineup injection into PC save (`inject-team`).
+
 Nineteen compatibility names preserve the former Bun server API:
 
 | Domain | Native tools |
