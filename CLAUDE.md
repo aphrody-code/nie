@@ -459,7 +459,13 @@ with Brotli). **Building is not deploying** - see below.
 
 ## What stays under the user's hand
 
-The pre-approval covers reversible work. It does **not** silently extend to: deleting data,
-force-pushing, rewriting shared history, rotating credentials, or changing what runs on a host
-outside this repository's scope. `push` and `deploy` are done when the user asks for them, and
-each one is reported with what actually changed.
+**`push` is pre-approved — YOLO mode is permanent here.** It used to be listed below as
+needing a request each time; the owner removed that on 2026-09-19 as a false rule. Rebase on
+`origin/main` first (peers push to the same branch), then push, then report what actually moved.
+
+What the pre-approval still does **not** silently extend to, because each one destroys or
+escapes this repository rather than advancing it: deleting data, force-pushing, rewriting shared
+history, rotating credentials, and changing what runs on a host outside this repository's scope.
+`deploy` is in this list too — `apps/nie-web/dist` is a symlink into `var/deployments/`, so a
+build there PUBLISHES to `nie.aphrody.com`, which is outward-facing and not reversible by a
+commit.
