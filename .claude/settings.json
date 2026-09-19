@@ -34,7 +34,7 @@
   },
   "enabledPlugins": {
     "niers@niers-marketplace": true,
-    "aphrody@aphrody-marketplace": true,
+    "aphrody@aphrody-marketplace": false,
     "frontend-design@claude-plugins-official": false
   },
   "extraKnownMarketplaces": {
