@@ -30,6 +30,8 @@ import {
 	GameCanvas,
 	useCapacites as useCapabilities,
 	useAssetSource,
+	useSettings,
+	type GameLocale,
 } from "@niers/inacord-ui";
 import {
 	fetchCharaCatalog,
@@ -85,9 +87,16 @@ const PAGE_SIZE = COLUMNS * ROWS;
  */
 const LIST_LAYER = 0x1ac99083;
 
-/** Le layout de l'écran, validé par `lireLayout` — un JSON mal formé échoue bruyamment. */
-async function loadLayout(signal: AbortSignal): Promise<LayoutJeu> {
-	return lireLayout(await loadMenuLayout(SCREEN, "fr", signal));
+/**
+ * Le layout de l'écran, validé par `lireLayout` — un JSON mal formé échoue bruyamment — et dans
+ * la langue de JEU choisie.
+ *
+ * Elle était figée à `"fr"` ici et dans `createMenuRuntime` plus bas, alors que l'écran frère
+ * `TrophyGallery` lit déjà `gameLocale` depuis `useSettings`. Le réglage restait donc sans effet
+ * sur la Banque.
+ */
+async function loadLayout(locale: GameLocale, signal: AbortSignal): Promise<LayoutJeu> {
+	return lireLayout(await loadMenuLayout(SCREEN, locale, signal));
 }
 
 /** Une réponse de `/api/v1/game-data/charas`, vérifiée avant d'être liée à la liste. */
@@ -290,12 +299,14 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 		}
 	}, [webCatalogue, urlState, writeWebState]);
 
+	const { settings: { gameLocale } } = useSettings();
+
 	useEffect(() => {
 		const controller = new AbortController();
-		loadLayout(controller.signal).then(setLayout, () => { if (!controller.signal.aborted) setLayoutFailed(true); });
+		loadLayout(gameLocale, controller.signal).then(setLayout, () => { if (!controller.signal.aborted) setLayoutFailed(true); });
 		loadRoster(controller.signal).then(setEntries, () => { if (!controller.signal.aborted) setRosterFailed(true); });
 		return () => controller.abort();
-	}, []);
+	}, [gameLocale]);
 
 	useEffect(() => {
 		if (!webCatalogue || urlState.team.length > 0) {
@@ -335,8 +346,8 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	]);
 
 	const session = useMemo(
-		() => createMenuRuntime(SCREEN, { locale: "fr", itemCounts: { [LIST_LAYER]: PAGE_SIZE } }),
-		[],
+		() => createMenuRuntime(SCREEN, { locale: gameLocale, itemCounts: { [LIST_LAYER]: PAGE_SIZE } }),
+		[gameLocale],
 	);
 	const receive = useCallback((result: MenuRuntimeResult) => {
 		setRuntime(result);

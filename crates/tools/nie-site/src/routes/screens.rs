@@ -1127,11 +1127,14 @@ pub async fn mode(
 
 // ═══ Couverture des écrans ═══════════════════════════════════════════════════
 
-/// Le canvas de référence des menus d'IEVR.
-const CANVAS: (u32, u32) = (1280, 720);
+/// Le canvas de référence des menus d'IEVR — une seule déclaration, dans `super::menu`.
+use super::menu::CANVAS;
 
 /// La locale par défaut pour résoudre les chemins de texture porteurs de `<LG>`.
-const SCREEN_LOCALE: &str = "fr";
+///
+/// Reprise de `super::inspect`, qui la déclare déjà : deux constantes pour la même décision
+/// se répondent tant que personne n'en change qu'une.
+const SCREEN_LOCALE: &str = super::inspect::DEFAULT_LOCALE;
 
 /// Un écran, avec ce que le site sait en produire.
 ///

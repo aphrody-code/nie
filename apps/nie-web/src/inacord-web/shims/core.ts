@@ -63,6 +63,20 @@ async function stats() {
 	};
 }
 
+/**
+ * Le plafond que le serveur APPLIQUE, pas celui qu'on espère.
+ *
+ * `PER_PAGE_MAX = 200` (`crates/tools/nie-site/src/config.rs`) : au-delà, toute route qui pagine
+ * rend 200 éléments SANS erreur, et ne le dit qu'à travers `pages`/`per_page`. Demander 500 puis
+ * calculer la page comme `offset / 500` fait donc sauter 300 entrées par page et en redemander
+ * d'autres deux fois — des trous et des doublons, jamais un échec. Borner ici est ce qui garde
+ * `page` et `per_page` d'accord avec ce que le serveur rendra vraiment.
+ */
+const PAR_PAGE_MAX = 200;
+
+/** Le même plafond, pour les codes de `/api/v1/wiki/names` (`nie_wiki::names::validate`). */
+const CODES_PAR_REQUETE = 200;
+
 async function folder(prefix: string, limit: number, offset: number): Promise<ApiFolder> {
 	const page = Math.floor(offset / Math.max(limit, 1)) + 1;
 	const params = new URLSearchParams({ page: String(page), per_page: String(Math.max(limit, 1)) });
@@ -71,7 +85,7 @@ async function folder(prefix: string, limit: number, offset: number): Promise<Ap
 }
 
 async function list(args: Arguments) {
-	const limit = positive(args.limit, 200);
+	const limit = Math.min(positive(args.limit, PAR_PAGE_MAX), PAR_PAGE_MAX);
 	const offset = nonNegative(args.offset);
 	const response = await folder(text(args.prefix), limit, offset);
 	return {
@@ -85,7 +99,7 @@ async function list(args: Arguments) {
 
 /** Read every direct file page while retaining the folder structure returned on each page. */
 async function completeFolder(prefix: string): Promise<ApiFolder> {
-	const perPage = 200;
+	const perPage = PAR_PAGE_MAX;
 	const first = await folder(prefix, perPage, 0);
 	const files = [...first.fichiers];
 	for (let offset = perPage; offset < first.total_fichiers; offset += perPage) {
@@ -97,7 +111,7 @@ async function completeFolder(prefix: string): Promise<ApiFolder> {
 }
 
 async function search(args: Arguments, paged: boolean) {
-	const limit = positive(args.limit, 200);
+	const limit = Math.min(positive(args.limit, PAR_PAGE_MAX), PAR_PAGE_MAX);
 	const offset = paged ? nonNegative(args.offset) : 0;
 	const page = Math.floor(offset / limit) + 1;
 	const params = new URLSearchParams({ q: text(args.query), page: String(page), per_page: String(limit) });
@@ -273,11 +287,31 @@ async function wikiQuery(args: Arguments): Promise<unknown> {
 		case "load_staff":
 			return getJson("/api/v1/wiki/coaches");
 		case "resolve_many_by_code": {
+			// Two defects lived in this branch, and both were silent.
+			//
+			// The response is a `nie_wiki::names::NamePage`, whose array is `records`
+			// (`crates/tools/nie-wiki/src/names.rs`). None of `entries`, `noms`, `results` or
+			// `names` exists on it, so this case resolved to `[]` on EVERY call — a lookup that
+			// never fails and never finds anything. The two other callers of the same route read
+			// `records` (`game/resource-names.ts`, `pages/WebGallery.tsx`), which is what pins
+			// the contract.
+			//
+			// And `codes` was truncated to the first 200 instead of batched. The route caps a
+			// request at 200 codes; past that the extra codes must be asked for in a second
+			// request, not dropped. `resource-names.ts` already loops this way.
 			const codes = array(inner.codes).filter((code): code is string => typeof code === "string" && code !== "");
 			if (codes.length === 0) return [];
-			const query = new URLSearchParams({ codes: codes.slice(0, 200).join(","), locale: text(inner.locale) || "fr" });
-			const page = record(await getJson(`/api/v1/wiki/names?${query}`));
-			return array(page.entries ?? page.noms ?? page.results ?? page.names);
+			const locale = text(inner.locale) || "fr";
+			const resolved: unknown[] = [];
+			for (let index = 0; index < codes.length; index += CODES_PAR_REQUETE) {
+				const query = new URLSearchParams({
+					codes: codes.slice(index, index + CODES_PAR_REQUETE).join(","),
+					locale,
+				});
+				const page = record(await getJson(`/api/v1/wiki/names?${query}`));
+				resolved.push(...array(page.records));
+			}
+			return resolved;
 		}
 		default:
 			return Promise.reject(

@@ -55,7 +55,13 @@ pub async fn names(
     State(state): State<EtatSite>,
     Query(input): Query<NamesQuery>,
 ) -> Result<Json<nie_wiki::names::NamePage>, ErreurSite> {
-    if input.codes.len() > 25_799 {
+    // The byte bound is DERIVED, not written down. `25_799` sat here as a bare literal: it is
+    // 200 codes of 128 bytes plus their 199 commas, a computation recorded nowhere, which would
+    // have gone stale in silence the day either bound moved. Both now come from the validator
+    // that actually enforces them.
+    const MAX_CODES_BYTES: usize = nie_wiki::names::MAX_CODES * nie_wiki::names::MAX_CODE_LEN
+        + (nie_wiki::names::MAX_CODES - 1);
+    if input.codes.len() > MAX_CODES_BYTES {
         return Err(ErreurSite::Demande(
             "Resource code batch is too large".into(),
         ));

@@ -35,17 +35,28 @@ pub struct NameSearchPage {
     pub unavailable_kinds: Vec<String>,
 }
 
+/// Codes accepted in one request. The client must batch past this, never truncate.
+pub const MAX_CODES: usize = 200;
+/// Longest accepted resource code, in bytes.
+pub const MAX_CODE_LEN: usize = 128;
+
 pub fn validate(codes: &[String], locale: &str) -> Result<(), &'static str> {
+    // `ko` was the only one of the front-end's ten game locales missing here, and the omission was
+    // arbitrary rather than protective: the mirror carries `name_fr`, `name_en` and `name_ja` and
+    // nothing else (measured 2026-09-19 on `inagle_characters`), so `de`, `es`, `it`, `pt`,
+    // `zh_hans` and `zh_hant` are already accepted with no translation behind them and fall back.
+    // Rejecting `ko` alone turned a missing translation into a hard 400, which the browser reports
+    // as "Resource names are unavailable" — a broken screen instead of a name in another language.
     if !matches!(
         locale,
-        "fr" | "en" | "ja" | "de" | "es" | "it" | "pt" | "zh_hans" | "zh_hant"
+        "fr" | "en" | "ja" | "de" | "es" | "it" | "ko" | "pt" | "zh_hans" | "zh_hant"
     ) {
         return Err("Unsupported game locale");
     }
-    if codes.len() > 200
+    if codes.len() > MAX_CODES
         || codes.iter().any(|code| {
             code.is_empty()
-                || code.len() > 128
+                || code.len() > MAX_CODE_LEN
                 || code
                     .chars()
                     .any(|c| c.is_control() || matches!(c, '/' | '\\' | ','))

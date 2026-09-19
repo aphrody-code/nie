@@ -28,7 +28,7 @@
  * sans son gestionnaire.
  */
 import { LayoutCanvas } from "../game/LayoutCanvas";
-import { GameCanvas, GameHintBar, GameSearchBar } from "@niers/inacord-ui";
+import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useSettings } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listPage, stepCursor } from "../game/list-page";
@@ -71,8 +71,15 @@ const LIST_LAYER = 0x992ef302;
 /** La boutique d'échange que la donnée nomme — la cible du guide `B` du jeu. */
 const EXCHANGE_SHOP = "Marché aux esprits";
 
-async function loadLayout(signal: AbortSignal): Promise<LayoutJeu> {
-	return lireLayout(await loadMenuLayout(SCREEN, "fr", signal));
+/**
+ * Le layout de l'écran, dans la langue de JEU choisie.
+ *
+ * Elle était figée à `"fr"` ici et dans `createMenuRuntime` plus bas, alors que l'écran frère
+ * `TrophyGallery` lit déjà `gameLocale` depuis `useSettings`. Le réglage de langue du jeu était
+ * donc sans effet sur la Boutique : libellés traduits ailleurs, écran français ici.
+ */
+async function loadLayout(locale: GameLocale, signal: AbortSignal): Promise<LayoutJeu> {
+	return lireLayout(await loadMenuLayout(SCREEN, locale, signal));
 }
 
 async function loadFamily(family: string, signal: AbortSignal): Promise<unknown[]> {
@@ -114,22 +121,23 @@ export function Shop({ onBack }: ShopProps) {
 	const [runtime, setRuntime] = useState<MenuRuntimeResult | null>(null);
 	const [compose, setCompose] = useState({ drawn: 0, skipped: 0 });
 	const seen = useRef(new Set<string>());
+	const { settings: { gameLocale } } = useSettings();
 
 	useEffect(() => {
 		const controller = new AbortController();
-		loadLayout(controller.signal).then(setLayout, () => { if (!controller.signal.aborted) setLayoutFailed(true); });
+		loadLayout(gameLocale, controller.signal).then(setLayout, () => { if (!controller.signal.aborted) setLayoutFailed(true); });
 		Promise.all([loadFamily("shops", controller.signal), loadFamily("items", controller.signal)])
 			.then(([shopRows, itemRows]) => { setShops(shopRows as ShopRow[]); setItems(itemRows as ItemRow[]); },
 				() => { if (!controller.signal.aborted) setDataFailed(true); });
 		loadProfileShops(controller.signal).then(setProfile, () => { /* le repli typé couvre l'absence */ });
 		return () => controller.abort();
-	}, []);
+	}, [gameLocale]);
 
 	// Le script Lua de cet écran n'est pas publié (404) : la session est ouverte quand même, et
 	// son indisponibilité est déclarée telle quelle plutôt que masquée.
 	const session = useMemo(
-		() => createMenuRuntime(SCREEN, { locale: "fr", itemCounts: { [LIST_LAYER]: PAGE_SIZE } }),
-		[],
+		() => createMenuRuntime(SCREEN, { locale: gameLocale, itemCounts: { [LIST_LAYER]: PAGE_SIZE } }),
+		[gameLocale],
 	);
 	const receive = useCallback((result: MenuRuntimeResult) => {
 		setRuntime(result);

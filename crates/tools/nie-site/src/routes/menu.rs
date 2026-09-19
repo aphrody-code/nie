@@ -48,7 +48,12 @@ const FONT_METRICS: &str = "data/common/font/font/font_def/font.cfg.bin";
 const FONT_PALETTE: &str = "data/common/font/font_color.cfg.bin";
 
 /// Le canevas du jeu, en pixels. Les transforms du layout y sont exprimés.
-const CANVAS: (u32, u32) = (1280, 720);
+///
+/// `pub(super)` et non `const` privé : `screens.rs` en portait une SECONDE copie, et c'est
+/// elle qui est publiée au client dans `detail.canvas` pendant que celle-ci sert à composer
+/// l'image. Deux valeurs qui divergent ne produisent pas d'erreur — elles produisent un rendu
+/// décalé, que rien ne signale.
+pub(super) const CANVAS: (u32, u32) = (1280, 720);
 
 /// Chemin d'amont du catalogue complet.
 const UPSTREAM_INDEX: &str = "menu-tree.json";

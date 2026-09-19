@@ -58,7 +58,15 @@ export function Game({
 
 	if (phase === "menu") {
 		const hostActions = bindMenuActions(menuEntries(null), {
-			[BANK]: { id: "bank", onActivate: onOpenBank },
+			// La Banque est MY TEAM, et le menu du jeu a déjà sa bannière.
+			//
+			// `MainMenu.nativeBinding` ne connaît que trois familles d'identifiants : `avatar`,
+			// `team` et `title-item-N`. `bank` n'en fait partie d'aucune, donc la Banque se
+			// dessinait en tuile générique pendant que `title02_10_my_team_banner` (calque
+			// 4086303486) — la bannière MY TEAM du jeu — restait sans action, visible et morte.
+			// L'identifiant est ce qui relie une entrée de l'hôte à un objet du menu natif : le
+			// changer ici suffit à rendre la bannière cliquable, sans dupliquer un écran.
+			[BANK]: { id: "team", onActivate: onOpenBank },
 			[GALLERY]: { id: "gallery", onActivate: onOpenGallery },
 			[SHOP]: { id: "shop", onActivate: onOpenShop },
 			[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },
