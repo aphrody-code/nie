@@ -54,7 +54,7 @@ pub fn entetes_securite_liste() -> [(header::HeaderName, &'static str); NB_ENTET
 /// Délai maximal d'une requête entrante, toutes routes confondues. Il est plus large que le
 /// délai d'amont (10 s) pour que le `504` de l'amont arrive au client avant que la requête ne
 /// soit coupée ici.
-pub const DELAI_REQUETE: Duration = Duration::from_secs(15);
+pub const DELAI_REQUETE: Duration = Duration::from_secs(45);
 
 /// Déclare les routes **une seule fois**, et en tire deux sorties : le montage du routeur et la
 /// liste de leurs chemins.

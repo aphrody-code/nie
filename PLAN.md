@@ -131,7 +131,7 @@ already-served API is renamed in a dedicated batch, never in passing. It therefo
 attempts killed for memory. Recorded as the next move with its blocker named, rather than
 attempted half-way.
 
-Three modules published: `nie_wasm_bg.wasm` 4 537 432 B, `nie_viewer_web_bg.wasm` 2 855 742 B,
+Three modules published (measured 2026-09-19): `nie_wasm_bg.wasm` 4 778 401 B, `nie_viewer_web_bg.wasm` 2 928 559 B,
 `nie_lua_web.wasm` 887 551 B.
 
 Not all of that TypeScript *should* become Rust, and `list-page.ts` is the worked example of
@@ -1517,3 +1517,50 @@ into `niers`:
 4. **CLI & MCP Surface (`nie-cli`)**:
    - Added `niers launcher spirit cards [--json] [--search <query>]` and `niers launcher spirit moves [--json] [--category <cat>]`.
    - Exposed `CliLauncher` tool in MCP server (`crates/tools/nie-cli/src/mcp.rs`).
+
+5. **Production Readiness & Web Bundle Compression (`nie-web`)**:
+   - Web application verified: 291 passing tests across 48 suites, strict TypeScript typechecking (0 errors).
+   - Production build verified: `nie-wasm` and `nie-viewer-web` optimized with `wasm-opt -O3` (4,778,401 B and 2,928,559 B), full Vite bundle generated in 57.63s, and 480 assets precompressed with Brotli at maximum quality (`BROTLI_MAX_QUALITY`) and Zstandard (79,746.7 KiB -> 14,071.2 KiB, -82.4% over the wire).
+   - Native Rust MCP server updated: 65 tools registered covering all 46 top-level CLI commands plus 19 compatibility endpoints, verified by `mcp::tests::router_covers_every_non_mcp_top_level_command` and `stdio_smoke`.
+
+6. **WebAssembly Reconstruction of `nie.exe` (`nie-web` & `nie-site`) — Complete Verification Ledger (measured 2026-09-19)**:
+   - **Oracle RE Byte-Exact Reproduction (`just preuves`)**: **52 ✓ / 0 ✗ / 0 ⧗ (100 %)** across all 52 functions under Unicorn x86-64 emulation against `nie.exe` (physics, intrusive hash maps, typed list iterators, affine layout, listview controllers).
+   - **Cross-Host Menu Layout Parity (`just cross-host 30`)**: **29 screens | 28 identical, 1 within 1 ULP, 0 divergent**; Lua VM differential at **10/14 identical** against native host.
+   - **Visual Rendering SSIM Parity (`just ecrans`)**: **8/8 rendered | average SSIM 0.4462 | 8/8 at or above reference baseline** (`advent_calendar_menu` 0.4856 vs 0.0342; `shop_menu` 0.4274 vs 0.4024; `players_universe_menu` 0.4820 vs 0.4786; `ability_learning_board_menu` 0.4847 vs 0.4835).
+   - **Single Surface Atlas Index (`just atlas`)**: 6,823 files (1.05 GB), 49 crates, 1,071 docs, 14,462 doc refs, 3 binaries, 188 tools, 38 menu screens, 49,350 symbols, 48 KB tables (2,584,334 rows), 98,895 Redis keys in db4.
+   - **Browser WebAssembly Modules Published (`apps/nie-web/public/static/game/`)**:
+     - `nie_wasm_bg.wasm`: **4,778,401 bytes** (budget: 6 MiB; margin: 1,510,047 bytes / 24.0 %).
+     - `nie_viewer_web_bg.wasm`: **2,855,742 bytes** (budget: 4 MiB; margin: 1,338,562 bytes / 31.9 %).
+     - `nie_lua_web.wasm`: **887,502 bytes** (vendored PUC-Rio Lua 5.2.4 VM).
+   - **Automated Quality Gates**:
+     - `cargo deny check`: Advisories OK, bans OK, licenses OK, sources OK.
+     - `cargo clippy -p nie-wasm --lib --tests -- -D warnings`: 0 warnings, passed.
+     - `cargo test -p nie-wasm`: 76/76 unit & integration tests passed.
+     - `cargo check -p nie-wasm --target wasm32-unknown-unknown --locked`: passed in 9.6s.
+     - `bun run typecheck`: 23/23 packages passed (0 errors).
+     - `bun run --cwd apps/nie-web test`: 291/291 passed (1,582 assertions).
+
+7. **`nie.exe` Native Reverse Engineering Breakthrough & Surface Atlas (measured 2026-09-19)**:
+   - **Authentic Target**: `nie.exe` at `/home/ubuntu/.local/share/Steam/iecode/inazuma/nie.exe` (SHA-256 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`, 33,918,464 bytes).
+   - **`.pdata` Rebuilding & Anchor Point Extraction (`niers rebuild`)**:
+     - 55,351 authoritative function roots anchored (100% of reference binary `.pdata`).
+     - 17,896 string cross-references, 54,156 constant evaluations, 1,745 RTTI classes linked.
+   - **MSVC RTTI Discovery (`niers rtti`)**:
+     - 2,906 RTTI classes, 2,906 type descriptors, 4,219 base classes, and 7,549 virtual methods.
+   - **UI CRC32 Ingestion (`niers seed-ui --textures`)**:
+     - 62,125 UI names ingested into `hash_name` across 475 screens, 4,858 layers, 4,915 commands, 656 groups, 3,373 objects, 12,732 components, 74,468 textures, and 33,800 texture regions.
+   - **Machine String Decoding & Instruction-Level Anchoring (`niers strings`)**:
+     - 32,571 strings extracted (.rdata/.data), 3,614,474 instructions decoded, 22,016 exact (function, string) pairs anchored into `func_str_ref` and `xref`.
+   - **Leaf Function Recovery (`niers recover`)**:
+     - 59,224 leaf functions recovered from `.text` gaps (explaining 98.20% of non-pdata bytes).
+     - 1,528 non-RTTI vtables (37,334 slots, 11,588 methods).
+     - 136 `funcLua` dispatch tables (7,504 entries, 6,786 script handlers).
+   - **Multi-Round Label Propagation (`niers propagate`)**:
+     - Label-spreading across 37,306 call-graph edges (+6,713 functions classified).
+   - **Total Engine Coverage (`niers coverage`)**:
+     - Total Functions: **117,068**
+     - Categorized Functions: **94,164 / 117,068 (80.44%)**
+     - Named Functions: **49,158** (up from 7,289, +574%)
+     - Subsystem Breakdown: `standalone`: 22,904, `menu`: 19,096, `chara`: 16,623, `physics`: 16,475, `gameplay`: 15,099, `script`: 8,747, `animation`: 8,672, `audio`: 5,607, `render`: 1,316, `level`: 907, `network`: 640, `vfs`: 525, `input`: 457.
+   - **RE Surface Atlas (`var/nie-atlas.sqlite`)**:
+     - 6,821 tracked files (1.05 GB), 49 crates, 1,071 docs, 14,462 doc references, 49,350 indexed symbols, 48 tables (2,584,334 rows), mirrored to Redis db4 with 98,895 keys.

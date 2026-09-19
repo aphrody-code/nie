@@ -67,9 +67,9 @@ fn initialize_list_and_call_stay_on_clean_stdio() {
     );
     let listed = response_for(&mut reader, 2);
     let tools = listed["result"]["tools"].as_array().expect("tools array");
-    // One generated MCP binding for each of the 44 public CLI commands, plus the
+    // One generated MCP binding for each of the 46 public CLI commands, plus the
     // 19 explicit compatibility tools registered by `compatibility_router`.
-    assert_eq!(tools.len(), 44 + 19);
+    assert_eq!(tools.len(), 46 + 19);
     assert!(tools.iter().any(|tool| tool["name"] == "cli_info"));
     assert!(tools.iter().any(|tool| tool["name"] == "cli_play"));
     for compatibility_name in [

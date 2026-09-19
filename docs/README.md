@@ -35,6 +35,9 @@ Superseded plans are preserved in the dated
 - **[COMPUTER-USE-RE-TRACE.md](COMPUTER-USE-RE-TRACE.md)** : frontière read-only, provenance, garde-fous et décision de migration `nie-re`/`nie-trace`.
 - **[FORMATS.md](FORMATS.md)** & **[VFS.md](VFS.md)** : Spécifications des conteneurs CPK, RDBN, T2B, textures G4TX et VFS (255 308 fichiers indexés).
 - **[modele-de-match.md](modele-de-match.md)** : Analyse de la simulation match et calculs de tirs/arrêts.
+- **[IEVR-SAVE-EDITOR-PORT.md](IEVR-SAVE-EDITOR-PORT.md)** : Rétro-ingénierie et port natif Rust du Save Editor (v2.2.2 .NET 9) : 33 hooks mémoires, 142 Spirit Cards et 1 299 Supertechniques.
+- **[IEVR-ULTIMATE-TEAM.md](IEVR-ULTIMATE-TEAM.md)** : Port unifié du Launcher IEVR Ultimate Team, chiffrement AES-256-GCM + PBKDF2, bypass EACLauncher et miroir Supabase.
+- **[STEAM-LINUX.md](STEAM-LINUX.md)** : Préparation de l'environnement d'exécution Linux Steam, Proton et SteamCMD pour l'exécution native de `nie.exe`.
 
 ### 2.3 Applications, Wiki & Production Web
 - **[packages/mcp/context/exploitation.md](../packages/mcp/context/exploitation.md)** : production services and operational checks.

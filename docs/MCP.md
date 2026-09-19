@@ -31,9 +31,9 @@ MCP client ──stdio──> nie-mcp / niers mcp
                          └── WebSocket 127.0.0.1:8791/bridge ──> Inacord
 ```
 
-## Tool surface: 62 tools
+## Tool surface: 65 tools
 
-Forty-three `cli_*` tools cover exactly the forty-three top-level commands other than `mcp`.
+Forty-six `cli_*` tools cover exactly the forty-six top-level commands other than `mcp`.
 Every tool uses the common `{ "args": string[] }` input. These are the same arguments that follow the command in
 the terminal, keeping Clap as the single source of truth for nested commands and options.
 
@@ -47,7 +47,7 @@ symbols, tools, files and crates at once (`{"args": ["search", "<term>"]}`), and
 | Forge and RE | `cli_atlas`, `cli_seed`, `cli_seed_ui`, `cli_strings`, `cli_coverage`, `cli_queue`, `cli_propagate`, `cli_rtti`, `cli_index`, `cli_disasm`, `cli_pdata`, `cli_rebuild`, `cli_recover` |
 | Formats and VFS | `cli_viola`, `cli_format`, `cli_decode`, `cli_refresh_typed_json`, `cli_convert`, `cli_vfs` |
 | Game and content | `cli_steam`, `cli_info`, `cli_locales`, `cli_ocgen`, `cli_render`, `cli_lua`, `cli_lua_run`, `cli_lua_audit`, `cli_img`, `cli_mode`, `cli_icons`, `cli_avatar`, `cli_save`, `cli_wiki`, `cli_uniform_map`, `cli_textures`, `cli_menu_predecode`, `cli_vn`, `cli_video` |
-| System and control | `cli_computer_use`, `cli_mod`, `cli_find`, `cli_grep`, `cli_mem` |
+| System and control | `cli_computer_use`, `cli_mod`, `cli_launcher`, `cli_find`, `cli_grep`, `cli_mem` |
 
 Nineteen compatibility names preserve the former Bun server API:
 

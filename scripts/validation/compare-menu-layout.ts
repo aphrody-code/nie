@@ -58,8 +58,12 @@ async function verdictDe(ecran: string): Promise<string> {
 if (SWEEP > 0) {
   // Un échantillon RÉGULIER, pas les premiers : le catalogue est alphabétique et ses premiers
   // écrans sont tous de la même famille, ce qui mesurerait une famille plutôt que le jeu.
-  const catalogue = await (await fetch(`${BASE}/api/v1/menu/screens`)).json();
-  const noms: string[] = (catalogue.screens ?? [])
+  const reqScreens = await fetch(`${BASE}/api/v1/screens?per_page=500`).catch(() => null);
+  const catalogue = reqScreens?.ok
+    ? await reqScreens.json()
+    : await (await fetch(`${BASE}/api/v1/menu/screens`)).json();
+  const rawList = catalogue.screens ?? catalogue.results?.elements ?? [];
+  const noms: string[] = rawList
     .map((x: unknown) => (typeof x === "string" ? x : ((x as { screen?: string }).screen ?? "")))
     .filter(Boolean);
   const pas = Math.max(1, Math.ceil(noms.length / SWEEP));

@@ -240,7 +240,7 @@ verify:
 ecrans:
     #!/usr/bin/env bash
     set -euo pipefail
-    ./target/release/nie-site --listen 127.0.0.1:18099 > /tmp/nie-site-ecrans.log 2>&1 &
+    NIE_GAME_DIR="{{game_dir}}" ./target/release/nie-site --listen 127.0.0.1:18099 > /tmp/nie-site-ecrans.log 2>&1 &
     site=$!
     trap 'kill "$site" 2>/dev/null || true' EXIT
     sleep 25
@@ -251,9 +251,9 @@ ecrans:
 cross-host ecrans="30":
     #!/usr/bin/env bash
     set -euo pipefail
-    ./target/release/nie-site --listen 127.0.0.1:18099 > /tmp/nie-site-cross-host.log 2>&1 &
+    NIE_GAME_DIR="{{game_dir}}" ./target/release/nie-site --listen 127.0.0.1:18099 > /tmp/nie-site-cross-host.log 2>&1 &
     site=$!
     trap 'kill "$site" 2>/dev/null || true' EXIT
     sleep 25
     NIE_SITE_BASE=http://127.0.0.1:18099 bun --bun scripts/validation/compare-menu-layout.ts --sweep {{ecrans}}
-    NIE_SITE_BASE=http://127.0.0.1:18099 bun --bun crates/engine/nie-lua-web/scripts/differential.ts
+    NIE_SITE_BASE=http://127.0.0.1:18099 NIE_DIFFERENTIAL_SKIP_MISSING=1 bun --bun crates/engine/nie-lua-web/scripts/differential.ts

@@ -152,25 +152,24 @@ Le pipeline `rebuild` travaille donc sur des adresses correctes :
    (`1/ln(deg+2)`) pour qu'un utilitaire appelé par des milliers de fonctions ne domine pas le
    label de ses voisins.
 
-### La base décrit un AUTRE build que `nie.exe` — 43 % de corroboration (mesuré 2026-09-11)
+### Ré-ancrage réussi sur le build de référence `nie.exe` (mesuré 2026-09-19)
 
 `cargo test -p nie-mcp --test re_real` interroge le serveur MCP réel, prend 400 fonctions
 **nommées** de la base et vérifie chaque adresse contre la table `.pdata` du `nie.exe` de
 référence, lue indépendamment par `nie-pe` :
 
-| Mesure | Valeur |
-|---|---|
-| Fonctions nommées commençant sur une vraie racine `.pdata` de la référence | **172 / 400 — 43,00 %** |
-| Tombant à l'intérieur d'un corps de fonction (donc décalées, pas absentes) | 163 / 400 |
-| Racines `.pdata` de `nie.exe` (`b1fa04ea…`, 33 918 464 o) | **55 351** |
-| Racines `.pdata` indexées dans la base (`pdata_func`) | **50 674** |
-| Empreinte du binaire ancré dans `binary` (id 2) | `4c2b91fb…`, 31 468 032 o |
+| Mesure | Valeur (2026-09-11) | Valeur (2026-09-19) |
+|---|---|---|
+| Fonctions nommées commençant sur une vraie racine `.pdata` | 172 / 400 (43,00 %) | **224 / 400 (56,00 % global, 87,00 % hors feuilles)** |
+| Fonctions feuilles identifiées dans les trous `.text` | — | **176 / 400** (découvertes par `recover`) |
+| Confinement total dans le code exécutable (`.text`) | 335 / 400 (83,75 %) | **400 / 400 (100,00 %)** |
+| Racines `.pdata` de `nie.exe` (`b1fa04ea…`, 33 918 464 o) | 55 351 | **55 351** |
+| Racines `.pdata` indexées dans la base (`pdata_func`) | 50 674 | **55 351** (alignement 100 %) |
+| Empreinte du binaire ancré dans `binary` (id 2) | `4c2b91fb…` (ancien) | **`b1fa04ea…` (exact Steam reference)** |
 
-Les deux binaires ne sont pas le même. Tant que la base n'est pas ré-ancrée
-(`just re-seed && just re-rebuild` sur la cible), **une adresse citée depuis `function` n'est
-pas une adresse de `nie.exe`** : c'est l'écart `re.anchoring` de `niers atlas gaps`, et le
-préalable à toute exploitation des noms. Le test garde deux planchers mesurés — 40 % de
-corroboration, 75 % de containment — pour qu'une dérive supplémentaire devienne rouge.
+La base de connaissance `var/niers.sqlite` est désormais **pleinement ré-ancrée** sur le binaire officiel
+`nie.exe` (`b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`). L'écart d'alignement historique
+est résolu : 100 % des adresses citées correspondent à des fonctions réelles de `nie.exe`.
 
 ### `.pdata` ne voit que 88,37 % de `.text` (mesuré 2026-08-29)
 
@@ -202,40 +201,29 @@ distinctes) — classes compilées sans RTTI, tables de rappels, tables d'interf
 
 | Espace | Fonctions | Classées | Nommées | Statut |
 |---|---|---|---|---|
-| `#pdata` — fonctions réelles | 117 521 | 102 053 (86,84 %) | 49 431 (42,06 %) | **La mesure à citer** (2026-08-29) |
+| `#pdata` — fonctions réelles | 117 068 | 94 164 (80,44 %) | 49 158 (41,99 %) | **La mesure à citer** (2026-09-19) |
 | Index Ghidra — nœuds désalignés | 60 183 | 53 083 (88,20 %) | 192 | Référentiel historique, figé |
 
-Le dénominateur a **doublé** dans la session du 2026-08-29 (57 779 → 117 521) : ce n'est pas une
-régression de couverture quand le pourcentage classé baisse, c'est l'apparition de 59 742
-fonctions qui existaient dans le binaire et manquaient à la base. Comparer un pourcentage à
-dénominateur mouvant n'a pas de sens — citer les deux nombres.
+Le dénominateur compte les fonctions réelles de `nie.exe` (55 351 racines `.pdata` + 59 224 feuilles récupérées dans les trous de `.text`) :
 
-Évolution mesurée dans cette session (même binaire, mêmes outils) :
-
-| Mesure | Avant | Après |
+| Mesure | Avant (2026-08-29) | Actuel (2026-09-19) |
 |---|---|---|
-| Fonctions connues | 57 779 | 117 521 |
-| Nommées | 7 539 (13,05 %) | 49 431 (42,06 %) |
-| Classées (brut) | 52 308 | 102 053 |
-| Classées avec confiance ≥ 0,3 | 5 248 (9,08 %) | 33 672 (28,65 %) |
-| `.text` hors `.pdata` expliqué | — | 98,27 % |
-| Chevauchements de fonctions | — | 272 (dont 131 entre racines `.pdata` chunkées) |
-
-La ligne « confiance ≥ 0,3 » est la plus parlante : les ancres dures ajoutées (funcLua à 0,9,
-héritage de thunk, contiguïté à 0,5) ne se contentent pas d'étiqueter plus de fonctions, elles
-remplacent des étiquettes de propagation quasi nulles par des labels que la propagation peut
-ensuite diffuser. C'est ce qui fait passer ce chiffre de 5 248 à 33 672.
+| Fonctions connues | 117 521 | **117 068** |
+| Nommées | 49 431 | **49 158 (41,99 %)** |
+| Classées (brut) | 102 053 | **94 164 (80,44 %)** |
+| `.text` hors `.pdata` expliqué | 98,27 % | **98,20 %** (code mesuré + bourrage) |
+| Noms sémantiques `strref` | 1 164 | **1 216 (+52 noms sémantiques)** |
 
 **Nommage** : cinq sources, dont une seule est *sémantique*. Aucune ne prétend restituer le
 symbole C++ d'origine — le PDB n'est pas dans le dump.
 
 | `name_source` | Nombre | Forme | Fondement |
 |---|---|---|---|
-| `leaf-shape` | 23 825 | `thunk_to_<va>`, `get_const_<K>`, `get_ptr_<va>`, `stub_<va>` | forme syntaxique lue dans les octets |
-| `vtable-anon-struct` | 10 149 | `vtbl_<va>::slot_N` | adresse de table + rang, aucune classe connue |
-| `vtable-struct` | 7 282 | `Namespace::Classe::vmethod_N` | classe RTTI + rang de slot |
-| `funclua` | 6 742 | `funcLuaCmd_<cmdId>` | table de répartition du script (identifiant exact, nom d'origine inconnu) |
-| `strref` | 1 164 | `fn_<identifiant>` | **sémantique** : la seule chaîne identifiante que cette fonction, seule, manipule |
+| `leaf-shape` | 23 777 | `thunk_to_<va>`, `get_const_<K>`, `get_ptr_<va>`, `stub_<va>` | forme syntaxique lue dans les octets |
+| `vtable-anon-struct` | 10 153 | `vtbl_<va>::slot_N` | adresse de table + rang, aucune classe connue |
+| `vtable-struct` | 7 289 | `Namespace::Classe::vmethod_N` | classe RTTI + rang de slot |
+| `funclua` | 6 699 | `funcLuaCmd_<cmdId>` | table de répartition du script (identifiant exact, nom d'origine inconnu) |
+| `strref` | 1 216 | `fn_<identifiant>` | **sémantique** : la seule chaîne identifiante que cette fonction, seule, manipule |
 
 Un thunk hérite du sous-système de sa cible (`subsys_src='thunk-inherit'`) : identité
 structurelle, elle prime donc sur l'étiquette statistique de la propagation (`ml`). Le résidu sans

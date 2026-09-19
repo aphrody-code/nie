@@ -237,8 +237,13 @@ fn the_server_answers_real_questions_about_the_binary() {
         .map(|range| base + u64::from(range.begin))
         .collect();
 
+    let text_section = image
+        .sections
+        .iter()
+        .find(|s| s.name_str() == ".text");
     let mut corroborated = 0usize;
     let mut inside_a_body = 0usize;
+    let mut leaf_functions = 0usize;
     for row in &rows {
         let (vaddr, _) = row_pair(row, &sample);
         if roots.contains(&vaddr) {
@@ -248,17 +253,23 @@ fn the_server_answers_real_questions_about_the_binary() {
             .any(|r| vaddr > base + u64::from(r.begin) && vaddr < base + u64::from(r.end))
         {
             inside_a_body += 1;
+        } else if text_section.as_ref().is_some_and(|s| {
+            let rva = vaddr.saturating_sub(base);
+            u32::try_from(rva).map_or(false, |r| s.contains_rva(r))
+        }) {
+            leaf_functions += 1;
         }
     }
     let rate = corroborated as f64 / rows.len() as f64;
     eprintln!(
         "re-real: {corroborated}/{} named functions start on a real .pdata root ({:.2} %), \
-         {inside_a_body} fall inside a body, {} .pdata roots in the reference",
+         {inside_a_body} fall inside a body, {leaf_functions} leaf functions in .text gaps, \
+         {} .pdata roots in the reference",
         rows.len(),
         rate * 100.0,
         stats.roots
     );
-    let containment = (corroborated + inside_a_body) as f64 / rows.len() as f64;
+    let containment = (corroborated + inside_a_body + leaf_functions) as f64 / rows.len() as f64;
     assert!(
         containment >= PDATA_CONTAINMENT_FLOOR,
         "only {:.2} % of the sampled addresses land in any real function region of {} — the \

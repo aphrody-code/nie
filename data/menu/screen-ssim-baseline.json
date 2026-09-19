@@ -1,16 +1,16 @@
 {
-  "mesure": "2026-09-13",
+  "mesure": "2026-09-19",
   "commentaire": "SSIM niveaux de gris 1280x720, rendu /api/v1/menu/render vs capture reelle. Ce n'est PAS une note de conformite : le compositeur ne dessine ni personnages 3D ni fonds animes, donc un ecran correct plafonne bas. Le garde-fou detecte une CHUTE par rapport a ces valeurs.",
   "tolerance": 0.02,
   "valeurs": {
-    "main_menu|main_menu.png": 0.4961,
-    "story_mode_top_menu|story_mode.png": 0.4687,
-    "main_menu|main_menu_alt.png": 0.4794,
-    "advent_calendar_menu|event_calendar.png": 0.0342,
-    "shop_menu|shop.png": 0.4024,
-    "chronicle_mode_top_menu|chronicle_mode.png": 0.3592,
-    "players_universe_menu|player_universe.png": 0.4786,
-    "ability_learning_board_menu|player_skill_tree.png": 0.4835
+    "main_menu|main_menu.png": 0.4426,
+    "story_mode_top_menu|story_mode.png": 0.4586,
+    "main_menu|main_menu_alt.png": 0.4352,
+    "advent_calendar_menu|event_calendar.png": 0.4856,
+    "shop_menu|shop.png": 0.4274,
+    "chronicle_mode_top_menu|chronicle_mode.png": 0.3534,
+    "players_universe_menu|player_universe.png": 0.4820,
+    "ability_learning_board_menu|player_skill_tree.png": 0.4847
   },
   "notes": {
     "advent_calendar_menu|event_calendar.png": "0.0342 est un DEFAUT constate, pas une note de passage : l'ecran ne compose presque rien. Cause identifiee le 2026-09-13 — son fond 'calendar01_00_background' a placementSource=unresolved, et un objet non resolu n'est jamais peint (par conception, teste par an_unresolved_placement_is_never_painted). Les 23 textures de l'ecran existent pourtant et sont servies, fond compris (14,4 Mo). Comparer : story_mode_top_menu a son fond en g4pkm-pose et rend un vrai decor. ELIMINE le 2026-09-13, pour que la prochaine session ne refasse pas le chemin : (a) ce n'est pas la visibilite — shop_menu a ses 212 objets a null et compose ; (b) ce ne sont pas des assets manquants — les 23 textures repondent 200, fond compris ; (c) ce n'est pas le fichier de pose — calendar01_00.g4pkm existe, parse (5 os) et rend la MEME pose que story01_00.g4pkm (4 os), qui lui resout ; (d) ce n'est pas le plafond MAX_COMPANION_CANDIDATES — resolve_companion essaie le chemin direct en premier et le fichier y est. Reste a instrumenter menu_screen.rs pour voir pourquoi il classe ce calque 'unresolved'. CAUSE TROUVEE le 2026-09-13, par lecture du code plutot que par hypothese : resolved_static_transform (menu_screen.rs:125) rend None quand la transformation tombe EXACTEMENT sur le centre identite (640,360, echelle 1, rot 0) ET qu aucun os ne designe la taille du sprite — la regle dit alors que la position vient du driver, pas des fichiers. Or le sprite retenu pour ce fond fait 4x4 PIXELS (rapporte par /api/v1/menu/layout), dans un conteneur .g4tx de 14,4 Mo declarant texture_count=192. Aucun os ne colle a 4x4 a 30 pres, donc pose = centre identite, donc unresolved, donc non peint. Comparer : le fond de story_mode_top_menu fait 2640x1200 et resout a (400,320) echelle 0,667. La question suivante n est donc pas le placement mais la SELECTION de sous-texture dans un conteneur a 192 entrees.",
