@@ -123,12 +123,28 @@ export const MENU = "menu";
  * une adresse publiée ne se casse pas pour un renommage. `nie-site` fait la même chose côté
  * serveur (`routes::pages::Entree::heritage`), canonique compris.
  */
+/** The five root game modes reconstructed in WebAssembly via nie-app and nie-wasm. */
+export const WASM_GAME_MODES = [
+	"story_mode",
+	"chronicle_mode",
+	"competition",
+	"victory_road",
+	"bb_stadium",
+] as const;
+
 export const LEGACY_ROUTES: Readonly<Record<string, string>> = {
 	settings: SETTINGS,
 	avatar: AVATAR,
 	bank: BANK,
 	gallery: GALLERY,
 	shop: SHOP,
+	"mode-story_mode": "story_mode",
+	"mode-chronicle_mode": "chronicle_mode",
+	"mode-competition": "competition",
+	"mode-victory_road": "victory_road",
+	"mode-bb_stadium": "bb_stadium",
+	"mode-kizuna_town": MODES,
+	"mode-information": MODES,
 };
 
 /**

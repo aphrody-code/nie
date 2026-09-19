@@ -2123,6 +2123,31 @@ export function calculate_stats(main_position, sub_position, growth_pattern, cha
 }
 
 /**
+ * Résout un hash CRC-32 dans un `*_text.cfg.bin` (WASM).
+ * @param {Uint8Array} bytes
+ * @param {number} target_hash
+ * @returns {string | undefined}
+ */
+export function cfgbin_lookup_text(bytes, target_hash) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.cfgbin_lookup_text(retptr, ptr0, len0, target_hash);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        let v2;
+        if (r0 !== 0) {
+            v2 = getStringFromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 1, 1);
+        }
+        return v2;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * Décode un `*_menu_setting.cfg.bin` en structure de menu directement consommable.
  * @param {Uint8Array} bytes
  * @returns {string}
@@ -2167,6 +2192,38 @@ export function cfgbin_parse_json(bytes) {
         const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
         const len0 = WASM_VECTOR_LEN;
         wasm.cfgbin_parse_json(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        var ptr2 = r0;
+        var len2 = r1;
+        if (r3) {
+            ptr2 = 0; len2 = 0;
+            throw takeObject(r2);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Décode un `*_text.cfg.bin` en dictionnaire JSON `{ [hash: string]: string }` (WASM).
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function cfgbin_text_map_json(bytes) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.cfgbin_text_map_json(retptr, ptr0, len0);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -4320,7 +4377,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wasm_bindgen_func_elem_4449(a, state0.b, arg0, arg1);
+                        return __wasm_bindgen_func_elem_4456(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -4966,17 +5023,17 @@ function __wbg_get_imports() {
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1358, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3443);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3450);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1418, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4434);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4441);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1358, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3443_2);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3450_2);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000004: function(arg0) {
@@ -5008,18 +5065,18 @@ function __wbg_get_imports() {
     };
 }
 
-function __wasm_bindgen_func_elem_3443(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3443(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3450(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3450(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_3443_2(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3443_2(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3450_2(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3450_2(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_4434(arg0, arg1, arg2) {
+function __wasm_bindgen_func_elem_4441(arg0, arg1, arg2) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.__wasm_bindgen_func_elem_4434(retptr, arg0, arg1, addHeapObject(arg2));
+        wasm.__wasm_bindgen_func_elem_4441(retptr, arg0, arg1, addHeapObject(arg2));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         if (r1) {
@@ -5030,8 +5087,8 @@ function __wasm_bindgen_func_elem_4434(arg0, arg1, arg2) {
     }
 }
 
-function __wasm_bindgen_func_elem_4449(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_4449(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wasm_bindgen_func_elem_4456(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_4456(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 

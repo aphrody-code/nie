@@ -1551,6 +1551,56 @@ pub fn cfgbin_menu_setting_json(bytes: &[u8]) -> Result<String, String> {
     cfgbin_menu_setting_json_impl(bytes)
 }
 
+/// Résout une table de texte complète depuis les octets d'un `*_text.cfg.bin` :
+/// rend un objet JSON `{ "<hash>": "texte", ... }` indexable en O(1) côté navigateur.
+fn cfgbin_text_map_json_impl(bytes: &[u8]) -> Result<String, String> {
+    let root = nw_cfgbin_to_iecode(bytes).ok_or("cfg.bin non décodable (ni RDBN ni T2B)")?;
+    let pairs = nie_data::text::parse_text_file(&root);
+    let mut map = serde_json::Map::with_capacity(pairs.len());
+    for (hash, texte) in pairs {
+        map.insert(hash.0.to_string(), serde_json::Value::String(texte));
+    }
+    serde_json::to_string(&serde_json::Value::Object(map)).map_err(|e| e.to_string())
+}
+
+/// Résout un hash précis dans les octets d'un `*_text.cfg.bin` sans sérialiser toute la table.
+fn cfgbin_lookup_text_impl(bytes: &[u8], target_hash: u32) -> Option<String> {
+    let root = nw_cfgbin_to_iecode(bytes)?;
+    let pairs = nie_data::text::parse_text_file(&root);
+    for (hash, texte) in pairs {
+        if hash.0 == target_hash {
+            return Some(texte);
+        }
+    }
+    None
+}
+
+/// Décode un `*_text.cfg.bin` en dictionnaire JSON `{ [hash: string]: string }` (WASM).
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn cfgbin_text_map_json(bytes: &[u8]) -> Result<String, JsValue> {
+    cfgbin_text_map_json_impl(bytes).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Décode un `*_text.cfg.bin` en dictionnaire JSON `{ [hash: string]: string }` (natif).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn cfgbin_text_map_json(bytes: &[u8]) -> Result<String, String> {
+    cfgbin_text_map_json_impl(bytes)
+}
+
+/// Résout un hash CRC-32 dans un `*_text.cfg.bin` (WASM).
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn cfgbin_lookup_text(bytes: &[u8], target_hash: u32) -> Option<String> {
+    cfgbin_lookup_text_impl(bytes, target_hash)
+}
+
+/// Résout un hash CRC-32 dans un `*_text.cfg.bin` (natif).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn cfgbin_lookup_text(bytes: &[u8], target_hash: u32) -> Option<String> {
+    cfgbin_lookup_text_impl(bytes, target_hash)
+}
+
 // ── Bytecode Lua 5.2 (scripts du jeu) ──────────────────────────────────────────
 // Le decodeur est celui du depot (`nie_lua::bytecode`), compile sans la VM : un `.lua.bin`
 // se lit donc dans le navigateur, sans passer par un service.
@@ -3943,6 +3993,48 @@ mod tests {
         assert_eq!(json["layers"][0]["layer_id"], 367_379_312u32);
         assert_eq!(json["layers"][0]["name"], "mainmenu90_00_background");
         assert_eq!(json["layers"][0]["params"][0], 1);
+    }
+
+    #[test]
+    fn cfgbin_text_map_and_lookup_fixture() {
+        use nie_formats::cfgbin::{CfgEntry, Value, encode_t2b};
+
+        let entries = vec![CfgEntry {
+            name: "TEXT_INFO_LIST_BEG".into(),
+            variables: vec![Value::Int(2)],
+            children: vec![
+                CfgEntry {
+                    name: "TEXT_INFO_0".into(),
+                    variables: vec![
+                        Value::Int(100_001),
+                        Value::Int(0),
+                        Value::String("Retour".into()),
+                    ],
+                    children: Vec::new(),
+                },
+                CfgEntry {
+                    name: "TEXT_INFO_1".into(),
+                    variables: vec![
+                        Value::Int(100_002),
+                        Value::Int(0),
+                        Value::String("Paramètres".into()),
+                    ],
+                    children: Vec::new(),
+                },
+            ],
+        }];
+        let bytes = encode_t2b(&entries);
+
+        // Test cfgbin_text_map_json
+        let map_json = cfgbin_text_map_json(&bytes).expect("text map json");
+        let map: serde_json::Value = serde_json::from_str(&map_json).expect("valid json");
+        assert_eq!(map["100001"], "Retour");
+        assert_eq!(map["100002"], "Paramètres");
+
+        // Test cfgbin_lookup_text
+        assert_eq!(cfgbin_lookup_text(&bytes, 100_001), Some("Retour".into()));
+        assert_eq!(cfgbin_lookup_text(&bytes, 100_002), Some("Paramètres".into()));
+        assert_eq!(cfgbin_lookup_text(&bytes, 999_999), None);
     }
 
     // -----------------------------------------------------------------------

@@ -22,8 +22,10 @@ export const avatar_composition_json: (a: number, b: number, c: number, d: numbe
 export const avatar_reference_import_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
 export const binary_triage_json: (a: number, b: number, c: number, d: number) => void;
 export const calculate_stats: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+export const cfgbin_lookup_text: (a: number, b: number, c: number, d: number) => void;
 export const cfgbin_menu_setting_json: (a: number, b: number, c: number) => void;
 export const cfgbin_parse_json: (a: number, b: number, c: number) => void;
+export const cfgbin_text_map_json: (a: number, b: number, c: number) => void;
 export const cfgbin_typed_json: (a: number, b: number, c: number, d: number, e: number) => void;
 export const chara_model_catalog_json: (a: number, b: number, c: number, d: number, e: number) => void;
 export const character_parts_catalog_json: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -168,10 +170,10 @@ export const webgpuviewer_stage_asset: (a: number, b: number, c: number, d: numb
 export const zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
 export const __wasm_start: () => void;
 export const init_panic_hook: () => void;
-export const __wasm_bindgen_func_elem_4434: (a: number, b: number, c: number, d: number) => void;
-export const __wasm_bindgen_func_elem_4449: (a: number, b: number, c: number, d: number) => void;
-export const __wasm_bindgen_func_elem_3443: (a: number, b: number, c: number) => void;
-export const __wasm_bindgen_func_elem_3443_2: (a: number, b: number, c: number) => void;
+export const __wasm_bindgen_func_elem_4441: (a: number, b: number, c: number, d: number) => void;
+export const __wasm_bindgen_func_elem_4456: (a: number, b: number, c: number, d: number) => void;
+export const __wasm_bindgen_func_elem_3450: (a: number, b: number, c: number) => void;
+export const __wasm_bindgen_func_elem_3450_2: (a: number, b: number, c: number) => void;
 export const __wbindgen_export: (a: number, b: number) => number;
 export const __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_export3: (a: number) => void;

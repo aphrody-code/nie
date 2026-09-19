@@ -28,6 +28,8 @@ import { Settings } from "./pages/Settings";
 import { Avatar } from "./pages/Avatar";
 import { HOME, splitLanguagePrefix } from "./routing";
 
+import { hybridGameTextResolver } from "./game/hybrid-text-resolver";
+
 /**
  * Hosts the authentic WebAssembly game at root and its native game screens.
  *
@@ -46,7 +48,7 @@ export function App({ source }: { source?: AssetSource } = {}) {
 
 function TexteDuJeu({ children }: { children: ReactNode }) {
 	const { gameLocale } = useSettings();
-	return <GameTextProvider locale={gameLocale}>{children}</GameTextProvider>;
+	return <GameTextProvider locale={gameLocale} resolver={hybridGameTextResolver}>{children}</GameTextProvider>;
 }
 
 function GameSite() {

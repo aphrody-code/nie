@@ -158,8 +158,12 @@ export interface GameHandle {
 	readonly height: number;
 	/** Transmet une commande de menu IEVR (`CMD_ENTER`, `CMD_BACK`, `CMD_FCS_MTX_UP`…). */
 	input(cmd: string): void;
+	/** Enfile une commande d'entrée pour le prochain pas fixe déterministe (60 Hz). */
+	queueInput(cmd: string): void;
 	/** Transmet l'état maintenu du clavier au monde `nie-runtime`. */
 	setMatchInput(dx: number, dy: number, shoot: boolean): void;
+	/** Exécute un pas déterministe fixe de 1/60s (FIXED_TIME_STEP) en vidant la file d'entrées. */
+	stepFixed(): void;
 	/** Avance le temps de `dt` secondes — la physique du match tourne pendant un match. */
 	update(dt: number): void;
 	/** Rend l'écran courant, prêt pour `putImageData`. */
@@ -248,12 +252,34 @@ export async function loadGame(): Promise<GameHandle> {
 	const sharedFrame = hasSharedFrameAccess(game) ? game : null;
 	const memory = wasmMemory;
 	let disposed = false;
+	const inputQueue: string[] = [];
+	let heldInput = { dx: 0, dy: 0, shoot: false };
+
 	return {
 		width,
 		height,
 		input: (cmd) => game.input(cmd),
-		setMatchInput: (dx, dy, shoot) => game.set_match_input(dx, dy, shoot),
-		update: (dt) => game.update(dt),
+		queueInput: (cmd) => inputQueue.push(cmd),
+		setMatchInput: (dx, dy, shoot) => {
+			heldInput = { dx, dy, shoot };
+			game.set_match_input(dx, dy, shoot);
+		},
+		stepFixed: () => {
+			while (inputQueue.length > 0) {
+				const cmd = inputQueue.shift()!;
+				game.input(cmd);
+			}
+			game.set_match_input(heldInput.dx, heldInput.dy, heldInput.shoot);
+			game.update(FIXED_TIME_STEP);
+		},
+		update: (dt) => {
+			while (inputQueue.length > 0) {
+				const cmd = inputQueue.shift()!;
+				game.input(cmd);
+			}
+			game.set_match_input(heldInput.dx, heldInput.dy, heldInput.shoot);
+			game.update(dt);
+		},
 		frame: () => {
 			if (sharedFrame !== null && memory !== null) {
 				return new ImageData(sharedFrameView(sharedFrame, memory, width * height * 4), width, height);

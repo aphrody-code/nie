@@ -653,6 +653,11 @@ export function binary_triage_json(bytes: Uint8Array, strings_limit: number): st
 export function calculate_stats(main_position: number, sub_position: number, growth_pattern: number, chara_rank: number, play_style: number, level: number): string;
 
 /**
+ * Résout un hash CRC-32 dans un `*_text.cfg.bin` (WASM).
+ */
+export function cfgbin_lookup_text(bytes: Uint8Array, target_hash: number): string | undefined;
+
+/**
  * Décode un `*_menu_setting.cfg.bin` en structure de menu directement consommable.
  */
 export function cfgbin_menu_setting_json(bytes: Uint8Array): string;
@@ -661,6 +666,11 @@ export function cfgbin_menu_setting_json(bytes: Uint8Array): string;
  * Parse un fichier cfg.bin (T2B) et retourne son JSON structurel.
  */
 export function cfgbin_parse_json(bytes: Uint8Array): string;
+
+/**
+ * Décode un `*_text.cfg.bin` en dictionnaire JSON `{ [hash: string]: string }` (WASM).
+ */
+export function cfgbin_text_map_json(bytes: Uint8Array): string;
 
 /**
  * Décode un `cfg.bin` (octets bruts) en structure de jeu typée selon le nom de fichier.
@@ -1053,8 +1063,10 @@ export interface InitOutput {
     readonly avatar_reference_import_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly binary_triage_json: (a: number, b: number, c: number, d: number) => void;
     readonly calculate_stats: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly cfgbin_lookup_text: (a: number, b: number, c: number, d: number) => void;
     readonly cfgbin_menu_setting_json: (a: number, b: number, c: number) => void;
     readonly cfgbin_parse_json: (a: number, b: number, c: number) => void;
+    readonly cfgbin_text_map_json: (a: number, b: number, c: number) => void;
     readonly cfgbin_typed_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly chara_model_catalog_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly character_parts_catalog_json: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -1199,10 +1211,10 @@ export interface InitOutput {
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4434: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4449: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3443: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3443_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4441: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4456: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3450: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3450_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;
