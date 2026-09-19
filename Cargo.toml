@@ -161,6 +161,10 @@ nie-app = { version = "0.6.0", path = "crates/engine/nie-app" }
 # `default-features = false` par défaut : la bibliothèque (rastériseur CPU, glTF) sans `clap`.
 # Un consommateur qui veut l'exécutable ou le GPU demande `features = ["cli"]` / `["gpu"]`.
 nie-render3d = { version = "0.6.0", path = "crates/engine/nie-render3d", default-features = false }
+# nie-video : propriétaire UNIQUE de la chaîne « trames RGBA → fichier vidéo ». Tout appelant qui
+# produit une séquence passe par elle ; le motif « PNG dans un répertoire temporaire + ffmpeg -i
+# f_%04d.png » qu'elle remplace vivait en trois copies.
+nie-video = { version = "0.6.0", path = "crates/engine/nie-video" }
 nie-aphrody = { version = "0.6.0", path = "crates/engine/nie-aphrody" }
 # nie-ui : source unique, typée, des jetons de design du jeu (couleurs OKLCH, géométrie,
 # mouvement) — génère le CSS de packages/inacord-ui/src/shell/game-tokens.css et relie

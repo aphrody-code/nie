@@ -15,7 +15,6 @@
 )]
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -467,9 +466,17 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let dir = std::env::temp_dir().join(format!("niers-m3d-{}", std::process::id()));
-    std::fs::create_dir_all(&dir)?;
-    for i in 0..cli.frames {
+    // Les trames partent directement dans l'encodeur : ni PNG intermédiaire, ni répertoire
+    // temporaire. `nie_video` est le propriétaire unique de cette chaîne (cf. sa doc de module).
+    let params = nie_video::Params {
+        largeur: cli.width,
+        hauteur: cli.height,
+        fps: cli.fps,
+        codec: nie_video::Codec::H264,
+        crf: 18,
+    };
+    let mut encodeur = nie_video::ouvrir(&params, &cli.out)?;
+    for _ in 0..cli.frames {
         let (flat, inst) = frame_scene(&world);
         let rgba = render_scene(
             &flat,
@@ -480,15 +487,10 @@ fn main() -> Result<()> {
             bw,
             bh,
         );
-        std::fs::write(
-            dir.join(format!("f_{i:04}.png")),
-            encode_png(&rgba, cli.width, cli.height)?,
-        )?;
+        encodeur.pousser_rgba(&rgba)?;
         world.step(cli.dt);
     }
-    encode_video(&dir, cli.fps, &cli.out)?;
-    let _ = std::fs::remove_dir_all(&dir);
-    let sz = std::fs::metadata(&cli.out).map(|m| m.len()).unwrap_or(0);
+    let sz = encodeur.finir()?.octets;
     println!(
         "video={} mode={} score={:?} ({sz} octets)",
         cli.out.display(),
@@ -498,21 +500,3 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn encode_video(dir: &Path, fps: u32, out: &Path) -> Result<()> {
-    let status = Command::new("ffmpeg")
-        .args([
-            "-y",
-            "-loglevel",
-            "error",
-            "-framerate",
-            &fps.to_string(),
-            "-i",
-        ])
-        .arg(dir.join("f_%04d.png"))
-        .args(["-c:v", "libx264", "-pix_fmt", "yuv420p"])
-        .arg(out)
-        .status()
-        .context("lancer ffmpeg")?;
-    anyhow::ensure!(status.success(), "ffmpeg a échoué");
-    Ok(())
-}

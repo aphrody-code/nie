@@ -13,8 +13,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -515,36 +514,31 @@ fn main() -> Result<()> {
             return Ok(());
         }
 
-        let dir = std::env::temp_dir().join(format!("niers-r3d-gpu-{}", std::process::id()));
-        std::fs::create_dir_all(&dir)?;
-        // Rendu et encodage sont chronométrés SÉPARÉMENT : sur une sortie PNG, la compression est
-        // le goulot et masque entièrement le gain du GPU. Annoncer un temps global laisserait
-        // croire que le rendu coûte ce que coûte le PNG.
-        let (mut t_rendu, mut t_png) = (std::time::Duration::ZERO, std::time::Duration::ZERO);
+        // Rendu et sortie sont chronométrés SÉPARÉMENT : annoncer un temps global laisserait
+        // croire que le rendu coûte ce que coûte la sortie. Le second poste n'est plus une
+        // compression PNG mais une écriture vers l'encodeur — c'est justement le coût qui a
+        // disparu en passant au flux, et le mesurer le dit.
+        let mut encodeur = nie_video::ouvrir(&video_params(&cli), &cli.out)?;
+        let (mut t_rendu, mut t_sortie) = (std::time::Duration::ZERO, std::time::Duration::ZERO);
         for i in 0..cli.frames {
             let angle = std::f32::consts::TAU * (i as f32) / (cli.frames as f32);
             let t0 = std::time::Instant::now();
             let rgba = renderer.render(&gm, cam(angle), cli.width, cli.height)?;
             t_rendu += t0.elapsed();
             let t1 = std::time::Instant::now();
-            std::fs::write(
-                dir.join(format!("f_{i:04}.png")),
-                encode_png(&rgba, cli.width, cli.height)?,
-            )?;
-            t_png += t1.elapsed();
+            encodeur.pousser_rgba(&rgba)?;
+            t_sortie += t1.elapsed();
         }
         let n = f64::from(cli.frames);
         println!(
-            "gpu: {} images — rendu {:?} ({:.2} ms/image), encodage PNG {:?} ({:.2} ms/image)",
+            "gpu: {} images — rendu {:?} ({:.2} ms/image), sortie encodeur {:?} ({:.2} ms/image)",
             cli.frames,
             t_rendu,
             t_rendu.as_secs_f64() * 1000.0 / n,
-            t_png,
-            t_png.as_secs_f64() * 1000.0 / n,
+            t_sortie,
+            t_sortie.as_secs_f64() * 1000.0 / n,
         );
-        encode_video(&dir, cli.fps, &cli.out)?;
-        let _ = std::fs::remove_dir_all(&dir);
-        let sz = std::fs::metadata(&cli.out).map(|m| m.len()).unwrap_or(0);
+        let sz = encodeur.finir()?.octets;
         println!("video={} ({sz} octets, gpu)", cli.out.display());
         return Ok(());
     }
@@ -556,54 +550,39 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let dir = std::env::temp_dir().join(format!("niers-r3d-{}", std::process::id()));
-    std::fs::create_dir_all(&dir)?;
-    // Même ventilation rendu/encodage que le chemin GPU : comparer deux temps globaux, dont l'un
-    // porte un encodage PNG identique de part et d'autre, dirait surtout le coût du PNG.
-    let (mut t_rendu, mut t_png) = (std::time::Duration::ZERO, std::time::Duration::ZERO);
+    // Même ventilation rendu/sortie que le chemin GPU, et pour la même raison.
+    let mut encodeur = nie_video::ouvrir(&video_params(&cli), &cli.out)?;
+    let (mut t_rendu, mut t_sortie) = (std::time::Duration::ZERO, std::time::Duration::ZERO);
     for i in 0..cli.frames {
         let angle = std::f32::consts::TAU * (i as f32) / (cli.frames as f32);
         let t0 = std::time::Instant::now();
         let rgba = frame(angle);
         t_rendu += t0.elapsed();
         let t1 = std::time::Instant::now();
-        std::fs::write(
-            dir.join(format!("f_{i:04}.png")),
-            encode_png(&rgba, cli.width, cli.height)?,
-        )?;
-        t_png += t1.elapsed();
+        encodeur.pousser_rgba(&rgba)?;
+        t_sortie += t1.elapsed();
     }
     let n = f64::from(cli.frames);
     println!(
-        "cpu: {} images — rendu {:?} ({:.2} ms/image), encodage PNG {:?} ({:.2} ms/image)",
+        "cpu: {} images — rendu {:?} ({:.2} ms/image), sortie encodeur {:?} ({:.2} ms/image)",
         cli.frames,
         t_rendu,
         t_rendu.as_secs_f64() * 1000.0 / n,
-        t_png,
-        t_png.as_secs_f64() * 1000.0 / n,
+        t_sortie,
+        t_sortie.as_secs_f64() * 1000.0 / n,
     );
-    encode_video(&dir, cli.fps, &cli.out)?;
-    let _ = std::fs::remove_dir_all(&dir);
-    let sz = std::fs::metadata(&cli.out).map(|m| m.len()).unwrap_or(0);
+    let sz = encodeur.finir()?.octets;
     println!("video={} ({sz} octets)", cli.out.display());
     Ok(())
 }
 
-fn encode_video(dir: &Path, fps: u32, out: &Path) -> Result<()> {
-    let status = Command::new("ffmpeg")
-        .args([
-            "-y",
-            "-loglevel",
-            "error",
-            "-framerate",
-            &fps.to_string(),
-            "-i",
-        ])
-        .arg(dir.join("f_%04d.png"))
-        .args(["-c:v", "libx264", "-pix_fmt", "yuv420p"])
-        .arg(out)
-        .status()
-        .context("lancer ffmpeg")?;
-    anyhow::ensure!(status.success(), "ffmpeg a échoué");
-    Ok(())
+/// Les paramètres vidéo dérivés de la ligne de commande — un seul endroit pour les deux chemins.
+fn video_params(cli: &Cli) -> nie_video::Params {
+    nie_video::Params {
+        largeur: cli.width,
+        hauteur: cli.height,
+        fps: cli.fps,
+        codec: nie_video::Codec::H264,
+        crf: 18,
+    }
 }

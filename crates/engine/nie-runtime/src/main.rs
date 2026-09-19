@@ -12,8 +12,7 @@
     clippy::cast_precision_loss
 )]
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -82,10 +81,30 @@ fn main() -> Result<()> {
     }
 
     let mut world = World::kickoff();
+    // La vidéo se construit EN MÊME TEMPS que la boucle, directement depuis les octets RGBA :
+    // elle ne dépend plus du répertoire de PNG. Celui-ci reste écrit quand `want_frames` le
+    // demande, parce que `--keep-frames` est une fonctionnalité et non un intermédiaire.
+    let mut encodeur = if cli.no_video {
+        None
+    } else {
+        Some(nie_video::ouvrir(
+            &nie_video::Params {
+                largeur: width,
+                hauteur: height,
+                fps,
+                codec: nie_video::Codec::H264,
+                crf: 18,
+            },
+            &cli.out,
+        )?)
+    };
     let mut last_png: Option<Vec<u8>> = None;
     for i in 0..cli.frames {
         world.step(dt);
         let frame = render::render(&world, width, height);
+        if let Some(enc) = encodeur.as_mut() {
+            enc.pousser_rgba(&frame.px)?;
+        }
         let png = encode_png(&frame)?;
         if want_frames {
             std::fs::write(dir.join(format!("frame_{i:05}.png")), &png)
@@ -114,36 +133,13 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    encode_video(&dir, fps, &cli.out)?;
+    let sz = match encodeur {
+        Some(enc) => enc.finir()?.octets,
+        None => 0,
+    };
     if !cli.keep_frames {
         let _ = std::fs::remove_dir_all(&dir);
     }
-    let sz = std::fs::metadata(&cli.out).map(|m| m.len()).unwrap_or(0);
     println!("video={} ({} octets)", cli.out.display(), sz);
-    Ok(())
-}
-
-/// Encode les frames PNG en MP4 H.264 via ffmpeg (requis dans le PATH).
-fn encode_video(dir: &Path, fps: u32, out: &Path) -> Result<()> {
-    let pattern = dir.join("frame_%05d.png");
-    let status = Command::new("ffmpeg")
-        .args([
-            "-y",
-            "-loglevel",
-            "error",
-            "-framerate",
-            &fps.to_string(),
-            "-i",
-        ])
-        .arg(&pattern)
-        .args(["-c:v", "libx264", "-pix_fmt", "yuv420p"])
-        .arg(out)
-        .status()
-        .context("lancer ffmpeg (installé ? sinon --no-video)")?;
-    anyhow::ensure!(
-        status.success(),
-        "ffmpeg a échoué (code {:?})",
-        status.code()
-    );
     Ok(())
 }

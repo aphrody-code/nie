@@ -29,6 +29,9 @@ bcdec_rs.workspace = true
 wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
+# Optionnelle et tirée par `cli` : seule l'exécutable encode une vidéo. La bibliothèque reste
+# embarquable dans `nie-wasm` sans elle, au même titre que `clap`.
+nie-video = { workspace = true, optional = true }
 
 [dev-dependencies]
 nie-formats = { workspace = true, default-features = true }
@@ -40,7 +43,7 @@ nie-formats = { workspace = true, default-features = true }
 default = ["cli"]
 # L'exécutable en ligne de commande. Séparé pour que `nie-wasm` puisse embarquer le rastériseur
 # CPU sans embarquer `clap`.
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:nie-video"]
 gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
 # Présentation canvas facultative ; aucun backend GPU ajouté aux consommateurs CPU par défaut.
 webgpu = ["gpu", "wgpu/webgpu", "dep:web-sys"]

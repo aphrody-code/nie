@@ -5363,6 +5363,7 @@ dependencies = [
  "clap",
  "nie-core",
  "nie-formats",
+ "nie-video",
  "png 0.18.1",
  "pollster",
  "serde",
@@ -5381,6 +5382,7 @@ dependencies = [
  "nie-formats",
  "nie-geom",
  "nie-render3d",
+ "nie-video",
  "png 0.18.1",
 ]
 
@@ -5518,6 +5520,13 @@ dependencies = [
  "nie-aphrody",
  "nie-formats",
  "serde_json",
+]
+
+[[package]]
+name = "nie-video"
+version = "0.6.0"
+dependencies = [
+ "thiserror 2.0.20",
 ]
 
 [[package]]
