@@ -296,22 +296,42 @@ pub struct CameraAnim {
     /// et deux mots qui ressemblent à des hashes ; sa structure interne n'est pas établie, il est
     /// donc conservé tel quel.
     ///
-    /// ## Ce qui est mesuré (2026-09-19, 4 fichiers)
+    /// ## Le gabarit, mesuré sur le corpus ENTIER (2026-09-19, 1 215 fichiers)
     ///
-    /// Longueurs 160, 144, 112 et 144 octets pour 40, 40, 32 et 48 canaux. Lu en `f32`, le bloc
-    /// montre la même forme partout : il **commence par `1.0`**, enchaîne une suite de valeurs
-    /// positives à une décimale (`2.1`, `6.1`, `0.3`, `22.0`, `14.3`…), puis une constante
-    /// **`0.0216` présente dans les quatre fichiers**, puis des zéros jusqu'au bout.
+    /// ```text
+    ///   f32 1.0                  (0x3F800000) — toujours, en tête
+    ///   <charge utile>           suite de f32 positifs, longueur VARIABLE
+    ///   <un mot>                 lu en f32 il paraît minuscule (3.2e-07, 3.5e-12) : ce n'est
+    ///                            pas un flottant, c'est l'un des « hashes » de la doc
+    ///   f32 0.021596527          (0x3CB0EB33) — exactement UNE fois par fichier
+    ///   zéros                    bourrage jusqu'à la table de noms
+    /// ```
+    ///
+    /// Les deux bornes tiennent sur **1 215 fichiers sur 1 215**, sans exception : c'est le
+    /// repère sur lequel s'appuyer pour délimiter le bloc, plutôt que sa longueur en octets.
+    ///
+    /// **La longueur de la charge utile ne suit ni le nombre de canaux ni celui des objets.**
+    /// Mesuré sur tout le corpus, l'écart à l'un comme à l'autre s'étale au lieu de se
+    /// concentrer sur une valeur. C'est l'inconnue qui reste.
     ///
     /// ## Une piste RÉFUTÉE — ne pas la refaire
     ///
-    /// « Un `f32` d'échelle par canal » est **faux**. Le rapport octets/canaux vaut 4,00 · 3,60 ·
-    /// 3,50 · 3,00 selon le fichier : il n'est pas constant, donc le découpage n'est pas indexé
-    /// par canal. Le `4,00` d'`ev60_00340` est une coïncidence, et c'est exactement ce qui rend
-    /// la piste tentante — sur ce seul fichier, les vingt premières valeurs s'alignent sur les
-    /// vingt premiers canaux avec des échelles crédibles. Le nombre de valeurs « propres » (34,
-    /// 27, 33, 31) ne suit ni le nombre de canaux animés (23, 20, 18, 29) ni aucun des treize
-    /// compteurs.
+    /// « Un `f32` d'échelle par canal » est **faux** — mais attention au motif de rejet, car le
+    /// premier que j'ai retenu était lui-même mauvais.
+    ///
+    /// *Mauvais motif* : « le rapport octets/canaux vaut 4,00 · 3,60 · 3,50 · 3,00, donc ce
+    /// n'est pas par canal ». Ce rapport ne mesure rien du contenu. La longueur du bloc est une
+    /// **conséquence de la mise en page** — il court jusqu'à `section(10)` — et tout ce qui suit
+    /// la charge utile est du bourrage. Comparer une longueur bourrée à un compte d'éléments ne
+    /// peut rien conclure.
+    ///
+    /// *Bon motif* : une fois la charge utile délimitée par ses deux bornes (ci-dessus) et
+    /// mesurée sur les 1 215 fichiers, sa longueur ne se concentre ni sur le nombre de canaux ni
+    /// sur celui des objets — elle s'étale dans les deux cas.
+    ///
+    /// La piste reste tentante parce que sur `ev60_00340` les vingt premières valeurs s'alignent
+    /// sur les vingt premiers canaux avec des échelles crédibles. C'est une coïncidence de ce
+    /// fichier.
     ///
     /// Deux relations, elles, tiennent sur les quatre fichiers : `counters[0]` est le nombre de
     /// clips (= d'objets), et `counters[4]` vaut exactement **la moitié du nombre de canaux**.
