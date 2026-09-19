@@ -238,3 +238,21 @@ The exhaustive audit then decoded and executed 1 197/1 197 scripts with 0 decode
 1 053 252 decoded instructions, 21 661 713 live instructions, 76 include families, 0 missing
 includes, and 0 missing host invocations. These are local/VPS-backed measurements, not claims
 that the ignored game payload belongs in Git.
+
+## RE surfaces
+
+The KB tables that back this document's claims:
+
+- `hash_name` — CRC-32 name resolution for every VFS entry, populated by `niers seed-ui`
+- `function` — the 117 068 functions of `nie.exe`, including the CPK/VFS layer
+- `xref` — call edges and string references that anchor VFS routines
+- `func_str_ref` — string-to-function anchors, including `.cpk` path strings
+- `pdata_func` — the 55 351 authoritative function boundaries from `.pdata`
+- `coverage` — classification progress measured by `niers rebuild`
+
+Key VFS addresses in `nie.exe` (reference binary `b1fa04ea3658`, 33 918 464 bytes):
+
+- `0x140d862f0` — asset database lookup (resolves a path to a loaded resource handle)
+- `0x14047f670` — path template formatter (substitutes `<MAP>` and similar tokens)
+- `0x140435320` — resource registry search
+- `0x140452ac0` — resource registration into the global registry

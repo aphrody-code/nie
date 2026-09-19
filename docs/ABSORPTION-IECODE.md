@@ -17,3 +17,18 @@ The retained implementation boundaries are:
 No command should reintroduce a process delegation to `iecode`, `dotnet`, CMake, or vcpkg. New
 format gaps are tracked in the active [`PLAN.md`](../PLAN.md) and must be implemented in the
 corresponding Rust crate with a counted verification gate.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — functions ported from IECODE
+- `coverage` — coverage rate of the ported functions
+- `xref` — call topology
+- `rtti_class` — RTTI MSVC classes
+- `pdata_func` — `.pdata` function boundaries
+- `hash_name` — VFS name resolution tables
+- `forge_unit` — unit compilation tracking
+
+Key binary addresses:
+- `0x1404ecd60` — Mesh transform dispatch
+- `0x1406d5840` — Main tick loop

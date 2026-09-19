@@ -116,3 +116,18 @@ Ces rejets sont doctrinaux : ils tiennent tant que l'objectif byte/pixel tient.
   références qui empêche de détruire la VM. Passer par des IDs, pas des handles stockés.
 - VM mono-thread : garder mlua `!Send` (pas la feature `send`) et partager par `Rc<RefCell<…>>`.
   Réutiliser une seule `Lua` — la création est coûteuse.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) grounding for the runtime stack:
+
+- `function` — 117 068 function records of `nie.exe`
+- `coverage` — coverage metrics verified against `.pdata`
+- `xref` — call-graph and string reference topology
+- `pdata_func` — 55 351 authoritative function start addresses
+- `rtti_class` — runtime classes (e.g., `lives::CRand`, `lives::CCriSoundController`)
+
+Key binary addresses in `nie.exe`:
+- `0x1406d5840` — CRand init/seed routine
+- `0x1404ccd60` — CRI middleware dispatcher
+- `0x1404aadb8` — Lua host command dispatcher

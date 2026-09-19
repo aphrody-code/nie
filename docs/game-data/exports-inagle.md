@@ -13,3 +13,16 @@ The current IEVR inventory is documented in
 [`root-manifests.md`](./root-manifests.md). The canonical implementation lives
 in `crates/engine/nie-core`, `crates/tools/nie-wiki`, `crates/tools/nie-cli`,
 and `crates/tools/nie-site`.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC32 and string hashes for skills and passives
+- `function` — passive calculation and evaluation routines in `nie.exe`
+- `coverage` — coverage rate of gameplay mechanics
+- `xref` — call graphs for passives
+- `pdata_func` — function boundaries
+
+Key binary reference addresses:
+- `0x1404ecd60` — Stat calculation dispatch
+- `0x1406d5840` — Main game loop tick

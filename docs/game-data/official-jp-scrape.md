@@ -190,3 +190,15 @@ prise de position du CEO sur la controverse autour de l'IA dans le développemen
 `google design 3`). Champs : `{url, finalUrl, httpStatus, bytes, gotoMs, profile, headers, frameworks,
 assets, cssSelectors}`. **Aucun rapport avec le jeu** — c'est de l'outillage de crawl, à ignorer pour
 le contenu de jeu.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — Official release topic and DLC string hashes
+- `function` — game release version probe and network update routines in `nie.exe`
+- `xref` — update check call chains
+- `coverage` — coverage metrics
+
+Key binary reference addresses:
+- `0x140435320` — Network session dispatcher
+- `0x140452ac0` — Resource manifest registration

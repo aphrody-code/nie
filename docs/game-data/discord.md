@@ -105,3 +105,15 @@ Exemples bruts :
 
 - Aucune valeur exploitable pour le moteur niers : pas d'IDs/hashes de jeu, pas de libellés `cfg.bin`/TEXT_INFO. Les seuls identifiants sont des **snowflakes Discord** (guild/channel/message/role/emoji).
 - Réutilisable seulement comme **corpus FR communautaire** (veille produit, sentiment joueurs) — hors périmètre des crates.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — VFS name resolution tables
+- `function` — network and social chat interfaces in `nie.exe`
+- `coverage` — coverage rate of the network boundary
+- `xref` — call topology
+
+Key binary addresses in `nie.exe`:
+- `0x140435320` — Network session dispatcher
+- `0x140452ac0` — External resource registration

@@ -56,3 +56,16 @@ les dépôts dédiés. Les validations de cette annexe doivent désormais cibler
 ## Incrément en cours
 
 Livraison urgente demandée le 5 septembre : commit local, push main, synchronisation VPS puis déploiement. Les imports PNG et GLB/gzip ont été exercés en navigateur ; 35 tests ciblés passent. L'audit réel couvre 502 sélections et 491 icônes, sans erreur de hash, pixels ou ressource de requête. TSC ciblé et Clippy nie-render3d/nie-wasm sans diagnostic. Le pont WebGPU facultatif est compilé en WASM avec quatre tests ; son intégration aux interfaces et sa validation GPU navigateur ne sont pas terminées. Aucun modèle Astro fidèle n'est encore produit. Ne pas confondre la livraison de cet incrément avec l'achèvement de ces objectifs restants.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC32 and string hashes for 3D model parts and textures
+- `function` — 3D mesh processing and rendering in `nie.exe`
+- `coverage` — 3D engine coverage metrics
+- `rtti_class` — `lives::CSetupMeshVisible`, `lives::CBlendShapeProp`
+- `pdata_func` — function entrypoints
+
+Key binary reference addresses:
+- `0x1404ecd60` — Mesh transform dispatch
+- `0x1406d5840` — Core game tick

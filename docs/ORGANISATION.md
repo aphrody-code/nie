@@ -139,3 +139,16 @@ une décision de l'utilisateur, pas un effet de bord d'un rangement.
   délibéré pour la page d'accueil GitHub, mais aucune règle écrite ne dit où s'arrête
   l'anglais. Les fichiers ajoutés ici (`SECURITY.md`, gabarits) suivent le français, langue
   du dépôt.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `forge_unit` — the physical unit mapping of `nie.exe`
+- `function` — functions indexed across the repository
+- `coverage` — continuous classification metrics
+- `xref` — call-graph topology
+- `pdata_func` — authoritative boundaries from PE header
+
+Key binary anchor points:
+- `0x140435320` — Core resource manager lookup
+- `0x1406d5840` — Core tick / main update loop

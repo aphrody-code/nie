@@ -74,3 +74,18 @@ probe CLI réel. La base est ouverte en lecture seule par la session.
 Le test live Windows reste conditionnel à un `nie.exe` lancé et au même hôte Windows : l’absence du
 processus n’est pas transformée en faux succès. De même, une réponse HTTP Ghidra ne vaut pas handshake
 CodeBrowser ; une preuve Ghidra complète doit fournir l’identité du programme et un export importable.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — 117 068 functions of `nie.exe`
+- `coverage` — coverage rate of `.pdata` entry points
+- `pdata_func` — 55 351 authoritative function start addresses
+- `xref` — call-graph relationships
+- `rtti_class` — RTTI MSVC classes
+- `hash_name` — VFS and UI hash tables
+- `forge_unit` — unit definitions for byte-exact forge
+
+Key binary reference addresses:
+- `0x1404ecd60` — Core character controller
+- `0x1406d5840` — Core game state tick loop

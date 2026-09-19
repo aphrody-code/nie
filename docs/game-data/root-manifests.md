@@ -54,3 +54,16 @@ game dumps, and external CDN inventories are not retained IEVR data sources.
 Use the repository's Rust exporters or the bounded VFS index commands. Every generator must fail
 closed when the required VFS, `nie`, or `zukan` source is absent; it must not fetch a
 cloud database or silently substitute an external catalog.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC32 and string hashes for models, textures, cut-ins and passives
+- `function` — VFS parsing and resource management in `nie.exe`
+- `coverage` — coverage rate of asset resolution functions
+- `xref` — call graphs for asset loaders
+- `pdata_func` — `.pdata` function entry points
+
+Key binary reference addresses:
+- `0x140435320` — Resource manager search
+- `0x140452ac0` — Resource manager register

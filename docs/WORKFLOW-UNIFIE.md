@@ -113,3 +113,16 @@ Un lot est terminé seulement si :
 
 Ce contrat permet de chaîner les lots : le `results/manifest.json` d'un run devient une entrée
 `pending/` du suivant, avec le hash conservé.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `forge_unit` — unit partition tracking
+- `function` — 117 068 functions tracked across workflow iterations
+- `coverage` — gate evaluation tracking
+- `xref` — structural call-graph dependencies
+- `pdata_func` — `.pdata` function truth
+
+Key binary addresses:
+- `0x1404ecd60` — Core character controller
+- `0x1406d5840` — Main tick loop

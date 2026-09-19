@@ -263,6 +263,19 @@ done
 awk '$1 ~ /\.acb$/{print $1}' var/vfs/lot4-audio.txt > /tmp/acb_list.txt
 mkdir -p /tmp/acb_out
 awk '{print NR" "$0}' /tmp/acb_list.txt | xargs -P 24 -L1 bash -c \
-  'curl -s "http://127.0.0.1:8790/audio-info/$1" -o "/tmp/acb_out/$0.json"'
 jq -s '{total_cues: (map(.cueCount // 0) | add), banques: length}' /tmp/acb_out/*.json
 ```
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRI/audio cue name and path hashes
+- `function` — audio and video dispatch routines in `nie.exe`
+- `xref` — cross-references to sound controllers and decoders
+- `rtti_class` — CRI middleware RTTI structures (`lives::CCriSoundController`, `lives::CCriSofdecDecoder`)
+- `pdata_func` — binary function entrypoints for Criware wrappers
+
+Key binary functions in `nie.exe`:
+- `0x1404ccd60` — CRI Sound controller playback initialization
+- `0x1409d4644` — Sofdec USM video stream thunk
+- `0x140567cc0` — Audio playback volume and matrix transform callback

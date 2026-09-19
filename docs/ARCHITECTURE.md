@@ -144,3 +144,24 @@ des tests qui restent verts.
 - Bun ne charge **que** `nie_ffi` (Rust). C'est délibéré : `bunfig.toml` précharge `nie-plugin`,
   donc tout natif joint à cette chaîne ferait échouer n'importe quelle commande `bun` du dépôt dès
   qu'il n'est pas construit.
+
+## RE anchors
+
+The knowledge base (`var/niers.sqlite`) tables that correspond to each architectural layer:
+
+- `function` — 117 068 entries, the complete function inventory of `nie.exe`
+- `rtti_class` and `rtti_base` — MSVC RTTI hierarchy (1 745 classes with inheritance)
+- `xref` — call-graph edges, the backbone of the propagation in `nie-re`
+- `coverage` — classification snapshots, the metric `niers rebuild` writes
+- `pdata_func` — 55 351 `.pdata` entries, the authoritative function boundaries
+- `hash_name` — CRC-32 ↔ string resolution, populated by `niers seed-ui`
+- `symbol` — resolved symbols beyond Ghidra's initial export
+- `anchor` — manually confirmed function↔name bindings
+- `forge_unit` — binary subdivision for byte-exact production
+
+The archive crate `nie-engine` (`crates/archive/nie-engine/src/cfgbin.rs`) carries 434
+`// EXTERN:` markers referencing `FUN_140d862f0`, `FUN_1416709b0`, `FUN_14005b8b0`,
+`FUN_140e33460`, `FUN_140e085b0`, `FUN_14047f670`, `FUN_140480430`, `FUN_140435320`,
+`FUN_1404784a0`, `FUN_140435ae0`, `FUN_140452ac0`, `FUN_1415f4e20`, `FUN_14160a910`,
+`FUN_141608cd0`, `FUN_14043b3c0` among others — these are the cfg.bin loader's external
+dependencies, each pointing to a real function in the reference binary.

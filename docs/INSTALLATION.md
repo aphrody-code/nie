@@ -65,3 +65,12 @@ symboliques tous les outils déjà compilés du workspace ainsi que les lanceurs
 Bun. Un gestionnaire de paquets et un utilisateur final doivent cibler
 exclusivement le paquet `nie-cli` et le binaire `niers` avec les commandes
 ci-dessus.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `forge_unit` — physical units produced by `nie-forge`
+- `function` — functions identified in `nie.exe`
+- `coverage` — classification metrics
+- `pdata_func` — runtime function start addresses
+- `hash_name` — VFS name resolutions

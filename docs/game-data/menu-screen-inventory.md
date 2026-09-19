@@ -78,3 +78,16 @@ render is visible before implementation starts:
 
 `options.png`, `controls.png` and `main_menu_alt.png` reference only OBJBIN files that ship, so
 those three screens can be rebuilt from their setting layers directly.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC32 and string hashes for screen names, objbins and layers
+- `function` — menu setup and screen lifecycle functions in `nie.exe`
+- `coverage` — menu screen coverage stats
+- `rtti_class` — `lives::CMenuAnimation`, `lives::CMenuRenderComponent`
+- `pdata_func` — function entrypoints for menu handlers
+
+Key binary reference addresses:
+- `0x1405410d0` — Menu list view update
+- `0x140567cc0` — Menu layout coordinate transform

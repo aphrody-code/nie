@@ -331,3 +331,16 @@ est en aval n'est que du volume.
 - Modding LEVEL-5 en Rust natif : crate `nie-viola`, commande `niers viola`
 - Modding : `niers mod`, et la section « Modding » de `CLAUDE.md`
 - Éditeur d'avatar : `docs/AVATAR.md`
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — character and skill ID CRC32 hashes
+- `function` — character stats evaluation routines in `nie.exe`
+- `xref` — cross-references to skill tables
+- `rtti_class` — `game::SoccerCharaCtrl`, `game::CGDDBasaraSpirit`
+- `coverage` — coverage metrics
+
+Key binary addresses in `nie.exe`:
+- `0x1404ecd60` — Character stat block calculation
+- `0x140567cc0` — Scene node attachment

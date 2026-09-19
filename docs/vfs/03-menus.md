@@ -248,6 +248,21 @@ HTML et n'est pas l'API menu.
   `chronicle_mode_top_menu` → **27 objets, 17 sprites, 1 calque manquant**. Le contrat expose
   `runtime.available=false` : le rendu statique est servi, tandis que le comportement Lua et
   les listes dépendantes d'un état de scène restent dans `nie-game --runtime` et ne sont pas
-  promis par cette API.
+  feintes par le site.
 - La table de navigation reste distincte : **475/475** par `/api/v1/menu/screens`. Rendre un
   layout statique ne prouve donc pas que les mutations Lua d'un écran sont complètes.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC-32 hashes for UI elements, screens, buttons, layers and commands
+- `function` — UI component methods and menu dispatch loops in `nie.exe`
+- `rtti_class` — UI classes (`lives::CMenuAnimation`, `lives::CMenuRenderComponent`, `lives::CMenuAttachLocator`)
+- `xref` — UI layout update loops and virtual method tables
+- `coverage` — coverage metrics for menu subsystems
+
+Key binary addresses in `nie.exe`:
+- `0x1405410d0` — `CMenuListView` slot 9 per-frame update and easing loop
+- `0x140542080` — `CMenuListView` slot 56 scroll transition start
+- `0x140544bd0` — `CMenuListView` slot 73 cell placement and affine matrix lookup
+- `0x140567cc0` — Menu widget transform and position application routine

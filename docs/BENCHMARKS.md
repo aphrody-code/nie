@@ -19,3 +19,14 @@ each result. Never include copyrighted game payloads in a benchmark artifact.
 `scripts/build-release.ps1` builds `nie-cli` and runs its tests. `scripts/package-release.ps1`
 packages `target/release/niers.exe`; neither script requires CMake, vcpkg, .NET, or an external
 toolkit.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `coverage` — binary coverage benchmarks
+- `function` — benchmarked hot paths
+- `forge_unit` — compile and assemble units
+
+Key reference functions:
+- `0x1404ecd60` — Mesh matrix transforms
+- `0x1406d5840` — Core loop dispatch

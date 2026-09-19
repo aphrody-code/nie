@@ -278,3 +278,17 @@ curl -s http://127.0.0.1:8085/api/v1/3d | jq .
 systemctl status nie-model-serve --no-pager
 niers vfs find "_item/b000003"
 ```
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC-32 hashes for bone targets, meshes, materials and blend shapes
+- `function` — character animation, skeleton evaluation and rendering functions in `nie.exe`
+- `rtti_class` — character controllers (`game::SoccerCharaCtrl`, `lives::CBlendShapeProp`, `lives::CSetupMeshVisible`)
+- `xref` — skeleton matrix calculation call chains
+- `coverage` — coverage status of character and animation subroutines
+
+Key binary functions in `nie.exe`:
+- `0x1404ecd60` — Character mesh bind and skeleton matrix update
+- `0x1406d5840` — Animation state machine evaluate loop
+- `0x140567cc0` — Scene node transform propagation

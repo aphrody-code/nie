@@ -202,3 +202,16 @@ Results:
 ---
 
 **Contact**: For production use or optimization questions, see CLAUDE.md
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — VFS paths and icon resource CRC32 hashes
+- `function` — G4TX texture decoder and memory mapping routines in `nie.exe`
+- `xref` — texture lookup xrefs
+- `rtti_class` — texture and UI component classes
+- `coverage` — asset format coverage metrics
+
+Key binary addresses in `nie.exe`:
+- `0x140452820` — Icon and texture resource dictionary lookup
+- `0x140567cc0` — Texture binding and blit transform

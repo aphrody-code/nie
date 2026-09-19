@@ -191,3 +191,16 @@ chemin machine, secret ou dump hors périmètre n’a été ajouté. La prochain
 étape RE clairement identifiée est l’injection documentée du contexte natif
 des 13 lectures résiduelles ; elle est distincte de la couverture Kizuna déjà
 validée et ne doit pas être remplacée par des valeurs inventées.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC32 and string hashes for Lua commands, modules and functions
+- `function` — Lua host functions and dispatch loop in `nie.exe`
+- `xref` — call-graph topology for Lua host functions
+- `rtti_class` — `game::CMapNpcController`, `game::VCraftMapStatus`
+- `coverage` — Lua command interpreter coverage
+
+Key binary reference addresses:
+- `0x1404aadb8` — Lua host command interpreter
+- `0x1406d5840` — Core game state tick loop

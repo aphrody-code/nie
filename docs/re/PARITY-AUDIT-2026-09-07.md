@@ -30,3 +30,17 @@ executable hash, size, image base, SQLite `binary_id`, RVA/VA, backend, operatio
 The bounded verifier is `scripts/verify-computer-use-re-trace.ps1`. Ghidra MCP identity and a live
 Windows process remain environment-dependent evidence and are intentionally not claimed by offline
 gates; writes, EAC patches, recipes and process launch remain separate explicit capabilities.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — 117 068 functions of `nie.exe`
+- `coverage` — binary coverage rate
+- `pdata_func` — 55 351 authoritative function starts
+- `xref` — call topology
+- `rtti_class` — RTTI MSVC classes
+- `forge_unit` — unit compilation tracking
+
+Key binary reference addresses:
+- `0x1404ecd60` — Character controller
+- `0x1406d5840` — Core game tick

@@ -130,3 +130,16 @@ It does not commit on the agent's behalf — an automatic commit hides what actu
 does not write outside the repository, and it touches neither `/etc` nor any service: 18
 production services run on this machine, and an agent restarting one while the other is
 measuring produces a false result with nothing to signal it.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `forge_unit` — unit ownership coordination
+- `function` — functions assigned across multi-agent sessions
+- `coverage` — shared coverage metrics
+- `xref` — call topology
+- `pdata_func` — canonical function boundaries
+
+Key binary reference addresses:
+- `0x1404ecd60` — Mesh transform dispatch
+- `0x1406d5840` — Main tick loop

@@ -296,3 +296,17 @@ Aucune route sans décodeur existant — classées par ce qui est immédiatement
 - **Input/système bas niveau** : `input/key_assign_3.00.13.00.cfg.bin`,
   `input/input_ctrl_3.00.18.00.cfg.bin` — consommés par tous les modes indistinctement (mapping
   manette), pas de route dédiée nécessaire au-delà du décodage générique T2B.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC32 and string mappings for gamedata fields, maps, skills and collisions
+- `function` — world scene graph, map loading, collision detection and game rule routines in `nie.exe`
+- `xref` — cross-references to map status, skill config, and game state loops
+- `rtti_class` — game world RTTI classes (`game::GDSSoccerTeamPassiveConfig`, `game::GDSMapAdditionalConfig`)
+- `coverage` — coverage status of map and gameplay rule logic
+
+Key binary functions in `nie.exe`:
+- `0x1404ecd60` — Map arrangement and placement transform update
+- `0x1406d5840` — Collision check and spatial query loop
+- `0x140452ac0` — Map resource initialization and dispatch

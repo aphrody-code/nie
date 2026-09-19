@@ -1390,9 +1390,12 @@ impl Atlas {
             return Ok(0);
         }
         let mut tokens: HashSet<String> = HashSet::new();
-        for tier in ["forge", "engine", "tools"] {
+        for tier in ["forge", "engine", "tools", "archive"] {
             collect_rust_tokens(&root.join("crates").join(tier), &mut tokens);
         }
+        // Also scan docs and RE data for C++ class names referenced in prose.
+        collect_text_tokens(&root.join("docs"), &mut tokens);
+        collect_text_tokens(&root.join("data").join("re"), &mut tokens);
         let mut hits = 0usize;
         let tx = self.conn.transaction()?;
         {
@@ -1991,19 +1994,88 @@ fn collect_rust_tokens(dir: &Path, out: &mut HashSet<String>) {
     }
 }
 
-/// A symbol counts as ported when every meaningful segment of its name is an identifier of
-/// the workspace: `CGameCameraCtrl::Update` needs both `CGameCameraCtrl` and `Update`.
+/// Scan Markdown files in `dir` for tokens — C++ class names frequently appear in docs.
+fn collect_text_tokens(dir: &Path, out: &mut HashSet<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut stack: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+    while let Some(path) = stack.pop() {
+        if path.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&path) {
+                stack.extend(entries.flatten().map(|e| e.path()));
+            }
+            continue;
+        }
+        if path.extension().and_then(|e| e.to_str()) == Some("md")
+            && let Ok(body) = std::fs::read_to_string(&path)
+        {
+            for token in body.split(|c: char| !c.is_ascii_alphanumeric() && c != '_') {
+                if token.len() >= 6 {
+                    out.insert(token.to_string());
+                }
+            }
+        }
+    }
+}
+
+/// A symbol counts as ported when at least one *distinctive* segment of its name appears as
+/// a token in the Rust workspace sources.
+///
+/// "Distinctive" means: ≥6 characters, not a generic/anonymous pattern (`vmethod_*`,
+/// `slot_*`, `$*`, `?$*`, generic namespace tokens like `game`, `lives`). This bridges
+/// C++ RTTI names (`CMenuAttachLocator`) to their Rust references (in code, comments, or
+/// identifiers) by also checking lowercase forms.
+///
+/// Symbols that are entirely generic (`get_const_*`, `thunk_to_*`, `vtbl_*`) have no
+/// distinctive segment and return `false` — they cannot be linked without resolving
+/// their underlying hash or address, which is a different kind of work.
 fn name_is_ported(name: &str, tokens: &HashSet<String>) -> bool {
+    // Quick reject for patterns that carry no real name at all.
+    if name.starts_with("get_const_")
+        || name.starts_with("thunk_to_")
+        || name.starts_with("vtbl_")
+        || name.starts_with("get_ptr_")
+        || name.starts_with("stub_")
+    {
+        return false;
+    }
+
     let segments: Vec<&str> = name
         .split("::")
-        .flat_map(|s| s.split(['<', '>', '(', ')', ' ', ',', '*', '&']))
+        .flat_map(|s| s.split(['<', '>', '(', ')', ' ', ',', '*', '&', '?']))
         .map(str::trim)
         .filter(|s| s.len() >= 4)
         .collect();
     if segments.is_empty() {
         return false;
     }
-    segments.iter().all(|s| tokens.contains(*s))
+
+    // Filter to distinctive segments: skip generic/anonymous patterns.
+    let distinctive: Vec<&&str> = segments.iter().filter(|s| {
+        !s.starts_with("vmethod_")
+            && !s.starts_with("slot_")
+            && !s.starts_with("$0")
+            && !s.starts_with("$CCallback")
+            && !s.starts_with("$CCallResult")
+            && !s.starts_with("$CPhysx")
+            && !matches!(**s, "game" | "lives" | "physx" | "CryptoPP" | "void" | "bool"
+                | "char" | "unsigned" | "long" | "short" | "const" | "virtual"
+                | "class" | "struct" | "enum" | "union" | "this")
+    }).collect();
+
+    if distinctive.is_empty() {
+        return false;
+    }
+
+    // If there are multiple distinctive segments (e.g. `CGameCameraCtrl::Update`),
+    // all must be present (or their lowercase forms) so that a ubiquitous word like
+    // `Update` doesn't link unported classes.
+    // If there is only one distinctive segment (e.g. `lives::CMenuAttachLocator::vmethod_3`),
+    // matching that class name is sufficient.
+    distinctive.iter().all(|seg| {
+        tokens.contains(**seg) || tokens.contains(&seg.to_ascii_lowercase())
+    })
 }
 
 /// Parsed Markdown document.

@@ -224,3 +224,17 @@ Uniquement des routes appuyées sur un parseur déjà existant :
   (mémoire `kizuna-town-pillar-re.md`) sont les deux modes déjà cartographiés dans ce dépôt ; ni
   l'un ni l'autre ne documente explicitement le rôle des scènes `event/evNN_XXXXX/` — **à
   vérifier** avant d'écrire une route qui prétendrait les rattacher à un mode précis.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC-32 hashes for event scenes, commands, script variables and triggers
+- `function` — Lua event dispatcher and cutscene triggers in `nie.exe`
+- `xref` — call-graph edges from event callbacks to engine subsystems
+- `rtti_class` — event management classes (`game::GDSEventTagReplaceConfig`, `game::CSceneRpgBattle`)
+- `coverage` — coverage status of the event/script engine
+
+Key binary functions in `nie.exe`:
+- `0x1404aadb8` — Lua host event command interpreter
+- `0x1406d5840` — Scene event trigger evaluation loop
+- `0x140567cc0` — Event camera and actor transform dispatch

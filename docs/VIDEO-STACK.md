@@ -133,3 +133,17 @@ mais il n'est garanti par personne en amont, et la version courante publie ses p
 L'exemple de code Rust produit par la recherche n'a **pas été compilé** : les signatures viennent
 du source des crates, mais le `pre-skip` d'`OpusHead` et l'entrelacement des horodatages
 audio/vidéo restent à valider sur un vrai fichier.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — Sofdec USM decoding routines in `nie.exe`
+- `xref` — video playback hooks and audio sync
+- `rtti_class` — `lives::CCriSofdecDecoder` class hierarchy
+- `coverage` — video and multimedia coverage stats
+- `pdata_func` — function boundaries for video codecs
+
+Key binary addresses in `nie.exe`:
+- `0x1404ccd60` — CRI playback controller
+- `0x1409d4644` — Sofdec stream decoder thunk
+- `0x140567cc0` — Frame raster transform dispatch

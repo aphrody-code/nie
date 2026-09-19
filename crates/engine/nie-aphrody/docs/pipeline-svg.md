@@ -218,3 +218,15 @@ lui qui a produit cette variante.
 8. **Livrer** : SVG + document + générateur dans le dépôt ; références, masques
    et rendus restent dans `/tmp`. `bun run lint && bun run type-check`, commit
    d'une ligne, `bash scripts/deploy-site.sh` si l'asset est servi.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC32 and string hashes for UI sprites and icons
+- `function` — 2D vector blitting and texture rasterization in `nie.exe`
+- `coverage` — 2D raster engine coverage
+- `rtti_class` — `lives::CMenuAnimation`, `lives::CMenuRenderComponent`
+
+Key binary reference addresses:
+- `0x140567cc0` — 2D Sprite transform and placement
+- `0x1405410d0` — UI tick loop

@@ -304,3 +304,17 @@ côté décodeur, puisque le décodeur g4tx fonctionne sur le miroir `dx11`).
 - Pour tout le reste (`ai_text`, `chat_text`, `search_word_text`, `soccer_*_text`, les fichiers
   `property/light/*` par scène d'événement) : **aucun consommateur identifié dans le dépôt à ce
   jour** — à dire tel quel plutôt que d'inventer un écran.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC-32 hashes for localized string tokens and property nodes
+- `function` — font glyph decoding, string lookup and text formatting routines in `nie.exe`
+- `rtti_class` — text system classes (`lives::CFontManager`, `game::CMenuListViewDictionary`)
+- `func_str_ref` — strings referenced by binary functions
+- `coverage` — coverage status of the localization subsystem
+
+Key binary functions in `nie.exe`:
+- `0x140452820` — Text resource resolution and dictionary lookup
+- `0x140544bd0` — Menu text and item label binding slot
+- `0x14005b8b0` — String formatting and layout calculation routine

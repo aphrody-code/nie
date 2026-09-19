@@ -34,3 +34,15 @@ seront relevés vers `0.9.7` dès que le paquet npm correspondant sera publié ;
 le CLI natif vérifié est déjà `0.9.7`.
 
 Les secrets, cookies, profils CDP et bases BXC restent hors dépôt.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — VFS and network endpoint hashes
+- `function` — network client and Steam backend bindings in `nie.exe`
+- `coverage` — coverage metrics
+- `xref` — call graphs for network telemetry
+
+Key binary functions:
+- `0x140435320` — Network session dispatcher
+- `0x1406d5840` — Async event loop

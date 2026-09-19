@@ -71,3 +71,15 @@
 
 1. **Aucun risque de saturation hebdomadaire** : Même en exécutant l'intégralité du plan restant (J1 à J7 + Couverture Ultime à 100% de `manquant = 0`), la consommation prévisionnelle (~2,28 M tokens) ne consommera qu'environ **15,4%** de votre quota hebdomadaire Gemini.
 2. **Gestion du burst de 5h** : Avec Flash Thinking Low, vous pouvez enchaîner sans aucune pause 50 turns complets de modification de code Rust, exécution de tests et recompilation Cargo avant d'atteindre le palier de régulation de 5 heures.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `coverage` — coverage rate of the binary
+- `function` — total 117 068 functions
+- `pdata_func` — 55 351 functions
+- `forge_unit` — unit compilation tracking
+
+Key binary reference addresses:
+- `0x1404ecd60` — Mesh transform dispatch
+- `0x1406d5840` — Main tick loop

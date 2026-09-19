@@ -277,3 +277,16 @@ Plus thématiques : `[CTEAMPARAM01]`, `[CPASSIVE01]`, `[CMODE0x]`, `[CREPORT01]`
   puis substituer les macros `<…>` et appliquer les codes `[C…]`.
 - Le contenu narratif réel (mode histoire) vit dans `text/<lang>/event/ev*` ; les
   `text/event/ev*_map` ne portent que les liens script/voix, pas le texte.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — CRC32 to string resolutions for text labels and keys
+- `function` — localized string parsing routines in `nie.exe`
+- `xref` — cross-references to text lookups
+- `func_str_ref` — strings referenced in text loading code
+- `coverage` — coverage status of the localization parser
+
+Key binary addresses in `nie.exe`:
+- `0x140452820` — Text database string entry lookup
+- `0x14005b8b0` — Macro substitution formatter (`<…>` and `[C…]` tokens)

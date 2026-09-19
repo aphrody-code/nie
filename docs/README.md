@@ -101,3 +101,18 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
    — lines, links, bytes, exit code. Paste the output, not the intention.
 2. **A deployed service is not done until it answers.** A live request on its port or domain has
    to certify the status; `systemctl is-active` does not.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `function` — 117 068 functions of `nie.exe`
+- `coverage` — binary coverage metrics
+- `xref` — call-graph topology
+- `pdata_func` — `.pdata` function boundaries
+- `hash_name` — VFS CRC32 table
+- `forge_unit` — unit compilation tracking
+- `rtti_class` — RTTI MSVC hierarchy
+
+Key binary addresses:
+- `0x1404ecd60` — Mesh transform dispatch
+- `0x1406d5840` — Main tick loop

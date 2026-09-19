@@ -250,3 +250,15 @@ Le dossier `work/exploit/assets-local/text/` contient surtout des **dumps MonoBe
 ## Note : pas de cfg.bin.json dans cette famille
 
 Contrairement aux familles issues du moteur Level-5 « Lives » (Victory Road), **aucun fichier `cfg.bin.json`** (structure `entries → children → TEXT_INFO [Int hash, Int, String]`) n'existe ici : Inazuma Eleven Cross tourne sous Unity IL2CPP + Addressables, ses données vivent en master data TSV/MessagePack et en bundles Unity, pas en RDBN cfg.bin. L'aplatissement TEXT_INFO demandé est donc sans objet pour cross-apk.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `hash_name` — Cross-game internal character ID mappings
+- `function` — Criware and audio wrapper functions matching Cross's CriAtom assets
+- `xref` — cross-references to character and skill code lookups
+- `rtti_class` — Level-5 Lives engine counterpart classes (`lives::CCriSoundController`)
+
+Key binary reference addresses in `nie.exe`:
+- `0x1404ccd60` — CRI audio playback controller
+- `0x140452820` — Master character data lookup

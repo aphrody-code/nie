@@ -51,3 +51,16 @@ using ordinary transforms; rendered parity still requires its separate acceptanc
 Inacord no longer declares a second frontend dependency set. Nie-web retains its direct imports
 and build dependencies; shared libraries keep their own imports in their own manifests. An
 unused frontend declaration is not evidence that the corresponding server capability was removed.
+
+## RE anchors
+
+Knowledge base (`var/niers.sqlite`) tables:
+- `forge_unit` — unit compilation tracking
+- `function` — 117 068 functions assigned to crates
+- `coverage` — binary coverage rate
+- `pdata_func` — function boundaries
+- `xref` — call graphs across packages
+
+Key binary reference addresses:
+- `0x1404ecd60` — Core character controller
+- `0x1406d5840` — Main tick loop
