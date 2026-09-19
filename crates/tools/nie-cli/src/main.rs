@@ -99,6 +99,11 @@ enum Cmd {
         #[command(subcommand)]
         op: mod_cmd::ModOp,
     },
+    /// Opérations du lanceur IEVR Ultimate Team (chiffrement équipe, conteneurs .utmod, parking de save).
+    Launcher {
+        #[command(subcommand)]
+        op: LauncherOp,
+    },
     /// Opérations de modding LEVEL-5 — le périmètre de l'outil Viola, en Rust natif.
     ///
     /// Porte les opérations de dump/pack/merge qui appartenaient aux anciens toolkits.
@@ -967,6 +972,27 @@ enum MemOp {
         #[arg(long)]
         dst: PathBuf,
     },
+    /// Affiche le catalogue de signatures AOB et offsets dérivés du dump mémoire (nie-trace::catalog).
+    Catalog {
+        /// Filtrer par catégorie (player, match, shop, spirit, passive).
+        #[arg(long)]
+        category: Option<String>,
+        /// Format JSON plutôt que tableau texte.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Applique une recette de live modding (.txt) sur le process vivant (nie-trace::recette).
+    Recette {
+        /// Fichier de recette (.txt).
+        file: PathBuf,
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+        #[arg(long, short = 'm', default_value = "nie.exe")]
+        module: String,
+        /// Applique réellement les écritures en mémoire (sinon test à blanc sécurisé).
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 /// Sous-commandes de `niers vfs` (explorateur CPK / VFS).
@@ -1247,6 +1273,143 @@ enum ViolaOp {
     },
 }
 
+/// Opérations du lanceur IEVR Ultimate Team (chiffrement équipe, conteneurs .utmod, parking de save).
+#[derive(Subcommand)]
+pub enum LauncherOp {
+    /// Cryptographie des équipes IEVR Ultimate Team (AES-256-GCM + PBKDF2).
+    Team {
+        #[command(subcommand)]
+        cmd: LauncherTeamOp,
+    },
+    /// Inspection des conteneurs de mod .utmod / UTMOD2.
+    Package {
+        #[command(subcommand)]
+        cmd: LauncherPackageOp,
+    },
+    /// Opérations sur les sauvegardes IEVR PC (parking, restauration, injection).
+    Save {
+        #[command(subcommand)]
+        cmd: LauncherSaveOp,
+    },
+    /// Analyse et patch de contournement Easy Anti-Cheat (EAC bypass de nie.exe).
+    Eac {
+        #[command(subcommand)]
+        cmd: LauncherEacOp,
+    },
+    /// Consultation des 142 cartes d'esprit et 1 299 techniques spéciales (ievrsaveeditor).
+    Spirit {
+        #[command(subcommand)]
+        cmd: LauncherSpiritOp,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum LauncherSpiritOp {
+    /// Liste ou recherche dans les 142 cartes d'esprits héros et fabled.
+    Cards {
+        /// Terme de recherche optionnel (nom, variante, hex ID).
+        #[arg(long, short = 'q')]
+        query: Option<String>,
+        /// Format JSON plutôt que tableau texte.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Liste ou recherche dans les 1 299 techniques spéciales du jeu.
+    Moves {
+        /// Terme de recherche optionnel (nom ou hex ID).
+        #[arg(long, short = 'q')]
+        query: Option<String>,
+        /// Filtre par catégorie (Shot, Catch, Dribble, Block).
+        #[arg(long, short = 'c')]
+        category: Option<String>,
+        /// Format JSON plutôt que liste texte.
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum LauncherEacOp {
+    /// Analyse un exécutable ou un binaire pour repérer les sites de contrôle EAC.
+    Scan {
+        /// Chemin vers nie.exe ou binaire.
+        file: std::path::PathBuf,
+        /// Sortie JSON détaillée.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Patche les sauts conditionnels EAC en sauts inconditionnels (0x74 -> 0xeb).
+    Patch {
+        /// Chemin vers nie.exe original.
+        file: std::path::PathBuf,
+        /// Fichier de sortie (sinon écriture directe ou nie_eacpatched.exe).
+        #[arg(long, short = 'o')]
+        out: Option<std::path::PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum LauncherTeamOp {
+    /// Déchiffre un fichier JSON d'équipe exporté depuis la plateforme web.
+    Decrypt {
+        /// Chemin vers le fichier JSON chiffré.
+        file: std::path::PathBuf,
+        /// Phrase de passe personnalisée (sinon clé canonique par défaut).
+        #[arg(long, default_value = nie_launcher::DEFAULT_PASSPHRASE)]
+        passphrase: String,
+        /// Fichier de sortie JSON déchiffré (sinon stdout).
+        #[arg(long, short = 'o')]
+        out: Option<std::path::PathBuf>,
+    },
+    /// Chiffre un fichier JSON d'équipe pour la plateforme web.
+    Encrypt {
+        /// Chemin vers le fichier JSON en clair.
+        file: std::path::PathBuf,
+        /// Phrase de passe personnalisée (sinon clé canonique par défaut).
+        #[arg(long, default_value = nie_launcher::DEFAULT_PASSPHRASE)]
+        passphrase: String,
+        /// Fichier de sortie JSON chiffré (sinon stdout).
+        #[arg(long, short = 'o')]
+        out: Option<std::path::PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum LauncherPackageOp {
+    /// Inspecte les métadonnées et l'en-tête d'un conteneur .utmod / UTMOD2.
+    Info {
+        /// Chemin vers le fichier .utmod.
+        file: std::path::PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum LauncherSaveOp {
+    /// Stationne la sauvegarde Steam de manière atomique vers .bk et installe la sauvegarde mod.
+    Park {
+        #[arg(long)]
+        live_save: std::path::PathBuf,
+        #[arg(long)]
+        mod_save: std::path::PathBuf,
+    },
+    /// Restaure la sauvegarde Steam originale depuis son fichier .bk.
+    Restore {
+        #[arg(long)]
+        live_save: std::path::PathBuf,
+        #[arg(long)]
+        mod_save: std::path::PathBuf,
+    },
+    /// Injecte une équipe déchiffrée dans l'équipe 2 de la sauvegarde.
+    InjectTeam {
+        #[arg(long)]
+        save: std::path::PathBuf,
+        #[arg(long)]
+        team: std::path::PathBuf,
+        #[arg(long)]
+        out: Option<std::path::PathBuf>,
+    },
+}
+
 #[derive(Subcommand)]
 enum SaveOp {
     /// Déchiffre et affiche un résumé terse d'un fichier de sauvegarde Lives.
@@ -1294,6 +1457,29 @@ enum SaveOp {
         #[arg(long, value_parser = parse_addr)]
         value: i64,
         /// Fichier de sortie (défaut : écrase l'entrée).
+        #[arg(long)]
+        out: Option<std::path::PathBuf>,
+    },
+    /// Stationne la sauvegarde Steam de manière atomique vers .bk et installe la sauvegarde mod (nie-launcher).
+    Park {
+        #[arg(long)]
+        live_save: std::path::PathBuf,
+        #[arg(long)]
+        mod_save: std::path::PathBuf,
+    },
+    /// Restaure la sauvegarde Steam originale depuis son fichier .bk (nie-launcher).
+    Restore {
+        #[arg(long)]
+        live_save: std::path::PathBuf,
+        #[arg(long)]
+        mod_save: std::path::PathBuf,
+    },
+    /// Injecte une équipe déchiffrée dans l'équipe 2 d'une sauvegarde IEVR PC (nie-launcher).
+    InjectTeam {
+        #[arg(long)]
+        save: std::path::PathBuf,
+        #[arg(long)]
+        team: std::path::PathBuf,
         #[arg(long)]
         out: Option<std::path::PathBuf>,
     },
@@ -2592,6 +2778,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
             Ok(())
         }
         Cmd::Mod { op } => mod_cmd::executer(op),
+        Cmd::Launcher { op } => launcher_cmd(op),
         Cmd::Viola { op } => viola_cmd(op),
         Cmd::Format { src } => decode_cmd::format(&src),
         Cmd::Decode { src, out, quiet } => {
@@ -3179,6 +3366,13 @@ fn mem_cmd(op: MemOp) -> anyhow::Result<()> {
             fusionner,
         } => mem_palettes(&catalogue, pid, &addr, len, output.as_deref(), fusionner),
         MemOp::PatchEac { src, dst } => mem_patch_eac(&src, &dst),
+        MemOp::Catalog { category, json } => mem_catalog(category.as_deref(), json),
+        MemOp::Recette {
+            file,
+            pid,
+            module,
+            force,
+        } => mem_recette(&file, pid, &module, force),
     }
 }
 
@@ -3426,6 +3620,113 @@ fn mem_patch_eac(src: &std::path::Path, dst: &std::path::Path) -> anyhow::Result
         report.dst_len,
         dst.display()
     );
+    Ok(())
+}
+
+fn mem_catalog(category: Option<&str>, json: bool) -> anyhow::Result<()> {
+    let cat_filter = category.and_then(|c| match c.to_ascii_lowercase().as_str() {
+        "player" => Some(nie_trace::catalog::Category::Player),
+        "match" => Some(nie_trace::catalog::Category::Match),
+        "shop" => Some(nie_trace::catalog::Category::Shop),
+        "spirit" => Some(nie_trace::catalog::Category::Spirit),
+        "passive" => Some(nie_trace::catalog::Category::Passive),
+        _ => None,
+    });
+
+    let entries: Vec<&'static nie_trace::catalog::Entry> = nie_trace::catalog::CATALOG
+        .iter()
+        .filter(|e| cat_filter.is_none() || cat_filter == Some(e.category))
+        .collect();
+
+    if json {
+        let list: Vec<serde_json::Value> = entries
+            .iter()
+            .map(|e| {
+                serde_json::json!({
+                    "id": e.id,
+                    "feature": e.feature,
+                    "category": e.category.label(),
+                    "kind": format!("{:?}", e.kind),
+                    "ty": e.ty.name(),
+                    "aob": e.aob,
+                    "rva": e.rva.map(|r| format!("0x{r:X}")),
+                    "staticAddr": e.static_addr().map(|a| format!("0x{a:X}")),
+                    "field": e.field.map(|f| format!("0x{f:X}")),
+                    "chain": e.chain.map(|c| c.iter().map(|offset| format!("+0x{offset:X}")).collect::<Vec<_>>()),
+                    "doc": e.doc,
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&list)?);
+    } else {
+        println!(
+            "{:<22} {:<10} {:<6} {:<12} {:<16} {}",
+            "ID", "CATEGORIE", "TYPE", "RVA", "OFFSET/CHAIN", "DESCRIPTION"
+        );
+        println!("{}", "-".repeat(100));
+        for e in entries {
+            let rva_str = e.rva.map_or_else(|| "-".into(), |r| format!("0x{r:08X}"));
+            let locator = if let Some(field) = e.field {
+                format!("+0x{field:X}")
+            } else if let Some(chain) = e.chain {
+                chain
+                    .iter()
+                    .map(|o| format!("+0x{o:X}"))
+                    .collect::<Vec<_>>()
+                    .join(" -> ")
+            } else {
+                "-".into()
+            };
+            println!(
+                "{:<22} {:<10} {:<6} {:<12} {:<16} {}",
+                e.id,
+                e.category.label(),
+                e.ty.name(),
+                rva_str,
+                locator,
+                e.doc
+            );
+        }
+    }
+    Ok(())
+}
+
+fn mem_recette(file: &std::path::Path, pid: i32, module: &str, force: bool) -> anyhow::Result<()> {
+    let pid = mem_preflight(pid)?;
+    let content = std::fs::read_to_string(file)
+        .with_context(|| format!("lecture recette {}", file.display()))?;
+    let r = nie_trace::recette::parser(&content)
+        .map_err(|e| anyhow::anyhow!("erreur syntaxe recette : {e}"))?;
+
+    let name = if r.nom.is_empty() {
+        file.display().to_string()
+    } else {
+        r.nom.clone()
+    };
+    println!(
+        "\n  recette « {} » ({} règle(s)) sur pid {pid} [{}]",
+        name,
+        r.regles.len(),
+        if force {
+            "ÉCRITURE ACTIVE"
+        } else {
+            "À BLANC / DRY-RUN"
+        }
+    );
+
+    let rapport = nie_trace::recette::appliquer(pid, module, &r, !force);
+    for res in &rapport.resultats {
+        let statut = if res.erreur.is_none() && res.trouvees > 0 { "OK" } else { "ÉCHEC" };
+        let msg = res.erreur.as_deref().unwrap_or("");
+        println!("  [{statut}] règle {:?} (trouvées={}, écrites={}) : {msg}", res.regle, res.trouvees, res.ecrites);
+    }
+    println!(
+        "\n  Bilan : {} écriture(s), {} échec(s)",
+        rapport.total_ecrites(), rapport.echecs()
+    );
+    if !force {
+        println!("  Note : Mode à blanc par défaut. Passez --force pour appliquer réellement.");
+    }
     Ok(())
 }
 
@@ -4292,6 +4593,254 @@ fn save_cmd(op: SaveOp) -> anyhow::Result<()> {
                 out_path.display()
             );
         }
+        SaveOp::Park { live_save, mod_save } => {
+            launcher_save_park(&live_save, &mod_save)?;
+        }
+        SaveOp::Restore { live_save, mod_save } => {
+            launcher_save_restore(&live_save, &mod_save)?;
+        }
+        SaveOp::InjectTeam { save, team, out } => {
+            launcher_save_inject_team(&save, &team, out.as_deref())?;
+        }
+    }
+    Ok(())
+}
+
+fn launcher_save_park(live_save: &std::path::Path, mod_save: &std::path::Path) -> anyhow::Result<()> {
+    let mut session = nie_launcher::SaveSession::new(live_save, mod_save);
+    session.park_and_install_mod_save()
+        .map_err(|e| anyhow::anyhow!("parking sauvegarde : {e}"))?;
+    session.is_active = false;
+    println!(
+        "park ok: live={} -> .bk, installed mod_save={}",
+        live_save.display(),
+        mod_save.display()
+    );
+    Ok(())
+}
+
+fn launcher_save_restore(live_save: &std::path::Path, mod_save: &std::path::Path) -> anyhow::Result<()> {
+    let mut session = nie_launcher::SaveSession::new(live_save, mod_save);
+    session.is_active = true;
+    session.restore_original_save()
+        .map_err(|e| anyhow::anyhow!("restauration sauvegarde : {e}"))?;
+    println!(
+        "restore ok: live={} restored from .bk",
+        live_save.display()
+    );
+    Ok(())
+}
+
+fn launcher_save_inject_team(
+    save_path: &std::path::Path,
+    team_path: &std::path::Path,
+    out: Option<&std::path::Path>,
+) -> anyhow::Result<()> {
+    let team_content = std::fs::read_to_string(team_path)
+        .with_context(|| format!("lecture équipe {}", team_path.display()))?;
+    let lineup: nie_launcher::TeamLineup = if let Ok(envelope) =
+        serde_json::from_str::<nie_launcher::TeamExportEnvelope>(&team_content)
+    {
+        nie_launcher::decrypt_team_envelope(&envelope, nie_launcher::DEFAULT_PASSPHRASE)
+            .map_err(|e| anyhow::anyhow!("déchiffrement équipe : {e}"))?
+    } else {
+        serde_json::from_str(&team_content).context("désérialisation TeamLineup")?
+    };
+
+    let mut container = nie_save::io::read_save(save_path)
+        .map_err(|e| anyhow::anyhow!("lecture container save : {e}"))?;
+
+    let blob_idx = container
+        .entries
+        .iter()
+        .position(|e| e.filename == "AUTOSAVE_data.bin" || e.filename == "SYSTEM_data.bin")
+        .ok_or_else(|| {
+            anyhow::anyhow!("aucun blob de données compatible trouvé dans la sauvegarde")
+        })?;
+    let blob = &mut container.blobs[blob_idx];
+
+    nie_launcher::save::apply_team_to_autosave(&mut blob.body, &lineup)
+        .map_err(|e| anyhow::anyhow!("injection équipe dans blob : {e}"))?;
+
+    let target_out = out.unwrap_or(save_path);
+    nie_save::io::write_save(&container, target_out)
+        .map_err(|e| anyhow::anyhow!("écriture sauvegarde injectée : {e}"))?;
+
+    println!(
+        "inject team ok='{}' characters={} out={}",
+        lineup.team_name,
+        lineup.characters.len(),
+        target_out.display()
+    );
+    Ok(())
+}
+
+fn launcher_cmd(op: LauncherOp) -> anyhow::Result<()> {
+    match op {
+        LauncherOp::Team { cmd } => match cmd {
+            LauncherTeamOp::Decrypt {
+                file,
+                passphrase,
+                out,
+            } => {
+                let content = std::fs::read_to_string(&file)
+                    .with_context(|| format!("lecture {}", file.display()))?;
+                let envelope: nie_launcher::TeamExportEnvelope = serde_json::from_str(&content)
+                    .context("désérialisation enveloppe chiffrée")?;
+                let lineup = nie_launcher::decrypt_team_envelope(&envelope, &passphrase)
+                    .map_err(|e| anyhow::anyhow!("déchiffrement équipe : {e}"))?;
+                let json = serde_json::to_string_pretty(&lineup)?;
+                if let Some(out_path) = out {
+                    std::fs::write(&out_path, &json)
+                        .with_context(|| format!("écriture {}", out_path.display()))?;
+                    println!(
+                        "decrypt team ok={} team='{}' chars={}",
+                        out_path.display(),
+                        lineup.team_name,
+                        lineup.characters.len()
+                    );
+                } else {
+                    println!("{json}");
+                }
+            }
+            LauncherTeamOp::Encrypt {
+                file,
+                passphrase,
+                out,
+            } => {
+                let content = std::fs::read_to_string(&file)
+                    .with_context(|| format!("lecture {}", file.display()))?;
+                let lineup: nie_launcher::TeamLineup = serde_json::from_str(&content)
+                    .context("désérialisation composition équipe")?;
+                let mut salt = [0u8; 16];
+                let mut iv = [0u8; 12];
+                for (i, b) in salt.iter_mut().enumerate() {
+                    *b = ((i as u8).wrapping_mul(31)).wrapping_add(0x42);
+                }
+                for (i, b) in iv.iter_mut().enumerate() {
+                    *b = ((i as u8).wrapping_mul(17)).wrapping_add(0x13);
+                }
+                let envelope =
+                    nie_launcher::encrypt_team_envelope(&lineup, &passphrase, &salt, &iv)
+                        .map_err(|e| anyhow::anyhow!("chiffrement équipe : {e}"))?;
+                let json = serde_json::to_string_pretty(&envelope)?;
+                if let Some(out_path) = out {
+                    std::fs::write(&out_path, &json)
+                        .with_context(|| format!("écriture {}", out_path.display()))?;
+                    println!(
+                        "encrypt team ok={} team='{}'",
+                        out_path.display(),
+                        lineup.team_name
+                    );
+                } else {
+                    println!("{json}");
+                }
+            }
+        },
+        LauncherOp::Package { cmd } => match cmd {
+            LauncherPackageOp::Info { file } => {
+                let bytes = std::fs::read(&file)
+                    .with_context(|| format!("lecture package {}", file.display()))?;
+                let header = nie_launcher::inspect_package_header(&bytes)
+                    .map_err(|e| anyhow::anyhow!("inspection conteneur package : {e}"))?;
+                let json = serde_json::to_string_pretty(&header)?;
+                println!("{json}");
+            }
+        },
+        LauncherOp::Save { cmd } => match cmd {
+            LauncherSaveOp::Park { live_save, mod_save } => {
+                launcher_save_park(&live_save, &mod_save)?;
+            }
+            LauncherSaveOp::Restore { live_save, mod_save } => {
+                launcher_save_restore(&live_save, &mod_save)?;
+            }
+            LauncherSaveOp::InjectTeam { save, team, out } => {
+                launcher_save_inject_team(&save, &team, out.as_deref())?;
+            }
+        },
+        LauncherOp::Eac { cmd } => match cmd {
+            LauncherEacOp::Scan { file, json } => {
+                let bytes = std::fs::read(&file)
+                    .with_context(|| format!("lecture {}", file.display()))?;
+                let report = nie_launcher::scan_eac_sites(&bytes)
+                    .map_err(|e| anyhow::anyhow!("scan EAC : {e}"))?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&report)?);
+                } else {
+                    println!(
+                        "EAC scan {}: {} sites trouvés ({} non-patchés, {} déjà patchés)",
+                        file.display(),
+                        report.total_sites_found,
+                        report.unpatched_count,
+                        report.patched_count
+                    );
+                    for s in &report.sites {
+                        println!(
+                            "  [{}] match=0x{:X} patch=0x{:X} byte=0x{:02X} (patché={})",
+                            s.pattern_name,
+                            s.match_offset,
+                            s.patch_offset,
+                            s.current_byte,
+                            s.is_patched
+                        );
+                    }
+                }
+            }
+            LauncherEacOp::Patch { file, out } => {
+                let target_out = out.unwrap_or_else(|| {
+                    if let Some(stem) = file.file_stem().and_then(|s| s.to_str()) {
+                        let ext = file.extension().and_then(|s| s.to_str()).unwrap_or("exe");
+                        file.with_file_name(format!("{stem}_eacpatched.{ext}"))
+                    } else {
+                        file.with_extension("eacpatched.exe")
+                    }
+                });
+                let report = nie_launcher::patch_eac_file(&file, &target_out)
+                    .map_err(|e| anyhow::anyhow!("patch EAC : {e}"))?;
+                println!(
+                    "EAC patch {} -> {}: {} sites traités ({} patchés)",
+                    file.display(),
+                    target_out.display(),
+                    report.total_sites_found,
+                    report.patched_count
+                );
+            }
+        },
+        LauncherOp::Spirit { cmd } => match cmd {
+            LauncherSpiritOp::Cards { query, json } => {
+                let cards: Vec<&nie_launcher::SpiritCard> = if let Some(q) = query {
+                    nie_launcher::search_spirit_cards(&q)
+                } else {
+                    nie_launcher::all_spirit_cards().iter().collect()
+                };
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&cards)?);
+                } else {
+                    println!("Esprits ({}) :", cards.len());
+                    for c in cards {
+                        println!("  0x{} | {:<30} | {}", c.hex_id, c.name, c.variant);
+                    }
+                }
+            }
+            LauncherSpiritOp::Moves { query, category, json } => {
+                let mut moves: Vec<&nie_launcher::SpecialMove> = if let Some(q) = query {
+                    nie_launcher::search_special_moves(&q)
+                } else {
+                    nie_launcher::all_special_moves().iter().collect()
+                };
+                if let Some(cat) = category {
+                    moves.retain(|m| m.category.eq_ignore_ascii_case(&cat));
+                }
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&moves)?);
+                } else {
+                    println!("Techniques spéciales ({}) :", moves.len());
+                    for m in moves {
+                        println!("  0x{} | {:<35} | {}", m.hex_id, m.name, m.category);
+                    }
+                }
+            }
+        },
     }
     Ok(())
 }

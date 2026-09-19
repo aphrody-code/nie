@@ -119,6 +119,7 @@ beforeEach(() => {
     }
     readonly root = null;
     readonly rootMargin = "";
+    readonly scrollMargin = "";
     readonly thresholds = [];
   } as unknown as typeof IntersectionObserver;
   container = document.createElement("div");

@@ -17,7 +17,7 @@ import sys
 
 import pefile
 
-from uemu import SCRATCH, Emu
+from uemu import EXE, SCRATCH, Emu
 
 pe = pefile.PE(EXE, fast_load=True)
 _base = pe.OPTIONAL_HEADER.ImageBase

@@ -1490,3 +1490,30 @@ désormais un nombre plutôt qu'une impression.
    du jeu n'est donc pas forcément `zlib.crc32` pour cet usage, ou les noms sont stockés
    autrement ; trancher demande de reverser le répartiteur de globales de la VM du jeu — pilier
    C3, pas une mesure de plus sur le corpus.
+
+### IEVR C# Tools Unified Native Rust Port & Memory Hook Catalog — measured 2026-09-19
+
+All external C# tools across the IEVR ecosystem (`IEVR Ultimate Team`, `EACLauncher`, and `InazumaElevenVRSaveEditor` v2.2.2)
+have been reverse-engineered, extracted, and ported into native Rust within `nie-launcher` and `nie-trace`, unifying the entire pipeline
+into `niers`:
+
+1. **Memory Hook Catalog (`nie-trace::catalog`)**:
+   Expanded from 25 to 33 live memory signatures and code caves extracted from `InazumaElevenVRSaveEditor.exe` (PE offset `0x1444000`,
+   .NET 9 SingleFile bundle decompiled via CIL metadata tables `#~`, `#Strings`, and `#US`):
+   - Added: `badge-slot` (Abilearn Board max badge slots `rax+0x1E8`), `end-match-99-0-score`, `end-match-99-0-half`, `end-match-99-0-time`,
+     `goal-trigger`, `store-item-multiplier`, `free-buy-spirit-market-call`, `unlimited-spirits-dock`.
+   - Verified: 106 tests passing in `nie-trace` suite.
+
+2. **Roster & Game Data Extraction (`nie-launcher::spirit`)**:
+   - 142 Spirit Cards extracted with color variations (`Pink`, `White-Black`, `Red`, `Black`) and 32-bit uint32 identifiers.
+   - 1,299 Special Moves categorized into `Shot`, `Catch`/`Goalkeep`, `Dribble`, and `Block` with CRC32/Murmur hashes.
+   - Fast lookup and filtering APIs: `find_spirit_card_by_id`, `search_spirit_cards`, `find_special_move_by_hex`, `search_special_moves`.
+
+3. **Crypto, Package & Save Coordination (`nie-launcher`)**:
+   - `nie_launcher::team`: AES-256-GCM authenticated team payload encryption/decryption with PBKDF2 key derivation.
+   - `nie_launcher::eac`: Native memory patching (`je` `0x74` -> `jmp` `0xEB`) for EAC bypass without external launcher dependencies.
+   - `nie_launcher::save` & `vfs`: Save slot parking, team slot injection, and mod package metadata parsing.
+
+4. **CLI & MCP Surface (`nie-cli`)**:
+   - Added `niers launcher spirit cards [--json] [--search <query>]` and `niers launcher spirit moves [--json] [--category <cat>]`.
+   - Exposed `CliLauncher` tool in MCP server (`crates/tools/nie-cli/src/mcp.rs`).

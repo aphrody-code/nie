@@ -34,6 +34,7 @@ nie-data = { workspace = true, features = ["serde", "std"] }
 nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode", "images"], default-features = true }
 nie-explore = { workspace = true, default-features = true }
 nie-viola.workspace = true
+nie-launcher.workspace = true
 nie-steam = { workspace = true, default-features = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net"] }
 futures-util.workspace = true

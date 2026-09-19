@@ -163,6 +163,7 @@ nie-ui = { version = "0.6.0", path = "crates/engine/nie-ui" }
 # c'est ce qui rend la simulation pilotable depuis Python (`niepy`) et donc depuis Ren'Py.
 nie-runtime = { version = "0.6.0", path = "crates/engine/nie-runtime" }
 nie-viola = { version = "0.6.0", path = "crates/engine/nie-viola" }
+nie-launcher = { version = "0.6.0", path = "crates/tools/nie-launcher" }
 nie-steam = { version = "0.6.0", path = "crates/tools/nie-steam", default-features = false }
 
 # chaîne « image → SVG → raster » (skill pixel-perfect, crate nie-aphrody).

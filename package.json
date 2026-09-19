@@ -241,6 +241,7 @@
 	"type": "module",
 	"scripts": {
 		"build:ffi": "cargo build -p nie-ffi",
+		"build:web": "bun run --cwd apps/nie-web build",
 		"measure:rust-web": "bun --bun scripts/validation/measure-rust-web-coverage.ts",
 		"validate:shared-capabilities": "bun --bun scripts/validation/validate-shared-capabilities.ts",
 		"generate:public-entry-inventory": "bun --bun scripts/validation/generate-public-entry-inventory.ts",

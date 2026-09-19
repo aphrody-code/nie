@@ -101,6 +101,12 @@ define_cli_tools!(
         "Run any `niers mod` workflow in process. This tool may write or install mod files; inspect the selected subcommand before calling."
     ),
     (
+        CliLauncher,
+        "cli_launcher",
+        "launcher",
+        "Run IEVR Ultimate Team launcher operations: team decrypt/encrypt, package info, and save parking/injection."
+    ),
+    (
         CliViola,
         "cli_viola",
         "viola",
@@ -1107,14 +1113,14 @@ mod tests {
         use clap::CommandFactory as _;
 
         let tools = NiersMcpServer::all_tools().list_all();
-        assert_eq!(tools.len(), 64);
+        assert_eq!(tools.len(), 65);
         let commands = crate::Cli::command()
             .get_subcommands()
             .map(clap::Command::get_name)
             .filter(|name| *name != "mcp")
             .map(str::to_owned)
             .collect::<Vec<_>>();
-        assert_eq!(commands.len(), 45);
+        assert_eq!(commands.len(), 46);
         for command in commands {
             let tool_name = format!("cli_{}", command.replace('-', "_"));
             assert!(

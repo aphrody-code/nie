@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ConfigEnv, type UserConfig } from "vite";
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,6 +18,15 @@ const SHARED_WASM = ["static/game/nie_wasm_bg.wasm", "static/game/nie_viewer_web
 /** One frontend build owner; host adapters retain their native services and resources. */
 export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 	const desktop = mode === "desktop";
+	const defaultOutDir = (() => {
+		if (desktop) return "dist-desktop";
+		if (process.env.NIERS_WEB_OUT_DIR) return process.env.NIERS_WEB_OUT_DIR;
+		const distPath = fileURLToPath(new URL("./dist", import.meta.url));
+		try {
+			if (lstatSync(distPath).isSymbolicLink()) return "dist-web";
+		} catch {}
+		return "dist";
+	})();
 	const host = process.env.TAURI_DEV_HOST;
 	// The site build never carries Tauri: its API is replaced by HTTP shims that talk to
 	// `nie-site`, which is how the Inacord workspace runs at `nie.aphrody.com/inacord`. The
@@ -75,7 +84,7 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 		},
 		clearScreen: !desktop,
 		// Keep the existing site output stable; Tauri consumes the desktop artifact.
-		build: { outDir: desktop ? "dist-desktop" : "dist", sourcemap: true, assetsDir: "static" },
+		build: { outDir: defaultOutDir, sourcemap: true, assetsDir: "static" },
 		server: {
 			port: desktop ? 1420 : 5175,
 			strictPort: desktop,

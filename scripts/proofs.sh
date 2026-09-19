@@ -27,7 +27,20 @@ echecs=()
 for f in scripts/validate_*"$filtre"*.py; do
     [ -e "$f" ] || { echo "aucune preuve ne correspond à « $filtre »"; exit 1; }
     nom=$(basename "$f" .py)
-    out=$(timeout "$timeout_s" uv run "$f" 2>&1)
+    exe_env=""
+    if [ -z "${NIE_EXE:-}" ]; then
+        case "$nom" in
+            validate_listview_*)
+                exe_env="NIE_EXE=nie.exe"
+                ;;
+            *)
+                if [ -f "/home/ubuntu/.local/share/iecode/patched/nie.exe.patched" ]; then
+                    exe_env="NIE_EXE=/home/ubuntu/.local/share/iecode/patched/nie.exe.patched"
+                fi
+                ;;
+        esac
+    fi
+    out=$(timeout "$timeout_s" env $exe_env uv run "$f" 2>&1)
     rc=$?
     case $rc in
         0)
