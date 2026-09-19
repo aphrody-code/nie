@@ -1929,6 +1929,27 @@ mod tests {
         // SAFETY: data_c est une C-string valide.
         let vfs = unsafe { nie_vfs_open(data_c.as_ptr()) };
         assert!(!vfs.is_null(), "vfs open");
+
+        // La police a DEUX fichiers, et `donnees_disponibles` n'en garantit aucun.
+        //
+        // Un dump partiel suffit à faire passer cette garde : celui du dépôt porte les métriques
+        // (343 888 o) et PAS l'atlas de 44 Mo, qui ne vit que dans les CPK d'une installation.
+        // Le test allait alors jusqu'à `nie_font_open`, qui rend `null`, et paniquait sur
+        // « font open » — un échec qui accuse le code alors qu'il manque une donnée. Mesuré le
+        // 2026-09-19 avec `NIE_GAME_DIR` pointant sur le dépôt.
+        //
+        // La garde nomme donc le fichier absent, au lieu de laisser deviner.
+        // SAFETY: vfs provient de nie_vfs_open.
+        let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+        for chemin in [FONT_METRICS_PATH, FONT_ATLAS_PATH] {
+            if vfs_ref.read(chemin).is_err() {
+                eprintln!("skip font_render_text_a_real : {chemin} absent du VFS monté");
+                // SAFETY: vfs provient de nie_vfs_open et n'a pas encore été libéré.
+                unsafe { nie_vfs_free(vfs) };
+                return;
+            }
+        }
+
         // SAFETY: vfs provient de nie_vfs_open.
         let fctx = unsafe { nie_font_open(vfs) };
         assert!(!fctx.is_null(), "font open");

@@ -1191,15 +1191,26 @@ pub fn resolve_game_dir() -> PathBuf {
     {
         return racine;
     }
-    // Vérifier les chemins d'installation Steam standardisés sous Linux.
-    let standard_steam_paths = [
-        "/home/ubuntu/.local/share/Steam/iecode/inazuma",
-        "/home/ubuntu/.local/share/Steam/steamapps/common/INAZUMA ELEVEN Victory Road",
-    ];
-    for p in standard_steam_paths {
-        let path = PathBuf::from(p);
-        if path.join(MARQUEUR_RACINE).is_file() {
-            return path;
+    // Les emplacements d'installation Steam usuels, DÉRIVÉS du compte courant.
+    //
+    // Ils ont d'abord été écrits en dur sous la forme `/home/ubuntu/.local/share/...`, ce qui
+    // grave le nom d'utilisateur d'un poste précis dans une bibliothèque que consomment le CLI,
+    // le site, le MCP et le FFI — et contredit le contrat énoncé trois lignes plus haut. Sur
+    // toute autre machine, ces entrées ne sont que du code mort ; sous Windows, elles n'ont
+    // aucun sens. Le dossier de données se déduit de `XDG_DATA_HOME`, sinon de `HOME`.
+    let base_donnees = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")));
+    if let Some(base) = base_donnees {
+        let steam = base.join("Steam");
+        for suffixe in [
+            "iecode/inazuma",
+            "steamapps/common/INAZUMA ELEVEN Victory Road",
+        ] {
+            let chemin = steam.join(suffixe);
+            if chemin.join(MARQUEUR_RACINE).is_file() {
+                return chemin;
+            }
         }
     }
     // Aucune installation en vue : un dump extrait sert les mêmes chemins logiques et suffit
