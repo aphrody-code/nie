@@ -611,6 +611,17 @@ enum Cmd {
         #[arg(long)]
         game_dir: Option<PathBuf>,
     },
+
+    /// Le vrai `nie.exe`, vivant : préparer Proton, le lancer, lire sa mémoire.
+    ///
+    /// Joint les trois surfaces que `niers` tenait séparées — `steam` pose le jeu sur le disque,
+    /// Proton le fait tourner, `mem` le lit. Le lancement passe par le Proton livré AVEC le jeu
+    /// (`<racine>/files`), jamais par le Wine de la distribution : lui n'a ni DXVK ni
+    /// vkd3d-proton.
+    Live {
+        #[command(subcommand)]
+        op: LiveOp,
+    },
 }
 
 /// Sous-commandes de `niers mode` (catalogue des modes de jeu).
@@ -2108,6 +2119,372 @@ fn steam_cmd(op: SteamOp) -> anyhow::Result<()> {
     })
 }
 
+/// Sous-commandes de `niers live` — Proton et le `nie.exe` vivant.
+///
+/// `--game-dir` n'est PAS `NIE_GAME_DIR`. Deux racines distinctes coexistent : `NIE_GAME_DIR`
+/// désigne l'arbre dont `niers` lit le VFS (sur cette machine, le dépôt lui-même), tandis que
+/// `NIE_GAME_PATH` désigne l'installation Steam, seule à porter `files/` et donc Proton. Les
+/// confondre rend un « wine introuvable » sur une racine par ailleurs parfaitement valide.
+#[derive(Subcommand)]
+enum LiveOp {
+    /// Affiche l'environnement résolu — chemins, Proton, display — sans rien lancer.
+    Env {
+        /// Racine de l'installation Steam (défaut : `NIE_GAME_PATH`).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        #[arg(long, short = 'j')]
+        json: bool,
+    },
+    /// Mesure chaque prérequis et dit lequel manque. Sort non nul si l'un d'eux échoue.
+    Doctor {
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        #[arg(long, short = 'j')]
+        json: bool,
+    },
+    /// Prépare le préfixe Wine à partir de celui de Proton (idempotent).
+    Setup {
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Remplace un préfixe existant. DESTRUCTEUR : sans ce drapeau, un préfixe déjà en
+        /// place est conservé et seuls les liens et DLL sont réappliqués.
+        #[arg(long)]
+        recreate: bool,
+    },
+    /// Lance `nie.exe` sous Proton et attend qu'il réponde à une lecture mémoire.
+    Run {
+        /// Exécutable à lancer (défaut : `<racine>/nie_eacpatched.exe`, sinon `nie.exe`).
+        #[arg(long)]
+        exe: Option<PathBuf>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Secondes d'attente avant d'abandonner.
+        #[arg(long, default_value_t = 120)]
+        wait: u64,
+        /// Lance sur l'affichage nu, sans le bureau virtuel Wine.
+        ///
+        /// À NE FAIRE QUE sur un vrai serveur X. Sous Xvfb, le taux de rafraîchissement rapporté
+        /// est nul, DXVK divise par ce taux et le jeu meurt dans dxgi avant la première image.
+        #[arg(long)]
+        no_desktop: bool,
+        #[arg(long, short = 'j')]
+        json: bool,
+    },
+    /// Décrit le `nie.exe` déjà vivant : PID, base du module, permission ptrace.
+    Attach {
+        #[arg(long, short = 'j')]
+        json: bool,
+    },
+    /// Lance le jeu ET lit sa mémoire **dans le même processus**.
+    ///
+    /// C'est la seule forme qui fonctionne sous `kernel.yama.ptrace_scope=1` : la permission
+    /// exige que le LECTEUR soit un ancêtre de la cible au moment de la lecture. Un `live run`
+    /// suivi d'un `mem read` séparé échoue, parce que le second processus n'est l'ancêtre de
+    /// rien — c'est exactement le piège que le montage en scripts shell cachait.
+    Probe {
+        /// Adresse relative à la base du module (`0x…` ou décimal).
+        #[arg(long, value_parser = parse_addr)]
+        rva: i64,
+        /// Nombre d'octets à lire.
+        #[arg(long, short = 'n', default_value_t = 64)]
+        len: usize,
+        #[arg(long)]
+        exe: Option<PathBuf>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        #[arg(long, default_value_t = 120)]
+        wait: u64,
+        /// Lance sur l'affichage nu, sans le bureau virtuel Wine (cf. `run --no-desktop`).
+        #[arg(long)]
+        no_desktop: bool,
+    },
+}
+
+/// Exécute une opération `niers live`.
+///
+/// Proton est une couche de compatibilité Linux ; sur un hôte Windows le jeu est natif et n'a
+/// rien à traverser. La sous-commande reste néanmoins déclarée sur toutes les plateformes, pour
+/// que la surface de la CLI — et donc celle du serveur MCP qui la réexpose — ne dépende pas de
+/// la machine qui a compilé le binaire.
+#[cfg(target_os = "linux")]
+fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
+    use nie_trace::proton;
+
+    /// Racine Steam : l'argument s'il est donné, sinon celle que l'environnement désigne.
+    fn disposition(game_dir: Option<PathBuf>) -> proton::Layout {
+        let base = proton::Layout::from_env();
+        match game_dir {
+            Some(dir) => proton::Layout::rooted(dir, base.runtime_base, base.display),
+            None => base,
+        }
+    }
+
+    /// Exécutable par défaut : la copie sans EAC si elle existe, sinon le binaire d'origine.
+    ///
+    /// L'ordre compte. La chaîne officielle charge le pilote anti-triche, et un process lancé
+    /// sous ce pilote n'est pas lisible depuis un outil tiers ; `niers mem patch-eac` produit
+    /// précisément cette copie.
+    /// Taille du bureau virtuel Wine, ou `None` si l'appelant l'a explicitement refusé.
+    ///
+    /// Le bureau est le DÉFAUT parce que l'affichage nu ne marche pas ici : Xvfb rapporte 0 Hz et
+    /// DXVK divise par ce taux. Le refuser est donc une décision, pas une option de confort.
+    fn bureau_virtuel(layout: &proton::Layout, no_desktop: bool) -> Option<String> {
+        if no_desktop {
+            None
+        } else {
+            Some(layout.resolution.clone())
+        }
+    }
+
+    fn executable(layout: &proton::Layout, exe: Option<PathBuf>) -> PathBuf {
+        if let Some(e) = exe {
+            return e;
+        }
+        let sans_eac = layout.game_dir.join("nie_eacpatched.exe");
+        if sans_eac.is_file() {
+            sans_eac
+        } else {
+            layout.game_dir.join("nie.exe")
+        }
+    }
+
+    match op {
+        LiveOp::Env { game_dir, json } => {
+            let l = disposition(game_dir);
+            let wine = l.proton_files().join("bin/wine");
+            if json {
+                let env: serde_json::Map<String, serde_json::Value> =
+                    match proton::Runtime::locate(&l) {
+                        Ok(r) => proton::launch_env(&l, &r)
+                            .into_iter()
+                            .map(|(k, v)| {
+                                (
+                                    k.to_string_lossy().into_owned(),
+                                    serde_json::Value::String(v.to_string_lossy().into_owned()),
+                                )
+                            })
+                            .collect(),
+                        Err(_) => serde_json::Map::new(),
+                    };
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "gameDir": l.game_dir,
+                        "runtimeBase": l.runtime_base,
+                        "compatData": l.compat_data,
+                        "prefix": l.prefix,
+                        "logs": l.logs,
+                        "dxvkCache": l.dxvk_cache,
+                        "display": l.display,
+                        "wine": wine,
+                        "env": env,
+                    }))?
+                );
+            } else {
+                println!("game_dir      {}", l.game_dir.display());
+                println!("runtime_base  {}", l.runtime_base.display());
+                println!("compat_data   {}", l.compat_data.display());
+                println!("prefix        {}", l.prefix.display());
+                println!("logs          {}", l.logs.display());
+                println!("dxvk_cache    {}", l.dxvk_cache.display());
+                println!("display       {}", l.display);
+                println!("wine          {}", wine.display());
+            }
+            Ok(())
+        }
+
+        LiveOp::Doctor { game_dir, json } => {
+            let l = disposition(game_dir);
+            let checks = proton::doctor(&l);
+            let manquants = checks.iter().filter(|c| !c.ok).count();
+            if json {
+                let rows: Vec<_> = checks
+                    .iter()
+                    .map(|c| serde_json::json!({ "name": c.name, "ok": c.ok, "detail": c.detail }))
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "checks": rows,
+                        "failed": manquants,
+                    }))?
+                );
+            } else {
+                for c in &checks {
+                    println!("{} {:<24} {}", if c.ok { "ok " } else { "MAN" }, c.name, c.detail);
+                }
+                println!("{manquants} prérequis sur {} manquent", checks.len());
+            }
+            anyhow::ensure!(manquants == 0, "{manquants} prérequis manquent");
+            Ok(())
+        }
+
+        LiveOp::Setup {
+            game_dir,
+            recreate,
+        } => {
+            let l = disposition(game_dir);
+            let r = proton::Runtime::locate(&l)?;
+            proton::prepare_prefix(&l, &r, recreate)?;
+            println!("préfixe prêt : {}", l.prefix.display());
+            Ok(())
+        }
+
+        LiveOp::Run {
+            exe,
+            game_dir,
+            wait,
+            no_desktop,
+            json,
+        } => {
+            let l = disposition(game_dir);
+            let r = proton::Runtime::locate(&l)?;
+            let exe = executable(&l, exe);
+            let bureau = bureau_virtuel(&l, no_desktop);
+            let mut lancement = proton::launch_and_wait(
+                &l,
+                &r,
+                &exe,
+                std::time::Duration::from_secs(wait),
+                bureau.as_deref(),
+            )?;
+            let scope = nie_trace::read_ptrace_scope();
+            // Mesure ce qui distingue « mort au démarrage » de « plus lent que le délai » : sans
+            // elle, les deux rendent le même `game_pid: None`.
+            let sorti = lancement.exited();
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "exe": exe,
+                        "desktop": bureau,
+                        "launcherPid": lancement.launcher_pid(),
+                        "gamePid": lancement.game_pid,
+                        "launcherExited": sorti.map(|s| s.to_string()),
+                        "log": lancement.log,
+                        "ptraceScope": scope,
+                    }))?
+                );
+            } else {
+                println!("exe           {}", exe.display());
+                println!(
+                    "bureau        {}",
+                    bureau.as_deref().unwrap_or("(aucun — affichage nu)")
+                );
+                println!("launcher_pid  {}", lancement.launcher_pid());
+                match lancement.game_pid {
+                    Some(pid) => println!("game_pid      {pid}"),
+                    None => println!("game_pid      (pas de réponse avant {wait}s)"),
+                }
+                if let Some(statut) = sorti {
+                    println!("launcher      DÉJÀ SORTI ({statut}) — le jeu n'a pas démarré");
+                }
+                println!("log           {}", lancement.log.display());
+                if scope >= 1 {
+                    println!(
+                        "note          ptrace_scope={scope} : un `niers mem` LANCÉ À PART sera \
+                         refusé, faute d'être un ancêtre. Utilise `niers live probe`, qui lance \
+                         et lit dans le même processus."
+                    );
+                }
+            }
+            anyhow::ensure!(
+                lancement.game_pid.is_some(),
+                "le jeu n'a pas répondu — voir {}",
+                lancement.log.display()
+            );
+            Ok(())
+        }
+
+        LiveOp::Attach { json } => {
+            let pid = nie_trace::find_pid_by_name(nie_trace::proton::GAME_COMM).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "aucun process « {} » — lance le jeu avec `niers live run`",
+                    nie_trace::proton::GAME_COMM
+                )
+            })?;
+            let base = nie_trace::find_module_base(pid, nie_trace::proton::GAME_COMM);
+            let permis = nie_trace::likely_permitted(pid);
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "pid": pid,
+                        "moduleBase": base.map(|b| format!("{b:#x}")),
+                        "ptraceScope": nie_trace::read_ptrace_scope(),
+                        "readLikelyPermitted": permis,
+                    }))?
+                );
+            } else {
+                println!("pid           {pid}");
+                match base {
+                    Some(b) => println!("module_base   {b:#x}"),
+                    None => println!("module_base   (introuvable)"),
+                }
+                println!("ptrace_scope  {}", nie_trace::read_ptrace_scope());
+                println!("lecture       {}", if permis { "permise" } else { "REFUSÉE" });
+            }
+            Ok(())
+        }
+
+        LiveOp::Probe {
+            rva,
+            len,
+            exe,
+            game_dir,
+            wait,
+            no_desktop,
+        } => {
+            let l = disposition(game_dir);
+            let r = proton::Runtime::locate(&l)?;
+            let exe = executable(&l, exe);
+            let bureau = bureau_virtuel(&l, no_desktop);
+            // `lancement` reste VIVANT jusqu'à la fin de ce bloc : c'est lui qui tient le rôle de
+            // parent dont `process_vm_readv` dépend sous ptrace_scope=1. Le relâcher avant la
+            // lecture rendrait EPERM.
+            let lancement = proton::launch_and_wait(
+                &l,
+                &r,
+                &exe,
+                std::time::Duration::from_secs(wait),
+                bureau.as_deref(),
+            )?;
+            let pid = lancement.game_pid.ok_or_else(|| {
+                anyhow::anyhow!("le jeu n'a pas répondu — voir {}", lancement.log.display())
+            })?;
+            let base = nie_trace::find_module_base(pid, nie_trace::proton::GAME_COMM)
+                .ok_or_else(|| anyhow::anyhow!("module introuvable dans le process {pid}"))?;
+            // Mesuré avant la lecture, pas déduit après son échec : si Proton ré-exécute le jeu
+            // hors de l'arbre de `niers`, la descendance est rompue et `process_vm_readv` rend
+            // EPERM. Le dire ici distingue « pas ancêtre » de « mauvaise adresse ».
+            if !nie_trace::likely_permitted(pid) {
+                println!(
+                    "attention    ptrace_scope={} et le process {pid} n'est pas un descendant \
+                     de celui-ci : la lecture va être refusée.",
+                    nie_trace::read_ptrace_scope()
+                );
+            }
+            #[allow(clippy::cast_sign_loss)]
+            let addr = base.wrapping_add(rva as u64);
+            let octets = nie_trace::read_exact(pid, addr, len)?;
+            println!("pid {pid}  base {base:#x}  addr {addr:#x}  len {}", octets.len());
+            for (i, ligne) in octets.chunks(16).enumerate() {
+                let hex: Vec<String> = ligne.iter().map(|b| format!("{b:02x}")).collect();
+                println!("{:016x}  {}", addr as usize + i * 16, hex.join(" "));
+            }
+            Ok(())
+        }
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn live_cmd(_op: LiveOp) -> anyhow::Result<()> {
+    anyhow::bail!(
+        "`niers live` pilote Proton, qui n'existe que sous Linux. Sur un hôte Windows le jeu est \
+         natif : lance-le, puis lis-le avec `niers mem`."
+    )
+}
+
 /// Racine du jeu : celle passée en argument, sinon celle que le contexte désigne.
 ///
 /// Aucun chemin de poste n'est codé en dur — `resolve_game_dir` regarde `NIE_GAME_DIR`, puis le
@@ -2119,7 +2496,7 @@ fn racine_jeu(arg: Option<PathBuf>) -> PathBuf {
 
 /// Pile du thread qui exécute la CLI.
 ///
-/// Le profil debug n'inline rien : les frames de clap (25 sous-commandes) et du montage du VFS
+/// Le profil debug n'inline rien : les frames de clap (46 sous-commandes) et du montage du VFS
 /// (255 308 entrées) dépassent le 1 Mio par défaut de Windows, et **toute** commande débordait,
 /// y compris `backends`. En release le problème n'existe pas — ce qui rendait la panne d'autant
 /// plus déroutante, puisque `target/debug/niers.exe` est le binaire qu'on explore au quotidien.
@@ -2202,6 +2579,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
             decode_cmd::refresh_typed(&dir, force, quiet)
         }
         Cmd::Steam { op } => steam_cmd(op),
+        Cmd::Live { op } => live_cmd(op),
         Cmd::Info { game_dir, json } => info_cmd(game_dir, json),
         Cmd::Locales {
             game_dir,

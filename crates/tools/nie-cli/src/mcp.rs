@@ -352,6 +352,12 @@ define_cli_tools!(
         "video",
         "Inspect, list, export, or catalogue game videos."
     ),
+    (
+        CliLive,
+        "cli_live",
+        "live",
+        "Drive the real nie.exe under Proton: resolved environment, prerequisite report, prefix setup, launch, attach, and a launch-and-read probe."
+    ),
 );
 
 #[derive(Debug, Default, serde::Deserialize, schemars::JsonSchema)]
@@ -1101,14 +1107,14 @@ mod tests {
         use clap::CommandFactory as _;
 
         let tools = NiersMcpServer::all_tools().list_all();
-        assert_eq!(tools.len(), 63);
+        assert_eq!(tools.len(), 64);
         let commands = crate::Cli::command()
             .get_subcommands()
             .map(clap::Command::get_name)
             .filter(|name| *name != "mcp")
             .map(str::to_owned)
             .collect::<Vec<_>>();
-        assert_eq!(commands.len(), 44);
+        assert_eq!(commands.len(), 45);
         for command in commands {
             let tool_name = format!("cli_{}", command.replace('-', "_"));
             assert!(

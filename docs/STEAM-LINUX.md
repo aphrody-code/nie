@@ -50,7 +50,37 @@ For the Bun pipeline, the equivalent command is `bun run sync:gamedata`. It uses
 
 The system Wine package is only a fallback. The supported path for running the real
 Windows binary uses the Proton runtime shipped with the downloaded game under
-`$NIE_GAME_PATH/files`. Once that directory exists, prepare the prefix:
+`$NIE_GAME_PATH/files`.
+
+### The native path: `niers live`
+
+`nie_trace::proton` carries this chain in Rust, so acquisition, execution and memory
+reading are one binary rather than three shell scripts:
+
+```bash
+niers live env          # every resolved path and the exact launch environment
+niers live doctor       # each prerequisite, and which one is missing (non-zero if any)
+niers live setup        # build the prefix from Proton's default_pfx
+niers live run          # launch nie.exe under Proton, as a child of niers
+niers live probe --rva 0xF600CA --len 64
+```
+
+`--game-dir` here is **not** `NIE_GAME_DIR`. Two roots coexist: `NIE_GAME_DIR` is the tree
+whose VFS `niers` reads, while `NIE_GAME_PATH` is the Steam install — the only one carrying
+`files/`, and therefore Proton.
+
+`probe` exists because of a permission rule that the shell scripts satisfied by accident.
+Under `kernel.yama.ptrace_scope=1`, `process_vm_readv(2)` is allowed only against a
+**descendant of the reading process**. `boot-nie-direct.sh` made the *shell* that ancestor,
+so `niers mem` only worked when launched from that same shell. `niers live run` followed by a
+separate `niers mem` does not inherit that property: the second process is nobody's ancestor.
+`probe` launches and reads in one process, where the rule holds by construction — no
+`CAP_SYS_PTRACE`, no `setcap`, and so no disturbance of the Vulkan environment.
+
+### The shell path
+
+The scripts remain, and `nie-wine-setup.sh` additionally starts Xvfb and openbox, which the
+Rust port deliberately does not:
 
 ```bash
 set -a; . ~/.config/niers/steam.env; set +a

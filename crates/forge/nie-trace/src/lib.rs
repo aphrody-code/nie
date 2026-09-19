@@ -44,6 +44,11 @@ pub mod aob;
 pub mod catalog;
 #[cfg(feature = "host")]
 pub mod lancement;
+// Lancement sous Proton : seul chemin viable vers un `nie.exe` vivant sur cet hôte Linux, où
+// `lancement::lancer_chaine` ne peut pas exécuter le PE directement. Linux uniquement — sur
+// Windows le jeu est natif et n'a aucune couche de compatibilité à traverser.
+#[cfg(all(feature = "host", target_os = "linux"))]
+pub mod proton;
 #[cfg(feature = "host")]
 pub mod recette;
 #[cfg(all(feature = "host", windows))]
