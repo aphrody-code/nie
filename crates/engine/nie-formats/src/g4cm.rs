@@ -250,6 +250,18 @@ pub struct Clip {
     /// Drapeaux (valeur observée : 1).
     pub flags: u16,
     /// Les 8 octets restants de l'entrée, conservés pour le ré-encodage byte-exact.
+    ///
+    /// Mesuré le 2026-09-19 sur **20 clips / 4 fichiers** (`ev60_00310`, `00340`, `00900`,
+    /// `01250`) : la queue vaut `(0, 60, 0, 0, 0, 0, 0, 0)` — donc `tail[1] == 60` partout, et
+    /// tout le reste à zéro. Les quatre fichiers commencent à l'image **1000** et s'étendent sur
+    /// 357 à 497 images ; lues à 60 images/seconde, cela donne **5,95 s à 8,28 s**, la durée
+    /// attendue d'un cut-in de technique. Cohérent, donc, avec une **cadence** — mais quatre
+    /// fichiers ne font pas une preuve et rien n'a encore été recoupé sur `nie.exe` : ne pas
+    /// écrire `60` en dur dans un lecteur sans cette vérification.
+    ///
+    /// À noter : la contiguïté des clips n'est **pas** la règle. `ev60_00340` enchaîne ses cinq
+    /// clips bord à bord, les trois autres laissent des trous — un lecteur qui suppose une
+    /// timeline continue sautera des images.
     pub tail: [u8; 8],
 }
 
@@ -283,6 +295,36 @@ pub struct CameraAnim {
     /// table de noms, dont l'offset est donné par le compteur 10. Contient des `f32` de réglage
     /// et deux mots qui ressemblent à des hashes ; sa structure interne n'est pas établie, il est
     /// donc conservé tel quel.
+    ///
+    /// ## Ce qui est mesuré (2026-09-19, 4 fichiers)
+    ///
+    /// Longueurs 160, 144, 112 et 144 octets pour 40, 40, 32 et 48 canaux. Lu en `f32`, le bloc
+    /// montre la même forme partout : il **commence par `1.0`**, enchaîne une suite de valeurs
+    /// positives à une décimale (`2.1`, `6.1`, `0.3`, `22.0`, `14.3`…), puis une constante
+    /// **`0.0216` présente dans les quatre fichiers**, puis des zéros jusqu'au bout.
+    ///
+    /// ## Une piste RÉFUTÉE — ne pas la refaire
+    ///
+    /// « Un `f32` d'échelle par canal » est **faux**. Le rapport octets/canaux vaut 4,00 · 3,60 ·
+    /// 3,50 · 3,00 selon le fichier : il n'est pas constant, donc le découpage n'est pas indexé
+    /// par canal. Le `4,00` d'`ev60_00340` est une coïncidence, et c'est exactement ce qui rend
+    /// la piste tentante — sur ce seul fichier, les vingt premières valeurs s'alignent sur les
+    /// vingt premiers canaux avec des échelles crédibles. Le nombre de valeurs « propres » (34,
+    /// 27, 33, 31) ne suit ni le nombre de canaux animés (23, 20, 18, 29) ni aucun des treize
+    /// compteurs.
+    ///
+    /// Deux relations, elles, tiennent sur les quatre fichiers : `counters[0]` est le nombre de
+    /// clips (= d'objets), et `counters[4]` vaut exactement **la moitié du nombre de canaux**.
+    ///
+    /// ## Pourquoi ce bloc compte
+    ///
+    /// Sans lui, les canaux [`Track::Raw16`] restent indécodables — et sur `ev60_00340`,
+    /// **aucun** canal n'est en `f32` : position, visée, champ de vision et roulis sont tous
+    /// quantifiés. Une déquantification `u16 / 65535 × échelle` produit des trajectoires lisses
+    /// et plausibles (`PosY` 0,069→2,086 ; `PosZ` 1,837→6,073), l'oracle de lissage tranchant
+    /// nettement contre l'interprétation signée (rugosité 0,002 contre 0,23) — mais tant que le
+    /// barème n'est pas rattaché aux canaux, cela ne fait pas un lecteur. La suite passe par le
+    /// désassemblage du chargeur dans `nie.exe`, pas par l'inspection d'octets.
     pub params: Vec<u8>,
 
     /// Noms déclarés dans la table de noms (un par clip).
