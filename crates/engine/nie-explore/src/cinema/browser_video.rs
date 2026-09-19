@@ -1,4 +1,11 @@
 //! Browser video containers: portable remux where possible, bounded host encoding for MPEG-2.
+//!
+//! NOT a duplicate of `nie-video`, and not to be merged into it. That crate owns "a sequence of
+//! rendered RGBA frames becomes a video file"; this module takes a video the game already
+//! carries (USM/Sofdec2) and rewraps it for a browser, decoding only the one codec no browser
+//! accepts. The two share the word "ffmpeg" and nothing else: there are no RGBA frames here, and
+//! the bounded-encoder machinery (`MAX_USM_BYTES`, `ENCODER_SLOT`, the timeout) exists because
+//! the input is untrusted asset data rather than pixels this process just produced.
 
 use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
