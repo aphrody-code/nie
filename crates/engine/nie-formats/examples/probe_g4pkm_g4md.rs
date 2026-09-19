@@ -16,7 +16,7 @@ fn main() {
             match g4md::parse(md) {
                 Err(e) => println!("parse     ECHEC : {e}"),
                 Ok(m) => {
-                    println!("materiaux {:?}", &m.material_base_names);
+                    println!("materiaux {:?}", m.material_base_names);
                     println!("g4md      {m:#?}");
                 }
             }
