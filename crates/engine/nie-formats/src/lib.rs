@@ -151,6 +151,11 @@ pub mod planche;
 pub mod raster2d;
 pub mod rdbn_patch;
 /// Atlas d'icônes `.g4tx` → feuille de sprites CSS / SVG / JSON, pour le web et l'explorateur.
+/// Déformation de maillage par squelette (*linear blend skinning*) : matrices monde animées,
+/// matrices de skinning, et application aux sommets. Même gating que `assemble`/`g4sk`, dont il
+/// consomme les types.
+#[cfg(feature = "std")]
+pub mod pose;
 /// Recoloration d'une image RGBA8 (décalage TSV + rampe de luminance), alloc-only.
 pub mod recolor;
 #[cfg(feature = "std")]
