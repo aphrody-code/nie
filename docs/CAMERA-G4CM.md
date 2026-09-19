@@ -1,11 +1,13 @@
-# G4CM — les caméras de cutscene, et ce qui bloque encore
+# G4CM — les caméras de cutscene, du conteneur à la trajectoire
 
 État mesuré le **2026-09-19** sur le corpus complet : **1 215 fichiers** `.g4cm`, tous décodés et
 indexés dans `var/niers.sqlite`.
 
-Ce document existe parce que le chantier est **à moitié fait** et que la moitié manquante est
-précise. Le conteneur est entièrement maîtrisé ; l'encodage des échantillons ne l'est pas. Sans
-lui, il n'y a ni hauteur de caméra, ni champ de vision, ni roulis — donc aucun plan reconstituable.
+**Le verrou est levé.** Ce document décrivait un chantier à moitié fait dont la moitié manquante
+était la déquantification des échantillons. Elle est désormais **prouvée byte-exact contre
+`nie.exe`**, et une seconde panne — muette celle-là — a été trouvée et corrigée dans la foulée :
+la section des temps était alignée sur le mauvais granule, ce qui décalait tous les `time_index`
+du corpus. Ce qui reste ouvert est nommé en fin de document, et c'est peu.
 
 ## Ce qui est acquis
 
@@ -18,7 +20,8 @@ n'est donc pas en cause dans ce qui suit.
 Géométrie des sections, telle que l'applique `nie_formats::g4cm::decode` :
 
 ```text
-section(i) = ((counters[i] << counters[11]) + align) * 4
+section(i)  = ((counters[i] << counters[11]) + align) * 4
+temps       = align_sup(fin de la table de canaux, align * 4)     # 64 octets, pas 16
 ```
 
 Les treize compteurs vivent à `0x20`. Deux relations tiennent sur les quatre fichiers vérifiés à
@@ -62,38 +65,109 @@ c'est une marge de bruit, pas une invalidation.
 **`fov` et `roll` n'ont aucun canal `f32` dans tout le corpus.** Ils n'ont donc pas d'oracle et
 demanderont une autre voie que la comparaison de distributions.
 
-## Ce qui bloque
+## La déquantification — résolue et prouvée
 
-### Les échantillons sont quantifiés
-
-Sur `ev60_00340`, **aucun** canal n'est en `f32` : position, visée, champ de vision et roulis sont
-tous en 16 bits. `Track::Raw16` expose les mots bruts parce que ni `f16` ni `i16` ne rendent de
-valeurs cohérentes avec les canaux `f32` du même fichier.
-
-Une déquantification `u16 / 65535 × échelle` produit des trajectoires **lisses et plausibles**
-(`posY` 0,069 → 2,086 ; `posZ` 1,837 → 6,073), l'oracle de lissage — l'énergie des différences
-secondes, normalisée par l'amplitude — tranchant nettement contre l'interprétation signée
-(0,002 contre 0,23). C'est une indication, pas un lecteur : il manque le rattachement du barème
-aux canaux.
-
-### Le bloc `params`, encadré mais pas résolu
-
-Gabarit vérifié sur **1 215 fichiers sur 1 215**, sans exception :
+Les flux 16 bits sont des composantes **normalisées**, remises à l'échelle par une entrée d'une
+table de `f32` que le canal désigne lui-même.
 
 ```text
-  f32 1.0             (0x3F800000)  — toujours, en tête
-  <charge utile>      suite de f32 positifs, longueur VARIABLE
-  <un mot>            paraît minuscule lu en f32 (3,2e-07, 3,5e-12) : ce n'est pas un flottant
-  f32 0.021596527     (0x3CB0EB33)  — exactement UNE fois par fichier
-  zéros               bourrage jusqu'à la table de noms
+  mode 2, taille 2  ->  0x140507220  :  (f32)(u16)x * (1/65535) * échelle
+  mode 3, taille 2  ->  0x1405075F0  :  (f32)(i16)x * (1/32767) * échelle
 ```
 
-Délimiter le bloc par **ces deux repères**, jamais par sa longueur en octets.
+Le jeu choisit le décodeur dans une table en `.rdata` (`0x1419814C0`) indexée
+`mode * 5 + declared_size.0`. Les constantes sont à `0x141A6836C` et `0x141A68374`.
+
+`scripts/validate_g4_component_decode.py` valide les deux fonctions **byte-exact sur 280 514
+cas** sous Unicorn — balayage complet du domaine 16 bits, toutes les tailles qui franchissent une
+frontière de chemin, les échelles réellement mesurées plus zéro, un subnormal et `f32::MAX`.
+
+### Ce que l'oracle a donné et que l'inférence n'aurait pas trouvé
+
+Chaque décodeur a **trois chemins, et ils ne multiplient pas dans le même ordre** :
+
+| Chemin | Instructions | Ordre |
+|---|---|---|
+| bloc de 16, voies 0..11 | `mulps xmm4` puis `xmm6` | `(x × échelle) × inv` |
+| bloc de 16, voies **12..15** | `mulps xmm5` | `x × (échelle × inv)` |
+| 4-wide et queue scalaire | `mulss xmm2` puis `xmm3` | `(x × inv) × échelle` |
+
+`xmm5` porte le produit pré-calculé une fois au prologue. Sur 74 904 couples (échelle, valeur),
+**45,7 % rendent trois résultats `f32` différents** selon l'ordre. Que les voies 12 à 15 de
+chaque bloc de 16 soient calculées par une autre expression que les voies 0 à 11 est un artefact
+du compilateur : invisible dans un dump d'octets, fatal à un aller-retour byte-exact.
+
+La preuve porte son **témoin négatif** : les trois simplifications à ordre unique sont rejouées
+et doivent toutes ÉCHOUER (24/64, 5/64 et 14/64 voies fausses). Sans lui, la validation
+confirmerait une formule que n'importe quelle écriture naïve satisferait.
+
+### Le champ qui empêchait de rattacher le barème
+
+`Channel::index: u16` était documenté « index du canal dans l'objet ». Ce n'est pas une valeur :
+`nie.exe` lit les deux octets indépendamment, pour des usages sans rapport.
+
+```asm
+0x1405AAF26  movzx r8d, byte [rbx+6]
+0x1405AAF3B  movss xmm2, [r15 + r8*4]    ; octet 6 = index dans une TABLE DE f32
+0x1405AAF5A  movzx ecx, byte [rbx+7]
+0x1405AAF71  shl   rcx, 4                ; octet 7 = index de CIBLE (entrées de 16 octets)
+0x1405AAF85  add   rbx, 0x14             ; et reconfirme CHANNEL_ENTRY_LEN = 20
+```
+
+Le `u16` combiné ne signifiait rien. Scindé en `scale_index` / `target_index`.
+
+### Que la table d'échelles soit le bloc `params` — tranché sur les données
+
+Le désassemblage montre `[r15 + r8*4]` mais `r15` est chargé hors de la boucle. Deux invariants
+le décident, sur les 1 215 fichiers, **sans une exception** :
+
+| Invariant | Mesure |
+|---|---|
+| un canal `f32` désigne une échelle valant exactement `1.0` | **2 920 / 2 920** |
+| une valeur déquantifiée reste dans `±échelle` | **33 743 / 33 743** |
+
+Si la table vivait ailleurs, rien n'expliquerait que 2 920 indices tombent tous sur `1.0`.
+
+## La panne muette : l'alignement de la section des temps
+
+`decode` plaçait la table de temps partagée à `(fin des canaux + 15) & !15`. Le vrai granule est
+**`align * 4`, soit 64 octets** — toute la géométrie du conteneur s'exprime en dwords
+(`section(i) = ((compteur[i] << shift) + align) * 4`) et le pas d'alignement suit la même unité.
+Aligner sur 16 plaçait la table jusqu'à **48 octets trop tôt**, décalant *tous* les `time_index`.
+
+**Pourquoi personne ne l'avait vu.** La panne est invisible aux deux endroits où l'on regarde :
+le ré-encodage restait **1 215/1 215 byte-exact** (les octets déplacés tombaient dans
+`gap_channels_times`, réécrit verbatim), et une table décalée s'interpole sans erreur — elle rend
+simplement une position de caméra plausible et fausse. Seul un invariant « les temps de keyframes
+croissent » l'attrape.
+
+| Mesure | Avant | Après |
+|---|---|---|
+| tables de temps croissantes | — | **27 930 / 27 930** |
+| fichiers avec au moins une table cassée | **714** | **0** |
+| ré-encodage byte-exact | 1 215 / 1 215 | 1 215 / 1 215 |
+
+**Quatre hypothèses mesurées et réfutées avant la bonne** : un décalage d'éléments constant
+(714 fichiers n'en admettent aucun), un décalage égal au nombre de zéros de tête (corrige 460),
+la base tirée d'un des 13 compteurs (5 fichiers), la table calée par sa fin (129). L'indice
+décisif : **6 664 des 7 124 canaux cassés avaient un `time_index` égal au `time_index + count`
+d'un autre canal** — un chaînage de segments, donc des index justes et une base fausse.
+
+*Piège de méthode à retenir* : les premières sondes lisaient `anim.times`, que `decode` tronque à
+`max(time_index + count)`. Tout décalage positif sortait du tableau et se comptait comme « cassé ».
+Relire depuis le fichier brut a transformé « 714 impossibles » en « 1 215 résolubles, toujours à
+un multiple de 64 ».
 
 ## Deux hypothèses réfutées — ne pas les refaire
 
-**« Un `f32` d'échelle par canal. »** Faux. Mais attention au motif de rejet, car le premier
-retenu était lui aussi mauvais :
+**« Un `f32` d'échelle par canal. »** Faux — mais **la moitié de l'intuition était juste**, et
+c'est instructif. Il y a bien une table de `f32` d'échelles, et chaque canal y désigne une
+entrée : ce que l'hypothèse ratait, c'est qu'il n'y a **pas une entrée par canal**. Plusieurs
+canaux partagent la même échelle, et c'est l'octet 6 du canal qui dit laquelle. Chercher une
+correspondance par LONGUEUR ne pouvait donc pas aboutir, quelle qu'ait été la finesse de la
+mesure — il fallait lire l'indexation dans le code.
+
+Attention au motif de rejet, car le premier retenu était lui aussi mauvais :
 
 - *Mauvais motif* — « le rapport octets/canaux vaut 4,00 · 3,60 · 3,50 · 3,00, donc ce n'est pas
   par canal ». Ce rapport ne mesure **rien du contenu** : la longueur du bloc est une conséquence
@@ -109,23 +183,39 @@ vingt premiers canaux avec des échelles crédibles. **C'est une coïncidence de
 seule fois** dans les 33,9 Mo du binaire, et cette occurrence est la chaîne en `.rdata`, qui ne
 reçoit **aucune référence RIP-relative**. Le jeu ne teste jamais ce magic en immédiat.
 
-## La voie d'entrée pour la suite
+## Ce qui reste ouvert
 
-Le dispatch est **piloté par table**. À `0x141A5E12C` s'enchaînent sept magics contigus :
+Trois points, tous nommés et aucun deviné.
 
-```text
-  G4MT  G4MA  G4TP  G4CM  G4VS  G4LA  G4BA
-   0     1     2     3     4     5     6
-```
+**1. L'unité de `fov` et de `roll`.** Ils se déquantifient sans difficulté, dans des plages de
+l'ordre de `−0,37` à `0,80`, qui ne sont ni des degrés ni des radians. **Aucun canal `f32` de ces
+deux genres n'existe dans les 1 215 fichiers**, donc il n'y a pas d'oracle par comparaison de
+distributions. La voie est le « setter » de propriété appelé en `0x1405AAF82` : le jeu y choisit
+une fonction par `kind − 0x10` (index 14 pour `Fov`, 15 pour `Roll`) dans une table de tables ;
+l'émuler dirait exactement ce qu'il fait de la valeur. En attendant,
+`nie_camera::anim::EtatEchantillonne` garde le `fov_deg` par défaut et expose la valeur brute à
+côté — **aucun code ne convertit au jugé**, et un test tombe si quelqu'un s'y essaie.
 
-`G4CM` y est à l'**index 3**. Le tableau de handlers parallèle est ce qu'il faut remonter : c'est
-le chargeur, et c'est lui qui porte la maths de déquantification.
+**2. Le décodeur `mode = 1`.** `0x140506D00`, non désassemblé, concerne **2 761 canaux**
+(2 748 en taille 1, 13 en taille 2). `Channel::quant()` les rend `Quant::Inconnu` et
+`Channel::decoded()` rend `None` plutôt qu'une valeur plausible.
 
-Ce qui a été éliminé en chemin : `CCameraAnimeCtrl` (vtable `0x141A63B08`) porte **6 méthodes
-réelles** et 15 souches par défaut partagées (`0x14004D760`). Sa plus grosse méthode
-(`0x140574DB0`, 1 287 octets, étendue chaînée) ne contient **aucune** conversion flottante, et
-aucun de ses dix appelés directs non plus. Le contrôleur n'est donc pas le bon fil : il consomme
-des valeurs déjà décodées.
+**3. La cadence.** `Clip.tail[1]` vaut 60 sur les 20 clips des 4 fichiers vérifiés à la main, ce
+qui est cohérent avec 60 i/s — mais quatre fichiers ne font pas une preuve et rien n'est recoupé
+sur `nie.exe`. Tout consommateur doit traiter 60 comme une **hypothèse nommée**, pas comme un
+fait.
+
+### Ce qui a été éliminé en chemin
+
+Le dispatch des conteneurs G4 est piloté par table : à `0x141A5E12C` s'enchaînent sept magics
+contigus (`G4MT G4MA G4TP G4CM G4VS G4LA G4BA`), `G4CM` à l'index 3. Mais **le chargeur n'était
+pas le bon fil** — la déquantification a été trouvée en remontant depuis les *constantes de
+normalisation*, pas depuis le chargeur.
+
+`CCameraAnimeCtrl` (vtable `0x141A63B08`) porte 6 méthodes réelles et 15 souches par défaut
+partagées (`0x14004D760`). Sa plus grosse méthode (`0x140574DB0`, 1 287 octets, étendue chaînée)
+ne contient **aucune** conversion flottante, ni aucun de ses dix appelés directs. Le contrôleur
+consomme des valeurs déjà décodées.
 
 ## Reproduire les mesures
 
@@ -146,6 +236,12 @@ sqlite3 var/niers.sqlite "
 
 # Recensement des encodages
 sqlite3 var/niers.sqlite "SELECT * FROM v_cam_channel_stats;"
+
+# Les trois invariants du barème et de l'alignement, sur le corpus entier
+cargo run -p nie-formats --release --example g4cm_scale_census -- var/tmp/allcams
+
+# La preuve byte-exact des deux décodeurs contre nie.exe
+just preuves g4_component
 ```
 
 L'index pèse **1 215 animations, 39 424 canaux, 4 936 objets**. `--samples` ajoute chaque
@@ -156,9 +252,13 @@ Les tables `cam_anim`, `cam_anim_channel`, `cam_anim_object`, `cam_anim_sample` 
 plus, sauf `cam_anim_sample` (peuplée seulement avec `--samples`) et `cam_re_symbol`, qui attend
 les adresses que le désassemblage produira.
 
-## Pourquoi cela compte
+## Où en est la chaîne
 
-`nie-formats` porte déjà l'assemblage des modèles de cut-in — depuis le 2026-09-19, la famille
-`chr/_waza/` est débloquée, son G4MD vivant dans le `.g4pkm`. Le rendu 3D et l'encodage vidéo
-existent. **La caméra est la seule pièce manquante entre les assets et une séquence rendue** :
-sans elle il n'y a pas de plan, seulement un modèle.
+`nie_camera::anim::CameraTrack` échantillonne une animation vers un `CameraState` à une frame
+fractionnaire : maintien aux bornes, interpolation linéaire entre clés, et **identité bit à bit**
+sur une frame de clé exacte. Les clips n'étant pas contigus, aucun code ne suppose de timeline
+continue.
+
+Reste, en aval : le pont `CameraState` → rastériseur (les matrices existent des deux côtés, il
+n'y a pas de dépendance à créer), la déformation LBS comme bibliothèque, et l'orchestrateur de
+séquence. La caméra n'est plus la pièce manquante.
