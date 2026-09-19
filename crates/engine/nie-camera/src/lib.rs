@@ -27,6 +27,8 @@
 
 #![warn(missing_docs)]
 
+/// Échantillonnage d'une animation de caméra vers un état, à une frame fractionnaire.
+pub mod anim;
 pub mod config;
 pub mod ctrl;
 #[cfg(feature = "host")]
