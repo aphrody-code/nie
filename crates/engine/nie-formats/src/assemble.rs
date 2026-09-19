@@ -2650,6 +2650,39 @@ pub fn assemble_generic_model(input: GenericModelInput) -> Result<AssembledModel
     })
 }
 
+/// Choisit le G4MD qui décrit réellement un G4MG donné, entre celui **embarqué** dans le
+/// `.g4pkm` voisin et un `.g4md` **libre**.
+///
+/// ## La règle, et pourquoi elle n'est pas symétrique
+///
+/// Le G4MD embarqué gagne dès qu'il existe. Un G4MD libre voisin peut décrire un **autre LOD** :
+/// ses offsets et ses strides sortent alors du G4MG compagnon, et l'assemblage rend une maille
+/// tronquée ou vide plutôt qu'une erreur (mesuré sur `d010020` et `k000100`). Le fichier libre
+/// n'est donc qu'un repli, jamais un choix par défaut.
+///
+/// ## Ce que cette règle débloque
+///
+/// La famille `common/chr/_waza/` — les modèles de cut-in de technique — ne porte **aucun**
+/// `.g4md` libre : mesuré le 2026-09-19, 0 sur ses 12 343 fichiers. Son descripteur vit
+/// exclusivement dans le `.g4pkm`. Sans cette précédence, ces modèles sont inassemblables ; avec
+/// elle, `ev60_00340` (« God Knows ») rend ses 3 420 sommets et 5 388 triangles de matériau
+/// `wing_10`.
+///
+/// ## Les **maps** inversent cette précédence — ne pas leur appliquer cette fonction
+///
+/// `nie-model-serve` lit d'abord le `.g4md` libre pour une map, et ne retombe sur le paquet que
+/// s'il manque. La règle ci-dessous vaut pour les **modèles de personnage et de technique**, pas
+/// pour la géométrie de terrain ; les aplatir en une seule règle changerait silencieusement ce
+/// qu'une map assemble.
+///
+/// Rend `None` si aucune des deux sources ne porte de G4MD exploitable.
+#[must_use]
+pub fn g4md_canonical<'a>(g4pkm: Option<&'a [u8]>, standalone: Option<&'a [u8]>) -> Option<&'a [u8]> {
+    g4pkm
+        .and_then(crate::g4pkm::extract_g4md)
+        .or(standalone)
+}
+
 /// Raccourci : assemble un **keshin** depuis ses données G4MD+G4MG brutes.
 ///
 /// `code` est l'identifiant du keshin (ex. `"k000010"`), typiquement le nom de répertoire

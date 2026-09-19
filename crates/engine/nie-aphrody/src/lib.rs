@@ -17,6 +17,9 @@ pub mod codex;
 /// d'Aphrody, et la feuille `game-tokens.css` qu'elles produisent.
 pub mod design;
 pub mod gisement;
+/// Le contrat **3D** d'Aphrody : pièces, chemins VFS, ailes de « God Knows », pont vers les
+/// pistes 2D. Ne parse ni n'assemble rien — `nie_formats` en reste propriétaire.
+pub mod modele3d;
 /// Le contrat « pet » de Codex : manifeste, pistes minutées, états. Dérivé d'`openai/codex`
 /// (Apache-2.0) — voir `NOTICE`.
 pub mod pets;

@@ -2189,21 +2189,15 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
         let g4mg = vfs
             .read(&g4mg_path)
             .with_context(|| format!("G4MG {g4mg_path}"))?;
-        // Le G4MD embarqué est la métadonnée canonique quand le voisin G4PKM existe : certains
-        // modèles livrent aussi un G4MD libre historique, mais ses offsets/strides décrivent un
-        // autre LOD et sortent du G4MG compagnon (d010020/k000100 mesurés). Le fichier libre ne
-        // sert donc que si le paquet ne porte aucun G4MD extractible.
-        let g4md = match vfs.read(&g4pkm_path) {
-            Ok(pkm) => match extract_g4md_from_g4pkm(&pkm) {
-                Ok(embedded) => embedded,
-                Err(_) => vfs
-                    .read(&g4md_path)
-                    .with_context(|| format!("ni G4MD libre ni g4pkm pour {sub}/{code}"))?,
-            },
-            Err(_) => vfs
-                .read(&g4md_path)
-                .with_context(|| format!("ni G4MD libre ni g4pkm pour {sub}/{code}"))?,
-        };
+        // La précédence « embarqué d'abord, libre en repli » vit dans
+        // `nie_formats::assemble::g4md_canonical` — elle y est documentée avec ce qu'elle
+        // débloque (la famille `_waza`, sans aucun `.g4md` libre) et ce qui l'infirme (les maps,
+        // plus bas, qui l'inversent). Une seconde copie ici dériverait de l'une ou de l'autre.
+        let pkm = vfs.read(&g4pkm_path).ok();
+        let libre = vfs.read(&g4md_path).ok();
+        let g4md = nie_formats::assemble::g4md_canonical(pkm.as_deref(), libre.as_deref())
+            .with_context(|| format!("ni G4MD libre ni g4pkm pour {sub}/{code}"))?
+            .to_vec();
         (g4md, g4mg)
     };
 
