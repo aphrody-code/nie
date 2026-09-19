@@ -20,7 +20,7 @@ import { ThemeProvider, useTheme } from "next-themes";
 import { useEffect, useMemo } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
-import { App } from "../App";
+import { DesktopApp } from "./DesktopApp";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { api } from "./lib/api";
 import { setExternalPath } from "./lib/externalPath";
@@ -129,7 +129,7 @@ function NativeApp() {
   const { gameDir } = useSettings();
   const source = useMemo(() => creerDesktopSource(gameDir), [gameDir]);
   useNativeBootstrap();
-  return <App source={source} />;
+  return <DesktopApp source={source} />;
 }
 
 export default function DesktopHost() {

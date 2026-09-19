@@ -96,11 +96,14 @@ const nativeText = (
 
 export function Avatar({
   onBack,
+  onCancel,
   gamepadSampler,
 }: {
-  onBack: () => void;
+  onBack?: () => void;
+  onCancel?: () => void;
   gamepadSampler?: ReturnType<typeof createStandardGamepadMenuSampler>;
 }) {
+	const handleBack = onBack ?? onCancel ?? (() => {});
 	const { gameLocale } = useSettings();
   const [state, setState] = useState<AvatarState>(storedDraft);
   const [stage, setStage] = useState<Stage>("style");
@@ -120,8 +123,8 @@ export function Avatar({
   const back = useCallback(() => {
     const previous = STAGES[STAGES.indexOf(stage) - 1];
     if (previous) setStage(previous);
-    else onBack();
-  }, [stage, onBack]);
+    else handleBack();
+  }, [stage, handleBack]);
 
   useEffect(() => {
     const abort = new AbortController();

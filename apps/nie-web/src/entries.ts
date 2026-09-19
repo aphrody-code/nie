@@ -16,7 +16,6 @@
  */
 import type { SanteApi as SiteHealth } from "@niers/asset-source";
 import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
-import { IDS_VUES } from "./desktop/lib/vues";
 import { splitLanguagePrefix } from "./routing";
 
 /** The VFS explorer, backed by the path-oriented VFS API. */
@@ -234,7 +233,10 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
  * The identifiers are NOT re-declared here — they come from the view registry
  * (`desktop/lib/vues.ts`), the single place that says what the workspace contains.
  */
-export const INACORD_VIEW_ROUTES: readonly string[] = IDS_VUES.map((id) => `${INACORD}/${id}`);
+export const INACORD_VIEW_ROUTES: readonly string[] = [
+	"editor", "explorer", "cinema", "dashboard", "search",
+	"data", "character", "database", "save", "network", "mod", "script", "settings",
+].map((id) => `${INACORD}/${id}`);
 
 /**
  * Implemented host destinations in their display order. Health is retained in the public
@@ -242,11 +244,7 @@ export const INACORD_VIEW_ROUTES: readonly string[] = IDS_VUES.map((id) => `${IN
  */
 export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
 	return [
-		// One menu destination, one canonical URL. `MEDIA` remains recognized so old `/medias`
-		// links can be replaced by Catalog after it has read their legacy `?vue=` value.
 		{ route: MEDIA_LANDING, label: entryLabel(MEDIA), glyph: PRESENTATION[MEDIA]!.glyph },
-		// The public title screen is the navigation owner. The broad Inacord workspace route is
-		// intentionally absent: RE, Mods and Lua remain deep-link/native tools, not game entries.
 		...[AVATAR, EXPLORER, EDITOR_3D, BANK, GALLERY, SHOP, SEARCH, DATA, SETTINGS].map((route) => ({
 			route,
 			label: entryLabel(route),

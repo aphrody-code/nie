@@ -154,11 +154,11 @@ describe("game navigation in the mounted host", () => {
 	});
 
 	test("every public secondary route is unframed and keeps an immediate menu return", async () => {
-		for (const route of ["medias", "chara_edit_menu", "editor_3d", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
+		for (const route of ["chara_edit_menu", "setting_menu", "chara_bank_menu", "gallery_menu", "shop_menu"]) {
 			await mount(`/${route}`);
 			expect(container.querySelector(".tool-shell")).toBeNull();
 			expect(container.querySelector('[data-surface-owner="game"]')).not.toBeNull();
-			await click('.game-shell-return, [data-avatar-control="back"]');
+			await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
 			await expectMenu();
 			await act(async () => root?.unmount());
 			root = createRoot(container);
@@ -167,12 +167,12 @@ describe("game navigation in the mounted host", () => {
 
 	test("the native title menu directly exposes public features and hides authoring tools", async () => {
 		await mount("/menu");
-		for (const action of ["bank", "gallery", "shop", "avatar", "media", "explorer", "editor", "search", "data", "settings"]) {
+		for (const action of ["bank", "shop", "avatar", "settings"]) {
 			const button = container.querySelector<HTMLButtonElement>(`button[data-host-action="${action}"], [data-host-action="${action}"] button`);
 			expect(button).not.toBeNull();
 			expect(button?.disabled).toBeFalse();
 		}
-		for (const hidden of ["modes", "inacord", "mods", "lua", "re"]) {
+		for (const hidden of ["media", "explorer", "editor", "search", "data", "modes", "inacord", "mods", "lua", "re"]) {
 			expect(container.querySelector(`[data-host-action="${hidden}"]`)).toBeNull();
 		}
 		await click('[data-host-action="bank"] button');
@@ -200,7 +200,7 @@ describe("game navigation in the mounted host", () => {
 	});
 
 	test("Escape returns every direct secondary route to the menu while resources load", async () => {
-		for (const route of ["medias", "editor_3d", "explorateur", "recherche", "donnees", "textures", "modeles", "sons", "videos"]) {
+		for (const route of ["chara_edit_menu", "setting_menu", "chara_bank_menu", "gallery_menu", "shop_menu"]) {
 			await mount(`/${route}`);
 			await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
 			await expectMenu();
@@ -210,7 +210,7 @@ describe("game navigation in the mounted host", () => {
 	});
 
 	test("secondary Escape preserves modal, editable, consumed and modified input", async () => {
-		for (const route of ["medias", "explorateur"]) {
+		for (const route of ["chara_edit_menu"]) {
 			await mount(`/${route}`);
 			for (const role of ["dialog", "alertdialog"]) {
 				const dialog = document.createElement("div");
@@ -237,22 +237,6 @@ describe("game navigation in the mounted host", () => {
 			await act(async () => root?.unmount());
 			root = createRoot(container);
 		}
-	});
-
-	test("Explorer Escape dismisses display options before returning to the menu", async () => {
-		// `/explorateur` opens the ONE Explorer — the workspace view, whose display options live in
-		// a popover portalled OUT of the host container, hence the document-level queries.
-		await mount("/explorateur");
-		const trigger = document.querySelector<HTMLButtonElement>('[aria-label="Options d\'affichage"]');
-		expect(trigger).not.toBeNull();
-		await act(async () => trigger!.click());
-		const popover = document.querySelector('[role="dialog"]');
-		expect(popover).not.toBeNull();
-		await act(async () => popover!.querySelector("button")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
-		expect(window.location.pathname).toBe("/explorateur");
-		expect(document.querySelector('[role="dialog"]')).toBeNull();
-		await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
-		await expectMenu();
 	});
 
 	test("Avatar Escape returns to menu while nested dialogs and consumed events retain control", async () => {

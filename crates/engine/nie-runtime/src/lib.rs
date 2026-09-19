@@ -129,6 +129,11 @@ pub struct World {
     /// pilotés par l'IA. C'est ce qui permet d'ajouter le contrôle sans invalider les rejeux
     /// déterministes ni les tests de simulation existants.
     pub input: Input,
+    /// Entrée de l'équipe adverse (extérieur / team 1) pour le prochain [`World::step`].
+    ///
+    /// Utilisé en mode multijoueur / réseau. Si laissée à zéro, l'équipe extérieur reste
+    /// pilotée 100% par l'IA.
+    pub away_input: Input,
     /// Buts marqués `[domicile, extérieur]`.
     pub score: [u32; 2],
     /// Temps de jeu simulé (s).
@@ -187,6 +192,7 @@ impl World {
             ball: Ball::default(),
             players,
             input: Input::default(),
+            away_input: Input::default(),
             score: [0, 0],
             time: 0.0,
             tick: 0,
@@ -196,16 +202,20 @@ impl World {
         }
     }
 
-    /// Index du joueur que la joueuse contrôle, dans l'équipe **domicile**.
-    ///
-    /// Le porteur s'il est de cette équipe, sinon le joueur de champ le plus proche du ballon —
-    /// la convention de tous les jeux de football : on tient celui qui compte, et le contrôle
-    /// bascule tout seul. Le gardien est exclu : le laisser quitter sa cage parce que le ballon
-    /// passe près de lui offrirait le but adverse.
+    /// Index du joueur que la joueuse contrôle, dans l'équipe **domicile** (team 0).
     #[must_use]
     pub fn controlled(&self) -> Option<usize> {
+        self.controlled_for_team(0)
+    }
+
+    /// Index du joueur contrôlé pour une équipe donnée (`0` = domicile, `1` = extérieur).
+    ///
+    /// Le porteur s'il est de cette équipe, sinon le joueur de champ le plus proche du ballon.
+    /// Le gardien est exclu pour ne pas déserter sa cage.
+    #[must_use]
+    pub fn controlled_for_team(&self, team: u8) -> Option<usize> {
         if let Some(i) = self.possessor
-            && self.players.get(i).is_some_and(|p| p.team == 0)
+            && self.players.get(i).is_some_and(|p| p.team == team)
         {
             return Some(i);
         }
@@ -213,12 +223,41 @@ impl World {
         self.players
             .iter()
             .enumerate()
-            .filter(|(_, p)| p.team == 0 && p.role != Role::Goalkeeper)
+            .filter(|(_, p)| p.team == team && p.role != Role::Goalkeeper)
             .min_by(|(_, a), (_, b)| {
                 let (da, db) = ((a.pos - ball2).len(), (b.pos - ball2).len());
                 da.partial_cmp(&db).unwrap_or(core::cmp::Ordering::Equal)
             })
             .map(|(i, _)| i)
+    }
+
+    /// Calcule un hachage FNV-1a 32-bit compact de l'état physique du monde.
+    ///
+    /// Utilisé par le netcode rollback / lockstep pour vérifier la synchronisation
+    /// exacte entre clients et détecter instantanément tout desync.
+    #[must_use]
+    pub fn state_hash(&self) -> u32 {
+        let mut h: u32 = 0x811c9dc5;
+        let mut feed = |val: u32| {
+            h ^= val;
+            h = h.wrapping_mul(0x01000193);
+        };
+        feed(self.ball.pos.x.to_bits());
+        feed(self.ball.pos.y.to_bits());
+        feed(self.ball.pos.z.to_bits());
+        feed(self.ball.vel.x.to_bits());
+        feed(self.ball.vel.y.to_bits());
+        feed(self.ball.vel.z.to_bits());
+        feed(self.score[0]);
+        feed(self.score[1]);
+        feed(self.possessor.map_or(0xFFFFFFFF, |p| p as u32));
+        for p in &self.players {
+            feed(p.pos.x.to_bits());
+            feed(p.pos.y.to_bits());
+            feed(p.vel.x.to_bits());
+            feed(p.vel.y.to_bits());
+        }
+        h
     }
 
     /// Avance la simulation d'un pas `dt` (secondes). Déterministe.
@@ -246,10 +285,13 @@ impl World {
     fn step_players(&mut self, dt: f32) {
         let ball2 = self.ball.pos.ground();
         let carrier = self.possessor;
-        // Joueur sous contrôle : seulement s'il y a une direction demandée. Sans entrée, il
-        // reste piloté par l'IA — la simulation autonome doit rester identique au bit près.
-        let pilote = (self.input.dir.len() > 0.01)
-            .then(|| self.controlled())
+        // Joueurs sous contrôle pour chaque équipe (0 = domicile, 1 = extérieur).
+        // Seulement s'il y a une direction demandée. Sans entrée, le joueur reste piloté par l'IA.
+        let pilote_home = (self.input.dir.len() > 0.01)
+            .then(|| self.controlled_for_team(0))
+            .flatten();
+        let pilote_away = (self.away_input.dir.len() > 0.01)
+            .then(|| self.controlled_for_team(1))
             .flatten();
         // Plus proche par équipe.
         let mut nearest = [usize::MAX, usize::MAX];
@@ -279,8 +321,10 @@ impl World {
                 p.home
             };
             // Le joueur pilote obéit à la direction demandée, pas à sa cible d'IA.
-            let dir = if pilote == Some(i) {
+            let dir = if pilote_home == Some(i) {
                 self.input.dir.norm()
+            } else if pilote_away == Some(i) {
+                self.away_input.dir.norm()
             } else {
                 (target - p.pos).norm()
             };
@@ -366,13 +410,17 @@ impl World {
             return; // ballon en l'air : pas de contrôle au sol.
         }
         let team = self.players[i].team;
-
-        // Frappe commandée : quand la joueuse tient le ballon et appuie sur tir, elle frappe
-        // MAINTENANT, dans la direction qu'elle demande — pas quand l'IA jugerait bon de le
-        // faire. Sans direction, la frappe part vers le but adverse, comme un dégagement.
-        if self.input.shoot && self.kick_timer <= 0.0 && Some(i) == self.controlled() {
-            let vise = if self.input.dir.len() > 0.01 {
-                self.input.dir.norm()
+        // Frappe commandée : quand le joueur contrôlé tient le ballon et appuie sur tir, il frappe
+        // MAINTENANT, dans la direction demandée.
+        let cmd_shoot = if team == 0 {
+            self.input.shoot && Some(i) == self.controlled_for_team(0)
+        } else {
+            self.away_input.shoot && Some(i) == self.controlled_for_team(1)
+        };
+        if cmd_shoot && self.kick_timer <= 0.0 {
+            let user_dir = if team == 0 { self.input.dir } else { self.away_input.dir };
+            let vise = if user_dir.len() > 0.01 {
+                user_dir.norm()
             } else {
                 (V2::new(if team == 0 { HALF_LEN } else { -HALF_LEN }, 0.0) - ball2).norm()
             };
@@ -583,4 +631,46 @@ mod tests {
         assert_eq!(a.2, b.2);
         assert_eq!(a.3, b.3);
     }
+
+    #[test]
+    fn state_hash_deterministe() {
+        let mut w1 = World::kickoff();
+        let mut w2 = World::kickoff();
+        assert_eq!(w1.state_hash(), w2.state_hash(), "hash initial identique");
+
+        for _ in 0..120 {
+            w1.step(1.0 / 60.0);
+            w2.step(1.0 / 60.0);
+        }
+        assert_eq!(w1.state_hash(), w2.state_hash(), "hash après 120 ticks identique");
+    }
+
+    #[test]
+    fn multijoueur_deux_joueurs_commandent_leurs_equipes() {
+        let mut w = World::kickoff();
+        // Le joueur 0 commande l'équipe domicile vers le haut (+y)
+        w.input.dir = V2::new(0.0, 1.0);
+        // Le joueur 1 commande l'équipe extérieur vers le bas (-y)
+        w.away_input.dir = V2::new(0.0, -1.0);
+
+        let home_ctrl = w.controlled_for_team(0).expect("joueur domicile trouvé");
+        let away_ctrl = w.controlled_for_team(1).expect("joueur extérieur trouvé");
+        assert_eq!(w.players[home_ctrl].team, 0);
+        assert_eq!(w.players[away_ctrl].team, 1);
+
+        let y0_home = w.players[home_ctrl].pos.y;
+        let y0_away = w.players[away_ctrl].pos.y;
+
+        w.step(1.0 / 60.0);
+
+        assert!(
+            w.players[home_ctrl].pos.y > y0_home,
+            "joueur domicile a bougé vers le haut"
+        );
+        assert!(
+            w.players[away_ctrl].pos.y < y0_away,
+            "joueur extérieur a bougé vers le bas"
+        );
+    }
 }
+

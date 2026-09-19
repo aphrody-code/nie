@@ -7,7 +7,7 @@
  */
 import { ThemeProvider } from "next-themes";
 import { App } from "./App";
-import { ErrorBoundary } from "./desktop/components/ErrorBoundary";
+import { ErrorBoundary } from "./game/ErrorBoundary";
 import "./app.css";
 
 export default function BrowserHost() {

@@ -3,7 +3,7 @@ import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-i
 import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
 import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AVATAR, BANK, DATA, EDITOR_3D, EXPLORER, GALLERY, MEDIA_LANDING, SEARCH, SETTINGS, SHOP, menuEntries } from "../entries";
+import { AVATAR, BANK, GALLERY, SETTINGS, SHOP, menuEntries } from "../entries";
 import { bindMenuActions } from "../game/menu-actions";
 import {
 	advanceOpeningPhase,
@@ -24,11 +24,11 @@ export interface GameProps {
 	onOpenShop: () => void;
 	onOpenAvatar: () => void;
 	onOpenSettings: () => void;
-	onOpenMedia: () => void;
-	onOpenExplorer: () => void;
-	onOpenEditor: () => void;
-	onOpenSearch: () => void;
-	onOpenData: () => void;
+	onOpenMedia?: () => void;
+	onOpenExplorer?: () => void;
+	onOpenEditor?: () => void;
+	onOpenSearch?: () => void;
+	onOpenData?: () => void;
 	startupReady?: boolean;
 	health?: SiteHealth | null;
 	startupFailed?: boolean;
@@ -45,11 +45,6 @@ export function Game({
 	onOpenShop,
 	onOpenAvatar,
 	onOpenSettings,
-	onOpenMedia,
-	onOpenExplorer,
-	onOpenEditor,
-	onOpenSearch,
-	onOpenData,
 	startupReady = false,
 	health = null,
 	startupFailed = false,
@@ -63,15 +58,10 @@ export function Game({
 
 	if (phase === "menu") {
 		const hostActions = bindMenuActions(menuEntries(null), {
-			[MEDIA_LANDING]: { id: "media", onActivate: onOpenMedia },
 			[BANK]: { id: "bank", onActivate: onOpenBank },
 			[GALLERY]: { id: "gallery", onActivate: onOpenGallery },
 			[SHOP]: { id: "shop", onActivate: onOpenShop },
 			[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },
-			[EXPLORER]: { id: "explorer", onActivate: onOpenExplorer },
-			[EDITOR_3D]: { id: "editor", onActivate: onOpenEditor },
-			[SEARCH]: { id: "search", onActivate: onOpenSearch },
-			[DATA]: { id: "data", onActivate: onOpenData },
 			[SETTINGS]: { id: "settings", onActivate: onOpenSettings },
 		});
 		const actions = [
