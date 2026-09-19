@@ -278,16 +278,32 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   strategy — either free the memory deliberately (a production restart, which needs the user) or
   do the work that does not need a build.
 
-- **The uemu oracle WORKS; the 49 old proofs are anchored on a build that is gone.** Measured
-  2026-09-13: `nie.exe`, `nie_eacpatched.exe` and `dist/nie.exe` are all the SAME file
-  (`b1fa04ea…`, 33 918 464 B), so `NIE_EXE` changes nothing — and the build the knowledge base
-  and the validators were written against (`4c2b91fb…`, 31 468 032 B) is nowhere on this machine.
-  The list-view proofs pass (`just preuves listview` → 5 ✓ / 0 ✗, re-run 2026-09-13 evening; the morning count was 2 ✓, 44 cases). The sampled old
-  ones fail with stale EXPECTATIONS, not emulator errors: `validate_ball_ctor` reads 0 where it
-  wants `-9.8f`, `validate_bezier` returns `(0,0,0)`, `validate_category_lookup` reports 600
-  mismatches with every branch at zero. Do not read "47/47 failing" as "do not write proofs".
-  Also: `just preuves` with no pattern chains 49 validators that each map the 33 MB PE and gets
-  OOM-killed — filter it, which likely explains part of the historical "timeouts".
+- **The uemu oracle WORKS, and the whole suite is GREEN: `just preuves` → 53 ✓ / 0 ✗ / 0 ⧗**
+  (measured 2026-09-19, no filter, no OOM). Four claims that stood here were wrong, and each one
+  cost time, so they are corrected rather than deleted:
+  - *"the build the validators were written against (`4c2b91fb…`, 31 468 032 B) is nowhere on
+    this machine"* — **it is**, at `~/.local/share/iecode/patched/nie.exe.patched`, and
+    `scripts/proofs.sh` has been selecting it all along for everything except
+    `validate_listview_*`.
+  - *"`NIE_EXE` changes nothing"* — it changes everything. Sampled six old proofs: **6/6 pass on
+    the legacy build and fail on the target.**
+  - *"the sampled old ones fail with stale EXPECTATIONS"* — they do not fail at all. They were
+    being run against the wrong binary. `validate_bezier`, `validate_ball_ctor` and
+    `validate_category_lookup` all pass on `4c2b91fb…`.
+  - *"`just preuves` with no pattern … gets OOM-killed"* — it completes. Each validator is a
+    separate `uv run` process that maps the PE and exits, so they do not accumulate.
+
+  **Two builds coexist and their addresses do not coincide** — `nie.exe` (33 918 464 B,
+  `b1fa04ea…`) is the RE target; the patched one above is the legacy build. Picking the wrong one
+  shows up as a **TIMEOUT, not a value mismatch**: the address lands on unrelated bytes and
+  emulation spins, so it reads as "proof too slow". Measured on `validate_g4_component_decode`:
+  1.3 s PASS on the target, 60 s timeout on the legacy build. That is most of the historical
+  "timeouts", and the `validate_listview_*` special case was someone hitting this and patching
+  one family.
+
+  A proof now **declares its anchor** in a header line — `# uemu-anchor: target` or
+  `# uemu-anchor: legacy`. Undeclared proofs keep the legacy default: the older ones were written
+  against it, and flipping them wholesale would be an unmeasured change.
 
 - **Most menu text is BAKED into textures; only a handful of labels go through the font.**
   Counted 2026-09-13 on the served layouts: `main_menu` has **1** font-rendered text object,
