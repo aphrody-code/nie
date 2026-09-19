@@ -38,13 +38,45 @@
 //! (`lea rax, [rax+0x14]` dans la boucle de fixup @ `0x1405067B0`). `compteur[2]` adresse la
 //! table d'objets et `compteur[3]` la table de canaux — vérifié sur tous les fichiers testés.
 //!
-//! ### Ce qui n'est pas résolu — et qui n'est donc pas inventé
+//! ### La déquantification — RÉSOLUE, et prouvée contre le binaire
 //!
-//! Les flux de keyframes sur **2 octets** ([`Track::Raw16`]) ne se décodent ni en `f16` ni en
-//! `i16` de façon plausible (valeurs incohérentes avec les canaux `f32` voisins du même
-//! fichier). Leur encodage exact reste **inconnu** : ils sont exposés bruts. Les flux `f32`
-//! ([`Track::F32`]) sont, eux, décodés (coordonnées monde, ordre de grandeur ±50 conforme aux
-//! scènes) et les flux 1 octet sont exposés bruts ([`Track::Raw8`]).
+//! Les flux sur 2 octets ([`Track::Raw16`]) sont des composantes **normalisées**, remises à
+//! l'échelle par une entrée de [`CameraAnim::scales`] que le canal désigne par son octet 6
+//! ([`Channel::scale_index`]) :
+//!
+//! ```text
+//!   mode 2, taille 2  ->  0x140507220  :  (f32)(u16)x * (1/65535) * échelle
+//!   mode 3, taille 2  ->  0x1405075F0  :  (f32)(i16)x * (1/32767) * échelle
+//! ```
+//!
+//! Le jeu choisit le décodeur dans une table en `.rdata` (`0x1419814C0`) indexée
+//! `mode * 5 + declared_size.0`. Les deux fonctions sont **validées byte-exact sur 280 514 cas**
+//! par `scripts/validate_g4_component_decode.py` — pas inférées.
+//!
+//! [`Channel::decoded`] applique ce barème ; [`Channel::quant`] dit lequel s'applique. Ce qui
+//! reste inconnu l'est explicitement : `mode = 1` passe par `0x140506D00`, non désassemblé, et
+//! rend [`Quant::Inconnu`] plutôt qu'une valeur plausible. Les flux 1 octet ([`Track::Raw8`])
+//! restent bruts.
+//!
+//! **Pourquoi la table d'échelles est bien le bloc `params`.** Le désassemblage montre
+//! `movss xmm2, [r15 + r8*4]`, mais `r15` est chargé hors de la boucle : sa provenance n'est
+//! pas dans la fenêtre. Deux invariants la fixent sur les données, mesurés le 2026-09-19 sur
+//! les **1 215 fichiers** du corpus, sans une exception :
+//!
+//! | Invariant | Mesure |
+//! |---|---|
+//! | un canal `f32` désigne une échelle valant exactement `1.0` | **2 920 / 2 920** |
+//! | une valeur déquantifiée reste dans `±échelle` | **33 743 / 33 743** |
+//!
+//! Si la table vivait ailleurs, rien n'expliquerait que 2 920 indices tombent tous sur `1.0`.
+//!
+//! ### Ce qui n'est toujours pas résolu
+//!
+//! L'**unité** de [`ChannelKind::Fov`] et [`ChannelKind::Roll`]. Elles se déquantifient sans
+//! difficulté, mais dans des plages (de l'ordre de `−0,37` à `0,80`) qui ne sont ni des degrés
+//! ni des radians d'angle de champ. Aucun canal `f32` de ces deux genres n'existe dans tout le
+//! corpus, donc il n'y a pas d'oracle par comparaison de distributions : la voie est le
+//! « setter » de propriété appelé en `0x1405AAF82`. Ne pas convertir au jugé d'ici là.
 
 extern crate alloc;
 
@@ -78,8 +110,11 @@ pub const NAME_LEN: usize = 6;
 /// Les huit codes ci-dessous sont les **seuls** rencontrés : sur les 150 fichiers de contrôle,
 /// chaque objet porte exactement ces 8 canaux (602 objets × 8 = 4 816 canaux, sans exception).
 /// L'affectation aux axes s'appuie sur les canaux décodables (`f32`) : seuls `PosX`/`PosZ` et
-/// `RefX`/`RefZ` apparaissent en `f32`, avec des valeurs de l'ordre de ±50 (coordonnées monde
-/// d'une scène) ; `PosY`/`RefY`, `Fov` et `Roll` ne sont jamais stockés en `f32`.
+/// `RefX`/`RefZ` apparaissent couramment en `f32` ; `Fov` et `Roll` ne le sont **jamais**, dans
+/// aucun des 1 215 fichiers.
+///
+/// Le domaine mesuré sur tout le corpus est d'environ **±10 000**, et non les ±50 qu'annonçait
+/// cette doc : la première estimation portait sur un échantillon de scènes serrées.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ChannelKind {
@@ -217,8 +252,29 @@ pub struct Channel {
     pub components: (u8, u8),
     /// Octets 3 et 5 — taille d'échantillon déclarée, toujours égale des deux côtés.
     pub declared_size: (u8, u8),
-    /// Octets 6-7 — index du canal dans l'objet.
-    pub index: u16,
+    /// Octet 6 — **index dans la table d'échelles**, c'est-à-dire dans [`CameraAnim::scales`].
+    ///
+    /// Lu dans la boucle de canaux de `nie.exe` en `0x1405AAF26` :
+    ///
+    /// ```text
+    ///   0x1405AAF26  movzx r8d, byte ptr [rbx + 6]
+    ///   0x1405AAF3B  movss xmm2, dword ptr [r15 + r8*4]   ; r15 = table de f32
+    ///   0x1405AAF44  movss dword ptr [rsp + 0x20], xmm2   ; 5e argument de l'échantillonneur
+    ///   0x1405AAF4A  call  0x140506B00
+    /// ```
+    pub scale_index: u8,
+    /// Octet 7 — index de la **cible** que ce canal pilote, dans l'objet.
+    ///
+    /// Lu en `0x1405AAF5A`, puis `shl rcx, 4` : il indexe un tableau d'entrées de 16 octets,
+    /// pas la liste des canaux.
+    ///
+    /// ## Hypothèse RÉFUTÉE — ne pas la refaire
+    ///
+    /// Ces deux octets étaient lus comme **un seul `u16`**, « index du canal dans l'objet ». Le
+    /// désassemblage ci-dessus montre deux lectures d'octets indépendantes, à des fins sans
+    /// rapport : l'une choisit une échelle, l'autre une cible. La valeur `u16` combinée ne
+    /// signifiait donc rien, et c'est elle qui empêchait de rattacher le barème aux canaux.
+    pub target_index: u8,
     /// Index du premier temps dans la table de temps partagée.
     pub time_index: u32,
     /// Offset du flux, en octets, depuis le début de la section « valeurs ».
@@ -227,7 +283,80 @@ pub struct Channel {
     pub track: Track,
 }
 
+/// L'encodage des échantillons d'un canal, tel que la table de décodeurs de `nie.exe` le choisit.
+///
+/// Le jeu sélectionne un décodeur dans une table en `.rdata` (`0x1419814C0`) indexée par
+/// `mode * 5 + declared_size.0`. Trois entrées de cette table sont résolues et **prouvées
+/// byte-exact** (`scripts/validate_g4_component_decode.py`, 280 514 cas) ; les autres ne le sont
+/// pas, et [`Quant::Inconnu`] le dit au lieu de deviner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Quant {
+    /// `mode = 2, taille = 2` → `0x140507220` : `(f32)(u16)x * (1/65535) * échelle`.
+    Unorm16,
+    /// `mode = 3, taille = 2` → `0x1405075F0` : `(f32)(i16)x * (1/32767) * échelle`.
+    Snorm16,
+    /// Flux déjà en `f32` : aucune déquantification, l'échelle vaut 1.0.
+    Float32,
+    /// Combinaison non résolue. `mode = 1` (décodeur `0x140506D00`, non désassemblé) y tombe.
+    Inconnu {
+        /// L'octet 1 du canal.
+        mode: u8,
+        /// L'octet 3 du canal.
+        size: u8,
+    },
+}
+
+/// `1/65535`, lu à `0x141A6836C` dans `nie.exe`.
+pub const INV_U16: f32 = 1.525_902_2e-5;
+/// `1/32767`, lu à `0x141A68374` dans `nie.exe`.
+pub const INV_I16: f32 = 3.051_851e-5;
+
 impl Channel {
+    /// L'encodage de ce canal, d'après `(mode, declared_size.0)`.
+    #[must_use]
+    pub const fn quant(&self) -> Quant {
+        match (self.mode, self.declared_size.0) {
+            (2, 2) => Quant::Unorm16,
+            (3, 2) => Quant::Snorm16,
+            (_, 4) => Quant::Float32,
+            (mode, size) => Quant::Inconnu { mode, size },
+        }
+    }
+
+    /// Les échantillons **déquantifiés**, ou `None` si l'encodage n'est pas résolu.
+    ///
+    /// `None` est un résultat, pas un échec : `mode = 1` passe par un décodeur qui n'a pas été
+    /// désassemblé, et rendre une valeur plausible y serait une invention.
+    ///
+    /// L'ordre des multiplications reproduit la **queue scalaire** du binaire,
+    /// `(x * inv) * échelle` — c'est celui que prend le jeu hors des blocs vectoriels de 16. Les
+    /// trois chemins du binaire calculent dans trois ordres différents et divergent au dernier
+    /// ULP sur 45,7 % des cas ; le portage fidèle au bloc vectoriel vit dans la preuve, pas ici,
+    /// parce qu'un lecteur d'animation échantillonne canal par canal et non par paquets de 16.
+    #[must_use]
+    pub fn decoded(&self, anim: &CameraAnim) -> Option<Vec<f32>> {
+        let echelles = anim.scales();
+        let echelle = *echelles.get(self.scale_index as usize)?;
+        if !echelle.is_finite() {
+            return None;
+        }
+        match (self.quant(), &self.track) {
+            (Quant::Float32, Track::F32(v)) => Some(v.clone()),
+            (Quant::Unorm16, Track::Raw16(v)) => Some(
+                v.iter()
+                    .map(|&m| (f32::from(m) * INV_U16) * echelle)
+                    .collect(),
+            ),
+            (Quant::Snorm16, Track::Raw16(v)) => Some(
+                v.iter()
+                    .map(|&m| (f32::from(m as i16) * INV_I16) * echelle)
+                    .collect(),
+            ),
+            _ => None,
+        }
+    }
+
     /// Temps (numéros de frame) associés à ce canal.
     #[must_use]
     pub fn times<'a>(&self, anim: &'a CameraAnim) -> &'a [u16] {
@@ -523,7 +652,8 @@ pub fn decode(data: &[u8]) -> Result<CameraAnim> {
         s1: u8,
         c2: u8,
         s2: u8,
-        index: u16,
+        scale_index: u8,
+        target_index: u8,
         time_index: u32,
         value_offset: u32,
         count: u32,
@@ -542,7 +672,8 @@ pub fn decode(data: &[u8]) -> Result<CameraAnim> {
             s1: hdr[3],
             c2: hdr[4],
             s2: hdr[5],
-            index: u16::from_le_bytes([hdr[6], hdr[7]]),
+            scale_index: hdr[6],
+            target_index: hdr[7],
             time_index: u32_at(data, at + 8)?,
             value_offset: u32_at(data, at + 12)?,
             count: u32_at(data, at + 16)?,
@@ -619,7 +750,8 @@ pub fn decode(data: &[u8]) -> Result<CameraAnim> {
             mode: r.mode,
             components: (r.c1, r.c2),
             declared_size: (r.s1, r.s2),
-            index: r.index,
+            scale_index: r.scale_index,
+            target_index: r.target_index,
             time_index: r.time_index,
             value_offset: r.value_offset,
             track,
@@ -760,7 +892,10 @@ pub fn encode(anim: &CameraAnim) -> Result<Vec<u8>> {
         out.push(c.declared_size.0);
         out.push(c.components.1);
         out.push(c.declared_size.1);
-        out.extend_from_slice(&c.index.to_le_bytes());
+        // Les deux octets repartent dans le MÊME ordre qu'à la lecture : le ré-encodage
+        // byte-exact est donc préservé par construction, pas par vérification.
+        out.push(c.scale_index);
+        out.push(c.target_index);
         out.extend_from_slice(&c.time_index.to_le_bytes());
         out.extend_from_slice(&c.value_offset.to_le_bytes());
         let count = u32::try_from(c.track.len()).map_err(|_| {
@@ -855,11 +990,103 @@ impl CameraAnim {
             .sum();
         dec as f32 / total as f32
     }
+
+    /// La **table d'échelles** : le bloc `params` relu comme des `f32`.
+    ///
+    /// C'est elle que `nie.exe` indexe par [`Channel::scale_index`] — `movss xmm2, [r15 + r8*4]`
+    /// en `0x1405AAF3B`, où `r15` pointe ce bloc et `r8` vaut l'octet 6 du canal.
+    ///
+    /// La vue couvre tout le bloc, y compris la queue de bourrage et les deux mots qui ne sont
+    /// pas des flottants (cf. la doc de [`Self::params`]). Ce n'est pas gênant : seuls les
+    /// indices que les canaux citent sont lus, et [`Channel::decoded`] rejette une échelle non
+    /// finie. Délimiter la table « proprement » demanderait de connaître sa longueur, qui est
+    /// précisément ce que le format ne déclare pas.
+    #[must_use]
+    pub fn scales(&self) -> Vec<f32> {
+        self.params
+            .chunks_exact(4)
+            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .collect()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Fabrique un canal nu — aucune lecture de fichier, la math seule est en cause.
+    fn canal(mode: u8, size: u8, scale_index: u8, track: Track) -> Channel {
+        Channel {
+            kind: ChannelKind::PosX,
+            mode,
+            components: (1, 1),
+            declared_size: (size, size),
+            scale_index,
+            target_index: 0,
+            time_index: 0,
+            value_offset: 0,
+            track,
+        }
+    }
+
+    /// Une animation nue portant une table d'échelles choisie.
+    fn anim_avec_echelles(echelles: &[f32]) -> CameraAnim {
+        let mut anim = decode(&synthetic()).expect("le G4CM synthétique doit se décoder");
+        anim.params = echelles.iter().flat_map(|e| e.to_le_bytes()).collect();
+        anim
+    }
+
+    #[test]
+    fn le_bareme_applique_les_constantes_prouvees_contre_le_binaire() {
+        // Les deux constantes sont celles lues à 0x141A6836C et 0x141A68374, et l'ordre des
+        // multiplications est celui de la queue scalaire : (x * inv) * échelle.
+        let anim = anim_avec_echelles(&[1.0, 6.1]);
+
+        // UNORM16 : 0 -> 0, 65535 -> exactement l'échelle.
+        let c = canal(2, 2, 1, Track::Raw16(alloc::vec![0, 65535, 32768]));
+        let v = c.decoded(&anim).expect("mode 2 taille 2 est résolu");
+        assert_eq!(v[0], 0.0);
+        assert_eq!(v[1], (65535.0f32 * INV_U16) * 6.1);
+        assert!((v[1] - 6.1).abs() < 1e-4, "65535 doit rendre l'échelle, obtenu {}", v[1]);
+        assert!(v[2] > 3.0 && v[2] < 3.1, "32768 doit rendre la moitié, obtenu {}", v[2]);
+
+        // SNORM16 : le mot 0xFFFF vaut -1, pas 65535 — c'est `psrad` qui le décide.
+        let c = canal(3, 2, 1, Track::Raw16(alloc::vec![0xFFFF, 0x8000, 0x7FFF]));
+        let v = c.decoded(&anim).expect("mode 3 taille 2 est résolu");
+        assert!(v[0] < 0.0, "0xFFFF doit être négatif en SNORM, obtenu {}", v[0]);
+        assert!(v[1] < -6.0, "0x8000 est le minimum signé, obtenu {}", v[1]);
+        assert!((v[2] - 6.1).abs() < 1e-4, "0x7FFF doit rendre l'échelle, obtenu {}", v[2]);
+    }
+
+    /// Ce qui n'est pas prouvé doit rendre `None`, jamais une valeur plausible. `mode = 1` passe
+    /// par un décodeur non désassemblé et concerne 2 761 canaux réels du corpus.
+    #[test]
+    fn un_encodage_non_resolu_ne_rend_aucune_valeur() {
+        let anim = anim_avec_echelles(&[1.0, 2.0]);
+        let c = canal(1, 1, 1, Track::Raw8(alloc::vec![179, 0, 255]));
+        assert_eq!(c.quant(), Quant::Inconnu { mode: 1, size: 1 });
+        assert!(c.decoded(&anim).is_none(), "mode 1 doit rester indécodé");
+
+        // Un index d'échelle hors de la table ne panique pas : il rend `None`.
+        let c = canal(2, 2, 200, Track::Raw16(alloc::vec![1, 2]));
+        assert!(c.decoded(&anim).is_none(), "un index hors table doit rendre None");
+    }
+
+    /// La scission de l'ancien `index: u16` ne doit RIEN changer aux octets écrits.
+    #[test]
+    fn scinder_l_index_en_deux_octets_preserve_le_re_encodage() {
+        let brut = synthetic();
+        let mut anim = decode(&brut).expect("décodage");
+        assert_eq!(encode(&anim).expect("encodage"), brut);
+
+        // Les deux octets repartent dans leur ordre de lecture : 6 puis 7.
+        anim.channels[0].scale_index = 0xAB;
+        anim.channels[0].target_index = 0xCD;
+        let re = encode(&anim).expect("encodage");
+        let modifie = decode(&re).expect("re-décodage");
+        assert_eq!(modifie.channels[0].scale_index, 0xAB);
+        assert_eq!(modifie.channels[0].target_index, 0xCD);
+    }
 
     /// Construit un G4CM synthétique minimal : 1 objet, 1 canal `f32` de 2 échantillons.
     fn synthetic() -> Vec<u8> {
