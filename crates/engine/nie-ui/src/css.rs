@@ -198,15 +198,17 @@ mod tests {
     };
 
     #[test]
-    fn screens_block_porte_les_45_couleurs_le_skew_et_les_classes_du_contrat() {
+    fn screens_block_porte_les_47_couleurs_le_skew_et_les_classes_du_contrat() {
         let css = screens_block();
         let screen_props = css
             .lines()
             .filter(|l| l.trim_start().starts_with("--screen-"))
             .count();
-        // 45 couleurs + 5 longueurs.
+        // 47 couleurs + 5 longueurs. Les deux dernières sont la cellule verrouillée de la
+        // galerie et le cyan de sélection, mesurés sur `trophy_gallery.png` et confirmés sur
+        // `bank_character_detail.png`.
         assert_eq!(
-            screen_props, 50,
+            screen_props, 52,
             "le compte de propriétés --screen-* a changé"
         );
         assert!(css.contains("\t--game-skew: -10deg;"));

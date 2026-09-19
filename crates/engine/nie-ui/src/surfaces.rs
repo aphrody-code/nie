@@ -732,8 +732,38 @@ screen_color!(
     "le pied de la fenêtre Informations"
 );
 
-/// Les 45 couleurs `--screen-*`, dans l'ordre du bloc `:root` de `game-screens.css`.
-pub const SCREEN_COLORS: [ScreenColor; 45] = [
+// --- Galerie des succès (trophy_gallery.png) -------------------------------------------------
+screen_color!(
+    "Le bleu nuit d'une cellule verrouillée de la galerie. `--crop 130,250,140,90 --k 3` → #2A3F5A (49.93 %), la seconde classe #334B66 (46.99 %) étant le motif de ballon en relief.",
+    GALLERY_CELL,
+    "screen-gallery-cell",
+    0.3629,
+    0.0541,
+    255.12,
+    "#2A3F5A",
+    "trophy_gallery.png",
+    (130, 250, 140, 90),
+    3,
+    49.93,
+    "une cellule verrouillée de la galerie"
+);
+screen_color!(
+    "Le cyan de la SÉLECTION, commun aux écrans en grille. `trophy_gallery.png --crop 105,1020,380,10 --k 3` → #00FFFF (70.05 %) ; la même bande sur `bank_character_detail.png --crop 60,344,235,4 --k 3` donne #1BEAE2 (51.91 %), plus sombre du seul fait que les 4 px mordent sur le bord de la carte. Teintes 194.77 et 190.34 : c'est un seul rôle, pas deux couleurs.",
+    SELECTION_CYAN,
+    "screen-selection-cyan",
+    0.9054,
+    0.1545,
+    194.77,
+    "#00FFFF",
+    "trophy_gallery.png",
+    (105, 1020, 380, 10),
+    3,
+    70.05,
+    "le liseré de l'élément sélectionné dans une grille"
+);
+
+/// Les 47 couleurs `--screen-*`, dans l'ordre du bloc `:root` de `game-screens.css`.
+pub const SCREEN_COLORS: [ScreenColor; 47] = [
     HEADER_BLUE,
     HEADER_BLUE_DEEP,
     HEADER_ICON_GREY,
@@ -779,6 +809,8 @@ pub const SCREEN_COLORS: [ScreenColor; 45] = [
     TILE_LIGHT,
     TILE_BEVEL,
     INFO_FOOTER,
+    GALLERY_CELL,
+    SELECTION_CYAN,
 ];
 
 /// Les sections du bloc `:root` : (indice de départ dans [`SCREEN_COLORS`], titre).

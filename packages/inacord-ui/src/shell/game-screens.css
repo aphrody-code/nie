@@ -76,6 +76,8 @@
 	--screen-tile-light: oklch(0.5668 0.1277 256.22);  /* #4077C0 - main_menu.png crop 1062,768,245,167 k=6 (14.38 %) - le bleu clair d'une tuile du menu */
 	--screen-tile-bevel: oklch(0.9435 0.0035 174.48);  /* #EAEDEC - main_menu.png crop 1062,928,245,15 k=3 (63.54 %) - le biseau clair sous une tuile */
 	--screen-info-footer: oklch(0.3928 0.0653 268.56);  /* #374469 - main_menu.png crop 500,232,77,49 k=3 (100.00 %) - le pied de la fenêtre Informations */
+	--screen-gallery-cell: oklch(0.3629 0.0541 255.12);  /* #2A3F5A - trophy_gallery.png crop 130,250,140,90 k=3 (49.93 %) - une cellule verrouillée de la galerie */
+	--screen-selection-cyan: oklch(0.9054 0.1545 194.77);  /* #00FFFF - trophy_gallery.png crop 105,1020,380,10 k=3 (70.05 %) - le liseré de l'élément sélectionné dans une grille */
 
 	/* --- Geometrie mesuree --- */
 	/* options.png : bord gauche -10.70 deg, bord droit -10.64 deg, R2 0.992 — pixel mesurer data/menu/options.png --boite 1050 262 1190 326 --sombre 100 */

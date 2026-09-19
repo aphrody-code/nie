@@ -15,17 +15,20 @@
 .player-bank__card {
 	display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
 	gap: 2px; padding: 2px; font: inherit; font-size: 9px; line-height: 1.1; overflow: hidden;
-	background: rgb(255 255 255 / 8%); border: 2px solid transparent; border-radius: 6px;
-	color: var(--jeu-texte-vif, #fff); cursor: pointer;
+	/* La carte du jeu EST un portrait : elle n'a pas de surface plate à reprendre. Ce fond n'est
+	   donc qu'un fond d'attente, et c'est celui que le jeu emploie pour une case sans contenu. */
+	background: var(--screen-gallery-cell); border: 2px solid transparent; border-radius: 6px;
+	color: var(--screen-row-white); cursor: pointer;
 }
-.player-bank__card[data-state="focused"] { border-color: var(--jeu-accent-turquoise, #3ee); }
+/* Le cyan de sélection du jeu, mesuré sur cette capture même (#1BEAE2) autant que sur la galerie. */
+.player-bank__card[data-state="focused"] { border-color: var(--screen-selection-cyan); }
 .player-bank__face { width: 48px; height: 48px; object-fit: cover; border-radius: 50%; }
 .player-bank__name { font-weight: 700; text-align: center; }
 .player-bank__tags { opacity: 0.8; text-align: center; }
 .player-bank__empty { grid-column: 1 / -1; font-size: 13px; }
 .player-bank__counts {
 	position: absolute; left: 24px; top: 622px; width: 596px;
-	display: flex; justify-content: space-between; font-size: 12px; color: var(--jeu-texte-vif, #fff);
+	display: flex; justify-content: space-between; font-size: 12px; color: var(--screen-section-title);
 }
 .player-bank__detail {
 	position: absolute; left: 644px; top: 92px; width: 612px; height: 552px;
@@ -42,5 +45,5 @@
 .player-bank__filters { position: absolute; left: 180px; top: 60px; width: 920px; height: 600px; }
 .player-bank__hints {
 	position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 24px;
-	font-size: 14px; color: var(--jeu-texte-vif, #fff);
+	font-size: 14px; color: var(--screen-row-label);
 }

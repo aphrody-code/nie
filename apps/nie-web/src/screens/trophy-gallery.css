@@ -25,14 +25,14 @@
 .trophy-gallery__title { position: absolute; left: 128px; top: 48px; }
 .trophy-gallery__counters {
 	position: absolute; right: 24px; top: 30px; display: flex; gap: 16px;
-	font-size: 13px; color: var(--jeu-texte-vif, #fff);
+	font-size: 13px; color: var(--screen-row-label);
 }
 .trophy-gallery__tabs { position: absolute; left: 48px; top: 92px; display: flex; gap: 8px; }
 .trophy-gallery__tabs button {
 	font: inherit; font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer;
-	background: rgb(255 255 255 / 10%); border: 2px solid transparent; color: var(--jeu-texte-vif, #fff);
+	background: var(--screen-tab-light); border: 2px solid transparent; color: var(--screen-row-white);
 }
-.trophy-gallery__tabs button[data-state="focused"] { border-color: var(--jeu-accent-turquoise, #3ee); }
+.trophy-gallery__tabs button[data-state="focused"] { background: var(--screen-tab-active); border-color: var(--screen-row-arrow-light); }
 .trophy-gallery__grid {
 	position: absolute; left: 48px; top: 120px; width: 1150px; height: 470px;
 	display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: 108px; gap: 10px;
@@ -41,20 +41,22 @@
 .trophy-gallery__cell {
 	display: flex; align-items: center; justify-content: center; padding: 4px; overflow: hidden;
 	font: inherit; font-size: 10px; line-height: 1.15; text-align: center; cursor: pointer;
-	background: rgb(30 45 80 / 55%); border: 3px solid transparent; border-radius: 8px;
-	color: var(--jeu-texte-vif, #fff);
+	/* `#2A3F5A`, mesuré sur la cellule verrouillée de `trophy_gallery.png` — pas un bleu choisi. */
+	background: var(--screen-gallery-cell); border: 3px solid transparent; border-radius: 8px;
+	color: var(--screen-row-white);
 }
-.trophy-gallery__cell[data-state="focused"] { border-color: var(--jeu-accent-turquoise, #3ee); }
+/* Le jeu cerne la cellule focalisée d'un cyan franc (#00FFFF), il ne la remplit pas. */
+.trophy-gallery__cell[data-state="focused"] { border-color: var(--screen-selection-cyan); }
 .trophy-gallery__cell[data-unlocked="false"] { opacity: 0.55; }
 .trophy-gallery__cell-label { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.trophy-gallery__empty { grid-column: 1 / -1; font-size: 13px; color: var(--jeu-texte-vif, #fff); }
+.trophy-gallery__empty { grid-column: 1 / -1; font-size: 13px; color: var(--screen-description-grey); }
 .trophy-gallery__counts {
 	position: absolute; left: 48px; top: 596px; width: 1150px;
-	display: flex; justify-content: space-between; font-size: 12px; color: var(--jeu-texte-vif, #fff);
+	display: flex; justify-content: space-between; font-size: 12px; color: var(--screen-section-title);
 }
 .trophy-gallery__detail {
 	position: absolute; left: 48px; top: 618px; width: 1150px; max-height: 56px; overflow: hidden;
-	font-size: 12px; color: var(--jeu-texte-vif, #fff);
+	font-size: 12px; color: var(--screen-row-label);
 }
 .trophy-gallery__detail-name { margin: 0; font-size: 14px; }
 .trophy-gallery__detail-text { margin: 0; opacity: 0.85; }

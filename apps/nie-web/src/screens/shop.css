@@ -1,10 +1,19 @@
 /*
- * La géométrie du Marché, dans le repère du canevas du jeu (1280×720).
+ * Le Marché, dans le repère du canevas du jeu (1280×720).
  *
- * Uniquement des positions et des tailles : les couleurs viennent des jetons de `game-tokens.css`
- * et les fonds viennent du layout du jeu, dessiné dessous. Les zones sont calées sur
- * `data/menu/shop.png` (la colonne des boutiques à gauche) et `data/menu/chronicle_shop.png`
- * (les onglets de catégorie, la liste du stock, la fiche à droite).
+ * Les zones sont calées sur `data/menu/shop.png` (la colonne des boutiques à gauche) et
+ * `data/menu/chronicle_shop.png` (les onglets de catégorie, la liste du stock, la fiche à droite).
+ *
+ * ── DEUX PALETTES SE DISPUTAIENT CET ÉCRAN ─────────────────────────────────
+ * L'en-tête de ce fichier annonçait déjà que les couleurs venaient des jetons ; le code, lui,
+ * peignait `rgb(255 255 255 / 12%)` sur du `--jeu-texte-vif`, c'est-à-dire du texte blanc sur du
+ * blanc translucide. C'est la palette de l'écran-TITRE, qui est sombre. Le Marché du jeu est
+ * CLAIR — fond vert pâle, bandeau bleu, lignes blanches, libellés gris — comme le montre
+ * `shop.png`. Les deux systèmes se superposaient donc sur la même surface.
+ *
+ * `game-screens.css` porte la palette de ces écrans-là, mesurée par k-means Oklab sur ces
+ * captures exactes, chaque jeton citant son recadrage et sa part. C'est elle qui s'applique ici ;
+ * `--jeu-*` garde ce qui lui revient (rythme, rayons, typographie).
  */
 .shop { position: absolute; inset: 0; display: flex; flex-direction: column; }
 .shop__title { position: absolute; left: 128px; top: 48px; }
@@ -15,10 +24,13 @@
 .shop__shops button {
 	display: flex; justify-content: space-between; gap: 8px; align-items: center;
 	font: inherit; font-size: 11px; padding: 4px 8px; cursor: pointer; text-align: left;
-	background: rgb(255 255 255 / 12%); border: 2px solid transparent; border-radius: 8px;
-	color: var(--jeu-texte-vif, #fff);
+	background: var(--screen-row-white); border: 2px solid transparent; border-radius: 8px;
+	color: var(--screen-row-label);
 }
-.shop__shops button[data-state="focused"] { border-color: var(--jeu-accent-turquoise, #3ee); }
+/* Le jeu remplit la ligne focalisée d'un aplat bleu, il n'en souligne pas le bord. */
+.shop__shops button[data-state="focused"] {
+	background: var(--screen-row-focus); color: var(--screen-row-white); border-color: var(--screen-row-arrow-light);
+}
 .shop__shops button[data-unnamed="true"] .shop__shop-name { font-family: monospace; opacity: 0.8; }
 .shop__shop-count { opacity: 0.7; }
 .shop__tabs {
@@ -27,9 +39,9 @@
 }
 .shop__tabs button {
 	font: inherit; font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer;
-	background: rgb(255 255 255 / 10%); border: 2px solid transparent; color: var(--jeu-texte-vif, #fff);
+	background: var(--screen-tab-light); border: 2px solid transparent; color: var(--screen-row-white);
 }
-.shop__tabs button[data-state="focused"] { border-color: var(--jeu-accent-turquoise, #3ee); }
+.shop__tabs button[data-state="focused"] { background: var(--screen-tab-active); border-color: var(--screen-row-arrow-light); }
 .shop__list {
 	position: absolute; left: 316px; top: 146px; width: 620px; height: 444px;
 	margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px;
@@ -38,26 +50,28 @@
 .shop__row {
 	display: grid; grid-template-columns: 1fr 90px 52px 60px; gap: 6px; align-items: center; width: 100%;
 	font: inherit; font-size: 11px; padding: 4px 8px; cursor: pointer; text-align: left;
-	background: rgb(255 255 255 / 10%); border: 2px solid transparent; border-radius: 6px;
-	color: var(--jeu-texte-vif, #fff);
+	background: var(--screen-row-white); border: 2px solid transparent; border-radius: 6px;
+	color: var(--screen-row-label);
 }
-.shop__row[data-state="focused"] { border-color: var(--jeu-accent-turquoise, #3ee); }
+.shop__row[data-state="focused"] {
+	background: var(--screen-row-focus); color: var(--screen-row-white); border-color: var(--screen-row-arrow-light);
+}
 .shop__row[data-resolved="false"] .shop__row-name { font-family: monospace; opacity: 0.8; }
 .shop__row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shop__row-category, .shop__row-stock { opacity: 0.75; font-size: 10px; }
 .shop__row-price { text-align: right; }
 .shop__counts {
 	position: absolute; left: 316px; top: 596px; width: 620px;
-	display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--jeu-texte-vif, #fff);
+	display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--screen-section-title);
 }
 .shop__detail {
 	position: absolute; left: 952px; top: 146px; width: 316px; max-height: 460px; overflow: hidden;
-	font-size: 12px; color: var(--jeu-texte-vif, #fff);
+	font-size: 12px; color: var(--screen-row-label);
 }
-.shop__detail[data-pinned="true"] { outline: 2px solid var(--jeu-accent-turquoise, #3ee); border-radius: 8px; padding: 4px; }
+.shop__detail[data-pinned="true"] { outline: 2px solid var(--screen-row-focus); border-radius: 8px; padding: 4px; }
 .shop__detail-name { margin: 0 0 4px; font-size: 15px; }
 .shop__detail-tags { margin: 0; opacity: 0.75; font-size: 11px; }
 .shop__detail-desc { margin: 6px 0; white-space: pre-line; }
 .shop__detail-price { margin: 0; font-weight: 700; }
-.shop__empty { font-size: 12px; color: var(--jeu-texte-vif, #fff); }
+.shop__empty { font-size: 12px; color: var(--screen-description-grey); }
 .shop__search { position: absolute; left: 316px; top: 96px; width: 360px; }

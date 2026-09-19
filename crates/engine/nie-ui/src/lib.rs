@@ -36,7 +36,7 @@
 //!   jetons de cette crate.
 //! - [`screens`] : l'inventaire typé des 33 captures de référence de `data/menu/` (transposition
 //!   de `manifest.json`, prouvée entrée par entrée quand le dossier est là).
-//! - [`surfaces`] : les 45 couleurs `--screen-*` MESURÉES sur ces captures (`pixel capture`),
+//! - [`surfaces`] : les 47 couleurs `--screen-*` MESURÉES sur ces captures (`pixel capture`),
 //!   l'angle du parallélogramme, et les règles de `game-screens.css` — engendré par
 //!   [`css::screens_block`] et `cargo run -p nie-ui --bin game_screens_css -- --write`.
 //!
