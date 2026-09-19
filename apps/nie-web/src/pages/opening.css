@@ -51,14 +51,3 @@
 @media (prefers-reduced-motion: reduce) {
 	.opening-screen__action { transition: none; }
 }
-.opening-audio-retry {
-	position: fixed;
-	right: 1rem;
-	top: 1rem;
-	z-index: 50;
-	padding: .5rem .75rem;
-	color: #fff;
-	background: #171b38;
-	border: 1px solid currentColor;
-	border-radius: .25rem;
-}

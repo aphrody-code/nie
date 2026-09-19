@@ -45,7 +45,18 @@ export function StartupResources({ titleActive }: { titleActive: boolean }) {
 			if (manifest.schemaVersion !== 1 || !manifest.title || !Array.isArray(manifest.system)) {
 				throw new Error("Invalid audio catalogue");
 			}
-			if (!abort.signal.aborted) await audio.load(manifest);
+			if (abort.signal.aborted) return;
+			await audio.load(manifest);
+			// Le geste de l'utilisateur a DÉJÀ eu lieu, et les écouteurs ci-dessus l'ont manqué.
+			//
+			// Ils ne sont posés qu'une fois le VFS prêt et le titre atteint — or on n'atteint le
+			// titre qu'en cliquant ou en appuyant sur une touche. Ce clic-là est donc consommé
+			// avant que quiconque l'écoute, et `AudioContext` reste suspendu jusqu'au geste
+			// SUIVANT. Le bouton « Activer le son » ne servait qu'à fournir ce geste manquant.
+			// `userActivation` dit si la page en a déjà reçu un : si oui, on reprend tout de
+			// suite, et la musique du menu part sans que l'on ait à redemander quoi que ce soit.
+			const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+			if (!abort.signal.aborted && activation?.hasBeenActive !== false) void audio.resume();
 		}).catch(() => { if (!abort.signal.aborted) setAudioState("failed"); });
 		return () => {
 			abort.abort();
@@ -61,9 +72,20 @@ export function StartupResources({ titleActive }: { titleActive: boolean }) {
 
 	useEffect(() => { player.current?.setMusicEnabled(titleActive); }, [titleActive]);
 
-	if (!titleActive || (audioState !== "blocked" && audioState !== "failed")) return null;
-	return <button type="button" className="opening-audio-retry"
-		onClick={() => audioState === "failed" ? setAttempt(value => value + 1) : player.current?.resume()}>
-		{audioState === "failed" ? "Réessayer le son" : "Activer le son"}
-	</button>;
+	// Une seule reprise, et seulement sur un ÉCHEC — `blocked` n'en est pas un, il attend un
+	// geste. `attempt` est aussi la clé de l'effet de chargement : l'incrémenter relance tout.
+	useEffect(() => {
+		if (audioState !== "failed" || attempt > 0) return;
+		const minuterie = window.setTimeout(() => setAttempt(1), 2_000);
+		return () => window.clearTimeout(minuterie);
+	}, [audioState, attempt]);
+
+	// Aucun bouton. Le jeu n'en a pas, et celui-ci demandait à l'utilisateur de réparer une
+	// mécanique du navigateur qu'il n'a pas à connaître : `blocked` se résout au premier geste,
+	// que les écouteurs plus haut captent, et `userActivation` rattrape celui qui a précédé.
+	//
+	// `failed` reste distinct, et c'est pourquoi une seule reprise automatique subsiste : sans
+	// elle, retirer le bouton rendrait un échec de chargement définitif pour la session. Une
+	// seule — réessayer en boucle un catalogue absent martèlerait l'origine sans rien réparer.
+	return null;
 }
