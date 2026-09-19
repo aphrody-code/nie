@@ -48,6 +48,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`modele-de-match.md`](modele-de-match.md) | Match simulation, and the shoot/save evaluator as actually reversed. |
 | [`mainmenu01-visual-analysis.md`](mainmenu01-visual-analysis.md) | Measurements and visual analysis of the `mainmenu01` layer. |
 | [`ui-convergence-visual-analysis.md`](ui-convergence-visual-analysis.md) | Where `nie-web` and Inacord agree visually, and where they do not. |
+| [`RENDER-QA.md`](RENDER-QA.md) | Graphics backends per platform, visual QA of an assembled GLB, and why the three rasterisers must be compared on a non-square viewport. |
 | [`BENCHMARKS.md`](BENCHMARKS.md) | Comparative performance measurements. |
 | [`VIDEO-STACK.md`](VIDEO-STACK.md) | The video stack chosen across the Rust and Bun ecosystems, measured on this machine. |
 | [`game-data/`](game-data/) | Extracted game-data references. |
@@ -58,11 +59,13 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 
 | Document | What it owns |
 | --- | --- |
+| [`SITE.md`](SITE.md) | What `nie.aphrody.com` is and is not: names, the placeholder home page, the one startup gate, the silent pagination clip. |
 | [`MCP.md`](MCP.md) | The pure-Rust native MCP server (`rmcp`), its security model and its tests. |
 | [`INSTALLATION.md`](INSTALLATION.md) | Installing the `niers` CLI from the `nie-cli` package. |
 | [`STEAM-LINUX.md`](STEAM-LINUX.md) | Steam/Proton/SteamCMD setup for running `nie.exe` natively on Linux. |
-| [`IEVR-SAVE-EDITOR-PORT.md`](IEVR-SAVE-EDITOR-PORT.md) | Reverse engineering and native Rust port of the Save Editor. |
-| [`IEVR-ULTIMATE-TEAM.md`](IEVR-ULTIMATE-TEAM.md) | The IEVR Ultimate Team port: Supabase mirror, pack simulator, formations, AES-256-GCM, MCP. |
+| [`IEVR-SAVE-EDITOR-PORT.md`](IEVR-SAVE-EDITOR-PORT.md) | Reverse engineering and native Rust port of the Save Editor (v2.2.2, .NET 9): 33 memory hooks, 142 Spirit Cards, 1 299 Supertechniques. |
+| [`IEVR-ULTIMATE-TEAM.md`](IEVR-ULTIMATE-TEAM.md) | Full native port of IEVR Ultimate Team: Supabase mirror (497 players, 69 teams, 8 packs), 663 assets (28 MB), pack simulator, 2D formation placement (9 canonical + dynamic algorithm A), AES-256-GCM, EAC bypass and MCP. |
+| [`NIE-ONLINE-MODE.md`](NIE-ONLINE-MODE.md) | The reversed network subsystem of `nie.exe` (Level-5 / Epic Online Services) and the `nie-net` community multiplayer architecture. |
 | [`ASTRO-LOR.md`](ASTRO-LOR.md) | Astro Lor, an **original** character: present in no CPK, produced entirely here. |
 | [`EXPORT-APP.md`](EXPORT-APP.md) | The app-icon export tool: 30 000+ files to WebP + zstd in one archive. |
 | [`BXC-NATIVE.md`](BXC-NATIVE.md) | Why the BXC browser engine stays consumed from npm while `ietv`/`zukan`/`wonderbot` stay here. |
