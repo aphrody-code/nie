@@ -255,7 +255,7 @@ fn the_server_answers_real_questions_about_the_binary() {
             inside_a_body += 1;
         } else if text_section.as_ref().is_some_and(|s| {
             let rva = vaddr.saturating_sub(base);
-            u32::try_from(rva).map_or(false, |r| s.contains_rva(r))
+            u32::try_from(rva).is_ok_and(|r| s.contains_rva(r))
         }) {
             leaf_functions += 1;
         }
