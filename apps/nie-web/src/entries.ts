@@ -16,6 +16,7 @@
  */
 import type { SanteApi as SiteHealth } from "@niers/asset-source";
 import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
+import { IDS_VUES } from "./desktop/lib/vues";
 import { splitLanguagePrefix } from "./routing";
 
 /** The VFS explorer, backed by the path-oriented VFS API. */
@@ -232,11 +233,15 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
  *
  * The identifiers are NOT re-declared here — they come from the view registry
  * (`desktop/lib/vues.ts`), the single place that says what the workspace contains.
+ *
+ * That sentence was already written here while the list right below it was hand-copied, and
+ * the two had drifted apart in both directions (measured 2026-09-19). The literal declared
+ * `character`, `database`, `network`, `mod` and `script`, which the registry does not carry —
+ * five addresses the router accepted and no view could answer — and it omitted `gallery`,
+ * `cpk`, `tools`, `mods`, `re`, `viola`, `livemod` and `lua`, eight views that existed and
+ * had no URL. `IDS_VUES` is the registry's own derived list, so neither can happen again.
  */
-export const INACORD_VIEW_ROUTES: readonly string[] = [
-	"editor", "explorer", "cinema", "dashboard", "search",
-	"data", "character", "database", "save", "network", "mod", "script", "settings",
-].map((id) => `${INACORD}/${id}`);
+export const INACORD_VIEW_ROUTES: readonly string[] = IDS_VUES.map((id) => `${INACORD}/${id}`);
 
 /**
  * Implemented host destinations in their display order. Health is retained in the public
