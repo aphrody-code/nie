@@ -1190,7 +1190,7 @@
     },
     {
       "id": "title-item-6",
-      "hostActionId": "mode-play_guide",
+      "hostActionId": "gallery",
       "label": "Guide joueur",
       "nativeActionHash": 1188921684,
       "rect": {

@@ -82,7 +82,7 @@ fn main() {
                 Quant::Float32 => {
                     f32_total += 1;
                     match echelle {
-                        Some(e) if e == 1.0 => f32_echelle_un += 1,
+                        Some(1.0) => f32_echelle_un += 1,
                         Some(_) => {}
                         None => f32_hors_table += 1,
                     }

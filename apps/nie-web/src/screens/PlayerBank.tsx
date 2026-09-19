@@ -130,28 +130,66 @@ function readCharas(value: unknown): RosterChara[] {
 		&& Boolean((row as RosterChara).stats));
 }
 
+/** Un personnage du profil complet : niveau atteint et statistiques à ce niveau. */
+interface ProfileChara {
+	id: string;
+	level: number;
+	stats: RosterEntry["stats"];
+	skills?: string[];
+	board_complete?: boolean;
+}
+
 /**
- * Le vivier : le profil complet s'il est servi, le repli typé sinon.
+ * Le vivier : les DEUX sources, jointes — jamais l'une au lieu de l'autre.
  *
- * `/api/v1/profile/complete` répond `404` tant que la route n'est pas déployée. Ce n'est pas
- * une panne à afficher : la même mesure existe sur `game-data/charas`, et l'origine retenue est
- * portée par chaque entrée (`origin`) plutôt que devinée par l'écran.
+ * ── POURQUOI LE PROFIL N'ARRIVAIT JAMAIS ───────────────────────────────────
+ * Cette fonction lisait `/api/v1/profile/complete`, puis passait ses personnages à
+ * `readCharas`, qui exige un `chara_param_id`. Or une entrée de profil porte `id`, `level`,
+ * `name`, `skills`, `stats` et `board_complete` — pas de `chara_param_id`. Le filtre les
+ * rejetait donc TOUS, `charas.length` valait 0, et l'écran retombait sur `game-data/charas`
+ * sans que rien ne le signale. Le profil complet n'a jamais été affiché.
+ *
+ * ── ET POURQUOI LES DEUX, PLUTÔT QUE L'UN ──────────────────────────────────
+ * Les deux réponses décrivent les mêmes 6 101 personnages, et se complètent exactement :
+ * `game-data` porte l'identité — élément, poste, série, équipe, `internal_code` d'où vient le
+ * portrait — et le profil porte le niveau atteint, les statistiques À ce niveau et
+ * `board_complete`. Prendre le profil seul afficherait des cartes sans élément ni poste ;
+ * prendre `game-data` seul perdrait le niveau. La jointure se fait sur
+ * `profil.id == game-data.chara_param_id`, vérifiée le 2026-09-19 : 6 101 sur 6 101, sans
+ * reste d'aucun côté.
  */
 async function loadRoster(signal: AbortSignal): Promise<RosterEntry[]> {
-	const profile = await fetch("/api/v1/profile/complete", { signal, headers: { accept: "application/json" } })
-		.catch(() => null);
-	if (profile?.ok) {
-		const body = await profile.json() as { charas?: unknown };
-		const charas = Array.isArray(body?.charas) ? readCharas(body.charas) : [];
-		if (charas.length > 0) {
-			return charas.map((chara) => ({
-				chara, level: PROFILE_LEVEL, stats: chara.stats, skills: chara.skills, origin: "profile" as const,
-			}));
-		}
+	const [profileResponse, dataResponse] = await Promise.all([
+		fetch("/api/v1/profile/complete", { signal, headers: { accept: "application/json" } }).catch(() => null),
+		fetch("/api/v1/game-data/charas", { signal, headers: { accept: "application/json" } }),
+	]);
+	if (!dataResponse.ok) throw new Error("Roster unavailable");
+	const charas = readCharas(await dataResponse.json());
+
+	// Le profil est facultatif : absent, l'écran montre le même vivier au niveau de référence,
+	// et chaque entrée dit d'où elle vient par `origin`.
+	let progression: Map<string, ProfileChara> | null = null;
+	if (profileResponse?.ok) {
+		const body = await profileResponse.json() as { charas?: unknown };
+		const rows = Array.isArray(body?.charas) ? body.charas as ProfileChara[] : [];
+		const valides = rows.filter((row) => row && typeof row.id === "string" && Boolean(row.stats));
+		if (valides.length > 0) progression = new Map(valides.map((row) => [row.id, row]));
 	}
-	const response = await fetch("/api/v1/game-data/charas", { signal, headers: { accept: "application/json" } });
-	if (!response.ok) throw new Error("Roster unavailable");
-	return rosterFromCharas(readCharas(await response.json()));
+	if (!progression) return rosterFromCharas(charas);
+
+	return charas.map((chara) => {
+		const atteint = progression.get(chara.chara_param_id);
+		if (!atteint) return { chara, level: PROFILE_LEVEL, stats: chara.stats, skills: chara.skills, origin: "game-data" as const };
+		return {
+			chara,
+			level: atteint.level,
+			stats: atteint.stats,
+			// Le profil rend une liste de techniques vide pour un personnage dont le plateau n'a
+			// rien débloqué : celle de `game-data` reste alors la seule mesure disponible.
+			skills: atteint.skills?.length ? atteint.skills : chara.skills,
+			origin: "profile" as const,
+		};
+	});
 }
 
 export interface PlayerBankUrlState {

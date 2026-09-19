@@ -19,7 +19,9 @@ const ACTIONS: readonly MainMenuAction[] = [
 	{ id: "data", label: "Données", glyph: "livre", onActivate: () => {} },
 	{ id: "settings", label: "Options", glyph: "engrenage", onActivate: () => {} },
 	...[
-		"story_mode", "chronicle_mode", "kizuna_town", "competition", "bb_stadium", "victory_road", "play_guide", "information",
+		// `play_guide` a quitté cette liste : sa tuile — « Guide joueur », le livre marqué d'un
+		// point d'exclamation — ouvre la Galerie des succès, que ce site sert.
+		"story_mode", "chronicle_mode", "kizuna_town", "competition", "bb_stadium", "victory_road", "information",
 	].map((slug) => ({ id: `mode-${slug}`, label: slug, glyph: "livre" as const, onActivate: () => {}, disabled: true })),
 ];
 const SOURCE = { urlTexture: (path: string) => `/assets/tex/${path}.png` } as never;
@@ -39,7 +41,9 @@ describe("native title-menu presentation", () => {
 	test("renders eleven native tiles plus both measured banners with VFS regions and native masks", () => {
 		const html = renderScene();
 		expect(html).toContain('data-scene-id="title-menu"');
-		expect(html.match(/data-menu-target=/g)).toHaveLength(16);
+		// Quinze : les treize contrôles natifs et les entrées du site qui n'en occupent pas un.
+		// Une de moins qu'avant, `mode-play_guide` ayant cédé sa place à la Galerie.
+		expect(html.match(/data-menu-target=/g)).toHaveLength(15);
 		expect(html.match(/data-native-layer="title-item-\d+-icon"/g)).toHaveLength(11);
 		expect(html).toContain("title02_01/fr/title02_01.g4tx/logo02.png");
 		expect(html).toContain("title00_07.g4tx/icon_btn07.png");
@@ -68,13 +72,15 @@ describe("native title-menu presentation", () => {
 		const html = renderScene();
 		const nativeHtml = html.split('<div class="runtime-main-menu__site-nav">')[0]!;
 		const buttons = [...nativeHtml.matchAll(/<button\b[^>]*>/g)].map((match) => match[0]);
-		expect(buttons.filter((button) => !button.includes('disabled=""'))).toHaveLength(4);
+		// Cinq, et non quatre : la Galerie a rejoint le Marché, l'Avatar, les Options et la Banque
+		// sur une position native, au lieu de flotter à côté du menu.
+		expect(buttons.filter((button) => !button.includes('disabled=""'))).toHaveLength(5);
 		expect(buttons.find((button) => button.includes('aria-label="Mode Histoire"'))).toContain('disabled=""');
 		expect(buttons.find((button) => button.includes('aria-label="Marché"'))).toContain('aria-current="true"');
 		expect(buttons.find((button) => button.includes('aria-label="Créer avatar"'))).not.toContain('disabled=""');
 		expect(buttons.find((button) => button.includes('aria-label="Stade BB"'))).toContain('disabled=""');
 		expect(buttons.find((button) => button.includes('aria-label="Station Kizuna"'))).toContain('disabled=""');
-		expect(buttons.find((button) => button.includes('aria-label="Guide joueur"'))).toContain('disabled=""');
+		expect(buttons.find((button) => button.includes('aria-label="Guide joueur"'))).not.toContain('disabled=""');
 		expect(buttons.find((button) => button.includes('aria-label="Informations"'))).toContain('disabled=""');
 		expect(buttons.map((button) => button.match(/aria-label="([^"]+)"/)?.[1])).toEqual([
 			"Mode Histoire", "Mode Chronique", "Station Kizuna", "Mode Compétition", "Stade BB", "Victory Road", "Marché", "Sauvegarder",
@@ -115,21 +121,24 @@ describe("native title-menu presentation", () => {
 			window.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true }));
 			await Promise.resolve();
 		});
+		// Le parcours suit la topologie du menu du JEU, relevée sur le rendu : le focus part du
+		// Marché, descend sur les Options, et la Galerie est la tuile à leur GAUCHE — « Guide
+		// joueur », le livre marqué d'un point d'exclamation. Elle n'est plus dans la rangée du
+		// site, où il fallait auparavant aller la chercher.
 		await key("ArrowDown");
+		await key("ArrowLeft");
+		expect(host.querySelector('[data-menu-target="title-item-6"] [aria-current="true"]')).not.toBeNull();
+		await key("Enter");
+		await Promise.resolve();
 		await key("ArrowDown");
 		expect(host.querySelector('[data-host-action="explorer"]')?.getAttribute("aria-current")).toBe("true");
 		await key("Enter");
 		await Promise.resolve();
-		await key("ArrowLeft");
-		expect(host.querySelector('[data-host-action="gallery"]')?.getAttribute("aria-current")).toBe("true");
-		await key("Enter");
-		await Promise.resolve();
-		await key("ArrowRight");
 		await key("ArrowRight");
 		expect(host.querySelector('[data-host-action="editor"]')?.getAttribute("aria-current")).toBe("true");
 		await key("Enter");
 		await Promise.resolve();
-		expect(activated).toEqual(["explorer", "gallery", "editor"]);
+		expect(activated).toEqual(["gallery", "explorer", "editor"]);
 
 		await act(async () => root.unmount());
 		host.remove();

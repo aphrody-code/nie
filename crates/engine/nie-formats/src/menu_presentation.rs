@@ -429,7 +429,12 @@ mod tests {
                 "mode-bb_stadium",
                 "mode-victory_road",
                 "shop",
-                "mode-play_guide",
+                // La tuile du jeu s'appelle « Guide joueur » (hash de libellé 882201751, résolu
+                // dans `menu_text.cfg.bin`) et ce nom ne bouge pas : ce qui change est ce
+                // qu'elle OUVRE. C'est derrière elle que vit la Galerie des succès, et son
+                // en-tête le montre — la tuile d'icône de `trophy_gallery.png` porte le même
+                // livre marqué d'un point d'exclamation, sur un vert mesuré à #73F556.
+                "gallery",
                 "settings",
                 "mode-information",
                 "bank",

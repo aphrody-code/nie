@@ -78,7 +78,8 @@ export function Game({
 			// `/modes` is internal, and the current Rust flow does not yet implement distinct native
 			// gameplay for these choices. Keep the measured tiles visible but unavailable rather than
 			// presenting the shared local simulation as five faithful game modes.
-			...["story_mode", "chronicle_mode", "kizuna_town", "competition", "bb_stadium", "victory_road", "play_guide", "information"].map((slug) => ({
+			// `play_guide` n'y figure plus : sa tuile porte la Galerie, servie par ce site.
+			...["story_mode", "chronicle_mode", "kizuna_town", "competition", "bb_stadium", "victory_road", "information"].map((slug) => ({
 				id: `mode-${slug}`,
 				label: slug,
 				glyph: "livre" as const,
