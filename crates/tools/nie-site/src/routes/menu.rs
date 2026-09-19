@@ -12,7 +12,7 @@
 use std::collections::BTreeMap;
 
 use axum::Json;
-use axum::extract::{Path, RawQuery, State};
+use axum::extract::{Path, Query, RawQuery, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 use nie_formats::cfgbin;
@@ -276,7 +276,7 @@ fn build_layout(
         layers_missing: detail.layers_missing.clone(),
     };
     menu_screen::build(
-        &SourceVfs { vfs, index },
+        &SourceVfs { vfs, index, locale },
         &spec,
         locale,
         &menu_text,
@@ -292,6 +292,12 @@ fn build_layout(
 struct SourceVfs<'a> {
     vfs: &'a Vfs,
     index: &'a IndexVfs,
+    /// La locale DEMANDÉE, et non `DEFAULT_LOCALE`.
+    ///
+    /// Elle était codée en dur dans `resolve_companion` : la fonction englobante recevait déjà
+    /// un `locale`, et le laissait tomber une ligne plus bas. Une texture porteuse de `<LG>` se
+    /// résolvait donc toujours en français, quelle que soit la demande.
+    locale: &'a str,
 }
 
 impl menu_screen::MenuSource for SourceVfs<'_> {
@@ -300,7 +306,41 @@ impl menu_screen::MenuSource for SourceVfs<'_> {
     }
 
     fn resolve_companion(&self, logical: &str) -> Option<String> {
-        super::inspect::resolve_companion(self.index, logical, super::inspect::DEFAULT_LOCALE)
+        super::inspect::resolve_companion(self.index, logical, self.locale)
+    }
+}
+
+/// La locale demandée par un appelant, et rien d'autre.
+///
+/// Elle était absente du contrat : le handler passait `DEFAULT_LOCALE` aux quatre points de
+/// plomberie alors que `build_layout`, `composer_ecran`, `lire_asset` et `lire_police` prennent
+/// TOUS un `locale: &str`. Un `?locale=ja` était donc accepté sans erreur et sans effet —
+/// mesuré 2026-09-19 sur `shop_menu` : `fr`, `en`, `ja` et `es` rendaient les mêmes 145 793
+/// octets. C'est pire qu'un refus : le client croit avoir obtenu ce qu'il demandait.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct DemandeLocale {
+    /// Tag de locale du jeu. Absent, la locale par défaut s'applique.
+    #[serde(default)]
+    pub locale: Option<String>,
+}
+
+impl DemandeLocale {
+    /// La locale retenue, ou un refus qui NOMME les valeurs acceptées.
+    ///
+    /// Validée contre `LOCALE_TAGS`, la même table que le VFS utilise pour décider qu'un segment
+    /// de chemin est une langue et non un dossier : accepter ici ce que la résolution de
+    /// compagnon rejettera plus bas ne ferait que déplacer l'échec.
+    fn resoudre(&self) -> Result<String, ErreurSite> {
+        let Some(demandee) = self.locale.as_deref().map(str::trim).filter(|l| !l.is_empty()) else {
+            return Ok(super::inspect::DEFAULT_LOCALE.to_owned());
+        };
+        if super::inspect::is_locale_tag(demandee) {
+            return Ok(demandee.to_owned());
+        }
+        Err(ErreurSite::Demande(format!(
+            "locale inconnue: {demandee} (connues: {})",
+            super::inspect::LOCALE_TAGS.join(", ")
+        )))
     }
 }
 
@@ -312,7 +352,9 @@ impl menu_screen::MenuSource for SourceVfs<'_> {
 pub async fn layout(
     State(state): State<EtatSite>,
     Path(screen): Path<String>,
+    Query(demande): Query<DemandeLocale>,
 ) -> Result<Json<Value>, ErreurSite> {
+    let locale = demande.resoudre()?;
     let axum::Json(detail) = super::screens::screen(State(state.clone()), Path(screen)).await?;
     let vfs = state.vfs()?;
     let index = state.index()?;
@@ -323,15 +365,9 @@ pub async fn layout(
         let visibilite = super::menu_runtime::visibilite_par_objet(
             std::sync::Arc::clone(&vfs),
             &detail.screen,
-            super::inspect::DEFAULT_LOCALE,
+            &locale,
         );
-        build_layout(
-            &vfs,
-            &index,
-            &detail,
-            super::inspect::DEFAULT_LOCALE,
-            &visibilite,
-        )
+        build_layout(&vfs, &index, &detail, &locale, &visibilite)
     })
     .await?;
     Ok(Json(body))
@@ -446,14 +482,15 @@ fn composer_ecran(
 pub async fn render(
     State(state): State<EtatSite>,
     Path(screen): Path<String>,
+    Query(demande): Query<DemandeLocale>,
 ) -> Result<Response, ErreurSite> {
+    let locale = demande.resoudre()?;
     let axum::Json(detail) = super::screens::screen(State(state.clone()), Path(screen)).await?;
     let vfs = state.vfs()?;
     let index = state.index()?;
-    let (png, report) = tokio::task::spawn_blocking(move || {
-        composer_ecran(&vfs, &index, &detail, super::inspect::DEFAULT_LOCALE)
-    })
-    .await??;
+    let (png, report) =
+        tokio::task::spawn_blocking(move || composer_ecran(&vfs, &index, &detail, &locale))
+            .await??;
     let mut headers = HeaderMap::new();
     headers.insert(
         axum::http::header::CONTENT_TYPE,

@@ -39,23 +39,42 @@ export async function resolvePlayerReference(
 ): Promise<AvatarPlayerReference> {
 	const lookup = identity.internalCode ?? identity.identifier;
 	if (!lookup) throw new Error("La référence joueur est vide.");
-	let rows: Array<CharaCatalogEntry & EntityRow>;
-	if (source.entityRows) {
-		rows = (await source.entityRows("inagle_characters", { q: lookup, perPage: 200, signal })).elements as Array<CharaCatalogEntry & EntityRow>;
-	} else if (source.hote === "nie") {
-		rows = (await fetchCharaCatalog({ q: lookup, perPage: 200, signal })).elements as Array<CharaCatalogEntry & EntityRow>;
-	} else if (source.wiki) {
-		rows = (await source.wiki<CharaCatalogEntry>("inagle_characters", {
-			q: lookup,
-			parPage: 200,
-			signal,
-		})).elements as Array<CharaCatalogEntry & EntityRow>;
-	} else {
-		throw new Error("La source locale ne sait pas résoudre les références joueur.");
-	}
+	// La recherche est FLOUE, la correspondance est EXACTE — d'où la marche sur les pages.
+	//
+	// `q=<lookup>` est un filtre par sous-chaîne, et la réponse est plafonnée à 200 entrées
+	// (`PER_PAGE_MAX`, appliqué en silence). Ne lire que la première page suffisait tant qu'un
+	// motif ramenait moins de 200 lignes ; au-delà, la bonne entrée pouvait être en page 2 et
+	// l'appelant recevait « Ce joueur n'existe pas dans le miroir canonique » — un faux négatif
+	// indiscernable d'un vrai. On s'arrête dès que la correspondance exacte est trouvée : le cas
+	// courant reste UNE requête.
 	const normalized = lookup.toLowerCase();
-	const entry = rows.find((candidate) => [candidate.internal_code, candidate.base_slug, candidate.slug]
-		.some((value) => typeof value === "string" && value.toLowerCase() === normalized));
+	const exact = (candidate: CharaCatalogEntry & EntityRow) =>
+		[candidate.internal_code, candidate.base_slug, candidate.slug]
+			.some((value) => typeof value === "string" && value.toLowerCase() === normalized);
+
+	const lirePage = async (page: number): Promise<{ elements: Array<CharaCatalogEntry & EntityRow>; pages: number }> => {
+		if (source.entityRows) {
+			const r = await source.entityRows("inagle_characters", { q: lookup, page, perPage: 200, signal });
+			return { elements: r.elements as Array<CharaCatalogEntry & EntityRow>, pages: r.pages };
+		}
+		if (source.hote === "nie") {
+			const r = await fetchCharaCatalog({ q: lookup, page, perPage: 200, signal });
+			return { elements: r.elements as Array<CharaCatalogEntry & EntityRow>, pages: r.pages };
+		}
+		if (source.wiki) {
+			const r = await source.wiki<CharaCatalogEntry>("inagle_characters", { q: lookup, page, parPage: 200, signal });
+			return { elements: r.elements as Array<CharaCatalogEntry & EntityRow>, pages: r.pages };
+		}
+		throw new Error("La source locale ne sait pas résoudre les références joueur.");
+	};
+
+	let entry: (CharaCatalogEntry & EntityRow) | undefined;
+	let pages = 1;
+	for (let page = 1; page <= pages && !entry; page += 1) {
+		const lot = await lirePage(page);
+		pages = Math.max(1, lot.pages);
+		entry = lot.elements.find(exact);
+	}
 	if (!entry?.internal_code) throw new Error("Ce joueur n’existe pas dans le miroir canonique.");
 	if (!source.urlModele) throw new Error("Cette source ne sait pas assembler le modèle du joueur.");
 	const stats = Object.fromEntries(Object.entries(STAT_COLUMNS).flatMap(([field, column]) => {

@@ -28,6 +28,30 @@ pub struct Episode {
     pub language: Option<String>,
     pub duration: Option<i64>,
     pub created_at: Option<i64>,
+    /// Nom de la chaîne qui a publié l'épisode (`channels.channel`), et non son identifiant.
+    ///
+    /// C'est la SEULE clé stable entre ce catalogue et celui d'un client installé : les deux
+    /// bases ont leur propre `AUTOINCREMENT`, donc un `channel_id` d'ici ne désigne rien
+    /// là-bas. Sans ce champ, `fusionner` côté client ne peut rattacher aucun épisode à une
+    /// chaîne et les écarte tous — un catalogue qui se met à jour en ne changeant rien.
+    pub channel: Option<String>,
+}
+
+/// Une chaîne du catalogue, telle qu'un client doit la recréer chez lui.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Channel {
+    pub id: i64,
+    pub channel: String,
+    pub title: Option<String>,
+}
+
+/// Une saison, rattachée à sa chaîne par l'identifiant DISTANT que porte `Channel::id`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Season {
+    pub channel_id: i64,
+    pub season: i64,
+    pub name: Option<String>,
+    pub total: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -35,6 +59,14 @@ pub struct EpisodePage {
     pub elements: Vec<Episode>,
     pub total: usize,
     pub latest_harvested: Option<i64>,
+    /// Les chaînes du catalogue, TOUJOURS en entier, même sous un `since` récent.
+    ///
+    /// Elles ne sont pas filtrées avec les épisodes : un client qui reçoit un seul épisode neuf
+    /// a besoin de la chaîne qui le publie, et elle peut lui être inconnue. Onze chaînes et
+    /// trente-neuf saisons pèsent quelques kilo-octets — les omettre pour les économiser ferait
+    /// écarter l'épisode.
+    pub channels: Vec<Channel>,
+    pub seasons: Vec<Season>,
 }
 
 #[must_use]
@@ -74,14 +106,40 @@ pub fn open_read_only(path: &Path) -> Result<Connection, EpisodeError> {
     Ok(connection)
 }
 
+/// Cette base porte-t-elle cette table ?
+///
+/// Un catalogue réduit aux seuls épisodes existe — les fixtures de `nie-site` en créent un, et
+/// il servait ses épisodes avant que les chaînes n'entrent dans la réponse. Interroger
+/// `channels` sans vérifier ferait échouer TOUTE la route sur une base que l'on savait lire :
+/// une fonctionnalité ajoutée ne doit pas retirer celle qui marchait.
+fn has_table(connection: &Connection, name: &str) -> Result<bool, EpisodeError> {
+    connection
+        .query_row(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            [name],
+            |_| Ok(()),
+        )
+        .map(|()| true)
+        .or_else(|error| match error {
+            rusqlite::Error::QueryReturnedNoRows => Ok(false),
+            other => Err(EpisodeError::Query(other)),
+        })
+}
+
 pub fn read_page(path: &Path, since: i64, limit: u32) -> Result<EpisodePage, EpisodeError> {
     let connection = open_read_only(path)?;
+    let avec_chaines = has_table(&connection, "channels")?;
     let mut query = connection
-        .prepare(
+        .prepare(if avec_chaines {
+            "SELECT e.id, e.season, e.episode, e.videoId, e.title, e.url, e.titleJp, e.romaji, \
+             e.thumbnail, e.publishDate, e.language, e.duration, e.createdAt, c.channel \
+             FROM episodes e LEFT JOIN channels c ON c.id = e.channel_id \
+             WHERE e.createdAt > ?1 ORDER BY e.createdAt ASC LIMIT ?2"
+        } else {
             "SELECT id, season, episode, videoId, title, url, titleJp, romaji, thumbnail, \
-             publishDate, language, duration, createdAt FROM episodes \
-             WHERE createdAt > ?1 ORDER BY createdAt ASC LIMIT ?2",
-        )
+             publishDate, language, duration, createdAt, NULL \
+             FROM episodes WHERE createdAt > ?1 ORDER BY createdAt ASC LIMIT ?2"
+        })
         .map_err(EpisodeError::Query)?;
     let elements = query
         .query_map(rusqlite::params![since, limit], |row| {
@@ -99,6 +157,7 @@ pub fn read_page(path: &Path, since: i64, limit: u32) -> Result<EpisodePage, Epi
                 language: row.get(10)?,
                 duration: row.get(11)?,
                 created_at: row.get(12)?,
+                channel: row.get(13)?,
             })
         })
         .map_err(EpisodeError::Query)?
@@ -112,7 +171,54 @@ pub fn read_page(path: &Path, since: i64, limit: u32) -> Result<EpisodePage, Epi
         total: elements.len(),
         latest_harvested,
         elements,
+        channels: if avec_chaines {
+            read_channels(&connection)?
+        } else {
+            Vec::new()
+        },
+        seasons: if has_table(&connection, "seasons")? {
+            read_seasons(&connection)?
+        } else {
+            Vec::new()
+        },
     })
+}
+
+/// Les chaînes déclarées par le catalogue.
+fn read_channels(connection: &Connection) -> Result<Vec<Channel>, EpisodeError> {
+    let mut query = connection
+        .prepare("SELECT id, channel, title FROM channels ORDER BY id")
+        .map_err(EpisodeError::Query)?;
+    query
+        .query_map([], |row| {
+            Ok(Channel {
+                id: row.get(0)?,
+                channel: row.get(1)?,
+                title: row.get(2)?,
+            })
+        })
+        .map_err(EpisodeError::Query)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(EpisodeError::Query)
+}
+
+/// Les saisons, rattachées à leur chaîne par l'identifiant de CETTE base.
+fn read_seasons(connection: &Connection) -> Result<Vec<Season>, EpisodeError> {
+    let mut query = connection
+        .prepare("SELECT channel_id, season, name, totalEpisodes FROM seasons ORDER BY channel_id, season")
+        .map_err(EpisodeError::Query)?;
+    query
+        .query_map([], |row| {
+            Ok(Season {
+                channel_id: row.get(0)?,
+                season: row.get(1)?,
+                name: row.get(2)?,
+                total: row.get(3)?,
+            })
+        })
+        .map_err(EpisodeError::Query)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(EpisodeError::Query)
 }
 
 pub fn read_feed(path: &Path, limit: u32) -> Result<Vec<Episode>, EpisodeError> {
@@ -125,6 +231,7 @@ pub fn read_feed(path: &Path, limit: u32) -> Result<Vec<Episode>, EpisodeError> 
                 season: row.get(1)?,
                 episode: row.get(2)?,
                 video_id: None,
+                channel: None,
                 title: row.get(4)?,
                 url: row.get(5)?,
                 title_jp: row.get(6)?,

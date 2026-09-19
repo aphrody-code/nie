@@ -52,7 +52,7 @@ pub struct Demande {
 ///
 /// Les noms de champs sont ceux des colonnes réelles de `episodes` — relevés par
 /// `PRAGMA table_info`, jamais devinés. Un nom inventé compile et rend `null` en silence.
-pub use nie_wiki::episodes::Episode;
+pub use nie_wiki::episodes::{Channel, Episode, Season};
 
 /// Corps de la réponse.
 #[derive(Debug, Serialize)]
@@ -63,6 +63,14 @@ pub struct PageEpisodes {
     pub total: usize,
     /// Date de moisson la plus récente parmi eux — le `since` du prochain appel.
     pub dernier_moissonne: Option<i64>,
+    /// Les chaînes et les saisons du catalogue, en entier.
+    ///
+    /// Un client fusionne par NOM de chaîne : les identifiants des deux bases sont
+    /// indépendants. Sans ces deux tableaux, chaque épisode reçu arrive sans chaîne connue et
+    /// se fait écarter — la mise à jour réussit et n'ajoute rien.
+    pub chaines: Vec<Channel>,
+    /// Les saisons, rattachées à leur chaîne par l'identifiant de CE catalogue.
+    pub saisons: Vec<Season>,
 }
 
 /// Compatibility adapter used by the feed route; SQLite policy remains owned by `nie-wiki`.
@@ -100,5 +108,7 @@ pub async fn episodes(
         total: page.total,
         dernier_moissonne: page.latest_harvested,
         elements: page.elements,
+        chaines: page.channels,
+        saisons: page.seasons,
     }))
 }

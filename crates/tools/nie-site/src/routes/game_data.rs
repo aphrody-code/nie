@@ -136,6 +136,24 @@ impl IntoResponse for Cached {
     }
 }
 
+/// `GET /api/v1/game-data` — the family index.
+///
+/// Sans cette route, `/api/v1/game-data` tombait dans l'attrape-tout `/api/v1/{nom}` des
+/// catalogues et répondait « filtre inconnu: game-data (connus: textures, modeles, sons, videos,
+/// tout) » — un message qui envoie le lecteur chercher une faute de frappe dans une liste qui
+/// n'a rien à voir avec ce qu'il demandait (mesuré 2026-09-19).
+///
+/// Elle sert aussi de source unique : `apps/nie-web` recopiait les 26 noms à la main, et rien ne
+/// reliait les deux listes — une 27e famille ajoutée ici serait restée injoignable côté client,
+/// sans erreur.
+pub async fn index() -> Cached {
+    Cached(serde_json::json!({
+        "familles": FAMILIES,
+        "total": FAMILIES.len(),
+        "route": "/api/v1/game-data/{famille}",
+    }))
+}
+
 /// `GET /api/v1/game-data/{family}` — one of the 26 families, cf. [`FAMILIES`].
 pub async fn family(
     State(etat): State<EtatSite>,

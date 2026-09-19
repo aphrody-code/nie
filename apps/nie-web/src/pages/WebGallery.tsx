@@ -12,6 +12,16 @@ import { splitLanguagePrefix } from "../routing";
 /** Name hits expanded into VFS lookups. One exact, bounded catalogue page is requested per hit. */
 const MAX_NAME_CODES = 12;
 
+/**
+ * Pages lues au plus pour UN code, soit 2 000 textures.
+ *
+ * La borne existe parce que douze codes sont interrogés de front : sans elle, un code
+ * anormalement fourni ferait partir des centaines de requêtes pour enrichir une seule page de
+ * résultats. Atteinte, elle tronque — mais alors le corpus a changé d'ordre de grandeur, et
+ * c'est la borne qu'il faut relever, pas la lecture de `pages` qu'il fallait omettre.
+ */
+const PAGES_MAX_PAR_CODE = 10;
+
 export interface WebGalleryFilterState {
  query: string;
  category: string | null;
@@ -106,11 +116,22 @@ export function createWebGalleryServices(
     if (response.ok) {
      const body = await response.json() as { records?: { code: string }[] };
      const codes = [...new Set((body.records ?? []).map(record => record.code).filter(Boolean))].slice(0, MAX_NAME_CODES);
+     // `page: 1` était écrit en dur et `pages` ignoré : dès qu'un code portait plus de 200
+     // textures, le reste disparaissait en silence — et `total`, calculé plus bas à partir de
+     // cette liste, devenait faux, donc la pagination affichée aussi. La réponse est plafonnée
+     // à `PER_PAGE_MAX` sans le dire autrement que par `pages`, alors on la lit. Le cas courant
+     // reste UNE requête par code : `pages` vaut 1.
      const pages = await Promise.all(codes.map(async code => {
-      const matches = await source.catalogue!("textures", {
-       prefixe: prefix, ext, q: code, page: 1, parPage: 200, signal,
-      });
-      return matches.elements.map(entry => ({ path: entry.chemin, size: entry.taille }));
+      const sorties: { path: string; size: number }[] = [];
+      let total = 1;
+      for (let page = 1; page <= total && page <= PAGES_MAX_PAR_CODE; page += 1) {
+       const matches = await source.catalogue!("textures", {
+        prefixe: prefix, ext, q: code, page, parPage: 200, signal,
+       });
+       total = Math.max(1, matches.pages);
+       for (const entry of matches.elements) sorties.push({ path: entry.chemin, size: entry.taille });
+      }
+      return sorties;
      }));
      const lowerTerm = term.toLocaleLowerCase();
      const unique = new Map<string, { path: string; size: number }>();

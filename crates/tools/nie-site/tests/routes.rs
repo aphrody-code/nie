@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 142] = [
+    let instances: [(&str, &[u16]); 143] = [
         ("/healthz", &[200]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
@@ -290,6 +290,7 @@ async fn toutes_les_routes_declarees_repondent() {
         // is mounted but carries none of the game's `.cfg.bin`, so a known family still 503s
         // (the file it needs is not there) — same shape as `/api/v1/passives` above. An unknown
         // family is a 404 regardless of what is mounted.
+        ("/api/v1/game-data", &[200]),
         ("/api/v1/game-data/skills", &[503]),
         ("/api/v1/game-data/not-a-real-family", &[404]),
         ("/api/v1/game-data/skills/whs00340", &[503]),
@@ -305,7 +306,7 @@ async fn toutes_les_routes_declarees_repondent() {
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 140, "le routeur monte 140 routes");
+    assert_eq!(declarees.len(), 141, "le routeur monte 141 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -337,7 +338,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 142, "142 instances interrogees pour 140 routes");
+    assert_eq!(vus, 143, "143 instances interrogees pour 141 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).
