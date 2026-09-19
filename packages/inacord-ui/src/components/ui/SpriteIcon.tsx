@@ -1,5 +1,5 @@
 import type React from "react";
-import { SPRITE_SHEET_SRC, SPRITES } from "@niers/inacord-ui/config/sprites";
+import { SPRITES, feuilleSpritesCourante } from "@niers/inacord-ui/config/sprites";
 import type { SpriteKey } from "@niers/inacord-ui/config/sprites";
 import { cn } from "@niers/inacord-ui/lib/utils";
 import styles from "./SpriteIcon.module.css";
@@ -48,7 +48,7 @@ export const SpriteIcon = ({
 			<div
 				className={cn(styles.sprite, styles[variant])}
 				style={{
-					backgroundImage: `url(${SPRITE_SHEET_SRC})`,
+					backgroundImage: `url(${feuilleSpritesCourante()})`,
 					backgroundPosition: `-${x * scale}px -${y * scale}px`,
 					backgroundSize: `${SHEET_W * scale}px ${SHEET_H * scale}px`,
 					height: `${displayH}px`,

@@ -39,6 +39,8 @@ import {
 	type CharaFacet,
 	type CharaSort,
 } from "@niers/asset-source/chara";
+import { StatHeptagon } from "@niers/inacord-ui/components/wiki/wiki/StatHeptagon";
+import { getCharacterFaceUrl } from "@niers/inacord-ui/lib/wikiImages";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { listPage, stepCursor } from "../game/list-page";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -97,6 +99,25 @@ const LIST_LAYER = 0x1ac99083;
  */
 async function loadLayout(locale: GameLocale, signal: AbortSignal): Promise<LayoutJeu> {
 	return lireLayout(await loadMenuLayout(SCREEN, locale, signal));
+}
+
+/**
+ * Les sept statistiques, sous les noms qu'attend le composant partagé.
+ *
+ * `RosterStats` les abrège (`kc`, `cr`, `tc`…) parce que c'est ainsi que la donnée de jeu les
+ * nomme ; `StatHeptagon` les épelle. La traduction vit ici, à la frontière, plutôt que d'imposer
+ * l'un des deux vocabulaires à l'autre.
+ */
+function heptagone(stats: RosterEntry["stats"]) {
+	return {
+		kick: stats.kc,
+		control: stats.cr,
+		technique: stats.tc,
+		pressure: stats.pr,
+		physical: stats.ps,
+		agility: stats.ag,
+		intelligence: stats.it,
+	};
 }
 
 /** Une réponse de `/api/v1/game-data/charas`, vérifiée avant d'être liée à la liste. */
@@ -591,7 +612,20 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 										className="player-bank__face"
 										alt=""
 										loading="lazy"
-										src={face(`data/dx11/chara/face/${entry.chara.internal_code}.g4tx`)}
+										/*
+										 * Le chemin vient du module partagé, il n'est pas reconstruit ici.
+										 *
+										 * Cette ligne composait `data/dx11/chara/face/<code>.g4tx`, qui N'EXISTE PAS :
+										 * `niers vfs find c01001230` ne rend rien sous ce préfixe, et la requête
+										 * correspondante répondait 404 quand la bonne rend 31 788 octets. Toutes les
+										 * vignettes de la Banque étaient donc muettes, et le `onError` juste en dessous
+										 * masquait l'image — un défaut qu'aucun écran ne signalait. Le dépôt portait ce
+										 * chemin dans UN seul fichier, celui-ci, contre huit pour le bon.
+										 *
+										 * `getCharacterFaceUrl` sait en plus qu'une variante de tenue (`_5000`) n'a pas
+										 * de visage propre et retombe sur le code de base.
+										 */
+										src={face(getCharacterFaceUrl(entry.chara.internal_code))}
 										onError={(event) => { event.currentTarget.style.visibility = "hidden"; }}
 									/>
 								) : null}
@@ -635,15 +669,20 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 							<p className="player-bank__detail-level">Niv. {focused.level}</p>
 							{focused.chara.description ? <p className="player-bank__detail-desc">{focused.chara.description}</p> : null}
 							{hideStats ? null : (
-								<dl className="player-bank__stats">
-									{ROSTER_STATS.map((stat) => (
-										<div key={stat.key}>
-											<dt>{stat.label}</dt>
-											<dd>{focused.stats[stat.key]}</dd>
-										</div>
-									))}
-									<div><dt>Total</dt><dd>{focused.stats.total}</dd></div>
-								</dl>
+								<div className="player-bank__stats">
+									{/*
+									  * ATTRIBUTS — le radar du jeu, pas une liste.
+									  *
+									  * `bank_character_detail.png` dessine les sept statistiques sur un heptagone, chacune
+									  * étiquetée des postes où elle compte. `StatHeptagon` fait déjà exactement cela : il a
+									  * été écrit pour le wiki Azalée, et ses étiquettes (`kick → ATT`,
+									  * `control → ATT/MIL`, `pressure → GAR/DÉF`, `agility → GAR`, `intelligence → DÉF/MIL`)
+									  * coïncident avec celles relevées sur la capture. Le `<dl>` qui était ici perdait
+									  * l'information de poste, que le jeu montre.
+									  */}
+									<StatHeptagon stats={heptagone(focused.stats)} />
+									<p className="player-bank__stats-total">Total {focused.stats.total}</p>
+								</div>
 							)}
 							<ul className="player-bank__skills">
 								{focused.skills.map((skill) => <li key={skill}>{skill}</li>)}

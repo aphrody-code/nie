@@ -10,6 +10,35 @@ export interface SpriteCoords {
 // Main spritesheet for role icons
 export const SPRITE_SHEET_SRC = "/icon_common2.webp";
 
+/**
+ * Où l'hôte courant trouve la feuille de sprites.
+ *
+ * `SPRITE_SHEET_SRC` désigne un fichier posé à la racine publique, ce qui est vrai pour Inacord
+ * (`apps/inacord/public/icon_common2.webp`) et pour la construction bureau de `nie-web`
+ * (`dist-desktop/`), mais PAS pour sa construction web : `apps/nie-web/public/` ne l'a pas, et
+ * `https://nie.aphrody.com/icon_common2.webp` répond 404 (mesuré 2026-09-19). Tout composant qui
+ * s'appuie dessus dans une page dessine donc des étiquettes vides, sans erreur.
+ *
+ * Y recopier un QUATRIÈME exemplaire serait un recul : `nie-site` sert déjà la texture depuis le
+ * VFS du jeu, et PAR LANGUE —
+ * `/assets/tex/dx11/menu/200_icon/15_icon_common2/fr/icon_common2.png` rend 74 158 octets. C'est
+ * la même image que le jeu dessine, pas une copie qui dérivera de lui.
+ *
+ * L'hôte pose donc sa source ; le défaut reste le fichier racine, pour ne rien changer là où il
+ * existe déjà.
+ */
+let feuilleSprites = SPRITE_SHEET_SRC;
+
+/** Déclare où l'hôte sert la feuille. Appelé une fois, au démarrage de l'application. */
+export function poserFeuilleSprites(source: string): void {
+	feuilleSprites = source;
+}
+
+/** La source effective, pour les composants qui la peignent. */
+export function feuilleSpritesCourante(): string {
+	return feuilleSprites;
+}
+
 // Class/position icons spritesheet (73x73 grid) — servi via CDN local depuis 2026-05.
 export const CLASS_SPRITE_SHEET_SRC =
 	"https://nie.aphrody.com/static/azalee/menu/200_icon/06_icon_class/icon_class_s.webp";
