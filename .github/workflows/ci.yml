@@ -3,9 +3,24 @@
 # POURQUOI PAS UN RUNNER GITHUB
 # Le dépôt dépend en `path` du dépôt frère `../aphrody` (8,1 Gio, privé) : sans lui,
 # `cargo metadata` échoue avant même la première compilation. La toolchain est épinglée
-# par `rust-toolchain.toml` (nightly-2026-05-17), le linker est mold, et les fixtures
+# par `rust-toolchain.toml` (stable 1.98.1), le linker est mold, et les fixtures
 # lourdes sont gitignorées. Vendoriser 8 Gio pour chaque exécution coûterait plus cher
 # que ce que la CI vérifie.
+#
+# POURQUOI LA PORTE EST CADRÉE, ET POURQUOI ELLE RESTE UN SEUL JOB
+# Le dépôt publie cinq surfaces (cli, mcp, site, desktop, model) et elles partagent
+# l'essentiel de leurs crates : union des cinq fermetures = 36 des 47 membres, et `cli`
+# n'en a aucune qui lui soit propre. Mesuré sur les 400 derniers commits, un job par
+# surface coûterait 19 638 compilations de crate (21 475 si `nie-wasm` a sa lane) contre
+# 18 800 pour un `clippy --workspace` — un découpage par surface est PLUS cher, parce que
+# chaque crate partagée serait recompilée une fois par lane. Il ferait aussi tourner cinq
+# `cargo` en parallèle sur un VPS où les compilations se font déjà tuer par l'OOM.
+# La porte reste donc UN job, cadré sur l'UNION des surfaces que le diff peut avoir
+# cassées : 10 026 compilations sur les mêmes 400 commits, soit 46,7 % de moins, parce que
+# 34,5 % des commits n'atteignent aucune surface (docs, scripts, data) et que seuls 6,8 %
+# touchent un manifeste partagé et exigent réellement les 47.
+# `scripts/surfaces.ts` porte ce calcul ; il dérive les fermetures de `cargo metadata`, donc
+# aucune liste ne peut dériver.
 #
 # CE QUE CE WORKFLOW NE FAIT PAS, ET POURQUOI
 # · `cargo fmt --check` : le dépôt n'a jamais adopté les réglages par défaut de rustfmt
@@ -34,8 +49,51 @@ on:
 concurrency:
   group: ci-${{ github.ref }}
 
+permissions:
+  contents: read
+
 jobs:
+  plan:
+    runs-on: [self-hosted, niers-vps]
+    timeout-minutes: 5
+    outputs:
+      surfaces: ${{ steps.plan.outputs.surfaces }}
+      any: ${{ steps.plan.outputs.any }}
+    steps:
+      # `fetch-depth: 0` : la base du diff doit exister localement, sinon `git diff` échoue
+      # et la porte se croirait vide — un faux négatif silencieux.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Quelles surfaces ce diff peut-il avoir cassées
+        id: plan
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          # `github.event.before` vaut 40 zéros sur une première poussée de branche : il n'y a
+          # alors pas de base, et tout doit être vérifié plutôt que rien.
+          base="$BASE"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+          fi
+          plan="$(bun run scripts/surfaces.ts plan --base "$base" --json)"
+          echo "$plan"
+          surfaces="$(echo "$plan" | bun -e 'const p=JSON.parse(await Bun.stdin.text()); console.log(p.surfaces.join(","))')"
+          echo "surfaces=$surfaces" >> "$GITHUB_OUTPUT"
+          echo "any=$([ -n "$surfaces" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Portée du diff"
+            echo
+            echo "- base : \`$base\`"
+            echo "- surfaces : ${surfaces:-_aucune — aucune porte Rust ne sera jouée_}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   quality:
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
     runs-on: [self-hosted, niers-vps]
     timeout-minutes: 45
     env:
@@ -45,8 +103,11 @@ jobs:
       # `target/` de plusieurs gigaoctets ferait tomber le déploiement d'azalée sous son
       # propre garde-fou (il refuse en dessous de 5 Gio libres).
       CARGO_TARGET_DIR: /home/ubuntu/niers/target
+      SURFACES: ${{ needs.plan.outputs.surfaces }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Toolchain et dépendances présentes (pré-vol)
         run: |
@@ -58,11 +119,32 @@ jobs:
           test -f Cargo.lock && test ! -f apps/inacord/src-tauri/Cargo.lock || { echo 'Expected one root Cargo.lock'; exit 1; }
           df -h / | tail -1
 
-      - name: Clippy — 0 warning attendu sur toutes les cibles
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Clippy cadré sur les surfaces touchées — 0 warning attendu
+        run: |
+          set -euo pipefail
+          crates="$(bun -e '
+            const { unionClosure } = await import("./scripts/surfaces.ts");
+            const names = (process.env.SURFACES ?? "").split(",").filter(Boolean);
+            console.log((await unionClosure(names)).join(" "));
+          ')"
+          echo "surfaces: $SURFACES"
+          echo "crates gardés: $(echo "$crates" | wc -w) / 47"
+          # shellcheck disable=SC2086
+          cargo clippy --locked --all-targets $(for c in $crates; do printf -- '-p %s ' "$c"; done) -- -D warnings
 
       - name: Tests des crates du cœur (sans données sous copyright)
         run: cargo test -p nie-core -p nie-pe -p nie-asm -p nie-forge --locked
 
       - name: Build wasm (portabilité des crates du jeu)
+        if: contains(needs.plan.outputs.surfaces, 'site')
         run: cargo build -p nie-wasm --target wasm32-unknown-unknown --release --locked
+
+  scripts:
+    # Le cliquet de types de `scripts/` : 55 fichiers TypeScript y vivaient sans qu'aucun
+    # tsconfig ne les couvre, release et deploy compris. Cf. scripts/tsconfig.gate.json.
+    runs-on: [self-hosted, niers-vps]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck:scripts

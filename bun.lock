@@ -6,8 +6,11 @@
       "name": "nie-monorepo",
       "devDependencies": {
         "@happy-dom/global-registrator": "catalog:",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "@types/pg": "catalog:",
         "pg": "catalog:",
+        "typescript": "catalog:",
       },
     },
     "apps/cdn-variants": {

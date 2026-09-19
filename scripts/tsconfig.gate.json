@@ -1,0 +1,42 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"extends": "./tsconfig.json",
+	"_comment": [
+		"The GREEN subset of scripts/, and the gate `bun run typecheck:scripts` runs.",
+		"Measured 2026-09-19: 55 TypeScript files live under scripts/ and NO tsconfig covered any of",
+		"them, so the release and deploy pipeline shipped without a type gate. Switching the whole",
+		"directory on at once yields 299 errors (almost all noUncheckedIndexedAccess), and this",
+		"repository refuses a permanently red gate: a gate that is always red is a gate nobody reads.",
+		"So this file is a RATCHET. 25 files are green today. Clean one more, add it here, and it can",
+		"never regress. A new script belongs in this list from its first commit.",
+		"The remaining 30 are listed in CONTRIBUTING.md under 'Type gate ratchet'."
+	],
+	"include": [],
+	"files": [
+		"donnees/audit-vfs-contents.ts",
+		"donnees/query-knowledge.ts",
+		"download-all-chunks.ts",
+		"extract-ut-asset-urls.ts",
+		"find-duplicates-md.ts",
+		"gen-a2a-sync.ts",
+		"link-all-skills.ts",
+		"mirror-supabase-db.ts",
+		"surfaces.ts",
+		"sync-main.test.ts",
+		"sync-main.ts",
+		"sync-memory-to-agy.ts",
+		"validation/download-zukan-reference.ts",
+		"validation/gate-menu-browser.ts",
+		"validation/gate-menu.test.ts",
+		"validation/gate-menu.ts",
+		"validation/image-metrics.test.ts",
+		"validation/image-metrics.ts",
+		"validation/live-fidelity-audit.ts",
+		"validation/measure-rust-web-coverage.ts",
+		"validation/menu-acceptance.test.ts",
+		"validation/menu-acceptance.ts",
+		"validation/menu-capture-plan.test.ts",
+		"validation/menu-capture-plan.ts",
+		"validation/zukan-corpus.ts"
+	]
+}

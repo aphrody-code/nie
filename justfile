@@ -226,8 +226,42 @@ all-check: fmt-check clippy
     @echo "all-check=OK"
 
 # Full local readiness gate; fails at the first red check and prints each gate name.
+# Le script est PowerShell et le VPS de production est Linux : appeler `powershell.exe`
+# inconditionnellement faisait échouer la recette sur l'hôte où elle sert le plus. On prend le
+# chemin PowerShell quand il existe, la porte cadrée sinon — elles vérifient la même chose.
 verify:
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-monorepo.ps1
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v powershell.exe > /dev/null 2>&1; then
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-monorepo.ps1
+    else
+        bun run scripts/surfaces.ts gate
+        bun run typecheck:scripts
+        bun run docs:check
+    fi
+
+# --- Surfaces : construire, vérifier et publier UNE surface à la fois -----------------
+# cli · mcp · site · desktop · model. Cf. CONTRIBUTING.md § « Shipping ».
+# La porte reste UN seul job cadré sur l'union des surfaces touchées : un job par surface
+# recompilerait chaque crate partagée une fois par lane (mesuré : 19 638 compilations contre
+# 10 026 pour l'union, sur 400 commits).
+
+# Les cinq surfaces et le nombre de crates dont chacune est construite.
+surfaces:
+    bun run scripts/surfaces.ts list
+
+# Quelles surfaces le diff courant peut-il avoir cassées.
+surfaces-plan base="origin/main":
+    bun run scripts/surfaces.ts plan --base {{base}}
+
+# La porte, cadrée : `just porte` sur le diff, `just porte site` sur une surface.
+porte surface="":
+    bun run scripts/surfaces.ts gate {{surface}}
+
+# Construire puis vérifier l'artefact d'une surface.
+surface-build surface:
+    bun run scripts/surfaces.ts build {{surface}}
+    bun run scripts/surfaces.ts smoke {{surface}}
 
 # Les deux portes INTER-HÔTES : le même Rust compilé pour wasm32 et pour l'hôte doit rendre la
 # même chose. Aucun test unitaire ne les remplace — ils ont déjà attrapé un module publié plus

@@ -1,0 +1,100 @@
+# Release d'UNE surface, et d'une seule.
+#
+# POURQUOI DES TAGS PRÉFIXÉS
+# Les cinq surfaces partagent leurs crates mais pas leur rythme : le site bouge sur 17,2 %
+# des commits, le CLI sur 0,5 %. Un tag unique `v0.6.1` forcerait à reconstruire et à
+# republier les cinq à chaque fois, donc à ne jamais publier. Un tag `cli-v0.6.1` ne
+# construit que la fermeture du CLI et ne produit que son artefact.
+#
+#   cli-v*      niers, la ligne de commande native
+#   mcp-v*      nie-mcp, le serveur Model Context Protocol
+#   site-v*     nie-site et le module WebAssembly qu'il sert
+#   desktop-v*  Inacord, l'application Tauri
+#   model-v*    nie-model-serve
+#
+# CE QUE CE WORKFLOW NE FAIT PAS : déployer. La mise en production passe par
+# `scripts/deploy-target.ts`, à la main, sur demande explicite — un tag ne touche aucun
+# service en marche. Cf. CONTRIBUTING.md, « Publier ».
+name: release
+
+on:
+  push:
+    tags:
+      - "cli-v*"
+      - "mcp-v*"
+      - "site-v*"
+      - "desktop-v*"
+      - "model-v*"
+  workflow_dispatch:
+    inputs:
+      surface:
+        description: Surface à construire (aucune publication)
+        required: true
+        type: choice
+        options: [cli, mcp, site, desktop, model]
+
+concurrency:
+  group: release-${{ github.ref }}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: [self-hosted, niers-vps]
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_TARGET_DIR: /home/ubuntu/niers/target
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Déduire la surface du tag
+        id: surface
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            surface="${{ inputs.surface }}"
+          else
+            # refs/tags/site-v0.6.1 -> site
+            surface="${GITHUB_REF_NAME%%-v*}"
+          fi
+          bun run scripts/surfaces.ts closure "$surface" > /dev/null
+          echo "name=$surface" >> "$GITHUB_OUTPUT"
+          echo "Surface : $surface" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Porte cadrée sur cette surface
+        run: bun run scripts/surfaces.ts gate "${{ steps.surface.outputs.name }}"
+
+      - name: Construire l'artefact
+        run: bun run scripts/surfaces.ts build "${{ steps.surface.outputs.name }}"
+
+      - name: Vérifier l'artefact produit
+        run: bun run scripts/surfaces.ts smoke "${{ steps.surface.outputs.name }}"
+
+      - name: Publier la release GitHub
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          surface='${{ steps.surface.outputs.name }}'
+          # Chaque surface ne publie QUE son propre binaire : c'est tout l'objet des tags
+          # préfixés, et joindre un artefact voisin recréerait le couplage qu'ils suppriment.
+          case "$surface" in
+            cli)     assets='target/release/niers' ;;
+            mcp)     assets='target/release/nie-mcp' ;;
+            site)    assets='target/release/nie-site' ;;
+            desktop) assets='target/release/inacord' ;;
+            model)   assets='target/release/nie-model-serve' ;;
+            *) echo "surface inconnue: $surface" >&2; exit 1 ;;
+          esac
+          for asset in $assets; do
+            test -f "$asset" || { echo "artefact absent: $asset" >&2; exit 1; }
+            sha256sum "$asset" | tee -a "$RUNNER_TEMP/SHA256SUMS"
+          done
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Surface \`$surface\`. Voir CHANGELOG.md. Les sommes SHA-256 sont jointes." \
+            --verify-tag \
+            $assets "$RUNNER_TEMP/SHA256SUMS"

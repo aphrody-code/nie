@@ -248,6 +248,7 @@
 		"build": "bun run --filter '*' build",
 		"test": "bun run --filter '*' test",
 		"typecheck": "bun run --filter '*' typecheck",
+		"typecheck:scripts": "bunx tsc -p scripts/tsconfig.gate.json --noEmit",
 		"lint": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction packages apps",
 		"lint:fix": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction --fix packages apps",
 		"release:all": "bun scripts/release-all.ts",
@@ -255,12 +256,17 @@
 		"deploy:target": "bun scripts/deploy-target.ts",
 		"sync:main": "bun scripts/sync-main.ts",
 		"docs:check": "bun run scripts/docs/check.ts",
-		"check:dependencies": "uv run --no-project python scripts/validation/dependency-owners.py"
+		"check:dependencies": "uv run --no-project python scripts/validation/dependency-owners.py",
+		"surfaces": "bun run scripts/surfaces.ts",
+		"gate": "bun run scripts/surfaces.ts gate"
 	},
 	"devDependencies": {
 		"@happy-dom/global-registrator": "catalog:",
+		"@types/bun": "catalog:",
+		"@types/node": "catalog:",
 		"@types/pg": "catalog:",
-		"pg": "catalog:"
+		"pg": "catalog:",
+		"typescript": "catalog:"
 	},
 	"overrides": {
 		"@aphrody-code/bxc": "npm:@aphrody/bxc@^0.9.10",
