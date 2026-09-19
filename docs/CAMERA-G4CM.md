@@ -128,6 +128,10 @@ le décident, sur les 1 215 fichiers, **sans une exception** :
 
 Si la table vivait ailleurs, rien n'expliquerait que 2 920 indices tombent tous sur `1.0`.
 
+La lecture de l'octet 6 est en outre confirmée par un **second** appelant, indépendant du premier :
+`0x1405AB1AF-0x1405AB1C1` fait `movzx r8d, byte [rbx+6]` puis `movss xmm2, [rbp + r8*4]`, avec
+`rbp` en base de table là où l'autre avait `r15`. Deux sites, même indexation.
+
 ## La panne muette : l'alignement de la section des temps
 
 `decode` plaçait la table de temps partagée à `(fin des canaux + 15) & !15`. Le vrai granule est
@@ -190,11 +194,24 @@ Trois points, tous nommés et aucun deviné.
 **1. L'unité de `fov` et de `roll`.** Ils se déquantifient sans difficulté, dans des plages de
 l'ordre de `−0,37` à `0,80`, qui ne sont ni des degrés ni des radians. **Aucun canal `f32` de ces
 deux genres n'existe dans les 1 215 fichiers**, donc il n'y a pas d'oracle par comparaison de
-distributions. La voie est le « setter » de propriété appelé en `0x1405AAF82` : le jeu y choisit
-une fonction par `kind − 0x10` (index 14 pour `Fov`, 15 pour `Roll`) dans une table de tables ;
-l'émuler dirait exactement ce qu'il fait de la valeur. En attendant,
-`nie_camera::anim::EtatEchantillonne` garde le `fov_deg` par défaut et expose la valeur brute à
-côté — **aucun code ne convertit au jugé**, et un test tombe si quelqu'un s'y essaie.
+distributions.
+
+*La voie du « setter » de propriété est RÉFUTÉE — ne pas la reprendre.* L'idée était d'émuler la
+fonction que le jeu appelle en `0x1405AAF82`, choisie par `kind − 0x10` dans une table de tables.
+Mesuré : `r14` vaut `0x141981BD0`, qui porte **deux** sous-tables (`0x141981A90` et `0x141981B30`,
+sélectionnées par `r10 & 1`). Dans les deux, seules les entrées **0 à 5** sont peuplées ; les
+entrées **6 à 15 — celles qui couvriraient `posX`…`roll` — sont NULL**. Les deux seuls appelants
+de l'échantillonneur qui appliquent `sub eax, 0x10` (`0x1405AAF4A` et `0x1405AB1D1`) pointent la
+même table. Les `kind` d'un `.g4cm` ne transitent donc **pas** par ce dispatch : les y envoyer
+sauterait sur un pointeur nul. Cette boucle est une boucle sœur, sur un autre type de cible — la
+structure de canal de 20 octets est partagée entre conteneurs G4.
+
+Ce qui reste : les 13 autres appelants de `0x140506B00`, dont aucun n'applique `sub eax, 0x10`,
+et le contrôleur de caméra, qui consomme vraisemblablement le tableau déjà décodé.
+
+En attendant, `nie_camera::anim::EtatEchantillonne` garde le `fov_deg` par défaut et expose la
+valeur brute à côté — **aucun code ne convertit au jugé**, et un test tombe si quelqu'un s'y
+essaie.
 
 **2. Le décodeur `mode = 1`.** `0x140506D00`, non désassemblé, concerne **2 761 canaux**
 (2 748 en taille 1, 13 en taille 2). `Channel::quant()` les rend `Quant::Inconnu` et
