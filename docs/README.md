@@ -29,7 +29,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`RE.md`](RE.md) | The RE knowledge base, function anchoring, decompiled structures. |
 | [`FORGE.md`](FORGE.md) | Producing `nie.exe` byte for byte, and the measurement that judges it. |
 | [`FORMATS.md`](FORMATS.md) | CPK, RDBN, T2B, the G4\* family, Criware audio — the container specifications. |
-| [`VFS.md`](VFS.md) | The virtual file system and its 255 308 indexed files. |
+| [`VFS.md`](VFS.md) | The virtual file system and its 255 342 indexed files. |
 | [`CAMERA-G4CM.md`](CAMERA-G4CM.md) | The cutscene cameras: 1 215 `.g4cm` decoded, and what still blocks. |
 | [`COMPUTER-USE-RE-TRACE.md`](COMPUTER-USE-RE-TRACE.md) | The read-only boundary, provenance, guardrails, and the `nie-re`/`nie-trace` migration decision. |
 | [`RE-MIGRATION-MAP.md`](RE-MIGRATION-MAP.md) | Subsystem classification of nie.exe (117,068 functions) and roadmap for migration to Rust. |

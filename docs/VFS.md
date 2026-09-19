@@ -4,6 +4,13 @@
 > (`var/vfs/inventaire.txt`, 255 308 entrées produites par `niers vfs find 'data/' -n 300000`).
 > Chaque domaine a son document détaillé ; **celui-ci ne fait que la synthèse et la matrice**.
 > Aucun compte de ce fichier n'est estimé : ils sont tous recalculés depuis l'inventaire.
+>
+> **Cet inventaire n'est plus sur la machine** (constaté le 2026-09-19 : `var/vfs/` existe et est
+> vide), et `var/README.md` ne le liste pas parmi les artefacts régénérables. Les comptes
+> ci-dessous restent donc ceux du 2026-09-06 et ne peuvent pas être revérifiés en l'état. Le VFS
+> monté en production en compte aujourd'hui **255 342** — la différence n'est pas une dérive de
+> ce document, c'est un inventaire plus ancien. Régénérer :
+> `niers vfs find 'data/' -n 300000 > var/vfs/inventaire.txt`.
 
 L'objectif que ce document sert : **que nie expose le VFS comme `nie.exe` le lit** — chaque
 fichier, chaque dossier, chaque mode atteignable par une route, ou classé avec sa raison.

@@ -4,7 +4,9 @@ Référence des formats propriétaires d'IEVR, et état de leur exploitation par
 
 ## Le VFS
 
-**255 308 fichiers** répartis dans **936 CPK**, montés par CRI File System sous le préfixe `#/`.
+**255 342 fichiers** répartis dans **936 CPK**, montés par CRI File System sous le préfixe `#/`.
+Compte relevé le 2026-09-19 sur `/healthz` du site en production, VFS monté sur l'installation
+Steam ; le 255 308 qui figurait ici datait de l'inventaire figé du 2026-09-06.
 Sur l'installation Steam Windows, le VFS **est le répertoire courant** : `resolve_game_dir()` le
 détecte via `data/cpk_list.cfg.bin`. `Vfs::init()` prend `<racine>/data`, pas la racine.
 
