@@ -141,6 +141,11 @@ Elsewhere, point at the install with `NIE_GAME_DIR`. No machine path is ever com
 binary: the root is resolved at runtime from `NIE_GAME_DIR`, then the working directory or an
 ancestor holding `data/cpk_list.cfg.bin`, then the executable's own directory.
 
+For a Linux Steam setup, see [`docs/STEAM-LINUX.md`](docs/STEAM-LINUX.md): it documents the
+native `nie-steam` depot path, the private token environment, Proton/Wine preparation and the
+asset-independent `nie-headless` check. `nie-steam` speaks Steam's protocol and writes a
+Steam-compatible tree; it is not a controller for the graphical Steam client.
+
 A fresh clone holds the code and nothing else: the game files come from Steam, and the data
 seams (mirror, episodes, VFS inventory) live on the server. **[`LOCAL.md`](LOCAL.md)** sets a
 Windows workstation up end to end — Steam detection, `NIE_GAME_DIR`, and 102 MB fetched from the

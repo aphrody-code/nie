@@ -59,6 +59,22 @@ address quoted from `function` is not an address of `nie.exe`. See [`docs/RE.md`
    source counts, an anonymous reimplementation does not. Raising it means *naming* what has
    been ported after the thing it reproduces.
 
+### Linux Steam preparation — measured 2026-09-19
+
+The Linux host now has the native Steam and SteamCMD packages, Bun dependencies, and the
+Rust/Bun/Python/.NET/C/C++ toolchains used by this checkout. `nie-steam` authenticated the
+configured account and inspected app `2799860` / content depot `2799861` successfully. The
+private token store is `/home/ubuntu/.local/share/niers/steam-tokens.json` (`0600`). The
+planned install root is `/home/ubuntu/.local/share/Steam/iecode/inazuma`; Proton remains
+unavailable until the depot supplies its `files/` tree.
+
+Evidence: `sudo dpkg-query -W` for `steam`/`steamcmd`; `bun install --frozen-lockfile`;
+`cargo run -p nie-steam -- --help`; `target/debug/nie-steam --depot 2799861 list 2799860`;
+`cargo run -p nie-headless -- match`; host `vps-203bea89`, 2026-09-19. The next measurable
+action is the explicit depot sync followed by `data/cpk_list.cfg.bin` and VFS checks, then
+`scripts/nie-wine-setup.sh` once Proton's `files/bin/wine` exists. Full operator details are
+in [`docs/STEAM-LINUX.md`](docs/STEAM-LINUX.md).
+
 
 ## Distance to the three pillars — measured 2026-09-13
 
