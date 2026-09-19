@@ -32,8 +32,18 @@ case "$SOURCE" in
 	*) echo "[mirror] source must be inside the repository: $SOURCE" >&2; exit 2 ;;
 esac
 
-echo "[mirror] verified inagle snapshot $SOURCE -> $FICHIER"
-cp --reflink=auto -- "$SOURCE" "$FICHIER"
+# A source that ALREADY lives in `var/miroir/` is republished in place: the run re-points the
+# symlink, it does not copy a snapshot next to itself. Copying unconditionally added 70 MB per
+# run for no new data, and when the discovered source carried the current second's timestamp
+# `cp` aborted with "are the same file" — which reads as a corrupt snapshot rather than as the
+# script duplicating its own output. Measured 2026-09-19 on the first real run of this unit.
+if [ "$(dirname -- "$SOURCE")" = "$SORTIE" ]; then
+	FICHIER="$SOURCE"
+	echo "[mirror] verified inagle snapshot $SOURCE (republished in place)"
+else
+	echo "[mirror] verified inagle snapshot $SOURCE -> $FICHIER"
+	cp --reflink=auto -- "$SOURCE" "$FICHIER"
+fi
 
 # Validation: the file must be larger than 1 MiB and contain characters.
 if [ ! -f "$FICHIER" ]; then
