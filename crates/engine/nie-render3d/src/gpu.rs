@@ -132,6 +132,59 @@ const VERTEX_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayou
     attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
 };
 
+/// Composante sRGB 0..255 vers linéaire 0..1, formule officielle IEC 61966-2-1.
+///
+/// La cible de rendu est en `*Srgb`, donc le GPU applique la conversion inverse en écrivant.
+/// Passer l'octet divisé par 255 éclaircirait visiblement chaque trait — une grille grise
+/// ressortirait presque blanche.
+fn srgb_vers_lineaire(c: u8) -> f32 {
+    let x = f32::from(c) / 255.0;
+    if x <= 0.040_45 {
+        x / 12.92
+    } else {
+        ((x + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// Les segments téléversés sur le GPU, prêts à être tracés.
+///
+/// Le tampon est reconstruit à chaque appel plutôt que mis à jour en place : une grille et un
+/// gizmo pèsent quelques kilo-octets, et un tampon persistant obligerait à gérer son
+/// redimensionnement pour un gain qui ne se mesure pas.
+#[allow(dead_code)]
+pub struct GpuLines {
+    #[allow(dead_code)]
+    buffer: wgpu::Buffer,
+    /// Nombre de SOMMETS (deux par segment).
+    #[allow(dead_code)]
+    vertex_count: u32,
+}
+
+impl GpuLines {
+    /// Vrai quand il n'y a rien à tracer.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.vertex_count == 0
+    }
+}
+
+/// Sommet d'une LIGNE — disposition figée par [`LINE_VERTEX_LAYOUT`], cf. `gpu_lines.wgsl`.
+///
+/// Position et couleur, rien d'autre : un segment n'a ni normale, ni UV, ni atlas. La couleur est
+/// convertie en linéaire 0..1 ici, une fois par téléversement, plutôt qu'à chaque sommet.
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct LineVertex {
+    position: [f32; 3],
+    color: [f32; 3],
+}
+
+const LINE_VERTEX_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
+    array_stride: core::mem::size_of::<LineVertex>() as wgpu::BufferAddress,
+    step_mode: wgpu::VertexStepMode::Vertex,
+    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3],
+};
+
 /// Uniformes de la passe — doit rester binairement identique à `struct Camera` de `gpu.wgsl`.
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -336,6 +389,14 @@ pub struct GpuRenderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::RenderPipeline,
+    /// Pipeline des LIGNES (grille, fil de fer, contour, gizmo).
+    ///
+    /// Un second pipeline plutôt qu'un `polygon_mode: Line` sur le premier : ce mode redessine
+    /// les arêtes des TRIANGLES du modèle, alors qu'une grille et un gizmo sont une géométrie
+    /// propre qui n'existe dans aucun maillage. Il partage l'uniforme de caméra du premier, ce
+    /// qui est la condition pour que les deux se superposent au pixel près.
+    #[allow(dead_code)]
+    line_pipeline: wgpu::RenderPipeline,
     /// Uniforme et groupe de liaison réemployés à chaque image. Seules ses données changent avec
     /// la caméra ; aucun objet GPU n'est donc alloué dans la boucle des primitives.
     camera_buffer: wgpu::Buffer,
@@ -601,11 +662,66 @@ impl GpuRenderer {
         });
         let staging_belt = StagingBelt::new(device.clone(), 256);
 
+        // Pipeline des lignes : même uniforme de caméra, topologie `LineList`, pas de texture.
+        let line_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("nie viewport lines"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("gpu_lines.wgsl").into()),
+        });
+        let line_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("nie viewport lines"),
+            bind_group_layouts: &[Some(&camera_layout)],
+            immediate_size: 0,
+        });
+        let line_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("nie viewport lines"),
+            layout: Some(&line_layout),
+            vertex: wgpu::VertexState {
+                module: &line_shader,
+                entry_point: Some("vs_main"),
+                buffers: &[LINE_VERTEX_LAYOUT],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &line_shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: COLOR_FORMAT,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::LineList,
+                cull_mode: None,
+                front_face: wgpu::FrontFace::Ccw,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+                strip_index_format: None,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                // Les lignes TESTENT la profondeur sans l'ÉCRIRE : une grille de sol passe donc
+                // derrière les objets posés dessus, et deux traits qui se croisent ne se masquent
+                // pas l'un l'autre. La superposition d'un gizmo se fait en le plaçant devant, pas
+                // en désactivant le test ici — ce pipeline sert aussi la grille.
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        });
+
         Self {
             adapter_info,
             device,
             queue,
             pipeline,
+            line_pipeline,
             camera_buffer,
             camera_bind_group,
             texture_layout,
@@ -860,11 +976,59 @@ impl GpuRenderer {
         });
     }
 
+    /// Téléverse des segments monde ([`crate::scene::Segment`]) pour la passe de lignes.
+    ///
+    /// L'épaisseur des segments est IGNORÉE : WebGPU ne porte pas de largeur de ligne — c'est
+    /// une garantie du standard, pas une limite de cette implémentation, parce que les pilotes
+    /// ne s'accordaient pas dessus. Un trait épais s'obtient en dessinant un quadrilatère, ce qui
+    /// relève du pipeline de triangles. Le rastériseur CPU, lui, l'honore : les deux chemins
+    /// divergent donc sur ce point, et le dire vaut mieux que de le laisser découvrir.
+    #[must_use]
+    pub fn upload_lines(&self, segments: &[crate::scene::Segment]) -> GpuLines {
+        let mut sommets: Vec<LineVertex> = Vec::with_capacity(segments.len() * 2);
+        for seg in segments {
+            // sRGB -> linéaire : la cible est en `*Srgb`, donc le GPU reconvertit à l'écriture.
+            // Passer l'octet tel quel éclaircirait chaque trait.
+            let couleur = [
+                srgb_vers_lineaire(seg.color[0]),
+                srgb_vers_lineaire(seg.color[1]),
+                srgb_vers_lineaire(seg.color[2]),
+            ];
+            sommets.push(LineVertex { position: seg.a, color: couleur });
+            sommets.push(LineVertex { position: seg.b, color: couleur });
+        }
+        let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("nie viewport lines"),
+            contents: bytemuck::cast_slice(&sommets),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        GpuLines {
+            buffer,
+            vertex_count: u32::try_from(sommets.len()).unwrap_or(u32::MAX),
+        }
+    }
+
     /// Dessine dans une texture GPU sans lecture CPU ni attente bloquante.
     /// La vue retournée est échantillonnable par l'hôte natif ou WebGPU sur le même device.
     pub fn render_to_texture(
         &mut self,
         model: &GpuModel,
+        camera: Camera,
+        width: u32,
+        height: u32,
+    ) -> Result<&wgpu::TextureView> {
+        self.render_to_texture_with_lines(model, None, camera, width, height)
+    }
+
+    /// Le même rendu, plus une passe de segments — grille, contour de sélection, gizmo.
+    ///
+    /// Les lignes sont tracées APRÈS la géométrie, dans la même passe et sur le même z-buffer,
+    /// qu'elles testent sans l'écrire. [`render_to_texture`](Self::render_to_texture) délègue
+    /// ici avec `None` : aucun appelant existant ne change.
+    pub fn render_to_texture_with_lines(
+        &mut self,
+        model: &GpuModel,
+        lines: Option<&GpuLines>,
         camera: Camera,
         width: u32,
         height: u32,
@@ -944,6 +1108,17 @@ impl GpuRenderer {
                 pass.set_index_buffer(prim.indices.slice(..), wgpu::IndexFormat::Uint32);
                 pass.draw_indexed(0..prim.index_count, 0, 0..1);
             }
+
+            // Les segments, après la géométrie et dans la MÊME passe : changer de passe
+            // rechargerait la cible et effacerait ce qui vient d'être dessiné.
+            if let Some(lines) = lines
+                && !lines.is_empty()
+            {
+                pass.set_pipeline(&self.line_pipeline);
+                pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                pass.set_vertex_buffer(0, lines.buffer.slice(..));
+                pass.draw(0..lines.vertex_count, 0..1);
+            }
         }
 
         self.queue.submit(Some(encoder.finish()));
@@ -961,7 +1136,21 @@ impl GpuRenderer {
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        self.render_to_texture(model, camera, width, height)?;
+        self.render_with_lines(model, None, camera, width, height)
+    }
+
+    /// La même capture, avec une passe de segments. Cf.
+    /// [`render_to_texture_with_lines`](Self::render_to_texture_with_lines).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn render_with_lines(
+        &mut self,
+        model: &GpuModel,
+        lines: Option<&GpuLines>,
+        camera: Camera,
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<u8>> {
+        self.render_to_texture_with_lines(model, lines, camera, width, height)?;
         let targets = self
             .targets
             .as_mut()
@@ -1412,5 +1601,82 @@ mod tests {
                 iou * 100.0,
             );
         }
+    }
+
+    /// Le pipeline de lignes dessine vraiment, et rien sans segment.
+    ///
+    /// Le contrôle négatif compte autant que le positif : un test qui vérifierait seulement la
+    /// présence de pixels verts passerait sur un fond vert.
+    #[test]
+    fn le_pipeline_de_lignes_dessine_les_segments() {
+        let Ok(mut renderer) = GpuRenderer::new() else {
+            eprintln!("aucun adaptateur wgpu sur cette machine — test ignoré");
+            return;
+        };
+        // Un modèle minuscule, loin du centre : les lignes doivent être visibles seules.
+        let model = Model {
+            primitives: vec![crate::glb::Primitive {
+                positions: vec![[-0.02, -0.02, 0.0], [0.02, -0.02, 0.0], [0.0, 0.02, 0.0]],
+                normals: vec![[0.0, 0.0, 1.0]; 3],
+                uv: Vec::new(),
+                indices: vec![0, 1, 2],
+                texture: None,
+            }],
+            textures: Vec::new(),
+        };
+        let gpu_model = renderer.upload(&model);
+        let camera = Camera { yaw: 0.0, pitch: 0.0, distance: 3.0 };
+
+        let vert = [0, 255, 0];
+        let segments = vec![
+            crate::scene::Segment::new([-0.5, 0.0, 0.0], [0.5, 0.0, 0.0], vert),
+            crate::scene::Segment::new([0.0, -0.5, 0.0], [0.0, 0.5, 0.0], vert),
+        ];
+        let lines = renderer.upload_lines(&segments);
+        assert_eq!(lines.vertex_count, 4, "deux segments = quatre sommets");
+
+        let avec = renderer
+            .render_with_lines(&gpu_model, Some(&lines), camera, 128, 128)
+            .expect("rendu GPU avec lignes");
+        let sans = renderer
+            .render_with_lines(&gpu_model, None, camera, 128, 128)
+            .expect("rendu GPU sans lignes");
+
+        // Le vert domine nettement : la ligne est en vert pur, le modèle en argile grise.
+        let verts = |px: &[u8]| {
+            px.chunks_exact(4)
+                .filter(|p| p[3] > 200 && p[1] > 150 && p[0] < 100 && p[2] < 100)
+                .count()
+        };
+        let (n_avec, n_sans) = (verts(&avec), verts(&sans));
+        assert!(n_avec > 50, "les segments doivent couvrir des pixels ({n_avec})");
+        assert_eq!(n_sans, 0, "aucun pixel vert sans segment ({n_sans})");
+    }
+
+    /// Un téléversement vide ne dessine rien et ne casse pas la passe.
+    #[test]
+    fn un_televersement_vide_ne_dessine_rien() {
+        let Ok(renderer) = GpuRenderer::new() else {
+            eprintln!("aucun adaptateur wgpu sur cette machine — test ignoré");
+            return;
+        };
+        let lines = renderer.upload_lines(&[]);
+        assert!(lines.is_empty());
+        assert_eq!(lines.vertex_count, 0);
+    }
+
+    /// La conversion sRGB→linéaire suit la formule officielle aux points qui la définissent.
+    ///
+    /// Sans elle, la couleur d'un trait serait écrite telle quelle dans une cible `*Srgb`, que le
+    /// GPU reconvertit : une grille grise à 60 ressortirait presque blanche.
+    #[test]
+    fn la_conversion_srgb_suit_la_formule() {
+        assert!((srgb_vers_lineaire(0) - 0.0).abs() < 1e-6);
+        assert!((srgb_vers_lineaire(255) - 1.0).abs() < 1e-6);
+        // Le segment linéaire du bas : 10/255 = 0.0392 <= 0.04045, donc /12.92.
+        assert!((srgb_vers_lineaire(10) - (10.0 / 255.0 / 12.92)).abs() < 1e-6);
+        // 128 est très au-dessus du coude : la courbe doit le tirer nettement vers le bas.
+        let mid = srgb_vers_lineaire(128);
+        assert!(mid > 0.2 && mid < 0.23, "{mid}");
     }
 }
