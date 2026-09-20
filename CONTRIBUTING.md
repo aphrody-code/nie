@@ -192,6 +192,14 @@ So `scripts/tsconfig.gate.json` lists the files that are green, `bun run typeche
 them, and the list only grows. **A new script belongs in that list from its first commit.** To
 clean an existing one, fix it, add it, and the gate holds it forever after.
 
+**What the ratchet is worth, measured 2026-09-20.** `deploy-target.ts` — the script that swaps
+production — was one of the uncovered files. Cleaning it cost sixteen errors, fifteen of them
+mechanical `TS4111`/`TS2532`. The sixteenth was a defect on the **rollback** path:
+`symlink(previous, …)` ran unconditionally, so when `dist` was not already a symlink the rollback
+threw *inside the catch block*, masking the health-check failure that triggered it and leaving the
+broken bundle live. No test covered it, because a rollback only runs when a deploy is already
+failing.
+
 ## Reporting a bug, asking for a feature
 
 Use the [issue templates](.github/ISSUE_TEMPLATE/). For a bug, the two fields that decide whether

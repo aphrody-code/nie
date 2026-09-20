@@ -13,7 +13,22 @@ import {
 import { resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
-const targetTimeoutMs = 60_000;
+
+/**
+ * A target's own hard cap, when it does not declare one. It bounds the whole run so a hung step
+ * cannot hold the lock forever; it is NOT the window the site spends in an unknown state — that
+ * one is `validationWindowMs` below, and it stays short whatever the build costs.
+ */
+const defaultTimeoutMs = 60_000;
+
+/**
+ * How long a freshly published target may take to answer its health check before it is rolled
+ * back. This is the only number a user experiences: past it, the previous bundle or binary comes
+ * back. It is deliberately independent of the target's deadline — a target allowed ten minutes to
+ * BUILD must still be reverted within seconds when the thing it published does not answer.
+ */
+const validationWindowMs = 30_000;
+
 const runId = new Date().toISOString().replaceAll(/[:.]/gu, "-");
 const lockDirectory = "/tmp/niers-target-deploy.lock";
 const logDirectory = `${repositoryRoot}/var/log/deploy-targets/${runId}`;
@@ -22,6 +37,8 @@ type Validator = (body: string) => void;
 type Target = {
 	description: string;
 	deploy: (context: TargetContext) => Promise<void>;
+	/** Hard cap for the whole target, in seconds. Omitted means `defaultTimeoutMs`. */
+	seconds?: number;
 };
 
 type TargetContext = {
@@ -29,6 +46,7 @@ type TargetContext = {
 	deadline: number;
 	name: string;
 	releaseDirectory: string;
+	timeoutMs: number;
 };
 
 process.chdir(repositoryRoot);
@@ -47,7 +65,9 @@ function capture(argv: string[]): string {
 
 function assertDeadline(context: TargetContext): number {
 	const remaining = context.deadline - Date.now();
-	if (remaining <= 0) throw new Error(`${context.name} exceeded its 60 second deadline.`);
+	if (remaining <= 0) {
+		throw new Error(`${context.name} exceeded its ${context.timeoutMs / 1_000} second deadline.`);
+	}
 	return remaining;
 }
 
@@ -81,7 +101,7 @@ async function run(context: TargetContext, argv: string[], cwd = repositoryRoot)
 	if (stdout) process.stdout.write(stdout);
 	if (stderr) process.stderr.write(stderr);
 	if (exitCode === 124 || exitCode === 137) {
-		throw new Error(`${context.name} exceeded its 60 second deadline.`);
+		throw new Error(`${context.name} exceeded its ${context.timeoutMs / 1_000} second deadline.`);
 	}
 	if (exitCode !== 0) throw new Error(`${argv.join(" ")} failed with exit code ${exitCode}.`);
 	assertDeadline(context);
@@ -100,8 +120,12 @@ async function waitFor(
 	url: string,
 	validate: Validator
 ): Promise<void> {
+	// Bounded by the validation window, NOT by whatever is left of the deadline. A target with a
+	// long build budget would otherwise poll a broken deployment for minutes before rolling back,
+	// and those minutes are served to users.
+	const limit = Math.min(context.deadline, Date.now() + validationWindowMs);
 	let lastError = "no response";
-	while (Date.now() < context.deadline) {
+	while (Date.now() < limit) {
 		try {
 			const response = await fetch(url, { signal: AbortSignal.timeout(3_000) });
 			const body = await response.text();
@@ -113,7 +137,7 @@ async function waitFor(
 			await Bun.sleep(250);
 		}
 	}
-	throw new Error(`${url} did not become ready: ${lastError}`);
+	throw new Error(`${url} did not become ready within ${validationWindowMs / 1_000}s: ${lastError}`);
 }
 
 function requireBudget(context: TargetContext, milliseconds: number, action: string): void {
@@ -132,24 +156,24 @@ function requireJsonObject(body: string): Record<string, unknown> {
 
 const healthyJson = (body: string) => {
 	const value = requireJsonObject(body);
-	if (value.ok !== true && value.status !== "healthy") {
+	if (value["ok"] !== true && value["status"] !== "healthy") {
 		throw new Error("Health response does not report a ready service.");
 	}
 };
 
 function validateSiteHealth(body: string): void {
 	const value = requireJsonObject(body);
-	if (value.api !== "v1") throw new Error("Site health does not report API v1.");
-	const capabilities = value.capacites;
+	if (value["api"] !== "v1") throw new Error("Site health does not report API v1.");
+	const capabilities = value["capacites"];
 	if (!capabilities || typeof capabilities !== "object" || Array.isArray(capabilities)) {
 		throw new Error("Site health has no capability object.");
 	}
 	const ready = capabilities as Record<string, unknown>;
 	if (
-		ready.bundle !== true ||
-		ready.vfs !== "pret" ||
-		ready.vfs_contenu !== true ||
-		Number(ready.vfs_entrees) < 1_000
+		ready["bundle"] !== true ||
+		ready["vfs"] !== "pret" ||
+		ready["vfs_contenu"] !== true ||
+		Number(ready["vfs_entrees"]) < 1_000
 	) {
 		throw new Error("Site bundle or content-backed VFS is not ready.");
 	}
@@ -170,7 +194,7 @@ async function restartUnit(
 	healthUrl: string,
 	validate: Validator
 ): Promise<void> {
-	requireBudget(context, 10_000, `restart and validate ${unit}`);
+	requireBudget(context, validationWindowMs, `restart and validate ${unit}`);
 	await installUnit(context, unit);
 	const oldPid = capture(["systemctl", "show", unit, "-p", "MainPID", "--value"]);
 	await run(context, ["sudo", "systemctl", "restart", unit]);
@@ -243,7 +267,7 @@ async function deployBinaryService(
 ): Promise<void> {
 	const rollback = await buildBinary(context, packageName, binaryName);
 	try {
-		requireBudget(context, 10_000, `restart and validate ${unit}`);
+		requireBudget(context, validationWindowMs, `restart and validate ${unit}`);
 	} catch (error) {
 		if (rollback) await atomicCopy(rollback, `target/release/${binaryName}`);
 		throw error;
@@ -290,11 +314,13 @@ async function deployWeb(context: TargetContext): Promise<void> {
 	if (!(await Bun.file(`${bundle}/index.html`).exists())) {
 		throw new Error("Web build did not produce index.html.");
 	}
-	requireBudget(context, 10_000, "switch and validate the web bundle");
+	requireBudget(context, validationWindowMs, "switch and validate the web bundle");
 	const previous = await readlink("apps/nie-web/dist").catch(() => undefined);
-	if (!previous) {
-		await rm("apps/nie-web/dist", { recursive: true, force: true });
-	}
+	// A `dist` that is NOT a link is a developer's build output, not a publication pointer. It is
+	// moved aside instead of deleted: a first deploy on such a checkout stays reversible, and the
+	// rollback below has something to put back.
+	const displaced = previous ? undefined : `apps/nie-web/dist.replaced-${runId}`;
+	if (displaced) await rename("apps/nie-web/dist", displaced).catch(() => undefined);
 	const next = "apps/nie-web/dist.deploy-next";
 	await rm(next, { force: true });
 	await symlink(bundle, next);
@@ -307,10 +333,19 @@ async function deployWeb(context: TargetContext): Promise<void> {
 			}
 		});
 	} catch (error) {
+		// A rollback is only a rollback if it can name what to go back to. This branch used to call
+		// `symlink(previous, …)` unconditionally: with no previous link it threw HERE, inside the
+		// handler, masking the health-check failure that caused it and leaving the broken bundle
+		// live and unreported. The type gate found it — the publisher was outside it until today.
 		const rollback = "apps/nie-web/dist.deploy-rollback";
 		await rm(rollback, { force: true });
-		await symlink(previous, rollback);
-		await rename(rollback, "apps/nie-web/dist");
+		if (previous) {
+			await symlink(previous, rollback);
+			await rename(rollback, "apps/nie-web/dist");
+		} else {
+			await rm("apps/nie-web/dist", { force: true });
+			if (displaced) await rename(displaced, "apps/nie-web/dist").catch(() => undefined);
+		}
 		throw error;
 	}
 }
@@ -326,7 +361,7 @@ async function deployInacordWeb(context: TargetContext): Promise<void> {
 			throw new Error(`Inacord release channel is missing ${required}.`);
 		}
 	}
-	requireBudget(context, 10_000, "validate the Inacord workspace and download routes");
+	requireBudget(context, validationWindowMs, "validate the Inacord workspace and download routes");
 	await waitFor(context, "https://nie.aphrody.com/inacord", (body) => {
 		if (!body.includes("id=\"racine\"")) {
 			throw new Error("Public Inacord workspace shell is incomplete.");
@@ -334,14 +369,15 @@ async function deployInacordWeb(context: TargetContext): Promise<void> {
 	});
 	await waitFor(context, "https://nie.aphrody.com/downloads/catalog.json", (body) => {
 		const value = requireJsonObject(body);
-		if (!Array.isArray(value.products) || value.products.length < 6) {
+		const products = value["products"];
+		if (!Array.isArray(products) || products.length < 6) {
 			throw new Error("Inacord catalog has fewer than six products.");
 		}
 	});
 	// Installed desktop clients still poll the legacy host directly; it must keep answering.
 	await waitFor(context, "https://inacord.aphrody.com/downloads/channels/stable/latest.json", (body) => {
 		const value = requireJsonObject(body);
-		if (typeof value.version !== "string") {
+		if (typeof value["version"] !== "string") {
 			throw new Error("Legacy Inacord updater manifest has no version.");
 		}
 	});
@@ -417,6 +453,13 @@ const targets: Record<string, Target> = {
 	web: {
 		description: "Browser shell built around the validated WebAssembly module",
 		deploy: deployWeb,
+		// This target BUILDS, and the default minute never covered it — which is why it had never
+		// published anything here. Measured 2026-09-20 on this host: typecheck 21s, `vite build`
+		// 57s, precompressing 480 files from 80 MiB to 14 MiB of Brotli several minutes. It died
+		// on `timeout` mid-build, at exit 124, long before reaching the symlink swap.
+		// The cap below exists to release the lock if a step hangs, not to pace the build; the
+		// window in which the site can be wrong is `validationWindowMs`, and it is unchanged.
+		seconds: 900,
 	},
 	inacord: {
 		description: "Inacord release channel behind the site's /inacord and /downloads routes",
@@ -506,8 +549,12 @@ const orderedTargets = [
 ] as const;
 
 function usage(): string {
-	return `Usage: bun run deploy:target -- <target|--all|--list>\n\nEach target has an independent hard deadline of 60 seconds.\n\n${orderedTargets
-		.map((name) => `  ${name.padEnd(14)} ${targets[name].description}`)
+	return `Usage: bun run deploy:target -- <target|--all|--list>\n\nEach target has an independent hard deadline, shown in seconds; whatever it publishes is\nrolled back if it has not answered its health check ${validationWindowMs / 1_000}s later.\n\n${orderedTargets
+		.map((name) => {
+			const target = targets[name] as Target;
+			const seconds = target.seconds ?? defaultTimeoutMs / 1_000;
+			return `  ${name.padEnd(14)} ${String(seconds).padStart(4)}s  ${target.description}`;
+		})
 		.join("\n")}`;
 }
 
@@ -527,11 +574,13 @@ async function deployTarget(name: string, commit: string): Promise<{ name: strin
 	const target = targets[name];
 	if (!target) throw new Error(`Unknown target: ${name}`);
 	const startedAt = Date.now();
+	const timeoutMs = target.seconds === undefined ? defaultTimeoutMs : target.seconds * 1_000;
 	const context: TargetContext = {
 		commit,
-		deadline: startedAt + targetTimeoutMs,
+		deadline: startedAt + timeoutMs,
 		name,
 		releaseDirectory: `${repositoryRoot}/var/deployments/targeted/${commit}/${runId}/${name}`,
+		timeoutMs,
 	};
 	await mkdir(context.releaseDirectory, { recursive: true });
 	process.stdout.write(`\n→ ${name}: ${target.description}\n`);
@@ -547,7 +596,7 @@ async function deployTarget(name: string, commit: string): Promise<{ name: strin
 				host: capture(["hostname"]),
 				seconds,
 				target: name,
-				timeoutSeconds: targetTimeoutMs / 1_000,
+				timeoutSeconds: timeoutMs / 1_000,
 			},
 			null,
 			2
@@ -562,7 +611,8 @@ if (requested.length !== 1 || requested[0] === "--help" || requested[0] === "-h"
 	process.stdout.write(`${usage()}\n`);
 	process.exit(requested.length === 1 ? 0 : 2);
 }
-if (requested[0] === "--list") {
+const argument = requested[0] as string;
+if (argument === "--list") {
 	process.stdout.write(`${usage()}\n`);
 	process.exit(0);
 }
@@ -576,7 +626,7 @@ try {
 
 try {
 	const commit = await assertReleaseState();
-	const selected = requested[0] === "--all" ? [...orderedTargets] : [requested[0]];
+	const selected: string[] = argument === "--all" ? [...orderedTargets] : [argument];
 	const results: { name: string; seconds?: number; error?: string }[] = [];
 	for (const name of selected) {
 		try {

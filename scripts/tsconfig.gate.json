@@ -7,12 +7,17 @@
 		"them, so the release and deploy pipeline shipped without a type gate. Switching the whole",
 		"directory on at once yields 299 errors (almost all noUncheckedIndexedAccess), and this",
 		"repository refuses a permanently red gate: a gate that is always red is a gate nobody reads.",
-		"So this file is a RATCHET. 25 files are green today. Clean one more, add it here, and it can",
+		"So this file is a RATCHET. 27 files are green today. Clean one more, add it here, and it can",
 		"never regress. A new script belongs in this list from its first commit.",
-		"The remaining 30 are listed in CONTRIBUTING.md under 'Type gate ratchet'."
+		"The remaining 28 are listed in CONTRIBUTING.md under 'Type gate ratchet'.",
+		"deploy-target.ts joined on 2026-09-20; the gate immediately found a defect on its ROLLBACK",
+		"path, where symlink(previous) ran with previous undefined, threw inside the catch block, and",
+		"masked the health-check failure that triggered it. Sixteen errors, fifteen of them mechanical."
 	],
 	"include": [],
 	"files": [
+		"deploy-target.test.ts",
+		"deploy-target.ts",
 		"donnees/audit-vfs-contents.ts",
 		"donnees/query-knowledge.ts",
 		"download-all-chunks.ts",
