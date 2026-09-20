@@ -98,6 +98,19 @@ export const GALLERY = "gallery_menu";
 export const SHOP = "shop_menu";
 
 /**
+ * La Formation et l'Équipe — l'écran `soccer_formation_menu` du jeu : le terrain 11v11, les
+ * préréglages de formation, et les consignes tactiques.
+ */
+export const FORMATION = "soccer_formation_menu";
+export const TEAM = "team";
+
+/**
+ * La Gestion des Sauvegardes — l'écran `save_menu` du jeu : les 4 slots de sauvegarde, l'import/export
+ * .bin et le déchiffrement local Lives.
+ */
+export const SAVE = "save_menu";
+
+/**
  * Internal mode-analysis route. Native mode tiles belong to the game/WASM flow and must never
  * send a player to this diagnostic page.
  *
@@ -138,6 +151,11 @@ export const LEGACY_ROUTES: Readonly<Record<string, string>> = {
 	bank: BANK,
 	gallery: GALLERY,
 	shop: SHOP,
+	save: SAVE,
+	team: FORMATION,
+	my_team: FORMATION,
+	"my-team": FORMATION,
+	formation: FORMATION,
 	"mode-story_mode": "story_mode",
 	"mode-chronicle_mode": "chronicle_mode",
 	"mode-competition": "competition",
@@ -209,6 +227,8 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[BANK]: { label: "Banque", glyph: "livre" },
 	[GALLERY]: { label: "Galerie", glyph: "image" },
 	[SHOP]: { label: "Boutique", glyph: "cube" },
+	[FORMATION]: { label: "Votre Équipe", glyph: "ballon" },
+	[SAVE]: { label: "Sauvegardes", glyph: "livre" },
 	[INACORD]: { label: "Inacord", glyph: "livre" },
 	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
 	[MODES]: { label: "Modes", glyph: "livre" },
@@ -239,6 +259,8 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
 		MEDIA,
 		...WASM_GAME_MODES,
 		...menuEntries(health).map((entry) => entry.route),
+		FORMATION,
+		SAVE,
 		DOWNLOADS,
 		MODES,
 		INACORD,

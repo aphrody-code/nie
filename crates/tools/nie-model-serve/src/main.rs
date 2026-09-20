@@ -1515,6 +1515,29 @@ fn apply_viewer_pose(state: &State, model: &mut nie_formats::assemble::Assembled
             };
             let names: Vec<&str> = skeleton.bones.iter().map(|b| b.name.as_str()).collect();
             let resolved = g4mt::resolve_targets(&motion.target_hashes, &names);
+            let rest_poses: Vec<nie_formats::g4sk::LocalTrs> =
+                skeleton.bones.iter().map(|b| b.local).collect();
+
+            let mut anim_count = 0;
+            for c in &motion.clips {
+                if c.is_additive() {
+                    model.animation_excluded.push(nie_formats::assemble::AnimationExclusion {
+                        name: c.name.clone(),
+                        reason: "clip additif non supporté en glTF de base".into(),
+                    });
+                    continue;
+                }
+                if let Some(decoded) = motion.decode_clip(data, c, &resolved, &rest_poses) {
+                    model.animation_clips.push(decoded);
+                    anim_count += 1;
+                } else {
+                    model.animation_excluded.push(nie_formats::assemble::AnimationExclusion {
+                        name: c.name.clone(),
+                        reason: "décodage du clip impossible ou cibles non résolues".into(),
+                    });
+                }
+            }
+
             let rotations: Vec<_> = motion
                 .target_indices(clip)
                 .into_iter()
@@ -1530,17 +1553,24 @@ fn apply_viewer_pose(state: &State, model: &mut nie_formats::assemble::Assembled
                     Some((bone, pose))
                 })
                 .collect();
-            return Some(rotations);
+            return Some((rotations, anim_count));
         }
         None
     });
-    let Some(rotations) = selected.filter(|r| !r.is_empty()) else {
+    let Some((rotations, anim_count)) = selected.filter(|(r, _)| !r.is_empty()) else {
         return serde_json::json!({"applied": false, "source": path, "reason": "clip debout absent ou illisible"});
     };
     for (bone, rotation) in &rotations {
         skeleton.bones[*bone].local = *rotation;
     }
-    serde_json::json!({"applied": true, "source": path, "clip": "立ち1L", "frame": 0, "bones": rotations.len()})
+    serde_json::json!({
+        "applied": true,
+        "source": path,
+        "clip": "立ち1L",
+        "frame": 0,
+        "bones": rotations.len(),
+        "animations": anim_count,
+    })
 }
 
 /// Réglages de présentation attestés par une référence externe, distincts des défauts CFG.
@@ -2167,14 +2197,15 @@ fn assemble_code(state: &State, code: &str) -> Result<Assembled> {
 
 /// Sous-domaines `common/chr/_<sub>/` servables comme modèles génériques (g4md+g4mg).
 /// Liste fermée pour interdire toute traversée arbitraire du VFS via le nom de sous-dossier.
-const CHR_GENERIC_SUBS: &[&str] = &["waza", "item", "animal", "armd", "keshin"];
+const CHR_GENERIC_SUBS: &[&str] = &["waza", "item", "animal", "armd", "keshin", "uniform"];
 
 /// Assemble un modèle générique d'un sous-domaine `common/chr/_<sub>/<code>/<code>.g4md|.g4mg`.
 ///
 /// Couvre les modèles non liés à un personnage : techniques (`_waza`), objets 3D (`_item`),
-/// animaux (`_animal`). Le **G4MD peut être absent en fichier libre** : pour les modèles de
-/// cut-in (`_waza`), il est empaqueté dans le `.g4pkm` voisin — on l'en extrait alors. La
-/// **texture** `dx11/chr/_<sub>/<code>/<code>.g4tx` est embarquée si présente (rendu texturé).
+/// animaux (`_animal`), armures (`_armd`), keshin (`_keshin`) et tenues (`_uniform`). Le **G4MD
+/// peut être absent en fichier libre** : pour les modèles de cut-in (`_waza`), il est empaqueté
+/// dans le `.g4pkm` voisin — on l'en extrait alors. La **texture**
+/// `dx11/chr/_<sub>/<code>/<code>.g4tx` est embarquée si présente (rendu texturé).
 /// Échoue (404 côté HTTP) si le G4MG ou le G4MD restent introuvables.
 fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes> {
     if !CHR_GENERIC_SUBS.contains(&sub) {
@@ -2201,26 +2232,36 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
         (g4md, g4mg)
     };
 
+    let component = match sub {
+        "uniform" => MeshComponent::Uniform,
+        "keshin" => MeshComponent::Keshin,
+        "armd" => MeshComponent::Armed,
+        _ => MeshComponent::Generic,
+    };
+
     let mut model = assemble_generic_model(GenericModelInput {
         code: code.to_string(),
         g4md,
         g4mg,
-        component: MeshComponent::Generic,
+        component,
     })
     .with_context(|| format!("assemblage {sub}/{code}"))?;
 
-    // Texture du cut-in (dx11/chr/_<sub>/<code>/<code>.g4tx) → embarquée.
+    // Texture du cut-in (dx11/chr/_<sub>/<code>/<code>.g4tx ou <code>_10.g4tx) → embarquée.
     let g4tx_path = format!("data/dx11/chr/_{sub}/{code}/{code}.g4tx");
     let g4tx = {
         let vfs = &state.vfs;
-        vfs.read(&g4tx_path).ok()
+        vfs.read(&g4tx_path)
+            .or_else(|_| vfs.read(&format!("data/dx11/chr/_{sub}/{code}/{code}_10.g4tx")))
+            .or_else(|_| vfs.read(&format!("data/dx11/chr/_{sub}/{code}/{code}_00.g4tx")))
+            .ok()
     };
     if let Some(png_bytes) = g4tx
         .as_deref()
         .and_then(|d| g4tx_decode::decode_best_to_png(d, code))
     {
         model.embedded_textures.push(EmbeddedTexture {
-            component: MeshComponent::Generic,
+            component,
             name: format!("{code}_{sub}"),
             png_bytes,
         });
@@ -3799,8 +3840,8 @@ fn enumerate_servable_codes(vfs: &Vfs) -> Vec<WarmJob> {
         }
         // Génériques waza/item/animal : common/chr/_<sub>/<code>/<code>.g4mg.
         for sub in CHR_GENERIC_SUBS {
-            if *sub == "keshin" || *sub == "armd" {
-                continue; // déjà couverts par /model-full
+            if *sub == "keshin" || *sub == "armd" || *sub == "uniform" {
+                continue; // déjà couverts par /model-full ou assemblés à la demande
             }
             if let Some(code) = code_of_dir_pair(path, &format!("/_{sub}/"), ".g4mg") {
                 chr.insert(((*sub).to_string(), code));

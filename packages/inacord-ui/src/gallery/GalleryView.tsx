@@ -304,6 +304,7 @@ export interface GalleryViewProps {
   category?: string | null;
   subfolder?: string | null;
   serverSearch?: boolean;
+  rootPrefix?: string;
   onQueryChange?: (query: string) => void;
   onCategoryChange?: (category: string | null) => void;
   onSubfolderChange?: (subfolder: string | null) => void;
@@ -312,9 +313,10 @@ export interface GalleryViewProps {
 const resourceCode = (path: string) => path.split("/").pop()!.replace(/\.[^.]+$/, "");
 
 export function GalleryView({
-  services, onOpenFile, query, category, subfolder, serverSearch = false,
+  services, onOpenFile, query, category, subfolder, serverSearch = false, rootPrefix,
   onQueryChange, onCategoryChange, onSubfolderChange,
 }: GalleryViewProps) {
+  const root = rootPrefix ?? RACINE_GALERIE;
   const images = useMemo(() => createImageCache(services), [services]);
   const settings = useSettings();
   const [categories, setCategories] = useState<VfsDir[]>([]);
@@ -376,7 +378,7 @@ export function GalleryView({
     setChargement(true);
     setErreur(null);
     services
-      .ls(RACINE_GALERIE, settings.gameDir)
+      .ls(root, settings.gameDir)
       .then((l) => {
         if (!active) return;
         setCategories(l.dirs);
@@ -390,7 +392,7 @@ export function GalleryView({
       .catch((e) => { if (active) setErreur(String(e)); })
       .finally(() => { if (active) setChargement(false); });
     return () => { active = false; };
-  }, [settings.gameDir, services]);
+  }, [settings.gameDir, services, root]);
 
   // `gallery_config` : ce que le jeu sait des illustrations qu'il expose dans son menu Galerie.
   // Best-effort — la galerie liste le VFS avec ou sans lui.
@@ -421,7 +423,7 @@ export function GalleryView({
     setSubfoldersLoadedFor(null);
     if (!categorie) return;
     services
-      .ls(`${RACINE_GALERIE}/${categorie}`, settings.gameDir)
+      .ls(`${root}/${categorie}`, settings.gameDir)
       .then((l) => {
         if (!active) return;
         setSousDossiers(l.dirs);
@@ -434,7 +436,7 @@ export function GalleryView({
         }
       });
     return () => { active = false; };
-  }, [categorie, settings.gameDir, services]);
+  }, [categorie, settings.gameDir, services, root]);
 
   // A controlled URL subfolder survives mount, reload and popstate when the VFS confirms it.
   // Only an invalid value is removed after that category's directory list has actually loaded.
@@ -458,7 +460,7 @@ export function GalleryView({
     setTotalItems(0);
     services
       .findPaged(
-        prefixeCategorie(categorie, sousDossier),
+        prefixeCategorie(categorie, sousDossier, root),
         EXT_GALERIE,
         PAR_PAGE,
         0,
@@ -469,7 +471,7 @@ export function GalleryView({
       )
       .then((page) => {
         if (!annule && generation === requestGeneration.current) {
-          setItems(construireIllustrations(page.files, enrichissements));
+          setItems(construireIllustrations(page.files, enrichissements, root));
           setTotalItems(page.total);
         }
         return null;
@@ -485,7 +487,7 @@ export function GalleryView({
       annule = true;
       controller.abort();
     };
-  }, [categorie, sousDossier, enrichissements, settings.gameDir, services, serverSearch, serverQuery, tri]);
+  }, [categorie, sousDossier, enrichissements, settings.gameDir, services, serverSearch, serverQuery, tri, root]);
 
   const chargerSuite = useCallback(() => {
     if (chargement || chargementSuite || items.length >= totalItems) return;
@@ -498,7 +500,7 @@ export function GalleryView({
     setErreur(null);
     services
       .findPaged(
-        prefixeCategorie(categorie, sousDossier),
+        prefixeCategorie(categorie, sousDossier, root),
         EXT_GALERIE,
         PAR_PAGE,
         offset,
@@ -511,7 +513,7 @@ export function GalleryView({
         if (generation !== requestGeneration.current) return null;
         setItems((current) => [
           ...current,
-          ...construireIllustrations(page.files, enrichissements),
+          ...construireIllustrations(page.files, enrichissements, root),
         ]);
         setTotalItems(page.total);
         return null;
@@ -523,7 +525,7 @@ export function GalleryView({
         if (activeRequest.current === controller) activeRequest.current = null;
         if (generation === requestGeneration.current) setChargementSuite(false);
       });
-  }, [categorie, chargement, chargementSuite, enrichissements, items.length, settings.gameDir, services, sousDossier, totalItems, serverSearch, serverQuery, tri]);
+  }, [categorie, chargement, chargementSuite, enrichissements, items.length, settings.gameDir, services, sousDossier, totalItems, serverSearch, serverQuery, tri, root]);
 
   const codes = useMemo(() => items.map(item => resourceCode(item.chemin)), [items]);
   const names = useResolvedNames(services.resolveNames, services.nameSource ?? "", settings.gameLocale, codes);
@@ -570,10 +572,12 @@ export function GalleryView({
     <div className="relative flex h-full min-h-0 flex-col gap-3 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="type-title-small text-on-surface">Galerie</h2>
-        <Badge variant="secondary">{total.toLocaleString(settings.locale)} illustrations</Badge>
+        <Badge variant="secondary">
+          {total.toLocaleString(settings.locale)} {root === RACINE_GALERIE ? "illustrations" : "textures"}
+        </Badge>
         <Input
           className="w-full sm:ml-auto sm:w-64"
-          placeholder="Rechercher une illustration…"
+          placeholder={root === RACINE_GALERIE ? "Rechercher une illustration…" : "Rechercher une texture…"}
           value={recherche}
           onChange={(e) => changeQuery(e.target.value)}
         />
@@ -657,7 +661,7 @@ export function GalleryView({
             ))}
             {categories.length === 0 && !chargement && (
               <p className="p-4 type-body-small text-on-surface-variant">
-                Aucun dossier sous {RACINE_GALERIE} — le VFS est-il monté ?
+                Aucun dossier sous {root} — le VFS est-il monté ?
               </p>
             )}
           </div>
@@ -683,7 +687,7 @@ export function GalleryView({
           <div className="flex items-center gap-2 type-label-small text-on-surface-variant">
             {chargement
               ? "chargement…"
-              : `${filtres.length.toLocaleString(settings.locale)} illustration(s) affichée(s) sur ${
+              : `${filtres.length.toLocaleString(settings.locale)} ${root === RACINE_GALERIE ? "illustration(s)" : "texture(s)"} affichée(s) sur ${
                   totalItems.toLocaleString(settings.locale)
                 }${recherche.trim() && !serverSearch ? ` · recherche dans ${items.length.toLocaleString(settings.locale)} chargée(s)` : ""}`}
           </div>
@@ -719,7 +723,7 @@ export function GalleryView({
             )}
             {!chargement && filtres.length === 0 && (
               <p className="p-4 type-body-small text-on-surface-variant">
-                Aucune illustration ne correspond.
+                {root === RACINE_GALERIE ? "Aucune illustration ne correspond." : "Aucune texture ne correspond."}
               </p>
             )}
           </ScrollArea>

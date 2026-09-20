@@ -22,12 +22,14 @@ import {
 	DATA,
 	DOWNLOADS,
 	EXPLORER,
+	FORMATION,
 	GALLERY,
 	INACORD,
 	LEGACY_ROUTES,
 	MERGED_ROUTES,
 	MEDIA,
 	MODES,
+	SAVE,
 	SETTINGS,
 	SHOP,
 	recognizedRoutes,
@@ -41,6 +43,8 @@ import { Game } from "./pages/Game";
 import { PlayerBank } from "./screens/PlayerBank";
 import { Shop } from "./screens/Shop";
 import { TrophyGallery } from "./screens/TrophyGallery";
+import { SaveScreen } from "./screens/SaveScreen";
+import { MyTeamScreen } from "./screens/MyTeamScreen";
 import { Settings } from "./pages/Settings";
 import { Avatar } from "./pages/Avatar";
 import { WasmGameSurface, WASM_MODE_INDEX, type WasmMode } from "./pages/WasmGameSurface";
@@ -104,7 +108,7 @@ function GameSite() {
 	// Une adresse héritée mène à l'écran officiel du jeu, en remplaçant l'historique
 	useEffect(() => {
 		const canonical = LEGACY_ROUTES[vue];
-		if (canonical) {
+		if (canonical && canonical !== vue) {
 			setVue(canonical, undefined, { replace: true });
 			return;
 		}
@@ -216,7 +220,8 @@ function GameSite() {
 			onOpenSettings={() => setVue(SETTINGS)}
 			onSelectMode={(mode) => setVue(mode)}
 			onOpenModes={(slug) => setVue(slug ? `${MODES}/${slug}` : MODES)}
-			onOpenSave={() => setVue(DATA)}
+			onOpenSave={() => setVue(SAVE)}
+			onOpenTeam={() => setVue(FORMATION)}
 		/>
 	);
 
@@ -251,6 +256,12 @@ function GameSite() {
 	}
 	if (vue === AVATAR) {
 		return withHost(<Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} />);
+	}
+	if (vue === SAVE) {
+		return withHost(<SaveScreen onBack={() => setVue(HOME)} />);
+	}
+	if (vue === FORMATION) {
+		return withHost(<MyTeamScreen onBack={() => setVue(HOME)} onLaunchMatch={(mode) => setVue(mode)} />);
 	}
 
 	// Téléchargements Inacord

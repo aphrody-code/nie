@@ -45,7 +45,7 @@ import { StatHeptagon } from "@niers/inacord-ui/components/wiki/wiki/StatHeptago
 import { getCharacterFaceUrl } from "@niers/inacord-ui/lib/wikiImages";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { listPage, stepCursor } from "../game/list-page";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { LayoutCanvas } from "../game/LayoutCanvas";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
 import {
@@ -199,6 +199,7 @@ export interface PlayerBankUrlState {
 	rarity: string[];
 	series: string[];
 	team: string[];
+	gender: string[];
 	sort: CharaSort;
 	order: "asc" | "desc";
 	page: number;
@@ -212,6 +213,7 @@ const BANK_DEFAULTS: PlayerBankUrlState = {
 	rarity: [],
 	series: [],
 	team: [],
+	gender: [],
 	sort: "zukan",
 	order: "asc",
 	page: 1,
@@ -225,7 +227,7 @@ function positive(raw: string | null, fallback: number, max: number): number {
 	return Number.isSafeInteger(value) && value >= 1 ? Math.min(value, max) : fallback;
 }
 
-function values(params: URLSearchParams, key: CharaFacet | "team"): string[] {
+function values(params: URLSearchParams, key: CharaFacet | "team" | "gender"): string[] {
 	const multiple = params.get(`${key}__in`);
 	const raw = multiple ?? params.get(key) ?? "";
 	return [...new Set(raw.split(",").map((value) => value.trim()).filter(Boolean))];
@@ -242,6 +244,7 @@ export function playerBankStateFromUrl(search: string): PlayerBankUrlState {
 		rarity: values(params, "rarity"),
 		series: values(params, "series"),
 		team: values(params, "team"),
+		gender: values(params, "gender"),
 		sort: requestedSort && BANK_SORTS.has(requestedSort) ? requestedSort : "zukan",
 		order: params.get("ordre") === "desc" ? "desc" : "asc",
 		page: positive(params.get("page"), 1, 0xffff_ffff),
@@ -249,7 +252,7 @@ export function playerBankStateFromUrl(search: string): PlayerBankUrlState {
 	};
 }
 
-function writeValues(params: URLSearchParams, key: CharaFacet | "team", selected: readonly string[]): void {
+function writeValues(params: URLSearchParams, key: CharaFacet | "team" | "gender", selected: readonly string[]): void {
 	if (selected.length === 1) params.set(key, selected[0] ?? "");
 	else if (selected.length > 1) params.set(`${key}__in`, selected.join(","));
 }
@@ -258,7 +261,7 @@ export function playerBankHref(location: string, state: PlayerBankUrlState): str
 	const url = new URL(location, "http://localhost");
 	const managed = [
 		"q", "element", "element__in", "position", "position__in", "rarity", "rarity__in",
-		"series", "series__in", "team", "team__in", "tri", "ordre", "page", "per_page",
+		"series", "series__in", "team", "team__in", "gender", "gender__in", "tri", "ordre", "page", "per_page",
 	];
 	for (const key of managed) url.searchParams.delete(key);
 	if (state.q) url.searchParams.set("q", state.q);
@@ -267,6 +270,7 @@ export function playerBankHref(location: string, state: PlayerBankUrlState): str
 	writeValues(url.searchParams, "rarity", state.rarity);
 	writeValues(url.searchParams, "series", state.series);
 	writeValues(url.searchParams, "team", state.team);
+	writeValues(url.searchParams, "gender", state.gender ?? []);
 	if (state.sort !== "zukan") url.searchParams.set("tri", state.sort);
 	if (state.order !== "asc") url.searchParams.set("ordre", state.order);
 	if (state.page !== 1) url.searchParams.set("page", String(state.page));
@@ -425,7 +429,8 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 		position: urlState.position,
 		series: urlState.series,
 		team: urlState.team,
-	}), [urlState.element, urlState.position, urlState.series, urlState.team]);
+		gender: urlState.gender,
+	}), [urlState.element, urlState.position, urlState.series, urlState.team, urlState.gender]);
 	const activeFilter = webCatalogue ? webFilter : filter;
 	const activeSearch = webCatalogue ? urlState.q : search;
 	const teamFallback = webCatalogue && urlState.team.length > 0;
@@ -521,13 +526,84 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [move, onBack, filterOpen, searchOpen, webCatalogue, writeWebState, urlState]);
 
+const ELEMENT_DETAILS: Record<string, { iconUrl?: string; desc: string }> = {
+	Vent: { iconUrl: "/spirit_type/wind.webp", desc: "Agilité et rapidité" },
+	Feu: { iconUrl: "/spirit_type/fire.webp", desc: "Puissance et frappe" },
+	Bois: { iconUrl: "/spirit_type/forest.webp", desc: "Technique et contrôle" },
+	Forêt: { iconUrl: "/spirit_type/forest.webp", desc: "Technique et contrôle" },
+	Terre: { iconUrl: "/spirit_type/mountain.webp", desc: "Force et défense" },
+	Montagne: { iconUrl: "/spirit_type/mountain.webp", desc: "Force et défense" },
+};
+
+const POSITION_DETAILS: Record<string, { label: string; desc: string }> = {
+	FW: { label: "Attaquant (FW)", desc: "Avant-centre, ailier" },
+	MF: { label: "Milieu (MF)", desc: "Milieu de terrain, relayeur" },
+	DF: { label: "Défenseur (DF)", desc: "Défenseur central, latéral" },
+	GK: { label: "Gardien (GK)", desc: "Gardien de but" },
+};
+
+const GENDER_DETAILS: Record<string, { label: string; desc: string }> = {
+	Garçon: { label: "Garçon", desc: "Joueur masculin" },
+	Fille: { label: "Fille", desc: "Joueuse féminine" },
+	Autre: { label: "Autre", desc: "Autre morphologie" },
+};
+
+const RARITY_DETAILS: Record<string, { desc: string }> = {
+	N: { desc: "Normale" },
+	R: { desc: "Rare" },
+	SR: { desc: "Super Rare" },
+	UR: { desc: "Ultra Rare" },
+	LEGEND: { desc: "Légendaire" },
+};
+
+function enrichFilterOption(familyId: string, value: string, count?: number) {
+	let label = value;
+	let description: ReactNode | undefined;
+	let icon: ReactNode | undefined;
+	if (familyId === "element") {
+		const el = ELEMENT_DETAILS[value];
+		if (el) {
+			description = el.desc;
+			if (el.iconUrl) {
+				icon = (
+					<img
+						src={el.iconUrl}
+						alt={value}
+						width={20}
+						height={20}
+						style={{ objectFit: "contain", verticalAlign: "middle", display: "inline-block" }}
+					/>
+				);
+			}
+		}
+	} else if (familyId === "position") {
+		const pos = POSITION_DETAILS[value];
+		if (pos) {
+			label = pos.label;
+			description = pos.desc;
+		}
+	} else if (familyId === "gender") {
+		const g = GENDER_DETAILS[value];
+		if (g) {
+			label = g.label;
+			description = g.desc;
+		}
+	} else if (familyId === "rarity") {
+		const r = RARITY_DETAILS[value];
+		if (r) {
+			description = r.desc;
+		}
+	}
+	return { value, label, description, icon, count };
+}
+
 	const localFamilies = useMemo<readonly GameFilterFamily[]>(
 		() => rosterFamilies(entries ?? []).map((family) => ({
 			id: family.id,
 			label: family.label,
 			icon: family.label.slice(0, 1),
 			mode: "multi" as const,
-			options: family.options.map((option) => ({ value: option.value, label: option.value, count: option.count })),
+			options: family.options.map((option) => enrichFilterOption(family.id, option.value, option.count)),
 		})),
 		[entries],
 	);
@@ -543,13 +619,14 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 			label: labels[id],
 			icon: labels[id].slice(0, 1),
 			mode: "multi" as const,
-			options: (catalogue?.facettes[id] ?? []).map((option) => ({
-				value: option.valeur, label: option.valeur, count: option.total,
-			})),
+			options: (catalogue?.facettes[id] ?? []).map((option) =>
+				enrichFilterOption(id, option.valeur, option.total)),
 		}));
 		const team = localFamilies.find((family) => family.id === "team");
+		const gender = localFamilies.find((family) => family.id === "gender");
 		return [
 			...serverFamilies,
+			...(gender ? [gender] : []),
 			...(team ? [{ ...team, label: "Équipe (profil local)" }] : []),
 			{
 				id: "sort",
@@ -577,6 +654,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 		rarity: urlState.rarity,
 		series: urlState.series,
 		team: urlState.team,
+		gender: urlState.gender,
 		sort: [`${urlState.sort}:${urlState.order}`],
 		per_page: [String(urlState.perPage)],
 	} : filter, [webCatalogue, urlState, filter]);
@@ -597,7 +675,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	}, [webCatalogue, writeWebState, urlState]);
 	const filtersActive = webCatalogue
 		? Boolean(urlState.q || urlState.element.length || urlState.position.length || urlState.rarity.length
-			|| urlState.series.length || urlState.team.length || urlState.sort !== "zukan"
+			|| urlState.series.length || urlState.team.length || urlState.gender.length || urlState.sort !== "zukan"
 			|| urlState.order !== "asc" || urlState.page !== 1 || urlState.perPage !== PAGE_SIZE)
 		: Object.values(filter).some((value) => value.length > 0);
 	const hints = useMemo(() => [
@@ -768,6 +846,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 									rarity: [...(value.rarity ?? [])],
 									series: [...(value.series ?? [])],
 									team,
+									gender: [...(value.gender ?? [])],
 									sort: BANK_SORTS.has(sort as CharaSort) ? sort as CharaSort : "zukan",
 									order: order === "desc" ? "desc" : "asc",
 									perPage: positive(value.per_page?.[0] ?? null, PAGE_SIZE, PAGE_SIZE),

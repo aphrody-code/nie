@@ -79,4 +79,19 @@ describe("roster binding", () => {
 		const entries = rosterFromCharas(CHARAS);
 		expect(listPage(entries, 3, 2).items.map((e) => e.chara.name)).toEqual(["Axel", "Nathan"]);
 	});
+
+	test("gender family is counted and filters when multiple genders exist", () => {
+		const mixed = [
+			{ ...CHARAS[0]!, gender: 1 },
+			{ ...CHARAS[1]!, gender: 2 },
+		];
+		const families = rosterFamilies(rosterFromCharas(mixed));
+		const genderFam = families.find((f) => f.id === "gender");
+		expect(genderFam).toBeDefined();
+		expect(genderFam?.options).toEqual([
+			{ value: "Fille", count: 1 },
+			{ value: "Garçon", count: 1 },
+		]);
+		expect(filterRoster(rosterFromCharas(mixed), { gender: ["Fille"] }).map((e) => e.chara.name)).toEqual(["Mark"]);
+	});
 });

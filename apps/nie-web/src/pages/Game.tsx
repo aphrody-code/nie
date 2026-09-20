@@ -35,6 +35,7 @@ export interface GameProps {
 	onSelectMode?: (mode: WasmMode) => void;
 	onOpenModes?: (slug?: string) => void;
 	onOpenSave?: () => void;
+	onOpenTeam?: () => void;
 	startupReady?: boolean;
 	health?: SiteHealth | null;
 	startupFailed?: boolean;
@@ -54,6 +55,7 @@ export function Game({
 	onSelectMode,
 	onOpenModes,
 	onOpenSave,
+	onOpenTeam,
 	startupReady = false,
 	health = null,
 	startupFailed = false,
@@ -113,10 +115,16 @@ export function Game({
 			id: "title-item-10",
 			label: "Sauvegarder",
 			glyph: "livre" as const,
-			onActivate: () => setActiveSubmenu("title-item-10"),
+			onActivate: () => {
+				if (onOpenSave) {
+					onOpenSave();
+				} else {
+					setActiveSubmenu("title-item-10");
+				}
+			},
 			disabled: false,
 		},
-	], [hostActions, modeSlugs]);
+	], [hostActions, modeSlugs, onOpenSave]);
 
 	if (phase === "menu") {
 		return (
@@ -146,6 +154,26 @@ export function Game({
 							setActiveSubmenu(null);
 							onOpenModes(slug);
 						} : undefined}
+						onOpenScreen={(screen) => {
+							setActiveSubmenu(null);
+							if (screen === "soccer_formation_menu" || screen === "team") {
+								(onOpenTeam ?? onOpenBank)();
+							} else if (screen === "save_menu" || screen === "save") {
+								onOpenSave?.();
+							} else if (screen === "chara_bank_menu" || screen === "bank") {
+								onOpenBank();
+							} else if (screen === "shop_menu" || screen === "shop") {
+								onOpenShop();
+							} else if (screen === "chara_edit_menu" || screen === "avatar") {
+								onOpenAvatar();
+							} else if (screen === "gallery_menu" || screen === "gallery") {
+								onOpenGallery();
+							} else if (screen === "setting_menu" || screen === "settings") {
+								onOpenSettings();
+							} else if (onOpenModes) {
+								onOpenModes(screen);
+							}
+						}}
 					/>
 				)}
 			</>

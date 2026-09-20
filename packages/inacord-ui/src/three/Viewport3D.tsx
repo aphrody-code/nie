@@ -110,6 +110,8 @@ interface GlState {
   byId: Map<string, THREE.Object3D>;
   selectionBox: THREE.BoxHelper | null;
   raf: number;
+  clock: THREE.Clock;
+  mixers: Map<string, THREE.AnimationMixer>;
 }
 
 function readTransform(o: THREE.Object3D): NodeTransform {
@@ -123,6 +125,11 @@ function readTransform(o: THREE.Object3D): NodeTransform {
 /** Retire un asset de la scène et libère sa mémoire GPU. Par asset : la scène en porte plusieurs,
  * un `dispose()` global libérerait les modèles restés à l'écran. */
 function disposeAsset(state: GlState, key: string) {
+  const mixer = state.mixers.get(key);
+  if (mixer) {
+    mixer.stopAllAction();
+    state.mixers.delete(key);
+  }
   const group = state.assets.get(key);
   if (!group) return;
   if (state.gizmoTarget && group.getObjectById(state.gizmoTarget.id)) {
@@ -278,6 +285,8 @@ export function Viewport3D({
       byId: new Map(),
       selectionBox: null,
       raf: 0,
+      clock: new THREE.Clock(),
+      mixers: new Map(),
     };
     gl.current = state;
 
@@ -294,9 +303,11 @@ export function Viewport3D({
       if (target) onTransformRef.current?.(target.userData.nieId as string, readTransform(target));
     });
 
+    // Redimensionnement fluide, centrage initial et mise à l'échelle DPI.
     const resize = () => {
-      const w = host.clientWidth || 1;
-      const h = host.clientHeight || 1;
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      if (w <= 0 || h <= 0) return;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -324,6 +335,10 @@ export function Viewport3D({
 
     const tick = () => {
       state.raf = requestAnimationFrame(tick);
+      const delta = state.clock.getDelta();
+      for (const mixer of state.mixers.values()) {
+        mixer.update(delta);
+      }
       controls.update();
       try {
         renderer.render(scene, camera);
@@ -413,6 +428,14 @@ export function Viewport3D({
               gl.current.scene.add(gltf.scene);
               gl.current.assets.set(asset.key, gltf.scene);
               gl.current.assetRevisions.set(asset.key, asset.revision ?? 0);
+              if (gltf.animations && gltf.animations.length > 0) {
+                const mixer = new THREE.AnimationMixer(gltf.scene);
+                for (const clip of gltf.animations) {
+                  const action = mixer.clipAction(clip);
+                  action.play();
+                }
+                gl.current.mixers.set(asset.key, mixer);
+              }
             } catch (e) {
               setError(`Ajout du modèle à la scène : ${e instanceof Error ? e.message : String(e)}`);
             }

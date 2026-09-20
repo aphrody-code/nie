@@ -49,6 +49,52 @@ export const LIBELLES_CATEGORIE: Record<string, string> = {
   ev_telop: "Bandeaux d'événement",
   bookmark_img: "Marque-pages",
   stamp_img: "Tampons",
+  // Personnages (data/dx11/chr)
+  _face: "Visages",
+  _uniform: "Tenues",
+  _armd: "Armures",
+  _item: "Objets",
+  _keshin: "Keshin",
+  _animal: "Animaux",
+  _waza: "Techniques",
+  // Effets (data/dx11/effect)
+  battle: "Combat",
+  event: "Événements",
+  locus: "Trajectoires",
+  system: "Système",
+  // Cartes & Décors (data/dx11/map)
+  ar: "Arènes",
+  b: "Bâtiments",
+  s: "Stades",
+  w: "Monde",
+  k: "Keshin",
+  cubemap: "Cubemaps",
+  sky: "Ciels",
+  gi: "Illumination globale",
+  // Icônes de menu (data/dx11/menu/200_icon)
+  "01_icon_emblem": "Emblèmes",
+  "02_icon_item": "Objets",
+  "05_icon_rarity": "Raretés",
+  "06_icon_class": "Classes",
+  "07_icon_rank": "Rangs",
+  "08_icon_teambuff": "Buffs d'équipe",
+  "10_icon_chr": "Portraits de personnages",
+  "12_icon_minimap": "Mini-carte",
+  "13_icon_tactics": "Tactiques",
+  "15_icon_common": "Communs",
+  "15_icon_common2": "Communs 2",
+  "16_icon_list_tab": "Onglets",
+  "16_icon_list_tab_filter": "Filtres d'onglets",
+  "17_icon_category": "Catégories",
+  "17_icon_category2": "Catégories 2",
+  "18_icon_abilearboard": "Tableaux de compétences",
+  "20_icon_deco": "Décorations",
+  "21_icon_avatar": "Avatars",
+  "22_icon_town": "Villes",
+  "25_icon_nameplate": "Plaques nominatives",
+  "26_icon_nm_season": "Saisons",
+  "30_icon_synergy": "Synergies",
+  "100_num": "Chiffres & Nombres",
 };
 
 /**
@@ -98,18 +144,18 @@ export function titreIllustration(chemin: string): string {
 }
 
 /** Catégorie (1er segment sous la racine) d'un chemin d'illustration, `null` hors galerie. */
-export function categorieDe(chemin: string): string | null {
-  if (!chemin.startsWith(`${RACINE_GALERIE}/`)) return null;
-  const reste = chemin.slice(RACINE_GALERIE.length + 1);
+export function categorieDe(chemin: string, racine: string = RACINE_GALERIE): string | null {
+  if (!chemin.startsWith(`${racine}/`)) return null;
+  const reste = chemin.slice(racine.length + 1);
   const barre = reste.indexOf("/");
   return barre === -1 ? null : reste.slice(0, barre);
 }
 
 /** Sous-dossier (2e segment) d'un chemin d'illustration, `null` s'il est à plat dans sa catégorie. */
-export function sousDossierDe(chemin: string): string | null {
-  const cat = categorieDe(chemin);
+export function sousDossierDe(chemin: string, racine: string = RACINE_GALERIE): string | null {
+  const cat = categorieDe(chemin, racine);
   if (!cat) return null;
-  const reste = chemin.slice(RACINE_GALERIE.length + cat.length + 2);
+  const reste = chemin.slice(racine.length + cat.length + 2);
   const barre = reste.indexOf("/");
   return barre === -1 ? null : reste.slice(0, barre);
 }
@@ -118,16 +164,13 @@ export function sousDossierDe(chemin: string): string | null {
  * Préfixe VFS d'une catégorie, éventuellement restreinte à un sous-dossier.
  *
  * `null` désigne **toutes les catégories** : le préfixe est alors la racine, et la page rendue
- * porte les 17 085 illustrations au lieu des quelques centaines d'un dossier. Sans ce cas, une
- * catégorie était toujours forcée (la première renvoyée par `ls`) et la galerie complète — celle
- * que le titre annonce — n'était atteignable par aucune combinaison de filtres. Une recherche
- * ne portait jamais que sur un dossier, ce que rien à l'écran ne disait.
+ * porte les illustrations au lieu des quelques centaines d'un dossier.
  */
-export function prefixeCategorie(categorie: string | null, sousDossier?: string | null): string {
-  if (!categorie) return `${RACINE_GALERIE}/`;
+export function prefixeCategorie(categorie: string | null, sousDossier?: string | null, racine: string = RACINE_GALERIE): string {
+  if (!categorie) return `${racine}/`;
   return sousDossier
-    ? `${RACINE_GALERIE}/${categorie}/${sousDossier}/`
-    : `${RACINE_GALERIE}/${categorie}/`;
+    ? `${racine}/${categorie}/${sousDossier}/`
+    : `${racine}/${categorie}/`;
 }
 
 /**
@@ -139,12 +182,12 @@ export function prefixeCategorie(categorie: string | null, sousDossier?: string 
  * 150 fois moins d'octets à lire dans le CPK. Hors de ce couple, on rend `null` : `thumbs.ts`
  * réduira l'image elle-même côté Rust, ce qui reste borné.
  */
-export function vignetteDediee(chemin: string): string | null {
-  const cat = categorieDe(chemin);
+export function vignetteDediee(chemin: string, racine: string = RACINE_GALERIE): string | null {
+  const cat = categorieDe(chemin, racine);
   if (cat !== "gallery_img2") return null;
   const base = chemin.slice(chemin.lastIndexOf("/") + 1);
   if (!base.startsWith("img_")) return null;
-  return `${RACINE_GALERIE}/gallery_thumb2/thumb_${base.slice(4)}`;
+  return `${racine}/gallery_thumb2/thumb_${base.slice(4)}`;
 }
 
 /** Une illustration prête à afficher. */
@@ -176,16 +219,17 @@ export interface EnrichissementGalerie {
 export function construireIllustrations(
   fichiers: readonly { path: string; size: number }[],
   enrichissements: ReadonlyMap<string, EnrichissementGalerie>,
+  racine: string = RACINE_GALERIE,
 ): Illustration[] {
   return fichiers.map((f) => {
     const base = f.path.slice(f.path.lastIndexOf("/") + 1).replace(/\.g4tx$/i, "");
     const extra = enrichissements.get(base);
     return {
       chemin: f.path,
-      cheminVignette: vignetteDediee(f.path) ?? f.path,
+      cheminVignette: vignetteDediee(f.path, racine) ?? f.path,
       titre: titreIllustration(f.path),
-      categorie: categorieDe(f.path) ?? "",
-      sousDossier: sousDossierDe(f.path),
+      categorie: categorieDe(f.path, racine) ?? "",
+      sousDossier: sousDossierDe(f.path, racine),
       octets: f.size,
       deblocage: extra?.deblocage ?? null,
       episode: extra?.episode ?? null,

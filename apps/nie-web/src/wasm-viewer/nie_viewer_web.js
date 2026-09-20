@@ -73,6 +73,92 @@ export class ModelViewer {
         return takeObject(ret);
     }
     /**
+     * L'axe du gizmo sous le pixel : `"x"`, `"y"`, `"z"`, ou chaîne vide si aucune poignée.
+     *
+     * Une chaîne plutôt qu'un entier : `wasm_bindgen` traverse les deux aussi bien, et un `"x"`
+     * se lit dans un journal de navigateur là où un `0` demande de retrouver la convention.
+     * @param {number} x
+     * @param {number} y
+     * @returns {string}
+     */
+    gizmo_axis_at(x, y) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.modelviewer_gizmo_axis_at(retptr, this.__wbg_ptr, x, y);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Le déplacement monde entre deux pixels, contraint à l'axe nommé.
+     *
+     * Rend `[dx, dy, dz]`, ou un tableau vide quand l'axe est inconnu ou qu'un des deux rayons
+     * ne rencontre pas le plan de contrainte — l'hôte laisse alors l'objet où il est.
+     * @param {string} axis
+     * @param {number} from_x
+     * @param {number} from_y
+     * @param {number} to_x
+     * @param {number} to_y
+     * @returns {Float32Array}
+     */
+    gizmo_drag(axis, from_x, from_y, to_x, to_y) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(axis, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.modelviewer_gizmo_drag(retptr, this.__wbg_ptr, ptr0, len0, from_x, from_y, to_x, to_y);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v2 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * L'angle de rotation autour de l'axe nommé, en radians. `NaN` si indéterminé.
+     *
+     * `NaN` plutôt qu'un `Option` : il traverse `wasm_bindgen` comme un nombre, et l'appelant
+     * le teste par `Number.isNaN` — là où un `Option<f32>` deviendrait un `JsValue` à
+     * inspecter. Zéro serait un mauvais choix : c'est une rotation valide.
+     * @param {string} axis
+     * @param {number} from_x
+     * @param {number} from_y
+     * @param {number} to_x
+     * @param {number} to_y
+     * @returns {number}
+     */
+    gizmo_rotate(axis, from_x, from_y, to_x, to_y) {
+        const ptr0 = passStringToWasm0(axis, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.modelviewer_gizmo_rotate(this.__wbg_ptr, ptr0, len0, from_x, from_y, to_x, to_y);
+        return ret;
+    }
+    /**
+     * Le facteur d'échelle le long de l'axe nommé. `NaN` si indéterminé.
+     * @param {string} axis
+     * @param {number} from_x
+     * @param {number} from_y
+     * @param {number} to_x
+     * @param {number} to_y
+     * @returns {number}
+     */
+    gizmo_scale(axis, from_x, from_y, to_x, to_y) {
+        const ptr0 = passStringToWasm0(axis, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.modelviewer_gizmo_scale(this.__wbg_ptr, ptr0, len0, from_x, from_y, to_x, to_y);
+        return ret;
+    }
+    /**
      * Charge ou remplace le modèle GLB affiché.
      * @param {Uint8Array} bytes
      */
@@ -193,6 +279,88 @@ export class ModelViewer {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * Statistiques par objet de la scène : `[{ object, triangles, vertices }]` en JSON.
+     * @returns {string}
+     */
+    scene_stats_json() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.modelviewer_scene_stats_json(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Sélectionne un objet du document — l'identifiant est celui que `pick_json` rend.
+     *
+     * Passer une chaîne vide efface la sélection : `Option<&str>` traverse `wasm_bindgen` en
+     * `JsValue`, ce qui coûterait à l'appelant une vérification de type pour une valeur qu'il
+     * teste déjà.
+     * @param {string} id
+     */
+    select(id) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.modelviewer_select(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * L'objet sélectionné, chaîne vide s'il n'y en a pas.
+     * @returns {string}
+     */
+    selected() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.modelviewer_selected(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Choisit ce que le gizmo manipule : `"translate"`, `"rotate"`, `"scale"`.
+     *
+     * Un nom inconnu retombe sur la translation plutôt que de désactiver le gizmo : un outil qui
+     * disparaît sur une faute de frappe se lit comme un bug d'affichage.
+     * @param {string} mode
+     */
+    set_gizmo_mode(mode) {
+        const ptr0 = passStringToWasm0(mode, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.modelviewer_set_gizmo_mode(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * Affiche ou masque la grille de sol.
+     *
+     * C'est l'une des quatre capacités pour lesquelles le viewport three.js de l'éditeur
+     * survivait ; les trois autres sont le fil de fer, le contour de sélection et le gizmo.
+     * @param {boolean} visible
+     */
+    set_grid(visible) {
+        wasm.modelviewer_set_grid(this.__wbg_ptr, visible);
+    }
+    /**
+     * Affiche ou masque le fil de fer du modèle.
+     * @param {boolean} visible
+     */
+    set_wireframe(visible) {
+        wasm.modelviewer_set_wireframe(this.__wbg_ptr, visible);
     }
     /**
      * Décode un asset GLB et le garde sous le chemin que le document de scène lui donne.
@@ -1238,7 +1406,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wasm_bindgen_func_elem_7059(a, state0.b, arg0, arg1);
+                        return __wasm_bindgen_func_elem_7107(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -2176,17 +2344,17 @@ function __wbg_get_imports() {
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 2539, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_7038);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_7086);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 542, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_1484);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_1532);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 542, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_1484_2);
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_1532_2);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000004: function(arg0) {
@@ -2248,18 +2416,18 @@ function __wbg_get_imports() {
     };
 }
 
-function __wasm_bindgen_func_elem_1484(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_1484(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_1532(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_1532(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_1484_2(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_1484_2(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_1532_2(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_1532_2(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_7038(arg0, arg1, arg2) {
+function __wasm_bindgen_func_elem_7086(arg0, arg1, arg2) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.__wasm_bindgen_func_elem_7038(retptr, arg0, arg1, addHeapObject(arg2));
+        wasm.__wasm_bindgen_func_elem_7086(retptr, arg0, arg1, addHeapObject(arg2));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         if (r1) {
@@ -2270,8 +2438,8 @@ function __wasm_bindgen_func_elem_7038(arg0, arg1, arg2) {
     }
 }
 
-function __wasm_bindgen_func_elem_7059(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_7059(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wasm_bindgen_func_elem_7107(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_7107(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 

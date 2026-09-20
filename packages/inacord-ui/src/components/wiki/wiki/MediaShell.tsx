@@ -35,7 +35,7 @@ import { Icon } from "../../../components/wiki/ui/Icon";
  */
 const COLLECTIONS = [
 	{ path: "/gallery", label: "Illustrations", icon: "image", hint: "sélection in-game" },
-	{ path: "/textures", label: "Textures", icon: "texture", hint: "54 203 fichiers" },
+	{ path: "/textures", label: "Textures", icon: "texture", hint: "54 203 textures" },
 	{ path: "/sons", label: "Sons & voix", icon: "graphic_eq", hint: "5 512 banques" },
 	{ path: "/videos", label: "Vidéos", icon: "movie", hint: "98 cinématiques" },
 	{ path: "/modeles", label: "Modèles 3D", icon: "deployed_code", hint: "6 236 modèles" },

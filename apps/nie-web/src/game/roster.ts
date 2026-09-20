@@ -103,6 +103,7 @@ export const ROSTER_FAMILIES = [
 	{ id: "element", label: "Élément", of: (c: RosterChara) => c.element },
 	{ id: "position", label: "Poste", of: (c: RosterChara) => c.main_position },
 	{ id: "series", label: "Série", of: (c: RosterChara) => c.series },
+	{ id: "gender", label: "Genre", of: (c: RosterChara) => c.gender === 1 ? "Garçon" : c.gender === 2 ? "Fille" : c.gender === 3 ? "Autre" : null },
 	{ id: "team", label: "Équipe", of: (c: RosterChara) => c.team },
 ] as const;
 

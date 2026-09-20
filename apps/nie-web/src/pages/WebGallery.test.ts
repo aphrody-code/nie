@@ -1,8 +1,11 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import type { AssetSource } from "@niers/asset-source";
 import {
+	TEXTURE_DOMAINS,
 	createWebGalleryServices,
+	rootPrefixForDomain,
 	webGalleryFiltersForCategory,
+	webGalleryFiltersForDomain,
 	webGalleryFiltersFromUrl,
 	webGalleryHrefForFilters,
 	webGalleryTextureHref,
@@ -170,5 +173,50 @@ describe("createWebGalleryServices", () => {
 		} finally {
 			globalThis.fetch = originalFetch;
 		}
+	});
+
+	test("exposes the 5 texture domains and maps root prefixes correctly", () => {
+		expect(TEXTURE_DOMAINS.map(d => d.id)).toEqual([
+			"illustrations",
+			"characters",
+			"icons",
+			"effects",
+			"maps",
+		]);
+		expect(rootPrefixForDomain("illustrations")).toBe("data/dx11/menu/220_img");
+		expect(rootPrefixForDomain("characters")).toBe("data/dx11/chr");
+		expect(rootPrefixForDomain("icons")).toBe("data/dx11/menu/200_icon");
+		expect(rootPrefixForDomain("effects")).toBe("data/dx11/effect");
+		expect(rootPrefixForDomain("maps")).toBe("data/dx11/map");
+		expect(rootPrefixForDomain(null)).toBe("data/dx11/menu/220_img");
+		expect(rootPrefixForDomain("unknown")).toBe("data/dx11/menu/220_img");
+	});
+
+	test("round-trips domaine parameter and resets sub-filters on domain change", () => {
+		const href = webGalleryHrefForFilters("https://nie.test/gallery_menu", {
+			query: "face",
+			category: "_face",
+			subfolder: null,
+			domain: "characters",
+		});
+		expect(href).toBe("/gallery_menu?q=face&categorie=_face&domaine=characters");
+		expect(webGalleryFiltersFromUrl(href)).toEqual({
+			query: "face",
+			category: "_face",
+			subfolder: null,
+			domain: "characters",
+		});
+
+		const switched = webGalleryFiltersForDomain(webGalleryFiltersFromUrl(href), "effects");
+		expect(switched).toEqual({
+			query: "face",
+			category: null,
+			subfolder: null,
+			domain: "effects",
+		});
+
+		const switchedToDefault = webGalleryFiltersForDomain(switched, "illustrations");
+		expect(switchedToDefault.domain).toBeUndefined();
+		expect(webGalleryHrefForFilters("/gallery_menu", switchedToDefault)).toBe("/gallery_menu?q=face");
 	});
 });

@@ -126,7 +126,7 @@ fn jetons_rendu() -> &'static tokio::sync::Semaphore {
 /// Une famille de modèles : ce qui décide d'où vient la liste et quelle route de l'amont
 /// assemble le GLB.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum Famille {
     /// Les personnages jouables et non jouables (`c…`), assemblés depuis leurs catalogues.
     Perso,
@@ -140,16 +140,31 @@ pub enum Famille {
     Keshin,
     /// Les armures (`data/common/chr/_armd`).
     Armd,
+    /// Les tenues et uniformes (`data/common/chr/_uniform`).
+    Uniform,
+    /// Les arènes et terrains extérieurs (`data/common/map/ar`).
+    MapAr,
+    /// Les stades (`data/common/map/s`).
+    MapS,
+    /// Le monde et les scènes (`data/common/map/w`).
+    MapW,
+    /// La ville Kizuna (`data/common/map/k`).
+    MapK,
 }
 
-/// Les six familles, dans l'ordre où elles sont exposées.
-pub const FAMILLES: [Famille; 6] = [
+/// Les onze familles, dans l'ordre où elles sont exposées.
+pub const FAMILLES: [Famille; 11] = [
     Famille::Perso,
     Famille::Waza,
     Famille::Item,
     Famille::Animal,
     Famille::Keshin,
     Famille::Armd,
+    Famille::Uniform,
+    Famille::MapAr,
+    Famille::MapS,
+    Famille::MapW,
+    Famille::MapK,
 ];
 
 impl Famille {
@@ -163,6 +178,11 @@ impl Famille {
             Self::Animal => "animal",
             Self::Keshin => "keshin",
             Self::Armd => "armd",
+            Self::Uniform => "uniform",
+            Self::MapAr => "map_ar",
+            Self::MapS => "map_s",
+            Self::MapW => "map_w",
+            Self::MapK => "map_k",
         }
     }
 
@@ -176,10 +196,15 @@ impl Famille {
             Self::Animal => "Animaux",
             Self::Keshin => "Keshin",
             Self::Armd => "Armures",
+            Self::Uniform => "Tenues",
+            Self::MapAr => "Arènes (maps)",
+            Self::MapS => "Stades (maps)",
+            Self::MapW => "Monde (maps)",
+            Self::MapK => "Kizuna (maps)",
         }
     }
 
-    /// Sous-dossier de [`RACINE_CHR`] qui porte les codes de la famille, `None` pour `perso`
+    /// Sous-dossier qui porte les codes de la famille, `None` pour `perso`
     /// dont les pièces ne vivent pas dans un dossier par code.
     #[must_use]
     pub fn sous_dossier(self) -> Option<&'static str> {
@@ -190,13 +215,25 @@ impl Famille {
             Self::Animal => Some("_animal"),
             Self::Keshin => Some("_keshin"),
             Self::Armd => Some("_armd"),
+            Self::Uniform => Some("_uniform"),
+            Self::MapAr => Some("map/ar"),
+            Self::MapS => Some("map/s"),
+            Self::MapW => Some("map/w"),
+            Self::MapK => Some("map/k"),
         }
     }
 
     /// Préfixe VFS complet de la famille, `None` pour `perso`.
     #[must_use]
     pub fn dossier_vfs(self) -> Option<String> {
-        self.sous_dossier().map(|s| format!("{RACINE_CHR}/{s}"))
+        match self {
+            Self::Perso => None,
+            Self::MapAr => Some("data/common/map/ar".to_string()),
+            Self::MapS => Some("data/common/map/s".to_string()),
+            Self::MapW => Some("data/common/map/w".to_string()),
+            Self::MapK => Some("data/common/map/k".to_string()),
+            _ => self.sous_dossier().map(|s| format!("{RACINE_CHR}/{s}")),
+        }
     }
 
     /// D'où vient la liste des codes : le miroir SQLite, ou l'index du VFS.
@@ -216,16 +253,21 @@ impl Famille {
 
     /// Chemin d'amont qui assemble le GLB de ce code, relatif à la base de `nie-model-serve`.
     ///
-    /// Deux routes distinctes chez l'amont, et elles ne sont pas interchangeables :
-    /// `/model-full` part du code de personnage et remonte ses catalogues, `/model-chr` part
-    /// d'un couple (sous-domaine, code) et lit directement la paire `g4md`/`g4mg`.
+    /// Plusieurs routes chez l'amont :
+    /// `/model-full` part du code de personnage et remonte ses catalogues,
+    /// `/model-map` pour les maps/stades, et `/model-chr` pour les maillages de personnages/objets.
     #[must_use]
     pub fn chemin_amont(self, code: &str) -> String {
-        match self.sous_dossier() {
-            None => format!("model-full/{code}.glb"),
-            // Le sous-domaine attendu par `/model-chr` est le nom du dossier SANS son
-            // souligné : `_waza` est un dossier, `waza` est un sous-domaine.
-            Some(dossier) => format!("model-chr/{}/{code}.glb", dossier.trim_start_matches('_')),
+        match self {
+            Self::Perso => format!("model-full/{code}.glb"),
+            Self::MapAr => format!("model-map/ar/{code}.glb"),
+            Self::MapS => format!("model-map/s/{code}.glb"),
+            Self::MapW => format!("model-map/w/{code}.glb"),
+            Self::MapK => format!("model-map/k/{code}.glb"),
+            _ => {
+                let dossier = self.sous_dossier().unwrap_or("");
+                format!("model-chr/{}/{code}.glb", dossier.trim_start_matches('_'))
+            }
         }
     }
 }
@@ -1068,12 +1110,12 @@ async fn octets_amont(etat: &EtatSite, chemin: &str) -> Result<bytes::Bytes, Err
 mod tests {
     use super::*;
     #[test]
-    fn les_six_familles_sont_distinctes_et_routables() {
-        assert_eq!(FAMILLES.len(), 6);
+    fn les_familles_sont_distinctes_et_routables() {
+        assert_eq!(FAMILLES.len(), 11);
         let mut segments: Vec<&str> = FAMILLES.iter().map(|f| f.segment()).collect();
         segments.sort_unstable();
         segments.dedup();
-        assert_eq!(segments.len(), 6, "six segments distincts");
+        assert_eq!(segments.len(), 11, "onze segments distincts");
         for f in FAMILLES {
             assert_eq!(Famille::depuis_segment(f.segment()), Some(f));
             assert!(!f.libelle().is_empty());
@@ -1099,8 +1141,32 @@ mod tests {
             "model-chr/armd/ka000101.glb"
         );
         assert_eq!(
+            Famille::Uniform.chemin_amont("e000401"),
+            "model-chr/uniform/e000401.glb"
+        );
+        assert_eq!(
+            Famille::MapAr.chemin_amont("ai001"),
+            "model-map/ar/ai001.glb"
+        );
+        assert_eq!(
+            Famille::MapS.chemin_amont("s01g001"),
+            "model-map/s/s01g001.glb"
+        );
+        assert_eq!(
             Famille::Waza.dossier_vfs().as_deref(),
             Some("data/common/chr/_waza")
+        );
+        assert_eq!(
+            Famille::Uniform.dossier_vfs().as_deref(),
+            Some("data/common/chr/_uniform")
+        );
+        assert_eq!(
+            Famille::MapAr.dossier_vfs().as_deref(),
+            Some("data/common/map/ar")
+        );
+        assert_eq!(
+            Famille::MapS.dossier_vfs().as_deref(),
+            Some("data/common/map/s")
         );
         assert_eq!(Famille::Perso.dossier_vfs(), None);
     }

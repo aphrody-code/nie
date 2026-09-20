@@ -1587,6 +1587,92 @@ export class WebGpuViewer {
         return takeObject(ret);
     }
     /**
+     * L'axe du gizmo sous le pixel : `"x"`, `"y"`, `"z"`, ou chaîne vide si aucune poignée.
+     *
+     * Une chaîne plutôt qu'un entier : `wasm_bindgen` traverse les deux aussi bien, et un `"x"`
+     * se lit dans un journal de navigateur là où un `0` demande de retrouver la convention.
+     * @param {number} x
+     * @param {number} y
+     * @returns {string}
+     */
+    gizmo_axis_at(x, y) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.webgpuviewer_gizmo_axis_at(retptr, this.__wbg_ptr, x, y);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Le déplacement monde entre deux pixels, contraint à l'axe nommé.
+     *
+     * Rend `[dx, dy, dz]`, ou un tableau vide quand l'axe est inconnu ou qu'un des deux rayons
+     * ne rencontre pas le plan de contrainte — l'hôte laisse alors l'objet où il est.
+     * @param {string} axis
+     * @param {number} from_x
+     * @param {number} from_y
+     * @param {number} to_x
+     * @param {number} to_y
+     * @returns {Float32Array}
+     */
+    gizmo_drag(axis, from_x, from_y, to_x, to_y) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(axis, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.webgpuviewer_gizmo_drag(retptr, this.__wbg_ptr, ptr0, len0, from_x, from_y, to_x, to_y);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v2 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * L'angle de rotation autour de l'axe nommé, en radians. `NaN` si indéterminé.
+     *
+     * `NaN` plutôt qu'un `Option` : il traverse `wasm_bindgen` comme un nombre, et l'appelant
+     * le teste par `Number.isNaN` — là où un `Option<f32>` deviendrait un `JsValue` à
+     * inspecter. Zéro serait un mauvais choix : c'est une rotation valide.
+     * @param {string} axis
+     * @param {number} from_x
+     * @param {number} from_y
+     * @param {number} to_x
+     * @param {number} to_y
+     * @returns {number}
+     */
+    gizmo_rotate(axis, from_x, from_y, to_x, to_y) {
+        const ptr0 = passStringToWasm0(axis, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.webgpuviewer_gizmo_rotate(this.__wbg_ptr, ptr0, len0, from_x, from_y, to_x, to_y);
+        return ret;
+    }
+    /**
+     * Le facteur d'échelle le long de l'axe nommé. `NaN` si indéterminé.
+     * @param {string} axis
+     * @param {number} from_x
+     * @param {number} from_y
+     * @param {number} to_x
+     * @param {number} to_y
+     * @returns {number}
+     */
+    gizmo_scale(axis, from_x, from_y, to_x, to_y) {
+        const ptr0 = passStringToWasm0(axis, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.webgpuviewer_gizmo_scale(this.__wbg_ptr, ptr0, len0, from_x, from_y, to_x, to_y);
+        return ret;
+    }
+    /**
      * Charge/remplace un modèle GLB normalisé (positions monde, textures PNG embarquées).
      * @param {Uint8Array} bytes
      */
@@ -1707,6 +1793,88 @@ export class WebGpuViewer {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * Statistiques par objet de la scène : `[{ object, triangles, vertices }]` en JSON.
+     * @returns {string}
+     */
+    scene_stats_json() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.webgpuviewer_scene_stats_json(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Sélectionne un objet du document — l'identifiant est celui que `pick_json` rend.
+     *
+     * Passer une chaîne vide efface la sélection : `Option<&str>` traverse `wasm_bindgen` en
+     * `JsValue`, ce qui coûterait à l'appelant une vérification de type pour une valeur qu'il
+     * teste déjà.
+     * @param {string} id
+     */
+    select(id) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.webgpuviewer_select(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * L'objet sélectionné, chaîne vide s'il n'y en a pas.
+     * @returns {string}
+     */
+    selected() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.webgpuviewer_selected(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Choisit ce que le gizmo manipule : `"translate"`, `"rotate"`, `"scale"`.
+     *
+     * Un nom inconnu retombe sur la translation plutôt que de désactiver le gizmo : un outil qui
+     * disparaît sur une faute de frappe se lit comme un bug d'affichage.
+     * @param {string} mode
+     */
+    set_gizmo_mode(mode) {
+        const ptr0 = passStringToWasm0(mode, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.webgpuviewer_set_gizmo_mode(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * Affiche ou masque la grille de sol.
+     *
+     * C'est l'une des quatre capacités pour lesquelles le viewport three.js de l'éditeur
+     * survivait ; les trois autres sont le fil de fer, le contour de sélection et le gizmo.
+     * @param {boolean} visible
+     */
+    set_grid(visible) {
+        wasm.webgpuviewer_set_grid(this.__wbg_ptr, visible);
+    }
+    /**
+     * Affiche ou masque le fil de fer du modèle.
+     * @param {boolean} visible
+     */
+    set_wireframe(visible) {
+        wasm.webgpuviewer_set_wireframe(this.__wbg_ptr, visible);
     }
     /**
      * Décode un asset GLB et le garde sous le chemin que le document de scène lui donne.
@@ -2977,6 +3145,38 @@ export function init_panic_hook() {
 }
 
 /**
+ * The menu command a key triggers, or an empty string when it triggers none.
+ *
+ * Exposed so the browser stops carrying its own copy of the binding table. That table was
+ * written three times — here, in `nie-game` and in `bridge.ts` — and the three had already
+ * drifted: `Tab` and `i` existed only in the browser, `NumpadEnter` only in the native host.
+ * `nie_app::input::BINDINGS` is now the single source, and it accepts DOM key names directly.
+ *
+ * An empty string rather than `null`: `Option<&str>` crosses `wasm_bindgen` as `JsValue`, which
+ * costs the caller a type check for a value the caller already has to test.
+ * @param {string} key
+ * @returns {string}
+ */
+export function input_command_for_key(key) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.input_command_for_key(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred2_0 = r0;
+        deferred2_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Vrai si les octets commencent par la signature d'un bytecode Lua 5.2.
  * @param {Uint8Array} bytes
  * @returns {boolean}
@@ -3440,6 +3640,182 @@ export function model_validate_editor_png(png) {
         return v2;
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * Calculates progressive directional ELO rating changes for two players.
+ * @param {number} rating_a
+ * @param {number} rating_b
+ * @param {number} score_a
+ * @returns {string}
+ */
+export function net_compute_elo(rating_a, rating_b, score_a) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.net_compute_elo(retptr, rating_a, rating_b, score_a);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred1_0 = r0;
+        deferred1_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Formats a raw string into canonical Inacode format (`INA-XXXX`).
+ * @param {string} raw
+ * @returns {string}
+ */
+export function net_format_inacode(raw) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(raw, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.net_format_inacode(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred2_0 = r0;
+        deferred2_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generates a pseudo-random 8-character base-32 challenge invitation code.
+ * @param {number} seed
+ * @returns {string}
+ */
+export function net_generate_challenge_code(seed) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.net_generate_challenge_code(retptr, seed);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred1_0 = r0;
+        deferred1_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Generates a deterministic Inacode from a numeric seed.
+ * @param {number} seed
+ * @returns {string}
+ */
+export function net_generate_inacode(seed) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.net_generate_inacode(retptr, seed);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred1_0 = r0;
+        deferred1_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Returns rank tier details (index, name_fr, name_en, min_ap, win_k, loss_k) as JSON.
+ * @param {number} ap
+ * @returns {string}
+ */
+export function net_rank_tier_info(ap) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.net_rank_tier_info(retptr, ap);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred1_0 = r0;
+        deferred1_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Computes FNV-1a 32-bit state hash for zero-desync verification.
+ * @param {number} ball_x
+ * @param {number} ball_y
+ * @param {number} ball_z
+ * @param {number} score_home
+ * @param {number} score_away
+ * @returns {number}
+ */
+export function net_state_hash(ball_x, ball_y, ball_z, score_home, score_away) {
+    const ret = wasm.net_state_hash(ball_x, ball_y, ball_z, score_home, score_away);
+    return ret >>> 0;
+}
+
+/**
+ * Calculates official circuit points for a dense tournament rank given bracket size.
+ * @param {number} dense_rank
+ * @param {number} participants
+ * @returns {number}
+ */
+export function net_tournament_circuit_points(dense_rank, participants) {
+    const ret = wasm.net_tournament_circuit_points(dense_rank, participants);
+    return ret >>> 0;
+}
+
+/**
+ * Validates whether a clan tag matches standard format `[TAG]` (2 to 5 alphanumeric chars).
+ * @param {string} tag
+ * @returns {boolean}
+ */
+export function net_validate_clan_tag(tag) {
+    const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.net_validate_clan_tag(ptr0, len0);
+    return ret !== 0;
+}
+
+/**
+ * Verifies mutual score agreement between two players.
+ * @param {number} home_a
+ * @param {number} away_a
+ * @param {number} home_b
+ * @param {number} away_b
+ * @returns {string}
+ */
+export function net_verify_scores(home_a, away_a, home_b, away_b) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.net_verify_scores(retptr, home_a, away_a, home_b, away_b);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred1_0 = r0;
+        deferred1_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
     }
 }
 
@@ -4377,7 +4753,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wasm_bindgen_func_elem_4456(a, state0.b, arg0, arg1);
+                        return __wasm_bindgen_func_elem_4541(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -5022,18 +5398,18 @@ function __wbg_get_imports() {
             getObject(arg0).writeTexture(getObject(arg1), getArrayU8FromWasm0(arg2, arg3), getObject(arg4), getObject(arg5));
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1358, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3450);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1360, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3535);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1418, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4441);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 1420, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_4526);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1358, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3450_2);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("GPUUncapturedErrorEvent")], shim_idx: 1360, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_3535_2);
             return addHeapObject(ret);
         },
         __wbindgen_cast_0000000000000004: function(arg0) {
@@ -5065,18 +5441,18 @@ function __wbg_get_imports() {
     };
 }
 
-function __wasm_bindgen_func_elem_3450(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3450(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3535(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3535(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_3450_2(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_3450_2(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_3535_2(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_3535_2(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_4441(arg0, arg1, arg2) {
+function __wasm_bindgen_func_elem_4526(arg0, arg1, arg2) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.__wasm_bindgen_func_elem_4441(retptr, arg0, arg1, addHeapObject(arg2));
+        wasm.__wasm_bindgen_func_elem_4526(retptr, arg0, arg1, addHeapObject(arg2));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         if (r1) {
@@ -5087,8 +5463,8 @@ function __wasm_bindgen_func_elem_4441(arg0, arg1, arg2) {
     }
 }
 
-function __wasm_bindgen_func_elem_4456(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_4456(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wasm_bindgen_func_elem_4541(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_4541(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 
@@ -5286,6 +5662,11 @@ function dropObject(idx) {
     heap_next = idx;
 }
 
+function getArrayF32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayJsValueFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     const mem = getDataViewMemory0();
@@ -5312,6 +5693,14 @@ function getDataViewMemory0() {
         cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
     }
     return cachedDataViewMemory0;
+}
+
+let cachedFloat32ArrayMemory0 = null;
+function getFloat32ArrayMemory0() {
+    if (cachedFloat32ArrayMemory0 === null || cachedFloat32ArrayMemory0.byteLength === 0) {
+        cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
+    }
+    return cachedFloat32ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -5466,6 +5855,7 @@ function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
     cachedDataViewMemory0 = null;
+    cachedFloat32ArrayMemory0 = null;
     cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();

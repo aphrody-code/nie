@@ -13,6 +13,7 @@ const filtered: PlayerBankUrlState = {
 	rarity: ["UR", "LEGEND"],
 	series: ["GO"],
 	team: ["Raimon"],
+	gender: ["Garçon"],
 	sort: "rarete",
 	order: "desc",
 	page: 4,
@@ -28,6 +29,7 @@ describe("PlayerBank URL state", () => {
 		expect(url.searchParams.get("element__in")).toBe("Feu,Vent");
 		expect(url.searchParams.get("rarity__in")).toBe("UR,LEGEND");
 		expect(url.searchParams.get("team")).toBe("Raimon");
+		expect(url.searchParams.get("gender")).toBe("Garçon");
 		expect(url.hash).toBe("#bank");
 		expect(playerBankStateFromUrl(url.search)).toEqual(filtered);
 	});

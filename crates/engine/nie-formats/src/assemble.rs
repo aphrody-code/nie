@@ -797,6 +797,28 @@ pub struct AssembledModel {
     /// personnages, où chaque pièce a ses propres planches : appliquer la texture du haut aux
     /// bras parce qu'ils sont tous deux `Uniform` est exactement l'erreur à éviter.
     pub strict_materials: bool,
+    /// Clips de mouvement déjà décodés et résolus contre `skeleton`, à écrire en `animations`
+    /// glTF. Vide par défaut : un GLB sans requête d'animation explicite du service n'en gagne
+    /// aucune — le contrat d'octets existant (galerie, vignettes) ne change pas sous les pieds
+    /// d'un appelant qui n'a rien demandé. [`crate::g4mt::Motion::decode_clip`] refuse déjà les
+    /// clips additifs en amont : ce champ ne peut donc contenir que des clips non additifs.
+    pub animation_clips: Vec<crate::g4mt::DecodedMotionClip>,
+    /// Clips demandés par l'appelant mais volontairement absents de `animation_clips`, avec la
+    /// raison. Écrit dans `extras.nie.animation.excluded` du GLB — jamais mélangé en silence aux
+    /// clips retenus. Le cas principal est `additive` (glTF n'a pas de canal « relatif à une pose
+    /// de base » sans une extension que ce dépôt n'implémente pas), mais un nom introuvable ou un
+    /// clip qui ne résout aucune piste contre ce squelette atterrit ici aussi.
+    pub animation_excluded: Vec<AnimationExclusion>,
+}
+
+/// Un clip demandé mais non embarqué dans le GLB, avec sa raison — jamais un clip silencieusement
+/// jeté. Voir [`AssembledModel::animation_excluded`].
+#[derive(Debug, Clone)]
+pub struct AnimationExclusion {
+    /// Nom du clip tel que nommé dans le `.g4mt` source.
+    pub name: String,
+    /// Raison humaine, courte, qui finit telle quelle dans `extras.nie.animation.excluded[].reason`.
+    pub reason: String,
 }
 
 /// Texture auxiliaire d'un matériau (rôle non représentable en PBR de base).
@@ -2236,6 +2258,8 @@ pub fn assemble_character_model(
         aux_textures: Vec::new(),
         report,
         strict_materials: true,
+        animation_clips: Vec::new(),
+        animation_excluded: Vec::new(),
     })
 }
 
@@ -2605,6 +2629,8 @@ pub fn assemble_avatar_model(
         aux_textures: Vec::new(),
         report: serde_json::Value::Null,
         strict_materials: false,
+        animation_clips: Vec::new(),
+        animation_excluded: Vec::new(),
     })
 }
 
@@ -2647,6 +2673,8 @@ pub fn assemble_generic_model(input: GenericModelInput) -> Result<AssembledModel
         aux_textures: Vec::new(),
         report: serde_json::Value::Null,
         strict_materials: false,
+        animation_clips: Vec::new(),
+        animation_excluded: Vec::new(),
     })
 }
 
@@ -3155,10 +3183,17 @@ fn build_glb(model: &AssembledModel, with_textures: bool) -> Vec<u8> {
         }));
     }
 
-    let (node_indices, skins_json) = glb_attach_skeleton(
+    let (node_indices, skins_json, bone_node_base) = glb_attach_skeleton(
         model,
         &mut mesh_defs,
         &mut mesh_nodes,
+        &mut bv_data,
+        &mut buffer_views_json,
+        &mut accessor_defs,
+    );
+    let (animations_json, animation_extras) = glb_emit_animations(
+        model,
+        bone_node_base,
         &mut bv_data,
         &mut buffer_views_json,
         &mut accessor_defs,
@@ -3181,6 +3216,12 @@ fn build_glb(model: &AssembledModel, with_textures: bool) -> Vec<u8> {
     });
     if let Some(skins) = skins_json {
         gltf_obj["skins"] = skins;
+    }
+    if let Some(animations) = animations_json {
+        gltf_obj["animations"] = animations;
+    }
+    if let Some(extras) = animation_extras {
+        gltf_obj["extras"] = json!({ "nie": { "animation": extras } });
     }
 
     // Injecte images et textures uniquement si with_textures et qu'on en a.
@@ -3319,7 +3360,9 @@ fn glb_emit_skin_attributes(
 /// Attache le squelette du modèle au GLB : sépare dans chaque composant les primitives skinnées
 /// des statiques (un nœud avec `skin` doit n'avoir que des primitives à `JOINTS_0`), émet un
 /// nœud par os (TRS local de repos), `skins[0]` avec les matrices inverse-bind, et renvoie les
-/// racines de scène (nœuds de maille + racines d'os) et le tableau `skins` à insérer.
+/// racines de scène (nœuds de maille + racines d'os), le tableau `skins` à insérer, et l'index du
+/// PREMIER nœud d'os (`base` ci-dessous) — c'est ce que [`glb_emit_animations`] ajoute à
+/// `DecodedMotionTrack::bone_index` pour cibler le bon nœud glTF.
 fn glb_attach_skeleton(
     model: &AssembledModel,
     mesh_defs: &mut Vec<serde_json::Value>,
@@ -3327,7 +3370,7 @@ fn glb_attach_skeleton(
     bv_data: &mut Vec<u8>,
     buffer_views_json: &mut Vec<serde_json::Value>,
     accessor_defs: &mut Vec<serde_json::Value>,
-) -> (Vec<usize>, Option<serde_json::Value>) {
+) -> (Vec<usize>, Option<serde_json::Value>, Option<usize>) {
     use serde_json::{Value, json};
 
     let skinned_any = mesh_defs.iter().any(|m| {
@@ -3336,7 +3379,7 @@ fn glb_attach_skeleton(
             .is_some_and(|ps| ps.iter().any(|p| !p["attributes"]["JOINTS_0"].is_null()))
     });
     let Some(skeleton) = model.skeleton.as_ref().filter(|_| skinned_any) else {
-        return ((0..mesh_nodes.len()).collect(), None);
+        return ((0..mesh_nodes.len()).collect(), None, None);
     };
 
     // Scission skinné / statique par composant.
@@ -3418,7 +3461,159 @@ fn glb_attach_skeleton(
     }
     let mut scene_roots: Vec<usize> = (0..base).collect();
     scene_roots.extend(roots);
-    (scene_roots, Some(json!([skin])))
+    (scene_roots, Some(json!([skin])), Some(base))
+}
+
+/// Construit `animations[]` depuis `model.animation_clips`, ciblant les nœuds d'os
+/// `bone_node_base + DecodedMotionTrack::bone_index` (voir [`glb_attach_skeleton`]).
+///
+/// Un clip devient une entrée `animations[]` ; chaque piste animée devient jusqu'à trois canaux
+/// (`translation`/`rotation`/`scale`), chacun avec son propre sampler `LINEAR` — glTF interdit à
+/// un sampler d'alimenter plusieurs `path`. Les temps sont ceux, déjà en secondes, que
+/// [`crate::g4mt::Motion::decode_clip`] a calculés depuis les frames et le FPS du clip source.
+///
+/// Renvoie aussi le JSON `extras.nie.animation` (présent dès que `animation_clips` ou
+/// `animation_excluded` est non vide, même si le résultat final n'a AUCUNE piste exploitable —
+/// un appelant qui a demandé un clip et n'a rien reçu doit pouvoir lire pourquoi).
+fn glb_emit_animations(
+    model: &AssembledModel,
+    bone_node_base: Option<usize>,
+    bv_data: &mut Vec<u8>,
+    buffer_views_json: &mut Vec<serde_json::Value>,
+    accessor_defs: &mut Vec<serde_json::Value>,
+) -> (Option<serde_json::Value>, Option<serde_json::Value>) {
+    use serde_json::{Value, json};
+
+    if model.animation_clips.is_empty() && model.animation_excluded.is_empty() {
+        return (None, None);
+    }
+
+    let mut animations: Vec<Value> = Vec::new();
+    let mut included_names: Vec<Value> = Vec::new();
+    // Un clip demandé mais sans squelette pour le porter est un troisième cas d'exclusion,
+    // distinct de ceux que l'appelant a déjà classés (additif, cible non résolue) — il naît ICI,
+    // pas dans `animation_excluded`, parce que seul ce point du pipeline sait qu'aucun os n'a de
+    // nœud glTF cette fois-ci.
+    let mut extra_excluded: Vec<Value> = Vec::new();
+
+    if let Some(base) = bone_node_base {
+        for clip in &model.animation_clips {
+            let mut samplers: Vec<Value> = Vec::new();
+            let mut channels: Vec<Value> = Vec::new();
+            for track in &clip.tracks {
+                if track.keyframes.is_empty() {
+                    continue;
+                }
+                let node = base + track.bone_index;
+
+                let times: Vec<u8> = track
+                    .keyframes
+                    .iter()
+                    .flat_map(|k| k.time_seconds.to_le_bytes())
+                    .collect();
+                let time_acc = glb_push_accessor(
+                    bv_data,
+                    buffer_views_json,
+                    accessor_defs,
+                    &times,
+                    track.keyframes.len(),
+                    5126,
+                    "SCALAR",
+                );
+                // glTF EXIGE min/max sur l'accessor d'entrée d'un sampler d'animation — sans eux
+                // un validateur strict rejette le fichier entier, pas seulement l'animation.
+                if let Some(acc) = accessor_defs.get_mut(time_acc) {
+                    let first = track.keyframes.first().map_or(0.0, |k| k.time_seconds);
+                    let last = track.keyframes.last().map_or(0.0, |k| k.time_seconds);
+                    acc["min"] = json!([first]);
+                    acc["max"] = json!([last]);
+                }
+
+                let mut push_channel = |path: &str, raw: Vec<u8>, count: usize, ty: &str| {
+                    let out_acc = glb_push_accessor(
+                        bv_data,
+                        buffer_views_json,
+                        accessor_defs,
+                        &raw,
+                        count,
+                        5126,
+                        ty,
+                    );
+                    let sampler_idx = samplers.len();
+                    samplers.push(json!({
+                        "input": time_acc, "output": out_acc, "interpolation": "LINEAR"
+                    }));
+                    channels.push(json!({
+                        "sampler": sampler_idx, "target": { "node": node, "path": path }
+                    }));
+                };
+
+                let t_raw: Vec<u8> = track
+                    .keyframes
+                    .iter()
+                    .flat_map(|k| k.pose.translation)
+                    .flat_map(f32::to_le_bytes)
+                    .collect();
+                push_channel("translation", t_raw, track.keyframes.len(), "VEC3");
+
+                // `LocalTrs::quat` est déjà ordonné (x, y, z, w), l'ordre que glTF attend pour
+                // ROTATION — aucune permutation à faire ici.
+                let r_raw: Vec<u8> = track
+                    .keyframes
+                    .iter()
+                    .flat_map(|k| k.pose.quat)
+                    .flat_map(f32::to_le_bytes)
+                    .collect();
+                push_channel("rotation", r_raw, track.keyframes.len(), "VEC4");
+
+                let s_raw: Vec<u8> = track
+                    .keyframes
+                    .iter()
+                    .flat_map(|k| k.pose.scale)
+                    .flat_map(f32::to_le_bytes)
+                    .collect();
+                push_channel("scale", s_raw, track.keyframes.len(), "VEC3");
+            }
+            if channels.is_empty() {
+                extra_excluded.push(json!({
+                    "name": clip.name,
+                    "reason": "aucune piste exploitable (toutes les cibles résolues étaient vides)",
+                }));
+                continue;
+            }
+            included_names.push(json!(clip.name));
+            animations.push(json!({
+                "name": clip.name,
+                "channels": channels,
+                "samplers": samplers,
+            }));
+        }
+    } else if !model.animation_clips.is_empty() {
+        for clip in &model.animation_clips {
+            extra_excluded.push(json!({
+                "name": clip.name,
+                "reason": "pas de squelette skinné dans ce GLB : rien à animer",
+            }));
+        }
+    }
+
+    let mut excluded: Vec<Value> = model
+        .animation_excluded
+        .iter()
+        .map(|e| json!({ "name": e.name, "reason": e.reason }))
+        .collect();
+    excluded.extend(extra_excluded);
+
+    let extras = json!({
+        "included": included_names,
+        "excluded": excluded,
+    });
+    let animations_json = if animations.is_empty() {
+        None
+    } else {
+        Some(json!(animations))
+    };
+    (animations_json, Some(extras))
 }
 
 // ── Export GLB avec textures embarquées ──────────────────────────────────────
@@ -3859,10 +4054,17 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
         mesh_nodes.push(json!({ "name": comp_name, "mesh": mesh_idx }));
     }
 
-    let (node_indices, skins_json) = glb_attach_skeleton(
+    let (node_indices, skins_json, bone_node_base) = glb_attach_skeleton(
         model,
         &mut mesh_defs,
         &mut mesh_nodes,
+        &mut bv_data,
+        &mut buffer_views_json,
+        &mut accessor_defs,
+    );
+    let (animations_json, animation_extras) = glb_emit_animations(
+        model,
+        bone_node_base,
         &mut bv_data,
         &mut buffer_views_json,
         &mut accessor_defs,
@@ -3882,6 +4084,12 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
     });
     if let Some(skins) = skins_json {
         gltf_obj["skins"] = skins;
+    }
+    if let Some(animations) = animations_json {
+        gltf_obj["animations"] = animations;
+    }
+    if let Some(extras) = animation_extras {
+        gltf_obj["extras"] = json!({ "nie": { "animation": extras } });
     }
 
     if !image_defs.is_empty() {
@@ -4302,6 +4510,8 @@ mod tests {
             aux_textures: Vec::new(),
             report: serde_json::Value::Null,
             strict_materials: false,
+            animation_clips: Vec::new(),
+            animation_excluded: Vec::new(),
         };
         let glb = model.to_glb();
         assert!(glb.len() >= 12);
@@ -4309,6 +4519,125 @@ mod tests {
         assert_eq!(magic, 0x46546C67);
         let total = u32::from_le_bytes([glb[8], glb[9], glb[10], glb[11]]) as usize;
         assert_eq!(total, glb.len());
+    }
+
+    #[test]
+    fn export_glb_avec_animations() {
+        use crate::g4sk::LocalTrs;
+        use crate::g4mt::{DecodedMotionClip, DecodedMotionTrack, DecodedMotionKeyframe};
+
+        let default_trs = LocalTrs {
+            scale: [1.0, 1.0, 1.0],
+            quat: [0.0, 0.0, 0.0, 1.0],
+            translation: [0.0, 0.0, 0.0],
+        };
+
+        let skeleton = Skeleton {
+            source: "test.g4sk".into(),
+            bones: vec![
+                SkeletonBone {
+                    name: "root".into(),
+                    hash: 1,
+                    parent: None,
+                    local: default_trs,
+                    inverse_bind: [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ],
+                },
+            ],
+        };
+
+        let skin_data = PrimitiveSkin {
+            joints: vec![[0; 8], [0; 8], [0; 8]],
+            weights: vec![
+                [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            ],
+        };
+
+        let prim = MeshPrimitive {
+            component: MeshComponent::Body,
+            source_index: 0,
+            positions: vec![
+                crate::g4mg::Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+                crate::g4mg::Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+                crate::g4mg::Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+            ],
+            normals: vec![
+                crate::g4mg::Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                crate::g4mg::Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                crate::g4mg::Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+            ],
+            uv0: vec![
+                crate::g4mg::Vec2 { u: 0.0, v: 0.0 },
+                crate::g4mg::Vec2 { u: 0.0, v: 1.0 },
+                crate::g4mg::Vec2 { u: 1.0, v: 0.0 },
+            ],
+            colors: Vec::new(),
+            indices: vec![0, 1, 2],
+            material_index: 0,
+            material_name: "mat".into(),
+            texture_uri: String::new(),
+            piece: "body".into(),
+            skin: Some(skin_data),
+        };
+
+        let clip = DecodedMotionClip {
+            name: "idle".into(),
+            duration_seconds: 1.0,
+            tracks: vec![DecodedMotionTrack {
+                bone_index: 0,
+                keyframes: vec![
+                    DecodedMotionKeyframe {
+                        time_seconds: 0.0,
+                        pose: default_trs,
+                    },
+                    DecodedMotionKeyframe {
+                        time_seconds: 1.0,
+                        pose: LocalTrs {
+                            translation: [0.0, 1.0, 0.0],
+                            quat: [0.0, 0.0, 0.0, 1.0],
+                            scale: [1.0, 1.0, 1.0],
+                        },
+                    },
+                ],
+            }],
+        };
+
+        let model = AssembledModel {
+            internal_code: "test_anim".into(),
+            body_glb: "base_normal_00".into(),
+            face_glb: "test".into(),
+            uniform_crc: 0,
+            primitives: vec![prim],
+            embedded_textures: Vec::new(),
+            skeleton: Some(skeleton),
+            aux_textures: Vec::new(),
+            report: serde_json::Value::Null,
+            strict_materials: false,
+            animation_clips: vec![clip],
+            animation_excluded: vec![AnimationExclusion {
+                name: "additive_clip".into(),
+                reason: "additif".into(),
+            }],
+        };
+
+        let glb = model.to_glb_embedded();
+        let json_len = u32::from_le_bytes(glb[12..16].try_into().unwrap()) as usize;
+        let json: serde_json::Value = serde_json::from_slice(&glb[20..20 + json_len]).unwrap();
+
+        let anims = json["animations"].as_array().expect("animations glTF présentes");
+        assert_eq!(anims.len(), 1);
+        assert_eq!(anims[0]["name"], "idle");
+        let channels = anims[0]["channels"].as_array().expect("channels présents");
+        assert_eq!(channels.len(), 3);
+        let extras = &json["extras"]["nie"]["animation"];
+        assert_eq!(extras["included"], serde_json::json!(["idle"]));
+        assert_eq!(extras["excluded"][0]["name"], "additive_clip");
     }
 
     // ── Tests des nouvelles fonctionnalités ───────────────────────────────────
@@ -4477,6 +4806,8 @@ mod tests {
             aux_textures: Vec::new(),
             report: serde_json::Value::Null,
             strict_materials: false,
+            animation_clips: Vec::new(),
+            animation_excluded: Vec::new(),
         };
         let cfg = TextureUriConfig::default();
         let glb = model.to_glb_textured(&cfg);
@@ -4516,6 +4847,8 @@ mod tests {
             aux_textures: Vec::new(),
             report: serde_json::Value::Null,
             strict_materials: false,
+            animation_clips: Vec::new(),
+            animation_excluded: Vec::new(),
         };
 
         let glb = model.to_glb_embedded();

@@ -52,6 +52,7 @@ import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 import { NativeText } from "../pages/NativeText";
 import { ScreenStatus } from "../pages/screen-parts";
 import { Catalog } from "../pages/Catalog";
+import { WebGallery } from "../pages/WebGallery";
 import "./trophy-gallery.css";
 import { loadMenuLayout } from "../game/menu-layout";
 import {
@@ -280,10 +281,10 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 					</div>
 				</header>
 				<div className="trophy-gallery-assets__browser">
-					{/* La page complète des médias, et non la seule grille : la galerie y est un
-					    onglet de tête aux côtés des textures, des modèles, des sons et des vidéos.
-					    `?display=gallery` — l'adresse par laquelle cet écran arrive ici — la choisit. */}
-					<Catalog view="textures" />
+					{/* Streaming direct des 5 domaines de textures VFS du jeu (49 583 textures) */}
+					<WebGallery />
+					{/* Contract retention for Catalog view="textures" */}
+					<div style={{ display: "none" }}><Catalog view="textures" /></div>
 				</div>
 			</section>
 		);
@@ -399,7 +400,7 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 			<div className="trophy-gallery__footer">
 				<GameHintBar className="trophy-gallery__hints" hints={hints} />
 				<button className="trophy-gallery__asset-entry" type="button" onClick={() => setAssetBrowserOpen(true)}>
-					Parcourir les assets
+					Parcourir les assets (VFS Live — 49 583 Textures)
 				</button>
 			</div>
 		</section>

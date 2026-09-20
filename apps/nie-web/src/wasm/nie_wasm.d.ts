@@ -526,6 +526,32 @@ export class WebGpuViewer {
      */
     static create_transparent(canvas: HTMLCanvasElement): Promise<WebGpuViewer>;
     /**
+     * L'axe du gizmo sous le pixel : `"x"`, `"y"`, `"z"`, ou chaîne vide si aucune poignée.
+     *
+     * Une chaîne plutôt qu'un entier : `wasm_bindgen` traverse les deux aussi bien, et un `"x"`
+     * se lit dans un journal de navigateur là où un `0` demande de retrouver la convention.
+     */
+    gizmo_axis_at(x: number, y: number): string;
+    /**
+     * Le déplacement monde entre deux pixels, contraint à l'axe nommé.
+     *
+     * Rend `[dx, dy, dz]`, ou un tableau vide quand l'axe est inconnu ou qu'un des deux rayons
+     * ne rencontre pas le plan de contrainte — l'hôte laisse alors l'objet où il est.
+     */
+    gizmo_drag(axis: string, from_x: number, from_y: number, to_x: number, to_y: number): Float32Array;
+    /**
+     * L'angle de rotation autour de l'axe nommé, en radians. `NaN` si indéterminé.
+     *
+     * `NaN` plutôt qu'un `Option` : il traverse `wasm_bindgen` comme un nombre, et l'appelant
+     * le teste par `Number.isNaN` — là où un `Option<f32>` deviendrait un `JsValue` à
+     * inspecter. Zéro serait un mauvais choix : c'est une rotation valide.
+     */
+    gizmo_rotate(axis: string, from_x: number, from_y: number, to_x: number, to_y: number): number;
+    /**
+     * Le facteur d'échelle le long de l'axe nommé. `NaN` si indéterminé.
+     */
+    gizmo_scale(axis: string, from_x: number, from_y: number, to_x: number, to_y: number): number;
+    /**
      * Charge/remplace un modèle GLB normalisé (positions monde, textures PNG embarquées).
      */
     load_glb(bytes: Uint8Array): void;
@@ -555,6 +581,40 @@ export class WebGpuViewer {
      * Backing store en pixels entiers strictement positifs, sans changer le CSS.
      */
     resize(width: number, height: number): void;
+    /**
+     * Statistiques par objet de la scène : `[{ object, triangles, vertices }]` en JSON.
+     */
+    scene_stats_json(): string;
+    /**
+     * Sélectionne un objet du document — l'identifiant est celui que `pick_json` rend.
+     *
+     * Passer une chaîne vide efface la sélection : `Option<&str>` traverse `wasm_bindgen` en
+     * `JsValue`, ce qui coûterait à l'appelant une vérification de type pour une valeur qu'il
+     * teste déjà.
+     */
+    select(id: string): void;
+    /**
+     * L'objet sélectionné, chaîne vide s'il n'y en a pas.
+     */
+    selected(): string;
+    /**
+     * Choisit ce que le gizmo manipule : `"translate"`, `"rotate"`, `"scale"`.
+     *
+     * Un nom inconnu retombe sur la translation plutôt que de désactiver le gizmo : un outil qui
+     * disparaît sur une faute de frappe se lit comme un bug d'affichage.
+     */
+    set_gizmo_mode(mode: string): void;
+    /**
+     * Affiche ou masque la grille de sol.
+     *
+     * C'est l'une des quatre capacités pour lesquelles le viewport three.js de l'éditeur
+     * survivait ; les trois autres sont le fil de fer, le contour de sélection et le gizmo.
+     */
+    set_grid(visible: boolean): void;
+    /**
+     * Affiche ou masque le fil de fer du modèle.
+     */
+    set_wireframe(visible: boolean): void;
     /**
      * Décode un asset GLB et le garde sous le chemin que le document de scène lui donne.
      */
@@ -824,6 +884,19 @@ export function ievr_pe_inspect_json(bytes: Uint8Array): string;
 export function init_panic_hook(): void;
 
 /**
+ * The menu command a key triggers, or an empty string when it triggers none.
+ *
+ * Exposed so the browser stops carrying its own copy of the binding table. That table was
+ * written three times — here, in `nie-game` and in `bridge.ts` — and the three had already
+ * drifted: `Tab` and `i` existed only in the browser, `NumpadEnter` only in the native host.
+ * `nie_app::input::BINDINGS` is now the single source, and it accepts DOM key names directly.
+ *
+ * An empty string rather than `null`: `Option<&str>` crosses `wasm_bindgen` as `JsValue`, which
+ * costs the caller a type check for a value the caller already has to test.
+ */
+export function input_command_for_key(key: string): string;
+
+/**
  * Vrai si les octets commencent par la signature d'un bytecode Lua 5.2.
  */
 export function is_lua_bytecode(bytes: Uint8Array): boolean;
@@ -911,6 +984,51 @@ export function model_to_glb(g4md: Uint8Array, g4mg: Uint8Array): Uint8Array;
  * Decode a standalone editor PNG in Rust and return `[width, height]`.
  */
 export function model_validate_editor_png(png: Uint8Array): Uint32Array;
+
+/**
+ * Calculates progressive directional ELO rating changes for two players.
+ */
+export function net_compute_elo(rating_a: number, rating_b: number, score_a: number): string;
+
+/**
+ * Formats a raw string into canonical Inacode format (`INA-XXXX`).
+ */
+export function net_format_inacode(raw: string): string;
+
+/**
+ * Generates a pseudo-random 8-character base-32 challenge invitation code.
+ */
+export function net_generate_challenge_code(seed: number): string;
+
+/**
+ * Generates a deterministic Inacode from a numeric seed.
+ */
+export function net_generate_inacode(seed: number): string;
+
+/**
+ * Returns rank tier details (index, name_fr, name_en, min_ap, win_k, loss_k) as JSON.
+ */
+export function net_rank_tier_info(ap: number): string;
+
+/**
+ * Computes FNV-1a 32-bit state hash for zero-desync verification.
+ */
+export function net_state_hash(ball_x: number, ball_y: number, ball_z: number, score_home: number, score_away: number): number;
+
+/**
+ * Calculates official circuit points for a dense tournament rank given bracket size.
+ */
+export function net_tournament_circuit_points(dense_rank: number, participants: number): number;
+
+/**
+ * Validates whether a clan tag matches standard format `[TAG]` (2 to 5 alphanumeric chars).
+ */
+export function net_validate_clan_tag(tag: string): boolean;
+
+/**
+ * Verifies mutual score agreement between two players.
+ */
+export function net_verify_scores(home_a: number, away_a: number, home_b: number, away_b: number): string;
 
 /**
  * Resolves and hashes bounded ranges in a caller-supplied linear `nie.exe` image.
@@ -1090,6 +1208,7 @@ export interface InitOutput {
     readonly g4tx_to_png: (a: number, b: number, c: number) => void;
     readonly headless_inspect_json: (a: number, b: number, c: number) => void;
     readonly ievr_pe_inspect_json: (a: number, b: number, c: number) => void;
+    readonly input_command_for_key: (a: number, b: number, c: number) => void;
     readonly is_lua_bytecode: (a: number, b: number) => number;
     readonly item_lookup: (a: number, b: number, c: number) => void;
     readonly knowledge_search_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
@@ -1130,6 +1249,14 @@ export interface InitOutput {
     readonly modelrenderer_texture_name: (a: number, b: number, c: number) => void;
     readonly modelrenderer_texture_size: (a: number, b: number, c: number) => void;
     readonly modelrenderer_textures: (a: number) => number;
+    readonly net_compute_elo: (a: number, b: number, c: number, d: number) => void;
+    readonly net_format_inacode: (a: number, b: number, c: number) => void;
+    readonly net_generate_challenge_code: (a: number, b: number) => void;
+    readonly net_generate_inacode: (a: number, b: number) => void;
+    readonly net_rank_tier_info: (a: number, b: number) => void;
+    readonly net_state_hash: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly net_validate_clan_tag: (a: number, b: number) => number;
+    readonly net_verify_scores: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly offline_image_inspect_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly parse_save_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly pdata_inspect_json: (a: number, b: number, c: number, d: number) => void;
@@ -1201,20 +1328,31 @@ export interface InitOutput {
     readonly webgpuviewer_clear_assets: (a: number) => void;
     readonly webgpuviewer_create: (a: number) => number;
     readonly webgpuviewer_create_transparent: (a: number) => number;
+    readonly webgpuviewer_gizmo_axis_at: (a: number, b: number, c: number, d: number) => void;
+    readonly webgpuviewer_gizmo_drag: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly webgpuviewer_gizmo_rotate: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly webgpuviewer_gizmo_scale: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly webgpuviewer_load_glb: (a: number, b: number, c: number, d: number) => void;
     readonly webgpuviewer_load_scene: (a: number, b: number, c: number, d: number) => void;
     readonly webgpuviewer_orbit: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly webgpuviewer_pick_json: (a: number, b: number, c: number, d: number) => void;
     readonly webgpuviewer_render: (a: number, b: number) => void;
     readonly webgpuviewer_resize: (a: number, b: number, c: number, d: number) => void;
+    readonly webgpuviewer_scene_stats_json: (a: number, b: number) => void;
+    readonly webgpuviewer_select: (a: number, b: number, c: number) => void;
+    readonly webgpuviewer_selected: (a: number, b: number) => void;
+    readonly webgpuviewer_set_gizmo_mode: (a: number, b: number, c: number) => void;
+    readonly webgpuviewer_set_grid: (a: number, b: number) => void;
+    readonly webgpuviewer_set_wireframe: (a: number, b: number) => void;
     readonly webgpuviewer_stage_asset: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
-    readonly __wasm_bindgen_func_elem_4441: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4456: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3450: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3450_2: (a: number, b: number, c: number) => void;
+    readonly net_tournament_circuit_points: (a: number, b: number) => number;
+    readonly __wasm_bindgen_func_elem_4526: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4541: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3535: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3535_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

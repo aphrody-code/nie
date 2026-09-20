@@ -168,4 +168,46 @@ describe("GalleryView pagination", () => {
 			.find(button => button.textContent?.includes("Toutes les catégories"));
 		expect(all?.textContent).toContain("20");
 	});
+
+	test("respects a custom rootPrefix for character and effect textures", async () => {
+		const source = {
+			urlTexture: (path: string) => `/api/v1/texture/${path}`,
+		} as never;
+		const environment = globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+		environment.IS_REACT_ACT_ENVIRONMENT = true;
+		globalThis.IntersectionObserver = PassiveIntersectionObserver as unknown as typeof IntersectionObserver;
+
+		const prefixes: string[] = [];
+		const lsRoots: string[] = [];
+		const services: GalleryServices = {
+			async ls(prefix) {
+				lsRoots.push(prefix);
+				return { dirs: [{ name: "_face", count: 6067 }, { name: "_uniform", count: 2622 }] };
+			},
+			async findPaged(prefix) {
+				prefixes.push(prefix);
+				return { files: [], total: 8689, offset: 0 };
+			},
+			async gameDataGallery() { return []; },
+			async texturePngB64() { return ""; },
+			async exportPng() {},
+			formatBytes: String,
+		};
+
+		container = document.createElement("div");
+		document.body.append(container);
+		root = createRoot(container);
+		await act(async () => root?.render(
+			<AssetSourceProvider source={source}>
+				<GalleryView services={services} rootPrefix="data/dx11/chr" />
+			</AssetSourceProvider>,
+		));
+		await act(async () => undefined);
+
+		expect(lsRoots).toContain("data/dx11/chr");
+		expect([...new Set(prefixes)]).toEqual(["data/dx11/chr/"]);
+		const all = [...container.querySelectorAll("button")]
+			.find(button => button.textContent?.includes("Toutes les catégories"));
+		expect(all?.textContent).toContain("8 689");
+	});
 });

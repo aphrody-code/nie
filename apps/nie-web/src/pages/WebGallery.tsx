@@ -24,18 +24,41 @@ const MAX_NAME_CODES = 12;
  */
 const PAGES_MAX_PAR_CODE = 10;
 
+export interface TextureDomain {
+ id: string;
+ label: string;
+ prefix: string;
+ count: number;
+}
+
+export const TEXTURE_DOMAINS: readonly TextureDomain[] = [
+ { id: "illustrations", label: "Illustrations", prefix: "data/dx11/menu/220_img", count: 17085 },
+ { id: "characters", label: "Personnages", prefix: "data/dx11/chr", count: 9727 },
+ { id: "icons", label: "Icônes", prefix: "data/dx11/menu/200_icon", count: 19536 },
+ { id: "effects", label: "Effets", prefix: "data/dx11/effect", count: 1995 },
+ { id: "maps", label: "Décors & Cartes", prefix: "data/dx11/map", count: 1240 },
+] as const;
+
+export function rootPrefixForDomain(domain?: string | null): string {
+ const found = TEXTURE_DOMAINS.find(d => d.id === domain);
+ return found ? found.prefix : "data/dx11/menu/220_img";
+}
+
 export interface WebGalleryFilterState {
  query: string;
  category: string | null;
  subfolder: string | null;
+ domain?: string | null;
 }
 
 export function webGalleryFiltersFromUrl(input: string): WebGalleryFilterState {
  const params = new URL(input, "http://localhost").searchParams;
+ const domain = params.get("domaine");
  return {
   query: params.get("q") ?? "",
   category: params.get("categorie"),
   subfolder: params.get("dossier"),
+  ...(domain ? { domain } : {}),
  };
 }
 
@@ -45,6 +68,7 @@ export function webGalleryHrefForFilters(input: string, filters: WebGalleryFilte
   ["q", filters.query],
   ["categorie", filters.category],
   ["dossier", filters.subfolder],
+  ["domaine", filters.domain && filters.domain !== "illustrations" ? filters.domain : null],
  ] as const) {
   if (value) url.searchParams.set(key, value);
   else url.searchParams.delete(key);
@@ -67,6 +91,18 @@ export function webGalleryFiltersForCategory(
  category: string | null,
 ): WebGalleryFilterState {
  return { ...filters, category, subfolder: category === filters.category ? filters.subfolder : null };
+}
+
+export function webGalleryFiltersForDomain(
+ filters: WebGalleryFilterState,
+ domain: string | null,
+): WebGalleryFilterState {
+ return {
+  ...filters,
+  domain: domain && domain !== "illustrations" ? domain : undefined,
+  category: null,
+  subfolder: null,
+ };
 }
 
 /** Build the web bindings separately so their URL/query contract can be tested without a DOM. */
@@ -212,26 +248,66 @@ export function WebGallery() {
  const [exportError, setExportError] = useState(false);
  const services = useMemo(() => createWebGalleryServices(source, setExportError, settings.gameLocale), [source, settings.gameLocale]);
  const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
- const { query, category, subfolder } = webGalleryFiltersFromUrl(location);
- const writeFilters = (patch: { query?: string; category?: string | null; subfolder?: string | null }) => {
+ const { query, category, subfolder, domain } = webGalleryFiltersFromUrl(location);
+ const activeDomain = domain ?? "illustrations";
+ const writeFilters = (patch: { query?: string; category?: string | null; subfolder?: string | null; domain?: string | null }) => {
   const values = {
    query: patch.query ?? query,
    category: patch.category === undefined ? category : patch.category,
    subfolder: patch.subfolder === undefined ? subfolder : patch.subfolder,
+   domain: patch.domain === undefined ? domain : patch.domain,
   };
   const url = new URL(webGalleryHrefForFilters(window.location.href, values), window.location.origin);
   writeBrowserHistory(url, window.history.state, "replace");
  };
- return <div className="h-[75vh] min-h-96">{exportError && <p role="alert">L’image n’a pas pu être exportée.</p>}<GalleryView services={services}
-  query={query} category={category} subfolder={subfolder} serverSearch
-  onQueryChange={value => writeFilters({ query: value })}
-  onCategoryChange={value => {
-   const next = webGalleryFiltersForCategory({ query, category, subfolder }, value);
-   writeFilters({ category: next.category, subfolder: next.subfolder });
-  }}
-  onSubfolderChange={value => writeFilters({ subfolder: value })}
-  onOpenFile={path => {
-   const url = new URL(webGalleryTextureHref(window.location.href, path), window.location.origin);
-   writeBrowserHistory(url, window.history.state, "push");
-  }} /></div>;
+ return (
+  <div className="flex h-[82vh] min-h-96 flex-col">
+   <div className="flex flex-wrap items-center gap-1.5 border-b border-app-line pb-2 mb-2" role="tablist" aria-label="Domaines de textures">
+    {TEXTURE_DOMAINS.map(d => {
+     const active = activeDomain === d.id;
+     return (
+      <button
+       key={d.id}
+       role="tab"
+       aria-selected={active}
+       type="button"
+       className={`state-layer rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
+        active
+         ? "border-primary bg-primary text-on-primary"
+         : "border-outline-variant/30 text-on-surface-variant hover:text-on-surface"
+       }`}
+       onClick={() => {
+        const next = webGalleryFiltersForDomain({ query, category, subfolder, domain }, d.id);
+        writeFilters({ domain: next.domain, category: null, subfolder: null });
+       }}
+      >
+       {d.label}
+       <span className="ml-1.5 opacity-70 text-xs">({d.count.toLocaleString(settings.locale)})</span>
+      </button>
+     );
+    })}
+   </div>
+   {exportError && <p role="alert">L’image n’a pas pu être exportée.</p>}
+   <div className="min-h-0 flex-1">
+    <GalleryView
+     services={services}
+     rootPrefix={rootPrefixForDomain(domain)}
+     query={query}
+     category={category}
+     subfolder={subfolder}
+     serverSearch
+     onQueryChange={value => writeFilters({ query: value })}
+     onCategoryChange={value => {
+      const next = webGalleryFiltersForCategory({ query, category, subfolder, domain }, value);
+      writeFilters({ category: next.category, subfolder: next.subfolder });
+     }}
+     onSubfolderChange={value => writeFilters({ subfolder: value })}
+     onOpenFile={path => {
+      const url = new URL(webGalleryTextureHref(window.location.href, path), window.location.origin);
+      writeBrowserHistory(url, window.history.state, "push");
+     }}
+    />
+   </div>
+  </div>
+ );
 }

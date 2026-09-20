@@ -38,6 +38,10 @@ import { isEditableTarget, keyMatches } from "./keys";
 export interface GameFilterOption {
 	value: string;
 	label: ReactNode;
+	/** Sous-titre ou explication sur la 2e ligne, comme dans filters_bonus.png. */
+	description?: ReactNode;
+	/** Section optionnelle pour regrouper les options avec un titre dédié. */
+	section?: string;
 	/** La pastille devant le libellé : l'icône de l'élément, la bannière de rareté. */
 	icon?: ReactNode;
 	/** Un compte à droite du libellé — ce que l'index sait de cette valeur. */
@@ -287,7 +291,7 @@ export function GameFilterPanel({
 			watermark={family.watermark}
 			footer={
 				<>
-					<GameKeyHint keyLabel="R" onActivate={reset} className="game-button-secondary">
+					<GameKeyHint keyLabel="Tab" onActivate={reset} className="game-button-secondary">
 						Réinitialiser
 					</GameKeyHint>
 					<GameKeyHint keyLabel="Alt" onActivate={confirm} className="game-button-primary">
@@ -302,6 +306,37 @@ export function GameFilterPanel({
 			}
 		>
 			<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+				{/* Bandeau d'en-tête de catégorie : (W) Nom de la famille (C) */}
+				<div
+					className="game-filter-panel__category-banner"
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						gap: 16,
+						margin: "2px 0 8px",
+					}}
+				>
+					<GameKeyHint keyLabel="W" onActivate={() => step(-1)} className="game-button-secondary">
+						W
+					</GameKeyHint>
+					<span
+						className="game-filter-panel__category-name"
+						style={{
+							fontSize: "1.2rem",
+							fontWeight: 700,
+							letterSpacing: "0.08em",
+							textTransform: "uppercase",
+							color: "var(--screen-panel-title, var(--jeu-texte-vif))",
+						}}
+					>
+						{family.label}
+					</span>
+					<GameKeyHint keyLabel="C" onActivate={() => step(1)} className="game-button-secondary">
+						C
+					</GameKeyHint>
+				</div>
+
 				<GameCheck
 					checked={isAll(draft, family.id)}
 					onChange={(all) => setAll(all)}
@@ -339,7 +374,14 @@ export function GameFilterPanel({
 								}}
 								onFocus={() => setCursor(i)}
 							>
-								{option.label}
+								<div style={{ display: "inline-flex", flexDirection: "column", verticalAlign: "middle" }}>
+									<span className="game-check__title">{option.label}</span>
+									{option.description ? (
+										<span className="game-check__desc" style={{ fontSize: "0.8em", opacity: 0.75, fontWeight: 400 }}>
+											{option.description}
+										</span>
+									) : null}
+								</div>
 								{option.count !== undefined ? (
 									<span className="game-check__count">
 										{option.count.toLocaleString("fr")}
