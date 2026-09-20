@@ -2810,6 +2810,30 @@ fn get_or_build_report(state: &State, code: &str) -> Result<Value> {
     Ok(build_and_cache(state, code)?.report)
 }
 
+/// Écrit un fichier de façon atomique (écriture dans un fichier temporaire adjacent puis rename POSIX).
+/// Garantit qu'un lecteur concurrent ou un arrêt imprévu du serveur ne lira jamais un fichier tronqué.
+fn atomic_write(path: &Path, content: impl AsRef<[u8]>) -> std::io::Result<()> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let tmp_name = format!(
+        ".tmp_{}_{}_{}",
+        std::process::id(),
+        now,
+        path.file_name().and_then(|f| f.to_str()).unwrap_or("cache")
+    );
+    let tmp_path = parent.join(tmp_name);
+    fs::write(&tmp_path, content)?;
+    if let Err(e) = fs::rename(&tmp_path, path) {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(e);
+    }
+    Ok(())
+}
+
 /// Assemble, complète le rapport (version, SHA-256 et taille du GLB servi) et écrit les deux
 /// fichiers du cache. L'écriture est best-effort : un cache en échec ne bloque pas la réponse.
 fn build_and_cache(state: &State, code: &str) -> Result<Assembled> {
@@ -2831,13 +2855,13 @@ fn build_and_cache(state: &State, code: &str) -> Result<Assembled> {
     );
 
     let cache_path = state.cache_dir.join(format!("{code}.glb"));
-    if let Err(e) = fs::write(&cache_path, &assembled.glb) {
+    if let Err(e) = atomic_write(&cache_path, &assembled.glb) {
         warn!("écriture cache {code} échouée : {e}");
     } else {
         debug!("cache écrit : {code} ({}B)", assembled.glb.len());
     }
     let report_path = state.cache_dir.join(format!("{code}.report.json"));
-    if let Err(e) = fs::write(&report_path, assembled.report.to_string()) {
+    if let Err(e) = atomic_write(&report_path, assembled.report.to_string()) {
         warn!("écriture rapport {code} échouée : {e}");
     }
     Ok(assembled)
@@ -2879,7 +2903,7 @@ fn get_or_build_chr_glb(state: &State, sub: &str, code: &str) -> Result<GlbBytes
     state.get_or_build_cached_glb(format!("chr:{sub}:{code}"), &cache_path, || {
         info!("assemblage live : chr_{sub}_{code}");
         let glb = assemble_chr_generic(state, sub, code)?;
-        if let Err(e) = fs::write(&cache_path, &glb) {
+        if let Err(e) = atomic_write(&cache_path, &glb) {
             warn!("écriture cache chr_{sub}_{code} échouée : {e}");
         } else {
             debug!("cache écrit : chr_{sub}_{code} ({}B)", glb.len());
@@ -2937,7 +2961,7 @@ fn get_or_build_edit_glb(state: &State, dossier: &str, nom: &str) -> Result<GlbB
             None => model.to_glb().into(),
         };
 
-        if let Err(e) = fs::write(&cache_path, &glb) {
+        if let Err(e) = atomic_write(&cache_path, &glb) {
             warn!("écriture cache edit_{dossier}_{nom} échouée : {e}");
         }
         Ok(glb)
@@ -3704,7 +3728,7 @@ fn get_or_build_avatar_glb(
         pieces.len()
     );
 
-    if let Err(e) = fs::write(&cache_path, &glb) {
+    if let Err(e) = atomic_write(&cache_path, &glb) {
         warn!("écriture cache avatar_{cle} échouée : {e}");
     }
     let glb: GlbBytes = glb.into();
@@ -3877,14 +3901,21 @@ fn spawn_preload(state: Arc<State>, workers: usize) {
 
 // ── Serveur HTTP minimal ──────────────────────────────────────────────────────
 
-/// Réponse HTTP.
+thread_local! {
+    static IS_HEAD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Réponse HTTP (supporte GET et HEAD avec en-têtes CORS et sécurité complets).
 fn respond(stream: &mut TcpStream, status: u16, reason: &str, content_type: &str, body: &[u8]) {
+    let is_head = IS_HEAD.with(|h| h.get());
     let headers = format!(
         "HTTP/1.1 {status} {reason}\r\n\
          Content-Type: {content_type}\r\n\
          Content-Length: {}\r\n\
          Cache-Control: public, max-age=31536000, immutable\r\n\
          Access-Control-Allow-Origin: *\r\n\
+         Access-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n\
+         Access-Control-Allow-Headers: *\r\n\
          Cross-Origin-Resource-Policy: cross-origin\r\n\
          X-Content-Type-Options: nosniff\r\n\
          Connection: close\r\n\
@@ -3892,7 +3923,21 @@ fn respond(stream: &mut TcpStream, status: u16, reason: &str, content_type: &str
         body.len()
     );
     let _ = stream.write_all(headers.as_bytes());
-    let _ = stream.write_all(body);
+    if !is_head {
+        let _ = stream.write_all(body);
+    }
+}
+
+/// Réponse OPTIONS pour les requêtes de preflight CORS.
+fn respond_options(stream: &mut TcpStream) {
+    let headers = "HTTP/1.1 204 No Content\r\n\
+         Access-Control-Allow-Origin: *\r\n\
+         Access-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n\
+         Access-Control-Allow-Headers: *\r\n\
+         Access-Control-Max-Age: 86400\r\n\
+         Connection: close\r\n\
+         \r\n";
+    let _ = stream.write_all(headers.as_bytes());
 }
 
 fn respond_text(stream: &mut TcpStream, status: u16, reason: &str, body: &str) {
@@ -4070,6 +4115,7 @@ fn parse_range(header: &str, total: usize) -> Option<(usize, usize)> {
 /// demandée, sinon `200` complet. Toujours `Accept-Ranges: bytes` (le navigateur peut seek).
 /// Le corps étant déjà en mémoire (WAV/MP4 décodé), le slice est immédiat.
 fn respond_ranged(stream: &mut TcpStream, content_type: &str, body: &[u8], range: Option<&str>) {
+    let is_head = IS_HEAD.with(|h| h.get());
     if let Some((start, end)) = range.and_then(|r| parse_range(r, body.len())) {
         let slice = &body[start..=end];
         let headers = format!(
@@ -4080,14 +4126,19 @@ fn respond_ranged(stream: &mut TcpStream, content_type: &str, body: &[u8], range
              Accept-Ranges: bytes\r\n\
              Cache-Control: public, max-age=31536000, immutable\r\n\
              Access-Control-Allow-Origin: *\r\n\
+             Access-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n\
+             Access-Control-Allow-Headers: *\r\n\
              Cross-Origin-Resource-Policy: cross-origin\r\n\
+             X-Content-Type-Options: nosniff\r\n\
              Connection: close\r\n\
              \r\n",
             slice.len(),
             body.len(),
         );
         let _ = stream.write_all(headers.as_bytes());
-        let _ = stream.write_all(slice);
+        if !is_head {
+            let _ = stream.write_all(slice);
+        }
         return;
     }
     let headers = format!(
@@ -4097,6 +4148,8 @@ fn respond_ranged(stream: &mut TcpStream, content_type: &str, body: &[u8], range
          Accept-Ranges: bytes\r\n\
          Cache-Control: public, max-age=31536000, immutable\r\n\
          Access-Control-Allow-Origin: *\r\n\
+         Access-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n\
+         Access-Control-Allow-Headers: *\r\n\
          Cross-Origin-Resource-Policy: cross-origin\r\n\
          X-Content-Type-Options: nosniff\r\n\
          Connection: close\r\n\
@@ -4104,7 +4157,9 @@ fn respond_ranged(stream: &mut TcpStream, content_type: &str, body: &[u8], range
         body.len(),
     );
     let _ = stream.write_all(headers.as_bytes());
-    let _ = stream.write_all(body);
+    if !is_head {
+        let _ = stream.write_all(body);
+    }
 }
 
 /// Parse la méthode + le chemin depuis la première ligne de la requête HTTP.
@@ -4148,9 +4203,31 @@ impl Pool {
                         // Le verrou ne couvre QUE la prise de travail : le garde temporaire
                         // meurt à la fin de cette instruction, avant le traitement — sinon le
                         // pool serait un thread unique déguisé.
-                        let flux = reception.lock().unwrap().recv();
+                        // On résiste à l'empoisonnement du mutex pour éviter les cascades d'échec.
+                        let flux = {
+                            let garde = match reception.lock() {
+                                Ok(g) => g,
+                                Err(p) => p.into_inner(),
+                            };
+                            garde.recv()
+                        };
                         match flux {
-                            Ok(flux) => handle_connection(flux, state.clone()),
+                            Ok(flux) => {
+                                let st = state.clone();
+                                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                                    handle_connection(flux, st)
+                                }));
+                                if let Err(err) = res {
+                                    let msg = if let Some(s) = err.downcast_ref::<&str>() {
+                                        *s
+                                    } else if let Some(s) = err.downcast_ref::<String>() {
+                                        s.as_str()
+                                    } else {
+                                        "panique interne non specifiee"
+                                    };
+                                    error!("panique interceptee dans le worker HTTP nie-model-serve: {msg}");
+                                }
+                            }
                             Err(_) => break, // canal fermé : le serveur s'arrête.
                         }
                     }
@@ -4217,10 +4294,16 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     };
 
-    if method != "GET" {
-        respond_text(&mut stream, 405, "Method Not Allowed", "GET uniquement");
+    if method == "OPTIONS" {
+        respond_options(&mut stream);
         return;
     }
+
+    if method != "GET" && method != "HEAD" {
+        respond_text(&mut stream, 405, "Method Not Allowed", "GET, HEAD, OPTIONS uniquement");
+        return;
+    }
+    IS_HEAD.with(|h| h.set(method == "HEAD"));
     let range_header = range_header.as_deref();
 
     // Strippe la query string (`?v=3` cache-bust d'azalee) : le code modèle vit dans le

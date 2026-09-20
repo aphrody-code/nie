@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use axum::Router;
 use axum::http::{HeaderValue, StatusCode, header};
+use axum::response::IntoResponse;
 use axum::routing::{get, post};
+use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
@@ -533,13 +535,16 @@ pub fn routeur(etat: EtatSite) -> Router {
         // Les couches s'empilent de la plus INTERNE à la plus externe, et l'ordre est ici un
         // choix, pas une habitude :
         //
+        // - le plafond de corps de requête (10 Mo) protège contre l'épuisement mémoire sur les POST ;
         // - l'ETag est au plus près des routes, seul endroit d'où l'on voie le corps final ;
         // - la borne de débit est AU-DESSUS, pour qu'un client refusé ne fasse ni requête SQL
         //   ni condensé — un limiteur qui laisse d'abord travailler ne limite que la bande
         //   passante ;
-        // - les en-têtes de sécurité l'enveloppent, pour qu'un `429` les porte aussi ;
+        // - les en-têtes de sécurité l'enveloppent, pour qu'un `429` ou un `500` les porte aussi ;
+        // - l'intercepteur de panique capture tout déroulement inattendu et répond en 500 JSON propre ;
         // - le délai maximal et la trace restent les plus externes, faute de quoi ils ne
         //   verraient ni les réponses des couches ci-dessus ni leur latence.
+        .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024))
         .layer(axum::middleware::from_fn(crate::etag::conditionnel))
         .layer(axum::middleware::from_fn_with_state(
             etat.clone(),
@@ -550,6 +555,22 @@ pub fn routeur(etat: EtatSite) -> Router {
             StatusCode::GATEWAY_TIMEOUT,
             DELAI_REQUETE,
         ))
+        .layer(CatchPanicLayer::custom(|err: Box<dyn std::any::Any + Send + 'static>| {
+            let message = if let Some(s) = err.downcast_ref::<&str>() {
+                *s
+            } else if let Some(s) = err.downcast_ref::<String>() {
+                s.as_str()
+            } else {
+                "panique interne non specifiee"
+            };
+            tracing::error!(panique = message, "panique interceptee dans nie-site");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
+                r#"{"erreur":"erreur interne du serveur"}"#,
+            )
+                .into_response()
+        }))
         .layer(TraceLayer::new_for_http())
         .with_state(etat)
 }

@@ -78,6 +78,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | Document | What it owns |
 | --- | --- |
 | [`HOSTS-AND-PORTS.md`](HOSTS-AND-PORTS.md) | **Measured** hosts, ports and DNS. Authoritative against any plan that says otherwise. |
+| [`SERVER-ROBUSTNESS.md`](SERVER-ROBUSTNESS.md) | Server landscape, runtime library evaluation, and resilience hardening across `nie-site`, `nie-model-serve`, and `nie-net`. |
 | [`OVH.md`](OVH.md) | The three OVH accounts, their zones, records and procedures. Measured, not assumed. |
 | [`legal/`](legal/) | The signed exploitation agreement and its annexes. |
 

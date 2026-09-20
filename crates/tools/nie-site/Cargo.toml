@@ -119,7 +119,7 @@ async-graphql-axum = { workspace = true }
 # sync, macros, time) : les features cargo sont additives.
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net", "signal", "fs", "io-util"] }
 tower = { workspace = true, features = ["util", "limit"] }
-tower-http = { workspace = true, features = ["trace", "timeout"] }
+tower-http = { workspace = true, features = ["trace", "timeout", "catch-panic"] }
 http-body-util.workspace = true
 bytes.workspace = true
 base64.workspace = true

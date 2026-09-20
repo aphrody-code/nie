@@ -1659,3 +1659,32 @@ into `niers`:
       - `cargo clippy -p nie-cli -- -D warnings`: 0 warnings, passed.
       - `bun run docs:check`: 47/47 indexed, 0 failures, passed.
       - `bun run --cwd apps/nie-web typecheck`: 0 errors, passed.
+
+11. **Server Architecture Research & Cross-Server Resilience Hardening (`nie-model-serve`, `nie-site`, `nie-net`) — (measured 2026-09-20)**:
+    - **Architecture & Library Audit**:
+      - Conducted complete audit of runtime frameworks and dependencies across all three production server crates: `nie-site` (Axum 0.8, Tower 0.5, Tokio 1, Moka, Blake3, Rusqlite), `nie-model-serve` (`std::net::TcpListener`, bounded worker `Pool`, `nie-formats`, `nie-explore`, `rusqlite`), and `nie-net` (`tokio-tungstenite`, Tokio 1, `tokio::sync::RwLock`, `tokio::sync::mpsc`).
+    - **`nie-model-serve` Resilience Hardening**:
+      - Isolated worker thread execution with `std::panic::catch_unwind(std::panic::AssertUnwindSafe(...))`: asset corruption or VFS panics no longer crash worker threads or drop incoming TCP connections.
+      - Implemented safe mutex poison recovery (`.unwrap_or_else(|p| p.into_inner())`) preventing cascading server lockups on panic.
+      - Implemented atomic disk cache writes (`atomic_write`): assets write to PID/nanosecond-unique temporary files (`.tmp_<pid>_<nanos>_<name>`) followed by atomic POSIX rename, preventing corrupted cache files under power failure or concurrency.
+      - Expanded HTTP method parsing: added native CORS preflight `OPTIONS` handling (`204 No Content`) and `HEAD` requests (accurate headers and `Content-Length`, body suppressed).
+    - **`nie-site` Panic Shield & DoS Mitigation**:
+      - Activated `tower-http 0.6.11` `catch-panic` feature and mounted custom `CatchPanicLayer` returning structured JSON 500 responses with `X-Content-Type-Options: nosniff` instead of resetting TCP connections (RST).
+      - Enforced `axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024)` across all routes to prevent memory exhaustion DoS attacks.
+      - Configured high-performance read-only SQLite PRAGMAs (`query_only = ON;`, `temp_store = MEMORY;`, `mmap_size = 268435456;`, `cache_size = -64000;`) to eliminate lock overhead and disk contention during heavy concurrent queries.
+    - **`nie-net` Slowloris & Memory Protection**:
+      - Enforced 10-second timeout on incoming WebSocket handshakes via `tokio::time::timeout` preventing lingering half-open TCP connections.
+      - Converted client outbound message channels from unbounded to bounded `mpsc::channel::<Message>(512)` with non-blocking `try_send` drops for lagged tick broadcasts, protecting memory from slowloris clients.
+    - **Documentation**:
+      - Created authoritative specification [`docs/SERVER-ROBUSTNESS.md`](docs/SERVER-ROBUSTNESS.md) indexed in `docs/README.md`.
+    - **Automated Verification Gates**:
+      - `cargo clippy -p nie-model-serve --bins --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo test -p nie-model-serve`: 21/21 tests passed.
+      - `cargo clippy -p nie-site --lib --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo test -p nie-site`: 361/361 tests passed.
+      - `cargo clippy -p nie-net --lib --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo test -p nie-net`: 37/37 tests passed (34 unit, 3 e2e network).
+      - `cargo test -p nie-cli`: 32/32 tests passed (including MCP contract).
+      - `cargo check --workspace --tests`: 0 errors, passed.
+      - `bun run docs:check`: 48/48 indexed, 0 failures, passed.
+      - `git diff --check`: 0 issues, passed.

@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context as _;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, RwLock};
@@ -23,7 +24,7 @@ use crate::protocol::{
 };
 use crate::session::NetMatchSession;
 
-type Tx = mpsc::UnboundedSender<Message>;
+type Tx = mpsc::Sender<Message>;
 
 /// Information on a connected network client.
 struct ConnectedClient {
@@ -78,7 +79,7 @@ impl ServerState {
             let clients = self.clients.read().await;
             for member in &room.members {
                 if let Some(client) = clients.get(&member.id) {
-                    let _ = client.tx.send(Message::Text(json.clone().into()));
+                    let _ = client.tx.try_send(Message::Text(json.clone().into()));
                 }
             }
         }
@@ -108,7 +109,7 @@ impl ServerState {
                     continue;
                 }
                 if let Some(client) = clients.get(&visitor.player_id) {
-                    let _ = client.tx.send(Message::Text(json.clone().into()));
+                    let _ = client.tx.try_send(Message::Text(json.clone().into()));
                 }
             }
         }
@@ -120,7 +121,7 @@ impl ServerState {
         if let Some(client) = clients.get(player_id)
             && let Ok(json) = serde_json::to_string(msg)
         {
-            let _ = client.tx.send(Message::Text(json.into()));
+            let _ = client.tx.try_send(Message::Text(json.into()));
         }
     }
 }
@@ -281,7 +282,7 @@ impl NetServer {
                             let text_msg = Message::Text(json.into());
                             for pid in &match_data.player_ids {
                                 if let Some(client) = clients.get(pid) {
-                                    let _ = client.tx.send(text_msg.clone());
+                                    let _ = client.tx.try_send(text_msg.clone());
                                 }
                             }
                         }
@@ -308,9 +309,14 @@ async fn handle_connection(
     stream: TcpStream,
     peer: SocketAddr,
 ) -> anyhow::Result<()> {
-    let ws_stream = tokio_tungstenite::accept_async(stream).await?;
+    let ws_stream = tokio::time::timeout(
+        Duration::from_secs(10),
+        tokio_tungstenite::accept_async(stream),
+    )
+    .await
+    .context("WebSocket handshake timed out")??;
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
-    let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
+    let (tx, mut rx) = mpsc::channel::<Message>(512);
 
     // Forward outbound messages from channel to websocket sink
     let forward_task = tokio::spawn(async move {
@@ -345,7 +351,7 @@ async fn handle_connection(
                     message: format!("Malformed packet: {e}"),
                 };
                 if let Ok(json) = serde_json::to_string(&err_msg) {
-                    let _ = tx.send(Message::Text(json.into()));
+                    let _ = tx.try_send(Message::Text(json.into()));
                 }
                 continue;
             }
@@ -375,7 +381,7 @@ async fn handle_connection(
                 );
 
                 if let Ok(json) = serde_json::to_string(&welcome) {
-                    let _ = tx.send(Message::Text(json.into()));
+                    let _ = tx.try_send(Message::Text(json.into()));
                 }
             }
 
@@ -397,7 +403,7 @@ async fn handle_connection(
                                 config,
                             };
                             if let Ok(json) = serde_json::to_string(&resp) {
-                                let _ = tx.send(Message::Text(json.into()));
+                                let _ = tx.try_send(Message::Text(json.into()));
                             }
                         }
                         Err(e) => {
@@ -405,7 +411,7 @@ async fn handle_connection(
                                 message: format!("Create room failed: {e}"),
                             };
                             if let Ok(json) = serde_json::to_string(&err_msg) {
-                                let _ = tx.send(Message::Text(json.into()));
+                                let _ = tx.try_send(Message::Text(json.into()));
                             }
                         }
                     }
@@ -431,7 +437,7 @@ async fn handle_connection(
                                 room: room_info.clone(),
                             };
                             if let Ok(json) = serde_json::to_string(&resp) {
-                                let _ = tx.send(Message::Text(json.into()));
+                                let _ = tx.try_send(Message::Text(json.into()));
                             }
 
                             let update_msg = NetMessage::RoomUpdate {
@@ -445,7 +451,7 @@ async fn handle_connection(
                                 message: format!("Join room failed: {e}"),
                             };
                             if let Ok(json) = serde_json::to_string(&err_msg) {
-                                let _ = tx.send(Message::Text(json.into()));
+                                let _ = tx.try_send(Message::Text(json.into()));
                             }
                         }
                     }
@@ -527,7 +533,7 @@ async fn handle_connection(
                         .unwrap_or(0),
                 };
                 if let Ok(json) = serde_json::to_string(&pong) {
-                    let _ = tx.send(Message::Text(json.into()));
+                    let _ = tx.try_send(Message::Text(json.into()));
                 }
             }
 
@@ -609,7 +615,7 @@ async fn handle_connection(
 
                     let sync_msg = NetMessage::KizunaTownSnapshotSync { snapshot };
                     if let Ok(json) = serde_json::to_string(&sync_msg) {
-                        let _ = tx.send(Message::Text(json.into()));
+                        let _ = tx.try_send(Message::Text(json.into()));
                     }
 
                     // Notify existing visitors
@@ -712,7 +718,7 @@ async fn handle_connection(
                     town.place_object(object);
                     let resp = NetMessage::TownObjectPlaced { instance_id };
                     if let Ok(json) = serde_json::to_string(&resp) {
-                        let _ = tx.send(Message::Text(json.into()));
+                        let _ = tx.try_send(Message::Text(json.into()));
                     }
                 }
             }
@@ -734,7 +740,7 @@ async fn handle_connection(
                     town.place_character(character);
                     let resp = NetMessage::TownCharacterPlaced { instance_id };
                     if let Ok(json) = serde_json::to_string(&resp) {
-                        let _ = tx.send(Message::Text(json.into()));
+                        let _ = tx.try_send(Message::Text(json.into()));
                     }
                 }
             }
@@ -859,7 +865,7 @@ async fn handle_connection(
                     squad,
                 };
                 if let Ok(json) = serde_json::to_string(&resp) {
-                    let _ = tx.send(Message::Text(json.into()));
+                    let _ = tx.try_send(Message::Text(json.into()));
                 }
             }
 

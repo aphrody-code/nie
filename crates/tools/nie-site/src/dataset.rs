@@ -108,6 +108,17 @@ impl Gisement {
                 tracing::error!(erreur = %e, "ouverture du miroir impossible");
                 ErreurSite::Indisponible("gisement illisible".to_owned())
             })?;
+            // Optimisations de robustesse et de performance SQLite en lecture seule :
+            // - query_only = ON : protège contre toute tentative de mutation
+            // - temp_store = MEMORY : garde les tables temporaires et tris en RAM
+            // - mmap_size = 268435456 : active la lecture projetée en mémoire vive (256 Mo)
+            // - cache_size = -64000 : alloue 64 Mo de cache de pages
+            let _ = conn.execute_batch(
+                "PRAGMA query_only = ON;\
+                 PRAGMA temp_store = MEMORY;\
+                 PRAGMA mmap_size = 268435456;\
+                 PRAGMA cache_size = -64000;",
+            );
             tracing::info!(
                 chemin = %self.chemin.display(),
                 dev = identite.0,
