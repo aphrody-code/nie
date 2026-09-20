@@ -95,6 +95,7 @@ nie-lua = { workspace = true, features = ["vm"] }
 # extracted on the client, then resolves them against the read-only mirror.
 nie-save.workspace = true
 nie-launcher.workspace = true
+nie-net = { workspace = true, default-features = false }
 
 # Character catalogue queries belong to the wiki data library. The HTTP route preserves its
 # existing DTO while delegating filtering, faceting, ordering and pagination to this crate.

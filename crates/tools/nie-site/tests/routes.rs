@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 165] = [
+    let instances: [(&str, &[u16]); 171] = [
         ("/healthz", &[200]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
@@ -329,10 +329,16 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/api/v1/ut/team/decrypt", &[200]),
         ("/api/v1/ut/uniforms", &[200, 500]),
         ("/api/v1/ut/stadiums", &[200, 500]),
+        ("/api/v1/online/status", &[200]),
+        ("/api/v1/online/tiers", &[200]),
+        ("/api/v1/online/ladder", &[200]),
+        ("/api/v1/online/clans", &[200]),
+        ("/api/v1/online/challenge", &[200]),
+        ("/api/v1/online/calc-elo", &[200]),
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 163, "le routeur monte 163 routes");
+    assert_eq!(declarees.len(), 169, "le routeur monte 169 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -364,7 +370,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 165, "165 instances interrogees pour 163 routes");
+    assert_eq!(vus, 171, "171 instances interrogees pour 169 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).

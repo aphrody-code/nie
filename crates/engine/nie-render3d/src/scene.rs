@@ -100,6 +100,136 @@ pub struct Instance<'a> {
     pub two_sided: bool,
 }
 
+/// Un segment de droite en espace monde.
+///
+/// C'est la primitive qui manquait au rendu Rust pour qu'un éditeur 3D tienne sans second
+/// rastériseur : **grille**, **fil de fer** et **contour de sélection** sont tous des segments.
+/// Le viewport three.js de l'éditeur web les obtenait de `GridHelper`, d'un matériau
+/// `wireframe` et d'un contour ; c'est la seule raison pour laquelle il survivait à côté de
+/// `nie-render3d`.
+#[derive(Clone, Copy, Debug)]
+pub struct Segment {
+    /// Première extrémité, en espace monde.
+    pub a: V3,
+    /// Seconde extrémité.
+    pub b: V3,
+    /// Couleur RGB.
+    pub color: [u8; 3],
+    /// Épaisseur en pixels écran (bornée à `1..=8` ; un trait de zéro pixel ne se voit pas, et
+    /// au-delà de huit c'est un quadrilatère qu'il faut, pas un segment épaissi).
+    pub width: u8,
+    /// `true` : le segment est masqué par la géométrie devant lui — une grille de sol doit
+    /// passer derrière les objets posés dessus.
+    ///
+    /// `false` : dessiné par-dessus tout. C'est ce que veut un contour de sélection, qui doit
+    /// rester visible même quand l'objet sélectionné est derrière un autre — sans quoi
+    /// sélectionner un objet caché ne montre rien et se lit comme un clic sans effet.
+    pub depth_test: bool,
+}
+
+impl Segment {
+    /// Un segment d'un pixel, testé en profondeur.
+    #[must_use]
+    pub fn new(a: V3, b: V3, color: [u8; 3]) -> Self {
+        Self {
+            a,
+            b,
+            color,
+            width: 1,
+            depth_test: true,
+        }
+    }
+
+    /// Le même, dessiné par-dessus la géométrie.
+    #[must_use]
+    pub fn overlay(mut self) -> Self {
+        self.depth_test = false;
+        self
+    }
+
+    /// Le même, à l'épaisseur voulue.
+    #[must_use]
+    pub fn with_width(mut self, width: u8) -> Self {
+        self.width = width;
+        self
+    }
+}
+
+/// Grille de sol centrée sur l'origine, dans le plan `y = height`.
+///
+/// `half_extent` est la demi-taille en unités monde, `step` l'écart entre deux lignes. Les deux
+/// axes principaux (X et Z) reçoivent `axis_color` pour que l'orientation se lise sans repère
+/// extérieur — c'est ce que fait `GridHelper` de three.js, et un éditeur sans axes colorés
+/// oblige à deviner où est l'origine.
+///
+/// Rend un vecteur vide si `step` n'est pas fini ou n'est pas strictement positif : une grille
+/// au pas nul demanderait une infinité de lignes.
+#[must_use]
+pub fn grid_segments(
+    half_extent: f32,
+    step: f32,
+    height: f32,
+    color: [u8; 3],
+    axis_color: [u8; 3],
+) -> Vec<Segment> {
+    if !step.is_finite() || step <= 0.0 || !half_extent.is_finite() || half_extent <= 0.0 {
+        return Vec::new();
+    }
+    let lignes = (half_extent / step) as i32;
+    let mut out = Vec::with_capacity(((lignes * 2 + 1) * 2) as usize);
+    for i in -lignes..=lignes {
+        let d = i as f32 * step;
+        let sur_axe = i == 0;
+        let teinte = if sur_axe { axis_color } else { color };
+        let epaisseur = if sur_axe { 2 } else { 1 };
+        // Parallèle à Z (varie en x), puis parallèle à X (varie en z).
+        out.push(
+            Segment::new(
+                [d, height, -half_extent],
+                [d, height, half_extent],
+                teinte,
+            )
+            .with_width(epaisseur),
+        );
+        out.push(
+            Segment::new(
+                [-half_extent, height, d],
+                [half_extent, height, d],
+                teinte,
+            )
+            .with_width(epaisseur),
+        );
+    }
+    out
+}
+
+/// Arêtes d'une boîte alignée sur les axes — le contour de sélection d'un objet.
+///
+/// Les douze arêtes sont marquées en superposition ([`Segment::overlay`]) : une boîte de
+/// sélection masquée par l'objet qu'elle entoure ne sélectionne rien de visible.
+#[must_use]
+pub fn box_segments(min: V3, max: V3, color: [u8; 3]) -> Vec<Segment> {
+    let coin = |i: usize| -> V3 {
+        [
+            if i & 1 == 0 { min[0] } else { max[0] },
+            if i & 2 == 0 { min[1] } else { max[1] },
+            if i & 4 == 0 { min[2] } else { max[2] },
+        ]
+    };
+    // Deux coins sont reliés si et seulement si leurs indices diffèrent d'un seul bit : c'est la
+    // définition d'une arête d'hypercube, et elle donne exactement douze paires en dimension 3.
+    let mut out = Vec::with_capacity(12);
+    for i in 0..8usize {
+        for bit in [1usize, 2, 4] {
+            let j = i | bit;
+            if j != i {
+                out.push(Segment::new(coin(i), coin(j), color).overlay());
+            }
+        }
+    }
+    out
+}
+
 /// Rendu de scène **plate uniquement** (triangles colorés). Conservé pour le match « boîtes ».
 #[must_use]
 pub fn render_world(
@@ -120,6 +250,28 @@ pub fn render_world(
 pub fn render_scene(
     flat: &[Tri],
     instances: &[Instance],
+    cam: &Camera,
+    w: u32,
+    h: u32,
+    bg_top: [u8; 3],
+    bg_bot: [u8; 3],
+) -> Vec<u8> {
+    render_scene_with_lines(flat, instances, &[], cam, w, h, bg_top, bg_bot)
+}
+
+/// Le même compositeur, plus une passe de **segments** (grille, fil de fer, sélection).
+///
+/// Les segments sont dessinés APRÈS la géométrie et partagent son z-buffer, mais ne l'écrivent
+/// pas : deux traits qui se croisent ne se masquent donc pas l'un l'autre, et un contour de
+/// sélection ne creuse pas de trou dans la profondeur pour ce qui serait dessiné ensuite.
+///
+/// [`render_scene`] délègue ici avec une tranche vide : aucun appelant existant ne change.
+#[must_use]
+#[allow(clippy::too_many_arguments)]
+pub fn render_scene_with_lines(
+    flat: &[Tri],
+    instances: &[Instance],
+    segments: &[Segment],
     cam: &Camera,
     w: u32,
     h: u32,
@@ -260,7 +412,87 @@ pub fn render_scene(
             }
         }
     }
+
+    // 3) Segments, après la géométrie : ils lisent le z-buffer sans l'écrire.
+    for seg in segments {
+        let (mut ca, mut cb) = (cam_space(seg.a), cam_space(seg.b));
+        // Clipping du plan proche, en paramétrique : un segment qui traverse la caméra est
+        // raccourci, pas rejeté — une grille de sol traverse toujours le plan proche.
+        let (da, db) = (ca[2] >= NEAR, cb[2] >= NEAR);
+        if !da && !db {
+            continue;
+        }
+        if !da {
+            let t = (NEAR - ca[2]) / (cb[2] - ca[2]);
+            ca = [
+                ca[0] + (cb[0] - ca[0]) * t,
+                ca[1] + (cb[1] - ca[1]) * t,
+                NEAR,
+            ];
+        } else if !db {
+            let t = (NEAR - cb[2]) / (ca[2] - cb[2]);
+            cb = [
+                cb[0] + (ca[0] - cb[0]) * t,
+                cb[1] + (ca[1] - cb[1]) * t,
+                NEAR,
+            ];
+        }
+        trace_segment(&mut px, &zbuf, w, h, to_screen(ca), to_screen(cb), seg);
+    }
     px
+}
+
+/// Trace un segment en espace écran, avec test de profondeur optionnel.
+///
+/// Échantillonnage par DDA sur l'axe dominant : un pixel par colonne (ou par ligne) garantit un
+/// trait continu sans trou, ce qu'un pas fixe en `t` ne donne pas sur les segments obliques.
+/// La profondeur est interpolée en `1/z`, comme pour les triangles — interpoler `z` linéairement
+/// en écran placerait le trait devant ou derrière la géométrie selon l'angle de vue.
+fn trace_segment(
+    px: &mut [u8],
+    zbuf: &[f32],
+    w: u32,
+    h: u32,
+    a: (f32, f32, f32),
+    b: (f32, f32, f32),
+    seg: &Segment,
+) {
+    let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+    let pas = dx.abs().max(dy.abs()).ceil().max(1.0);
+    if !pas.is_finite() || pas > 1e6 {
+        return; // segment dégénéré ou projeté à l'infini : rien de sensé à tracer.
+    }
+    let (inv_za, inv_zb) = (1.0 / a.2, 1.0 / b.2);
+    let rayon = i32::from(seg.width.clamp(1, 8)) / 2;
+    let n = pas as u32;
+    for i in 0..=n {
+        let t = f32::from(u16::try_from(i).unwrap_or(u16::MAX)) / pas;
+        let sx = a.0 + dx * t;
+        let sy = a.1 + dy * t;
+        let inv_z = inv_za + (inv_zb - inv_za) * t;
+        if inv_z <= 0.0 {
+            continue;
+        }
+        let profondeur = 1.0 / inv_z;
+        for oy in -rayon..=rayon {
+            for ox in -rayon..=rayon {
+                let x = sx as i32 + ox;
+                let y = sy as i32 + oy;
+                if x < 0 || y < 0 || x >= w as i32 || y >= h as i32 {
+                    continue;
+                }
+                let idx = (y as u32 * w + x as u32) as usize;
+                if seg.depth_test && profondeur >= zbuf[idx] {
+                    continue;
+                }
+                let o = idx * 4;
+                px[o] = seg.color[0];
+                px[o + 1] = seg.color[1];
+                px[o + 2] = seg.color[2];
+                px[o + 3] = 255;
+            }
+        }
+    }
 }
 
 /// Sommet en espace caméra pour le clipping : position + attribut UV (interpolé aux intersections).
@@ -610,6 +842,227 @@ mod tests {
         assert!(
             lit > 80,
             "la partie visible du triangle traversant doit se rendre ({lit})"
+        );
+    }
+
+    // ─── Segments : grille, fil de fer, sélection ────────────────────────────────────────
+
+    /// Caméra qui regarde l'origine depuis le haut et l'avant — la vue d'un éditeur.
+    fn cam_editeur() -> Camera {
+        Camera {
+            eye: [0.0, 6.0, 10.0],
+            target: [0.0, 0.0, 0.0],
+            up: [0.0, 1.0, 0.0],
+            fov_y: 0.9,
+        }
+    }
+
+    fn compte_pixels(px: &[u8], couleur: [u8; 3]) -> usize {
+        px.chunks_exact(4)
+            .filter(|p| p[0] == couleur[0] && p[1] == couleur[1] && p[2] == couleur[2])
+            .count()
+    }
+
+    /// Un segment seul se dessine, et c'est bien LUI qu'on voit : sans lui, rien de sa couleur.
+    #[test]
+    fn un_segment_se_dessine_dans_sa_couleur() {
+        let rouge = [255, 0, 0];
+        let seg = Segment::new([-3.0, 0.0, 0.0], [3.0, 0.0, 0.0], rouge);
+        let avec = render_scene_with_lines(&[], &[], &[seg], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
+        let sans = render_scene_with_lines(&[], &[], &[], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
+        assert!(compte_pixels(&avec, rouge) > 20, "le segment doit couvrir des pixels");
+        assert_eq!(compte_pixels(&sans, rouge), 0, "sans segment, aucun pixel rouge");
+    }
+
+    /// Un segment ÉPAIS couvre plus de pixels qu'un fin, sur la même géométrie.
+    #[test]
+    fn lepaisseur_change_la_couverture() {
+        let vert = [0, 255, 0];
+        let base = Segment::new([-3.0, 0.0, 0.0], [3.0, 0.0, 0.0], vert);
+        let fin = render_scene_with_lines(&[], &[], &[base], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
+        let epais = render_scene_with_lines(
+            &[],
+            &[],
+            &[base.with_width(5)],
+            &cam_editeur(),
+            160,
+            120,
+            [10; 3],
+            [20; 3],
+        );
+        assert!(
+            compte_pixels(&epais, vert) > compte_pixels(&fin, vert),
+            "5 px doit couvrir plus que 1 px"
+        );
+    }
+
+    /// Le test de profondeur MASQUE un segment derrière un mur ; `overlay` le laisse passer.
+    ///
+    /// C'est la distinction qui décide d'un éditeur utilisable : une grille de sol doit passer
+    /// derrière les objets posés dessus, un contour de sélection doit rester visible même quand
+    /// l'objet est caché — sinon sélectionner un objet masqué ne montre rien, ce qui se lit
+    /// comme un clic sans effet.
+    #[test]
+    fn la_profondeur_masque_un_segment_mais_pas_une_superposition() {
+        let bleu = [0, 0, 255];
+        // Un mur opaque entre la caméra et le segment.
+        let mur = [
+            Tri {
+                p: [[-4.0, -4.0, 4.0], [4.0, -4.0, 4.0], [4.0, 4.0, 4.0]],
+                color: [200, 200, 200],
+            },
+            Tri {
+                p: [[-4.0, -4.0, 4.0], [4.0, 4.0, 4.0], [-4.0, 4.0, 4.0]],
+                color: [200, 200, 200],
+            },
+        ];
+        let derriere = Segment::new([-2.0, 0.0, 0.0], [2.0, 0.0, 0.0], bleu);
+        let cache = render_scene_with_lines(&mur, &[], &[derriere], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
+        let par_dessus = render_scene_with_lines(
+            &mur,
+            &[],
+            &[derriere.overlay()],
+            &cam_editeur(),
+            160,
+            120,
+            [10; 3],
+            [20; 3],
+        );
+        assert_eq!(compte_pixels(&cache, bleu), 0, "le mur doit masquer le segment");
+        assert!(
+            compte_pixels(&par_dessus, bleu) > 20,
+            "`overlay` doit passer par-dessus le mur"
+        );
+    }
+
+    /// La grille a le bon NOMBRE de lignes, et ses deux axes sont distincts du reste.
+    ///
+    /// Compter les segments attrape ce qu'une capture ne montre pas : une grille à qui il manque
+    /// la ligne centrale, ou qui la compte deux fois, ressemble à une grille correcte.
+    #[test]
+    fn la_grille_compte_ses_lignes_et_distingue_ses_axes() {
+        let gris = [60, 60, 60];
+        let axe = [200, 40, 40];
+        // demi-étendue 10, pas 2 → 5 lignes de chaque côté plus l'axe = 11 par direction.
+        let g = grid_segments(10.0, 2.0, 0.0, gris, axe);
+        assert_eq!(g.len(), 11 * 2, "11 lignes par direction, deux directions");
+        assert_eq!(
+            g.iter().filter(|s| s.color == axe).count(),
+            2,
+            "exactement deux axes : un par direction"
+        );
+        assert!(
+            g.iter().filter(|s| s.color == axe).all(|s| s.width == 2),
+            "les axes sont plus épais"
+        );
+        assert!(g.iter().all(|s| s.depth_test), "une grille de sol se masque");
+    }
+
+    /// Un pas nul ou non fini rend une grille VIDE au lieu d'en demander une infinité.
+    #[test]
+    fn une_grille_au_pas_absurde_est_vide() {
+        for (extent, step) in [(10.0, 0.0), (10.0, -1.0), (10.0, f32::NAN), (0.0, 1.0), (f32::INFINITY, 1.0)] {
+            assert!(
+                grid_segments(extent, step, 0.0, [1; 3], [2; 3]).is_empty(),
+                "étendue {extent}, pas {step}"
+            );
+        }
+    }
+
+    /// La boîte de sélection a DOUZE arêtes, toutes en superposition.
+    ///
+    /// Douze est le compte d'un parallélépipède ; treize signalerait une diagonale, onze une
+    /// arête manquante — deux défauts qu'un rendu ne montre pas clairement.
+    #[test]
+    fn la_boite_de_selection_a_douze_aretes_toutes_par_dessus() {
+        let b = box_segments([-1.0, -1.0, -1.0], [1.0, 1.0, 1.0], [0, 200, 255]);
+        assert_eq!(b.len(), 12);
+        assert!(b.iter().all(|s| !s.depth_test), "un contour reste visible");
+        // Chaque arête relie deux coins distincts d'une seule coordonnée.
+        for s in &b {
+            let differences = (0..3).filter(|i| (s.a[*i] - s.b[*i]).abs() > 1e-6).count();
+            assert_eq!(differences, 1, "une arête varie sur un seul axe : {s:?}");
+        }
+    }
+
+    /// Un segment qui traverse le plan proche est RACCOURCI, pas rejeté.
+    ///
+    /// Une grille de sol passe toujours sous la caméra : la rejeter ferait disparaître la moitié
+    /// de la grille dès qu'on s'approche du sol, ce qui se lit comme un défaut d'affichage.
+    #[test]
+    fn un_segment_traversant_le_plan_proche_est_raccourci() {
+        let jaune = [255, 255, 0];
+        let cam = Camera {
+            eye: [0.0, 1.0, 0.0],
+            target: [0.0, 1.0, -1.0],
+            up: [0.0, 1.0, 0.0],
+            fov_y: 1.2,
+        };
+        // De derrière la caméra jusque devant elle.
+        let seg = Segment::new([0.0, 1.0, 5.0], [0.0, 1.0, -5.0], jaune);
+        let px = render_scene_with_lines(&[], &[], &[seg], &cam, 160, 120, [10; 3], [20; 3]);
+        assert!(
+            compte_pixels(&px, jaune) > 0,
+            "la partie devant la caméra doit se dessiner"
+        );
+    }
+
+    /// `render_scene` sans segment rend EXACTEMENT ce qu'il rendait avant l'ajout.
+    #[test]
+    fn la_passe_de_segments_ne_change_rien_sans_segment() {
+        let tri = [Tri {
+            p: [[-2.0, 0.0, 0.0], [2.0, 0.0, 0.0], [0.0, 2.0, 0.0]],
+            color: [180, 120, 60],
+        }];
+        let avant = render_scene(&tri, &[], &cam_editeur(), 96, 72, [10; 3], [20; 3]);
+        let apres = render_scene_with_lines(&tri, &[], &[], &cam_editeur(), 96, 72, [10; 3], [20; 3]);
+        assert_eq!(avant, apres, "aucun pixel ne doit bouger");
+    }
+
+    /// La profondeur d'un segment est interpolée en `1/z`, pas en `z`.
+    ///
+    /// Un pas uniforme en espace ÉCRAN ne correspond pas à un pas uniforme en espace 3D : c'est
+    /// `1/z` qui varie linéairement à l'écran, pas `z`. Interpoler `z` place donc le point où le
+    /// segment passe derrière la géométrie au mauvais endroit — et l'erreur n'est pas subtile.
+    ///
+    /// Mesuré sur cette scène : un segment plongeant de la profondeur 3 à 37, coupé par un mur
+    /// qui couvre tout le champ à la profondeur 12. En `1/z`, **117 pixels** restent visibles ;
+    /// en `z` linéaire, **zéro** — le segment entier disparaît. Le mur couvre tout le champ à
+    /// dessein : s'il n'en couvrait qu'une partie, l'occultation serait décidée par son étendue
+    /// à l'écran et le test ne prouverait rien. Une première version de ce test faisait
+    /// exactement cette erreur et rendait 160 pixels dans les deux cas.
+    #[test]
+    fn la_profondeur_dun_segment_sinterpole_en_inverse() {
+        let jaune = [255, 255, 0];
+        let cam = Camera {
+            eye: [0.0, 0.0, 12.0],
+            target: [0.0, 0.0, 0.0],
+            up: [0.0, 1.0, 0.0],
+            fov_y: 1.0,
+        };
+        let seg = Segment::new([-5.0, 0.0, 9.0], [5.0, 0.0, -25.0], jaune);
+        let mur = [
+            Tri {
+                p: [[-200.0, -200.0, 0.0], [200.0, -200.0, 0.0], [200.0, 200.0, 0.0]],
+                color: [200, 200, 200],
+            },
+            Tri {
+                p: [[-200.0, -200.0, 0.0], [200.0, 200.0, 0.0], [-200.0, 200.0, 0.0]],
+                color: [200, 200, 200],
+            },
+        ];
+
+        let avec_mur = render_scene_with_lines(&mur, &[], &[seg], &cam, 320, 240, [10; 3], [20; 3]);
+        let sans_mur = render_scene_with_lines(&[], &[], &[seg], &cam, 320, 240, [10; 3], [20; 3]);
+        let (visible, total) = (compte_pixels(&avec_mur, jaune), compte_pixels(&sans_mur, jaune));
+
+        assert!(
+            visible > 50,
+            "la partie DEVANT le mur doit rester visible : {visible} pixels (0 = interpolation linéaire)"
+        );
+        assert!(
+            visible < total,
+            "la partie DERRIÈRE le mur doit être masquée : {visible} sur {total}"
         );
     }
 }

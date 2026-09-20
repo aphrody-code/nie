@@ -407,6 +407,13 @@ declarer_routes! {
     "/api/v1/ut/team/decrypt" => crate::routes::ut::contract_decrypt_team,
     "/api/v1/ut/uniforms" => crate::routes::ut::get_uniforms,
     "/api/v1/ut/stadiums" => crate::routes::ut::get_stadiums,
+    // NIE Online Mode & Competitive E-Sport endpoints
+    "/api/v1/online/status" => crate::routes::online::status,
+    "/api/v1/online/tiers" => crate::routes::online::tiers,
+    "/api/v1/online/ladder" => crate::routes::online::ladder,
+    "/api/v1/online/clans" => crate::routes::online::clans,
+    "/api/v1/online/challenge" => crate::routes::online::challenge,
+    "/api/v1/online/calc-elo" => crate::routes::online::calc_elo,
     "/" => crate::routes::pages::coquille,
 }
 
@@ -651,7 +658,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 163, "163 routes mounted");
+        assert_eq!(routes.len(), 169, "169 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

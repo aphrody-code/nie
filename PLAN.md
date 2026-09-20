@@ -1630,3 +1630,29 @@ into `niers`:
      - `cargo check -p nie-wasm --target wasm32-unknown-unknown --locked`: passed.
      - `bun run docs:check`: 47/47 indexed, 0 failures, passed.
      - `bun run --cwd apps/nie-web typecheck`: 0 errors, passed.
+
+10. **Full Multi-Surface Online Mode & Competitive Wiring (`nie-cli`, `nie-wasm`, `nie-site`) — (measured 2026-09-20)**:
+    - **CLI Surface (`niers net`)**:
+      - Integrated `nie-net` into `nie-cli` with dedicated `net_cmd` module.
+      - Implemented `niers net server`: starts authoritative WebSocket server with matchmaking & Kizuna Town hub.
+      - Implemented `niers net room create`: creates Inacode rooms (`INA-XXXX`) with 1v1 / 2v2 modes.
+      - Implemented `niers net sim-match`: automated 60 Hz deterministic simulation with rollback & FNV-1a hash verification (0-desync).
+      - Implemented `niers net challenge create`: creates shareable 8-char base-32 challenge invitations.
+      - Implemented `niers net ladder`: displays competitive leaderboard with the 11 official rank tiers (Fer to Légendaire).
+      - Implemented `niers net clans`: displays clan leaderboards and accumulated AP contributions.
+      - Implemented `niers net calc-elo`: computes asymmetric progressive ELO deltas with directional K-factors.
+    - **WebAssembly Surface (`nie-wasm::net`)**:
+      - Exported WASM bindings for Web/JS runtime in `apps/nie-web`: `net_format_inacode`, `net_generate_inacode`, `net_rank_tier_info`, `net_compute_elo`, `net_generate_challenge_code`, `net_verify_scores`, `net_tournament_circuit_points`, `net_validate_clan_tag`, and `net_state_hash`.
+    - **HTTP REST & API Surface (`nie-site`)**:
+      - Mounted 6 official online endpoints under `/api/v1/online`: `/status`, `/tiers`, `/ladder`, `/clans`, `/challenge`, `/calc-elo`.
+      - Expanded mounted route contract from 163 to 169 routes, covered by 171 test instances.
+    - **Automated Verification Gates**:
+      - `cargo test -p nie-site`: 360/360 tests and doctests passed (333 unit, 26 routes, 1 menu shape, 1 catalog).
+      - `cargo clippy -p nie-site --lib --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo test -p nie-wasm --lib net`: passed.
+      - `cargo check -p nie-wasm --target wasm32-unknown-unknown --locked`: passed.
+      - `cargo clippy -p nie-wasm --lib --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo clippy -p nie-cli -- -D warnings`: 0 warnings, passed.
+      - `bun run docs:check`: 47/47 indexed, 0 failures, passed.
+      - `bun run --cwd apps/nie-web typecheck`: 0 errors, passed.
+

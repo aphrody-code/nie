@@ -98,6 +98,9 @@ pub use native_video::{
     usm_audio_track_wav, usm_elementary_video_bytes, usm_metadata_json, usm_video_track_bytes,
 };
 
+pub mod net;
+pub use net::*;
+
 #[cfg(all(target_arch = "wasm32", feature = "webgpu"))]
 pub mod web_viewer;
 

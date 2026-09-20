@@ -28,6 +28,7 @@ pub mod menu_runtime;
 pub mod modeles3d;
 pub mod motion;
 pub mod native_export;
+pub mod online;
 /// OpenAPI généré depuis le routeur — cf. le module pour ce qu'il décrit et ce qu'il ne décrit pas.
 pub mod openapi;
 pub mod pages;

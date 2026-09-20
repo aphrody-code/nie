@@ -37,6 +37,7 @@ nie-explore = { workspace = true, default-features = true }
 nie-viola.workspace = true
 nie-launcher.workspace = true
 nie-steam = { workspace = true, default-features = true }
+nie-net = { workspace = true, features = ["transport"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net"] }
 futures-util.workspace = true
 tokio-tungstenite.workspace = true
