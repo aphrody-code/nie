@@ -39,6 +39,7 @@
 
 pub mod document;
 pub mod glb;
+pub mod gizmo;
 #[cfg(feature = "gpu")]
 pub mod gpu;
 pub mod pick;
