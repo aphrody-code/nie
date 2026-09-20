@@ -10,6 +10,54 @@ export interface RustModelViewer {
 	render(): boolean;
 	free(): void;
 }
+
+/**
+ * Les capacités d'ÉDITION du viewer Rust, au-delà de l'affichage d'un modèle.
+ *
+ * Ce sont les quatre pour lesquelles le viewport three.js de l'éditeur survivait — grille, fil de
+ * fer, contour de sélection, gizmo — plus la composition d'une scène à plusieurs objets et le
+ * picking qui nomme l'objet touché.
+ *
+ * Déclarées à part et OPTIONNELLES : `RustModelViewport` affiche un modèle isolé (pages Modèles
+ * 3D, Avatar) et n'en a pas besoin. Les exiger de tout viewer casserait ces trois consommateurs
+ * pour une capacité qu'ils n'utilisent pas.
+ */
+export interface RustSceneViewer extends RustModelViewer {
+	/** Dépose un asset GLB sous le chemin logique que le document lui donne. */
+	stage_asset(asset: string, bytes: Uint8Array): void;
+	/** Oublie les assets déposés ; le modèle affiché n'est pas touché. */
+	clear_assets(): void;
+	/** Compose et affiche un document de scène v2. */
+	load_scene(documentJson: string): void;
+	/** L'objet sous le pixel, en JSON, ou `undefined` sur le fond. */
+	pick_json(x: number, y: number): string | undefined;
+	/** Grille de sol. */
+	set_grid(visible: boolean): void;
+	/** Fil de fer du modèle. */
+	set_wireframe(visible: boolean): void;
+	/** Sélection par identifiant de document ; chaîne vide pour effacer. */
+	select(id: string): void;
+	/** L'identifiant sélectionné, chaîne vide s'il n'y en a pas. */
+	selected(): string;
+}
+
+/**
+ * Vrai quand un viewer porte les capacités d'édition.
+ *
+ * Un garde plutôt qu'un cast : les deux façades wasm (WebGPU et le repli WebGL) exposent le même
+ * jeu de méthodes aujourd'hui, mais rien dans le type ne l'impose, et un repli amputé se
+ * manifesterait par un `undefined is not a function` au premier clic plutôt qu'à la construction.
+ */
+export function isSceneViewer(viewer: RustModelViewer): viewer is RustSceneViewer {
+	const v = viewer as Partial<RustSceneViewer>;
+	return (
+		typeof v.load_scene === "function" &&
+		typeof v.pick_json === "function" &&
+		typeof v.set_grid === "function" &&
+		typeof v.set_wireframe === "function" &&
+		typeof v.select === "function"
+	);
+}
 export type CreateRustModelViewer = (canvas: HTMLCanvasElement) => Promise<RustModelViewer>;
 
 export interface RustModelCamera {
