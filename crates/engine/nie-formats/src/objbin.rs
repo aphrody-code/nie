@@ -1212,7 +1212,9 @@ mod tests {
             let raw = match vfs.read("data/common/gamedata/menu/obj/title00_09_version.objbin") {
                 Ok(r) => r,
                 Err(e) => {
-                    eprintln!("skip real_files_golden_values : title00_09_version.objbin absent ({e})");
+                    eprintln!(
+                        "skip real_files_golden_values : title00_09_version.objbin absent ({e})"
+                    );
                     return;
                 }
             };
@@ -1295,10 +1297,13 @@ mod tests {
 
         // ── win01_21_select_button.objbin ────────────────────────────────────
         {
-            let raw = match vfs.read("data/common/gamedata/menu/obj/win01_21_select_button.objbin") {
+            let raw = match vfs.read("data/common/gamedata/menu/obj/win01_21_select_button.objbin")
+            {
                 Ok(r) => r,
                 Err(e) => {
-                    eprintln!("skip real_files_golden_values : win01_21_select_button.objbin absent ({e})");
+                    eprintln!(
+                        "skip real_files_golden_values : win01_21_select_button.objbin absent ({e})"
+                    );
                     return;
                 }
             };

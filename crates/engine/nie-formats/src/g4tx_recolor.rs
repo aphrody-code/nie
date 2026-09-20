@@ -361,12 +361,9 @@ mod tests {
         let (w, h, rgba) = damier();
         let octets = conteneur("essai", w, h, &rgba);
         let atlas = crate::g4tx::parse(&octets).expect("G4TX lisible");
-        let refait = reencode_with_payloads(
-            &octets,
-            &atlas,
-            &alloc::vec![NouvelleCharge::Inchangee],
-        )
-        .expect("reconstruction");
+        let refait =
+            reencode_with_payloads(&octets, &atlas, &alloc::vec![NouvelleCharge::Inchangee])
+                .expect("reconstruction");
         let a = &octets[atlas.textures[0].data_offset
             ..atlas.textures[0].data_offset + atlas.textures[0].data_size];
         let refaite = crate::g4tx::parse(&refait).expect("relecture");

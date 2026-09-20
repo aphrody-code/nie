@@ -147,15 +147,15 @@ pub mod pathname;
 /// Analyse mesurée des planches de personnage (`chr/_face/20_EDIT`) : zones, rôle, convention de
 /// composition. Source unique des seuils employés par [`image_out`].
 pub mod planche;
-/// Primitives 2D RGBA8 pures (crop/scale nearest) — source unique, no_std (le blend reste landmine #5).
-pub mod raster2d;
-pub mod rdbn_patch;
 /// Atlas d'icônes `.g4tx` → feuille de sprites CSS / SVG / JSON, pour le web et l'explorateur.
 /// Déformation de maillage par squelette (*linear blend skinning*) : matrices monde animées,
 /// matrices de skinning, et application aux sommets. Même gating que `assemble`/`g4sk`, dont il
 /// consomme les types.
 #[cfg(feature = "std")]
 pub mod pose;
+/// Primitives 2D RGBA8 pures (crop/scale nearest) — source unique, no_std (le blend reste landmine #5).
+pub mod raster2d;
+pub mod rdbn_patch;
 /// Recoloration d'une image RGBA8 (décalage TSV + rampe de luminance), alloc-only.
 pub mod recolor;
 #[cfg(feature = "std")]

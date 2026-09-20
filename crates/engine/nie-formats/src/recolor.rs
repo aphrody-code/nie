@@ -56,9 +56,18 @@ impl Ramp {
     pub fn from_three(primary: [u8; 3], secondary: [u8; 3], accent: [u8; 3]) -> Self {
         Self {
             stops: alloc::vec![
-                Stop { position: 0.0, color: primary },
-                Stop { position: 0.5, color: secondary },
-                Stop { position: 1.0, color: accent },
+                Stop {
+                    position: 0.0,
+                    color: primary
+                },
+                Stop {
+                    position: 0.5,
+                    color: secondary
+                },
+                Stop {
+                    position: 1.0,
+                    color: accent
+                },
             ],
             strength: 1.0,
         }
@@ -137,7 +146,11 @@ impl Ramp {
                 color: parse_hex_rgb(couleur)?,
             });
         }
-        stops.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap_or(core::cmp::Ordering::Equal));
+        stops.sort_by(|a, b| {
+            a.position
+                .partial_cmp(&b.position)
+                .unwrap_or(core::cmp::Ordering::Equal)
+        });
         Ok(Self {
             stops,
             strength: 1.0,
@@ -254,7 +267,11 @@ pub fn rgb_to_hsv(rgb: [u8; 3]) -> [f32; 3] {
     } else {
         60.0 * ((r - g) / delta + 4.0)
     };
-    let s = if max <= f32::EPSILON { 0.0 } else { delta / max };
+    let s = if max <= f32::EPSILON {
+        0.0
+    } else {
+        delta / max
+    };
     [wrap360(h), s, max]
 }
 
@@ -311,11 +328,7 @@ fn approx(a: f32, b: f32) -> bool {
 }
 
 fn clamp01(x: f32) -> f32 {
-    if x.is_nan() {
-        0.0
-    } else {
-        x.clamp(0.0, 1.0)
-    }
+    if x.is_nan() { 0.0 } else { x.clamp(0.0, 1.0) }
 }
 
 /// Ramène un angle dans `0.0..360.0`, y compris négatif (`%` garde le signe du dividende).

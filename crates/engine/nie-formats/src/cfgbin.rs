@@ -2595,8 +2595,12 @@ mod tests {
             }
             !crc
         }
-        for len in [0usize, 1, 7, 8, 15, 16, 31, 32, 33, 63, 64, 127, 255, 1024, 4097] {
-            let data: Vec<u8> = (0..len).map(|i| (i.wrapping_mul(31).wrapping_add(7)) as u8).collect();
+        for len in [
+            0usize, 1, 7, 8, 15, 16, 31, 32, 33, 63, 64, 127, 255, 1024, 4097,
+        ] {
+            let data: Vec<u8> = (0..len)
+                .map(|i| (i.wrapping_mul(31).wrapping_add(7)) as u8)
+                .collect();
             assert_eq!(
                 crc32(&data),
                 table_seule(&data),
@@ -2604,6 +2608,10 @@ mod tests {
             );
         }
         // Et une valeur connue, pour que le test ne se contente pas de comparer deux erreurs.
-        assert_eq!(crc32(b"123456789"), 0xCBF4_3926, "vecteur de reference CRC-32/ISO-HDLC");
+        assert_eq!(
+            crc32(b"123456789"),
+            0xCBF4_3926,
+            "vecteur de reference CRC-32/ISO-HDLC"
+        );
     }
 }

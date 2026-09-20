@@ -67,11 +67,18 @@ fn main() {
     }
 
     println!("prefixe        {prefixe}");
-    println!("paquets .g4pk  {} vus, {paquets_lus} lus, {illisibles} illisibles", paquets.len());
+    println!(
+        "paquets .g4pk  {} vus, {paquets_lus} lus, {illisibles} illisibles",
+        paquets.len()
+    );
     println!("clips          {clips}");
     println!(
         "ADDITIFS       {additifs} ({:.2} %)",
-        if clips == 0 { 0.0 } else { additifs as f64 * 100.0 / clips as f64 }
+        if clips == 0 {
+            0.0
+        } else {
+            additifs as f64 * 100.0 / clips as f64
+        }
     );
     for e in &exemples {
         println!("  exemple additif : {e}");

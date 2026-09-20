@@ -2705,10 +2705,11 @@ pub fn assemble_generic_model(input: GenericModelInput) -> Result<AssembledModel
 ///
 /// Rend `None` si aucune des deux sources ne porte de G4MD exploitable.
 #[must_use]
-pub fn g4md_canonical<'a>(g4pkm: Option<&'a [u8]>, standalone: Option<&'a [u8]>) -> Option<&'a [u8]> {
-    g4pkm
-        .and_then(crate::g4pkm::extract_g4md)
-        .or(standalone)
+pub fn g4md_canonical<'a>(
+    g4pkm: Option<&'a [u8]>,
+    standalone: Option<&'a [u8]>,
+) -> Option<&'a [u8]> {
+    g4pkm.and_then(crate::g4pkm::extract_g4md).or(standalone)
 }
 
 /// Raccourci : assemble un **keshin** depuis ses données G4MD+G4MG brutes.
@@ -3516,12 +3517,16 @@ fn glb_emit_animations(
                 // La comparaison est BIT à BIT : au moindre frémissement, on garde la piste
                 // entière. Une tolérance ferait entrer une perte silencieuse ici, alors que le
                 // seul gain visé est de ne pas répéter une valeur identique.
-                let t_vals: Vec<[f32; 3]> = track.keyframes.iter().map(|k| k.pose.translation).collect();
+                let t_vals: Vec<[f32; 3]> =
+                    track.keyframes.iter().map(|k| k.pose.translation).collect();
                 let r_vals: Vec<[f32; 4]> = track.keyframes.iter().map(|k| k.pose.quat).collect();
                 let s_vals: Vec<[f32; 3]> = track.keyframes.iter().map(|k| k.pose.scale).collect();
                 let constant = |raw: &[&[f32]]| {
-                    raw.windows(2)
-                        .all(|w| w[0].iter().map(|c| c.to_bits()).eq(w[1].iter().map(|c| c.to_bits())))
+                    raw.windows(2).all(|w| {
+                        w[0].iter()
+                            .map(|c| c.to_bits())
+                            .eq(w[1].iter().map(|c| c.to_bits()))
+                    })
                 };
                 let t_const = constant(&t_vals.iter().map(|v| &v[..]).collect::<Vec<_>>());
                 let r_const = constant(&r_vals.iter().map(|v| &v[..]).collect::<Vec<_>>());
@@ -3532,7 +3537,15 @@ fn glb_emit_animations(
                 // un validateur strict rejette le fichier entier, pas seulement l'animation.
                 let mut push_times = |values: &[f32]| {
                     let raw: Vec<u8> = values.iter().flat_map(|t| t.to_le_bytes()).collect();
-                    let acc = glb_push_accessor(bv_data, buffer_views_json, accessor_defs, &raw, values.len(), 5126, "SCALAR");
+                    let acc = glb_push_accessor(
+                        bv_data,
+                        buffer_views_json,
+                        accessor_defs,
+                        &raw,
+                        values.len(),
+                        5126,
+                        "SCALAR",
+                    );
                     if let Some(def) = accessor_defs.get_mut(acc) {
                         def["min"] = json!([values.first().copied().unwrap_or(0.0)]);
                         def["max"] = json!([values.last().copied().unwrap_or(0.0)]);
@@ -3545,44 +3558,62 @@ fn glb_emit_animations(
                     let times: Vec<f32> = track.keyframes.iter().map(|k| k.time_seconds).collect();
                     push_times(&times)
                 });
-                let single_time_acc = (t_const || r_const || s_const).then(|| push_times(&[first_time]));
+                let single_time_acc =
+                    (t_const || r_const || s_const).then(|| push_times(&[first_time]));
 
-                let mut push_channel = |path: &str, raw: Vec<u8>, count: usize, ty: &str, is_const: bool| {
-                    let Some(time_acc) = (if is_const { single_time_acc } else { full_time_acc }) else {
-                        return;
+                let mut push_channel =
+                    |path: &str, raw: Vec<u8>, count: usize, ty: &str, is_const: bool| {
+                        let Some(time_acc) = (if is_const {
+                            single_time_acc
+                        } else {
+                            full_time_acc
+                        }) else {
+                            return;
+                        };
+                        let out_acc = glb_push_accessor(
+                            bv_data,
+                            buffer_views_json,
+                            accessor_defs,
+                            &raw,
+                            count,
+                            5126,
+                            ty,
+                        );
+                        let sampler_idx = samplers.len();
+                        samplers.push(json!({
+                            "input": time_acc, "output": out_acc, "interpolation": "LINEAR"
+                        }));
+                        channels.push(json!({
+                            "sampler": sampler_idx, "target": { "node": node, "path": path }
+                        }));
                     };
-                    let out_acc = glb_push_accessor(
-                        bv_data,
-                        buffer_views_json,
-                        accessor_defs,
-                        &raw,
-                        count,
-                        5126,
-                        ty,
-                    );
-                    let sampler_idx = samplers.len();
-                    samplers.push(json!({
-                        "input": time_acc, "output": out_acc, "interpolation": "LINEAR"
-                    }));
-                    channels.push(json!({
-                        "sampler": sampler_idx, "target": { "node": node, "path": path }
-                    }));
-                };
 
                 let pack = |values: &[&[f32]]| -> Vec<u8> {
-                    values.iter().flat_map(|v| v.iter().flat_map(|c| c.to_le_bytes())).collect()
+                    values
+                        .iter()
+                        .flat_map(|v| v.iter().flat_map(|c| c.to_le_bytes()))
+                        .collect()
                 };
                 let keep = |n: bool| if n { 1 } else { frames };
 
-                let t_slice: Vec<&[f32]> = t_vals.iter().take(keep(t_const)).map(|v| &v[..]).collect();
-                push_channel("translation", pack(&t_slice), keep(t_const), "VEC3", t_const);
+                let t_slice: Vec<&[f32]> =
+                    t_vals.iter().take(keep(t_const)).map(|v| &v[..]).collect();
+                push_channel(
+                    "translation",
+                    pack(&t_slice),
+                    keep(t_const),
+                    "VEC3",
+                    t_const,
+                );
 
                 // `LocalTrs::quat` est déjà ordonné (x, y, z, w), l'ordre que glTF attend pour
                 // ROTATION — aucune permutation à faire ici.
-                let r_slice: Vec<&[f32]> = r_vals.iter().take(keep(r_const)).map(|v| &v[..]).collect();
+                let r_slice: Vec<&[f32]> =
+                    r_vals.iter().take(keep(r_const)).map(|v| &v[..]).collect();
                 push_channel("rotation", pack(&r_slice), keep(r_const), "VEC4", r_const);
 
-                let s_slice: Vec<&[f32]> = s_vals.iter().take(keep(s_const)).map(|v| &v[..]).collect();
+                let s_slice: Vec<&[f32]> =
+                    s_vals.iter().take(keep(s_const)).map(|v| &v[..]).collect();
                 push_channel("scale", pack(&s_slice), keep(s_const), "VEC3", s_const);
             }
             if channels.is_empty() {
@@ -4534,8 +4565,8 @@ mod tests {
 
     #[test]
     fn export_glb_avec_animations() {
+        use crate::g4mt::{DecodedMotionClip, DecodedMotionKeyframe, DecodedMotionTrack};
         use crate::g4sk::LocalTrs;
-        use crate::g4mt::{DecodedMotionClip, DecodedMotionTrack, DecodedMotionKeyframe};
 
         let default_trs = LocalTrs {
             scale: [1.0, 1.0, 1.0],
@@ -4545,20 +4576,18 @@ mod tests {
 
         let skeleton = Skeleton {
             source: "test.g4sk".into(),
-            bones: vec![
-                SkeletonBone {
-                    name: "root".into(),
-                    hash: 1,
-                    parent: None,
-                    local: default_trs,
-                    inverse_bind: [
-                        [1.0, 0.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0, 0.0],
-                        [0.0, 0.0, 1.0, 0.0],
-                        [0.0, 0.0, 0.0, 1.0],
-                    ],
-                },
-            ],
+            bones: vec![SkeletonBone {
+                name: "root".into(),
+                hash: 1,
+                parent: None,
+                local: default_trs,
+                inverse_bind: [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+            }],
         };
 
         let skin_data = PrimitiveSkin {
@@ -4574,14 +4603,38 @@ mod tests {
             component: MeshComponent::Body,
             source_index: 0,
             positions: vec![
-                crate::g4mg::Vec3 { x: 0.0, y: 0.0, z: 0.0 },
-                crate::g4mg::Vec3 { x: 0.0, y: 1.0, z: 0.0 },
-                crate::g4mg::Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                crate::g4mg::Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                crate::g4mg::Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+                crate::g4mg::Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
             ],
             normals: vec![
-                crate::g4mg::Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-                crate::g4mg::Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-                crate::g4mg::Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                crate::g4mg::Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
+                crate::g4mg::Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
+                crate::g4mg::Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
             ],
             uv0: vec![
                 crate::g4mg::Vec2 { u: 0.0, v: 0.0 },
@@ -4641,7 +4694,9 @@ mod tests {
         let json_len = u32::from_le_bytes(glb[12..16].try_into().unwrap()) as usize;
         let json: serde_json::Value = serde_json::from_slice(&glb[20..20 + json_len]).unwrap();
 
-        let anims = json["animations"].as_array().expect("animations glTF présentes");
+        let anims = json["animations"]
+            .as_array()
+            .expect("animations glTF présentes");
         assert_eq!(anims.len(), 1);
         assert_eq!(anims[0]["name"], "idle");
         let channels = anims[0]["channels"].as_array().expect("channels présents");
@@ -4667,7 +4722,11 @@ mod tests {
             .map(|channel| channel["target"]["path"].as_str().unwrap())
             .collect();
         assert_eq!(paths, ["translation", "rotation", "scale"]);
-        assert_eq!(counts, [2, 1, 1], "seule la piste qui bouge garde ses deux images");
+        assert_eq!(
+            counts,
+            [2, 1, 1],
+            "seule la piste qui bouge garde ses deux images"
+        );
     }
 
     // ── Tests des nouvelles fonctionnalités ───────────────────────────────────

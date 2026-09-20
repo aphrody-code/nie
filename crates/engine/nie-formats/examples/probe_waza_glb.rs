@@ -4,7 +4,9 @@ use nie_formats::g4pkm;
 
 fn main() {
     let mut argv = std::env::args().skip(1);
-    let base = argv.next().expect("usage: probe_waza_glb <prefixe-sans-extension>");
+    let base = argv
+        .next()
+        .expect("usage: probe_waza_glb <prefixe-sans-extension>");
     let code = std::path::Path::new(&base)
         .file_name()
         .and_then(|s| s.to_str())
@@ -60,7 +62,10 @@ fn main() {
     }
     println!("total     {sommets} sommets, {triangles} triangles");
     println!("bbox      min {lo:?}\n          max {hi:?}");
-    println!("étendue   {:?}", [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]]);
+    println!(
+        "étendue   {:?}",
+        [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]]
+    );
 
     let glb = model.to_glb();
     let out = format!("{base}.glb");

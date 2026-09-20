@@ -101,8 +101,9 @@ fn main() {
                             } else {
                                 quant_deborde += 1;
                                 if exemples.len() < 5 {
-                                    let pire =
-                                        v.iter().fold(0.0f32, |a, x| if x.abs() > a { x.abs() } else { a });
+                                    let pire = v
+                                        .iter()
+                                        .fold(0.0f32, |a, x| if x.abs() > a { x.abs() } else { a });
                                     exemples.push(format!(
                                         "{} canal {} : |max|={pire} > échelle={e}",
                                         chemin.display(),
@@ -129,9 +130,18 @@ fn main() {
     }
 
     inconnus.sort();
-    let pct = |a: u32, b: u32| if b == 0 { 0.0 } else { f64::from(a) * 100.0 / f64::from(b) };
+    let pct = |a: u32, b: u32| {
+        if b == 0 {
+            0.0
+        } else {
+            f64::from(a) * 100.0 / f64::from(b)
+        }
+    };
 
-    println!("fichiers          {} vus, {lus} décodés, {illisibles} illisibles", fichiers.len());
+    println!(
+        "fichiers          {} vus, {lus} décodés, {illisibles} illisibles",
+        fichiers.len()
+    );
     println!("RÉ-ENCODAGE       {byte_exact}/{lus} byte-exact, {divergents} divergents");
     println!();
     println!("INVARIANT 1 — un canal f32 désigne une échelle de 1.0");

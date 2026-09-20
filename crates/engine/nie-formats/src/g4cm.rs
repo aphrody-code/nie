@@ -1061,15 +1061,31 @@ mod tests {
         let v = c.decoded(&anim).expect("mode 2 taille 2 est résolu");
         assert_eq!(v[0], 0.0);
         assert_eq!(v[1], (65535.0f32 * INV_U16) * 6.1);
-        assert!((v[1] - 6.1).abs() < 1e-4, "65535 doit rendre l'échelle, obtenu {}", v[1]);
-        assert!(v[2] > 3.0 && v[2] < 3.1, "32768 doit rendre la moitié, obtenu {}", v[2]);
+        assert!(
+            (v[1] - 6.1).abs() < 1e-4,
+            "65535 doit rendre l'échelle, obtenu {}",
+            v[1]
+        );
+        assert!(
+            v[2] > 3.0 && v[2] < 3.1,
+            "32768 doit rendre la moitié, obtenu {}",
+            v[2]
+        );
 
         // SNORM16 : le mot 0xFFFF vaut -1, pas 65535 — c'est `psrad` qui le décide.
         let c = canal(3, 2, 1, Track::Raw16(alloc::vec![0xFFFF, 0x8000, 0x7FFF]));
         let v = c.decoded(&anim).expect("mode 3 taille 2 est résolu");
-        assert!(v[0] < 0.0, "0xFFFF doit être négatif en SNORM, obtenu {}", v[0]);
+        assert!(
+            v[0] < 0.0,
+            "0xFFFF doit être négatif en SNORM, obtenu {}",
+            v[0]
+        );
         assert!(v[1] < -6.0, "0x8000 est le minimum signé, obtenu {}", v[1]);
-        assert!((v[2] - 6.1).abs() < 1e-4, "0x7FFF doit rendre l'échelle, obtenu {}", v[2]);
+        assert!(
+            (v[2] - 6.1).abs() < 1e-4,
+            "0x7FFF doit rendre l'échelle, obtenu {}",
+            v[2]
+        );
     }
 
     /// Ce qui n'est pas prouvé doit rendre `None`, jamais une valeur plausible. `mode = 1` passe
@@ -1083,7 +1099,10 @@ mod tests {
 
         // Un index d'échelle hors de la table ne panique pas : il rend `None`.
         let c = canal(2, 2, 200, Track::Raw16(alloc::vec![1, 2]));
-        assert!(c.decoded(&anim).is_none(), "un index hors table doit rendre None");
+        assert!(
+            c.decoded(&anim).is_none(),
+            "un index hors table doit rendre None"
+        );
     }
 
     /// La scission de l'ancien `index: u16` ne doit RIEN changer aux octets écrits.

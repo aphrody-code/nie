@@ -6,7 +6,9 @@ use nie_formats::{g4md, g4pkm};
 
 fn main() {
     let mut argv = std::env::args().skip(1);
-    let chemin = argv.next().expect("usage: probe_g4pkm_g4md <fichier.g4pkm>");
+    let chemin = argv
+        .next()
+        .expect("usage: probe_g4pkm_g4md <fichier.g4pkm>");
     let octets = std::fs::read(&chemin).expect("lecture");
     println!("fichier   {chemin} ({} octets)", octets.len());
     match g4pkm::extract_g4md(&octets) {
