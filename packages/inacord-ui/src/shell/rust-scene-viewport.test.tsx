@@ -345,3 +345,42 @@ test("des statistiques illisibles ne font pas échouer le chargement", async () 
 	expect(noeuds[0]?.triangles).toBe(0);
 	expect(container.textContent).not.toContain("json");
 });
+
+/**
+ * L'image de référence est posée AVANT le canvas et ne prend pas le pointeur.
+ *
+ * Les deux moitiés comptent, et une seule est visible à l'œil : un `<img>` placé après le canvas
+ * le couvrirait, et un `<img>` qui reçoit les clics ferait cesser toute sélection dès qu'une
+ * référence est chargée — un éditeur qui ne sélectionne plus rien, sans message.
+ */
+test("l'image de référence est sous le canvas et laisse passer les clics", async () => {
+	const viewer = fakeSceneViewer();
+	await monter(viewer, {
+		referenceImage: { name: "pose.png", dataUrl: "data:image/png;base64,AAAA", opacity: 0.6 },
+	});
+	const image = container.querySelector("img");
+	const canvas = container.querySelector("canvas");
+	expect(image).not.toBeNull();
+	expect(canvas).not.toBeNull();
+	// `compareDocumentPosition` dit l'ordre du document, qui est l'ordre de peinture ici :
+	// FOLLOWING signifie que le canvas vient après l'image, donc au-dessus.
+	expect(image?.compareDocumentPosition(canvas as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+	expect(image?.style.pointerEvents).toBe("none");
+	expect(image?.style.opacity).toBe("0.6");
+});
+
+/** Sans référence, aucun `<img>` : un calque vide intercepterait quand même la mise en page. */
+test("sans image de référence, aucun calque n'est rendu", async () => {
+	const viewer = fakeSceneViewer();
+	await monter(viewer, {});
+	expect(container.querySelector("img")).toBeNull();
+});
+
+/** `opacity: 0` cacherait le calque tout en le laissant « activé » — borné, comme `Viewport3D`. */
+test("l'opacité de la référence est bornée à 0,05", async () => {
+	const viewer = fakeSceneViewer();
+	await monter(viewer, {
+		referenceImage: { name: "pose.png", dataUrl: "data:image/png;base64,AAAA", opacity: 0 },
+	});
+	expect(container.querySelector("img")?.style.opacity).toBe("0.05");
+});

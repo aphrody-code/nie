@@ -150,18 +150,24 @@ export async function createCpuNativeViewer(canvas: HTMLCanvasElement) {
  * Un éditeur sans GPU ni WebGL 2 n'est donc pas servi, et c'est un constat, pas un oubli : la
  * manipulation 3D interactive suppose un rendu que le processeur ne soutient pas à la cadence
  * d'un glissement de souris.
+ *
+ * Le viewer est construit **transparent**, ce qui permet à `RustSceneViewport` de poser une image
+ * de référence derrière le canvas comme le fait `Viewport3D`. Ce n'est pas un chemin neuf : la
+ * passe hors-écran efface déjà en `Color::TRANSPARENT` et la passe de présentation aussi, seul
+ * `alpha_mode` décidait, et {@link createNativeViewer} demande cette même transparence depuis
+ * toujours — y compris sur le repli WebGL, que les avatars empruntent en production.
  */
 export async function createSceneViewer(canvas: HTMLCanvasElement) {
 	if (await hasWebGpu()) {
 		try {
 			await ensureWasm();
-			return await WebGpuViewer.create(canvas);
+			return await WebGpuViewer.create_transparent(canvas);
 		} catch {
-			return await createLazyViewer(canvas, false);
+			return await createLazyViewer(canvas, true);
 		}
 	}
 	if (hasWebGl2()) {
-		return await createLazyViewer(canvas, false);
+		return await createLazyViewer(canvas, true);
 	}
 	throw new Error(
 		"l'éditeur 3D demande WebGPU ou WebGL 2 ; ce navigateur n'expose ni l'un ni l'autre",

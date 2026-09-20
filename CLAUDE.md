@@ -436,9 +436,17 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   viewer cannot be built here"), never on a scene error: conflating the two would swing a whole
   browser onto the backup engine because one asset failed to decode.
 
-  What is genuinely still missing on the Rust path: `referenceImage` (the Rust canvas is not
-  transparent on the WebGL path) and the outliner's per-node triangle counts, which
-  `onSceneLoaded` currently reports as zero.
+  **The two gaps this section listed are closed, and one of them was never a gap.** The
+  outliner's per-node triangle counts now come from `scene_stats_json`, i.e. from the geometry
+  actually uploaded rather than from the document. And `referenceImage` was blocked by a single
+  boolean: `nie-render3d` clears both its offscreen and its presentation pass to
+  `wgpu::Color::TRANSPARENT`, `WebViewer::with_transparency` only picks `alpha_mode`, and
+  `createNativeViewer` has been asking for transparency all along — **including on the WebGL
+  fallback, which is the path every avatar takes in production**. So "the Rust canvas is not
+  transparent on the WebGL path" was false when it was written; `createSceneViewer` was simply
+  passing `false`. The image is laid out before the canvas in the DOM (later = painted on top)
+  and carries `pointer-events: none`, without which it would swallow the clicks `pick_json`
+  needs and the editor would silently stop selecting.
 
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.

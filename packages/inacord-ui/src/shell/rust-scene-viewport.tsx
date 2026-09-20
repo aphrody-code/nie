@@ -12,13 +12,18 @@
  * import. Réécrire `EditorView` (1 049 lignes) pour changer de rendu aurait mêlé deux
  * changements dont l'un seulement est vérifiable.
  *
- * # Ce qu'il ne fait pas, et pourquoi c'est dit plutôt que caché
+ * # L'image de référence, et une affirmation qui était fausse
  *
- * - **Pas d'image de référence.** `referenceImage` est accepté et ignoré ; le canvas Rust n'est
- *   pas transparent sur le chemin WebGL.
+ * L'en-tête portait jusqu'au 2026-09-20 : « `referenceImage` est accepté et ignoré ; le canvas
+ * Rust n'est pas transparent sur le chemin WebGL ». Les deux moitiés sont fausses. La passe
+ * hors-écran de `nie-render3d` efface en `wgpu::Color::TRANSPARENT`, la passe de présentation
+ * aussi, et `WebViewer::with_transparency` ne décide que de `alpha_mode` — que `createNativeViewer`
+ * demande depuis toujours, **sur le chemin WebGL inclus**, puisque c'est celui des avatars en
+ * production. Il ne manquait donc que le drapeau, passé à `false` par `createSceneViewer`.
  *
- * Tant que ces deux points tiennent, `Viewport3D` reste le viewport de l'éditeur et celui-ci
- * est un remplaçant partiel, pas un successeur.
+ * L'image est posée **avant** le canvas dans le DOM, exactement comme `Viewport3D` : plus tard
+ * dans l'ordre du document veut dire au-dessus, donc le rendu 3D couvre la référence et la laisse
+ * voir là où il ne dessine rien.
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
@@ -51,7 +56,7 @@ export interface RustSceneViewportProps {
 	notice?: string | null;
 	wireframe?: boolean;
 	showGrid?: boolean;
-	/** Accepté et ignoré — cf. l'en-tête. */
+	/** Calque posé derrière le canvas, opacité bornée à `[0,05 ; 1]` comme dans `Viewport3D`. */
 	referenceImage?: ViewportReferenceImage | null;
 	className?: string;
 	/** Fabrique du viewer wasm. Injectée pour que le composant reste testable sans WebGPU. */
@@ -69,6 +74,28 @@ export interface RustSceneViewportProps {
 
 const CANVAS_STYLE: CSSProperties = { width: "100%", height: "100%", display: "block" };
 
+/**
+ * Le calque de référence, sous le canvas.
+ *
+ * `pointerEvents: "none"` est ce qui le rend inoffensif : sans lui, l'image intercepterait les
+ * clics destinés à `pick_json` et l'éditeur cesserait de sélectionner dès qu'une référence est
+ * chargée. `objectFit: "contain"` reprend `object-contain` de `Viewport3D`, pour qu'une même
+ * image se cale de la même façon quel que soit le moteur qui l'affiche.
+ */
+const REFERENCE_STYLE: CSSProperties = {
+	position: "absolute",
+	inset: 0,
+	width: "100%",
+	height: "100%",
+	objectFit: "contain",
+	pointerEvents: "none",
+};
+
+/** Opacité du calque de référence, bornée comme dans `Viewport3D` : `0` cacherait le réglage. */
+function opaciteReference(image: ViewportReferenceImage): number {
+	return Math.max(0.05, Math.min(1, image.opacity ?? 0.4));
+}
+
 export function RustSceneViewport({
 	services,
 	assets,
@@ -80,6 +107,7 @@ export function RustSceneViewport({
 	notice,
 	wireframe = false,
 	showGrid = true,
+	referenceImage = null,
 	className,
 	createViewer,
 	onUnavailable,
@@ -343,6 +371,13 @@ export function RustSceneViewport({
 
 	return (
 		<div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
+			{referenceImage ? (
+				<img
+					src={referenceImage.dataUrl}
+					alt={`Référence ${referenceImage.name}`}
+					style={{ ...REFERENCE_STYLE, opacity: opaciteReference(referenceImage) }}
+				/>
+			) : null}
 			<canvas ref={canvasRef} style={CANVAS_STYLE} />
 			{(error ?? notice) ? (
 				<p style={{ position: "absolute", inset: "auto 0 0 0", margin: 0, padding: "0.5rem" }}>
