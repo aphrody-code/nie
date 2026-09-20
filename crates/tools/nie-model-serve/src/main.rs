@@ -225,7 +225,7 @@ struct UniformMapEntry {
 /// Version de l'assembleur de personnages. À incrémenter à chaque changement de recette ou de
 /// format de sortie : le cache GLB (`var/model-cache`) est purgé au démarrage quand la version
 /// enregistrée dans `VERSION` diffère, et chaque rapport la cite avec le SHA-256 du GLB servi.
-const ASSEMBLER_VERSION: &str = "2026-09-20.position-limit-1e5";
+const ASSEMBLER_VERSION: &str = "2026-09-20.tenue-explicite-1";
 
 /// Cache LRU borné de GLB servis fréquemment.
 ///
@@ -1577,56 +1577,199 @@ fn apply_viewer_pose(state: &State, model: &mut nie_formats::assemble::Assembled
     })
 }
 
-/// Réglages de présentation attestés par une référence externe, distincts des défauts CFG.
-/// L'atlas original des dossards est une grille 10×10 (0..99), les UV bruts pointent sur 0.
-fn apply_reference_presentation(
-    model: &mut nie_formats::assemble::AssembledModel,
-) -> Option<Value> {
+/// Ce qu'un joueur **porte**, par opposition à ce que son kit **contient**.
+///
+/// Les trois champs sont des personnalisations que le jeu laisse à l'utilisateur, et dont le
+/// serveur n'a aucun moyen de connaître l'état : elles ne sont donc jamais déduites. Le défaut
+/// n'affirme rien.
+///
+/// - **Brassard.** `chara_parts` livre le brassard comme pièce du kit (`resolve_clothes_row`),
+///   au même titre que le maillot. Le jeu ne le pose que sur le capitaine, soit un joueur par
+///   équipe ; l'assembleur le posait sur tous.
+/// - **Numéro.** La planche de dossard est une grille 10×10 (0..99) et les UV brutes de la
+///   plaque tombent sur la case 0. Ce n'est pas « le numéro 0 » : c'est *aucun numéro choisi*.
+///   Sans numéro demandé, la plaque n'est pas portée — une plaque vierge n'existe pas dans la
+///   planche, et en inventer une serait peindre une donnée.
+/// - **Gants.** Le kit déclare ses créneaux qualifiés par rôle — `uniformFielderModelIdCrc`,
+///   `shoesKeeperModelIdCrc`, `…ManagerModelIdCrc`. `gloveModelIdCrc` est le seul **sans
+///   qualificatif** : c'est l'entrée gantée du kit, celle du gardien. L'assembleur lisait bien
+///   `…Fielder…` pour le maillot et les crampons, puis appliquait ce gant-là à toute l'équipe.
+///   Le défaut propre au personnage (`CHARA_MODEL_INFO.var[7]`) est non nul sur **163 fiches
+///   sur 7 690** (2,1 %, mesuré le 2026-09-20 sur `chara_model_1.03.49.00`) : la donnée du jeu
+///   dit que le gant est l'exception, et c'est elle qui décide désormais.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct Tenue {
+    /// Brassard de capitaine porté.
+    capitaine: bool,
+    /// Numéro de dossard choisi (0..=99). `None` = plaque non portée.
+    numero: Option<u8>,
+    /// Gants du **kit** autorisés à compléter la fiche du personnage.
+    gants_du_kit: bool,
+}
+
+impl Tenue {
+    /// Lit la tenue d'une query string (`captain=1&number=9&gloves=1`).
+    ///
+    /// Rend `None` quand la requête ne porte **aucune** des trois clés : l'appelant retombe
+    /// alors sur la tenue attestée du personnage, s'il en existe une. Une requête qui dit
+    /// `captain=0` n'est pas silencieuse pour autant — elle affirme « pas capitaine » et gagne
+    /// donc sur l'attestation.
+    ///
+    /// Une valeur illisible vaut « absente » plutôt qu'une erreur : la route sert un modèle, et
+    /// refuser le modèle entier pour un paramètre de présentation mal tapé coûterait plus que
+    /// de servir la tenue par défaut, qui n'affirme rien.
+    fn depuis_query(query: &str) -> Option<Self> {
+        let mut tenue = Self::default();
+        let mut vue = false;
+        for (cle, valeur) in query.split('&').filter_map(|p| p.split_once('=')) {
+            match cle {
+                "captain" => {
+                    tenue.capitaine = matches!(valeur, "1" | "true");
+                    vue = true;
+                }
+                "gloves" => {
+                    tenue.gants_du_kit = matches!(valeur, "1" | "true");
+                    vue = true;
+                }
+                "number" => {
+                    tenue.numero = valeur.parse::<u8>().ok().filter(|n| *n < 100);
+                    vue = true;
+                }
+                _ => {}
+            }
+        }
+        vue.then_some(tenue)
+    }
+
+    /// Tenue attestée par `presentation.json` pour ce code, si le fichier en porte une.
+    ///
+    /// C'est une **preuve externe** (frames officiels du zukan), pas une déduction : elle ne
+    /// vaut que pour les codes explicitement relevés, et la requête la surclasse toujours.
+    fn attestee(code: &str) -> Option<Self> {
+        let preset = presentations().get(code)?;
+        Some(Self {
+            capitaine: preset["captain"] == true,
+            numero: preset["jersey_number"]
+                .as_u64()
+                .filter(|n| *n < 100)
+                .map(|n| n as u8),
+            gants_du_kit: preset["gloves"] == true,
+        })
+    }
+
+    /// Suffixe de clé de cache. **Vide pour la tenue par défaut**, afin que le chemin le plus
+    /// fréquenté garde le nom de fichier `<code>.glb` que le préchauffage et la purge
+    /// versionnée connaissent déjà.
+    fn suffixe_cache(self) -> String {
+        if self == Self::default() {
+            return String::new();
+        }
+        let mut s = String::new();
+        if self.capitaine {
+            s.push_str("_cap");
+        }
+        if let Some(n) = self.numero {
+            s.push_str(&format!("_n{n}"));
+        }
+        if self.gants_du_kit {
+            s.push_str("_glv");
+        }
+        s
+    }
+}
+
+/// Tenue effective d'une requête : ce que la requête demande, sinon ce que l'attestation
+/// externe établit pour ce code, sinon la tenue par défaut — qui n'affirme rien.
+fn tenue_demandee(code: &str, query: &str) -> Tenue {
+    Tenue::depuis_query(query)
+        .or_else(|| Tenue::attestee(code))
+        .unwrap_or_default()
+}
+
+/// Presets attestés par une référence externe (frames officiels du zukan), chargés une fois.
+fn presentations() -> &'static Value {
     static PRESETS: std::sync::LazyLock<Value> = std::sync::LazyLock::new(|| {
         serde_json::from_str(include_str!("presentation.json"))
             .expect("présentations JSON intégrées valides")
     });
-    let preset = PRESETS.get(&model.internal_code)?;
-    let parts = model.report["uniform"]["parts"].as_array()?;
-    let armbands: BTreeSet<String> = parts
-        .iter()
-        .filter(|p| p["role"] == "armband")
-        .filter_map(|p| p["piece"].as_str().map(str::to_owned))
-        .collect();
-    let nameplates: BTreeSet<String> = parts
-        .iter()
-        .filter(|p| p["role"] == "nameplate")
-        .filter_map(|p| p["piece"].as_str().map(str::to_owned))
-        .collect();
-    let mut removed = 0;
-    if preset["captain"] == false {
-        let before = model.primitives.len();
-        model.primitives.retain(|p| !armbands.contains(&p.piece));
-        removed = before - model.primitives.len();
-    }
-    let mut numbered = 0;
-    if let Some(number) = preset["jersey_number"].as_u64().filter(|n| *n < 100) {
-        for primitive in model
-            .primitives
-            .iter_mut()
-            .filter(|p| nameplates.contains(&p.piece))
-        {
-            if !primitive.uv0.is_empty()
-                && primitive
-                    .uv0
+    &PRESETS
+}
+
+/// Pose la [`Tenue`] sur le modèle assemblé : retire ce que le joueur ne porte pas, et place
+/// le numéro choisi sur la plaque.
+///
+/// Les pièces retirées le sont **après** l'assemblage plutôt qu'avant la résolution, parce que
+/// c'est le rapport d'assemblage qui nomme les pièces par rôle : le retrait reste donc
+/// traçable, et le rapport publie ce qui a été enlevé.
+fn appliquer_tenue(model: &mut nie_formats::assemble::AssembledModel, tenue: Tenue) -> Value {
+    use serde_json::json;
+    let pieces_du_role = |role: &str| -> BTreeSet<String> {
+        model.report["uniform"]["parts"]
+            .as_array()
+            .map(|parts| {
+                parts
                     .iter()
-                    .all(|uv| (0.0..=0.1).contains(&uv.u) && (0.0..=0.1).contains(&uv.v))
+                    .filter(|p| p["role"] == role)
+                    .filter_map(|p| p["piece"].as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let armbands = pieces_du_role("armband");
+    let nameplates = pieces_du_role("nameplate");
+
+    let mut brassards_retires = 0;
+    if !tenue.capitaine && !armbands.is_empty() {
+        let avant = model.primitives.len();
+        model.primitives.retain(|p| !armbands.contains(&p.piece));
+        brassards_retires = avant - model.primitives.len();
+    }
+
+    let mut plaques_retirees = 0;
+    let mut plaques_numerotees = 0;
+    match tenue.numero {
+        // Aucun numéro choisi : la plaque ne se porte pas. La laisser afficherait la case 0 de
+        // la planche, c'est-à-dire un numéro que personne n'a choisi.
+        None => {
+            if !nameplates.is_empty() {
+                let avant = model.primitives.len();
+                model.primitives.retain(|p| !nameplates.contains(&p.piece));
+                plaques_retirees = avant - model.primitives.len();
+            }
+        }
+        Some(numero) => {
+            for primitive in model
+                .primitives
+                .iter_mut()
+                .filter(|p| nameplates.contains(&p.piece))
             {
-                for uv in &mut primitive.uv0 {
-                    uv.u += (number % 10) as f32 / 10.0;
-                    uv.v += (number / 10) as f32 / 10.0;
+                // Seule une plaque encore sur la case 0 est décalée : une planche déjà
+                // positionnée ailleurs n'est pas une grille de dossards, et la décaler
+                // déplacerait une texture quelconque.
+                if !primitive.uv0.is_empty()
+                    && primitive
+                        .uv0
+                        .iter()
+                        .all(|uv| (0.0..=0.1).contains(&uv.u) && (0.0..=0.1).contains(&uv.v))
+                {
+                    for uv in &mut primitive.uv0 {
+                        uv.u += f32::from(numero % 10) / 10.0;
+                        uv.v += f32::from(numero / 10) / 10.0;
+                    }
+                    plaques_numerotees += 1;
                 }
-                numbered += 1;
             }
         }
     }
+
+    // L'expression de bouche reste attestée uniquement : aucune requête ne la choisit encore,
+    // et la déduire n'aurait pas de source.
     let mut expressions = 0;
-    if let Some(slot) = preset["mouth_expression"].as_u64().filter(|n| *n < 8) {
+    if let Some(slot) = presentations()
+        .get(&model.internal_code)
+        .and_then(|p| p["mouth_expression"].as_u64())
+        .filter(|n| *n < 8)
+    {
         for primitive in model
             .primitives
             .iter_mut()
@@ -1646,9 +1789,16 @@ fn apply_reference_presentation(
             }
         }
     }
-    Some(
-        serde_json::json!({"reference": preset, "armband_primitives_hidden": removed, "nameplates_numbered": numbered, "mouth_expressions_selected": expressions}),
-    )
+
+    json!({
+        "captain": tenue.capitaine,
+        "jersey_number": tenue.numero,
+        "kit_gloves": tenue.gants_du_kit,
+        "armband_primitives_hidden": brassards_retires,
+        "nameplate_primitives_hidden": plaques_retirees,
+        "nameplates_numbered": plaques_numerotees,
+        "mouth_expressions_selected": expressions,
+    })
 }
 
 /// Le canal rouge du masque de tenue désigne la carnation. Le masque peut être une
@@ -1698,7 +1848,7 @@ fn tint_skin_mask(
 /// profil, squelette), tenue par défaut ; le miroir SQLite affine la tenue par l'équipe (haut,
 /// chaussures, gants) ; `chara_parts` résout chaque pièce par CRC et profil. Tout ce qui manque
 /// est dit dans le rapport, et les replis (GLB pré-convertis, manifestes CRC) y sont nommés.
-fn assemble_chara(state: &State, code: &str) -> Result<Assembled> {
+fn assemble_chara(state: &State, code: &str, tenue: Tenue) -> Result<Assembled> {
     use serde_json::json;
     let mut notes: Vec<String> = Vec::new();
 
@@ -1752,11 +1902,23 @@ fn assemble_chara(state: &State, code: &str) -> Result<Assembled> {
         fiche.map_or(0, |r| r.shoes_crc),
         "shoes",
     );
-    let (glove_crc, glove_note) = pick(
-        db.as_ref().map(|d| d.glove),
+    // Les gants ne suivent PAS `pick` : `gloveModelIdCrc` est le créneau ganté du kit, sans
+    // qualificatif de rôle là où le maillot et les crampons en portent un (`…Fielder…`). Le
+    // laisser gagner mettait les gants du gardien à toute l'équipe. La fiche du personnage
+    // décide, et le kit ne complète que si la requête le demande.
+    let (glove_crc, glove_note) = match (
         fiche.map_or(0, |r| r.glove_crc),
-        "gloves",
-    );
+        tenue
+            .gants_du_kit
+            .then(|| db.as_ref().map_or(0, |d| d.glove)),
+    ) {
+        (0, Some(kit)) if kit != 0 => (kit, "gloves : créneau ganté du kit, sur demande".into()),
+        (0, _) => (
+            0,
+            "gloves : la fiche du personnage n'en déclare pas".to_string(),
+        ),
+        (propre, _) => (propre, "gloves : défaut du modèle".to_string()),
+    };
     notes.push(shoes_note);
     notes.push(glove_note);
     if db.is_none() {
@@ -2036,12 +2198,10 @@ fn assemble_chara(state: &State, code: &str) -> Result<Assembled> {
     model.report["materials_without_texture"] = json!(unbound);
     model.report["notes"] = json!(notes);
 
-    if let Some(presentation) = apply_reference_presentation(&mut model) {
-        model.report["reference_presentation"] = presentation;
-        model.report["primitives"] = json!(model.primitives.len());
-        model.report["skinned_primitives"] =
-            json!(model.primitives.iter().filter(|p| p.skin.is_some()).count());
-    }
+    model.report["tenue"] = appliquer_tenue(&mut model, tenue);
+    model.report["primitives"] = json!(model.primitives.len());
+    model.report["skinned_primitives"] =
+        json!(model.primitives.iter().filter(|p| p.skin.is_some()).count());
     model.report["presentation_pose"] = apply_viewer_pose(state, &mut model);
     let report = std::mem::take(&mut model.report);
     Ok(Assembled {
@@ -2181,7 +2341,7 @@ fn assemble_armed_code(state: &State, code: &str) -> Result<GlbBytes> {
 }
 
 /// Point d'entrée d'assemblage : dispatch selon le code.
-fn assemble_code(state: &State, code: &str) -> Result<Assembled> {
+fn assemble_code(state: &State, code: &str, tenue: Tenue) -> Result<Assembled> {
     if code.starts_with("ka") {
         assemble_armed_code(state, code).map(|glb| Assembled {
             glb,
@@ -2193,7 +2353,7 @@ fn assemble_code(state: &State, code: &str) -> Result<Assembled> {
             report: Value::Null,
         })
     } else if code.starts_with('c') {
-        assemble_chara(state, code)
+        assemble_chara(state, code, tenue)
     } else {
         bail!("code non reconnu (pas c/k/ka) : {code}")
     }
@@ -2867,23 +3027,26 @@ fn catalogue_video(state: &State) -> Result<String, String> {
 }
 
 /// Retourne les bytes du GLB : depuis le cache disque ou assemblage live + mise en cache.
-fn get_or_build_glb(state: &State, code: &str) -> Result<GlbBytes> {
-    let cache_path = state.cache_dir.join(format!("{code}.glb"));
-    state.get_or_build_cached_glb(format!("full:{code}"), &cache_path, || {
-        Ok(build_and_cache(state, code)?.glb)
+fn get_or_build_glb(state: &State, code: &str, tenue: Tenue) -> Result<GlbBytes> {
+    let suffixe = tenue.suffixe_cache();
+    let cache_path = state.cache_dir.join(format!("{code}{suffixe}.glb"));
+    state.get_or_build_cached_glb(format!("full:{code}{suffixe}"), &cache_path, || {
+        Ok(build_and_cache(state, code, tenue)?.glb)
     })
 }
 
 /// Rapport d'assemblage d'un modèle : lu dans le cache (`<code>.report.json`), sinon produit
 /// avec le GLB. Les keshin et armures n'ont pas de rapport détaillé (`null`).
-fn get_or_build_report(state: &State, code: &str) -> Result<Value> {
-    let report_path = state.cache_dir.join(format!("{code}.report.json"));
+fn get_or_build_report(state: &State, code: &str, tenue: Tenue) -> Result<Value> {
+    let report_path = state
+        .cache_dir
+        .join(format!("{code}{}.report.json", tenue.suffixe_cache()));
     if let Ok(text) = fs::read_to_string(&report_path)
         && let Ok(v) = serde_json::from_str::<Value>(&text)
     {
         return Ok(v);
     }
-    Ok(build_and_cache(state, code)?.report)
+    Ok(build_and_cache(state, code, tenue)?.report)
 }
 
 /// Écrit un fichier de façon atomique (écriture dans un fichier temporaire adjacent puis rename POSIX).
@@ -2912,10 +3075,11 @@ fn atomic_write(path: &Path, content: impl AsRef<[u8]>) -> std::io::Result<()> {
 
 /// Assemble, complète le rapport (version, SHA-256 et taille du GLB servi) et écrit les deux
 /// fichiers du cache. L'écriture est best-effort : un cache en échec ne bloque pas la réponse.
-fn build_and_cache(state: &State, code: &str) -> Result<Assembled> {
+fn build_and_cache(state: &State, code: &str, tenue: Tenue) -> Result<Assembled> {
     use sha2::{Digest, Sha256};
     info!("assemblage live : {code}");
-    let mut assembled = assemble_code(state, code)?;
+    let suffixe = tenue.suffixe_cache();
+    let mut assembled = assemble_code(state, code, tenue)?;
     let sha = format!("{:x}", Sha256::digest(&assembled.glb));
     if assembled.report.is_null() {
         assembled.report = serde_json::json!({ "code": code });
@@ -2930,13 +3094,13 @@ fn build_and_cache(state: &State, code: &str) -> Result<Assembled> {
         assembled.report["mode"].as_str().unwrap_or("n/a")
     );
 
-    let cache_path = state.cache_dir.join(format!("{code}.glb"));
+    let cache_path = state.cache_dir.join(format!("{code}{suffixe}.glb"));
     if let Err(e) = atomic_write(&cache_path, &assembled.glb) {
         warn!("écriture cache {code} échouée : {e}");
     } else {
         debug!("cache écrit : {code} ({}B)", assembled.glb.len());
     }
-    let report_path = state.cache_dir.join(format!("{code}.report.json"));
+    let report_path = state.cache_dir.join(format!("{code}{suffixe}.report.json"));
     if let Err(e) = atomic_write(&report_path, assembled.report.to_string()) {
         warn!("écriture rapport {code} échouée : {e}");
     }
@@ -3944,7 +4108,9 @@ fn spawn_preload(state: Arc<State>, workers: usize) {
                         break;
                     }
                     let res = match &jobs[i] {
-                        WarmJob::Full(code) => get_or_build_glb(&state, code).map(|_| ()),
+                        WarmJob::Full(code) => {
+                            get_or_build_glb(&state, code, tenue_demandee(code, "")).map(|_| ())
+                        }
                         WarmJob::Chr(sub, code) => {
                             get_or_build_chr_glb(&state, sub, code).map(|_| ())
                         }
@@ -4653,7 +4819,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     .and_then(|n| n.split('.').next())
                     .unwrap_or_default()
                     .to_string();
-                get_or_build_glb(&state, &code)
+                get_or_build_glb(&state, &code, tenue_demandee(&code, ""))
                     .map(|glb| glb.to_vec())
                     .map_err(|e| e.to_string())
             }
@@ -5714,7 +5880,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             respond_text(&mut stream, 400, "Bad Request", "code invalide");
             return;
         }
-        match get_or_build_report(&state, code) {
+        match get_or_build_report(&state, code, tenue_demandee(code, query)) {
             Ok(report) => respond(
                 &mut stream,
                 200,
@@ -5749,7 +5915,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         }
 
-        match get_or_build_glb(&state, code) {
+        match get_or_build_glb(&state, code, tenue_demandee(code, query)) {
             Ok(glb) => {
                 respond(&mut stream, 200, "OK", "model/gltf-binary", &glb);
             }
@@ -6344,7 +6510,7 @@ type AuditRow = (String, serde_json::Map<String, Value>, Value);
 fn audit_one(state: &State, code: &str) -> (serde_json::Map<String, Value>, Value) {
     use serde_json::json;
     let mut crit = serde_json::Map::new();
-    let assembled = match assemble_chara(state, code) {
+    let assembled = match assemble_chara(state, code, Tenue::default()) {
         Ok(a) => a,
         Err(e) => {
             for c in AUDIT_CRITERIA {
@@ -6628,6 +6794,119 @@ fn audit_models(
 
 #[cfg(test)]
 mod tests {
+
+    /// La tenue par défaut n'affirme rien, et c'est elle qui garde le nom de cache historique.
+    #[test]
+    fn la_tenue_par_defaut_ne_porte_rien_et_ne_suffixe_pas_le_cache() {
+        let t = Tenue::default();
+        assert!(!t.capitaine);
+        assert_eq!(t.numero, None);
+        assert!(!t.gants_du_kit);
+        assert_eq!(t.suffixe_cache(), "");
+    }
+
+    /// Une requête sans aucune des trois clés laisse l'attestation décider ; une requête qui
+    /// porte `captain=0` affirme « pas capitaine » et doit donc surclasser l'attestation.
+    #[test]
+    fn une_requete_muette_se_distingue_d_une_requete_qui_dit_non() {
+        assert_eq!(Tenue::depuis_query(""), None);
+        assert_eq!(Tenue::depuis_query("v=3"), None);
+        assert_eq!(Tenue::depuis_query("captain=0"), Some(Tenue::default()));
+        assert_eq!(
+            Tenue::depuis_query("captain=1&number=9&gloves=1"),
+            Some(Tenue {
+                capitaine: true,
+                numero: Some(9),
+                gants_du_kit: true,
+            })
+        );
+    }
+
+    /// Un numéro hors de la planche 10×10 n'est pas un numéro : la plaque ne se porte pas,
+    /// plutôt que de décaler les UV hors de la grille.
+    #[test]
+    fn un_numero_hors_planche_vaut_aucun_numero() {
+        assert_eq!(
+            Tenue::depuis_query("number=100").and_then(|t| t.numero),
+            None
+        );
+        assert_eq!(
+            Tenue::depuis_query("number=abc").and_then(|t| t.numero),
+            None
+        );
+        assert_eq!(
+            Tenue::depuis_query("number=99").and_then(|t| t.numero),
+            Some(99)
+        );
+        assert_eq!(
+            Tenue::depuis_query("number=0").and_then(|t| t.numero),
+            Some(0)
+        );
+    }
+
+    /// Deux tenues différentes ne doivent jamais partager un fichier de cache — sans quoi le
+    /// premier assemblage servi fixerait la tenue de tous les suivants.
+    #[test]
+    fn chaque_tenue_a_sa_propre_cle_de_cache() {
+        let tenues = [
+            Tenue::default(),
+            Tenue {
+                capitaine: true,
+                ..Tenue::default()
+            },
+            Tenue {
+                numero: Some(0),
+                ..Tenue::default()
+            },
+            Tenue {
+                numero: Some(9),
+                ..Tenue::default()
+            },
+            Tenue {
+                gants_du_kit: true,
+                ..Tenue::default()
+            },
+            Tenue {
+                capitaine: true,
+                numero: Some(10),
+                gants_du_kit: true,
+            },
+        ];
+        let cles: std::collections::BTreeSet<String> =
+            tenues.iter().map(|t| t.suffixe_cache()).collect();
+        assert_eq!(cles.len(), tenues.len(), "collision de clés : {cles:?}");
+    }
+
+    /// `presentation.json` est une preuve externe, pas une déduction : elle ne doit porter que
+    /// des codes réellement relevés, et le personnage attesté doit se lire tel quel.
+    #[test]
+    fn l_attestation_externe_se_lit_telle_quelle() {
+        let t = Tenue::attestee("c05024700").expect("c05024700 est attesté");
+        assert_eq!(
+            t.numero,
+            Some(9),
+            "frames officiels r0..r7 : numéro 9 au dos"
+        );
+        assert!(
+            !t.capitaine,
+            "frames officiels : sans brassard de capitaine"
+        );
+        assert_eq!(
+            Tenue::attestee("c01001900"),
+            None,
+            "non relevé = non attesté"
+        );
+    }
+
+    /// La requête gagne toujours sur l'attestation : c'est l'utilisateur qui porte la tenue.
+    #[test]
+    fn la_requete_surclasse_l_attestation() {
+        assert_eq!(tenue_demandee("c05024700", "").numero, Some(9));
+        assert_eq!(tenue_demandee("c05024700", "number=7").numero, Some(7));
+        assert!(tenue_demandee("c05024700", "captain=1").capitaine);
+        // `captain=1` seul n'hérite pas du numéro attesté : la requête décrit la tenue entière.
+        assert_eq!(tenue_demandee("c05024700", "captain=1").numero, None);
+    }
     #[test]
     fn avatar_http_binding_rejects_oversized_inputs_and_never_caches_user_selections() {
         assert!(super::resolve_avatar_payload(&[], &" ".repeat(64 * 1024 + 1)).is_err());
@@ -7036,7 +7315,26 @@ mod tests {
             .into_iter()
             .flatten()
             .map(std::path::PathBuf::from)
-            .find(|p| p.join("data").is_dir())
+            .find(|p| porte_les_assets_du_jeu(&p.join("data")))
+    }
+
+    /// Vrai si ce répertoire `data/` est celui du **jeu**, et non un arbre qui lui ressemble.
+    ///
+    /// L'ancien garde n'exigeait que `data/` soit un dossier. Le DÉPÔT en a un : avec
+    /// `NIE_GAME_DIR=/home/ubuntu/niers`, le test montait le dépôt, y trouvait zéro `.awb`, et
+    /// échouait sur « moins de 3 AWB dans le VFS (0) » — un défaut d'environnement rapporté
+    /// comme un défaut de décodage. Le `eprintln!("skip …")` prévu pour la CI ne se déclenchait
+    /// jamais. La preuve demandée est donc un ASSET : le manifeste de CPK, ou un CPK.
+    fn porte_les_assets_du_jeu(data: &std::path::Path) -> bool {
+        if !data.is_dir() {
+            return false;
+        }
+        if data.join("cpk_list.cfg.bin").is_file() {
+            return true;
+        }
+        std::fs::read_dir(data).is_ok_and(|mut entries| {
+            entries.any(|e| e.is_ok_and(|e| e.path().extension().is_some_and(|ext| ext == "cpk")))
+        })
     }
 
     /// A2 (généralisation) — le déchiffrement+décodage HCA IEVR est VALIDÉ sur **≥3 AWB réels
