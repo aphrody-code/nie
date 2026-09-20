@@ -67,9 +67,24 @@ fn initialize_list_and_call_stay_on_clean_stdio() {
     );
     let listed = response_for(&mut reader, 2);
     let tools = listed["result"]["tools"].as_array().expect("tools array");
-    // One generated MCP binding for each of the 46 public CLI commands, plus the
-    // 19 explicit compatibility tools registered by `compatibility_router`.
-    assert_eq!(tools.len(), 46 + 19);
+    // One generated MCP binding for each public CLI command, plus the explicit compatibility
+    // tools registered by `compatibility_router`.
+    //
+    // The two halves are counted SEPARATELY on purpose. A single sum fails as `66 != 65`, which
+    // names neither the surface that moved nor the direction — and it fails inside
+    // `deploy:target mcp`, where the reader is publishing, not debugging. Measured 2026-09-20:
+    // the CLI half had grown to 47 and this assertion still said 46, so the MCP target could not
+    // deploy at all.
+    let generes = tools
+        .iter()
+        .filter(|tool| tool["name"].as_str().is_some_and(|n| n.starts_with("cli_")))
+        .count();
+    assert_eq!(generes, 47, "bindings generated from the public CLI commands");
+    assert_eq!(
+        tools.len() - generes,
+        19,
+        "explicit tools from `compatibility_router`"
+    );
     assert!(tools.iter().any(|tool| tool["name"] == "cli_info"));
     assert!(tools.iter().any(|tool| tool["name"] == "cli_play"));
     for compatibility_name in [
