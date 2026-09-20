@@ -776,6 +776,11 @@ belong to `nie-data`, `nie-formats`, `nie-core`, `nie-wiki`, `nie-site`, `nie-cl
 Rust backend. Bun is limited to thin host bindings and non-IEVR integrations; it must not query
 the IEVR mirror directly or call a remote wiki.
 
+The executable migration boundary, ownership matrix, decommissioning sequence, operations rules,
+and acceptance gates are maintained in [`docs/azalee/`](docs/azalee/README.md). The next
+measurable action is to classify every tracked `data/azalee` artifact by producer, consumer,
+regeneration command, provenance, and retention decision before moving or deleting any of it.
+
 ## Active mission — 2026-09-08 rebaseline
 
 The project mission is now the measured reconstruction of the engine that produced `nie.exe`,
