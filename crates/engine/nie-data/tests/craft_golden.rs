@@ -369,6 +369,47 @@ fn real_obj_categories() {
     }
 }
 
+/// Chaque objet porte une catégorie DÉCLARÉE, et la catégorie 5 sature son propre plafond.
+///
+/// Les plafonds `20 / 50 / 80 / 100` sont ceux que le HUD d'édition de la Station Kizuna affiche
+/// (`L 5/20`, `M 10/50`, `S 55/80`, `35/100`) : ce test est ce qui relie la table au jeu. La
+/// coïncidence qui la verrouille est la catégorie 5 — plafond 2, et exactement 2 objets — car
+/// elle ne survivrait pas à une lecture décalée d'une variable.
+#[test]
+fn real_obj_categories_resolvent_toutes_et_la_cinquieme_sature() {
+    let Some(root) = load_json(REAL_OBJ) else {
+        return;
+    };
+    let cfg = parse_craft_obj_config(&root);
+
+    assert_eq!(cfg.objs.len(), 160, "160 objets de craft");
+    for obj in &cfg.objs {
+        assert!(
+            cfg.max_placeable(obj.category()).is_some(),
+            "l'objet {:?} porte la catégorie {} qui n'est pas déclarée",
+            obj.craft_id,
+            obj.category()
+        );
+    }
+
+    let repartition: [usize; 5] = core::array::from_fn(|i| {
+        cfg.objs_in_category(i as i64 + 1).len()
+    });
+    assert_eq!(repartition, [70, 36, 40, 12, 2]);
+    assert_eq!(repartition.iter().sum::<usize>(), cfg.objs.len());
+
+    assert_eq!(cfg.max_placeable(3), Some(20), "catégorie 3 = la ligne L du HUD");
+    assert_eq!(cfg.max_placeable(2), Some(50), "catégorie 2 = la ligne M");
+    assert_eq!(cfg.max_placeable(1), Some(80), "catégorie 1 = la ligne S");
+    assert_eq!(cfg.max_placeable(4), Some(100));
+    assert_eq!(
+        cfg.max_placeable(5).map(|max| max as usize),
+        Some(repartition[4]),
+        "la catégorie 5 plafonne à 2 et ne compte que 2 objets"
+    );
+    assert_eq!(cfg.max_placeable(6), None, "une catégorie absente n'est pas illimitée");
+}
+
 #[test]
 fn real_obj_find() {
     let Some(root) = load_json(REAL_OBJ) else {

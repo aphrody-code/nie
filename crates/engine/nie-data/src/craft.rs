@@ -234,8 +234,17 @@ pub struct VisualGroupInfo {
 
 /// Entrée `CRAFT_OBJ_CATEGORY_INFO_*` (2 vars) — sous-liste de `CRAFT_OBJ_INFO_LIST_BEG_0`.
 ///
-/// 5 catégories. Vérité terrain : `[1, 80]`, `[2, 50]`, `[3, 20]`, `[4, 100]`, `[5, 2]`
-/// → probable plafond/quota par catégorie. Sémantique exacte inconnue sans source TS.
+/// 5 catégories. Vérité terrain : `[1, 80]`, `[2, 50]`, `[3, 20]`, `[4, 100]`, `[5, 2]`.
+///
+/// **`value` est le nombre MAXIMAL d'objets de cette catégorie plaçables dans la ville**, et ce
+/// n'est plus une conjecture : le HUD d'édition de la Station Kizuna affiche ces plafonds tels
+/// quels, `L 5/20`, `M 10/50`, `S 55/80` et `35/100`. La catégorie 3 est donc `L`, la 2 `M`, la
+/// 1 `S`, et la 4 la quatrième ligne du HUD. La catégorie 5 n'apparaît pas dans le HUD : son
+/// plafond est 2, et `craft_obj_config_1.04.10.00` ne contient QUE 2 objets de cette catégorie —
+/// une égalité que le hasard ne produit pas, et qui vérifie la lecture de bout en bout.
+///
+/// L'ordre du HUD (L, M, S) n'est PAS l'ordre des identifiants (1, 2, 3) : lire la catégorie
+/// comme un rang de taille l'inverserait.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CraftCategoryInfo {
@@ -288,6 +297,20 @@ pub struct CraftObjInfo {
     pub ref_npc_stick: RefRange,
     /// `CRAFT_OBJ_INFO_REF_VISUAL_GROUP_INFO_N` — plage groupes de visuels.
     pub ref_visual_group: RefRange,
+}
+
+impl CraftObjInfo {
+    /// var\[1\] — catégorie de placement de l'objet, à résoudre dans
+    /// [`CraftObjConfig::categories`] pour obtenir son plafond.
+    ///
+    /// Mesuré sur `craft_obj_config_1.04.10.00` : les 160 objets se répartissent en
+    /// 70 / 36 / 40 / 12 / 2 sur les catégories 1 à 5, et **aucun ne porte une catégorie absente
+    /// de la table**. C'est un accesseur plutôt qu'un champ : `raw` reste indexé comme avant
+    /// (`raw[0]` == var\[1\]), donc rien de ce qui le lit ne se décale.
+    #[must_use]
+    pub fn category(&self) -> i64 {
+        self.raw.first().copied().unwrap_or_default() as i64
+    }
 }
 
 // ─── CraftThemeTypeInfo ───────────────────────────────────────────────────────────
@@ -391,6 +414,26 @@ impl CraftObjConfig {
     #[must_use]
     pub fn find_obj(&self, craft_id: HashId) -> Option<&CraftObjInfo> {
         self.objs.iter().find(|o| o.craft_id == craft_id)
+    }
+
+    /// Nombre maximal d'objets de cette catégorie plaçables dans la ville. `None` si la
+    /// catégorie n'est pas déclarée — un objet dont la catégorie ne résout pas est une donnée
+    /// incohérente, pas un objet sans limite.
+    #[must_use]
+    pub fn max_placeable(&self, category: i64) -> Option<i64> {
+        self.categories
+            .iter()
+            .find(|info| info.category == category)
+            .map(|info| info.value)
+    }
+
+    /// Les objets d'une catégorie de placement donnée.
+    #[must_use]
+    pub fn objs_in_category(&self, category: i64) -> Vec<&CraftObjInfo> {
+        self.objs
+            .iter()
+            .filter(|obj| obj.category() == category)
+            .collect()
     }
 
     /// Renvoie la tranche de [`VisualInfo`] référencée par un groupe de visuels.
