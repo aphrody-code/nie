@@ -470,16 +470,18 @@ pub fn local_matrix(trs: &LocalTrs) -> [[f32; 4]; 4] {
     ]
 }
 
-/// Produit de deux matrices 4×4 col-major (`a·b`).
+/// Produit de deux matrices 4×4 col-major (`a·b`), délégué à `glam` (`scalar-math`).
+///
+/// Colonne-majeure (`m[colonne][ligne]`) est la convention native de `glam` : aucune
+/// transposition ici. Elle diffère en revanche de `nie_render3d::scene` et `::glb`, qui sont
+/// ligne-majeurs — c'est cet écart, qu'aucun type ne signale, qui rend le pont squelette→rendu
+/// délicat, et il est verrouillé par un test de parité côté `nie-render3d`.
+///
+/// `scalar-math` désactive le SIMD : sur le chemin de fidélité, l'ordre des opérations
+/// flottantes décide de l'octet, et l'équivalence bit-à-bit avec l'ancien calcul est prouvée.
 #[must_use]
 pub fn mat_mul(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    let mut m = [[0.0f32; 4]; 4];
-    for (c, col) in m.iter_mut().enumerate() {
-        for (r, cell) in col.iter_mut().enumerate() {
-            *cell = (0..4).map(|k| a[k][r] * b[c][k]).sum();
-        }
-    }
-    m
+    (glam::Mat4::from_cols_array_2d(a) * glam::Mat4::from_cols_array_2d(b)).to_cols_array_2d()
 }
 
 /// Matrices MONDE de repos par cinématique directe (composition des poses locales le long des

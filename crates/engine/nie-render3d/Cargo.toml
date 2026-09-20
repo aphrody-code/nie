@@ -20,6 +20,9 @@ workspace = true
 
 [dependencies]
 nie-core.workspace = true
+# L'algèbre : une seule arithmétique matricielle, en `scalar-math` (SIMD désactivé) pour que
+# l'ordre des opérations flottantes reste figé sur le chemin de fidélité.
+glam.workspace = true
 anyhow.workspace = true
 clap = { workspace = true, optional = true, features = ["derive", "color", "env"] }
 serde_json = { workspace = true, default-features = true }
@@ -35,8 +38,6 @@ nie-video = { workspace = true, optional = true }
 
 [dev-dependencies]
 nie-formats = { workspace = true, default-features = true }
-# Uniquement pour PROUVER l'équivalence bit-à-bit avec nos matrices maison (cf. `scene.rs`).
-glam.workspace = true
 
 # Rendu GPU (wgpu) du viewport — optionnel : les consommateurs headless (golden CPU, CLI turntable)
 # ne doivent pas tirer wgpu/pollster. Version de wgpu ALIGNÉE sur `nie-game` (=29.0.3), l'autre hôte

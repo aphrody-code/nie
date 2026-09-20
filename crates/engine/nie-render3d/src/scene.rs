@@ -40,16 +40,43 @@ pub fn mat_identity() -> Mat4 {
     m
 }
 
+/// Notre [`Mat4`] est **ligne-majeure** (`m[ligne][colonne]`), `glam` est colonne-majeure.
+/// Ces deux conversions sont le seul endroit du dépôt où la transposition a lieu.
+#[must_use]
+pub(crate) fn vers_glam(m: &Mat4) -> glam::Mat4 {
+    glam::Mat4::from_cols_array_2d(&[
+        [m[0][0], m[1][0], m[2][0], m[3][0]],
+        [m[0][1], m[1][1], m[2][1], m[3][1]],
+        [m[0][2], m[1][2], m[2][2], m[3][2]],
+        [m[0][3], m[1][3], m[2][3], m[3][3]],
+    ])
+}
+
+/// L'inverse de [`vers_glam`].
+#[must_use]
+pub(crate) fn depuis_glam(g: &glam::Mat4) -> Mat4 {
+    let c = g.to_cols_array_2d();
+    [
+        [c[0][0], c[1][0], c[2][0], c[3][0]],
+        [c[0][1], c[1][1], c[2][1], c[3][1]],
+        [c[0][2], c[1][2], c[2][2], c[3][2]],
+        [c[0][3], c[1][3], c[2][3], c[3][3]],
+    ]
+}
+
 /// Produit `a·b`.
+///
+/// Le calcul est délégué à `glam`, épinglé en **`scalar-math`** — SIMD désactivé, donc ordre des
+/// opérations flottantes figé. Ce n'est pas gratuit : sur le chemin de fidélité, un réordonnancement
+/// décale l'octet et donc le golden. L'équivalence est prouvée sur les BITS, pas à epsilon près
+/// (`glam_en_scalar_math_multiplie_comme_nous_bit_pour_bit`, et sur cinquante compositions).
+///
+/// La signature garde des tableaux : `nie-app` et `nie-runtime` appellent ces fonctions, et leur
+/// imposer un type de `glam` serait une migration bien plus large que la suppression d'une
+/// arithmétique dupliquée.
 #[must_use]
 pub fn mat_mul(a: &Mat4, b: &Mat4) -> Mat4 {
-    let mut m = [[0.0f32; 4]; 4];
-    for (i, row) in m.iter_mut().enumerate() {
-        for (j, cell) in row.iter_mut().enumerate() {
-            *cell = (0..4).map(|k| a[i][k] * b[k][j]).sum();
-        }
-    }
-    m
+    depuis_glam(&(vers_glam(a) * vers_glam(b)))
 }
 
 /// Translation.

@@ -15,6 +15,9 @@ workspace = true
 # (thiserror retiré, Phase 3 : FormatError/AssembleError implémentent core::error::Error à la main → no_std-ready)
 # Chemin rapide de `cfgbin::crc32` pour les gros tampons ; la table reste le chemin court et
 # le seul chemin en `no_std`.
+# Algèbre matricielle unique (`scalar-math`, SIMD désactivé) : `g4sk` composait ses squelettes
+# avec sa propre implémentation, dans une convention différente de celle du rendu.
+glam.workspace = true
 crc32fast = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 serde_json = { workspace = true, default-features = true }

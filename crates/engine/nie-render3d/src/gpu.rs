@@ -1135,14 +1135,12 @@ fn view_from_basis(basis: &crate::pick::OrbitalBasis) -> [[f32; 4]; 4] {
     ]
 }
 
+/// Produit `a·b`, délégué à `glam` (`scalar-math`).
+///
+/// **Colonne-majeur**, comme `document` et comme wgpu l'attend dans un tampon uniforme — donc la
+/// convention native de `glam`, sans transposition.
 fn mat_mul(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    let mut out = [[0.0f32; 4]; 4];
-    for (c, col) in out.iter_mut().enumerate() {
-        for (r, cell) in col.iter_mut().enumerate() {
-            *cell = (0..4).map(|k| a[k][r] * b[c][k]).sum();
-        }
-    }
-    out
+    (glam::Mat4::from_cols_array_2d(&a) * glam::Mat4::from_cols_array_2d(&b)).to_cols_array_2d()
 }
 
 #[cfg(test)]

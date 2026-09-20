@@ -486,8 +486,13 @@ fn trs_matrix(object: &SceneObjectV2) -> [[f32; 4]; 4] {
 }
 
 /// `a·b` for column-major 4×4 matrices.
+/// Produit `a·b`, délégué à `glam` (`scalar-math`).
+///
+/// **Colonne-majeur** ici (`m[colonne][ligne]`), qui est la convention native de `glam` : aucune
+/// transposition, contrairement à `scene` et `glb` qui sont ligne-majeurs. Les deux conventions
+/// vivent dans ce crate sans qu'un type les sépare.
 fn mat_mul(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    std::array::from_fn(|c| std::array::from_fn(|r| (0..4).map(|k| a[k][r] * b[c][k]).sum()))
+    (glam::Mat4::from_cols_array_2d(a) * glam::Mat4::from_cols_array_2d(b)).to_cols_array_2d()
 }
 
 fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {

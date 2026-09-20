@@ -631,14 +631,14 @@ fn identity() -> Mat4 {
     ]
 }
 
+/// Produit `a·b`, délégué à `glam` (`scalar-math`).
+///
+/// **Ligne-majeur** ici, comme `scene` — mais `document` et `gpu`, dans ce même crate, sont
+/// colonne-majeurs. Les deux conventions coexistent et rien dans le type ne les distingue : c'est
+/// ce qui a rendu le pont avec `g4sk` (colonne-majeur lui aussi) difficile à établir. Passer par
+/// `glam` ne supprime pas la coexistence, mais la rend explicite à chaque conversion.
 fn mat_mul(a: &Mat4, b: &Mat4) -> Mat4 {
-    let mut out = [[0.0; 4]; 4];
-    for (r, row) in out.iter_mut().enumerate() {
-        for (c, cell) in row.iter_mut().enumerate() {
-            *cell = (0..4).map(|k| a[r][k] * b[k][c]).sum();
-        }
-    }
-    out
+    crate::scene::depuis_glam(&(crate::scene::vers_glam(a) * crate::scene::vers_glam(b)))
 }
 
 fn transform(m: &Mat4, p: [f32; 3]) -> [f32; 3] {
