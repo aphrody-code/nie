@@ -2032,4 +2032,135 @@ mod tests {
             }
         }
     }
+
+    /// La composition de hiérarchie de [`pose_skin_matrices`] DOIT donner, sur un vrai squelette
+    /// du jeu, exactement ce que `g4sk` compose de son côté — à la transposition près.
+    ///
+    /// Les deux conventions ne coïncident pas par accident : `g4sk` stocke ses matrices en
+    /// colonne-majeure (`m[col][row]`) et compose `mat_mul(a, b) = a·b` dans cette disposition,
+    /// tandis que ce module est en ligne-majeure. Transposer chaque entrée et composer ici rend
+    /// le MÊME produit mathématique — ce qui se démontre, mais qu'une erreur d'un caractère
+    /// inverserait en `b·a` sans rien casser d'autre. L'exemple `anim_char` refait d'ailleurs
+    /// cette composition à la main dans la convention de `g4sk` : c'est précisément la paire
+    /// d'implémentations que ce test empêche de diverger.
+    ///
+    /// La pose n'est PAS la pose de repos : un os est tourné d'un quart de tour, sinon le produit
+    /// `monde · inverseBind` vaudrait l'identité partout et le test passerait quelle que soit
+    /// l'implémentation.
+    ///
+    /// Conditionnel : le squelette reste dans l'installation du joueur, aucun octet du jeu n'est
+    /// écrit par ce test.
+    #[test]
+    fn la_composition_de_hierarchie_egale_celle_de_g4sk_sur_un_vrai_squelette() {
+        use nie_formats::vfs::Vfs;
+        use nie_formats::{g4sk, vfs};
+
+        const SQUELETTE_REEL: SkeletonId = SkeletonId::new(1);
+        const CHEMIN: &str = "data/common/chr/_face/11_VICTORY/c11010010/c11010010.g4sk";
+
+        let mut v = Vfs::new();
+        if v.init(vfs::resolve_game_dir().join("data")).is_err() {
+            eprintln!("SKIP: VFS du jeu indisponible");
+            return;
+        }
+        let Ok(bytes) = v.read(CHEMIN) else {
+            eprintln!("SKIP: {CHEMIN} absent de ce VFS");
+            return;
+        };
+        let Ok(header) = g4sk::parse_header(&bytes) else {
+            eprintln!("SKIP: en-tête g4sk illisible");
+            return;
+        };
+        let Some(poses) = g4sk::parse_poses(&bytes, &header) else {
+            eprintln!("SKIP: poses de repos absentes");
+            return;
+        };
+        let hierarchie = g4sk::parse_hierarchy(&bytes, &header);
+        let parents: Vec<i16> = hierarchie.bones.iter().map(|b| b.parent_index).collect();
+        if poses.len() < 4 || parents.len() != poses.len() {
+            eprintln!("SKIP: squelette trop petit ou incohérent");
+            return;
+        }
+
+        // Le quart de tour porte sur un os qui a des descendants, pour que la composition compte.
+        let tourne = (0..poses.len())
+            .find(|i| parents.contains(&(*i as i16)))
+            .expect("au moins un os parent");
+        let demi = core::f32::consts::FRAC_1_SQRT_2;
+        let quat_tourne = [0.0, 0.0, demi, demi];
+
+        // Référence : la composition de `g4sk`, dans sa propre convention.
+        let mut poses_mod = poses.clone();
+        poses_mod[tourne].local.quat = quat_tourne;
+        let mondes = g4sk::rest_world_matrices(&poses_mod, &parents);
+        let reference: Vec<[[f32; 4]; 4]> = (0..poses.len())
+            .map(|i| g4sk::mat_mul(&mondes[i], &poses[i].inverse_bind))
+            .collect();
+
+        // Le même calcul par la bibliothèque, entrées transposées en ligne-majeure.
+        let transposer = |m: &[[f32; 4]; 4]| -> SkinMatrix {
+            let mut out = [[0.0f32; 4]; 4];
+            for (r, row) in out.iter_mut().enumerate() {
+                for (c, cell) in row.iter_mut().enumerate() {
+                    *cell = m[c][r];
+                }
+            }
+            out
+        };
+        let mesh = CpuSkinnedMesh {
+            skeleton: SQUELETTE_REEL,
+            joints: (0..poses.len())
+                .map(|i| SkinJoint {
+                    bone: BoneId::new(u16::try_from(i).expect("index d'os")),
+                    parent: (parents[i] >= 0 && (parents[i] as usize) < poses.len())
+                        .then(|| parents[i] as usize),
+                    bind_local: transposer(&g4sk::local_matrix(&poses[i].local)),
+                    inverse_bind: transposer(&poses[i].inverse_bind),
+                })
+                .collect(),
+            vertices: Vec::new(),
+        };
+        let pose = PoseFrame {
+            skeleton: SQUELETTE_REEL,
+            time_seconds: 0.0,
+            bones: vec![(
+                BoneId::new(u16::try_from(tourne).expect("index d'os")),
+                BonePose {
+                    translation: nie_core::Vec3::new(
+                        poses[tourne].local.translation[0],
+                        poses[tourne].local.translation[1],
+                        poses[tourne].local.translation[2],
+                    ),
+                    rotation: Rotation::new(0.0, 0.0, demi, demi),
+                    scale: nie_core::Vec3::new(
+                        poses[tourne].local.scale[0],
+                        poses[tourne].local.scale[1],
+                        poses[tourne].local.scale[2],
+                    ),
+                },
+            )],
+        };
+        let obtenu = pose_skin_matrices(&mesh, &pose).expect("pose applicable");
+
+        assert_eq!(obtenu.len(), reference.len());
+        let mut ecart_max = 0.0f32;
+        for (i, (mine, theirs)) in obtenu.iter().zip(&reference).enumerate() {
+            for r in 0..4 {
+                for c in 0..4 {
+                    let ecart = (mine[r][c] - theirs[c][r]).abs();
+                    ecart_max = ecart_max.max(ecart);
+                    assert!(
+                        ecart < 1e-3,
+                        "os {i}, ligne {r} colonne {c} : {} contre {} (g4sk)",
+                        mine[r][c],
+                        theirs[c][r]
+                    );
+                }
+            }
+        }
+        eprintln!(
+            "{} os comparés sur {CHEMIN}, écart maximal {ecart_max:.2e}",
+            obtenu.len()
+        );
+    }
 }
