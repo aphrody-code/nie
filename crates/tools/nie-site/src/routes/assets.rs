@@ -8,7 +8,8 @@
 //!   trafic ne s'y transforme pas en effondrement ;
 //! - délai maximal de 10 s, appliqué par le client — un amont qui accepte la connexion sans
 //!   jamais répondre (cas observé le 2026-09-05) rend un `504`, pas une connexion pendante ;
-//! - taille de réponse **bornée** : au-delà, la réponse est refusée plutôt que bufferisée ;
+//! - taille de réponse **bornée en mémoire** : au-delà du plafond de cache, la réponse est
+//!   relayée en flux sans être bufferisée ; elle n'est refusée qu'au-delà du plafond de relais ;
 //! - cache `moka` par clé canonique, ETag `blake3`, `304` sur `If-None-Match`.
 //!
 //! ## Audit Azalée CPK/images (2026-09-09)
@@ -221,22 +222,47 @@ pub async fn proxy(
         )));
     }
 
-    // Une réponse annoncée trop grosse est refusée avant même d'être lue.
-    if let Some(taille) = reponse.content_length()
-        && taille > etat.config.taille_max_amont as u64
-    {
-        return Err(ErreurSite::Amont(format!(
-            "reponse d'amont trop grosse ({taille} octets, plafond {})",
-            etat.config.taille_max_amont
-        )));
-    }
-
     let type_contenu = reponse
         .headers()
         .get(axum::http::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .unwrap_or("application/octet-stream")
         .to_owned();
+
+    // Une réponse plus grosse que le cache ne passe PAS par le cache : elle est relayée en
+    // flux. Le plafond de cache borne la mémoire ; il ne doit pas borner ce que le site sait
+    // servir. Mesuré le 2026-09-20 : les six premiers modèles `perso` du catalogue pèsent
+    // 34 337 020 à 36 285 712 octets, six sur six au-dessus des 32 Mio — la famille entière
+    // (5 490 modèles) répondait `502` sur le site public pendant que l'amont les servait.
+    if let Some(taille) = reponse.content_length()
+        && taille > etat.config.taille_max_amont as u64
+    {
+        if taille > etat.config.taille_max_relai as u64 {
+            return Err(ErreurSite::Amont(format!(
+                "reponse d'amont trop grosse ({taille} octets, plafond {})",
+                etat.config.taille_max_relai
+            )));
+        }
+        let mut relai = Response::new(axum::body::Body::from_stream(reponse.bytes_stream()));
+        let entetes_sortie = relai.headers_mut();
+        entetes_sortie.insert(
+            axum::http::header::CONTENT_TYPE,
+            axum::http::HeaderValue::from_str(&type_contenu).unwrap_or_else(|_| {
+                axum::http::HeaderValue::from_static("application/octet-stream")
+            }),
+        );
+        entetes_sortie.insert(
+            axum::http::header::CONTENT_LENGTH,
+            axum::http::HeaderValue::from(taille),
+        );
+        // Pas d'ETag : il faudrait lire tout le corps pour le calculer, c'est-à-dire refaire
+        // en mémoire ce que le flux existe pour éviter.
+        entetes_sortie.insert(
+            axum::http::header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static(CONTROLE),
+        );
+        return Ok(relai);
+    }
 
     let corps = reponse.bytes().await.map_err(|e| {
         if e.is_timeout() {
@@ -246,11 +272,27 @@ pub async fn proxy(
         }
     })?;
     // Ceinture ET bretelles : un amont peut mentir sur `Content-Length` (ou n'en donner aucun).
-    if corps.len() > etat.config.taille_max_amont {
+    // Ici le corps est déjà en mémoire, donc le relayer ne coûterait plus rien de moins que de
+    // le mettre en cache — le refus reste la bonne réponse, et il porte le plafond de relais.
+    if corps.len() > etat.config.taille_max_relai {
         return Err(ErreurSite::Amont(format!(
             "reponse d'amont trop grosse ({} octets)",
             corps.len()
         )));
+    }
+    if corps.len() > etat.config.taille_max_amont {
+        let mut relai = Response::new(axum::body::Body::from(corps));
+        relai.headers_mut().insert(
+            axum::http::header::CONTENT_TYPE,
+            axum::http::HeaderValue::from_str(&type_contenu).unwrap_or_else(|_| {
+                axum::http::HeaderValue::from_static("application/octet-stream")
+            }),
+        );
+        relai.headers_mut().insert(
+            axum::http::header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static(CONTROLE),
+        );
+        return Ok(relai);
     }
 
     let cachee = ReponseCachee {

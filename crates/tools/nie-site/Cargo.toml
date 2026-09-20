@@ -143,7 +143,7 @@ blake3.workspace = true
 # ce qui se lit comme une panne de reseau au lieu d'un binaire sans autorite de
 # certification. Racines webpki plutot que celles du systeme : elles sont dans le
 # binaire, donc insensibles a `ProtectSystem=strict` et a une derive du magasin local.
-reqwest = { workspace = true, features = ["http2", "rustls"] }
+reqwest = { workspace = true, features = ["http2", "rustls", "stream"] }
 
 # Lecture seule des gisements (var/mirror.sqlite). Version du lock (0.37) : le bump vers 0.40
 # est un lot de workspace, pas une décision de cette crate.

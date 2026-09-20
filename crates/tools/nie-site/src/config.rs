@@ -57,8 +57,26 @@ pub struct Config {
     pub delai_amont: Duration,
     /// Nombre d'appels simultanés autorisés vers l'amont.
     pub concurrence_amont: usize,
-    /// Taille maximale d'une réponse d'amont mise en cache et servie, en octets.
+    /// Taille maximale d'une réponse d'amont **mise en cache**, en octets.
+    ///
+    /// Au-delà, la réponse n'est pas refusée : elle est relayée en flux, sans cache ni ETag
+    /// (cf. [`taille_max_relai`](Self::taille_max_relai)). Ce plafond borne la MÉMOIRE du
+    /// cache, pas ce que le site sait servir.
     pub taille_max_amont: usize,
+    /// Taille maximale d'une réponse d'amont **relayée en flux**, en octets.
+    ///
+    /// Le plafond de cache valait 32 Mio et refusait tout ce qui le dépassait, en `502`. Or un
+    /// modèle de personnage assemblé pèse 34 à 36 Mo — mesuré le 2026-09-20 sur les six
+    /// premiers codes du catalogue : 34 337 020 à 36 285 712 octets, **6 sur 6 au-dessus**. La
+    /// famille `perso`, la plus grande du catalogue avec 5 490 modèles, répondait donc
+    /// « reponse d'amont trop grosse » sur le site public, alors que l'amont les servait très
+    /// bien. Rien ne le signalait : le catalogue listait les liens, et seuls les liens
+    /// échouaient.
+    ///
+    /// Le relais en flux ne bufférise pas : la mémoire du processus ne dépend plus de la
+    /// taille de la réponse, donc ce second plafond peut être large sans coûter. Il reste
+    /// borné pour que le site ne devienne pas un relais d'octets arbitraires.
+    pub taille_max_relai: usize,
     /// Poids total du cache d'assets, en octets.
     pub cache_octets: u64,
     /// Durée de vie d'une entrée du cache d'assets.
@@ -84,6 +102,7 @@ impl Default for Config {
             delai_amont: Duration::from_secs(10),
             concurrence_amont: 16,
             taille_max_amont: 32 * 1024 * 1024,
+            taille_max_relai: 256 * 1024 * 1024,
             cache_octets: 256 * 1024 * 1024,
             cache_ttl: Duration::from_secs(300),
             origine: "https://nie.aphrody.com".to_owned(),
@@ -223,6 +242,33 @@ impl Pagination {
 
 #[cfg(test)]
 mod tests {
+
+    /// Le plafond de RELAIS doit dépasser le plus gros modèle réellement servi, sans quoi la
+    /// famille `perso` reste en `502` — c'est le défaut que la séparation des deux plafonds
+    /// corrige. Mesuré le 2026-09-20 sur les six premiers codes du catalogue : le plus lourd,
+    /// `c01000030`, pèse 36 285 712 octets, et les six dépassent le plafond de cache.
+    #[test]
+    fn le_plafond_de_relais_couvre_un_modele_de_personnage() {
+        const PLUS_GROS_PERSO_MESURE: usize = 36_285_712;
+        let c = Config::default();
+        assert!(
+            PLUS_GROS_PERSO_MESURE > c.taille_max_amont,
+            "un personnage tient sous le cache : la séparation des plafonds ne sert plus à rien"
+        );
+        assert!(
+            c.taille_max_relai > PLUS_GROS_PERSO_MESURE,
+            "plafond de relais {} trop bas pour un personnage de {PLUS_GROS_PERSO_MESURE} octets",
+            c.taille_max_relai
+        );
+    }
+
+    /// Relayer moins que ce qu'on met en cache n'aurait aucun sens : le second plafond doit
+    /// rester au-dessus du premier, sinon la branche de flux est inatteignable.
+    #[test]
+    fn le_plafond_de_relais_domine_celui_du_cache() {
+        let c = Config::default();
+        assert!(c.taille_max_relai > c.taille_max_amont);
+    }
     use super::*;
 
     #[test]
