@@ -462,33 +462,6 @@ pub fn get_skill(conn: &Connection, id: &str) -> anyhow::Result<Option<SkillProf
     )
 }
 
-/// Lit une colonne numérique du miroir, quel que soit le type que SQLite y a rangé.
-///
-/// Le miroir vient d'un import TS/feuille de calcul qui écrit les nombres en **TEXT** : mesuré le
-/// 2026-09-19, `inagle_skills.power_max`, `power_min`, `tp_cost` et `is_hyper` sont `text` sur
-/// leurs 1 002 lignes, et `inagle_items.rarity` sur ses 1 807. Un `row.get::<_, Option<i64>>`
-/// rend alors `InvalidColumnType` pour CHAQUE ligne — `niers vfs waza` échouait ainsi sur toute
-/// requête, pas seulement sur celles dont la valeur sortait d'une plage.
-///
-/// SQLite étant dynamiquement typé, la colonne peut légitimement changer de type d'un import à
-/// l'autre ; lire la valeur brute et l'interpréter est donc la forme correcte, pas un rustine.
-/// Une chaîne non numérique rend `None` plutôt qu'une erreur : l'absence de puissance est une
-/// donnée manquante, pas une base corrompue.
-fn nombre_souple(row: &rusqlite::Row<'_>, idx: usize) -> rusqlite::Result<Option<i64>> {
-    use rusqlite::types::ValueRef;
-    Ok(match row.get_ref(idx)? {
-        ValueRef::Null => None,
-        ValueRef::Integer(i) => Some(i),
-        // Tronque vers zéro : ces colonnes portent des entiers de jeu, jamais des décimales.
-        ValueRef::Real(f) => Some(f as i64),
-        ValueRef::Text(b) => std::str::from_utf8(b)
-            .ok()
-            .map(str::trim)
-            .and_then(|s| s.parse::<i64>().ok()),
-        ValueRef::Blob(_) => None,
-    })
-}
-
 fn skill_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillProfile> {
     let id: String = row.get(0)?;
     let name_fr: Option<String> = row.get(1)?;
@@ -497,13 +470,13 @@ fn skill_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillProfile> {
     // category et element : colonnes texte FR (category_id/element_id sont NULL)
     let category_fr: Option<String> = row.get(4)?;
     let element_fr: Option<String> = row.get(5)?;
-    let power_max = nombre_souple(row, 6)?;
-    let power_min = nombre_souple(row, 7)?;
-    let tp_cost = nombre_souple(row, 8)?;
+    let power_max = crate::mirror::entier_souple(row, 6)?;
+    let power_min = crate::mirror::entier_souple(row, 7)?;
+    let tp_cost = crate::mirror::entier_souple(row, 8)?;
     let description_fr: Option<String> = row.get(9)?;
     let description_en: Option<String> = row.get(10)?;
     let internal_code: Option<String> = row.get(11)?;
-    let is_hyper = nombre_souple(row, 12)?;
+    let is_hyper = crate::mirror::entier_souple(row, 12)?;
     let data: Option<String> = row.get(13)?;
     let sheet_data: Option<String> = row.get(14)?;
 
@@ -692,10 +665,10 @@ fn item_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<ItemProfile> {
     let name_en: Option<String> = row.get(2)?;
     let name_ja: Option<String> = row.get(3)?;
     let category: Option<String> = row.get(4)?;
-    let rarity = nombre_souple(row, 5)?;
+    let rarity = crate::mirror::entier_souple(row, 5)?;
     let description_fr: Option<String> = row.get(6)?;
     let internal_code: Option<String> = row.get(7)?;
-    let price_col = nombre_souple(row, 8)?;
+    let price_col = crate::mirror::entier_souple(row, 8)?;
     let shops_col: Option<String> = row.get(9)?;
     let data: Option<String> = row.get(10)?;
     let sheet_data: Option<String> = row.get(11)?;
@@ -2601,49 +2574,9 @@ mod tests {
     use super::{
         SqliteQueryOptions, check_readonly_sql, compare_element_name, compare_position_code,
         exec_readonly_sql, exec_readonly_sql_page, interpolate_stat_curve, interpolate_stats,
-        lookup_item_legacy, lookup_skill_values, lookup_team_values, nombre_souple,
-        re_coverage_report, re_function_report, sanitize_filter,
+        lookup_item_legacy, lookup_skill_values, lookup_team_values, re_coverage_report,
+        re_function_report, sanitize_filter,
     };
-
-    /// Le miroir range ses nombres en TEXT, et le lecteur doit le supporter.
-    ///
-    /// Mesuré le 2026-09-19 sur `var/mirror.sqlite` : `inagle_skills.power_max`, `power_min`,
-    /// `tp_cost` et `is_hyper` sont `typeof() = 'text'` sur **leurs 1 002 lignes**, et
-    /// `inagle_items.rarity` sur ses 1 807. Lus en `Option<i64>`, ils rendaient
-    /// `InvalidColumnType` à chaque ligne : `niers vfs waza` échouait sur TOUTE requête avec
-    /// « Invalid column type Text at index: 6, name: power_max ». Ce test tient les cinq types
-    /// que SQLite peut rendre sur la même colonne.
-    #[test]
-    fn les_nombres_du_miroir_se_lisent_quel_que_soit_leur_type_sqlite() {
-        let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch(
-            "CREATE TABLE n(v);
-             INSERT INTO n VALUES('800'), (800), (800.9), (' 800 '), (NULL), ('n/a'), (''),
-                                 (x'0800'), ('-12');",
-        )
-        .unwrap();
-        let lus: Vec<Option<i64>> = conn
-            .prepare("SELECT v FROM n")
-            .unwrap()
-            .query_map([], |r| nombre_souple(r, 0))
-            .unwrap()
-            .map(Result::unwrap)
-            .collect();
-        assert_eq!(
-            lus,
-            vec![
-                Some(800),  // TEXT numérique — le cas réel du miroir
-                Some(800),  // INTEGER
-                Some(800),  // REAL, tronqué vers zéro
-                Some(800),  // TEXT avec espaces
-                None,       // NULL
-                None,       // TEXT non numérique : donnée manquante, pas une erreur
-                None,       // TEXT vide
-                None,       // BLOB
-                Some(-12),  // TEXT négatif
-            ]
-        );
-    }
 
     #[test]
     fn re_reports_preserve_mcp_shape_and_literal_name_search() {

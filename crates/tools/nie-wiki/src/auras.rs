@@ -307,4 +307,3 @@ mod tests {
         assert!(get_aura(&fixture(), "%", None).unwrap().is_none());
     }
 }
-

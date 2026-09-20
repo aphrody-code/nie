@@ -45,8 +45,8 @@ pub fn list_quests(conn: &Connection, request: &QuestRequest) -> anyhow::Result<
     for row in statement.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
-            row.get::<_, Option<i64>>(1)?,
-            row.get::<_, Option<i64>>(2)?,
+            crate::mirror::entier_souple(row, 1)?,
+            crate::mirror::entier_souple(row, 2)?,
             row.get::<_, Option<String>>(3)?,
             row.get::<_, Option<String>>(4)?,
             row.get::<_, Option<String>>(5)?,
@@ -161,14 +161,14 @@ pub fn list_shops(conn: &Connection, request: &ShopRequest) -> anyhow::Result<Va
     let mut shops: HashMap<i64, Value> = HashMap::new();
     for row in statement.query_map(params![request.shop_id], |row| {
         Ok((
-            row.get::<_, i64>(0)?,
+            crate::mirror::entier_souple(row, 0)?.unwrap_or_default(),
             row.get::<_, Option<String>>(1)?,
             row.get::<_, Option<String>>(2)?,
             row.get::<_, Option<String>>(3)?,
             row.get::<_, Option<String>>(4)?,
             row.get::<_, Option<String>>(5)?,
             row.get::<_, Option<String>>(6)?,
-            row.get::<_, Option<i64>>(7)?,
+            crate::mirror::entier_souple(row, 7)?,
         ))
     })? {
         let (id, name_fr, name_en, name_ja, item_id, item_fr, item_en, slot) = row?;
@@ -302,7 +302,7 @@ pub fn list_stadiums(conn: &Connection, q: Option<&str>) -> anyhow::Result<Value
 }
 
 pub fn get_stadium(conn: &Connection, id: &str) -> anyhow::Result<Option<Value>> {
-    Ok(conn.query_row("SELECT id, field_index, image_path, condition, data FROM inagle_stadiums WHERE id = ?1", [id], |row| Ok(json!({"id": row.get::<_, String>(0)?, "index": row.get::<_, Option<i64>>(1)?, "imagePath": row.get::<_, Option<String>>(2)?, "condition": row.get::<_, Option<String>>(3)?, "data": json_column(row.get::<_, Option<String>>(4)?)}))).optional()?)
+    Ok(conn.query_row("SELECT id, field_index, image_path, condition, data FROM inagle_stadiums WHERE id = ?1", [id], |row| Ok(json!({"id": row.get::<_, String>(0)?, "index": crate::mirror::entier_souple(row, 1)?, "imagePath": row.get::<_, Option<String>>(2)?, "condition": row.get::<_, Option<String>>(3)?, "data": json_column(row.get::<_, Option<String>>(4)?)}))).optional()?)
 }
 
 pub fn list_trophies(
@@ -449,4 +449,3 @@ mod tests {
         assert!(verify_auxiliary_schema(&fixture()).is_err());
     }
 }
-
