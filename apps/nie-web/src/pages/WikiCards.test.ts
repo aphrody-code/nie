@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { WIKI_FAMILIES, wikiFamilyFor, wikiFamilyFromUrl, wikiHrefForFamily, wikiRowsFromResponse } from "./WikiCards";
 
 describe("WikiCards", () => {
-	test("mounts eight families, each on a distinct served wiki route", () => {
+	test("mounts nine families, each on a distinct served wiki route", () => {
 		expect(WIKI_FAMILIES.map(f => f.id)).toEqual([
 			"auras",
 			"tactics",
@@ -12,6 +12,7 @@ describe("WikiCards", () => {
 			"stadiums",
 			"capsules",
 			"costumes",
+			"trophies",
 		]);
 		const paths = WIKI_FAMILIES.map(f => f.path);
 		expect(new Set(paths).size).toBe(paths.length);

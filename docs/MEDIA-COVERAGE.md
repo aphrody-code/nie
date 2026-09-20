@@ -159,15 +159,19 @@ contre `var/mirror.sqlite` :
 | `/api/v1/wiki/stadiums` | 81 | `/api/v1/wiki/quests` | 182 |
 | | | `/api/v1/wiki/shops` | 15 |
 
-`/wiki` monte **huit** de ces familles sur leurs cartes existantes — jamais une réécriture, et par
+`/wiki` monte **neuf** de ces familles sur leurs cartes existantes — jamais une réécriture, et par
 l'adaptateur `desktop/components/wiki/` quand il en existe un, puisque c'est lui qui sait résoudre
 une image dans le VFS.
 
 Deux familles restent volontairement dehors. `DropsCard` décrit un butin d'OBJET
 (`win_treasure`/`item_emission`) là où `/api/v1/wiki/drops` rend des **bonus passifs par équipe** :
 les brancher l'un sur l'autre remplirait la carte de champs vides, ce qui se lit comme une donnée
-manquante et non comme un modèle qui ne s'applique pas. `/trophies` (347 lignes) n'a pas de carte
-du tout.
+manquante et non comme un modèle qui ne s'applique pas. `/trophies` (347 lignes) n'en avait aucune ; elle en a une
+depuis le 2026-09-20 (`TrophyCard`, neuvième onglet), et la page monte donc **neuf** familles.
+La carte n'est pas un lien : un trophée n'a pas de route de détail, et pointer vers une page
+qui n'existe pas se lit comme un défaut de navigation. La description est facultative parce
+que le miroir écrit littéralement `\N` pour une absence — l'hôte l'efface, la carte rend le
+nom seul plutôt qu'une ligne vide.
 
 ## L'autorité de l'interface
 

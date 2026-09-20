@@ -29,6 +29,7 @@ import { CapsuleCard, CostumeCard } from "@niers/inacord-ui/components/wiki/wiki
 import { CoachCard } from "@niers/inacord-ui/components/wiki/wiki/CoachCard";
 import { QuestCard } from "@niers/inacord-ui/components/wiki/wiki/QuestCard";
 import { StadiumCard } from "@niers/inacord-ui/components/wiki/wiki/StadiumCard";
+import { TrophyCard } from "@niers/inacord-ui/components/wiki/wiki/TrophyCard";
 import { AuraCard } from "../desktop/components/wiki/AuraCard";
 import { ShopCard } from "../desktop/components/wiki/ShopCard";
 import { TacticCard } from "../desktop/components/wiki/TacticCard";
@@ -87,7 +88,7 @@ export function wikiRowsFromResponse(body: unknown): Record<string, unknown>[] {
 	return [];
 }
 
-/** Les huit familles montées, dans l'ordre des onglets. */
+/** Les neuf familles montées, dans l'ordre des onglets. */
 export const WIKI_FAMILIES: readonly WikiFamily[] = [
 	{
 		id: "auras",
@@ -227,6 +228,25 @@ export const WIKI_FAMILIES: readonly WikiFamily[] = [
 					modelRef: String(row.modelRef ?? ""),
 					flag1: num(row, "flag1") ?? 0,
 					flag2: num(row, "flag2") ?? 0,
+				}}
+			/>
+		),
+	},
+	{
+		id: "trophies",
+		label: "Trophées",
+		path: "/api/v1/wiki/trophies",
+		measured: 347,
+		rows: wikiRowsFromResponse,
+		card: row => (
+			<TrophyCard
+				trophy={{
+					id: String(row.id ?? ""),
+					code: String(row.code ?? row.id ?? ""),
+					name: text(row, "name") ?? String(row.id ?? ""),
+					description: text(row, "desc"),
+					category: text(row, "category") ?? "trophy",
+					group: text(row, "group"),
 				}}
 			/>
 		),
