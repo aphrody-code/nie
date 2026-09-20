@@ -56,6 +56,15 @@ export interface RustSceneViewportProps {
 	className?: string;
 	/** Fabrique du viewer wasm. Injectée pour que le composant reste testable sans WebGPU. */
 	createViewer: CreateRustModelViewer;
+	/**
+	 * Appelé quand le viewer ne peut PAS être construit — ni WebGPU ni WebGL 2, ou un viewer
+	 * amputé des capacités de scène.
+	 *
+	 * Sépare « l'éditeur ne marchera pas ici » de « cette scène n'a pas chargé » : le premier
+	 * appelle un repli, le second un message. Les confondre ferait basculer tout un navigateur
+	 * sur un rendu de secours à cause d'un seul asset illisible.
+	 */
+	onUnavailable?: (reason: string) => void;
 }
 
 const CANVAS_STYLE: CSSProperties = { width: "100%", height: "100%", display: "block" };
@@ -73,6 +82,7 @@ export function RustSceneViewport({
 	showGrid = true,
 	className,
 	createViewer,
+	onUnavailable,
 }: RustSceneViewportProps) {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const viewerRef = useRef<RustSceneViewer | null>(null);
@@ -104,7 +114,10 @@ export function RustSceneViewport({
 				setReady(true);
 			})
 			.catch((cause: unknown) => {
-				if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause));
+				if (cancelled) return;
+				const raison = cause instanceof Error ? cause.message : String(cause);
+				setError(raison);
+				onUnavailable?.(raison);
 			});
 
 		return () => {
@@ -113,7 +126,7 @@ export function RustSceneViewport({
 			viewerRef.current = null;
 			setReady(false);
 		};
-	}, [createViewer]);
+	}, [createViewer, onUnavailable]);
 
 	// Signature du CONTENU des assets, et non identité du tableau.
 	//

@@ -139,6 +139,35 @@ export async function createCpuNativeViewer(canvas: HTMLCanvasElement) {
 	return createCpuModelViewer(canvas);
 }
 
+/**
+ * Viewer d'ÉDITEUR : scène à plusieurs objets, picking, grille, fil de fer, gizmo.
+ *
+ * La chaîne de repli s'arrête au niveau 2. Le niveau 3 est le rastériseur CPU de `model-render`,
+ * qui affiche un modèle isolé et n'a ni `load_scene`, ni `pick_json`, ni gizmo : le proposer ici
+ * donnerait un viewport qui se construit puis échoue au premier clic. Mieux vaut refuser
+ * franchement — `RustSceneViewport` le dit alors dans son message d'erreur.
+ *
+ * Un éditeur sans GPU ni WebGL 2 n'est donc pas servi, et c'est un constat, pas un oubli : la
+ * manipulation 3D interactive suppose un rendu que le processeur ne soutient pas à la cadence
+ * d'un glissement de souris.
+ */
+export async function createSceneViewer(canvas: HTMLCanvasElement) {
+	if (await hasWebGpu()) {
+		try {
+			await ensureWasm();
+			return await WebGpuViewer.create(canvas);
+		} catch {
+			return await createLazyViewer(canvas, false);
+		}
+	}
+	if (hasWebGl2()) {
+		return await createLazyViewer(canvas, false);
+	}
+	throw new Error(
+		"l'éditeur 3D demande WebGPU ou WebGL 2 ; ce navigateur n'expose ni l'un ni l'autre",
+	);
+}
+
 /** Opaque renderer for standalone model viewports. */
 export async function createOpaqueNativeViewer(canvas: HTMLCanvasElement) {
 	return build(canvas, false);
