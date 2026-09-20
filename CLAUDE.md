@@ -418,11 +418,27 @@ never be done with a command that deploys. The wasm scripts themselves are safe 
   while `EditorSession` ran on the flat v1, which is why the browser viewport's gizmo transforms
   were documented as unsaveable — v1 cannot express a rotation off Y. One object decoder
   (`EditorSession::add_object_json`, accepting either version). One orbital camera basis, read
-  by both the view matrix and the picking ray. **Still two: the renderers.** `Viewport3D`
-  (three.js) has one consumer left, `EditorView`; everything else goes through `nie-render3d`.
-  Retiring it needs selection highlight, wireframe, grid and gizmo interaction — picking
-  (`pick.rs`) and multi-object scenes (`WebViewer::stage_asset`/`load_scene`) are done. Do not
-  delete it before those exist: that removes editing, not duplication.
+  by both the view matrix and the picking ray.
+
+  **The renderers are no longer two by default (2026-09-20).** The four capabilities that kept
+  `Viewport3D` (three.js) alive now exist in `nie-render3d`: grid and selection outline and
+  wireframe as `scene::Segment` overlays, and `gizmo` for translate/rotate/scale, all reaching
+  the browser through a `LineList` pipeline in `gpu.rs` and `WebViewer`'s `set_grid`,
+  `set_wireframe`, `select`, `gizmo_axis_at`, `gizmo_drag`, `gizmo_rotate`, `gizmo_scale`.
+  `apps/nie-web/src/desktop/components/editor/Viewport3D.tsx` — the 23-line shim `EditorView`
+  imports — now renders `RustSceneViewport` first.
+
+  **three.js is still wired, and deleting it would remove editing from real browsers.** The Rust
+  editor needs WebGPU or WebGL 2; `createSceneViewer` deliberately stops the fallback chain
+  there, because tier 3 is the CPU rasteriser, which shows one model and has neither
+  `load_scene` nor `pick_json` nor a gizmo — it would build a viewport that fails on the first
+  click. three.js reaches down to WebGL 1. The fallback fires on `onUnavailable` only ("the
+  viewer cannot be built here"), never on a scene error: conflating the two would swing a whole
+  browser onto the backup engine because one asset failed to decode.
+
+  What is genuinely still missing on the Rust path: `referenceImage` (the Rust canvas is not
+  transparent on the WebGL path) and the outliner's per-node triangle counts, which
+  `onSceneLoaded` currently reports as zero.
 
 - **Run `bun run typecheck` after any structural deletion.** Removing an entry from
   `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.

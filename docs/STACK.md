@@ -21,7 +21,7 @@ Versions lues dans `Cargo.lock`, pas déclarées d'intention.
 | Analyse Lua statique | `tree-sitter` + `tree-sitter-lua` | 0.26 · 0.5 | Lit les scripts décompilés sans les exécuter (la grammaire n'expose qu'un `LanguageFn`) |
 | Audio | `cridecoder` + `audio-decode` | — | HCA/ADX/AWB décodés ; le mixeur CRI Atom Ex reste maison |
 | Textures | `image_dds` + `bcdec_rs` + `png` | — | BCn/DDS → RGBA8 ; source unique `nie_formats::g4tx_decode` |
-| Éditeur de scène | `fyrox` + `fyroxed_base` | — | `nie-editor` seul — hors chemin de fidélité |
+| Éditeur de scène | `eframe`/`egui` (natif) · `nie-render3d` (navigateur) | — | `fyrox` et `fyroxed_base` ont quitté `Cargo.lock` avec le binaire `legacy-fyrox` ; cette ligne les annonçait encore. Le viewport du navigateur rend par `nie-render3d` depuis le 2026-09-20, `three` restant le repli sous WebGL 1 |
 | Sérialisation | `serde` + `serde_json` | 1 | Toujours feature-gated, **jamais** sur le chemin de l'octet |
 | Base de connaissance | `rusqlite` (bundled) | 0.37 | `var/niers.sqlite` |
 | Désassemblage | `iced-x86` + `goblin` | — | `nie-re`, `nie-asm` — pas de dépendance externe à r2/objdump |
