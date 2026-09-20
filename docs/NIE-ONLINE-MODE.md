@@ -248,26 +248,99 @@ pub enum NetMessage {
 
 ---
 
-## 7. Commandes Opérationnelles & Assurance Qualité
+## 7. Interfaces & Surfaces d'Accès Unifiées
 
-### 7.1 Commandes CLI (`nie-cli` / `niers`)
-- `niers net server [--port 8085]` : Lance le hub unifié WebSocket et de matchmaking.
-- `niers net room create [--mode 1v1|2v2] [--stadium <id>]` : Crée une salle Inacode `INA-XXXX`.
-- `niers net sim-match [--ticks 600] [--latency 50]` : Simule un match déterministe avec simulation de latence et vérification du zéro-desync.
-- `niers launcher ut open <pack_id>` : Simulation de tirage de packs Ultimate Team.
-- `niers launcher ut formation <name>` : Visualisation 2D des coordonnées tactiques d'un schéma.
+Le mode en ligne et la suite compétitive sont exposés sur trois surfaces complémentaires, garantissant une cohérence bit-à-bit et un partage de code total entre le moteur natif, le web et les outils d'administration.
 
-### 7.2 Portes de Qualité Automatisées
-L'ensemble de l'écosystème multijoueur est validé par des tests automatisés stricts :
+### 7.1 L'API REST & WebSockets (`nie-site` :8085)
+
+Le serveur `nie-site` monte 6 points d'accès sous `/api/v1/online` ainsi que le hub WebSocket `/ws/online` :
+
+| Méthode & Route | Description | Entrée (Corps / Query) | Réponse Type |
+|:---|:---|:---|:---|
+| `GET /api/v1/online/status` | Statut du hub multijoueur | Aucune | `{ "status": "online", "active_rooms": 0, "queued_players": 0, "tick_rate_hz": 60, "supported_modes": ["1v1", "2v2", "ranked", "tournament"] }` |
+| `GET /api/v1/online/tiers` | Définitions des 11 rangs officiels | Aucune | Tableau JSON des 11 rangs (`Fer` à `Légendaire`) avec seuils AP et facteurs $K$ |
+| `GET /api/v1/online/ladder` | Classement compétitif des joueurs | `?limit=50&offset=0` | `{ "total_players": 128, "offset": 0, "limit": 50, "entries": [...] }` |
+| `GET /api/v1/online/clans` | Classement saisonnier des clans | `?limit=50&offset=0` | `{ "total_clans": 16, "offset": 0, "limit": 50, "entries": [...] }` |
+| `POST /api/v1/online/challenge` | Création de code de défi instantané | `{ "host_id": "p1", "opponent_id": "p2" }` | `{ "code": "K7M9X2P4", "host_id": "p1", "opponent_id": "p2", "ttl_seconds": 1800 }` |
+| `POST /api/v1/online/calc-elo` | Calculatrice de projection ELO | `{ "rating_a": 1200, "rating_b": 1150, "outcome": "win" }` | `{ "expected_a": 0.57, "new_rating_a": 1208, "delta_a": 8, "tier_a": "Émeraude", ... }` |
+| `GET /ws/online` | Hub WebSocket temps réel | Handshake WS (`RoomConfig`) | Flux bidirectionnel de messages `NetMessage` (JSON / bincode) |
+
+### 7.2 Les Liaisons WebAssembly (`nie-wasm::net`)
+
+Pour le client navigateur (`apps/nie-web`), les fonctions du moteur `nie-net` sont compilées en WebAssembly sous `crates/engine/nie-wasm/src/net.rs` :
+
+```typescript
+// Imports directs depuis le module WASM compilé
+import {
+  net_format_inacode,
+  net_generate_inacode,
+  net_rank_tier_info,
+  net_compute_elo,
+  net_generate_challenge_code,
+  net_verify_scores,
+  net_tournament_circuit_points,
+  net_validate_clan_tag,
+  net_state_hash,
+} from "nie-wasm";
+
+// 1. Résolution de rang local sans requête réseau
+const tier = net_rank_tier_info(1250);
+console.log(tier.tier, tier.name_fr); // 6, "Émeraude"
+
+// 2. Projection locale de match ELO
+const result = net_compute_elo(1200, 1150, 1.0);
+console.log(result.delta_a, result.new_rating_a); // +8 AP, 1208 AP
+
+// 3. Double validation instantanée des scores
+const agree = net_verify_scores(new Uint32Array([2, 1]), new Uint32Array([1, 2]));
+console.log(agree.disputed); // false
+
+// 4. Calcul d'intégrité de frame pour le netcode Rollback 60 Hz
+const hash = net_state_hash(BigInt(120), 0.0, 15.2, 2, 1);
+```
+
+### 7.3 Commandes CLI Opérationnelles (`niers net`)
+
+Le binaire CLI universel `niers` fournit la suite de commandes d'administration et de test :
+
+- **`niers net server`** : Démarre le serveur local de matchmaking et de simulation déterministe (`--addr 0.0.0.0:8085 --tick-rate 60`).
+- **`niers net room create`** : Instancie une salle de match Inacode (`--mode 1v1 --name "Tournoi" --slots 2`).
+- **`niers net sim-match`** : Exécute une simulation déterministe à 60 Hz entre deux bots avec validation du zéro-desync (`--ticks 120`).
+- **`niers net challenge create <HOST> <OPPONENT>`** : Émet un code de défi de 8 caractères Base-32 avec expiration TTL de 30 min.
+- **`niers net ladder`** : Affiche le classement e-sport officiel avec paliers et statistiques (`--limit 10`).
+- **`niers net clans`** : Affiche le tableau des clubs et clans avec leurs tags officiels `[TAG]`.
+- **`niers net calc-elo <AP_A> <AP_B> <OUTCOME>`** : Calcule l'impact ELO d'un match (`win`, `loss`, `draw`) avec facteurs $K$ asymétriques.
+
+---
+
+## 8. Portes de Qualité & Vérification
+
+L'ensemble de l'écosystème multijoueur est validé par une batterie de tests automatisés stricts couvrant toutes les cibles de compilation :
+
 ```bash
+# Tests unitaires et d'intégration du moteur réseau (61 tests)
 cargo test -p nie-net
-cargo clippy -p nie-net --lib --tests -- -D warnings
-cargo test -p nie-steam
-cargo clippy -p nie-steam --bins --tests -- -D warnings
+
+# Tests unitaires des liaisons WebAssembly
+cargo test -p nie-wasm --lib net
+
+# Validation de l'ensemble des 169 routes du serveur web dont /api/v1/online (360 tests)
+cargo test -p nie-site
+
+# Compilation WebAssembly stricte sans dépendance native
 cargo check -p nie-wasm --target wasm32-unknown-unknown --locked
+
+# Contrôle strict du code natif et de la CLI (zéro warning clippy)
+cargo clippy -p nie-net --lib --tests -- -D warnings
+cargo clippy -p nie-cli --bins --tests -- -D warnings
+cargo clippy -p nie-site --bins --tests -- -D warnings
+
+# Validation des liaisons de documentation et typage frontend
 bun run docs:check
 bun run --cwd apps/nie-web typecheck
 ```
-- **Zéro warning clippy** toléré sur le code natif et les binaires.
+
+- **Zéro warning clippy** toléré sur le code natif, les serveurs et les binaires.
 - **Rollback 64 frames certifié** : Pas de divergence de hash d'état FNV-1a sur des scénarios de tir, passe et contact physique.
 - **Conformité e-sport certifiée** : Vérification mathématique des 11 rangs et des doubles validations de scores.

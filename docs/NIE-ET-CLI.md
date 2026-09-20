@@ -171,6 +171,54 @@ L'Atlas est le moteur de suivi du projet, unifiant dans une base de données SQL
 
 ---
 
+### 3.6 Sous-système Réseau & Mode En Ligne (`niers net`)
+
+Le sous-système réseau (`crates/engine/nie-net`) unifie l'ingénierie inversée du protocole Level-5 / EOS, l'émulateur P2P rollback 64-frames et la suite e-sport Achillea :
+
+- **Lancement du serveur de session / hub multijoueur (`server`)** :
+  ```bash
+  niers net server --addr 0.0.0.0:8085 --tick-rate 60
+  ```
+  Démarre le hub multijoueur synchrone cadencé à 60 Hz avec gestionnaire de lobbys Inacode et file d'attente ELO.
+
+- **Création d'une salle Inacode (`room create`)** :
+  ```bash
+  niers net room create --mode 1v1 --name "Tournoi FR" --slots 2
+  ```
+  Génère une salle privée sécurisée avec son Inacode canonique `INA-XXXX` (alphabet base-32 sans ambiguïté).
+
+- **Simulation de match déterministe avec contrôle de désynchronisation (`sim-match`)** :
+  ```bash
+  niers net sim-match --ticks 120
+  ```
+  Simule un match à 60 Hz avec échange d'entrées `PlayerTickInput`, vérification continue des condensats FNV-1a et preuve formelle du zéro-desync.
+
+- **Génération de code de défi compétitif (`challenge create`)** :
+  ```bash
+  niers net challenge create player_alpha player_beta
+  ```
+  Émet un code de défi direct à usage unique de 8 caractères Base-32 avec un TTL strict de 30 minutes.
+
+- **Consultation du ladder e-sport officiel (`ladder`)** :
+  ```bash
+  niers net ladder --limit 10
+  ```
+  Affiche le classement des joueurs par Activity Points (AP), rang (Fer à Légendaire) et statistiques de match (victoires, défaites, nuls).
+
+- **Consultation du classement des clans (`clans`)** :
+  ```bash
+  niers net clans
+  ```
+  Affiche les clubs enregistrés, leurs tags `[TAG]`, leurs effectifs et leur score saisonnier agrégé.
+
+- **Calculatrice d'arbitrage et de projection ELO (`calc-elo`)** :
+  ```bash
+  niers net calc-elo 1250 1180 win
+  ```
+  Calcule l'espérance mathématique $E_A$, applique le facteur $K$ asymétrique du palier et affiche les nouveaux scores AP et deltas ($\Delta\mathrm{AP}$).
+
+---
+
 ## 4. Synthèse d'Exploitation
 
 La CLI `niers` est un outil autonome compilé en Rust natif, ne nécessitant aucune dépendance externe lourde (ni Python, ni .NET, ni scripts ad-hoc). Elle garantit une exploration fidèle, rapide et non destructive du jeu original `nie.exe`.

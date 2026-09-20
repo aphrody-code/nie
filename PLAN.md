@@ -1646,6 +1646,10 @@ into `niers`:
     - **HTTP REST & API Surface (`nie-site`)**:
       - Mounted 6 official online endpoints under `/api/v1/online`: `/status`, `/tiers`, `/ladder`, `/clans`, `/challenge`, `/calc-elo`.
       - Expanded mounted route contract from 163 to 169 routes, covered by 171 test instances.
+    - **Unified Documentation Coverage**:
+      - Updated `docs/NIE-ET-CLI.md` with operational guide for `niers net` commands (`server`, `room create`, `sim-match`, `challenge create`, `ladder`, `clans`, `calc-elo`).
+      - Updated `docs/NIE-ONLINE-MODE.md` with complete REST API tables, WebAssembly bindings examples, and CLI workflows.
+      - Updated `docs/esport/README.md` with third-party integration guides for Discord bots, tournament websites, and overlays.
     - **Automated Verification Gates**:
       - `cargo test -p nie-site`: 360/360 tests and doctests passed (333 unit, 26 routes, 1 menu shape, 1 catalog).
       - `cargo clippy -p nie-site --lib --tests -- -D warnings`: 0 warnings, passed.
@@ -1655,4 +1659,3 @@ into `niers`:
       - `cargo clippy -p nie-cli -- -D warnings`: 0 warnings, passed.
       - `bun run docs:check`: 47/47 indexed, 0 failures, passed.
       - `bun run --cwd apps/nie-web typecheck`: 0 errors, passed.
-

@@ -149,3 +149,44 @@ cargo test -p nie-net
 - `test_score_double_validation_agree` / `dispute` : Scénarios d'accord mutuel et de litige.
 - `test_tournament_full_lifecycle` : Cycle complet d'inscriptions, check-in, arbre et attribution de points.
 - `test_clan_lifecycle_and_contributions` : Création de club, ajout de membre et cumul d'AP.
+
+---
+
+## 7. Exploitation Opérationnelle : CLI, REST API & WebAssembly
+
+Le système e-sport est directement pilotable et intégrable par des applications tierces (bots Discord, dashboards d'arbitrage, overlays OBS et sites web de tournois) :
+
+### 7.1 L'API REST E-Sport (`nie-site` :8085)
+
+Toutes les données de compétition sont exposées sous `/api/v1/online` :
+- **`GET /api/v1/online/tiers`** : Liste complète des 11 rangs officiels (seuils d'AP et facteurs $K$).
+- **`GET /api/v1/online/ladder?limit=50&offset=0`** : Classement global des joueurs compétitifs (AP, tier, victoires/défaites).
+- **`GET /api/v1/online/clans?limit=50&offset=0`** : Classement officiel des clubs avec tags `[TAG]` et AP agrégés.
+- **`POST /api/v1/online/challenge`** : Génération d'un code de match officiel Base-32 avec TTL de 30 minutes.
+- **`POST /api/v1/online/calc-elo`** : Calculatrice d'arbitrage (projection de deltas $\Delta\mathrm{AP}$ et nouveaux paliers).
+
+### 7.2 Commandes CLI E-Sport (`niers net`)
+
+Les organisateurs et arbitres peuvent interagir directement en ligne de commande via la CLI unifiée `niers` :
+```bash
+# Consulter le top 10 du ladder officiel
+niers net ladder --limit 10
+
+# Consulter le classement des clans
+niers net clans
+
+# Arbitrer un match et calculer les deltas AP
+niers net calc-elo 1450 1410 win
+
+# Générer un code de défi officiel pour un match de poule
+niers net challenge create player_a player_b
+```
+
+### 7.3 Liaisons WebAssembly Client (`nie-wasm::net`)
+
+Pour les interfaces web interactives et le client de jeu dans le navigateur (`apps/nie-web`) :
+- `net_rank_tier_info(ap: u32)` : Résolution instantanée du palier, nom FR/EN et facteurs $K$.
+- `net_compute_elo(rating_a: u32, rating_b: u32, outcome: f64)` : Calcul asymétrique immédiat sans requête réseau.
+- `net_tournament_circuit_points(placement: u32, participants: u32)` : Calcul des points de circuit attribués selon la taille de l'arbre.
+- `net_verify_scores(score_a: &[u32], score_b: &[u32])` : Algorithme de double validation et détection de litige.
+- `net_validate_clan_tag(tag: &str)` : Validation stricte de format de tag de clan (`[TAG]`).
