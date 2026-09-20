@@ -522,3 +522,25 @@ a `throw`: **a build's output directory is never what `dist` resolves to**, comp
 `dist-build`. The distinction that decides it is the **symlink**, not the name — a plain `dist`
 directory is a developer's build and nobody serves it, which is why the guard ignores that case
 (the first version of it did not, and broke every checkout's second build).
+
+**The bundle's fingerprints had to be pinned to hex, and the reason is a two-language seam.**
+`nie_site::routes::static_files::empreinte` splits a filename on `-` and `.` and wants a segment
+of 8–40 characters; rollup fingerprints in **base64url**, an alphabet that contains `-`. Nothing
+fails — the file is just served `no-cache` instead of `immutable`, and only a response header
+says so. Measured 2026-09-20 on a bundle built by the pinned vite 6.4.3: **30 of its 252 emitted
+files** carried a dash inside the hash (`Workspace-FpvT45-W.js`), which is what 1 − (63/64)⁸
+predicts, plus `index-QCGMVBRT.js` — **the entry point** — whose hash had neither a digit nor a
+lowercase letter and failed the other half of the heuristic. A comment in `deploy-target.ts`
+blamed rolldown for this; it is the alphabet, and pinning the version never addressed it.
+
+The fix is `hashCharacters: "hex"` in `vite.config.ts`, not a wider heuristic: widening `empreinte`
+to catch those names would also catch `app-composant.js`, and an unfingerprinted file frozen for a
+year in browser caches is a site that can no longer be deployed. Rebuilt: 227 fingerprinted files,
+**0 unrecognised, 0 hashes shared by two different stems** (8 hex characters = 32 bits).
+`apps/nie-web/scripts/build-fingerprint.test.ts` sweeps a real bundle and skips loudly without one.
+
+While closing that, `immuable` turned out to read
+`(folder && several_components && named) || named`, which reduces to `named` — its own doc called
+the folder "the principal rule". The clause never decided anything and was removed rather than
+made effective: making it effective would re-run the 2026-09-12 outage, since `vite build` copies
+`public/` into `static/`, so `static/game/nie_wasm_bg.wasm` carries a stable name among hashed ones.

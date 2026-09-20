@@ -45,8 +45,19 @@ pub const REVALIDER: &str = "no-cache";
 /// et on ne pourrait plus le déployer. On exige donc, pour la forme base64url, un mélange de
 /// casse ou un chiffre — ce qu'un mot n'a pas et qu'un condensé a presque toujours.
 ///
-/// Cette heuristique n'est que le second critère : la règle principale est [`immuable`], qui
-/// regarde le DOSSIER et ne devine rien.
+/// # Ce que cette heuristique rate, et pourquoi le BUILD a été corrigé plutôt qu'elle
+///
+/// L'alphabet base64url contient `-`, et ce découpage coupe dessus. Mesuré le 2026-09-20 sur un
+/// bundle réel : **30 des 252 fichiers émis** portaient un tiret dans leur empreinte
+/// (`Workspace-FpvT45-W.js` : aucun morceau n'atteint huit caractères), et un trente-et-unième,
+/// `index-QCGMVBRT.js`, échouait par l'autre moitié — ni chiffre ni minuscule. Le point d'entrée
+/// du site était donc servi `no-cache`.
+///
+/// Élargir l'heuristique reviendrait à mieux DEVINER, et la pente descend vers `app-composant.js`
+/// figé un an. `apps/nie-web/vite.config.ts` épingle donc `hashCharacters: "hex"` : les
+/// empreintes émises n'ont plus ni tiret ni casse, et tombent dans la branche hexadécimale, qui
+/// ne devine rien. Les cas base64url restent reconnus — un bundle d'avant ce changement, ou un
+/// autre bundler, doit continuer d'être servi correctement.
 #[must_use]
 pub fn empreinte(nom: &str) -> bool {
     nom.split(['-', '.']).skip(1).any(|s| {
@@ -67,32 +78,24 @@ pub fn empreinte(nom: &str) -> bool {
 
 /// Dit si un fichier du bundle peut être servi `immutable`.
 ///
-/// La règle principale ne devine pas : tout ce qu'un bundler dépose dans son dossier d'assets
-/// (`static/`, `assets/` — cf. [`DOSSIERS_BUNDLE`]) est empreinté par construction. Ce qui vit
-/// à la racine du bundle (`index.html`, un favicon, un fichier copié de `public/`) ne l'est pas,
-/// et doit rester revalidable. Un nom empreinté hors de ces dossiers est accepté en second
-/// recours via [`empreinte`].
+/// **Seul le NOM décide**, où qu'il soit. Le dossier ne le peut pas : `vite build` COPIE
+/// `public/` dans le dossier d'assets, si bien que `static/game/nie_wasm_bg.wasm` porte un nom
+/// STABLE au milieu de fichiers empreintés. Le figer un an a déjà coûté une panne — un module
+/// d'un déploiement précédent à côté d'une glue fraîchement empreintée, et pas de rendu jusqu'à
+/// un rechargement forcé (mesuré le 2026-09-12).
+///
+/// Jusqu'au 2026-09-20 cette fonction portait une clause de dossier
+/// (`dossier && plusieurs_composants && nom_empreinte || nom_empreinte`) que sa propre doc
+/// annonçait comme « la règle principale ». Elle se réduit à `nom_empreinte` : elle n'a jamais
+/// rien décidé, et la doc décrivait donc un comportement que le code n'avait pas. Elle est
+/// SUPPRIMÉE plutôt que rendue effective — la rendre effective rejouerait la panne ci-dessus.
+/// [`DOSSIERS_BUNDLE`] reste utilisé par le service des fichiers, pas par cette décision.
 #[must_use]
 pub fn immuable(relatif: &Path) -> bool {
-    let dans_dossier_bundle = relatif
-        .components()
-        .next()
-        .and_then(|c| match c {
-            Component::Normal(s) => s.to_str(),
-            _ => None,
-        })
-        .is_some_and(|d| DOSSIERS_BUNDLE.contains(&d));
-    let a_plusieurs_composants = relatif.components().count() > 1;
-    let nom_empreinte = relatif
+    relatif
         .file_name()
         .and_then(|n| n.to_str())
-        .is_some_and(empreinte);
-    // `static/game/nie_wasm_bg.wasm` and the gzipped font live in the bundle folder but are
-    // copied verbatim from `public/`, with a stable name: served `immutable`, a browser kept
-    // the previous deployment's module next to freshly hashed glue and the menu came up
-    // "unavailable" until a hard reload (measured 2026-09-12). Only a fingerprinted name is
-    // immutable, wherever it sits.
-    (dans_dossier_bundle && a_plusieurs_composants && nom_empreinte) || nom_empreinte
+        .is_some_and(empreinte)
 }
 
 /// Normalise un chemin relatif reçu d'un client : rend `None` dès qu'il sort de la racine.
@@ -459,6 +462,28 @@ mod tests {
         );
     }
 
+    /// Les deux trous MESURÉS de l'heuristique, sur des noms relevés dans un bundle réel.
+    ///
+    /// Ils sont figés en `assert!(!…)` — décrire le comportement — parce que le correctif est
+    /// dans le build (`hashCharacters: "hex"`, cf. `apps/nie-web/vite.config.ts`) et non ici :
+    /// élargir `empreinte` pour rattraper ces noms la ferait accepter `app-composant.js`, et un
+    /// fichier non empreinté figé un an dans les caches est un site qu'on ne peut plus déployer.
+    /// Si ces assertions se mettent à échouer, c'est que quelqu'un a élargi l'heuristique — la
+    /// question à poser alors est ce qu'elle accepte D'AUTRE.
+    #[test]
+    fn base64url_a_deux_trous_que_le_build_evite() {
+        // Un tiret DANS l'empreinte : ce découpage la casse en morceaux trop courts.
+        // 30 des 252 fichiers émis d'un bundle du 2026-09-20, soit ~1 − (63/64)^8.
+        assert!(!empreinte("Workspace-FpvT45-W.js"), "tiret dans l'empreinte");
+        assert!(!empreinte("julia-cl7-CwDS.js"), "tiret dans l'empreinte");
+        // Ni chiffre ni minuscule : c'était le POINT D'ENTRÉE du site, servi `no-cache`.
+        assert!(!empreinte("index-QCGMVBRT.js"), "ni chiffre ni minuscule");
+        // Le tiret n'est fatal que DANS l'empreinte : dans le radical, il ne gêne pas.
+        assert!(empreinte("objective-c-BDtDVThU.js"), "tiret dans le radical");
+        // Et la forme que le build produit désormais passe par la branche hexadécimale.
+        assert!(empreinte("index-4f3a9c1e.js"), "hexadecimal, sans tiret");
+    }
+
     #[test]
     fn les_points_d_entree_viennent_de_index_html() {
         let html = r#"<!doctype html><html><head><link rel="stylesheet" crossorigin href="/static/index-CARP3-L6.css"><script type="application/ld+json">{}</script></head><body><script type="module" crossorigin src="/static/index-CC_vyI19.js"></script></body></html>"#;
@@ -472,8 +497,9 @@ mod tests {
         assert_eq!(points_d_entree_depuis_html("<html></html>"), (None, None));
     }
 
+    /// Le NOM décide seul — le dossier n'a jamais rien décidé, malgré ce que disait la doc.
     #[test]
-    fn immuable_suit_le_dossier_avant_le_nom() {
+    fn immuable_suit_le_nom_seul() {
         for d in DOSSIERS_BUNDLE {
             assert!(immuable(&PathBuf::from(d).join("index-RXLrxaJS.js")));
             // A stable name inside the assets folder is NOT immutable: `public/` copies land
@@ -499,6 +525,9 @@ mod tests {
         );
         // Hors dossier connu, on retombe sur le nom.
         assert!(immuable(Path::new("vendor/app-1a2b3c4d.js")));
+        // Et le dossier ne RATTRAPE pas un nom que l'heuristique ne reconnaît pas : c'est ce que
+        // la clause supprimée le 2026-09-20 semblait faire sans jamais le faire.
+        assert!(!immuable(Path::new("static/Workspace-FpvT45-W.js")));
     }
 
     #[test]

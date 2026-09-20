@@ -81,7 +81,23 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 		},
 		clearScreen: !desktop,
 		// Keep the existing site output stable; Tauri consumes the desktop artifact.
-		build: { outDir: defaultOutDir, sourcemap: true, assetsDir: "static" },
+		//
+		// `hashCharacters: "hex"` n'est pas cosmétique. Rollup empreinte en **base64url** par
+		// défaut, et cet alphabet contient `-` ; or `nie_site::routes::static_files::empreinte`
+		// découpe le nom sur `-` et `.`, donc un tiret tombé DANS l'empreinte la casse en
+		// morceaux trop courts et le fichier part en `no-cache` au lieu d'`immutable`.
+		// Mesuré le 2026-09-20 sur un bundle réel : **30 des 252 fichiers émis**, ce que prédit
+		// 1 − (63/64)^8 ≈ 12 %, plus `index-QCGMVBRT.js` — le point d'entrée — dont l'empreinte
+		// n'avait ni chiffre ni minuscule et échouait par l'autre moitié de l'heuristique.
+		// `hex` n'a ni tiret ni casse : il tombe dans la branche hexadécimale, qui ne devine rien.
+		// `scripts/deploy-target.ts` imputait cela à rolldown seul — c'est l'alphabet, et le
+		// vite 6.4.3 épinglé le produit aussi.
+		build: {
+			outDir: defaultOutDir,
+			sourcemap: true,
+			assetsDir: "static",
+			rollupOptions: { output: { hashCharacters: "hex" } },
+		},
 		server: {
 			port: desktop ? 1420 : 5175,
 			strictPort: desktop,

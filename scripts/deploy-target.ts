@@ -273,11 +273,14 @@ async function deployWeb(context: TargetContext): Promise<void> {
 	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "typecheck"]);
 	// Run from `apps/nie-web`, NOT from the repository root. From the root, `bunx vite` resolves
 	// no workspace dependency and fetches whatever version it likes — measured 2026-09-12:
-	// vite 8.3.0 (rolldown) at the root against the pinned 6.4.3 in the app. That is not just a
-	// reproducibility problem: rolldown emits base64url hashes that CONTAIN a dash
-	// (`index-D9-ScSY4.js`), and `nie_site::routes::static_files::empreinte` splits on `-`, so no
-	// segment reaches eight characters and the whole bundle is served `no-cache` instead of
-	// `immutable`. A production bundle must be built by the version the lockfile pins.
+	// vite 8.3.0 (rolldown) at the root against the pinned 6.4.3 in the app. A production bundle
+	// must be built by the version the lockfile pins.
+	//
+	// The dash-in-fingerprint hazard this comment used to blame on rolldown is NOT rolldown's:
+	// base64url is rollup's default alphabet too. Measured 2026-09-20 on a bundle built by the
+	// pinned 6.4.3, 30 of its 252 emitted files carried a dash inside the hash and were served
+	// `no-cache`. `vite.config.ts` now pins `hashCharacters: "hex"`, which is where the fix
+	// belongs; pinning the version alone never addressed it.
 	await run(
 		context,
 		["bunx", "vite", "build", "--outDir", bundle, "--emptyOutDir"],
