@@ -225,7 +225,7 @@ struct UniformMapEntry {
 /// Version de l'assembleur de personnages. À incrémenter à chaque changement de recette ou de
 /// format de sortie : le cache GLB (`var/model-cache`) est purgé au démarrage quand la version
 /// enregistrée dans `VERSION` diffère, et chaque rapport la cite avec le SHA-256 du GLB servi.
-const ASSEMBLER_VERSION: &str = "2026-09-05.presentation-6";
+const ASSEMBLER_VERSION: &str = "2026-09-20.animations-1";
 
 /// Cache LRU borné de GLB servis fréquemment.
 ///

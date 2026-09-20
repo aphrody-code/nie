@@ -112,3 +112,50 @@ describe("GameFilterPanel focus contract", () => {
 		expect(container?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBeTrue();
 	});
 });
+
+/**
+ * `filters_bonus.png` : une famille sectionnée se rend sur UNE colonne, chaque titre de section
+ * en tête de sa suite. Le champ `section` a longtemps été déclaré et jamais dessiné — ce test
+ * échoue si on revient à une grille qui l'ignore.
+ */
+describe("GameFilterPanel sections", () => {
+	const SHOOT_BONUS = [
+		{
+			id: "bonus",
+			label: "Compétences passives",
+			icon: <span>B</span>,
+			options: [
+				{ value: "same_element", label: "ATT des tirs +XX %", description: "pour les joueurs du même élément", section: "Bonus de tir" },
+				{ value: "other_element", label: "ATT des tirs +XX %", description: "pour les joueurs d’éléments différents", section: "Bonus de tir" },
+				{ value: "same_position", label: "ATT des tirs +XX %", description: "pour les joueurs de la même position", section: "Bonus de tir" },
+				{ value: "keeper", label: "DÉF des arrêts +XX %", description: "pour le gardien", section: "Bonus d’arrêt" },
+			],
+		},
+	];
+
+	async function renderSectioned() {
+		container = document.createElement("div");
+		document.body.append(container);
+		root = createRoot(container);
+		await act(async () => root?.render(
+			<GameFilterPanel families={SHOOT_BONUS} value={{ bonus: [] }} onConfirm={() => undefined} />,
+		));
+	}
+
+	test("draws one heading per consecutive run, in the caller's order", async () => {
+		await renderSectioned();
+		const headings = [...container!.querySelectorAll(".game-filter-panel__section-title")].map(
+			(node) => node.textContent?.trim(),
+		);
+		expect(headings).toEqual(["Bonus de tir", "Bonus d’arrêt"]);
+	});
+
+	test("lays a sectioned family on a single column, never the two-column grid", async () => {
+		await renderSectioned();
+		expect(container!.querySelector(".game-filter-panel__sections")).not.toBeNull();
+		const rows = container!.querySelectorAll(".game-filter-panel__row");
+		expect(rows.length).toBe(4);
+		// Toutes les options restent atteignables : une par ligne, plus la case « Tout ».
+		expect(container!.querySelectorAll('input[type="checkbox"]').length).toBe(5);
+	});
+});

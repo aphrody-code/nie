@@ -179,6 +179,41 @@
 	max-height: 80vh;
 	overflow: auto;
 }
+/* Familles sectionnées — filters_bonus.png : une seule colonne, un titre souligné par un trait
+   qui court jusqu'au bord, et un filet entre les lignes. La capture donne le titre en gras,
+   aligné à gauche, le trait partant de sa droite à mi-hauteur. */
+.game-filter-panel__sections {
+	display: flex;
+	flex-direction: column;
+	gap: var(--jeu-espace-l);
+}
+.game-filter-panel__section-title {
+	display: flex;
+	align-items: center;
+	gap: var(--jeu-espace-m);
+	margin: 0 0 var(--jeu-espace-m);
+	font-size: 1.25rem;
+	font-weight: 700;
+	color: var(--jeu-texte-vif);
+}
+.game-filter-panel__section-rule {
+	flex: 1;
+	height: 1px;
+	background: var(--screen-panel-title);
+	opacity: 0.55;
+}
+.game-filter-panel__section-rows {
+	display: flex;
+	flex-direction: column;
+}
+/* Le filet sépare les lignes ENTRE elles : la première n'en porte pas, sinon il doublerait le
+   trait du titre juste au-dessus. */
+.game-filter-panel__row + .game-filter-panel__row {
+	border-top: 1px solid color-mix(in srgb, var(--screen-panel-title) 35%, transparent);
+}
+.game-filter-panel__row {
+	padding: var(--jeu-espace-m) 0;
+}
 .game-panel {
 	position: relative;
 	display: flex;

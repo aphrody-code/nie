@@ -40,7 +40,11 @@ export interface GameFilterOption {
 	label: ReactNode;
 	/** Sous-titre ou explication sur la 2e ligne, comme dans filters_bonus.png. */
 	description?: ReactNode;
-	/** Section optionnelle pour regrouper les options avec un titre dédié. */
+	/**
+	 * Titre de section sous lequel l'option se range — « Bonus de tir » dans
+	 * `filters_bonus.png`. Les options portant la même section doivent se suivre : le rendu
+	 * groupe des suites consécutives, il ne réordonne pas la liste que l'appelant a écrite.
+	 */
 	section?: string;
 	/** La pastille devant le libellé : l'icône de l'élément, la bannière de rareté. */
 	icon?: ReactNode;
@@ -52,6 +56,13 @@ export interface GameFilterFamily extends GameTab {
 	options: readonly GameFilterOption[];
 	/** `single` par défaut : le serveur ne sert qu'une valeur par paramètre. */
 	mode?: "single" | "multi";
+	/**
+	 * Colonnes de la grille. Deux par défaut (`filters_elements.png` et ses sœurs courtes) ; une
+	 * seule quand chaque ligne porte un libellé sur deux lignes, comme `filters_bonus.png`.
+	 * Une famille sectionnée est toujours rendue sur une colonne : le jeu titre ses sections en
+	 * pleine largeur, et un titre à cheval sur deux colonnes ne dirait plus ce qu'il regroupe.
+	 */
+	columns?: 1 | 2;
 	/** Le filigrane du fond quand cette famille est affichée. */
 	watermark?: ReactNode;
 	/** Un contenu libre sous la grille — les réglages qui ne sont pas des cases. */
@@ -137,7 +148,10 @@ export function GameFilterPanel({
 	useEffect(() => setDraft(value), [value]);
 
 	const family = useMemo(() => families.find((f) => f.id === familyId) ?? families[0], [families, familyId]);
-	const rows = family ? Math.ceil(family.options.length / 2) : 0;
+	// Une famille sectionnée se lit toujours sur une colonne — cf. `GameFilterFamily.columns`.
+	const sectioned = Boolean(family?.options.some((option) => option.section));
+	const columns = sectioned ? 1 : (family?.columns ?? 2);
+	const rows = family ? Math.ceil(family.options.length / columns) : 0;
 
 	// Au montage, le focus entre dans le dialogue sur « Tout » : c'est là que le jeu pose son curseur.
 	useEffect(() => {
@@ -265,6 +279,43 @@ export function GameFilterPanel({
 	// La grille se lit en colonnes : l'option `i` est à la ligne `i % rows`, colonne `i / rows`.
 	const grid = family.options.map((option, i) => ({ option, i, row: i % rows, col: Math.floor(i / rows) }));
 
+	/**
+	 * Les suites CONSÉCUTIVES d'options partageant une section, dans l'ordre reçu.
+	 *
+	 * Grouper par clé plutôt que par adjacence réordonnerait la liste de l'appelant, donc
+	 * l'index de navigation ne correspondrait plus à ce que l'œil suit.
+	 */
+	const runs: { section: string | undefined; items: typeof grid }[] = [];
+	for (const entry of grid) {
+		const last = runs.at(-1);
+		if (last && last.section === entry.option.section) last.items.push(entry);
+		else runs.push({ section: entry.option.section, items: [entry] });
+	}
+
+	const renderOption = ({ option, i }: (typeof grid)[number]) => (
+		<GameCheck
+			checked={isChecked(draft, family, option.value)}
+			onChange={(checked) => setDraft((d) => toggle(d, family, option.value, checked))}
+			icon={option.icon}
+			cursor={cursor === i}
+			tabIndex={cursor === i ? 0 : -1}
+			inputRef={(el) => {
+				inputs.current[i + 1] = el;
+			}}
+			onFocus={() => setCursor(i)}
+		>
+			<div style={{ display: "inline-flex", flexDirection: "column", verticalAlign: "middle" }}>
+				<span className="game-check__title">{option.label}</span>
+				{option.description ? (
+					<span className="game-check__desc" style={{ fontSize: "0.8em", opacity: 0.75, fontWeight: 400 }}>
+						{option.description}
+					</span>
+				) : null}
+			</div>
+			{option.count !== undefined ? <span className="game-check__count">{option.count.toLocaleString("fr")}</span> : null}
+		</GameCheck>
+	);
+
 	return (
 		<GamePanel
 			role="dialog"
@@ -349,48 +400,48 @@ export function GameFilterPanel({
 				>
 					Tout
 				</GameCheck>
-				<div
-					role="group"
-					aria-label={family.label}
-					style={{
-						display: "grid",
-						gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-						gridAutoFlow: "row",
-						columnGap: 32,
-						rowGap: 14,
-						paddingLeft: 0,
-					}}
-				>
-					{grid.map(({ option, i, row, col }) => (
-						<div key={option.value} style={{ gridRow: row + 1, gridColumn: col + 1 }}>
-							<GameCheck
-								checked={isChecked(draft, family, option.value)}
-								onChange={(checked) => setDraft((d) => toggle(d, family, option.value, checked))}
-								icon={option.icon}
-								cursor={cursor === i}
-								tabIndex={cursor === i ? 0 : -1}
-								inputRef={(el) => {
-									inputs.current[i + 1] = el;
-								}}
-								onFocus={() => setCursor(i)}
-							>
-								<div style={{ display: "inline-flex", flexDirection: "column", verticalAlign: "middle" }}>
-									<span className="game-check__title">{option.label}</span>
-									{option.description ? (
-										<span className="game-check__desc" style={{ fontSize: "0.8em", opacity: 0.75, fontWeight: 400 }}>
-											{option.description}
-										</span>
-									) : null}
-								</div>
-								{option.count !== undefined ? (
-									<span className="game-check__count">
-										{option.count.toLocaleString("fr")}
-									</span>
+				{sectioned ? (
+					<div role="group" aria-label={family.label} className="game-filter-panel__sections">
+						{runs.map((run) => (
+							<div key={run.section ?? "__sans_section"} className="game-filter-panel__section">
+								{run.section ? (
+									<h3 className="game-filter-panel__section-title">
+										<span>{run.section}</span>
+										{/* Le trait qui court jusqu'au bord dans la capture : décoratif, donc caché aux
+										    lecteurs d'écran, que le titre suffit à renseigner. */}
+										<span className="game-filter-panel__section-rule" aria-hidden="true" />
+									</h3>
 								) : null}
-							</GameCheck>
-						</div>
-					))}
-				</div>
+								<div className="game-filter-panel__section-rows">
+									{run.items.map((entry) => (
+										<div key={entry.option.value} className="game-filter-panel__row">
+											{renderOption(entry)}
+										</div>
+									))}
+								</div>
+							</div>
+						))}
+					</div>
+				) : (
+					<div
+						role="group"
+						aria-label={family.label}
+						style={{
+							display: "grid",
+							gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+							gridAutoFlow: "row",
+							columnGap: 32,
+							rowGap: 14,
+							paddingLeft: 0,
+						}}
+					>
+						{grid.map((entry) => (
+							<div key={entry.option.value} style={{ gridRow: entry.row + 1, gridColumn: entry.col + 1 }}>
+								{renderOption(entry)}
+							</div>
+						))}
+					</div>
+				)}
 				{family.extra ? <div className="game-filter-panel__extra">{family.extra}</div> : null}
 				<div style={{ display: "flex", justifyContent: "flex-end" }}>
 					<GameKeyHint keyLabel="V" onActivate={toggleAll} className="game-button-secondary">
