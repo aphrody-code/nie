@@ -27,6 +27,9 @@ function fakeSceneViewer() {
 		selected: mock(() => ""),
 		gizmo_axis_at: mock((_x: number, _y: number) => ""),
 		gizmo_drag: mock((_a: string, _fx: number, _fy: number, _tx: number, _ty: number) => [] as number[]),
+		set_gizmo_mode: mock((_m: string) => {}),
+		gizmo_rotate: mock((_a: string, _fx: number, _fy: number, _tx: number, _ty: number) => Number.NaN),
+		gizmo_scale: mock((_a: string, _fx: number, _fy: number, _tx: number, _ty: number) => Number.NaN),
 	};
 }
 
@@ -189,14 +192,14 @@ test("un glissement de gizmo émet le déplacement", async () => {
 	expect(mouvements[0]?.[1]).toEqual([2.5, 0, 0]);
 });
 
-/** Hors du mode `translate`, aucune poignée n'est attrapée. */
-test("les autres modes de gizmo ne manipulent pas", async () => {
+/** En mode `none`, aucune poignée n'est attrapée. */
+test("le mode none ne manipule pas", async () => {
 	const viewer = fakeSceneViewer();
 	viewer.gizmo_axis_at = mock(() => "x");
 	const mouvements: unknown[] = [];
 	await monter(viewer, {
 		selectedId: "a.glb#0",
-		gizmoMode: "rotate",
+		gizmoMode: "none",
 		onTransform: () => mouvements.push(1),
 	});
 	const canvas = container.querySelector("canvas");
@@ -206,6 +209,64 @@ test("les autres modes de gizmo ne manipulent pas", async () => {
 	});
 	expect(viewer.gizmo_axis_at).not.toHaveBeenCalled();
 	expect(mouvements).toHaveLength(0);
+});
+
+/** Le mode `rotate` émet une rotation sur le bon axe, et rien sur un angle indéterminé. */
+test("le mode rotate émet un angle sur le bon axe", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.gizmo_axis_at = mock(() => "y");
+	viewer.gizmo_rotate = mock(() => 0.75);
+	const vus: number[][] = [];
+	await monter(viewer, {
+		selectedId: "a.glb#0",
+		gizmoMode: "rotate",
+		onTransform: (_id: string, trs: { rotation: number[] }) => vus.push(trs.rotation),
+	});
+	const canvas = container.querySelector("canvas");
+	await act(async () => {
+		canvas?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
+		canvas?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1 }));
+	});
+	expect(vus).toEqual([[0, 0.75, 0]]);
+	expect(viewer.set_gizmo_mode).toHaveBeenLastCalledWith("rotate");
+});
+
+/** Un angle indéterminé (`NaN`) n'émet RIEN — sinon l'objet tournoierait sur un bruit. */
+test("une rotation indéterminée n'émet rien", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.gizmo_axis_at = mock(() => "y");
+	viewer.gizmo_rotate = mock(() => Number.NaN);
+	const vus: unknown[] = [];
+	await monter(viewer, {
+		selectedId: "a.glb#0",
+		gizmoMode: "rotate",
+		onTransform: () => vus.push(1),
+	});
+	const canvas = container.querySelector("canvas");
+	await act(async () => {
+		canvas?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
+		canvas?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1 }));
+	});
+	expect(vus).toHaveLength(0);
+});
+
+/** Le mode `scale` émet un facteur sur le bon axe, les autres restant à 1. */
+test("le mode scale émet un facteur sur le bon axe", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.gizmo_axis_at = mock(() => "z");
+	viewer.gizmo_scale = mock(() => 2.5);
+	const vus: number[][] = [];
+	await monter(viewer, {
+		selectedId: "a.glb#0",
+		gizmoMode: "scale",
+		onTransform: (_id: string, trs: { scale: number[] }) => vus.push(trs.scale),
+	});
+	const canvas = container.querySelector("canvas");
+	await act(async () => {
+		canvas?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
+		canvas?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1 }));
+	});
+	expect(vus).toEqual([[1, 1, 2.5]]);
 });
 
 /** Le clic qui termine un glissement ne DÉSÉLECTIONNE pas l'objet déplacé. */

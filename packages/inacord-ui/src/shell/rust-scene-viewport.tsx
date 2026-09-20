@@ -14,9 +14,6 @@
  *
  * # Ce qu'il ne fait pas, et pourquoi c'est dit plutôt que caché
  *
- * - **Seule la TRANSLATION est manipulable.** `gizmoMode` vaut `rotate` ou `scale` sans effet :
- *   le gizmo Rust ne dessine que trois poignées d'axe, et prétendre tourner un objet en le
- *   translatant serait pire que de ne rien faire.
  * - **Pas d'image de référence.** `referenceImage` est accepté et ignoré ; le canvas Rust n'est
  *   pas transparent sur le chemin WebGL.
  *
@@ -49,7 +46,7 @@ export interface RustSceneViewportProps {
 	onSceneLoaded?: (nodes: SceneNode[], stats: ViewportStats) => void;
 	/** Émis à chaque déplacement du gizmo. Seul `translate` a un effet. */
 	onTransform?: (id: string, trs: NodeTransform) => void;
-	/** `translate` active la manipulation ; les autres modes ne dessinent que les poignées. */
+	/** `translate`, `rotate` et `scale` manipulent ; `none` ne dessine aucune poignée. */
 	gizmoMode?: GizmoMode;
 	notice?: string | null;
 	wireframe?: boolean;
@@ -189,6 +186,12 @@ export function RustSceneViewport({
 		viewer.select(selectedId ?? "");
 	}, [selectedId, ready]);
 
+	useEffect(() => {
+		const viewer = viewerRef.current;
+		if (!viewer || !ready || gizmoMode === "none") return;
+		viewer.set_gizmo_mode(gizmoMode);
+	}, [gizmoMode, ready]);
+
 	// Glissement du gizmo. L'état vit dans une ref et non dans React : un déplacement émet un
 	// événement par image, et re-rendre le composant à chaque mouvement de souris annulerait
 	// l'intérêt d'un rendu natif.
@@ -205,7 +208,7 @@ export function RustSceneViewport({
 
 		const onDown = (e: PointerEvent) => {
 			const viewer = viewerRef.current;
-			if (!viewer || gizmoMode !== "translate" || !selectedId) return;
+			if (!viewer || gizmoMode === "none" || !selectedId) return;
 			const { x, y } = local(e);
 			const axis = viewer.gizmo_axis_at(x, y);
 			if (!axis) return;
@@ -221,6 +224,29 @@ export function RustSceneViewport({
 			const drag = dragRef.current;
 			if (!viewer || !drag || !onTransform) return;
 			const { x, y } = local(e);
+			// Chaque mode rend un DELTA relatif au début du glissement, pas un absolu : c'est à
+			// l'hôte de le composer avec la transformation existante, parce que lui seul sait
+			// quelle était celle de départ.
+			if (gizmoMode === "rotate") {
+				const angle = viewer.gizmo_rotate(drag.axis, drag.x, drag.y, x, y);
+				if (Number.isNaN(angle)) return;
+				const axe: [number, number, number] =
+					drag.axis === "x" ? [angle, 0, 0] : drag.axis === "y" ? [0, angle, 0] : [0, 0, angle];
+				onTransform(drag.id, { position: [0, 0, 0], rotation: axe, scale: [1, 1, 1] });
+				return;
+			}
+			if (gizmoMode === "scale") {
+				const facteur = viewer.gizmo_scale(drag.axis, drag.x, drag.y, x, y);
+				if (Number.isNaN(facteur)) return;
+				const s: [number, number, number] =
+					drag.axis === "x"
+						? [facteur, 1, 1]
+						: drag.axis === "y"
+							? [1, facteur, 1]
+							: [1, 1, facteur];
+				onTransform(drag.id, { position: [0, 0, 0], rotation: [0, 0, 0], scale: s });
+				return;
+			}
 			const delta = viewer.gizmo_drag(drag.axis, drag.x, drag.y, x, y);
 			if (delta.length !== 3) return;
 			onTransform(drag.id, {

@@ -83,6 +83,38 @@ impl WebGpuViewer {
         self.inner.set_grid(visible);
     }
 
+    /// Choisit ce que le gizmo manipule : `"translate"`, `"rotate"`, `"scale"`.
+    ///
+    /// Un nom inconnu retombe sur la translation plutôt que de désactiver le gizmo : un outil qui
+    /// disparaît sur une faute de frappe se lit comme un bug d'affichage.
+    pub fn set_gizmo_mode(&mut self, mode: &str) {
+        self.inner.set_gizmo_mode(match mode {
+            "rotate" => nie_render3d::web::GizmoMode::Rotate,
+            "scale" => nie_render3d::web::GizmoMode::Scale,
+            _ => nie_render3d::web::GizmoMode::Translate,
+        });
+    }
+
+    /// L'angle de rotation autour de l'axe nommé, en radians. `NaN` si indéterminé.
+    ///
+    /// `NaN` plutôt qu'un `Option` : il traverse `wasm_bindgen` comme un nombre, et l'appelant
+    /// le teste par `Number.isNaN` — là où un `Option<f32>` deviendrait un `JsValue` à
+    /// inspecter. Zéro serait un mauvais choix : c'est une rotation valide.
+    #[must_use]
+    pub fn gizmo_rotate(&self, axis: &str, from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> f32 {
+        axe_depuis(axis)
+            .and_then(|a| self.inner.gizmo_rotate(a, from_x, from_y, to_x, to_y))
+            .unwrap_or(f32::NAN)
+    }
+
+    /// Le facteur d'échelle le long de l'axe nommé. `NaN` si indéterminé.
+    #[must_use]
+    pub fn gizmo_scale(&self, axis: &str, from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> f32 {
+        axe_depuis(axis)
+            .and_then(|a| self.inner.gizmo_scale(a, from_x, from_y, to_x, to_y))
+            .unwrap_or(f32::NAN)
+    }
+
     /// L'axe du gizmo sous le pixel : `"x"`, `"y"`, `"z"`, ou chaîne vide si aucune poignée.
     ///
     /// Une chaîne plutôt qu'un entier : `wasm_bindgen` traverse les deux aussi bien, et un `"x"`
@@ -103,11 +135,8 @@ impl WebGpuViewer {
     /// ne rencontre pas le plan de contrainte — l'hôte laisse alors l'objet où il est.
     #[must_use]
     pub fn gizmo_drag(&self, axis: &str, from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> Vec<f32> {
-        let axe = match axis {
-            "x" => nie_render3d::gizmo::Axis::X,
-            "y" => nie_render3d::gizmo::Axis::Y,
-            "z" => nie_render3d::gizmo::Axis::Z,
-            _ => return Vec::new(),
+        let Some(axe) = axe_depuis(axis) else {
+            return Vec::new();
         };
         self.inner
             .gizmo_drag(axe, from_x, from_y, to_x, to_y)
@@ -167,5 +196,15 @@ impl WebGpuViewer {
             "device": info.device, "surfaceFormat": format!("{:?}", self.inner.surface_format()),
             "readback": false })
         .to_string()
+    }
+}
+
+/// Traduit un nom d'axe vers le type du moteur ; `None` sur un nom inconnu.
+fn axe_depuis(axis: &str) -> Option<nie_render3d::gizmo::Axis> {
+    match axis {
+        "x" => Some(nie_render3d::gizmo::Axis::X),
+        "y" => Some(nie_render3d::gizmo::Axis::Y),
+        "z" => Some(nie_render3d::gizmo::Axis::Z),
+        _ => None,
     }
 }

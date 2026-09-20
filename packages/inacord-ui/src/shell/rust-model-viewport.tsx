@@ -43,6 +43,12 @@ export interface RustSceneViewer extends RustModelViewer {
 	gizmo_axis_at(x: number, y: number): string;
 	/** Déplacement monde `[dx, dy, dz]` entre deux pixels, contraint à l'axe ; vide si aucun. */
 	gizmo_drag(axis: string, fromX: number, fromY: number, toX: number, toY: number): Float32Array | number[];
+	/** Choisit ce que le gizmo manipule : `"translate"`, `"rotate"`, `"scale"`. */
+	set_gizmo_mode(mode: string): void;
+	/** Angle en radians autour de l'axe ; `NaN` quand il est indéterminé. */
+	gizmo_rotate(axis: string, fromX: number, fromY: number, toX: number, toY: number): number;
+	/** Facteur d'échelle le long de l'axe ; `NaN` quand il est indéterminé. */
+	gizmo_scale(axis: string, fromX: number, fromY: number, toX: number, toY: number): number;
 }
 
 /**
@@ -61,7 +67,10 @@ export function isSceneViewer(viewer: RustModelViewer): viewer is RustSceneViewe
 		typeof v.set_wireframe === "function" &&
 		typeof v.select === "function" &&
 		typeof v.gizmo_axis_at === "function" &&
-		typeof v.gizmo_drag === "function"
+		typeof v.gizmo_drag === "function" &&
+		typeof v.set_gizmo_mode === "function" &&
+		typeof v.gizmo_rotate === "function" &&
+		typeof v.gizmo_scale === "function"
 	);
 }
 export type CreateRustModelViewer = (canvas: HTMLCanvasElement) => Promise<RustModelViewer>;

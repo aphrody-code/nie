@@ -53,7 +53,7 @@ pub fn checked_size(width: f64, height: f64, limit: u32) -> Result<(u32, u32)> {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub use browser::WebViewer;
+pub use browser::{GizmoMode, WebViewer};
 
 #[cfg(target_arch = "wasm32")]
 mod browser {
@@ -76,6 +76,21 @@ mod browser {
 
     /// Hôte WebGPU d'un modèle NIE. Aucun événement DOM ni requestAnimationFrame installé.
     /// La destruction libère le device dédié ; après perte GPU il faut recréer l'hôte.
+    /// Ce que le gizmo manipule.
+    ///
+    /// L'échelle réutilise les poignées d'axe de la translation : le geste est le même — éloigner
+    /// ou rapprocher le long d'un axe — et lui donner une géométrie différente obligerait
+    /// l'utilisateur à réapprendre une manipulation qu'il connaît.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum GizmoMode {
+        /// Poignées d'axe, déplacement contraint.
+        Translate,
+        /// Anneaux, rotation autour d'un axe.
+        Rotate,
+        /// Poignées d'axe, facteur d'échelle.
+        Scale,
+    }
+
     /// Plafond d'arêtes du fil de fer.
     ///
     /// Un personnage du jeu porte des dizaines de milliers de triangles ; au-delà de ce plafond
@@ -120,6 +135,8 @@ mod browser {
         show_wireframe: bool,
         /// Objet sélectionné, par identifiant de document — celui que `pick` nomme.
         selected: Option<String>,
+        /// Mode du gizmo : translation (poignées d'axe), rotation (anneaux), échelle (poignées).
+        gizmo_mode: GizmoMode,
         /// Origine et longueur de poignée du gizmo dessiné, quand il y en a un.
         ///
         /// Gardées au moment de la composition plutôt que recalculées à l'interaction : deux
@@ -295,6 +312,7 @@ mod browser {
                 show_wireframe: false,
                 selected: None,
                 gizmo: None,
+                gizmo_mode: GizmoMode::Translate,
                 fault,
             })
         }
@@ -525,7 +543,12 @@ mod browser {
                 // Retenues pour l'interaction : le test de poignée et le glissement doivent viser
                 // EXACTEMENT ce qui est dessiné, sinon l'utilisateur attrape à côté de ce qu'il voit.
                 self.gizmo = Some((centre, longueur));
-                segments.extend(crate::gizmo::handles(centre, longueur));
+                segments.extend(match self.gizmo_mode {
+                    GizmoMode::Rotate => crate::gizmo::rotation_handles(centre, longueur),
+                    GizmoMode::Translate | GizmoMode::Scale => {
+                        crate::gizmo::handles(centre, longueur)
+                    }
+                });
             }
 
             if self.selected.is_none() {
@@ -595,6 +618,44 @@ mod browser {
             let (origine, longueur) = self.gizmo?;
             let ray = self.ray_at(x, y)?;
             crate::gizmo::axis_under_ray(origine, longueur, &ray, longueur * 0.12)
+        }
+
+        /// Choisit ce que le gizmo manipule, et redessine ses poignées.
+        pub fn set_gizmo_mode(&mut self, mode: GizmoMode) {
+            self.gizmo_mode = mode;
+            self.rebuild_overlay();
+        }
+
+        /// L'angle de rotation autour de `axis` entre deux pixels, en radians.
+        #[must_use]
+        pub fn gizmo_rotate(
+            &self,
+            axis: crate::gizmo::Axis,
+            from_x: f32,
+            from_y: f32,
+            to_x: f32,
+            to_y: f32,
+        ) -> Option<f32> {
+            let (origine, _) = self.gizmo?;
+            let depart = self.ray_at(from_x, from_y)?;
+            let courant = self.ray_at(to_x, to_y)?;
+            crate::gizmo::rotate_around_axis(origine, axis, &depart, &courant)
+        }
+
+        /// Le facteur d'échelle le long de `axis` entre deux pixels.
+        #[must_use]
+        pub fn gizmo_scale(
+            &self,
+            axis: crate::gizmo::Axis,
+            from_x: f32,
+            from_y: f32,
+            to_x: f32,
+            to_y: f32,
+        ) -> Option<f32> {
+            let (origine, _) = self.gizmo?;
+            let depart = self.ray_at(from_x, from_y)?;
+            let courant = self.ray_at(to_x, to_y)?;
+            crate::gizmo::scale_along_axis(origine, axis, &depart, &courant)
         }
 
         /// Le déplacement monde entre deux pixels, contraint à `axis`.
