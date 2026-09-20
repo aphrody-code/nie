@@ -30,6 +30,7 @@ function fakeSceneViewer() {
 		set_gizmo_mode: mock((_m: string) => {}),
 		gizmo_rotate: mock((_a: string, _fx: number, _fy: number, _tx: number, _ty: number) => Number.NaN),
 		gizmo_scale: mock((_a: string, _fx: number, _fy: number, _tx: number, _ty: number) => Number.NaN),
+		scene_stats_json: mock(() => "[]"),
 	};
 }
 
@@ -162,7 +163,7 @@ test("un clic sur le fond désélectionne", async () => {
 /** Un clic sur un objet rend son identifiant de document. */
 test("un clic sur un objet rend son identifiant", async () => {
 	const viewer = fakeSceneViewer();
-	viewer.pick_json = mock(() => JSON.stringify({ owner: "a.glb#0" }));
+	viewer.pick_json = mock(() => JSON.stringify({ object: "a.glb#0" }));
 	const choisis: (string | null)[] = [];
 	await monter(viewer, { onSelect: (id: string | null) => choisis.push(id) });
 	await act(async () => {
@@ -288,4 +289,59 @@ test("relâcher le gizmo ne désélectionne pas", async () => {
 		canvas?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 	});
 	expect(choisis).toHaveLength(0);
+});
+
+/** La clé du JSON de picking est `object` — une faute de nom désélectionnerait en silence. */
+test("le picking lit la clé `object` et non une autre", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.pick_json = mock(() => JSON.stringify({ owner: "mauvaise-cle", object: "a.glb#2" }));
+	const choisis: (string | null)[] = [];
+	await monter(viewer, { onSelect: (id: string | null) => choisis.push(id) });
+	await act(async () => {
+		container.querySelector("canvas")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+	});
+	expect(choisis).toEqual(["a.glb#2"]);
+});
+
+/** Les comptes de l'outliner viennent de la géométrie téléversée, pas du document. */
+test("les triangles par objet remontent à l'outliner", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.scene_stats_json = mock(() =>
+		JSON.stringify([
+			{ object: "a.glb#0", triangles: 120, vertices: 300 },
+			{ object: "b.glb#1", triangles: 40, vertices: 90 },
+		]),
+	);
+	let noeuds: { id: string; triangles: number }[] = [];
+	let total = { meshes: 0, triangles: 0, vertices: 0, materials: 0 };
+	await monter(viewer, {
+		assets: [
+			{ key: "a.glb", glbB64: "AAA" },
+			{ key: "b.glb", glbB64: "BBB" },
+		],
+		onSceneLoaded: (n: typeof noeuds, s: typeof total) => {
+			noeuds = n;
+			total = s;
+		},
+	});
+	expect(noeuds.map((n) => n.triangles)).toEqual([120, 40]);
+	expect(total.triangles).toBe(160);
+	expect(total.vertices).toBe(390);
+});
+
+/** Des statistiques illisibles n'empêchent PAS la scène de s'afficher. */
+test("des statistiques illisibles ne font pas échouer le chargement", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.scene_stats_json = mock(() => "pas du json");
+	let noeuds: { triangles: number }[] = [];
+	await monter(viewer, {
+		assets: [{ key: "a.glb", glbB64: "AAA" }],
+		onSceneLoaded: (n: typeof noeuds) => {
+			noeuds = n;
+		},
+	});
+	expect(viewer.load_scene).toHaveBeenCalled();
+	expect(noeuds).toHaveLength(1);
+	expect(noeuds[0]?.triangles).toBe(0);
+	expect(container.textContent).not.toContain("json");
 });

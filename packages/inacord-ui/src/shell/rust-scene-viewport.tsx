@@ -167,6 +167,30 @@ export function RustSceneViewport({
 				visible: true,
 			}));
 			viewer.load_scene(JSON.stringify({ version: 2, objects }));
+			// Les comptes viennent de la géométrie RÉELLEMENT téléversée, pas du document : un
+			// objet dont l'asset n'a pas résolu n'y figure pas, et un outliner qui afficherait
+			// zéro partout se lirait comme une scène vide plutôt que comme une statistique
+			// manquante.
+			const parObjet = new Map<string, { triangles: number; vertices: number }>();
+			try {
+				const stats = JSON.parse(viewer.scene_stats_json()) as {
+					object: string;
+					triangles: number;
+					vertices: number;
+				}[];
+				for (const s of stats) {
+					parObjet.set(s.object, { triangles: s.triangles, vertices: s.vertices });
+				}
+			} catch {
+				// Statistiques illisibles : la scène est affichée, l'outliner montrera zéro. Ne
+				// pas faire échouer le chargement pour un compte.
+			}
+			let triangles = 0;
+			let vertices = 0;
+			for (const v of parObjet.values()) {
+				triangles += v.triangles;
+				vertices += v.vertices;
+			}
 			onSceneLoaded?.(
 				objects.map((o, depth) => ({
 					id: o.id,
@@ -174,9 +198,9 @@ export function RustSceneViewport({
 					name: o.name,
 					type: "Mesh",
 					depth: depth === 0 ? 0 : 1,
-					triangles: 0,
+					triangles: parObjet.get(o.id)?.triangles ?? 0,
 				})),
-				{ meshes: objects.length, triangles: 0, vertices: 0, materials: 0 },
+				{ meshes: objects.length, triangles, vertices, materials: 0 },
 			);
 			setError(null);
 		} catch (cause: unknown) {
@@ -304,8 +328,11 @@ export function RustSceneViewport({
 				return;
 			}
 			try {
-				const parsed = JSON.parse(hit) as { owner?: string };
-				onSelect(parsed.owner ?? null);
+				// La clé est `object`, celle que `WebViewer::pick_json` écrit. Une faute de nom ici
+				// ne casse rien de visible : le JSON se lit, le champ est `undefined`, et le clic
+				// désélectionne silencieusement — un éditeur où rien ne se sélectionne jamais.
+				const parsed = JSON.parse(hit) as { object?: string };
+				onSelect(parsed.object ?? null);
 			} catch {
 				onSelect(null);
 			}

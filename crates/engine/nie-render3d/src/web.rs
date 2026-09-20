@@ -725,6 +725,50 @@ mod browser {
             })
         }
 
+        /// Statistiques par objet de la scène chargée, en JSON.
+        ///
+        /// Rend un tableau de `{ object, triangles, vertices }`, dans l'ordre du document.
+        /// L'outliner d'un éditeur affiche ce compte par nœud ; sans lui il montre zéro partout,
+        /// ce qui se lit comme une scène vide plutôt que comme une statistique manquante.
+        ///
+        /// Les comptes viennent de la géométrie RÉELLEMENT téléversée, après composition : un
+        /// objet dont l'asset n'a pas résolu n'y figure pas, et c'est l'information utile.
+        #[must_use]
+        pub fn scene_stats_json(&self) -> String {
+            let Some(model) = self.pickable.as_ref() else {
+                return "[]".to_owned();
+            };
+            // Un objet peut porter PLUSIEURS primitives : agréger par propriétaire, en gardant
+            // l'ordre de première apparition, qui est celui du document.
+            let mut ordre: Vec<&str> = Vec::new();
+            let mut totaux: std::collections::BTreeMap<&str, (usize, usize)> =
+                std::collections::BTreeMap::new();
+            for (i, prim) in model.primitives.iter().enumerate() {
+                let Some(owner) = self.owners.get(i).map(String::as_str) else {
+                    continue;
+                };
+                if !totaux.contains_key(owner) {
+                    ordre.push(owner);
+                }
+                let entree = totaux.entry(owner).or_insert((0, 0));
+                entree.0 += prim.indices.len() / 3;
+                entree.1 += prim.positions.len();
+            }
+            let lignes: Vec<serde_json::Value> = ordre
+                .into_iter()
+                .filter_map(|owner| {
+                    totaux.get(owner).map(|(tris, verts)| {
+                        serde_json::json!({
+                            "object": owner,
+                            "triangles": tris,
+                            "vertices": verts,
+                        })
+                    })
+                })
+                .collect();
+            serde_json::Value::Array(lignes).to_string()
+        }
+
         /// Règle la caméra absolue (radians, distance en rayons), sans dessiner.
         pub fn orbit(&mut self, yaw: f32, pitch: f32, distance: f32) -> Result<()> {
             self.camera = checked_camera(yaw, pitch, distance)?;

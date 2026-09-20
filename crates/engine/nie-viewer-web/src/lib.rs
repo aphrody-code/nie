@@ -102,6 +102,12 @@ impl ModelViewer {
         self.inner.set_grid(visible);
     }
 
+    /// Statistiques par objet de la scène : `[{ object, triangles, vertices }]` en JSON.
+    #[must_use]
+    pub fn scene_stats_json(&self) -> String {
+        self.inner.scene_stats_json()
+    }
+
     /// Choisit ce que le gizmo manipule : `"translate"`, `"rotate"`, `"scale"`.
     ///
     /// Un nom inconnu retombe sur la translation plutôt que de désactiver le gizmo : un outil qui
