@@ -405,6 +405,8 @@ declarer_routes! {
     "/api/v1/ut/valuation" => crate::routes::ut::contract_valuation,
     "/api/v1/ut/team/encrypt" => crate::routes::ut::contract_encrypt_team,
     "/api/v1/ut/team/decrypt" => crate::routes::ut::contract_decrypt_team,
+    "/api/v1/ut/uniforms" => crate::routes::ut::get_uniforms,
+    "/api/v1/ut/stadiums" => crate::routes::ut::get_stadiums,
     "/" => crate::routes::pages::coquille,
 }
 
@@ -649,7 +651,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 156, "156 routes mounted");
+        assert_eq!(routes.len(), 163, "163 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

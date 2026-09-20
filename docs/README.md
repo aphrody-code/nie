@@ -68,6 +68,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`IEVR-SAVE-EDITOR-PORT.md`](IEVR-SAVE-EDITOR-PORT.md) | Reverse engineering and native Rust port of the Save Editor (v2.2.2, .NET 9): 33 memory hooks, 142 Spirit Cards, 1 299 Supertechniques. |
 | [`IEVR-ULTIMATE-TEAM.md`](IEVR-ULTIMATE-TEAM.md) | Full native port of IEVR Ultimate Team: Supabase mirror (497 players, 69 teams, 8 packs), 663 assets (28 MB), pack simulator, 2D formation placement (9 canonical + dynamic algorithm A), AES-256-GCM, EAC bypass and MCP. |
 | [`NIE-ONLINE-MODE.md`](NIE-ONLINE-MODE.md) | The reversed network subsystem of `nie.exe` (Level-5 / Epic Online Services) and the `nie-net` community multiplayer architecture. |
+| [`esport/`](esport/) | Inazuma Eleven VR e-sport & competitive specification: 11 rank tiers, directional ELO, dynamic matchmaking, double validation, tournaments and clans. |
 | [`ASTRO-LOR.md`](ASTRO-LOR.md) | Astro Lor, an **original** character: present in no CPK, produced entirely here. |
 | [`EXPORT-APP.md`](EXPORT-APP.md) | The app-icon export tool: 30 000+ files to WebP + zstd in one archive. |
 | [`BXC-NATIVE.md`](BXC-NATIVE.md) | Why the BXC browser engine stays consumed from npm while `ietv`/`zukan`/`wonderbot` stay here. |

@@ -42,6 +42,64 @@ pub struct UtPlayer {
     pub weight: f64,
     /// Legendary tier classification ("Elite", "Supremo", etc.).
     pub legendary_tier: Option<String>,
+    /// Optional English name from Azalée mirror.
+    #[serde(default)]
+    pub name_en: Option<String>,
+    /// Optional Japanese name from Azalée mirror.
+    #[serde(default)]
+    pub name_ja: Option<String>,
+    /// Internal character code (e.g. "c01000010").
+    #[serde(default)]
+    pub internal_code: Option<String>,
+    /// Total stat point sum.
+    #[serde(default)]
+    pub stat_total: Option<u32>,
+}
+
+/// Special move from Azalée mirror database (`inagle_skills`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UtSkillRecord {
+    pub id: String,
+    pub name_fr: String,
+    pub name_en: Option<String>,
+    pub name_ja: Option<String>,
+    pub category: String,
+    pub element: String,
+    pub tp_cost: u32,
+    pub power_min: u32,
+    pub power_max: u32,
+    pub tension_cost: Option<u32>,
+}
+
+/// Team uniform from Azalée mirror database (`inagle_uniforms`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UtUniformRecord {
+    pub id: String,
+    pub name_fr: String,
+    pub name_en: Option<String>,
+    pub name_ja: Option<String>,
+    pub category: Option<String>,
+    pub image_url: Option<String>,
+}
+
+/// Stadium from Azalée mirror database (`inagle_stadiums`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UtStadiumRecord {
+    pub id: String,
+    pub name_fr: String,
+    pub name_en: Option<String>,
+    pub name_ja: Option<String>,
+    pub image_url: Option<String>,
+}
+
+/// Formation from Azalée mirror database (`inagle_formations`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UtFormationRecord {
+    pub id: String,
+    pub name_fr: String,
+    pub name_en: Option<String>,
+    pub name_ja: Option<String>,
+    pub slug: Option<String>,
 }
 
 impl UtPlayer {
@@ -498,6 +556,10 @@ pub fn open_pack(
                 nickname: Some("Chameleon".into()),
                 weight: 1.0,
                 legendary_tier: None,
+                name_en: None,
+                name_ja: None,
+                internal_code: None,
+                stat_total: None,
             }
         };
 
@@ -586,6 +648,7 @@ pub fn calculate_squad_valuation(
 pub struct UtDatabase {
     conn: Connection,
     path: PathBuf,
+    has_azalee: bool,
 }
 
 impl UtDatabase {
@@ -612,7 +675,8 @@ impl UtDatabase {
         )))
     }
 
-    /// Open a connection to an explicit database file path.
+    /// Open a connection to an explicit database file path, automatically attaching
+    /// Azalée's complete mirror database (`var/mirror.sqlite`) if present.
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open_with_flags(
             path,
@@ -620,9 +684,27 @@ impl UtDatabase {
         )
         .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
 
+        let mirror_candidates = [
+            "var/mirror.sqlite",
+            "var/miroir/inagle-2026-09-19T18-50-15.sqlite",
+            "../var/mirror.sqlite",
+            "../../var/mirror.sqlite",
+        ];
+        let mut has_azalee = false;
+        for mc in &mirror_candidates {
+            if Path::new(mc).exists() {
+                let attach_sql = format!("ATTACH DATABASE 'file:{}?mode=ro' AS azalee", mc);
+                if conn.execute_batch(&attach_sql).is_ok() {
+                    has_azalee = true;
+                    break;
+                }
+            }
+        }
+
         Ok(Self {
             conn,
             path: path.to_path_buf(),
+            has_azalee,
         })
     }
 
@@ -631,8 +713,17 @@ impl UtDatabase {
         &self.path
     }
 
-    /// Load all players from the `jugadores` table.
+    /// Returns true if the Azalée mirror database was successfully attached.
+    pub fn has_azalee(&self) -> bool {
+        self.has_azalee
+    }
+
+    /// Load all players fusing FUT (`jugadores`) and Azalée mirror (`inagle_characters`).
     pub fn get_players(&self) -> Result<Vec<UtPlayer>> {
+        let mut players = Vec::new();
+        let mut seen_names = std::collections::HashSet::new();
+
+        // 1. Load from core FUT table `jugadores`
         let mut stmt = self
             .conn
             .prepare("SELECT id, nombre, elemento, posicion, equipo_id, foto_url, rareza, juego, apodo, peso, nivel_legendario FROM jugadores")
@@ -652,14 +743,116 @@ impl UtDatabase {
                     nickname: row.get(8)?,
                     weight: row.get::<_, Option<f64>>(9)?.unwrap_or(1.0),
                     legendary_tier: row.get(10)?,
+                    name_en: None,
+                    name_ja: None,
+                    internal_code: None,
+                    stat_total: None,
                 })
             })
             .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
 
-        let mut players = Vec::new();
         for p in rows.flatten() {
+            seen_names.insert(p.name.trim().to_lowercase());
             players.push(p);
         }
+
+        // 2. If Azalée mirror is attached, fuse inagle_characters!
+        if self.has_azalee
+            && let Ok(mut stmt_az) = self.conn.prepare(
+                "SELECT id, chara_id, internal_code, name_fr, name_en, name_ja, element, position, rarity_label, image_url, stat_total, hero_type, nickname, series
+                 FROM azalee.inagle_characters
+                 WHERE name_fr IS NOT NULL AND name_fr != '' AND name_fr != '\\N'",
+            )
+        {
+            let az_rows = stmt_az.query_map([], |row| {
+                    let id: String = row.get(0)?;
+                    let _chara_id: Option<String> = row.get(1)?;
+                    let internal_code: Option<String> = row.get(2)?;
+                    let name_fr: String = row.get(3)?;
+                    let name_en: Option<String> = row.get(4)?;
+                    let name_ja: Option<String> = row.get(5)?;
+                    let el_raw: Option<String> = row.get(6)?;
+                    let pos_raw: Option<String> = row.get(7)?;
+                    let rar_raw: Option<String> = row.get(8)?;
+                    let img_url: Option<String> = row.get(9)?;
+                    let stat_total_str: Option<String> = row.get(10)?;
+                    let _hero_type: Option<String> = row.get(11)?;
+                    let nickname: Option<String> = row.get(12)?;
+                    let series: Option<String> = row.get(13)?;
+
+                    let element = match el_raw.as_deref() {
+                        Some("Feu") => "Fuego".into(),
+                        Some("Vent") | Some("Air") => "Aire".into(),
+                        Some("Montagne") | Some("Terre") => "Montaña".into(),
+                        Some("Bois") | Some("Forêt") => "Bosque".into(),
+                        Some(other) => other.to_string(),
+                        None => "Fuego".into(),
+                    };
+
+                    let position = match pos_raw.as_deref() {
+                        Some("Gardien") => "POR".into(),
+                        Some("Défenseur") => "DF".into(),
+                        Some("Milieu") => "MC".into(),
+                        Some("Attaquant") => "DL".into(),
+                        Some(other) => other.to_string(),
+                        None => "DL".into(),
+                    };
+
+                    let rarity = match rar_raw.as_deref() {
+                        Some("Basara") => "Basara".into(),
+                        Some("Icône") | Some("Icon") => "Ícono".into(),
+                        Some("Légendaire") | Some("Legendaire") => "Legendario".into(),
+                        Some("Rare") => "Raro".into(),
+                        _ => "Común".into(),
+                    };
+
+                    let stat_total: Option<u32> = stat_total_str.and_then(|s| s.parse().ok());
+                    let legendary_tier = if rarity == "Legendario" {
+                        if stat_total.unwrap_or(0) >= 500 {
+                            Some("Supremo".into())
+                        } else {
+                            Some("Elite".into())
+                        }
+                    } else {
+                        None
+                    };
+
+                    let foto_url = img_url.filter(|u| u != "\\N" && !u.is_empty())
+                        .or_else(|| internal_code.as_ref().map(|code| format!("/api/v1/asset/chara/{code}/portrait.webp")));
+
+                    let nick = nickname.filter(|n| n != "\\N" && !n.is_empty());
+                    let game = series.filter(|s| s != "\\N" && !s.is_empty());
+
+                    Ok(UtPlayer {
+                        id,
+                        name: name_fr,
+                        element,
+                        position,
+                        team_id: "inazuma_all_stars".into(),
+                        foto_url,
+                        rarity,
+                        game,
+                        nickname: nick,
+                        weight: 1.0,
+                        legendary_tier,
+                        name_en: name_en.filter(|s| s != "\\N" && !s.is_empty()),
+                        name_ja: name_ja.filter(|s| s != "\\N" && !s.is_empty()),
+                        internal_code: internal_code.filter(|s| s != "\\N" && !s.is_empty()),
+                        stat_total,
+                    })
+                });
+
+                if let Ok(iter) = az_rows {
+                    for p in iter.flatten() {
+                        let norm = p.name.trim().to_lowercase();
+                        if !seen_names.contains(&norm) {
+                            seen_names.insert(norm);
+                            players.push(p);
+                        }
+                    }
+                }
+            }
+
         Ok(players)
     }
 
@@ -682,7 +875,14 @@ impl UtDatabase {
                 if let Some(ref q_str) = q {
                     let name_norm = normalize_name(&p.name);
                     let nick_norm = p.nickname.as_deref().map(normalize_name).unwrap_or_default();
-                    if !name_norm.contains(q_str) && !nick_norm.contains(q_str) && !p.id.contains(q_str) {
+                    let en_norm = p.name_en.as_deref().map(normalize_name).unwrap_or_default();
+                    let ja_norm = p.name_ja.as_deref().map(normalize_name).unwrap_or_default();
+                    if !name_norm.contains(q_str)
+                        && !nick_norm.contains(q_str)
+                        && !en_norm.contains(q_str)
+                        && !ja_norm.contains(q_str)
+                        && !p.id.contains(q_str)
+                    {
                         return false;
                     }
                 }
@@ -743,8 +943,11 @@ impl UtDatabase {
         Ok(packs.into_iter().find(|p| p.id == id))
     }
 
-    /// Load all teams from the `equipos` table.
+    /// Load all teams fusing FUT (`equipos`) and Azalée mirror (`inagle_teams`).
     pub fn get_teams(&self) -> Result<Vec<UtTeam>> {
+        let mut teams = Vec::new();
+        let mut seen_team_names = std::collections::HashSet::new();
+
         let mut stmt = self
             .conn
             .prepare("SELECT id, nombre, escudo_url, emblem_id, juego, en, fr FROM equipos")
@@ -764,11 +967,202 @@ impl UtDatabase {
             })
             .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
 
-        let mut teams = Vec::new();
         for t in rows.flatten() {
+            seen_team_names.insert(t.name.trim().to_lowercase());
             teams.push(t);
         }
+
+        if self.has_azalee
+            && let Ok(mut stmt_az) = self.conn.prepare(
+                "SELECT id, name_fr, name_en, name_ja, emblem_url, series
+                 FROM azalee.inagle_teams
+                 WHERE name_fr IS NOT NULL AND name_fr != '' AND name_fr != '\\N'",
+            )
+        {
+            let az_rows = stmt_az.query_map([], |row| {
+                let id: String = row.get(0)?;
+                let name_fr: String = row.get(1)?;
+                let name_en: Option<String> = row.get(2)?;
+                let _name_ja: Option<String> = row.get(3)?;
+                let emblem_url: Option<String> = row.get(4)?;
+                let series: Option<String> = row.get(5)?;
+
+                let emblem_id = if id.starts_with("0x") || id.starts_with("0X") {
+                    u32::from_str_radix(&id[2..], 16).ok()
+                } else {
+                    id.parse().ok()
+                };
+
+                Ok(UtTeam {
+                    id,
+                    name: name_fr.clone(),
+                    emblem_url: emblem_url.filter(|u| u != "\\N" && !u.is_empty()),
+                    emblem_id,
+                    game: series.filter(|s| s != "\\N" && !s.is_empty()),
+                    name_en: name_en.filter(|s| s != "\\N" && !s.is_empty()),
+                    name_fr: Some(name_fr),
+                })
+            });
+
+            if let Ok(iter) = az_rows {
+                for t in iter.flatten() {
+                    let norm = t.name.trim().to_lowercase();
+                    if !seen_team_names.contains(&norm) {
+                        seen_team_names.insert(norm);
+                        teams.push(t);
+                    }
+                }
+            }
+        }
+
         Ok(teams)
+    }
+
+    /// Load special moves from Azalée mirror (`inagle_skills`).
+    pub fn get_skills(&self, category: Option<&str>, limit: usize) -> Result<Vec<UtSkillRecord>> {
+        if !self.has_azalee {
+            return Ok(Vec::new());
+        }
+
+        let sql = "SELECT id, name_fr, name_en, name_ja, category, element, tp_cost, power_min, power_max, tension_cost
+                   FROM azalee.inagle_skills
+                   WHERE name_fr IS NOT NULL AND name_fr != '' AND name_fr != '\\N'";
+
+        let mut stmt = self
+            .conn
+            .prepare(sql)
+            .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
+
+        let cat_norm = category.map(normalize_name);
+        let rows = stmt
+            .query_map([], |row| {
+                let id: String = row.get(0)?;
+                let name_fr: String = row.get(1)?;
+                let name_en: Option<String> = row.get(2)?;
+                let name_ja: Option<String> = row.get(3)?;
+                let category: String = row.get::<_, Option<String>>(4)?.unwrap_or_else(|| "Tir".into());
+                let element: String = row.get::<_, Option<String>>(5)?.unwrap_or_else(|| "Feu".into());
+                let tp_str: Option<String> = row.get(6)?;
+                let p_min_str: Option<String> = row.get(7)?;
+                let p_max_str: Option<String> = row.get(8)?;
+                let tension_str: Option<String> = row.get(9)?;
+
+                Ok(UtSkillRecord {
+                    id,
+                    name_fr,
+                    name_en: name_en.filter(|s| s != "\\N" && !s.is_empty()),
+                    name_ja: name_ja.filter(|s| s != "\\N" && !s.is_empty()),
+                    category,
+                    element,
+                    tp_cost: tp_str.and_then(|s| s.parse().ok()).unwrap_or(40),
+                    power_min: p_min_str.and_then(|s| s.parse().ok()).unwrap_or(100),
+                    power_max: p_max_str.and_then(|s| s.parse().ok()).unwrap_or(500),
+                    tension_cost: tension_str.and_then(|s| s.parse().ok()),
+                })
+            })
+            .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
+
+        let mut skills = Vec::new();
+        for s in rows.flatten() {
+            if let Some(ref cat) = cat_norm
+                && !normalize_name(&s.category).contains(cat)
+            {
+                continue;
+            }
+            skills.push(s);
+            if skills.len() >= limit {
+                break;
+            }
+        }
+        Ok(skills)
+    }
+
+    /// Load uniforms from Azalée mirror (`inagle_uniforms`).
+    pub fn get_uniforms(&self, limit: usize) -> Result<Vec<UtUniformRecord>> {
+        if !self.has_azalee {
+            return Ok(Vec::new());
+        }
+
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, name_fr, name_en, name_ja, category, image_url
+                 FROM azalee.inagle_uniforms
+                 WHERE name_fr IS NOT NULL AND name_fr != '' AND name_fr != '\\N'",
+            )
+            .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let id: String = row.get(0)?;
+                let name_fr: String = row.get(1)?;
+                let name_en: Option<String> = row.get(2)?;
+                let name_ja: Option<String> = row.get(3)?;
+                let category: Option<String> = row.get(4)?;
+                let image_url: Option<String> = row.get(5)?;
+
+                Ok(UtUniformRecord {
+                    id,
+                    name_fr,
+                    name_en: name_en.filter(|s| s != "\\N" && !s.is_empty()),
+                    name_ja: name_ja.filter(|s| s != "\\N" && !s.is_empty()),
+                    category: category.filter(|s| s != "\\N" && !s.is_empty()),
+                    image_url: image_url.filter(|s| s != "\\N" && !s.is_empty()),
+                })
+            })
+            .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
+
+        let mut list = Vec::new();
+        for u in rows.flatten() {
+            list.push(u);
+            if list.len() >= limit {
+                break;
+            }
+        }
+        Ok(list)
+    }
+
+    /// Load stadiums from Azalée mirror (`inagle_stadiums`).
+    pub fn get_stadiums(&self, limit: usize) -> Result<Vec<UtStadiumRecord>> {
+        if !self.has_azalee {
+            return Ok(Vec::new());
+        }
+
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, name_fr, name_en, name_ja, image_url
+                 FROM azalee.inagle_stadiums
+                 WHERE name_fr IS NOT NULL AND name_fr != '' AND name_fr != '\\N'",
+            )
+            .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let id: String = row.get(0)?;
+                let name_fr: String = row.get(1)?;
+                let name_en: Option<String> = row.get(2)?;
+                let name_ja: Option<String> = row.get(3)?;
+                let image_url: Option<String> = row.get(4)?;
+
+                Ok(UtStadiumRecord {
+                    id,
+                    name_fr,
+                    name_en: name_en.filter(|s| s != "\\N" && !s.is_empty()),
+                    name_ja: name_ja.filter(|s| s != "\\N" && !s.is_empty()),
+                    image_url: image_url.filter(|s| s != "\\N" && !s.is_empty()),
+                })
+            })
+            .map_err(|e| LauncherError::Io(std::io::Error::other(e)))?;
+
+        let mut list = Vec::new();
+        for s in rows.flatten() {
+            list.push(s);
+            if list.len() >= limit {
+                break;
+            }
+        }
+        Ok(list)
     }
 }
 
@@ -837,6 +1231,10 @@ mod tests {
                 nickname: Some("Endo".into()),
                 weight: 1.0,
                 legendary_tier: None,
+                name_en: None,
+                name_ja: None,
+                internal_code: None,
+                stat_total: None,
             },
             UtPlayer {
                 id: "2".into(),
@@ -850,6 +1248,10 @@ mod tests {
                 nickname: Some("Kazemaru".into()),
                 weight: 1.0,
                 legendary_tier: None,
+                name_en: None,
+                name_ja: None,
+                internal_code: None,
+                stat_total: None,
             },
         ];
 
@@ -857,5 +1259,18 @@ mod tests {
         let result = open_pack(&pack, &players, &mut rng);
         assert_eq!(result.cards.len(), 3);
         assert!(result.total_quicksell_value > 0);
+    }
+
+    #[test]
+    fn test_fused_ut_database_loads_all_players_and_teams() {
+        if let Ok(db) = UtDatabase::open_default() {
+            let players = db.get_players().expect("failed to load fused players");
+            assert!(players.len() >= 497, "Expected at least 497 players from FUT");
+            if db.has_azalee() {
+                assert!(players.len() > 2000, "Fused database should contain thousands of characters from Azalée");
+                let teams = db.get_teams().expect("failed to load fused teams");
+                assert!(teams.len() > 100, "Fused teams should contain over 100 teams");
+            }
+        }
     }
 }

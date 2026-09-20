@@ -197,6 +197,15 @@ pub async fn get_spirits(Query(query): Query<SpiritSearchQuery>) -> impl IntoRes
 /// `GET /api/v1/ut/moves` — Search special moves (hissatsu).
 pub async fn get_moves(Query(query): Query<SpiritSearchQuery>) -> impl IntoResponse {
     let limit = query.limit.unwrap_or(50).min(200);
+
+    if let Ok(db) = UtDatabase::open_default()
+        && db.has_azalee()
+        && let Ok(mirror_skills) = db.get_skills(query.category.as_deref(), limit)
+        && !mirror_skills.is_empty()
+    {
+        return (StatusCode::OK, Json(mirror_skills)).into_response();
+    }
+
     let moves: Vec<&'static nie_launcher::spirit::SpecialMove> = if let Some(ref q) = query.q {
         search_special_moves(q)
     } else {
@@ -211,6 +220,32 @@ pub async fn get_moves(Query(query): Query<SpiritSearchQuery>) -> impl IntoRespo
 
     let sliced = filtered.into_iter().take(limit).collect::<Vec<_>>();
     (StatusCode::OK, Json(sliced)).into_response()
+}
+
+/// `GET /api/v1/ut/uniforms` — List team uniforms from fused catalogue.
+pub async fn get_uniforms() -> impl IntoResponse {
+    let db = match UtDatabase::open_default() {
+        Ok(db) => db,
+        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open UT database: {e}")).into_response(),
+    };
+
+    match db.get_uniforms(100) {
+        Ok(uniforms) => (StatusCode::OK, Json(uniforms)).into_response(),
+        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to get uniforms: {e}")).into_response(),
+    }
+}
+
+/// `GET /api/v1/ut/stadiums` — List stadiums from fused catalogue.
+pub async fn get_stadiums() -> impl IntoResponse {
+    let db = match UtDatabase::open_default() {
+        Ok(db) => db,
+        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open UT database: {e}")).into_response(),
+    };
+
+    match db.get_stadiums(100) {
+        Ok(stadiums) => (StatusCode::OK, Json(stadiums)).into_response(),
+        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to get stadiums: {e}")).into_response(),
+    }
 }
 
 /// `POST /api/v1/ut/team/encrypt` — Encrypt team lineup to AES-256-GCM envelope.

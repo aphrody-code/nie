@@ -21,6 +21,10 @@ pub const IEVR_STEAM_APP_ID: u32 = 2799860;
 /// Platform-neutral depot selection and manifest collision planning.
 pub mod planning;
 
+/// In-process Steamworks API emulator for decoupled offline/online execution.
+pub mod emulator;
+pub use emulator::{FriendRecord, PersonaState, SteamApiEmulator, SteamLobbyRecord};
+
 #[cfg(feature = "host")]
 pub mod depot_resolver;
 #[cfg(feature = "host")]

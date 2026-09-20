@@ -29,6 +29,7 @@ host = [
 ]
 
 [dependencies]
+nie-net = { workspace = true }
 steamroom = { workspace = true, optional = true }
 steamroom-client = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["rt-multi-thread", "macros", "fs", "sync", "time"] }

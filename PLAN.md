@@ -1599,3 +1599,34 @@ into `niers`:
      - `cargo clippy -p nie-cli -- -D warnings`: 0 warnings, passed.
      - `bun run typecheck`: 23/23 packages passed (0 errors).
      - `bun run --cwd apps/nie-web test`: 291/291 passed (48 files).
+
+9. **Rose Griffon Achillea Competitive E-Sport Port & Steam Emulator Convergence (`nie-net`, `nie-steam`) — (measured 2026-09-20)**:
+   - **Competitive Core Port (`crates/engine/nie-net/src/competitive.rs`)**:
+     - Ported from `rg/apps/achillea-bot/src/services/EloService.ts` and `@achillea/core/elo`.
+     - 11 official rank tiers (Fer to Légendaire) with AP boundaries [0, 2000+].
+     - Progressive directional AP delta calculation (`progressive_elo_delta`) with asymmetric protection in lower tiers (+20/-5 in Fer) and symmetric parity in high tiers (±16 in Divin+).
+     - Player competitive career profiles (`PlayerCompetitiveProfile`) and seasonal ladders (`CompetitiveLadder`).
+   - **Tournaments & Brackets (`crates/engine/nie-net/src/tournament.rs`)**:
+     - Single Elimination, Double Elimination, and Swiss Stage tournament formats.
+     - Circuit points calculation weighted by bracket size (`circuit_size_weight` from 0.5x to 2.0x).
+     - Dense rank tier points attribution (`circuit_points_for_rank`), check-ins, automated round progression.
+   - **Clans & Clubs (`crates/engine/nie-net/src/clans.rs`)**:
+     - Member roles hierarchy (`Member`, `Officer`, `CoLeader`, `Leader`), `[TAG]` formatting validation.
+     - AP contribution aggregation and seasonal clan leaderboards.
+   - **Ranked Matchmaking & Challenges (`crates/engine/nie-net/src/ranked.rs`)**:
+     - `ChallengeStore`: in-memory shareable 8-character base-32 challenge codes (`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`) with 30-min TTL.
+     - Dynamic ELO window expansion (`elo_window`: +50 AP every 5s), pair selection (`select_queue_pair`).
+     - Double-validation score reporting (`resolve_scores`), forfeit timeout resolution, and dispute detection.
+     - Match room state flow (`RankedMatchRoom`) and circular telemetry journal (`RankedTelemetry`).
+   - **Code Convergence (`crates/tools/nie-steam`)**:
+     - Eliminated duplicated DTOs in `nie-steam` by consuming canonical `nie-net` types (`PersonaState`, `SteamFriend`, `InacodeRoomEntry`, `SteamLobbyRecord`).
+   - **Documentation & E-Sport Specifications (`docs/esport/README.md`)**:
+     - Authored official e-sport tournament, ELO and ranked specifications; indexed in `docs/README.md`.
+   - **Automated Verification Gates**:
+     - `cargo clippy -p nie-net --lib --tests -- -D warnings`: 0 warnings, passed.
+     - `cargo test -p nie-net`: 37/37 passed (34 unit + 3 e2e).
+     - `cargo clippy -p nie-steam --bins --tests -- -D warnings`: 0 warnings, passed.
+     - `cargo test -p nie-steam`: 42/42 passed (41 unit + 1 doctest).
+     - `cargo check -p nie-wasm --target wasm32-unknown-unknown --locked`: passed.
+     - `bun run docs:check`: 47/47 indexed, 0 failures, passed.
+     - `bun run --cwd apps/nie-web typecheck`: 0 errors, passed.
