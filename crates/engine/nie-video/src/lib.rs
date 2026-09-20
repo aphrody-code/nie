@@ -274,9 +274,9 @@ impl Encodeur for SousProcessus {
     }
 
     fn finir(mut self: Box<Self>) -> Result<Resume, VideoError> {
-        // Fermer l'entrée est ce qui signale la fin du flux : sans ce `drop`, ffmpeg attend
+        // Fermer l'entrée est ce qui signale la fin du flux : sans ce `take`, ffmpeg attend
         // indéfiniment et `wait` ne rend jamais la main.
-        drop(self.enfant.stdin.take());
+        let _ = self.enfant.stdin.take();
         let status = self
             .enfant
             .wait()

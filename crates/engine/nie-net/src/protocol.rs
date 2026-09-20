@@ -227,6 +227,143 @@ pub struct RoomInfo {
     pub in_match: bool,
 }
 
+/// Player avatar customization data matching `kizuna_town_avatar_menu`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KizunaAvatar {
+    /// Avatar chosen name.
+    pub name: String,
+    /// Gender (0: Male, 1: Female).
+    pub gender: u8,
+    /// Face preset model ID.
+    pub face_id: u32,
+    /// Hair style model ID.
+    pub hair_style: u32,
+    /// RGB hair color.
+    pub hair_color: [u8; 3],
+    /// Skin tone index (0..8).
+    pub skin_tone: u8,
+    /// RGB eye color.
+    pub eye_color: [u8; 3],
+    /// Uniform / kit ID (`inagle_costumes`).
+    pub kit_id: u32,
+    /// Shoes ID (`inagle_items`).
+    pub shoes_id: u32,
+    /// Optional favorite character appearance override (e.g. "c01000010").
+    pub favorite_chara_id: Option<String>,
+    /// Preferred position (GK, DF, MF, FW).
+    pub position: String,
+    /// Elemental affinity (Fire, Wind, Earth, Wood, Void).
+    pub element: String,
+}
+
+impl Default for KizunaAvatar {
+    fn default() -> Self {
+        Self {
+            name: "Joueur".to_string(),
+            gender: 0,
+            face_id: 1,
+            hair_style: 1,
+            hair_color: [40, 40, 40],
+            skin_tone: 1,
+            eye_color: [20, 20, 20],
+            kit_id: 1,
+            shoes_id: 1,
+            favorite_chara_id: None,
+            position: "FW".to_string(),
+            element: "Fire".to_string(),
+        }
+    }
+}
+
+/// Object placed in Kizuna Town (`kizuna_items`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlacedTownObject {
+    /// Unique placed instance identifier.
+    pub instance_id: String,
+    /// Item ID from `kizuna_items` (trees, benches, monuments, pitches).
+    pub item_id: u32,
+    /// World position (X, Y, Z).
+    pub position: [f32; 3],
+    /// Yaw orientation in radians.
+    pub yaw: f32,
+}
+
+/// Recruited character placed in Kizuna Town (`inagle_characters`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlacedTownCharacter {
+    /// Placed character instance identifier.
+    pub instance_id: String,
+    /// Character ID from game data (e.g. "c01000010").
+    pub chara_id: String,
+    /// Character display name.
+    pub name: String,
+    /// World position (X, Y, Z).
+    pub position: [f32; 3],
+    /// Yaw orientation in radians.
+    pub yaw: f32,
+    /// Custom greeting text.
+    pub greeting: String,
+}
+
+/// Ultimate Team summary for a player in the multiplayer universe.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct UtSquadSummary {
+    /// Team name.
+    pub team_name: String,
+    /// Team rating (e.g. 88).
+    pub rating: u32,
+    /// Team chemistry (0..100).
+    pub chemistry: u32,
+    /// Formation name (e.g. "4-3-3").
+    pub formation: String,
+    /// Captain display name.
+    pub captain_name: String,
+    /// Captain rarity (Común, Raro, Legendario, Ícono, Basara).
+    pub captain_rarity: String,
+    /// Star player names in the squad.
+    #[serde(default)]
+    pub star_players: Vec<String>,
+}
+
+/// Active player visiting a Kizuna Town instance.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TownVisitor {
+    /// Player network ID.
+    pub player_id: String,
+    /// Player display name.
+    pub player_name: String,
+    /// Customized avatar.
+    pub avatar: KizunaAvatar,
+    /// Optional Ultimate Team squad summary.
+    #[serde(default)]
+    pub ut_squad: Option<UtSquadSummary>,
+    /// Current world position.
+    pub position: [f32; 3],
+    /// Current movement velocity.
+    pub velocity: [f32; 3],
+    /// Orientation yaw in radians.
+    pub yaw: f32,
+    /// Active stamp/emote ID if currently emoting.
+    pub active_emote: Option<u32>,
+}
+
+/// Snapshot of a Kizuna Town state synchronized with visitors.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KizunaTownSnapshot {
+    /// Town owner player ID.
+    pub owner_id: String,
+    /// Town owner name.
+    pub owner_name: String,
+    /// Town display name.
+    pub town_name: String,
+    /// Placed decorations and buildings.
+    pub objects: Vec<PlacedTownObject>,
+    /// Placed recruited characters.
+    pub characters: Vec<PlacedTownCharacter>,
+    /// Connected visiting players in the town instance.
+    pub visitors: Vec<TownVisitor>,
+}
+
 /// Wire protocol messages exchanged between clients and the nie-net server.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload")]
@@ -267,6 +404,13 @@ pub enum NetMessage {
     RoomLeft { reason: String },
     /// Toggle player ready state.
     SetReady { ready: bool },
+    /// Client enqueues for automatic matchmaking.
+    QueueMatch {
+        mode: MatchMode,
+        rank_points: u32,
+    },
+    /// Client cancels active matchmaking queue.
+    CancelQueue,
     /// Match countdown / start signal broadcast to room.
     MatchStart {
         match_id: String,
@@ -310,6 +454,75 @@ pub enum NetMessage {
         seq: u64,
         client_time_ms: u64,
         server_time_ms: u64,
+    },
+    // --- Kizuna Town & Avatar Protocols ---
+    /// Updates player's custom avatar.
+    UpdateAvatar { avatar: KizunaAvatar },
+    /// Client requests to join a Kizuna Town (own town if town_owner_id is None).
+    JoinKizunaTown { town_owner_id: Option<String> },
+    /// Full snapshot of Kizuna Town synchronized upon entering.
+    KizunaTownSnapshotSync { snapshot: KizunaTownSnapshot },
+    /// Client sends local avatar movement in Kizuna Town.
+    TownMove {
+        position: [f32; 3],
+        velocity: [f32; 3],
+        yaw: f32,
+    },
+    /// Server broadcasts visitor movement update to all visitors in town.
+    TownMoveSync {
+        player_id: String,
+        position: [f32; 3],
+        velocity: [f32; 3],
+        yaw: f32,
+    },
+    /// Client activates a social stamp / emote.
+    TownEmote { stamp_id: u32 },
+    /// Server broadcasts visitor emote to town.
+    TownEmoteSync { player_id: String, stamp_id: u32 },
+    /// Client sends a chat message in Kizuna Town.
+    TownChat { message: String },
+    /// Server broadcasts chat message in Kizuna Town.
+    TownChatSync {
+        player_id: String,
+        sender_name: String,
+        message: String,
+    },
+    /// Client places an object in their Kizuna Town.
+    TownPlaceObject { object: PlacedTownObject },
+    /// Server confirms object placement in Kizuna Town.
+    TownObjectPlaced { instance_id: String },
+    /// Client removes an object in their Kizuna Town.
+    TownRemoveObject { instance_id: String },
+    /// Client places a character in their Kizuna Town.
+    TownPlaceCharacter { character: PlacedTownCharacter },
+    /// Server confirms character placement in Kizuna Town.
+    TownCharacterPlaced { instance_id: String },
+    /// Client removes a character in their Kizuna Town.
+    TownRemoveCharacter { instance_id: String },
+    /// Direct match challenge to a visiting friend in Kizuna Town.
+    TownChallenge {
+        target_player_id: String,
+        mode: MatchMode,
+    },
+    /// Notification of an incoming match challenge.
+    TownChallengeReceived {
+        from_player_id: String,
+        from_player_name: String,
+        mode: MatchMode,
+    },
+    /// Response to match challenge.
+    TownChallengeResponse {
+        from_player_id: String,
+        accept: bool,
+    },
+    /// Updates player's Ultimate Team squad summary in the persistent hub.
+    UpdateSquadSummary { squad: UtSquadSummary },
+    /// Client requests to inspect another player's Ultimate Team squad in town.
+    TownInspectSquad { target_player_id: String },
+    /// Server answers with inspected player's Ultimate Team squad.
+    TownSquadInspected {
+        player_id: String,
+        squad: Option<UtSquadSummary>,
     },
     /// Generic protocol error.
     Error { message: String },

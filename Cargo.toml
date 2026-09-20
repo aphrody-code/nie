@@ -176,6 +176,7 @@ nie-runtime = { version = "0.6.0", path = "crates/engine/nie-runtime" }
 nie-viola = { version = "0.6.0", path = "crates/engine/nie-viola" }
 nie-launcher = { version = "0.6.0", path = "crates/tools/nie-launcher" }
 nie-steam = { version = "0.6.0", path = "crates/tools/nie-steam", default-features = false }
+nie-net = { version = "0.6.0", path = "crates/engine/nie-net", default-features = false }
 
 # chaîne « image → SVG → raster » (skill pixel-perfect, crate nie-aphrody).
 # Choix mesurés le 2026-09-05, avec les rejets et leur raison :

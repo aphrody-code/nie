@@ -5285,13 +5285,17 @@ name = "nie-net"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "futures-util",
  "nie-core",
  "nie-geom",
  "nie-runtime",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
+ "tokio",
+ "tokio-tungstenite",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -5420,6 +5424,7 @@ dependencies = [
  "async-graphql",
  "async-graphql-axum",
  "axum",
+ "base64 0.22.1",
  "blake3",
  "bytes",
  "clap",
@@ -5432,6 +5437,7 @@ dependencies = [
  "nie-data",
  "nie-explore",
  "nie-formats",
+ "nie-launcher",
  "nie-lua",
  "nie-render3d",
  "nie-save",
@@ -5440,6 +5446,7 @@ dependencies = [
  "nie-wiki",
  "nie-zukan",
  "parking_lot",
+ "rand 0.8.7",
  "reqwest",
  "rusqlite",
  "serde",
@@ -5576,6 +5583,7 @@ dependencies = [
  "nie-index",
  "nie-lua",
  "nie-model-serve",
+ "nie-net",
  "nie-pe",
  "nie-queue",
  "nie-re",

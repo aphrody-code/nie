@@ -86,6 +86,8 @@ nie-headless.workspace = true
 nie-editor.workspace = true
 # Bounded T2B character/model catalogs extracted from the HTTP binding.
 nie-model-serve.workspace = true
+# Online multiplayer protocol, Inacode validation, and deterministic rollback simulation.
+nie-net.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, default-features = true }
 # (cridecoder arrive via nie-formats feature `audio-decode` — plus de dép directe)

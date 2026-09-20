@@ -276,6 +276,17 @@ impl LobbyHub {
         Ok((room.match_seed, home_id, away_id))
     }
 
+    /// Returns a reference to a room by Inacode.
+    #[must_use]
+    pub fn get_room(&self, inacode: &Inacode) -> Option<&Room> {
+        self.rooms.get(inacode)
+    }
+
+    /// Returns a mutable reference to a room by Inacode.
+    pub fn get_room_mut(&mut self, inacode: &Inacode) -> Option<&mut Room> {
+        self.rooms.get_mut(inacode)
+    }
+
     /// Lists all publicly joinable rooms.
     #[must_use]
     pub fn list_public_rooms(&self) -> Vec<RoomInfo> {

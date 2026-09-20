@@ -11,15 +11,29 @@
 //! - [`lobby`]: `LobbyHub` managing room creation, player slots (Home, Away, 2v2), and readiness.
 //! - [`matchmaker`]: Queueing and skill-based matchmaking.
 
+pub mod kizuna;
 pub mod lobby;
 pub mod matchmaker;
 pub mod protocol;
 pub mod session;
 
+#[cfg(feature = "transport")]
+pub mod client;
+#[cfg(feature = "transport")]
+pub mod server;
+
+#[cfg(feature = "transport")]
+pub use client::NetClient;
+#[cfg(feature = "transport")]
+pub use server::{NetServer, ServerState};
+
+pub use kizuna::{KizunaError, KizunaHub, KizunaTown};
 pub use lobby::{LobbyError, LobbyHub, Room};
 pub use matchmaker::{MatchFound, MatchmakingQueue, QueueTicket};
 pub use protocol::{
-    Inacode, LEVEL5_NET_VER_2_3_0, MatchMode, NET_PROTOCOL_VERSION, NetMessage, PlayerInfo,
+    Inacode, KizunaAvatar, KizunaTownSnapshot, LEVEL5_NET_VER_2_3_0, MatchMode,
+    NET_PROTOCOL_VERSION, NetMessage, PlacedTownCharacter, PlacedTownObject, PlayerInfo,
     PlayerSlot, PlayerTickInput, RoomConfig, RoomInfo, SessionType, TICK_DT, TICK_RATE_HZ,
+    TownVisitor,
 };
 pub use session::{HistoryFrame, NetMatchSession, SessionError};

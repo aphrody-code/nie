@@ -11,6 +11,10 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = ["transport"]
+transport = ["dep:tokio", "dep:futures-util", "dep:tokio-tungstenite", "dep:uuid", "dep:anyhow"]
+
 [dependencies]
 nie-runtime.workspace = true
 nie-core.workspace = true
@@ -19,6 +23,12 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+anyhow = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time", "net"], optional = true }
+futures-util = { workspace = true, optional = true }
+tokio-tungstenite = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["v4"], optional = true }
 
 [dev-dependencies]
 anyhow.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
