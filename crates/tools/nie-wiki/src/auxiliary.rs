@@ -279,8 +279,8 @@ pub fn list_costumes(conn: &Connection, page: u32, limit: u32) -> anyhow::Result
         conn.query_row("SELECT count(*) FROM inagle_costumes", [], |row| row.get(0))?;
     let mut statement = conn.prepare("SELECT id, costume_index, type, model_ref, flag1, flag2 FROM inagle_costumes ORDER BY costume_index LIMIT ?1 OFFSET ?2")?;
     let rows = statement.query_map(params![i64::from(limit.clamp(1, 200)), i64::from(page.saturating_sub(1) * limit)], |row| {
-        let kind: i64 = row.get(2)?;
-        Ok(json!({"id": row.get::<_, String>(0)?, "index": row.get::<_, i64>(1)?, "type": kind, "typeLabel": match kind { 0 => "Standard", 1 => "Variant A", 2 => "Variant B", _ => "Unknown" }, "modelRef": row.get::<_, Option<String>>(3)?.unwrap_or_default(), "flag1": row.get::<_, Option<i64>>(4)?.unwrap_or_default(), "flag2": row.get::<_, Option<i64>>(5)?.unwrap_or_default()}))
+        let kind = crate::mirror::entier_souple(row, 2)?.unwrap_or_default();
+        Ok(json!({"id": row.get::<_, String>(0)?, "index": crate::mirror::entier_souple(row, 1)?, "type": kind, "typeLabel": match kind { 0 => "Standard", 1 => "Variant A", 2 => "Variant B", _ => "Unknown" }, "modelRef": row.get::<_, Option<String>>(3)?.unwrap_or_default(), "flag1": crate::mirror::entier_souple(row, 4)?.unwrap_or_default(), "flag2": crate::mirror::entier_souple(row, 5)?.unwrap_or_default()}))
     })?.collect::<Result<Vec<_>, _>>()?;
     Ok(json!({"data": rows, "total": total, "page": page.max(1), "limit": limit.clamp(1, 200)}))
 }
@@ -291,7 +291,7 @@ pub fn list_stadiums(conn: &Connection, q: Option<&str>) -> anyhow::Result<Value
     let mut statement = conn.prepare("SELECT id, field_index, image_path, condition, data FROM inagle_stadiums ORDER BY field_index, id")?;
     let q = q.unwrap_or("").trim().to_lowercase();
     let rows = statement.query_map([], |row| {
-        Ok(json!({"id": row.get::<_, String>(0)?, "index": row.get::<_, Option<i64>>(1)?, "imagePath": row.get::<_, Option<String>>(2)?, "condition": row.get::<_, Option<String>>(3)?, "data": json_column(row.get::<_, Option<String>>(4)?)}))
+        Ok(json!({"id": row.get::<_, String>(0)?, "index": crate::mirror::entier_souple(row, 1)?, "imagePath": row.get::<_, Option<String>>(2)?, "condition": row.get::<_, Option<String>>(3)?, "data": json_column(row.get::<_, Option<String>>(4)?)}))
     })?.collect::<Result<Vec<_>, _>>()?;
     let rows = rows
         .into_iter()
@@ -337,7 +337,7 @@ pub fn list_coaches(conn: &Connection, q: Option<&str>) -> anyhow::Result<Value>
     let mut statement = conn.prepare("SELECT id, name_kanji, name_romaji, name_localised, gender, role, element, playstyle, passive_no, requirements, stat, buff FROM inagle_coordinators ORDER BY id")?;
     let q = q.unwrap_or("").trim().to_lowercase();
     let rows = statement.query_map([], |row| {
-        let id: i64 = row.get(0)?;
+        let id = crate::mirror::entier_souple(row, 0)?.unwrap_or_default();
         let name_kanji: Option<String> = row.get(1)?;
         let name_romaji: Option<String> = row.get(2)?;
         let name_localised: Option<String> = row.get(3)?;
@@ -345,7 +345,7 @@ pub fn list_coaches(conn: &Connection, q: Option<&str>) -> anyhow::Result<Value>
         let role: Option<String> = row.get(5)?;
         let element: Option<String> = row.get(6)?;
         let playstyle: Option<String> = row.get(7)?;
-        let passive_no: Option<i64> = row.get(8)?;
+        let passive_no = crate::mirror::entier_souple(row, 8)?;
         let requirements: Option<String> = row.get(9)?;
         let stat: Option<String> = row.get(10)?;
         let buff: Option<String> = row.get(11)?;
@@ -361,7 +361,7 @@ pub fn list_coaches(conn: &Connection, q: Option<&str>) -> anyhow::Result<Value>
 
 pub fn list_drops(conn: &Connection) -> anyhow::Result<Value> {
     let mut statement = conn.prepare("SELECT id, team, game, fixed_beans, passive_type, no, requirement, stat, value FROM inagle_drops ORDER BY id")?;
-    let rows = statement.query_map([], |row| Ok(json!({"id": row.get::<_, i64>(0)?, "team": row.get::<_, Option<String>>(1)?, "game": row.get::<_, Option<String>>(2)?, "fixedBeans": row.get::<_, Option<String>>(3)?, "passiveType": row.get::<_, Option<String>>(4)?, "no": row.get::<_, Option<i64>>(5)?, "requirement": row.get::<_, Option<String>>(6)?, "stat": row.get::<_, Option<String>>(7)?, "value": row.get::<_, Option<String>>(8)?})))?.collect::<Result<Vec<_>, _>>()?;
+    let rows = statement.query_map([], |row| Ok(json!({"id": crate::mirror::entier_souple(row, 0)?, "team": row.get::<_, Option<String>>(1)?, "game": row.get::<_, Option<String>>(2)?, "fixedBeans": row.get::<_, Option<String>>(3)?, "passiveType": row.get::<_, Option<String>>(4)?, "no": crate::mirror::entier_souple(row, 5)?, "requirement": row.get::<_, Option<String>>(6)?, "stat": row.get::<_, Option<String>>(7)?, "value": row.get::<_, Option<String>>(8)?})))?.collect::<Result<Vec<_>, _>>()?;
     let count = rows.len();
     Ok(json!({"drops": rows, "count": count}))
 }
@@ -370,11 +370,11 @@ pub fn list_invocations(conn: &Connection) -> anyhow::Result<Value> {
     let mut statement = conn.prepare("SELECT id, idx, name_fr, name_en, name_ja, character_count, character_ids, data FROM inagle_constellations ORDER BY idx, id")?;
     let rows = statement.query_map([], |row| {
         let id: String = row.get(0)?;
-        let sign_no: Option<i64> = row.get(1)?;
+        let sign_no = crate::mirror::entier_souple(row, 1)?;
         let name_fr: Option<String> = row.get(2)?;
         let name_en: Option<String> = row.get(3)?;
         let name_ja: Option<String> = row.get(4)?;
-        let total_chars: Option<i64> = row.get(5)?;
+        let total_chars = crate::mirror::entier_souple(row, 5)?;
         let character_ids: Option<String> = row.get(6)?;
         let data: Option<String> = row.get(7)?;
         Ok(json!({"id": id, "signNo": sign_no, "name": text(name_fr).or_else(|| text(name_en)).or_else(|| text(name_ja)), "totalChars": total_chars, "characterIds": json_column(character_ids), "data": json_column(data)}))
@@ -449,3 +449,4 @@ mod tests {
         assert!(verify_auxiliary_schema(&fixture()).is_err());
     }
 }
+

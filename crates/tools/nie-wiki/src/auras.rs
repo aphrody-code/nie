@@ -168,7 +168,7 @@ fn row_to_record(row: &Row<'_>, source: AuraSource) -> rusqlite::Result<AuraReco
         description_fr: row.get(4)?,
         description_en: row.get(5)?,
         description_ja: row.get(6)?,
-        element_id: row.get(7)?,
+        element_id: crate::mirror::entier_souple(row, 7)?,
         sub_type: row.get(8)?,
         image_url: row.get(11)?,
         asset_code: row.get(12)?,
@@ -307,3 +307,4 @@ mod tests {
         assert!(get_aura(&fixture(), "%", None).unwrap().is_none());
     }
 }
+

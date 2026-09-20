@@ -159,3 +159,72 @@ pub fn merge_data_sheet(data: Option<&str>, sheet_data: Option<&str>) -> serde_j
         (b, _) => b,
     }
 }
+
+/// Lit une colonne entière **quelle que soit sa classe de stockage**.
+///
+/// SQLite est typé par valeur, pas par colonne, et le miroir en porte la conséquence : les
+/// cinq tables d'aura stockent `element_id` en **TEXT** (`"2"`, pas `2`). `row.get::<_, i64>`
+/// rend alors `InvalidColumnType`, qui remonte jusqu'au site sous la forme d'un
+/// `503 Wiki resource unavailable` — un message qui accuse la disponibilité du service alors
+/// que la donnée est là et correcte. Mesuré le 2026-09-20 : `/api/v1/wiki/auras`,
+/// `/tactics`, `/drops`, `/stadiums`, `/coaches` et `/costumes` répondaient tous `503` en
+/// production, et les cartes écrites pour eux n'avaient donc aucune page où vivre.
+///
+/// Le texte est converti par `parse`, jamais deviné : `"abc"` rend `None`, comme une colonne
+/// absente, et non un zéro qui se lirait comme une valeur mesurée. `REAL` est tronqué, ce qui
+/// est ce qu'un `element_id` écrit `2.0` veut dire.
+///
+/// # Errors
+///
+/// Rend l'erreur de `rusqlite` quand l'index de colonne n'existe pas.
+pub fn entier_souple(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+) -> rusqlite::Result<Option<i64>> {
+    use rusqlite::types::ValueRef;
+    Ok(match row.get_ref(index)? {
+        ValueRef::Null => None,
+        ValueRef::Integer(v) => Some(v),
+        #[allow(clippy::cast_possible_truncation)]
+        ValueRef::Real(v) => Some(v as i64),
+        ValueRef::Text(bytes) => std::str::from_utf8(bytes)
+            .ok()
+            .and_then(|s| s.trim().parse::<i64>().ok()),
+        ValueRef::Blob(_) => None,
+    })
+}
+
+#[cfg(test)]
+mod tests_entier_souple {
+    use super::entier_souple;
+
+    /// Les cinq classes de stockage de SQLite, dont celle qui a cassé six routes.
+    ///
+    /// Le miroir déclare ses colonnes `INTEGER` et y écrit du **texte** : la classe de stockage
+    /// d'une valeur l'emporte sur le type déclaré de sa colonne, et c'est la valeur que
+    /// `rusqlite` regarde. Un fixture qui écrit `2` là où le miroir écrit `'2'` passe le test
+    /// et laisse la production en `503` — c'est exactement ce qui s'est produit, et c'est
+    /// pourquoi ce test écrit les deux.
+    #[test]
+    fn lit_un_entier_quelle_que_soit_sa_classe_de_stockage() {
+        let c = rusqlite::Connection::open_in_memory().unwrap();
+        c.execute_batch(
+            "CREATE TABLE t (v INTEGER);
+             INSERT INTO t VALUES (2), ('2'), (' 2 '), (2.7), (NULL), ('abc'), (x'0201');",
+        )
+        .unwrap();
+        let mut s = c.prepare("SELECT v FROM t").unwrap();
+        let lus: Vec<Option<i64>> = s
+            .query_map([], |row| entier_souple(row, 0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        // `2.7` est tronqué — un `element_id` écrit `2.0` vaut 2. `"abc"` et un blob rendent
+        // `None` comme une colonne absente : jamais un zéro, qui se lirait comme une mesure.
+        assert_eq!(
+            lus,
+            [Some(2), Some(2), Some(2), Some(2), None, None, None],
+            "les sept valeurs, dans l'ordre d'insertion"
+        );
+    }
+}
