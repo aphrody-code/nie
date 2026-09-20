@@ -2,7 +2,7 @@
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
 import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AVATAR, BANK, GALLERY, SETTINGS, SHOP, menuEntries } from "../entries";
 import { bindMenuActions } from "../game/menu-actions";
 import {
@@ -11,8 +11,11 @@ import {
 	type OpeningEvent,
 	type OpeningPhase,
 } from "../game/opening-sequence";
+import { SubmenuModal } from "../components/SubmenuModal";
+import { KizunaTownMultiplayer } from "../components/KizunaTownMultiplayer";
 import { MainMenu } from "./MainMenu";
 import { OpeningVisual } from "./OpeningVisual";
+import { WASM_MODE_LABELS, type WasmMode } from "./WasmGameSurface";
 import "./opening.css";
 
 export interface GameProps {
@@ -29,6 +32,9 @@ export interface GameProps {
 	onOpenEditor?: () => void;
 	onOpenSearch?: () => void;
 	onOpenData?: () => void;
+	onSelectMode?: (mode: WasmMode) => void;
+	onOpenModes?: (slug?: string) => void;
+	onOpenSave?: () => void;
 	startupReady?: boolean;
 	health?: SiteHealth | null;
 	startupFailed?: boolean;
@@ -45,6 +51,9 @@ export function Game({
 	onOpenShop,
 	onOpenAvatar,
 	onOpenSettings,
+	onSelectMode,
+	onOpenModes,
+	onOpenSave,
 	startupReady = false,
 	health = null,
 	startupFailed = false,
@@ -52,46 +61,94 @@ export function Game({
 }: GameProps) {
 	const localGamepadSampler = useRef(createStandardGamepadMenuSampler());
 	const gamepadSampler = suppliedGamepadSampler ?? localGamepadSampler.current;
+	const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+	const [isKizunaTownOpen, setIsKizunaTownOpen] = useState(false);
 	const advance = useCallback((event: OpeningEvent) => {
 		onPhaseChange(advanceOpeningPhase(phase, event));
 	}, [phase, onPhaseChange]);
 
+	const hostActions = useMemo(() => bindMenuActions(menuEntries(null), {
+		// La Banque EST « Votre équipe », et elle l'était déjà.
+		//
+		// L'appariement ne se fait pas par `MainMenu.nativeBinding` mais par la SCÈNE :
+		// `menu_scenes/title-menu.json` déclare un contrôle `team` portant
+		// `hostActionId: "bank"` et le libellé « Votre équipe », et `NativeMainMenu` lie
+		// `actions.find(a => a.id === control.hostActionId)`. L'identifiant attendu ici est
+		// donc bien `bank`. Poser `team` le décroche : plus aucun contrôle natif ne le
+		// réclame, et la Banque retombe dans `siteActions`, en bouton générique à côté du
+		// menu — ce qui ressemble à une correction et est une régression.
+		[BANK]: { id: "bank", onActivate: onOpenBank },
+		[GALLERY]: { id: "gallery", onActivate: onOpenGallery },
+		[SHOP]: { id: "shop", onActivate: onOpenShop },
+		[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },
+		[SETTINGS]: { id: "settings", onActivate: onOpenSettings },
+	}), [onOpenBank, onOpenGallery, onOpenShop, onOpenAvatar, onOpenSettings]);
+
+	const modeSlugs = useMemo(() => ["story_mode", "chronicle_mode", "competition", "bb_stadium", "victory_road"] as const, []);
+
+	const actions = useMemo(() => [
+		...hostActions,
+		...modeSlugs.map((slug) => ({
+			id: `mode-${slug}`,
+			label: WASM_MODE_LABELS[slug] ?? slug,
+			glyph: "livre" as const,
+			onActivate: () => setActiveSubmenu(slug),
+			disabled: false,
+		})),
+		{
+			id: "mode-kizuna_town",
+			label: "Station Kizuna",
+			glyph: "arbre" as const,
+			onActivate: () => setIsKizunaTownOpen(true),
+			disabled: false,
+		},
+		{
+			id: "mode-information",
+			label: "Informations",
+			glyph: "livre" as const,
+			onActivate: () => setActiveSubmenu("information"),
+			disabled: false,
+		},
+		{
+			id: "title-item-10",
+			label: "Sauvegarder",
+			glyph: "livre" as const,
+			onActivate: () => setActiveSubmenu("title-item-10"),
+			disabled: false,
+		},
+	], [hostActions, modeSlugs]);
+
 	if (phase === "menu") {
-		const hostActions = bindMenuActions(menuEntries(null), {
-			// La Banque EST « Votre équipe », et elle l'était déjà.
-			//
-			// L'appariement ne se fait pas par `MainMenu.nativeBinding` mais par la SCÈNE :
-			// `menu_scenes/title-menu.json` déclare un contrôle `team` portant
-			// `hostActionId: "bank"` et le libellé « Votre équipe », et `NativeMainMenu` lie
-			// `actions.find(a => a.id === control.hostActionId)`. L'identifiant attendu ici est
-			// donc bien `bank`. Poser `team` le décroche : plus aucun contrôle natif ne le
-			// réclame, et la Banque retombe dans `siteActions`, en bouton générique à côté du
-			// menu — ce qui ressemble à une correction et est une régression.
-			[BANK]: { id: "bank", onActivate: onOpenBank },
-			[GALLERY]: { id: "gallery", onActivate: onOpenGallery },
-			[SHOP]: { id: "shop", onActivate: onOpenShop },
-			[AVATAR]: { id: "avatar", onActivate: onOpenAvatar },
-			[SETTINGS]: { id: "settings", onActivate: onOpenSettings },
-		});
-		const actions = [
-			...hostActions,
-			// `/modes` is internal, and the current Rust flow does not yet implement distinct native
-			// gameplay for these choices. Keep the measured tiles visible but unavailable rather than
-			// presenting the shared local simulation as five faithful game modes.
-			// `play_guide` n'y figure plus : sa tuile porte la Galerie, servie par ce site.
-			...["story_mode", "chronicle_mode", "kizuna_town", "competition", "bb_stadium", "victory_road", "information"].map((slug) => ({
-				id: `mode-${slug}`,
-				label: slug,
-				glyph: "livre" as const,
-				onActivate: () => {},
-				disabled: true,
-			})),
-		];
 		return (
-			<MainMenu
-				actions={actions}
-				gamepadSampler={gamepadSampler}
-			/>
+			<>
+				<MainMenu
+					actions={actions}
+					gamepadSampler={gamepadSampler}
+				/>
+				{isKizunaTownOpen && (
+					<KizunaTownMultiplayer
+						onClose={() => setIsKizunaTownOpen(false)}
+						onLaunchMatch={(inacode, seed) => {
+							setIsKizunaTownOpen(false);
+							onSelectMode?.("victory_road");
+						}}
+					/>
+				)}
+				{activeSubmenu && (
+					<SubmenuModal
+						modeSlug={activeSubmenu}
+						onClose={() => setActiveSubmenu(null)}
+						onLaunchWasm={onSelectMode ? (mode) => {
+							setActiveSubmenu(null);
+							onSelectMode(mode);
+						} : undefined}
+						onExploreMode={onOpenModes ? (slug) => {
+							setActiveSubmenu(null);
+							onOpenModes(slug);
+						} : undefined}
+					/>
+				)}
+			</>
 		);
 	}
 	return (
@@ -140,9 +197,13 @@ function OpeningScreen({
 	}, [onAdvance, phase]);
 
 	useEffect(() => {
-		if (phase === "loading" && startupReady) {
-			advanceOnce("resources-ready");
-			return;
+		if (phase === "loading") {
+			if (startupReady) {
+				advanceOnce("resources-ready");
+				return;
+			}
+			const fallbackTimer = window.setTimeout(() => advanceOnce("resources-ready"), 2500);
+			return () => window.clearTimeout(fallbackTimer);
 		}
 		if (!ready || movie || frame.durationMs === null) return;
 		const timer = window.setTimeout(() => advanceOnce("timeout"), frame.durationMs);
@@ -170,7 +231,8 @@ function OpeningScreen({
 			className={`opening-screen opening-screen--${phase}`}
 		>
 			<OpeningVisual phase={phase} health={health} failed={startupFailed} onRetry={onRetryStartup} onReady={onReady} onEnded={movie ? () => advanceOnce("media-ended") : undefined}
-				onConfirm={frame.advanceOn === "confirm" ? () => advanceOnce("confirm") : undefined} />
+				onConfirm={frame.advanceOn === "confirm" ? () => advanceOnce("confirm") : undefined}
+				onSkip={phase === "loading" ? () => advanceOnce("resources-ready") : undefined} />
 		</section>
 	);
 }

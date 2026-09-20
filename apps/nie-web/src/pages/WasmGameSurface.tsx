@@ -61,6 +61,7 @@ export function WasmGameSurface({ mode, onBack, gamepadSampler }: {
 	const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
 	const [score, setScore] = useState<[number, number] | null>(null);
 	const [displaySize, setDisplaySize] = useState<DisplaySize | null>(null);
+	const [fps, setFps] = useState<number | null>(null);
 
 	useEffect(() => {
 		let game: GameHandle | null = null;
@@ -92,8 +93,9 @@ export function WasmGameSurface({ mode, onBack, gamepadSampler }: {
 			game = loaded;
 			enterWasmMode(loaded, mode);
 			const element = canvas.current;
-			const context = element?.getContext("2d") ?? null;
+			const context = (element?.getContext("2d", { alpha: false, desynchronized: true }) ?? element?.getContext("2d")) as CanvasRenderingContext2D | null;
 			if (!element || !context) throw new Error("2D canvas unavailable");
+			context.imageSmoothingEnabled = false;
 			element.width = loaded.width;
 			element.height = loaded.height;
 			resize = () => setDisplaySize(canvasDisplaySize(loaded.width, loaded.height, window.innerWidth, window.innerHeight));
@@ -107,17 +109,30 @@ export function WasmGameSurface({ mode, onBack, gamepadSampler }: {
 			let accumulator = 0;
 			let shownScore = "outside-match";
 			let leaving = false;
+			let firstFrame = true;
+			let frameCount = 0;
+			let lastFpsTime = previous;
 			const render = (now: number) => {
 				if (!alive || leaving) return;
 				const timing = simulationTiming(accumulator, (now - previous) / 1000);
 				previous = now;
 				accumulator = timing.remainder;
+
+				frameCount += 1;
+				if (now - lastFpsTime >= 1000) {
+					const measured = Math.round((frameCount * 1000) / (now - lastFpsTime));
+					setFps(measured);
+					frameCount = 0;
+					lastFpsTime = now;
+				}
+
 				const down = (keys: readonly string[]) => keys.some((key) => held.has(key));
 				const pads = typeof navigator.getGamepads === "function" ? navigator.getGamepads() : [];
+				let hadInput = false;
 				for (const intent of sampler.sample(pads)) {
 					if (intent.type === "cancel") { leaving = true; onBack(); return; }
 					const command = runtimeCommandForMenuIntent(intent);
-					if (command) loaded.input(command);
+					if (command) { loaded.input(command); hadInput = true; }
 				}
 				const pad = [...pads].find(candidate => candidate?.connected && candidate.mapping === "standard");
 				const padX = pad ? (pad.axes[0] ?? 0) + Number(pad.buttons[15]?.pressed) - Number(pad.buttons[14]?.pressed) : 0;
@@ -125,8 +140,17 @@ export function WasmGameSurface({ mode, onBack, gamepadSampler }: {
 				const dx = Math.max(-1, Math.min(1, Number(down(["arrowright", "d"])) - Number(down(["arrowleft", "a", "q"])) + padX));
 				const dy = Math.max(-1, Math.min(1, Number(down(["arrowdown", "s"])) - Number(down(["arrowup", "w", "z"])) + padY));
 				loaded.setMatchInput(dx, dy, down([" ", "enter"]) || Boolean(pad?.buttons[0]?.pressed));
-				for (let step = 0; step < timing.steps; step += 1) loaded.update(FIXED_TIME_STEP);
-				context.putImageData(loaded.frame(), 0, 0);
+
+				let needsRedraw = firstFrame || hadInput;
+				if (timing.steps > 0) {
+					for (let step = 0; step < timing.steps; step += 1) loaded.update(FIXED_TIME_STEP);
+					needsRedraw = true;
+				}
+				if (needsRedraw) {
+					context.putImageData(loaded.frame(), 0, 0);
+					firstFrame = false;
+				}
+
 				const nextScore = loaded.isMatch() ? loaded.score() : null;
 				const scoreKey = nextScore === null ? "outside-match" : `${nextScore[0]}:${nextScore[1]}`;
 				if (scoreKey !== shownScore) { shownScore = scoreKey; setScore(nextScore); }
@@ -155,6 +179,7 @@ export function WasmGameSurface({ mode, onBack, gamepadSampler }: {
 		}}>{label}</canvas>
 		{state !== "ready" ? <ScreenStatus state={state === "failed" ? "unavailable" : "loading"} /> : null}
 		{score ? <p className="wasm-game-surface__score" aria-live="polite">{score[0]} — {score[1]}</p> : null}
+		{fps !== null && state === "ready" ? <span className="wasm-game-surface__fps" aria-label="Fréquence d'affichage">{fps} FPS</span> : null}
 		<button type="button" className="game-shell-return" onClick={onBack}><kbd>Esc</kbd> Retour</button>
 	</section>;
 }

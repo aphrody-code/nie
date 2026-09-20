@@ -1,0 +1,390 @@
+/*
+ * ui-effects.css — Effets visuels réels, animations authentiques et clics réactifs
+ * Direction artistique Inazuma Eleven Victory Road (parallélogramme -10deg, néons cyan/ambre).
+ */
+
+/* --- Effet de Ripple Électrique sur chaque clic --- */
+.inazuma-ripple {
+	position: fixed;
+	border-radius: 50%;
+	pointer-events: none;
+	transform: translate(-50%, -50%) scale(0);
+	animation: inazuma-ripple-expand 0.45s cubic-bezier(0.1, 0.85, 0.3, 1) forwards;
+	z-index: 99999;
+	background: radial-gradient(
+		circle,
+		rgba(69, 255, 248, 0.85) 0%,
+		rgba(8, 181, 255, 0.45) 45%,
+		rgba(2, 72, 185, 0) 72%
+	);
+	box-shadow: 0 0 18px rgba(69, 255, 248, 0.7);
+}
+
+@keyframes inazuma-ripple-expand {
+	0% {
+		width: 0;
+		height: 0;
+		opacity: 0.95;
+		transform: translate(-50%, -50%) scale(0.15);
+	}
+	100% {
+		width: 150px;
+		height: 150px;
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(1.65);
+	}
+}
+
+/* --- Rétroaction physique & clic réel sur TOUS les boutons et tuiles --- */
+button,
+[role="button"],
+.game-button,
+.runtime-main-menu__control button,
+.runtime-main-menu__site-nav button {
+	transition: transform 90ms cubic-bezier(0.2, 0, 0, 1),
+		filter 90ms ease,
+		box-shadow 90ms ease;
+}
+
+button:active:not(:disabled),
+[role="button"]:active:not([aria-disabled="true"]),
+.game-button:active:not(:disabled),
+.runtime-main-menu__control button:active:not(:disabled),
+.runtime-main-menu__site-nav button:active:not(:disabled) {
+	transform: scale(0.96) translateY(1.5px);
+	filter: brightness(1.25) contrast(1.05);
+	box-shadow: 0 0 14px rgba(69, 255, 248, 0.6);
+}
+
+/* --- Liseré néon électrique sur le focus / hover --- */
+button:focus-visible,
+[role="button"]:focus-visible,
+.runtime-main-menu__control button:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--screen-check-cyan, #45fff8),
+		0 0 16px rgba(69, 255, 248, 0.7),
+		inset 0 0 8px rgba(69, 255, 248, 0.4);
+	animation: inazuma-pulse-glow 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes inazuma-pulse-glow {
+	0% {
+		box-shadow: 0 0 0 2px var(--screen-check-cyan, #45fff8),
+			0 0 12px rgba(69, 255, 248, 0.5),
+			inset 0 0 6px rgba(69, 255, 248, 0.3);
+	}
+	100% {
+		box-shadow: 0 0 0 3px var(--screen-row-value-strip-active, #08b5ff),
+			0 0 22px rgba(8, 181, 255, 0.85),
+			inset 0 0 12px rgba(8, 181, 255, 0.5);
+	}
+}
+
+/* --- Modal Sous-Menu Authentique (Inazuma Parallélogramme) --- */
+.inazuma-submenu-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 900;
+	display: grid;
+	place-items: center;
+	background: radial-gradient(circle at center, rgba(3, 18, 48, 0.82) 0%, rgba(1, 8, 22, 0.94) 100%);
+	backdrop-filter: blur(14px) brightness(0.75);
+	animation: inazuma-fade-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	padding: 1.5rem;
+}
+
+@keyframes inazuma-fade-in {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+.inazuma-submenu-card {
+	position: relative;
+	width: min(48rem, 94vw);
+	max-height: min(88vh, 52rem);
+	display: flex;
+	flex-direction: column;
+	background: linear-gradient(135deg, rgba(6, 40, 95, 0.96) 0%, rgba(1, 24, 62, 0.98) 100%);
+	border: 2px solid color-mix(in srgb, var(--screen-check-cyan, #45fff8) 75%, transparent);
+	border-radius: 12px;
+	box-shadow: 0 24px 64px rgba(0, 5, 20, 0.75),
+		0 0 28px rgba(69, 255, 248, 0.35),
+		inset 0 1px 0 rgba(255, 255, 255, 0.25);
+	overflow: hidden;
+	color: #fff;
+	animation: inazuma-modal-slide 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes inazuma-modal-slide {
+	from {
+		opacity: 0;
+		transform: scale(0.93) translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+
+/* En-tête biseauté avec angle de DA Inazuma (-10deg) */
+.inazuma-submenu-header {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 1.25rem 1.75rem;
+	background: linear-gradient(90deg, #0663f8 0%, #0048b9 70%, #002496 100%);
+	border-bottom: 2px solid var(--screen-check-cyan, #45fff8);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.inazuma-submenu-header::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: repeating-linear-gradient(
+		-45deg,
+		rgba(255, 255, 255, 0.05),
+		rgba(255, 255, 255, 0.05) 12px,
+		transparent 12px,
+		transparent 24px
+	);
+	pointer-events: none;
+}
+
+.inazuma-submenu-title-group {
+	position: relative;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 0.9rem;
+}
+
+.inazuma-submenu-glyph {
+	width: 2.75rem;
+	height: 2.75rem;
+	display: grid;
+	place-items: center;
+	background: rgba(255, 255, 255, 0.15);
+	border: 1.5px solid var(--screen-check-cyan, #45fff8);
+	border-radius: 8px;
+	transform: skewX(-10deg);
+	box-shadow: 0 0 12px rgba(69, 255, 248, 0.4);
+}
+
+.inazuma-submenu-glyph > * {
+	transform: skewX(10deg);
+}
+
+.inazuma-submenu-title {
+	margin: 0;
+	font-size: 1.5rem;
+	font-weight: 800;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: #fff;
+	text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 12px rgba(69, 255, 248, 0.5);
+}
+
+.inazuma-submenu-badge {
+	display: inline-block;
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	padding: 0.25rem 0.6rem;
+	background: rgba(0, 0, 0, 0.35);
+	border: 1px solid rgba(69, 255, 248, 0.5);
+	border-radius: 4px;
+	color: var(--screen-check-cyan, #45fff8);
+	margin-left: 0.5rem;
+}
+
+.inazuma-submenu-close {
+	position: relative;
+	z-index: 2;
+	background: rgba(255, 255, 255, 0.12);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	color: #fff;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 6px;
+	display: grid;
+	place-items: center;
+	font-size: 1.1rem;
+	cursor: pointer;
+	transform: skewX(-10deg);
+}
+
+.inazuma-submenu-close:hover {
+	background: #c74955;
+	border-color: #ff7155;
+	box-shadow: 0 0 10px rgba(255, 113, 85, 0.6);
+}
+
+/* Liste des sous-options avec animation en cascade */
+.inazuma-submenu-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 1.25rem 1.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.8rem;
+}
+
+.inazuma-suboption-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 1.2rem;
+	padding: 1rem 1.25rem;
+	background: linear-gradient(90deg, rgba(8, 48, 112, 0.7) 0%, rgba(2, 30, 80, 0.5) 100%);
+	border: 1.5px solid rgba(108, 168, 240, 0.35);
+	border-radius: 8px;
+	color: #fff;
+	text-align: left;
+	cursor: pointer;
+	animation: inazuma-item-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+	animation-delay: calc(var(--item-idx, 0) * 45ms);
+}
+
+@keyframes inazuma-item-slide {
+	from {
+		opacity: 0;
+		transform: translateX(-16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+.inazuma-suboption-item:hover,
+.inazuma-suboption-item:focus-visible {
+	background: linear-gradient(90deg, #0048b9 0%, #0350e6 100%);
+	border-color: var(--screen-check-cyan, #45fff8);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4),
+		0 0 16px rgba(69, 255, 248, 0.45);
+	transform: translateX(4px);
+}
+
+.inazuma-suboption-number {
+	font-family: monospace;
+	font-size: 1.15rem;
+	font-weight: 800;
+	color: var(--screen-check-cyan, #45fff8);
+	opacity: 0.85;
+	padding: 0.2rem 0.5rem;
+	border: 1px solid rgba(69, 255, 248, 0.3);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.25);
+}
+
+.inazuma-suboption-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.inazuma-suboption-title {
+	font-size: 1.1rem;
+	font-weight: 700;
+	margin: 0 0 0.25rem 0;
+	color: #ffffff;
+}
+
+.inazuma-suboption-desc {
+	font-size: 0.85rem;
+	margin: 0;
+	color: rgba(224, 236, 255, 0.78);
+	line-height: 1.4;
+}
+
+.inazuma-suboption-tag {
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	padding: 0.2rem 0.5rem;
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	color: #fff;
+	white-space: nowrap;
+}
+
+.inazuma-suboption-tag--primary {
+	background: #0078ff;
+	border-color: var(--screen-check-cyan, #45fff8);
+	color: #fff;
+	box-shadow: 0 0 8px rgba(69, 255, 248, 0.4);
+}
+
+/* Pied du modal avec actions de lancement et retour */
+.inazuma-submenu-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.75rem;
+	padding: 1.1rem 1.75rem;
+	background: rgba(1, 16, 42, 0.85);
+	border-top: 1px solid rgba(108, 168, 240, 0.25);
+}
+
+.inazuma-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 0.65rem 1.25rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	border-radius: 6px;
+	border: 1.5px solid transparent;
+	cursor: pointer;
+	text-decoration: none;
+	transform: skewX(-10deg);
+}
+
+.inazuma-btn > * {
+	transform: skewX(10deg);
+}
+
+.inazuma-btn--primary {
+	background: linear-gradient(135deg, #009dff 0%, #0149ff 100%);
+	border-color: var(--screen-check-cyan, #45fff8);
+	color: #fff;
+	box-shadow: 0 4px 14px rgba(0, 157, 255, 0.4),
+		0 0 12px rgba(69, 255, 248, 0.35);
+}
+
+.inazuma-btn--primary:hover {
+	background: linear-gradient(135deg, #08b5ff 0%, #0078ff 100%);
+	box-shadow: 0 6px 20px rgba(0, 157, 255, 0.6),
+		0 0 18px rgba(69, 255, 248, 0.6);
+	transform: skewX(-10deg) translateY(-2px);
+}
+
+.inazuma-btn--secondary {
+	background: rgba(255, 255, 255, 0.08);
+	border-color: rgba(255, 255, 255, 0.25);
+	color: #e0ecff;
+}
+
+.inazuma-btn--secondary:hover {
+	background: rgba(255, 255, 255, 0.16);
+	border-color: var(--screen-check-cyan, #45fff8);
+	color: #fff;
+}
+
+.inazuma-btn--danger {
+	background: rgba(199, 73, 85, 0.2);
+	border-color: rgba(199, 73, 85, 0.5);
+	color: #ff9da5;
+}
+
+.inazuma-btn--danger:hover {
+	background: #c74955;
+	border-color: #ff7155;
+	color: #fff;
+}

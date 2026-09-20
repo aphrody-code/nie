@@ -61,6 +61,14 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
 	return payload as T;
 }
 
+/** `GET` a plain text document. */
+export async function getText(url: string): Promise<string> {
+	const response = await request(url);
+	const content = await response.text();
+	if (!response.ok) return Promise.reject(messageFrom(content, `Lecture impossible (HTTP ${response.status}).`));
+	return content;
+}
+
 /** `GET` raw bytes. */
 export async function getBytes(url: string): Promise<ArrayBuffer> {
 	const response = await request(url);

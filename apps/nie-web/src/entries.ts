@@ -212,6 +212,11 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[INACORD]: { label: "Inacord", glyph: "livre" },
 	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
 	[MODES]: { label: "Modes", glyph: "livre" },
+	story_mode: { label: "Mode Histoire", glyph: "ballon" },
+	chronicle_mode: { label: "Mode Chronique", glyph: "livre" },
+	competition: { label: "Mode Compétition", glyph: "ballon" },
+	victory_road: { label: "Victory Road", glyph: "ballon" },
+	bb_stadium: { label: "Stade BB", glyph: "ballon" },
 };
 
 /** Le libellé d'une entrée, ou son nom brut si le site ne la connaît pas. */
@@ -232,6 +237,7 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
 		// Compatibility input, deliberately not in LEGACY_ROUTES: Catalog must read `?vue=`
 		// before replacing this retired container with the selected canonical catalogue.
 		MEDIA,
+		...WASM_GAME_MODES,
 		...menuEntries(health).map((entry) => entry.route),
 		DOWNLOADS,
 		MODES,

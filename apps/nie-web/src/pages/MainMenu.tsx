@@ -128,12 +128,12 @@ export function MainMenu(props: MainMenuProps) {
 /** Presentation of a compiled scene, also used for deterministic host-binding checks. */
 export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler, observation }: MainMenuProps & { scene: NativeMenuScene; observation?: TitleObservation }) {
 	const source = useAssetSource();
-	const nativeHostIds = useMemo(() => new Set(scene.controls.map(control => control.hostActionId).filter(Boolean)), [scene.controls]);
+	const nativeHostIds = useMemo(() => new Set(scene.controls.map(control => control.hostActionId ?? control.id).filter(Boolean)), [scene.controls]);
 	const siteActions = useMemo(() => actions.filter(action => !nativeHostIds.has(action.id)), [actions, nativeHostIds]);
 	const primarySiteActions = useMemo(() => siteActions.filter(action => action.priority === "primary"), [siteActions]);
 	const secondarySiteActions = useMemo(() => siteActions.filter(action => action.priority !== "primary"), [siteActions]);
 	const boundActions = useMemo(() => scene.controls.map((control) => {
-		const host = actions.find((action) => action.id === control.hostActionId);
+		const host = actions.find((action) => action.id === (control.hostActionId ?? control.id));
 		const binding = nativeBinding(control.id);
 		const nativeLayer = binding && observation?.result?.complete ? observation.result.scene.layers[binding.layer] : undefined;
 		return { ...control, disabled: !host || Boolean(host.disabled) || nativeLayer?.enabled === false || nativeLayer?.visible === false, onActivate: host?.onActivate };
@@ -262,7 +262,7 @@ export function NativeMainMenu({ scene, actions, onCancel, gamepadSampler, obser
 				<NativeSceneLayers scene={scene} source={source} focusedId={focusedId}
 					className="runtime-main-menu__layer" onStateChange={setAssetState} />
 				{boundActions.map((action) => <div key={action.id} data-menu-target={action.id}
-					data-host-action={action.hostActionId} data-native-action={action.nativeActionHash}
+					data-host-action={action.hostActionId ?? action.id} data-native-action={action.nativeActionHash}
 					className="runtime-main-menu__control"
 					style={{ left: action.rect.x, top: action.rect.y, width: action.rect.w, height: action.rect.h }}>
 					<button type="button" aria-label={action.label} aria-current={focusedId === action.id ? "true" : undefined}

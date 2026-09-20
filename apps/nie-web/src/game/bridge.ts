@@ -255,6 +255,10 @@ export async function loadGame(): Promise<GameHandle> {
 	const inputQueue: string[] = [];
 	let heldInput = { dx: 0, dy: 0, shoot: false };
 
+	let cachedImageData: ImageData | null = null;
+	let cachedBuffer: ArrayBufferLike | null = null;
+	let cachedPtr = -1;
+
 	return {
 		width,
 		height,
@@ -282,7 +286,30 @@ export async function loadGame(): Promise<GameHandle> {
 		},
 		frame: () => {
 			if (sharedFrame !== null && memory !== null) {
-				return new ImageData(sharedFrameView(sharedFrame, memory, width * height * 4), width, height);
+				sharedFrame.render_frame();
+				const ptr = sharedFrame.frame_ptr();
+				const len = sharedFrame.frame_len();
+				const expectedLen = width * height * 4;
+				if (
+					!Number.isSafeInteger(ptr) ||
+					ptr < 0 ||
+					!Number.isSafeInteger(len) ||
+					len !== expectedLen ||
+					ptr + len > memory.buffer.byteLength
+				) {
+					throw new Error(`invalid shared frame: offset=${ptr} length=${len}`);
+				}
+				if (
+					cachedImageData === null ||
+					cachedBuffer !== memory.buffer ||
+					cachedPtr !== ptr
+				) {
+					cachedBuffer = memory.buffer;
+					cachedPtr = ptr;
+					const clampedView = new Uint8ClampedArray(memory.buffer as ArrayBuffer, ptr, len);
+					cachedImageData = new ImageData(clampedView, width, height);
+				}
+				return cachedImageData;
 			}
 			// Compatibility with an older generated wrapper/binary pair.
 			return new ImageData(new Uint8ClampedArray(game.render()), width, height);

@@ -152,3 +152,124 @@ describe("dispatch tables", () => {
 		expect(await invoke("set_titlebar_theme", { dark: true })).toBeNull();
 	});
 });
+
+describe("cfgbin and lua command wiring", () => {
+	test("vfs_decode_cfgbin_typed queries /api/v1/game-data/decode_cfgbin_typed", async () => {
+		const seen = stub(() => Response.json({ cle: "skill_config", famille: "skill", json: "{}", brut: "{}" }));
+		const res = await invoke<Record<string, unknown>>("vfs_decode_cfgbin_typed", { path: "data/common/gamedata/skill_config.cfg.bin" });
+		expect(seen[0]).toBe("/api/v1/game-data/decode_cfgbin_typed?path=data%2Fcommon%2Fgamedata%2Fskill_config.cfg.bin");
+		expect(res.cle).toBe("skill_config");
+		expect(res.famille).toBe("skill");
+	});
+
+	test("encode_cfgbin_config posts JSON and returns base64", async () => {
+		let body = "";
+		const seen = stub((_url, init) => {
+			body = String(init?.body ?? "");
+			return Response.json({ b64: "AQID" });
+		});
+		const res = await invoke<string>("encode_cfgbin_config", { path: "data/common/test.cfg.bin", json: '{"entries":[]}' });
+		expect(seen[0]).toBe("/api/v1/game-data/encode_cfgbin");
+		expect(JSON.parse(body)).toMatchObject({ path: "data/common/test.cfg.bin", json: '{"entries":[]}' });
+		expect(res).toBe("AQID");
+	});
+
+	test("lua_disassemble reads text/plain output cleanly without json parse error", async () => {
+		const seen = stub(() => new Response("; disassembly listing\nLOADK R0 K0\nRETURN 0 1", {
+			headers: { "Content-Type": "text/plain; charset=utf-8" },
+		}));
+		const res = await invoke<string>("lua_disassemble", { path: "data/script/test.lua.bin" });
+		expect(seen[0]).toBe("/api/v1/lua/desassemblage/data/script/test.lua.bin");
+		expect(res).toContain("LOADK R0 K0");
+	});
+
+	test("lua_chunk_info maps Analyse to LuaChunkInfoDto", async () => {
+		const seen = stub(() => Response.json({
+			entete: { version: 82, petit_boutiste: true, taille_size_t: 8 },
+			source: "@test.lua",
+			debogage: true,
+			prototypes: 2,
+			instructions: 15,
+			constantes: 4,
+			arbre: [{ parametres: 2, instructions: 10, constantes: 3, upvalues: 1 }],
+		}));
+		const res = await invoke<Record<string, unknown>>("lua_chunk_info", { path: "data/script/test.lua.bin" });
+		expect(seen[0]).toBe("/api/v1/lua/scripts/data/script/test.lua.bin");
+		expect(res.version).toBe(82);
+		expect(res.little_endian).toBe(true);
+		expect(res.num_params).toBe(2);
+		expect(res.instructions).toBe(10);
+		expect(res.total_instructions).toBe(15);
+		expect(res.total_protos).toBe(2);
+		expect(res.has_debug_info).toBe(true);
+	});
+
+	test("lua_execute posts execution request and returns LuaExecResultDto", async () => {
+		let body = "";
+		const seen = stub((_url, init) => {
+			body = String(init?.body ?? "");
+			return Response.json({
+				stdout: ["bonjour"],
+				error: null,
+				returned: ["42"],
+				missing_host_calls: [],
+				duration_ms: 5,
+			});
+		});
+		const res = await invoke<Record<string, unknown>>("lua_execute", {
+			path: "data/script/test.lua.bin",
+			source: "print('bonjour') return 42",
+			withMenuHost: true,
+			instructionLimit: 500_000,
+		});
+		expect(seen[0]).toBe("/api/v1/lua/execute");
+		expect(JSON.parse(body)).toMatchObject({
+			path: "data/script/test.lua.bin",
+			source: "print('bonjour') return 42",
+			with_menu_host: true,
+			instruction_limit: 500_000,
+		});
+		expect(res.stdout).toEqual(["bonjour"]);
+		expect(res.returned).toEqual(["42"]);
+	});
+
+	test("lua_globals posts inspection request and returns globals array", async () => {
+		let body = "";
+		const seen = stub((_url, init) => {
+			body = String(init?.body ?? "");
+			return Response.json([
+				{ name: "score", type_name: "number", value: "100", len: null },
+			]);
+		});
+		const res = await invoke<unknown[]>("lua_globals", {
+			path: "data/script/test.lua.bin",
+			overrides: [["score", "100"]],
+			includeStdlib: false,
+		});
+		expect(seen[0]).toBe("/api/v1/lua/globals");
+		expect(JSON.parse(body)).toMatchObject({
+			overrides: [["score", "100"]],
+			include_stdlib: false,
+		});
+		expect(res).toEqual([{ name: "score", type_name: "number", value: "100", len: null }]);
+	});
+
+	test("lua_eval posts evaluation request and returns string", async () => {
+		let body = "";
+		const seen = stub((_url, init) => {
+			body = String(init?.body ?? "");
+			return Response.json("84");
+		});
+		const res = await invoke<string>("lua_eval", {
+			expression: "42 * 2",
+			withMenuHost: true,
+		});
+		expect(seen[0]).toBe("/api/v1/lua/eval");
+		expect(JSON.parse(body)).toMatchObject({
+			expression: "42 * 2",
+			with_menu_host: true,
+		});
+		expect(res).toBe("84");
+	});
+});
+

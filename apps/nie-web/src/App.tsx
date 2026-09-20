@@ -14,8 +14,24 @@ import {
 } from "@niers/inacord-ui";
 import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { AVATAR, BANK, GALLERY, LEGACY_ROUTES, SETTINGS, SHOP, recognizedRoutes } from "./entries";
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+	AVATAR,
+	BANK,
+	CATALOGS,
+	DATA,
+	DOWNLOADS,
+	EXPLORER,
+	GALLERY,
+	INACORD,
+	LEGACY_ROUTES,
+	MEDIA,
+	MODES,
+	SETTINGS,
+	SHOP,
+	recognizedRoutes,
+} from "./entries";
+import type { VueCatalogue } from "@niers/asset-source";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
 import { useWasmReadiness } from "./game/wasm-readiness";
@@ -26,9 +42,19 @@ import { Shop } from "./screens/Shop";
 import { TrophyGallery } from "./screens/TrophyGallery";
 import { Settings } from "./pages/Settings";
 import { Avatar } from "./pages/Avatar";
+import { WasmGameSurface, WASM_MODE_INDEX, type WasmMode } from "./pages/WasmGameSurface";
+import { Modes } from "./pages/Modes";
+import { Catalog } from "./pages/Catalog";
+import DownloadPage from "./inacord-web/DownloadPage";
+import { UnifiedShell, workspaceViewOf } from "./shell/UnifiedShell";
+import { createWorkspaceActions } from "./shell/workspace-actions";
 import { HOME, splitLanguagePrefix } from "./routing";
 
 import { hybridGameTextResolver } from "./game/hybrid-text-resolver";
+import { initGlobalUiInteractions } from "./game/ui-sound";
+import "./styles/ui-effects.css";
+
+const Workspace = lazy(() => import("./desktop/Workspace").then(({ Workspace }) => ({ default: Workspace })));
 
 /**
  * Hosts the authentic WebAssembly game at root and its native game screens.
@@ -54,6 +80,10 @@ function TexteDuJeu({ children }: { children: ReactNode }) {
 function GameSite() {
 	const gamepadSampler = useMemo(() => createStandardGamepadMenuSampler(), []);
 	const capacites = useCapacites();
+
+	useEffect(() => {
+		return initGlobalUiInteractions();
+	}, []);
 	const erreurSource = useErreurSource();
 	const [etat, setEtat] = useState<SanteApi | null>(null);
 	const { ready: wasmReady, failed: wasmFailed, retry: retryWasm } = useWasmReadiness(GAME_REACHABLE);
@@ -147,22 +177,47 @@ function GameSite() {
 		</FournisseurNavigation>
 	);
 
+	const publicWorkspaceRoute = GAME_REACHABLE && vue !== INACORD && !vue.startsWith(`${INACORD}/`);
+	const actions = useMemo(
+		() => createWorkspaceActions(setVue, publicWorkspaceRoute ? EXPLORER : undefined),
+		[setVue, publicWorkspaceRoute],
+	);
+
+	const shell = (content: ReactNode) =>
+		withHost(<UnifiedShell current={vue} onSelect={setVue}>{content}</UnifiedShell>);
+
+	const renderGame = () => (
+		<Game
+			gamepadSampler={gamepadSampler}
+			phase={openingPhase}
+			startupReady={startupReady}
+			health={etat}
+			startupFailed={vfs === "absent" || wasmFailed}
+			onRetryStartup={wasmFailed ? retryWasm : undefined}
+			onPhaseChange={setOpeningPhase}
+			onOpenBank={() => setVue(BANK)}
+			onOpenGallery={() => setVue(GALLERY)}
+			onOpenShop={() => setVue(SHOP)}
+			onOpenAvatar={() => setVue(AVATAR)}
+			onOpenSettings={() => setVue(SETTINGS)}
+			onSelectMode={(mode) => setVue(mode)}
+			onOpenModes={(slug) => setVue(slug ? `${MODES}/${slug}` : MODES)}
+			onOpenSave={() => setVue(DATA)}
+		/>
+	);
+
 	// Root `/` ou `/menu` : exécution du jeu WebAssembly authentique
 	if (vue === HOME || vue === "menu") {
+		return withHost(renderGame());
+	}
+
+	// Modes de jeu authentiques exécutés dans le runtime WebAssembly
+	if (vue in WASM_MODE_INDEX) {
 		return withHost(
-			<Game
+			<WasmGameSurface
+				mode={vue as WasmMode}
+				onBack={() => setVue(HOME)}
 				gamepadSampler={gamepadSampler}
-				phase={openingPhase}
-				startupReady={startupReady}
-				health={etat}
-				startupFailed={vfs === "absent" || wasmFailed}
-				onRetryStartup={wasmFailed ? retryWasm : undefined}
-				onPhaseChange={setOpeningPhase}
-				onOpenBank={() => setVue(BANK)}
-				onOpenGallery={() => setVue(GALLERY)}
-				onOpenShop={() => setVue(SHOP)}
-				onOpenAvatar={() => setVue(AVATAR)}
-				onOpenSettings={() => setVue(SETTINGS)}
 			/>
 		);
 	}
@@ -184,23 +239,37 @@ function GameSite() {
 		return withHost(<Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} />);
 	}
 
+	// Téléchargements Inacord
+	if (vue === DOWNLOADS) {
+		return shell(<div className="inacord-downloads"><DownloadPage /></div>);
+	}
+
+	// Fiches et catalogue des modes de jeu
+	if (vue === MODES || vue.startsWith(`${MODES}/`)) {
+		return shell(<Modes prefix={prefixe} route={vue} />);
+	}
+
+	// Catalogues de médias (textures, modèles, sons, vidéos)
+	if (CATALOGS.includes(vue as (typeof CATALOGS)[number]) || vue === MEDIA) {
+		return shell(
+			<div style={{ padding: "var(--jeu-espace-xl)", width: "100%", height: "100%", overflow: "auto" }}>
+				<Catalog view={(vue === MEDIA ? "textures" : vue) as VueCatalogue} />
+			</div>
+		);
+	}
+
+	// Espaces de travail et outils (explorateur, éditeur 3D, recherche, données, Inacord)
+	const workspaceView = workspaceViewOf(vue);
+	if (workspaceView !== null) {
+		return shell(
+			<Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-faint">Chargement…</div>}>
+				<Workspace view={workspaceView} actions={actions} publicMode={publicWorkspaceRoute} />
+			</Suspense>
+		);
+	}
+
 	// Toute route non reconnue renvoie vers le jeu principal
-	return withHost(
-		<Game
-			gamepadSampler={gamepadSampler}
-			phase={openingPhase}
-			startupReady={startupReady}
-			health={etat}
-			startupFailed={vfs === "absent" || wasmFailed}
-			onRetryStartup={wasmFailed ? retryWasm : undefined}
-			onPhaseChange={setOpeningPhase}
-			onOpenBank={() => setVue(BANK)}
-			onOpenGallery={() => setVue(GALLERY)}
-			onOpenShop={() => setVue(SHOP)}
-			onOpenAvatar={() => setVue(AVATAR)}
-			onOpenSettings={() => setVue(SETTINGS)}
-		/>
-	);
+	return withHost(renderGame());
 }
 
 const INITIAL_ROUTES = recognizedRoutes(null);

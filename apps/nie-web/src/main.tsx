@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import Host from "#nie-host";
+import "./styles/ui-effects.css";
 
 // A deployment replaces every hashed chunk under `static/`. A tab that loaded the previous
 // `index.html` then fails its next lazy import with a 404 and shows "unavailable" screens until

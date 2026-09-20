@@ -19,6 +19,7 @@ import {
 	getBase64,
 	getBytes,
 	getJson,
+	getText,
 	nonNegative,
 	positive,
 	postJson,
@@ -341,7 +342,6 @@ const gameDataUrl = (family: string) => `/api/v1/game-data/${family}`;
 
 /** `command → why the browser cannot do it`, appended to the Desktop invitation. */
 const DESKTOP_ONLY: Record<string, string> = {
-	encode_cfgbin_config: "Réencoder un `.cfg.bin` (encodeur natif nie-formats)",
 	export_mod_as_cpk: "Empaqueter un mod en CPK",
 	vfs_index_scan_start: "Le balayage d’index en tâche de fond",
 	vfs_index_scan_cancel: "Le balayage d’index en tâche de fond",
@@ -367,9 +367,6 @@ const DESKTOP_ONLY: Record<string, string> = {
 	blender_preview_png_b64: "Le rendu Blender",
 	blender_open_scene: "Ouvrir une scène dans Blender",
 	blender_build_skill_scene: "Construire une scène Blender",
-	lua_eval: "Évaluer du Lua",
-	lua_execute: "Exécuter du Lua",
-	lua_globals: "Inspecter les globales Lua",
 	lua_session_exec: "La session Lua persistante",
 	lua_session_attach: "La session Lua persistante",
 	lua_session_broadcast: "La session Lua persistante",
@@ -487,7 +484,13 @@ export function invoke<T>(command: string, args: Arguments = {}): Promise<T> {
 
 		// --- configuration files --------------------------------------------
 		case "vfs_decode_cfgbin": result = getJson(`/api/v1/formats/decode/${path(args)}`); break;
-		case "vfs_decode_cfgbin_typed": result = getJson(`/api/v1/game-data/decode_cfgbin?${new URLSearchParams({ path: text(args.path) })}`); break;
+		case "vfs_decode_cfgbin_typed": result = getJson(`/api/v1/game-data/decode_cfgbin_typed?${new URLSearchParams({ path: text(args.path) })}`); break;
+		case "encode_cfgbin_config":
+			result = postJson<{ b64: string }>("/api/v1/game-data/encode_cfgbin", {
+				path: text(args.path),
+				json: text(args.json),
+			}).then(res => res.b64);
+			break;
 
 		// --- export ----------------------------------------------------------
 		case "vfs_export_formats": result = getJson(`/api/v1/export/formats/${path(args)}`); break;
@@ -529,8 +532,52 @@ export function invoke<T>(command: string, args: Arguments = {}): Promise<T> {
 			result = getJson("/api/v1/lua/scripts").then(payload => array(Array.isArray(payload) ? payload : record(payload).scripts ?? record(payload).fichiers)
 				.map(item => { const it = record(item); return entry({ chemin: text(it.chemin ?? it.path), nom: text(it.nom ?? it.name), taille: typeof it.taille === "number" ? it.taille : typeof it.size === "number" ? it.size : 0, cpk: text(it.cpk) }); }));
 			break;
-		case "lua_chunk_info": result = getJson(`/api/v1/lua/scripts/${path(args)}`); break;
-		case "lua_disassemble": result = getJson(`/api/v1/lua/desassemblage/${path(args)}`); break;
+		case "lua_chunk_info":
+			result = getJson<JsonRecord>(`/api/v1/lua/scripts/${path(args)}`).then(res => {
+				const arbre = array(res.arbre);
+				const mainProto = arbre.length > 0 ? record(arbre[0]) : null;
+				const entete = record(res.entete);
+				return {
+					version: typeof entete.version === "number" ? entete.version : 82,
+					little_endian: typeof entete.petit_boutiste === "boolean" ? entete.petit_boutiste : true,
+					size_size_t: typeof entete.taille_size_t === "number" ? entete.taille_size_t : 8,
+					num_params: typeof mainProto?.parametres === "number" ? mainProto.parametres : 0,
+					instructions: typeof mainProto?.instructions === "number" ? mainProto.instructions : typeof res.instructions === "number" ? res.instructions : 0,
+					total_instructions: typeof res.instructions === "number" ? res.instructions : 0,
+					total_protos: typeof res.prototypes === "number" ? res.prototypes : 0,
+					constants: typeof mainProto?.constantes === "number" ? mainProto.constantes : typeof res.constantes === "number" ? res.constantes : 0,
+					upvalues: typeof mainProto?.upvalues === "number" ? mainProto.upvalues : 0,
+					source: text(res.source),
+					has_debug_info: Boolean(res.debogage),
+				};
+			});
+			break;
+		case "lua_disassemble": result = getText(`/api/v1/lua/desassemblage/${path(args)}`); break;
+		case "lua_execute":
+			result = postJson("/api/v1/lua/execute", {
+				path: args.path ? text(args.path) : null,
+				source: args.source ? text(args.source) : null,
+				with_menu_host: typeof args.withMenuHost === "boolean" ? args.withMenuHost : true,
+				instruction_limit: typeof args.instructionLimit === "number" ? args.instructionLimit : 1_000_000,
+			});
+			break;
+		case "lua_globals":
+			result = postJson("/api/v1/lua/globals", {
+				path: args.path ? text(args.path) : null,
+				source: args.source ? text(args.source) : null,
+				with_menu_host: typeof args.withMenuHost === "boolean" ? args.withMenuHost : true,
+				overrides: Array.isArray(args.overrides) ? args.overrides : [],
+				include_stdlib: Boolean(args.includeStdlib),
+			});
+			break;
+		case "lua_eval":
+			result = postJson("/api/v1/lua/eval", {
+				path: args.path ? text(args.path) : null,
+				source: args.source ? text(args.source) : null,
+				expression: text(args.expression),
+				with_menu_host: typeof args.withMenuHost === "boolean" ? args.withMenuHost : true,
+			});
+			break;
 
 		// --- 3D services ------------------------------------------------------
 		case "model_service_avatar_catalog": result = getJson("/assets/avatar/catalog.json"); break;
