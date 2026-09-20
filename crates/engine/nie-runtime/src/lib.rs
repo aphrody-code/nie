@@ -29,6 +29,117 @@ use nie_core::BALL_GRAVITY;
 // ⚠ Ne pas convertir vers/depuis `nie_core::Vec3` (y=hauteur) — cf. `docs/ARCHITECTURE.md` landmine #4.
 use nie_geom::{Vec2 as V2, Vec3 as V3};
 
+// ── Cadence de simulation ───────────────────────────────────────────────────────
+//
+// `docs/STACK.md` l'impose : « Timestep fixe. La logique tourne au tick réel du moteur Lives,
+// les frames longues sont bornées, le rendu part d'un état interpolé. C'est la condition du
+// reproductible. Jamais de logique pilotée par un delta-time variable. »
+//
+// Jusqu'au 2026-09-20 ces constantes vivaient dans `nie-net::protocol` : le RÉSEAU déclarait la
+// cadence du jeu. L'inversion coûtait cher — `nie-play` avançait à 1/30 et personne ne le
+// voyait, alors que le serveur autoritaire diffusait du 60 Hz. Deux hôtes, deux simulations, et
+// un hachage de synchronisation incapable de les réconcilier. Le moteur possède sa cadence ;
+// `nie-net` la reprend d'ici, ce qui rend la dérive impossible plutôt qu'improbable.
+
+/// Nombre de pas de simulation par seconde.
+pub const TICK_RATE_HZ: u32 = 60;
+
+/// Durée d'un pas de simulation, en secondes.
+pub const TICK_DT: f32 = 1.0 / TICK_RATE_HZ as f32;
+
+/// Nombre maximal de pas rattrapés en un seul appel à [`FixedStep::advance`].
+///
+/// Sans borne, une frame longue (chargement, point d'arrêt, machine surchargée) demande des
+/// centaines de pas, qui prennent encore plus de temps, qui en demandent plus encore : c'est la
+/// spirale de la mort. Au-delà de cette borne le temps en trop est **abandonné** — le jeu
+/// ralentit visiblement, ce qui est un symptôme honnête, là où une spirale se lit comme un
+/// blocage.
+pub const MAX_CATCHUP_STEPS: u32 = 5;
+
+/// Accumulateur de pas fixe : convertit un temps d'horloge variable en un nombre entier de pas.
+///
+/// Un hôte (fenêtre, navigateur, serveur) reçoit des frames de durée variable ; la simulation,
+/// elle, ne doit avancer que par pas de [`TICK_DT`]. Cet accumulateur est la charnière, et le
+/// dépôt n'en avait aucune : chaque appelant passait son propre `dt` à [`World::step`], si bien
+/// qu'il existait autant de simulations que d'hôtes.
+///
+/// ```
+/// use nie_runtime::{FixedStep, TICK_DT};
+/// let mut pas = FixedStep::default();
+/// // Une frame d'exactement deux pas en rend deux, sans reste.
+/// assert_eq!(pas.advance(TICK_DT * 2.0), 2);
+/// // Une demi-frame n'en rend aucun : le temps est conservé pour la suivante.
+/// assert_eq!(pas.advance(TICK_DT * 0.5), 0);
+/// assert_eq!(pas.advance(TICK_DT * 0.5), 1);
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct FixedStep {
+    /// Temps d'horloge reçu et pas encore consommé, en secondes.
+    accumulateur: f32,
+    /// Durée d'un pas.
+    dt: f32,
+    /// Borne de rattrapage.
+    max_catchup: u32,
+}
+
+impl Default for FixedStep {
+    fn default() -> Self {
+        Self::new(TICK_DT, MAX_CATCHUP_STEPS)
+    }
+}
+
+impl FixedStep {
+    /// Construit un accumulateur. `dt` non fini ou non strictement positif retombe sur
+    /// [`TICK_DT`] : un pas nul ou négatif ferait boucler l'appelant indéfiniment.
+    #[must_use]
+    pub fn new(dt: f32, max_catchup: u32) -> Self {
+        let dt = if dt.is_finite() && dt > 0.0 { dt } else { TICK_DT };
+        Self {
+            accumulateur: 0.0,
+            dt,
+            max_catchup: max_catchup.max(1),
+        }
+    }
+
+    /// Durée d'un pas.
+    #[must_use]
+    pub fn dt(&self) -> f32 {
+        self.dt
+    }
+
+    /// Temps d'horloge accumulé et pas encore consommé — la fraction de pas en cours.
+    ///
+    /// Divisée par [`Self::dt`], c'est le facteur d'interpolation dont le rendu a besoin pour
+    /// afficher un état intermédiaire entre deux pas, comme `STACK.md` le demande.
+    #[must_use]
+    pub fn reste(&self) -> f32 {
+        self.accumulateur
+    }
+
+    /// Absorbe `wall_dt` secondes d'horloge et rend le nombre de pas à exécuter.
+    ///
+    /// Un `wall_dt` non fini ou négatif rend `0` **sans toucher à l'accumulateur** : une horloge
+    /// qui recule ou déborde est un défaut de l'hôte, et l'empoisonner ferait payer à la
+    /// simulation une faute qui n'est pas la sienne.
+    pub fn advance(&mut self, wall_dt: f32) -> u32 {
+        if !wall_dt.is_finite() || wall_dt < 0.0 {
+            return 0;
+        }
+        self.accumulateur += wall_dt;
+        let mut pas = 0;
+        while self.accumulateur >= self.dt && pas < self.max_catchup {
+            self.accumulateur -= self.dt;
+            pas += 1;
+        }
+        if pas == self.max_catchup {
+            // Borne atteinte : le temps en trop est abandonné plutôt que reporté, sans quoi le
+            // retard se cumulerait d'une frame à l'autre.
+            self.accumulateur = self.accumulateur.min(self.dt);
+        }
+        pas
+    }
+}
+
 // ── Dimensions du terrain (mètres, origine au centre) ───────────────────────────
 /// Demi-longueur (but à but) : terrain 105 m.
 pub const HALF_LEN: f32 = 52.5;
@@ -785,5 +896,84 @@ mod tests {
             bloque.state_hash(),
             "après divergence, les hachages doivent différer"
         );
+    }
+
+    // ─── Pas de temps fixe ───────────────────────────────────────────────────────────────
+
+    /// Le temps d'horloge n'est jamais perdu tant que la borne de rattrapage n'est pas atteinte :
+    /// un millier de fractions arbitraires rendent exactement le nombre de pas attendu.
+    ///
+    /// C'est la propriété qui rend une simulation à pas fixe reproductible d'un hôte à l'autre :
+    /// quelle que soit la cadence d'affichage, le même temps écoulé donne le même nombre de pas.
+    #[test]
+    fn le_temps_daccumulation_nest_pas_perdu() {
+        let mut pas = FixedStep::default();
+        let mut total = 0u32;
+        // Des fractions volontairement irrégulières, jamais un multiple entier de TICK_DT.
+        let fractions = [0.3_f32, 0.7, 0.11, 1.9, 0.4];
+        let mut horloge = 0.0_f32;
+        for i in 0..1000 {
+            let wall = TICK_DT * fractions[i % fractions.len()];
+            horloge += wall;
+            total += pas.advance(wall);
+        }
+        let attendu = (horloge / TICK_DT).floor() as u32;
+        assert!(
+            total.abs_diff(attendu) <= 1,
+            "{total} pas pour {horloge:.4}s, soit {attendu} attendus"
+        );
+        assert!(pas.reste() < TICK_DT, "le reste doit rester une fraction de pas");
+    }
+
+    /// Une frame très longue ne demande PAS des centaines de pas : c'est la spirale de la mort.
+    ///
+    /// `docs/STACK.md` l'exige (« les frames longues sont bornées »). Sans borne, un chargement
+    /// ou un point d'arrêt demande un rattrapage plus long que le retard, qui en demande un plus
+    /// long encore — ce qui se lit comme un blocage plutôt que comme un ralentissement.
+    #[test]
+    fn une_frame_tres_longue_est_bornee() {
+        let mut pas = FixedStep::default();
+        assert_eq!(pas.advance(10.0), MAX_CATCHUP_STEPS, "10 s = 600 pas sans borne");
+        // Et le retard n'est pas reporté : la frame suivante repart propre.
+        assert!(pas.reste() <= TICK_DT);
+        assert!(pas.advance(TICK_DT) <= MAX_CATCHUP_STEPS);
+    }
+
+    /// Une horloge qui recule ou déborde ne fait pas avancer la simulation et n'empoisonne pas
+    /// l'accumulateur.
+    ///
+    /// Un `NaN` ajouté à l'accumulateur le rend `NaN` définitivement : toutes les comparaisons
+    /// deviennent fausses et la simulation s'arrête pour de bon, longtemps après la frame
+    /// fautive.
+    #[test]
+    fn une_horloge_invalide_ne_casse_pas_laccumulateur() {
+        let mut pas = FixedStep::default();
+        for mauvais in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, -1.0] {
+            assert_eq!(pas.advance(mauvais), 0, "{mauvais} ne doit produire aucun pas");
+        }
+        assert!(pas.reste().is_finite(), "l'accumulateur doit rester fini");
+        assert_eq!(pas.advance(TICK_DT), 1, "la simulation repart normalement");
+    }
+
+    /// Un `dt` absurde à la construction retombe sur la cadence du moteur.
+    ///
+    /// Un pas nul ou négatif ferait boucler `advance` sans fin chez l'appelant.
+    #[test]
+    fn un_pas_absurde_retombe_sur_la_cadence_du_moteur() {
+        for absurde in [0.0, -1.0, f32::NAN, f32::INFINITY] {
+            let pas = FixedStep::new(absurde, 5);
+            assert_eq!(pas.dt().to_bits(), TICK_DT.to_bits(), "dt = {absurde}");
+        }
+        assert_eq!(FixedStep::new(TICK_DT, 0).advance(10.0), 1, "borne plancher à 1");
+    }
+
+    /// La cadence du moteur et celle du protocole réseau sont le MÊME nombre.
+    ///
+    /// Elles vivaient dans deux crates ; `nie-play` avançait à 1/30 pendant que le serveur
+    /// autoritaire diffusait du 60 Hz. Ce test fige l'unicité.
+    #[test]
+    fn la_cadence_est_unique_dans_le_depot() {
+        assert_eq!(TICK_RATE_HZ, 60);
+        assert_eq!(TICK_DT.to_bits(), (1.0_f32 / 60.0).to_bits());
     }
 }

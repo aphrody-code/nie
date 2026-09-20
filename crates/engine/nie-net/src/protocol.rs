@@ -13,11 +13,13 @@ pub const NET_PROTOCOL_VERSION: &str = "NIE_NET_1.0.0";
 /// Level-5 native binary compatibility protocol version string (extracted from nie.exe).
 pub const LEVEL5_NET_VER_2_3_0: &str = "NET_VER_2_3_0";
 
-/// Standard match simulation tick rate (60 ticks per second = 16.66ms per step).
-pub const TICK_RATE_HZ: u32 = 60;
-
-/// Tick interval in seconds (f32).
-pub const TICK_DT: f32 = 1.0 / TICK_RATE_HZ as f32;
+/// Standard match simulation tick rate, re-exported from the engine that owns it.
+///
+/// It used to be declared here, which had the network dictating the game's cadence. The cost was
+/// real: `nie-play` stepped at 1/30 while the authoritative server broadcast 60 Hz, and nothing
+/// could notice. Re-exporting makes the drift impossible rather than unlikely — there is one
+/// number, in [`nie_runtime`].
+pub use nie_runtime::{TICK_DT, TICK_RATE_HZ};
 
 /// Maximum number of past frames retained in the rollback history ring buffer.
 pub const ROLLBACK_MAX_FRAMES: usize = 64;

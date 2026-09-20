@@ -1574,6 +1574,7 @@ fn cmd_play(max_frames: u32) -> Result<()> {
             ecran,
             police,
             dernier: std::time::Instant::now(),
+            pas: nie_runtime::FixedStep::default(),
             dernier_score: vec![0, 0],
             enfoncees: std::collections::HashSet::new(),
             vfs,
@@ -1768,8 +1769,18 @@ struct AppFenetre {
 struct Jeu {
     ecran: nie_app::flow::Screen,
     police: nie_app::Font,
-    /// Instant de la dernière image, pour un `dt` réel plutôt qu'un pas fixe supposé.
+    /// Instant de la dernière image : c'est le temps d'HORLOGE, que `pas` convertit ensuite en
+    /// un nombre entier de pas de simulation.
     dernier: std::time::Instant,
+    /// Accumulateur de pas fixe.
+    ///
+    /// Le match avançait auparavant de `dt.min(0.1)` — le temps réellement écoulé, borné. Deux
+    /// défauts : `docs/STACK.md` interdit une logique pilotée par un delta-time variable (« la
+    /// condition du reproductible »), et la borne PERD le temps au lieu de le reporter, si bien
+    /// qu'un à-coup d'une demi-seconde n'avançait le jeu que de 0,1 s. Le navigateur faisait
+    /// déjà les choses correctement (`bridge.ts`, `FIXED_TIME_STEP = 1/60`) ; l'hôte natif était
+    /// le seul à ne pas le faire.
+    pas: nie_runtime::FixedStep,
     /// Score affiché au dernier changement, pour ne journaliser qu'aux buts.
     dernier_score: Vec<u32>,
     /// Touches actuellement ENFONCÉES, pour le déplacement en match.
@@ -4666,8 +4677,11 @@ impl winit::application::ApplicationHandler for AppFenetre {
                 }
             }
             WindowEvent::RedrawRequested => {
-                // Avancer le jeu AVANT de dessiner : la physique du match tourne sur le temps
-                // réellement écoulé, pas sur un pas fixe qu'un décrochage rendrait faux.
+                // Avancer le jeu AVANT de dessiner. La simulation tourne à PAS FIXE : le temps
+                // d'horloge entre deux images est accumulé, puis converti en un nombre entier de
+                // pas de `TICK_DT`. C'est ce que `docs/STACK.md` exige, et c'est aussi la seule
+                // façon que cet hôte, le navigateur et le serveur autoritaire simulent la même
+                // partie.
                 if let (Some(jeu), Some(etat)) = (&mut self.jeu, &self.etat) {
                     let dt = jeu.dernier.elapsed().as_secs_f32();
                     jeu.dernier = std::time::Instant::now();
@@ -4678,9 +4692,13 @@ impl winit::application::ApplicationHandler for AppFenetre {
                     let tir = jeu.enfoncees.contains(&winit::keyboard::KeyCode::Space)
                         || jeu.enfoncees.contains(&winit::keyboard::KeyCode::Enter);
                     jeu.ecran.set_game_input(dx, dy, tir);
-                    // Borne haute : après une pause (fenêtre déplacée, veille), un `dt` de
-                    // plusieurs secondes téléporterait le ballon au lieu de le faire avancer.
-                    jeu.ecran.update(dt.min(0.1));
+                    // `advance` borne le rattrapage (cf. `MAX_CATCHUP_STEPS`) : après une pause
+                    // — fenêtre déplacée, veille — le jeu ralentit visiblement au lieu d'entrer
+                    // dans une spirale de rattrapage, et le ballon n'est jamais téléporté.
+                    let pas_a_jouer = jeu.pas.advance(dt);
+                    for _ in 0..pas_a_jouer {
+                        jeu.ecran.update(nie_runtime::TICK_DT);
+                    }
                     let score = jeu.ecran.score();
                     if score != jeu.dernier_score {
                         info!("score {}-{}", score[0], score[1]);

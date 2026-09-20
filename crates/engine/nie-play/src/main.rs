@@ -208,7 +208,10 @@ fn main() -> Result<()> {
             nie_app::GameState::Match { .. } => {
                 let mut world = nie_runtime::World::kickoff();
                 for _ in 0..*dur {
-                    world.step(1.0 / 30.0);
+                    // La cadence du moteur, pas une valeur locale : avancer à 1/30 ici pendant
+                    // que le serveur autoritaire diffuse du 60 Hz donnait deux simulations que
+                    // rien ne réconciliait.
+                    world.step(nie_runtime::TICK_DT);
                     let fr = nie_runtime::render::render(&world, W as u32, H as u32);
                     write_png(&fr.px, &cli.out.join(format!("f{frame:04}.png")))?;
                     frame += 1;

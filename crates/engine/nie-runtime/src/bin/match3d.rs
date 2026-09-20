@@ -40,8 +40,13 @@ struct Cli {
     width: u32,
     #[arg(long, default_value_t = 540)]
     height: u32,
-    /// Pas de simulation par frame (s).
-    #[arg(long, default_value_t = 1.0 / 30.0)]
+    /// Pas de simulation par frame (s). Défaut : la cadence du moteur.
+    ///
+    /// `--fps` est la cadence de la VIDÉO produite, `--dt` celle de la simulation filmée : ce
+    /// sont deux choses. Le défaut valait 1/30, si bien que l'outil filmait une simulation à
+    /// 30 Hz — pas celle qui tourne dans le jeu, ni celle que le serveur autoritaire arbitre.
+    /// Le bouton reste pour qui veut délibérément autre chose.
+    #[arg(long, default_value_t = nie_runtime::TICK_DT)]
     dt: f32,
     /// Rendre une seule image PNG (la première) au lieu de la vidéo.
     #[arg(long)]

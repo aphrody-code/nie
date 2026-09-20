@@ -27,6 +27,10 @@ nie-data.workspace = true
 # Le CŒUR du jeu : machine à états d'écrans (`flow::Screen`), rendu abstrait et police. `--play`
 # se contente de la brancher sur une fenêtre — même FSM que le front web, aucune réimplémentation.
 nie-app.workspace = true
+# Atteint jusqu'ici transitivement par `nie-app::flow::Screen::Match`, alors que l'hôte utilise
+# désormais sa cadence (`TICK_DT`) et son accumulateur (`FixedStep`) directement : une
+# dépendance qu'on nomme est une dépendance qu'on peut voir.
+nie-runtime.workspace = true
 # Le type `Model` traverse l'API de `nie_app::match3d` (vue 3D du match) : nommable ici.
 nie-render3d.workspace = true
 anyhow.workspace = true
