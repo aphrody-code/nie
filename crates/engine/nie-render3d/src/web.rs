@@ -76,6 +76,13 @@ mod browser {
 
     /// Hôte WebGPU d'un modèle NIE. Aucun événement DOM ni requestAnimationFrame installé.
     /// La destruction libère le device dédié ; après perte GPU il faut recréer l'hôte.
+    /// Plafond d'arêtes du fil de fer.
+    ///
+    /// Un personnage du jeu porte des dizaines de milliers de triangles ; au-delà de ce plafond
+    /// le fil de fer devient un aplat et ne renseigne plus rien, pour un téléversement qui, lui,
+    /// coûte toujours.
+    const WIREFRAME_MAX_EDGES: usize = 40_000;
+
     pub struct WebViewer {
         canvas: HtmlCanvasElement,
         surface: wgpu::Surface<'static>,
@@ -109,6 +116,8 @@ mod browser {
         overlay: Option<crate::gpu::GpuLines>,
         /// Grille de sol visible.
         show_grid: bool,
+        /// Fil de fer du modèle visible.
+        show_wireframe: bool,
         /// Objet sélectionné, par identifiant de document — celui que `pick` nomme.
         selected: Option<String>,
         fault: Arc<Mutex<Option<String>>>,
@@ -277,6 +286,7 @@ mod browser {
                 presentation_bind: None,
                 overlay: None,
                 show_grid: false,
+                show_wireframe: false,
                 selected: None,
                 fault,
             })
@@ -433,6 +443,15 @@ mod browser {
             self.rebuild_overlay();
         }
 
+        /// Affiche ou masque le fil de fer du modèle.
+        ///
+        /// Borné à quelques milliers d'arêtes : un personnage du jeu en porte des dizaines de
+        /// milliers, et les tracer toutes noie l'image au lieu de la renseigner.
+        pub fn set_wireframe(&mut self, visible: bool) {
+            self.show_wireframe = visible;
+            self.rebuild_overlay();
+        }
+
         /// Sélectionne un objet du document par son identifiant, ou efface la sélection.
         ///
         /// L'identifiant est celui que [`Self::pick_json`] rend : c'est la même clé de bout en
@@ -470,6 +489,16 @@ mod browser {
                     0.0,
                     [70, 72, 86],
                     [110, 120, 150],
+                ));
+            }
+
+            if self.show_wireframe
+                && let Some(model) = self.pickable.as_ref()
+            {
+                segments.extend(crate::scene::wireframe_segments(
+                    model,
+                    [120, 200, 160],
+                    WIREFRAME_MAX_EDGES,
                 ));
             }
 

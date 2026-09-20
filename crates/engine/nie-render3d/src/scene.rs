@@ -10,6 +10,8 @@
     clippy::cast_precision_loss
 )]
 
+use std::collections::BTreeSet;
+
 use crate::vecmath::{V3, cross, dot, normv, sub};
 
 /// Caméra perspective look-at. `fov_y` en radians (champ vertical).
@@ -226,6 +228,50 @@ pub fn grid_segments(
             )
             .with_width(epaisseur),
         );
+    }
+    out
+}
+
+/// Arêtes d'un modèle, en fil de fer.
+///
+/// Chaque triangle donne trois arêtes ; les arêtes partagées entre deux triangles adjacents sont
+/// **dédupliquées**, sans quoi un maillage fermé tracerait chaque arête intérieure deux fois —
+/// deux fois le coût, et un trait deux fois plus opaque là où deux faces se rejoignent, ce qui
+/// se lit comme un défaut d'éclairage.
+///
+/// La paire `(min, max)` d'indices sert de clé : une arête `a→b` et son opposée `b→a` sont la
+/// même arête, et c'est exactement ainsi qu'elles apparaissent sur deux triangles voisins
+/// correctement orientés.
+///
+/// `limit` borne le nombre de segments rendus. Un personnage du jeu porte plusieurs dizaines de
+/// milliers de triangles : les tracer tous noie l'image et coûte un téléversement inutile. Passer
+/// `usize::MAX` retire la borne.
+#[must_use]
+pub fn wireframe_segments(model: &crate::glb::Model, color: [u8; 3], limit: usize) -> Vec<Segment> {
+    let mut vues: BTreeSet<(u32, u32)> = BTreeSet::new();
+    let mut out = Vec::new();
+    for prim in &model.primitives {
+        for tri in prim.indices.chunks_exact(3) {
+            for (x, y) in [(tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])] {
+                if out.len() >= limit {
+                    return out;
+                }
+                let cle = if x <= y { (x, y) } else { (y, x) };
+                if !vues.insert(cle) {
+                    continue;
+                }
+                let (Some(a), Some(b)) = (
+                    prim.positions.get(x as usize),
+                    prim.positions.get(y as usize),
+                ) else {
+                    continue; // indice hors table : on saute plutôt que de paniquer au rendu
+                };
+                out.push(Segment::new(*a, *b, color));
+            }
+        }
+        // Les indices sont locaux à chaque primitive : repartir d'un ensemble vide évite qu'une
+        // arête de la primitive suivante soit prise pour un doublon de la précédente.
+        vues.clear();
     }
     out
 }
@@ -1190,5 +1236,61 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Le fil de fer DÉDUPLIQUE les arêtes partagées.
+    ///
+    /// Deux triangles adjacents partagent une arête ; la tracer deux fois coûte double et produit
+    /// un trait plus opaque à chaque jointure, ce qui se lit comme un défaut d'éclairage plutôt
+    /// que comme un doublon. Valeurs calculées à la main : un quad = 2 triangles = 5 arêtes
+    /// distinctes (4 de bord + 1 diagonale), pas 6.
+    #[test]
+    fn le_fil_de_fer_deduplique_les_aretes_partagees() {
+        let quad = crate::glb::Model {
+            primitives: vec![crate::glb::Primitive {
+                positions: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+                normals: Vec::new(),
+                uv: Vec::new(),
+                indices: vec![0, 1, 2, 0, 2, 3],
+                texture: None,
+            }],
+            textures: Vec::new(),
+        };
+        let w = wireframe_segments(&quad, [200, 200, 200], usize::MAX);
+        assert_eq!(w.len(), 5, "4 bords + 1 diagonale, la diagonale n'est PAS doublée");
+    }
+
+    /// La borne arrête le tracé — un personnage du jeu noierait l'image sans elle.
+    #[test]
+    fn le_fil_de_fer_respecte_sa_borne() {
+        let quad = crate::glb::Model {
+            primitives: vec![crate::glb::Primitive {
+                positions: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+                normals: Vec::new(),
+                uv: Vec::new(),
+                indices: vec![0, 1, 2, 0, 2, 3],
+                texture: None,
+            }],
+            textures: Vec::new(),
+        };
+        assert_eq!(wireframe_segments(&quad, [1; 3], 3).len(), 3);
+        assert!(wireframe_segments(&quad, [1; 3], 0).is_empty());
+    }
+
+    /// Un indice hors table est SAUTÉ, pas propagé jusqu'au rendu.
+    #[test]
+    fn le_fil_de_fer_saute_un_indice_hors_table() {
+        let casse = crate::glb::Model {
+            primitives: vec![crate::glb::Primitive {
+                positions: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+                normals: Vec::new(),
+                uv: Vec::new(),
+                indices: vec![0, 1, 9],
+                texture: None,
+            }],
+            textures: Vec::new(),
+        };
+        // Seule l'arête 0→1 est traçable ; les deux qui touchent l'indice 9 sont sautées.
+        assert_eq!(wireframe_segments(&casse, [1; 3], usize::MAX).len(), 1);
     }
 }

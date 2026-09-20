@@ -83,6 +83,11 @@ impl WebGpuViewer {
         self.inner.set_grid(visible);
     }
 
+    /// Affiche ou masque le fil de fer du modèle.
+    pub fn set_wireframe(&mut self, visible: bool) {
+        self.inner.set_wireframe(visible);
+    }
+
     /// Sélectionne un objet du document — l'identifiant est celui que `pick_json` rend.
     ///
     /// Passer une chaîne vide efface la sélection : `Option<&str>` traverse `wasm_bindgen` en
