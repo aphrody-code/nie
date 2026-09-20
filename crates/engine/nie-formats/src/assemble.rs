@@ -3505,31 +3505,52 @@ fn glb_emit_animations(
                     continue;
                 }
                 let node = base + track.bone_index;
+                let frames = track.keyframes.len();
 
-                let times: Vec<u8> = track
-                    .keyframes
-                    .iter()
-                    .flat_map(|k| k.time_seconds.to_le_bytes())
-                    .collect();
-                let time_acc = glb_push_accessor(
-                    bv_data,
-                    buffer_views_json,
-                    accessor_defs,
-                    &times,
-                    track.keyframes.len(),
-                    5126,
-                    "SCALAR",
-                );
+                // Une piste dont la valeur ne change JAMAIS se réduit à une seule image clé :
+                // sous `LINEAR`, un sampler à un point rend cette valeur à tout instant, donc
+                // la réduction est exacte et non une approximation. Sur un squelette, la
+                // translation et l'échelle sont constantes pour presque tous les os, et les
+                // émettre image par image multipliait le GLB par plus de dix.
+                //
+                // La comparaison est BIT à BIT : au moindre frémissement, on garde la piste
+                // entière. Une tolérance ferait entrer une perte silencieuse ici, alors que le
+                // seul gain visé est de ne pas répéter une valeur identique.
+                let t_vals: Vec<[f32; 3]> = track.keyframes.iter().map(|k| k.pose.translation).collect();
+                let r_vals: Vec<[f32; 4]> = track.keyframes.iter().map(|k| k.pose.quat).collect();
+                let s_vals: Vec<[f32; 3]> = track.keyframes.iter().map(|k| k.pose.scale).collect();
+                let constant = |raw: &[&[f32]]| {
+                    raw.windows(2)
+                        .all(|w| w[0].iter().map(|c| c.to_bits()).eq(w[1].iter().map(|c| c.to_bits())))
+                };
+                let t_const = constant(&t_vals.iter().map(|v| &v[..]).collect::<Vec<_>>());
+                let r_const = constant(&r_vals.iter().map(|v| &v[..]).collect::<Vec<_>>());
+                let s_const = constant(&s_vals.iter().map(|v| &v[..]).collect::<Vec<_>>());
+
+                let first_time = track.keyframes.first().map_or(0.0, |k| k.time_seconds);
                 // glTF EXIGE min/max sur l'accessor d'entrée d'un sampler d'animation — sans eux
                 // un validateur strict rejette le fichier entier, pas seulement l'animation.
-                if let Some(acc) = accessor_defs.get_mut(time_acc) {
-                    let first = track.keyframes.first().map_or(0.0, |k| k.time_seconds);
-                    let last = track.keyframes.last().map_or(0.0, |k| k.time_seconds);
-                    acc["min"] = json!([first]);
-                    acc["max"] = json!([last]);
-                }
+                let mut push_times = |values: &[f32]| {
+                    let raw: Vec<u8> = values.iter().flat_map(|t| t.to_le_bytes()).collect();
+                    let acc = glb_push_accessor(bv_data, buffer_views_json, accessor_defs, &raw, values.len(), 5126, "SCALAR");
+                    if let Some(def) = accessor_defs.get_mut(acc) {
+                        def["min"] = json!([values.first().copied().unwrap_or(0.0)]);
+                        def["max"] = json!([values.last().copied().unwrap_or(0.0)]);
+                    }
+                    acc
+                };
+                // Chaque accessor de temps n'est créé que s'il sert : un GLB ne doit pas porter
+                // une table de 300 instants qu'aucun sampler ne lit.
+                let full_time_acc = (!(t_const && r_const && s_const)).then(|| {
+                    let times: Vec<f32> = track.keyframes.iter().map(|k| k.time_seconds).collect();
+                    push_times(&times)
+                });
+                let single_time_acc = (t_const || r_const || s_const).then(|| push_times(&[first_time]));
 
-                let mut push_channel = |path: &str, raw: Vec<u8>, count: usize, ty: &str| {
+                let mut push_channel = |path: &str, raw: Vec<u8>, count: usize, ty: &str, is_const: bool| {
+                    let Some(time_acc) = (if is_const { single_time_acc } else { full_time_acc }) else {
+                        return;
+                    };
                     let out_acc = glb_push_accessor(
                         bv_data,
                         buffer_views_json,
@@ -3548,31 +3569,21 @@ fn glb_emit_animations(
                     }));
                 };
 
-                let t_raw: Vec<u8> = track
-                    .keyframes
-                    .iter()
-                    .flat_map(|k| k.pose.translation)
-                    .flat_map(f32::to_le_bytes)
-                    .collect();
-                push_channel("translation", t_raw, track.keyframes.len(), "VEC3");
+                let pack = |values: &[&[f32]]| -> Vec<u8> {
+                    values.iter().flat_map(|v| v.iter().flat_map(|c| c.to_le_bytes())).collect()
+                };
+                let keep = |n: bool| if n { 1 } else { frames };
+
+                let t_slice: Vec<&[f32]> = t_vals.iter().take(keep(t_const)).map(|v| &v[..]).collect();
+                push_channel("translation", pack(&t_slice), keep(t_const), "VEC3", t_const);
 
                 // `LocalTrs::quat` est déjà ordonné (x, y, z, w), l'ordre que glTF attend pour
                 // ROTATION — aucune permutation à faire ici.
-                let r_raw: Vec<u8> = track
-                    .keyframes
-                    .iter()
-                    .flat_map(|k| k.pose.quat)
-                    .flat_map(f32::to_le_bytes)
-                    .collect();
-                push_channel("rotation", r_raw, track.keyframes.len(), "VEC4");
+                let r_slice: Vec<&[f32]> = r_vals.iter().take(keep(r_const)).map(|v| &v[..]).collect();
+                push_channel("rotation", pack(&r_slice), keep(r_const), "VEC4", r_const);
 
-                let s_raw: Vec<u8> = track
-                    .keyframes
-                    .iter()
-                    .flat_map(|k| k.pose.scale)
-                    .flat_map(f32::to_le_bytes)
-                    .collect();
-                push_channel("scale", s_raw, track.keyframes.len(), "VEC3");
+                let s_slice: Vec<&[f32]> = s_vals.iter().take(keep(s_const)).map(|v| &v[..]).collect();
+                push_channel("scale", pack(&s_slice), keep(s_const), "VEC3", s_const);
             }
             if channels.is_empty() {
                 extra_excluded.push(json!({
@@ -4638,6 +4649,25 @@ mod tests {
         let extras = &json["extras"]["nie"]["animation"];
         assert_eq!(extras["included"], serde_json::json!(["idle"]));
         assert_eq!(extras["excluded"][0]["name"], "additive_clip");
+
+        // La piste du clip translate sur deux images tout en gardant rotation et échelle fixes.
+        // Les trois canaux restent présents — on ne perd rien — mais les deux constants ne
+        // portent plus qu'UNE image clé, là où les émettre image par image multipliait le GLB
+        // par plus de dix sur un vrai personnage (3,2 Mo → 44 Mo, mesuré le 2026-09-20).
+        let counts: Vec<u64> = channels
+            .iter()
+            .map(|channel| {
+                let sampler = &anims[0]["samplers"][channel["sampler"].as_u64().unwrap() as usize];
+                let output = sampler["output"].as_u64().unwrap() as usize;
+                json["accessors"][output]["count"].as_u64().unwrap()
+            })
+            .collect();
+        let paths: Vec<&str> = channels
+            .iter()
+            .map(|channel| channel["target"]["path"].as_str().unwrap())
+            .collect();
+        assert_eq!(paths, ["translation", "rotation", "scale"]);
+        assert_eq!(counts, [2, 1, 1], "seule la piste qui bouge garde ses deux images");
     }
 
     // ── Tests des nouvelles fonctionnalités ───────────────────────────────────
