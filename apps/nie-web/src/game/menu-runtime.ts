@@ -1,5 +1,5 @@
 /** Thin transport for bounded native Lua menu replay; no source evaluation or simulated success. */
-import type { GameLocale } from "@niers/asset-source";
+import { fetchJson, type GameLocale } from "@niers/asset-source";
 export const MENU_CALLBACKS = [
 	"PreStep", "Step", "PostStep", "SceneStep", "OnInit", "OnEnter", "OnSubEnter", "OnFunction", "OnBack",
 	"OnSetupLayer", "OnOpenLayer", "OnCloseLayer", "OnOpenEndLayer", "OnCloseEndLayer", "OnUpdateLayer",
@@ -72,12 +72,19 @@ function decodeResult(value: unknown): MenuRuntimeResult {
 export async function replayMenuRuntime(screen: string, request: MenuRuntimeRequest = {}, signal?: AbortSignal): Promise<MenuRuntimeResult> {
 	if (!/^[A-Za-z0-9_]{1,96}$/.test(screen)) throw new Error("Invalid menu screen");
 	if ((request.events?.length ?? 0) > 64) throw new Error("Menu replay event limit reached");
-	const response = await fetch(`/api/v1/menu/runtime/${encodeURIComponent(screen)}`, {
-		method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
-		body: JSON.stringify(request), signal, cache: "no-store",
-	});
-	if (!response.ok) throw new Error("Menu runtime unavailable");
-	return decodeResult(await response.json());
+	try {
+		const json = await fetchJson<unknown>(`/api/v1/menu/runtime/${encodeURIComponent(screen)}`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(request),
+			signal,
+			timeoutMs: 10_000,
+			retries: 1,
+		});
+		return decodeResult(json);
+	} catch {
+		throw new Error("Menu runtime unavailable");
+	}
 }
 
 /** Host-owned session: superseded requests are aborted and never replace the current snapshot. */

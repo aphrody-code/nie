@@ -22,3 +22,4 @@ export {
 	fetchNativeAsset,
 } from "./native-locale";
 export type { Capacites, Fichier, Page, SanteApi, VueCatalogue } from "./nie-site";
+export * from "./http-client";

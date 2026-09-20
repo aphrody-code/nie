@@ -918,7 +918,7 @@ export const UI_TEXT_VARIANTS: readonly UiTextVariant[] = [
 		fr: "Agilité",
 		transform: "upper",
 		occurrences: [{ family: "menu_text", hash: "0xe0f20046" }, { family: "help_list_text", hash: "0x1af4ca2d" }, { family: "help_list_text", hash: "0x2e0b2d85" }, { family: "system_text", hash: "0x029d819e" }],
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:37", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:37"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:37"],
 	},
 	{
 		label: "CONTRÔLE",
@@ -927,7 +927,7 @@ export const UI_TEXT_VARIANTS: readonly UiTextVariant[] = [
 		fr: "Contrôle",
 		transform: "upper",
 		occurrences: [{ family: "menu_text", hash: "0xbf19862f" }, { family: "help_list_text", hash: "0xcdfff44e" }, { family: "help_list_text", hash: "0xf90013e6" }, { family: "system_text", hash: "0x5d7607f7" }],
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:34", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:34"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:34"],
 	},
 	{
 		label: "FRAPPE",
@@ -936,7 +936,7 @@ export const UI_TEXT_VARIANTS: readonly UiTextVariant[] = [
 		fr: "Frappe",
 		transform: "upper",
 		occurrences: [{ family: "menu_text", hash: "0x1d702cd5" }, { family: "menu_text", hash: "0x57db63ca" }, { family: "menu_text", hash: "0x9676cff2" }, { family: "help_list_text", hash: "0xd4e4c50f" }, { family: "help_list_text", hash: "0xe01b22a7" }, { family: "system_text", hash: "0xff1fad0d" }, { family: "rpg_battle_cmd_text", hash: "0x974f3d86" }],
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:33", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:33"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:33"],
 	},
 	{
 		label: "INTELLIGENCE",
@@ -945,7 +945,7 @@ export const UI_TEXT_VARIANTS: readonly UiTextVariant[] = [
 		fr: "Intelligence",
 		transform: "upper",
 		occurrences: [{ family: "menu_text", hash: "0xac95cb90" }, { family: "help_list_text", hash: "0x9ba553c8" }, { family: "help_list_text", hash: "0xaf5ab460" }, { family: "system_text", hash: "0x4efa4a48" }],
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:38", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:38"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:38"],
 	},
 	{
 		label: "Légendaire",
@@ -963,7 +963,7 @@ export const UI_TEXT_VARIANTS: readonly UiTextVariant[] = [
 		fr: "Physique",
 		transform: "upper",
 		occurrences: [{ family: "menu_text", hash: "0xa9f1f72b" }, { family: "help_list_text", hash: "0x9d6cd6e2" }, { family: "help_list_text", hash: "0xa993314a" }, { family: "system_text", hash: "0x4b9e76f3" }],
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:36", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:36"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:36"],
 	},
 	{
 		label: "TECHNIQUE",
@@ -972,7 +972,7 @@ export const UI_TEXT_VARIANTS: readonly UiTextVariant[] = [
 		fr: "Technique",
 		transform: "upper",
 		occurrences: [{ family: "menu_text", hash: "0xd02a224b" }, { family: "help_list_text", hash: "0x82be6289" }, { family: "help_list_text", hash: "0xb6418521" }, { family: "system_text", hash: "0x3245a393" }],
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:39", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:39"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:39"],
 	},
 	{
 		label: "Éditeur d’avatar",
@@ -1091,7 +1091,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 		closestFamily: "chara_text",
 		closestHash: "0x98518c66",
 		homonymFamilies: ["chara_text"],
-		usedAt: ["apps/nie-web/src/desktop/components/wiki/StatHeptagon.tsx:35", "packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:35"],
+		usedAt: ["packages/inacord-ui/src/components/wiki/wiki/StatHeptagon.tsx:35"],
 	},
 	{
 		label: "Contre-attaque",

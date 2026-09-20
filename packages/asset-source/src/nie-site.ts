@@ -129,10 +129,10 @@ export interface SanteApi {
 	vues: { nom: string; extensions: string[]; total: number | null }[];
 }
 
+import { fetchJson } from "./http-client";
+
 async function lire<T>(url: string, signal?: AbortSignal): Promise<T> {
-	const r = await fetch(url, { signal, headers: { accept: "application/json" } });
-	if (!r.ok) throw new Error(`${url} a repondu ${r.status}`);
-	return (await r.json()) as T;
+	return fetchJson<T>(url, { signal });
 }
 
 const DEFAULT_PAGE = 1;

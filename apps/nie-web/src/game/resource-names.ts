@@ -1,15 +1,17 @@
 import type { NameResolver, ResolvedName } from "@niers/inacord-ui/lib/resolved-names";
 import { useResolvedNames, nameWithId } from "@niers/inacord-ui/lib/resolved-names";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { fetchJson } from "@niers/asset-source";
 
 export const resolveResourceNames: NameResolver = async (_source, codes, locale) => {
     const names = new Map<string, ResolvedName>();
     const unique = [...new Set(codes)];
     for (let index = 0; index < unique.length; index += 200) {
      const params = new URLSearchParams({ locale, codes: unique.slice(index, index + 200).join(",") });
-     const response = await fetch(`/api/v1/wiki/names?${params}`);
-     if (!response.ok) throw new Error("Resource names are unavailable");
-     const result = await response.json() as { records: { code: string; kind: "chara" | "skill" | "item" | "tactic" | "team" | "keshin" | "soul"; id: string; name: string }[] };
+     const result = await fetchJson<{ records: { code: string; kind: "chara" | "skill" | "item" | "tactic" | "team" | "keshin" | "soul"; id: string; name: string }[] }>(
+      `/api/v1/wiki/names?${params}`,
+      { timeoutMs: 10_000, retries: 2 },
+     );
      for (const row of result.records) {
       if (!names.has(row.code)) {
        names.set(row.code, { kind: row.kind, id: row.id, name: row.name, extra: null });

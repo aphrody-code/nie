@@ -3,6 +3,7 @@ import { NativeAudioPlayer, type NativeAudioManifest, type NativeAudioState } fr
 import { NATIVE_COMMAND_EVENT } from "@niers/inacord-ui/lib/native-command";
 import { useEffect, useRef, useState } from "react";
 import { NativeResources } from "./native-resources";
+import { fetchJson } from "@niers/asset-source";
 
 /** Persistent startup owner: decoding is native, host fetches are bounded and disposable. */
 export function StartupResources({ titleActive }: { titleActive: boolean }) {
@@ -39,9 +40,11 @@ export function StartupResources({ titleActive }: { titleActive: boolean }) {
 		window.addEventListener("keydown", resume);
 		document.addEventListener("visibilitychange", visibility);
 		window.addEventListener(NATIVE_COMMAND_EVENT, command);
-		void fetch("/api/v1/runtime/audio", { signal: abort.signal }).then(async (response) => {
-			if (!response.ok) throw new Error("Audio catalogue unavailable");
-			const manifest = await response.json() as NativeAudioManifest;
+		void fetchJson<NativeAudioManifest>("/api/v1/runtime/audio", {
+			signal: abort.signal,
+			timeoutMs: 15_000,
+			retries: 2,
+		}).then(async (manifest) => {
 			if (manifest.schemaVersion !== 1 || !manifest.title || !Array.isArray(manifest.system)) {
 				throw new Error("Invalid audio catalogue");
 			}

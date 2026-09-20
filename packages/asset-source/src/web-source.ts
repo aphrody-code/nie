@@ -48,10 +48,10 @@ export interface OptionsWebSource {
 	origine?: string;
 }
 
+import { fetchJson } from "./http-client";
+
 async function lire<T>(url: string, signal?: AbortSignal): Promise<T> {
-	const r = await fetch(url, { signal, headers: { accept: "application/json" } });
-	if (!r.ok) throw new Error(`${url} a répondu ${r.status}`);
-	return (await r.json()) as T;
+	return fetchJson<T>(url, { signal });
 }
 
 /**

@@ -20,13 +20,20 @@ export interface NativeTextMatches {
 /** Host adapter. Browser, Tauri and Wasm use their own VFS transport behind this contract. */
 export type NativeTextResolver = (locale: GameLocale, family: string, hash: string) => Promise<NativeTextMatches>;
 
+import { fetchJson } from "@niers/asset-source";
+
 /**
  * Browser adapter for the measured server VFS catalogue. It never carries a copy of game text.
  */
 export const fetchNativeText: NativeTextResolver = async (locale, family, hash) => {
-	const response = await fetch(`/api/v1/text/${encodeURIComponent(locale)}/${encodeURIComponent(family)}/${encodeURIComponent(hash)}`);
-	if (!response.ok) throw new Error("Native text is unavailable");
-	return response.json() as Promise<NativeTextMatches>;
+	try {
+		return await fetchJson<NativeTextMatches>(
+			`/api/v1/text/${encodeURIComponent(locale)}/${encodeURIComponent(family)}/${encodeURIComponent(hash)}`,
+			{ timeoutMs: 10_000, retries: 1 },
+		);
+	} catch {
+		throw new Error("Native text is unavailable");
+	}
 };
 
 interface Entry { value?: NativeTextMatches; pending?: Promise<void>; }

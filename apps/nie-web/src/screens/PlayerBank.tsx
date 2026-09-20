@@ -40,6 +40,7 @@ import {
 	type CharaFacet,
 	type CharaSort,
 } from "@niers/asset-source/chara";
+import { fetchJson } from "@niers/asset-source";
 import { StatHeptagon } from "@niers/inacord-ui/components/wiki/wiki/StatHeptagon";
 import { getCharacterFaceUrl } from "@niers/inacord-ui/lib/wikiImages";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
@@ -160,19 +161,17 @@ interface ProfileChara {
  * reste d'aucun côté.
  */
 async function loadRoster(signal: AbortSignal): Promise<RosterEntry[]> {
-	const [profileResponse, dataResponse] = await Promise.all([
-		fetch("/api/v1/profile/complete", { signal, headers: { accept: "application/json" } }).catch(() => null),
-		fetch("/api/v1/game-data/charas", { signal, headers: { accept: "application/json" } }),
+	const [profileBody, charasData] = await Promise.all([
+		fetchJson<{ charas?: unknown }>("/api/v1/profile/complete", { signal, timeoutMs: 10_000, retries: 1 }).catch(() => null),
+		fetchJson<unknown>("/api/v1/game-data/charas", { signal, timeoutMs: 15_000, retries: 2 }),
 	]);
-	if (!dataResponse.ok) throw new Error("Roster unavailable");
-	const charas = readCharas(await dataResponse.json());
+	const charas = readCharas(charasData);
 
 	// Le profil est facultatif : absent, l'écran montre le même vivier au niveau de référence,
 	// et chaque entrée dit d'où elle vient par `origin`.
 	let progression: Map<string, ProfileChara> | null = null;
-	if (profileResponse?.ok) {
-		const body = await profileResponse.json() as { charas?: unknown };
-		const rows = Array.isArray(body?.charas) ? body.charas as ProfileChara[] : [];
+	if (profileBody) {
+		const rows = Array.isArray(profileBody.charas) ? (profileBody.charas as ProfileChara[]) : [];
 		const valides = rows.filter((row) => row && typeof row.id === "string" && Boolean(row.stats));
 		if (valides.length > 0) progression = new Map(valides.map((row) => [row.id, row]));
 	}

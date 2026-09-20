@@ -1,3 +1,5 @@
+import { resilientFetch } from "./http-client";
+
 /** Bounded demand/preload queue. Original VFS identities stay with the caller; URLs are bindings. */
 export class ResourceLoader {
 	private readonly pending = new Map<string, Promise<Blob>>();
@@ -32,7 +34,7 @@ export class ResourceLoader {
 		const job = new Promise<Blob>((resolve, reject) => {
 			const run = () => {
 				this.active++;
-				fetch(url, { signal: this.abort.signal }).then(async (response) => {
+				resilientFetch(url, { signal: this.abort.signal }).then(async (response) => {
 					if (!response.ok) throw new Error("Resource unavailable");
 					const blob = await response.blob();
 					if (!blob.size) throw new Error("Empty resource");

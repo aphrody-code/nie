@@ -32,6 +32,7 @@
 import { ensureWasm } from "./bridge";
 import { menuTextLines } from "./lua-runtime";
 import { MenuScreenBuilder } from "../wasm/nie_wasm.js";
+import { fetchBytes, fetchJson } from "@niers/asset-source";
 
 /** L'espace de fichiers du VFS servi par `nie-site`. */
 const VFS_SPACE = "/f/";
@@ -73,18 +74,15 @@ export interface BuiltLayout {
 
 /** Les octets d'un chemin du VFS, ou `null` quand le site ne le rend pas. */
 async function vfsBytes(path: string): Promise<Uint8Array | null> {
-	const response = await fetch(`${VFS_SPACE}${path}`).catch(() => null);
-	if (!response?.ok) return null;
-	return new Uint8Array(await response.arrayBuffer());
+	return fetchBytes(`${VFS_SPACE}${path}`, { timeoutMs: 15_000, retries: 0 }).catch(() => null);
 }
 
 /** La description d'un écran, ou `null` quand le site ne le connaît pas. */
 async function screenDetail(screen: string): Promise<ScreenDetail | null> {
-	const response = await fetch(`/api/v1/screens/${encodeURIComponent(screen)}`, {
-		headers: { accept: "application/json" },
+	return fetchJson<ScreenDetail>(`/api/v1/screens/${encodeURIComponent(screen)}`, {
+		timeoutMs: 15_000,
+		retries: 0,
 	}).catch(() => null);
-	if (!response?.ok) return null;
-	return (await response.json()) as ScreenDetail;
 }
 
 /**
@@ -217,14 +215,14 @@ export async function compareLayoutWithServer(
 	// The handler has no locale query contract. Comparing a localized browser layout with its
 	// fixed French output would report a renderer divergence when only the inputs differ.
 	if (locale !== SERVER_LAYOUT_LOCALE) return null;
-	const [built, response] = await Promise.all([
+	const [built, server] = await Promise.all([
 		buildMenuLayout(screen, locale),
-		fetch(`/api/v1/menu/layout/${encodeURIComponent(screen)}`, {
-			headers: { accept: "application/json" },
+		fetchJson<Record<string, unknown>>(`/api/v1/menu/layout/${encodeURIComponent(screen)}`, {
+			timeoutMs: 10_000,
+			retries: 0,
 		}).catch(() => null),
 	]);
-	if (built === null || !response?.ok) return null;
-	const server = (await response.json()) as Record<string, unknown>;
+	if (built === null || server === null) return null;
 	const browser = built.layout as Record<string, unknown>;
 	const comparable = (objets: unknown) =>
 		JSON.stringify(
@@ -276,12 +274,14 @@ export async function loadMenuLayout(
 		if (locale !== SERVER_LAYOUT_LOCALE) {
 			throw new Error(`Server layout is unavailable for locale ${locale}`);
 		}
-		const response = await fetch(
-			`/api/v1/menu/layout/${encodeURIComponent(screen)}`,
-			{ signal, headers: { accept: "application/json" } },
-		);
-		if (!response.ok) throw new Error("Layout unavailable");
-		return (await response.json()) as unknown;
+		try {
+			return await fetchJson<unknown>(
+				`/api/v1/menu/layout/${encodeURIComponent(screen)}`,
+				{ signal, timeoutMs: 15_000, retries: 1 },
+			);
+		} catch {
+			throw new Error("Layout unavailable");
+		}
 	};
 
 	const built = await buildMenuLayout(screen, locale).catch(() => null);

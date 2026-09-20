@@ -710,12 +710,17 @@ impl NiersMcpServer {
             .unwrap_or_else(|_| "http://127.0.0.1:8085".to_owned());
         let url = format!("{}/api/v1/health", base.trim_end_matches('/'));
         let result = async {
-            let response = reqwest::Client::builder()
+            let client = reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(5))
-                .build()?
-                .get(&url)
-                .send()
-                .await?;
+                .build()?;
+            let mut response = client.get(&url).send().await;
+            if response.as_ref().map_or(true, |r| r.status().is_server_error()) {
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                if let Ok(retry_resp) = client.get(&url).send().await {
+                    response = Ok(retry_resp);
+                }
+            }
+            let response = response?;
             let status = response.status();
             let body = response.text().await?;
             anyhow::ensure!(

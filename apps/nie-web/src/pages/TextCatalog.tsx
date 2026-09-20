@@ -13,6 +13,7 @@ import {
   writeBrowserHistory,
 } from "@niers/inacord-ui/lib/browser-navigation";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { fetchJson } from "@niers/asset-source";
 
 type TextFamily = {
   family: string;
@@ -123,11 +124,7 @@ export function TextCatalog() {
   useEffect(() => {
     const controller = new AbortController();
     setError(false);
-    fetch("/api/v1/text", { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error("Text catalogue unavailable");
-        return response.json() as Promise<TextCatalog>;
-      })
+    fetchJson<TextCatalog>("/api/v1/text", { signal: controller.signal, timeoutMs: 15_000, retries: 2 })
       .then((value) => {
         if (controller.signal.aborted) return;
         setCatalog(value);
@@ -164,14 +161,10 @@ export function TextCatalog() {
       per_page: String(filters.perPage),
     });
     if (filters.q) params.set("q", filters.q);
-    fetch(
+    fetchJson<TextPage>(
       `/api/v1/text/${encodeURIComponent(locale)}/${encodeURIComponent(family)}?${params}`,
-      { signal: controller.signal },
+      { signal: controller.signal, timeoutMs: 15_000, retries: 2 },
     )
-      .then((response) => {
-        if (!response.ok) throw new Error("Text family unavailable");
-        return response.json() as Promise<TextPage>;
-      })
       .then((value) => {
         if (!controller.signal.aborted) setPage(value);
       })

@@ -52,6 +52,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`RENDER-QA.md`](RENDER-QA.md) | Graphics backends per platform, visual QA of an assembled GLB, and why the three rasterisers must be compared on a non-square viewport. |
 | [`BENCHMARKS.md`](BENCHMARKS.md) | Comparative performance measurements. |
 | [`VIDEO-STACK.md`](VIDEO-STACK.md) | The video stack chosen across the Rust and Bun ecosystems, measured on this machine. |
+| [`BEVY.md`](BEVY.md) | Bevy adapter evaluation against Bevy 0.19.1: boundaries, assets, gizmos, and why ECS stays out of the simulation core. |
 | [`game-data/`](game-data/) | Extracted game-data references. |
 | [`vfs/`](vfs/) | VFS inventories and per-mount notes. |
 | [`architecture/`](architecture/) | Ownership and shared-surface contracts per application. |

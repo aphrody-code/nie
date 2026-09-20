@@ -18,9 +18,21 @@ pub struct NetClient {
 }
 
 impl NetClient {
-    /// Connects to a nie-net multiplayer server at given WebSocket URL (e.g. `ws://127.0.0.1:8088`).
+    /// Connects to a nie-net multiplayer server with a default 10-second timeout.
     pub async fn connect(url: &str, player_name: &str) -> anyhow::Result<Self> {
-        let (ws_stream, _) = connect_async(url).await?;
+        Self::connect_with_timeout(url, player_name, std::time::Duration::from_secs(10)).await
+    }
+
+    /// Connects to a nie-net multiplayer server at given WebSocket URL with explicit timeout.
+    pub async fn connect_with_timeout(
+        url: &str,
+        player_name: &str,
+        timeout_dur: std::time::Duration,
+    ) -> anyhow::Result<Self> {
+        let (ws_stream, _) = tokio::time::timeout(timeout_dur, connect_async(url))
+            .await
+            .map_err(|_| anyhow::anyhow!("Connection to {url} timed out after {timeout_dur:?}"))?
+            .map_err(|e| anyhow::anyhow!("Failed to connect to {url}: {e}"))?;
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
         let (inbound_tx, inbound_rx) = mpsc::unbounded_channel::<NetMessage>();
@@ -63,9 +75,24 @@ impl NetClient {
             player_id: None,
         };
 
-        // Wait for Welcome
-        if let Some(NetMessage::Welcome { player_id, .. }) = client.next_message().await {
-            client.player_id = Some(player_id);
+        // Wait for Welcome with bounded timeout
+        let handshake_deadline = std::time::Duration::from_secs(5).min(timeout_dur);
+        match tokio::time::timeout(handshake_deadline, client.next_message()).await {
+            Ok(Some(NetMessage::Welcome { player_id, .. })) => {
+                client.player_id = Some(player_id);
+            }
+            Ok(Some(NetMessage::Error { message })) => {
+                anyhow::bail!("Server rejected handshake: {message}");
+            }
+            Ok(Some(other)) => {
+                anyhow::bail!("Expected Welcome message from server, received: {other:?}");
+            }
+            Ok(None) => {
+                anyhow::bail!("Server closed connection before handshake completed");
+            }
+            Err(_) => {
+                anyhow::bail!("Handshake timed out waiting for Welcome message");
+            }
         }
 
         Ok(client)
@@ -75,6 +102,12 @@ impl NetClient {
     #[must_use]
     pub fn player_id(&self) -> Option<&str> {
         self.player_id.as_deref()
+    }
+
+    /// Returns true if the client session is still connected to the server.
+    #[must_use]
+    pub fn is_connected(&self) -> bool {
+        !self.tx.is_closed()
     }
 
     /// Sends a protocol message to the server.
@@ -197,5 +230,22 @@ impl NetClient {
         self.send(NetMessage::TownInspectSquad {
             target_player_id: target_player_id.to_string(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn test_connect_with_timeout_fails_on_unreachable_server() {
+        let res = NetClient::connect_with_timeout(
+            "ws://127.0.0.1:49999",
+            "TestPlayer",
+            Duration::from_millis(150),
+        )
+        .await;
+        assert!(res.is_err());
     }
 }

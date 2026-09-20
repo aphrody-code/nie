@@ -59,6 +59,7 @@
  * nom — `shop_menu` a trois voisins et aucun homonyme — ne résout rien, et le dit.
  */
 import { createLuaRuntime, type LuaRuntime } from "../../../../crates/engine/nie-lua-web/js/nie-lua-web";
+import { fetchBytes, fetchJson } from "@niers/asset-source";
 
 /** L'artefact emscripten, servi comme le module du jeu. */
 const VM_URL = "/static/game/nie_lua_web.wasm";
@@ -142,10 +143,10 @@ interface ScriptPage {
  */
 export async function catalogue(query: string): Promise<string[]> {
 	const lire = async (page: number): Promise<ScriptPage | null> => {
-		const response = await fetch(`/api/v1/lua/scripts?${query}&page=${page}&per_page=200`, {
-			headers: { accept: "application/json" },
+		return fetchJson<ScriptPage>(`/api/v1/lua/scripts?${query}&page=${page}&per_page=200`, {
+			timeoutMs: 15_000,
+			retries: 0,
 		}).catch(() => null);
-		return response?.ok ? ((await response.json()) as ScriptPage) : null;
 	};
 	const premiere = await lire(1);
 	if (premiere === null) return [];
@@ -195,14 +196,13 @@ export function menuTextLines(locale: string): Promise<[number, string][]> {
 	const charge = (async () => {
 		const lignes: [number, string][] = [];
 		for (let page = 1; ; page += 1) {
-			const reponse = await fetch(
-				`/api/v1/text/${encodeURIComponent(locale)}/menu_text?page=${page}&per_page=200`,
-				{ headers: { accept: "application/json" } },
-			).catch(() => null);
-			if (!reponse?.ok) break;
-			const corps = (await reponse.json()) as {
+			const corps = await fetchJson<{
 				results?: { elements?: { hash: number; text: string }[]; pages?: number };
-			};
+			}>(
+				`/api/v1/text/${encodeURIComponent(locale)}/menu_text?page=${page}&per_page=200`,
+				{ timeoutMs: 15_000, retries: 0 },
+			).catch(() => null);
+			if (!corps) break;
 			for (const ligne of corps.results?.elements ?? []) lignes.push([ligne.hash, ligne.text]);
 			if (page >= (corps.results?.pages ?? 1)) break;
 		}
@@ -256,9 +256,7 @@ function includePaths(): Promise<string[]> {
 
 /** Les octets d'un fichier du VFS, ou `null` quand le site ne l'a pas. */
 async function vfsBytes(path: string): Promise<Uint8Array | null> {
-	const response = await fetch(`/f/${path}`).catch(() => null);
-	if (!response?.ok) return null;
-	return new Uint8Array(await response.arrayBuffer());
+	return fetchBytes(`/f/${path}`, { timeoutMs: 15_000, retries: 0 }).catch(() => null);
 }
 
 /** L'état d'un objet, tel que le replay le rend. */

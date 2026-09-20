@@ -10,7 +10,8 @@
 		"./chara": "./src/chara.ts",
 		"./nie-site": "./src/nie-site.ts",
 		"./web-source": "./src/web-source.ts",
-		"./url-conventions": "./src/url-conventions.ts"
+		"./url-conventions": "./src/url-conventions.ts",
+		"./http-client": "./src/http-client.ts"
 	},
 	"scripts": {
 		"typecheck": "bunx tsc --noEmit",

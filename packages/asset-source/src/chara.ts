@@ -97,13 +97,13 @@ export function charaCatalogUrl(options: CharaCatalogOptions = {}): string {
 	return `/api/v1/chara?${params}`;
 }
 
+import { fetchJson } from "./http-client";
+
 /**
  * Temporary host adapter: the generic `AssetSource` intentionally does not own entity-specific
  * HTTP. `PlayerBank` calls this only for the measured web source; native remains local/IPC.
  */
 export async function fetchCharaCatalog(options: CharaCatalogOptions = {}): Promise<CharaCatalogPage> {
 	const url = charaCatalogUrl(options);
-	const response = await fetch(url, { signal: options.signal, headers: { accept: "application/json" } });
-	if (!response.ok) throw new Error(`${url} returned ${response.status}`);
-	return await response.json() as CharaCatalogPage;
+	return fetchJson<CharaCatalogPage>(url, { signal: options.signal });
 }

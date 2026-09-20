@@ -28,6 +28,7 @@
  * sans son gestionnaire.
  */
 import { LayoutCanvas } from "../game/LayoutCanvas";
+import { fetchJson } from "@niers/asset-source";
 import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useGameTextResolver, useSettings } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -83,20 +84,16 @@ async function loadLayout(locale: GameLocale, signal: AbortSignal): Promise<Layo
 }
 
 async function loadFamily(family: string, signal: AbortSignal): Promise<unknown[]> {
-	const response = await fetch(`/api/v1/game-data/${family}`, { signal, headers: { accept: "application/json" } });
-	if (!response.ok) throw new Error(`${family} unavailable`);
-	const body: unknown = await response.json();
+	const body = await fetchJson<unknown>(`/api/v1/game-data/${family}`, { signal, timeoutMs: 15_000, retries: 2 });
 	if (!Array.isArray(body)) throw new Error(`${family}: not an array`);
 	return body;
 }
 
 /** Le stock du profil complet, quand la route répond — `null` sinon (repli typé). */
 async function loadProfileShops(signal: AbortSignal): Promise<ProfileShop[] | null> {
-	const response = await fetch("/api/v1/profile/complete", { signal, headers: { accept: "application/json" } })
+	const body = await fetchJson<{ shops?: unknown }>("/api/v1/profile/complete", { signal, timeoutMs: 10_000, retries: 1 })
 		.catch(() => null);
-	if (!response?.ok) return null;
-	const body = await response.json() as { shops?: unknown };
-	return Array.isArray(body?.shops) ? body.shops as ProfileShop[] : null;
+	return Array.isArray(body?.shops) ? (body.shops as ProfileShop[]) : null;
 }
 
 export interface ShopProps {

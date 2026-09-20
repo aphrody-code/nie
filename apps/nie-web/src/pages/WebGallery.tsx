@@ -8,6 +8,7 @@ import type { GalleryServices } from "@niers/inacord-ui/gallery/contracts";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { readableSize } from "./screen-parts";
 import { splitLanguagePrefix } from "../routing";
+import { fetchJson } from "@niers/asset-source";
 
 /** Name hits expanded into VFS lookups. One exact, bounded catalogue page is requested per hit. */
 const MAX_NAME_CODES = 12;
@@ -112,34 +113,34 @@ export function createWebGalleryServices(
    // query did not already own. Path matches stay first, making pagination stable.
    let namedFiles: { path: string; size: number }[] = [];
    try {
-    const response = await fetch(`/api/v1/wiki/names/search?${new URLSearchParams({ q: term, locale, limit: String(MAX_NAME_CODES) })}`, { signal });
-    if (response.ok) {
-     const body = await response.json() as { records?: { code: string }[] };
-     const codes = [...new Set((body.records ?? []).map(record => record.code).filter(Boolean))].slice(0, MAX_NAME_CODES);
-     // `page: 1` était écrit en dur et `pages` ignoré : dès qu'un code portait plus de 200
-     // textures, le reste disparaissait en silence — et `total`, calculé plus bas à partir de
-     // cette liste, devenait faux, donc la pagination affichée aussi. La réponse est plafonnée
-     // à `PER_PAGE_MAX` sans le dire autrement que par `pages`, alors on la lit. Le cas courant
-     // reste UNE requête par code : `pages` vaut 1.
-     const pages = await Promise.all(codes.map(async code => {
-      const sorties: { path: string; size: number }[] = [];
-      let total = 1;
-      for (let page = 1; page <= total && page <= PAGES_MAX_PAR_CODE; page += 1) {
-       const matches = await source.catalogue!("textures", {
-        prefixe: prefix, ext, q: code, page, parPage: 200, signal,
-       });
-       total = Math.max(1, matches.pages);
-       for (const entry of matches.elements) sorties.push({ path: entry.chemin, size: entry.taille });
-      }
-      return sorties;
-     }));
-     const lowerTerm = term.toLocaleLowerCase();
-     const unique = new Map<string, { path: string; size: number }>();
-     for (const file of pages.flat()) {
-      if (!file.path.toLocaleLowerCase().includes(lowerTerm)) unique.set(file.path, file);
+    const body = await fetchJson<{ records?: { code: string }[] }>(
+     `/api/v1/wiki/names/search?${new URLSearchParams({ q: term, locale, limit: String(MAX_NAME_CODES) })}`,
+     { signal, retries: 1 }
+    );
+    const codes = [...new Set((body.records ?? []).map(record => record.code).filter(Boolean))].slice(0, MAX_NAME_CODES);
+    // `page: 1` était écrit en dur et `pages` ignoré : dès qu'un code portait plus de 200
+    // textures, le reste disparaissait en silence — et `total`, calculé plus bas à partir de
+    // cette liste, devenait faux, donc la pagination affichée aussi. La réponse est plafonnée
+    // à `PER_PAGE_MAX` sans le dire autrement que par `pages`, alors on la lit. Le cas courant
+    // reste UNE requête par code : `pages` vaut 1.
+    const pages = await Promise.all(codes.map(async code => {
+     const sorties: { path: string; size: number }[] = [];
+     let total = 1;
+     for (let page = 1; page <= total && page <= PAGES_MAX_PAR_CODE; page += 1) {
+      const matches = await source.catalogue!("textures", {
+       prefixe: prefix, ext, q: code, page, parPage: 200, signal,
+      });
+      total = Math.max(1, matches.pages);
+      for (const entry of matches.elements) sorties.push({ path: entry.chemin, size: entry.taille });
      }
-     namedFiles = [...unique.values()].sort((a, b) => a.path.localeCompare(b.path));
+     return sorties;
+    }));
+    const lowerTerm = term.toLocaleLowerCase();
+    const unique = new Map<string, { path: string; size: number }>();
+    for (const file of pages.flat()) {
+     if (!file.path.toLocaleLowerCase().includes(lowerTerm)) unique.set(file.path, file);
     }
+    namedFiles = [...unique.values()].sort((a, b) => a.path.localeCompare(b.path));
    } catch (error) {
     if (signal?.aborted) throw error;
     // Name enrichment is best-effort; native path results remain usable.
@@ -154,11 +155,10 @@ export function createWebGalleryServices(
    const records: Awaited<ReturnType<GalleryServices["gameDataGallery"]>> = [];
    let offset = 0;
    while (true) {
-    const response = await fetch(`/api/v1/wiki/gallery?limit=200&offset=${offset}`);
-    if (!response.ok) throw new Error("Gallery metadata is unavailable");
-    const result = await response.json() as { total: number; records: {
+    const result = await fetchJson<{ total: number; records: {
      imgPath: string | null; thumbPath: string | null; needTokenNum: number | null;
-    }[] };
+    }[] }>(`/api/v1/wiki/gallery?limit=200&offset=${offset}`, { timeoutMs: 15_000, retries: 2 })
+     .catch(() => { throw new Error("Gallery metadata is unavailable"); });
     for (const row of result.records) records.push({
      img_path: row.imgPath ?? "", thumb_path: row.thumbPath ?? "",
      unlock_kind: row.needTokenNum === null ? "" : `Jetons requis : ${row.needTokenNum}`,

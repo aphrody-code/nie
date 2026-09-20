@@ -4,10 +4,17 @@ export interface IconCatalog { total_indexed:number; results: Page<IconEntry> }
 export interface ModeSummary { slug:string; label:string; prefixes:string[]; official:boolean; content_route:string }
 export interface ModeCatalog { total_modes:number; official_modes:number; results: Page<ModeSummary> }
 
+import { fetchJson, HttpError } from "@niers/asset-source";
+
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-	const response = await fetch(path, { signal, headers: { accept: "application/json" } });
-	if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
-	return response.json() as Promise<T>;
+	try {
+		return await fetchJson<T>(path, { signal, timeoutMs: 15_000, retries: 1 });
+	} catch (err: unknown) {
+		if (err instanceof HttpError) {
+			throw new Error(`${path}: HTTP ${err.status}`);
+		}
+		throw err;
+	}
 }
 
 export const screenCatalog = {

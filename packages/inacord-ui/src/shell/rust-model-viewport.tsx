@@ -1,6 +1,7 @@
 /** Browser lifecycle and input binding for the shared Rust renderer. */
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { GameText } from "../lib/game-text-context";
+import { fetchBytes } from "@niers/asset-source";
 
 export interface RustModelViewer {
 	load_glb(bytes: Uint8Array): void;
@@ -181,11 +182,18 @@ export function RustModelViewport({
 			if (loadBytes) {
 				bytes = await loadBytes(abort.signal);
 			} else {
-				const response = await fetch(url, { signal: abort.signal });
-				if (!response.ok) throw new Error(`Model response failed (${response.status})`);
-				if (Number(response.headers.get("content-length")) > maxBytes) throw new Error("Model too large");
-				const buffer = await response.arrayBuffer();
-				bytes = new Uint8Array(buffer);
+				try {
+					bytes = await fetchBytes(url, maxBytes, {
+						signal: abort.signal,
+						timeoutMs: 30_000,
+						retries: 0,
+					});
+				} catch (cause: unknown) {
+					if (cause instanceof Error && cause.message.includes("Payload size exceeds limit")) {
+						throw new Error("Model too large");
+					}
+					throw cause;
+				}
 			}
 			// Le plafond vaut pour les deux sources : un hôte qui fournit ses octets ne doit pas
 			// contourner la limite que le chemin réseau respecte.

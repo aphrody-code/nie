@@ -69,6 +69,7 @@ import {
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { MODES } from "../entries";
 import { SubmenuModal } from "../components/SubmenuModal";
+import { fetchJson, resilientFetch, HttpError } from "@niers/asset-source";
 
 /** La famille de texte qui porte le nom des modes. */
 const LABEL_FAMILY = "menu_text";
@@ -326,14 +327,11 @@ function ModeListView({
       per_page: String(filters.perPage),
     });
     if (filters.q) params.set("q", filters.q);
-    fetch(`/api/v1/modes?${params}`, {
+    fetchJson<ModeCatalog>(`/api/v1/modes?${params}`, {
       signal: controller.signal,
-      headers: { accept: "application/json" },
+      timeoutMs: 15_000,
+      retries: 2,
     })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("/api/v1/modes indisponible");
-        return (await response.json()) as ModeCatalog;
-      })
       .then((value) => {
         if (!controller.signal.aborted) setCatalog(value);
       })
@@ -519,24 +517,20 @@ function ModeSheetView({
     const controller = new AbortController();
     setSheet(null);
     setError(null);
-    fetch(`/api/v1/modes/${encodeURIComponent(slug)}`, {
+    fetchJson<ModeSheet>(`/api/v1/modes/${encodeURIComponent(slug)}`, {
       signal: controller.signal,
-      headers: { accept: "application/json" },
+      timeoutMs: 15_000,
+      retries: 2,
     })
-      .then(async (response) => {
-        if (response.status === 404)
-          throw new Error("Ce mode n'est pas au catalogue.");
-        if (!response.ok)
-          throw new Error("La fiche de ce mode n'est pas disponible.");
-        return (await response.json()) as ModeSheet;
-      })
       .then((value) => {
         if (!controller.signal.aborted) setSheet(value);
       })
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
         setError(
-          cause instanceof Error
+          cause instanceof HttpError && cause.status === 404
+            ? "Ce mode n'est pas au catalogue."
+            : cause instanceof Error
             ? cause.message
             : "La fiche de ce mode n'est pas disponible.",
         );
@@ -682,8 +676,10 @@ function ScreenRender({ screen }: { screen: ModeScreen }) {
     if (state.kind !== "loading") return;
     const controller = new AbortController();
     let url: string | null = null;
-    fetch(`/api/v1/menu/render/${encodeURIComponent(screen.screen)}`, {
+    resilientFetch(`/api/v1/menu/render/${encodeURIComponent(screen.screen)}`, {
       signal: controller.signal,
+      timeoutMs: 20_000,
+      retries: 1,
     })
       .then(async (response) => {
         if (!response.ok) throw new Error(String(response.status));

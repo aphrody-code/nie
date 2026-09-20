@@ -32,6 +32,7 @@
  * jouent par `NativeMoviePlayer`.
  */
 import { LayoutCanvas } from "../game/LayoutCanvas";
+import { fetchJson } from "@niers/asset-source";
 import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useGameTextResolver, useSettings } from "@niers/inacord-ui";
 import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -91,19 +92,16 @@ async function loadLayout(locale: GameLocale, signal: AbortSignal): Promise<Layo
 
 /** Une réponse `game-data` : un tableau, ou l'échec. */
 async function loadFamily(family: string, signal: AbortSignal): Promise<unknown[]> {
-	const response = await fetch(`/api/v1/game-data/${family}`, { signal, headers: { accept: "application/json" } });
-	if (!response.ok) throw new Error(`${family} unavailable`);
-	const body: unknown = await response.json();
+	const body = await fetchJson<unknown>(`/api/v1/game-data/${family}`, { signal, timeoutMs: 15_000, retries: 2 });
 	if (!Array.isArray(body)) throw new Error(`${family}: not an array`);
 	return body;
 }
 
 /** Les compteurs du profil complet, quand la route répond — `null` sinon (repli typé). */
 async function loadProfile(signal: AbortSignal): Promise<GalleryProfile | null> {
-	const response = await fetch("/api/v1/profile/complete", { signal, headers: { accept: "application/json" } })
+	const body = await fetchJson<Record<string, unknown>>("/api/v1/profile/complete", { signal, timeoutMs: 10_000, retries: 1 })
 		.catch(() => null);
-	if (!response?.ok) return null;
-	const body = await response.json() as Record<string, unknown>;
+	if (!body) return null;
 	const counters: GalleryProfile = {};
 	for (const family of ["trophies", "gallery", "movies", "musics"] as const) {
 		const value = body?.[family];

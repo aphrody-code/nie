@@ -43,6 +43,7 @@ import {
 } from "@niers/inacord-ui/lib/browser-navigation";
 import { createCpuNativeViewer, createOpaqueNativeViewer } from "../game/native-viewer";
 import { agree, Notice, ScreenStatus, ViewTitle } from "./screen-parts";
+import { fetchJson } from "@niers/asset-source";
 import "./models-3d.css";
 
 /** 24 cartes par défaut : une grille pleine sans imposer 60 rendus à froid au serveur. */
@@ -169,9 +170,7 @@ interface Analyse {
 
 /** Lit une réponse JSON, en distinguant l'abandon volontaire d'un vrai échec. */
 async function json<T>(url: string, signal: AbortSignal): Promise<T> {
-  const r = await fetch(url, { signal });
-  if (!r.ok) throw new Error(`${url} → ${r.status}`);
-  return (await r.json()) as T;
+  return fetchJson<T>(url, { signal, timeoutMs: 15_000, retries: 2 });
 }
 
 /** Formate un nombre à la française, sans dépendance. */

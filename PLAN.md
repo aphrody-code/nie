@@ -1688,3 +1688,49 @@ into `niers`:
       - `cargo check --workspace --tests`: 0 errors, passed.
       - `bun run docs:check`: 48/48 indexed, 0 failures, passed.
       - `git diff --check`: 0 issues, passed.
+
+12. **Server Consumers Resilience Hardening Across Web, UI, Asset-Source, nie-cli, and nie-net — (measured 2026-09-20)**:
+    - **Shared Resilient HTTP Foundation (`packages/asset-source/src/http-client.ts`)**:
+      - Built dependency-free `resilientFetch`, `fetchJson`, `fetchBytes`, and `preflightHead` utilities.
+      - Integrated automatic configurable timeouts (default 15s) with caller `AbortSignal` merging.
+      - Implemented automatic exponential backoff retries on transient gateway/server statuses (502, 503, 504) and network dropouts for idempotent requests.
+      - Built structured server error extraction converting RFC-compliant JSON responses (`{ erreur: "..." }`) and plain-text errors into typed `HttpError` instances.
+      - Built size bounding on `fetchBytes` via `content-length` pre-check and buffer slice enforcement, with flexible overloaded signatures.
+      - Supported memory ETag conditional caching (`If-None-Match` / 304).
+    - **`packages/asset-source` & `packages/inacord-ui` Consumers**:
+      - Upgraded `nie-site.ts`, `web-source.ts`, `chara.ts`, and `resource-loader.ts` to use `fetchJson` and `resilientFetch`.
+      - Hardened `rust-model-viewport.tsx` 3D model loader to use bounded `fetchBytes` with 30s timeout and clear error alerts.
+      - Hardened `native-text.ts` with bounded `fetchJson` and retry.
+      - Repaired `packages/inacord-ui/src/lib/ui-text-map.ts` references pointing to moved `StatHeptagon.tsx`.
+    - **`apps/nie-web` Consumers Fully Hardened**:
+      - `Models3D.tsx`: Upgraded `json<T>` to use resilient `fetchJson` with 15s timeout and retries.
+      - `Modes.tsx`: Upgraded mode catalog, mode details, and menu render preview to use `fetchJson` and `resilientFetch`.
+      - `PlayerBank.tsx`: Hardened roster and profile loaders against server latency and failures.
+      - `Shop.tsx`: Upgraded family and shop loaders to use `fetchJson`.
+      - `TrophyGallery.tsx`: Upgraded family and profile loaders to use `fetchJson`.
+      - `resource-names.ts`: Upgraded localized resource name resolver with `fetchJson` and retries.
+      - `WebGallery.tsx`: Upgraded texture name search and gallery pagination to use `fetchJson` with retry and bounds.
+      - `TextCatalog.tsx`: Upgraded language text catalogue and text page loaders to use `fetchJson` with timeouts and retries.
+      - `screen-catalog.ts`: Upgraded icon and mode queries with `fetchJson` and status preservation.
+      - `menu-runtime.ts`: Upgraded menu runtime replay to use `fetchJson` with timeout and error mapping.
+      - `menu-layout.ts`: Upgraded VFS byte fetcher, screen detail, server layout comparison, and server layout loader with `fetchBytes` and `fetchJson`.
+      - `StartupResources.tsx`: Hardened audio manifest loader with `fetchJson` with timeouts and retries.
+      - `lua-runtime.ts`: Hardened script catalog, menu text lines, and VFS bytes loaders with `fetchJson` and `fetchBytes`.
+    - **Rust Consumers (`nie-net` & `nie-cli`)**:
+      - Hardened `NetClient` in `crates/engine/nie-net/src/client.rs` with `connect_with_timeout`, 10-second default connect timeout, Welcome handshake deadline and validation, and `is_connected()` helper.
+      - Hardened `compatibility_health` in `crates/tools/nie-cli/src/mcp.rs` with transient server error retry.
+    - **Automated Verification Gates**:
+      - `bun test --cwd packages/asset-source`: 55/55 passed (9 unit tests in `http-client.test.ts`).
+      - `bun test --cwd packages/inacord-ui`: 101/101 passed across 7 files.
+      - `bun test --cwd apps/nie-web`: 310/310 passed across 52 files.
+      - `bun run --cwd packages/asset-source typecheck`: 0 errors, passed.
+      - `bun run --cwd packages/inacord-ui typecheck`: 0 errors, passed.
+      - `bun run --cwd apps/nie-web typecheck`: 0 errors, passed.
+      - `cargo test -p nie-net`: 38/38 passed (35 unit, 3 e2e network).
+      - `cargo test -p nie-cli`: 32/32 passed.
+      - `cargo test -p nie-render3d`: 72/72 passed.
+      - `cargo clippy -p nie-net --lib --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo clippy -p nie-cli --bins --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo check --workspace --tests`: 0 errors, passed.
+      - `bun run docs:check`: 49/49 indexed, 0 failures, passed.
+      - `git diff --check`: 0 issues, passed.
