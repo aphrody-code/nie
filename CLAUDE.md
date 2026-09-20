@@ -107,10 +107,12 @@ it needs emsdk, which is exactly why it went stale.
 **Two corrections measured 2026-09-13.** `bun run build:wasm` does not exist at the repository
 root — the script lives in `apps/nie-web/package.json`, so it needs `--filter nie-web` or a direct
 `bun --bun apps/nie-web/scripts/build-wasm.ts`. And the old "verify" column said `bun run build`,
-which is **not a verification**: it chains `vite build`, and `apps/nie-web/dist` is a symlink into
-`var/deployments/…`, so that command PUBLISHES to `nie.aphrody.com`. Checking an artefact must
-never be done with a command that deploys. The wasm scripts themselves are safe — they write to
-`public/`, which vite only copies at build time.
+which is **not a verification**: it chains `vite build`, which used to write straight into the
+bundle `nie-site` serves. Checking an artefact must never be done with a command that deploys.
+The wasm scripts themselves are safe — they write to `public/`, which vite only copies at build
+time. **Since 2026-09-20 `bun run build` no longer publishes** — see the deploy section below —
+but it is still not a verification, because a build that succeeds says nothing about the module
+it copied.
 
 - **Every list route of `nie-site` paginates, and CLIPS in silence.** `PER_PAGE_DEFAUT = 50`,
   `PER_PAGE_MAX = 200` (`crates/tools/nie-site/src/config.rs`): asking for more returns 200
@@ -490,6 +492,33 @@ needing a request each time; the owner removed that on 2026-09-19 as a false rul
 What the pre-approval still does **not** silently extend to, because each one destroys or
 escapes this repository rather than advancing it: deleting data, force-pushing, rewriting shared
 history, rotating credentials, and changing what runs on a host outside this repository's scope.
-`deploy` is in this list too — `apps/nie-web/dist` is a symlink into `var/deployments/`, so a
-build there PUBLISHES to `nie.aphrody.com`, which is outward-facing and not reversible by a
-commit.
+`deploy` is in this list too, and it is outward-facing and not reversible by a commit.
+
+## Deploying the site — measured 2026-09-20, and one hole closed
+
+`nie-site` serves `--bundle-dir /home/ubuntu/niers/apps/nie-web/dist` (`deploy/systemd/nie-site.service`,
+installed copy identical to the repository's). `dist` is a **symlink**, and it is the publication
+pointer: nginx proxies `nie.aphrody.com` to `127.0.0.1:8085` and `nie-site` reads that directory
+per request, so whatever the link resolves to is live, instantly, with no restart.
+
+**The publisher is `bun run deploy:target web`** (`scripts/deploy-target.ts`). It builds into
+`var/deployments/targeted/<commit>/<run>/web/bundle` with an explicit `--outDir`, precompresses,
+then swaps the link with `symlink` + `rename` — atomic — and rolls back if
+`/api/v1/health` or the public shell fails. It also refuses to run when the two validated wasm
+modules are missing from `public/static/game/`.
+
+**That script had never run here.** `var/deployments/` did not exist and neither did
+`var/log/deploy-targets/`: every byte on `nie.aphrody.com` had been put there by a bare
+`bun run build`, and the link pointed at `apps/nie-web/dist-web`, a directory in the working tree.
+
+That made the two guards in `vite.config.ts` and `precompress.ts` — "if `dist` is a symlink,
+write next to it, in `dist-web`" — guard nothing, because `dist-web` *was* the link's target. And
+`vite build` **empties its `outDir` before writing**, so a build in the repository erased the live
+bundle and served 404s for the several minutes it took to rebuild. Nothing reported it.
+
+`apps/nie-web/scripts/out-dir.ts` now owns the rule for both callers and states the invariant as
+a `throw`: **a build's output directory is never what `dist` resolves to**, compared after
+`realpath` so a second name for the same inode does not slip through. An ordinary build goes to
+`dist-build`. The distinction that decides it is the **symlink**, not the name — a plain `dist`
+directory is a developer's build and nobody serves it, which is why the guard ignores that case
+(the first version of it did not, and broke every checkout's second build).

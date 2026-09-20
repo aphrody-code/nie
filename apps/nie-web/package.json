@@ -14,7 +14,7 @@
 		"build:wasm-viewer": "bun --bun scripts/build-viewer-wasm.ts",
 		"preview": "vite preview",
 		"typecheck": "bunx tsc --noEmit",
-		"test": "bun test --preload ../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts src/"
+		"test": "bun test --preload ../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts src/ scripts/"
 	},
 	"dependencies": {
 		"@aphrody/ietv-client": "workspace:*",

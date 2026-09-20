@@ -1,9 +1,10 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ConfigEnv, type UserConfig } from "vite";
-import { copyFileSync, existsSync, lstatSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveBuildOutDir } from "./scripts/out-dir";
 
 /**
  * Les modules WebAssembly que les DEUX hôtes chargent par URL.
@@ -18,15 +19,11 @@ const SHARED_WASM = ["static/game/nie_wasm_bg.wasm", "static/game/nie_viewer_web
 /** One frontend build owner; host adapters retain their native services and resources. */
 export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 	const desktop = mode === "desktop";
-	const defaultOutDir = (() => {
-		if (desktop) return "dist-desktop";
-		if (process.env.NIERS_WEB_OUT_DIR) return process.env.NIERS_WEB_OUT_DIR;
-		const distPath = fileURLToPath(new URL("./dist", import.meta.url));
-		try {
-			if (lstatSync(distPath).isSymbolicLink()) return "dist-web";
-		} catch {}
-		return "dist";
-	})();
+	// Le bureau a sa propre sortie et ne publie rien. Le site passe par le résolveur commun, qui
+	// REFUSE d'écrire dans le bundle que `nie-site` sert — cf. `scripts/out-dir.ts` pour la panne
+	// mesurée que ce refus ferme. `--outDir` en ligne de commande l'emporte sur cette valeur,
+	// ce dont le déploiement se sert pour bâtir à part.
+	const defaultOutDir = desktop ? "dist-desktop" : resolveBuildOutDir();
 	const host = process.env.TAURI_DEV_HOST;
 	// The site build never carries Tauri: its API is replaced by HTTP shims that talk to
 	// `nie-site`, which is how the Inacord workspace runs at `nie.aphrody.com/inacord`. The

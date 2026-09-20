@@ -9,25 +9,17 @@
  *
  * Write a variant only when it is smaller than the original.
  */
-import { lstatSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants, zstdCompressSync } from "node:zlib";
+import { assertNePubliePas, resolveBuildOutDir } from "./out-dir";
 
-// `URL.pathname` returns `/C:/Users/...` on Windows. `fileURLToPath` is portable.
-// A staged release must be compressed before it replaces the live bundle.
-const defaultDist = (() => {
-	if (process.env.NIERS_WEB_OUT_DIR) return resolve(process.env.NIERS_WEB_OUT_DIR);
-	const distPath = fileURLToPath(new URL("../dist", import.meta.url));
-	try {
-		if (lstatSync(distPath).isSymbolicLink()) return fileURLToPath(new URL("../dist-web", import.meta.url));
-	} catch {}
-	return distPath;
-})();
-
-const DIST = process.argv[2]
-	? resolve(process.argv[2])
-	: defaultDist;
+// Une version en préparation est compressée AVANT de remplacer le bundle servi — c'est pourquoi
+// le déploiement passe ici le chemin de sa version, et pourquoi ce chemin est vérifié : ce script
+// réécrit des fichiers en place, et `apps/nie-web/dist` en argument atteindrait la production.
+// `resolveBuildOutDir` porte la même vérification pour le cas par défaut.
+const DIST = process.argv[2] ? resolve(process.argv[2]) : resolveBuildOutDir();
+if (process.argv[2]) assertNePubliePas(DIST);
 
 /**
  * Extensions that normally benefit from compression. Images are already compressed.
