@@ -699,6 +699,26 @@ fn read_vec4_le(data: &[u8], off: usize) -> Result<[f32; 4], FormatError> {
 /// assert!(hash != 0); // non-trivial
 /// ```
 pub fn crc32(data: &[u8]) -> u32 {
+    // Au-delà du seuil, le CRC32 matériel (SSE4.2/PCLMULQDQ) écrase la table. En deçà, son coût
+    // d'amorçage — détection de jeu d'instructions, mise en place — le fait PERDRE, et le jeu
+    // clé l'essentiel par des noms de symboles de quelques octets.
+    //
+    // Mesuré sur cette machine, en Gio/s, table contre `crc32fast` :
+    //
+    // ```text
+    //     8 o : 1.98 / 0.31      64 o :  2.31 /  4.11     1024 o : 1.92 / 18.11
+    //    16 o : 1.92 / 0.37     128 o :  2.08 /  6.66     4096 o : 1.94 / 20.15
+    //    32 o : 2.39 / 2.41     512 o :  1.91 / 10.10
+    // ```
+    //
+    // La bascule tombe à 32 octets, d'où le seuil. Les deux chemins calculent le MÊME polynôme
+    // réfléchi `0xEDB88320` avec les mêmes init/xorout : c'est de l'entier, donc bit-exact par
+    // construction — remplacer l'un par l'autre ne peut pas décaler un hachage du jeu.
+    #[cfg(feature = "std")]
+    if data.len() >= CRC32_SEUIL_MATERIEL {
+        return crc32fast::hash(data);
+    }
+
     let mut crc: u32 = 0xFFFF_FFFF;
 
     // Slicing-by-8 : huit octets consommés par tour, huit lectures de table indépendantes
@@ -727,6 +747,13 @@ pub fn crc32(data: &[u8]) -> u32 {
     }
     !crc
 }
+
+/// Longueur à partir de laquelle le CRC32 matériel bat la table, mesurée sur cette machine.
+///
+/// En dessous, la table gagne jusqu'à 6x ; au-dessus, elle perd jusqu'à 10x. Le seuil n'est pas
+/// un réglage de goût : c'est le point où les deux courbes se croisent (2,39 contre 2,41 Gio/s).
+#[cfg(feature = "std")]
+const CRC32_SEUIL_MATERIEL: usize = 32;
 
 /// Polynôme CRC32 IEEE 802.3 en forme réfléchie.
 const CRC32_POLY: u32 = 0xEDB8_8320;
@@ -2548,5 +2575,35 @@ mod tests {
             "{} échec(s) de round-trip sur {n_rdbn} fichiers RDBN réels",
             failed.len()
         );
+    }
+
+    /// Les deux chemins de `crc32` — table et matériel — rendent le MÊME hachage.
+    ///
+    /// L'aiguillage se fait sur la longueur, donc un défaut ne se verrait que sur les tampons
+    /// d'un côté du seuil : un `cfg.bin` haché différemment selon sa taille casserait la
+    /// résolution de symboles du jeu sans rien casser sur les noms courts, et l'enquête
+    /// commencerait très loin de la cause.
+    ///
+    /// Le test balaie les longueurs AUTOUR du seuil (32) et vérifie contre la table, calculée
+    /// ici sans aiguillage.
+    #[test]
+    fn les_deux_chemins_de_crc32_saccordent_autour_du_seuil() {
+        fn table_seule(data: &[u8]) -> u32 {
+            let mut crc: u32 = 0xFFFF_FFFF;
+            for &byte in data {
+                crc = CRC32_SLICE[0][((crc ^ u32::from(byte)) & 0xFF) as usize] ^ (crc >> 8);
+            }
+            !crc
+        }
+        for len in [0usize, 1, 7, 8, 15, 16, 31, 32, 33, 63, 64, 127, 255, 1024, 4097] {
+            let data: Vec<u8> = (0..len).map(|i| (i.wrapping_mul(31).wrapping_add(7)) as u8).collect();
+            assert_eq!(
+                crc32(&data),
+                table_seule(&data),
+                "longueur {len} : les deux chemins divergent"
+            );
+        }
+        // Et une valeur connue, pour que le test ne se contente pas de comparer deux erreurs.
+        assert_eq!(crc32(b"123456789"), 0xCBF4_3926, "vecteur de reference CRC-32/ISO-HDLC");
     }
 }

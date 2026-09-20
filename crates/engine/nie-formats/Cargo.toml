@@ -13,6 +13,9 @@ workspace = true
 
 [dependencies]
 # (thiserror retiré, Phase 3 : FormatError/AssembleError implémentent core::error::Error à la main → no_std-ready)
+# Chemin rapide de `cfgbin::crc32` pour les gros tampons ; la table reste le chemin court et
+# le seul chemin en `no_std`.
+crc32fast = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 serde_json = { workspace = true, default-features = true }
 aes.workspace = true
@@ -39,7 +42,7 @@ nie-lua = { workspace = true, optional = true }
 # `default = ["std"]` → build par défaut = crate std (consommateurs INCHANGÉS).
 # `--no-default-features` → `#![no_std]` strict (cœur de parseurs alloc-only, pour nie-data).
 default = ["std", "lua"]
-std = []
+std = ["dep:crc32fast", "crc32fast/std"]
 # Bytecode Lua 5.2 (`.lua.bin`) branche sur `decode` — via `nie-lua`, source unique du decodeur.
 lua = ["std", "dep:nie-lua"]
 serde = ["dep:serde"]

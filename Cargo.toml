@@ -281,6 +281,10 @@ wgpu-types = { version = "29", default-features = false }
 # chemin de fidélité, où l'ordre des opérations flottantes décide de l'octet. Déjà dans le lock
 # (tiré par Bevy), donc son admission n'ajoute aucun crate.
 glam = { version = "0.32", default-features = false, features = ["std", "scalar-math"] }
+# CRC32 matériel (SSE4.2/PCLMULQDQ). Entier, donc bit-exact par construction — aucun risque de
+# fidélité. Réservé aux GROS tampons : mesuré sur cette machine, il perd jusqu'à 6x sous 32 octets
+# (coût d'amorçage) et gagne jusqu'à 10x au-delà. Cf. `nie_formats::cfgbin::crc32`.
+crc32fast = { version = "1.5", default-features = false }
 # Flux de chemins pour `AssetReader::read_directory` ; déjà tiré par `bevy_asset`, donc aucun crate en plus.
 futures-lite = { version = "2" }
 

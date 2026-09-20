@@ -5764,6 +5764,7 @@ name = "nie-formats"
 version = "0.6.0"
 dependencies = [
  "aes 0.8.4",
+ "crc32fast",
  "cridecoder",
  "image",
  "image_dds",
