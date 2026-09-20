@@ -17,6 +17,8 @@ pub mod complete_profile;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod effectif;
 pub mod flow;
+/// Entrées : état des touches et table unique touche → commande de menu.
+pub mod input;
 /// Read-only game-data DTOs (skills, items, characters, …), decoded from the VFS.
 ///
 /// Shared by two surfaces: the Tauri desktop host (`inacord`, native commands) and the axum

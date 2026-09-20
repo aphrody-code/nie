@@ -1947,22 +1947,40 @@ fn decrire_ecran(e: &nie_app::flow::Screen) -> String {
     }
 }
 
-/// Traduit une touche en commande de menu IEVR (`MENU_CMD_INFO` / `input_ctrl`).
+/// Traduit un code `winit` vers la touche neutre de [`nie_app::input`].
 ///
-/// Le mapping vit ici, côté front, comme le veut la FSM : le cœur ne connaît que des commandes.
-/// Les flèches ET ZQSD/WASD naviguent — un clavier AZERTY et un QWERTY doivent tous deux marcher
-/// sans réglage.
-fn touche_vers_commande(code: winit::keyboard::KeyCode) -> Option<&'static str> {
+/// C'est la SEULE partie du mappage qui appartient à cet hôte : le lien entre un code matériel
+/// et une touche. Ce que la touche déclenche est commun aux trois hôtes du dépôt
+/// (`nie_app::input::BINDINGS`), parce que cette table-là était écrite trois fois et avait déjà
+/// divergé — `Tab` et `i` n'existaient que dans le navigateur, `NumpadEnter` qu'ici.
+fn touche_neutre(code: winit::keyboard::KeyCode) -> Option<nie_app::input::Key> {
+    use nie_app::input::Key as T;
     use winit::keyboard::KeyCode as K;
     Some(match code {
-        K::ArrowUp | K::KeyW | K::KeyZ => "CMD_FCS_MTX_UP",
-        K::ArrowDown | K::KeyS => "CMD_FCS_MTX_DOWN",
-        K::ArrowLeft | K::KeyA | K::KeyQ => "CMD_FCS_MTX_LEFT",
-        K::ArrowRight | K::KeyD => "CMD_FCS_MTX_RIGHT",
-        K::Enter | K::NumpadEnter | K::Space => "CMD_ENTER",
-        K::Escape | K::Backspace => "CMD_BACK",
+        K::ArrowUp => T::Up,
+        K::ArrowDown => T::Down,
+        K::ArrowLeft => T::Left,
+        K::ArrowRight => T::Right,
+        K::KeyW => T::W,
+        K::KeyZ => T::Z,
+        K::KeyS => T::S,
+        K::KeyA => T::A,
+        K::KeyQ => T::Q,
+        K::KeyD => T::D,
+        K::KeyI => T::I,
+        K::Enter => T::Enter,
+        K::NumpadEnter => T::NumpadEnter,
+        K::Space => T::Space,
+        K::Escape => T::Escape,
+        K::Backspace => T::Backspace,
+        K::Tab => T::Tab,
         _ => return None,
     })
+}
+
+/// Traduit une touche en commande de menu IEVR (`MENU_CMD_INFO` / `input_ctrl`).
+fn touche_vers_commande(code: winit::keyboard::KeyCode) -> Option<&'static str> {
+    touche_neutre(code).and_then(nie_app::input::command_for)
 }
 
 // ── Résolution VFS + chargement sprites menu ─────────────────────────────────
@@ -4919,5 +4937,31 @@ mod tests {
         assert!(crop_rgba(&full, 4, 2, (-1, 0, 2, 1)).is_none());
         // Pleine surface : OK.
         assert!(crop_rgba(&full, 4, 2, (0, 0, 4, 2)).is_some());
+    }
+
+    use super::touche_vers_commande;
+
+    /// L'hôte natif sert désormais TOUTES les commandes de la table partagée.
+    ///
+    /// Avant unification il lui manquait `Tab` (`CMD_FCS_NEXT`) et `i` (`CMD_INFO`), présents
+    /// seulement dans `bridge.ts`. Ce test échouerait si un code `winit` cessait d'être traduit.
+    #[test]
+    fn lhote_natif_sert_toute_la_table_partagee() {
+        use winit::keyboard::KeyCode as K;
+        for (code, attendu) in [
+            (K::ArrowUp, "CMD_FCS_MTX_UP"),
+            (K::KeyZ, "CMD_FCS_MTX_UP"),
+            (K::ArrowLeft, "CMD_FCS_MTX_LEFT"),
+            (K::KeyQ, "CMD_FCS_MTX_LEFT"),
+            (K::Enter, "CMD_ENTER"),
+            (K::NumpadEnter, "CMD_ENTER"),
+            (K::Space, "CMD_ENTER"),
+            (K::Escape, "CMD_BACK"),
+            (K::Tab, "CMD_FCS_NEXT"),
+            (K::KeyI, "CMD_INFO"),
+        ] {
+            assert_eq!(touche_vers_commande(code), Some(attendu), "{code:?}");
+        }
+        assert_eq!(touche_vers_commande(K::F13), None, "une touche non liée ne fait rien");
     }
 }

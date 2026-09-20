@@ -98,16 +98,10 @@ pub fn run(args: PlayArgs) -> Result<()> {
             if t.is_empty() {
                 continue;
             }
-            let lower = t.to_lowercase();
-            let native_cmd = match lower.as_str() {
-                "enter" | "ok" | "confirm" | "start" => "CMD_ENTER",
-                "back" | "cancel" | "esc" => "CMD_BACK",
-                "up" => "CMD_FCS_MTX_UP",
-                "down" => "CMD_FCS_MTX_DOWN",
-                "left" => "CMD_FCS_MTX_LEFT",
-                "right" => "CMD_FCS_MTX_RIGHT",
-                other => other,
-            };
+            // Table unique (`nie_app::input`) : cette liste était écrite ici, dans `nie-game` et
+            // dans `bridge.ts`, et les trois avaient déjà divergé. Un jeton non reconnu reste
+            // passé tel quel — c'est ce qui permet d'envoyer une commande `CMD_*` brute.
+            let native_cmd = nie_app::input::command_for_name(t).unwrap_or(t);
             screen.input(native_cmd);
             applied_cmds.push(native_cmd.to_string());
         }
