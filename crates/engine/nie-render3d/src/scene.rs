@@ -1065,4 +1065,103 @@ mod tests {
             "la partie DERRIÈRE le mur doit être masquée : {visible} sur {total}"
         );
     }
+
+    // ─── Équivalence avec glam ───────────────────────────────────────────────────────────
+
+    /// Notre `mat_mul` et celui de `glam` en `scalar-math` donnent le MÊME octet.
+    ///
+    /// Le dépôt réécrit `mat_mul` **cinq fois** — `g4sk`, `gpu`, `scene`, `document`, `glb` — et
+    /// dans deux conventions différentes (colonne-majeure côté format, ligne-majeure côté rendu).
+    /// Cette divergence a déjà coûté une enquête : le pont entre les deux ne tient que par une
+    /// transposition qu'aucun type n'impose. `glam` fournit un seul `Mat4`, donc une seule
+    /// convention.
+    ///
+    /// L'admettre demande une preuve, pas une préférence : sur le chemin de fidélité, l'ordre des
+    /// opérations flottantes décide de l'octet. `glam` est donc épinglé en **`scalar-math`**, qui
+    /// désactive le SIMD, et ce test vérifie l'égalité **sur les bits** (`to_bits`), pas à
+    /// epsilon près — deux matrices égales à 1e-7 ne produisent pas le même golden.
+    ///
+    /// `glam::Mat4` est colonne-majeure : `Mat4::from_cols_array_2d` prend `[[f32;4];4]` indexé
+    /// `[colonne][ligne]`, alors que notre `Mat4` est `[ligne][colonne]`. La conversion transpose
+    /// donc, et c'est exactement le piège que le type unique supprimerait.
+    #[test]
+    fn glam_en_scalar_math_multiplie_comme_nous_bit_pour_bit() {
+        let vers_glam = |m: &Mat4| -> glam::Mat4 {
+            // `[ligne][colonne]` → colonnes de glam.
+            glam::Mat4::from_cols_array_2d(&[
+                [m[0][0], m[1][0], m[2][0], m[3][0]],
+                [m[0][1], m[1][1], m[2][1], m[3][1]],
+                [m[0][2], m[1][2], m[2][2], m[3][2]],
+                [m[0][3], m[1][3], m[2][3], m[3][3]],
+            ])
+        };
+
+        // Des valeurs irrégulières : une matrice d'entiers ronds cacherait un écart d'arrondi.
+        let a: Mat4 = [
+            [0.317_5, -2.903_41, 11.0, 0.5],
+            [3.284_77, 0.001_7, -7.25, -12.5],
+            [-0.541_93, 1.772_06, 0.333_33, 4.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+        let b: Mat4 = [
+            [1.293_48, 0.638_92, -0.25, 3.5],
+            [-0.812_67, 2.451_09, 0.125, -1.25],
+            [0.926_14, -0.193_88, 1.884_52, 0.75],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+
+        let notre = mat_mul(&a, &b);
+        let leur = (vers_glam(&a) * vers_glam(&b)).to_cols_array_2d();
+        for ligne in 0..4 {
+            for colonne in 0..4 {
+                assert_eq!(
+                    notre[ligne][colonne].to_bits(),
+                    leur[colonne][ligne].to_bits(),
+                    "ligne {ligne} colonne {colonne} : {} contre {} (glam)",
+                    notre[ligne][colonne],
+                    leur[colonne][ligne]
+                );
+            }
+        }
+    }
+
+    /// Et sur une vraie chaîne d'os du jeu, composée par cinquante produits successifs.
+    ///
+    /// Un seul produit peut coïncider par chance ; une composition profonde accumule l'écart.
+    /// Cinquante est l'ordre de grandeur d'une hiérarchie réelle — `c11010010` porte 164 os.
+    #[test]
+    fn une_composition_profonde_reste_identique_a_glam() {
+        let vers_glam = |m: &Mat4| -> glam::Mat4 {
+            glam::Mat4::from_cols_array_2d(&[
+                [m[0][0], m[1][0], m[2][0], m[3][0]],
+                [m[0][1], m[1][1], m[2][1], m[3][1]],
+                [m[0][2], m[1][2], m[2][2], m[3][2]],
+                [m[0][3], m[1][3], m[2][3], m[3][3]],
+            ])
+        };
+
+        let mut notre = mat_identity();
+        let mut leur = glam::Mat4::IDENTITY;
+        for i in 0..50 {
+            let t = i as f32 * 0.137;
+            let pas: Mat4 = [
+                [t.cos(), -t.sin(), 0.0, t * 0.31],
+                [t.sin(), t.cos(), 0.0, -t * 0.17],
+                [0.0, 0.0, 1.0 + t * 0.011, t * 0.07],
+                [0.0, 0.0, 0.0, 1.0],
+            ];
+            notre = mat_mul(&notre, &pas);
+            leur *= vers_glam(&pas);
+        }
+        let leur = leur.to_cols_array_2d();
+        for ligne in 0..4 {
+            for colonne in 0..4 {
+                assert_eq!(
+                    notre[ligne][colonne].to_bits(),
+                    leur[colonne][ligne].to_bits(),
+                    "après 50 produits, ligne {ligne} colonne {colonne}"
+                );
+            }
+        }
+    }
 }

@@ -6001,6 +6001,7 @@ dependencies = [
  "bcdec_rs",
  "bytemuck",
  "clap",
+ "glam",
  "nie-core",
  "nie-formats",
  "nie-video",

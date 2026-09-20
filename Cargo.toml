@@ -277,6 +277,10 @@ bevy_reflect = { version = "0.19", default-features = false }
 # Le lock résout déjà 29.0.4 pour `wgpu-types` (transitif de wgpu 29.0.3) — un `=29.0.3` ici ne
 # résoudrait pas, d'où le semver large, borné par l'épingle de `wgpu` elle-même.
 wgpu-types = { version = "29", default-features = false }
+# `scalar-math` DÉSACTIVE le SIMD : c'est la condition pour que `glam` soit admissible sur le
+# chemin de fidélité, où l'ordre des opérations flottantes décide de l'octet. Déjà dans le lock
+# (tiré par Bevy), donc son admission n'ajoute aucun crate.
+glam = { version = "0.32", default-features = false, features = ["std", "scalar-math"] }
 # Flux de chemins pour `AssetReader::read_directory` ; déjà tiré par `bevy_asset`, donc aucun crate en plus.
 futures-lite = { version = "2" }
 
