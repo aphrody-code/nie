@@ -74,6 +74,29 @@ impl WebGpuViewer {
         self.inner.render().map_err(js_error)
     }
 
+
+    /// Affiche ou masque la grille de sol.
+    ///
+    /// C'est l'une des quatre capacités pour lesquelles le viewport three.js de l'éditeur
+    /// survivait ; les trois autres sont le fil de fer, le contour de sélection et le gizmo.
+    pub fn set_grid(&mut self, visible: bool) {
+        self.inner.set_grid(visible);
+    }
+
+    /// Sélectionne un objet du document — l'identifiant est celui que `pick_json` rend.
+    ///
+    /// Passer une chaîne vide efface la sélection : `Option<&str>` traverse `wasm_bindgen` en
+    /// `JsValue`, ce qui coûterait à l'appelant une vérification de type pour une valeur qu'il
+    /// teste déjà.
+    pub fn select(&mut self, id: &str) {
+        self.inner.select(if id.is_empty() { None } else { Some(id) });
+    }
+
+    /// L'objet sélectionné, chaîne vide s'il n'y en a pas.
+    #[must_use]
+    pub fn selected(&self) -> String {
+        self.inner.selected().unwrap_or_default().to_owned()
+    }
     /// Décode un asset GLB et le garde sous le chemin que le document de scène lui donne.
     pub fn stage_asset(&mut self, asset: &str, bytes: &[u8]) -> Result<(), JsValue> {
         self.inner.stage_asset(asset, bytes).map_err(js_error)

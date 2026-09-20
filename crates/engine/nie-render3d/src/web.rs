@@ -102,6 +102,15 @@ mod browser {
         /// Le bind group de présentation peut donc être conservé lui aussi au lieu d'être créé
         /// à chaque `requestAnimationFrame`.
         presentation_bind: Option<wgpu::BindGroup>,
+        /// Les décors d'éditeur à surimprimer : grille, contour de sélection, gizmo.
+        ///
+        /// Recomposés quand l'un des réglages change, pas à chaque image : ils ne dépendent que
+        /// de la sélection et des bascules, jamais de la caméra.
+        overlay: Option<crate::gpu::GpuLines>,
+        /// Grille de sol visible.
+        show_grid: bool,
+        /// Objet sélectionné, par identifiant de document — celui que `pick` nomme.
+        selected: Option<String>,
         fault: Arc<Mutex<Option<String>>>,
     }
 
@@ -266,6 +275,9 @@ mod browser {
                 layout,
                 pipeline,
                 presentation_bind: None,
+                overlay: None,
+                show_grid: false,
+                selected: None,
                 fault,
             })
         }
@@ -411,6 +423,102 @@ mod browser {
             Ok(())
         }
 
+        /// Affiche ou masque la grille de sol.
+        ///
+        /// Recompose immédiatement la surimpression : l'hôte n'a pas à savoir qu'un téléversement
+        /// est nécessaire, et retarder jusqu'à la prochaine image rendrait la bascule paresseuse
+        /// sans rien économiser.
+        pub fn set_grid(&mut self, visible: bool) {
+            self.show_grid = visible;
+            self.rebuild_overlay();
+        }
+
+        /// Sélectionne un objet du document par son identifiant, ou efface la sélection.
+        ///
+        /// L'identifiant est celui que [`Self::pick_json`] rend : c'est la même clé de bout en
+        /// bout, du clic au contour.
+        pub fn select(&mut self, id: Option<&str>) {
+            self.selected = id.map(str::to_owned);
+            self.rebuild_overlay();
+        }
+
+        /// L'objet sélectionné, s'il y en a un.
+        #[must_use]
+        pub fn selected(&self) -> Option<&str> {
+            self.selected.as_deref()
+        }
+
+        /// Recompose grille, contour et gizmo, puis les téléverse.
+        ///
+        /// Le contour est la boîte englobante des primitives que la sélection possède — pas celle
+        /// de la scène entière. Sans ce filtrage, sélectionner un objet encadrerait tout.
+        fn rebuild_overlay(&mut self) {
+            let mut segments: Vec<crate::scene::Segment> = Vec::new();
+
+            if self.show_grid {
+                // La grille s'étend sur le rayon du modèle, arrondi : une grille fixe serait
+                // minuscule sur une scène large et couvrirait l'écran sur un objet de la taille
+                // d'un personnage.
+                let etendue = self
+                    .pickable
+                    .as_ref()
+                    .map_or(4.0, |m| crate::render::bounds(m).1.max(0.5) * 2.0);
+                let pas = (etendue / 10.0).max(0.05);
+                segments.extend(crate::scene::grid_segments(
+                    etendue,
+                    pas,
+                    0.0,
+                    [70, 72, 86],
+                    [110, 120, 150],
+                ));
+            }
+
+            if let (Some(id), Some(model)) = (self.selected.as_deref(), self.pickable.as_ref())
+                && let Some((min, max)) = self.bounds_of_owner(model, id)
+            {
+                segments.extend(crate::scene::box_segments(min, max, [90, 170, 255]));
+                // Le gizmo se pose au centre de la boîte, ses poignées à sa demi-diagonale : une
+                // longueur fixe serait invisible sur un grand objet et démesurée sur un petit.
+                let centre = [
+                    (min[0] + max[0]) * 0.5,
+                    (min[1] + max[1]) * 0.5,
+                    (min[2] + max[2]) * 0.5,
+                ];
+                let demi = ((max[0] - min[0]).max(max[1] - min[1]).max(max[2] - min[2])) * 0.5;
+                segments.extend(crate::gizmo::handles(centre, demi.max(0.1) * 1.6));
+            }
+
+            self.overlay = if segments.is_empty() {
+                None
+            } else {
+                Some(self.renderer.upload_lines(&segments))
+            };
+        }
+
+        /// Boîte englobante des primitives appartenant à `id`, en espace monde.
+        fn bounds_of_owner(
+            &self,
+            model: &glb::Model,
+            id: &str,
+        ) -> Option<([f32; 3], [f32; 3])> {
+            let mut min = [f32::INFINITY; 3];
+            let mut max = [f32::NEG_INFINITY; 3];
+            let mut vu = false;
+            for (i, prim) in model.primitives.iter().enumerate() {
+                if self.owners.get(i).is_none_or(|o| o != id) {
+                    continue;
+                }
+                for p in &prim.positions {
+                    for c in 0..3 {
+                        min[c] = min[c].min(p[c]);
+                        max[c] = max[c].max(p[c]);
+                    }
+                    vu = true;
+                }
+            }
+            vu.then_some((min, max))
+        }
+
         /// La surface sous le pixel `(x, y)`, dans le backing store courant.
         ///
         /// Rend `(primitive, triangle, x, y, z)` du point de contact, ou `None` si le rayon ne
@@ -514,8 +622,9 @@ mod browser {
             // permet de bâtir le bind group à partir de la vue renvoyée sans créer un second
             // device ni contourner les règles d'emprunt.
             let device = self.renderer.device().clone();
-            let image = self.renderer.render_to_texture(
+            let image = self.renderer.render_to_texture_with_lines(
                 model,
+                self.overlay.as_ref(),
                 self.camera,
                 self.config.width,
                 self.config.height,
