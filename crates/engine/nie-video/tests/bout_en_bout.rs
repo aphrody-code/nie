@@ -54,13 +54,24 @@ fn cent_vingt_trames_poussees_donnent_cent_vingt_trames_decodables() {
         return;
     }
     let sortie = std::env::temp_dir().join("nie_video_bout_en_bout.mp4");
-    let params = Params { largeur: 320, hauteur: 240, fps: 60, codec: Codec::H264, crf: 18 };
+    let params = Params {
+        largeur: 320,
+        hauteur: 240,
+        fps: 60,
+        codec: Codec::H264,
+        crf: 18,
+    };
 
     let mut enc = ouvrir(&params, &sortie).expect("ouvrir l'encodeur");
     for i in 0..120u32 {
-        enc.pousser_rgba(&trame(&params, i)).expect("pousser la trame");
+        enc.pousser_rgba(&trame(&params, i))
+            .expect("pousser la trame");
     }
-    assert_eq!(enc.images(), 120, "le compteur interne doit suivre les poussées");
+    assert_eq!(
+        enc.images(),
+        120,
+        "le compteur interne doit suivre les poussées"
+    );
     let resume = enc.finir().expect("finir l'encodage");
 
     assert_eq!(resume.images, 120);
@@ -86,7 +97,13 @@ fn la_cadence_declaree_atteint_le_conteneur() {
         return;
     }
     let sortie = std::env::temp_dir().join("nie_video_cadence.mp4");
-    let params = Params { largeur: 64, hauteur: 64, fps: 24, codec: Codec::H264, crf: 18 };
+    let params = Params {
+        largeur: 64,
+        hauteur: 64,
+        fps: 24,
+        codec: Codec::H264,
+        crf: 18,
+    };
     let mut enc = ouvrir(&params, &sortie).expect("ouvrir");
     for i in 0..24u32 {
         enc.pousser_rgba(&trame(&params, i)).expect("pousser");
@@ -106,7 +123,13 @@ fn deux_encodages_du_meme_flux_donnent_le_meme_fichier() {
         eprintln!("ffmpeg/ffprobe absents : test ignoré");
         return;
     }
-    let params = Params { largeur: 64, hauteur: 64, fps: 30, codec: Codec::H264, crf: 18 };
+    let params = Params {
+        largeur: 64,
+        hauteur: 64,
+        fps: 30,
+        codec: Codec::H264,
+        crf: 18,
+    };
     let mut tailles = Vec::new();
     let mut contenus = Vec::new();
     for tour in 0..2 {

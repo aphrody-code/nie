@@ -36,6 +36,7 @@ import {
 } from "@niers/inacord-ui";
 import {
 	fetchCharaCatalog,
+	type CharaCatalogEntry,
 	type CharaCatalogPage,
 	type CharaFacet,
 	type CharaSort,
@@ -110,13 +111,14 @@ async function loadLayout(locale: GameLocale, signal: AbortSignal): Promise<Layo
  * nomme ; `StatHeptagon` les épelle. La traduction vit ici, à la frontière, plutôt que d'imposer
  * l'un des deux vocabulaires à l'autre.
  */
-function heptagone(stats: RosterEntry["stats"]) {
+export function heptagone(stats: RosterEntry["stats"]) {
 	return {
 		kick: stats.kc,
 		control: stats.cr,
 		technique: stats.tc,
-		pressure: stats.pr,
-		physical: stats.ps,
+		// Core/inagle: Pr is Physical, Ps is Pressure.
+		pressure: stats.ps,
+		physical: stats.pr,
 		agility: stats.ag,
 		intelligence: stats.it,
 	};
@@ -139,6 +141,65 @@ interface ProfileChara {
 	stats: RosterEntry["stats"];
 	skills?: string[];
 	board_complete?: boolean;
+}
+
+interface WikiCharacterSummary {
+	id: string;
+	chara_id: string;
+	name_fr: string | null;
+	element: string | null;
+	position: string | null;
+	rarity_label: string | null;
+	internal_code: string | null;
+}
+
+interface WikiLearnedSkill {
+	skillId: string;
+	learnLevel: number;
+	resolved: boolean;
+	nameFr: string | null;
+	category: string | null;
+	element: string | null;
+	powerMax: number | null;
+	tpCost: number | null;
+}
+
+/** Joined card owned by `nie-wiki`; this component only projects its source-authored fields. */
+interface WikiCharacterCard {
+	character: WikiCharacterSummary;
+	variants: WikiCharacterSummary[];
+	gender: string | null;
+	movesets: Record<string, unknown>;
+	descriptionFr: string | null;
+	teamName: string | null;
+	series: string | null;
+	statsLv99: {
+		kick: number;
+		control: number;
+		technique: number;
+		pressure: number;
+		physical: number;
+		agility: number;
+		intelligence: number;
+	} | null;
+	learnedSkills: WikiLearnedSkill[];
+	auras: unknown[];
+}
+
+function movesetEntryLabel(value: unknown): string | null {
+	if (typeof value === "string" || typeof value === "number") return String(value);
+	if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+	const row = value as Record<string, unknown>;
+	for (const key of ["name", "nameFr", "skillId", "skill_id", "id"]) {
+		const candidate = row[key];
+		if (typeof candidate === "string" && candidate) return candidate;
+	}
+	return null;
+}
+
+export function movesetLabels(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.map(movesetEntryLabel).filter((label): label is string => Boolean(label));
 }
 
 /**
@@ -200,6 +261,12 @@ export interface PlayerBankUrlState {
 	series: string[];
 	team: string[];
 	gender: string[];
+	playstyle: string[];
+	ageGroup: string[];
+	schoolYear: string[];
+	playable: boolean | null;
+	incomplete: boolean | null;
+	detail: string | null;
 	sort: CharaSort;
 	order: "asc" | "desc";
 	page: number;
@@ -214,6 +281,12 @@ const BANK_DEFAULTS: PlayerBankUrlState = {
 	series: [],
 	team: [],
 	gender: [],
+	playstyle: [],
+	ageGroup: [],
+	schoolYear: [],
+	playable: null,
+	incomplete: null,
+	detail: null,
 	sort: "zukan",
 	order: "asc",
 	page: 1,
@@ -227,10 +300,25 @@ function positive(raw: string | null, fallback: number, max: number): number {
 	return Number.isSafeInteger(value) && value >= 1 ? Math.min(value, max) : fallback;
 }
 
-function values(params: URLSearchParams, key: CharaFacet | "team" | "gender"): string[] {
+function values(params: URLSearchParams, key: CharaFacet | "team"): string[] {
 	const multiple = params.get(`${key}__in`);
 	const raw = multiple ?? params.get(key) ?? "";
 	return [...new Set(raw.split(",").map((value) => value.trim()).filter(Boolean))];
+}
+
+function booleanParam(params: URLSearchParams, key: string): boolean | null {
+	const value = params.get(key);
+	return value === "true" ? true : value === "false" ? false : null;
+}
+
+function detailParam(params: URLSearchParams): string | null {
+	const value = params.get("chara")?.trim() ?? "";
+	return value && value.length <= 128 && ![...value].some((character) => {
+		const code = character.charCodeAt(0);
+		return code < 32 || code === 127;
+	})
+		? value
+		: null;
 }
 
 /** Complete browser state; a reload or popstate reconstructs the same bank query. */
@@ -243,8 +331,14 @@ export function playerBankStateFromUrl(search: string): PlayerBankUrlState {
 		position: values(params, "position"),
 		rarity: values(params, "rarity"),
 		series: values(params, "series"),
-		team: values(params, "team"),
+		team: values(params, "team_id").length > 0 ? values(params, "team_id") : values(params, "team"),
 		gender: values(params, "gender"),
+		playstyle: values(params, "playstyle"),
+		ageGroup: values(params, "age_group"),
+		schoolYear: values(params, "school_year"),
+		playable: booleanParam(params, "playable"),
+		incomplete: booleanParam(params, "incomplete"),
+		detail: detailParam(params),
 		sort: requestedSort && BANK_SORTS.has(requestedSort) ? requestedSort : "zukan",
 		order: params.get("ordre") === "desc" ? "desc" : "asc",
 		page: positive(params.get("page"), 1, 0xffff_ffff),
@@ -252,7 +346,7 @@ export function playerBankStateFromUrl(search: string): PlayerBankUrlState {
 	};
 }
 
-function writeValues(params: URLSearchParams, key: CharaFacet | "team" | "gender", selected: readonly string[]): void {
+function writeValues(params: URLSearchParams, key: CharaFacet | "team", selected: readonly string[]): void {
 	if (selected.length === 1) params.set(key, selected[0] ?? "");
 	else if (selected.length > 1) params.set(`${key}__in`, selected.join(","));
 }
@@ -261,7 +355,9 @@ export function playerBankHref(location: string, state: PlayerBankUrlState): str
 	const url = new URL(location, "http://localhost");
 	const managed = [
 		"q", "element", "element__in", "position", "position__in", "rarity", "rarity__in",
-		"series", "series__in", "team", "team__in", "gender", "gender__in", "tri", "ordre", "page", "per_page",
+		"series", "series__in", "team", "team__in", "team_id", "team_id__in", "gender", "gender__in", "tri", "ordre", "page", "per_page",
+		"playstyle", "playstyle__in", "age_group", "age_group__in", "school_year", "school_year__in",
+		"playable", "incomplete", "chara",
 	];
 	for (const key of managed) url.searchParams.delete(key);
 	if (state.q) url.searchParams.set("q", state.q);
@@ -269,8 +365,14 @@ export function playerBankHref(location: string, state: PlayerBankUrlState): str
 	writeValues(url.searchParams, "position", state.position);
 	writeValues(url.searchParams, "rarity", state.rarity);
 	writeValues(url.searchParams, "series", state.series);
-	writeValues(url.searchParams, "team", state.team);
+	writeValues(url.searchParams, "team_id", state.team);
 	writeValues(url.searchParams, "gender", state.gender ?? []);
+	writeValues(url.searchParams, "playstyle", state.playstyle ?? []);
+	writeValues(url.searchParams, "age_group", state.ageGroup ?? []);
+	writeValues(url.searchParams, "school_year", state.schoolYear ?? []);
+	if (state.playable !== null) url.searchParams.set("playable", String(state.playable));
+	if (state.incomplete !== null) url.searchParams.set("incomplete", String(state.incomplete));
+	if (state.detail) url.searchParams.set("chara", state.detail);
 	if (state.sort !== "zukan") url.searchParams.set("tri", state.sort);
 	if (state.order !== "asc") url.searchParams.set("ordre", state.order);
 	if (state.page !== 1) url.searchParams.set("page", String(state.page));
@@ -297,6 +399,8 @@ function appliedCharaSummary(page: CharaCatalogPage): string {
 		filters.position ? `poste ${filters.position}` : null,
 		filters.rarity ? `rareté ${filters.rarity}` : null,
 		filters.series ? `série ${filters.series}` : null,
+		filters.playable !== null && filters.playable !== undefined ? `jouable ${filters.playable ? "oui" : "non"}` : null,
+		filters.incomplete !== null && filters.incomplete !== undefined ? `incomplet ${filters.incomplete ? "oui" : "non"}` : null,
 		...Object.entries(filters.listes).map(([key, selected]) =>
 			selected?.length ? `${key.replace("__in", "")} ${selected.join(", ")}` : null),
 		`tri ${filters.tri} ${filters.ordre}`,
@@ -307,6 +411,24 @@ function appliedCharaSummary(page: CharaCatalogPage): string {
 export interface PlayerBankProps {
 	/** `Échap` et le bouton de retour : le menu principal. */
 	onBack: () => void;
+}
+
+/** A failed HTTP index must never hide the roster already loaded from game data. */
+export function shouldUseServerPage(
+	webCatalogue: boolean,
+	teamFallback: boolean,
+	catalogueFailed: boolean,
+): boolean {
+	return webCatalogue && !teamFallback && !catalogueFailed;
+}
+
+/** A failed catalogue cannot truthfully reproduce facets absent from the local game roster. */
+export function hasUnsupportedCatalogueFallback(state: PlayerBankUrlState): boolean {
+	return Boolean(
+		state.rarity.length || state.playstyle.length || state.ageGroup.length
+		|| state.schoolYear.length || state.team.length
+		|| state.playable !== null || state.incomplete !== null,
+	);
 }
 
 export function PlayerBank({ onBack }: PlayerBankProps) {
@@ -342,26 +464,21 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	const [compose, setCompose] = useState({ drawn: 0, skipped: 0 });
 	const [catalogue, setCatalogue] = useState<CharaCatalogPage | null>(null);
 	const [catalogueFailed, setCatalogueFailed] = useState(false);
+	const [detailId, setDetailId] = useState<string | null>(null);
+	const [wikiCard, setWikiCard] = useState<WikiCharacterCard | null>(null);
+	const [wikiCardFailed, setWikiCardFailed] = useState(false);
 	const seen = useRef(new Set<string>());
 
-	const writeWebState = useCallback((next: PlayerBankUrlState) => {
+	const writeWebState = useCallback((next: PlayerBankUrlState, mode: "replace" | "push" = "replace") => {
 		const href = playerBankHref(window.location.href, next);
 		if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== href) {
-			writeBrowserHistory(href, window.history.state, "replace");
+			writeBrowserHistory(href, window.history.state, mode);
 		}
 	}, []);
 
 	useEffect(() => {
 		if (webCatalogue) setSearch(urlState.q);
 	}, [urlState.q, webCatalogue]);
-	useEffect(() => {
-		if (!webCatalogue || urlState.team.length === 0) return;
-		const normalized = normalizeTeamFallback(urlState);
-		if (normalized.rarity.length !== urlState.rarity.length || normalized.sort !== urlState.sort) {
-			writeWebState(normalized);
-		}
-	}, [webCatalogue, urlState, writeWebState]);
-
 	const { settings: { gameLocale } } = useSettings();
 	// Les mots du JEU, quand il les écrit. Un libellé absent de la carte mesurée reste celui
 	// du code : la carte refuse de deviner, et cet écran ne devine pas non plus.
@@ -370,12 +487,21 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	useEffect(() => {
 		const controller = new AbortController();
 		loadLayout(gameLocale, controller.signal).then(setLayout, () => { if (!controller.signal.aborted) setLayoutFailed(true); });
-		loadRoster(controller.signal).then(setEntries, () => { if (!controller.signal.aborted) setRosterFailed(true); });
+		// The web catalogue already owns identity, filtering and pagination. Waiting for the two
+		// 6,101-row profile/game-data aggregates here made a nine-result query wait until those
+		// unrelated exports timed out. Native/Inacord still needs the complete owned roster; web
+		// renders catalogue rows directly and obtains exact stats from the joined wiki card.
+		if (webCatalogue) {
+			setEntries([]);
+			setRosterFailed(false);
+		} else {
+			loadRoster(controller.signal).then(setEntries, () => { if (!controller.signal.aborted) setRosterFailed(true); });
+		}
 		return () => controller.abort();
-	}, [gameLocale]);
+	}, [gameLocale, webCatalogue]);
 
 	useEffect(() => {
-		if (!webCatalogue || urlState.team.length > 0) {
+		if (!webCatalogue) {
 			setCatalogue(null);
 			setCatalogueFailed(false);
 			return;
@@ -388,6 +514,13 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 			positions: urlState.position,
 			rarities: urlState.rarity,
 			seriesList: urlState.series,
+			genders: urlState.gender,
+			playstyles: urlState.playstyle,
+			ageGroups: urlState.ageGroup,
+			schoolYears: urlState.schoolYear,
+			teamIds: urlState.team,
+			playable: urlState.playable ?? undefined,
+			incomplete: urlState.incomplete ?? undefined,
 			sort: urlState.sort,
 			order: urlState.order,
 			page: urlState.page,
@@ -405,6 +538,12 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 		urlState.rarity,
 		urlState.series,
 		urlState.team,
+		urlState.gender,
+		urlState.playstyle,
+		urlState.ageGroup,
+		urlState.schoolYear,
+		urlState.playable,
+		urlState.incomplete,
 		urlState.sort,
 		urlState.order,
 		urlState.page,
@@ -433,21 +572,23 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	}), [urlState.element, urlState.position, urlState.series, urlState.team, urlState.gender]);
 	const activeFilter = webCatalogue ? webFilter : filter;
 	const activeSearch = webCatalogue ? urlState.q : search;
-	const teamFallback = webCatalogue && urlState.team.length > 0;
-	const usingServerPage = webCatalogue && !teamFallback;
+	const teamFallback = false;
+	const usingServerPage = shouldUseServerPage(webCatalogue, teamFallback, catalogueFailed);
 	const rosterByCode = useMemo(() => new Map(
 		(entries ?? []).flatMap((entry) => [
 			[entry.chara.internal_code, entry] as const,
 			[entry.chara.chara_param_id, entry] as const,
 		]),
 	), [entries]);
-	const serverEntries = useMemo(() => (catalogue?.elements ?? []).flatMap((chara) => {
-		const entry = (chara.internal_code && rosterByCode.get(chara.internal_code))
-			|| (chara.chara_id && rosterByCode.get(chara.chara_id));
-		return entry ? [entry] : [];
+	const serverRows = useMemo(() => (catalogue?.elements ?? []).map((chara) => {
+		const entry = (chara.internal_code ? rosterByCode.get(chara.internal_code) : undefined)
+			?? (chara.chara_id ? rosterByCode.get(chara.chara_id) : undefined);
+		return { roster: entry ?? null, catalogue: chara };
 	}), [catalogue, rosterByCode]);
+	const unsupportedFallback = catalogueFailed && hasUnsupportedCatalogueFallback(urlState);
 	const retained = useMemo(() => {
-		if (usingServerPage) return serverEntries;
+		if (unsupportedFallback) return [];
+		if (usingServerPage) return [];
 		const list = filterRoster(entries ?? [], activeFilter, activeSearch);
 		const sort = webCatalogue ? urlState.sort : byName ? "nom_fr" : "zukan";
 		if (sort === "zukan") return list;
@@ -455,26 +596,62 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 		return [...list].sort((a, b) => direction * (sort === "code"
 			? a.chara.internal_code.localeCompare(b.chara.internal_code)
 			: a.chara.name.localeCompare(b.chara.name, "fr")));
-	}, [usingServerPage, serverEntries, entries, activeFilter, activeSearch, byName, webCatalogue, urlState.sort, urlState.order]);
+	}, [unsupportedFallback, usingServerPage, entries, activeFilter, activeSearch, byName, webCatalogue, urlState.sort, urlState.order]);
+	type BankItem = { roster: RosterEntry | null; catalogue: CharaCatalogEntry | null };
 	const page = useMemo(() => {
 		if (teamFallback) {
 			const count = Math.max(1, Math.ceil(retained.length / urlState.perPage));
 			const index = Math.min(Math.max(urlState.page - 1, 0), count - 1);
 			const items = retained.slice(index * urlState.perPage, (index + 1) * urlState.perPage);
 			const clamped = items.length === 0 ? -1 : Math.min(Math.max(cursor, 0), items.length - 1);
-			return { index, count, cursor: clamped, cursorInPage: clamped, items };
+			return { index, count, cursor: clamped, cursorInPage: clamped, items: items.map((roster): BankItem => ({ roster, catalogue: null })) };
 		}
-		if (!usingServerPage) return listPage(retained, cursor, PAGE_SIZE);
-		const clamped = retained.length === 0 ? -1 : Math.min(Math.max(cursor, 0), retained.length - 1);
+		if (!usingServerPage) {
+			const local = listPage(retained, cursor, PAGE_SIZE);
+			return { ...local, items: local.items.map((roster): BankItem => ({ roster, catalogue: null })) };
+		}
+		const clamped = serverRows.length === 0 ? -1 : Math.min(Math.max(cursor, 0), serverRows.length - 1);
 		return {
 			index: Math.max(0, (catalogue?.page ?? urlState.page) - 1),
 			count: Math.max(1, catalogue?.pages ?? 1),
 			cursor: clamped,
 			cursorInPage: clamped,
-			items: retained,
+			items: serverRows,
 		};
-	}, [teamFallback, usingServerPage, retained, cursor, catalogue, urlState.page, urlState.perPage]);
-	const focused = page.cursorInPage >= 0 ? page.items[page.cursorInPage] ?? null : null;
+	}, [teamFallback, usingServerPage, retained, cursor, catalogue, serverRows, urlState.page, urlState.perPage]);
+	const focusedItem = page.cursorInPage >= 0 ? page.items[page.cursorInPage] ?? null : null;
+	const focused = focusedItem?.roster ?? null;
+	const focusedCatalogueEntry = focusedItem?.catalogue ?? (focused ? catalogue?.elements.find((candidate) =>
+		candidate.id === focused.chara.chara_param_id
+		|| candidate.chara_id === focused.chara.chara_param_id
+		|| candidate.internal_code === focused.chara.internal_code) ?? null : null);
+	const focusedDetailId = focusedCatalogueEntry?.id
+		?? focusedCatalogueEntry?.chara_id
+		?? focusedCatalogueEntry?.internal_code
+		?? null;
+
+	useEffect(() => {
+		setDetailId(urlState.detail ?? focusedDetailId);
+	}, [urlState.detail, focusedDetailId]);
+
+	useEffect(() => {
+		if (!webCatalogue || !detailId) {
+			setWikiCard(null);
+			setWikiCardFailed(false);
+			return;
+		}
+		const controller = new AbortController();
+		setWikiCard(null);
+		setWikiCardFailed(false);
+		fetchJson<WikiCharacterCard>(`/api/v1/wiki/characters/${encodeURIComponent(detailId)}`, {
+			signal: controller.signal,
+			timeoutMs: 15_000,
+			retries: 1,
+		}).then(setWikiCard, () => {
+			if (!controller.signal.aborted) setWikiCardFailed(true);
+		});
+		return () => controller.abort();
+	}, [webCatalogue, detailId]);
 
 	// Le Lua reçoit chaque changement de curseur : c'est lui qui décide de l'état de la liste.
 	useEffect(() => {
@@ -484,7 +661,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 	}, [session, receive, page.cursorInPage]);
 
 	const move = useCallback((step: "item" | "row" | "page", direction: 1 | -1) => {
-		if (webCatalogue && step === "page") {
+		if (usingServerPage && step === "page") {
 			writeWebState({
 				...urlState,
 				page: Math.min(Math.max(urlState.page + direction, 1), Math.max(1, catalogue?.pages ?? 1)),
@@ -493,7 +670,7 @@ export function PlayerBank({ onBack }: PlayerBankProps) {
 			return;
 		}
 		setCursor((current) => stepCursor(current, retained.length, step, direction, COLUMNS, PAGE_SIZE));
-	}, [webCatalogue, writeWebState, urlState, catalogue?.pages, retained.length]);
+	}, [usingServerPage, writeWebState, urlState, catalogue?.pages, retained.length]);
 
 	// Les flèches et Échap : la navigation de la grille, hors des dialogues.
 	useEffect(() => {
@@ -610,9 +787,12 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 	const families = useMemo<readonly GameFilterFamily[]>(() => {
 		if (!webCatalogue) return localFamilies;
 		const labels: Record<CharaFacet, string> = {
-			// Les quatre familles portent les mots du JEU quand il les écrit. « Poste » n'est pas
+			// Les familles natives portent les mots du JEU quand il les écrit. Les facettes de
+			// catalogue ajoutées par l'hôte restent explicitement des libellés d'outil. « Poste » n'est pas
 			// dans la carte mesurée : il reste donc tel quel, comme la carte le prescrit.
 			element: motJeu("Élément"), position: "Poste", rarity: motJeu("Rareté"), series: motJeu("Série"),
+			gender: "Genre", playstyle: "Style de jeu", age_group: "Âge",
+			school_year: "Année scolaire", team_id: "Équipe",
 		};
 		const serverFamilies = (Object.keys(labels) as CharaFacet[]).map((id) => ({
 			id,
@@ -622,12 +802,22 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 			options: (catalogue?.facettes[id] ?? []).map((option) =>
 				enrichFilterOption(id, option.valeur, option.total)),
 		}));
-		const team = localFamilies.find((family) => family.id === "team");
-		const gender = localFamilies.find((family) => family.id === "gender");
 		return [
 			...serverFamilies,
-			...(gender ? [gender] : []),
-			...(team ? [{ ...team, label: "Équipe (profil local)" }] : []),
+			{
+				id: "playable",
+				label: "Jouable",
+				icon: "J",
+				mode: "single" as const,
+				options: [{ value: "true", label: "Jouable" }, { value: "false", label: "Non jouable" }],
+			},
+			{
+				id: "incomplete",
+				label: "Données",
+				icon: "D",
+				mode: "single" as const,
+				options: [{ value: "false", label: "Complet" }, { value: "true", label: "Incomplet" }],
+			},
 			{
 				id: "sort",
 				label: "Tri",
@@ -655,6 +845,12 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 		series: urlState.series,
 		team: urlState.team,
 		gender: urlState.gender,
+		playstyle: urlState.playstyle,
+		age_group: urlState.ageGroup,
+		school_year: urlState.schoolYear,
+		team_id: urlState.team,
+		playable: urlState.playable === null ? [] : [String(urlState.playable)],
+		incomplete: urlState.incomplete === null ? [] : [String(urlState.incomplete)],
 		sort: [`${urlState.sort}:${urlState.order}`],
 		per_page: [String(urlState.perPage)],
 	} : filter, [webCatalogue, urlState, filter]);
@@ -675,7 +871,9 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 	}, [webCatalogue, writeWebState, urlState]);
 	const filtersActive = webCatalogue
 		? Boolean(urlState.q || urlState.element.length || urlState.position.length || urlState.rarity.length
-			|| urlState.series.length || urlState.team.length || urlState.gender.length || urlState.sort !== "zukan"
+			|| urlState.series.length || urlState.team.length || urlState.gender.length || urlState.playstyle.length
+			|| urlState.ageGroup.length || urlState.schoolYear.length || urlState.sort !== "zukan"
+			|| urlState.playable !== null || urlState.incomplete !== null || urlState.detail
 			|| urlState.order !== "asc" || urlState.page !== 1 || urlState.perPage !== PAGE_SIZE)
 		: Object.values(filter).some((value) => value.length > 0);
 	const hints = useMemo(() => [
@@ -687,6 +885,12 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 		...(page.index + 1 < page.count ? [{ key: "c", keyLabel: "C", label: "Page suivante", onActivate: () => move("page", 1) }] : []),
 		{ key: "Escape", keyLabel: "Esc", label: motJeu("Retour"), onActivate: onBack, fromInputs: true },
 	], [sortByName, toggleNameSort, hideStats, filtersActive, page.index, page.count, move, onBack]);
+
+	const presented = urlState.detail && wikiCard
+		? (entries ?? []).find((entry) =>
+			entry.chara.chara_param_id === wikiCard.character.chara_id
+			|| entry.chara.internal_code === wikiCard.character.internal_code) ?? focused
+		: focused;
 
 	return (
 		<section
@@ -711,24 +915,36 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 					<NativeText text={motJeu("Banque")} height={28} />
 				</header>
 
-				<div className="player-bank__grid" role="listbox" aria-label="Personnages de la banque" aria-activedescendant={focused ? `bank-item-${focused.chara.chara_param_id}` : undefined}>
-					{page.items.map((entry, index) => {
+				<div className="player-bank__grid" role="listbox" aria-label="Personnages de la banque" aria-activedescendant={page.cursorInPage >= 0 ? `bank-item-${page.cursorInPage}` : undefined}>
+					{page.items.map((item, index) => {
+						const entry = item.roster;
 						const active = index === page.cursorInPage;
-						const catalogueEntry = catalogue?.elements.find((candidate) =>
-							candidate.internal_code === entry.chara.internal_code
-							|| candidate.chara_id === entry.chara.chara_param_id);
+						const catalogueEntry = item.catalogue ?? (entry ? catalogue?.elements.find((candidate) =>
+								candidate.id === entry.chara.chara_param_id
+								|| candidate.chara_id === entry.chara.chara_param_id
+								|| candidate.internal_code === entry.chara.internal_code) : null);
+						const internalCode = catalogueEntry?.internal_code ?? entry?.chara.internal_code ?? null;
+						const itemId = catalogueEntry?.id ?? catalogueEntry?.chara_id ?? entry?.chara.chara_param_id ?? `row-${index}`;
+						const itemName = catalogueEntry?.name_fr ?? catalogueEntry?.name_en ?? entry?.chara.name ?? itemId;
+						const itemElement = catalogueEntry?.element ?? entry?.chara.element ?? "—";
+						const itemPosition = catalogueEntry?.position ?? entry?.chara.main_position ?? "—";
 						return (
 							<button
-								key={entry.chara.chara_param_id}
-								id={`bank-item-${entry.chara.chara_param_id}`}
+								key={`${itemId}:${index}`}
+								id={`bank-item-${index}`}
 								type="button"
 								role="option"
 								aria-selected={active}
 								data-state={active ? "focused" : "idle"}
 								className="player-bank__card"
-								onClick={() => setCursor(usingServerPage ? index : page.index * PAGE_SIZE + index)}
+								onClick={() => {
+									setCursor(usingServerPage ? index : page.index * PAGE_SIZE + index);
+									if (webCatalogue && catalogueEntry) {
+										writeWebState({ ...urlState, detail: catalogueEntry.id ?? catalogueEntry.chara_id ?? catalogueEntry.internal_code }, "push");
+									}
+								}}
 							>
-								{face ? (
+								{face && internalCode ? (
 									<img
 										className="player-bank__face"
 										alt=""
@@ -746,22 +962,23 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 										 * `getCharacterFaceUrl` sait en plus qu'une variante de tenue (`_5000`) n'a pas
 										 * de visage propre et retombe sur le code de base.
 										 */
-										src={face(getCharacterFaceUrl(entry.chara.internal_code))}
+										src={face(getCharacterFaceUrl(internalCode))}
 										onError={(event) => { event.currentTarget.style.visibility = "hidden"; }}
 									/>
 								) : null}
-								<span className="player-bank__level">Nv. {entry.level}</span>
-								<span className="player-bank__name">{entry.chara.name}</span>
+								{entry ? <span className="player-bank__level">Nv. {entry.level}</span> : null}
+								<span className="player-bank__name">{itemName}</span>
 								<span className="player-bank__tags">
-									{entry.chara.element} · {entry.chara.main_position}
+									{itemElement} · {itemPosition}
 									{catalogueEntry?.rarity ? ` · ${catalogueEntry.rarity}` : ""}
 								</span>
 							</button>
 						);
 					})}
 					{page.items.length === 0 ? (
+						unsupportedFallback ? <p className="player-bank__empty" role="alert">Le catalogue est indisponible ; ces facettes ne peuvent pas être évaluées par le roster local.</p> :
 						rosterFailed || catalogueFailed ? <ScreenStatus state="unavailable" className="player-bank__empty" /> :
-						entries && (!usingServerPage || catalogue) ? <p className="player-bank__empty">Aucun personnage retenu.</p> :
+						(!usingServerPage && entries) || (usingServerPage && catalogue) ? <p className="player-bank__empty">Aucun personnage retenu.</p> :
 						<ScreenStatus state="loading" className="player-bank__empty" />
 					) : null}
 				</div>
@@ -778,17 +995,17 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 					{layoutFailed ? <span className="screen-status__a11y" role="alert">Le décor de cet écran ne peut pas être affiché pour le moment.</span> : null}
 				</footer>
 
-				<aside className="player-bank__detail" aria-label="Fiche du personnage">
-					{focused ? (
+				<aside className="player-bank__detail" aria-label="Fiche du personnage" data-wiki-card={wikiCard ? "true" : "false"}>
+					{presented ? (
 						<>
-							<h2 className="player-bank__detail-name">{focused.chara.name}</h2>
+							<h2 className="player-bank__detail-name">{presented.chara.name}</h2>
 							<p className="player-bank__detail-tags">
-								{focused.chara.element} · {focused.chara.main_position}
-								{focused.chara.sub_position && focused.chara.sub_position !== focused.chara.main_position ? ` / ${focused.chara.sub_position}` : ""}
-								{focused.chara.team ? ` · ${focused.chara.team}` : ""}
+								{presented.chara.element} · {presented.chara.main_position}
+								{presented.chara.sub_position && presented.chara.sub_position !== presented.chara.main_position ? ` / ${presented.chara.sub_position}` : ""}
+								{presented.chara.team ? ` · ${presented.chara.team}` : ""}
 							</p>
-							<p className="player-bank__detail-level">Niv. {focused.level}</p>
-							{focused.chara.description ? <p className="player-bank__detail-desc">{focused.chara.description}</p> : null}
+							<p className="player-bank__detail-level">Niv. {presented.level}</p>
+							{presented.chara.description ? <p className="player-bank__detail-desc">{presented.chara.description}</p> : null}
 							{hideStats ? null : (
 								<div className="player-bank__stats">
 									{/*
@@ -801,14 +1018,75 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 									  * coïncident avec celles relevées sur la capture. Le `<dl>` qui était ici perdait
 									  * l'information de poste, que le jeu montre.
 									  */}
-									<StatHeptagon stats={heptagone(focused.stats)} />
-									<p className="player-bank__stats-total">Total {focused.stats.total}</p>
+									<StatHeptagon stats={heptagone(presented.stats)} />
+									<p className="player-bank__stats-total">Total {presented.stats.total}</p>
 								</div>
 							)}
 							<ul className="player-bank__skills">
-								{focused.skills.map((skill) => <li key={skill}>{skill}</li>)}
+								{presented.skills.map((skill) => <li key={skill}>{skill}</li>)}
 							</ul>
 						</>
+					) : null}
+					{detailId && !wikiCard && !wikiCardFailed ? <p>Chargement de la fiche…</p> : null}
+					{wikiCardFailed ? <p role="alert">La fiche wiki de cette variante est indisponible.</p> : null}
+					{wikiCard ? (
+								<section className="player-bank__wiki-card" aria-label="Profil et variantes">
+									<header>
+										<strong>{wikiCard.character.name_fr ?? presented?.chara.name ?? wikiCard.character.id}</strong>
+										<span>
+											{[
+												wikiCard.character.rarity_label,
+												wikiCard.gender,
+												wikiCard.teamName,
+												wikiCard.series,
+											].filter(Boolean).join(" · ")}
+										</span>
+									</header>
+									{wikiCard.variants.length > 1 ? (
+										<div className="player-bank__variants" role="group" aria-label="Variantes officielles">
+											{wikiCard.variants.map((variant) => (
+												<button
+													key={variant.id}
+													type="button"
+													aria-pressed={variant.id === wikiCard.character.id}
+												onClick={() => writeWebState({ ...urlState, detail: variant.id }, "push")}
+												>
+													{variant.rarity_label ?? variant.position ?? variant.internal_code ?? variant.id}
+												</button>
+											))}
+										</div>
+									) : null}
+									{wikiCard.descriptionFr ? <p className="player-bank__detail-desc">{wikiCard.descriptionFr}</p> : null}
+									{!hideStats && wikiCard.statsLv99 ? (
+										<div className="player-bank__stats" aria-label="Statistiques de la variante au niveau 99">
+											<StatHeptagon stats={wikiCard.statsLv99} />
+											<p className="player-bank__stats-total">
+												Total Lv. 99 {Object.values(wikiCard.statsLv99).reduce((sum, value) => sum + value, 0)}
+											</p>
+										</div>
+									) : null}
+									{Object.entries(wikiCard.movesets).map(([group, raw]) => {
+										const labels = movesetLabels(raw);
+										return labels.length > 0 ? (
+											<div key={group} className="player-bank__moveset">
+												<strong>{group}</strong>
+												<ul>{labels.map((label, index) => <li key={`${label}-${index}`}>{label}</li>)}</ul>
+											</div>
+										) : null;
+									})}
+									{wikiCard.learnedSkills.length > 0 ? (
+										<div className="player-bank__moveset">
+											<strong>Techniques résolues</strong>
+											<ul>{wikiCard.learnedSkills.map((skill) => (
+												<li key={`${skill.skillId}-${skill.learnLevel}`}>
+													{skill.nameFr ?? skill.skillId} · niv. {skill.learnLevel}
+													{skill.powerMax !== null ? ` · ${skill.powerMax}` : ""}
+												</li>
+											))}</ul>
+										</div>
+									) : null}
+									{wikiCard.auras.length > 0 ? <p>{wikiCard.auras.length} aura(s) native(s)</p> : null}
+								</section>
 					) : null}
 				</aside>
 
@@ -838,7 +1116,7 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 						onConfirm={(value: GameFilterValue) => {
 							if (webCatalogue) {
 								const [sort, order] = (value.sort?.[0] ?? "zukan:asc").split(":");
-								const team = [...(value.team ?? [])];
+								const team = [...(value.team_id ?? value.team ?? [])];
 								const next: PlayerBankUrlState = {
 									...urlState,
 									element: [...(value.element ?? [])],
@@ -847,12 +1125,17 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 									series: [...(value.series ?? [])],
 									team,
 									gender: [...(value.gender ?? [])],
+									playstyle: [...(value.playstyle ?? [])],
+									ageGroup: [...(value.age_group ?? [])],
+									schoolYear: [...(value.school_year ?? [])],
+									playable: value.playable?.[0] === "true" ? true : value.playable?.[0] === "false" ? false : null,
+									incomplete: value.incomplete?.[0] === "true" ? true : value.incomplete?.[0] === "false" ? false : null,
 									sort: BANK_SORTS.has(sort as CharaSort) ? sort as CharaSort : "zukan",
 									order: order === "desc" ? "desc" : "asc",
 									perPage: positive(value.per_page?.[0] ?? null, PAGE_SIZE, PAGE_SIZE),
 									page: 1,
 								};
-								writeWebState(normalizeTeamFallback(next));
+								writeWebState(next);
 							} else setFilter(value);
 							setCursor(0);
 							setFilterOpen(false);

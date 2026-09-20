@@ -213,8 +213,7 @@ impl ReSession {
                 .is_some_and(|end| end <= self.target.size_bytes),
             "write outside indexed image"
         );
-        self.validated_bytes[offset as usize..offset as usize + bytes.len()]
-            .copy_from_slice(bytes);
+        self.validated_bytes[offset as usize..offset as usize + bytes.len()].copy_from_slice(bytes);
         Ok(())
     }
 
@@ -232,8 +231,12 @@ impl ReSession {
 
     /// Save the modified binary in place.
     pub fn save(&self) -> Result<()> {
-        std::fs::write(&self.target.executable, &self.validated_bytes)
-            .with_context(|| format!("save binary in place to {}", self.target.executable.display()))
+        std::fs::write(&self.target.executable, &self.validated_bytes).with_context(|| {
+            format!(
+                "save binary in place to {}",
+                self.target.executable.display()
+            )
+        })
     }
 }
 
@@ -342,20 +345,12 @@ impl NiersComputerUse {
     }
 
     /// Write memory in live process (Read-and-Write YOLO mode).
-    pub fn write_memory(
-        pid: i32,
-        address: u64,
-        bytes: &[u8],
-    ) -> Result<(), nie_trace::MemError> {
+    pub fn write_memory(pid: i32, address: u64, bytes: &[u8]) -> Result<(), nie_trace::MemError> {
         nie_trace::write_exact(pid, address, bytes)
     }
 
     /// Write exact byte buffer to live process memory.
-    pub fn write_exact(
-        pid: i32,
-        address: u64,
-        bytes: &[u8],
-    ) -> Result<(), nie_trace::MemError> {
+    pub fn write_exact(pid: i32, address: u64, bytes: &[u8]) -> Result<(), nie_trace::MemError> {
         nie_trace::write_exact(pid, address, bytes)
     }
 
@@ -390,11 +385,7 @@ impl NiersComputerUse {
     }
 
     /// Patch arbitrary memory sequence in live process memory.
-    pub fn patch_bytes(
-        pid: i32,
-        address: u64,
-        patch: &[u8],
-    ) -> Result<(), nie_trace::MemError> {
+    pub fn patch_bytes(pid: i32, address: u64, patch: &[u8]) -> Result<(), nie_trace::MemError> {
         nie_trace::write_exact(pid, address, patch)
     }
 }

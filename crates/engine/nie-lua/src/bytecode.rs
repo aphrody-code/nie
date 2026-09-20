@@ -861,17 +861,13 @@ fn collect_global_reads(p: &Prototype, label: &str, env: Option<u32>, out: &mut 
         // Un imbriqué ne voit `_ENV` que s'il le reprend d'un upvalue du parent. Une capture
         // depuis la pile (`in_stack`) désigne un local, jamais l'environnement du chunk.
         let nested_env = env.and_then(|parent_env| {
-            nested.upvalues.iter().position(|desc| {
-                !desc.in_stack && u32::from(desc.index) == parent_env
-            })
+            nested
+                .upvalues
+                .iter()
+                .position(|desc| !desc.in_stack && u32::from(desc.index) == parent_env)
         });
         let nested_env = nested_env.and_then(|i| u32::try_from(i).ok());
-        collect_global_reads(
-            nested,
-            &format!("{label}:{index}"),
-            nested_env,
-            out,
-        );
+        collect_global_reads(nested, &format!("{label}:{index}"), nested_env, out);
     }
 }
 

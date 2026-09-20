@@ -10,9 +10,9 @@
 //! - `SteamAPI_RestartAppIfNecessary`
 //! - `SteamUser()` / `SteamFriends()` / `SteamMatchmaking()` / `SteamNetworkingSockets()`
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde::{Deserialize, Serialize};
 
 use crate::IEVR_STEAM_APP_ID;
 
@@ -46,7 +46,10 @@ impl SteamLobbyRecord {
     #[must_use]
     pub fn to_inacode_room(&self) -> InacodeRoomEntry {
         InacodeRoomEntry {
-            inacode: nie_net::protocol::Inacode(format!("INA-{:04X}", (self.lobby_id & 0xFFFF) as u16)),
+            inacode: nie_net::protocol::Inacode(format!(
+                "INA-{:04X}",
+                (self.lobby_id & 0xFFFF) as u16
+            )),
             host_name: self
                 .metadata
                 .get("name")
@@ -221,7 +224,8 @@ impl SteamApiEmulator {
     /// Emulates `SteamFriends018::SetRichPresence()`.
     pub fn set_rich_presence(&self, key: &str, value: &str) -> bool {
         let mut st = self.state.write().unwrap();
-        st.local_rich_presence.insert(key.to_string(), value.to_string());
+        st.local_rich_presence
+            .insert(key.to_string(), value.to_string());
         true
     }
 
@@ -315,7 +319,10 @@ mod tests {
         emu.set_rich_presence("status", "Rank Match - Final");
         let lobby_id = emu.create_lobby(2);
         assert!(emu.set_lobby_data(lobby_id, "inacode", "INA-8888"));
-        assert_eq!(emu.get_lobby_data(lobby_id, "inacode").as_deref(), Some("INA-8888"));
+        assert_eq!(
+            emu.get_lobby_data(lobby_id, "inacode").as_deref(),
+            Some("INA-8888")
+        );
 
         emu.set_achievement("ACH_FIRST_VICTORY");
         assert!(emu.get_achievement("ACH_FIRST_VICTORY"));

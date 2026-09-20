@@ -175,6 +175,11 @@ git tag cli-v0.6.1 && git push origin cli-v0.6.1
 A single `v0.6.1` tag would force all five surfaces to be rebuilt and republished together, which
 in practice means never publishing at all: the site moves on 17.2 % of commits, the CLI on 0.5 %.
 
+A synchronized repository milestone is the deliberate exception: after the full
+`bun run release:all --deploy` gate has published and validated one exact commit, a root
+`vX.Y.Z` tag may freeze that commit and one GitHub release may attach all five surface artifacts.
+Routine releases remain prefixed and independent.
+
 **Deploying is not releasing.** A tag touches no running service. Production goes through
 `scripts/deploy-target.ts`, by hand, on an explicit request, with its own lock, per-target
 deadlines and live health checks. `deploy/nginx/` and `deploy/systemd/` are *sources*: copying

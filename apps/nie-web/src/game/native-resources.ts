@@ -5,6 +5,7 @@ import {
 	usm_audio_track_wav, usm_elementary_video_bytes,
 } from "../wasm/nie_wasm.js";
 import { ensureWasm } from "./bridge";
+import { vfsResources } from "./vfs-resources";
 
 export interface NativeAudioCue {
 	bank: string; waveformBank: string; name: string; awbId: number | null;
@@ -56,6 +57,11 @@ export class NativeResources {
 
 	private async bytes(path: string, priority: "demand" | "preload" = "demand"): Promise<Uint8Array> {
 		if (this.disposed) throw new Error("Native resources disposed");
+		const mounted = vfsResources.read(path);
+		if (mounted) { await ensureWasm(); return mounted; }
+		const { readPreloadedFile } = await import("./preloaded-vfs");
+		const preloaded = await readPreloadedFile(path);
+		if (preloaded) return preloaded;
 		const cached = this.retained.get(path);
 		if (cached) {
 			this.retained.delete(path);

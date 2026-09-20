@@ -33,7 +33,7 @@ export {
 // plugins RUNTIME de Bun ne résolvent pas les schémas virtuels via `onResolve` —
 // d'où cette API qui lit directement les fichiers (déjà JSON/octets, sans FFII).
 
-const _root = resolve(import.meta.dir, "../../.."); // packages/nie-plugin/src → racine repo
+const _root = process.env["NIERS_ROOT"] ?? resolve(import.meta.dir, "../../..");
 const RE_DIR = `${_root}/data/re`;
 const LUA_DIR = `${_root}/data/lua_scripts`;
 

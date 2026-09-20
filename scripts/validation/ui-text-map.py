@@ -332,7 +332,9 @@ def search_misses(origin: str, labels: dict, mapped: dict) -> list[dict]:
 
     def run(label: str) -> dict:
         payload = get_json(f"{base}/search?q={urllib.parse.quote(label)}&language=fr", timeout=180)
-        elements = (payload or {}).get("results", {}).get("elements", [])
+        if payload is None:
+            raise RuntimeError(f"text search did not answer for {label!r}; absence is not measured")
+        elements = payload["results"]["elements"]
         record = {"label": label, "locations": labels[label], "search_hits": len(elements)}
         if elements:
             # The shortest line that contains the label: the closest thing to a label itself.

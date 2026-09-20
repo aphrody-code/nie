@@ -109,7 +109,10 @@ pub fn base64_to_utf8(encoded: &str) -> Result<String, TeamCodeError> {
         }
         index += 4.min(remaining);
     }
-    Ok(String::from_utf8_lossy(&bytes).into_owned())
+    // TextDecoder's default ignoreBOM=false consumes one leading UTF-8 BOM.
+    // Interior BOMs and a second consecutive BOM remain part of the decoded text.
+    let bytes = bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&bytes);
+    Ok(String::from_utf8_lossy(bytes).into_owned())
 }
 
 fn decode_base64_byte(byte: u8) -> Result<u8, TeamCodeError> {
@@ -194,5 +197,23 @@ mod tests {
         assert_eq!(decoded.formation_id, "4-4-2");
         assert_eq!(decoded.slots.len(), 1);
         assert_eq!(decode_team_code("!!!"), Err(TeamCodeError::InvalidBase64));
+    }
+
+    #[test]
+    fn base64_decode_matches_browser_bom_and_ascii_whitespace_behavior() {
+        assert_eq!(base64_to_utf8("77u/Zg==").unwrap(), "f");
+        assert_eq!(
+            base64_to_utf8(&utf8_to_base64("\u{feff}\u{feff}f")).unwrap(),
+            "\u{feff}f"
+        );
+        assert_eq!(
+            base64_to_utf8(&utf8_to_base64("f\u{feff}")).unwrap(),
+            "f\u{feff}"
+        );
+        assert_eq!(base64_to_utf8(" Z\tg\n==\r\u{000c}").unwrap(), "f");
+        assert_eq!(
+            base64_to_utf8("Z\u{000b}g=="),
+            Err(TeamCodeError::InvalidBase64)
+        );
     }
 }

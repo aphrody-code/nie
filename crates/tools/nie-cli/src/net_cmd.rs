@@ -1,8 +1,8 @@
 //! CLI operations for the NIE Online multiplayer, networking, and competitive engine (`niers net`).
 
-use std::net::SocketAddr;
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
+use std::net::SocketAddr;
 
 #[derive(Debug, Args)]
 pub struct NetArgs {
@@ -131,7 +131,10 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
             let addr: SocketAddr = bind
                 .parse()
                 .with_context(|| format!("invalid socket address '{bind}'"))?;
-            println!("nie-net: starting WebSocket server on ws://{addr} (protocol: {})", nie_net::NET_PROTOCOL_VERSION);
+            println!(
+                "nie-net: starting WebSocket server on ws://{addr} (protocol: {})",
+                nie_net::NET_PROTOCOL_VERSION
+            );
             let server = nie_net::NetServer::new(addr);
             server.run().await?;
         }
@@ -159,7 +162,12 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
                     half_time_seconds: half_time,
                 };
                 let mut hub = nie_net::LobbyHub::new();
-                let (inacode, _info) = hub.create_room("host_player".to_string(), "Host".to_string(), config.clone())
+                let (inacode, _info) = hub
+                    .create_room(
+                        "host_player".to_string(),
+                        "Host".to_string(),
+                        config.clone(),
+                    )
                     .map_err(|e| anyhow::anyhow!("échec création salle: {e:?}"))?;
                 if json {
                     println!(
@@ -189,7 +197,11 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
         },
 
         NetOp::SimMatch { ticks, seed, json } => {
-            let mut session = nie_net::session::NetMatchSession::new("sim_01".to_string(), seed, nie_net::PlayerSlot::Home);
+            let mut session = nie_net::session::NetMatchSession::new(
+                "sim_01".to_string(),
+                seed,
+                nie_net::PlayerSlot::Home,
+            );
 
             for t in 0..ticks {
                 let p0 = nie_net::PlayerTickInput {
@@ -211,7 +223,8 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
 
                 session.queue_local_input(p0);
                 session.receive_remote_input(p1);
-                session.advance_tick()
+                session
+                    .advance_tick()
                     .with_context(|| format!("simulation tick {t} failed"))?;
             }
 
@@ -263,9 +276,22 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
                     println!("{}", serde_json::to_string_pretty(&challenge)?);
                 } else {
                     println!("Code de défi généré : {}", challenge.code);
-                    println!("Lien partageable    : https://nie.aphrody.com/ranked?challenge={}", challenge.code);
-                    println!("Challenger          : {} ({} AP)", challenge.from_display_name, challenge.from_elo);
-                    println!("Mode                : {}", if challenge.ranked { "Classé" } else { "Amical" });
+                    println!(
+                        "Lien partageable    : https://nie.aphrody.com/ranked?challenge={}",
+                        challenge.code
+                    );
+                    println!(
+                        "Challenger          : {} ({} AP)",
+                        challenge.from_display_name, challenge.from_elo
+                    );
+                    println!(
+                        "Mode                : {}",
+                        if challenge.ranked {
+                            "Classé"
+                        } else {
+                            "Amical"
+                        }
+                    );
                     println!("Expire dans         : 30 minutes");
                 }
             }
@@ -290,11 +316,20 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
             if json {
                 println!("{}", serde_json::to_string_pretty(&top)?);
             } else {
-                println!("{:<4} {:<20} {:<12} {:<10}", "Rang", "Joueur", "Palier", "Points AP");
+                println!(
+                    "{:<4} {:<20} {:<12} {:<10}",
+                    "Rang", "Joueur", "Palier", "Points AP"
+                );
                 println!("{:-<48}", "");
                 for (i, p) in top.iter().enumerate() {
                     let tier = nie_net::RankTier::from_ap(p.current_ap);
-                    println!("{:<4} {:<20} {:<12} {:<10}", i + 1, p.display_name, tier.name_fr(), p.current_ap);
+                    println!(
+                        "{:<4} {:<20} {:<12} {:<10}",
+                        i + 1,
+                        p.display_name,
+                        tier.name_fr(),
+                        p.current_ap
+                    );
                 }
             }
         }
@@ -331,10 +366,20 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
             if json {
                 println!("{}", serde_json::to_string_pretty(&top)?);
             } else {
-                println!("{:<4} {:<8} {:<25} {:<10} {:<8}", "Rang", "Tag", "Nom du Club", "Points AP", "Membres");
+                println!(
+                    "{:<4} {:<8} {:<25} {:<10} {:<8}",
+                    "Rang", "Tag", "Nom du Club", "Points AP", "Membres"
+                );
                 println!("{:-<58}", "");
                 for (i, c) in top.iter().enumerate() {
-                    println!("{:<4} {:<8} {:<25} {:<10} {:<8}", i + 1, c.tag, c.name, c.total_ap, c.members.len());
+                    println!(
+                        "{:<4} {:<8} {:<25} {:<10} {:<8}",
+                        i + 1,
+                        c.tag,
+                        c.name,
+                        c.total_ap,
+                        c.members.len()
+                    );
                 }
             }
         }
@@ -352,8 +397,16 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
                 nie_net::compute_match_elo(elo_b, elo_a, nie_net::DEFAULT_K_FACTOR)
             };
 
-            let delta_a = if is_win_a { res.winner_gain as i32 } else { -(res.loser_loss as i32) };
-            let delta_b = if is_win_a { -(res.loser_loss as i32) } else { res.winner_gain as i32 };
+            let delta_a = if is_win_a {
+                res.winner_gain as i32
+            } else {
+                -(res.loser_loss as i32)
+            };
+            let delta_b = if is_win_a {
+                -(res.loser_loss as i32)
+            } else {
+                res.winner_gain as i32
+            };
 
             let tier_a = nie_net::RankTier::from_ap(elo_a);
             let tier_b = nie_net::RankTier::from_ap(elo_b);
@@ -379,10 +432,20 @@ pub async fn exec_net(args: NetArgs) -> Result<()> {
                 );
             } else {
                 println!("Calcul ELO Asymétrique & Directionnel :");
-                println!("Joueur A : {} AP ({}) -> Delta: {:+} AP -> Nouveau: {} AP",
-                    elo_a, tier_a.name_fr(), delta_a, (elo_a as i32 + delta_a).max(0) as u32);
-                println!("Joueur B : {} AP ({}) -> Delta: {:+} AP -> Nouveau: {} AP",
-                    elo_b, tier_b.name_fr(), delta_b, (elo_b as i32 + delta_b).max(0) as u32);
+                println!(
+                    "Joueur A : {} AP ({}) -> Delta: {:+} AP -> Nouveau: {} AP",
+                    elo_a,
+                    tier_a.name_fr(),
+                    delta_a,
+                    (elo_a as i32 + delta_a).max(0) as u32
+                );
+                println!(
+                    "Joueur B : {} AP ({}) -> Delta: {:+} AP -> Nouveau: {} AP",
+                    elo_b,
+                    tier_b.name_fr(),
+                    delta_b,
+                    (elo_b as i32 + delta_b).max(0) as u32
+                );
             }
         }
     }

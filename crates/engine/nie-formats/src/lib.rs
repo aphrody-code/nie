@@ -153,6 +153,9 @@ pub mod planche;
 /// consomme les types.
 #[cfg(feature = "std")]
 pub mod pose;
+/// Deterministic startup VFS bundle container shared by native packers and WebAssembly readers.
+#[cfg(all(feature = "std", feature = "serde"))]
+pub mod preloaded_vfs;
 /// Primitives 2D RGBA8 pures (crop/scale nearest) — source unique, no_std (le blend reste landmine #5).
 pub mod raster2d;
 pub mod rdbn_patch;

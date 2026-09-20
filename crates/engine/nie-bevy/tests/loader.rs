@@ -70,7 +70,9 @@ fn un_modele_du_jeu_charge_depuis_le_vfs_en_meshes_bevy() {
     assert_eq!(model.meshes.len(), model.submesh_count);
     assert_eq!(model.vertex_counts.len(), model.submesh_count);
     for (i, h) in model.meshes.iter().enumerate() {
-        let mesh = meshes.get(h).unwrap_or_else(|| panic!("Mesh{i} unresolved"));
+        let mesh = meshes
+            .get(h)
+            .unwrap_or_else(|| panic!("Mesh{i} unresolved"));
         assert!(mesh.count_vertices() > 0, "Mesh{i} empty");
         assert!(mesh.indices().is_some(), "Mesh{i} without indices");
         assert_eq!(mesh.count_vertices(), model.vertex_counts[i]);
@@ -91,11 +93,9 @@ fn un_atlas_du_jeu_charge_depuis_le_vfs_en_image_bevy() {
     let root = resolve_game_dir();
     let mut vfs = Vfs::new();
     vfs.init(root.join("data")).expect("already mounted once");
-    let Some(atlas) = vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .find(|p| p.starts_with("data/common/chr/_face/11_VICTORY/c11010010/") && p.ends_with(".g4tx"))
-    else {
+    let Some(atlas) = vfs.iter().map(|(p, _)| p.to_string()).find(|p| {
+        p.starts_with("data/common/chr/_face/11_VICTORY/c11010010/") && p.ends_with(".g4tx")
+    }) else {
         eprintln!("SKIP: no .g4tx beside c11010010");
         return;
     };
@@ -115,7 +115,9 @@ fn un_atlas_du_jeu_charge_depuis_le_vfs_en_image_bevy() {
             eprintln!("{atlas} -> Image {}x{}", size.width, size.height);
         }
         // Un atlas sans payload DDS est un refus nommé, pas un défaut du chargeur.
-        Err(reason) if reason.contains("unsupported payload") => eprintln!("SKIP: {atlas}: {reason}"),
+        Err(reason) if reason.contains("unsupported payload") => {
+            eprintln!("SKIP: {atlas}: {reason}")
+        }
         Err(reason) => panic!("{atlas}: {reason}"),
     }
 }

@@ -256,7 +256,10 @@ mod tests {
                 }
             }
         }
-        assert!(verifies > 0, "aucun canal décodable : la mesure ne prouverait rien");
+        assert!(
+            verifies > 0,
+            "aucun canal décodable : la mesure ne prouverait rien"
+        );
     }
 
     /// Un état échantillonné doit tomber dans l'enveloppe du décodage direct. Si l'interpolation
@@ -316,8 +319,14 @@ mod tests {
         for objet in 0..anim.object_count() {
             let piste = CameraTrack::nouvelle(&anim, objet).expect("objet");
             let e = piste.etat(1100.0);
-            assert_eq!(e.etat.fov_deg, defaut.fov_deg, "fov_deg a été écrit sans preuve d'unité");
-            assert_eq!(e.etat.roll_deg, defaut.roll_deg, "roll_deg a été écrit sans preuve d'unité");
+            assert_eq!(
+                e.etat.fov_deg, defaut.fov_deg,
+                "fov_deg a été écrit sans preuve d'unité"
+            );
+            assert_eq!(
+                e.etat.roll_deg, defaut.roll_deg,
+                "roll_deg a été écrit sans preuve d'unité"
+            );
         }
     }
 

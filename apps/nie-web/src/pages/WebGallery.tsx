@@ -3,7 +3,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { useAssetSource } from "@niers/inacord-ui";
 import type { AssetSource } from "@niers/asset-source";
 import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
-import { GalleryView } from "@niers/inacord-ui/gallery/GalleryView";
+import { GALLERY_PAGE_SIZE, GalleryView } from "@niers/inacord-ui/gallery/GalleryView";
 import type { GalleryServices } from "@niers/inacord-ui/gallery/contracts";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { readableSize } from "./screen-parts";
@@ -81,6 +81,8 @@ export interface WebGalleryFilterState {
  category: string | null;
  subfolder: string | null;
  domain?: string | null;
+ view?: "editorial" | null;
+ page?: number;
 }
 
 export function webGalleryFiltersFromUrl(input: string): WebGalleryFilterState {
@@ -94,6 +96,10 @@ export function webGalleryFiltersFromUrl(input: string): WebGalleryFilterState {
   category: params.get("categorie") ?? alias?.category ?? null,
   subfolder: params.get("dossier"),
   ...(alias ? { domain: alias.domain } : domain ? { domain } : {}),
+  ...(params.get("view") === "editorial" ? { view: "editorial" as const } : {}),
+  ...(Number.isSafeInteger(Number(params.get("page"))) && Number(params.get("page")) > 1
+   ? { page: Number(params.get("page")) }
+   : {}),
  };
 }
 
@@ -104,6 +110,8 @@ export function webGalleryHrefForFilters(input: string, filters: WebGalleryFilte
   ["categorie", filters.category],
   ["dossier", filters.subfolder],
   ["domaine", filters.domain && filters.domain !== DOMAIN_DEFAULT ? filters.domain : null],
+  ["view", filters.view === "editorial" ? "editorial" : null],
+  ["page", filters.page && filters.page > 1 ? String(filters.page) : null],
  ] as const) {
   if (value) url.searchParams.set(key, value);
   else url.searchParams.delete(key);
@@ -132,8 +140,9 @@ export function webGalleryFiltersForDomain(
  filters: WebGalleryFilterState,
  domain: string | null,
 ): WebGalleryFilterState {
+ const { view: _view, ...withoutView } = filters;
  return {
-  ...filters,
+  ...withoutView,
   domain: domain && domain !== DOMAIN_DEFAULT ? domain : undefined,
   category: null,
   subfolder: null,
@@ -232,6 +241,29 @@ export function createWebGalleryServices(
     : namedFiles.slice(requestedOffset - result.total, requestedOffset - result.total + pageSize);
    return { files, total, offset: requestedOffset };
   },
+  async editorialPage(category, limit, offset, query, signal) {
+   const params = new URLSearchParams({
+    view: "editorial",
+    limit: String(Math.min(200, Math.max(1, Math.floor(limit)))),
+    offset: String(Math.max(0, Math.floor(offset))),
+   });
+   if (category) params.set("category", category);
+   if (query?.trim()) params.set("q", query.trim());
+   const result = await fetchJson<{
+    total: number;
+    offset: number;
+    records: { vfsPath?: string; id: string }[];
+    categories?: { id: string; count: number }[];
+   }>(`/api/v1/wiki/gallery?${params}`, { signal, timeoutMs: 15_000, retries: 2 });
+   return {
+    files: result.records.flatMap(record => record.vfsPath
+     ? [{ path: record.vfsPath, size: 0 }]
+     : []),
+    total: result.total,
+    offset: result.offset,
+    categories: (result.categories ?? []).map(row => ({ name: row.id, count: row.count })),
+   };
+  },
   async gameDataGallery() {
    const records: Awaited<ReturnType<GalleryServices["gameDataGallery"]>> = [];
    let offset = 0;
@@ -283,14 +315,17 @@ export function WebGallery() {
  const [exportError, setExportError] = useState(false);
  const services = useMemo(() => createWebGalleryServices(source, setExportError, settings.gameLocale), [source, settings.gameLocale]);
  const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
- const { query, category, subfolder, domain } = webGalleryFiltersFromUrl(location);
+ const { query, category, subfolder, domain, view, page } = webGalleryFiltersFromUrl(location);
+ const editorial = view === "editorial";
  const activeDomain = domain ?? DOMAIN_DEFAULT;
- const writeFilters = (patch: { query?: string; category?: string | null; subfolder?: string | null; domain?: string | null }) => {
+ const writeFilters = (patch: { query?: string; category?: string | null; subfolder?: string | null; domain?: string | null; view?: "editorial" | null; page?: number }) => {
   const values = {
    query: patch.query ?? query,
    category: patch.category === undefined ? category : patch.category,
    subfolder: patch.subfolder === undefined ? subfolder : patch.subfolder,
    domain: patch.domain === undefined ? domain : patch.domain,
+   view: patch.view === undefined ? view : patch.view,
+   page: patch.page === undefined ? page : patch.page,
   };
   const url = new URL(webGalleryHrefForFilters(window.location.href, values), window.location.origin);
   writeBrowserHistory(url, window.history.state, "replace");
@@ -298,8 +333,19 @@ export function WebGallery() {
  return (
   <div className="flex h-[82vh] min-h-96 flex-col">
    <div className="flex flex-wrap items-center gap-1.5 border-b border-app-line pb-2 mb-2" role="tablist" aria-label="Domaines de textures">
+    <button
+     role="tab"
+     aria-selected={editorial}
+     type="button"
+     className={`state-layer rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
+      editorial ? "border-primary bg-primary text-on-primary" : "border-outline-variant/30 text-on-surface-variant hover:text-on-surface"
+     }`}
+     onClick={() => writeFilters({ view: "editorial", domain: null, category: null, subfolder: null, page: 1 })}
+    >
+     Illustrations
+    </button>
     {TEXTURE_DOMAINS.map(d => {
-     const active = activeDomain === d.id;
+     const active = !editorial && activeDomain === d.id;
      return (
       <button
        key={d.id}
@@ -312,8 +358,8 @@ export function WebGallery() {
          : "border-outline-variant/30 text-on-surface-variant hover:text-on-surface"
        }`}
        onClick={() => {
-        const next = webGalleryFiltersForDomain({ query, category, subfolder, domain }, d.id);
-        writeFilters({ domain: next.domain, category: null, subfolder: null });
+        const next = webGalleryFiltersForDomain({ query, category, subfolder, domain, view, page }, d.id);
+        writeFilters({ domain: next.domain, category: null, subfolder: null, view: null, page: 1 });
        }}
       >
        {d.label}
@@ -327,14 +373,16 @@ export function WebGallery() {
     <GalleryView
      services={services}
      rootPrefix={rootPrefixForDomain(domain)}
+     editorial={editorial}
+     initialOffset={editorial ? ((page ?? 1) - 1) * GALLERY_PAGE_SIZE : 0}
      query={query}
      category={category}
      subfolder={subfolder}
      serverSearch
-     onQueryChange={value => writeFilters({ query: value })}
+     onQueryChange={value => writeFilters({ query: value, page: 1 })}
      onCategoryChange={value => {
-      const next = webGalleryFiltersForCategory({ query, category, subfolder, domain }, value);
-      writeFilters({ category: next.category, subfolder: next.subfolder });
+      const next = webGalleryFiltersForCategory({ query, category, subfolder, domain, view, page }, value);
+      writeFilters({ category: next.category, subfolder: next.subfolder, page: 1 });
      }}
      onSubfolderChange={value => writeFilters({ subfolder: value })}
      onOpenFile={path => {

@@ -11,7 +11,7 @@ use std::time::Duration;
 use anyhow::Context as _;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, info, warn};
 
@@ -19,8 +19,8 @@ use crate::kizuna::KizunaHub;
 use crate::lobby::LobbyHub;
 use crate::matchmaker::{MatchmakingQueue, QueueTicket};
 use crate::protocol::{
-    Inacode, KizunaAvatar, MatchMode, NetMessage, PlayerSlot, PlayerTickInput, RoomConfig,
-    SessionType, TownVisitor, UtSquadSummary, NET_PROTOCOL_VERSION, TICK_RATE_HZ,
+    Inacode, KizunaAvatar, MatchMode, NET_PROTOCOL_VERSION, NetMessage, PlayerSlot,
+    PlayerTickInput, RoomConfig, SessionType, TICK_RATE_HZ, TownVisitor, UtSquadSummary,
 };
 use crate::session::NetMatchSession;
 
@@ -398,10 +398,7 @@ async fn handle_connection(
                     let mut lobby = state.lobby.write().await;
                     match lobby.create_room(pid.clone(), name, config.clone()) {
                         Ok((inacode, _room)) => {
-                            let resp = NetMessage::RoomCreated {
-                                inacode,
-                                config,
-                            };
+                            let resp = NetMessage::RoomCreated { inacode, config };
                             if let Ok(json) = serde_json::to_string(&resp) {
                                 let _ = tx.try_send(Message::Text(json.into()));
                             }
@@ -440,9 +437,7 @@ async fn handle_connection(
                                 let _ = tx.try_send(Message::Text(json.into()));
                             }
 
-                            let update_msg = NetMessage::RoomUpdate {
-                                room: room_info,
-                            };
+                            let update_msg = NetMessage::RoomUpdate { room: room_info };
                             drop(lobby);
                             state.broadcast_to_room(&inacode, &update_msg).await;
                         }
@@ -472,7 +467,8 @@ async fn handle_connection(
 
                         if all_ready
                             && members.len() >= 2
-                            && let Ok((seed, home_id, away_id)) = lobby.start_match(&inacode, &host_id)
+                            && let Ok((seed, home_id, away_id)) =
+                                lobby.start_match(&inacode, &host_id)
                         {
                             let match_id = format!("match_{inacode}");
                             let start_msg = NetMessage::MatchStart {
@@ -482,11 +478,8 @@ async fn handle_connection(
                                 away_player_id: away_id.clone(),
                             };
 
-                            let session = NetMatchSession::new(
-                                match_id.clone(),
-                                seed,
-                                PlayerSlot::Home,
-                            );
+                            let session =
+                                NetMatchSession::new(match_id.clone(), seed, PlayerSlot::Home);
 
                             drop(lobby);
                             {
@@ -523,7 +516,10 @@ async fn handle_connection(
                 }
             }
 
-            NetMessage::Ping { seq, client_time_ms } => {
+            NetMessage::Ping {
+                seq,
+                client_time_ms,
+            } => {
                 let pong = NetMessage::Pong {
                     seq,
                     client_time_ms,
@@ -771,7 +767,9 @@ async fn handle_connection(
                         from_player_name: name,
                         mode,
                     };
-                    state.send_to_player(&target_player_id, &challenge_msg).await;
+                    state
+                        .send_to_player(&target_player_id, &challenge_msg)
+                        .await;
                 }
             }
 
@@ -818,11 +816,8 @@ async fn handle_connection(
                                 away_player_id: pid.clone(),
                             };
 
-                            let session = NetMatchSession::new(
-                                match_id.clone(),
-                                seed,
-                                PlayerSlot::Home,
-                            );
+                            let session =
+                                NetMatchSession::new(match_id.clone(), seed, PlayerSlot::Home);
 
                             drop(lobby);
                             {

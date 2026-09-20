@@ -18,11 +18,10 @@ export interface OpeningVisualProps {
 	health?: SiteHealth | null;
 	failed?: boolean;
 	onRetry?: () => void;
-	onSkip?: () => void;
 }
 
-export function OpeningVisual({ phase, onReady, onEnded, onConfirm, health = null, failed = false, onRetry, onSkip }: OpeningVisualProps) {
-	if (phase === "loading") return <Loading health={health} failed={failed} onRetry={onRetry} onSkip={onSkip} />;
+export function OpeningVisual({ phase, onReady, onEnded, onConfirm, health = null, failed = false, onRetry }: OpeningVisualProps) {
+	if (phase === "loading") return <Loading health={health} failed={failed} onRetry={onRetry} />;
 	if (phase === "inazuma-eleven" || phase === "level5") {
 		return <NativeMoviePlayer key={phase} path={OPENING_LOGO_MOVIES[phase]} onReady={onReady} onEnded={onEnded} />;
 	}

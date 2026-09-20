@@ -177,6 +177,12 @@ pub async fn vue(
 /// noms réels d'`inagle_characters`.
 #[derive(Debug, Clone, Serialize)]
 pub struct Chara {
+    /// Native entity family used to choose the corresponding detail endpoint.
+    pub kind: &'static str,
+    /// Staff role, absent on player records.
+    pub role: Option<String>,
+    /// Exact variant identity, suitable for the joined character-card endpoint.
+    pub id: Option<String>,
     /// Code interne du jeu — c'est l'identifiant stable, et le seul adressable.
     pub internal_code: Option<String>,
     /// Identifiant de personnage tel que le jeu le porte.
@@ -202,6 +208,20 @@ pub struct Chara {
     pub model_id: Option<String>,
     /// Rang au zukan.
     pub zukan_order: Option<i64>,
+    /// Native gender code.
+    pub gender: Option<String>,
+    /// Measured play style from the character sheet.
+    pub playstyle: Option<String>,
+    /// Official age group.
+    pub age_group: Option<String>,
+    /// Official school year.
+    pub school_year: Option<String>,
+    /// Primary team identity.
+    pub team_id: Option<String>,
+    /// Whether the source marks the character controllable.
+    pub playable: bool,
+    /// No sheet, controllable flag, or official zukan entry.
+    pub incomplete: bool,
 }
 
 /// Facettes du catalogue de personnages, et le tri demandé.
@@ -210,6 +230,17 @@ pub struct Chara {
 /// une liste de 6 166 lignes ne devient navigable que par elles.
 #[derive(Debug, Default, Clone, serde::Deserialize)]
 pub struct DemandeChara {
+    /// Select staff from the native coordinator owner.
+    pub role: Option<String>,
+    /// Exact gender, play style, age, school year and team facets.
+    #[serde(flatten)]
+    pub attributes: CharacterAttributes,
+    /// Select controllable or non-controllable characters explicitly.
+    pub playable: Option<bool>,
+    /// Select incomplete or complete source records explicitly.
+    pub incomplete: Option<bool>,
+    /// Legacy status: all, jouable, or complete.
+    pub status: Option<String>,
     /// Élément exact (cardinalité mesurée : 6).
     pub element: Option<String>,
     /// Poste exact (5).
@@ -236,6 +267,61 @@ pub struct DemandeChara {
     pub ordre: Option<String>,
 }
 
+/// Explicit whitelist of extended character query parameters.
+#[derive(Debug, Default, Clone, serde::Deserialize)]
+pub struct CharacterAttributes {
+    /// Gender, including historical numeric selectors.
+    pub gender: Option<String>,
+    /// Native play style.
+    pub playstyle: Option<String>,
+    /// Official age-group identifier.
+    #[serde(alias = "ageGroup")]
+    pub age_group: Option<String>,
+    /// Official school year.
+    #[serde(alias = "schoolYear")]
+    pub school_year: Option<String>,
+    /// Team identity.
+    #[serde(alias = "team")]
+    pub team_id: Option<String>,
+    /// Multiple genders.
+    #[serde(rename = "gender__in")]
+    pub gender_in: Option<String>,
+    /// Multiple play styles.
+    #[serde(rename = "playstyle__in")]
+    pub playstyle_in: Option<String>,
+    /// Multiple age groups.
+    #[serde(rename = "age_group__in")]
+    pub age_group_in: Option<String>,
+    /// Multiple school years.
+    #[serde(rename = "school_year__in")]
+    pub school_year_in: Option<String>,
+    /// Multiple teams.
+    #[serde(rename = "team_id__in")]
+    pub team_id_in: Option<String>,
+}
+
+impl CharacterAttributes {
+    fn into_filters(self) -> std::collections::BTreeMap<String, Vec<String>> {
+        [
+            ("gender", self.gender, self.gender_in),
+            ("playstyle", self.playstyle, self.playstyle_in),
+            ("age_group", self.age_group, self.age_group_in),
+            ("school_year", self.school_year, self.school_year_in),
+            ("team_id", self.team_id, self.team_id_in),
+        ]
+        .into_iter()
+        .filter_map(|(name, exact, list)| {
+            list.or(exact).map(|value| {
+                (
+                    name.to_owned(),
+                    value.split(',').map(str::to_owned).collect(),
+                )
+            })
+        })
+        .collect()
+    }
+}
+
 /// Colonnes de tri autorisées sur `/api/v1/chara`.
 ///
 /// **Liste blanche obligatoire** : un `ORDER BY` venu du client est une injection, et la crate
@@ -244,11 +330,19 @@ pub struct DemandeChara {
 pub const TRI_CHARA: [(&str, &str); 6] = nie_wiki::catalog::CHARACTER_SORTS;
 
 /// Colonnes sur lesquelles une facette chiffrée est publiée.
-pub const FACETTES_CHARA: [&str; 4] = nie_wiki::catalog::CHARACTER_FACETS;
+pub const FACETTES_CHARA: [&str; 9] = nie_wiki::catalog::CHARACTER_FACETS;
 
 /// Ce qui a été appliqué à une page du catalogue de personnages.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct FiltresChara {
+    /// Effective staff role filter.
+    pub role: Option<String>,
+    /// Extended native facets actually applied.
+    pub attributes: std::collections::BTreeMap<String, Vec<String>>,
+    /// Effective controllable-record filter.
+    pub playable: Option<bool>,
+    /// Effective completeness filter.
+    pub incomplete: Option<bool>,
     /// Motif appliqué aux noms et aux codes.
     pub q: Option<String>,
     /// Élément appliqué.
@@ -294,7 +388,88 @@ pub async fn chara(
     Query(facettes): Query<DemandeChara>,
 ) -> Result<Json<PageChara>, ErreurSite> {
     let p = demande.bornee();
+    if let Some(role) = facettes.role.as_deref() {
+        if !matches!(role, "Coach" | "Coordinator" | "Manager") {
+            return Err(ErreurSite::Demande("Unknown staff role".into()));
+        }
+        let role = role.to_owned();
+        let request = nie_wiki::query::CoachFilters {
+            q: demande.q.clone(),
+            role: Some(role.clone()),
+            gender: facettes.attributes.gender.clone(),
+            element: facettes.element.clone(),
+            playstyle: facettes.attributes.playstyle.clone(),
+        };
+        let data = std::sync::Arc::clone(&etat.gisement);
+        let values = tokio::task::spawn_blocking(move || {
+            data.lire(|connection| {
+                nie_wiki::query::query_coaches(connection, &request).map_err(|error| {
+                    tracing::debug!(%error, "staff catalogue unavailable");
+                    ErreurSite::Indisponible("Staff catalogue unavailable".into())
+                })
+            })
+        })
+        .await??;
+        let rows = values.as_array().cloned().unwrap_or_default();
+        let total = rows.len();
+        let records = rows
+            .into_iter()
+            .skip(p.offset())
+            .take(p.per_page as usize)
+            .map(|row| {
+                let text = |key: &str| row[key].as_str().map(str::to_owned);
+                Chara {
+                    kind: "staff",
+                    role: text("role"),
+                    id: row["id"].as_i64().map(|id| id.to_string()),
+                    internal_code: None,
+                    chara_id: None,
+                    base_slug: None,
+                    name_fr: text("name"),
+                    name_en: text("nameRomaji"),
+                    name_ja: text("nameKanji"),
+                    element: text("element"),
+                    position: None,
+                    rarity: None,
+                    series: None,
+                    model_id: None,
+                    zukan_order: None,
+                    gender: text("gender"),
+                    playstyle: text("playstyle"),
+                    age_group: None,
+                    school_year: None,
+                    team_id: None,
+                    playable: false,
+                    incomplete: false,
+                }
+            })
+            .collect();
+        return Ok(Json(PageChara {
+            page: Page::nouvelle(records, p, total),
+            filtres: FiltresChara {
+                role: Some(role),
+                q: demande.q,
+                attributes: facettes.attributes.into_filters(),
+                tri: "code".into(),
+                ordre: "asc",
+                ..Default::default()
+            },
+            facettes: Default::default(),
+        }));
+    }
     let request = nie_wiki::catalog::CharacterCatalogRequest {
+        legacy_selection: false,
+        attributes: facettes.attributes.into_filters(),
+        playable: facettes
+            .playable
+            .or_else(|| (facettes.status.as_deref() == Some("jouable")).then_some(true)),
+        incomplete: facettes.incomplete.or_else(|| {
+            facettes
+                .status
+                .as_deref()
+                .filter(|status| *status != "all")
+                .map(|_| false)
+        }),
         query: demande.q.clone(),
         element: facettes.element,
         position: facettes.position,
@@ -318,6 +493,9 @@ pub async fn chara(
                 .records
                 .into_iter()
                 .map(|record| Chara {
+                    kind: "character",
+                    role: None,
+                    id: record.id,
                     internal_code: record.internal_code,
                     chara_id: record.chara_id,
                     base_slug: record.base_slug,
@@ -330,9 +508,20 @@ pub async fn chara(
                     series: record.series,
                     model_id: record.model_id,
                     zukan_order: record.zukan_order,
+                    gender: record.gender,
+                    playstyle: record.playstyle,
+                    age_group: record.age_group,
+                    school_year: record.school_year,
+                    team_id: record.team_id,
+                    playable: record.playable,
+                    incomplete: record.incomplete,
                 })
                 .collect();
             let filters = FiltresChara {
+                role: None,
+                attributes: result.filters.attributes,
+                playable: result.filters.playable,
+                incomplete: result.filters.incomplete,
                 q: result.filters.query,
                 element: result.filters.element,
                 position: result.filters.position,
@@ -390,6 +579,6 @@ mod tests {
                 .any(|(public, _)| *public == "internal_code"),
             "le nom public n'est pas le nom de colonne"
         );
-        assert!(FACETTES_CHARA.iter().all(|c| COLONNES_CHARA.contains(c)));
+        assert_eq!(FACETTES_CHARA, nie_wiki::catalog::CHARACTER_FACETS);
     }
 }

@@ -8,9 +8,11 @@
 //! Le test est conditionné aux données : la paire vit sous `var/`, hors dépôt. Sur une machine
 //! qui ne porte pas le jeu il passe sans rien affirmer, comme les ~55 golden de `nie-data`.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 
 /// Une paire de modèle réelle de ce montage.
+#[cfg(not(target_arch = "wasm32"))]
 fn paire() -> Option<(Vec<u8>, Vec<u8>)> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../../var/outputs/hakuren-shawn/assets/character");
@@ -20,11 +22,13 @@ fn paire() -> Option<(Vec<u8>, Vec<u8>)> {
 }
 
 /// La couleur de fond à une ligne donnée, telle que le rastériseur la pose.
+#[cfg(not(target_arch = "wasm32"))]
 fn fond(y: u32, hauteur: u32) -> [u8; 4] {
     nie_render3d::render::couleur_fond(y, hauteur)
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn les_octets_du_jeu_deviennent_des_pixels_de_modele() {
     let Some((g4md, g4mg)) = paire() else {
         eprintln!("paire de modèle absente de ce montage : test sauté");
@@ -69,6 +73,7 @@ fn les_octets_du_jeu_deviennent_des_pixels_de_modele() {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn des_octets_qui_ne_sont_pas_un_glb_sont_refuses() {
     let erreur = nie_wasm::model_render_rgba(b"pas un glb", 0.0, 8, 8).expect_err("doit refuser");
     assert!(

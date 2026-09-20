@@ -33,7 +33,7 @@ import { existsSync } from "node:fs";
 // ─── résolution du .so ──────────────────────────────────────────────────────
 
 // import.meta.dir = packages/nie/src → ../../.. = niers/
-const _wsRoot = `${import.meta.dir}/../../..`;
+const _wsRoot = process.env["NIERS_ROOT"] ?? `${import.meta.dir}/../../..`;
 
 // Le préfixe `lib` n'existe pas sur Windows : rustc y produit `nie_ffi.dll`.
 // On teste les deux formes pour chaque profil, debug d'abord.

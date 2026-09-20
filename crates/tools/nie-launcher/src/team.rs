@@ -7,8 +7,8 @@ use std::num::NonZeroU32;
 
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
-use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use pbkdf2::pbkdf2_hmac;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -58,7 +58,10 @@ pub struct TeamLineup {
 }
 
 /// Decrypt an exported team envelope JSON string or struct using the recovered key.
-pub fn decrypt_team_envelope(envelope: &TeamExportEnvelope, passphrase: &str) -> Result<TeamLineup> {
+pub fn decrypt_team_envelope(
+    envelope: &TeamExportEnvelope,
+    passphrase: &str,
+) -> Result<TeamLineup> {
     let salt = BASE64.decode(&envelope.salt)?;
     let iv = BASE64.decode(&envelope.iv)?;
     let ciphertext = BASE64.decode(&envelope.datos)?;

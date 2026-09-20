@@ -8,6 +8,8 @@ use super::team_types::{TeamMember, TeamMemberStats};
 
 /// Result status for a player/formation-slot comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum PositionMatchStatus {
     /// The player role matches the slot role.
     Match,
@@ -21,6 +23,7 @@ pub enum PositionMatchStatus {
 
 /// Position factor and status returned by [`get_position_match_factor`].
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct PositionMatch {
     /// Multiplicative stat factor.
     pub factor: f64,
@@ -51,10 +54,7 @@ pub fn get_position_match_factor(
         };
     }
 
-    let Some(slot_index) = slot_id
-        .strip_prefix("field-")
-        .and_then(parse_javascript_integer)
-    else {
+    let Some(slot_index) = parse_javascript_integer(&slot_id.replacen("field-", "", 1)) else {
         return PositionMatch {
             factor: 1.0,
             status: PositionMatchStatus::None,
@@ -94,16 +94,27 @@ pub fn get_position_match_factor(
 }
 
 fn parse_javascript_integer(value: &str) -> Option<usize> {
+    // Preserve parseInt(..., 10), including whitespace, sign and trailing text.
+    let value = value.trim_start_matches(|c: char| {
+        matches!(c, '\u{0009}'..='\u{000d}' | ' ' | '\u{00a0}' | '\u{1680}'
+            | '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}'
+            | '\u{205f}' | '\u{3000}' | '\u{feff}')
+    });
+    let negative = value.starts_with('-');
+    let value = value.strip_prefix(['+', '-']).unwrap_or(value);
     let digits = value.as_bytes();
     let end = digits
         .iter()
         .position(|byte| !byte.is_ascii_digit())
         .unwrap_or(digits.len());
-    (end > 0).then(|| value[..end].parse().ok()).flatten()
+    let number = (end > 0).then(|| value[..end].parse().ok()).flatten()?;
+    (!negative || number == 0).then_some(number)
 }
 
 /// Recalculated stats and combat power for one team member.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct RecalculatedStats {
     /// Kick.
     pub kick: i64,
@@ -157,13 +168,15 @@ pub fn recalculate_member_stats(
     let base = member.stats.unwrap_or_default();
     let level_factor = 0.2 + 0.8 * (level - 1.0) / 98.0;
     let position_factor = get_position_match_factor(&member.position, slot_id, formation).factor;
-    let element_factor = f64::from(u8::from(
-        dominant_element.is_some_and(|element| member.element == element),
-    ));
+    let element_factor =
+        f64::from(u8::from(dominant_element.is_some_and(|element| {
+            !element.is_empty() && member.element == element
+        })));
     let element_multiplier = if element_factor == 1.0 { 1.05 } else { 1.0 };
     let harmony_multiplier = if has_harmony { 1.03 } else { 1.0 };
-    let multiplier = level_factor * position_factor * element_multiplier * harmony_multiplier;
-    let recalculate = |value: i64| js_round(value as f64 * multiplier);
+    // JavaScript's multiplication order is observable at half-integer rounding boundaries.
+    let multiplier = position_factor * element_multiplier * harmony_multiplier;
+    let recalculate = |value: i64| js_round(value as f64 * level_factor * multiplier);
     RecalculatedStats::from_stats(TeamMemberStats {
         kick: recalculate(base.kick),
         control: recalculate(base.control),
@@ -181,6 +194,7 @@ fn js_round(value: f64) -> i64 {
 
 /// Coordinates copied into one elemental link.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct LinkCoordinate {
     /// Top percentage.
     pub top: f64,
@@ -190,6 +204,8 @@ pub struct LinkCoordinate {
 
 /// One pair of nearby field slots sharing an element.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct ElementLink {
     /// First slot in source member order.
     pub slot_a: String,
@@ -205,6 +221,8 @@ pub struct ElementLink {
 
 /// Result of evaluating the four-element field synergy.
 #[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct ElementSynergyInfo {
     /// Most common field element when it has at least four players.
     pub dominant_element: Option<String>,
@@ -266,8 +284,9 @@ pub fn calculate_element_synergies(
             if position_b.role == PositionRole::Gk {
                 continue;
             }
-            let distance =
-                (position_a.top - position_b.top).hypot(position_a.left - position_b.left);
+            let top = position_a.top - position_b.top;
+            let left = position_a.left - position_b.left;
+            let distance = (top.powi(2) + left.powi(2)).sqrt();
             if distance < 25.0 {
                 links.push(ElementLink {
                     slot_a: slot_a.to_owned(),
@@ -375,6 +394,27 @@ mod tests {
             true,
         );
         assert_eq!(boosted.kick, 108);
+    }
+
+    #[test]
+    fn preserves_browser_rounding_and_parse_int_boundaries() {
+        let formation = legacy_formations().remove(0);
+        let mut source = member("FW", "Fire");
+        source.stats.as_mut().unwrap().kick = 70;
+        let stats =
+            recalculate_member_stats(&source, 44.0, "field-0", &formation, Some("Fire"), false);
+        assert_eq!(stats.kick, 41);
+        for slot in ["0", "field-+0", "field--0", "field-\u{feff} 0tail"] {
+            assert_eq!(
+                get_position_match_factor("FW", slot, &formation).status,
+                PositionMatchStatus::Match
+            );
+        }
+        // ECMAScript whitespace deliberately excludes NEL, unlike Rust char::is_whitespace.
+        assert_eq!(
+            get_position_match_factor("FW", "field-\u{85}0", &formation).status,
+            PositionMatchStatus::None
+        );
     }
 
     #[test]

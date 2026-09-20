@@ -22,7 +22,6 @@ import {
 	DATA,
 	DOWNLOADS,
 	EXPLORER,
-	FORMATION,
 	GALLERY,
 	INACORD,
 	LEGACY_ROUTES,
@@ -30,7 +29,6 @@ import {
 	MEDIA,
 	MODES,
 	WIKI,
-	SAVE,
 	SETTINGS,
 	SHOP,
 	recognizedRoutes,
@@ -44,11 +42,8 @@ import { Game } from "./pages/Game";
 import { PlayerBank } from "./screens/PlayerBank";
 import { Shop } from "./screens/Shop";
 import { TrophyGallery } from "./screens/TrophyGallery";
-import { SaveScreen } from "./screens/SaveScreen";
-import { MyTeamScreen } from "./screens/MyTeamScreen";
 import { Settings } from "./pages/Settings";
 import { Avatar } from "./pages/Avatar";
-import { WasmGameSurface, WASM_MODE_INDEX, type WasmMode } from "./pages/WasmGameSurface";
 import { Modes } from "./pages/Modes";
 import { Catalog } from "./pages/Catalog";
 import { WikiCards } from "./pages/WikiCards";
@@ -220,27 +215,12 @@ function GameSite() {
 			onOpenShop={() => setVue(SHOP)}
 			onOpenAvatar={() => setVue(AVATAR)}
 			onOpenSettings={() => setVue(SETTINGS)}
-			onSelectMode={(mode) => setVue(mode)}
-			onOpenModes={(slug) => setVue(slug ? `${MODES}/${slug}` : MODES)}
-			onOpenSave={() => setVue(SAVE)}
-			onOpenTeam={() => setVue(FORMATION)}
 		/>
 	);
 
 	// Root `/` ou `/menu` : exécution du jeu WebAssembly authentique
 	if (vue === HOME || vue === "menu") {
 		return withHost(renderGame());
-	}
-
-	// Modes de jeu authentiques exécutés dans le runtime WebAssembly
-	if (vue in WASM_MODE_INDEX) {
-		return withHost(
-			<WasmGameSurface
-				mode={vue as WasmMode}
-				onBack={() => setVue(HOME)}
-				gamepadSampler={gamepadSampler}
-			/>
-		);
 	}
 
 	// Écrans authentiques du jeu (interface native plein écran, sans chrome de bureau Inacord)
@@ -259,13 +239,6 @@ function GameSite() {
 	if (vue === AVATAR) {
 		return withHost(<Avatar onBack={() => setVue(HOME)} gamepadSampler={gamepadSampler} />);
 	}
-	if (vue === SAVE) {
-		return withHost(<SaveScreen onBack={() => setVue(HOME)} />);
-	}
-	if (vue === FORMATION) {
-		return withHost(<MyTeamScreen onBack={() => setVue(HOME)} onLaunchMatch={(mode) => setVue(mode)} />);
-	}
-
 	// Téléchargements Inacord
 	if (vue === DOWNLOADS) {
 		return shell(<div className="inacord-downloads"><DownloadPage /></div>);

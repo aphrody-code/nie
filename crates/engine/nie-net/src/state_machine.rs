@@ -46,7 +46,10 @@ impl NetState {
     /// Returns true if the state machine is transitioning towards a connection.
     #[must_use]
     pub const fn is_connecting(&self) -> bool {
-        matches!(self, Self::Login | Self::InitNet | Self::RecruitClient | Self::JoinSession)
+        matches!(
+            self,
+            Self::Login | Self::InitNet | Self::RecruitClient | Self::JoinSession
+        )
     }
 }
 

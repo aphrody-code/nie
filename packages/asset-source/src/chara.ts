@@ -1,9 +1,12 @@
 /** Typed HTTP adapter for the measured `/api/v1/chara` character catalogue. */
 
-export type CharaFacet = "element" | "position" | "rarity" | "series";
+export type CharaFacet = "element" | "position" | "rarity" | "series" | "gender" | "playstyle" | "age_group" | "school_year" | "team_id";
 export type CharaSort = "zukan" | "code" | "nom_fr" | "nom_en" | "nom_ja" | "rarete";
 
 export interface CharaCatalogEntry {
+	kind?: "character" | "staff";
+	role?: string | null;
+	id?: string | null;
 	internal_code: string | null;
 	chara_id: string | null;
 	base_slug: string | null;
@@ -16,9 +19,17 @@ export interface CharaCatalogEntry {
 	series: string | null;
 	model_id: string | null;
 	zukan_order: number | null;
+	gender?: string | null;
+	playstyle?: string | null;
+	age_group?: string | null;
+	school_year?: string | null;
+	team_id?: string | null;
+	playable?: boolean;
+	incomplete?: boolean;
 }
 
 export interface CharaCatalogOptions {
+	role?: "Coach" | "Coordinator" | "Manager";
 	page?: number;
 	perPage?: number;
 	q?: string;
@@ -30,12 +41,28 @@ export interface CharaCatalogOptions {
 	positions?: readonly string[];
 	rarities?: readonly string[];
 	seriesList?: readonly string[];
+	gender?: string;
+	playstyle?: string;
+	ageGroup?: string;
+	schoolYear?: string;
+	teamId?: string;
+	genders?: readonly string[];
+	playstyles?: readonly string[];
+	ageGroups?: readonly string[];
+	schoolYears?: readonly string[];
+	teamIds?: readonly string[];
+	playable?: boolean;
+	incomplete?: boolean;
 	sort?: CharaSort;
 	order?: "asc" | "desc";
 	signal?: AbortSignal;
 }
 
 export interface AppliedCharaFilters {
+	role?: string | null;
+	attributes?: Partial<Record<CharaFacet, string[]>>;
+	playable?: boolean | null;
+	incomplete?: boolean | null;
 	q: string | null;
 	element: string | null;
 	position: string | null;
@@ -88,10 +115,18 @@ export function charaCatalogUrl(options: CharaCatalogOptions = {}): string {
 		per_page: String(positive(options.perPage, DEFAULT_PER_PAGE, 200)),
 	});
 	if (options.q?.trim()) params.set("q", options.q.trim());
+	if (options.role) params.set("role", options.role);
 	setExactOrList(params, "element", options.element, options.elements);
 	setExactOrList(params, "position", options.position, options.positions);
 	setExactOrList(params, "rarity", options.rarity, options.rarities);
 	setExactOrList(params, "series", options.series, options.seriesList);
+	setExactOrList(params, "gender", options.gender, options.genders);
+	setExactOrList(params, "playstyle", options.playstyle, options.playstyles);
+	setExactOrList(params, "age_group", options.ageGroup, options.ageGroups);
+	setExactOrList(params, "school_year", options.schoolYear, options.schoolYears);
+	setExactOrList(params, "team_id", options.teamId, options.teamIds);
+	if (options.playable !== undefined) params.set("playable", String(options.playable));
+	if (options.incomplete !== undefined) params.set("incomplete", String(options.incomplete));
 	if (options.sort && options.sort !== "zukan") params.set("tri", options.sort);
 	if (options.order === "desc") params.set("ordre", "desc");
 	return `/api/v1/chara?${params}`;

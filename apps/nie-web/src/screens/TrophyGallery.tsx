@@ -281,7 +281,7 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 					</div>
 				</header>
 				<div className="trophy-gallery-assets__browser">
-					{/* Streaming direct des 5 domaines de textures VFS du jeu (49 583 textures) */}
+					{/* Streaming direct des 6 domaines disjoints du VFS du jeu (54 203 textures). */}
 					<WebGallery />
 					{/* Contract retention for Catalog view="textures" */}
 					<div style={{ display: "none" }}><Catalog view="textures" /></div>
@@ -400,7 +400,7 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 			<div className="trophy-gallery__footer">
 				<GameHintBar className="trophy-gallery__hints" hints={hints} />
 				<button className="trophy-gallery__asset-entry" type="button" onClick={() => setAssetBrowserOpen(true)}>
-					Parcourir les assets (VFS Live — 49 583 Textures)
+					Parcourir les assets (VFS — 54 203 textures)
 				</button>
 			</div>
 		</section>

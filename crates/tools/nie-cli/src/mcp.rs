@@ -714,7 +714,10 @@ impl NiersMcpServer {
                 .timeout(std::time::Duration::from_secs(5))
                 .build()?;
             let mut response = client.get(&url).send().await;
-            if response.as_ref().map_or(true, |r| r.status().is_server_error()) {
+            if response
+                .as_ref()
+                .map_or(true, |r| r.status().is_server_error())
+            {
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 if let Ok(retry_resp) = client.get(&url).send().await {
                     response = Ok(retry_resp);

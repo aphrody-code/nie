@@ -11,11 +11,8 @@ import {
 	type OpeningEvent,
 	type OpeningPhase,
 } from "../game/opening-sequence";
-import { SubmenuModal } from "../components/SubmenuModal";
-import { KizunaTownMultiplayer } from "../components/KizunaTownMultiplayer";
 import { MainMenu } from "./MainMenu";
 import { OpeningVisual } from "./OpeningVisual";
-import { WASM_MODE_LABELS, type WasmMode } from "./WasmGameSurface";
 import "./opening.css";
 
 export interface GameProps {
@@ -27,15 +24,6 @@ export interface GameProps {
 	onOpenShop: () => void;
 	onOpenAvatar: () => void;
 	onOpenSettings: () => void;
-	onOpenMedia?: () => void;
-	onOpenExplorer?: () => void;
-	onOpenEditor?: () => void;
-	onOpenSearch?: () => void;
-	onOpenData?: () => void;
-	onSelectMode?: (mode: WasmMode) => void;
-	onOpenModes?: (slug?: string) => void;
-	onOpenSave?: () => void;
-	onOpenTeam?: () => void;
 	startupReady?: boolean;
 	health?: SiteHealth | null;
 	startupFailed?: boolean;
@@ -52,10 +40,6 @@ export function Game({
 	onOpenShop,
 	onOpenAvatar,
 	onOpenSettings,
-	onSelectMode,
-	onOpenModes,
-	onOpenSave,
-	onOpenTeam,
 	startupReady = false,
 	health = null,
 	startupFailed = false,
@@ -63,8 +47,6 @@ export function Game({
 }: GameProps) {
 	const localGamepadSampler = useRef(createStandardGamepadMenuSampler());
 	const gamepadSampler = suppliedGamepadSampler ?? localGamepadSampler.current;
-	const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
-	const [isKizunaTownOpen, setIsKizunaTownOpen] = useState(false);
 	const advance = useCallback((event: OpeningEvent) => {
 		onPhaseChange(advanceOpeningPhase(phase, event));
 	}, [phase, onPhaseChange]);
@@ -86,98 +68,8 @@ export function Game({
 		[SETTINGS]: { id: "settings", onActivate: onOpenSettings },
 	}), [onOpenBank, onOpenGallery, onOpenShop, onOpenAvatar, onOpenSettings]);
 
-	const modeSlugs = useMemo(() => ["story_mode", "chronicle_mode", "competition", "bb_stadium", "victory_road"] as const, []);
-
-	const actions = useMemo(() => [
-		...hostActions,
-		...modeSlugs.map((slug) => ({
-			id: `mode-${slug}`,
-			label: WASM_MODE_LABELS[slug] ?? slug,
-			glyph: "livre" as const,
-			onActivate: () => setActiveSubmenu(slug),
-			disabled: false,
-		})),
-		{
-			id: "mode-kizuna_town",
-			label: "Station Kizuna",
-			glyph: "arbre" as const,
-			onActivate: () => setIsKizunaTownOpen(true),
-			disabled: false,
-		},
-		{
-			id: "mode-information",
-			label: "Informations",
-			glyph: "livre" as const,
-			onActivate: () => setActiveSubmenu("information"),
-			disabled: false,
-		},
-		{
-			id: "title-item-10",
-			label: "Sauvegarder",
-			glyph: "livre" as const,
-			onActivate: () => {
-				if (onOpenSave) {
-					onOpenSave();
-				} else {
-					setActiveSubmenu("title-item-10");
-				}
-			},
-			disabled: false,
-		},
-	], [hostActions, modeSlugs, onOpenSave]);
-
 	if (phase === "menu") {
-		return (
-			<>
-				<MainMenu
-					actions={actions}
-					gamepadSampler={gamepadSampler}
-				/>
-				{isKizunaTownOpen && (
-					<KizunaTownMultiplayer
-						onClose={() => setIsKizunaTownOpen(false)}
-						onLaunchMatch={(inacode, seed) => {
-							setIsKizunaTownOpen(false);
-							onSelectMode?.("victory_road");
-						}}
-					/>
-				)}
-				{activeSubmenu && (
-					<SubmenuModal
-						modeSlug={activeSubmenu}
-						onClose={() => setActiveSubmenu(null)}
-						onLaunchWasm={onSelectMode ? (mode) => {
-							setActiveSubmenu(null);
-							onSelectMode(mode);
-						} : undefined}
-						onExploreMode={onOpenModes ? (slug) => {
-							setActiveSubmenu(null);
-							onOpenModes(slug);
-						} : undefined}
-						onOpenScreen={(screen) => {
-							setActiveSubmenu(null);
-							if (screen === "soccer_formation_menu" || screen === "team") {
-								(onOpenTeam ?? onOpenBank)();
-							} else if (screen === "save_menu" || screen === "save") {
-								onOpenSave?.();
-							} else if (screen === "chara_bank_menu" || screen === "bank") {
-								onOpenBank();
-							} else if (screen === "shop_menu" || screen === "shop") {
-								onOpenShop();
-							} else if (screen === "chara_edit_menu" || screen === "avatar") {
-								onOpenAvatar();
-							} else if (screen === "gallery_menu" || screen === "gallery") {
-								onOpenGallery();
-							} else if (screen === "setting_menu" || screen === "settings") {
-								onOpenSettings();
-							} else if (onOpenModes) {
-								onOpenModes(screen);
-							}
-						}}
-					/>
-				)}
-			</>
-		);
+		return <MainMenu actions={hostActions} gamepadSampler={gamepadSampler} />;
 	}
 	return (
 		<OpeningScreen
@@ -226,12 +118,8 @@ function OpeningScreen({
 
 	useEffect(() => {
 		if (phase === "loading") {
-			if (startupReady) {
-				advanceOnce("resources-ready");
-				return;
-			}
-			const fallbackTimer = window.setTimeout(() => advanceOnce("resources-ready"), 2500);
-			return () => window.clearTimeout(fallbackTimer);
+			if (startupReady) advanceOnce("resources-ready");
+			return;
 		}
 		if (!ready || movie || frame.durationMs === null) return;
 		const timer = window.setTimeout(() => advanceOnce("timeout"), frame.durationMs);
@@ -259,8 +147,7 @@ function OpeningScreen({
 			className={`opening-screen opening-screen--${phase}`}
 		>
 			<OpeningVisual phase={phase} health={health} failed={startupFailed} onRetry={onRetryStartup} onReady={onReady} onEnded={movie ? () => advanceOnce("media-ended") : undefined}
-				onConfirm={frame.advanceOn === "confirm" ? () => advanceOnce("confirm") : undefined}
-				onSkip={phase === "loading" ? () => advanceOnce("resources-ready") : undefined} />
+				onConfirm={frame.advanceOn === "confirm" ? () => advanceOnce("confirm") : undefined} />
 		</section>
 	);
 }

@@ -224,10 +224,35 @@ declarer_routes! {
     "/api/v1/export/file/{*path}" => crate::routes::native_export::file,
     "/api/v1/resources/related/{*path}" => crate::routes::related::related,
     "/api/v1/wiki/search" => crate::routes::wiki::search,
+    "/api/v1/wiki/cross/tables" => crate::routes::wiki::cross_tables,
+    "/api/v1/wiki/cross/stats" => crate::routes::wiki::cross_stats,
+    "/api/v1/wiki/cross/catalog" => crate::routes::wiki::cross_catalog,
+    // Legacy Cross contracts call the same safe projections as the canonical API.
+    "/api/cross/tables" => crate::routes::wiki::cross_tables,
+    "/api/cross/stats" => crate::routes::wiki::cross_stats,
+    "/api/characters" => crate::routes::wiki::legacy_characters,
+    "/api/characters/{id}" => crate::routes::wiki::legacy_character,
+    "/api/coordinators" => crate::routes::wiki::legacy_coordinators,
+    "/api/coaches" => crate::routes::wiki::legacy_coaches,
+    "/api/coaches/{id}" => crate::routes::wiki::legacy_coach,
+    "/api/teams" => crate::routes::wiki::legacy_teams,
+    "/api/teams/{id}" => crate::routes::wiki::legacy_team,
+    "/api/shops" => crate::routes::wiki::legacy_shops,
+    "/api/shops/{id}" => crate::routes::wiki::legacy_shop,
+    "/api/stadiums" => crate::routes::wiki::legacy_stadiums,
+    "/api/stadiums/{id}" => crate::routes::wiki::legacy_stadium,
+    "/api/skills" => crate::routes::wiki::legacy_skills,
+    "/api/skills/{id}" => crate::routes::wiki::legacy_skill,
+    "/api/items" => crate::routes::wiki::legacy_items,
+    "/api/items/{id}" => crate::routes::wiki::legacy_item,
+    "/api/gallery" => crate::routes::wiki::legacy_gallery,
     "/api/v1/wiki/gallery" => crate::routes::wiki::gallery,
     "/api/v1/wiki/names" => crate::routes::wiki::names,
     "/api/v1/wiki/names/search" => crate::routes::wiki::search_names,
     "/api/v1/wiki/characters/{id}" => crate::routes::wiki::character,
+    "/api/v1/wiki/characters/{id}/skills" => crate::routes::wiki::character_skills,
+    "/api/v1/wiki/roster" => crate::routes::wiki::roster,
+    "/api/v1/wiki/staff" => crate::routes::wiki::staff,
     "/api/v1/wiki/skills/{id}" => crate::routes::wiki::skill,
     "/api/v1/wiki/items/{id}" => crate::routes::wiki::item,
     "/api/v1/wiki/teams/{id}" => crate::routes::wiki::team,
@@ -672,7 +697,20 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 169, "169 routes mounted");
+        assert_eq!(routes.len(), 193, "193 routes mounted");
+        for route in [
+            "/api/skills",
+            "/api/skills/{id}",
+            "/api/items",
+            "/api/items/{id}",
+            "/api/gallery",
+            "/api/characters/{id}",
+        ] {
+            assert!(
+                routes.contains(&route),
+                "missing compatibility route: {route}"
+            );
+        }
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

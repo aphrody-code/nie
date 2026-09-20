@@ -21,12 +21,18 @@ async fn test_full_multiplayer_lifecycle_e2e() -> anyhow::Result<()> {
 
     // 2. Connect Client 1 ("Endou")
     let mut client1 = NetClient::connect(&ws_url, "Endou").await?;
-    let pid1 = client1.player_id().expect("Client 1 must have player_id").to_string();
+    let pid1 = client1
+        .player_id()
+        .expect("Client 1 must have player_id")
+        .to_string();
     assert!(!pid1.is_empty());
 
     // 3. Connect Client 2 ("Gouenji")
     let mut client2 = NetClient::connect(&ws_url, "Gouenji").await?;
-    let pid2 = client2.player_id().expect("Client 2 must have player_id").to_string();
+    let pid2 = client2
+        .player_id()
+        .expect("Client 2 must have player_id")
+        .to_string();
     assert!(!pid2.is_empty());
     assert_ne!(pid1, pid2);
 
@@ -83,7 +89,13 @@ async fn test_full_multiplayer_lifecycle_e2e() -> anyhow::Result<()> {
         let msg = tokio::time::timeout(Duration::from_secs(2), client1.next_message())
             .await?
             .expect("Expected message");
-        if let NetMessage::MatchStart { match_id, seed, home_player_id, away_player_id } = msg {
+        if let NetMessage::MatchStart {
+            match_id,
+            seed,
+            home_player_id,
+            away_player_id,
+        } = msg
+        {
             break (match_id, seed, home_player_id, away_player_id);
         }
     };
@@ -92,7 +104,13 @@ async fn test_full_multiplayer_lifecycle_e2e() -> anyhow::Result<()> {
         let msg = tokio::time::timeout(Duration::from_secs(2), client2.next_message())
             .await?
             .expect("Expected message");
-        if let NetMessage::MatchStart { match_id, seed, home_player_id, away_player_id } = msg {
+        if let NetMessage::MatchStart {
+            match_id,
+            seed,
+            home_player_id,
+            away_player_id,
+        } = msg
+        {
             break (match_id, seed, home_player_id, away_player_id);
         }
     };
@@ -103,30 +121,41 @@ async fn test_full_multiplayer_lifecycle_e2e() -> anyhow::Result<()> {
     assert_eq!(match_start_c1.3, pid2);
 
     // 8. Stream inputs and verify TickSync reception
-    client1.send_input(1, PlayerTickInput {
-        tick: 1,
-        dx: 1.0,
-        dy: 0.0,
-        shoot: true,
-        pass: false,
-        skill_id: None,
-    })?;
+    client1.send_input(
+        1,
+        PlayerTickInput {
+            tick: 1,
+            dx: 1.0,
+            dy: 0.0,
+            shoot: true,
+            pass: false,
+            skill_id: None,
+        },
+    )?;
 
-    client2.send_input(1, PlayerTickInput {
-        tick: 1,
-        dx: -1.0,
-        dy: 0.0,
-        shoot: false,
-        pass: true,
-        skill_id: None,
-    })?;
+    client2.send_input(
+        1,
+        PlayerTickInput {
+            tick: 1,
+            dx: -1.0,
+            dy: 0.0,
+            shoot: false,
+            pass: true,
+            skill_id: None,
+        },
+    )?;
 
     // Wait for at least one TickSync on Client 1
     let sync_received = loop {
         let msg = tokio::time::timeout(Duration::from_secs(2), client1.next_message())
             .await?
             .expect("Expected message");
-        if let NetMessage::TickSync { tick, inputs, state_hash } = msg {
+        if let NetMessage::TickSync {
+            tick,
+            inputs,
+            state_hash,
+        } = msg
+        {
             assert!(tick >= 1);
             assert_ne!(state_hash, 0);
             assert_eq!(inputs.len(), 2);
@@ -181,7 +210,13 @@ async fn test_matchmaker_e2e() -> anyhow::Result<()> {
         let msg = tokio::time::timeout(Duration::from_secs(3), client1.next_message())
             .await?
             .expect("Expected matchmaker message");
-        if let NetMessage::MatchStart { match_id, seed, home_player_id, away_player_id } = msg {
+        if let NetMessage::MatchStart {
+            match_id,
+            seed,
+            home_player_id,
+            away_player_id,
+        } = msg
+        {
             break (match_id, seed, home_player_id, away_player_id);
         }
     };
@@ -190,7 +225,13 @@ async fn test_matchmaker_e2e() -> anyhow::Result<()> {
         let msg = tokio::time::timeout(Duration::from_secs(3), client2.next_message())
             .await?
             .expect("Expected matchmaker message");
-        if let NetMessage::MatchStart { match_id, seed, home_player_id, away_player_id } = msg {
+        if let NetMessage::MatchStart {
+            match_id,
+            seed,
+            home_player_id,
+            away_player_id,
+        } = msg
+        {
             break (match_id, seed, home_player_id, away_player_id);
         }
     };
@@ -325,7 +366,11 @@ async fn test_kizuna_town_multiplayer_e2e() -> anyhow::Result<()> {
         let msg = tokio::time::timeout(Duration::from_secs(2), tenma.next_message())
             .await?
             .expect("Expected move message");
-        if let NetMessage::TownMoveSync { player_id, position, .. } = msg
+        if let NetMessage::TownMoveSync {
+            player_id,
+            position,
+            ..
+        } = msg
             && player_id == tsurugi_pid
         {
             assert_eq!(position, [10.0, 0.0, 5.0]);
@@ -339,7 +384,10 @@ async fn test_kizuna_town_multiplayer_e2e() -> anyhow::Result<()> {
         let msg = tokio::time::timeout(Duration::from_secs(2), tenma.next_message())
             .await?
             .expect("Expected emote message");
-        if let NetMessage::TownEmoteSync { player_id, stamp_id } = msg
+        if let NetMessage::TownEmoteSync {
+            player_id,
+            stamp_id,
+        } = msg
             && player_id == tsurugi_pid
         {
             assert_eq!(stamp_id, 77);
@@ -353,7 +401,9 @@ async fn test_kizuna_town_multiplayer_e2e() -> anyhow::Result<()> {
         let msg = tokio::time::timeout(Duration::from_secs(2), tsurugi.next_message())
             .await?
             .expect("Expected chat message");
-        if let NetMessage::TownChatSync { player_id, message, .. } = msg
+        if let NetMessage::TownChatSync {
+            player_id, message, ..
+        } = msg
             && player_id == tenma_pid
         {
             assert_eq!(message, "Bienvenue dans ma Ville Kizuna !");

@@ -22,6 +22,7 @@
  */
 import { ensureWasm, loadFont, moduleMemory } from "./bridge";
 import { MenuComposer } from "../wasm/nie_wasm.js";
+import { vfsResources } from "./vfs-resources";
 
 /** L'espace de fichiers du VFS servi par `nie-site` : `/f/data/<chemin logique>`. */
 const VFS_SPACE = "/f/data/";
@@ -67,6 +68,8 @@ const FONT_PALETTE_PATH = "common/font/font_color.cfg.bin";
  */
 let palettePromise: Promise<Uint8Array | null> | null = null;
 function loadFontPalette(): Promise<Uint8Array | null> {
+	const mounted = vfsResources.read(`data/${FONT_PALETTE_PATH}`);
+	if (mounted) return Promise.resolve(mounted);
 	palettePromise ??= (async () => {
 		const response = await fetch(`${VFS_SPACE}${FONT_PALETTE_PATH}`).catch(() => null);
 		if (!response?.ok) return null;
@@ -91,6 +94,8 @@ export async function composeMenuScreen(
 		// sera simplement compté `skipped`.
 		await Promise.all(
 			composer.required_assets().map(async (key) => {
+				const mounted = vfsResources.read(`data/${key}`);
+				if (mounted) { composer.provide_asset(key, mounted); return; }
 				const response = await fetch(`${VFS_SPACE}${key}`).catch(() => null);
 				if (!response?.ok) return;
 				composer.provide_asset(key, new Uint8Array(await response.arrayBuffer()));

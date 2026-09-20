@@ -31,7 +31,9 @@ pub fn net_format_inacode(raw: &str) -> String {
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[must_use]
 pub fn net_generate_inacode(seed: f64) -> String {
-    nie_net::Inacode::generate_from_seed(seed as u64).as_str().to_string()
+    nie_net::Inacode::generate_from_seed(seed as u64)
+        .as_str()
+        .to_string()
 }
 
 /// Returns rank tier details (index, name_fr, name_en, min_ap, win_k, loss_k) as JSON.
@@ -65,8 +67,16 @@ pub fn net_compute_elo(rating_a: u32, rating_b: u32, score_a: f64) -> String {
         nie_net::compute_match_elo(rating_b, rating_a, nie_net::DEFAULT_K_FACTOR)
     };
 
-    let delta_a = if is_win_a { res.winner_gain as i32 } else { -(res.loser_loss as i32) };
-    let delta_b = if is_win_a { -(res.loser_loss as i32) } else { res.winner_gain as i32 };
+    let delta_a = if is_win_a {
+        res.winner_gain as i32
+    } else {
+        -(res.loser_loss as i32)
+    };
+    let delta_b = if is_win_a {
+        -(res.loser_loss as i32)
+    } else {
+        res.winner_gain as i32
+    };
 
     let tier_a = nie_net::RankTier::from_ap(rating_a);
     let tier_b = nie_net::RankTier::from_ap(rating_b);
@@ -108,7 +118,9 @@ pub fn net_generate_challenge_code(seed: f64) -> String {
         let mut s = seed as u64;
         let mut chars = [0u8; 8];
         for b in &mut chars {
-            s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            s = s
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             *b = alphabet[(s as usize) % alphabet.len()];
         }
         std::str::from_utf8(&chars).unwrap_or(&c.code).to_string()
@@ -176,7 +188,13 @@ pub fn net_validate_clan_tag(tag: &str) -> bool {
 /// Computes FNV-1a 32-bit state hash for zero-desync verification.
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[must_use]
-pub fn net_state_hash(ball_x: f32, ball_y: f32, ball_z: f32, score_home: u32, score_away: u32) -> u32 {
+pub fn net_state_hash(
+    ball_x: f32,
+    ball_y: f32,
+    ball_z: f32,
+    score_home: u32,
+    score_away: u32,
+) -> u32 {
     let mut hash: u32 = 0x811c_9dc5;
     let bytes = [
         ball_x.to_bits().to_le_bytes(),

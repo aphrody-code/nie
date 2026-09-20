@@ -1,0 +1,2751 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "rg",
+  "baselineCommit": "d5659256fb7cc6ac3b489422d24d99af811b22ca",
+  "currentCommit": "93aea3ba8b703d8ca66ca8d3b98988edea3c97df",
+  "deployedBuildInventory": {
+    "source": "/home/ubuntu/rg-releases/azalee/slot-a/apps/azalee/.next/app-path-routes-manifest.json",
+    "sha256": "3dc1abb372b063486519cb9dbbaabb6e9f300d55927e27975c422c0d7960806c",
+    "buildId": "dc3oUCqAfiZflSE6UxEQZ",
+    "sourceCommitVerified": false,
+    "contracts": [
+      {
+        "source": "/_global-error/page",
+        "path": "/_global-error",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg framework metadata",
+        "destination": "rg:/_global-error",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/_not-found/page",
+        "path": "/_not-found",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg framework metadata",
+        "destination": "rg:/_not-found",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/.well-known/agent-configuration/route",
+        "path": "/.well-known/agent-configuration",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/.well-known/agent-configuration",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/2fa/page",
+        "path": "/2fa",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/2fa",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/admin/discord/role/[roleId]/members/route",
+        "path": "/api/admin/discord/role/[roleId]/members",
+        "kind": "next_handler",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/api/admin/discord/role/[roleId]/members",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/admin/news/draft/route",
+        "path": "/api/admin/news/draft",
+        "kind": "next_handler",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/api/admin/news/draft",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/articles/export/route",
+        "path": "/api/articles/export",
+        "kind": "next_handler",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/api/articles/export",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/auth/[...all]/route",
+        "path": "/api/auth/[...all]",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/auth/[...all]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/auth/magic-login/route",
+        "path": "/api/auth/magic-login",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/auth/magic-login",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/common/route",
+        "path": "/api/common",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/api/common",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/api/cron/publish-scheduled/route",
+        "path": "/api/cron/publish-scheduled",
+        "kind": "next_handler",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/api/cron/publish-scheduled",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/graphql/route",
+        "path": "/api/graphql",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/api/graphql",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/api/health/route",
+        "path": "/api/health",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/health",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/llm/[model]/route",
+        "path": "/api/llm/[model]",
+        "kind": "next_handler",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/api/llm/[model]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/news/feed/route",
+        "path": "/api/news/feed",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/news/feed",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/news/share-count/route",
+        "path": "/api/news/share-count",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/news/share-count",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/og/character/route",
+        "path": "/api/og/character",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/api/og/character",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/api/rag/search/route",
+        "path": "/api/rag/search",
+        "kind": "next_handler",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/api/rag/search",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/save/resolve-roster/route",
+        "path": "/api/save/resolve-roster",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/api/save/resolve-roster",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/api/supabase-token/route",
+        "path": "/api/supabase-token",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/supabase-token",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/tags/popular/route",
+        "path": "/api/tags/popular",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/tags/popular",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/vroid/callback/route",
+        "path": "/api/vroid/callback",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/vroid/callback",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/vroid/image/route",
+        "path": "/api/vroid/image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-formats",
+        "destination": "nie-site compatibility:/api/vroid/image",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/api/vroid/login/route",
+        "path": "/api/vroid/login",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/vroid/login",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/vroid/models/[id]/route",
+        "path": "/api/vroid/models/[id]",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-formats",
+        "destination": "nie-site compatibility:/api/vroid/models/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/api/vroid/models/route",
+        "path": "/api/vroid/models",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-formats",
+        "destination": "nie-site compatibility:/api/vroid/models",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/api/vroid/session/route",
+        "path": "/api/vroid/session",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/api/vroid/session",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/api/vroid/vrm/[id]/route",
+        "path": "/api/vroid/vrm/[id]",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-formats",
+        "destination": "nie-site compatibility:/api/vroid/vrm/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/aura/(liste)/page",
+        "path": "/aura",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/aura",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/aura/[category]/(liste)/page",
+        "path": "/aura/[category]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/aura/[category]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/aura/[category]/[id]/page",
+        "path": "/aura/[category]/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/aura/[category]/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/aura/opengraph-image/route",
+        "path": "/aura/opengraph-image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/aura/opengraph-image",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/auth/auth-code-error/page",
+        "path": "/auth/auth-code-error",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/auth/auth-code-error",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/auth/post-login/route",
+        "path": "/auth/post-login",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/auth/post-login",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/auth/reset-password/page",
+        "path": "/auth/reset-password",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/auth/reset-password",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/boutique/[id]/page",
+        "path": "/boutique/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/boutique/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/boutique/page",
+        "path": "/boutique",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/boutique",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/capsule/[id]/page",
+        "path": "/capsule/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/capsule/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/capsule/page",
+        "path": "/capsule",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/capsule",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/chara/(liste)/page",
+        "path": "/chara",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/chara",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/chara/[id]/opengraph-image/route",
+        "path": "/chara/[id]/opengraph-image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/chara/[id]/opengraph-image",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/chara/[id]/page",
+        "path": "/chara/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/chara/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/chara/opengraph-image/route",
+        "path": "/chara/opengraph-image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/chara/opengraph-image",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/charte/page",
+        "path": "/charte",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/charte",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/contact/page",
+        "path": "/contact",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/contact",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/cross/page",
+        "path": "/cross",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/cross",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/dashboard/admin/users/page",
+        "path": "/dashboard/admin/users",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/admin/users",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/audit/page",
+        "path": "/dashboard/audit",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/audit",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/database/[table]/[id]/page",
+        "path": "/dashboard/database/[table]/[id]",
+        "kind": "page",
+        "classification": "author",
+        "owner": "Inacord native adapters",
+        "destination": "native capability boundary",
+        "status": "native_only"
+      },
+      {
+        "source": "/dashboard/database/[table]/page",
+        "path": "/dashboard/database/[table]",
+        "kind": "page",
+        "classification": "author",
+        "owner": "Inacord native adapters",
+        "destination": "native capability boundary",
+        "status": "native_only"
+      },
+      {
+        "source": "/dashboard/database/images/page",
+        "path": "/dashboard/database/images",
+        "kind": "page",
+        "classification": "author",
+        "owner": "Inacord native adapters",
+        "destination": "native capability boundary",
+        "status": "native_only"
+      },
+      {
+        "source": "/dashboard/database/page",
+        "path": "/dashboard/database",
+        "kind": "page",
+        "classification": "author",
+        "owner": "Inacord native adapters",
+        "destination": "native capability boundary",
+        "status": "native_only"
+      },
+      {
+        "source": "/dashboard/database/verification/page",
+        "path": "/dashboard/database/verification",
+        "kind": "page",
+        "classification": "author",
+        "owner": "Inacord native adapters",
+        "destination": "native capability boundary",
+        "status": "native_only"
+      },
+      {
+        "source": "/dashboard/import-google-doc/page",
+        "path": "/dashboard/import-google-doc",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/import-google-doc",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/import-sheet/page",
+        "path": "/dashboard/import-sheet",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/import-sheet",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/news/[id]/page",
+        "path": "/dashboard/news/[id]",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/news/[id]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/news/[id]/versions/page",
+        "path": "/dashboard/news/[id]/versions",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/news/[id]/versions",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/news/new/page",
+        "path": "/dashboard/news/new",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/news/new",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/news/page",
+        "path": "/dashboard/news",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/news",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/news/stats/page",
+        "path": "/dashboard/news/stats",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/news/stats",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/page",
+        "path": "/dashboard",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/settings/page",
+        "path": "/dashboard/settings",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/settings",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/tweets/[id]/page",
+        "path": "/dashboard/tweets/[id]",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/tweets/[id]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/tweets/page",
+        "path": "/dashboard/tweets",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/tweets",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/users/page",
+        "path": "/dashboard/users",
+        "kind": "page",
+        "classification": "author",
+        "owner": "rg privileged adapters",
+        "destination": "rg:/dashboard/users",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/dashboard/zukan-review/page",
+        "path": "/dashboard/zukan-review",
+        "kind": "page",
+        "classification": "author",
+        "owner": "Inacord native adapters",
+        "destination": "native capability boundary",
+        "status": "native_only"
+      },
+      {
+        "source": "/drops/page",
+        "path": "/drops",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/drops",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/entraineur/[id]/page",
+        "path": "/entraineur/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/entraineur/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/entraineur/page",
+        "path": "/entraineur",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/entraineur",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/equipe/[id]/page",
+        "path": "/equipe/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/equipe/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/equipe/page",
+        "path": "/equipe",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/equipe",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/icon.png/route",
+        "path": "/icon.png",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/icon.png",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/invocation/page",
+        "path": "/invocation",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/invocation",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/item/(liste)/page",
+        "path": "/item",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/item",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/item/[id]/page",
+        "path": "/item/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/item/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/item/opengraph-image/route",
+        "path": "/item/opengraph-image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/item/opengraph-image",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/keshin/page",
+        "path": "/keshin",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/keshin",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/legal/cgu/page",
+        "path": "/legal/cgu",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/legal/cgu",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/legal/confidentialite/page",
+        "path": "/legal/confidentialite",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/legal/confidentialite",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/legal/mentions-legales/page",
+        "path": "/legal/mentions-legales",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/legal/mentions-legales",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/login/page",
+        "path": "/login",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/login",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/maintenance/page",
+        "path": "/maintenance",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/maintenance",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/manifest.webmanifest/route",
+        "path": "/manifest.webmanifest",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg framework metadata",
+        "destination": "rg:/manifest.webmanifest",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/news/(liste)/page",
+        "path": "/news",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/news",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/news/[slug]/opengraph-image/route",
+        "path": "/news/[slug]/opengraph-image",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/news/[slug]/opengraph-image",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/news/[slug]/page",
+        "path": "/news/[slug]",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/news/[slug]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/news/feed.xml/route",
+        "path": "/news/feed.xml",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/news/feed.xml",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/news/tag/[tag]/page",
+        "path": "/news/tag/[tag]",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/news/tag/[tag]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/news/tweet/[id]/page",
+        "path": "/news/tweet/[id]",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/news/tweet/[id]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/niveau/page",
+        "path": "/niveau",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/niveau",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/opengraph-image.png/route",
+        "path": "/opengraph-image.png",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/opengraph-image.png",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/page",
+        "path": "/",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-game / nie-lua / nie-save",
+        "destination": "nie-web compatibility:/",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/passive/(liste)/page",
+        "path": "/passive",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/passive",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/passive/[id]/page",
+        "path": "/passive/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/passive/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/passive/opengraph-image/route",
+        "path": "/passive/opengraph-image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/passive/opengraph-image",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/patch-notes/(liste)/page",
+        "path": "/patch-notes",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/patch-notes",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/patch-notes/[id]/page",
+        "path": "/patch-notes/[id]",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/patch-notes/[id]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/profil/[username]/page",
+        "path": "/profil/[username]",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/profil/[username]",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/quete/[id]/page",
+        "path": "/quete/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/quete/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/quete/page",
+        "path": "/quete",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/quete",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/robots.txt/route",
+        "path": "/robots.txt",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg framework metadata",
+        "destination": "rg:/robots.txt",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/search/page",
+        "path": "/search",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/search",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/settings/page",
+        "path": "/settings",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/settings",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/sitemap.xml/route",
+        "path": "/sitemap.xml",
+        "kind": "next_handler",
+        "classification": "editorial",
+        "owner": "rg framework metadata",
+        "destination": "rg:/sitemap.xml",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/skill/(liste)/page",
+        "path": "/skill",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/skill",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/skill/[id]/opengraph-image/route",
+        "path": "/skill/[id]/opengraph-image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/skill/[id]/opengraph-image",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/skill/[id]/page",
+        "path": "/skill/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/skill/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/skill/opengraph-image/route",
+        "path": "/skill/opengraph-image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/skill/opengraph-image",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/soutenir/page",
+        "path": "/soutenir",
+        "kind": "page",
+        "classification": "editorial",
+        "owner": "rg",
+        "destination": "rg:/soutenir",
+        "status": "retained_in_rg"
+      },
+      {
+        "source": "/stade/[id]/page",
+        "path": "/stade/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/stade/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/stade/page",
+        "path": "/stade",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/stade",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/succes/[id]/page",
+        "path": "/succes/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/succes/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/succes/page",
+        "path": "/succes",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/succes",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/tactic/(liste)/page",
+        "path": "/tactic",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/tactic",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/tactic/[id]/page",
+        "path": "/tactic/[id]",
+        "kind": "page",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-web compatibility:/tactic/[id]",
+        "status": "adapter_pending"
+      },
+      {
+        "source": "/tactic/opengraph-image/route",
+        "path": "/tactic/opengraph-image",
+        "kind": "next_handler",
+        "classification": "game",
+        "owner": "nie-wiki / nie-core",
+        "destination": "nie-site compatibility:/tactic/opengraph-image",
+        "status": "adapter_pending"
+      }
+    ],
+    "note": "Separate surviving build snapshot; it does not prove the 2026-09-05 120-output enumeration."
+  },
+  "historicalBuildClaim": {
+    "count": 120,
+    "source": "docs/archive/plans/2026-09-08/PLAN-legacy-2026-09-05-to-08.md:671",
+    "measuredAt": "2026-09-05T07:05:00Z",
+    "enumeratedBuildArtifactAvailable": false,
+    "note": "Historical build count is not a source-page count; do not claim 120 identified pages."
+  },
+  "counts": {
+    "baselineSourcePages": 90,
+    "currentSourcePages": 73,
+    "unionPages": 91,
+    "nextHandlers": 31,
+    "headlessApis": 41,
+    "provenMigrated": 0,
+    "contractsWithAdapterTests": 14
+  },
+  "contracts": [
+    {
+      "kind": "next_handler",
+      "path": "/.well-known/agent-configuration",
+      "source": "apps/azalee/app/.well-known/agent-configuration/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/.well-known/agent-configuration",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/2fa",
+      "source": "apps/azalee/app/2fa/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/2fa",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/admin/discord/role/[roleId]/members",
+      "source": "apps/azalee/app/api/admin/discord/role/[roleId]/members/route.ts",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/api/admin/discord/role/[roleId]/members",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/admin/news/draft",
+      "source": "apps/azalee/app/api/admin/news/draft/route.ts",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/api/admin/news/draft",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/articles/export",
+      "source": "apps/azalee/app/api/articles/export/route.ts",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/api/articles/export",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/auth/[...all]",
+      "source": "apps/azalee/app/api/auth/[...all]/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/auth/[...all]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/auth/magic-login",
+      "source": "apps/azalee/app/api/auth/magic-login/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/auth/magic-login",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/common",
+      "source": "apps/azalee/app/api/common/route.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/common",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/cpk",
+      "source": "apps/azalee/app/api/cpk/route.ts",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/cron/publish-scheduled",
+      "source": "apps/azalee/app/api/cron/publish-scheduled/route.ts",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/api/cron/publish-scheduled",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/graphql",
+      "source": "apps/azalee/app/api/graphql/route.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/graphql",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/health",
+      "source": "apps/azalee/app/api/health/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/health",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/llm/[model]",
+      "source": "apps/azalee/app/api/llm/[model]/route.ts",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/api/llm/[model]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/mode-tex/[...p]",
+      "source": "apps/azalee/app/api/mode-tex/[...p]/route.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/mode-tex/[...p]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/news/feed",
+      "source": "apps/azalee/app/api/news/feed/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/news/feed",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/news/share-count",
+      "source": "apps/azalee/app/api/news/share-count/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/news/share-count",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/og/character",
+      "source": "apps/azalee/app/api/og/character/route.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/og/character",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/ops/revalidate/wiki",
+      "source": "apps/azalee/app/api/ops/revalidate/wiki/route.ts",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/api/ops/revalidate/wiki",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/rag/search",
+      "source": "apps/azalee/app/api/rag/search/route.ts",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/api/rag/search",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/save/resolve-roster",
+      "source": "apps/azalee/app/api/save/resolve-roster/route.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/save/resolve-roster",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/supabase-token",
+      "source": "apps/azalee/app/api/supabase-token/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/supabase-token",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/tags/popular",
+      "source": "apps/azalee/app/api/tags/popular/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/tags/popular",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/vroid/callback",
+      "source": "apps/azalee/app/api/vroid/callback/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/vroid/callback",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/vroid/image",
+      "source": "apps/azalee/app/api/vroid/image/route.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-site compatibility:/api/vroid/image",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/vroid/login",
+      "source": "apps/azalee/app/api/vroid/login/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/vroid/login",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/vroid/models/[id]",
+      "source": "apps/azalee/app/api/vroid/models/[id]/route.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-site compatibility:/api/vroid/models/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/vroid/models",
+      "source": "apps/azalee/app/api/vroid/models/route.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-site compatibility:/api/vroid/models",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/vroid/session",
+      "source": "apps/azalee/app/api/vroid/session/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/api/vroid/session",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/api/vroid/vrm/[id]",
+      "source": "apps/azalee/app/api/vroid/vrm/[id]/route.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-site compatibility:/api/vroid/vrm/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/aura",
+      "source": "apps/azalee/app/aura/(liste)/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/aura",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/aura/[category]",
+      "source": "apps/azalee/app/aura/[category]/(liste)/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/aura/[category]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/aura/[category]/[id]",
+      "source": "apps/azalee/app/aura/[category]/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/aura/[category]/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/auth/auth-code-error",
+      "source": "apps/azalee/app/auth/auth-code-error/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/auth/auth-code-error",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/auth/post-login",
+      "source": "apps/azalee/app/auth/post-login/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/auth/post-login",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/auth/reset-password",
+      "source": "apps/azalee/app/auth/reset-password/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/auth/reset-password",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/avatar",
+      "source": "apps/azalee/app/avatar/page.tsx",
+      "classification": "game",
+      "owner": "nie-game / nie-lua / nie-save",
+      "destination": "nie-web compatibility:/avatar",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/boutique/[id]",
+      "source": "apps/azalee/app/boutique/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/boutique/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/boutique",
+      "source": "apps/azalee/app/boutique/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/boutique",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/capsule/[id]",
+      "source": "apps/azalee/app/capsule/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/capsule/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/capsule",
+      "source": "apps/azalee/app/capsule/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/capsule",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/chara",
+      "source": "apps/azalee/app/chara/(liste)/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/chara",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/chara/[id]",
+      "source": "apps/azalee/app/chara/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/chara/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/charte",
+      "source": "apps/azalee/app/charte/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/charte",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/contact",
+      "source": "apps/azalee/app/contact/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/contact",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/cross",
+      "source": "apps/azalee/app/cross/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/cross",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/admin/users",
+      "source": "apps/azalee/app/dashboard/admin/users/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/admin/users",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/audit",
+      "source": "apps/azalee/app/dashboard/audit/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/audit",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/database/[table]/[id]",
+      "source": "apps/azalee/app/dashboard/database/[table]/[id]/page.tsx",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/database/[table]",
+      "source": "apps/azalee/app/dashboard/database/[table]/page.tsx",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/database/images",
+      "source": "apps/azalee/app/dashboard/database/images/page.tsx",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/database",
+      "source": "apps/azalee/app/dashboard/database/page.tsx",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/database/verification",
+      "source": "apps/azalee/app/dashboard/database/verification/page.tsx",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/import-google-doc",
+      "source": "apps/azalee/app/dashboard/import-google-doc/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/import-google-doc",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/import-sheet",
+      "source": "apps/azalee/app/dashboard/import-sheet/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/import-sheet",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/news/[id]",
+      "source": "apps/azalee/app/dashboard/news/[id]/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/news/[id]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/news/[id]/versions",
+      "source": "apps/azalee/app/dashboard/news/[id]/versions/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/news/[id]/versions",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/news/new",
+      "source": "apps/azalee/app/dashboard/news/new/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/news/new",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/news",
+      "source": "apps/azalee/app/dashboard/news/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/news",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/news/stats",
+      "source": "apps/azalee/app/dashboard/news/stats/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/news/stats",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard",
+      "source": "apps/azalee/app/dashboard/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/settings",
+      "source": "apps/azalee/app/dashboard/settings/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/settings",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/tweets/[id]",
+      "source": "apps/azalee/app/dashboard/tweets/[id]/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/tweets/[id]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/tweets",
+      "source": "apps/azalee/app/dashboard/tweets/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/tweets",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/users",
+      "source": "apps/azalee/app/dashboard/users/page.tsx",
+      "classification": "author",
+      "owner": "rg privileged adapters",
+      "destination": "rg:/dashboard/users",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/dashboard/zukan-review",
+      "source": "apps/azalee/app/dashboard/zukan-review/page.tsx",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/demo",
+      "source": "apps/azalee/app/demo/page.tsx",
+      "classification": "game",
+      "owner": "nie-game / nie-lua / nie-save",
+      "destination": "nie-web compatibility:/demo",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/drops",
+      "source": "apps/azalee/app/drops/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/drops",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/entraineur/[id]",
+      "source": "apps/azalee/app/entraineur/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/entraineur/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/entraineur",
+      "source": "apps/azalee/app/entraineur/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/entraineur",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/equipe/[id]",
+      "source": "apps/azalee/app/equipe/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/equipe/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/equipe",
+      "source": "apps/azalee/app/equipe/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/equipe",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/gallery",
+      "source": "apps/azalee/app/gallery/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-web compatibility:/gallery",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/invocation",
+      "source": "apps/azalee/app/invocation/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/invocation",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/item",
+      "source": "apps/azalee/app/item/(liste)/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/item",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/item/[id]",
+      "source": "apps/azalee/app/item/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/item/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/keshin",
+      "source": "apps/azalee/app/keshin/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/keshin",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/legal/cgu",
+      "source": "apps/azalee/app/legal/cgu/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/legal/cgu",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/legal/confidentialite",
+      "source": "apps/azalee/app/legal/confidentialite/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/legal/confidentialite",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/legal/mentions-legales",
+      "source": "apps/azalee/app/legal/mentions-legales/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/legal/mentions-legales",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/login",
+      "source": "apps/azalee/app/login/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/login",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/maintenance",
+      "source": "apps/azalee/app/maintenance/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/maintenance",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/mode/[[...path]]",
+      "source": "apps/azalee/app/mode/[[...path]]/page.tsx",
+      "classification": "game",
+      "owner": "nie-game / nie-lua / nie-save",
+      "destination": "nie-web compatibility:/mode/[[...path]]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/modeles/[[...path]]",
+      "source": "apps/azalee/app/modeles/[[...path]]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-web compatibility:/modeles/[[...path]]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/news",
+      "source": "apps/azalee/app/news/(liste)/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/news",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/news/[slug]",
+      "source": "apps/azalee/app/news/[slug]/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/news/[slug]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/news/feed.xml",
+      "source": "apps/azalee/app/news/feed.xml/route.ts",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/news/feed.xml",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/news/tag/[tag]",
+      "source": "apps/azalee/app/news/tag/[tag]/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/news/tag/[tag]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/news/tweet/[id]",
+      "source": "apps/azalee/app/news/tweet/[id]/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/news/tweet/[id]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/niveau",
+      "source": "apps/azalee/app/niveau/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/niveau",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/",
+      "source": "apps/azalee/app/page.tsx",
+      "classification": "game",
+      "owner": "nie-game / nie-lua / nie-save",
+      "destination": "nie-web compatibility:/",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/passive",
+      "source": "apps/azalee/app/passive/(liste)/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/passive",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/passive/[id]",
+      "source": "apps/azalee/app/passive/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/passive/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/patch-notes",
+      "source": "apps/azalee/app/patch-notes/(liste)/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/patch-notes",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/patch-notes/[id]",
+      "source": "apps/azalee/app/patch-notes/[id]/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/patch-notes/[id]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/profil/[username]",
+      "source": "apps/azalee/app/profil/[username]/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/profil/[username]",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/profil",
+      "source": "apps/azalee/app/profil/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/profil",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/quete/[id]",
+      "source": "apps/azalee/app/quete/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/quete/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/quete",
+      "source": "apps/azalee/app/quete/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/quete",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/save",
+      "source": "apps/azalee/app/save/page.tsx",
+      "classification": "game",
+      "owner": "nie-game / nie-lua / nie-save",
+      "destination": "nie-web compatibility:/save",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/search",
+      "source": "apps/azalee/app/search/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/search",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/settings",
+      "source": "apps/azalee/app/settings/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/settings",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/skill",
+      "source": "apps/azalee/app/skill/(liste)/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/skill",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/skill/[id]",
+      "source": "apps/azalee/app/skill/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/skill/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/sons",
+      "source": "apps/azalee/app/sons/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-web compatibility:/sons",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/soutenir",
+      "source": "apps/azalee/app/soutenir/page.tsx",
+      "classification": "editorial",
+      "owner": "rg",
+      "destination": "rg:/soutenir",
+      "status": "retained_in_rg",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/stade/[id]",
+      "source": "apps/azalee/app/stade/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/stade/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/stade",
+      "source": "apps/azalee/app/stade/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/stade",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/succes/[id]",
+      "source": "apps/azalee/app/succes/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/succes/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/succes",
+      "source": "apps/azalee/app/succes/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/succes",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tactic",
+      "source": "apps/azalee/app/tactic/(liste)/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/tactic",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tactic/[id]",
+      "source": "apps/azalee/app/tactic/[id]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/tactic/[id]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/textures/[[...path]]",
+      "source": "apps/azalee/app/textures/[[...path]]/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-web compatibility:/textures/[[...path]]",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tools/compare",
+      "source": "apps/azalee/app/tools/compare/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/tools/compare",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tools/my-team",
+      "source": "apps/azalee/app/tools/my-team/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/tools/my-team",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "next_handler",
+      "path": "/tools/niers/latest.json",
+      "source": "apps/azalee/app/tools/niers/latest.json/route.ts",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tools/niers",
+      "source": "apps/azalee/app/tools/niers/page.tsx",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tools",
+      "source": "apps/azalee/app/tools/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/tools",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tools/random-team",
+      "source": "apps/azalee/app/tools/random-team/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/tools/random-team",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tools/stats",
+      "source": "apps/azalee/app/tools/stats/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/tools/stats",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/tools/translator",
+      "source": "apps/azalee/app/tools/translator/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-web compatibility:/tools/translator",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/videos",
+      "source": "apps/azalee/app/videos/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-web compatibility:/videos",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "page",
+      "path": "/vroid",
+      "source": "apps/azalee/app/vroid/page.tsx",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-web compatibility:/vroid",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/health",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/characters",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/characters",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_player_http_matches_captured_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/characters/:slug",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/characters/:slug",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_character_detail_http_matches_isolated_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/coordinators",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/coordinators",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_player_http_matches_captured_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/skills",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/skills",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_equipment_http_matches_captured_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/skills/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/skills/:id",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_equipment_http_matches_captured_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/items",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/items",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_equipment_http_matches_captured_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/items/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/items/:id",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_equipment_http_matches_captured_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/auras/:type",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/auras/:type",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/auras/:type/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/auras/:type/:id",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/tactics",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/tactics",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/tactics/:slug",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/tactics/:slug",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/teams",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/teams",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_teams_http_matches_complete_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/teams/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/teams/:id",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_teams_http_matches_complete_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/shops",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/shops",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/shops/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/shops/:id",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/quests",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/quests",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/quests/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/quests/:id",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/coaches",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/coaches",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_coaches_http_matches_complete_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/coaches/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/coaches/:id",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_coaches_http_matches_complete_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/stadiums",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/stadiums",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/stadiums/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/stadiums/:id",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/trophies",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/trophies",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/trophies/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/trophies/:id",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/passives",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/passives",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/passives/:id",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/passives/:id",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/gallery",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-formats",
+      "destination": "nie-site compatibility:/api/gallery",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::legacy_gallery_http_matches_captured_historical_json",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/drops",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/drops",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/capsules",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/capsules",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/costumes",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/costumes",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/invocation",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/invocation",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/cpk",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/cpk/search",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/cpk/file",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/text/:hash",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/text/:hash",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/text",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/text",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/text/stats",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/text/stats",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/cross/tables",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki::cross",
+      "destination": "/api/v1/wiki/cross/tables",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::cross_legacy_and_canonical_routes_share_safe_library_projections",
+        "intentionalOmissions": []
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/cross/stats",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki::cross",
+      "destination": "/api/v1/wiki/cross/stats",
+      "status": "adapter_pending",
+      "proof": {
+        "test": "crates/tools/nie-site/tests/wiki_catalog.rs::cross_legacy_and_canonical_routes_share_safe_library_projections",
+        "intentionalOmissions": [
+          "source: private filesystem path is never public"
+        ]
+      }
+    },
+    {
+      "kind": "headless_api",
+      "path": "/api/search",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "game",
+      "owner": "nie-wiki / nie-core",
+      "destination": "nie-site compatibility:/api/search",
+      "status": "adapter_pending",
+      "proof": null
+    },
+    {
+      "kind": "headless_api",
+      "path": "/",
+      "source": "packages/azalee/src/server/serve.ts",
+      "classification": "author",
+      "owner": "Inacord native adapters",
+      "destination": "native capability boundary",
+      "status": "native_only",
+      "proof": null
+    }
+  ]
+}

@@ -26,8 +26,7 @@ use std::sync::Arc;
 use bevy_app::App;
 use bevy_asset::AssetApp;
 use bevy_asset::io::{
-    AssetReader, AssetReaderError, AssetSourceBuilder, AssetSourceId, PathStream, Reader,
-    VecReader,
+    AssetReader, AssetReaderError, AssetSourceBuilder, AssetSourceId, PathStream, Reader, VecReader,
 };
 use nie_formats::vfs::Vfs;
 
@@ -108,7 +107,10 @@ impl AssetReader for VfsAssetReader {
     async fn is_directory<'a>(&'a self, path: &'a Path) -> Result<bool, AssetReaderError> {
         let mut prefix = Self::logical(path);
         prefix.push('/');
-        Ok(self.vfs.iter().any(|(entry, _)| entry.starts_with(prefix.as_str())))
+        Ok(self
+            .vfs
+            .iter()
+            .any(|(entry, _)| entry.starts_with(prefix.as_str())))
     }
 }
 

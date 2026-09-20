@@ -36,6 +36,21 @@ describe("sections", () => {
 });
 
 describe("les modes dans le catalogue de l'hôte", () => {
+	test("les écrans synthétiques de sauvegarde et formation ne sont plus des routes publiques", () => {
+		const routes = recognizedRoutes(null);
+		expect(routes).not.toContain("save_menu");
+		expect(routes).not.toContain("soccer_formation_menu");
+		expect(routes).not.toContain("save");
+		expect(routes).not.toContain("my-team");
+	});
+
+	test("le framebuffer WASM de diagnostic n'est pas publié comme mode jouable", () => {
+		const routes = recognizedRoutes(null);
+		for (const route of ["story_mode", "chronicle_mode", "competition", "victory_road", "bb_stadium", "mode-story_mode"]) {
+			expect(routes).not.toContain(route);
+		}
+	});
+
 	test("la liste est une adresse reconnue et une tuile", () => {
 		expect(recognizedRoutes(null)).toContain(MODES);
 		expect(menuEntries(null).map((entry) => entry.route)).not.toContain(MODES);

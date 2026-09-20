@@ -237,10 +237,7 @@ fn the_server_answers_real_questions_about_the_binary() {
         .map(|range| base + u64::from(range.begin))
         .collect();
 
-    let text_section = image
-        .sections
-        .iter()
-        .find(|s| s.name_str() == ".text");
+    let text_section = image.sections.iter().find(|s| s.name_str() == ".text");
     let mut corroborated = 0usize;
     let mut inside_a_body = 0usize;
     let mut leaf_functions = 0usize;

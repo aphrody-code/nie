@@ -20,6 +20,8 @@
 // Les techniques viennent de `wikiDb.characterSkills` : deux requêtes au total, là où la
 // page serveur appelait `wikiService.getSkill` une fois par technique.
 import { useEffect, useMemo, useState } from "react";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { toast } from "sonner";
 
 import { api, type StatBlock } from "@/lib/api";
 import { LIBELLE_POSTE, cheminVisage, codePoste, type Joueur } from "@/lib/equipe";
@@ -34,14 +36,19 @@ import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { Input } from "@niers/inacord-ui/components/ui/input";
 import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 import { Slider } from "@niers/inacord-ui/components/ui/slider";
+import { Button } from "@niers/inacord-ui/components/ui/button";
+import { StatHeptagon } from "@niers/inacord-ui/components/wiki/wiki/StatHeptagon";
+import { comparisonFromSearch, comparisonSearch, comparisonShareText, parseComparisonShare } from "./comparator-state";
+import { NATIVE_WINDOW } from "../../../host";
 
 /** Les sept stats, dans l'ordre du jeu, avec la clé du bloc rendu par le moteur. */
 const STATS: { cle: keyof Omit<StatBlock, "total">; libelle: string }[] = [
   { cle: "kc", libelle: "Frappe" },
   { cle: "cr", libelle: "Contrôle" },
   { cle: "tc", libelle: "Technique" },
-  { cle: "pr", libelle: "Pression" },
-  { cle: "ps", libelle: "Physique" },
+  // Native nie-core::stats abbreviates Power/Physical as pr and Pressure as ps.
+  { cle: "ps", libelle: "Pression" },
+  { cle: "pr", libelle: "Physique" },
   { cle: "ag", libelle: "Agilité" },
   { cle: "it", libelle: "Intelligence" },
 ];
@@ -53,12 +60,24 @@ function blocDepuisMiroir(j: Joueur): StatBlock {
     kc: s.kick,
     cr: s.control,
     tc: s.technique,
-    pr: s.pressure,
-    ps: s.physical,
+    pr: s.physical,
+    ps: s.pressure,
     ag: s.agility,
     it: s.intelligence,
     total:
       s.kick + s.control + s.technique + s.pressure + s.physical + s.agility + s.intelligence,
+  };
+}
+
+function radar(block: StatBlock) {
+  return {
+    kick: block.kc,
+    control: block.cr,
+    technique: block.tc,
+    pressure: block.ps,
+    physical: block.pr,
+    agility: block.ag,
+    intelligence: block.it,
   };
 }
 
@@ -83,7 +102,7 @@ function Selecteur({
     <div className="flex min-h-0 flex-col gap-2">
       <div className="flex items-center gap-2">
         <span className="type-label-medium text-on-surface-variant">{titre}</span>
-        {choisi && <Badge variant="secondary">{choisi.nom}</Badge>}
+        {choisi && <Badge variant="secondary">{choisi.nom} · {choisi.rarete}</Badge>}
       </div>
       <Input
         placeholder="Rechercher…"
@@ -102,8 +121,10 @@ function Selecteur({
                   : "text-on-surface"
               }`}
               onClick={() => onChoisir(j)}
+              aria-label={`${j.nom} · ${j.rarete} · ${j.id}`}
             >
               <span className="min-w-0 flex-1 truncate">{j.nom}</span>
+              <Badge variant="outline">{j.rarete}</Badge>
               <Badge variant="outline">{LIBELLE_POSTE[codePoste(j.poste)] ?? j.poste}</Badge>
               <span className="w-16 shrink-0 truncate type-label-small text-on-surface-variant">
                 {j.element}
@@ -203,18 +224,62 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
   const [gauche, setGauche] = useState<Joueur | null>(null);
   const [droite, setDroite] = useState<Joueur | null>(null);
   const [niveau, setNiveau] = useState(99);
+  useEffect(() => {
+    if (NATIVE_WINDOW) return;
+    const restore = () => {
+      const selection = comparisonFromSearch(window.location.search);
+      const resolve = (key: string | null) => key
+        ? roster.find(player => player.id === key)
+          ?? roster.find(player => player.slug === key)
+          ?? roster.find(player => player.baseSlug === key || player.charaId === key)
+          ?? null
+        : null;
+      setGauche(resolve(selection.left));
+      setDroite(resolve(selection.right));
+      setNiveau(selection.level);
+    };
+    restore();
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [roster]);
+  const select = (left: Joueur | null, right: Joueur | null, level: number) => {
+    setGauche(left);
+    setDroite(right);
+    setNiveau(level);
+    if (!NATIVE_WINDOW) window.history.pushState(null, "", `${window.location.pathname}${comparisonSearch(window.location.search, left?.id ?? null, right?.id ?? null, level)}${window.location.hash}`);
+  };
+  const [sharedInput, setSharedInput] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const restoreComparison = () => {
+    try {
+      const selection = parseComparisonShare(sharedInput);
+      const left = roster.find(player => player.id === selection.left.id);
+      const right = roster.find(player => player.id === selection.right.id);
+      if (!left || !right) throw new Error("Missing roster identity");
+      select(left, right, selection.level);
+      setSharedInput("");
+      setImportError(null);
+    } catch {
+      setImportError("Comparaison invalide ou personnage absent du catalogue.");
+    }
+  };
   const [blocs, setBlocs] = useState<{ g: StatBlock | null; d: StatBlock | null }>({
     g: null,
     d: null,
   });
   /** Vrai quand le moteur de croissance n'a pas répondu et qu'on affiche les Lv99 du miroir. */
   const [repli, setRepli] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [skillsError, setSkillsError] = useState(false);
+  const [skillsAttempt, setSkillsAttempt] = useState(0);
   const [techG, setTechG] = useState<TechniqueRow[]>([]);
   const [techD, setTechD] = useState<TechniqueRow[]>([]);
 
   // Stats au niveau demandé — le moteur d'abord, le miroir en repli ANNONCÉ.
   useEffect(() => {
     let annule = false;
+    setStatsLoading(true);
     async function calculer(j: Joueur | null): Promise<{ bloc: StatBlock | null; repli: boolean }> {
       if (!j) return { bloc: null, repli: false };
       try {
@@ -233,6 +298,7 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
       if (!annule) {
         setBlocs({ g: g.bloc, d: d.bloc });
         setRepli(g.repli || d.repli);
+        setStatsLoading(false);
       }
       return null;
     });
@@ -244,21 +310,37 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
   // Techniques — deux requêtes par personnage, pas une par technique.
   useEffect(() => {
     const chemin = settings.wikiDb.trim();
-    if (!chemin) return;
+    if (!chemin && NATIVE_WINDOW) {
+      setTechG([]);
+      setTechD([]);
+      return;
+    }
     let annule = false;
+    setSkillsLoading(true);
+    setSkillsError(false);
     (async () => {
-      const [g, d] = await Promise.all([
-        gauche ? wikiDb.characterSkills(chemin, gauche.id).catch(() => []) : [],
-        droite ? wikiDb.characterSkills(chemin, droite.id).catch(() => []) : [],
-      ]);
-      if (annule) return;
-      setTechG(g);
-      setTechD(d);
+      try {
+        const [g, d] = await Promise.all([
+          gauche ? wikiDb.characterSkills(chemin, gauche.id) : [],
+          droite ? wikiDb.characterSkills(chemin, droite.id) : [],
+        ]);
+        if (annule) return;
+        setTechG(g);
+        setTechD(d);
+      } catch {
+        if (!annule) {
+          setSkillsError(true);
+          setTechG([]);
+          setTechD([]);
+        }
+      } finally {
+        if (!annule) setSkillsLoading(false);
+      }
     })();
     return () => {
       annule = true;
     };
-  }, [gauche, droite, settings.wikiDb]);
+  }, [gauche, droite, settings.wikiDb, skillsAttempt]);
 
   const communes = useMemo(() => {
     const aGauche = new Set(techG.map((t) => (t.name_fr || t.name_en || t.id).toLowerCase()));
@@ -287,6 +369,28 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
     return Math.max(100, ...valeurs);
   }, [blocs]);
 
+  const reset = () => {
+    select(null, null, 99);
+  };
+
+  const swap = () => {
+    select(droite, gauche, niveau);
+  };
+
+  const share = async () => {
+    if (!gauche || !droite) return;
+    try {
+      await writeText(comparisonShareText(
+        { id: gauche.id, name: gauche.nom },
+        { id: droite.id, name: droite.nom },
+        niveau,
+      ));
+      toast.success("Comparaison copiée");
+    } catch {
+      toast.error("La comparaison n'a pas pu être copiée");
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="grid gap-3 md:grid-cols-2">
@@ -294,17 +398,42 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
           titre="Personnage 1"
           roster={roster}
           choisi={gauche}
-          onChoisir={setGauche}
+          onChoisir={player => select(player, droite, niveau)}
           gameDir={settings.gameDir}
         />
         <Selecteur
           titre="Personnage 2"
           roster={roster}
           choisi={droite}
-          onChoisir={setDroite}
+          onChoisir={player => select(gauche, player, niveau)}
           gameDir={settings.gameDir}
         />
       </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-2" role="group" aria-label="Actions du comparateur">
+        <Button type="button" size="sm" variant="outline" disabled={!gauche && !droite} onClick={reset}>
+          Réinitialiser
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={!gauche && !droite} onClick={swap}>
+          Permuter
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={!gauche || !droite} onClick={() => void share()}>
+          Copier la comparaison
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Input
+          aria-label="Comparaison partagée (JSON)"
+          value={sharedInput}
+          maxLength={8192}
+          onChange={event => { setSharedInput(event.target.value); setImportError(null); }}
+        />
+        <Button type="button" variant="outline" disabled={!sharedInput} onClick={restoreComparison}>
+          Ouvrir la comparaison
+        </Button>
+      </div>
+      {importError && <p role="alert">{importError}</p>}
 
       <div className="flex items-center gap-3">
         <span className="type-label-medium text-on-surface-variant">Niveau</span>
@@ -314,7 +443,7 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
           max={99}
           step={1}
           value={[niveau]}
-          onValueChange={(v) => setNiveau((Array.isArray(v) ? v[0] : v) ?? niveau)}
+          onValueChange={(v) => select(gauche, droite, (Array.isArray(v) ? v[0] : v) ?? niveau)}
         />
         <Badge variant="secondary">Lv {niveau}</Badge>
       </div>
@@ -334,6 +463,8 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
           <p className="type-body-medium text-on-surface-variant">
             Choisissez deux personnages pour les comparer.
           </p>
+        ) : statsLoading ? (
+          <p role="status">Calcul des statistiques…</p>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -342,6 +473,19 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
                 {victoires.g} — {victoires.d}
               </span>
             </div>
+
+            {blocs.g && blocs.d ? (
+              <div className="grid gap-3 md:grid-cols-2" aria-label="Radars des statistiques">
+                <figure className="m-0 grid justify-items-center">
+                  <StatHeptagon stats={radar(blocs.g)} size={260} showLabels />
+                  <figcaption className="type-label-medium text-on-surface-variant">{gauche.nom}</figcaption>
+                </figure>
+                <figure className="m-0 grid justify-items-center">
+                  <StatHeptagon stats={radar(blocs.d)} size={260} showLabels />
+                  <figcaption className="type-label-medium text-on-surface-variant">{droite.nom}</figcaption>
+                </figure>
+              </div>
+            ) : null}
 
             <div className="space-y-1.5">
               {STATS.map(({ cle, libelle }) => {
@@ -401,10 +545,12 @@ export function ComparatorPanel({ roster }: { roster: Joueur[] }) {
                   <Badge variant="outline">{communes.size} en commun</Badge>
                 )}
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
+              {skillsLoading ? <p role="status">Chargement des techniques…</p> : skillsError ? (
+                <div role="alert">Les techniques sont indisponibles. <Button type="button" onClick={() => setSkillsAttempt(value => value + 1)}>Réessayer</Button></div>
+              ) : <div className="grid gap-3 md:grid-cols-2">
                 <Techniques liste={techG} communes={communes} titre={gauche.nom} />
                 <Techniques liste={techD} communes={communes} titre={droite.nom} />
-              </div>
+              </div>}
             </div>
           </div>
         )}

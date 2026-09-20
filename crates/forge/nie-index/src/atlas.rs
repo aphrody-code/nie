@@ -2052,17 +2052,37 @@ fn name_is_ported(name: &str, tokens: &HashSet<String>) -> bool {
     }
 
     // Filter to distinctive segments: skip generic/anonymous patterns.
-    let distinctive: Vec<&&str> = segments.iter().filter(|s| {
-        !s.starts_with("vmethod_")
-            && !s.starts_with("slot_")
-            && !s.starts_with("$0")
-            && !s.starts_with("$CCallback")
-            && !s.starts_with("$CCallResult")
-            && !s.starts_with("$CPhysx")
-            && !matches!(**s, "game" | "lives" | "physx" | "CryptoPP" | "void" | "bool"
-                | "char" | "unsigned" | "long" | "short" | "const" | "virtual"
-                | "class" | "struct" | "enum" | "union" | "this")
-    }).collect();
+    let distinctive: Vec<&&str> = segments
+        .iter()
+        .filter(|s| {
+            !s.starts_with("vmethod_")
+                && !s.starts_with("slot_")
+                && !s.starts_with("$0")
+                && !s.starts_with("$CCallback")
+                && !s.starts_with("$CCallResult")
+                && !s.starts_with("$CPhysx")
+                && !matches!(
+                    **s,
+                    "game"
+                        | "lives"
+                        | "physx"
+                        | "CryptoPP"
+                        | "void"
+                        | "bool"
+                        | "char"
+                        | "unsigned"
+                        | "long"
+                        | "short"
+                        | "const"
+                        | "virtual"
+                        | "class"
+                        | "struct"
+                        | "enum"
+                        | "union"
+                        | "this"
+                )
+        })
+        .collect();
 
     if distinctive.is_empty() {
         return false;
@@ -2073,9 +2093,9 @@ fn name_is_ported(name: &str, tokens: &HashSet<String>) -> bool {
     // `Update` doesn't link unported classes.
     // If there is only one distinctive segment (e.g. `lives::CMenuAttachLocator::vmethod_3`),
     // matching that class name is sufficient.
-    distinctive.iter().all(|seg| {
-        tokens.contains(**seg) || tokens.contains(&seg.to_ascii_lowercase())
-    })
+    distinctive
+        .iter()
+        .all(|seg| tokens.contains(**seg) || tokens.contains(&seg.to_ascii_lowercase()))
 }
 
 /// Parsed Markdown document.

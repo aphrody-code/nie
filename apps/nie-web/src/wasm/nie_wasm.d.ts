@@ -229,6 +229,22 @@ export class ModelRenderer {
 }
 
 /**
+ * One validated startup archive retained in WebAssembly memory.
+ *
+ * Construct this once per downloaded bundle. Reusing it avoids re-validating every CRC and
+ * recopying the complete archive for each requested VFS file.
+ */
+export class PreloadedVfs {
+    free(): void;
+    [Symbol.dispose](): void;
+    has(path: string): boolean;
+    index_json(): string;
+    constructor(bytes: Uint8Array);
+    read(path: string): Uint8Array;
+    readonly entry_count: number;
+}
+
+/**
  * Thin bitmap-text ABI over the shared native font decoder.
  */
 export class WasmBitmapFont {
@@ -884,6 +900,12 @@ export function ievr_pe_inspect_json(bytes: Uint8Array): string;
 export function init_panic_hook(): void;
 
 /**
+ * Returns the exact initial VFS requirements and measured discovery rules without embedding
+ * any copyrighted resource bytes in the WebAssembly module.
+ */
+export function initial_vfs_plan_json(locale: string): string;
+
+/**
  * The menu command a key triggers, or an empty string when it triggers none.
  *
  * Exposed so the browser stops carrying its own copy of the binding table. That table was
@@ -1066,6 +1088,16 @@ export function pdata_inspect_json(bytes: Uint8Array, max_roots: number): string
 export function pe_byte_diff_json(reference: Uint8Array, rebuilt: Uint8Array, max_ranges: number): string;
 
 /**
+ * Validates a deterministic startup VFS archive and returns its body-free index.
+ */
+export function preloaded_vfs_index_json(bundle: Uint8Array): string;
+
+/**
+ * Validates a deterministic startup VFS archive and copies one exact file out of it.
+ */
+export function preloaded_vfs_read(bundle: Uint8Array, path: string): Uint8Array;
+
+/**
  * Convertit un code de rareté brut en rang de table de croissance.
  *
  * Expose `nie_core::stats::rarity_to_growth_rank` (0→0, 2→2, …, 5/6/7/20→5).
@@ -1097,6 +1129,33 @@ export function skill_lookup(skill_config_json: string, skill_text_json: string)
  * Selects Steam depots from caller-supplied metadata without credentials or host access.
  */
 export function steam_select_depots_json(depots_json: string, selection_json: string): string;
+
+export function team_code_base64_to_utf8(encoded: string): string;
+
+/**
+ * Decode using the owner's exact malformed-segment recovery behavior.
+ */
+export function team_code_decode(encoded: string): string;
+
+/**
+ * Encode the historical UTF-8 share format through its Rust owner.
+ */
+export function team_code_encode(formation_id: string, slots_json: string): string;
+
+export function team_code_utf8_to_base64(text: string): string;
+
+/**
+ * Member pairs retain JavaScript Object.entries order for the observable link ordering.
+ */
+export function team_element_synergies(members_json: string, formation_json: string): string;
+
+export function team_generator_filter(roster_json: string, filters_json: string, minimum: number): string;
+
+export function team_generator_generate(roster_json: string, positions_json: string, filters_json: string, locks_json: string, seed: number): string;
+
+export function team_position_factor(position: string, slot: string, formation_json: string): string;
+
+export function team_recalculate_stats(member_json: string, level: number, slot: string, formation_json: string, dominant_element: string | null | undefined, has_harmony: boolean): string;
 
 /**
  * Decode one explicit native USM audio channel to WAV, without selecting a default track.
@@ -1163,6 +1222,7 @@ export interface InitOutput {
     readonly __wbg_menucomposer_free: (a: number, b: number) => void;
     readonly __wbg_menuscreenbuilder_free: (a: number, b: number) => void;
     readonly __wbg_modelrenderer_free: (a: number, b: number) => void;
+    readonly __wbg_preloadedvfs_free: (a: number, b: number) => void;
     readonly __wbg_wasmbitmapfont_free: (a: number, b: number) => void;
     readonly __wbg_wasmcamera_free: (a: number, b: number) => void;
     readonly __wbg_wasmeditorsession_free: (a: number, b: number) => void;
@@ -1208,6 +1268,7 @@ export interface InitOutput {
     readonly g4tx_to_png: (a: number, b: number, c: number) => void;
     readonly headless_inspect_json: (a: number, b: number, c: number) => void;
     readonly ievr_pe_inspect_json: (a: number, b: number, c: number) => void;
+    readonly initial_vfs_plan_json: (a: number, b: number, c: number) => void;
     readonly input_command_for_key: (a: number, b: number, c: number) => void;
     readonly is_lua_bytecode: (a: number, b: number) => number;
     readonly item_lookup: (a: number, b: number, c: number) => void;
@@ -1261,10 +1322,26 @@ export interface InitOutput {
     readonly parse_save_json: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly pdata_inspect_json: (a: number, b: number, c: number, d: number) => void;
     readonly pe_byte_diff_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly preloaded_vfs_index_json: (a: number, b: number, c: number) => void;
+    readonly preloaded_vfs_read: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly preloadedvfs_entry_count: (a: number) => number;
+    readonly preloadedvfs_has: (a: number, b: number, c: number) => number;
+    readonly preloadedvfs_index_json: (a: number, b: number) => void;
+    readonly preloadedvfs_new: (a: number, b: number, c: number) => void;
+    readonly preloadedvfs_read: (a: number, b: number, c: number, d: number) => void;
     readonly rarity_to_growth_rank: (a: number) => number;
     readonly single_stat: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly skill_lookup: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly steam_select_depots_json: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly team_code_base64_to_utf8: (a: number, b: number, c: number) => void;
+    readonly team_code_decode: (a: number, b: number, c: number) => void;
+    readonly team_code_encode: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly team_code_utf8_to_base64: (a: number, b: number, c: number) => void;
+    readonly team_element_synergies: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly team_generator_filter: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly team_generator_generate: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
+    readonly team_position_factor: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly team_recalculate_stats: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly usm_audio_track_wav: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly usm_elementary_video_bytes: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly usm_metadata_json: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -1349,10 +1426,10 @@ export interface InitOutput {
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
     readonly net_tournament_circuit_points: (a: number, b: number) => number;
-    readonly __wasm_bindgen_func_elem_4526: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4541: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3535: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3535_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4585: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4600: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3594: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3594_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

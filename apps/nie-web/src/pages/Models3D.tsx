@@ -60,6 +60,8 @@ export interface ModelFilterState {
   q: string;
   page: number;
   perPage: number;
+  view: "grid" | "list";
+  model: string | null;
 }
 
 function boundedPageSize(raw: string | null): number {
@@ -74,6 +76,8 @@ export function modelFilterStateFromUrl(search: string): ModelFilterState {
   const params = new URLSearchParams(search);
   const rawPage = Number(params.get("page"));
   const rawFamily = params.get("famille")?.trim() ?? "";
+  const rawView = params.get("view") ?? params.get("affichage");
+  const rawModel = (params.get("model") ?? params.get("modele"))?.trim() ?? "";
   return {
     family:
       rawFamily && rawFamily.length <= 96 ? rawFamily : DEFAULT_MODEL_FAMILY,
@@ -82,6 +86,8 @@ export function modelFilterStateFromUrl(search: string): ModelFilterState {
     perPage: boundedPageSize(
       params.has("per_page") ? params.get("per_page") : params.get("par_page"),
     ),
+    view: rawView === "list" || rawView === "liste" ? "list" : "grid",
+    model: rawModel && rawModel.length <= 256 && !rawModel.includes("/") ? rawModel : null,
   };
 }
 
@@ -98,6 +104,8 @@ export function modelHrefForFilters(
   if (state.page > 1) target.searchParams.set("page", String(state.page));
   if (state.perPage !== DEFAULT_PAGE_SIZE)
     target.searchParams.set("per_page", String(state.perPage));
+  if (state.view === "list") target.searchParams.set("view", "list");
+  if (state.model) target.searchParams.set("model", state.model);
   return `${target.pathname}${target.search}`;
 }
 
@@ -156,6 +164,10 @@ interface PageModeles {
   pages: number;
 }
 
+interface FicheModele {
+  modele: Modele;
+}
+
 /** Corps de `/api/v1/3d/modeles/{famille}/{code}/analyse`. */
 interface Analyse {
   glb_octets: number;
@@ -197,7 +209,7 @@ export function Modeles3D() {
   );
   const [capacites, setCapacites] = useState<Capacites3d | null>(null);
   const [capacitesKo, setCapacitesKo] = useState(false);
-  const { family: famille, page, perPage, q: filtre } = filters;
+  const { family: famille, page, perPage, q: filtre, view, model } = filters;
   const setFilters = (
     update: (current: ModelFilterState) => ModelFilterState,
   ) => {
@@ -207,6 +219,7 @@ export function Modeles3D() {
   const [liste, setListe] = useState<PageModeles | null>(null);
   const [listeKo, setListeKo] = useState(false);
   const [ouvert, setOuvert] = useState<Modele | null>(null);
+  const [ficheKo, setFicheKo] = useState(false);
 
   // Les capacités décrivent ce que la machine sait faire : familles, totaux, conventions de
   // caméra. Sans elles on n'affiche pas une liste vide, on dit que le service ne répond pas.
@@ -235,8 +248,25 @@ export function Modeles3D() {
   }, [capacites, familles, familyKnown, filters]);
 
   useEffect(() => {
+    if (!model) {
+      setOuvert(null);
+      setFicheKo(false);
+      return;
+    }
+    if (ouvert?.famille === famille && ouvert.code === model) return;
+    const ac = new AbortController();
     setOuvert(null);
-  }, [famille]);
+    setFicheKo(false);
+    json<FicheModele>(
+      `/api/v1/3d/modeles/${encodeURIComponent(famille)}/${encodeURIComponent(model)}`,
+      ac.signal,
+    )
+      .then((response) => setOuvert(response.modele))
+      .catch(() => {
+        if (!ac.signal.aborted) setFicheKo(true);
+      });
+    return () => ac.abort();
+  }, [famille, model, ouvert]);
 
   useEffect(() => {
     if (!capacites || !familyKnown) return;
@@ -307,8 +337,8 @@ export function Modeles3D() {
                 ...current,
                 family: f.segment,
                 page: 1,
+                model: null,
               }));
-              setOuvert(null);
             }}
             style={f.segment === famille ? ONGLET_ACTIF : ONGLET}
           >
@@ -388,14 +418,36 @@ export function Modeles3D() {
             style={{ ...CHAMP, width: "6rem", flex: "0 0 6rem" }}
           />
         </label>
+        <div role="group" aria-label="Affichage des modèles" className="models-3d-view-toggle">
+          <button
+            type="button"
+            aria-pressed={view === "grid"}
+            onClick={() => setFilters((current) => ({ ...current, view: "grid" }))}
+            style={view === "grid" ? ONGLET_ACTIF : ONGLET}
+          >
+            Grille
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === "list"}
+            onClick={() => setFilters((current) => ({ ...current, view: "list" }))}
+            style={view === "list" ? ONGLET_ACTIF : ONGLET}
+          >
+            Liste
+          </button>
+        </div>
       </form>
 
       {ouvert ? (
         <Viewport
           modele={ouvert}
           moteur={capacites.moteur}
-          onFermer={() => setOuvert(null)}
+          onFermer={() => setFilters((current) => ({ ...current, model: null }))}
         />
+      ) : ficheKo ? (
+        <Notice>Ce modèle n’existe pas dans cette famille.</Notice>
+      ) : model ? (
+        <ScreenStatus state="loading" />
       ) : null}
 
       {listeKo ? (
@@ -405,13 +457,17 @@ export function Modeles3D() {
       ) : liste.elements.length === 0 ? (
         <Notice>Aucun modèle ne correspond à cette recherche.</Notice>
       ) : (
-        <ul style={GRILLE}>
+        <ul className={`models-3d-results models-3d-results--${view}`} style={view === "list" ? LISTE : GRILLE}>
           {liste.elements.map((m) => (
             <li key={`${m.famille}/${m.code}`}>
               <Carte
                 modele={m}
                 ouvert={ouvert?.code === m.code && ouvert.famille === m.famille}
-                onOuvrir={() => setOuvert(m)}
+                compact={view === "list"}
+                onOuvrir={() => {
+                  setOuvert(m);
+                  setFilters((current) => ({ ...current, model: m.code }));
+                }}
               />
             </li>
           ))}
@@ -469,10 +525,12 @@ export function Modeles3D() {
 function Carte({
   modele,
   ouvert,
+  compact,
   onOuvrir,
 }: {
   modele: Modele;
   ouvert: boolean;
+  compact: boolean;
   onOuvrir: () => void;
 }) {
   const [echec, setEchec] = useState(false);
@@ -488,7 +546,7 @@ function Carte({
           : "var(--jeu-tuile-bord)",
       }}
     >
-      <div
+      {!compact ? <div
         style={{
           position: "relative",
           width: "100%",
@@ -516,7 +574,7 @@ function Carte({
             }}
           />
         )}
-      </div>
+      </div> : null}
       <div style={{ padding: "var(--jeu-espace-s)", textAlign: "left" }}>
         <div
           style={{
@@ -669,6 +727,15 @@ const GRILLE: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
   gap: "var(--jeu-espace-m)",
+  listStyle: "none",
+  margin: "var(--jeu-espace-l) 0",
+  padding: 0,
+};
+
+const LISTE: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "var(--jeu-espace-s)",
   listStyle: "none",
   margin: "var(--jeu-espace-l) 0",
   padding: 0,

@@ -175,6 +175,11 @@ describe("game navigation in the mounted host", () => {
 		for (const hidden of ["media", "explorer", "editor", "search", "data", "modes", "inacord", "mods", "lua", "re"]) {
 			expect(container.querySelector(`[data-host-action="${hidden}"]`)).toBeNull();
 		}
+		for (const unimplemented of ["mode-story_mode", "mode-chronicle_mode", "mode-kizuna_town", "mode-competition", "mode-bb_stadium", "mode-victory_road", "title-item-10", "mode-information"]) {
+			const button = container.querySelector<HTMLButtonElement>(`[data-host-action="${unimplemented}"] button`);
+			expect(button).not.toBeNull();
+			expect(button?.disabled).toBeTrue();
+		}
 		await click('[data-host-action="bank"] button');
 		expect(window.location.pathname).toBe("/chara_bank_menu");
 	});

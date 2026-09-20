@@ -23,6 +23,7 @@
  */
 import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
 import init, { crc32 as wasmCrc32, WasmGame, menu_presentation_json } from "../wasm/nie_wasm.js";
+import { vfsResources } from "./vfs-resources";
 
 const WASM_URL = "/static/game/nie_wasm_bg.wasm";
 const FONT_CFG_URL = "/static/game/font.cfg.bin.gz";
@@ -141,7 +142,10 @@ export function loadFont(): Promise<readonly [Uint8Array, Uint8Array]> {
 	if (fontPromise === null) {
 		fontPromise = (async () => {
 			try {
-				return await Promise.all([loadGzip(FONT_CFG_URL), loadGzip(FONT_G4TX_URL)]);
+				return await Promise.all([
+					vfsResources.read("data/common/font/font/font_def/font.cfg.bin") ?? loadGzip(FONT_CFG_URL),
+					vfsResources.read("data/dx11/font/font_def/font.g4tx") ?? loadGzip(FONT_G4TX_URL),
+				]);
 			} finally {
 				fontPromise = null;
 			}

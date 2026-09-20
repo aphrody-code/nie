@@ -3,8 +3,8 @@
 //! Handles room creation, Inacode assignment, member slot distribution (Home, Away, 2v2),
 //! password verification, player ready states, and match launching.
 
-use std::collections::HashMap;
 use crate::protocol::{Inacode, MatchMode, PlayerInfo, PlayerSlot, RoomConfig, RoomInfo};
+use std::collections::HashMap;
 
 /// Errors occurring during lobby operations.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -162,7 +162,10 @@ impl LobbyHub {
         }
 
         if room.members.len() >= room.config.max_members as usize {
-            return Err(LobbyError::RoomFull(inacode.clone(), room.config.max_members));
+            return Err(LobbyError::RoomFull(
+                inacode.clone(),
+                room.config.max_members,
+            ));
         }
 
         if let Some(ref required_pw) = room.config.password
@@ -219,7 +222,11 @@ impl LobbyHub {
     }
 
     /// Toggles ready status for a player in their room.
-    pub fn set_ready(&mut self, player_id: &str, ready: bool) -> Result<(Inacode, bool), LobbyError> {
+    pub fn set_ready(
+        &mut self,
+        player_id: &str,
+        ready: bool,
+    ) -> Result<(Inacode, bool), LobbyError> {
         let inacode = self
             .player_to_room
             .get(player_id)
@@ -320,7 +327,12 @@ mod tests {
 
         // Guest joins room
         let (slot, updated_info) = hub
-            .join_room(&inacode, "player_2".to_string(), "Axel Blaze".to_string(), None)
+            .join_room(
+                &inacode,
+                "player_2".to_string(),
+                "Axel Blaze".to_string(),
+                None,
+            )
             .expect("guest joined ok");
 
         assert_eq!(slot, PlayerSlot::Away);
@@ -332,7 +344,9 @@ mod tests {
         assert!(all_ready);
 
         // Host starts match
-        let (seed, home, away) = hub.start_match(&inacode, "player_1").expect("match started");
+        let (seed, home, away) = hub
+            .start_match(&inacode, "player_1")
+            .expect("match started");
         assert!(seed > 0);
         assert_eq!(home, "player_1");
         assert_eq!(away, "player_2");

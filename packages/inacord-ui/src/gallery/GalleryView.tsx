@@ -1,12 +1,12 @@
 import { useResolvedNames, nameWithId } from "../lib/resolved-names";
 import { GalleryCard } from "../components/wiki/wiki/GalleryCard";
-// Vue **Galerie** — les illustrations du jeu, listées depuis le VFS.
+// Vue **Galerie** — exploration VFS complète ou sélection éditoriale mesurée.
 //
 // Portée depuis l'ancien wiki (`GalleryGrid`, `GalleryLightbox`,
 // `filters/GalleryFilterBar`, `wikiService.getGalleryList`). La migration ne déplace pas la page :
-// elle change de source. Le wiki compose deux fonds qui ne se rejoignent jamais — la table
-// `inagle_gallery` (360 lignes) et un manifeste statique de 3 579 entrées — d'où sa pastille
-// « Toutes » qui annonce 3 939 items pour une liste qui n'en rend que 360.
+// elle change de source. `nie-wiki::gallery` réunit désormais explicitement la table
+// `inagle_gallery` (360 lignes) et le manifeste mesuré de 3 579 entrées pour la sélection
+// éditoriale de 3 939 cartes ; le mode VFS reste l'explorateur exhaustif distinct.
 //
 // Ici, la source est le VFS monté : `data/dx11/menu/220_img/` porte **17 085 `.g4tx`**, les
 // catégories SONT les sous-dossiers réels (`api.ls`), et chaque compte affiché est un compte
@@ -51,7 +51,8 @@ import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
  * par nom, qui concatène ses propres résultats à la page de chemins. Ce qui décide vraiment du
  * confort est le défilement infini, pas la taille d'un lot.
  */
-const PAR_PAGE = 120;
+export const GALLERY_PAGE_SIZE = 120;
+const PAR_PAGE = GALLERY_PAGE_SIZE;
 /** Delay between visible URL/input state and a remote gallery search. */
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -305,6 +306,10 @@ export interface GalleryViewProps {
   subfolder?: string | null;
   serverSearch?: boolean;
   rootPrefix?: string;
+  /** Use the measured 3,939-entry editorial contract instead of the broad VFS explorer. */
+  editorial?: boolean;
+  /** Starting server offset, used by compatibility links that carried a numbered page. */
+  initialOffset?: number;
   onQueryChange?: (query: string) => void;
   onCategoryChange?: (category: string | null) => void;
   onSubfolderChange?: (subfolder: string | null) => void;
@@ -314,6 +319,7 @@ const resourceCode = (path: string) => path.split("/").pop()!.replace(/\.[^.]+$/
 
 export function GalleryView({
   services, onOpenFile, query, category, subfolder, serverSearch = false, rootPrefix,
+  editorial = false, initialOffset = 0,
   onQueryChange, onCategoryChange, onSubfolderChange,
 }: GalleryViewProps) {
   const root = rootPrefix ?? RACINE_GALERIE;
@@ -354,6 +360,18 @@ export function GalleryView({
   const requestGeneration = useRef(0);
   /** Cancels whichever server page or cross-index search currently owns the grid. */
   const activeRequest = useRef<AbortController | null>(null);
+  const requestedQuery = serverSearch ? serverQuery : recherche;
+
+  const loadPage = useCallback((offset: number, signal: AbortSignal) => {
+    if (editorial) {
+      if (!services.editorialPage) return Promise.reject(new Error("Editorial gallery is unavailable"));
+      return services.editorialPage(categorie, PAR_PAGE, offset, requestedQuery, signal);
+    }
+    return services.findPaged(
+      prefixeCategorie(categorie, sousDossier, root), EXT_GALERIE, PAR_PAGE, offset,
+      settings.gameDir, serverSearch ? requestedQuery : undefined, signal, tri,
+    );
+  }, [editorial, services, categorie, sousDossier, root, settings.gameDir, serverSearch, requestedQuery, tri]);
 
   // The input and URL remain immediate, while the remote query waits for a short pause. This
   // prevents one cross-index search per keystroke and leaves local desktop filtering immediate.
@@ -377,8 +395,11 @@ export function GalleryView({
     let active = true;
     setChargement(true);
     setErreur(null);
-    services
-      .ls(root, settings.gameDir)
+    const listing = editorial && services.editorialPage
+      ? services.editorialPage(null, 1, 0)
+          .then((page) => ({ dirs: page.categories }))
+      : services.ls(root, settings.gameDir);
+    listing
       .then((l) => {
         if (!active) return;
         setCategories(l.dirs);
@@ -392,7 +413,7 @@ export function GalleryView({
       .catch((e) => { if (active) setErreur(String(e)); })
       .finally(() => { if (active) setChargement(false); });
     return () => { active = false; };
-  }, [settings.gameDir, services, root]);
+  }, [settings.gameDir, services, root, editorial]);
 
   // `gallery_config` : ce que le jeu sait des illustrations qu'il expose dans son menu Galerie.
   // Best-effort — la galerie liste le VFS avec ou sans lui.
@@ -421,7 +442,7 @@ export function GalleryView({
     let active = true;
     setSousDossiers([]);
     setSubfoldersLoadedFor(null);
-    if (!categorie) return;
+    if (!categorie || editorial) return;
     services
       .ls(`${root}/${categorie}`, settings.gameDir)
       .then((l) => {
@@ -436,7 +457,7 @@ export function GalleryView({
         }
       });
     return () => { active = false; };
-  }, [categorie, settings.gameDir, services, root]);
+  }, [categorie, settings.gameDir, services, root, editorial]);
 
   // A controlled URL subfolder survives mount, reload and popstate when the VFS confirms it.
   // Only an invalid value is removed after that category's directory list has actually loaded.
@@ -458,17 +479,7 @@ export function GalleryView({
     setErreur(null);
     setItems([]);
     setTotalItems(0);
-    services
-      .findPaged(
-        prefixeCategorie(categorie, sousDossier, root),
-        EXT_GALERIE,
-        PAR_PAGE,
-        0,
-        settings.gameDir,
-        serverSearch ? serverQuery : undefined,
-        controller.signal,
-        tri,
-      )
+    loadPage(editorial ? initialOffset : 0, controller.signal)
       .then((page) => {
         if (!annule && generation === requestGeneration.current) {
           setItems(construireIllustrations(page.files, enrichissements, root));
@@ -487,7 +498,7 @@ export function GalleryView({
       annule = true;
       controller.abort();
     };
-  }, [categorie, sousDossier, enrichissements, settings.gameDir, services, serverSearch, serverQuery, tri, root]);
+  }, [categorie, sousDossier, enrichissements, settings.gameDir, services, serverSearch, serverQuery, tri, root, loadPage, editorial, initialOffset]);
 
   const chargerSuite = useCallback(() => {
     if (chargement || chargementSuite || items.length >= totalItems) return;
@@ -495,20 +506,10 @@ export function GalleryView({
     activeRequest.current?.abort();
     const controller = new AbortController();
     activeRequest.current = controller;
-    const offset = items.length;
+    const offset = (editorial ? initialOffset : 0) + items.length;
     setChargementSuite(true);
     setErreur(null);
-    services
-      .findPaged(
-        prefixeCategorie(categorie, sousDossier, root),
-        EXT_GALERIE,
-        PAR_PAGE,
-        offset,
-        settings.gameDir,
-        serverSearch ? serverQuery : undefined,
-        controller.signal,
-        tri,
-      )
+    loadPage(offset, controller.signal)
       .then((page) => {
         if (generation !== requestGeneration.current) return null;
         setItems((current) => [
@@ -525,7 +526,7 @@ export function GalleryView({
         if (activeRequest.current === controller) activeRequest.current = null;
         if (generation === requestGeneration.current) setChargementSuite(false);
       });
-  }, [categorie, chargement, chargementSuite, enrichissements, items.length, settings.gameDir, services, sousDossier, totalItems, serverSearch, serverQuery, tri, root]);
+  }, [categorie, chargement, chargementSuite, enrichissements, items.length, settings.gameDir, services, sousDossier, totalItems, serverSearch, serverQuery, tri, root, loadPage, editorial, initialOffset]);
 
   const codes = useMemo(() => items.map(item => resourceCode(item.chemin)), [items]);
   const names = useResolvedNames(services.resolveNames, services.nameSource ?? "", settings.gameLocale, codes);
@@ -538,7 +539,8 @@ export function GalleryView({
 
   /** Sentinelle de fin de grille : sa venue à l'écran déclenche la page suivante. */
   const sentinelle = useRef<HTMLButtonElement | null>(null);
-  const reste = items.length < totalItems;
+  const loadedThrough = (editorial ? initialOffset : 0) + items.length;
+  const reste = loadedThrough < totalItems;
 
   // Chargement automatique au défilement. La marge de 300 px déclenche AVANT que la sentinelle
   // n'entre réellement dans le champ : les vignettes suivantes sont donc déjà demandées quand
@@ -584,7 +586,7 @@ export function GalleryView({
         {/* Le tri est demandé au serveur d'index (`tri`/`ordre`), pas appliqué à la page déjà
             reçue : trier ici ne toucherait que les 120 lignes chargées tout en affichant un
             ordre sur un total de 17 085. */}
-        <div className="flex items-center gap-1" role="group" aria-label="Trier">
+        {!editorial && <div className="flex items-center gap-1" role="group" aria-label="Trier">
           {([
             { by: "name", label: "Nom" },
             { by: "size", label: "Taille" },
@@ -612,7 +614,7 @@ export function GalleryView({
               )}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {erreur && (
@@ -695,12 +697,12 @@ export function GalleryView({
           <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box p-2">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
               {affiches.map((it, i) => (
-                <GalleryCard key={it.chemin} id={it.chemin} title={it.titre} thumb={null}
+                <GalleryCard key={`${i}:${it.chemin}`} id={`${i}:${it.chemin}`} title={it.titre} thumb={null}
                   onOpen={() => setOuvert(i)} onDoubleClick={() => onOpenFile?.(it.chemin)}
                   thumbnail={<Vignette chemin={it.cheminVignette} gameDir={settings.gameDir} />}
                   metadata={<span className="truncate type-label-small text-on-surface-variant">
                     <code className="block">{resourceCode(it.chemin)}</code>
-                    {services.formatBytes(it.octets)}{it.deblocage ? ` · ${it.deblocage}` : ""}
+                    {!editorial ? services.formatBytes(it.octets) : null}{it.deblocage ? `${!editorial ? " · " : ""}${it.deblocage}` : ""}
                   </span>}
                 />
               ))}
@@ -717,7 +719,7 @@ export function GalleryView({
                 onClick={chargerSuite}
               >
                 {chargementSuite ? "Chargement…" : "Afficher la suite"} ({
-                  (totalItems - items.length).toLocaleString(settings.locale)
+                  (totalItems - loadedThrough).toLocaleString(settings.locale)
                 } restantes)
               </button>
             )}

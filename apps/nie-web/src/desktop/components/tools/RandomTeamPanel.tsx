@@ -1,7 +1,7 @@
 // **Générateur d'équipe aléatoire** — une composition tirée au sort, poste par poste.
 //
-// Portage du générateur d'équipe du wiki (1 337 lignes). La logique de
-// tirage, de verrouillage et de filtrage vit dans `lib/equipe.ts` ; ce fichier est la surface.
+// Selection, lock exclusion and filtering belong to nie-core::azalee::team_generator.
+// lib/equipe.ts projects DTOs through WASM; this component owns presentation and seed input.
 //
 // Trois écarts assumés avec le wiki :
 //
@@ -35,7 +35,8 @@ import { Badge } from "@niers/inacord-ui/components/ui/badge";
 import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@niers/inacord-ui/components/ui/select";
-import { encodeTeamCode } from "@niers/game/game/team-code";
+import { encodeTeamCode } from "../../../game/team-code";
+import { ensureTeamGenerator } from "../../../game/team-generator";
 
 /** Éléments proposés — libellés FR du miroir, ce sont les valeurs réellement stockées. */
 const ELEMENTS = ["Feu", "Vent", "Forêt", "Montagne"];
@@ -99,6 +100,25 @@ function CarteJoueur({
 }
 
 export function RandomTeamPanel({ roster }: { roster: Joueur[] }) {
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let disposed = false;
+    setError(null);
+    void ensureTeamGenerator().then(() => {
+      if (!disposed) setReady(true);
+    }).catch((cause: unknown) => {
+      if (!disposed) setError(String(cause));
+    });
+    return () => { disposed = true; };
+  }, [attempt]);
+  if (error) return <div role="alert">{error}<button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div>;
+  if (!ready) return <p role="status">Chargement du moteur…</p>;
+  return <RandomTeamContent roster={roster} />;
+}
+
+function RandomTeamContent({ roster }: { roster: Joueur[] }) {
   const settings = useSettings();
   const [indexFormation, setIndexFormation] = useState(0);
   const [filtres, setFiltres] = useState<FiltresGenerateur>({
@@ -109,6 +129,7 @@ export function RandomTeamPanel({ roster }: { roster: Joueur[] }) {
   });
   const [equipe, setEquipe] = useState<Record<string, TeamMember>>({});
   const [verrous, setVerrous] = useState<Set<string>>(new Set());
+  const [seed, setSeed] = useState(5489);
 
   const formation = FORMATIONS[indexFormation] ?? FORMATIONS[0];
   const series = useMemo(() => seriesDisponibles(roster), [roster]);
@@ -119,20 +140,22 @@ export function RandomTeamPanel({ roster }: { roster: Joueur[] }) {
     [roster, filtres],
   );
 
-  const tirerEquipe = useCallback(() => {
+  const tirerEquipe = useCallback((nextSeed: number) => {
     const gardes: Record<string, TeamMember> = {};
     for (const creneau of verrous) {
       const m = equipe[creneau];
       if (m) gardes[creneau] = m;
     }
-    setEquipe(genererEquipe(roster, formation, filtres, gardes));
+    setEquipe(genererEquipe(roster, formation, filtres, gardes, nextSeed));
+    setSeed(nextSeed);
   }, [roster, formation, filtres, equipe, verrous]);
 
   // Premier tirage dès que le roster arrive, puis à chaque changement de formation ou de filtre.
   useEffect(() => {
     if (roster.length === 0) return;
-    setEquipe(genererEquipe(roster, formation, filtres, {}));
+    setEquipe(genererEquipe(roster, formation, filtres, {}, seed));
     setVerrous(new Set());
+    // Seed edits and random rerolls call tirerEquipe directly and retain locked records.
     // Volontairement sans `tirerEquipe` : ce déclencheur repart d'une composition VIERGE (les
     // verrous d'une formation précédente ne désignent plus les mêmes créneaux).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,8 +172,8 @@ export function RandomTeamPanel({ roster }: { roster: Joueur[] }) {
 
   async function copierCode() {
     const slots = Object.values(equipe).map((m) => ({ slot: m.slot, charaId: m.charaId }));
-    const code = encodeTeamCode(formation.id, slots);
     try {
+      const code = await encodeTeamCode(formation.id, slots);
       await writeText(code);
       toast.success("Code d'équipe copié — collable dans le constructeur, ici comme sur le wiki");
     } catch (e) {
@@ -186,7 +209,7 @@ export function RandomTeamPanel({ roster }: { roster: Joueur[] }) {
         <button
           type="button"
           className="state-layer rounded-lg bg-primary px-3 py-1.5 type-label-medium text-on-primary"
-          onClick={tirerEquipe}
+          onClick={() => tirerEquipe(crypto.getRandomValues(new Uint32Array(1))[0]!)}
         >
           <Icon name="casino" size={16} /> Retirer au sort
         </button>
@@ -199,6 +222,18 @@ export function RandomTeamPanel({ roster }: { roster: Joueur[] }) {
         </button>
         <Badge variant="secondary">{formation.positions.length} postes</Badge>
         <Badge variant="outline">{roster.length.toLocaleString("fr-FR")} joueurs</Badge>
+        <label className="flex items-center gap-2 type-label-medium">
+          Graine
+          <input
+            aria-label="Graine de génération"
+            type="number" min={0} max={4294967295} step={1} value={seed}
+            className="w-36 rounded-lg border border-app-line bg-app-dark-box px-2 py-1"
+            onChange={(event) => {
+              const value = Number(event.target.value);
+              if (Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff) tirerEquipe(value);
+            }}
+          />
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

@@ -26,5 +26,6 @@ pub mod smart_search;
 pub mod stats_interpolation;
 pub mod team_code;
 pub mod team_emblem_map;
+pub mod team_generator;
 pub mod team_rules;
 pub mod team_types;

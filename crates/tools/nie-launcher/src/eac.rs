@@ -23,7 +23,8 @@ pub const EAC_PATTERN_2: &str = "80 3D * * * * 00 74 * B2 01 B9 * * * * E8 * * *
 pub const EAC_PATCH_OFFSET_2: usize = 7;
 
 /// Canonical AOB pattern 3 recovered from `EACLauncher.exe` (@`0x1400154C0`).
-pub const EAC_PATTERN_3: &str = "80 3D * * * * 00 74 * BA 01 00 00 00 * 8D * * * * * * * * * * * E8 * * * * F7 * B2 * * * E8";
+pub const EAC_PATTERN_3: &str =
+    "80 3D * * * * 00 74 * BA 01 00 00 00 * 8D * * * * * * * * * * * E8 * * * * F7 * B2 * * * E8";
 /// Patch byte offset relative to the start of pattern 3 match (index of `0x74`).
 pub const EAC_PATCH_OFFSET_3: usize = 7;
 
@@ -213,7 +214,8 @@ mod tests {
 
     #[test]
     fn test_eac_pattern_matching_and_patching() {
-        let pattern = CompiledPattern::parse("TEST_EAC", EAC_PATTERN_1, EAC_PATCH_OFFSET_1).unwrap();
+        let pattern =
+            CompiledPattern::parse("TEST_EAC", EAC_PATTERN_1, EAC_PATCH_OFFSET_1).unwrap();
 
         // Synthesize a buffer containing pattern 1
         let mut buffer = vec![

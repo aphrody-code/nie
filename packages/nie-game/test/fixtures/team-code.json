@@ -1,0 +1,10 @@
+{
+  "roundTrips": [
+    {"formationId":"diamond442","slots":[{"slot":"field-0","charaId":"円堂"},{"slot":"reserve-2","charaId":"c01001900"}],"encoded":"ZGlhbW9uZDQ0MnxmaWVsZC0wOuWGhuWggnxyZXNlcnZlLTI6YzAxMDAxOTAw"},
+    {"formationId":"","slots":[],"encoded":""},
+    {"formationId":"g_123","slots":[{"slot":"support-2","charaId":"éclair"},{"slot":"field-9","charaId":"42"}],"encoded":"Z18xMjN8c3VwcG9ydC0yOsOpY2xhaXJ8ZmllbGQtOTo0Mg=="}
+  ],
+  "decodeOnly": [
+    {"encoded":"Znxicm9rZW58ZmllbGQtMDo3Omlnbm9yZWR8OmVtcHR5fHJlc2VydmUtMTo5","decoded":{"formationId":"f","slots":[{"slot":"field-0","charaId":"7"},{"slot":"reserve-1","charaId":"9"}]}}
+  ]
+}

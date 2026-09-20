@@ -52,10 +52,15 @@ impl Inacode {
         let mut s = seed;
         let mut chars = [0u8; 4];
         for b in &mut chars {
-            s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            s = s
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             *b = CHARSET[(s as usize) % CHARSET.len()];
         }
-        Self(format!("INA-{}", std::str::from_utf8(&chars).unwrap_or("7X29")))
+        Self(format!(
+            "INA-{}",
+            std::str::from_utf8(&chars).unwrap_or("7X29")
+        ))
     }
 
     /// Returns the raw room code string slice.
@@ -407,10 +412,7 @@ pub enum NetMessage {
     /// Toggle player ready state.
     SetReady { ready: bool },
     /// Client enqueues for automatic matchmaking.
-    QueueMatch {
-        mode: MatchMode,
-        rank_points: u32,
-    },
+    QueueMatch { mode: MatchMode, rank_points: u32 },
     /// Client cancels active matchmaking queue.
     CancelQueue,
     /// Match countdown / start signal broadcast to room.
@@ -447,10 +449,7 @@ pub enum NetMessage {
         duration_ticks: u64,
     },
     /// Latency measurement ping.
-    Ping {
-        seq: u64,
-        client_time_ms: u64,
-    },
+    Ping { seq: u64, client_time_ms: u64 },
     /// Latency measurement pong.
     Pong {
         seq: u64,
@@ -578,7 +577,8 @@ mod tests {
             away_player_id: "p_away".to_string(),
         };
         let serialized = serde_json::to_string(&msg).expect("serialization ok");
-        let deserialized: NetMessage = serde_json::from_str(&serialized).expect("deserialization ok");
+        let deserialized: NetMessage =
+            serde_json::from_str(&serialized).expect("deserialization ok");
         assert_eq!(msg, deserialized);
     }
 }

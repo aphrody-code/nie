@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { verifyAudioErrorRecovery } from "./wasm-audio-smoke";
 
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const INPUT_WASM = fileURLToPath(
@@ -74,7 +75,7 @@ const temporaryWasmTypeScript = join(temporaryDirectory, "nie_wasm_bg.wasm.d.ts"
 
 try {
 	await run("cargo", [
-		"build",
+		"rustc",
 		"--locked",
 		"-p",
 		"nie-wasm",
@@ -84,6 +85,10 @@ try {
 		"wasm32-unknown-unknown",
 		"--profile",
 		"wasm-release",
+		"--",
+		// The HCA constructor's nested 685056/342336/170368-byte frames overflow 1 MiB.
+		// Apply the linker budget to this module only, not every dependency or browser module.
+		"-C", "link-arg=-zstack-size=2097152",
 	]);
 	await run("wasm-bindgen", [INPUT_WASM, "--target", "web", "--out-dir", temporaryDirectory]);
 
@@ -140,6 +145,7 @@ try {
 	if (bindings.detect_format(new Uint8Array()) !== "?") {
 		throw new Error("wasm-bindgen smoke test returned an unexpected empty-buffer format");
 	}
+	verifyAudioErrorRecovery(bindings);
 
 	const generatedBindings = [
 		[temporaryJavaScript, GENERATED_JAVASCRIPT],

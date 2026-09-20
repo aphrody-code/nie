@@ -23,8 +23,22 @@ pub fn execute(conn: &Connection, operation: &str, args: &Value) -> anyhow::Resu
             Ok(serde_json::to_value(query::search_skills(conn, q)?)?)
         }
         "load_name_index" => index_names(conn),
-        "load_roster" => readonly_rows(conn, ROSTER_SQL),
-        "load_staff" => readonly_rows(conn, STAFF_SQL),
+        "load_roster" => contract_rows(
+            conn,
+            ROSTER_SQL,
+            &[
+                "rarity_code",
+                "zukan_order",
+                "stat_frappe",
+                "stat_controle",
+                "stat_technique",
+                "stat_pression",
+                "stat_physique",
+                "stat_agilite",
+                "stat_intelligence",
+            ],
+        ),
+        "load_staff" => contract_rows(conn, STAFF_SQL, &["id"]),
         "character_skills" => character_skills(conn, required_string(args, "id")?),
         "resolve_many_by_code" => resolve_many(conn, args),
         "mirror_stats" => mirror_stats(conn),
@@ -43,17 +57,46 @@ fn readonly_rows(conn: &Connection, sql: &str) -> anyhow::Result<Value> {
     Ok(Value::Array(query::exec_readonly_sql(conn, sql)?))
 }
 
+/// Typed native/browser DTOs normalize mirror TEXT numbers and dump null markers.
+/// The unrestricted read-only SQL inspector deliberately retains raw storage types.
+fn contract_rows(conn: &Connection, sql: &str, numbers: &[&str]) -> anyhow::Result<Value> {
+    let mut statement = conn.prepare(sql)?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let rows = statement
+        .query_map([], |row| {
+            let mut record = crate::entities::ligne_en_json(row, &columns)?;
+            for (index, column) in columns.iter().enumerate() {
+                if numbers.contains(&column.as_str()) {
+                    record[column] = json!(crate::mirror::entier_souple(row, index)?);
+                } else if record[column]
+                    .as_str()
+                    .is_some_and(|value| matches!(value, "\\N" | "\\\\N"))
+                {
+                    record[column] = Value::Null;
+                }
+            }
+            Ok(Value::Object(record))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Value::Array(rows))
+}
+
 const ROSTER_SQL: &str = "\
-SELECT id, chara_id, name_fr, name_en, name_ja, internal_code,
+SELECT id, chara_id, name_fr, name_en, name_ja, internal_code, slug, base_slug,
        element, position, rarity_label,
-       CAST(json_extract(data, '$.rarityCode') AS INTEGER) AS rarity_code,
-       json_extract(data, '$.subPosition') AS sub_position,
+       CASE WHEN json_valid(data) THEN json_extract(data, '$.rarityCode') END AS rarity_code,
+       CASE WHEN json_valid(data) THEN json_extract(data, '$.subPosition') END AS sub_position,
        series, gender, team_id, zukan_order,
        stat_frappe, stat_controle, stat_technique, stat_pression,
        stat_physique, stat_agilite, stat_intelligence
 FROM inagle_characters
 WHERE internal_code IS NULL OR internal_code NOT LIKE '%\\_5000' ESCAPE '\\'
-ORDER BY zukan_order ASC, id ASC";
+ORDER BY CASE WHEN zukan_order IS NULL OR zukan_order IN ('\\N','\\\\N') THEN 1 ELSE 0 END,
+         CAST(zukan_order AS INTEGER) ASC, id ASC";
 
 const STAFF_SQL: &str = "\
 SELECT id, name_localised, name_romaji, name_kanji, role, playstyle, element, buff, requirements
@@ -211,4 +254,34 @@ fn mirror_stats(conn: &Connection) -> anyhow::Result<Value> {
         "equipes": count("inagle_teams")?,
         "avatars": count("inagle_keshins")?,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_contracts_normalize_numbers_without_touching_raw_inspection() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch("CREATE TABLE sample(id,stat,marker,marker2,name); INSERT INTO sample VALUES('2',' 238 ','\\N','\\\\N','Native'); INSERT INTO sample VALUES(3,'invalid',NULL,'','Other');").unwrap();
+        let rows = contract_rows(
+            &connection,
+            "SELECT * FROM sample ORDER BY id",
+            &["id", "stat"],
+        )
+        .unwrap();
+        let values = rows.as_array().unwrap();
+        let row = values.iter().find(|row| row["id"] == 2).unwrap();
+        assert_eq!(row["stat"], 238);
+        assert!(row["marker"].is_null() && row["marker2"].is_null());
+        assert_eq!(row["name"], "Native");
+        assert!(values.iter().find(|row| row["id"] == 3).unwrap()["stat"].is_null());
+        let raw = readonly_rows(
+            &connection,
+            "SELECT id,stat FROM sample WHERE name='Native'",
+        )
+        .unwrap();
+        assert_eq!(raw[0]["id"], "2");
+        assert_eq!(raw[0]["stat"], " 238 ");
+    }
 }

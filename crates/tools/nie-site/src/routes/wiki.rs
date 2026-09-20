@@ -3,6 +3,8 @@ use crate::{error::ErreurSite, state::EtatSite};
 use axum::{
     Json,
     extract::{Path, Query, State},
+    http::StatusCode,
+    response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -38,6 +40,310 @@ fn data_root() -> PathBuf {
     std::env::var_os("DATA_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("data"))
+}
+
+/// Browser tools use the same read-only roster operation as the native host.
+pub async fn roster(State(state): State<EtatSite>) -> Result<Json<serde_json::Value>, ErreurSite> {
+    let permit = Arc::clone(limiter())
+        .try_acquire_owned()
+        .map_err(|_| unavailable("Roster capacity busy"))?;
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        let _permit = permit;
+        nie_wiki::desktop::execute(connection, "load_roster", &serde_json::json!({}))
+    })
+    .await?;
+    Ok(Json(value))
+}
+
+/// Public staff projection shared with the native host; no arbitrary query surface.
+pub async fn staff(State(state): State<EtatSite>) -> Result<Json<serde_json::Value>, ErreurSite> {
+    let value = read_wiki(Arc::clone(&state.gisement), |connection| {
+        nie_wiki::desktop::execute(connection, "load_staff", &serde_json::json!({}))
+    })
+    .await?;
+    Ok(Json(value))
+}
+
+/// Public, fixed-operation skill projection; arbitrary desktop queries stay native.
+pub async fn character_skills(
+    State(state): State<EtatSite>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    if !valid_query(&id) {
+        return Err(ErreurSite::Demande("Invalid character ID".into()));
+    }
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        if nie_wiki::query::get_character(connection, &id)?.is_none() {
+            return Ok(None);
+        }
+        nie_wiki::desktop::execute(
+            connection,
+            "character_skills",
+            &serde_json::json!({"id":id}),
+        )
+        .map(Some)
+    })
+    .await?;
+    value
+        .map(Json)
+        .ok_or_else(|| ErreurSite::Introuvable("Character not found".into()))
+}
+
+/// Cross table metadata retained from the measured extraction schema.
+pub async fn cross_tables(
+    State(state): State<EtatSite>,
+    Query(input): Query<SearchOnlyQuery>,
+) -> Result<Json<Vec<nie_wiki::cross::TableSummary>>, ErreurSite> {
+    let rows = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::cross::tables(connection, input.q.as_deref())
+    })
+    .await?;
+    Ok(Json(rows))
+}
+
+/// Public Cross measurements without the extraction machine's source paths.
+pub async fn cross_stats(
+    State(state): State<EtatSite>,
+) -> Result<Json<nie_wiki::cross::CatalogStats>, ErreurSite> {
+    let stats = read_wiki(Arc::clone(&state.gisement), nie_wiki::cross::stats).await?;
+    Ok(Json(stats))
+}
+
+/// Bounded search of imported Addressables objects, retaining typed GUID variants.
+pub async fn cross_catalog(
+    State(state): State<EtatSite>,
+    Query(input): Query<nie_wiki::cross::CatalogQuery>,
+) -> Result<Json<nie_wiki::cross::CatalogPage>, ErreurSite> {
+    if input.q.as_deref().is_some_and(|q| q.len() > 512)
+        || input
+            .kind
+            .as_deref()
+            .is_some_and(|kind| !matches!(kind, "asset" | "bundle" | "cri"))
+    {
+        return Err(ErreurSite::Demande("Invalid Cross catalogue filter".into()));
+    }
+    let page = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::cross::search(connection, &input)
+    })
+    .await?;
+    Ok(Json(page))
+}
+
+/// Historical player-list envelope backed by the shared Rust catalogue and DTO owner.
+pub async fn legacy_characters(
+    State(state): State<EtatSite>,
+    Query(input): Query<nie_wiki::legacy::CharacterListRequest>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    if input
+        .q
+        .as_deref()
+        .is_some_and(|query| query.len() > 256 || query.chars().any(char::is_control))
+    {
+        return Err(ErreurSite::Demande("Invalid character query".into()));
+    }
+    let permit = Arc::clone(limiter())
+        .try_acquire_owned()
+        .map_err(|_| unavailable("Catalogue capacity busy"))?;
+    let page = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        let _permit = permit;
+        nie_wiki::legacy::characters(connection, &input)
+    })
+    .await?;
+    Ok(Json(page))
+}
+
+/// Historical character detail resolution: base slug, variant slug, then exact row ID.
+pub async fn legacy_character(
+    State(state): State<EtatSite>,
+    Path(id): Path<String>,
+) -> Result<Response, ErreurSite> {
+    if !valid_query(&id) {
+        return Err(ErreurSite::Demande("Invalid character ID".into()));
+    }
+    let permit = Arc::clone(limiter())
+        .try_acquire_owned()
+        .map_err(|_| unavailable("Character capacity busy"))?;
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        let _permit = permit;
+        nie_wiki::legacy::character(connection, &id)
+    })
+    .await?;
+    Ok(legacy_detail_response(value, "personnage"))
+}
+
+fn legacy_detail_response(value: Option<serde_json::Value>, resource: &str) -> Response {
+    match value {
+        Some(value) => Json(value).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error":format!("{resource} introuvable")})),
+        )
+            .into_response(),
+    }
+}
+
+/// Historical complete shop summaries with joined category counts.
+pub async fn legacy_shops(
+    State(state): State<EtatSite>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    let value = read_wiki(
+        Arc::clone(&state.gisement),
+        nie_wiki::legacy_locations::shops,
+    )
+    .await?;
+    Ok(Json(value))
+}
+
+/// Historical shop IDs use decimal-prefix parsing in the shared compatibility owner.
+pub async fn legacy_shop(
+    State(state): State<EtatSite>,
+    Path(id): Path<String>,
+) -> Result<Response, ErreurSite> {
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_locations::shop(connection, &id)
+    })
+    .await?;
+    Ok(legacy_detail_response(value, "boutique"))
+}
+
+/// Historical stadium search covers only its code and display title.
+pub async fn legacy_stadiums(
+    State(state): State<EtatSite>,
+    Query(input): Query<SearchOnlyQuery>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_locations::stadiums(connection, input.q.as_deref())
+    })
+    .await?;
+    Ok(Json(value))
+}
+
+/// Preserve the historical exact stadium identifier and not-found JSON.
+pub async fn legacy_stadium(
+    State(state): State<EtatSite>,
+    Path(id): Path<String>,
+) -> Result<Response, ErreurSite> {
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_locations::stadium(connection, &id)
+    })
+    .await?;
+    Ok(legacy_detail_response(value, "stade"))
+}
+
+/// Historical complete team list, with source-verified French name ordering.
+pub async fn legacy_teams(
+    State(state): State<EtatSite>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    let value = read_wiki(Arc::clone(&state.gisement), nie_wiki::legacy_teams::list).await?;
+    Ok(Json(value))
+}
+
+/// Historical exact team identity, including native emblem, kit and roster references.
+pub async fn legacy_team(
+    State(state): State<EtatSite>,
+    Path(id): Path<String>,
+) -> Result<Response, ErreurSite> {
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_teams::detail(connection, &id)
+    })
+    .await?;
+    Ok(legacy_detail_response(value, "équipe"))
+}
+
+/// Historical coach list with spreadsheet cleanup and passive/portrait joins.
+pub async fn legacy_coaches(
+    State(state): State<EtatSite>,
+    Query(input): Query<nie_wiki::legacy_entities::CoachRequest>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_entities::coaches(connection, &input)
+    })
+    .await?;
+    Ok(Json(value))
+}
+
+/// Preserve decimal-prefix coach IDs and the historical not-found envelope.
+pub async fn legacy_coach(
+    State(state): State<EtatSite>,
+    Path(id): Path<String>,
+) -> Result<Response, ErreurSite> {
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_entities::coach(connection, &id)
+    })
+    .await?;
+    Ok(legacy_detail_response(value, "coach"))
+}
+
+/// Historical staff list, including its published Zukan references and card shape.
+pub async fn legacy_coordinators(
+    State(state): State<EtatSite>,
+    Query(input): Query<nie_wiki::legacy::CharacterListRequest>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    let page = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy::coordinators(connection, &input)
+    })
+    .await?;
+    Ok(Json(page))
+}
+
+/// Historical equipment contracts delegate selection and projection to the mirror owner.
+pub async fn legacy_skills(
+    State(state): State<EtatSite>,
+    Query(input): Query<nie_wiki::legacy_equipment::ListRequest>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    input
+        .validate()
+        .map_err(|error| ErreurSite::Demande(error.to_string()))?;
+    read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_equipment::skills(connection, &input)
+    })
+    .await
+    .map(Json)
+}
+
+/// Preserve the historical paginated item list, including special tactics.
+pub async fn legacy_items(
+    State(state): State<EtatSite>,
+    Query(input): Query<nie_wiki::legacy_equipment::ListRequest>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    input
+        .validate()
+        .map_err(|error| ErreurSite::Demande(error.to_string()))?;
+    read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_equipment::items(connection, &input)
+    })
+    .await
+    .map(Json)
+}
+
+/// Preserve historical skill lookup aliases and the complete public detail DTO.
+pub async fn legacy_skill(
+    State(state): State<EtatSite>,
+    Path(id): Path<String>,
+) -> Result<Response, ErreurSite> {
+    if !valid_query(&id) {
+        return Err(ErreurSite::Demande("Invalid skill ID".into()));
+    }
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_equipment::skill(connection, &id)
+    })
+    .await?;
+    Ok(legacy_detail_response(value, "technique"))
+}
+
+/// Preserve exact item-ID lookup and its native enrichment fallbacks.
+pub async fn legacy_item(
+    State(state): State<EtatSite>,
+    Path(id): Path<String>,
+) -> Result<Response, ErreurSite> {
+    if !valid_query(&id) {
+        return Err(ErreurSite::Demande("Invalid item ID".into()));
+    }
+    let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
+        nie_wiki::legacy_equipment::item(connection, &id)
+    })
+    .await?;
+    Ok(legacy_detail_response(value, "objet"))
 }
 
 /// Bounded exact resource code batch with a requested game locale.
@@ -258,6 +564,25 @@ pub async fn item(
     profile
         .map(Json)
         .ok_or_else(|| ErreurSite::Introuvable("Item not found".into()))
+}
+
+/// Preserve the historical gallery envelope and its selection/menu category split.
+pub async fn legacy_gallery(
+    State(state): State<EtatSite>,
+    Query(input): Query<nie_wiki::legacy_gallery::GalleryRequest>,
+) -> Result<Json<serde_json::Value>, ErreurSite> {
+    input
+        .validate()
+        .map_err(|error| ErreurSite::Demande(error.to_string()))?;
+    let permit = Arc::clone(limiter())
+        .try_acquire_owned()
+        .map_err(|_| unavailable("Gallery capacity busy"))?;
+    read_wiki(Arc::clone(&state.gisement), move |connection| {
+        let _permit = permit;
+        nie_wiki::legacy_gallery::list(connection, &input)
+    })
+    .await
+    .map(Json)
 }
 
 /// Return one team profile by its exact mirror identifier or internal code.
@@ -765,10 +1090,10 @@ pub async fn trophy(
 /// Search native coordinator, manager and coach rows.
 pub async fn coaches(
     State(state): State<EtatSite>,
-    Query(input): Query<SearchOnlyQuery>,
+    Query(input): Query<nie_wiki::query::CoachFilters>,
 ) -> Result<Json<serde_json::Value>, ErreurSite> {
     let value = read_wiki(Arc::clone(&state.gisement), move |connection| {
-        nie_wiki::auxiliary::list_coaches(connection, input.q.as_deref())
+        nie_wiki::query::query_coaches(connection, &input)
     })
     .await?;
     Ok(Json(value))

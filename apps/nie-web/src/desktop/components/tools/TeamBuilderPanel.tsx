@@ -32,7 +32,11 @@ import {
   recalculateMemberStats,
 } from "@niers/game/game/team-rules";
 import { ROLE_COLORS, ROLE_LABELS } from "@niers/game/game/formations";
-import { decodeTeamCode, encodeTeamCode } from "@niers/game/game/team-code";
+import { decodeTeamCode, encodeTeamCode } from "../../../game/team-code";
+import { ensureTeamRules } from "../../../game/team-rules";
+import { NATIVE_WINDOW } from "../../../host";
+import { wikiDb } from "@/lib/wikiDb";
+import type { StaffRow } from "@/lib/wikiContracts";
 
 import {
   FORMATIONS,
@@ -65,6 +69,26 @@ const STATS: { cle: keyof ReturnType<typeof recalculateMemberStats>; libelle: st
   { cle: "agility", libelle: "Agilité" },
   { cle: "intelligence", libelle: "Intelligence" },
 ];
+
+/** Keep the full mirror searchable without mounting thousands of roster rows at once. */
+export const ROSTER_PAGE_SIZE = 60;
+
+// Staff rows have a separate identity space from player rows in the mirror.
+function staffMember(row: StaffRow, slot: string): TeamMember {
+  return { slot, charaId: `staff-${row.id}`, name: row.name_localised ?? row.name_romaji ?? row.name_kanji ?? String(row.id),
+    position: row.role === "Coordinator" ? "COORD" : "COACH", element: row.element ?? "",
+    rarity: row.role ?? "", imageUrl: "", slug: "" };
+}
+
+function staffSlot(slot: string): boolean {
+  return slot.startsWith("manager-") || slot.startsWith("support-");
+}
+
+function acceptsMember(slot: string, member: TeamMember): boolean {
+  if (slot.startsWith("manager-")) return member.position === "COACH";
+  if (slot.startsWith("support-")) return member.position === "COORD";
+  return member.position !== "COACH" && member.position !== "COORD";
+}
 
 /** Portrait d'un membre — décodé du VFS, jamais chargé du réseau. */
 function Portrait({ membre, gameDir }: { membre: TeamMember; gameDir?: string }) {
@@ -130,7 +154,9 @@ function Case({
           style={{ backgroundColor: membre ? undefined : `${ROLE_COLORS[role] ?? "#555"}22` }}
         >
           {membre ? (
-            <Portrait membre={membre} gameDir={gameDir} />
+            membre.charaId.startsWith("staff-")
+              ? <span className="type-label-small text-on-surface-variant">{role}</span>
+              : <Portrait membre={membre} gameDir={gameDir} />
           ) : (
             <span className="type-label-small text-on-surface-variant">
               {ROLE_LABELS[role] ?? role}
@@ -158,6 +184,26 @@ function Case({
 }
 
 export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let disposed = false;
+    setError(null);
+    void ensureTeamRules().then(() => {
+      if (!disposed) setReady(true);
+    }).catch((cause: unknown) => {
+      if (!disposed) setError(String(cause));
+    });
+    return () => { disposed = true; };
+  }, [attempt]);
+  if (error) return <div role="alert">{error}<button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div>;
+  if (!ready) return <p role="status">Chargement du moteur…</p>;
+  return <TeamBuilderContent roster={roster} />;
+}
+
+/** All synchronous calculations below run only after the Rust bindings are ready. */
+function TeamBuilderContent({ roster }: { roster: Joueur[] }) {
   const settings = useSettings();
   const [indexFormation, setIndexFormation] = useState(0);
   const [membres, setMembres] = useState<Record<string, TeamMember>>({});
@@ -166,18 +212,55 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
   const [enregistrees, setEnregistrees] = useState<EquipeEnregistree[]>([]);
   const [creneauActif, setCreneauActif] = useState<string | null>(null);
   const [requete, setRequete] = useState("");
+  const [rosterPage, setRosterPage] = useState(0);
   const [niveau, setNiveau] = useState(99);
+  const [staff, setStaff] = useState<StaffRow[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffError, setStaffError] = useState<string | null>(null);
+  const [staffAttempt, setStaffAttempt] = useState(0);
+  const [storageError, setStorageError] = useState<string | null>(null);
   const historique = useRef<Record<string, TeamMember>[]>([]);
 
   const formation = FORMATIONS[indexFormation] ?? FORMATIONS[0];
   const parId = useMemo(() => new Map(roster.map((j) => [j.id, j])), [roster]);
   const filtres = useFiltered(roster, requete, (j) => [j.nom, j.poste, j.element, j.rarete]);
+  const rosterPageCount = Math.max(1, Math.ceil(filtres.length / ROSTER_PAGE_SIZE));
+  const visibleRoster = filtres.slice(
+    rosterPage * ROSTER_PAGE_SIZE,
+    (rosterPage + 1) * ROSTER_PAGE_SIZE,
+  );
+  const filteredStaff = useFiltered(staff, requete, (row) => [row.name_localised ?? "", row.name_romaji ?? "", row.name_kanji ?? "", row.role ?? ""]);
+  const selectingStaff = !!creneauActif && staffSlot(creneauActif);
+  const availableStaff = selectingStaff
+    ? filteredStaff.filter(row => acceptsMember(creneauActif!, staffMember(row, creneauActif!))) : [];
+  useEffect(() => {
+    setRosterPage(0);
+  }, [requete]);
+  useEffect(() => {
+    setRosterPage((page) => Math.min(page, rosterPageCount - 1));
+  }, [rosterPageCount]);
+  useEffect(() => {
+    let disposed = false;
+    setStaff([]);
+    setStaffError(null);
+    setStaffLoading(false);
+    if (NATIVE_WINDOW && !settings.wikiDb.trim()) {
+      setStaffError("Configurez le miroir wiki pour charger l’encadrement.");
+      return;
+    }
+    setStaffLoading(true);
+    void wikiDb.loadStaff(settings.wikiDb.trim()).then(rows => {
+      if (!disposed) setStaff(rows);
+    }).catch((error: unknown) => { if (!disposed) setStaffError(String(error)); })
+      .finally(() => { if (!disposed) setStaffLoading(false); });
+    return () => { disposed = true; };
+  }, [settings.wikiDb, staffAttempt]);
 
   const rafraichirListe = useCallback(() => {
     teamsDb
       .lister()
-      .then(setEnregistrees)
-      .catch(() => setEnregistrees([]));
+      .then(rows => { setEnregistrees(rows); setStorageError(null); })
+      .catch((error: unknown) => setStorageError(String(error)));
   }, []);
   useEffect(rafraichirListe, [rafraichirListe]);
 
@@ -202,8 +285,17 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
   }, [annuler]);
 
   function placer(joueur: Joueur, creneau: string) {
+    if (staffSlot(creneau)) return;
     empiler();
     setMembres((prec) => ({ ...prec, [creneau]: versMembre(joueur, creneau) }));
+    setCreneauActif(null);
+  }
+
+  function placeStaff(row: StaffRow, slot: string) {
+    const member = staffMember(row, slot);
+    if (!acceptsMember(slot, member)) return;
+    empiler();
+    setMembres(previous => ({ ...previous, [slot]: member }));
     setCreneauActif(null);
   }
 
@@ -218,6 +310,11 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
 
   /** Dépôt : depuis le roster (`chara:<id>`) ou depuis une autre case (`slot:<créneau>`, échange). */
   function deposer(cible: string, charge: string) {
+    if (charge.startsWith("staff:")) {
+      const row = staff.find(row => String(row.id) === charge.slice(6));
+      if (row) placeStaff(row, cible);
+      return;
+    }
     if (charge.startsWith("chara:")) {
       const j = parId.get(charge.slice(6));
       if (j) placer(j, cible);
@@ -226,6 +323,8 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
     if (!charge.startsWith("slot:")) return;
     const source = charge.slice(5);
     if (source === cible) return;
+    if ((membres[source] && !acceptsMember(cible, membres[source]))
+      || (membres[cible] && !acceptsMember(source, membres[cible]))) return;
     empiler();
     setMembres((prec) => {
       const suivant = { ...prec };
@@ -333,7 +432,7 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
   async function copierCode() {
     const slots = Object.values(membres).map((m) => ({ slot: m.slot, charaId: m.charaId }));
     try {
-      await writeText(encodeTeamCode(formation.id, slots));
+      await writeText(await encodeTeamCode(formation.id, slots));
       toast.success("Code d'équipe copié");
     } catch (e) {
       toast.error(String(e));
@@ -344,7 +443,10 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
     try {
       const texte = (await readText())?.trim();
       if (!texte) return;
-      const decode = decodeTeamCode(texte);
+      const decode = await decodeTeamCode(texte);
+      if (decode.slots.some(slot => slot.charaId.startsWith("staff-")) && (staffLoading || staffError)) {
+        throw new Error("L’encadrement doit être chargé avant d’importer ce code.");
+      }
       const idx = FORMATIONS.findIndex((f) => f.id === decode.formationId);
       if (idx < 0) {
         toast.error(`Formation inconnue : ${decode.formationId}`);
@@ -355,6 +457,11 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
       const suivant: Record<string, TeamMember> = {};
       let manquants = 0;
       for (const s of decode.slots) {
+        const row = staff.find(row => `staff-${row.id}` === s.charaId);
+        if (row && acceptsMember(s.slot, staffMember(row, s.slot))) {
+          suivant[s.slot] = staffMember(row, s.slot);
+          continue;
+        }
         const j = parId.get(s.charaId);
         if (j) suivant[s.slot] = versMembre(j, s.slot);
         else manquants++;
@@ -373,8 +480,8 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
 
   const creneauxBanc = [
     ...Array.from({ length: NB_RESERVES }, (_, i) => ({ creneau: `reserve-${i}`, role: "MF" })),
-    { creneau: "manager-0", role: "GK" },
-    ...Array.from({ length: NB_SUPPORTS }, (_, i) => ({ creneau: `support-${i}`, role: "DF" })),
+    { creneau: "manager-0", role: "Entraîneur" },
+    ...Array.from({ length: NB_SUPPORTS }, (_, i) => ({ creneau: `support-${i}`, role: "Coordinateur" })),
   ];
 
   return (
@@ -382,21 +489,62 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
       {/* Roster */}
       <div className="flex min-h-0 flex-col gap-2">
         <Input
-          placeholder="Rechercher un joueur…"
+          placeholder={selectingStaff ? "Rechercher un encadrant…" : "Rechercher un joueur…"}
           value={requete}
           onChange={(e) => setRequete(e.target.value)}
         />
         <p className="type-label-small text-on-surface-variant">
           {creneauActif
-            ? `Créneau ${creneauActif} sélectionné — cliquez un joueur`
+            ? `Créneau ${creneauActif} sélectionné — cliquez ${selectingStaff ? "un encadrant" : "un joueur"}`
             : "Cliquez une case, puis un joueur (ou glissez-déposez)"}
         </p>
+        {!selectingStaff && filtres.length > 0 && (
+          <div className="flex items-center justify-between gap-2 type-label-small text-on-surface-variant">
+            <span role="status">
+              {rosterPage * ROSTER_PAGE_SIZE + 1}–{Math.min((rosterPage + 1) * ROSTER_PAGE_SIZE, filtres.length)} sur {filtres.length}
+            </span>
+            <span className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Page précédente du roster"
+                disabled={rosterPage === 0}
+                className="state-layer rounded-full p-1 disabled:opacity-30"
+                onClick={() => setRosterPage((page) => Math.max(0, page - 1))}
+              >
+                <Icon name="chevron_left" size={16} />
+              </button>
+              <span aria-label="Page du roster">{rosterPage + 1} / {rosterPageCount}</span>
+              <button
+                type="button"
+                aria-label="Page suivante du roster"
+                disabled={rosterPage + 1 >= rosterPageCount}
+                className="state-layer rounded-full p-1 disabled:opacity-30"
+                onClick={() => setRosterPage((page) => Math.min(rosterPageCount - 1, page + 1))}
+              >
+                <Icon name="chevron_right" size={16} />
+              </button>
+            </span>
+          </div>
+        )}
         <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
           <div className="divide-y divide-app-line">
-            {filtres.slice(0, 400).map((j) => (
+            {selectingStaff && staffError && <p role="alert">{staffError}<button type="button" onClick={() => setStaffAttempt(value => value + 1)}>Réessayer l’encadrement</button></p>}
+            {selectingStaff && staffLoading && <p role="status">Chargement de l’encadrement…</p>}
+            {selectingStaff && !staffLoading && !staffError && availableStaff.length === 0 && <p>Aucun encadrant correspondant.</p>}
+            {availableStaff.map(row => (
+              <button key={row.id} type="button" draggable
+                onDragStart={event => event.dataTransfer.setData("text/plain", `staff:${row.id}`)}
+                onClick={() => placeStaff(row, creneauActif!)}
+                className="state-layer flex w-full flex-col gap-1 px-2 py-1.5 text-left type-body-small text-on-surface">
+                <span>{staffMember(row, creneauActif!).name}</span>
+                <span className="type-label-small text-on-surface-variant">{[row.role, row.playstyle, row.buff, row.requirements].filter(Boolean).join(" · ")}</span>
+              </button>
+            ))}
+            {!selectingStaff && visibleRoster.map((j) => (
               <button
                 key={j.id}
                 type="button"
+                data-roster-player={j.id}
                 draggable
                 onDragStart={(e) => e.dataTransfer.setData("text/plain", `chara:${j.id}`)}
                 onClick={() => taperJoueur(j)}
@@ -409,7 +557,7 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
                 </span>
               </button>
             ))}
-            {filtres.length === 0 && (
+            {!selectingStaff && filtres.length === 0 && (
               <p className="p-3 type-body-small text-on-surface-variant">
                 Roster vide — le miroir wiki est-il configuré ?
               </p>
@@ -595,6 +743,7 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
 
         <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
           <div className="divide-y divide-app-line">
+            {storageError && <p role="alert">{storageError}<button type="button" onClick={rafraichirListe}>Réessayer les sauvegardes</button></p>}
             {enregistrees.map((eq) => (
               <div key={eq.id} className="flex items-center gap-1 px-2 py-1.5">
                 <button
@@ -619,7 +768,7 @@ export function TeamBuilderPanel({ roster }: { roster: Joueur[] }) {
             ))}
             {enregistrees.length === 0 && (
               <p className="p-3 type-body-small text-on-surface-variant">
-                Aucune composition enregistrée. Elles vivent dans `mods.db`, sur cette machine.
+                {NATIVE_WINDOW ? "Aucune composition enregistrée dans mods.db sur cette machine." : "Aucune composition enregistrée dans ce navigateur."}
               </p>
             )}
           </div>

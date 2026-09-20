@@ -268,6 +268,8 @@ async function wikiQuery(args: Arguments): Promise<unknown> {
 	const operation = text(args.operation);
 	const inner = record(args.args);
 	switch (operation) {
+		case "load_roster":
+			return getJson("/api/v1/wiki/roster");
 		case "search_character":
 		case "search_skill": {
 			const q = text(inner.query);
@@ -282,11 +284,10 @@ async function wikiQuery(args: Arguments): Promise<unknown> {
 		case "character_skills": {
 			const id = text(inner.id);
 			if (!id) return [];
-			const card = record(await getJson(`/api/v1/wiki/characters/${encodeURIComponent(id)}`));
-			return array(card.skills ?? card.techniques ?? record(card.character).skills);
+			return getJson(`/api/v1/wiki/characters/${encodeURIComponent(id)}/skills`);
 		}
 		case "load_staff":
-			return getJson("/api/v1/wiki/coaches");
+			return getJson("/api/v1/wiki/staff");
 		case "resolve_many_by_code": {
 			// Two defects lived in this branch, and both were silent.
 			//

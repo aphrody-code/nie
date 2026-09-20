@@ -12,7 +12,9 @@
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { brotliCompressSync, constants, zstdCompressSync } from "node:zlib";
+import { isPrecompressionTarget } from "./precompression-targets";
 import { assertNePubliePas, resolveBuildOutDir } from "./out-dir";
+import { assertPublicEntryBundle } from "./public-entry-bundle";
 
 // Une version en préparation est compressée AVANT de remplacer le bundle servi — c'est pourquoi
 // le déploiement passe ici le chemin de sa version, et pourquoi ce chemin est vérifié : ce script
@@ -21,22 +23,15 @@ import { assertNePubliePas, resolveBuildOutDir } from "./out-dir";
 const DIST = process.argv[2] ? resolve(process.argv[2]) : resolveBuildOutDir();
 if (process.argv[2]) assertNePubliePas(DIST);
 
-/**
- * Extensions that normally benefit from compression. Images are already compressed.
- *
- * `.wasm` is not: a WebAssembly module is a dense but highly redundant byte stream, and it was
- * the largest uncompressed thing this bundle served. Measured 2026-09-12 at Brotli 11:
- * `nie_wasm_bg.wasm` 4 518 898 → 927 208 (−80 %), `nie_viewer_web_bg.wasm` 2 855 742 → 804 693
- * (−72 %). `nie-site` serves the adjacent variant for ANY file (`routes/static_files.rs`
- * negotiates on the path, not on the extension), so listing it here is all it takes.
- */
-const TARGET_EXTENSIONS = [".js", ".css", ".html", ".json", ".svg", ".map", ".txt", ".wasm"];
+// Source maps are the emitted per-chunk module manifests. Check them before compression so each
+// canonical build proves that the public readiness path stayed outside the React host.
+assertPublicEntryBundle(DIST);
 
 function filesIn(dir: string, accumulator: string[] = []): string[] {
 	for (const entry of readdirSync(dir)) {
 		const path = join(dir, entry);
 		if (statSync(path).isDirectory()) filesIn(path, accumulator);
-		else if (TARGET_EXTENSIONS.some((extension) => path.endsWith(extension))) {
+		else if (isPrecompressionTarget(path)) {
 			accumulator.push(path);
 		}
 	}

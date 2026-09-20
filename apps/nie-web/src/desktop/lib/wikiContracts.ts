@@ -15,6 +15,8 @@ export interface NameRow {
 /** One roster row returned by the Rust mirror query. */
 export interface RosterRow {
   id: string;
+  slug?: string | null;
+  base_slug?: string | null;
   chara_id: string | null;
   name_fr: string | null;
   name_en: string | null;

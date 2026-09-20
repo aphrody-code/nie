@@ -3,8 +3,8 @@
 //! Directly ports `fn_SteamFriends018` (0x1404ebcf0) and Level-5 friend invitation
 //! and rich presence integration.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Persona presence state matching Steamworks API `EPersonaState`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -129,7 +129,8 @@ impl SteamFriends018 {
 
     /// Sets a rich presence key-value pair for the local player.
     pub fn set_rich_presence(&mut self, key: &str, value: &str) {
-        self.local_rich_presence.insert(key.to_string(), value.to_string());
+        self.local_rich_presence
+            .insert(key.to_string(), value.to_string());
     }
 
     /// Clears local rich presence.
@@ -139,7 +140,12 @@ impl SteamFriends018 {
 
     /// Dispatches a game invitation to a friend.
     #[must_use]
-    pub fn create_invite(&self, target_steam_id: u64, destination_inacode: String, invite_type: String) -> Option<FriendGameInvite> {
+    pub fn create_invite(
+        &self,
+        target_steam_id: u64,
+        destination_inacode: String,
+        invite_type: String,
+    ) -> Option<FriendGameInvite> {
         if self.friends.contains_key(&target_steam_id) {
             Some(FriendGameInvite {
                 invite_id: format!("inv_{}_{}", self.local_steam_id, target_steam_id),
@@ -161,7 +167,11 @@ impl SteamFriends018 {
 
     /// Accepts an incoming invite by ID, returning the target Inacode.
     pub fn accept_invite(&mut self, invite_id: &str) -> Option<String> {
-        if let Some(pos) = self.incoming_invites.iter().position(|i| i.invite_id == invite_id) {
+        if let Some(pos) = self
+            .incoming_invites
+            .iter()
+            .position(|i| i.invite_id == invite_id)
+        {
             let invite = self.incoming_invites.remove(pos);
             Some(invite.destination_inacode)
         } else {
@@ -187,7 +197,10 @@ mod tests {
     fn test_steam_friends_presence_and_invites() {
         let mut sf = SteamFriends018::new(76561198000000001, "Axel Blaze".into());
         sf.set_rich_presence("status", "Exploring Kizuna Town");
-        assert_eq!(sf.local_rich_presence.get("status").unwrap(), "Exploring Kizuna Town");
+        assert_eq!(
+            sf.local_rich_presence.get("status").unwrap(),
+            "Exploring Kizuna Town"
+        );
 
         let friend = SteamFriend {
             steam_id: 76561198000000002,

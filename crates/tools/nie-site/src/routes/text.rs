@@ -629,14 +629,11 @@ pub(super) fn resolve(
 /// `/api/v1/donnees/{chemin}`.
 pub(super) async fn load(state: &EtatSite, paths: Vec<String>) -> Result<Vec<Line>, ErreurSite> {
     let vfs = state.vfs()?;
+    let cache = state.text_cache.clone();
     tokio::task::spawn_blocking(move || {
         let mut out = Vec::new();
         for path in &paths {
-            let bytes = vfs.read(path).map_err(|e| {
-                tracing::debug!(erreur = %e, path, "lecture VFS impossible");
-                ErreurSite::Introuvable("fichier indexe mais illisible sur ce montage".to_owned())
-            })?;
-            out.extend(decode(path, &bytes)?);
+            out.extend(cache.read(&vfs, path)?);
         }
         Ok(out)
     })
@@ -863,13 +860,11 @@ pub async fn line(
     let s = survey(&state).await?;
     let paths = resolve(s, &language, &family)?;
     let vfs = state.vfs()?;
+    let cache = state.text_cache.clone();
     let occurrences = tokio::task::spawn_blocking(move || {
         let mut found = Vec::new();
         for path in &paths {
-            let Ok(bytes) = vfs.read(path) else {
-                continue;
-            };
-            let Ok(lines) = decode(path, &bytes) else {
+            let Ok(lines) = cache.read(&vfs, path) else {
                 continue;
             };
             found.extend(
@@ -1007,6 +1002,7 @@ pub async fn search(
 
     let paths = s.paths_of_language(&language);
     let vfs = state.vfs()?;
+    let cache = state.text_cache.clone();
     let needle = pattern.clone();
     let (hits, read, truncated) = tokio::task::spawn_blocking(move || {
         let mut out: Vec<Hit> = Vec::new();
@@ -1017,10 +1013,7 @@ pub async fn search(
                 truncated = true;
                 break;
             }
-            let Ok(bytes) = vfs.read(path) else {
-                continue;
-            };
-            let Ok(lines) = decode(path, &bytes) else {
+            let Ok(lines) = cache.read(&vfs, path) else {
                 continue;
             };
             read += 1;
@@ -1238,6 +1231,7 @@ pub async fn translate(
         .collect();
     let vfs = state.vfs()?;
     let needle = pattern.clone();
+    let cache = state.text_cache.clone();
 
     let (translations, truncated) = tokio::task::spawn_blocking(move || {
         // 1. Trouver les (famille, hash) qui portent le terme dans la langue de depart.
@@ -1248,8 +1242,7 @@ pub async fn translate(
                 truncated = true;
                 break;
             }
-            let Ok(bytes) = vfs.read(path) else { continue };
-            let Ok(lines) = decode(path, &bytes) else {
+            let Ok(lines) = cache.read(&vfs, path) else {
                 continue;
             };
             let family = nie_data::typed::family_key(path);
@@ -1277,8 +1270,7 @@ pub async fn translate(
                 if !voulus.iter().any(|(f, _)| *f == family) {
                     continue;
                 }
-                let Ok(bytes) = vfs.read(path) else { continue };
-                let Ok(lines) = decode(path, &bytes) else {
+                let Ok(lines) = cache.read(&vfs, path) else {
                     continue;
                 };
                 for l in lines {

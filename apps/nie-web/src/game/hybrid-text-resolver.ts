@@ -17,6 +17,7 @@ import {
 import { cfgbin_text_map_json } from "../wasm/nie_wasm.js";
 import { ensureWasm } from "./bridge";
 import { offlineVfs } from "./offline-vfs";
+import { vfsResources } from "./vfs-resources";
 
 /** Candidate VFS file paths for a given locale's menu and common text tables. */
 function candidateTextPaths(locale: GameLocale): string[] {
@@ -76,7 +77,7 @@ export function createHybridGameTextResolver(
 		const tables: Record<string, string>[] = [];
 
 		for (const path of candidates) {
-			const bytes = await offlineVfs.fetchFile(path);
+			const bytes = vfsResources.read(path) ?? await offlineVfs.fetchFile(path);
 			if (bytes) {
 				const table = await decodeTextTable(locale, path, bytes);
 				if (table) tables.push(table);

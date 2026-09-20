@@ -38,7 +38,10 @@ fn main() -> ExitCode {
     let root = resolve_game_dir();
     let mut vfs = Vfs::new();
     if vfs.init(root.join("data")).is_err() {
-        eprintln!("SKIP: no game VFS under {} (set NIE_GAME_DIR)", root.display());
+        eprintln!(
+            "SKIP: no game VFS under {} (set NIE_GAME_DIR)",
+            root.display()
+        );
         return ExitCode::SUCCESS;
     }
     let vfs = Arc::new(vfs);

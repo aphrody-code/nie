@@ -16,6 +16,9 @@
 	],
 	"include": [],
 	"files": [
+		"azalee-provenance.ts",
+		"azalee-route-ledger.ts",
+		"azalee-route-ledger.test.ts",
 		"deploy-target.test.ts",
 		"deploy-target.ts",
 		"donnees/audit-vfs-contents.ts",
@@ -31,6 +34,8 @@
 		"sync-main.ts",
 		"sync-memory-to-agy.ts",
 		"validation/download-zukan-reference.ts",
+		"validation/azalee-browser-probe.ts",
+		"validation/azalee-candidate-gate.ts",
 		"validation/gate-menu-browser.ts",
 		"validation/gate-menu.test.ts",
 		"validation/gate-menu.ts",

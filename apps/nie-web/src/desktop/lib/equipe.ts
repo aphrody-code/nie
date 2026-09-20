@@ -40,6 +40,9 @@ export const NB_SUPPORTS = 3;
 export interface Joueur {
   /** `chara_param_id` — la clé qui ouvre `api.gameDataCalculateStats`. */
   id: string;
+  slug?: string | null;
+  baseSlug?: string | null;
+  charaId?: string | null;
   nom: string;
   /** Poste FR du miroir (`Attaquant`, `Milieu`, `Défenseur`, `Gardien`, `Entraîneur`). */
   poste: string;
@@ -71,6 +74,9 @@ export interface Joueur {
 export function versJoueur(l: RosterRow): Joueur {
   return {
     id: String(l.id),
+    slug: l.slug,
+    baseSlug: l.base_slug,
+    charaId: l.chara_id,
     nom: l.name_fr || l.name_en || l.name_ja || String(l.id),
     poste: l.position ?? "",
     element: l.element ?? "",
@@ -126,8 +132,9 @@ export function versJoueurDepuisJeu(c: {
       kick: c.stats.kc ?? 0,
       control: c.stats.cr ?? 0,
       technique: c.stats.tc ?? 0,
-      pressure: c.stats.pr ?? 0,
-      physical: c.stats.ps ?? 0,
+      // Core/inagle: Pr is Physical; Ps is Pressure (the abbreviations are not French).
+      pressure: c.stats.ps ?? 0,
+      physical: c.stats.pr ?? 0,
       agility: c.stats.ag ?? 0,
       intelligence: c.stats.it ?? 0,
     },
@@ -232,17 +239,6 @@ function trier<T>(source: readonly T[], comparateur: (a: T, b: T) => number): T[
   return copie;
 }
 
-/** Tirage aléatoire sans remise de `n` éléments. */
-export function tirer<T>(source: readonly T[], n: number): T[] {
-  const copie = [...source];
-  const sortie: T[] = [];
-  for (let i = 0; i < n && copie.length > 0; i++) {
-    const idx = Math.floor(Math.random() * copie.length);
-    sortie.push(copie.splice(idx, 1)[0]);
-  }
-  return sortie;
-}
-
 /** Critères de filtrage du générateur aléatoire. */
 export interface FiltresGenerateur {
   element: string | null;
@@ -251,85 +247,70 @@ export interface FiltresGenerateur {
   serie: string | null;
 }
 
-/**
- * Applique les filtres à un vivier, mais **seulement s'il reste assez de monde**.
- *
- * Règle reprise du wiki, et c'est la bonne : un filtre qui viderait le vivier est ignoré plutôt
- * que de produire une équipe à trous. La différence est qu'ici la garde est visible —
- * [`filtresIgnores`] dit lesquels n'ont pas pu s'appliquer, là où le wiki les abandonnait sans
- * rien annoncer.
- */
-export function filtrerVivier(
-  vivier: readonly Joueur[],
-  filtres: FiltresGenerateur,
-  minimum: number,
-): { retenus: Joueur[]; ignores: string[] } {
-  let courant = [...vivier];
-  const ignores: string[] = [];
-
-  const etape = (nom: string, predicat: (j: Joueur) => boolean) => {
-    const suivant = courant.filter(predicat);
-    if (suivant.length >= minimum) courant = suivant;
-    else ignores.push(nom);
-  };
-
-  if (filtres.element) {
-    const cible = filtres.element;
-    etape("élément", (j) => j.element === cible);
-  }
-  if (filtres.genre) {
-    const cible = filtres.genre;
-    etape("genre", (j) => j.genre === cible);
-  }
-  if (filtres.rarete) {
-    const cible = filtres.rarete;
-    etape("rareté", (j) => j.rarete === cible);
-  }
-  if (filtres.serie) {
-    const cible = filtres.serie;
-    etape("série", (j) => j.serie === cible);
-  }
-
-  return { retenus: courant, ignores };
+/** Thin host contracts; filtering and selection are owned by nie-core::azalee::team_generator. */
+export interface TeamGeneratorRuntime {
+  team_generator_filter(rosterJson: string, filtersJson: string, minimum: number): string;
+  team_generator_generate(rosterJson: string, positionsJson: string, filtersJson: string, locksJson: string, seed: number): string;
 }
 
-/** Compose une équipe aléatoire : un joueur par créneau de terrain, poste respecté quand possible. */
-export function genererEquipe(
-  vivier: readonly Joueur[],
-  formation: Formation,
-  filtres: FiltresGenerateur,
-  verrous: Readonly<Record<string, TeamMember>> = {},
-): Record<string, TeamMember> {
-  const parPoste = new Map<string, Joueur[]>();
-  for (const p of formation.positions) {
-    if (!parPoste.has(p.role)) {
-      const besoin = formation.positions.filter((q) => q.role === p.role).length;
-      const { retenus } = filtrerVivier(
-        vivier.filter((j) => codePoste(j.poste) === p.role),
-        filtres,
-        besoin,
-      );
-      parPoste.set(p.role, retenus);
-    }
-  }
+type GeneratorFilterKey = "element" | "gender" | "rarity" | "series";
+interface GeneratorAssignment { slot: string; rosterIndex: number | null; locked: boolean; }
+const FILTER_LABELS: Record<GeneratorFilterKey, string> = {
+  element: "élément", gender: "genre", rarity: "rareté", series: "série",
+};
+let generatorRuntime: TeamGeneratorRuntime | undefined;
 
-  const sortie: Record<string, TeamMember> = {};
-  const utilises = new Set(Object.values(verrous).map((m) => m.charaId));
-  for (const p of formation.positions) {
-    const creneau = `field-${p.index}`;
-    const verrou = verrous[creneau];
-    if (verrou) {
-      sortie[creneau] = verrou;
-      continue;
+export function configureTeamGeneratorRuntime(runtime: TeamGeneratorRuntime): void {
+  generatorRuntime = runtime;
+}
+
+function generator(): TeamGeneratorRuntime {
+  if (!generatorRuntime) throw new Error("Team generator runtime is not initialized");
+  return generatorRuntime;
+}
+
+/** DTO projection only; original records remain in the host and are addressed by index. */
+function generatorRoster(roster: readonly Joueur[]): string {
+  return JSON.stringify(roster.map(player => ({
+    id: player.id, position: codePoste(player.poste), element: player.element,
+    gender: player.genre, rarity: player.rarete, series: player.serie,
+  })));
+}
+
+function generatorFilters(filters: FiltresGenerateur): string {
+  return JSON.stringify({ element: filters.element, gender: filters.genre, rarity: filters.rarete, series: filters.serie });
+}
+
+/** Preserve the legacy result shape while delegating all filter decisions to Rust. */
+export function filtrerVivier(
+  vivier: readonly Joueur[], filtres: FiltresGenerateur, minimum: number,
+): { retenus: Joueur[]; ignores: string[] } {
+  if (!Number.isInteger(minimum) || minimum < 0 || minimum > 0xffff_ffff) throw new RangeError("Invalid roster minimum");
+  const result = JSON.parse(generator().team_generator_filter(generatorRoster(vivier), generatorFilters(filtres), minimum)) as { indices: number[]; ignored: GeneratorFilterKey[] };
+  return { retenus: result.indices.map(index => vivier[index]), ignores: result.ignored.map(key => FILTER_LABELS[key]) };
+}
+
+/** Seeded Rust selection; omitted seeds use host entropy, never a second JavaScript PRNG. */
+export function genererEquipe(
+  vivier: readonly Joueur[], formation: Formation, filtres: FiltresGenerateur,
+  verrous: Readonly<Record<string, TeamMember>> = {},
+  seed = crypto.getRandomValues(new Uint32Array(1))[0]!,
+): Record<string, TeamMember> {
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffff_ffff) throw new RangeError("Invalid team seed");
+  const assignments = JSON.parse(generator().team_generator_generate(
+    generatorRoster(vivier), JSON.stringify(formation.positions), generatorFilters(filtres),
+    JSON.stringify(Object.entries(verrous).map(([slot, member]) => [slot, member.charaId])), seed,
+  )) as GeneratorAssignment[];
+  return Object.fromEntries(assignments.map(assignment => {
+    if (assignment.locked) {
+      const member = verrous[assignment.slot];
+      if (!member) throw new Error("Rust generator returned an unknown locked slot");
+      return [assignment.slot, member];
     }
-    const dispo = (parPoste.get(p.role) ?? []).filter((j) => !utilises.has(j.id));
-    const choisi = tirer(dispo, 1)[0];
-    if (choisi) {
-      sortie[creneau] = versMembre(choisi, creneau);
-      utilises.add(choisi.id);
-    }
-  }
-  return sortie;
+    const player = assignment.rosterIndex === null ? undefined : vivier[assignment.rosterIndex];
+    if (!player) throw new Error("Rust generator returned an invalid roster index");
+    return [assignment.slot, versMembre(player, assignment.slot)];
+  }));
 }
 
 /**

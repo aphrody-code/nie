@@ -1,0 +1,247 @@
+{
+  "roster": [
+    {
+      "id": "a",
+      "nom": "a",
+      "poste": "Attaquant",
+      "element": "Forêt",
+      "genre": "F",
+      "rarete": "Héros",
+      "serie": "École",
+      "codeRarete": null,
+      "code": null,
+      "stats": {
+        "kick": 1,
+        "control": 2,
+        "technique": 3,
+        "pressure": 4,
+        "physical": 5,
+        "agility": 6,
+        "intelligence": 7
+      }
+    },
+    {
+      "id": "b",
+      "nom": "b",
+      "poste": "Milieu",
+      "element": "Forêt",
+      "genre": "M",
+      "rarete": "Normal",
+      "serie": "École",
+      "codeRarete": null,
+      "code": null,
+      "stats": {
+        "kick": 1,
+        "control": 2,
+        "technique": 3,
+        "pressure": 4,
+        "physical": 5,
+        "agility": 6,
+        "intelligence": 7
+      }
+    },
+    {
+      "id": "c",
+      "nom": "c",
+      "poste": "Gardien",
+      "element": "Vent",
+      "genre": null,
+      "rarete": "Normal",
+      "serie": null,
+      "codeRarete": null,
+      "code": null,
+      "stats": {
+        "kick": 1,
+        "control": 2,
+        "technique": 3,
+        "pressure": 4,
+        "physical": 5,
+        "agility": 6,
+        "intelligence": 7
+      }
+    },
+    {
+      "id": "d",
+      "nom": "d",
+      "poste": "Défenseur",
+      "element": "Forêt",
+      "genre": "F",
+      "rarete": "Normal",
+      "serie": "Galaxy",
+      "codeRarete": null,
+      "code": null,
+      "stats": {
+        "kick": 1,
+        "control": 2,
+        "technique": 3,
+        "pressure": 4,
+        "physical": 5,
+        "agility": 6,
+        "intelligence": 7
+      }
+    },
+    {
+      "id": "e",
+      "nom": "e",
+      "poste": "MF",
+      "element": "Forêt",
+      "genre": "F",
+      "rarete": "Héros",
+      "serie": "École",
+      "codeRarete": null,
+      "code": null,
+      "stats": {
+        "kick": 1,
+        "control": 2,
+        "technique": 3,
+        "pressure": 4,
+        "physical": 5,
+        "agility": 6,
+        "intelligence": 7
+      }
+    }
+  ],
+  "cases": [
+    {
+      "filters": {
+        "element": null,
+        "genre": null,
+        "rarete": null,
+        "serie": null
+      },
+      "minimum": 11,
+      "expected": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "ignored": []
+      }
+    },
+    {
+      "filters": {
+        "element": "Forêt",
+        "genre": null,
+        "rarete": null,
+        "serie": null
+      },
+      "minimum": 2,
+      "expected": {
+        "ids": [
+          "a",
+          "b",
+          "d"
+        ],
+        "ignored": []
+      }
+    },
+    {
+      "filters": {
+        "element": "Forêt",
+        "genre": "F",
+        "rarete": "Héros",
+        "serie": "École"
+      },
+      "minimum": 2,
+      "expected": {
+        "ids": [
+          "a",
+          "d"
+        ],
+        "ignored": [
+          "rareté",
+          "série"
+        ]
+      }
+    },
+    {
+      "filters": {
+        "element": "Forêt",
+        "genre": "F",
+        "rarete": "Héros",
+        "serie": "École"
+      },
+      "minimum": 1,
+      "expected": {
+        "ids": [
+          "a"
+        ],
+        "ignored": []
+      }
+    },
+    {
+      "filters": {
+        "element": "invalid",
+        "genre": "invalid",
+        "rarete": "invalid",
+        "serie": "invalid"
+      },
+      "minimum": 10,
+      "expected": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "ignored": [
+          "élément",
+          "genre",
+          "rareté",
+          "série"
+        ]
+      }
+    },
+    {
+      "filters": {
+        "element": "",
+        "genre": "",
+        "rarete": "",
+        "serie": ""
+      },
+      "minimum": 0,
+      "expected": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "ignored": []
+      }
+    },
+    {
+      "filters": {
+        "element": "missing",
+        "genre": null,
+        "rarete": null,
+        "serie": null
+      },
+      "minimum": 0,
+      "expected": {
+        "ids": [],
+        "ignored": []
+      }
+    },
+    {
+      "filters": {
+        "element": "Forêt",
+        "genre": null,
+        "rarete": null,
+        "serie": null
+      },
+      "minimum": 1,
+      "expected": {
+        "ids": [
+          "e"
+        ],
+        "ignored": []
+      }
+    }
+  ]
+}

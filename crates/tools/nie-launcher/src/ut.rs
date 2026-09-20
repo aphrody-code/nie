@@ -250,17 +250,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "4-3-3".into(),
             slots: vec![
-                UtFormationSlot { key: "EXTI".into(), label: "EXTI".into(), x: 15.0, y: 8.0 },
-                UtFormationSlot { key: "DL".into(), label: "DL".into(), x: 50.0, y: 3.0 },
-                UtFormationSlot { key: "EXTD".into(), label: "EXTD".into(), x: 85.0, y: 8.0 },
-                UtFormationSlot { key: "MC1".into(), label: "MC".into(), x: 20.0, y: 35.0 },
-                UtFormationSlot { key: "MC2".into(), label: "MC".into(), x: 50.0, y: 35.0 },
-                UtFormationSlot { key: "MC3".into(), label: "MC".into(), x: 80.0, y: 35.0 },
-                UtFormationSlot { key: "DF1".into(), label: "DF".into(), x: 12.0, y: 70.0 },
-                UtFormationSlot { key: "DF2".into(), label: "DF".into(), x: 38.0, y: 70.0 },
-                UtFormationSlot { key: "DF3".into(), label: "DF".into(), x: 62.0, y: 70.0 },
-                UtFormationSlot { key: "DF4".into(), label: "DF".into(), x: 88.0, y: 70.0 },
-                UtFormationSlot { key: "POR".into(), label: "POR".into(), x: 50.0, y: 95.0 },
+                UtFormationSlot {
+                    key: "EXTI".into(),
+                    label: "EXTI".into(),
+                    x: 15.0,
+                    y: 8.0,
+                },
+                UtFormationSlot {
+                    key: "DL".into(),
+                    label: "DL".into(),
+                    x: 50.0,
+                    y: 3.0,
+                },
+                UtFormationSlot {
+                    key: "EXTD".into(),
+                    label: "EXTD".into(),
+                    x: 85.0,
+                    y: 8.0,
+                },
+                UtFormationSlot {
+                    key: "MC1".into(),
+                    label: "MC".into(),
+                    x: 20.0,
+                    y: 35.0,
+                },
+                UtFormationSlot {
+                    key: "MC2".into(),
+                    label: "MC".into(),
+                    x: 50.0,
+                    y: 35.0,
+                },
+                UtFormationSlot {
+                    key: "MC3".into(),
+                    label: "MC".into(),
+                    x: 80.0,
+                    y: 35.0,
+                },
+                UtFormationSlot {
+                    key: "DF1".into(),
+                    label: "DF".into(),
+                    x: 12.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "DF2".into(),
+                    label: "DF".into(),
+                    x: 38.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "DF3".into(),
+                    label: "DF".into(),
+                    x: 62.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "DF4".into(),
+                    label: "DF".into(),
+                    x: 88.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "POR".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 95.0,
+                },
             ],
         };
     }
@@ -269,17 +324,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "3-5-2 Libertad".into(),
             slots: vec![
-                UtFormationSlot { key: "9".into(), label: "DC".into(), x: 25.0, y: 10.0 },
-                UtFormationSlot { key: "10".into(), label: "DC".into(), x: 75.0, y: 10.0 },
-                UtFormationSlot { key: "6".into(), label: "MC".into(), x: 12.0, y: 29.0 },
-                UtFormationSlot { key: "7".into(), label: "MC".into(), x: 50.0, y: 29.0 },
-                UtFormationSlot { key: "8".into(), label: "MC".into(), x: 88.0, y: 29.0 },
-                UtFormationSlot { key: "4".into(), label: "MC".into(), x: 30.0, y: 49.0 },
-                UtFormationSlot { key: "5".into(), label: "MC".into(), x: 70.0, y: 49.0 },
-                UtFormationSlot { key: "1".into(), label: "DF".into(), x: 12.0, y: 70.0 },
-                UtFormationSlot { key: "2".into(), label: "DF".into(), x: 50.0, y: 70.0 },
-                UtFormationSlot { key: "3".into(), label: "DF".into(), x: 88.0, y: 70.0 },
-                UtFormationSlot { key: "0".into(), label: "POR".into(), x: 50.0, y: 89.0 },
+                UtFormationSlot {
+                    key: "9".into(),
+                    label: "DC".into(),
+                    x: 25.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "10".into(),
+                    label: "DC".into(),
+                    x: 75.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "6".into(),
+                    label: "MC".into(),
+                    x: 12.0,
+                    y: 29.0,
+                },
+                UtFormationSlot {
+                    key: "7".into(),
+                    label: "MC".into(),
+                    x: 50.0,
+                    y: 29.0,
+                },
+                UtFormationSlot {
+                    key: "8".into(),
+                    label: "MC".into(),
+                    x: 88.0,
+                    y: 29.0,
+                },
+                UtFormationSlot {
+                    key: "4".into(),
+                    label: "MC".into(),
+                    x: 30.0,
+                    y: 49.0,
+                },
+                UtFormationSlot {
+                    key: "5".into(),
+                    label: "MC".into(),
+                    x: 70.0,
+                    y: 49.0,
+                },
+                UtFormationSlot {
+                    key: "1".into(),
+                    label: "DF".into(),
+                    x: 12.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "2".into(),
+                    label: "DF".into(),
+                    x: 50.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "3".into(),
+                    label: "DF".into(),
+                    x: 88.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "0".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 89.0,
+                },
             ],
         };
     }
@@ -288,17 +398,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "3-6-1 Hexa".into(),
             slots: vec![
-                UtFormationSlot { key: "10".into(), label: "DC".into(), x: 50.0, y: 10.0 },
-                UtFormationSlot { key: "4".into(), label: "MC".into(), x: 20.0, y: 15.0 },
-                UtFormationSlot { key: "7".into(), label: "MC".into(), x: 80.0, y: 15.0 },
-                UtFormationSlot { key: "8".into(), label: "MC".into(), x: 10.0, y: 34.0 },
-                UtFormationSlot { key: "9".into(), label: "MC".into(), x: 90.0, y: 34.0 },
-                UtFormationSlot { key: "5".into(), label: "MC".into(), x: 36.0, y: 49.0 },
-                UtFormationSlot { key: "6".into(), label: "MC".into(), x: 64.0, y: 49.0 },
-                UtFormationSlot { key: "1".into(), label: "DF".into(), x: 18.0, y: 70.0 },
-                UtFormationSlot { key: "2".into(), label: "DF".into(), x: 50.0, y: 70.0 },
-                UtFormationSlot { key: "3".into(), label: "DF".into(), x: 82.0, y: 70.0 },
-                UtFormationSlot { key: "0".into(), label: "POR".into(), x: 50.0, y: 89.0 },
+                UtFormationSlot {
+                    key: "10".into(),
+                    label: "DC".into(),
+                    x: 50.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "4".into(),
+                    label: "MC".into(),
+                    x: 20.0,
+                    y: 15.0,
+                },
+                UtFormationSlot {
+                    key: "7".into(),
+                    label: "MC".into(),
+                    x: 80.0,
+                    y: 15.0,
+                },
+                UtFormationSlot {
+                    key: "8".into(),
+                    label: "MC".into(),
+                    x: 10.0,
+                    y: 34.0,
+                },
+                UtFormationSlot {
+                    key: "9".into(),
+                    label: "MC".into(),
+                    x: 90.0,
+                    y: 34.0,
+                },
+                UtFormationSlot {
+                    key: "5".into(),
+                    label: "MC".into(),
+                    x: 36.0,
+                    y: 49.0,
+                },
+                UtFormationSlot {
+                    key: "6".into(),
+                    label: "MC".into(),
+                    x: 64.0,
+                    y: 49.0,
+                },
+                UtFormationSlot {
+                    key: "1".into(),
+                    label: "DF".into(),
+                    x: 18.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "2".into(),
+                    label: "DF".into(),
+                    x: 50.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "3".into(),
+                    label: "DF".into(),
+                    x: 82.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "0".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 89.0,
+                },
             ],
         };
     }
@@ -307,17 +472,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "4-3-3 Delta".into(),
             slots: vec![
-                UtFormationSlot { key: "8".into(), label: "EXTI".into(), x: 12.0, y: 15.0 },
-                UtFormationSlot { key: "9".into(), label: "DL".into(), x: 50.0, y: 10.0 },
-                UtFormationSlot { key: "10".into(), label: "EXTD".into(), x: 88.0, y: 15.0 },
-                UtFormationSlot { key: "5".into(), label: "MC".into(), x: 35.0, y: 31.0 },
-                UtFormationSlot { key: "7".into(), label: "MC".into(), x: 65.0, y: 31.0 },
-                UtFormationSlot { key: "6".into(), label: "MC".into(), x: 50.0, y: 52.0 },
-                UtFormationSlot { key: "1".into(), label: "DF".into(), x: 10.0, y: 54.0 },
-                UtFormationSlot { key: "4".into(), label: "DF".into(), x: 90.0, y: 54.0 },
-                UtFormationSlot { key: "2".into(), label: "DF".into(), x: 32.0, y: 70.0 },
-                UtFormationSlot { key: "3".into(), label: "DF".into(), x: 68.0, y: 70.0 },
-                UtFormationSlot { key: "0".into(), label: "POR".into(), x: 50.0, y: 88.0 },
+                UtFormationSlot {
+                    key: "8".into(),
+                    label: "EXTI".into(),
+                    x: 12.0,
+                    y: 15.0,
+                },
+                UtFormationSlot {
+                    key: "9".into(),
+                    label: "DL".into(),
+                    x: 50.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "10".into(),
+                    label: "EXTD".into(),
+                    x: 88.0,
+                    y: 15.0,
+                },
+                UtFormationSlot {
+                    key: "5".into(),
+                    label: "MC".into(),
+                    x: 35.0,
+                    y: 31.0,
+                },
+                UtFormationSlot {
+                    key: "7".into(),
+                    label: "MC".into(),
+                    x: 65.0,
+                    y: 31.0,
+                },
+                UtFormationSlot {
+                    key: "6".into(),
+                    label: "MC".into(),
+                    x: 50.0,
+                    y: 52.0,
+                },
+                UtFormationSlot {
+                    key: "1".into(),
+                    label: "DF".into(),
+                    x: 10.0,
+                    y: 54.0,
+                },
+                UtFormationSlot {
+                    key: "4".into(),
+                    label: "DF".into(),
+                    x: 90.0,
+                    y: 54.0,
+                },
+                UtFormationSlot {
+                    key: "2".into(),
+                    label: "DF".into(),
+                    x: 32.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "3".into(),
+                    label: "DF".into(),
+                    x: 68.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "0".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 88.0,
+                },
             ],
         };
     }
@@ -326,17 +546,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "4-3-3 Triangulo".into(),
             slots: vec![
-                UtFormationSlot { key: "9".into(), label: "EXTI".into(), x: 18.0, y: 16.0 },
-                UtFormationSlot { key: "8".into(), label: "DL".into(), x: 50.0, y: 10.0 },
-                UtFormationSlot { key: "10".into(), label: "EXTD".into(), x: 82.0, y: 16.0 },
-                UtFormationSlot { key: "5".into(), label: "MC".into(), x: 50.0, y: 31.0 },
-                UtFormationSlot { key: "6".into(), label: "MC".into(), x: 26.0, y: 43.0 },
-                UtFormationSlot { key: "7".into(), label: "MC".into(), x: 74.0, y: 43.0 },
-                UtFormationSlot { key: "3".into(), label: "DF".into(), x: 12.0, y: 63.0 },
-                UtFormationSlot { key: "4".into(), label: "DF".into(), x: 88.0, y: 63.0 },
-                UtFormationSlot { key: "1".into(), label: "DF".into(), x: 34.0, y: 70.0 },
-                UtFormationSlot { key: "2".into(), label: "DF".into(), x: 66.0, y: 70.0 },
-                UtFormationSlot { key: "0".into(), label: "POR".into(), x: 50.0, y: 89.0 },
+                UtFormationSlot {
+                    key: "9".into(),
+                    label: "EXTI".into(),
+                    x: 18.0,
+                    y: 16.0,
+                },
+                UtFormationSlot {
+                    key: "8".into(),
+                    label: "DL".into(),
+                    x: 50.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "10".into(),
+                    label: "EXTD".into(),
+                    x: 82.0,
+                    y: 16.0,
+                },
+                UtFormationSlot {
+                    key: "5".into(),
+                    label: "MC".into(),
+                    x: 50.0,
+                    y: 31.0,
+                },
+                UtFormationSlot {
+                    key: "6".into(),
+                    label: "MC".into(),
+                    x: 26.0,
+                    y: 43.0,
+                },
+                UtFormationSlot {
+                    key: "7".into(),
+                    label: "MC".into(),
+                    x: 74.0,
+                    y: 43.0,
+                },
+                UtFormationSlot {
+                    key: "3".into(),
+                    label: "DF".into(),
+                    x: 12.0,
+                    y: 63.0,
+                },
+                UtFormationSlot {
+                    key: "4".into(),
+                    label: "DF".into(),
+                    x: 88.0,
+                    y: 63.0,
+                },
+                UtFormationSlot {
+                    key: "1".into(),
+                    label: "DF".into(),
+                    x: 34.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "2".into(),
+                    label: "DF".into(),
+                    x: 66.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "0".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 89.0,
+                },
             ],
         };
     }
@@ -345,17 +620,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "4-4-2 Caja".into(),
             slots: vec![
-                UtFormationSlot { key: "9".into(), label: "DC".into(), x: 38.0, y: 10.0 },
-                UtFormationSlot { key: "10".into(), label: "DC".into(), x: 62.0, y: 10.0 },
-                UtFormationSlot { key: "7".into(), label: "MC".into(), x: 16.0, y: 29.0 },
-                UtFormationSlot { key: "8".into(), label: "MC".into(), x: 83.0, y: 29.0 },
-                UtFormationSlot { key: "5".into(), label: "MC".into(), x: 36.0, y: 47.0 },
-                UtFormationSlot { key: "6".into(), label: "MC".into(), x: 64.0, y: 47.0 },
-                UtFormationSlot { key: "3".into(), label: "DF".into(), x: 12.0, y: 58.0 },
-                UtFormationSlot { key: "4".into(), label: "DF".into(), x: 88.0, y: 58.0 },
-                UtFormationSlot { key: "1".into(), label: "DF".into(), x: 29.0, y: 76.0 },
-                UtFormationSlot { key: "2".into(), label: "DF".into(), x: 71.0, y: 76.0 },
-                UtFormationSlot { key: "0".into(), label: "POR".into(), x: 50.0, y: 88.0 },
+                UtFormationSlot {
+                    key: "9".into(),
+                    label: "DC".into(),
+                    x: 38.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "10".into(),
+                    label: "DC".into(),
+                    x: 62.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "7".into(),
+                    label: "MC".into(),
+                    x: 16.0,
+                    y: 29.0,
+                },
+                UtFormationSlot {
+                    key: "8".into(),
+                    label: "MC".into(),
+                    x: 83.0,
+                    y: 29.0,
+                },
+                UtFormationSlot {
+                    key: "5".into(),
+                    label: "MC".into(),
+                    x: 36.0,
+                    y: 47.0,
+                },
+                UtFormationSlot {
+                    key: "6".into(),
+                    label: "MC".into(),
+                    x: 64.0,
+                    y: 47.0,
+                },
+                UtFormationSlot {
+                    key: "3".into(),
+                    label: "DF".into(),
+                    x: 12.0,
+                    y: 58.0,
+                },
+                UtFormationSlot {
+                    key: "4".into(),
+                    label: "DF".into(),
+                    x: 88.0,
+                    y: 58.0,
+                },
+                UtFormationSlot {
+                    key: "1".into(),
+                    label: "DF".into(),
+                    x: 29.0,
+                    y: 76.0,
+                },
+                UtFormationSlot {
+                    key: "2".into(),
+                    label: "DF".into(),
+                    x: 71.0,
+                    y: 76.0,
+                },
+                UtFormationSlot {
+                    key: "0".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 88.0,
+                },
             ],
         };
     }
@@ -364,17 +694,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "4-4-2 Diamante".into(),
             slots: vec![
-                UtFormationSlot { key: "9".into(), label: "DC".into(), x: 24.0, y: 10.0 },
-                UtFormationSlot { key: "10".into(), label: "DC".into(), x: 76.0, y: 10.0 },
-                UtFormationSlot { key: "8".into(), label: "MC".into(), x: 50.0, y: 20.0 },
-                UtFormationSlot { key: "6".into(), label: "MC".into(), x: 29.0, y: 37.0 },
-                UtFormationSlot { key: "7".into(), label: "MC".into(), x: 71.0, y: 37.0 },
-                UtFormationSlot { key: "5".into(), label: "MC".into(), x: 50.0, y: 55.0 },
-                UtFormationSlot { key: "3".into(), label: "DF".into(), x: 13.0, y: 61.0 },
-                UtFormationSlot { key: "4".into(), label: "DF".into(), x: 87.0, y: 61.0 },
-                UtFormationSlot { key: "1".into(), label: "DF".into(), x: 32.0, y: 73.0 },
-                UtFormationSlot { key: "2".into(), label: "DF".into(), x: 68.0, y: 73.0 },
-                UtFormationSlot { key: "0".into(), label: "POR".into(), x: 50.0, y: 89.0 },
+                UtFormationSlot {
+                    key: "9".into(),
+                    label: "DC".into(),
+                    x: 24.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "10".into(),
+                    label: "DC".into(),
+                    x: 76.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "8".into(),
+                    label: "MC".into(),
+                    x: 50.0,
+                    y: 20.0,
+                },
+                UtFormationSlot {
+                    key: "6".into(),
+                    label: "MC".into(),
+                    x: 29.0,
+                    y: 37.0,
+                },
+                UtFormationSlot {
+                    key: "7".into(),
+                    label: "MC".into(),
+                    x: 71.0,
+                    y: 37.0,
+                },
+                UtFormationSlot {
+                    key: "5".into(),
+                    label: "MC".into(),
+                    x: 50.0,
+                    y: 55.0,
+                },
+                UtFormationSlot {
+                    key: "3".into(),
+                    label: "DF".into(),
+                    x: 13.0,
+                    y: 61.0,
+                },
+                UtFormationSlot {
+                    key: "4".into(),
+                    label: "DF".into(),
+                    x: 87.0,
+                    y: 61.0,
+                },
+                UtFormationSlot {
+                    key: "1".into(),
+                    label: "DF".into(),
+                    x: 32.0,
+                    y: 73.0,
+                },
+                UtFormationSlot {
+                    key: "2".into(),
+                    label: "DF".into(),
+                    x: 68.0,
+                    y: 73.0,
+                },
+                UtFormationSlot {
+                    key: "0".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 89.0,
+                },
             ],
         };
     }
@@ -383,17 +768,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "4-5-1 Equilibrio".into(),
             slots: vec![
-                UtFormationSlot { key: "10".into(), label: "DC".into(), x: 50.0, y: 10.0 },
-                UtFormationSlot { key: "8".into(), label: "MC".into(), x: 19.0, y: 20.0 },
-                UtFormationSlot { key: "9".into(), label: "MC".into(), x: 81.0, y: 20.0 },
-                UtFormationSlot { key: "5".into(), label: "MC".into(), x: 50.0, y: 35.0 },
-                UtFormationSlot { key: "6".into(), label: "MC".into(), x: 25.0, y: 43.0 },
-                UtFormationSlot { key: "7".into(), label: "MC".into(), x: 75.0, y: 43.0 },
-                UtFormationSlot { key: "3".into(), label: "DF".into(), x: 10.0, y: 61.0 },
-                UtFormationSlot { key: "4".into(), label: "DF".into(), x: 90.0, y: 61.0 },
-                UtFormationSlot { key: "1".into(), label: "DF".into(), x: 34.0, y: 70.0 },
-                UtFormationSlot { key: "2".into(), label: "DF".into(), x: 66.0, y: 70.0 },
-                UtFormationSlot { key: "0".into(), label: "POR".into(), x: 50.0, y: 89.0 },
+                UtFormationSlot {
+                    key: "10".into(),
+                    label: "DC".into(),
+                    x: 50.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "8".into(),
+                    label: "MC".into(),
+                    x: 19.0,
+                    y: 20.0,
+                },
+                UtFormationSlot {
+                    key: "9".into(),
+                    label: "MC".into(),
+                    x: 81.0,
+                    y: 20.0,
+                },
+                UtFormationSlot {
+                    key: "5".into(),
+                    label: "MC".into(),
+                    x: 50.0,
+                    y: 35.0,
+                },
+                UtFormationSlot {
+                    key: "6".into(),
+                    label: "MC".into(),
+                    x: 25.0,
+                    y: 43.0,
+                },
+                UtFormationSlot {
+                    key: "7".into(),
+                    label: "MC".into(),
+                    x: 75.0,
+                    y: 43.0,
+                },
+                UtFormationSlot {
+                    key: "3".into(),
+                    label: "DF".into(),
+                    x: 10.0,
+                    y: 61.0,
+                },
+                UtFormationSlot {
+                    key: "4".into(),
+                    label: "DF".into(),
+                    x: 90.0,
+                    y: 61.0,
+                },
+                UtFormationSlot {
+                    key: "1".into(),
+                    label: "DF".into(),
+                    x: 34.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "2".into(),
+                    label: "DF".into(),
+                    x: 66.0,
+                    y: 70.0,
+                },
+                UtFormationSlot {
+                    key: "0".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 89.0,
+                },
             ],
         };
     }
@@ -402,17 +842,72 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
         return UtFormationLayout {
             name: "5-4-1 Doble Volante".into(),
             slots: vec![
-                UtFormationSlot { key: "10".into(), label: "DC".into(), x: 50.0, y: 10.0 },
-                UtFormationSlot { key: "6".into(), label: "MC".into(), x: 20.0, y: 16.0 },
-                UtFormationSlot { key: "9".into(), label: "MC".into(), x: 80.0, y: 16.0 },
-                UtFormationSlot { key: "7".into(), label: "MC".into(), x: 38.0, y: 35.0 },
-                UtFormationSlot { key: "8".into(), label: "MC".into(), x: 62.0, y: 35.0 },
-                UtFormationSlot { key: "1".into(), label: "DF".into(), x: 10.0, y: 49.0 },
-                UtFormationSlot { key: "5".into(), label: "DF".into(), x: 90.0, y: 49.0 },
-                UtFormationSlot { key: "2".into(), label: "DF".into(), x: 30.0, y: 68.0 },
-                UtFormationSlot { key: "3".into(), label: "DF".into(), x: 50.0, y: 68.0 },
-                UtFormationSlot { key: "4".into(), label: "DF".into(), x: 70.0, y: 68.0 },
-                UtFormationSlot { key: "0".into(), label: "POR".into(), x: 50.0, y: 89.0 },
+                UtFormationSlot {
+                    key: "10".into(),
+                    label: "DC".into(),
+                    x: 50.0,
+                    y: 10.0,
+                },
+                UtFormationSlot {
+                    key: "6".into(),
+                    label: "MC".into(),
+                    x: 20.0,
+                    y: 16.0,
+                },
+                UtFormationSlot {
+                    key: "9".into(),
+                    label: "MC".into(),
+                    x: 80.0,
+                    y: 16.0,
+                },
+                UtFormationSlot {
+                    key: "7".into(),
+                    label: "MC".into(),
+                    x: 38.0,
+                    y: 35.0,
+                },
+                UtFormationSlot {
+                    key: "8".into(),
+                    label: "MC".into(),
+                    x: 62.0,
+                    y: 35.0,
+                },
+                UtFormationSlot {
+                    key: "1".into(),
+                    label: "DF".into(),
+                    x: 10.0,
+                    y: 49.0,
+                },
+                UtFormationSlot {
+                    key: "5".into(),
+                    label: "DF".into(),
+                    x: 90.0,
+                    y: 49.0,
+                },
+                UtFormationSlot {
+                    key: "2".into(),
+                    label: "DF".into(),
+                    x: 30.0,
+                    y: 68.0,
+                },
+                UtFormationSlot {
+                    key: "3".into(),
+                    label: "DF".into(),
+                    x: 50.0,
+                    y: 68.0,
+                },
+                UtFormationSlot {
+                    key: "4".into(),
+                    label: "DF".into(),
+                    x: 70.0,
+                    y: 68.0,
+                },
+                UtFormationSlot {
+                    key: "0".into(),
+                    label: "POR".into(),
+                    x: 50.0,
+                    y: 89.0,
+                },
             ],
         };
     }
@@ -482,28 +977,42 @@ pub fn formation_layout(name: &str) -> UtFormationLayout {
 // ── Pack Opening Simulator ───────────────────────────────────────────────────
 
 /// Simulate opening a pack according to exact mathematical drop probabilities.
-pub fn open_pack(
-    pack: &UtPack,
-    players: &[UtPlayer],
-    rng: &mut impl Rng,
-) -> PackOpeningResult {
+pub fn open_pack(pack: &UtPack, players: &[UtPlayer], rng: &mut impl Rng) -> PackOpeningResult {
     let mut cards = Vec::new();
 
     for _ in 0..pack.card_count {
         let roll: f64 = rng.gen_range(0.0..1.0);
 
         let mut cum = 0.0;
-        let rolled_rarity = if pack.prob_basara > 0.0 && { cum += pack.prob_basara; roll < cum } {
+        let rolled_rarity = if pack.prob_basara > 0.0 && {
+            cum += pack.prob_basara;
+            roll < cum
+        } {
             "Basara"
-        } else if pack.prob_icon > 0.0 && { cum += pack.prob_icon; roll < cum } {
+        } else if pack.prob_icon > 0.0 && {
+            cum += pack.prob_icon;
+            roll < cum
+        } {
             "Ícono"
-        } else if pack.prob_legendary_supremo > 0.0 && { cum += pack.prob_legendary_supremo; roll < cum } {
+        } else if pack.prob_legendary_supremo > 0.0 && {
+            cum += pack.prob_legendary_supremo;
+            roll < cum
+        } {
             "Legendario Supremo"
-        } else if pack.prob_legendary_elite > 0.0 && { cum += pack.prob_legendary_elite; roll < cum } {
+        } else if pack.prob_legendary_elite > 0.0 && {
+            cum += pack.prob_legendary_elite;
+            roll < cum
+        } {
             "Legendario Elite"
-        } else if pack.prob_legendary > 0.0 && { cum += pack.prob_legendary; roll < cum } {
+        } else if pack.prob_legendary > 0.0 && {
+            cum += pack.prob_legendary;
+            roll < cum
+        } {
             "Legendario"
-        } else if pack.prob_rare > 0.0 && { cum += pack.prob_rare; roll < cum } {
+        } else if pack.prob_rare > 0.0 && {
+            cum += pack.prob_rare;
+            roll < cum
+        } {
             "Raro"
         } else {
             "Común"
@@ -612,10 +1121,7 @@ pub fn quick_sell_value(rarity: &str) -> u32 {
 }
 
 /// Calculate total squad valuation and rarity distribution.
-pub fn calculate_squad_valuation(
-    lineup: &TeamLineup,
-    _db: Option<&UtDatabase>,
-) -> SquadValuation {
+pub fn calculate_squad_valuation(lineup: &TeamLineup, _db: Option<&UtDatabase>) -> SquadValuation {
     let mut total_quicksell = 0;
     let mut rarity_counts = HashMap::new();
 
@@ -874,7 +1380,11 @@ impl UtDatabase {
             .filter(|p| {
                 if let Some(ref q_str) = q {
                     let name_norm = normalize_name(&p.name);
-                    let nick_norm = p.nickname.as_deref().map(normalize_name).unwrap_or_default();
+                    let nick_norm = p
+                        .nickname
+                        .as_deref()
+                        .map(normalize_name)
+                        .unwrap_or_default();
                     let en_norm = p.name_en.as_deref().map(normalize_name).unwrap_or_default();
                     let ja_norm = p.name_ja.as_deref().map(normalize_name).unwrap_or_default();
                     if !name_norm.contains(q_str)
@@ -887,12 +1397,14 @@ impl UtDatabase {
                     }
                 }
                 if let Some(ref el_str) = el
-                    && !normalize_name(&p.element).contains(el_str) {
-                        return false;
+                    && !normalize_name(&p.element).contains(el_str)
+                {
+                    return false;
                 }
                 if let Some(ref rar_str) = rar
-                    && !normalize_name(&p.rarity).contains(rar_str) {
-                        return false;
+                    && !normalize_name(&p.rarity).contains(rar_str)
+                {
+                    return false;
                 }
                 true
             })
@@ -1040,8 +1552,12 @@ impl UtDatabase {
                 let name_fr: String = row.get(1)?;
                 let name_en: Option<String> = row.get(2)?;
                 let name_ja: Option<String> = row.get(3)?;
-                let category: String = row.get::<_, Option<String>>(4)?.unwrap_or_else(|| "Tir".into());
-                let element: String = row.get::<_, Option<String>>(5)?.unwrap_or_else(|| "Feu".into());
+                let category: String = row
+                    .get::<_, Option<String>>(4)?
+                    .unwrap_or_else(|| "Tir".into());
+                let element: String = row
+                    .get::<_, Option<String>>(5)?
+                    .unwrap_or_else(|| "Feu".into());
                 let tp_str: Option<String> = row.get(6)?;
                 let p_min_str: Option<String> = row.get(7)?;
                 let p_max_str: Option<String> = row.get(8)?;
@@ -1265,11 +1781,20 @@ mod tests {
     fn test_fused_ut_database_loads_all_players_and_teams() {
         if let Ok(db) = UtDatabase::open_default() {
             let players = db.get_players().expect("failed to load fused players");
-            assert!(players.len() >= 497, "Expected at least 497 players from FUT");
+            assert!(
+                players.len() >= 497,
+                "Expected at least 497 players from FUT"
+            );
             if db.has_azalee() {
-                assert!(players.len() > 2000, "Fused database should contain thousands of characters from Azalée");
+                assert!(
+                    players.len() > 2000,
+                    "Fused database should contain thousands of characters from Azalée"
+                );
                 let teams = db.get_teams().expect("failed to load fused teams");
-                assert!(teams.len() > 100, "Fused teams should contain over 100 teams");
+                assert!(
+                    teams.len() > 100,
+                    "Fused teams should contain over 100 teams"
+                );
             }
         }
     }

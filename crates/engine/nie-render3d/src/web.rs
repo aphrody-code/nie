@@ -562,11 +562,7 @@ mod browser {
         }
 
         /// Boîte englobante des primitives appartenant à `id`, en espace monde.
-        fn bounds_of_owner(
-            &self,
-            model: &glb::Model,
-            id: &str,
-        ) -> Option<([f32; 3], [f32; 3])> {
+        fn bounds_of_owner(&self, model: &glb::Model, id: &str) -> Option<([f32; 3], [f32; 3])> {
             let mut min = [f32::INFINITY; 3];
             let mut max = [f32::NEG_INFINITY; 3];
             let mut vu = false;

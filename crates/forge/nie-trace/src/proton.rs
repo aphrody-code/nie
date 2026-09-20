@@ -66,7 +66,11 @@ fn non_empty(key: &str) -> Option<String> {
 /// Same, for a path — kept on `OsString` so a non-UTF-8 path survives.
 fn non_empty_path(key: &str) -> Option<PathBuf> {
     let v = std::env::var_os(key)?;
-    if v.is_empty() { None } else { Some(PathBuf::from(v)) }
+    if v.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(v))
+    }
 }
 
 /// Anything that stops the game from being launched.
@@ -383,7 +387,10 @@ pub fn launch_env(layout: &Layout, runtime: &Runtime) -> Vec<(OsString, OsString
         "DXVK_LOG_PATH".to_owned(),
         layout.logs.to_string_lossy().into_owned(),
     );
-    env.insert("DXVK_LOG_LEVEL".to_owned(), or_env("DXVK_LOG_LEVEL", "info"));
+    env.insert(
+        "DXVK_LOG_LEVEL".to_owned(),
+        or_env("DXVK_LOG_LEVEL", "info"),
+    );
     env.insert("DXVK_ENABLE_NVAPI".to_owned(), "0".to_owned());
     env.insert(
         "WINEDLLOVERRIDES".to_owned(),
@@ -602,7 +609,11 @@ pub fn doctor(layout: &Layout) -> Vec<Check> {
         default_pfx.is_dir(),
     ));
 
-    out.push(Check::path("prefix", &layout.prefix, layout.prefix.is_dir()));
+    out.push(Check::path(
+        "prefix",
+        &layout.prefix,
+        layout.prefix.is_dir(),
+    ));
 
     // The sentinel `nie-wine-setup.sh` itself uses to decide the prefix is complete: a prefix
     // built by `wineboot` on an empty directory lacks it, and the d3dcompiler_47 import then
@@ -709,9 +720,8 @@ pub fn prepare_prefix(
 
     if rebuild {
         if layout.prefix.exists() {
-            fs::remove_dir_all(&layout.prefix).map_err(|e| {
-                ProtonError::io(format!("removing {}", layout.prefix.display()), e)
-            })?;
+            fs::remove_dir_all(&layout.prefix)
+                .map_err(|e| ProtonError::io(format!("removing {}", layout.prefix.display()), e))?;
         }
         if let Some(parent) = layout.prefix.parent() {
             fs::create_dir_all(parent)
@@ -795,8 +805,8 @@ fn copy_dereferenced_at(src: &Path, dst: &Path, depth: usize) -> Result<(), Prot
     }
     fs::create_dir_all(dst)
         .map_err(|e| ProtonError::io(format!("creating {}", dst.display()), e))?;
-    let entries = fs::read_dir(src)
-        .map_err(|e| ProtonError::io(format!("reading {}", src.display()), e))?;
+    let entries =
+        fs::read_dir(src).map_err(|e| ProtonError::io(format!("reading {}", src.display()), e))?;
     for entry in entries {
         let entry = entry.map_err(|e| ProtonError::io(format!("reading {}", src.display()), e))?;
         let from = entry.path();
@@ -805,10 +815,7 @@ fn copy_dereferenced_at(src: &Path, dst: &Path, depth: usize) -> Result<(), Prot
         // reported rather than swallowed, so a link broken by a Proton update surfaces here,
         // naming the file, instead of at game start, naming nothing.
         let meta = fs::metadata(&from).map_err(|e| {
-            ProtonError::io(
-                format!("resolving {} (broken symlink?)", from.display()),
-                e,
-            )
+            ProtonError::io(format!("resolving {} (broken symlink?)", from.display()), e)
         })?;
         if meta.is_dir() {
             copy_dereferenced_at(&from, &to, depth + 1)?;
@@ -852,18 +859,12 @@ fn copy_graphics_dlls(layout: &Layout, runtime: &Runtime) -> Result<(), ProtonEr
 
     for name in ["d3d11", "dxgi", "d3d10core", "d3d9"] {
         let file = format!("{name}.dll");
-        for (arch, dest) in [
-            ("x86_64-windows", &system32),
-            ("i386-windows", &syswow64),
-        ] {
+        for (arch, dest) in [("x86_64-windows", &system32), ("i386-windows", &syswow64)] {
             let from = runtime.files.join("lib/wine/dxvk").join(arch).join(&file);
             if from.is_file() {
                 let to = dest.join(&file);
                 fs::copy(&from, &to).map_err(|e| {
-                    ProtonError::io(
-                        format!("copying {} to {}", from.display(), to.display()),
-                        e,
-                    )
+                    ProtonError::io(format!("copying {} to {}", from.display(), to.display()), e)
                 })?;
             }
         }
@@ -873,13 +874,13 @@ fn copy_graphics_dlls(layout: &Layout, runtime: &Runtime) -> Result<(), ProtonEr
     if let Ok(entries) = fs::read_dir(&vkd3d) {
         for entry in entries.flatten() {
             let from = entry.path();
-            if from.extension().is_some_and(|e| e.eq_ignore_ascii_case("dll")) {
+            if from
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("dll"))
+            {
                 let to = system32.join(entry.file_name());
                 fs::copy(&from, &to).map_err(|e| {
-                    ProtonError::io(
-                        format!("copying {} to {}", from.display(), to.display()),
-                        e,
-                    )
+                    ProtonError::io(format!("copying {} to {}", from.display(), to.display()), e)
                 })?;
             }
         }

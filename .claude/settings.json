@@ -41,7 +41,7 @@
     "niers-marketplace": {
       "source": {
         "source": "directory",
-        "path": "./plugins"
+        "path": "/home/ubuntu/niers/plugins"
       }
     },
     "aphrody-marketplace": {

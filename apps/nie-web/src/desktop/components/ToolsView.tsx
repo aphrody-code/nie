@@ -24,6 +24,7 @@
 // Le calculateur de stats n'est pas dupliqué : c'est le composant `tools/StatCalculator`, celui-là
 // même que monte l'onglet « Calculateur de stats » de `GameDataView`.
 import { useEffect, useMemo, useState } from "react";
+import { NATIVE_WINDOW } from "../../host";
 
 import { api } from "@/lib/api";
 import { versJoueur, versJoueurDepuisJeu, type Joueur } from "@/lib/equipe";
@@ -39,15 +40,9 @@ import { TeamBuilderPanel } from "@/components/tools/TeamBuilderPanel";
 import { TranslatorPanel } from "@/components/tools/TranslatorPanel";
 import { ProbabilitesPanel } from "@/components/tools/ProbabilitesPanel";
 import { ProgressionPanel } from "@/components/tools/ProgressionPanel";
+import { toolFromSearch, toolSearch, type ToolView } from "./tools/tool-navigation";
 
-type Outil =
-  | "traducteur"
-  | "stats"
-  | "comparateur"
-  | "aleatoire"
-  | "equipe"
-  | "progression"
-  | "probabilites";
+type Outil = ToolView;
 
 const LIBELLES: Record<Outil, string> = {
   traducteur: "Traducteur",
@@ -63,7 +58,16 @@ const LIBELLES: Record<Outil, string> = {
 
 export function ToolsView({ onOpenSearch }: { onOpenSearch?: (query: string) => void }) {
   const settings = useSettings();
-  const [outil, setOutil] = useState<Outil>("traducteur");
+  const [outil, setOutil] = useState<Outil>(() => toolFromSearch(window.location.search));
+  useEffect(() => {
+    const restore = () => setOutil(toolFromSearch(window.location.search));
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+  const selectTool = (view: Outil) => {
+    setOutil(view);
+    if (!NATIVE_WINDOW) window.history.pushState(null, "", `${window.location.pathname}${toolSearch(window.location.search, view)}${window.location.hash}`);
+  };
   const [roster, setRoster] = useState<Joueur[]>([]);
   /** D'où viennent les joueurs affichés — l'utilisatrice doit pouvoir le lire, pas le deviner. */
   const [sourceRoster, setSourceRoster] = useState<"miroir" | "jeu" | null>(null);
@@ -91,7 +95,8 @@ export function ToolsView({ onOpenSearch }: { onOpenSearch?: (query: string) => 
         return null;
       });
 
-    const promesse = chemin
+    // The browser uses the server-owned mirror; it never needs a local database path.
+    const promesse = chemin || !NATIVE_WINDOW
       ? wikiDb
           .loadRoster(chemin)
           .then((lignes) => {
@@ -122,7 +127,7 @@ export function ToolsView({ onOpenSearch }: { onOpenSearch?: (query: string) => 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Tabs value={outil} onValueChange={(v) => v && setOutil(v as Outil)}>
+        <Tabs value={outil} onValueChange={(v) => v && selectTool(v as Outil)}>
           <TabsList>
             {onglets.map(([cle, libelle]) => (
               <TabsTrigger key={cle} value={cle}>

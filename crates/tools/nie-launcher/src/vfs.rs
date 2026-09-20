@@ -33,7 +33,10 @@ impl VfsServer {
     }
 
     pub fn start_listener(&self) -> Result<()> {
-        info!("VFS streaming listener initialized for pipe: {}", self.pipe_name);
+        info!(
+            "VFS streaming listener initialized for pipe: {}",
+            self.pipe_name
+        );
         Ok(())
     }
 }

@@ -11,6 +11,39 @@ listé qui ne s'y retrouve.
 
 ## [Non publié]
 
+## [1.0.0] — 2026-09-20
+
+592 commits depuis `v0.5.11`. Première version stable synchronisée du dépôt complet.
+
+### Ajouté
+
+- Une suite Rust unique pour le moteur, les formats, le VFS, le runtime Lua, l'interface native,
+  le CLI, MCP, le site, Inacord et le serveur de modèles, avec cinq artefacts de distribution.
+- Le module navigateur principal de `nie.exe`, son stockage VFS préchargé et vérifié, quatre
+  archives chaudes/froides et le profil Byron/Aphrody demandé.
+- Les propriétaires Rust des catalogues personnages, équipes, staff, techniques, objets,
+  illustrations, boutiques et stades, avec adaptateurs historiques testés.
+- Les outils de comparaison, génération et construction d'équipe raccordés aux règles Rust,
+  ainsi que la persistance, les liens partageables et les contrôles médias.
+- Une chaîne de release atomique, reproductible et réversible, avec manifestes SHA-256, contrôle
+  du commit exact, validation live et synchronisation de `main`.
+
+### Modifié
+
+- Le chargement public attend désormais la santé réelle du VFS et du gisement ; les ressources
+  secondaires et la 3D restent chargées à la demande.
+- Le décodeur audio WASM utilise une pile bornée à 2 Mio et prouve l'identité SHA-256 avec le
+  chemin HTTP Rust sur trois cues réels, y compris la reprise après erreur contrôlée.
+- La Banque, la galerie et les outils conservent filtres, pagination, variantes, historique du
+  navigateur et navigation clavier/tactile sans rendre des milliers de lignes simultanément.
+- Les captures Azalée fournies sont figées comme scénarios fonctionnels ; les captures natives du
+  jeu et `just ecrans` restent les seuls oracles de fidélité visuelle.
+
+### Retiré
+
+- Les écrans web inventés, les placeholders de jeu et les implémentations temporaires qui ne
+  provenaient ni des règles Rust ni des ressources natives.
+
 ## [0.6.0] — 2026-09-12
 
 227 commits depuis `v0.5.11`.
@@ -120,7 +153,8 @@ reverse-engineering.
 365 commits — l'amorçage. Familles de données `nie-data` (52), cœur `nie-core` (34),
 formats Level-5 `nie-formats` (15), serveur de modèles, premières vagues de reverse.
 
-[Non publié]: https://github.com/aphrody-code/nie/compare/v0.6.0...HEAD
+[Non publié]: https://github.com/aphrody-code/nie/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/aphrody-code/nie/compare/v0.5.11...v1.0.0
 [0.6.0]: https://github.com/aphrody-code/nie/compare/v0.5.11...v0.6.0
 [0.5.11]: https://github.com/aphrody-code/nie/compare/v0.5.10...v0.5.11
 [0.5.10]: https://github.com/aphrody-code/nie/compare/v0.5.9...v0.5.10

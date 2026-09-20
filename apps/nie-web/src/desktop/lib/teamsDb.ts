@@ -17,6 +17,9 @@
 // Ce qui n'est PAS ici : le format d'échange. Une composition se partage par le code de
 // `@niers/game/game/team-code`, identique à celui des URLs du wiki — cf. `equipe.ts`.
 import Database from "./sqlite";
+// Browser hosts use a versioned, bounded local store; native SQLite remains unchanged.
+import { NATIVE_WINDOW } from "../../host";
+import { createBrowserTeamStore } from "./teams-browser";
 
 import type { TeamMember } from "@niers/game/game/team-types";
 
@@ -41,6 +44,7 @@ export interface EquipeEnregistree {
 }
 
 let promesseDb: Promise<Database> | null = null;
+const browserStore = createBrowserTeamStore(() => window.localStorage);
 function db(): Promise<Database> {
   return (promesseDb ??= Database.load("sqlite:mods.db"));
 }
@@ -72,6 +76,7 @@ function versEquipe(l: LigneEquipe): EquipeEnregistree {
 export const teamsDb = {
   /** Toutes les compositions, la plus récemment modifiée d'abord. */
   async lister(): Promise<EquipeEnregistree[]> {
+    if (!NATIVE_WINDOW) return browserStore.lister();
     const d = await db();
     const lignes = await d.select<LigneEquipe[]>(
       "SELECT * FROM teams ORDER BY updated_at DESC, name ASC",
@@ -81,6 +86,7 @@ export const teamsDb = {
 
   /** Une composition par identifiant, `null` si elle n'existe plus. */
   async lire(id: string): Promise<EquipeEnregistree | null> {
+    if (!NATIVE_WINDOW) return browserStore.lire(id);
     const d = await db();
     const lignes = await d.select<LigneEquipe[]>("SELECT * FROM teams WHERE id = $1", [id]);
     return lignes[0] ? versEquipe(lignes[0]) : null;
@@ -97,6 +103,7 @@ export const teamsDb = {
     formationId: string,
     membres: Record<string, TeamMember>,
   ): Promise<string> {
+    if (!NATIVE_WINDOW) return browserStore.creer(nom, formationId, membres);
     const d = await db();
     const id = crypto.randomUUID();
     await d.execute(
@@ -113,6 +120,7 @@ export const teamsDb = {
     formationId: string,
     membres: Record<string, TeamMember>,
   ): Promise<void> {
+    if (!NATIVE_WINDOW) return browserStore.mettreAJour(id, nom, formationId, membres);
     const d = await db();
     await d.execute(
       `UPDATE teams SET name = $2, formation_id = $3, members = $4, updated_at = datetime('now')
@@ -123,6 +131,7 @@ export const teamsDb = {
 
   /** Supprime une composition. */
   async supprimer(id: string): Promise<void> {
+    if (!NATIVE_WINDOW) return browserStore.supprimer(id);
     const d = await db();
     await d.execute("DELETE FROM teams WHERE id = $1", [id]);
   },

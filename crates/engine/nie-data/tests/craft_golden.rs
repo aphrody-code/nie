@@ -392,13 +392,16 @@ fn real_obj_categories_resolvent_toutes_et_la_cinquieme_sature() {
         );
     }
 
-    let repartition: [usize; 5] = core::array::from_fn(|i| {
-        cfg.objs_in_category(i as i64 + 1).len()
-    });
+    let repartition: [usize; 5] =
+        core::array::from_fn(|i| cfg.objs_in_category(i as i64 + 1).len());
     assert_eq!(repartition, [70, 36, 40, 12, 2]);
     assert_eq!(repartition.iter().sum::<usize>(), cfg.objs.len());
 
-    assert_eq!(cfg.max_placeable(3), Some(20), "catégorie 3 = la ligne L du HUD");
+    assert_eq!(
+        cfg.max_placeable(3),
+        Some(20),
+        "catégorie 3 = la ligne L du HUD"
+    );
     assert_eq!(cfg.max_placeable(2), Some(50), "catégorie 2 = la ligne M");
     assert_eq!(cfg.max_placeable(1), Some(80), "catégorie 1 = la ligne S");
     assert_eq!(cfg.max_placeable(4), Some(100));
@@ -407,7 +410,11 @@ fn real_obj_categories_resolvent_toutes_et_la_cinquieme_sature() {
         Some(repartition[4]),
         "la catégorie 5 plafonne à 2 et ne compte que 2 objets"
     );
-    assert_eq!(cfg.max_placeable(6), None, "une catégorie absente n'est pas illimitée");
+    assert_eq!(
+        cfg.max_placeable(6),
+        None,
+        "une catégorie absente n'est pas illimitée"
+    );
 }
 
 #[test]

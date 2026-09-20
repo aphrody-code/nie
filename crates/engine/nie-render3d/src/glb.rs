@@ -456,10 +456,7 @@ pub struct SkinnedVertex {
 ///   déformation plausible et fausse, le pire défaut de ce domaine ;
 /// - un index de parent sort de la table ;
 /// - la hiérarchie boucle.
-pub fn pose_skin_matrices(
-    mesh: &CpuSkinnedMesh,
-    pose: &PoseFrame,
-) -> Result<Vec<SkinMatrix>> {
+pub fn pose_skin_matrices(mesh: &CpuSkinnedMesh, pose: &PoseFrame) -> Result<Vec<SkinMatrix>> {
     if pose.skeleton != mesh.skeleton {
         bail!(
             "la pose s'adresse au squelette {:?}, le maillage au squelette {:?}",
@@ -525,12 +522,7 @@ pub fn pose_skin_matrices(
         .joints
         .iter()
         .enumerate()
-        .map(|(i, joint)| {
-            mat_mul(
-                &worlds[i].unwrap_or_else(identity),
-                &joint.inverse_bind,
-            )
-        })
+        .map(|(i, joint)| mat_mul(&worlds[i].unwrap_or_else(identity), &joint.inverse_bind))
         .collect())
 }
 
@@ -1931,7 +1923,11 @@ mod tests {
             }
         }
         // La normale +Y part sur -X, et reste unitaire.
-        assert!((rendu[0].normal[0] + 1.0).abs() < 1e-4, "{:?}", rendu[0].normal);
+        assert!(
+            (rendu[0].normal[0] + 1.0).abs() < 1e-4,
+            "{:?}",
+            rendu[0].normal
+        );
         assert!((rendu[0].normal[1]).abs() < 1e-4, "{:?}", rendu[0].normal);
     }
 

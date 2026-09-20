@@ -68,7 +68,6 @@ import {
 } from "@niers/inacord-ui/lib/game-text";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { MODES } from "../entries";
-import { SubmenuModal } from "../components/SubmenuModal";
 import { fetchJson, resilientFetch, HttpError } from "@niers/asset-source";
 
 /** La famille de texte qui porte le nom des modes. */
@@ -342,7 +341,6 @@ function ModeListView({
   }, [filters.page, filters.perPage, filters.q]);
 
   const modes = catalog?.results.elements ?? null;
-  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const hashes = useMemo(
     () => (modes ?? []).map((mode) => mode.label_hash),
     [modes],
@@ -434,18 +432,9 @@ function ModeListView({
                 <p className="text-xs text-ink-faint">
                   <GameText>Type</GameText> : {mode.prefixes.join(", ")}
                 </p>
-                <div className="flex items-center gap-3 pt-2">
-                  <Link href={`${prefix}/${MODES}/${mode.slug}${listSearch}`}>
-                    <GameText>Ouvrir</GameText>
-                  </Link>
-                  <button
-                    type="button"
-                    className="text-xs font-semibold px-2 py-1 rounded bg-screen-panel-body/70 hover:bg-screen-panel-top text-screen-check-cyan border border-screen-check-cyan/40 cursor-pointer"
-                    onClick={() => setActiveSubmenu(mode.slug)}
-                  >
-                    Sous-menu du mode
-                  </button>
-                </div>
+                <Link href={`${prefix}/${MODES}/${mode.slug}${listSearch}`}>
+                  <GameText>Ouvrir</GameText>
+                </Link>
               </GamePanel>
             </li>
           ))}
@@ -484,19 +473,6 @@ function ModeListView({
           </button>
         </nav>
       ) : null}
-      {activeSubmenu && (
-        <SubmenuModal
-          modeSlug={activeSubmenu}
-          onClose={() => setActiveSubmenu(null)}
-          onLaunchWasm={(wasmMode) => {
-            window.location.assign(`/${wasmMode}`);
-          }}
-          onExploreMode={(slug) => {
-            setActiveSubmenu(null);
-            window.location.assign(`${prefix}/${MODES}/${slug}`);
-          }}
-        />
-      )}
     </section>
   );
 }
@@ -541,23 +517,12 @@ function ModeSheetView({
   const hashes = useMemo(() => [sheet?.label_hash ?? null], [sheet]);
   const labels = useModeLabels(hashes);
   const title = sheet ? modeLabel(labels, sheet.label_hash, sheet.label) : slug;
-  const [showSubmenu, setShowSubmenu] = useState(false);
-
   return (
     <section aria-label={title} className="space-y-4">
       <GameHeaderBar icon={GLYPHES.livre} title={title}>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="text-xs font-semibold px-2 py-1 rounded bg-screen-header-blue-deep text-screen-row-white border border-screen-check-cyan/60 cursor-pointer"
-            onClick={() => setShowSubmenu(true)}
-          >
-            Sous-menu & Match
-          </button>
-          <Link href={`${prefix}/${MODES}${listSearch}`}>
-            <GameText>Retour</GameText>
-          </Link>
-        </div>
+        <Link href={`${prefix}/${MODES}${listSearch}`}>
+          <GameText>Retour</GameText>
+        </Link>
       </GameHeaderBar>
       {error ? <p role="alert">{error}</p> : null}
       {!sheet && !error ? <p>Chargement…</p> : null}
@@ -609,15 +574,6 @@ function ModeSheetView({
           </GamePanel>
         </>
       ) : null}
-      {showSubmenu && (
-        <SubmenuModal
-          modeSlug={slug}
-          onClose={() => setShowSubmenu(false)}
-          onLaunchWasm={(wasmMode) => {
-            window.location.assign(`/${wasmMode}`);
-          }}
-        />
-      )}
     </section>
   );
 }

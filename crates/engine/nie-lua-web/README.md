@@ -26,6 +26,13 @@ The two crates never share a `.wasm` module; the browser loads `nie-wasm`'s modu
 everything else and this crate's module for menu/scene Lua logic, bridging them via
 `nie_lua_web_load_script`/`nie_lua_web_replay` and JS-side plumbing.
 
+`nie-wasm` also owns the validated `niers.vfs.bundle/v1` startup container. It embeds only the
+format and a path/discovery plan, never game bytes. After the host copies the bundle entries into
+this module with `nie_lua_web_load_script`, `nie_lua_web_readiness_json(screen)` reports separate
+`readyForReplay` and `readyForInitialRender` gates. The latter requires the resolved versioned
+script, the screen setting, and non-empty localized menu text; it is not a claim that every Lua
+include or visual companion has already been exercised.
+
 ## Building (measured 2026-09-12, emsdk 6.0.9, rustc 1.98.1)
 
 ```sh

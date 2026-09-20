@@ -80,9 +80,17 @@ describe("native opening movies", () => {
 		const phases: string[] = [];
 		await mount(<Game phase="loading" startupReady health={null}
 			onPhaseChange={(phase) => phases.push(phase)} onOpenBank={() => {}} onOpenGallery={() => {}} onOpenShop={() => {}} onOpenAvatar={() => {}}
-			onOpenSettings={() => {}} onOpenMedia={() => {}} onOpenExplorer={() => {}} onOpenEditor={() => {}} onOpenSearch={() => {}} onOpenData={() => {}} />);
+			onOpenSettings={() => {}} />);
 		expect(phases).toEqual(["menu"]);
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+	test("does not enter the menu before the readiness oracle succeeds", async () => {
+		const phases: string[] = [];
+		await mount(<Game phase="loading" health={null}
+			onPhaseChange={(phase) => phases.push(phase)} onOpenBank={() => {}} onOpenGallery={() => {}} onOpenShop={() => {}} onOpenAvatar={() => {}}
+			onOpenSettings={() => {}} />);
+		expect(phases).toEqual([]);
+		expect(container.querySelector('[data-opening-phase="loading"]')).not.toBeNull();
 	});
 	test("waits for both ready tracks and successful playback after rejected autoplay", async () => {
 		let ready = 0, ended = 0;

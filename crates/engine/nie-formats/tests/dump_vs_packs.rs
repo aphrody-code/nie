@@ -9,13 +9,18 @@ use nie_formats::vfs::{self, Vfs};
 
 /// Monte les deux côtés, ou explique pourquoi il n'y en a qu'un.
 ///
-/// L'installation est celle de `resolve_game_dir`, le dump celui de `resolve_dump_dir` — donc
-/// `NIE_DUMP_DIR`, sinon un `data/` du dépôt portant `common/`. Les deux doivent désigner des
-/// répertoires **distincts** : comparer un montage à lui-même ne prouve rien.
+/// L'installation est celle de `resolve_game_dir`. La preuve de parité complète exige un
+/// `NIE_DUMP_DIR` explicite : le `data/common` partiel du dépôt est une source de fixtures, pas
+/// un dump complet. Les deux doivent désigner des répertoires **distincts** : comparer un montage
+/// à lui-même ne prouve rien.
 fn deux_montages() -> Option<(Vfs, Vfs)> {
     let install = vfs::resolve_game_dir().join("data");
     if !install.join("cpk_list.cfg.bin").is_file() {
         eprintln!("skip : aucune installation du jeu (pas de cpk_list.cfg.bin)");
+        return None;
+    }
+    if !std::env::var("NIE_DUMP_DIR").is_ok_and(|dir| !dir.trim().is_empty()) {
+        eprintln!("skip : NIE_DUMP_DIR absent (aucun dump complet explicite)");
         return None;
     }
     let dump = vfs::resolve_dump_dir()?;

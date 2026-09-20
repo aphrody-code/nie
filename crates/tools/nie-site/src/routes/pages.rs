@@ -1068,6 +1068,103 @@ fn navigation_redirect(uri: &Uri) -> Option<String> {
     if normalized == "/medias" {
         return Some(legacy_media_target(demande.langue, uri.query()));
     }
+    let tool = match normalized {
+        "/tools" | "/tools/translator" => Some("translator"),
+        "/tools/compare" => Some("compare"),
+        "/tools/my-team" => Some("my_team"),
+        "/tools/random-team" => Some("random_team"),
+        "/tools/stats" => Some("stats"),
+        _ => None,
+    };
+    if let Some(tool) = tool {
+        let mut query: Vec<_> = uri
+            .query()
+            .unwrap_or_default()
+            .split('&')
+            .filter(|pair| !pair.is_empty() && pair.split('=').next() != Some("tool"))
+            .map(str::to_owned)
+            .collect();
+        query.push(format!("tool={tool}"));
+        return Some(route_with_query(
+            demande.langue,
+            "/inacord/tools",
+            Some(&query.join("&")),
+        ));
+    }
+    if let Some(id) = normalized.strip_prefix("/chara/")
+        && !id.is_empty()
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'%'))
+    {
+        let mut query: Vec<_> = uri
+            .query()
+            .unwrap_or_default()
+            .split('&')
+            .filter(|pair| !pair.is_empty() && pair.split('=').next() != Some("chara"))
+            .map(str::to_owned)
+            .collect();
+        query.push(format!("chara={id}"));
+        return Some(route_with_query(
+            demande.langue,
+            "/chara_bank_menu",
+            Some(&query.join("&")),
+        ));
+    }
+    if normalized == "/gallery" {
+        let mut query = vec!["display=gallery".to_owned(), "view=editorial".to_owned()];
+        query.extend(
+            uri.query()
+                .unwrap_or_default()
+                .split('&')
+                .filter_map(|pair| {
+                    if pair.is_empty() || matches!(pair.split('=').next(), Some("display" | "view"))
+                    {
+                        return None;
+                    }
+                    Some(
+                        pair.strip_prefix("category=")
+                            .map_or_else(|| pair.to_owned(), |value| format!("categorie={value}")),
+                    )
+                }),
+        );
+        return Some(route_with_query(
+            demande.langue,
+            "/gallery_menu",
+            Some(&query.join("&")),
+        ));
+    }
+    if let Some(path) = normalized.strip_prefix("/modeles/") {
+        let parts: Vec<_> = path.split('/').collect();
+        if (1..=2).contains(&parts.len())
+            && parts.iter().all(|part| {
+                !part.is_empty()
+                    && part
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+            })
+        {
+            let mut query: Vec<String> = uri
+                .query()
+                .unwrap_or_default()
+                .split('&')
+                .filter(|pair| {
+                    !pair.is_empty()
+                        && !matches!(pair.split('=').next(), Some("famille" | "modele"))
+                })
+                .map(str::to_owned)
+                .collect();
+            query.push(format!("famille={}", parts[0]));
+            if let Some(code) = parts.get(1) {
+                query.push(format!("modele={code}"));
+            }
+            return Some(route_with_query(
+                demande.langue,
+                "/modeles",
+                Some(&query.join("&")),
+            ));
+        }
+    }
     (demande.rediriger || normalized != demande.route)
         .then(|| route_with_query(demande.langue, normalized, uri.query()))
 }
@@ -1149,6 +1246,32 @@ pub async fn repli(State(etat): State<EtatSite>, uri: Uri) -> Response {
 mod tests {
     use super::*;
 
+    #[test]
+    fn legacy_tools_preserve_locale_query_and_selected_surface() {
+        for (route, tool) in [
+            ("/tools", "translator"),
+            ("/tools/translator", "translator"),
+            ("/tools/compare", "compare"),
+            ("/tools/my-team", "my_team"),
+            ("/tools/random-team", "random_team"),
+            ("/tools/stats", "stats"),
+        ] {
+            for locale in ["", "/en", "/es", "/ja"] {
+                let uri = format!("{locale}{route}?q=Byron&level=99&tool=old")
+                    .parse()
+                    .unwrap();
+                assert_eq!(
+                    navigation_redirect(&uri),
+                    Some(format!(
+                        "{locale}/inacord/tools?q=Byron&level=99&tool={tool}"
+                    ))
+                );
+            }
+        }
+        assert!(navigation_redirect(&"/tools/unknown".parse().unwrap()).is_none());
+        assert!(navigation_redirect(&"/tools/niers".parse().unwrap()).is_none());
+    }
+
     fn page(route: &str, langue: Langue) -> String {
         construire("https://nie.aphrody.com", route, langue, None, None, None)
             .render()
@@ -1175,6 +1298,71 @@ mod tests {
             "/modeles?q=x",
             "the last valid selector wins, like repeated form controls"
         );
+    }
+
+    #[test]
+    fn legacy_model_details_preserve_locale_and_filters() {
+        for (source, expected) in [
+            (
+                "/modeles/chara/c01001900?q=Byron&page=2",
+                "/modeles?q=Byron&page=2&famille=chara&modele=c01001900",
+            ),
+            (
+                "/ja/modeles/keshin/k000330?affichage=liste",
+                "/ja/modeles?affichage=liste&famille=keshin&modele=k000330",
+            ),
+            (
+                "/en/modeles/chara?famille=old&modele=old",
+                "/en/modeles?famille=chara",
+            ),
+        ] {
+            assert_eq!(
+                navigation_redirect(&source.parse().unwrap()).as_deref(),
+                Some(expected)
+            );
+        }
+        assert!(navigation_redirect(&"/modeles/a/b/c".parse().unwrap()).is_none());
+    }
+
+    #[test]
+    fn legacy_character_details_preserve_exact_identity_locale_and_filters() {
+        for (path, expected) in [
+            ("/chara/0x12B74634", "/chara_bank_menu?chara=0x12B74634"),
+            (
+                "/ja/chara/byron-love?page=2&gender=1&chara=old",
+                "/ja/chara_bank_menu?page=2&gender=1&chara=byron-love",
+            ),
+            (
+                "/en/chara/Byron%20Love",
+                "/en/chara_bank_menu?chara=Byron%20Love",
+            ),
+        ] {
+            assert_eq!(
+                navigation_redirect(&path.parse().unwrap()).as_deref(),
+                Some(expected)
+            );
+        }
+        assert!(navigation_redirect(&"/chara/foo/bar".parse().unwrap()).is_none());
+    }
+
+    #[test]
+    fn legacy_editorial_gallery_keeps_locale_search_category_and_page() {
+        for (source, expected) in [
+            ("/gallery", "/gallery_menu?display=gallery&view=editorial"),
+            (
+                "/ja/gallery?q=Byron&category=gallery_img2&page=3",
+                "/ja/gallery_menu?display=gallery&view=editorial&q=Byron&categorie=gallery_img2&page=3",
+            ),
+            (
+                "/en/gallery?categorie=story&display=old&view=old",
+                "/en/gallery_menu?display=gallery&view=editorial&categorie=story",
+            ),
+        ] {
+            assert_eq!(
+                navigation_redirect(&source.parse().unwrap()).as_deref(),
+                Some(expected)
+            );
+        }
     }
 
     #[test]

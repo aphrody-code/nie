@@ -74,7 +74,6 @@ impl WebGpuViewer {
         self.inner.render().map_err(js_error)
     }
 
-
     /// Affiche ou masque la grille de sol.
     ///
     /// C'est l'une des quatre capacités pour lesquelles le viewport three.js de l'éditeur
@@ -140,7 +139,14 @@ impl WebGpuViewer {
     /// Rend `[dx, dy, dz]`, ou un tableau vide quand l'axe est inconnu ou qu'un des deux rayons
     /// ne rencontre pas le plan de contrainte — l'hôte laisse alors l'objet où il est.
     #[must_use]
-    pub fn gizmo_drag(&self, axis: &str, from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> Vec<f32> {
+    pub fn gizmo_drag(
+        &self,
+        axis: &str,
+        from_x: f32,
+        from_y: f32,
+        to_x: f32,
+        to_y: f32,
+    ) -> Vec<f32> {
         let Some(axe) = axe_depuis(axis) else {
             return Vec::new();
         };
@@ -160,7 +166,8 @@ impl WebGpuViewer {
     /// `JsValue`, ce qui coûterait à l'appelant une vérification de type pour une valeur qu'il
     /// teste déjà.
     pub fn select(&mut self, id: &str) {
-        self.inner.select(if id.is_empty() { None } else { Some(id) });
+        self.inner
+            .select(if id.is_empty() { None } else { Some(id) });
     }
 
     /// L'objet sélectionné, chaîne vide s'il n'y en a pas.

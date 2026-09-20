@@ -17,7 +17,8 @@ const SITE = process.env.NIE_SITE_BASE ?? "http://127.0.0.1:8085";
 // L'artefact vit à la RACINE du profil, pas sous `deps/` : `cargo build` y dépose le cdylib
 // final, et `deps/` ne porte que les objets intermédiaires. Le chemin `deps/` de la première
 // version n'existait déjà plus au moment où ce script a servi.
-const WASM_PATH = new URL(
+// Override explicitly when proving a shipped artifact instead of a local build.
+const WASM_PATH = process.env.NIE_LUA_WASM_PATH ?? new URL(
   "../../../../target/wasm32-unknown-emscripten/release/nie_lua_web.wasm",
   import.meta.url,
 ).pathname;
@@ -77,6 +78,8 @@ async function main() {
 
   console.log("Fetching wasm module...");
   const wasmBytes = await Bun.file(WASM_PATH).arrayBuffer();
+  console.log(JSON.stringify({ artifact: WASM_PATH, bytes: wasmBytes.byteLength,
+    sha256: new Bun.CryptoHasher("sha256").update(wasmBytes).digest("hex") }));
   const runtime = await createLuaRuntime(wasmBytes);
 
   console.log("Listing scripts (data/common/script/lua/) and menu configs (data/common/gamedata/menu/cfg/)...");

@@ -6,8 +6,8 @@ use clap::{Parser, Subcommand};
 use tracing_subscriber::EnvFilter;
 
 use nie_launcher::{
-    decrypt_team_envelope, inspect_package_header, SaveSession, TeamExportEnvelope,
-    DEFAULT_PASSPHRASE,
+    DEFAULT_PASSPHRASE, SaveSession, TeamExportEnvelope, decrypt_team_envelope,
+    inspect_package_header,
 };
 
 #[derive(Parser)]
@@ -158,14 +158,20 @@ fn main() -> anyhow::Result<()> {
             }
         },
         Commands::Save { cmd } => match cmd {
-            SaveCommands::Park { live_save, mod_save } => {
+            SaveCommands::Park {
+                live_save,
+                mod_save,
+            } => {
                 let mut session = SaveSession::new(live_save, mod_save);
                 session.park_and_install_mod_save()?;
                 // Forget drop so session stays active
                 std::mem::forget(session);
                 println!("Mod save installed and original save parked successfully.");
             }
-            SaveCommands::Restore { live_save, mod_save } => {
+            SaveCommands::Restore {
+                live_save,
+                mod_save,
+            } => {
                 let mut session = SaveSession::new(live_save, mod_save);
                 session.is_active = true;
                 session.restore_original_save()?;
@@ -225,7 +231,11 @@ fn main() -> anyhow::Result<()> {
                     }
                 }
             }
-            SpiritCommands::Moves { query, category, json } => {
+            SpiritCommands::Moves {
+                query,
+                category,
+                json,
+            } => {
                 let mut moves: Vec<&nie_launcher::SpecialMove> = if let Some(q) = query {
                     nie_launcher::search_special_moves(&q)
                 } else {

@@ -1,6 +1,6 @@
 {
 	"name": "@niers/game",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"description": "Logique de jeu pure d'Inazuma Eleven: Victory Road (formations, codes d'equipe, regles, texte) — sans marque, sans I/O.",

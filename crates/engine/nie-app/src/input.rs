@@ -435,7 +435,10 @@ mod tests {
             }
             web.push((touche.to_owned(), cmd.to_owned()));
         }
-        assert!(!web.is_empty(), "aucune entrée lue : le parseur de cette garde est cassé");
+        assert!(
+            !web.is_empty(),
+            "aucune entrée lue : le parseur de cette garde est cassé"
+        );
 
         for (touche, attendu) in &web {
             assert_eq!(

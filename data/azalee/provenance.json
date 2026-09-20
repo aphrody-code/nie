@@ -1,0 +1,769 @@
+{
+  "schema": "niers.azalee.provenance/v1",
+  "source_revision": "93aea3ba8b703d8ca66ca8d3b98988edea3c97df",
+  "generator": "bun scripts/azalee-provenance.ts --source-root <rg-checkout> --source-ref 93aea3ba8b703d8ca66ca8d3b98988edea3c97df --write",
+  "validation": "bun scripts/azalee-provenance.ts --source-root <rg-checkout>",
+  "artifacts": [
+    {
+      "path": "data/azalee/change-aura-skills.json",
+      "bytes": 10892,
+      "sha256": "ff74e6396093e2a3b5cfd461c5c5a3f43f41bd7647afde8fc0f10281b6e5d147",
+      "format": "json",
+      "records": 165,
+      "record_count_semantics": "array_entries",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/change-aura-skills.json",
+            "sha256": "ff74e6396093e2a3b5cfd461c5c5a3f43f41bd7647afde8fc0f10281b6e5d147"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/sync-inagle-entries.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/wiki/service.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/character-face-manifest.json",
+      "bytes": 68122,
+      "sha256": "a94743d04538a3109484d2a7ab1e2ea06938dac3e7e1bbd6336ed93e725e49d1",
+      "format": "json",
+      "records": 5677,
+      "record_count_semantics": "array_entries",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/character-face-manifest.json",
+            "sha256": "a94743d04538a3109484d2a7ab1e2ea06938dac3e7e1bbd6336ed93e725e49d1"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-character-face-manifest.ts",
+        "packages/azalee/scripts/build-icon-texture-index.ts",
+        "scripts/rag-build-edges.ts"
+      ],
+      "consumers": {
+        "niers": [
+          "crates/tools/nie-wiki/src/legacy_teams.rs"
+        ],
+        "rg": [
+          "packages/azalee/src/images/utils.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/character-model-manifest.json",
+      "bytes": 72503,
+      "sha256": "16347ab5640a98455aca23fdacce51c67056649c6bac16d59e1acfc694a576be",
+      "format": "json",
+      "records": 6028,
+      "record_count_semantics": "array_entries",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/character-model-manifest.json",
+            "sha256": "16347ab5640a98455aca23fdacce51c67056649c6bac16d59e1acfc694a576be"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-character-model-manifest.ts",
+        "scripts/rag-build-edges.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/images/utils.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/chr-model-manifest.json",
+      "bytes": 17057,
+      "sha256": "a8f63fc661bad4c3bdbb9669cd3be0763aa76168a2a9cafcf6a7a0c1cfd7578e",
+      "format": "json",
+      "records": 4,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/chr-model-manifest.json",
+            "sha256": "a8f63fc661bad4c3bdbb9669cd3be0763aa76168a2a9cafcf6a7a0c1cfd7578e"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-chr-model-manifest.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/images/utils.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/chr-model-names.json",
+      "bytes": 1895,
+      "sha256": "1006498d9f6d28290a3279c8fab16d879baaa04f0d11c09c668a24458a5616d8",
+      "format": "json",
+      "records": 5,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/chr-model-names.json",
+            "sha256": "1006498d9f6d28290a3279c8fab16d879baaa04f0d11c09c668a24458a5616d8"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/wiki/game-text-shared.ts",
+          "packages/azalee/src/wiki/game-text.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/cpk-index.ndjson.gz",
+      "bytes": 911492,
+      "sha256": "e4d5525701f84ccfdaf3e0816be26643223c0d50bc80395e204d1300276f01be",
+      "format": "ndjson",
+      "records": 255308,
+      "record_count_semantics": "lines",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "apps/website/data/cpk-index.ndjson.gz",
+            "sha256": "e4d5525701f84ccfdaf3e0816be26643223c0d50bc80395e204d1300276f01be"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-chr-model-manifest.ts",
+        "packages/azalee/scripts/build-icon-texture-index.ts",
+        "packages/azalee/scripts/build-menu-asset-manifest.ts",
+        "packages/azalee/scripts/build-menu-gallery-manifest.ts",
+        "packages/azalee/scripts/build-skills-cutin-served.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/config.ts",
+          "packages/azalee/src/cpk/index.ts",
+          "packages/azalee/src/images/utils.ts",
+          "packages/azalee/test/config.test.ts",
+          "packages/azalee/test/cpk.test.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/emblem-crc-map.json",
+      "bytes": 15732,
+      "sha256": "16207bafea885218c5b6cfea074f9b3d77ef508712cccfbfeaf832223efc1742",
+      "format": "json",
+      "records": 542,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/emblem-crc-map.json",
+            "sha256": "16207bafea885218c5b6cfea074f9b3d77ef508712cccfbfeaf832223efc1742"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-menu-asset-manifest.ts"
+      ],
+      "consumers": {
+        "niers": [
+          "crates/tools/nie-wiki/src/legacy_teams.rs"
+        ],
+        "rg": [
+          "packages/azalee/src/images/utils.ts",
+          "packages/azalee/src/wiki/teams.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/game-text-dialogue.ndjson.gz",
+      "bytes": 2122291,
+      "sha256": "366341dbb6f546ff58f9fd69adf77400949f63d7a4c297adad2de5e55a718838",
+      "format": "ndjson",
+      "records": 66258,
+      "record_count_semantics": "lines",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "apps/azalee/data/game-text-dialogue.ndjson.gz",
+            "sha256": "366341dbb6f546ff58f9fd69adf77400949f63d7a4c297adad2de5e55a718838"
+          },
+          {
+            "path": "apps/website/data/game-text-dialogue.ndjson.gz",
+            "sha256": "366341dbb6f546ff58f9fd69adf77400949f63d7a4c297adad2de5e55a718838"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "apps/azalee/scripts/build-game-text-index.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/game-text/index.ts",
+          "packages/azalee/test/game-text.test.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/game-text-names.ndjson.gz",
+      "bytes": 3474766,
+      "sha256": "21a28e8bdf0a2c8e5ed66ebc6e0e18a01f7592c034f503eeb947b756ab6fe899",
+      "format": "ndjson",
+      "records": 193641,
+      "record_count_semantics": "lines",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "apps/azalee/data/game-text-names.ndjson.gz",
+            "sha256": "21a28e8bdf0a2c8e5ed66ebc6e0e18a01f7592c034f503eeb947b756ab6fe899"
+          },
+          {
+            "path": "apps/website/data/game-text-names.ndjson.gz",
+            "sha256": "21a28e8bdf0a2c8e5ed66ebc6e0e18a01f7592c034f503eeb947b756ab6fe899"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "apps/azalee/scripts/build-game-text-index.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/config.ts",
+          "packages/azalee/src/game-text/index.ts",
+          "packages/azalee/test/config.test.ts",
+          "packages/azalee/test/game-text.test.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/icon-texture-index.ndjson.gz",
+      "bytes": 18604,
+      "sha256": "44f9657b41d68af09f35189030061b1468ac308a7326e4c57cebbfac20757bc7",
+      "format": "ndjson",
+      "records": 1084,
+      "record_count_semantics": "lines",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "apps/website/data/icon-texture-index.ndjson.gz",
+            "sha256": "44f9657b41d68af09f35189030061b1468ac308a7326e4c57cebbfac20757bc7"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-icon-texture-index.ts",
+        "packages/azalee/scripts/build-item-image-manifest.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/icon-index/index.ts",
+          "packages/azalee/src/icon-index/shared.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/item-enrichment.json",
+      "bytes": 119947,
+      "sha256": "769f23605e2eff79ca2fa71ee742dd26b8af113e09be85f615ca7228678e7d93",
+      "format": "json",
+      "records": 694,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/item-enrichment.json",
+            "sha256": "769f23605e2eff79ca2fa71ee742dd26b8af113e09be85f615ca7228678e7d93"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [],
+      "consumers": {
+        "niers": [
+          "crates/tools/nie-wiki/src/legacy_equipment.rs"
+        ],
+        "rg": [
+          "packages/azalee/src/wiki/service.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/item-image-manifest.json",
+      "bytes": 46188,
+      "sha256": "e609a74c85fc18292a913249467dc80213f6613cffb53848d0da9ae604ac8991",
+      "format": "json",
+      "records": 2,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/item-image-manifest.json",
+            "sha256": "e609a74c85fc18292a913249467dc80213f6613cffb53848d0da9ae604ac8991"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-item-image-manifest.ts",
+        "scripts/rag-build-edges.ts"
+      ],
+      "consumers": {
+        "niers": [
+          "crates/tools/nie-wiki/src/legacy_equipment.rs"
+        ],
+        "rg": [
+          "packages/azalee/src/images/utils.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/keshin-model-manifest.json",
+      "bytes": 1053,
+      "sha256": "ace02a63e19e505dfa9c149c2bc55c53cbbfd806904f2aa3405d2244e521be1d",
+      "format": "json",
+      "records": 2,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/keshin-model-manifest.json",
+            "sha256": "ace02a63e19e505dfa9c149c2bc55c53cbbfd806904f2aa3405d2244e521be1d"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-keshin-model-manifest.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/images/utils.ts",
+          "packages/azalee/src/wiki/service.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/menu-asset-manifest.json",
+      "bytes": 68792,
+      "sha256": "b312a95fcf5e1ba65a3df0997d6695a2d881c86d57101aa72dcfc463e7fe8443",
+      "format": "json",
+      "records": 6,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/menu-asset-manifest.json",
+            "sha256": "b312a95fcf5e1ba65a3df0997d6695a2d881c86d57101aa72dcfc463e7fe8443"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-menu-asset-manifest.ts"
+      ],
+      "consumers": {
+        "niers": [
+          "crates/tools/nie-wiki/src/legacy_equipment.rs"
+        ],
+        "rg": [
+          "packages/azalee/src/images/utils.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/menu-gallery-manifest.json",
+      "bytes": 642541,
+      "sha256": "f02dda680dbada0171f74a272aea8ee8daf37ebef6554872d3a13ec2f22687c4",
+      "format": "json",
+      "records": 2,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/menu-gallery-manifest.json",
+            "sha256": "f02dda680dbada0171f74a272aea8ee8daf37ebef6554872d3a13ec2f22687c4"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-menu-gallery-manifest.ts"
+      ],
+      "consumers": {
+        "niers": [
+          "crates/tools/nie-wiki/src/gallery.rs",
+          "packages/inacord-ui/src/gallery/gallery.ts"
+        ],
+        "rg": [
+          "packages/azalee/src/wiki/service.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/miximax-icon-manifest.json",
+      "bytes": 763,
+      "sha256": "76dffd4f3f39451ffb5ec3eaaceca76167fb77bd877e291e2d161ff5a1179e4b",
+      "format": "json",
+      "records": 36,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/miximax-icon-manifest.json",
+            "sha256": "76dffd4f3f39451ffb5ec3eaaceca76167fb77bd877e291e2d161ff5a1179e4b"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-miximax-icon-manifest.ts",
+        "scripts/rag-build-edges.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "packages/azalee/src/images/utils.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/passives-full.json",
+      "bytes": 2165249,
+      "sha256": "5e0fbf0f17e4c296ea76db1fa5fa1c0585c59b895c61322b9cb68eaf7235ab58",
+      "format": "json",
+      "records": 4,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/passives-full.json",
+            "sha256": "5e0fbf0f17e4c296ea76db1fa5fa1c0585c59b895c61322b9cb68eaf7235ab58"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": "crates/engine/nie-data/src/bin/export_passives.rs",
+      "producer_candidates": [],
+      "consumers": {
+        "niers": [
+          "apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx",
+          "crates/engine/nie-data/src/bin/export_passives.rs",
+          "crates/tools/nie-wiki/src/passives.rs",
+          "packages/inacord-ui/src/components/wiki/wiki/PassiveCard.tsx"
+        ],
+        "rg": [
+          "apps/azalee/app/passive/(liste)/page.tsx",
+          "apps/azalee/components/wiki/PassiveCard.tsx",
+          "packages/azalee/src/wiki/service.ts"
+        ]
+      },
+      "regeneration": [
+        "cargo",
+        "run",
+        "-p",
+        "nie-data",
+        "--bin",
+        "export_passives",
+        "--features",
+        "serde",
+        "--",
+        "--data",
+        "<decoded-game-data>",
+        "--out",
+        "<candidate-output>"
+      ],
+      "regeneration_status": "native_generator_requires_decoded_inputs",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/skills-cutin-served.json",
+      "bytes": 1892,
+      "sha256": "e11448a6573a72945fae1c9eb09c434dfc4f0234b1e5aa4ef539819a834ecbbf",
+      "format": "json",
+      "records": 2,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/skills-cutin-served.json",
+            "sha256": "e11448a6573a72945fae1c9eb09c434dfc4f0234b1e5aa4ef539819a834ecbbf"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "packages/azalee/scripts/build-skills-cutin-served.ts"
+      ],
+      "consumers": {
+        "niers": [
+          "crates/engine/nie-core/src/azalee/skills_cutin.rs"
+        ],
+        "rg": [
+          "packages/azalee/src/game/skills-cutin.ts"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/skills-cutin.json",
+      "bytes": 1888145,
+      "sha256": "cba507f5f4b185b380010bb83e03e07d23abfa0e1677a70ab8a9730c3088434d",
+      "format": "json",
+      "records": 2,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "packages/azalee/src/data/skills-cutin.json",
+            "sha256": "cba507f5f4b185b380010bb83e03e07d23abfa0e1677a70ab8a9730c3088434d"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": "crates/engine/nie-data/src/bin/export_skills.rs",
+      "producer_candidates": [
+        "packages/azalee/scripts/build-skills-cutin-served.ts"
+      ],
+      "consumers": {
+        "niers": [
+          "crates/engine/nie-core/src/azalee/skills_cutin.rs",
+          "crates/engine/nie-data/src/bin/export_skills.rs"
+        ],
+        "rg": [
+          "apps/azalee/components/wiki/AphrodyDossierSection.tsx",
+          "packages/azalee/src/game/skills-cutin.ts"
+        ]
+      },
+      "regeneration": [
+        "cargo",
+        "run",
+        "-p",
+        "nie-data",
+        "--bin",
+        "export_skills",
+        "--features",
+        "serde,std",
+        "--",
+        "--data",
+        "<decoded-game-data>",
+        "--out",
+        "<candidate-output>"
+      ],
+      "regeneration_status": "native_generator_requires_decoded_inputs",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/zukan-audit.json",
+      "bytes": 12777,
+      "sha256": "9f978490051107d2564544ff4911bccec35768f8d56e814632e8c2dddefa1632",
+      "format": "json",
+      "records": 2,
+      "record_count_semantics": "top_level_keys",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "apps/azalee/data/zukan-audit.json",
+            "sha256": "9f978490051107d2564544ff4911bccec35768f8d56e814632e8c2dddefa1632"
+          },
+          {
+            "path": "apps/website/data/zukan-audit.json",
+            "sha256": "9f978490051107d2564544ff4911bccec35768f8d56e814632e8c2dddefa1632"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "scripts/inagle/pipeline/audit-zukan-matches.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "apps/azalee/app/dashboard/zukan-review/page.tsx"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    },
+    {
+      "path": "data/azalee/zukan/param_en.json",
+      "bytes": 2110857,
+      "sha256": "e9f18813357667edd348106a503a376fbdd4076fb3e4a82461c375c903fc6b9e",
+      "format": "json",
+      "records": 5407,
+      "record_count_semantics": "array_entries",
+      "provenance": {
+        "source_repository": "rg",
+        "copies": [
+          {
+            "path": "apps/azalee/data/zukan/param_en.json",
+            "sha256": "e9f18813357667edd348106a503a376fbdd4076fb3e4a82461c375c903fc6b9e"
+          },
+          {
+            "path": "apps/website/data/zukan/param_en.json",
+            "sha256": "e9f18813357667edd348106a503a376fbdd4076fb3e4a82461c375c903fc6b9e"
+          }
+        ],
+        "byte_identical_copy": true
+      },
+      "producer": null,
+      "producer_candidates": [
+        "scripts/inagle/pipeline/audit-zukan-matches.ts",
+        "scripts/inagle/pipeline/audit-zukan-mirror.ts",
+        "scripts/inagle/pipeline/map-zukan-images.ts",
+        "scripts/inagle/pipeline/remap-zukan-mirror.ts"
+      ],
+      "consumers": {
+        "niers": [],
+        "rg": [
+          "apps/azalee/app/dashboard/zukan-review/page.tsx"
+        ]
+      },
+      "regeneration": null,
+      "regeneration_status": "legacy_producer_requires_port_or_provenance_review",
+      "owner": "nie-wiki",
+      "retention": "retain_until_consumers_and_regeneration_are_verified"
+    }
+  ]
+}

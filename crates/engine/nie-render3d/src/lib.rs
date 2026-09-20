@@ -38,8 +38,8 @@
 #![forbid(unsafe_code)]
 
 pub mod document;
-pub mod glb;
 pub mod gizmo;
+pub mod glb;
 #[cfg(feature = "gpu")]
 pub mod gpu;
 pub mod pick;

@@ -98,19 +98,6 @@ export const GALLERY = "gallery_menu";
 export const SHOP = "shop_menu";
 
 /**
- * La Formation et l'Équipe — l'écran `soccer_formation_menu` du jeu : le terrain 11v11, les
- * préréglages de formation, et les consignes tactiques.
- */
-export const FORMATION = "soccer_formation_menu";
-export const TEAM = "team";
-
-/**
- * La Gestion des Sauvegardes — l'écran `save_menu` du jeu : les 4 slots de sauvegarde, l'import/export
- * .bin et le déchiffrement local Lives.
- */
-export const SAVE = "save_menu";
-
-/**
  * Internal mode-analysis route. Native mode tiles belong to the game/WASM flow and must never
  * send a player to this diagnostic page.
  *
@@ -146,31 +133,12 @@ export const MENU = "menu";
  * une adresse publiée ne se casse pas pour un renommage. `nie-site` fait la même chose côté
  * serveur (`routes::pages::Entree::heritage`), canonique compris.
  */
-/** The five root game modes reconstructed in WebAssembly via nie-app and nie-wasm. */
-export const WASM_GAME_MODES = [
-	"story_mode",
-	"chronicle_mode",
-	"competition",
-	"victory_road",
-	"bb_stadium",
-] as const;
-
 export const LEGACY_ROUTES: Readonly<Record<string, string>> = {
 	settings: SETTINGS,
 	avatar: AVATAR,
 	bank: BANK,
 	gallery: GALLERY,
 	shop: SHOP,
-	save: SAVE,
-	team: FORMATION,
-	my_team: FORMATION,
-	"my-team": FORMATION,
-	formation: FORMATION,
-	"mode-story_mode": "story_mode",
-	"mode-chronicle_mode": "chronicle_mode",
-	"mode-competition": "competition",
-	"mode-victory_road": "victory_road",
-	"mode-bb_stadium": "bb_stadium",
 	"mode-kizuna_town": MODES,
 	"mode-information": MODES,
 };
@@ -237,8 +205,6 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[BANK]: { label: "Banque", glyph: "livre" },
 	[GALLERY]: { label: "Galerie", glyph: "image" },
 	[SHOP]: { label: "Boutique", glyph: "cube" },
-	[FORMATION]: { label: "Votre Équipe", glyph: "ballon" },
-	[SAVE]: { label: "Sauvegardes", glyph: "livre" },
 	[INACORD]: { label: "Inacord", glyph: "livre" },
 	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
 	[MODES]: { label: "Modes", glyph: "livre" },
@@ -268,10 +234,7 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
 		// Compatibility input, deliberately not in LEGACY_ROUTES: Catalog must read `?vue=`
 		// before replacing this retired container with the selected canonical catalogue.
 		MEDIA,
-		...WASM_GAME_MODES,
 		...menuEntries(health).map((entry) => entry.route),
-		FORMATION,
-		SAVE,
 		DOWNLOADS,
 		MODES,
 		WIKI,

@@ -26,6 +26,8 @@ pub enum PlacementSource {
     G4pkmPose,
     G4pkmAncestorFallback,
     AttachLocator,
+    /// A repeated list cell placed by the matrix-locator table of `CMenuListView`.
+    ListViewMatrix,
     /// One named region of an object's atlas, placed at the bone that names it.
     ///
     /// Emitted only for an object that resolves no placement of its own: its skeleton carries
@@ -67,7 +69,11 @@ impl PlacementSource {
             && matches!(
                 source,
                 None | Some(
-                    "g4pkm-pose" | "g4pkm-ancestor-fallback" | "attach-locator" | "bone-region"
+                    "g4pkm-pose"
+                        | "g4pkm-ancestor-fallback"
+                        | "attach-locator"
+                        | "list-view-matrix"
+                        | "bone-region"
                 )
             )
     }
@@ -78,6 +84,7 @@ impl PlacementSource {
             Self::G4pkmPose => "g4pkm-pose",
             Self::G4pkmAncestorFallback => "g4pkm-ancestor-fallback",
             Self::AttachLocator => "attach-locator",
+            Self::ListViewMatrix => "list-view-matrix",
             Self::BoneRegion => "bone-region",
         }
     }
@@ -852,6 +859,85 @@ pub fn attach_slots(obj: &MenuObject, layout: &G4pkmLayout) -> Vec<AttachSlot> {
     out
 }
 
+/// One widget slot from a `CMenuListView` matrix-locator ring.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ListViewRingSlot {
+    /// Zero-based slot in file order.
+    pub index: usize,
+    /// Position on the 1280×720 canvas.
+    pub x_px: f32,
+    /// Vertical position on the 1280×720 canvas.
+    pub y_px: f32,
+    /// Whether the initial viewport contains this ring slot.
+    pub initially_visible: bool,
+}
+
+/// Resolves the matrix-locator ring declared by a `CMenuListView` from its own G4PKM bones.
+///
+/// The root name and decimal width are the engine fields `mMatrixLocaterRootBaseName` and
+/// `mMatrixLocaterRootBaseDigitNum`. Each numbered root owns `mLineNum` child matrices. As with
+/// [`AttachSlot`], their local poses are already absolute; composing the parent would double the
+/// coordinates. `mViewStart` shifts the settled ring by that many row strides, matching the
+/// engine's pre-roll rows around the visible viewport. On `CMenuListViewGallery`, slot 0
+/// `(232,-60)`, a 200-unit row stride and `mViewStart=1` produce `(154.667,173.333)` on the
+/// canonical canvas; the reference capture's connected component is centered at
+/// `(154.5,173.25)`, an error below 0.17 px.
+#[must_use]
+pub fn list_view_ring_slots(
+    layout: &G4pkmLayout,
+    params: crate::objbin::ListViewParams,
+    root_base_name: &str,
+    root_digit_num: usize,
+) -> Vec<ListViewRingSlot> {
+    if params.line_num <= 0 || params.locator_num <= 0 || root_base_name.is_empty() {
+        return Vec::new();
+    }
+    let mut roots: Vec<(usize, &crate::g4pkm::G4pkmBone)> = layout
+        .bones
+        .iter()
+        .filter_map(|bone| {
+            let suffix = bone.name.strip_prefix(root_base_name)?;
+            if suffix.len() != root_digit_num || !suffix.bytes().all(|byte| byte.is_ascii_digit()) {
+                return None;
+            }
+            Some((suffix.parse::<usize>().ok()?, bone))
+        })
+        .collect();
+    roots.sort_by_key(|(row, _)| *row);
+    let row_step = roots
+        .windows(2)
+        .map(|pair| (pair[1].1.local_bind_pose.y - pair[0].1.local_bind_pose.y).abs())
+        .find(|step| *step > f32::EPSILON)
+        .unwrap_or(0.0);
+    let vertical_offset = params.view_start as f32 * row_step;
+    let visible_slots = params.view_num.max(0).saturating_mul(params.line_num) as usize;
+    let capacity = params.locator_num as usize;
+    let columns = params.line_num as usize;
+    let mut slots = Vec::with_capacity(capacity);
+    for (_, root) in roots {
+        let mut children: Vec<_> = layout
+            .bones
+            .iter()
+            .filter(|bone| bone.parent_index == root.index as i32)
+            .collect();
+        children.sort_by(|left, right| left.name.cmp(&right.name));
+        for child in children.into_iter().take(columns) {
+            let pose = child.local_bind_pose;
+            let index = slots.len();
+            slots.push(ListViewRingSlot {
+                index,
+                x_px: pose.x * (CANVAS_W / REF_W),
+                y_px: (-pose.y + vertical_offset) * (CANVAS_H / REF_H),
+                initially_visible: index < visible_slots,
+            });
+            if slots.len() == capacity {
+                return slots;
+            }
+        }
+    }
+    slots
+}
+
 /// Échantillon bilinéaire RGBA (0..1) avec clamp aux bords ; `u`,`v` en coords texel.
 fn sample_bilinear(rgba: &[u8], tw: u32, th: u32, u: f32, v: f32) -> (f32, f32, f32, f32) {
     let (x0, y0) = (u.floor(), v.floor());
@@ -892,6 +978,7 @@ mod tests {
             None,
             Some("g4pkm-pose"),
             Some("attach-locator"),
+            Some("list-view-matrix"),
             Some("g4pkm-ancestor-fallback"),
         ] {
             assert!(PlacementSource::allows_rendering(source, true));
@@ -1222,6 +1309,59 @@ mod tests {
             "dans le canvas : ({x0}, {y0})"
         );
         assert!(y1 > y0, "index croissant = plus bas à l'écran");
+    }
+
+    #[test]
+    fn list_view_ring_uses_declared_matrix_roots_and_view_start() {
+        use crate::objbin::ListViewParams;
+
+        let mut bones = Vec::new();
+        for row in 0..6 {
+            let root_index = bones.len();
+            let mut root = bone(
+                &format!("_pos_atc_list_base{row:02}"),
+                tf(232.0, -60.0 - row as f32 * 200.0, 1.0, 1.0),
+            );
+            root.index = root_index;
+            bones.push(root);
+            for column in 0..5 {
+                let mut cell = bone(
+                    &format!("_list{row:02}_{:02}", column + 1),
+                    tf(
+                        232.0 + column as f32 * 350.0,
+                        -60.0 - row as f32 * 200.0,
+                        1.0,
+                        1.0,
+                    ),
+                );
+                cell.index = bones.len();
+                cell.parent_index = root_index as i32;
+                bones.push(cell);
+            }
+        }
+        let slots = list_view_ring_slots(
+            &layout(bones),
+            ListViewParams {
+                view_start: 1,
+                view_num: 4,
+                line_num: 5,
+                locator_num: 30,
+            },
+            "_pos_atc_list_base",
+            2,
+        );
+
+        assert_eq!(slots.len(), 30);
+        assert_eq!(
+            slots.iter().filter(|slot| slot.initially_visible).count(),
+            20
+        );
+        assert!((slots[0].x_px - 154.666_67).abs() < 0.001);
+        assert!((slots[0].y_px - 173.333_34).abs() < 0.001);
+        assert!((slots[19].x_px - 1088.0).abs() < 0.001);
+        assert!((slots[19].y_px - 573.333_4).abs() < 0.001);
+        assert!(!slots[20].initially_visible);
+        assert!((slots[20].y_px - 706.666_7).abs() < 0.001);
     }
 
     /// Bout-en-bout sur le vrai jeu : `option02_02.g4pkm` (bone nvidia plein écran

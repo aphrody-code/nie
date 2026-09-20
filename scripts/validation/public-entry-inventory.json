@@ -23,6 +23,18 @@
     },
     {
       "surface": "cli",
+      "entry": "Net",
+      "capability": "net",
+      "classification": "portable",
+      "owner": "crates/engine/nie-net/src/lib.rs",
+      "rationale": "Net delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/net_cmd.rs",
+        "nie_net::"
+      ]
+    },
+    {
+      "surface": "cli",
       "entry": "ComputerUse",
       "capability": "computeruse",
       "classification": "host_only",
@@ -39,6 +51,18 @@
       "sourceEvidence": [
         "crates/tools/nie-cli/src/main.rs",
         "nie_viola::"
+      ]
+    },
+    {
+      "surface": "cli",
+      "entry": "Launcher",
+      "capability": "launcher",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "Launcher delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_launcher::"
       ]
     },
     {
@@ -515,6 +539,18 @@
       "sourceEvidence": [
         "crates/tools/nie-cli/src/main.rs",
         "nie_explore::"
+      ]
+    },
+    {
+      "surface": "cli",
+      "entry": "Live",
+      "capability": "live",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "Live delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_launcher::"
       ]
     },
     {
@@ -4267,6 +4303,66 @@
     },
     {
       "surface": "site",
+      "entry": "GET /api/v1/kizuna",
+      "capability": "get-api-v1-kizuna",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/craft.rs",
+      "rationale": "GET /api/v1/kizuna delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/kizuna.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/kizuna/categories",
+      "capability": "get-api-v1-kizuna-categories",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/craft.rs",
+      "rationale": "GET /api/v1/kizuna/categories delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/kizuna.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/kizuna/objects",
+      "capability": "get-api-v1-kizuna-objects",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/craft.rs",
+      "rationale": "GET /api/v1/kizuna/objects delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/kizuna.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/kizuna/themes",
+      "capability": "get-api-v1-kizuna-themes",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/craft.rs",
+      "rationale": "GET /api/v1/kizuna/themes delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/kizuna.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/kizuna/sources",
+      "capability": "get-api-v1-kizuna-sources",
+      "classification": "portable",
+      "owner": "crates/engine/nie-data/src/craft.rs",
+      "rationale": "GET /api/v1/kizuna/sources delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/kizuna.rs",
+        "nie_data"
+      ]
+    },
+    {
+      "surface": "site",
       "entry": "GET /api/v1/lua",
       "capability": "get-api-v1-lua",
       "classification": "portable",
@@ -4308,6 +4404,42 @@
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
       "rationale": "GET /api/v1/lua/desassemblage/{*chemin} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/lua/execute",
+      "capability": "get-api-v1-lua-execute",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "GET /api/v1/lua/execute delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/lua/eval",
+      "capability": "get-api-v1-lua-eval",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "GET /api/v1/lua/eval delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/lua/globals",
+      "capability": "get-api-v1-lua-globals",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "GET /api/v1/lua/globals delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/lua.rs",
         "nie_lua"
@@ -4471,6 +4603,258 @@
     },
     {
       "surface": "site",
+      "entry": "GET /api/v1/wiki/cross/tables",
+      "capability": "get-api-v1-wiki-cross-tables",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/cross/tables delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/cross/stats",
+      "capability": "get-api-v1-wiki-cross-stats",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/cross/stats delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/cross/catalog",
+      "capability": "get-api-v1-wiki-cross-catalog",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/cross/catalog delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/cross/tables",
+      "capability": "get-api-cross-tables",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/cross/tables delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/cross/stats",
+      "capability": "get-api-cross-stats",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/cross/stats delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/characters",
+      "capability": "get-api-characters",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/characters delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/characters/{id}",
+      "capability": "get-api-characters-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/characters/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/coordinators",
+      "capability": "get-api-coordinators",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/coordinators delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/coaches",
+      "capability": "get-api-coaches",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/coaches delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/coaches/{id}",
+      "capability": "get-api-coaches-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/coaches/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/teams",
+      "capability": "get-api-teams",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/teams delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/teams/{id}",
+      "capability": "get-api-teams-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/teams/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/shops",
+      "capability": "get-api-shops",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/shops delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/shops/{id}",
+      "capability": "get-api-shops-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/shops/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/stadiums",
+      "capability": "get-api-stadiums",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/stadiums delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/stadiums/{id}",
+      "capability": "get-api-stadiums-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/stadiums/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/skills",
+      "capability": "get-api-skills",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/skills delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/skills/{id}",
+      "capability": "get-api-skills-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/skills/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/items",
+      "capability": "get-api-items",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/items delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/items/{id}",
+      "capability": "get-api-items-id",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/items/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/gallery",
+      "capability": "get-api-gallery",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/gallery delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
       "entry": "GET /api/v1/wiki/gallery",
       "capability": "get-api-v1-wiki-gallery",
       "classification": "portable",
@@ -4512,6 +4896,42 @@
       "classification": "portable",
       "owner": "crates/tools/nie-wiki/src/lib.rs",
       "rationale": "GET /api/v1/wiki/characters/{id} delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/characters/{id}/skills",
+      "capability": "get-api-v1-wiki-characters-id-skills",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/characters/{id}/skills delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/roster",
+      "capability": "get-api-v1-wiki-roster",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/roster delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/wiki.rs",
+        "nie_wiki"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/wiki/staff",
+      "capability": "get-api-v1-wiki-staff",
+      "classification": "portable",
+      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "rationale": "GET /api/v1/wiki/staff delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/wiki.rs",
         "nie_wiki"
@@ -5511,6 +5931,42 @@
     },
     {
       "surface": "site",
+      "entry": "GET /api/v1/game-data/decode_cfgbin_typed",
+      "capability": "get-api-v1-game-data-decode-cfgbin-typed",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "GET /api/v1/game-data/decode_cfgbin_typed delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/game-data/encode_cfgbin",
+      "capability": "get-api-v1-game-data-encode-cfgbin",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "GET /api/v1/game-data/encode_cfgbin delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/game-data",
+      "capability": "get-api-v1-game-data",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "GET /api/v1/game-data delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
       "entry": "GET /api/v1/game-data/{family}",
       "capability": "get-api-v1-game-data-family",
       "classification": "portable",
@@ -5531,6 +5987,222 @@
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/profile.rs",
         "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/players",
+      "capability": "get-api-v1-ut-players",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/players delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/teams",
+      "capability": "get-api-v1-ut-teams",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/teams delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/packs",
+      "capability": "get-api-v1-ut-packs",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/packs delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/formations",
+      "capability": "get-api-v1-ut-formations",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/formations delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/spirits",
+      "capability": "get-api-v1-ut-spirits",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/spirits delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/moves",
+      "capability": "get-api-v1-ut-moves",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/moves delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/open-pack",
+      "capability": "get-api-v1-ut-open-pack",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/open-pack delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/valuation",
+      "capability": "get-api-v1-ut-valuation",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/valuation delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/team/encrypt",
+      "capability": "get-api-v1-ut-team-encrypt",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/team/encrypt delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/team/decrypt",
+      "capability": "get-api-v1-ut-team-decrypt",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/team/decrypt delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/uniforms",
+      "capability": "get-api-v1-ut-uniforms",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/uniforms delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/ut/stadiums",
+      "capability": "get-api-v1-ut-stadiums",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "GET /api/v1/ut/stadiums delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/online/status",
+      "capability": "get-api-v1-online-status",
+      "classification": "portable",
+      "owner": "crates/engine/nie-net/src/lib.rs",
+      "rationale": "GET /api/v1/online/status delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/online.rs",
+        "nie_net"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/online/tiers",
+      "capability": "get-api-v1-online-tiers",
+      "classification": "portable",
+      "owner": "crates/engine/nie-net/src/lib.rs",
+      "rationale": "GET /api/v1/online/tiers delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/online.rs",
+        "nie_net"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/online/ladder",
+      "capability": "get-api-v1-online-ladder",
+      "classification": "portable",
+      "owner": "crates/engine/nie-net/src/lib.rs",
+      "rationale": "GET /api/v1/online/ladder delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/online.rs",
+        "nie_net"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/online/clans",
+      "capability": "get-api-v1-online-clans",
+      "classification": "portable",
+      "owner": "crates/engine/nie-net/src/lib.rs",
+      "rationale": "GET /api/v1/online/clans delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/online.rs",
+        "nie_net"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/online/challenge",
+      "capability": "get-api-v1-online-challenge",
+      "classification": "portable",
+      "owner": "crates/engine/nie-net/src/lib.rs",
+      "rationale": "GET /api/v1/online/challenge delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/online.rs",
+        "nie_net"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "GET /api/v1/online/calc-elo",
+      "capability": "get-api-v1-online-calc-elo",
+      "classification": "portable",
+      "owner": "crates/engine/nie-net/src/lib.rs",
+      "rationale": "GET /api/v1/online/calc-elo delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/online.rs",
+        "nie_net"
       ]
     },
     {
@@ -5671,6 +6343,102 @@
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/zukan.rs",
         "nie_zukan"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/game-data/encode_cfgbin",
+      "capability": "post-api-v1-game-data-encode-cfgbin",
+      "classification": "portable",
+      "owner": "crates/engine/nie-app/src/game_data.rs",
+      "rationale": "POST /api/v1/game-data/encode_cfgbin delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/game_data.rs",
+        "nie_app"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/lua/execute",
+      "capability": "post-api-v1-lua-execute",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "POST /api/v1/lua/execute delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/lua/eval",
+      "capability": "post-api-v1-lua-eval",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "POST /api/v1/lua/eval delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/lua/globals",
+      "capability": "post-api-v1-lua-globals",
+      "classification": "portable",
+      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "rationale": "POST /api/v1/lua/globals delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/lua.rs",
+        "nie_lua"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/ut/open-pack",
+      "capability": "post-api-v1-ut-open-pack",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "POST /api/v1/ut/open-pack delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/ut/valuation",
+      "capability": "post-api-v1-ut-valuation",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "POST /api/v1/ut/valuation delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/ut/team/encrypt",
+      "capability": "post-api-v1-ut-team-encrypt",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "POST /api/v1/ut/team/encrypt delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
+      ]
+    },
+    {
+      "surface": "site",
+      "entry": "POST /api/v1/ut/team/decrypt",
+      "capability": "post-api-v1-ut-team-decrypt",
+      "classification": "portable",
+      "owner": "crates/tools/nie-launcher/src/lib.rs",
+      "rationale": "POST /api/v1/ut/team/decrypt delegates portable work to the named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-site/src/routes/ut.rs",
+        "nie_launcher"
       ]
     },
     {

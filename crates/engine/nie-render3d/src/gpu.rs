@@ -994,14 +994,22 @@ impl GpuRenderer {
                 srgb_vers_lineaire(seg.color[1]),
                 srgb_vers_lineaire(seg.color[2]),
             ];
-            sommets.push(LineVertex { position: seg.a, color: couleur });
-            sommets.push(LineVertex { position: seg.b, color: couleur });
+            sommets.push(LineVertex {
+                position: seg.a,
+                color: couleur,
+            });
+            sommets.push(LineVertex {
+                position: seg.b,
+                color: couleur,
+            });
         }
-        let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("nie viewport lines"),
-            contents: bytemuck::cast_slice(&sommets),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        let buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("nie viewport lines"),
+                contents: bytemuck::cast_slice(&sommets),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
         GpuLines {
             buffer,
             vertex_count: u32::try_from(sommets.len()).unwrap_or(u32::MAX),
@@ -1625,7 +1633,11 @@ mod tests {
             textures: Vec::new(),
         };
         let gpu_model = renderer.upload(&model);
-        let camera = Camera { yaw: 0.0, pitch: 0.0, distance: 3.0 };
+        let camera = Camera {
+            yaw: 0.0,
+            pitch: 0.0,
+            distance: 3.0,
+        };
 
         let vert = [0, 255, 0];
         let segments = vec![
@@ -1649,7 +1661,10 @@ mod tests {
                 .count()
         };
         let (n_avec, n_sans) = (verts(&avec), verts(&sans));
-        assert!(n_avec > 50, "les segments doivent couvrir des pixels ({n_avec})");
+        assert!(
+            n_avec > 50,
+            "les segments doivent couvrir des pixels ({n_avec})"
+        );
         assert_eq!(n_sans, 0, "aucun pixel vert sans segment ({n_sans})");
     }
 

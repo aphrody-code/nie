@@ -60,6 +60,7 @@
  */
 import { createLuaRuntime, type LuaRuntime } from "../../../../crates/engine/nie-lua-web/js/nie-lua-web";
 import { fetchBytes, fetchJson } from "@niers/asset-source";
+import { vfsResources } from "./vfs-resources";
 
 /** L'artefact emscripten, servi comme le module du jeu. */
 const VM_URL = "/static/game/nie_lua_web.wasm";
@@ -256,6 +257,8 @@ function includePaths(): Promise<string[]> {
 
 /** Les octets d'un fichier du VFS, ou `null` quand le site ne l'a pas. */
 async function vfsBytes(path: string): Promise<Uint8Array | null> {
+	const mounted = vfsResources.read(path);
+	if (mounted) return mounted;
 	return fetchBytes(`/f/${path}`, { timeoutMs: 15_000, retries: 0 }).catch(() => null);
 }
 
@@ -337,6 +340,8 @@ export async function resolveMenuVisibility(screen: string): Promise<ResolvedVis
 	});
 	let runtime: LuaRuntime;
 	try {
+		const { ensureVfsArchive } = await import("./preloaded-vfs");
+		await ensureVfsArchive("menu", screen, "fr");
 		runtime = await ensureRuntime();
 	} catch (erreur) {
 		return echec(`VM Lua indisponible : ${erreur instanceof Error ? erreur.message : erreur}`);

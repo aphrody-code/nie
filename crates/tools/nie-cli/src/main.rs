@@ -42,6 +42,7 @@ mod render_cmd;
 mod search_cmd;
 mod seed_ui;
 mod strings_cmd;
+pub mod vfs_bundle;
 mod video_cmd;
 mod vn_cmd;
 
@@ -1014,6 +1015,26 @@ enum MemOp {
 /// contient déjà `data/cpk_list.cfg.bin` — cas du dépôt fusionné avec l'install du jeu).
 #[derive(Subcommand)]
 enum VfsOp {
+    /// Build the deterministic initial browser VFS from this licensed local installation.
+    Bundle {
+        #[arg(long, default_value = "main_menu")]
+        screen: String,
+        #[arg(long, default_value = "fr")]
+        locale: String,
+        /// Content profile. `aphrody_lean` keeps non-critical game assets out of startup.
+        #[arg(long, value_enum, default_value = "complete")]
+        profile: vfs_bundle::InitialBundleProfile,
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// JSON provenance and measurements (default: `<out>.manifest.json`).
+        #[arg(long)]
+        manifest_out: Option<PathBuf>,
+        /// Also write physically separate, content-addressed hot/cold archives in a new directory.
+        #[arg(long)]
+        split_dir: Option<PathBuf>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
     /// Vue « dossier » : sous-dossiers et fichiers directement sous `prefix` (racine si omis).
     Ls {
         prefix: Option<String>,
@@ -2599,7 +2620,12 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
                 );
             } else {
                 for c in &checks {
-                    println!("{} {:<24} {}", if c.ok { "ok " } else { "MAN" }, c.name, c.detail);
+                    println!(
+                        "{} {:<24} {}",
+                        if c.ok { "ok " } else { "MAN" },
+                        c.name,
+                        c.detail
+                    );
                 }
                 println!("{manquants} prérequis sur {} manquent", checks.len());
             }
@@ -2607,10 +2633,7 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
             Ok(())
         }
 
-        LiveOp::Setup {
-            game_dir,
-            recreate,
-        } => {
+        LiveOp::Setup { game_dir, recreate } => {
             let l = disposition(game_dir);
             let r = proton::Runtime::locate(&l)?;
             proton::prepare_prefix(&l, &r, recreate)?;
@@ -2685,12 +2708,13 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
         }
 
         LiveOp::Attach { json } => {
-            let pid = nie_trace::find_pid_by_name(nie_trace::proton::GAME_COMM).ok_or_else(|| {
-                anyhow::anyhow!(
-                    "aucun process « {} » — lance le jeu avec `niers live run`",
-                    nie_trace::proton::GAME_COMM
-                )
-            })?;
+            let pid =
+                nie_trace::find_pid_by_name(nie_trace::proton::GAME_COMM).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "aucun process « {} » — lance le jeu avec `niers live run`",
+                        nie_trace::proton::GAME_COMM
+                    )
+                })?;
             let base = nie_trace::find_module_base(pid, nie_trace::proton::GAME_COMM);
             let permis = nie_trace::likely_permitted(pid);
             if json {
@@ -2710,7 +2734,10 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
                     None => println!("module_base   (introuvable)"),
                 }
                 println!("ptrace_scope  {}", nie_trace::read_ptrace_scope());
-                println!("lecture       {}", if permis { "permise" } else { "REFUSÉE" });
+                println!(
+                    "lecture       {}",
+                    if permis { "permise" } else { "REFUSÉE" }
+                );
             }
             Ok(())
         }
@@ -2755,7 +2782,10 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
             #[allow(clippy::cast_sign_loss)]
             let addr = base.wrapping_add(rva as u64);
             let octets = nie_trace::read_exact(pid, addr, len)?;
-            println!("pid {pid}  base {base:#x}  addr {addr:#x}  len {}", octets.len());
+            println!(
+                "pid {pid}  base {base:#x}  addr {addr:#x}  len {}",
+                octets.len()
+            );
             for (i, ligne) in octets.chunks(16).enumerate() {
                 let hex: Vec<String> = ligne.iter().map(|b| format!("{b:02x}")).collect();
                 println!("{:016x}  {}", addr as usize + i * 16, hex.join(" "));
@@ -3646,16 +3676,15 @@ fn mem_read(
     Ok(())
 }
 
-fn mem_write(
-    addr: &str,
-    data: &str,
-    pid: i32,
-) -> anyhow::Result<()> {
+fn mem_write(addr: &str, data: &str, pid: i32) -> anyhow::Result<()> {
     let pid = mem_preflight(pid)?;
     let address = mem_resolve_addr(addr, pid)?;
     let bytes = mem_parse_write_data(data)?;
     nie_trace::write_exact(pid, address, &bytes).context("écriture mémoire live")?;
-    println!("  {} octet(s) écrit(s) @ 0x{address:x} (pid {pid})", bytes.len());
+    println!(
+        "  {} octet(s) écrit(s) @ 0x{address:x} (pid {pid})",
+        bytes.len()
+    );
     Ok(())
 }
 
@@ -3667,7 +3696,10 @@ fn mem_parse_write_data(data: &str) -> anyhow::Result<Vec<u8>> {
     if let Some(s) = trimmed.strip_prefix("wstr:") {
         return Ok(s.encode_utf16().flat_map(|u| u.to_le_bytes()).collect());
     }
-    let cleaned = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")).unwrap_or(trimmed);
+    let cleaned = trimmed
+        .strip_prefix("0x")
+        .or_else(|| trimmed.strip_prefix("0X"))
+        .unwrap_or(trimmed);
     let hex_clean: String = cleaned.chars().filter(|c| !c.is_whitespace()).collect();
     if hex_clean.len().is_multiple_of(2)
         && !hex_clean.is_empty()
@@ -3691,7 +3723,9 @@ fn mem_parse_write_data(data: &str) -> anyhow::Result<Vec<u8>> {
         }
         return Ok(num.to_le_bytes().to_vec());
     }
-    anyhow::bail!("format de données invalide : utiliser des octets hex ('90 90', '0x9090'), 'str:...', 'wstr:...' ou un entier");
+    anyhow::bail!(
+        "format de données invalide : utiliser des octets hex ('90 90', '0x9090'), 'str:...', 'wstr:...' ou un entier"
+    );
 }
 
 fn mem_dump(pid: i32, module: &str, all: bool, output: &std::path::Path) -> anyhow::Result<()> {
@@ -3846,13 +3880,21 @@ fn mem_recette(file: &std::path::Path, pid: i32, module: &str, force: bool) -> a
 
     let rapport = nie_trace::recette::appliquer(pid, module, &r, !force);
     for res in &rapport.resultats {
-        let statut = if res.erreur.is_none() && res.trouvees > 0 { "OK" } else { "ÉCHEC" };
+        let statut = if res.erreur.is_none() && res.trouvees > 0 {
+            "OK"
+        } else {
+            "ÉCHEC"
+        };
         let msg = res.erreur.as_deref().unwrap_or("");
-        println!("  [{statut}] règle {:?} (trouvées={}, écrites={}) : {msg}", res.regle, res.trouvees, res.ecrites);
+        println!(
+            "  [{statut}] règle {:?} (trouvées={}, écrites={}) : {msg}",
+            res.regle, res.trouvees, res.ecrites
+        );
     }
     println!(
         "\n  Bilan : {} écriture(s), {} échec(s)",
-        rapport.total_ecrites(), rapport.echecs()
+        rapport.total_ecrites(),
+        rapport.echecs()
     );
     if !force {
         println!("  Note : Mode à blanc par défaut. Passez --force pour appliquer réellement.");
@@ -4723,10 +4765,16 @@ fn save_cmd(op: SaveOp) -> anyhow::Result<()> {
                 out_path.display()
             );
         }
-        SaveOp::Park { live_save, mod_save } => {
+        SaveOp::Park {
+            live_save,
+            mod_save,
+        } => {
             launcher_save_park(&live_save, &mod_save)?;
         }
-        SaveOp::Restore { live_save, mod_save } => {
+        SaveOp::Restore {
+            live_save,
+            mod_save,
+        } => {
             launcher_save_restore(&live_save, &mod_save)?;
         }
         SaveOp::InjectTeam { save, team, out } => {
@@ -4736,9 +4784,13 @@ fn save_cmd(op: SaveOp) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn launcher_save_park(live_save: &std::path::Path, mod_save: &std::path::Path) -> anyhow::Result<()> {
+fn launcher_save_park(
+    live_save: &std::path::Path,
+    mod_save: &std::path::Path,
+) -> anyhow::Result<()> {
     let mut session = nie_launcher::SaveSession::new(live_save, mod_save);
-    session.park_and_install_mod_save()
+    session
+        .park_and_install_mod_save()
         .map_err(|e| anyhow::anyhow!("parking sauvegarde : {e}"))?;
     session.is_active = false;
     println!(
@@ -4749,15 +4801,16 @@ fn launcher_save_park(live_save: &std::path::Path, mod_save: &std::path::Path) -
     Ok(())
 }
 
-fn launcher_save_restore(live_save: &std::path::Path, mod_save: &std::path::Path) -> anyhow::Result<()> {
+fn launcher_save_restore(
+    live_save: &std::path::Path,
+    mod_save: &std::path::Path,
+) -> anyhow::Result<()> {
     let mut session = nie_launcher::SaveSession::new(live_save, mod_save);
     session.is_active = true;
-    session.restore_original_save()
+    session
+        .restore_original_save()
         .map_err(|e| anyhow::anyhow!("restauration sauvegarde : {e}"))?;
-    println!(
-        "restore ok: live={} restored from .bk",
-        live_save.display()
-    );
+    println!("restore ok: live={} restored from .bk", live_save.display());
     Ok(())
 }
 
@@ -4815,8 +4868,8 @@ fn launcher_cmd(op: LauncherOp) -> anyhow::Result<()> {
             } => {
                 let content = std::fs::read_to_string(&file)
                     .with_context(|| format!("lecture {}", file.display()))?;
-                let envelope: nie_launcher::TeamExportEnvelope = serde_json::from_str(&content)
-                    .context("désérialisation enveloppe chiffrée")?;
+                let envelope: nie_launcher::TeamExportEnvelope =
+                    serde_json::from_str(&content).context("désérialisation enveloppe chiffrée")?;
                 let lineup = nie_launcher::decrypt_team_envelope(&envelope, &passphrase)
                     .map_err(|e| anyhow::anyhow!("déchiffrement équipe : {e}"))?;
                 let json = serde_json::to_string_pretty(&lineup)?;
@@ -4840,8 +4893,8 @@ fn launcher_cmd(op: LauncherOp) -> anyhow::Result<()> {
             } => {
                 let content = std::fs::read_to_string(&file)
                     .with_context(|| format!("lecture {}", file.display()))?;
-                let lineup: nie_launcher::TeamLineup = serde_json::from_str(&content)
-                    .context("désérialisation composition équipe")?;
+                let lineup: nie_launcher::TeamLineup =
+                    serde_json::from_str(&content).context("désérialisation composition équipe")?;
                 let mut salt = [0u8; 16];
                 let mut iv = [0u8; 12];
                 for (i, b) in salt.iter_mut().enumerate() {
@@ -4878,10 +4931,16 @@ fn launcher_cmd(op: LauncherOp) -> anyhow::Result<()> {
             }
         },
         LauncherOp::Save { cmd } => match cmd {
-            LauncherSaveOp::Park { live_save, mod_save } => {
+            LauncherSaveOp::Park {
+                live_save,
+                mod_save,
+            } => {
                 launcher_save_park(&live_save, &mod_save)?;
             }
-            LauncherSaveOp::Restore { live_save, mod_save } => {
+            LauncherSaveOp::Restore {
+                live_save,
+                mod_save,
+            } => {
                 launcher_save_restore(&live_save, &mod_save)?;
             }
             LauncherSaveOp::InjectTeam { save, team, out } => {
@@ -4890,8 +4949,8 @@ fn launcher_cmd(op: LauncherOp) -> anyhow::Result<()> {
         },
         LauncherOp::Eac { cmd } => match cmd {
             LauncherEacOp::Scan { file, json } => {
-                let bytes = std::fs::read(&file)
-                    .with_context(|| format!("lecture {}", file.display()))?;
+                let bytes =
+                    std::fs::read(&file).with_context(|| format!("lecture {}", file.display()))?;
                 let report = nie_launcher::scan_eac_sites(&bytes)
                     .map_err(|e| anyhow::anyhow!("scan EAC : {e}"))?;
                 if json {
@@ -4952,7 +5011,11 @@ fn launcher_cmd(op: LauncherOp) -> anyhow::Result<()> {
                     }
                 }
             }
-            LauncherSpiritOp::Moves { query, category, json } => {
+            LauncherSpiritOp::Moves {
+                query,
+                category,
+                json,
+            } => {
                 let mut moves: Vec<&nie_launcher::SpecialMove> = if let Some(q) = query {
                     nie_launcher::search_special_moves(&q)
                 } else {
@@ -4989,12 +5052,17 @@ fn launcher_ut_cmd(op: LauncherUtOp) -> anyhow::Result<()> {
             if json {
                 println!("{}", serde_json::to_string_pretty(&packs)?);
             } else {
-                println!("{:<18} | {:<22} | {:>7} | {:>6} | {:>6} | {:>6} | {:>6} | {:>6}",
-                    "ID", "Nom", "Prix", "Comun", "Raro", "Legend", "Icono", "Basara");
-                println!("{:-<18}-+-{:-<22}-+-{:-<7}-+-{:-<6}-+-{:-<6}-+-{:-<6}-+-{:-<6}-+-{:-<6}",
-                    "", "", "", "", "", "", "", "");
+                println!(
+                    "{:<18} | {:<22} | {:>7} | {:>6} | {:>6} | {:>6} | {:>6} | {:>6}",
+                    "ID", "Nom", "Prix", "Comun", "Raro", "Legend", "Icono", "Basara"
+                );
+                println!(
+                    "{:-<18}-+-{:-<22}-+-{:-<7}-+-{:-<6}-+-{:-<6}-+-{:-<6}-+-{:-<6}-+-{:-<6}",
+                    "", "", "", "", "", "", "", ""
+                );
                 for p in &packs {
-                    println!("{:<18} | {:<22} | {:>7} | {:>5.1}% | {:>5.1}% | {:>5.1}% | {:>5.2}% | {:>5.3}%",
+                    println!(
+                        "{:<18} | {:<22} | {:>7} | {:>5.1}% | {:>5.1}% | {:>5.1}% | {:>5.2}% | {:>5.3}%",
                         p.id,
                         p.name,
                         p.price,
@@ -5021,11 +5089,16 @@ fn launcher_ut_cmd(op: LauncherUtOp) -> anyhow::Result<()> {
             if json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
-                println!("OUVERTURE PACK: {} ({} cartes, {} pièces)",
-                    result.pack_name, result.cards.len(), pack_def.price);
+                println!(
+                    "OUVERTURE PACK: {} ({} cartes, {} pièces)",
+                    result.pack_name,
+                    result.cards.len(),
+                    pack_def.price
+                );
                 println!("{:-<60}", "");
                 for (i, c) in result.cards.iter().enumerate() {
-                    println!("  Card #{}: [{:<18}] {:<24} ({} | {}) -> {:>6} pièces",
+                    println!(
+                        "  Card #{}: [{:<18}] {:<24} ({} | {}) -> {:>6} pièces",
                         i + 1,
                         c.rolled_rarity,
                         c.player.name,
@@ -5035,24 +5108,44 @@ fn launcher_ut_cmd(op: LauncherUtOp) -> anyhow::Result<()> {
                     );
                 }
                 println!("{:-<60}", "");
-                println!("VALEUR VENTE RAPIDE TOTALE: {} pièces", result.total_quicksell_value);
+                println!(
+                    "VALEUR VENTE RAPIDE TOTALE: {} pièces",
+                    result.total_quicksell_value
+                );
             }
         }
-        LauncherUtOp::Players { query, element, rarity, limit, json } => {
+        LauncherUtOp::Players {
+            query,
+            element,
+            rarity,
+            limit,
+            json,
+        } => {
             let db = nie_launcher::UtDatabase::open_default()
                 .context("ouverture de data/ievr-ut.sqlite")?;
-            let players = db.search_players(query.as_deref(), element.as_deref(), rarity.as_deref(), limit)?;
+            let players = db.search_players(
+                query.as_deref(),
+                element.as_deref(),
+                rarity.as_deref(),
+                limit,
+            )?;
 
             if json {
                 println!("{}", serde_json::to_string_pretty(&players)?);
             } else {
-                println!("{:<10} | {:<26} | {:<8} | {:<4} | {:<16} | {:<12}",
-                    "CRC32", "Nom", "Élément", "Pos", "Équipe", "Rareté");
-                println!("{:-<10}-+-{:-<26}-+-{:-<8}-+-{:-<4}-+-{:-<16}-+-{:-<12}",
-                    "", "", "", "", "", "");
+                println!(
+                    "{:<10} | {:<26} | {:<8} | {:<4} | {:<16} | {:<12}",
+                    "CRC32", "Nom", "Élément", "Pos", "Équipe", "Rareté"
+                );
+                println!(
+                    "{:-<10}-+-{:-<26}-+-{:-<8}-+-{:-<4}-+-{:-<16}-+-{:-<12}",
+                    "", "", "", "", "", ""
+                );
                 for p in &players {
-                    println!("{:<10} | {:<26} | {:<8} | {:<4} | {:<16} | {:<12}",
-                        p.id, p.name, p.element, p.position, p.team_id, p.rarity);
+                    println!(
+                        "{:<10} | {:<26} | {:<8} | {:<4} | {:<16} | {:<12}",
+                        p.id, p.name, p.element, p.position, p.team_id, p.rarity
+                    );
                 }
                 println!("Total: {} joueurs affichés", players.len());
             }
@@ -5062,24 +5155,43 @@ fn launcher_ut_cmd(op: LauncherUtOp) -> anyhow::Result<()> {
             if json {
                 println!("{}", serde_json::to_string_pretty(&layout)?);
             } else {
-                println!("FORMATION: {} ({} slots terrain)", layout.name, layout.slots.len());
-                println!("{:<8} | {:<6} | {:>6} | {:>6}", "Key", "Poste", "X (%)", "Y (%)");
+                println!(
+                    "FORMATION: {} ({} slots terrain)",
+                    layout.name,
+                    layout.slots.len()
+                );
+                println!(
+                    "{:<8} | {:<6} | {:>6} | {:>6}",
+                    "Key", "Poste", "X (%)", "Y (%)"
+                );
                 println!("{:-<8}-+-{:-<6}-+-{:-<6}-+-{:-<6}", "", "", "", "");
                 for s in &layout.slots {
-                    println!("{:<8} | {:<6} | {:>5.1}% | {:>5.1}%", s.key, s.label, s.x, s.y);
+                    println!(
+                        "{:<8} | {:<6} | {:>5.1}% | {:>5.1}%",
+                        s.key, s.label, s.x, s.y
+                    );
                 }
                 println!("\nRépartition par ligne de terrain :");
                 for (bande, slots) in layout.group_by_pitch_third() {
-                    let keys: Vec<_> = slots.iter().map(|s| format!("{}({:.0}%)", s.label, s.x)).collect();
+                    let keys: Vec<_> = slots
+                        .iter()
+                        .map(|s| format!("{}({:.0}%)", s.label, s.x))
+                        .collect();
                     println!("  {:<15}: {}", bande, keys.join(", "));
                 }
             }
         }
-        LauncherUtOp::Value { file, passphrase, json } => {
+        LauncherUtOp::Value {
+            file,
+            passphrase,
+            json,
+        } => {
             let content = std::fs::read_to_string(&file)
                 .with_context(|| format!("lecture {}", file.display()))?;
 
-            let lineup = if let Ok(envelope) = serde_json::from_str::<nie_launcher::TeamExportEnvelope>(&content) {
+            let lineup = if let Ok(envelope) =
+                serde_json::from_str::<nie_launcher::TeamExportEnvelope>(&content)
+            {
                 nie_launcher::decrypt_team_envelope(&envelope, &passphrase)
                     .map_err(|e| anyhow::anyhow!("déchiffrement équipe : {e}"))?
             } else {
@@ -5095,7 +5207,10 @@ fn launcher_ut_cmd(op: LauncherUtOp) -> anyhow::Result<()> {
             } else {
                 println!("ÉVALUATION EFFECTIF : '{}'", valuation.team_name);
                 println!("  Nombre de joueurs : {}", valuation.total_players);
-                println!("  Valeur marchande vente rapide : {} pièces", valuation.total_quicksell_value);
+                println!(
+                    "  Valeur marchande vente rapide : {} pièces",
+                    valuation.total_quicksell_value
+                );
                 println!("  Distribution des raretés :");
                 for (rar, count) in &valuation.rarity_counts {
                     println!("    - {:<18}: {} cartes", rar, count);
@@ -5890,6 +6005,45 @@ fn viola_cmd(op: ViolaOp) -> anyhow::Result<()> {
 
 fn vfs_cmd(op: VfsOp) -> anyhow::Result<()> {
     match op {
+        VfsOp::Bundle {
+            screen,
+            locale,
+            profile,
+            out,
+            manifest_out,
+            split_dir,
+            game_dir,
+        } => {
+            let vfs = open_vfs(game_dir)?;
+            let generated = vfs_bundle::generate(
+                &vfs,
+                &vfs_bundle::InitialBundleOptions {
+                    screen,
+                    locale,
+                    profile,
+                },
+            )?;
+            let manifest_out =
+                manifest_out.unwrap_or_else(|| vfs_bundle::default_manifest_path(&out));
+            let manifest = serde_json::to_vec_pretty(&generated.report)?;
+            vfs_bundle::write_atomic(&out, &generated.bytes)?;
+            if let Err(error) = vfs_bundle::write_atomic(&manifest_out, &manifest) {
+                return Err(error.context(format!(
+                    "bundle written to {}, but manifest publication failed",
+                    out.display()
+                )));
+            }
+            println!("bundle   {}", out.display());
+            println!("manifest {}", manifest_out.display());
+            println!("sha256   {}", generated.report.sha256);
+            println!("entries  {}", generated.report.measurements.entries);
+            println!("bytes    {}", generated.report.measurements.bundle_bytes);
+            if let Some(directory) = split_dir {
+                vfs_bundle::write_split_archives(&generated, &directory)?;
+                println!("split    {}", directory.display());
+            }
+            Ok(())
+        }
         VfsOp::Ls { prefix, game_dir } => vfs_ls(prefix.as_deref().unwrap_or(""), game_dir),
         VfsOp::Stat { path, game_dir } => vfs_stat(&path, game_dir),
         VfsOp::Cat {

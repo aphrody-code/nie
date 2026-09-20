@@ -1,5 +1,21 @@
 # NIERS — Reconstruct the game engine that produced `nie.exe`
 
+## Stable repository release 1.0.0 — 2026-09-20
+
+Version `1.0.0` is the first synchronized stable cut of the complete repository: the Rust
+workspace, browser/desktop applications, release tooling, `@aphrody/nie`, and `nie-plugin` move
+together through the single `bun run release:all --deploy` pipeline. A stable cut means that one
+exact commit is gated, packaged, pushed, deployed, live-validated, tagged, and recoverable. It does
+not rename the remaining reverse-engineering, Azalée parity, native-rendering, or no-React gaps as
+complete; their measured limits remain in this plan.
+
+The distributable npm surface is deliberately limited to the two public niers bindings. Internal
+applications and compatibility packages remain private or retain their own independent versions.
+Rust packages remain `publish = false`: the workspace's commercial `LICENSE` is not an OSI crate
+license and does not authorize a crates.io source release. The stable Rust distribution is the
+verified native/WASM binary set and source snapshot attached to the GitHub release. Changing that
+boundary requires a new licensing decision, not a release-script bypass.
+
 ## The reverse-engineering workflow — how the next task is chosen (2026-09-11)
 
 The next task is not picked by intuition, nor read off a stale document: it is **measured**.
@@ -75,6 +91,339 @@ action is the explicit depot sync followed by `data/cpk_list.cfg.bin` and VFS ch
 `scripts/nie-wine-setup.sh` once Proton's `files/bin/wine` exists. Full operator details are
 in [`docs/STEAM-LINUX.md`](docs/STEAM-LINUX.md).
 
+### Repository shell environment — measured 2026-09-20
+
+`bash scripts/install-shell-environment.sh` on `vps-203bea89` merged the six existing private
+niers environment sources into the ignored `0600` `.env.local` without logging values (98 keys,
+zero missing), kept `.env` as a symlink, installed the non-secret user environment plus a
+`0644` system PATH fragment, and published six current release binaries through
+`~/.local/bin` symlinks. A clean login resolves `niers`, `nie-mcp`, Steam/SteamCMD, Rust, Bun, uv,
+Codex, Claude and agy; `direnv exec .` resolves the real Steam VFS and a shell outside the checkout
+does not set `NIERS_ENV_ACTIVE`. Claude reports the niers plugin enabled at project scope and
+disabled outside; Codex is disabled globally and enabled by `.codex/config.toml`; agy brackets its
+global-only enablement around serialized sessions launched from this checkout. Plugin validation
+processed 18 skills and one MCP server. See [`docs/DEVELOPMENT-ENVIRONMENT.md`](docs/DEVELOPMENT-ENVIRONMENT.md).
+The container's `/etc` mount maps that fragment to uid/gid 65534; `chown root:root` returns
+`EPERM` even through the escalated host path. It remains non-writable by `ubuntu` and readable by
+all users, so the PATH behavior is valid, but ownership cannot be normalized from this host.
+
+## Public game runtime correction — measured 2026-09-20
+
+The public game is still **not** a pixel-faithful port of `nie.exe`, and React is still present
+behind the compatibility host. This batch removes claims and surfaces that were further from the
+target instead of relabelling them as progress. On host `vps-203bea89`, `bun run test` in
+`apps/nie-web` now runs 338 passing tests with zero failures. The deleted surfaces are the
+invented Kizuna hub, its synthetic submenus,
+hard-coded formation and save screens, and the orphaned `WasmGameSurface` framebuffer that its own
+source called a 2D placeholder. Five public mode routes no longer lead to that framebuffer, and the
+2.5-second readiness bypass and both skip controls are gone.
+
+The browser entry is now `src/main.ts`: the localized roots stay outside React until both the WASM
+module and the complete `/api/v1/health` content contract are ready. The gate owns only an empty
+1280×720 canvas target and screen-reader status; it paints no substitute menu. React is then loaded
+dynamically by `host-mount.tsx`, so this is an extraction boundary, **not** satisfaction of the
+no-React goal. Recount with `rg -l 'from .*react(-dom)?' apps/nie-web/src
+--glob '*.tsx'`: 89 runtime files and 28,754 lines still import the compatibility stack.
+The post-build gate in `scripts/public-entry-bundle.ts` reads the emitted source maps and static
+chunk imports instead of trusting source spelling. Its production fixture built 3,813 Vite modules
+in 57.82 s and proved a three-chunk critical closure with zero React modules while `host-mount`
+remained dynamic.
+
+The initial licensed VFS now has one reusable format and one producer rather than an informal file
+list. The measured `aphrody_lean` profile selects Byron (`c01001900`), God Knows (`whs00340`),
+Pegasus Soul (`wso000560`), Arch Pegasus (`wks00330`), Aphrody Change Mode
+(`mode_change_c11150120`) and Chrono Boost (`wap01005`) by their exact native identifiers. For
+equipment, the only comparable native rule is the sum of resolved additive bonuses: Spiked Cleats
+and Master Gloves score 70, while YUTO's Cape and Champion's Scarf share the accessory maximum of
+70 and are both retained. The other 16 item categories expose no comparable bonus and are recorded
+as unranked instead of receiving an invented winner.
+
+`niers vfs bundle --profile aphrody_lean --out
+var/vfs/main_menu-fr-aphrody-lean.nievfs` selected 85 files and 100,619,449 payload bytes from the
+installed VFS. The deterministic archive is 100,629,774 bytes, SHA-256
+`7865dbfd2415cebc802ec28c910464b8149651477f2077aebb75a5a03983be57`; Brotli 11 reduces it to
+16,579,363 bytes (−83.5244 %, SHA-256
+`18bcd7e4dcece39ffafe6cac59990285cdb73db5f249744369fdae3c0acf2e29`). The 24,025,856-byte item
+atlas cost is retained because four extracted PNGs would be derived substitutes, not native engine
+inputs. Likewise, Byron is the only indexed player but the 1,238,672-byte native character table
+remains whole in the cold category; filtering it would falsify the source asset. Both archive and
+manifest stay ignored under `var/vfs/`, so no game bytes are tracked. The web precompress gate now
+recognizes `.nievfs` and emits adjacent Brotli/Zstd variants when a licensed archive is staged.
+`PreloadedVfs` validates the archive once in WASM (bounds, canonical paths and per-entry CRC-32),
+while the source-level `nie_lua_web_readiness_json` checks the resolved script, setting and text.
+That new export is absent from the currently shipped Lua binary and is not called by its browser
+glue: it is not a deployed readiness guarantee. This initial snapshot proved deterministic native
+packaging, not startup performance; the later physical-split batch below supersedes its unwired
+archive state. A universal 16.6 MB preload remains unacceptable.
+
+The real `gallery_menu` objbin reports `CMenuListView { mViewStart=1, mViewNum=4, mLineNum=5,
+mLocatorNum=30 }`. The native exporter now seeds the Lua item count from that declared 30-slot
+ring, instead of seeing only the cursor locator and replaying one cell. It also resolves the G4PKM
+matrix ring to 30 slots, 20 initially visible, within 0.3334 px horizontally and 0.4167 px
+vertically of the capture. Those matrices are evidence only (`renderActivated=false`): a like-for-
+like composition experiment fell from SSIM 0.423424 to 0.305873 because the nested background,
+lock and cell states remain unresolved, so that visual activation was removed. The replay still
+executes 117/115/115 events, up from 30/28/28, with 219 known commands instead of 16 and zero
+callback errors. `just ecrans` holds Gallery at SSIM 0.3326 and the 12-screen suite at 11/12
+measured, mean SSIM 0.3901. Unknown command `0x37EC8B39` is still not ported, so a green runtime test
+is not a pixel-parity claim.
+
+Finally, the mirror stores numeric `zukan_order` as `TEXT` and its null marker as the three-byte
+value `5C5C4E`. The catalogue query now normalizes that marker and casts numeric order at the query
+boundary. Against `var/mirror.sqlite`, a local `nie-site` request to
+`/api/v1/chara?page=1&per_page=24` changed from HTTP 500 to HTTP 200 with 24 records in 0.078 s;
+`cargo test -p nie-site --lib` remains 337 passed, zero failed, one ignored.
+
+The next measurable action is to consume the generated archive in the framework-free public entry,
+mount its Lua/text/menu companions once, and let `nie_game`/`nie_ui` render `main_menu` into that
+canvas. Only after that path replaces `host-mount.tsx` at `/` can React removal be claimed. Run
+`just ecrans` on the resulting image, then fix the named Lua host/geometry gaps until the main-menu,
+Bank and Gallery oracle comparisons pass; do not infer visual fidelity from route status or tests.
+
+## Azalée absorption parity gate — measured 2026-09-20
+
+The user explicitly lifted the repository boundary for a read-only comparison with
+`/home/ubuntu/rg/apps/azalee`; implementation still belongs in the settled `niers` owners, not in a
+new Azalée runtime dependency. The archived 2026-09-05 Next build reports 120 outputs; that is NOT
+120 source pages. Read-only enumeration on this Linux host with
+`bun scripts/azalee-route-ledger.ts /home/ubuntu/rg d5659256 docs/azalee/route-ledger.json`
+finds 90 source pages at `d5659256`, 73 at `93aea3ba`, 91 in their union, 31 Next handlers and
+41 headless API contracts. The full historical build-output enumeration has not been recovered.
+The checked-in ledger preserves these distinctions; classification is not replacement proof.
+An additional read-only check recovered the surviving 2026-09-08 build in
+`/home/ubuntu/rg-releases/azalee/slot-a/apps/azalee/.next` (slot B has the same inventory):
+116 compiled route outputs, including 75 page entries and 41 handlers/generated metadata;
+`routes-manifest.json` independently lists 84 static and 32 dynamic routes. These are classified
+separately in `deployedBuildInventory`, with build ID and manifest SHA-256, not relabelled as the
+missing 2026-09-05 120-output build. Reproduce with
+`bun scripts/azalee-route-ledger.ts /home/ubuntu/rg d5659256 docs/azalee/route-ledger.json 93aea3ba /home/ubuntu/rg-releases/azalee/slot-a/apps/azalee/.next`.
+The source revision is immutable even if the neighbouring source checkout changes. Game-save,
+mode-texture, avatar-model and game Open Graph handlers stay classified as game contracts;
+authentication and framework-generated error/metadata pages stay separate.
+Every game contract still requires an owner, compatible replacement, response-shape fixture and
+non-empty interaction proof before deletion.
+
+The immutable ledger now records ten contracts with captured-response adapter tests (players,
+coordinators, character details, skill/item lists and details, gallery and the two Cross reads).
+`provenMigrated` remains zero: JSON parity alone does not satisfy the native presentation gate.
+Run `bun test scripts/azalee-route-ledger.test.ts` (three tests, 23 assertions on this host).
+Character detail has 22 isolated-process historical fixtures. A separate sequential capture has
+seven Shawn variant-order differences even with the same frozen source; both captures are retained
+under `var/azalee`, and the cause of that historical context dependence is not yet established.
+
+The current mirror is broader in several native domains but not yet a lossless replacement. It has
+224 `inagle_*` tables and 165,458 rows, including 6,166 characters, 1,002 skills, 1,807 items, 208
+teams and 360 gallery rows. Conversely, its 153 `inagle_cross_*` tables contain zero rows while the
+static Azalée catalogue declares 85,267 raw Addressables rows, NOT masterdata records. The surviving
+index contains 25,328 rows (23,247 assets and 2,081 bundle/CRI rows). `nie-wiki::cross` now imports
+that index transactionally and idempotently into a candidate, preserving duplicate GUID variants,
+dependencies and provenance; it does not populate schema-only masterdata with invented records.
+Measured candidate `var/cross-candidate-20260920.sqlite`: 18,580 distinct GUIDs, 667,368 dependency
+edges, eight source documents. The missing raw 85,267-row enumeration and 19 unresolved dependency
+names remain explicit source gaps. The production mirror is unchanged.
+
+The seven supplied Azalée captures are functional regression scenarios: the 3,939-entry editorial
+gallery and its 11 counted categories; model families with search and grid/list modes; bank/cue
+audio transport and download; character comparison with sharing, swap, level, radars and deltas;
+seedable random-team filters, averages and synergies; the rich player catalogue; and a full player
+detail with variants, stats, movesets and profile. They are not native-game pixel oracles. The
+native presentation gate remains the real VFS layouts/Lua/resources plus `just ecrans`.
+
+Initial parity gaps, before the adapter batches recorded below: the Rust player API exposed only element, position, rarity
+and series facets; Azalée also exposed gender, play style, age, school year, role, team,
+playable/incomplete state and comparison selection. `nie-web` has stronger raw VFS coverage —
+54,203 textures, 5,512 ACB banks and 284,115 cues — but lacks parts of the editorial taxonomy,
+semantic film grouping, audio controls and legacy deep links. `/gallery` initially collided with
+`gallery_menu`, `/tools/compare` was deliberately unknown, and `/chara`, `/skill`, `/item`, tool,
+texture and model detail URLs lack a complete compatibility contract.
+
+Existing Rust owners must be connected before more UI is built. `nie-core::azalee::{formations,
+team_rules,team_code,search,smart_search}`, `nie-core::growth` and `nie-wiki::query` already own or
+partly own the domain logic, while production still calls duplicated TypeScript in
+`packages/nie-game/src/game`, `apps/nie-web/src/desktop/lib/equipe.ts` and `traduction.ts`. The fixed
+order is library parity with deterministic fixtures, then `nie-site` DTO/legacy aliases, then the
+shared/native-themed UI, then deletion of TypeScript duplicates. Minimum acceptance includes all
+120 pages and 41 APIs classified, 3,939 editorial gallery items, six disjoint texture domains
+totalling 54,203, 5,512 banks/284,115 cues, 98 semantic movies reconstructed from 190 USM, 6,166
+character rows, the Cross inventory reconciled to 85,267 rows, 17 non-empty model families, and
+Rust/HTTP/UI equality for every tool fixture.
+
+The rebuilt local candidate on 2026-09-20 (`127.0.0.1:19323`, Linux host, integrated candidate
+mirror, no publication) passes all five groups in
+`bun scripts/validation/azalee-candidate-gate.ts http://127.0.0.1:19323 var/azalee/candidate-payload-gate.json`:
+6,166 characters, combined Byron filters and disjoint pagination; exact BASARA `0x12B74634`
+with the seven screenshot values totalling 1,592; 3,939 editorial illustrations and 11 categories;
+locale/query-preserving historical redirects; and the separated VFS archive's downloaded SHA-256.
+This is payload proof, not browser or native visual proof.
+
+Current media measurements must not be conflated with the screenshots: `/api/v1/textures` has
+54,203 rows; `/api/v1/sons` has 11,024 files (5,512 ACB/AWB pairs); `/api/v1/videos` has 194 USM
+paths, paired into 97 distinct names. `/assets/video/catalog.json` independently contains the same
+97 semantic films, 15 categories, nine languages, 30 external soundtracks and two films with
+embedded audio. No unmatched `dx11`-only film explains the screenshot's 98 count. The surviving
+capture remains the reference for 98, but the extra identifier/version has not been recovered;
+neither 98 nor the older 190 raw-file count is hardcoded into the candidate.
+
+### Sprint integration checks — measured 2026-09-20
+
+The screenshot pass found functional defects that a successful HTTP response did not detect.
+Browser tools skipped the mirror when no local SQLite path was configured, dropping variant
+rarities and techniques; they now use dedicated read-only roster/skills routes delegating to
+`nie-wiki::desktop::execute`. The Rust projection normalizes stored TEXT numbers/null markers.
+Skill slots use `data.skillID` hashes, so `query::get_skill` now resolves those hashes alongside
+existing IDs. Comparison exposes exact variant identities, imports identity-only shared JSON,
+shows pending/error states instead of fabricated zero/empty results, and supports retry.
+Six historical tool addresses retain locale and query parameters and select their destination tab;
+tab changes participate in browser history. These remain compatibility views, not a claim that
+the React host has been replaced by native widgets.
+
+`bun run test` in `apps/nie-web` passed 377 tests / 2,012 assertions across 70 files before the
+latest comparator loading test and audio stack fix; the later final run must supersede this
+intermediate count. The canonical WASM generator build measured 4,929,182 bytes. Nine focused
+generator/rules/UI tests exercised the real module with 96 assertions, including editable seeded
+generation. Heavy builds remain serialized; no production deployment or service shutdown occurred.
+
+The isolated site candidate uses its own model backend on `127.0.0.1:19324`; it no longer queues
+behind shared port 8790. Shared-backend timeouts did not prove cold catalogue regeneration: the
+video catalogue handler reads an existing JSON cache. The candidate's catalogue contains 97 films.
+Browser WAV metadata loaded from the Rust endpoint (349,996-byte PCM, 48 kHz mono, 3.645333 s).
+The WASM path separately trapped on the same waveform and even on an eight-byte synthetic HCA
+header, corrupting subsequent allocations. Its measured stack budget was 1 MiB, with large
+685,056 / 342,336 / 170,368-byte codec frames. A canonical-build regression smoke check now rejects
+memory traps. The subsequent canonical build links only the main WASM crate with a 2 MiB stack;
+its 4,929,546-byte module passes that smoke check and real browser playback. Reproduce the
+three-cue byte-identity check across direct WASM, named-bank WASM and Rust HTTP with
+`bun apps/nie-web/scripts/verify-audio-cross-host.ts`: `var/azalee/audio-cross-host.json` records
+all three SHA-256 comparisons, plus invalid-cue rejection followed by successful runtime reuse.
+The audio stack defect is resolved in the candidate, not published to production.
+
+### Integrated candidate and physical archive split — measured 2026-09-20
+
+This later batch supersedes the earlier unwired-archive snapshot above, not the outstanding
+native-rendering and application-parity gates. On `vps-203bea89`, the canonical
+`apps/nie-web/scripts/build-wasm.ts` produced a 4,875,709-byte main module, below the 6 MiB
+bound (`stat -c %s apps/nie-web/public/static/game/nie_wasm_bg.wasm`).
+`niers vfs bundle --profile aphrody_lean --out
+var/vfs/main_menu-fr-aphrody-split-source.nievfs --split-dir var/vfs/main_menu-fr-split`
+now emits physically separate, content-addressed archives rather than only category labels.
+The source archive still contains 85 entries and occupies 100,629,774 bytes; inspect the output
+with `bun -e 'console.log(await Bun.file("var/vfs/main_menu-fr-split/manifest.json").json())'`.
+
+| Archive | Entries | Archive bytes | Fetch policy |
+|---|---:|---:|---|
+| `menu` | 42 | 58,586,632 | Required menu resources after readiness |
+| `profile` | 34 | 15,406,833 | Exact resource demand |
+| `native_tables` | 6 | 2,610,187 | Exact resource demand |
+| `item_atlas` | 3 | 24,026,279 | Exact resource demand |
+
+The browser's `PreloadedVfs` loader checks manifest identity, size and SHA-256, then delegates
+container/path/range/CRC validation to the actual Rust WASM parser. Menu composition, native
+resources and Lua use the shared resource store. Cold path lookup mounts only its owning archive.
+The mount cache uses allocation identity as well as content identity, so an externally evicted
+archive can be mounted again; a late request cannot replace a newer generation. Failed replacement
+keeps the prior verified mount. No native asset is rewritten or filtered to shrink a table.
+
+The narrow command in `apps/nie-web`, `bun test --preload
+../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts
+src/game/preloaded-vfs.integration.test.ts src/game/preloaded-vfs.test.ts
+src/game/vfs-resources.test.ts src/game/team-code.test.ts`, passed 11 tests and 61 assertions.
+The integration file instantiates the canonical WASM module against synthetic containers; it does
+not mock the parser. `bun run typecheck` also passed. These gates prove integrity, demand loading,
+cache eviction, retry and request ordering, not browser rendering or visual fidelity.
+
+Root build sessions `51790` (Vite) and `24648` (precompression) produced the ignored candidate
+`var/azalee/web-candidate`: 3,817 modules, then 508 emitted Brotli/Zstd variants (not source-file
+count), 178,685.5 KiB to 30,874.2 KiB with Brotli. The latter command is
+`bun scripts/precompress.ts ../../var/azalee/web-candidate` from `apps/nie-web`.
+The staging plugin includes the four verified archives. Measurements are recorded in `atlas_metric`
+under `migration.vfs.*`, `migration.wasm.bytes` and `migration.web.*`; neither the candidate nor
+these successful build gates publish a release or stop Azalée.
+
+Cross is integrated into `var/mirror-cross-candidate-20260920.sqlite`, not the live mirror.
+The importer's read-only source clone and row-by-row comparison preserve every existing
+`inagle_*` record, including identifiers and duplicate multiplicity. Artifact provenance is frozen
+to the original `rg` commit `93aea3ba`, not its concurrently changing worktree: regenerate with
+`bun scripts/azalee-provenance.ts --source-root /home/ubuntu/rg --source-ref 93aea3ba --write`,
+then verify with the same command without `--write`. Missing raw Cross enumeration and legacy-only
+regeneration paths remain source gaps.
+
+The migration remains incomplete. Real-browser screenshot validation still fails; React remains in
+the compatibility host, native menu composition is not pixel-perfect, several tool algorithms still
+have TypeScript consumers, and historical data/route/media reconciliation is not fully proven.
+The following team-rule batch supersedes that consumer gap. Remaining work includes historical
+API adapters, the outstanding browser interactions, Lua artifact parity and native-image gates.
+Do not decommission the legacy service or describe this candidate as complete.
+
+### Team-rule consumer migration — measured 2026-09-20
+
+The historical builder's position factors, level/element/harmony projection and elemental links
+now delegate to `nie-core::azalee::team_rules` through thin `nie-wasm` DTO adapters.
+`packages/nie-game/src/game/team-rules.ts` retains its synchronous public signatures and types,
+but no longer contains the formulas. Its sole active application consumer, `TeamBuilderPanel`,
+waits for Rust readiness and exposes retry after initialization failure. This preserves the
+historical builder projection; it does not certify native game's growth-curve fidelity or migrate
+the separate generator and translator algorithms in `equipe.ts` and `traduction.ts`.
+
+Before deleting the TypeScript implementation, 26 deterministic cases were frozen in
+`packages/nie-game/test/fixtures/team-rules.json` and verified against it. Native parity exposed
+and fixed multiplication-order rounding, JavaScript integer-prefix parsing and empty-element
+bonus differences in the owner. `cargo test -p nie-core --lib azalee::team_rules::tests --locked`
+passed five tests; `cargo test -p nie-wasm --lib team_rules::tests --locked` passed two, comparing
+the same frozen JSON. `cargo clippy -p nie-core -p nie-wasm --lib --tests --locked -- -D warnings`
+and `bun run --cwd packages/nie-game typecheck` passed on `vps-203bea89`.
+
+The next canonical WASM rebuild measures 4,903,225 bytes, still below the 6 MiB bound and replacing
+the preceding 4,875,709-byte intermediate artifact. The browser command above extended with
+`src/game/team-rules.test.ts src/desktop/components/tools/TeamBuilderPanel.test.tsx` passed
+15 tests and 97 assertions across six files using that actual module, not substituted rule code.
+`bun run typecheck` in `apps/nie-web` passed after generation of the new WASM bindings.
+Atlas metrics: `migration.team_rules.*` and updated `migration.wasm.bytes`. Candidate Vite and
+precompression measurements above predate this rebuild and must not certify its frontend bundle.
+
+
+### Seeded teams and browser persistence — measured 2026-09-20
+
+The random-team consumer now delegates filtering and seeded selection to
+`nie-core::azalee::team_generator` through `nie-wasm`, preserving original roster records by
+index. Frozen legacy filtering fixtures preserve exact Unicode comparison, sequential
+relaxation of restrictive filters and null/empty semantics. Selection uses the existing Rust
+`CRand` owner, retains locks and unique player identities, and accepts a visible reproducible
+seed. This is a new deterministic selection contract, not a claim that old unseeded
+`Math.random` sequences can be reproduced. The active TypeScript selection/filter algorithms
+were removed only after native fixture parity. The generator still lacks an age filter and
+its historical warning describes global rather than per-position filter relaxation.
+
+`teamsDb` now selects versioned, bounded browser-local storage on web hosts and leaves its
+native SQLite path unchanged. IDs and composition DTOs survive save/update/delete/reload;
+malformed, future-version, quota and access failures preserve existing data and surface errors.
+Other storage keys are untouched. This is local persistence, not account synchronization or
+cross-tab transactional storage. `TeamBuilderPanel` reads staff from the same Rust `load_staff`
+owner through `/api/v1/wiki/staff`, even without a local mirror path in browser settings.
+Coach and coordinator slots now have their actual roles, separate selection, undo/persistence
+and shared Rust code export. Mirror staff numeric IDs are namespaced as `staff-<id>` to avoid
+collisions; their mapping to legacy Azalee character IDs is still unproven. Source buff text
+is displayed without inventing a new stat formula. Staff do not enter field-player averages.
+
+On `vps-203bea89`, native generator owner/adapter tests passed four cases and targeted
+`cargo clippy -p nie-core -p nie-wasm --lib --tests --locked -- -D warnings` passed. The canonical
+WASM artifact currently measures 4,929,546 bytes (`stat -c %s` on the published local module).
+Actual-WASM generator/rules tests, both tool component suites
+and real browser Storage tests pass 16 tests / 142 assertions across five files with:
+
+```sh
+cd apps/nie-web
+bun test --preload ../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts src/game/team-generator.test.ts src/desktop/components/tools/RandomTeamPanel.test.tsx src/game/team-rules.test.ts src/desktop/components/tools/TeamBuilderPanel.test.tsx src/desktop/lib/teams-browser.test.ts
+bun run typecheck
+```
+
+Metrics are recorded under `migration.team_generator.native_tests`,
+`migration.team_tools.browser_*` and `migration.wasm.bytes`. Frozen artifact provenance was
+regenerated and verified against `93aea3ba`; the separately generated team collation index is
+not a byte-identical legacy import and is intentionally outside `data/azalee`.
+These are intermediate scoped gates, not completion: translator and remaining tool behavior,
+legacy staff identity reconciliation, browser screenshot scenarios, native menu fidelity and
+the public no-React requirement remain separate outstanding work. No service was published,
+stopped or decommissioned by this batch.
 
 ## Distance to the three pillars — measured 2026-09-13
 
@@ -82,15 +431,15 @@ The standing goal names three pillars: *full wasm*, *Rust owning Inacord and Aza
 game rendering*. None is closed, and the point of this section is that "how far" is a number
 rather than an impression. Re-measure it with the commands quoted; do not update it from memory.
 
-### Pillar 2 has a half this repository CANNOT deliver
+### Pillar 2 now has an explicitly authorized external source audit
 
 `apps/azalee` does **not exist in `niers`**. `apps/` holds `bxc cdn cdn-variants inacord nie-mcp
 nie-web rag-api realtime storage`; the only source of Azalée is `/home/ubuntu/rg/apps/azalee`,
 and the live service runs `/home/ubuntu/rg-releases/azalee/slot-a/apps/azalee/server.js`
-(`systemctl show azalee-web -p ExecStart`). `rg` is Codex's repository under the standing
-boundary, so "migrate Azalée to Rust" is not work this repository can do — it needs Codex, or an
-explicit lifting of the boundary by the user. Stating that is not a refusal; assuming otherwise
-would burn effort on a tree we must not touch.
+(`systemctl show azalee-web -p ExecStart`). The user explicitly lifted the former repository
+boundary on 2026-09-20 for read-only comparison and migration into `niers`. The Azalée tree remains
+provenance/reference rather than a new runtime dependency; all new owners and production code stay
+in this repository.
 
 Inacord, the half that IS here, is a Cargo workspace of 46 members already.
 

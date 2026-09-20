@@ -2,9 +2,10 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ConfigEnv, type UserConfig } from "vite";
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveBuildOutDir } from "./scripts/out-dir";
+import { stageVfs } from "./scripts/stage-vfs";
 
 /**
  * Les modules WebAssembly que les DEUX hôtes chargent par URL.
@@ -25,6 +26,7 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 	// ce dont le déploiement se sert pour bâtir à part.
 	const defaultOutDir = desktop ? "dist-desktop" : resolveBuildOutDir();
 	const host = process.env.TAURI_DEV_HOST;
+	let resolvedOutDir = defaultOutDir;
 	// The site build never carries Tauri: its API is replaced by HTTP shims that talk to
 	// `nie-site`, which is how the Inacord workspace runs at `nie.aphrody.com/inacord`. The
 	// desktop build keeps the real plugins.
@@ -45,6 +47,14 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 	return {
 		root: fileURLToPath(new URL(".", import.meta.url)),
 		plugins: [react(), tailwindcss(), {
+			name: "nie-candidate-vfs",
+			apply: "build" as const,
+			configResolved(config) { resolvedOutDir = resolve(config.root, config.build.outDir); },
+			writeBundle() {
+				const source = process.env.NIERS_VFS_BUNDLE_DIR;
+				if (source) console.log(`VFS candidate: ${stageVfs(source, resolvedOutDir)} verified archives`);
+			},
+		}, {
 			name: "nie-host-document",
 			transformIndexHtml(html: string) {
 				if (!desktop) return html;

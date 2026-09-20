@@ -134,7 +134,13 @@ impl Params {
     /// Des paramètres H.264 720p60, le cas courant.
     #[must_use]
     pub const fn h264_720p60() -> Self {
-        Self { largeur: 1280, hauteur: 720, fps: 60, codec: Codec::H264, crf: 18 }
+        Self {
+            largeur: 1280,
+            hauteur: 720,
+            fps: 60,
+            codec: Codec::H264,
+            crf: 18,
+        }
     }
 
     /// Octets attendus pour une trame RGBA.
@@ -145,12 +151,16 @@ impl Params {
 
     fn valider(&self) -> Result<(), VideoError> {
         if self.largeur == 0 || self.hauteur == 0 {
-            return Err(VideoError::Parametres("largeur et hauteur doivent être non nulles"));
+            return Err(VideoError::Parametres(
+                "largeur et hauteur doivent être non nulles",
+            ));
         }
         // yuv420p sous-échantillonne la chrominance d'un facteur 2 sur les deux axes : une
         // dimension impaire fait échouer ffmpeg avec un message qui accuse le filtre, pas l'appelant.
         if !self.largeur.is_multiple_of(2) || !self.hauteur.is_multiple_of(2) {
-            return Err(VideoError::Parametres("largeur et hauteur doivent être paires (yuv420p)"));
+            return Err(VideoError::Parametres(
+                "largeur et hauteur doivent être paires (yuv420p)",
+            ));
         }
         if self.fps == 0 {
             return Err(VideoError::Parametres("fps doit être non nul"));
@@ -241,11 +251,17 @@ impl SousProcessus {
             .stdin(Stdio::piped())
             .stdout(Stdio::null());
 
-        let enfant = cmd
-            .spawn()
-            .map_err(|source| VideoError::Lancement { outil: OUTIL, source })?;
+        let enfant = cmd.spawn().map_err(|source| VideoError::Lancement {
+            outil: OUTIL,
+            source,
+        })?;
 
-        Ok(Self { params, sortie: sortie.to_path_buf(), enfant, images: 0 })
+        Ok(Self {
+            params,
+            sortie: sortie.to_path_buf(),
+            enfant,
+            images: 0,
+        })
     }
 }
 
@@ -268,7 +284,10 @@ impl Encodeur for SousProcessus {
             .ok_or(VideoError::Parametres("entrée de l'encodeur déjà fermée"))?;
         entree
             .write_all(px)
-            .map_err(|source| VideoError::Ecriture { image: self.images, source })?;
+            .map_err(|source| VideoError::Ecriture {
+                image: self.images,
+                source,
+            })?;
         self.images += 1;
         Ok(())
     }
@@ -277,14 +296,19 @@ impl Encodeur for SousProcessus {
         // Fermer l'entrée est ce qui signale la fin du flux : sans ce `take`, ffmpeg attend
         // indéfiniment et `wait` ne rend jamais la main.
         let _ = self.enfant.stdin.take();
-        let status = self
-            .enfant
-            .wait()
-            .map_err(|source| VideoError::Lancement { outil: OUTIL, source })?;
+        let status = self.enfant.wait().map_err(|source| VideoError::Lancement {
+            outil: OUTIL,
+            source,
+        })?;
         if !status.success() {
-            return Err(VideoError::Sortie { outil: OUTIL, code: status.code() });
+            return Err(VideoError::Sortie {
+                outil: OUTIL,
+                code: status.code(),
+            });
         }
-        let octets = std::fs::metadata(&self.sortie).map(|m| m.len()).unwrap_or(0);
+        let octets = std::fs::metadata(&self.sortie)
+            .map(|m| m.len())
+            .unwrap_or(0);
         Ok(Resume {
             octets,
             images: self.images,
@@ -307,11 +331,29 @@ mod tests {
     fn les_dimensions_impaires_sont_refusees_avant_de_lancer_ffmpeg() {
         // yuv420p ne peut pas sous-échantillonner une dimension impaire. Refuser ici donne une
         // erreur qui nomme l'appelant ; laisser passer donne un message de ffmpeg sur un filtre.
-        let p = Params { largeur: 1281, hauteur: 720, fps: 60, codec: Codec::H264, crf: 18 };
+        let p = Params {
+            largeur: 1281,
+            hauteur: 720,
+            fps: 60,
+            codec: Codec::H264,
+            crf: 18,
+        };
         assert!(matches!(p.valider(), Err(VideoError::Parametres(_))));
-        let p = Params { largeur: 1280, hauteur: 0, fps: 60, codec: Codec::H264, crf: 18 };
+        let p = Params {
+            largeur: 1280,
+            hauteur: 0,
+            fps: 60,
+            codec: Codec::H264,
+            crf: 18,
+        };
         assert!(matches!(p.valider(), Err(VideoError::Parametres(_))));
-        let p = Params { largeur: 1280, hauteur: 720, fps: 0, codec: Codec::H264, crf: 18 };
+        let p = Params {
+            largeur: 1280,
+            hauteur: 720,
+            fps: 0,
+            codec: Codec::H264,
+            crf: 18,
+        };
         assert!(matches!(p.valider(), Err(VideoError::Parametres(_))));
         assert!(Params::h264_720p60().valider().is_ok());
     }
@@ -335,15 +377,34 @@ mod tests {
     /// pas dans un code de retour.
     #[test]
     fn une_trame_de_mauvaise_taille_est_refusee() {
-        if Command::new(OUTIL).arg("-version").stdout(Stdio::null()).stderr(Stdio::null()).status().is_err() {
+        if Command::new(OUTIL)
+            .arg("-version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .is_err()
+        {
             eprintln!("ffmpeg absent : test ignoré");
             return;
         }
         let sortie = std::env::temp_dir().join("nie_video_taille.mp4");
-        let params = Params { largeur: 16, hauteur: 16, fps: 30, codec: Codec::H264, crf: 18 };
+        let params = Params {
+            largeur: 16,
+            hauteur: 16,
+            fps: 30,
+            codec: Codec::H264,
+            crf: 18,
+        };
         let mut enc = ouvrir(&params, &sortie).expect("ouvrir");
         let err = enc.pousser_rgba(&[0u8; 10]).expect_err("doit refuser");
-        assert!(matches!(err, VideoError::TailleTrame { recu: 10, attendu: 1024, .. }));
+        assert!(matches!(
+            err,
+            VideoError::TailleTrame {
+                recu: 10,
+                attendu: 1024,
+                ..
+            }
+        ));
         let _ = enc.finir();
         let _ = std::fs::remove_file(&sortie);
     }

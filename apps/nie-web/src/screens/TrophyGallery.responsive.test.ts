@@ -23,7 +23,8 @@ describe("TrophyGallery responsive containment", () => {
 
 	test("labels the asset browser as a host extension outside the native canvas", () => {
 		expect(component).toContain("Extension de l’hôte");
-		expect(component).toContain("Parcourir les assets");
+		expect(component).toContain("Parcourir les assets (VFS — 54 203 textures)");
+		expect(component).not.toContain("49 583");
 		// La surface « assets » rend la page MÉDIAS entière — la galerie y est un onglet de tête,
 		// pas la seule grille : c'est `Catalog` qui porte les bandes d'onglets et les filtres.
 		expect(component).toContain('<Catalog view="textures" />');

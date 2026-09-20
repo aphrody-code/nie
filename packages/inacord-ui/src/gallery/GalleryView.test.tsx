@@ -33,6 +33,50 @@ afterEach(async () => {
 });
 
 describe("GalleryView pagination", () => {
+	test("restores a numbered editorial page and continues from its absolute offset", async () => {
+		environment.IS_REACT_ACT_ENVIRONMENT = true;
+		globalThis.IntersectionObserver = PassiveIntersectionObserver as unknown as typeof IntersectionObserver;
+		const offsets: number[] = [];
+		const services: GalleryServices = {
+			async ls() { throw new Error("editorial view must not enumerate VFS folders"); },
+			async findPaged() { throw new Error("editorial view must not use broad VFS search"); },
+			async editorialPage(category, limit, offset) {
+				if (category === null && limit === 1) return {
+					files: [], total: 400, offset: 0, categories: [{ name: "story", count: 242 }],
+				};
+				offsets.push(offset);
+				expect(category).toBe("story");
+				expect(limit).toBe(120);
+				return {
+					files: Array.from({ length: 120 }, (_, index) => ({
+						path: `data/dx11/menu/220_img/gallery_img2/img_story_${offset + index}.g4tx`, size: 0,
+					})),
+					total: 400,
+					offset,
+					categories: [{ name: "story", count: 242 }],
+				};
+			},
+			async gameDataGallery() { return []; },
+			async texturePngB64() { return ""; },
+			async exportPng() {},
+			formatBytes: String,
+		};
+
+		container = document.createElement("div");
+		document.body.append(container);
+		root = createRoot(container);
+		await act(async () => root?.render(
+			<AssetSourceProvider source={source}>
+				<GalleryView services={services} editorial category="story" initialOffset={120} serverSearch />
+			</AssetSourceProvider>,
+		));
+		await act(async () => undefined);
+		expect(offsets).toContain(120);
+		const more = [...container.querySelectorAll("button")].find(button => button.textContent?.includes("Afficher la suite"));
+		await act(async () => more?.click());
+		expect(offsets.at(-1)).toBe(240);
+	});
+
 	test("requests 120-row pages and advances with the current offset", async () => {
 		environment.IS_REACT_ACT_ENVIRONMENT = true;
 		globalThis.IntersectionObserver = PassiveIntersectionObserver as unknown as typeof IntersectionObserver;

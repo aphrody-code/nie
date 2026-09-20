@@ -56,10 +56,10 @@ default_tools_approval_mode = "writes"
 enabled = true
 
 [plugins."aphrody@aphrody-marketplace"]
-enabled = true
+enabled = false
 
 [plugins."frontend-design@claude-plugins-official"]
-enabled = true
+enabled = false
 
 [plugins."modern-web-guidance@claude-plugins-official"]
-enabled = true
+enabled = false

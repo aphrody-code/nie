@@ -93,7 +93,11 @@ impl FixedStep {
     /// [`TICK_DT`] : un pas nul ou négatif ferait boucler l'appelant indéfiniment.
     #[must_use]
     pub fn new(dt: f32, max_catchup: u32) -> Self {
-        let dt = if dt.is_finite() && dt > 0.0 { dt } else { TICK_DT };
+        let dt = if dt.is_finite() && dt > 0.0 {
+            dt
+        } else {
+            TICK_DT
+        };
         Self {
             accumulateur: 0.0,
             dt,
@@ -575,7 +579,11 @@ impl World {
             self.away_input.shoot && Some(i) == self.controlled_for_team(1)
         };
         if cmd_shoot && self.kick_timer <= 0.0 {
-            let user_dir = if team == 0 { self.input.dir } else { self.away_input.dir };
+            let user_dir = if team == 0 {
+                self.input.dir
+            } else {
+                self.away_input.dir
+            };
             let vise = if user_dir.len() > 0.01 {
                 user_dir.norm()
             } else {
@@ -799,7 +807,11 @@ mod tests {
             w1.step(1.0 / 60.0);
             w2.step(1.0 / 60.0);
         }
-        assert_eq!(w1.state_hash(), w2.state_hash(), "hash après 120 ticks identique");
+        assert_eq!(
+            w1.state_hash(),
+            w2.state_hash(),
+            "hash après 120 ticks identique"
+        );
     }
 
     #[test]
@@ -843,7 +855,10 @@ mod tests {
     #[test]
     fn deux_mondes_qui_divergeront_ne_partagent_pas_leur_hachage() {
         for (nom, poser) in [
-            ("kick_timer", (|w: &mut World| w.kick_timer = KICK_COOLDOWN) as fn(&mut World)),
+            (
+                "kick_timer",
+                (|w: &mut World| w.kick_timer = KICK_COOLDOWN) as fn(&mut World),
+            ),
             ("steal_lock", |w: &mut World| w.steal_lock = POSSESSION_LOCK),
             ("tick", |w: &mut World| w.tick = 1),
             ("time", |w: &mut World| w.time = 1.0),
@@ -937,7 +952,10 @@ mod tests {
             total.abs_diff(attendu) <= 1,
             "{total} pas pour {horloge:.4}s, soit {attendu} attendus"
         );
-        assert!(pas.reste() < TICK_DT, "le reste doit rester une fraction de pas");
+        assert!(
+            pas.reste() < TICK_DT,
+            "le reste doit rester une fraction de pas"
+        );
     }
 
     /// Une frame très longue ne demande PAS des centaines de pas : c'est la spirale de la mort.
@@ -948,7 +966,11 @@ mod tests {
     #[test]
     fn une_frame_tres_longue_est_bornee() {
         let mut pas = FixedStep::default();
-        assert_eq!(pas.advance(10.0), MAX_CATCHUP_STEPS, "10 s = 600 pas sans borne");
+        assert_eq!(
+            pas.advance(10.0),
+            MAX_CATCHUP_STEPS,
+            "10 s = 600 pas sans borne"
+        );
         // Et le retard n'est pas reporté : la frame suivante repart propre.
         assert!(pas.reste() <= TICK_DT);
         assert!(pas.advance(TICK_DT) <= MAX_CATCHUP_STEPS);
@@ -964,7 +986,11 @@ mod tests {
     fn une_horloge_invalide_ne_casse_pas_laccumulateur() {
         let mut pas = FixedStep::default();
         for mauvais in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, -1.0] {
-            assert_eq!(pas.advance(mauvais), 0, "{mauvais} ne doit produire aucun pas");
+            assert_eq!(
+                pas.advance(mauvais),
+                0,
+                "{mauvais} ne doit produire aucun pas"
+            );
         }
         assert!(pas.reste().is_finite(), "l'accumulateur doit rester fini");
         assert_eq!(pas.advance(TICK_DT), 1, "la simulation repart normalement");
@@ -979,7 +1005,11 @@ mod tests {
             let pas = FixedStep::new(absurde, 5);
             assert_eq!(pas.dt().to_bits(), TICK_DT.to_bits(), "dt = {absurde}");
         }
-        assert_eq!(FixedStep::new(TICK_DT, 0).advance(10.0), 1, "borne plancher à 1");
+        assert_eq!(
+            FixedStep::new(TICK_DT, 0).advance(10.0),
+            1,
+            "borne plancher à 1"
+        );
     }
 
     /// La cadence du moteur et celle du protocole réseau sont le MÊME nombre.
@@ -1002,7 +1032,11 @@ mod tests {
         let mut pas = FixedStep::default();
         assert_eq!(pas.overstep_fraction(), 0.0, "rien d'accumulé au départ");
 
-        assert_eq!(pas.advance(TICK_DT * 0.25), 0, "un quart de pas n'en produit aucun");
+        assert_eq!(
+            pas.advance(TICK_DT * 0.25),
+            0,
+            "un quart de pas n'en produit aucun"
+        );
         assert!(
             (pas.overstep_fraction() - 0.25).abs() < 1e-5,
             "{}",
@@ -1019,6 +1053,9 @@ mod tests {
             "après un pas, il reste 0,25 : {}",
             pas.overstep_fraction()
         );
-        assert!(pas.overstep_fraction() < 1.0, "toujours une FRACTION de pas");
+        assert!(
+            pas.overstep_fraction() < 1.0,
+            "toujours une FRACTION de pas"
+        );
     }
 }

@@ -3,12 +3,11 @@
 //
 // ## Pourquoi la galerie du bureau ne ressemble pas à celle du web
 //
-// Le wiki n'a pas les fichiers du jeu : il compose sa galerie à partir de DEUX fonds qui ne se
-// rejoignent jamais — la table `inagle_gallery` (360 lignes, filtrées par `ilike img_path`) et un
-// verified static `data/azalee/menu-gallery-manifest.json` (3,579 entries, frozen,
-// régénéré à la main par `scripts/build-menu-gallery-manifest.ts` depuis un index CPK exporté).
-// De là son défaut visible : la pastille « Toutes » annonce 3 939 items alors que la liste sans
-// catégorie n'en rend que 360, les deux fonds n'étant pas réunis.
+// Le wiki n'a pas les fichiers du jeu : sa sélection éditoriale réunit dans Rust la table
+// `inagle_gallery` (360 lignes) et le manifeste vérifié
+// `data/azalee/menu-gallery-manifest.json` (3 579 entrées, régénéré depuis un index CPK exporté).
+// Le contrat publie donc réellement les 3 939 cartes annoncées, avec des identités séparées par
+// source lorsque la même texture appartient à la sélection en jeu et au manifeste.
 //
 // L'explorateur a le VFS monté. Il n'a donc besoin ni de la table ni du manifeste pour SAVOIR CE
 // QUI EXISTE : `data/dx11/menu/220_img/` porte **17 085 fichiers `.g4tx`** (mesuré le 2026-09-02

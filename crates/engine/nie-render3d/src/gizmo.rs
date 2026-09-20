@@ -120,9 +120,13 @@ pub fn ring(origin: V3, axis: Axis, radius: f32, segments: usize) -> Vec<Segment
     let pas = core::f32::consts::TAU / n as f32;
     (0..n)
         .map(|i| {
-            Segment::new(point(i as f32 * pas), point((i + 1) as f32 * pas), axis.color())
-                .with_width(2)
-                .overlay()
+            Segment::new(
+                point(i as f32 * pas),
+                point((i + 1) as f32 * pas),
+                axis.color(),
+            )
+            .with_width(2)
+            .overlay()
         })
         .collect()
 }
@@ -289,10 +293,7 @@ fn distance_rayon_segment(ray: &Ray, a: V3, b: V3) -> f32 {
         // Parallèles : n'importe quel point du rayon convient, on prend son origine.
         (0.0, if vv > 1e-9 { vw / vv } else { 0.0 })
     } else {
-        (
-            (uv * vw - vv * uw) / denom,
-            (uu * vw - uv * uw) / denom,
-        )
+        ((uv * vw - vv * uw) / denom, (uu * vw - uv * uw) / denom)
     };
     s = s.max(0.0); // pas derrière la caméra
     t = t.clamp(0.0, 1.0); // pas au-delà de la poignée
@@ -323,7 +324,10 @@ mod tests {
     fn le_gizmo_dessine_trois_poignees_par_dessus() {
         let h = handles([1.0, 2.0, 3.0], 2.0);
         assert_eq!(h.len(), 3);
-        assert!(h.iter().all(|s| !s.depth_test), "un gizmo masqué est inattrapable");
+        assert!(
+            h.iter().all(|s| !s.depth_test),
+            "un gizmo masqué est inattrapable"
+        );
         assert_eq!(h[0].color, [220, 60, 60], "X rouge");
         assert_eq!(h[1].color, [60, 200, 80], "Y vert");
         assert_eq!(h[2].color, [70, 110, 230], "Z bleu");
@@ -348,7 +352,10 @@ mod tests {
         let courant = rayon(oeil, [3.0, 0.0, 0.0]);
         let delta = drag_along_axis(origine, Axis::X, &depart, &courant).expect("intersection");
         assert!((delta[0] - 3.0).abs() < 1e-4, "{delta:?}");
-        assert!(delta[1].abs() < 1e-6 && delta[2].abs() < 1e-6, "aucune fuite hors axe : {delta:?}");
+        assert!(
+            delta[1].abs() < 1e-6 && delta[2].abs() < 1e-6,
+            "aucune fuite hors axe : {delta:?}"
+        );
     }
 
     /// Le déplacement est CONTRAINT : un glissement oblique ne bouge que sur l'axe.
@@ -363,7 +370,10 @@ mod tests {
         let courant = rayon(oeil, [2.5, 1.7, -0.3]);
         let delta = drag_along_axis(origine, Axis::Y, &depart, &courant).expect("intersection");
         assert!(delta[0].abs() < 1e-5 && delta[2].abs() < 1e-5, "{delta:?}");
-        assert!(delta[1].abs() > 1e-3, "il doit tout de même bouger : {delta:?}");
+        assert!(
+            delta[1].abs() > 1e-3,
+            "il doit tout de même bouger : {delta:?}"
+        );
     }
 
     /// Un rayon parallèle à l'axe ne fait pas exploser le calcul.
@@ -374,8 +384,14 @@ mod tests {
     fn un_rayon_parallele_a_laxe_ne_produit_pas_de_nan() {
         let origine = [0.0, 0.0, 0.0];
         // Caméra exactement sur +X, regardant -X : le rayon est colinéaire à l'axe X.
-        let depart = Ray { origin: [10.0, 0.0, 0.0], direction: [-1.0, 0.0, 0.0] };
-        let courant = Ray { origin: [10.0, 0.0, 0.0], direction: normv([-1.0, 0.02, 0.0]) };
+        let depart = Ray {
+            origin: [10.0, 0.0, 0.0],
+            direction: [-1.0, 0.0, 0.0],
+        };
+        let courant = Ray {
+            origin: [10.0, 0.0, 0.0],
+            direction: normv([-1.0, 0.02, 0.0]),
+        };
         let n = translation_plane_normal(&depart, Axis::X.direction());
         assert!(n.iter().all(|c| c.is_finite()), "normale non finie : {n:?}");
         if let Some(delta) = drag_along_axis(origine, Axis::X, &depart, &courant) {
@@ -386,8 +402,14 @@ mod tests {
     /// Un rayon parallèle au PLAN ne rend pas d'intersection plutôt qu'un point arbitraire.
     #[test]
     fn un_rayon_parallele_au_plan_ne_rend_rien() {
-        let ray = Ray { origin: [0.0, 0.0, 5.0], direction: [1.0, 0.0, 0.0] };
-        assert_eq!(intersect_plane(&ray, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0]), None);
+        let ray = Ray {
+            origin: [0.0, 0.0, 5.0],
+            direction: [1.0, 0.0, 0.0],
+        };
+        assert_eq!(
+            intersect_plane(&ray, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0]),
+            None
+        );
     }
 
     /// Le curseur attrape la poignée la plus proche, et rien quand il est loin des trois.
@@ -428,14 +450,20 @@ mod tests {
         let premier = r[0].a;
         let dernier = r[r.len() - 1].b;
         for c in 0..3 {
-            assert!((premier[c] - dernier[c]).abs() < 1e-4, "anneau non fermé : {premier:?} / {dernier:?}");
+            assert!(
+                (premier[c] - dernier[c]).abs() < 1e-4,
+                "anneau non fermé : {premier:?} / {dernier:?}"
+            );
         }
         // Dans le plan de Y : la coordonnée Y ne varie pas.
         for s in &r {
             assert!((s.a[1] - 2.0).abs() < 1e-5, "hors du plan : {:?}", s.a);
             let dx = s.a[0] - 1.0;
             let dz = s.a[2] - 3.0;
-            assert!(((dx * dx + dz * dz).sqrt() - 2.0).abs() < 1e-4, "mauvais rayon");
+            assert!(
+                ((dx * dx + dz * dz).sqrt() - 2.0).abs() < 1e-4,
+                "mauvais rayon"
+            );
         }
         // Un découpage absurde est relevé au plancher plutôt que de rendre un segment.
         assert_eq!(ring([0.0; 3], Axis::X, 1.0, 0).len(), 12);
@@ -458,7 +486,10 @@ mod tests {
         let b = rotate_around_axis(origine, Axis::Y, &depart, &antihoraire).expect("angle");
         assert!((a.abs() - core::f32::consts::FRAC_PI_2).abs() < 1e-3, "{a}");
         assert!((b.abs() - core::f32::consts::FRAC_PI_2).abs() < 1e-3, "{b}");
-        assert!(a.signum() != b.signum(), "les deux sens doivent différer : {a} / {b}");
+        assert!(
+            a.signum() != b.signum(),
+            "les deux sens doivent différer : {a} / {b}"
+        );
     }
 
     /// Au centre, l'angle est indéterminé : mieux vaut ne rien rendre que faire tournoyer.
@@ -468,7 +499,10 @@ mod tests {
         let oeil = [0.0, 10.0, 0.0];
         let au_centre = rayon(oeil, [0.0, 0.0, 0.0]);
         let ailleurs = rayon(oeil, [1.0, 0.0, 0.0]);
-        assert_eq!(rotate_around_axis(origine, Axis::Y, &au_centre, &ailleurs), None);
+        assert_eq!(
+            rotate_around_axis(origine, Axis::Y, &au_centre, &ailleurs),
+            None
+        );
     }
 
     /// Doubler la distance double l'échelle, et le facteur est BORNÉ.
@@ -487,7 +521,10 @@ mod tests {
         // Curseur ramené sur l'origine : le facteur est plafonné, jamais nul.
         let au_centre = rayon(oeil, [0.0, 0.0, 0.0]);
         let plancher = scale_along_axis(origine, Axis::X, &depart, &au_centre).expect("facteur");
-        assert!(plancher >= 0.01, "le facteur ne doit pas atteindre zéro : {plancher}");
+        assert!(
+            plancher >= 0.01,
+            "le facteur ne doit pas atteindre zéro : {plancher}"
+        );
     }
 
     /// Partir de l'origine rend `None` plutôt qu'une division par zéro.
@@ -497,7 +534,10 @@ mod tests {
         let oeil = [0.0, 0.0, 10.0];
         let au_centre = rayon(oeil, [0.0, 0.0, 0.0]);
         let ailleurs = rayon(oeil, [1.0, 0.0, 0.0]);
-        assert_eq!(scale_along_axis(origine, Axis::X, &au_centre, &ailleurs), None);
+        assert_eq!(
+            scale_along_axis(origine, Axis::X, &au_centre, &ailleurs),
+            None
+        );
     }
 
     /// Les trois anneaux portent les couleurs conventionnelles des axes.
@@ -511,6 +551,9 @@ mod tests {
                 "anneau {axis:?} absent"
             );
         }
-        assert!(h.iter().all(|s| !s.depth_test), "les anneaux restent attrapables");
+        assert!(
+            h.iter().all(|s| !s.depth_test),
+            "les anneaux restent attrapables"
+        );
     }
 }

@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 171] = [
+    let instances: [(&str, &[u16]); 195] = [
         ("/healthz", &[200]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
@@ -170,10 +170,34 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/api/v1/export/file/data/x.cfg.bin", &[404, 503]),
         ("/api/v1/resources/related/data/x.cfg.bin", &[404, 503]),
         ("/api/v1/wiki/search", &[200, 400, 503]),
+        ("/api/v1/wiki/cross/tables", &[503]),
+        ("/api/v1/wiki/cross/stats", &[503]),
+        ("/api/v1/wiki/cross/catalog", &[503]),
+        ("/api/cross/tables", &[503]),
+        ("/api/cross/stats", &[503]),
+        ("/api/characters", &[503]),
+        ("/api/characters/0", &[503]),
+        ("/api/coordinators", &[503]),
+        ("/api/coaches", &[503]),
+        ("/api/coaches/0", &[503]),
+        ("/api/teams", &[503]),
+        ("/api/teams/0", &[503]),
+        ("/api/shops", &[503]),
+        ("/api/shops/0", &[503]),
+        ("/api/stadiums", &[503]),
+        ("/api/stadiums/0", &[503]),
+        ("/api/skills", &[503]),
+        ("/api/skills/0", &[503]),
+        ("/api/items", &[503]),
+        ("/api/items/0", &[503]),
+        ("/api/gallery", &[503]),
         ("/api/v1/wiki/gallery", &[200, 400, 503]),
         ("/api/v1/wiki/names", &[200, 400, 503]),
         ("/api/v1/wiki/names/search", &[200, 400, 503]),
         ("/api/v1/wiki/characters/0", &[404, 503]),
+        ("/api/v1/wiki/characters/0/skills", &[404, 503]),
+        ("/api/v1/wiki/roster", &[503]),
+        ("/api/v1/wiki/staff", &[503]),
         ("/api/v1/wiki/skills/0", &[404, 503]),
         ("/api/v1/wiki/items/0", &[404, 503]),
         ("/api/v1/wiki/teams/0", &[404, 503]),
@@ -338,7 +362,7 @@ async fn toutes_les_routes_declarees_repondent() {
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 169, "le routeur monte 169 routes");
+    assert_eq!(declarees.len(), 193, "le routeur monte 193 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -370,7 +394,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 171, "171 instances interrogees pour 169 routes");
+    assert_eq!(vus, 195, "195 instances interrogees pour 193 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).

@@ -9,7 +9,7 @@
 // quand elle dit que l'aperçu « crashe ».
 //
 // Deux emplois, tous deux nécessaires :
-//   * autour de l'application entière (`main.tsx`) — dernier filet, rien ne doit pouvoir blanchir
+//   * autour de l'application entière (`host-mount.tsx`) — dernier filet, rien ne doit pouvoir blanchir
 //     la fenêtre ;
 //   * autour des zones à risque (viewport 3D, panneau de détail) — la panne reste LOCALE, le
 //     reste de l'interface continue de fonctionner.

@@ -52,6 +52,13 @@ export interface GalleryServices {
     total: number;
     offset: number;
   }>;
+  /** Curated 11-bucket editorial selection. The Rust owner performs search and pagination. */
+  editorialPage?(category: string | null, limit: number, offset: number, query?: string, signal?: AbortSignal): Promise<{
+    files: { path: string; size: number }[];
+    total: number;
+    offset: number;
+    categories: GalleryDirectory[];
+  }>;
   gameDataGallery(gameDir?: string): Promise<{
     img_path: string;
     thumb_path: string;

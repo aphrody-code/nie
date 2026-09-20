@@ -162,7 +162,12 @@ pub struct Tournament {
 impl Tournament {
     /// Creates a new tournament in registration state.
     #[must_use]
-    pub fn new(id: String, name: String, format: TournamentFormat, max_participants: usize) -> Self {
+    pub fn new(
+        id: String,
+        name: String,
+        format: TournamentFormat,
+        max_participants: usize,
+    ) -> Self {
         Self {
             id,
             name,
@@ -202,7 +207,11 @@ impl Tournament {
 
     /// Checks in a participant.
     pub fn check_in_player(&mut self, player_id: &str) -> bool {
-        if let Some(p) = self.participants.iter_mut().find(|p| p.player_id == player_id) {
+        if let Some(p) = self
+            .participants
+            .iter_mut()
+            .find(|p| p.player_id == player_id)
+        {
             p.checked_in = true;
             true
         } else {
@@ -256,12 +265,7 @@ impl Tournament {
     }
 
     /// Reports the score for an active match.
-    pub fn report_match_score(
-        &mut self,
-        match_id: &str,
-        score_home: u8,
-        score_away: u8,
-    ) -> bool {
+    pub fn report_match_score(&mut self, match_id: &str, score_home: u8, score_away: u8) -> bool {
         if self.status != TournamentStatus::InProgress {
             return false;
         }
@@ -288,7 +292,9 @@ impl Tournament {
         m.winner_id = winner.clone();
         m.is_completed = true;
 
-        if let Some(p) = winner.and_then(|w| self.participants.iter_mut().find(|p| p.player_id == w)) {
+        if let Some(p) =
+            winner.and_then(|w| self.participants.iter_mut().find(|p| p.player_id == w))
+        {
             p.wins += 1;
         }
 
@@ -304,7 +310,8 @@ impl Tournament {
             .filter(|m| m.round == self.current_round)
             .collect();
 
-        if current_round_matches.is_empty() || !current_round_matches.iter().all(|m| m.is_completed) {
+        if current_round_matches.is_empty() || !current_round_matches.iter().all(|m| m.is_completed)
+        {
             return;
         }
 
@@ -316,7 +323,10 @@ impl Tournament {
         if winners.len() <= 1 {
             // Tournament completed!
             self.status = TournamentStatus::Completed;
-            if let Some(p) = winners.first().and_then(|champ| self.participants.iter_mut().find(|p| &p.player_id == champ)) {
+            if let Some(p) = winners
+                .first()
+                .and_then(|champ| self.participants.iter_mut().find(|p| &p.player_id == champ))
+            {
                 p.final_rank = Some(1);
             }
             return;
@@ -401,7 +411,11 @@ mod tests {
         assert!(tourney.report_match_score("tourney_01_r2_m1", 2, 1));
 
         assert_eq!(tourney.status, TournamentStatus::Completed);
-        let champ = tourney.participants.iter().find(|p| p.player_id == "p1").unwrap();
+        let champ = tourney
+            .participants
+            .iter()
+            .find(|p| p.player_id == "p1")
+            .unwrap();
         assert_eq!(champ.final_rank, Some(1));
         assert_eq!(champ.wins, 2);
     }

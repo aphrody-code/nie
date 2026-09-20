@@ -64,7 +64,7 @@ import { entryLabel, MEDIA } from "../entries";
 import { pathForEntry, splitLanguagePrefix } from "../routing";
 import { agree, Notice, readableSize, ViewTitle } from "./screen-parts";
 import { Modeles3D as Models3D } from "./Models3D";
-import { CatalogAudioBank, CatalogMoviePreview } from "./CatalogMedia";
+import { CatalogAudioBank, CatalogMoviePreview, SemanticMovieCatalog } from "./CatalogMedia";
 import { GameText } from "@niers/inacord-ui";
 import { ExportMenu } from "@niers/inacord-ui/gallery/ExportMenu";
 import { downloadExport, fetchExportFormats } from "../game/export-formats";
@@ -416,6 +416,12 @@ const TEXTURE_DISPLAYS: readonly GameTab[] = [
 	{ id: "text", label: "Textes", icon: GLYPHES.livre },
 ];
 
+/** Semantic films are the default; the raw VFS remains available for storage-level inspection. */
+const VIDEO_DISPLAYS: readonly GameTab[] = [
+	{ id: "cinema", label: "Cinématiques", icon: GLYPHES.film },
+	{ id: "files", label: "Fichiers VFS", icon: GLYPHES.arbre },
+];
+
 /** Le pictogramme du bandeau de tête, par vue. */
 const VIEW_ICONS: Record<string, React.ReactNode> = {
 	textures: GLYPHES.image,
@@ -497,6 +503,7 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 	const router = useRouter();
 	const gallery = params.get("display") === "gallery";
 	const text = params.get("display") === "text";
+	const rawVideoFiles = params.get("display") === "files";
 	const view = legacyView ?? route;
 
 	// `/medias` is the historical entry to the group, not a fifth catalogue. Its former `?vue=`
@@ -577,7 +584,24 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 					className="mb-3"
 				/>
 			) : null}
-			{view === "textures" && text ? <TextCatalog /> : view === "textures" && gallery ? <WebGallery /> : view === "modeles" ? <Models3D /> : <VfsCatalog key={view} view={view} />}
+			{view === "videos" ? (
+				<GameTabStrip
+					tabs={VIDEO_DISPLAYS}
+					value={rawVideoFiles ? "files" : "cinema"}
+					onChange={(next) => {
+						const url = new URL(window.location.href);
+						if (next === "files") url.searchParams.set("display", "files");
+						else url.searchParams.delete("display");
+						url.searchParams.delete("page");
+						writeBrowserHistory(url, window.history.state, "push");
+					}}
+					previousKey={null}
+					nextKey={null}
+					ariaLabel="Affichage des vidéos"
+					className="mb-3"
+				/>
+			) : null}
+			{view === "textures" && text ? <TextCatalog /> : view === "textures" && gallery ? <WebGallery /> : view === "modeles" ? <Models3D /> : view === "videos" && !rawVideoFiles ? <SemanticMovieCatalog /> : <VfsCatalog key={view} view={view} />}
 		</>
 	);
 }

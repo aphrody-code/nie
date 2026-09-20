@@ -227,21 +227,16 @@ pub fn mesh_from_geometry(
         });
     }
 
-    let positions: Vec<[f32; 3]> = geometry
-        .positions
-        .iter()
-        .map(|p| [p.x, p.y, p.z])
-        .collect();
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default())
-        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-        .with_inserted_indices(Indices::U32(geometry.indices.clone()));
+    let positions: Vec<[f32; 3]> = geometry.positions.iter().map(|p| [p.x, p.y, p.z]).collect();
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    )
+    .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+    .with_inserted_indices(Indices::U32(geometry.indices.clone()));
 
     if geometry.normals.len() == vertex_count {
-        let normals: Vec<[f32; 3]> = geometry
-            .normals
-            .iter()
-            .map(|n| [n.x, n.y, n.z])
-            .collect();
+        let normals: Vec<[f32; 3]> = geometry.normals.iter().map(|n| [n.x, n.y, n.z]).collect();
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     } else {
         mesh.compute_smooth_normals();
@@ -342,9 +337,21 @@ mod tests {
             material_index: 0,
             index32: false,
             positions: vec![
-                Vec3 { x: 0.0, y: 0.0, z: 0.0 },
-                Vec3 { x: 1.0, y: 0.0, z: 0.0 },
-                Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+                Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
             ],
             normals: Vec::new(),
             uv0: Vec::new(),
@@ -392,7 +399,10 @@ mod tests {
             .and_then(VertexAttributeValues::as_float3)
             .expect("normales présentes");
         for n in normals {
-            assert!((n[0]).abs() < 1e-6 && (n[1]).abs() < 1e-6 && (n[2] - 1.0).abs() < 1e-6, "{n:?}");
+            assert!(
+                (n[0]).abs() < 1e-6 && (n[1]).abs() < 1e-6 && (n[2] - 1.0).abs() < 1e-6,
+                "{n:?}"
+            );
         }
     }
 
@@ -402,7 +412,10 @@ mod tests {
         let mut geometry = triangle();
         geometry.indices = vec![0, 1, 7];
         let error = mesh_from_geometry(&geometry, None).expect_err("refus attendu");
-        assert!(matches!(error, NiersAssetError::Unsupported { format: "g4mg", .. }), "{error}");
+        assert!(
+            matches!(error, NiersAssetError::Unsupported { format: "g4mg", .. }),
+            "{error}"
+        );
         assert!(error.to_string().contains('7'), "{error}");
     }
 
@@ -442,7 +455,9 @@ mod tests {
         let joints = mesh
             .attribute(Mesh::ATTRIBUTE_JOINT_INDEX)
             .expect("indices de jointure");
-        assert!(matches!(joints, VertexAttributeValues::Uint16x4(v) if v.len() == 3 && v[0] == [1, 2, 3, 4]));
+        assert!(
+            matches!(joints, VertexAttributeValues::Uint16x4(v) if v.len() == 3 && v[0] == [1, 2, 3, 4])
+        );
         // `VertexAttributeValues` n'expose `as_float3` que pour les triplets : pour un
         // `Float32x4` il faut nommer la variante.
         let VertexAttributeValues::Float32x4(weights) = mesh
@@ -459,9 +474,15 @@ mod tests {
     #[test]
     fn un_tampon_quelconque_est_refuse_en_nommant_le_format() {
         let error = image_from_g4tx(b"not a g4tx", 0).expect_err("refus attendu");
-        assert!(matches!(error, NiersAssetError::Decode { format: "g4tx", .. }), "{error}");
+        assert!(
+            matches!(error, NiersAssetError::Decode { format: "g4tx", .. }),
+            "{error}"
+        );
         let error = meshes_from_g4md_g4mg(b"not a g4md", b"").expect_err("refus attendu");
-        assert!(matches!(error, NiersAssetError::Decode { format: "g4md", .. }), "{error}");
+        assert!(
+            matches!(error, NiersAssetError::Decode { format: "g4md", .. }),
+            "{error}"
+        );
     }
 
     /// Un vrai atlas du jeu devient une [`Image`] Bevy aux dimensions déclarées.
@@ -501,9 +522,14 @@ mod tests {
                     Some((size.width * size.height * 4) as usize),
                     "the RGBA buffer must cover the image exactly"
                 );
-                eprintln!("{path} -> Bevy Image {}x{}, {count} textures in the atlas", size.width, size.height);
+                eprintln!(
+                    "{path} -> Bevy Image {}x{}, {count} textures in the atlas",
+                    size.width, size.height
+                );
             }
-            Err(NiersAssetError::Unsupported { .. }) => eprintln!("SKIP: {path} has no DDS payload"),
+            Err(NiersAssetError::Unsupported { .. }) => {
+                eprintln!("SKIP: {path} has no DDS payload")
+            }
             Err(other) => panic!("{path}: {other}"),
         }
     }
@@ -530,7 +556,10 @@ mod tests {
         let mut present = 0usize;
         let mut converted = 0usize;
         for stem in candidates {
-            let (Ok(md), Ok(mg)) = (v.read(&format!("{stem}.g4md")), v.read(&format!("{stem}.g4mg"))) else {
+            let (Ok(md), Ok(mg)) = (
+                v.read(&format!("{stem}.g4md")),
+                v.read(&format!("{stem}.g4mg")),
+            ) else {
                 eprintln!("SKIP: {stem} absent from this VFS");
                 continue;
             };
@@ -542,16 +571,24 @@ mod tests {
                     assert!(vertices > 0);
                     for mesh in &meshes {
                         assert!(mesh.indices().is_some(), "{stem}: mesh without indices");
-                        assert!(mesh.attribute(Mesh::ATTRIBUTE_NORMAL).is_some(), "{stem}: mesh without normals");
+                        assert!(
+                            mesh.attribute(Mesh::ATTRIBUTE_NORMAL).is_some(),
+                            "{stem}: mesh without normals"
+                        );
                     }
-                    eprintln!("{stem} -> {} Bevy meshes, {vertices} vertices", meshes.len());
+                    eprintln!(
+                        "{stem} -> {} Bevy meshes, {vertices} vertices",
+                        meshes.len()
+                    );
                     converted += 1;
                 }
                 // Deux refus NOMMÉS sont légitimes sur un modèle réel : `Unsupported` quand les
                 // indices sortent de la table, `Empty` quand l'extraction n'en rend aucun — c'est
                 // le cas de `k000010`, dont la géométrie vit dans l'espace global du G4MG. Ce qui
                 // ne serait pas légitime, c'est un panic ou une erreur sans cause lisible.
-                Err(error @ (NiersAssetError::Unsupported { .. } | NiersAssetError::Empty { .. })) => {
+                Err(
+                    error @ (NiersAssetError::Unsupported { .. } | NiersAssetError::Empty { .. }),
+                ) => {
                     eprintln!("{stem}: named refusal, as designed: {error}");
                 }
                 Err(other) => panic!("{stem}: {other}"),
@@ -561,6 +598,9 @@ mod tests {
             eprintln!("SKIP: no candidate model in this VFS (is NIE_GAME_DIR the game install?)");
             return;
         }
-        assert!(converted > 0, "{present} candidate(s) present, none converted");
+        assert!(
+            converted > 0,
+            "{present} candidate(s) present, none converted"
+        );
     }
 }

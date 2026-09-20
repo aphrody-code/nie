@@ -44,6 +44,7 @@ pub mod spatial_preview;
 pub mod static_files;
 pub mod team;
 pub mod text;
+pub(crate) mod text_cache;
 pub mod ut;
 pub mod vfs;
 pub mod well_known;

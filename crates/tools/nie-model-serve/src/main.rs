@@ -3834,36 +3834,44 @@ fn get_or_build_avatar_glb(
                         .flatten()
                         .find_map(|nom_planche| {
                             let png = (|| {
-                            if native_skin.is_some() {
-                                let (w, h, mut rgba) =
-                                    g4tx_decode::decode_named_to_rgba(tx, nom_planche)?;
-                                let (mw, mh, mask) = g4tx_decode::decode_named_to_rgba(
-                                    tx,
-                                    &format!("{nom_planche}msk"),
-                                )?;
-                                if !tint_skin_mask(&mut rgba, w, h, &mask, mw, mh, teintes[0].rgb) {
-                                    return None;
-                                }
-                                g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize)
-                            } else {
-                                match teinte_piece {
-                                    Some(rgb) => nie_formats::image_out::g4tx_vignette_teintee(
+                                if native_skin.is_some() {
+                                    let (w, h, mut rgba) =
+                                        g4tx_decode::decode_named_to_rgba(tx, nom_planche)?;
+                                    let (mw, mh, mask) = g4tx_decode::decode_named_to_rgba(
                                         tx,
-                                        nom_planche,
-                                        AVATAR_TEX_MAX,
-                                        nie_formats::image_out::ImageOut::Png,
-                                        rgb,
-                                    )
-                                    .ok(),
-                                    None => nie_formats::image_out::g4tx_vignette_nommee(
-                                        tx,
-                                        nom_planche,
-                                        AVATAR_TEX_MAX,
-                                        nie_formats::image_out::ImageOut::Png,
-                                    )
-                                    .ok(),
+                                        &format!("{nom_planche}msk"),
+                                    )?;
+                                    if !tint_skin_mask(
+                                        &mut rgba,
+                                        w,
+                                        h,
+                                        &mask,
+                                        mw,
+                                        mh,
+                                        teintes[0].rgb,
+                                    ) {
+                                        return None;
+                                    }
+                                    g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize)
+                                } else {
+                                    match teinte_piece {
+                                        Some(rgb) => nie_formats::image_out::g4tx_vignette_teintee(
+                                            tx,
+                                            nom_planche,
+                                            AVATAR_TEX_MAX,
+                                            nie_formats::image_out::ImageOut::Png,
+                                            rgb,
+                                        )
+                                        .ok(),
+                                        None => nie_formats::image_out::g4tx_vignette_nommee(
+                                            tx,
+                                            nom_planche,
+                                            AVATAR_TEX_MAX,
+                                            nie_formats::image_out::ImageOut::Png,
+                                        )
+                                        .ok(),
+                                    }
                                 }
-                            }
                             })()?;
                             Some((nom_planche.to_string(), png))
                         });

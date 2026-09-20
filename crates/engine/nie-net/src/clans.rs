@@ -6,8 +6,8 @@
 //! - Role hierarchy: Leader, CoLeader, Officer, Member
 //! - AP contribution aggregation and seasonal clan leaderboard rankings
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Role hierarchy within a clan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
@@ -216,7 +216,11 @@ impl ClanRegistry {
     #[must_use]
     pub fn top_clans(&self, limit: usize) -> Vec<&Clan> {
         let mut list: Vec<&Clan> = self.clans.values().collect();
-        list.sort_by(|a, b| b.total_ap.cmp(&a.total_ap).then_with(|| b.members.len().cmp(&a.members.len())));
+        list.sort_by(|a, b| {
+            b.total_ap
+                .cmp(&a.total_ap)
+                .then_with(|| b.members.len().cmp(&a.members.len()))
+        });
         list.truncate(limit);
         list
     }
@@ -245,7 +249,11 @@ mod tests {
         assert_eq!(clan.members.len(), 1);
         assert_eq!(clan.level, 1);
 
-        assert!(registry.join_clan("clan_raimon", "user_axel".into(), "Axel Blaze".into()).is_ok());
+        assert!(
+            registry
+                .join_clan("clan_raimon", "user_axel".into(), "Axel Blaze".into())
+                .is_ok()
+        );
 
         let clan_mut = registry.clans.get_mut("clan_raimon").unwrap();
         assert_eq!(clan_mut.members.len(), 2);

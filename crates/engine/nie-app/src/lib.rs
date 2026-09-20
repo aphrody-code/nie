@@ -17,8 +17,6 @@ pub mod complete_profile;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod effectif;
 pub mod flow;
-/// Entrées : état des touches et table unique touche → commande de menu.
-pub mod input;
 /// Read-only game-data DTOs (skills, items, characters, …), decoded from the VFS.
 ///
 /// Shared by two surfaces: the Tauri desktop host (`inacord`, native commands) and the axum
@@ -28,6 +26,8 @@ pub mod input;
 /// (filesystem search, SQLite), which is not wasm32-compatible.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod game_data;
+/// Entrées : état des touches et table unique touche → commande de menu.
+pub mod input;
 /// Rendu 3D d'un match (vrais modèles du VFS) — natif seulement, comme `effectif`.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod match3d;

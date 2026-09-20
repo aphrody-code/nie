@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { api, type AudioBank, type AudioCue } from "@/lib/api";
@@ -41,11 +41,14 @@ export function AudioBankPanel({ path }: { path: string }) {
   /** Piste en cours de lecture (cue-id AFS2), `null` = aucune. */
   const [joue, setJoue] = useState<{ id: number; url: string } | null>(null);
   const [chargement, setChargement] = useState<number | null>(null);
+  const cueGeneration = useRef(0);
 
   useEffect(() => {
+    cueGeneration.current++;
     setBank(null);
     setError(null);
     setJoue(null);
+    setChargement(null);
     setFiltre("");
     setVisibles(PAGE);
     setLoading(true);
@@ -57,6 +60,7 @@ export function AudioBankPanel({ path }: { path: string }) {
       .finally(() => vivant && setLoading(false));
     return () => {
       vivant = false;
+      cueGeneration.current++;
     };
   }, [path, settings.gameDir]);
 
@@ -66,17 +70,29 @@ export function AudioBankPanel({ path }: { path: string }) {
     return q ? cues.filter((c) => c.name.toLowerCase().includes(q) || String(c.awb_id ?? "").includes(q)) : cues;
   }, [bank, filtre]);
   const affichees = useMemo(() => filtrees.slice(0, visibles), [filtrees, visibles]);
+  const selectedIndex = joue ? filtrees.findIndex((cue) => cue.awb_id === joue.id) : -1;
+  const previousIndex = selectedIndex > 0
+    ? filtrees.findLastIndex((cue, index) => index < selectedIndex && cue.awb_id !== null)
+    : -1;
+  const nextIndex = selectedIndex >= 0
+    ? filtrees.findIndex((cue, index) => index > selectedIndex && cue.awb_id !== null)
+    : -1;
+  const selectedCue = selectedIndex >= 0 ? filtrees[selectedIndex] ?? null : null;
 
   async function jouer(cue: AudioCue) {
     if (cue.awb_id === null) return;
+    const generation = ++cueGeneration.current;
     setChargement(cue.awb_id);
     try {
       const b64 = await api.audioCueWavB64(path, cue.awb_id, settings.gameDir);
+      if (generation !== cueGeneration.current) return;
       setJoue({ id: cue.awb_id, url: `data:audio/wav;base64,${b64}` });
+	  const filteredIndex = filtrees.indexOf(cue);
+	  if (filteredIndex >= 0) setVisibles((current) => Math.max(current, filteredIndex + 1));
     } catch (e) {
-      toast.error(String(e));
+      if (generation === cueGeneration.current) toast.error(String(e));
     } finally {
-      setChargement(null);
+      if (generation === cueGeneration.current) setChargement(null);
     }
   }
 
@@ -129,8 +145,23 @@ export function AudioBankPanel({ path }: { path: string }) {
       </div>
 
       {joue && (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio src={joue.url} controls autoPlay className="w-full" />
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Navigation des pistes">
+          <Button size="sm" variant="outline" disabled={previousIndex < 0 || chargement !== null}
+            onClick={() => previousIndex >= 0 && jouer(filtrees[previousIndex]!) }>
+            Précédente
+          </Button>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio src={joue.url} controls autoPlay className="min-w-0 flex-1" />
+          <Button size="sm" variant="outline" disabled={nextIndex < 0 || chargement !== null}
+            onClick={() => nextIndex >= 0 && jouer(filtrees[nextIndex]!) }>
+            Suivante
+          </Button>
+          {selectedCue ? (
+            <Button size="sm" variant="outline" onClick={() => exporter(selectedCue)}>
+              Télécharger WAV
+            </Button>
+          ) : null}
+        </div>
       )}
 
       <div className="divide-y divide-app-line rounded-lg border border-app-line">

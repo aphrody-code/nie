@@ -738,7 +738,10 @@ fn recolor(
     // séparément de `hors cible` — sinon un conteneur à moitié recoloré passe pour entièrement
     // recoloré, et la seule ligne qui l'aurait signalé se confond avec un choix de l'appelant.
     if !r.illisibles.is_empty() {
-        println!("ILLISIBLES {} — recopiées telles quelles", r.illisibles.join(", "));
+        println!(
+            "ILLISIBLES {} — recopiées telles quelles",
+            r.illisibles.join(", ")
+        );
     }
     println!("fichier   {}", p.display());
     println!("octets    {} → {}", octets.len(), r.octets.len());

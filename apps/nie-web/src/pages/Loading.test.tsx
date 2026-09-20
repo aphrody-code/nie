@@ -31,5 +31,7 @@ describe("loading screen evidence boundary", () => {
 		expect(html).not.toContain("video");
 		expect(html).not.toContain("audio");
 		expect(html).not.toContain("canvas");
+		expect(html).not.toContain("Passer");
+		expect(html).not.toContain("Accéder au menu principal");
 	});
 });

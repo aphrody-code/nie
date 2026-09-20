@@ -7,8 +7,8 @@
 //! - Calibration curve guaranteeing fair progression at lower tiers and strict parity at higher tiers
 //! - Player competitive career profiles and seasonal ladders
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Default K-factor when season does not override.
 pub const DEFAULT_K_FACTOR: u32 = 32;
@@ -17,7 +17,9 @@ pub const DEFAULT_K_FACTOR: u32 = 32;
 pub const DEFAULT_BASE_RATING: u32 = 0;
 
 /// The 11 official competitive rank tiers in the Inazuma Eleven VR / Achillea circuit.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub enum RankTier {
     /// 0 - Fer (Iron): 0 - 199 AP.
     #[default]
@@ -150,17 +152,50 @@ pub struct TierEloFactors {
 
 /// Official Achillea / Rose Griffon calibration table for directional K-factors.
 const TIER_FACTORS_TABLE: [TierEloFactors; 11] = [
-    TierEloFactors { win_k: 40, loss_k: 10 }, // 0 Fer: +20 / -5 at equal skill
-    TierEloFactors { win_k: 40, loss_k: 12 }, // 1 Bronze: +20 / -6
-    TierEloFactors { win_k: 38, loss_k: 16 }, // 2 Argent: +19 / -8
-    TierEloFactors { win_k: 38, loss_k: 18 }, // 3 Or: +19 / -9
-    TierEloFactors { win_k: 36, loss_k: 20 }, // 4 Platine: +18 / -10
-    TierEloFactors { win_k: 36, loss_k: 24 }, // 5 Diamant: +18 / -12
-    TierEloFactors { win_k: 34, loss_k: 26 }, // 6 Émeraude: +17 / -13
-    TierEloFactors { win_k: 34, loss_k: 28 }, // 7 Rubis: +17 / -14
-    TierEloFactors { win_k: 32, loss_k: 32 }, // 8 Divin: +16 / -16 (strictly symmetric)
-    TierEloFactors { win_k: 32, loss_k: 32 }, // 9 Supernova: +16 / -16
-    TierEloFactors { win_k: 32, loss_k: 32 }, // 10 Légendaire: +16 / -16
+    TierEloFactors {
+        win_k: 40,
+        loss_k: 10,
+    }, // 0 Fer: +20 / -5 at equal skill
+    TierEloFactors {
+        win_k: 40,
+        loss_k: 12,
+    }, // 1 Bronze: +20 / -6
+    TierEloFactors {
+        win_k: 38,
+        loss_k: 16,
+    }, // 2 Argent: +19 / -8
+    TierEloFactors {
+        win_k: 38,
+        loss_k: 18,
+    }, // 3 Or: +19 / -9
+    TierEloFactors {
+        win_k: 36,
+        loss_k: 20,
+    }, // 4 Platine: +18 / -10
+    TierEloFactors {
+        win_k: 36,
+        loss_k: 24,
+    }, // 5 Diamant: +18 / -12
+    TierEloFactors {
+        win_k: 34,
+        loss_k: 26,
+    }, // 6 Émeraude: +17 / -13
+    TierEloFactors {
+        win_k: 34,
+        loss_k: 28,
+    }, // 7 Rubis: +17 / -14
+    TierEloFactors {
+        win_k: 32,
+        loss_k: 32,
+    }, // 8 Divin: +16 / -16 (strictly symmetric)
+    TierEloFactors {
+        win_k: 32,
+        loss_k: 32,
+    }, // 9 Supernova: +16 / -16
+    TierEloFactors {
+        win_k: 32,
+        loss_k: 32,
+    }, // 10 Légendaire: +16 / -16
 ];
 
 /// Returns directional K-factors for a given rank tier index.
@@ -216,11 +251,7 @@ pub struct EloMatchResult {
 
 /// Computes match results and AP updates for winner and loser.
 #[must_use]
-pub fn compute_match_elo(
-    winner_elo: u32,
-    loser_elo: u32,
-    season_k: u32,
-) -> EloMatchResult {
+pub fn compute_match_elo(winner_elo: u32, loser_elo: u32, season_k: u32) -> EloMatchResult {
     let winner_tier = RankTier::from_ap(winner_elo);
     let loser_tier = RankTier::from_ap(loser_elo);
 
@@ -325,10 +356,14 @@ impl CompetitiveLadder {
     }
 
     /// Gets or creates a player's competitive profile.
-    pub fn get_or_create(&mut self, user_id: &str, display_name: &str) -> &mut PlayerCompetitiveProfile {
-        self.profiles
-            .entry(user_id.to_string())
-            .or_insert_with(|| PlayerCompetitiveProfile::new(user_id.to_string(), display_name.to_string()))
+    pub fn get_or_create(
+        &mut self,
+        user_id: &str,
+        display_name: &str,
+    ) -> &mut PlayerCompetitiveProfile {
+        self.profiles.entry(user_id.to_string()).or_insert_with(|| {
+            PlayerCompetitiveProfile::new(user_id.to_string(), display_name.to_string())
+        })
     }
 
     /// Submits a match result between two players, updating both profiles.
@@ -363,7 +398,11 @@ impl CompetitiveLadder {
     #[must_use]
     pub fn leaderboard(&self, limit: usize) -> Vec<&PlayerCompetitiveProfile> {
         let mut list: Vec<&PlayerCompetitiveProfile> = self.profiles.values().collect();
-        list.sort_by(|a, b| b.current_ap.cmp(&a.current_ap).then_with(|| b.wins.cmp(&a.wins)));
+        list.sort_by(|a, b| {
+            b.current_ap
+                .cmp(&a.current_ap)
+                .then_with(|| b.wins.cmp(&a.wins))
+        });
         list.truncate(limit);
         list
     }
@@ -421,7 +460,9 @@ mod tests {
         ladder.get_or_create("user_mark", "Mark Evans");
         ladder.get_or_create("user_axel", "Axel Blaze");
 
-        let res = ladder.submit_match_result("user_mark", "user_axel").unwrap();
+        let res = ladder
+            .submit_match_result("user_mark", "user_axel")
+            .unwrap();
         assert!(res.winner_gain > 0);
 
         let mark = ladder.profiles.get("user_mark").unwrap();

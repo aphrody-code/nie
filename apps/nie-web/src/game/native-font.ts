@@ -2,6 +2,7 @@
 import type { AssetSource } from "@niers/asset-source";
 import { ensureWasm } from "./bridge";
 import { WasmBitmapFont } from "../wasm/nie_wasm.js";
+import { vfsResources } from "./vfs-resources";
 
 export const NATIVE_FONT_CONFIG = "data/common/font/font/font_def/font.cfg.bin";
 export const NATIVE_FONT_TEXTURE = "data/dx11/font/font_def/font.g4tx";
@@ -34,8 +35,8 @@ function acquireFont(source: Pick<AssetSource, "urlFichier">): FontEntry {
 	entry.promise = (async () => {
 		await ensureWasm();
 		const [config, texture] = await Promise.all([
-			fontBytes(configUrl, 4 * 1024 * 1024),
-			fontBytes(textureUrl, 128 * 1024 * 1024),
+			vfsResources.read(NATIVE_FONT_CONFIG) ?? fontBytes(configUrl, 4 * 1024 * 1024),
+			vfsResources.read(NATIVE_FONT_TEXTURE) ?? fontBytes(textureUrl, 128 * 1024 * 1024),
 		]);
 		entry.font = new WasmBitmapFont(config, texture);
 		return entry.font;

@@ -13,6 +13,25 @@
   min-width: 0;
 }
 
+.models-3d-view-toggle {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.models-3d-view-toggle > button {
+  min-width: 5rem;
+}
+
+.models-3d-results--list > li,
+.models-3d-results--list > li > button {
+  min-width: 0;
+}
+
+.models-3d-results--list > li > button {
+  display: flex !important;
+  align-items: center;
+}
+
 @media (max-width: 480px) {
   /* ViewTitle owns a measured desktop minimum of 280 px. Inside the mobile shell its actual
 	   available width is only 216 px after page gutters, so this one page must allow the title
@@ -38,6 +57,14 @@
     grid-column: 1 / -1;
     width: 100%;
     max-width: 100%;
+  }
+
+  .models-3d-view-toggle {
+    grid-column: 1 / -1;
+  }
+
+  .models-3d-view-toggle > button {
+    flex: 1 1 0;
   }
 
   .models-3d-filters > button {

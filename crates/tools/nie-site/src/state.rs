@@ -110,6 +110,8 @@ pub struct EtatSite {
     pub anime: Arc<Gisement>,
     /// Cache des réponses d'amont, borné en poids et en durée.
     pub cache: Cache<String, ReponseCachee>,
+    /// Decoded native text, bounded independently and invalidated on VFS replacement.
+    pub(crate) text_cache: Arc<crate::routes::text_cache::TextCache>,
     /// Client HTTP sortant : `nie-model-serve` en clair sur la boucle locale, et
     /// `api.github.com` en TLS pour le manifeste de mise a jour d'Inacord.
     pub client: reqwest::Client,
@@ -166,6 +168,7 @@ impl EtatSite {
             gisement,
             anime,
             cache,
+            text_cache: Arc::default(),
             client,
             jetons_amont,
             limiteur,

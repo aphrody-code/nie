@@ -33,6 +33,7 @@ import { ensureWasm } from "./bridge";
 import { menuTextLines } from "./lua-runtime";
 import { MenuScreenBuilder } from "../wasm/nie_wasm.js";
 import { fetchBytes, fetchJson } from "@niers/asset-source";
+import { vfsResources } from "./vfs-resources";
 
 /** L'espace de fichiers du VFS servi par `nie-site`. */
 const VFS_SPACE = "/f/";
@@ -74,6 +75,8 @@ export interface BuiltLayout {
 
 /** Les octets d'un chemin du VFS, ou `null` quand le site ne le rend pas. */
 async function vfsBytes(path: string): Promise<Uint8Array | null> {
+	const mounted = vfsResources.read(path);
+	if (mounted) return mounted;
 	return fetchBytes(`${VFS_SPACE}${path}`, { timeoutMs: 15_000, retries: 0 }).catch(() => null);
 }
 

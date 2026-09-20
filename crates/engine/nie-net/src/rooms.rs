@@ -10,8 +10,8 @@
 //! - `game::GDSInacodeConfig` (0x1419cd8e8)
 //! - `game::GDSSoccerClubRoomConfig` (0x1419ccda0)
 
-use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
 use crate::protocol::{Inacode, MatchMode, PlayerSlot};
 
@@ -70,7 +70,12 @@ pub struct NetworkRoomTown {
 impl NetworkRoomTown {
     /// Creates a new town room instance.
     #[must_use]
-    pub fn new(room_id: String, room_name: String, is_public_hub: bool, max_capacity: usize) -> Self {
+    pub fn new(
+        room_id: String,
+        room_name: String,
+        is_public_hub: bool,
+        max_capacity: usize,
+    ) -> Self {
         Self {
             room_id,
             room_name,

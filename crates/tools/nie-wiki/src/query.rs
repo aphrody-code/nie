@@ -36,6 +36,41 @@ pub fn sanitize_filter(input: &str) -> String {
 
 // ─── Personnage ───────────────────────────────────────────────────────────────
 
+/// Native staff filters shared by the HTTP and desktop catalogue adapters.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+pub struct CoachFilters {
+    pub q: Option<String>,
+    pub role: Option<String>,
+    pub gender: Option<String>,
+    pub element: Option<String>,
+    pub playstyle: Option<String>,
+}
+
+/// Staff is owned by the coordinator table, not synthetic character rows.
+pub fn query_coaches(conn: &Connection, filters: &CoachFilters) -> anyhow::Result<Value> {
+    let mut result = crate::auxiliary::list_coaches(conn, filters.q.as_deref())?;
+    if let Some(rows) = result.as_array_mut() {
+        rows.retain(|row| {
+            [
+                ("role", filters.role.as_deref()),
+                ("gender", filters.gender.as_deref()),
+                ("element", filters.element.as_deref()),
+                ("playstyle", filters.playstyle.as_deref()),
+            ]
+            .into_iter()
+            .all(|(key, expected)| {
+                expected.is_none_or(|expected| {
+                    let actual = row[key].as_str().unwrap_or_default();
+                    actual == expected
+                        || (key == "role" && expected == "Coach" && actual == "Manager")
+                        || (key == "playstyle" && expected == "Breach" && actual == "Freedom")
+                })
+            })
+        });
+    }
+    Ok(result)
+}
+
 /// Recherche des personnages par ID ou nom (FR/EN/JA).
 ///
 /// Retourne tous les matches (plusieurs variantes possible pour un même charaId).
@@ -56,7 +91,8 @@ pub fn search_characters(conn: &Connection, query: &str) -> anyhow::Result<Vec<C
             OR name_fr LIKE ?2
             OR name_en LIKE ?2
             OR name_ja LIKE ?2
-         ORDER BY zukan_order ASC NULLS LAST, id ASC
+         ORDER BY CASE WHEN zukan_order IS NULL OR zukan_order = '\\\\N' THEN 1 ELSE 0 END,
+                  CAST(zukan_order AS INTEGER), id ASC
          LIMIT 50",
         &[&q as &dyn rusqlite::ToSql, &like_pat],
         |row| {
@@ -85,7 +121,12 @@ pub fn get_character(conn: &Connection, id: &str) -> anyhow::Result<Option<Chara
                 rarity_label, internal_code, slug, base_slug,
                 description_fr, description_en, gender, team_id, series, zukan_hash,
                 data, sheet_data, skills
-         FROM inagle_characters WHERE id = ?1",
+         FROM inagle_characters
+         WHERE id = ?1 OR internal_code = ?1 OR slug = ?1 OR base_slug = ?1 OR chara_id = ?1
+         ORDER BY CASE WHEN id = ?1 THEN 0 WHEN slug = ?1 THEN 1 ELSE 2 END,
+                  CASE WHEN zukan_order IS NULL OR zukan_order = '\\\\N' THEN 1 ELSE 0 END,
+                  CAST(zukan_order AS INTEGER), id
+         LIMIT 1",
         &[&id as &dyn rusqlite::ToSql],
         |row| {
             Ok((
@@ -444,7 +485,7 @@ pub fn search_skills(conn: &Connection, query: &str) -> anyhow::Result<Vec<Skill
     )
 }
 
-/// Charge un skill par son ID exact.
+/// Resolve a mirror row ID, native code, or the game skill hash used by learned slots.
 pub fn get_skill(conn: &Connection, id: &str) -> anyhow::Result<Option<SkillProfile>> {
     let q = sanitize_filter(id);
     query_one(
@@ -456,7 +497,10 @@ pub fn get_skill(conn: &Connection, id: &str) -> anyhow::Result<Option<SkillProf
                 internal_code, is_hyper,
                 data, sheet_data
          FROM inagle_skills
-         WHERE id = ?1 OR internal_code = ?1",
+         WHERE id = ?1 OR internal_code = ?1
+            OR UPPER(CASE WHEN json_valid(data) THEN json_extract(data, '$.skillID') END) = UPPER(?1)
+         ORDER BY CASE WHEN id = ?1 THEN 0 WHEN internal_code = ?1 THEN 1 ELSE 2 END, id
+         LIMIT 1",
         &[&q as &dyn rusqlite::ToSql],
         skill_row_map,
     )
@@ -2590,6 +2634,37 @@ mod tests {
         assert_eq!(coverage["primary_binary_id"], 2);
     }
     use crate::model::{CompareSkillSlot, StatBlock};
+
+    #[test]
+    fn learned_skill_hash_resolves_without_overriding_exact_identifiers() {
+        use super::get_skill;
+        let connection = rusqlite::Connection::open_in_memory().unwrap();
+        connection.execute_batch("CREATE TABLE inagle_skills(id TEXT,name_fr TEXT,name_en TEXT,name_ja TEXT,category TEXT,element TEXT,power_max TEXT,power_min TEXT,tp_cost TEXT,description_fr TEXT,description_en TEXT,internal_code TEXT,is_hyper TEXT,data TEXT,sheet_data TEXT);
+            INSERT INTO inagle_skills(id,internal_code,data) VALUES('who00200','who00200','{\"skillID\":\"0x0D368F6B\"}'),('invalid','invalid','\\N');").unwrap();
+        assert_eq!(
+            get_skill(&connection, "0x0D368F6B").unwrap().unwrap().id,
+            "who00200"
+        );
+        assert_eq!(
+            get_skill(&connection, "who00200").unwrap().unwrap().id,
+            "who00200"
+        );
+        assert_eq!(
+            get_skill(&connection, "0x0d368f6b").unwrap().unwrap().id,
+            "who00200"
+        );
+        assert!(get_skill(&connection, "missing").unwrap().is_none());
+        connection
+            .execute(
+                "INSERT INTO inagle_skills(id,data) VALUES('0x0D368F6B','{}')",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            get_skill(&connection, "0x0D368F6B").unwrap().unwrap().id,
+            "0x0D368F6B"
+        );
+    }
 
     #[test]
     fn sanitize_filter_preserves_internal_identifier_underscores() {

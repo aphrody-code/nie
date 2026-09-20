@@ -8,9 +8,7 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::protocol::{
-    KizunaTownSnapshot, PlacedTownCharacter, PlacedTownObject, TownVisitor,
-};
+use crate::protocol::{KizunaTownSnapshot, PlacedTownCharacter, PlacedTownObject, TownVisitor};
 
 /// Errors possible in Kizuna Town operations.
 #[derive(Debug, Error)]
@@ -156,7 +154,8 @@ impl KizunaHub {
     /// Adds a player as a visitor into a specific town.
     pub fn join_town(&mut self, town_owner_id: &str, visitor: TownVisitor) -> KizunaTownSnapshot {
         let player_id = visitor.player_id.clone();
-        self.player_towns.insert(player_id, town_owner_id.to_string());
+        self.player_towns
+            .insert(player_id, town_owner_id.to_string());
         let town = self.get_or_create_town(town_owner_id, &visitor.player_name);
         town.add_visitor(visitor);
         town.snapshot()
@@ -248,7 +247,8 @@ mod tests {
         assert_eq!(town.objects.len(), 1);
 
         // Update Gouenji's movement
-        let moved = town.update_visitor_transform("p_gouenji", [6.0, 0.0, 10.0], [0.0, 0.0, 0.0], 1.57);
+        let moved =
+            town.update_visitor_transform("p_gouenji", [6.0, 0.0, 10.0], [0.0, 0.0, 0.0], 1.57);
         assert!(moved);
 
         // Gouenji leaves

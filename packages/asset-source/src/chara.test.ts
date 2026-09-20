@@ -32,4 +32,13 @@ describe("character catalogue URL", () => {
 		expect(url.searchParams.get("rarity__in")).toBe("UR,LEGEND");
 		expect(url.searchParams.get("series__in")).toBe("GO,ARES");
 	});
+
+	test("preserves rich facets and explicit false state filters", () => {
+		const url = new URL(charaCatalogUrl({ gender: "M", playstyles: ["Breach", "Bond"],
+			ageGroup: "Middle School", schoolYear: "Grade 7", teamId: "t1", playable: false,
+			incomplete: false, role: "Coordinator" }), "https://nie.test");
+		expect(Object.fromEntries(url.searchParams)).toEqual({ page: "1", per_page: "24",
+			gender: "M", playstyle__in: "Breach,Bond", age_group: "Middle School", school_year: "Grade 7",
+			team_id: "t1", playable: "false", incomplete: "false", role: "Coordinator" });
+	});
 });

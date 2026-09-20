@@ -29,6 +29,47 @@ describe("createWebGalleryServices", () => {
 		expect(webGalleryFiltersForCategory(webGalleryFiltersFromUrl(href), "ev_pic").subfolder).toBeNull();
 	});
 
+	test("round-trips the editorial selection without changing the broad VFS default", () => {
+		const href = webGalleryHrefForFilters("https://nie.test/gallery_menu?display=gallery", {
+			query: "chronicle",
+			category: "story",
+			subfolder: null,
+			view: "editorial",
+			page: 3,
+		});
+		expect(href).toBe("/gallery_menu?display=gallery&q=chronicle&categorie=story&view=editorial&page=3");
+		expect(webGalleryFiltersFromUrl(href)).toMatchObject({
+			query: "chronicle", category: "story", view: "editorial", page: 3,
+		});
+		expect(webGalleryFiltersFromUrl("/gallery_menu").view).toBeUndefined();
+	});
+
+	test("adapts Rust editorial categories and VFS paths without inventing counts", async () => {
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = Object.assign(async (input: RequestInfo | URL) => {
+			const url = new URL(String(input), "https://nie.test");
+			expect(url.searchParams.get("view")).toBe("editorial");
+			expect(url.searchParams.get("category")).toBe("story");
+			expect(url.searchParams.get("q")).toBe("main");
+			return Response.json({
+				total: 242, offset: 0,
+				records: [{ id: "story-1", vfsPath: "data/dx11/menu/220_img/gallery_img2/img_story_main.g4tx" }],
+				categories: [{ id: "story", count: 242 }, { id: "telop_waza", count: 2490 }],
+			});
+		}, { preconnect: originalFetch.preconnect });
+		try {
+			const page = await createWebGalleryServices({} as AssetSource).editorialPage!("story", 120, 0, " main ");
+			expect(page).toEqual({
+				files: [{ path: "data/dx11/menu/220_img/gallery_img2/img_story_main.g4tx", size: 0 }],
+				total: 242,
+				offset: 0,
+				categories: [{ name: "story", count: 242 }, { name: "telop_waza", count: 2490 }],
+			});
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	test("opens an asset in the canonical localized texture catalogue", () => {
 		expect(webGalleryTextureHref("https://nie.test/gallery_menu?display=gallery&categorie=ev_pic", "data/dx11/menu/a.g4tx"))
 			.toBe("/textures?q=data%2Fdx11%2Fmenu%2Fa.g4tx");

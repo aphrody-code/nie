@@ -26,7 +26,7 @@
     },
     "apps/inacord": {
       "name": "inacord",
-      "version": "0.6.0",
+      "version": "1.0.0",
       "dependencies": {
         "nie-web": "workspace:*",
       },
@@ -36,7 +36,7 @@
     },
     "apps/nie-web": {
       "name": "nie-web",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@aphrody/ietv-client": "workspace:*",
         "@monaco-editor/react": "catalog:",
@@ -101,7 +101,7 @@
     },
     "packages/asset-source": {
       "name": "@niers/asset-source",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "devDependencies": {
         "@types/bun": "catalog:",
         "typescript": "catalog:",
@@ -200,7 +200,7 @@
     },
     "packages/inacord-ui": {
       "name": "@niers/inacord-ui",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@base-ui/react": "catalog:",
         "@niers/asset-source": "workspace:*",
@@ -280,7 +280,7 @@
     },
     "packages/nie": {
       "name": "@aphrody/nie",
-      "version": "0.6.0",
+      "version": "1.0.0",
       "devDependencies": {
         "@types/bun": "catalog:",
         "typescript": "catalog:",
@@ -288,7 +288,7 @@
     },
     "packages/nie-bridge": {
       "name": "@niers/bridge",
-      "version": "0.6.0",
+      "version": "1.0.0",
       "devDependencies": {
         "@types/bun": "catalog:",
         "typescript": "catalog:",
@@ -296,7 +296,7 @@
     },
     "packages/nie-game": {
       "name": "@niers/game",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "wanakana": "catalog:",
       },
@@ -307,9 +307,9 @@
     },
     "packages/nie-plugin": {
       "name": "nie-plugin",
-      "version": "0.6.0",
+      "version": "1.0.0",
       "dependencies": {
-        "@aphrody/nie": "workspace:*",
+        "@aphrody/nie": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "catalog:",

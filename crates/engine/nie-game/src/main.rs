@@ -2928,16 +2928,162 @@ fn collect_layout_objects_with_lookup(
     (objects, n_sprites)
 }
 
-/// Compte les **item-buttons par layer-list** depuis les slots `AttachLocator` des objbin de
-/// l'écran — la donnée de scène que `GetObjectAttr` (`0x4612788B`) renvoie au script (lu par
-/// `GetItemButtonNum`). Sans elle, le menu reste vide (`GetItemButtonNum` = 0).
+/// Adds a `CMenuListView`'s declared slot count to the scene data.
 ///
-/// Format `NullLayerName` (vérifié sur `title02_02_item_atc_locator_2`) : liste plate de quads
-/// `[hashLocatorA, hashLocatorB, layerHash, slotIndex]`. Le nombre de slots d'un layer = nombre
-/// de quads portant ce `layerHash`. Ex. title02 : `2250456639`→8 (#L7_7), `3873872512`→3
-/// (#L8_8), `3180406576`→11 — concordent exactement avec les tables du script décompilé.
+/// `mLocatorNum` is the widget-ring capacity (engine field `+0xE8`, documented and ported in
+/// `nie_core::list_view`). Those slots do not always appear in a separate `CMenuAttachLocator`:
+/// `gallery01_01_list_base` declares 30 while its only external locator belongs to the cursor.
+/// Without this second source the driver visits `OnSetupLayer`/`OnOpenLayer` only once, so the
+/// script never initializes the other native cells.
+fn merge_declared_list_view_count(
+    counts: &mut std::collections::BTreeMap<u32, i32>,
+    object_name: &str,
+    params: Option<objbin::ListViewParams>,
+) {
+    let Some(params) = params else { return };
+    if params.locator_num <= 0 {
+        return;
+    }
+    let count = counts
+        .entry(cfgbin::crc32(object_name.as_bytes()))
+        .or_default();
+    *count = (*count).max(params.locator_num);
+}
+
+fn item_counts_report(counts: &std::collections::BTreeMap<u32, i32>) -> Vec<serde_json::Value> {
+    counts
+        .iter()
+        .map(|(layer_id, count)| {
+            serde_json::json!({
+                "layerId": format!("0x{layer_id:08X}"),
+                "count": count,
+            })
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone)]
+struct RuntimeListRing {
+    source_hash: u32,
+    target_hash: u32,
+    params: objbin::ListViewParams,
+    slots: Vec<menu::ListViewRingSlot>,
+}
+
+fn component_int(component: &objbin::UnknownComponent, key: &str) -> Option<i32> {
+    match component.get(key)?.first()? {
+        objbin::PropValue::Int(value) => Some(*value),
+        _ => None,
+    }
+}
+
+fn collect_runtime_list_rings(vfs: &Vfs, screen: &str) -> Vec<RuntimeListRing> {
+    let selected = setting_objbin_paths(vfs, screen);
+    let mut parsed_objects: std::collections::BTreeMap<u32, objbin::MenuObject> =
+        std::collections::BTreeMap::new();
+    for path in &selected {
+        let Ok(bytes) = vfs.read(path) else { continue };
+        let Ok(object) = objbin::parse(&bytes) else {
+            continue;
+        };
+        parsed_objects.insert(cfgbin::crc32(object.name.as_bytes()), object);
+    }
+    if selected.is_empty() {
+        return Vec::new();
+    }
+
+    let mut rings = Vec::new();
+    for object in parsed_objects.values() {
+        let Some(params) = objbin::list_view_params(object) else {
+            continue;
+        };
+        let Some(component) = object
+            .components
+            .iter()
+            .find_map(|component| match component {
+                objbin::MenuComponent::Unknown(component)
+                    if component.type_name == "CMenuListViewGallery" =>
+                {
+                    Some(component)
+                }
+                _ => None,
+            })
+        else {
+            continue;
+        };
+        let Some(root_name) = component.str_param("mMatrixLocaterRootBaseName") else {
+            continue;
+        };
+        let Some(root_digits) = component_int(component, "mMatrixLocaterRootBaseDigitNum")
+            .and_then(|value| usize::try_from(value).ok())
+        else {
+            continue;
+        };
+        let Some(target_hash) = component_int(component, "mListItemName").map(|value| value as u32)
+        else {
+            continue;
+        };
+        let Some(g4pkm_path) = object
+            .g4pkm_path
+            .as_deref()
+            .and_then(|path| resolve_menu_path(vfs, None, path))
+        else {
+            continue;
+        };
+        let Ok(bytes) = vfs.read(&g4pkm_path) else {
+            continue;
+        };
+        let Ok(layout) = g4pkm::parse(&bytes) else {
+            continue;
+        };
+        let slots = menu::list_view_ring_slots(&layout, params, root_name, root_digits);
+        if slots.is_empty() {
+            continue;
+        }
+        rings.push(RuntimeListRing {
+            source_hash: cfgbin::crc32(object.name.as_bytes()),
+            target_hash,
+            params,
+            slots,
+        });
+    }
+    rings
+}
+
+fn list_rings_report(rings: &[RuntimeListRing]) -> Vec<serde_json::Value> {
+    rings
+        .iter()
+        .map(|ring| {
+            serde_json::json!({
+                "sourceHash": format!("0x{:08X}", ring.source_hash),
+                "targetHash": format!("0x{:08X}", ring.target_hash),
+                "capacity": ring.params.locator_num,
+                "viewStart": ring.params.view_start,
+                "viewNum": ring.params.view_num,
+                "lineNum": ring.params.line_num,
+                "renderActivated": false,
+                "slots": ring.slots.iter().map(|slot| serde_json::json!({
+                    "index": slot.index,
+                    "x": slot.x_px,
+                    "y": slot.y_px,
+                    "initiallyVisible": slot.initially_visible,
+                })).collect::<Vec<_>>(),
+            })
+        })
+        .collect()
+}
+
+/// Counts **item buttons per list layer** from both `AttachLocator` slots and `CMenuListView`
+/// rings declared by the screen's objbins. This is the scene data returned to the script by
+/// `GetObjectAttr` (`0x4612788B`) and read by `GetItemButtonNum`. Without it, the menu is empty
+/// (`GetItemButtonNum` = 0).
 ///
-/// Retourne `layerHash -> nombre d'items`.
+/// `NullLayerName` format (verified on `title02_02_item_atc_locator_2`): a flat list of quads
+/// `[hashLocatorA, hashLocatorB, layerHash, slotIndex]`. A layer's slot count is the number of
+/// quads carrying its `layerHash`. For title02, `2250456639`→8 (#L7_7), `3873872512`→3 (#L8_8),
+/// and `3180406576`→11, exactly matching the decompiled script tables.
+///
+/// Returns `layerHash -> item count`.
 fn collect_item_counts(vfs: &Vfs, screen: &str) -> std::collections::BTreeMap<u32, i32> {
     // Les calques d'un écran viennent de sa DÉFINITION, pas de son nom. Le filtre par préfixe ne
     // vaut que pour les écrans dont les objbin portent le nom de l'écran (`mainmenu01_*` pour
@@ -2971,6 +3117,7 @@ fn collect_item_counts(vfs: &Vfs, screen: &str) -> std::collections::BTreeMap<u3
         let Ok(obj) = objbin::parse(&bytes) else {
             continue;
         };
+        merge_declared_list_view_count(&mut counts, &obj.name, objbin::list_view_params(&obj));
         for c in &obj.components {
             if let objbin::MenuComponent::AttachLocator(a) = c {
                 // Quads [A, B, layerHash, slotIndex] : compter par layerHash.
@@ -3106,6 +3253,14 @@ fn cmd_export_layout_runtime(
 
     // 1) Layout statique de l'écran (placement + sprite) — base à muter par le runtime.
     let (mut objects, n_sprites) = collect_layout_objects(&vfs, screen, from_setting);
+    let list_rings = collect_runtime_list_rings(&vfs, screen);
+    // Geometry is exported as evidence but not yet composited: the nested gallery cell state,
+    // lock overlay and background layers are unresolved, and activating only the measured base
+    // cells regresses the like-for-like Gallery SSIM oracle.
+    let list_ring_instances = list_rings
+        .iter()
+        .map(|ring| ring.slots.len())
+        .sum::<usize>();
     // La même table alimente le getter général Lua `GetText`, pour les libellés que le script
     // construit dynamiquement (les libellés statiques sont déjà joints dans le layout ci-dessus).
     let menu_text = load_menu_text(&vfs);
@@ -3386,7 +3541,10 @@ fn cmd_export_layout_runtime(
             continue;
         };
         n_matched += 1;
-        let mut rt = serde_json::Map::new();
+        let mut rt = match &o.runtime {
+            Value::Object(existing) => existing.clone(),
+            _ => serde_json::Map::new(),
+        };
         rt.insert("matched".into(), Value::Bool(true));
         rt.insert("objHash".into(), json!(format!("0x{h:08X}")));
         if let Some(sh) = m.sprite_hash {
@@ -3610,6 +3768,9 @@ fn cmd_export_layout_runtime(
             "decodeErrors": decode_errors,
             "decodedInstructions": decoded_instructions,
             "layersTouched": merged_layers.len(),
+            "itemCounts": item_counts_report(&item_counts),
+            "listViewRings": list_rings_report(&list_rings),
+            "listViewInstances": list_ring_instances,
             "objectsInMenuState": merged_objs.len(),
             "objectsMatched": n_matched,
             "headerTabsAdded": n_tabs,
@@ -4819,8 +4980,95 @@ impl AppFenetre {
 #[cfg(test)]
 mod tests {
     use super::{
-        blit_over, crop_rgba, scale_nearest, screen_script_needles, script_matches_screen,
+        RuntimeListRing, blit_over, crop_rgba, item_counts_report, list_rings_report,
+        merge_declared_list_view_count, scale_nearest, screen_script_needles,
+        script_matches_screen,
     };
+
+    #[test]
+    fn declared_list_view_locator_ring_seeds_every_runtime_item() {
+        use std::collections::BTreeMap;
+
+        use nie_formats::{cfgbin::crc32, objbin::ListViewParams};
+
+        let mut counts = BTreeMap::new();
+        merge_declared_list_view_count(
+            &mut counts,
+            "gallery01_01_list_base",
+            Some(ListViewParams {
+                view_start: 1,
+                view_num: 4,
+                line_num: 5,
+                locator_num: 30,
+            }),
+        );
+
+        assert_eq!(
+            counts.get(&crc32(b"gallery01_01_list_base")),
+            Some(&30),
+            "the gallery list must expose its full native widget ring to Lua"
+        );
+        assert_eq!(
+            item_counts_report(&counts),
+            vec![serde_json::json!({
+                "layerId": "0xB7247416",
+                "count": 30,
+            })],
+            "the runtime JSON must report the measured native ring count"
+        );
+
+        // An explicit AttachLocator count can be larger; neither source may truncate the other.
+        counts.insert(crc32(b"gallery01_01_list_base"), 54);
+        merge_declared_list_view_count(
+            &mut counts,
+            "gallery01_01_list_base",
+            Some(ListViewParams {
+                locator_num: 30,
+                ..ListViewParams::default()
+            }),
+        );
+        assert_eq!(counts[&crc32(b"gallery01_01_list_base")], 54);
+    }
+
+    #[test]
+    fn list_ring_report_exposes_measured_geometry_without_activating_rendering() {
+        use nie_formats::{cfgbin::crc32, menu::ListViewRingSlot, objbin::ListViewParams};
+
+        let target = "gallery01_02_list_item";
+        let ring = RuntimeListRing {
+            source_hash: crc32(b"gallery01_01_list_base"),
+            target_hash: crc32(target.as_bytes()),
+            params: ListViewParams {
+                view_start: 1,
+                view_num: 1,
+                line_num: 1,
+                locator_num: 2,
+            },
+            slots: vec![
+                ListViewRingSlot {
+                    index: 0,
+                    x_px: 154.666_67,
+                    y_px: 173.333_34,
+                    initially_visible: true,
+                },
+                ListViewRingSlot {
+                    index: 1,
+                    x_px: 154.666_67,
+                    y_px: 306.666_7,
+                    initially_visible: false,
+                },
+            ],
+        };
+        let report = list_rings_report(&[ring]);
+        assert_eq!(report[0]["capacity"], 2);
+        assert_eq!(report[0]["viewStart"], 1);
+        assert_eq!(report[0]["renderActivated"], false);
+        assert_eq!(report[0]["slots"].as_array().map(Vec::len), Some(2));
+        assert_eq!(report[0]["slots"][0]["index"], 0);
+        assert_eq!(report[0]["slots"][0]["initiallyVisible"], true);
+        let first_x = report[0]["slots"][0]["x"].as_f64().unwrap_or_default();
+        assert!((first_x - 154.666_67).abs() < 0.001);
+    }
 
     #[test]
     fn observed_native_input_requires_runtime_export_and_validates_library_schema() {
@@ -4962,6 +5210,10 @@ mod tests {
         ] {
             assert_eq!(touche_vers_commande(code), Some(attendu), "{code:?}");
         }
-        assert_eq!(touche_vers_commande(K::F13), None, "une touche non liée ne fait rien");
+        assert_eq!(
+            touche_vers_commande(K::F13),
+            None,
+            "une touche non liée ne fait rien"
+        );
     }
 }

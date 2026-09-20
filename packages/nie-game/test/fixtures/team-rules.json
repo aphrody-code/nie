@@ -1,0 +1,574 @@
+{
+  "formation": {
+    "id": "fixture",
+    "name": "Fixture",
+    "label": "fixture",
+    "positions": [
+      {
+        "index": 0,
+        "top": 0,
+        "left": 0,
+        "role": "FW"
+      },
+      {
+        "index": 1,
+        "top": 0,
+        "left": 24,
+        "role": "MF"
+      },
+      {
+        "index": 2,
+        "top": 0,
+        "left": 25,
+        "role": "DF"
+      },
+      {
+        "index": 10,
+        "top": 0,
+        "left": 1,
+        "role": "GK"
+      }
+    ]
+  },
+  "positions": [
+    {
+      "position": "MF",
+      "slot": "field-0",
+      "expected": {
+        "factor": 0.85,
+        "status": "adjacent"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field-2",
+      "expected": {
+        "factor": 0.85,
+        "status": "adjacent"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field-10",
+      "expected": {
+        "factor": 0.65,
+        "status": "mismatch"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "reserve-0",
+      "expected": {
+        "factor": 1,
+        "status": "match"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "manager-0",
+      "expected": {
+        "factor": 1,
+        "status": "match"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "support-0",
+      "expected": {
+        "factor": 1,
+        "status": "match"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field-99",
+      "expected": {
+        "factor": 1,
+        "status": "none"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "0",
+      "expected": {
+        "factor": 0.85,
+        "status": "adjacent"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field-+0",
+      "expected": {
+        "factor": 0.85,
+        "status": "adjacent"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field- 0",
+      "expected": {
+        "factor": 0.85,
+        "status": "adjacent"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field-0tail",
+      "expected": {
+        "factor": 0.85,
+        "status": "adjacent"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field--0",
+      "expected": {
+        "factor": 0.85,
+        "status": "adjacent"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field--1",
+      "expected": {
+        "factor": 1,
+        "status": "none"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field-1e2",
+      "expected": {
+        "factor": 1,
+        "status": "match"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "field-0field-2",
+      "expected": {
+        "factor": 0.85,
+        "status": "adjacent"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "",
+      "expected": {
+        "factor": 1,
+        "status": "none"
+      }
+    },
+    {
+      "position": "MF",
+      "slot": "bad",
+      "expected": {
+        "factor": 1,
+        "status": "none"
+      }
+    }
+  ],
+  "stats": [
+    {
+      "member": {
+        "slot": "reserve-0", "charaId": "empty-element", "name": "Synthetic",
+        "position": "MF", "element": "", "rarity": "Normal", "imageUrl": "", "slug": "synthetic",
+        "stats": { "kick": 238, "control": 258, "technique": 250, "pressure": 211, "physical": 210, "agility": 195, "intelligence": 230 }
+      },
+      "level": 99, "slot": "reserve-0", "dominant": "", "harmony": false,
+      "expected": { "kick": 238, "control": 258, "technique": 250, "pressure": 211, "physical": 210, "agility": 195, "intelligence": 230, "combatPower": 1592 }
+    },
+    {
+      "member": {
+        "slot": "field-0",
+        "charaId": "synthetic",
+        "name": "Synthetic",
+        "position": "MF",
+        "element": "Fire",
+        "rarity": "Normal",
+        "imageUrl": "",
+        "slug": "synthetic",
+        "stats": {
+          "kick": 238,
+          "control": 258,
+          "technique": 250,
+          "pressure": 211,
+          "physical": 210,
+          "agility": 195,
+          "intelligence": 230
+        }
+      },
+      "level": 1,
+      "slot": "field-0",
+      "dominant": "Fire",
+      "harmony": true,
+      "expected": {
+        "kick": 44,
+        "control": 47,
+        "technique": 46,
+        "pressure": 39,
+        "physical": 39,
+        "agility": 36,
+        "intelligence": 42,
+        "combatPower": 293
+      }
+    },
+    {
+      "member": {
+        "slot": "field-0",
+        "charaId": "synthetic",
+        "name": "Synthetic",
+        "position": "MF",
+        "element": "Fire",
+        "rarity": "Normal",
+        "imageUrl": "",
+        "slug": "synthetic",
+        "stats": {
+          "kick": 238,
+          "control": 258,
+          "technique": 250,
+          "pressure": 211,
+          "physical": 210,
+          "agility": 195,
+          "intelligence": 230
+        }
+      },
+      "level": 50,
+      "slot": "field-0",
+      "dominant": "Fire",
+      "harmony": true,
+      "expected": {
+        "kick": 131,
+        "control": 142,
+        "technique": 138,
+        "pressure": 116,
+        "physical": 116,
+        "agility": 108,
+        "intelligence": 127,
+        "combatPower": 878
+      }
+    },
+    {
+      "member": {
+        "slot": "field-0",
+        "charaId": "synthetic",
+        "name": "Synthetic",
+        "position": "MF",
+        "element": "Fire",
+        "rarity": "Normal",
+        "imageUrl": "",
+        "slug": "synthetic",
+        "stats": {
+          "kick": 238,
+          "control": 258,
+          "technique": 250,
+          "pressure": 211,
+          "physical": 210,
+          "agility": 195,
+          "intelligence": 230
+        }
+      },
+      "level": 99,
+      "slot": "field-0",
+      "dominant": "Fire",
+      "harmony": true,
+      "expected": {
+        "kick": 219,
+        "control": 237,
+        "technique": 230,
+        "pressure": 194,
+        "physical": 193,
+        "agility": 179,
+        "intelligence": 211,
+        "combatPower": 1463
+      }
+    },
+    {
+      "member": {
+        "slot": "field-0",
+        "charaId": "synthetic",
+        "name": "Synthetic",
+        "position": "FW",
+        "element": "Fire",
+        "rarity": "Normal",
+        "imageUrl": "",
+        "slug": "synthetic",
+        "stats": {
+          "kick": 70,
+          "control": 70,
+          "technique": 70,
+          "pressure": 70,
+          "physical": 70,
+          "agility": 70,
+          "intelligence": 70
+        }
+      },
+      "level": 44,
+      "slot": "field-0",
+      "dominant": "Fire",
+      "harmony": false,
+      "expected": {
+        "kick": 41,
+        "control": 41,
+        "technique": 41,
+        "pressure": 41,
+        "physical": 41,
+        "agility": 41,
+        "intelligence": 41,
+        "combatPower": 287
+      }
+    },
+    {
+      "member": {
+        "slot": "field-0",
+        "charaId": "synthetic",
+        "name": "Synthetic",
+        "position": "GK",
+        "element": "Void",
+        "rarity": "Normal",
+        "imageUrl": "",
+        "slug": "synthetic"
+      },
+      "level": 99,
+      "slot": "field-0",
+      "dominant": null,
+      "harmony": false,
+      "expected": {
+        "kick": 0,
+        "control": 0,
+        "technique": 0,
+        "pressure": 0,
+        "physical": 0,
+        "agility": 0,
+        "intelligence": 0,
+        "combatPower": 0
+      }
+    }
+  ],
+  "synergies": [
+    {
+      "members": {
+        "field-0": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "FW",
+          "element": "Fire",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        },
+        "field-1": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "MF",
+          "element": "Fire",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        },
+        "field-2": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "DF",
+          "element": "Fire",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        },
+        "field-10": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "GK",
+          "element": "Fire",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        },
+        "reserve-0": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "GK",
+          "element": "Wind",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        }
+      },
+      "expected": {
+        "dominantElement": "Fire",
+        "hasHarmony": false,
+        "links": [
+          {
+            "slotA": "field-0",
+            "slotB": "field-1",
+            "element": "Fire",
+            "coordA": {
+              "top": 0,
+              "left": 0
+            },
+            "coordB": {
+              "top": 0,
+              "left": 24
+            }
+          },
+          {
+            "slotA": "field-1",
+            "slotB": "field-2",
+            "element": "Fire",
+            "coordA": {
+              "top": 0,
+              "left": 24
+            },
+            "coordB": {
+              "top": 0,
+              "left": 25
+            }
+          }
+        ]
+      }
+    },
+    {
+      "members": {
+        "field-0": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "FW",
+          "element": "Fire",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        },
+        "field-1": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "MF",
+          "element": "Forest",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        },
+        "field-2": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "DF",
+          "element": "Mountain",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        },
+        "field-10": {
+          "slot": "field-0",
+          "charaId": "synthetic",
+          "name": "Synthetic",
+          "position": "GK",
+          "element": "Wind",
+          "rarity": "Normal",
+          "imageUrl": "",
+          "slug": "synthetic",
+          "stats": {
+            "kick": 238,
+            "control": 258,
+            "technique": 250,
+            "pressure": 211,
+            "physical": 210,
+            "agility": 195,
+            "intelligence": 230
+          }
+        }
+      },
+      "expected": {
+        "dominantElement": null,
+        "hasHarmony": true,
+        "links": []
+      }
+    },
+    {
+      "members": {},
+      "expected": {
+        "dominantElement": null,
+        "hasHarmony": false,
+        "links": []
+      }
+    }
+  ]
+}

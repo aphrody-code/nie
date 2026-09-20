@@ -8,7 +8,7 @@ the resource source and the platform work.
 - `DesktopHost.tsx` is that adapter for the Tauri window: the desktop `AssetSource`, the startup
   work a window does once (mods database, interrupted jobs, wiki mirror, VFS preload and index),
   the « Ouvrir avec » path and the Windows 11 title-bar theme. `BrowserHost.tsx` is its sibling
-  for a page. The Vite `#nie-host` alias picks one at build time; `src/main.tsx` mounts it.
+  for a page. The Vite `#nie-host` alias picks one at build time; `src/host-mount.tsx` mounts it.
 - `Workspace.tsx` renders the views for the current `/inacord/<viewId>` route. It owns no
   navigation, no sidebar, no palette and no toaster — the shell above owns all four, on every
   screen of the product, game screens included.

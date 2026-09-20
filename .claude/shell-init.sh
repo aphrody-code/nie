@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Sourcé par chaque `bash -c` de Claude Code (via BASH_ENV, posé dans .claude/settings.json).
 #
 # Corrige une classe de bug payée le 2026-09-02 : sans `pipefail`, `uv run x.py | tail` rend le
@@ -19,3 +20,13 @@ if [ -z "${NIERS_SHELL_INIT:-}" ]; then
     export NIERS_SHELL_INIT=1
     set -o pipefail
 fi
+
+# Claude Code loads this file only for the niers project. Keep game paths and private variables
+# in the same repository-scoped environment used by direnv and Codex instead of duplicating them
+# in agent settings.
+niers_shell_root=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+if [ -r "$niers_shell_root/scripts/niers-env.sh" ]; then
+    # shellcheck disable=SC1090
+    . "$niers_shell_root/scripts/niers-env.sh"
+fi
+unset niers_shell_root

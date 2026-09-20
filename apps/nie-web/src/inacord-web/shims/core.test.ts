@@ -15,6 +15,15 @@ function stub(handler: (url: string, init?: RequestInit) => Response | Promise<R
 }
 
 describe("read-only web command adapter", () => {
+	test("uses the shared Rust roster and skill projections without a database path", async () => {
+		const roster = [{ id: "0x12B74634", rarity_label: "BASARA", stat_frappe: 238 }];
+		const skills = [{ id: "skill_1", name_fr: "Test", power_max: 85 }];
+		const seen = stub(url => Response.json(url.endsWith("/roster") ? roster : skills));
+		expect(await invoke<unknown>("wiki_query", { operation: "load_roster", dbPath: "", args: {} })).toEqual(roster);
+		expect(await invoke<unknown>("wiki_query", { operation: "character_skills", dbPath: "", args: { id: "variant/a" } })).toEqual(skills);
+		expect(seen).toEqual(["/api/v1/wiki/roster", "/api/v1/wiki/characters/variant%2Fa/skills"]);
+	});
+
 	test("maps health into desktop VFS statistics", async () => {
 		stub(() => Response.json({ capacites: { vfs: "pret", vfs_entrees: 12, vfs_dump: true, vfs_cpks: 0 }, extensions: [{ valeur: "g4tx", total: 7 }] }));
 		expect(await invoke<Record<string, unknown>>("vfs_stats")).toEqual({ montage: "dump", total: 12, cpk_count: 0, extra_count: 0, loose_count: 12, top_ext: [["g4tx", 7]] });
@@ -128,14 +137,14 @@ describe("dispatch tables", () => {
 	test("wiki_query maps its operations onto /api/v1/wiki/*", async () => {
 		const seen = stub(url => url.includes("/wiki/search")
 			? Response.json({ results: [{ kind: "chara", id: "c1" }, { kind: "waza", id: "s1" }] })
-			: url.includes("/wiki/characters/")
-				? Response.json({ skills: [{ id: "s1" }] })
+			: url.endsWith("/skills")
+				? Response.json([{ id: "s1" }])
 				: Response.json([{ id: "coach" }]));
 		expect(await invoke<unknown>("wiki_query", { operation: "search_character", args: { query: "mark" } })).toEqual([{ kind: "chara", id: "c1" }]);
 		expect(await invoke<unknown>("wiki_query", { operation: "character_skills", args: { id: "c1" } })).toEqual([{ id: "s1" }]);
 		expect(await invoke<unknown>("wiki_query", { operation: "load_staff", args: {} })).toEqual([{ id: "coach" }]);
 		expect(seen[0]).toContain("q=mark");
-		expect(seen[1]).toBe("/api/v1/wiki/characters/c1");
+		expect(seen[1]).toBe("/api/v1/wiki/characters/c1/skills");
 	});
 
 	test("an unmapped wiki operation names the operation it refused", async () => {
@@ -272,4 +281,3 @@ describe("cfgbin and lua command wiring", () => {
 		expect(res).toBe("84");
 	});
 });
-

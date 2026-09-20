@@ -9,8 +9,8 @@
 //! - `game::KizunaTownChatPopoutNotification` (0x1403030a0)
 //! - `game::KizunaTownVisitorNotificationLog` (0x1403033d0)
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Kizuna bond link between two characters (`CMenuListViewKizunaLink`).
 #[derive(Debug, Clone, Serialize, Deserialize)]

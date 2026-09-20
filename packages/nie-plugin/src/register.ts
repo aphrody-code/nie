@@ -23,12 +23,12 @@
  *   ../../.. = racine workspace niers/
  */
 
-import { decode, decodeToPng } from "../../nie/src/index.ts";
+import { decode, decodeToPng } from "@aphrody/nie";
 
 // ─── chemins des données RE ─────────────────────────────────────────────────
 
 // import.meta.dir = packages/nie-plugin/src → 3 niveaux → niers/
-const _wsRoot = `${import.meta.dir}/../../..`;
+const _wsRoot = process.env["NIERS_ROOT"] ?? `${import.meta.dir}/../../..`;
 const RE_DIR  = `${_wsRoot}/data/re`;
 const LUA_DIR = `${_wsRoot}/data/lua_scripts`;
 

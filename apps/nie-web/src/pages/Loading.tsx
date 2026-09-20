@@ -15,8 +15,6 @@ export interface LoadingProps {
 	failed?: boolean;
 	/** Retry the failed WASM readiness request without reloading the page. */
 	onRetry?: () => void;
-	/** Bypass and continue to the opening sequence / main menu directly. */
-	onSkip?: () => void;
 }
 
 /**
@@ -29,29 +27,11 @@ export function needsStartupRecovery(health: SiteHealth | null, failed: boolean)
 }
 
 /** Renders the real loading layout, or a neutral factual failure state. */
-export function Loading({ health, failed = false, onRetry, onSkip }: LoadingProps) {
+export function Loading({ health, failed = false, onRetry }: LoadingProps) {
 	if (needsStartupRecovery(health, failed)) {
 		return (
 			<div style={STARTUP_STYLE}>
 				<ScreenStatus state="unavailable" onRetry={onRetry} />
-				{onSkip ? (
-					<button
-						type="button"
-						onClick={onSkip}
-						style={{
-							marginTop: "0.5rem",
-							padding: "0.4rem 0.8rem",
-							fontSize: "0.85rem",
-							background: "rgba(255, 255, 255, 0.1)",
-							border: "1px solid rgba(255, 255, 255, 0.3)",
-							borderRadius: "4px",
-							color: "#fff",
-							cursor: "pointer",
-						}}
-					>
-						Accéder au menu principal
-					</button>
-				) : null}
 			</div>
 		);
 	}
@@ -59,24 +39,6 @@ export function Loading({ health, failed = false, onRetry, onSkip }: LoadingProp
 	return (
 		<div style={STARTUP_STYLE}>
 			<ScreenStatus state="loading" />
-			{onSkip ? (
-				<button
-					type="button"
-					onClick={onSkip}
-					style={{
-						marginTop: "0.5rem",
-						padding: "0.3rem 0.7rem",
-						fontSize: "0.8rem",
-						background: "transparent",
-						border: "1px solid rgba(255, 255, 255, 0.2)",
-						borderRadius: "4px",
-						color: "#94a3b8",
-						cursor: "pointer",
-					}}
-				>
-					Passer
-				</button>
-			) : null}
 		</div>
 	);
 }

@@ -101,6 +101,18 @@ beforeEach(() => {
           pages: 6,
         });
       }
+      if (url.pathname === "/api/v1/3d/modeles/objet/o0000100") {
+        return Response.json({
+          modele: {
+            code: "o0000100",
+            famille: "objet",
+            nom: null,
+            fichiers: 3,
+            glb: "/model/objet/o0000100.glb",
+            apercu: "/model/objet/o0000100.png",
+          },
+        });
+      }
       return new Response(null, { status: 404 });
     },
     { preconnect: globalThis.fetch.preconnect },
@@ -138,12 +150,16 @@ describe("model catalogue URL state", () => {
       q: "ballon",
       page: 4,
       perPage: 48,
+      view: "grid",
+      model: null,
     });
     expect(modelFilterStateFromUrl("?famille=&page=-3")).toEqual({
       family: "perso",
       q: "",
       page: 1,
       perPage: 24,
+      view: "grid",
+      model: null,
     });
     expect(modelFilterStateFromUrl("?par_page=12").perPage).toBe(12);
     expect(modelFilterStateFromUrl("?par_page=12&per_page=36").perPage).toBe(
@@ -158,9 +174,15 @@ describe("model catalogue URL state", () => {
     expect(
       modelHrefForFilters(
         "https://nie.test/ja/modeles?vue=textures&tri=taille",
-        { family: "objet", q: "ballon", page: 4, perPage: 48 },
+        { family: "objet", q: "ballon", page: 4, perPage: 48, view: "grid", model: null },
       ),
     ).toBe("/ja/modeles?famille=objet&q=ballon&page=4&per_page=48");
+    expect(
+      modelHrefForFilters(
+        "https://nie.test/modeles?affichage=liste&modele=old",
+        modelFilterStateFromUrl("?famille=objet&affichage=liste&modele=o0000100"),
+      ),
+    ).toBe("/modeles?famille=objet&view=list&model=o0000100");
   });
 
   test("uses the URL after popstate and again after a remount", async () => {
@@ -239,5 +261,28 @@ describe("model catalogue URL state", () => {
     });
     await waitForRequest("page=1&per_page=36");
     expect(window.location.search).toBe("?per_page=36");
+  });
+
+  test("restores list mode and a directly linked model", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/modeles?famille=objet&view=list&model=o0000100",
+    );
+    await act(async () => root?.render(<Modeles3D />));
+    await waitForRequest("/api/v1/3d/modeles/objet/o0000100");
+
+    const list = container.querySelector<HTMLButtonElement>(
+      'button[aria-pressed="true"]',
+    );
+    expect([...container.querySelectorAll<HTMLButtonElement>('button[aria-pressed="true"]')]
+      .some((button) => button.textContent === "Liste")).toBeTrue();
+    expect(container.textContent).toContain("objet/o0000100");
+
+    const close = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent === "Fermer");
+    await act(async () => close?.click());
+    expect(window.location.search).toBe("?famille=objet&view=list");
+    expect(list).toBeDefined();
   });
 });

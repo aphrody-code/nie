@@ -100,6 +100,12 @@ pub use native_video::{
 
 pub mod net;
 pub use net::*;
+pub mod team_code;
+pub use team_code::*;
+pub mod team_rules;
+pub use team_rules::*;
+pub mod team_generator;
+pub use team_generator::*;
 
 #[cfg(all(target_arch = "wasm32", feature = "webgpu"))]
 pub mod web_viewer;
@@ -2936,6 +2942,101 @@ pub fn menu_screens_catalog_json() -> String {
     include_str!("../../../../data/menu/screen-inventory.json").to_string()
 }
 
+/// Returns the exact initial VFS requirements and measured discovery rules without embedding
+/// any copyrighted resource bytes in the WebAssembly module.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn initial_vfs_plan_json(locale: &str) -> Result<String, JsValue> {
+    nie_formats::preloaded_vfs::startup_plan_json(locale).map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native counterpart used by build tooling and contract tests.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn initial_vfs_plan_json(locale: &str) -> Result<String, String> {
+    nie_formats::preloaded_vfs::startup_plan_json(locale)
+}
+
+/// Validates a deterministic startup VFS archive and returns its body-free index.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn preloaded_vfs_index_json(bundle: &[u8]) -> Result<String, JsValue> {
+    nie_formats::preloaded_vfs::PreloadedVfsBundle::parse(bundle)
+        .and_then(|bundle| bundle.index_json())
+        .map_err(|error| JsValue::from_str(&error))
+}
+
+/// Native counterpart of [`preloaded_vfs_index_json`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn preloaded_vfs_index_json(bundle: &[u8]) -> Result<String, String> {
+    nie_formats::preloaded_vfs::PreloadedVfsBundle::parse(bundle)
+        .and_then(|bundle| bundle.index_json())
+}
+
+/// Validates a deterministic startup VFS archive and copies one exact file out of it.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn preloaded_vfs_read(bundle: &[u8], path: &str) -> Result<Vec<u8>, JsValue> {
+    let bundle = nie_formats::preloaded_vfs::PreloadedVfsBundle::parse(bundle)
+        .map_err(|error| JsValue::from_str(&error))?;
+    bundle
+        .read(path)
+        .map(<[u8]>::to_vec)
+        .ok_or_else(|| JsValue::from_str("VFS path is absent from the preloaded bundle"))
+}
+
+/// Native counterpart of [`preloaded_vfs_read`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn preloaded_vfs_read(bundle: &[u8], path: &str) -> Result<Vec<u8>, String> {
+    let bundle = nie_formats::preloaded_vfs::PreloadedVfsBundle::parse(bundle)?;
+    bundle
+        .read(path)
+        .map(<[u8]>::to_vec)
+        .ok_or_else(|| "VFS path is absent from the preloaded bundle".to_owned())
+}
+
+/// One validated startup archive retained in WebAssembly memory.
+///
+/// Construct this once per downloaded bundle. Reusing it avoids re-validating every CRC and
+/// recopying the complete archive for each requested VFS file.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct PreloadedVfs {
+    bundle: nie_formats::preloaded_vfs::PreloadedVfsBundle,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl PreloadedVfs {
+    #[wasm_bindgen(constructor)]
+    pub fn new(bytes: Vec<u8>) -> Result<PreloadedVfs, JsValue> {
+        let bundle = nie_formats::preloaded_vfs::PreloadedVfsBundle::parse_owned(bytes)
+            .map_err(|error| JsValue::from_str(&error))?;
+        Ok(Self { bundle })
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn entry_count(&self) -> usize {
+        self.bundle.len()
+    }
+
+    pub fn index_json(&self) -> Result<String, JsValue> {
+        self.bundle
+            .index_json()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    pub fn has(&self, path: &str) -> bool {
+        self.bundle.read(path).is_some()
+    }
+
+    pub fn read(&self, path: &str) -> Result<Vec<u8>, JsValue> {
+        self.bundle
+            .read(path)
+            .map(<[u8]>::to_vec)
+            .ok_or_else(|| JsValue::from_str("VFS path is absent from the preloaded bundle"))
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Tests natifs
 // ---------------------------------------------------------------------------
@@ -2943,6 +3044,18 @@ pub fn menu_screens_catalog_json() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_arch = "wasm32")]
+    fn error_text(error: JsValue) -> String {
+        error
+            .as_string()
+            .expect("the binding returns a string diagnostic")
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn error_text(error: String) -> String {
+        error
+    }
 
     /// Le chemin que `MenuComposer` emprunte, éprouvé en natif : sans octets, rien n'est dessiné
     /// et rien n'est inventé. Le binding lui-même ne vit que sur `wasm32` (il tient un
@@ -3056,7 +3169,7 @@ mod tests {
     fn menu_static_layer_json_rejects_invalid_objbin_before_composition() {
         let error = menu_static_layer_json(b"invalid", b"invalid", b"invalid", "layer.g4tx")
             .expect_err("invalid OBJBIN must never yield a static layer");
-        assert!(error.contains("objbin"));
+        assert!(error_text(error).contains("objbin"));
     }
 
     #[test]
@@ -3068,14 +3181,14 @@ mod tests {
         let g4pkm_error = menu_static_layer_json(&objbin, b"invalid", &g4tx, "layer.g4tx")
             .expect_err("invalid G4PKM must never yield a static layer");
         assert!(
-            !g4pkm_error.is_empty(),
+            !error_text(g4pkm_error).is_empty(),
             "the G4PKM parser must return a diagnostic"
         );
 
         let g4tx_error = menu_static_layer_json(&objbin, &g4pkm, b"invalid", "layer.g4tx")
             .expect_err("invalid G4TX must never yield a static layer");
         assert!(
-            !g4tx_error.is_empty(),
+            !error_text(g4tx_error).is_empty(),
             "the G4TX parser must return a diagnostic"
         );
     }
@@ -3351,7 +3464,7 @@ mod tests {
         let blocker = forge_lift_x64_json(&[0x66, 0x0F, 0x38, 0xDC, 0xC1, 0xC3], 0x1_4000_0000)
             .expect_err("unsupported dialect instruction should be reported");
         let blocker: serde_json::Value =
-            serde_json::from_str(&blocker).expect("blocker should be structured JSON");
+            serde_json::from_str(&error_text(blocker)).expect("blocker should be structured JSON");
         assert_eq!(blocker["cause"], "aesenc");
     }
 
@@ -3359,6 +3472,7 @@ mod tests {
     fn minidump_summary_json_rejects_untrusted_non_dump_bytes() {
         let error = minidump_summary_json(b"not a dump")
             .expect_err("non-minidump bytes must not produce metadata");
+        let error = error_text(error);
         assert!(error.contains("minidump") || error.contains("MDMP"));
     }
 
@@ -3404,6 +3518,7 @@ mod tests {
     fn pdata_inspect_json_rejects_a_pe_without_pdata() {
         let error = pdata_inspect_json(b"not a PE", 16)
             .expect_err("invalid PE bytes must not produce roots");
+        let error = error_text(error);
         assert!(error.contains("PE") || error.contains("goblin"));
     }
 
@@ -4036,7 +4151,10 @@ mod tests {
 
         // Test cfgbin_lookup_text
         assert_eq!(cfgbin_lookup_text(&bytes, 100_001), Some("Retour".into()));
-        assert_eq!(cfgbin_lookup_text(&bytes, 100_002), Some("Paramètres".into()));
+        assert_eq!(
+            cfgbin_lookup_text(&bytes, 100_002),
+            Some("Paramètres".into())
+        );
         assert_eq!(cfgbin_lookup_text(&bytes, 999_999), None);
     }
 

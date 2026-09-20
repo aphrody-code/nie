@@ -213,20 +213,12 @@ pub fn grid_segments(
         let epaisseur = if sur_axe { 2 } else { 1 };
         // Parallèle à Z (varie en x), puis parallèle à X (varie en z).
         out.push(
-            Segment::new(
-                [d, height, -half_extent],
-                [d, height, half_extent],
-                teinte,
-            )
-            .with_width(epaisseur),
+            Segment::new([d, height, -half_extent], [d, height, half_extent], teinte)
+                .with_width(epaisseur),
         );
         out.push(
-            Segment::new(
-                [-half_extent, height, d],
-                [half_extent, height, d],
-                teinte,
-            )
-            .with_width(epaisseur),
+            Segment::new([-half_extent, height, d], [half_extent, height, d], teinte)
+                .with_width(epaisseur),
         );
     }
     out
@@ -941,10 +933,19 @@ mod tests {
     fn un_segment_se_dessine_dans_sa_couleur() {
         let rouge = [255, 0, 0];
         let seg = Segment::new([-3.0, 0.0, 0.0], [3.0, 0.0, 0.0], rouge);
-        let avec = render_scene_with_lines(&[], &[], &[seg], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
-        let sans = render_scene_with_lines(&[], &[], &[], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
-        assert!(compte_pixels(&avec, rouge) > 20, "le segment doit couvrir des pixels");
-        assert_eq!(compte_pixels(&sans, rouge), 0, "sans segment, aucun pixel rouge");
+        let avec =
+            render_scene_with_lines(&[], &[], &[seg], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
+        let sans =
+            render_scene_with_lines(&[], &[], &[], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
+        assert!(
+            compte_pixels(&avec, rouge) > 20,
+            "le segment doit couvrir des pixels"
+        );
+        assert_eq!(
+            compte_pixels(&sans, rouge),
+            0,
+            "sans segment, aucun pixel rouge"
+        );
     }
 
     /// Un segment ÉPAIS couvre plus de pixels qu'un fin, sur la même géométrie.
@@ -952,7 +953,16 @@ mod tests {
     fn lepaisseur_change_la_couverture() {
         let vert = [0, 255, 0];
         let base = Segment::new([-3.0, 0.0, 0.0], [3.0, 0.0, 0.0], vert);
-        let fin = render_scene_with_lines(&[], &[], &[base], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
+        let fin = render_scene_with_lines(
+            &[],
+            &[],
+            &[base],
+            &cam_editeur(),
+            160,
+            120,
+            [10; 3],
+            [20; 3],
+        );
         let epais = render_scene_with_lines(
             &[],
             &[],
@@ -990,7 +1000,16 @@ mod tests {
             },
         ];
         let derriere = Segment::new([-2.0, 0.0, 0.0], [2.0, 0.0, 0.0], bleu);
-        let cache = render_scene_with_lines(&mur, &[], &[derriere], &cam_editeur(), 160, 120, [10; 3], [20; 3]);
+        let cache = render_scene_with_lines(
+            &mur,
+            &[],
+            &[derriere],
+            &cam_editeur(),
+            160,
+            120,
+            [10; 3],
+            [20; 3],
+        );
         let par_dessus = render_scene_with_lines(
             &mur,
             &[],
@@ -1001,7 +1020,11 @@ mod tests {
             [10; 3],
             [20; 3],
         );
-        assert_eq!(compte_pixels(&cache, bleu), 0, "le mur doit masquer le segment");
+        assert_eq!(
+            compte_pixels(&cache, bleu),
+            0,
+            "le mur doit masquer le segment"
+        );
         assert!(
             compte_pixels(&par_dessus, bleu) > 20,
             "`overlay` doit passer par-dessus le mur"
@@ -1028,13 +1051,22 @@ mod tests {
             g.iter().filter(|s| s.color == axe).all(|s| s.width == 2),
             "les axes sont plus épais"
         );
-        assert!(g.iter().all(|s| s.depth_test), "une grille de sol se masque");
+        assert!(
+            g.iter().all(|s| s.depth_test),
+            "une grille de sol se masque"
+        );
     }
 
     /// Un pas nul ou non fini rend une grille VIDE au lieu d'en demander une infinité.
     #[test]
     fn une_grille_au_pas_absurde_est_vide() {
-        for (extent, step) in [(10.0, 0.0), (10.0, -1.0), (10.0, f32::NAN), (0.0, 1.0), (f32::INFINITY, 1.0)] {
+        for (extent, step) in [
+            (10.0, 0.0),
+            (10.0, -1.0),
+            (10.0, f32::NAN),
+            (0.0, 1.0),
+            (f32::INFINITY, 1.0),
+        ] {
             assert!(
                 grid_segments(extent, step, 0.0, [1; 3], [2; 3]).is_empty(),
                 "étendue {extent}, pas {step}"
@@ -1088,7 +1120,8 @@ mod tests {
             color: [180, 120, 60],
         }];
         let avant = render_scene(&tri, &[], &cam_editeur(), 96, 72, [10; 3], [20; 3]);
-        let apres = render_scene_with_lines(&tri, &[], &[], &cam_editeur(), 96, 72, [10; 3], [20; 3]);
+        let apres =
+            render_scene_with_lines(&tri, &[], &[], &cam_editeur(), 96, 72, [10; 3], [20; 3]);
         assert_eq!(avant, apres, "aucun pixel ne doit bouger");
     }
 
@@ -1116,18 +1149,29 @@ mod tests {
         let seg = Segment::new([-5.0, 0.0, 9.0], [5.0, 0.0, -25.0], jaune);
         let mur = [
             Tri {
-                p: [[-200.0, -200.0, 0.0], [200.0, -200.0, 0.0], [200.0, 200.0, 0.0]],
+                p: [
+                    [-200.0, -200.0, 0.0],
+                    [200.0, -200.0, 0.0],
+                    [200.0, 200.0, 0.0],
+                ],
                 color: [200, 200, 200],
             },
             Tri {
-                p: [[-200.0, -200.0, 0.0], [200.0, 200.0, 0.0], [-200.0, 200.0, 0.0]],
+                p: [
+                    [-200.0, -200.0, 0.0],
+                    [200.0, 200.0, 0.0],
+                    [-200.0, 200.0, 0.0],
+                ],
                 color: [200, 200, 200],
             },
         ];
 
         let avec_mur = render_scene_with_lines(&mur, &[], &[seg], &cam, 320, 240, [10; 3], [20; 3]);
         let sans_mur = render_scene_with_lines(&[], &[], &[seg], &cam, 320, 240, [10; 3], [20; 3]);
-        let (visible, total) = (compte_pixels(&avec_mur, jaune), compte_pixels(&sans_mur, jaune));
+        let (visible, total) = (
+            compte_pixels(&avec_mur, jaune),
+            compte_pixels(&sans_mur, jaune),
+        );
 
         assert!(
             visible > 50,
@@ -1248,7 +1292,12 @@ mod tests {
     fn le_fil_de_fer_deduplique_les_aretes_partagees() {
         let quad = crate::glb::Model {
             primitives: vec![crate::glb::Primitive {
-                positions: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+                positions: vec![
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [1.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
                 normals: Vec::new(),
                 uv: Vec::new(),
                 indices: vec![0, 1, 2, 0, 2, 3],
@@ -1257,7 +1306,11 @@ mod tests {
             textures: Vec::new(),
         };
         let w = wireframe_segments(&quad, [200, 200, 200], usize::MAX);
-        assert_eq!(w.len(), 5, "4 bords + 1 diagonale, la diagonale n'est PAS doublée");
+        assert_eq!(
+            w.len(),
+            5,
+            "4 bords + 1 diagonale, la diagonale n'est PAS doublée"
+        );
     }
 
     /// La borne arrête le tracé — un personnage du jeu noierait l'image sans elle.
@@ -1265,7 +1318,12 @@ mod tests {
     fn le_fil_de_fer_respecte_sa_borne() {
         let quad = crate::glb::Model {
             primitives: vec![crate::glb::Primitive {
-                positions: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+                positions: vec![
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [1.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
                 normals: Vec::new(),
                 uv: Vec::new(),
                 indices: vec![0, 1, 2, 0, 2, 3],

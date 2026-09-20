@@ -68,6 +68,26 @@ copy a built module into `rg` or add a legacy Azalee-specific builder.
 The initial browser readiness path must remain free of optional gallery, model, texture, audio,
 video, menu-replay, and secondary-scene preloads. Load migrated capabilities on demand.
 
+### Split VFS candidate
+
+Build native archives from a licensed installation into a fresh candidate directory. Existing
+outputs are refused, and the split manifest is written only after every archive succeeds:
+
+```text
+niers vfs bundle --profile aphrody_lean --screen main_menu --locale fr \
+  --game-dir <licensed-installation> --out <new-candidate>.nievfs \
+  --split-dir <new-candidate-directory>
+NIERS_VFS_BUNDLE_DIR=<absolute-candidate-directory> bun run --cwd apps/nie-web build
+```
+
+The existing Vite pipeline stages the four content-addressed archives under `static/game/vfs`,
+checks SHA-256 and disjoint manifest paths, then the canonical precompression step produces Brotli
+and Zstandard variants. This is not publication. The readiness gate still downloads no archive:
+Lua menu entry requests `menu` only after readiness, and media consumers request cold archives by
+exact resource path. Rust verifies all entry CRCs before mounting. Lua, layout composition, fonts,
+localized text and media share mounted bytes. Installations without a manifest retain individual
+VFS reads. This integration does not certify the remaining native menu-manager reconstruction.
+
 ## Configuration
 
 - Validate environment-derived paths and URLs at the boundary.

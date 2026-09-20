@@ -176,6 +176,70 @@ pub extern "C" fn nie_lua_web_clear_scripts() {
     SCRIPTS.with(|scripts| scripts.borrow_mut().clear());
 }
 
+fn runtime_readiness(screen: &str) -> Result<String, String> {
+    if screen.is_empty()
+        || screen.len() > 96
+        || !screen
+            .bytes()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == b'_')
+    {
+        return Err("invalid menu screen".to_owned());
+    }
+    let config_path = format!("data/common/gamedata/menu/cfg/{screen}_setting.cfg.bin");
+    let (registered_files, registered_bytes, registered_scripts, config_loaded, script_path) =
+        SCRIPTS.with(|scripts| {
+            let scripts = scripts.borrow();
+            let paths: Vec<&str> = scripts.keys().map(String::as_str).collect();
+            let (by_name, by_logical) = nie_lua::index_script_paths(paths.iter().copied());
+            let script_path = nie_lua::resolve_script_path(screen, &by_name, &by_logical)
+                .filter(|path| path.starts_with("data/common/script/lua/"))
+                .cloned();
+            (
+                scripts.len(),
+                scripts.values().map(Vec::len).sum::<usize>(),
+                paths
+                    .iter()
+                    .filter(|path| path.ends_with(".lua.bin"))
+                    .count(),
+                scripts.contains_key(&config_path),
+                script_path,
+            )
+        });
+    let localized_text_entries = MENU_TEXT.with(|table| table.borrow().len());
+    let script_loaded = script_path.is_some();
+    serde_json::to_string(&serde_json::json!({
+        "schemaVersion": 1,
+        "screen": screen,
+        "registeredFiles": registered_files,
+        "registeredBytes": registered_bytes,
+        "registeredScripts": registered_scripts,
+        "localizedTextEntries": localized_text_entries,
+        "scriptPath": script_path,
+        "configPath": config_path,
+        "scriptLoaded": script_loaded,
+        "configLoaded": config_loaded,
+        "readyForReplay": script_loaded,
+        "readyForInitialRender": script_loaded && config_loaded && localized_text_entries > 0,
+    }))
+    .map_err(|error| error.to_string())
+}
+
+/// Reports whether the bytes mounted from the initial VFS bundle are sufficient to enter a
+/// menu screen. This is a readiness gate only: it does not run Lua, invent missing includes or
+/// claim visual parity. The returned `CString` must be released with
+/// [`nie_lua_web_free_string`].
+///
+/// # Safety
+/// `screen` must be a NUL-terminated UTF-8 string valid for the duration of this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_lua_web_readiness_json(screen: *const c_char) -> *mut c_char {
+    let screen = cstr_to_string(screen);
+    string_to_cstr(match runtime_readiness(&screen) {
+        Ok(report) => report,
+        Err(error) => json_error(&error),
+    })
+}
+
 fn json_error(message: &str) -> String {
     serde_json::json!({ "error": message }).to_string()
 }
@@ -294,4 +358,61 @@ fn run_replay(screen: &str, request_json: &str) -> Result<ReplayOutput, String> 
         request,
     )
     .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn reset() {
+        SCRIPTS.with(|scripts| scripts.borrow_mut().clear());
+        MENU_TEXT.with(|text| text.borrow_mut().clear());
+    }
+
+    #[test]
+    fn readiness_distinguishes_replay_from_complete_initial_render() {
+        reset();
+        let empty: serde_json::Value =
+            serde_json::from_str(&runtime_readiness("main_menu").unwrap()).unwrap();
+        assert_eq!(empty["readyForReplay"], false);
+        assert_eq!(empty["readyForInitialRender"], false);
+
+        SCRIPTS.with(|scripts| {
+            let mut scripts = scripts.borrow_mut();
+            scripts.insert(
+                "data/common/script/lua/menu/main_menu_1.02.92.00.lua.bin".to_owned(),
+                vec![1, 2, 3],
+            );
+            scripts.insert(
+                "data/common/gamedata/menu/cfg/main_menu_setting.cfg.bin".to_owned(),
+                vec![4, 5],
+            );
+        });
+        let without_text: serde_json::Value =
+            serde_json::from_str(&runtime_readiness("main_menu").unwrap()).unwrap();
+        assert_eq!(without_text["registeredFiles"], 2);
+        assert_eq!(without_text["registeredBytes"], 5);
+        assert_eq!(without_text["registeredScripts"], 1);
+        assert_eq!(without_text["readyForReplay"], true);
+        assert_eq!(without_text["readyForInitialRender"], false);
+
+        MENU_TEXT.with(|text| {
+            text.borrow_mut().insert(0x1234_5678, "Menu".to_owned());
+        });
+        let ready: serde_json::Value =
+            serde_json::from_str(&runtime_readiness("main_menu").unwrap()).unwrap();
+        assert_eq!(ready["localizedTextEntries"], 1);
+        assert_eq!(ready["readyForInitialRender"], true);
+        assert_eq!(
+            ready["scriptPath"],
+            "data/common/script/lua/menu/main_menu_1.02.92.00.lua.bin"
+        );
+        reset();
+    }
+
+    #[test]
+    fn readiness_rejects_non_vfs_screen_names() {
+        assert!(runtime_readiness("../main_menu").is_err());
+        assert!(runtime_readiness("").is_err());
+    }
 }
