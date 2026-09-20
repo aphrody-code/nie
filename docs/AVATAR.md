@@ -748,6 +748,17 @@ de niveau de détail retiré (`u000101_30_LOD1` → `u000101_30`, ce qui vaut po
 la couleur de base du conteneur. `base_color_texture_name()` écarte les planches techniques
 (`line`, `msk`, `oc`, `sp`, `spm`) qu'une sélection « la plus grande » choisissait à tort.
 
+Les planches **techniques** écartées de ce choix ne sont pas pour autant jetées : `line`, `msk`,
+`oc`, `sp` et `spm` sont les cartes auxiliaires du shader Character, et elles sont embarquées dans
+le GLB à côté de la couleur de base, déclarées dans `materials[].extras.nie.textures` (seul le
+rôle `occlusion` a un équivalent glTF, lié en `occlusionTexture`). Le chemin **avatar** ne le
+faisait pas : sa résolution ne gardait que les pixels de la planche retenue, jamais son **nom**,
+dont les cartes auxiliaires dérivent — donc `model.aux_textures` restait vide et le GLB d'avatar
+sortait sans elles. C'est ce qui rendait une chevelure plate : la planche de base d'une coupe est
+un aplat d'une à trois couleurs sur 84 % des conteneurs, et le dessin des mèches vit dans `_oc` et
+`_spm`, qui portent 16 à 64 fois plus de texels. Les cartes auxiliaires ne sont jamais teintées —
+la teinte est un choix de couleur de base, une occlusion n'en porte pas.
+
 ### 15.6 Le cache doit connaître la version de la logique
 
 `AVATAR_CACHE_VERSION` entre dans la clé. Sans elle, un GLB produit par l'ancienne logique reste

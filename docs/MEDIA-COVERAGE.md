@@ -177,3 +177,34 @@ dialogue FILTRES de `chara_bank_filter_menu` : bande de neuf icônes-onglets, li
 catégorie courante encadré des touches `W` et `C`, sections titrées, case maîtresse « Tout »,
 une icône-sprite par ligne, libellé sur deux lignes, compteur de sélection (`13/13`), et le pied
 `Tab` Réinitialiser / `Alt` Confirmer.
+
+## Les familles de modèles 3D et ce que chacune reçoit — mesuré le 2026-09-20
+
+Le catalogue expose **17 familles** (`Famille`, `crates/tools/nie-site/src/routes/modeles3d.rs:130`,
+segment `?famille=`) ; l'assembleur, lui, n'en connaît que **deux régimes**. Le tableau dit
+lequel, parce que la différence explique la plupart des modèles ternes ou nus.
+
+| Famille | Discriminant | Textures | Squelette | Cartes auxiliaires |
+| --- | --- | --- | --- | --- |
+| `perso` | code en `c` (`nie-model-serve/src/main.rs:2355`) | liaison **par matériau** (`bind_piece_textures`, `main.rs:1326`) | oui (`main.rs:1264`) | oui (`main.rs:1459`) |
+| `keshin` | code en `k` (`main.rs:2350`) | **un seul atlas** pour tout le modèle (`main.rs:1159`) | non | non |
+| `armd` | code en `ka` (`main.rs:2345`) | un seul atlas (`main.rs:1176`) | non | non |
+| `waza`, `item`, `animal`, `uniform` | `CHR_GENERIC_SUBS` (`main.rs:2364`) | un seul atlas sondé en `{c}`, `{c}_10`, `{c}_00` (`main.rs:2416`) | non | non |
+| `map_*` | `RACINES_ARBRE` + `racine == "map"` (`main.rs:2459`, `:2518`) | liaison par matériau via l'index au `+0x43` (`main.rs:2482`) | non | non |
+| `effect_*`, `menu`, `event` | `RACINES_ARBRE` (`main.rs:2459`) | atlas voisin du `.g4mg` | non | non |
+
+Trois conséquences mesurées, à traiter comme des chantiers et non comme des propriétés :
+
+1. **`resolve_texture_uris` ne résout RIEN** pour `Keshin | Armed | Generic` — elle rend une
+   chaîne vide (`assemble.rs:928`). Ces familles ne tiennent que par la tentative d'atlas
+   embarqué ; quand elle échoue, la route rend `to_glb()`, c'est-à-dire une géométrie **nue**
+   (`main.rs:2438` pour les génériques, `:2590` pour les arbres, `:3201` pour `/model-edit`).
+2. **Un atlas unique est appliqué à TOUTES les primitives du composant** (`comp_to_mat`,
+   `assemble.rs:3819`). Un `waza` à plusieurs matériaux reçoit donc la même planche partout —
+   exactement l'erreur que le régime `perso` a été écrit pour éviter.
+3. **`uniform` sonde un nom qui n'existe pas.** Les conteneurs réels portent l'identifiant de la
+   **tenue**, pas celui du modèle (`u000101/u117401_10.g4tx`), donc la sonde `{code}.g4tx` manque
+   presque toujours et la famille sort en géométrie nue.
+
+Deux surfaces d'assemblage ne sont **pas** exposées par `/api/v1/3d/modeles` : `/model-avatar/`
+(le seul chemin non-`perso` qui remplit `aux_textures`) et `/model-edit/` (une pièce isolée).

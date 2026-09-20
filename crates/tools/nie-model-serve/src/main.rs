@@ -225,7 +225,7 @@ struct UniformMapEntry {
 /// Version de l'assembleur de personnages. À incrémenter à chaque changement de recette ou de
 /// format de sortie : le cache GLB (`var/model-cache`) est purgé au démarrage quand la version
 /// enregistrée dans `VERSION` diffère, et chaque rapport la cite avec le SHA-256 du GLB servi.
-const ASSEMBLER_VERSION: &str = "2026-09-20.tenue-explicite-1";
+const ASSEMBLER_VERSION: &str = "2026-09-20.avatar-aux-textures-1";
 
 /// Cache LRU borné de GLB servis fréquemment.
 ///
@@ -3431,6 +3431,7 @@ fn get_or_build_avatar_glb(
 
     let mut pieces: Vec<nie_formats::assemble::AvatarPiece> = Vec::new();
     let mut textures: Vec<EmbeddedTexture> = Vec::new();
+    let mut aux_avatar: Vec<AuxTexture> = Vec::new();
     {
         let vfs = &state.vfs;
 
@@ -3823,10 +3824,16 @@ fn get_or_build_avatar_glb(
                     // la teinte s'applique à celui des deux qui répond, jamais seulement au
                     // premier : la teinter sur le seul nom visé laissait justement la chevelure
                     // blanche, puisque c'est le repli qui la fournit.
-                    let png = [Some(vise), repli.as_deref()]
+                    // On retient le NOM de la planche qui a répondu, pas seulement ses pixels :
+                    // les cartes auxiliaires du shader Character (`oc`, `spm`, `line`, `sp`) se
+                    // nomment d'après elle. Sans ce nom, le chemin avatar ne pouvait pas les
+                    // embarquer — et c'est là que vit le dessin des mèches, la planche de base
+                    // d'une chevelure n'étant qu'un aplat d'une à trois couleurs.
+                    let resolu = [Some(vise), repli.as_deref()]
                         .into_iter()
                         .flatten()
                         .find_map(|nom_planche| {
+                            let png = (|| {
                             if native_skin.is_some() {
                                 let (w, h, mut rgba) =
                                     g4tx_decode::decode_named_to_rgba(tx, nom_planche)?;
@@ -3857,7 +3864,11 @@ fn get_or_build_avatar_glb(
                                     .ok(),
                                 }
                             }
+                            })()?;
+                            Some((nom_planche.to_string(), png))
                         });
+                    let planche_retenue = resolu.as_ref().map(|(n, _)| n.clone());
+                    let png = resolu.map(|(_, p)| p);
                     if native_skin.is_some() && png.is_none() {
                         bail!("native avatar skin texture or tint mask unresolved: {mat}");
                     }
@@ -3888,6 +3899,28 @@ fn get_or_build_avatar_glb(
                             name: mat.clone(),
                             png_bytes,
                         });
+                        // Les cartes auxiliaires suivent le même chemin que sur les personnages
+                        // (`resolve_part`) : embarquées telles quelles, déclarées dans
+                        // `materials[].extras.nie`, jamais teintées — la teinte est un choix de
+                        // couleur de base, une carte d'occlusion ou de spéculaire n'en porte pas.
+                        if let Some(planche) = &planche_retenue {
+                            for suffixe in ["line", "msk", "oc", "sp", "spm"] {
+                                let nom_aux = format!("{planche}{suffixe}");
+                                let Some(png) =
+                                    nie_formats::g4tx_decode::decode_named_to_png(tx, &nom_aux)
+                                else {
+                                    continue;
+                                };
+                                let role =
+                                    nie_formats::assemble::texture_role_from_name(&nom_aux).1;
+                                aux_avatar.push(AuxTexture {
+                                    material: mat.clone(),
+                                    role: role.to_string(),
+                                    name: nom_aux,
+                                    png_bytes: png,
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -3919,6 +3952,7 @@ fn get_or_build_avatar_glb(
         .with_context(|| format!("assemblage avatar {cle}"))?;
 
     model.embedded_textures = textures;
+    model.aux_textures = aux_avatar;
 
     // Keep native geometry in its authored rest pose until the actual animation is applied.
     // Synthetic eye quads, box hands and positional arm bending hide missing native bindings
