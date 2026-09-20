@@ -38,9 +38,11 @@ premier rang nommés « Illustrations » et « Icônes » ne pouvaient pas les n
 combinaison de filtres ne les atteignait. `?domaine=illustrations` et `?domaine=icons` restent
 des URL valides : `DOMAIN_ALIASES` les traduit en catégorie du domaine `menu`.
 
-C'est aussi d'où vient le littéral `"54 203 fichiers"` figé dans
-`packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx` : ce n'est pas un nombre de
-fichiers, c'est le nombre de **textures**, affiché sous une autre étiquette.
+C'est aussi d'où vient le littéral figé dans
+`packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx`. Il annonçait `54 203 fichiers`,
+ce qui n'était pas un nombre de fichiers mais **de textures** ; l'étiquette a été corrigée le
+2026-09-20 et la tuile dit maintenant `54 203 textures`. Le chiffre, lui, reste écrit à la main :
+il se re-mesure par `niers vfs find --ext g4tx`, et le test de la galerie est ce qui le tient.
 
 ## Modèles — dix-sept familles, et le listage qui en servait trois à vide
 
