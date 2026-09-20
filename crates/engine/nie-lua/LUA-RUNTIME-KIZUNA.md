@@ -7,7 +7,9 @@ Date de clôture : 2026-09-06.
 Le chemin Lua brut VFS → décodage → VM Lua 5.2 unsafe → hôte de menu → état de
 runtime est opérationnel pour le menu `kizuna_town_mainmenu`.
 
-- Scripts réels décodés : **1 143/1 143**, soit **985 971 instructions**.
+- Scripts réels décodés : **1 197/1 197**, soit **1 053 252 instructions** (remesuré
+  2026-09-19 ; la clôture de 2026-09-06 annonçait 1 143 et 985 971 — le corpus a grossi, ces
+  chiffres ne sont pas comparables d’une version du jeu à l’autre).
 - Audit ciblé Kizuna : **25/25 scripts exécutés**, 0 erreur, 0 include manquant,
   0 appel hôte manquant.
 - Décodage ciblé Kizuna : **25/25 chunks décodés**, 0 erreur, **31 957
@@ -155,24 +157,87 @@ remonte son nom logique dans l’erreur.
 
 ## Limites connues
 
-L’audit complet signale 13 paramètres non résolus dans un script d’effets
-générique (`x`, `y`, `layerIdx`, `pieceIdx`, `pieceType`, `effectIdx` et
-métadonnées associées). Ils ne provoquent aucune erreur d’exécution et ne
-concernent pas le chemin Kizuna ciblé. Les effets natifs dont le binaire ne
-fournit pas encore de sortie observable restent modélisés par un état neutre
-documenté ; cela ne constitue pas une preuve d’identité pixel-perfect du jeu
-complet.
+L’audit conserve la provenance de chaque manque. Les paramètres de pièce viennent de
+`ability_learning_board_menu_7.00.00.00.lua.bin`, les coordonnées `x/y` de quatre menus de
+recherche/summon, et `MENU_LINIT_NONE` de `soccer_top_menu_1.03.98.00.lua.bin`.
 
-L’audit conserve maintenant la provenance de chaque manque. Les paramètres de
-pièce viennent de `ability_learning_board_menu_7.00.00.00.lua.bin`, les
-coordonnées `x/y` de quatre menus de recherche/summon, et `MENU_LINIT_NONE` de
-`soccer_top_menu_1.03.98.00.lua.bin` ; cette liste est donc actionnable pour le
-prochain RE.
+La classification runtime confirme que ces 13 résidus sont des **lectures uniquement** :
+l’audit global rend `missingHostInvocations={}`. Aucun appel de fonction hôte inconnue ne reste
+dans le corpus.
 
-La classification runtime confirme que ces 13 résidus sont des **lectures
-uniquement** : l’audit global rend `missingHostInvocations={}`. Aucun appel de
-fonction hôte inconnue ne reste donc dans le corpus actuel ; les valeurs à
-injecter concernent le contexte de données fourni aux scripts.
+### Douze des treize ne sont PAS du contexte natif — mesuré 2026-09-19
+
+Ce document a longtemps désigné « l’injection documentée du contexte natif des 13 lectures
+résiduelles » comme la prochaine étape RE. **C’est faux pour douze d’entre elles**, et le
+vérifier coûtait un désassemblage.
+
+`niers lua-audit` rend maintenant `missingHostReadSinks` : pour chaque lecture indéfinie, ce que
+devient sa valeur, relevé statiquement par `nie_lua::bytecode::global_reads`. Sur le corpus
+complet, **les 13 noms sortent tous en `tableArrayItem`** — la valeur n’alimente que la partie
+TABLEAU d’un constructeur de table :
+
+```text
+pieceIdx layerIdx pieceType isEffectPiece relativeType effectIdx
+isGreenMesh isGrayout rarityGatePieceType isSendInfoOnly   tableArrayItem ×1 chacun
+x  y                                                       tableArrayItem ×4 chacun
+MENU_LINIT_NONE                                            tableArrayItem ×1
+```
+
+C’est l’idiome Lua d’une **liste de noms de champs écrite sans valeur**. Les dix premiers sont
+lus en dix `GETTABUP` contigus (pc 79-88 du chunk principal) qui alimentent un `NEWTABLE B=10`
+refermé par `SETLIST` :
+
+```lua
+LiberationPieceInfo = { pieceIdx, layerIdx, pieceType, isEffectPiece, relativeType,
+                        effectIdx, isGreenMesh, isGrayout, rarityGatePieceType, isSendInfoOnly }
+```
+
+Cette partie tableau **n’est jamais indexée**. Les seuls autres usages de la table sont
+`LiberationPieceInfo.new = <closure>` et deux `:new()`, et `new` repose les dix MÊMES noms en
+**champs nommés** avec leurs défauts (`pieceIdx = -1`, `layerIdx = -1`, `pieceType = 0`,
+`isEffectPiece = false`, `relativeType = -1`, `effectIdx = -1`, `isGreenMesh = false`,
+`isGrayout = false`, `rarityGatePieceType = 0`, `isSendInfoOnly = false`). Les consommateurs ne
+touchent ces champs que par `TEST` (véracité) et `EQ` (égalité), jamais par arithmétique : un
+`nil` y est sans effet. Injecter un contexte natif pour ces dix noms ne changerait donc **rien
+d’observable** — seulement le contenu d’un tableau que rien ne lit.
+
+`x` et `y` suivent le même idiome (`{ x, y }` au niveau supérieur, dans quatre menus). Leurs
+vraies valeurs sont posées à l’exécution par un autre prototype, en champs nommés
+(`Up2["x"] := param`), puis relues par nom. Là encore la partie tableau n’est pas le chemin
+d’accès.
+
+### Le seul résidu réel est `MENU_LINIT_NONE`, et sa portée est bornée
+
+Il est unique dans tout le corpus : **une occurrence sur 1 197 chunks**, jamais assignée nulle
+part en Lua. Son tableau, lui, **est indexé** — contrairement aux douze autres, ses six voisins
+sont des `0` littéraux :
+
+```lua
+local linit = { MENU_LINIT_NONE, 0, 0, 0, 0, 0, 0 }   -- un élément par calque
+```
+
+Le seul consommateur (`main:18` de `soccer_top_menu`, la seule closure qui capture ce registre)
+lit `linit[idx + 1]` et le compare à **1, 2 et 3** ; le résultat choisit entre un identifiant de
+texte fixe et celui du calque. Toute valeur **hors de `{1, 2, 3}`** — dont `nil` — produit donc
+exactement le même comportement. Le manque est réel mais borné à cette branche, et la valeur ne
+doit pas être devinée : un nom se terminant par `_NONE` vaut conventionnellement `0`, ce qui
+serait une supposition, pas une mesure.
+
+### Deux garde-fous que cette session a payés
+
+**L’absence d’un nom dans `nie.exe` ne prouve rien.** `MENU_LINIT_NONE` et les dix noms de
+`LiberationPieceInfo` sont absents des chaînes du binaire — mais `SetPartTexture`,
+`GetObjectAttr`, `IsExistFocusItem` et `UpdateNamePop` le sont aussi, alors que ce sont de vraies
+fonctions. Le jeu clé ses commandes par CRC-32 : seuls les globals posés par `lua_setglobal`
+(`INCLUDE`, `funcLuaMenuCommand`) apparaissent en clair. Cette piste a été ouverte puis
+abandonnée ; ne pas la rouvrir.
+
+**`missingHostReads` ne voit que les lectures EXÉCUTÉES**, c’est-à-dire le niveau supérieur des
+chunks et les callbacks effectivement pilotés. Le corpus porte quatre autres noms `MENU_*`
+lus une seule fois chacun — `MENU_TITLE_TEX_RES_NAME`, `MENU_PRIO_OPTION`,
+`MENU_PRIO_OPTION_BUTTON`, `MENU_OBJ_NAME_HELP_WINDOW` — que l’audit ne signale jamais parce
+qu’ils sont lus dans des closures qu’aucun pilotage n’atteint. « 13 » est donc le compte des
+lectures atteintes, pas celui des lectures existantes.
 
 Un build workspace complet n’a pas été lancé, conformément à la règle du dépôt
 qui le déconseille lorsque l’espace disque est contraint.
@@ -187,10 +252,13 @@ provenance.
 
 Les modifications concurrentes de formatage présentes dans l’arbre de travail
 ne sont pas incluses dans ce lot et restent à arbitrer par leur auteur. Aucun
-chemin machine, secret ou dump hors périmètre n’a été ajouté. La prochaine
-étape RE clairement identifiée est l’injection documentée du contexte natif
-des 13 lectures résiduelles ; elle est distincte de la couverture Kizuna déjà
-validée et ne doit pas être remplacée par des valeurs inventées.
+chemin machine, secret ou dump hors périmètre n’a été ajouté.
+
+**Cette clôture désignait comme prochaine étape RE « l’injection documentée du contexte natif
+des 13 lectures résiduelles ». Elle est close par la négative** (voir « Limites connues ») :
+douze de ces lectures n’attendent aucune valeur, et la treizième n’en attend aucune qu’on
+puisse mesurer. Ce qui reste ouvert est ailleurs — les lectures que l’audit n’atteint jamais,
+faute de piloter les closures qui les portent.
 
 ## RE anchors
 

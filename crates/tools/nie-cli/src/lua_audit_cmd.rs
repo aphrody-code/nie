@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use anyhow::{Context, bail};
 use nie_formats::vfs::{Vfs, resolve_game_dir};
+use nie_lua::bytecode::GlobalReadSink;
 use nie_lua::runtime::{ExecOptions, execute_with_script_paths};
 use serde_json::json;
 
@@ -46,6 +47,10 @@ pub fn run(
     let mut loaded_includes: BTreeMap<String, usize> = BTreeMap::new();
     let mut missing_hosts: BTreeMap<String, usize> = BTreeMap::new();
     let mut missing_host_reads: BTreeMap<String, usize> = BTreeMap::new();
+    // Ce que devient la valeur de chaque lecture indéfinie, relevé statiquement sur le chunk qui
+    // la porte. Une lecture dont la valeur n'alimente qu'un élément de tableau que rien n'indexe
+    // ne réclame aucun contexte natif ; sans cette colonne, l'audit les confond.
+    let mut missing_host_read_sinks: BTreeMap<String, BTreeMap<String, usize>> = BTreeMap::new();
     let mut missing_host_invocations: BTreeMap<String, usize> = BTreeMap::new();
     let mut missing_host_paths: BTreeMap<String, usize> = BTreeMap::new();
     let mut missing_host_scripts: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -67,10 +72,19 @@ pub fn run(
             }
         };
         executed += 1;
+        // Relevé statique des lectures de globals de CE chunk, pour qualifier ensuite celles que
+        // l'exécution signalera comme indéfinies.
+        let mut script_read_sinks: BTreeMap<String, Vec<GlobalReadSink>> = BTreeMap::new();
         match nie_lua::bytecode::parse(&bytes) {
             Ok(chunk) => {
                 decoded += 1;
                 decoded_instructions += chunk.main.total_instructions();
+                for read in nie_lua::bytecode::global_reads(&chunk) {
+                    script_read_sinks
+                        .entry(read.name_utf8().into_owned())
+                        .or_default()
+                        .push(read.sink);
+                }
             }
             Err(error) => {
                 decode_errors += 1;
@@ -113,6 +127,22 @@ pub fn run(
                 }
                 for host in output.missing_host_reads {
                     *missing_host_reads.entry(host.clone()).or_default() += 1;
+                    let sinks = missing_host_read_sinks.entry(host.clone()).or_default();
+                    match script_read_sinks.get(&host) {
+                        // Le nom n'est pas lu par ce chunk : la lecture vient d'un `INCLUDE`,
+                        // qu'on ne rattache pas ici pour ne pas prêter au chunk un code qui
+                        // n'est pas le sien.
+                        None => *sinks.entry("inclusionNonTracee".to_string()).or_default() += 1,
+                        Some(found) => {
+                            for sink in found {
+                                let label = match sink {
+                                    GlobalReadSink::TableArrayItem { .. } => "tableArrayItem",
+                                    GlobalReadSink::Other => "other",
+                                };
+                                *sinks.entry(label.to_string()).or_default() += 1;
+                            }
+                        }
+                    }
                     let scripts = missing_host_read_scripts.entry(host).or_default();
                     if !scripts.iter().any(|known| known == path) {
                         scripts.push(path.clone());
@@ -166,6 +196,7 @@ pub fn run(
             "loadedIncludes": loaded_includes,
             "missingHostCalls": missing_hosts,
             "missingHostReads": missing_host_reads,
+            "missingHostReadSinks": missing_host_read_sinks,
             "missingHostInvocations": missing_host_invocations,
             "missingHostPaths": missing_host_paths,
             "missingHostScripts": missing_host_scripts,

@@ -24,6 +24,7 @@
 //! est 32 bits sur certaines cibles et 64 bits sur d'autres, et un `size_t` mal deviné décale tout
 //! le reste du fichier.
 
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use serde::Serialize;
@@ -785,6 +786,241 @@ pub fn transcode(data: &[u8], size_int: u8, size_size_t: u8) -> Result<Vec<u8>, 
     Ok(encode(&chunk))
 }
 
+// ─── Lectures de globals ─────────────────────────────────────────────────────────────────────
+
+/// Nombre d'éléments qu'un constructeur de table écoule par `SETLIST`, `LFIELDS_PER_FLUSH`
+/// de `lvm.c`. Le champ `C` de `SETLIST` est le numéro de lot, pas l'index du premier élément.
+const LFIELDS_PER_FLUSH: u32 = 50;
+
+/// Ce que devient la valeur d'une lecture de global.
+///
+/// Un audit à l'exécution ne voit qu'un nom indéfini ; il ne dit pas si la valeur sert. La
+/// distinction décide du travail : une valeur consommée demande qu'on la fournisse, une valeur
+/// écoulée dans une partie tableau que rien n'indexe ne demande rien.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GlobalReadSink {
+    /// La valeur alimente la partie TABLEAU d'un constructeur (`t = { a, b, c }`), à l'index
+    /// 1-based donné. C'est la forme que prend, en Lua, une liste de noms de champs écrite sans
+    /// valeur : le constructeur lit les globals homonymes, tous indéfinis.
+    TableArrayItem {
+        /// Index 1-based de l'élément dans le tableau construit.
+        index: u32,
+    },
+    /// Tout autre usage : appel, opérande, champ nommé, argument, retour.
+    Other,
+}
+
+/// Une lecture de global relevée statiquement dans un chunk.
+#[derive(Serialize, Debug, Clone, PartialEq)]
+pub struct GlobalRead {
+    /// Nom lu, octets bruts du pool de constantes.
+    pub name: Vec<u8>,
+    /// Prototype où la lecture a lieu, dans la notation du désassembleur (`main`, `main:38`).
+    pub function: String,
+    /// Index de l'instruction dans ce prototype.
+    pub pc: u32,
+    /// Ce que devient la valeur.
+    pub sink: GlobalReadSink,
+}
+
+impl GlobalRead {
+    /// Nom rendu en texte. Un identifiant Lua est ASCII ; la conversion reste permissive pour ne
+    /// pas perdre une lecture dont la clé serait une chaîne exotique.
+    #[must_use]
+    pub fn name_utf8(&self) -> std::borrow::Cow<'_, str> {
+        String::from_utf8_lossy(&self.name)
+    }
+}
+
+/// Relève toute lecture de global du chunk — `GETTABUP` dont la table est `_ENV` et la clé une
+/// constante chaîne — et classe chacune par ce que devient sa valeur.
+///
+/// `_ENV` est identifié par propagation et non par son nom : les chunks du jeu sont dépouillés
+/// de leur table de débogage (`upvalue_names` vide). Le chunk principal d'un programme Lua 5.2 a
+/// exactement un upvalue, `_ENV` ; un prototype imbriqué hérite du même upvalue lorsqu'il le
+/// capture depuis son parent (`in_stack == false`).
+#[must_use]
+pub fn global_reads(chunk: &Chunk) -> Vec<GlobalRead> {
+    let mut out = Vec::new();
+    // Le chunk principal porte `_ENV` en upvalue 0 : c'est la définition du format, pas une
+    // heuristique. Un chunk sans upvalue n'accède à aucun global.
+    let env = if chunk.main.upvalues.is_empty() {
+        None
+    } else {
+        Some(0)
+    };
+    collect_global_reads(&chunk.main, "main", env, &mut out);
+    out
+}
+
+fn collect_global_reads(p: &Prototype, label: &str, env: Option<u32>, out: &mut Vec<GlobalRead>) {
+    if let Some(env) = env {
+        scan_proto_global_reads(p, label, env, out);
+    }
+    for (index, nested) in p.protos.iter().enumerate() {
+        // Un imbriqué ne voit `_ENV` que s'il le reprend d'un upvalue du parent. Une capture
+        // depuis la pile (`in_stack`) désigne un local, jamais l'environnement du chunk.
+        let nested_env = env.and_then(|parent_env| {
+            nested.upvalues.iter().position(|desc| {
+                !desc.in_stack && u32::from(desc.index) == parent_env
+            })
+        });
+        let nested_env = nested_env.and_then(|i| u32::try_from(i).ok());
+        collect_global_reads(
+            nested,
+            &format!("{label}:{index}"),
+            nested_env,
+            out,
+        );
+    }
+}
+
+/// Constructeur de table ouvert : son registre de base, et ce qui a écrit chacun de ses slots.
+struct OpenConstructor {
+    base: u32,
+    /// Décalage de slot → index dans `out` de la lecture qui l'a écrit en dernier. `None` quand
+    /// le dernier écrivain n'est pas une lecture de global.
+    slots: BTreeMap<u32, Option<usize>>,
+}
+
+fn scan_proto_global_reads(p: &Prototype, label: &str, env: u32, out: &mut Vec<GlobalRead>) {
+    let mut open: Vec<OpenConstructor> = Vec::new();
+
+    for (pc, raw) in p.code.iter().enumerate() {
+        let ins = decode_instruction(*raw);
+        let name = ins.name();
+
+        // Toute écriture de registre invalide le slot qu'elle touche : seul le DERNIER écrivain
+        // avant l'écoulement fournit l'élément.
+        if let Some((first, last)) = written_registers(&ins)
+            && let Some(top) = open.last_mut()
+        {
+            let from = first.max(top.base + 1);
+            if last >= from {
+                // Une écriture multiple (`CALL`, `VARARG`, `LOADNIL`) peut couvrir la pile
+                // entière ; on ne retient que les slots déjà connus, plus celui qu'on écrit.
+                let known: Vec<u32> = top
+                    .slots
+                    .keys()
+                    .copied()
+                    .filter(|offset| {
+                        let register = top.base + offset;
+                        register >= from && register <= last
+                    })
+                    .collect();
+                for offset in known {
+                    top.slots.insert(offset, None);
+                }
+                if first > top.base && first <= last {
+                    top.slots.insert(first - top.base, None);
+                }
+            }
+        }
+
+        match name.as_str() {
+            "NEWTABLE" => open.push(OpenConstructor {
+                base: ins.a,
+                slots: BTreeMap::new(),
+            }),
+            "GETTABUP" if ins.b == env => {
+                const BITRK: u32 = 1 << 8;
+                if ins.c & BITRK == 0 {
+                    continue;
+                }
+                let Some(Constant::String(key)) = p.constants.get((ins.c & !BITRK) as usize) else {
+                    continue;
+                };
+                let index = out.len();
+                out.push(GlobalRead {
+                    name: key.clone(),
+                    function: label.to_string(),
+                    pc: u32::try_from(pc).unwrap_or(u32::MAX),
+                    sink: GlobalReadSink::Other,
+                });
+                if let Some(top) = open.last_mut()
+                    && ins.a > top.base
+                {
+                    top.slots.insert(ins.a - top.base, Some(index));
+                }
+            }
+            "SETLIST" => {
+                let Some(position) = open.iter().rposition(|c| c.base == ins.a) else {
+                    continue;
+                };
+                // Tout constructeur ouvert AU-DESSUS de celui qu'on écoule est terminé : ses
+                // éléments viennent d'être empilés comme valeurs de celui-ci.
+                open.truncate(position + 1);
+                // Le constructeur écoulé, lui, reste ouvert : au-delà de 50 éléments Lua émet
+                // plusieurs `SETLIST` sur la même table, et le refermer perdrait les lots
+                // suivants.
+                let constructor = std::mem::replace(
+                    &mut open[position],
+                    OpenConstructor {
+                        base: ins.a,
+                        slots: BTreeMap::new(),
+                    },
+                );
+                // `B == 0` écoule jusqu'au sommet de pile : le dernier élément est un appel à
+                // retours multiples, et le nombre d'éléments n'est pas lisible statiquement.
+                // `C == 0` porte le numéro de lot dans l'`EXTRAARG` suivant.
+                if ins.b == 0 {
+                    continue;
+                }
+                let batch = if ins.c == 0 {
+                    p.code
+                        .get(pc + 1)
+                        .map_or(1, |next| decode_instruction(*next).ax)
+                } else {
+                    ins.c
+                };
+                let Some(first) = batch.checked_sub(1).map(|b| b * LFIELDS_PER_FLUSH) else {
+                    continue;
+                };
+                for (offset, writer) in &constructor.slots {
+                    if *offset > ins.b {
+                        continue;
+                    }
+                    if let Some(index) = writer {
+                        out[*index].sink = GlobalReadSink::TableArrayItem {
+                            index: first + offset,
+                        };
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Registres écrits par une instruction, bornes incluses. `None` quand elle n'en écrit aucun.
+///
+/// Les formes à écriture variable (`CALL` à retours multiples, `VARARG` sans compte) rendent une
+/// borne haute saturée : elles écrasent la pile jusqu'au sommet.
+fn written_registers(ins: &Instruction) -> Option<(u32, u32)> {
+    match ins.name().as_str() {
+        "MOVE" | "LOADK" | "LOADKX" | "LOADBOOL" | "GETUPVAL" | "GETTABUP" | "GETTABLE"
+        | "NEWTABLE" | "ADD" | "SUB" | "MUL" | "DIV" | "MOD" | "POW" | "UNM" | "NOT" | "LEN"
+        | "CONCAT" | "TESTSET" | "FORPREP" | "TFORLOOP" | "CLOSURE" => Some((ins.a, ins.a)),
+        "SELF" => Some((ins.a, ins.a + 1)),
+        "LOADNIL" => Some((ins.a, ins.a + ins.b)),
+        "FORLOOP" => Some((ins.a, ins.a + 3)),
+        // `C == 1` ne rend aucune valeur, donc n'écrit aucun registre ; `C == 0` en rend un
+        // nombre variable et écrase la pile jusqu'au sommet.
+        "CALL" | "TAILCALL" => match ins.c {
+            0 => Some((ins.a, u32::MAX)),
+            1 => None,
+            c => Some((ins.a, ins.a + c - 2)),
+        },
+        "VARARG" => match ins.b {
+            0 => Some((ins.a, u32::MAX)),
+            1 => None,
+            b => Some((ins.a, ins.a + b - 2)),
+        },
+        "TFORCALL" => Some((ins.a + 3, ins.a + 2 + ins.c)),
+        _ => None,
+    }
+}
+
 // ─── Désassemblage ───────────────────────────────────────────────────────────────────────────
 
 /// Produit un listing lisible du chunk, prototypes imbriqués compris.
@@ -1192,5 +1428,137 @@ mod tests {
             eprintln!("  échec {f}");
         }
         assert!(failures.is_empty(), "{} échecs de décodage", failures.len());
+    }
+
+    /// Une liste de NOMS dans un constructeur de table lit des globals, et la valeur n'aboutit
+    /// nulle part d'autre que dans la partie tableau.
+    ///
+    /// C'est la forme exacte que prennent dix des treize « lectures hôtes manquantes » relevées
+    /// sur le corpus du jeu (`LiberationPieceInfo` dans `ability_learning_board_menu`). Les
+    /// distinguer d'une valeur réellement consommée évite d'aller inventer un contexte natif pour
+    /// une valeur que rien ne lit.
+    #[cfg(feature = "vm")]
+    #[test]
+    fn une_liste_de_noms_se_classe_en_element_de_tableau() {
+        let lua = crate::new_vm();
+        let dumped = lua
+            .load("Piece = { pieceIdx, layerIdx, pieceType }")
+            .set_name("liste-de-noms")
+            .into_function()
+            .expect("compilation")
+            .dump(false);
+
+        let chunk = parse(&dumped).expect("décodage");
+        let reads = global_reads(&chunk);
+        let classement: Vec<(String, GlobalReadSink)> = reads
+            .iter()
+            .map(|read| (read.name_utf8().into_owned(), read.sink))
+            .collect();
+
+        assert_eq!(
+            classement,
+            vec![
+                (
+                    "pieceIdx".to_string(),
+                    GlobalReadSink::TableArrayItem { index: 1 }
+                ),
+                (
+                    "layerIdx".to_string(),
+                    GlobalReadSink::TableArrayItem { index: 2 }
+                ),
+                (
+                    "pieceType".to_string(),
+                    GlobalReadSink::TableArrayItem { index: 3 }
+                ),
+            ]
+        );
+    }
+
+    /// La même lecture, consommée pour de bon, ne se classe PAS en élément de tableau.
+    ///
+    /// Sans ce contre-exemple le classement serait inutile : il rendrait « tableau » pour tout,
+    /// et déclarerait sans danger des valeurs dont le jeu dépend.
+    #[cfg(feature = "vm")]
+    #[test]
+    fn une_valeur_consommee_ne_se_classe_pas_en_element_de_tableau() {
+        let lua = crate::new_vm();
+        let dumped = lua
+            .load("Piece = { indice = pieceIdx } return pieceType + 1, { appelee() }")
+            .set_name("valeurs-consommees")
+            .into_function()
+            .expect("compilation")
+            .dump(false);
+
+        let chunk = parse(&dumped).expect("décodage");
+        for read in &global_reads(&chunk) {
+            assert_eq!(
+                read.sink,
+                GlobalReadSink::Other,
+                "{} ne doit pas passer pour un élément de tableau",
+                read.name_utf8()
+            );
+        }
+    }
+
+    /// Un constructeur de plus de 50 éléments s'écoule en plusieurs `SETLIST` : l'index rendu
+    /// doit suivre le numéro de lot, pas repartir de 1.
+    #[cfg(feature = "vm")]
+    #[test]
+    fn un_constructeur_long_numerote_ses_lots() {
+        let lua = crate::new_vm();
+        let mut source = String::from("Longue = { ");
+        for i in 0..60 {
+            let _ = write!(source, "nom{i}, ");
+        }
+        source.push('}');
+        let dumped = lua
+            .load(source)
+            .set_name("constructeur-long")
+            .into_function()
+            .expect("compilation")
+            .dump(false);
+
+        let chunk = parse(&dumped).expect("décodage");
+        let reads = global_reads(&chunk);
+        assert_eq!(reads.len(), 60);
+        for (rang, read) in reads.iter().enumerate() {
+            let attendu = u32::try_from(rang + 1).expect("index");
+            assert_eq!(
+                read.sink,
+                GlobalReadSink::TableArrayItem { index: attendu },
+                "{} est l'élément {attendu}",
+                read.name_utf8()
+            );
+        }
+    }
+
+    /// Les prototypes imbriqués sont couverts, et `_ENV` y est retrouvé sans table de débogage.
+    ///
+    /// Les chunks du jeu sont dépouillés (`upvalue_names` vide) : si la propagation d'`_ENV`
+    /// reposait sur le nom, le relevé serait vide sur le corpus réel tout en passant sur un
+    /// chunk fraîchement compilé.
+    #[cfg(feature = "vm")]
+    #[test]
+    fn les_prototypes_imbriques_sont_couverts_sans_table_de_debogage() {
+        let lua = crate::new_vm();
+        let dumped = lua
+            .load("local function f() return globalLu end return f")
+            .set_name("imbrique")
+            .into_function()
+            .expect("compilation")
+            .dump(true);
+
+        let mut chunk = parse(&dumped).expect("décodage");
+        // Dépouiller explicitement plutôt que de compter sur l'option de `dump` : c'est l'état
+        // des chunks du jeu, et le relevé doit tenir sans aucun nom.
+        chunk.main.upvalue_names.clear();
+        for nested in &mut chunk.main.protos {
+            nested.upvalue_names.clear();
+        }
+        let reads = global_reads(&chunk);
+        assert_eq!(reads.len(), 1);
+        assert_eq!(reads[0].name_utf8(), "globalLu");
+        assert_eq!(reads[0].function, "main:0");
+        assert_eq!(reads[0].sink, GlobalReadSink::Other);
     }
 }
