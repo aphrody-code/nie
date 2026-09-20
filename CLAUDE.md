@@ -485,14 +485,18 @@ with Brotli). **Building is not deploying** - see below.
 
 ## What stays under the user's hand
 
-**`push` is pre-approved — YOLO mode is permanent here.** It used to be listed below as
-needing a request each time; the owner removed that on 2026-09-19 as a false rule. Rebase on
-`origin/main` first (peers push to the same branch), then push, then report what actually moved.
+**`commit`, `push` and `deploy` are pre-approved — YOLO mode is permanent here.** `push` stopped
+needing a request on 2026-09-19; `deploy` followed on **2026-09-20**, when the owner wrote
+"toujours tout commit, push, deploy". Do not ask for any of the three, and do not read a finished
+piece of work as needing a go. Rebase on `origin/main` first (peers push to the same branch),
+publish through `bun run deploy:target <target>` — never a hand-rolled swap, because the script is
+what health-checks and rolls back — then report what actually moved.
 
-What the pre-approval still does **not** silently extend to, because each one destroys or
-escapes this repository rather than advancing it: deleting data, force-pushing, rewriting shared
-history, rotating credentials, and changing what runs on a host outside this repository's scope.
-`deploy` is in this list too, and it is outward-facing and not reversible by a commit.
+What the pre-approval still does **not** silently extend to, because each one destroys or escapes
+this repository rather than advancing it: deleting data, force-pushing, rewriting shared history,
+rotating credentials, and changing what runs on a host outside this repository's scope. `deploy`
+left that list; those five did not. Publishing this repository's own targets is now routine —
+`sudo systemctl` on a service this repository does not own, or `cp` into `/etc`, still is not.
 
 ## Deploying the site — measured 2026-09-20, and one hole closed
 
