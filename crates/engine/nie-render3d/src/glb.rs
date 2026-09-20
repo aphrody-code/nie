@@ -6,7 +6,7 @@
 //! (`primitive.material → materials[].baseColorTexture → textures[].source → images[]`).
 
 use anyhow::{Context, Result, bail};
-use nie_core::animation::{BoneId, SkeletonId};
+use nie_core::animation::{BoneId, BonePose, PoseFrame, SkeletonId};
 use serde_json::Value;
 
 /// Une texture décodée en RGBA8 (atlas du modèle : corps, visage, uniforme…).
@@ -437,6 +437,189 @@ pub struct CpuSkinnedMesh {
 pub struct SkinnedVertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
+}
+
+/// Matrice de peau de chaque jointure pour une pose : `monde(pose) * inverseBind`.
+///
+/// C'est la moitié réutilisable du skinning — celle qui ne dépend pas des sommets. Un hôte GPU
+/// téléverse ce vecteur dans un tampon uniforme et laisse le nuanceur mélanger les influences ;
+/// [`apply_pose_cpu`] fait le même mélange sur le processeur. Les deux chemins partagent donc la
+/// **même** évaluation de hiérarchie, ce qui est la seule façon qu'ils s'accordent.
+///
+/// Une jointure absente de la pose retombe sur son `bind_local` : une animation ne clé pas
+/// forcément tous les os, et remplacer un os non clé par l'identité le déplacerait au lieu de le
+/// laisser au repos.
+///
+/// # Errors
+///
+/// - la pose ne s'adresse pas à ce squelette — une pose d'un autre squelette produirait une
+///   déformation plausible et fausse, le pire défaut de ce domaine ;
+/// - un index de parent sort de la table ;
+/// - la hiérarchie boucle.
+pub fn pose_skin_matrices(
+    mesh: &CpuSkinnedMesh,
+    pose: &PoseFrame,
+) -> Result<Vec<SkinMatrix>> {
+    if pose.skeleton != mesh.skeleton {
+        bail!(
+            "la pose s'adresse au squelette {:?}, le maillage au squelette {:?}",
+            pose.skeleton,
+            mesh.skeleton
+        );
+    }
+
+    let locals: Vec<Mat4> = mesh
+        .joints
+        .iter()
+        .map(|joint| {
+            pose.bone(joint.bone)
+                .map_or(joint.bind_local, |bone| matrix_from_bone_pose(&bone))
+        })
+        .collect();
+
+    // Résolution par passes linéaires plutôt que par un simple parcours ascendant : rien ne
+    // garantit qu'un parent précède son enfant dans la table, et `resolve_node_worlds` a déjà
+    // payé cette hypothèse sur les nœuds glTF (cf. le test des chaînes inversées).
+    let mut worlds: Vec<Option<Mat4>> = vec![None; mesh.joints.len()];
+    let mut resolved = 0usize;
+    for _ in 0..=mesh.joints.len() {
+        if resolved == mesh.joints.len() {
+            break;
+        }
+        let mut progressed = false;
+        for (i, joint) in mesh.joints.iter().enumerate() {
+            if worlds[i].is_some() {
+                continue;
+            }
+            let world = match joint.parent {
+                None => locals[i],
+                Some(parent) => {
+                    let Some(parent_world) = worlds.get(parent) else {
+                        bail!(
+                            "la jointure {i} désigne le parent {parent}, hors d'une table de {} entrées",
+                            mesh.joints.len()
+                        );
+                    };
+                    let Some(parent_world) = parent_world else {
+                        continue;
+                    };
+                    mat_mul(parent_world, &locals[i])
+                }
+            };
+            worlds[i] = Some(world);
+            resolved += 1;
+            progressed = true;
+        }
+        if !progressed {
+            break;
+        }
+    }
+    if resolved != mesh.joints.len() {
+        bail!(
+            "hiérarchie de jointures cyclique : {resolved} résolues sur {}",
+            mesh.joints.len()
+        );
+    }
+
+    Ok(mesh
+        .joints
+        .iter()
+        .enumerate()
+        .map(|(i, joint)| {
+            mat_mul(
+                &worlds[i].unwrap_or_else(identity),
+                &joint.inverse_bind,
+            )
+        })
+        .collect())
+}
+
+/// Applique une pose locale à un maillage lié, sur le processeur.
+///
+/// C'est la couture que `glb` annonçait sans la fournir : les clips `.g4mt` se décodent depuis
+/// 2026-09, les squelettes `.g4sk` aussi, et `assemble` écrit bien `JOINTS_0`/`WEIGHTS_0` dans
+/// les GLB — mais [`parse`] n'en tirait que la **pose de liaison**, si bien qu'aucun chemin de la
+/// bibliothèque ne pouvait rendre un personnage animé. Le seul rendu animé du dépôt vivait dans
+/// un exemple qui refaisait la cinématique directe et le mélange à la main.
+///
+/// Le mélange suit exactement celui de la pose de liaison dans [`parse`] : jusqu'à huit
+/// influences, pondérées puis **renormalisées par la somme des poids retenus**. Renormaliser
+/// plutôt que supposer une somme de 1 compte : un poids qui désigne une jointure hors table est
+/// ignoré, et sans renormalisation le sommet s'effondrerait vers l'origine au lieu de suivre ses
+/// influences valides.
+///
+/// Les normales sont transformées en direction (sans translation) puis renormalisées. Ce n'est
+/// pas la transposée de l'inverse : sous une échelle non uniforme elle s'écarte de la vraie
+/// normale, et le dire vaut mieux que de le laisser découvrir.
+///
+/// # Errors
+///
+/// Les mêmes que [`pose_skin_matrices`].
+pub fn apply_pose_cpu(mesh: &CpuSkinnedMesh, pose: &PoseFrame) -> Result<Vec<SkinnedVertex>> {
+    let skins = pose_skin_matrices(mesh, pose)?;
+    Ok(mesh
+        .vertices
+        .iter()
+        .map(|vertex| skin_one_vertex(vertex, &skins))
+        .collect())
+}
+
+/// Mélange les influences d'un sommet. Un sommet sans poids utile garde sa position de liaison.
+fn skin_one_vertex(vertex: &SkinVertex, skins: &[SkinMatrix]) -> SkinnedVertex {
+    let mut position = [0.0f32; 3];
+    let mut normal = [0.0f32; 3];
+    let mut total = 0.0f32;
+    for (joint, weight) in vertex.joints.iter().zip(vertex.weights.iter()) {
+        if *weight <= 0.0 {
+            continue;
+        }
+        let Some(skin) = skins.get(*joint as usize) else {
+            continue;
+        };
+        let p = transform(skin, vertex.position);
+        let n = transform_direction(skin, vertex.normal);
+        for c in 0..3 {
+            position[c] += p[c] * weight;
+            normal[c] += n[c] * weight;
+        }
+        total += weight;
+    }
+    if total <= 1e-6 {
+        return SkinnedVertex {
+            position: vertex.position,
+            normal: vertex.normal,
+        };
+    }
+    SkinnedVertex {
+        position: [
+            position[0] / total,
+            position[1] / total,
+            position[2] / total,
+        ],
+        normal: normalize([normal[0] / total, normal[1] / total, normal[2] / total]),
+    }
+}
+
+/// `T * R * S` depuis une pose d'os, dans la convention de [`node_local`] — même ordre, même
+/// disposition ligne-majeure. Les deux doivent rester d'accord : une pose et un nœud glTF
+/// décrivent la même chose.
+fn matrix_from_bone_pose(bone: &BonePose) -> Mat4 {
+    let mut m = identity();
+    let [x, y, z, w] = bone.rotation.0;
+    let s = [bone.scale.x, bone.scale.y, bone.scale.z];
+    m[0][0] = (1.0 - 2.0 * (y * y + z * z)) * s[0];
+    m[0][1] = (2.0 * (x * y - z * w)) * s[1];
+    m[0][2] = (2.0 * (x * z + y * w)) * s[2];
+    m[1][0] = (2.0 * (x * y + z * w)) * s[0];
+    m[1][1] = (1.0 - 2.0 * (x * x + z * z)) * s[1];
+    m[1][2] = (2.0 * (y * z - x * w)) * s[2];
+    m[2][0] = (2.0 * (x * z - y * w)) * s[0];
+    m[2][1] = (2.0 * (y * z + x * w)) * s[1];
+    m[2][2] = (1.0 - 2.0 * (x * x + y * y)) * s[2];
+    m[0][3] = bone.translation.x;
+    m[1][3] = bone.translation.y;
+    m[2][3] = bone.translation.z;
+    m
 }
 
 fn identity() -> Mat4 {
@@ -1620,5 +1803,233 @@ mod tests {
         }
         let model = parse(&fixture_bin(root, bin)).unwrap();
         assert_eq!(model.primitives[0].positions, [[4.0, 0.0, 0.0]]);
+    }
+
+    // ─── Skinning par pose (apply_pose_cpu) ──────────────────────────────────────────────
+
+    use nie_core::animation::{BonePose, PoseFrame, Rotation};
+
+    const SQUELETTE: SkeletonId = SkeletonId::new(7);
+    const RACINE: BoneId = BoneId::new(1);
+    const ENFANT: BoneId = BoneId::new(2);
+
+    /// Deux os en chaîne le long de +X : la racine à l'origine, l'enfant à `x = 1`.
+    ///
+    /// Les `inverse_bind` sont les inverses exacts des mondes de liaison, donc appliquer la pose
+    /// de liaison doit rendre la géométrie inchangée — c'est ce qu'un skinning correct garantit
+    /// et ce qu'un skinning faux casse en premier.
+    fn chaine() -> CpuSkinnedMesh {
+        let translation = |x: f32| {
+            let mut m = super::identity();
+            m[0][3] = x;
+            m
+        };
+        CpuSkinnedMesh {
+            skeleton: SQUELETTE,
+            joints: vec![
+                SkinJoint {
+                    bone: RACINE,
+                    parent: None,
+                    bind_local: super::identity(),
+                    inverse_bind: super::identity(),
+                },
+                SkinJoint {
+                    bone: ENFANT,
+                    parent: Some(0),
+                    bind_local: translation(1.0),
+                    inverse_bind: translation(-1.0),
+                },
+            ],
+            vertices: vec![
+                SkinVertex {
+                    position: [1.0, 0.0, 0.0],
+                    normal: [0.0, 1.0, 0.0],
+                    joints: [1, 0, 0, 0, 0, 0, 0, 0],
+                    weights: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                },
+                SkinVertex {
+                    position: [2.0, 0.0, 0.0],
+                    normal: [0.0, 1.0, 0.0],
+                    joints: [1, 0, 0, 0, 0, 0, 0, 0],
+                    weights: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                },
+            ],
+        }
+    }
+
+    fn pose(bones: Vec<(BoneId, BonePose)>) -> PoseFrame {
+        PoseFrame {
+            skeleton: SQUELETTE,
+            time_seconds: 0.0,
+            bones,
+        }
+    }
+
+    /// Une pose VIDE laisse la géométrie au repos, elle ne l'écrase pas.
+    ///
+    /// C'est le test qui attrape la faute la plus tentante : remplacer un os non clé par
+    /// l'identité. Ici l'enfant vit à `x = 1` ; l'identité le ramènerait à l'origine et tout le
+    /// maillage se replierait, ce qui se voit comme un personnage écrasé plutôt que comme un bug.
+    #[test]
+    fn une_pose_vide_rend_la_pose_de_liaison() {
+        let mesh = chaine();
+        let rendu = apply_pose_cpu(&mesh, &pose(Vec::new())).expect("pose applicable");
+        assert_eq!(rendu.len(), 2);
+        for (obtenu, attendu) in rendu.iter().zip(&mesh.vertices) {
+            for c in 0..3 {
+                assert!(
+                    (obtenu.position[c] - attendu.position[c]).abs() < 1e-5,
+                    "sommet déplacé sans pose : {obtenu:?} au lieu de {attendu:?}"
+                );
+            }
+        }
+    }
+
+    /// Une translation de la RACINE emmène l'enfant avec elle — la hiérarchie compose.
+    ///
+    /// Sans composition parent→enfant, le second sommet ne bougerait pas : c'est exactement la
+    /// différence entre une chaîne d'os et une liste d'os.
+    #[test]
+    fn la_translation_de_la_racine_entraine_lenfant() {
+        let mesh = chaine();
+        let racine = BonePose {
+            translation: nie_core::Vec3::new(0.0, 5.0, 0.0),
+            ..Default::default()
+        };
+        let rendu = apply_pose_cpu(&mesh, &pose(vec![(RACINE, racine)])).expect("pose applicable");
+        for (i, v) in rendu.iter().enumerate() {
+            assert!(
+                (v.position[1] - 5.0).abs() < 1e-5,
+                "le sommet {i} n'a pas suivi la racine : {v:?}"
+            );
+        }
+    }
+
+    /// Un quart de tour de la racine autour de +Z envoie l'axe X sur l'axe Y, normale comprise.
+    ///
+    /// Valeurs attendues calculées à la main, pas relevées sur la sortie : un golden pris sur
+    /// l'implémentation décrirait le défaut au lieu de la règle.
+    #[test]
+    fn un_quart_de_tour_de_la_racine_tourne_sommets_et_normales() {
+        let mesh = chaine();
+        let demi = core::f32::consts::FRAC_1_SQRT_2;
+        // +90° autour de Z
+        let racine = BonePose {
+            rotation: Rotation::new(0.0, 0.0, demi, demi),
+            ..Default::default()
+        };
+        let rendu = apply_pose_cpu(&mesh, &pose(vec![(RACINE, racine)])).expect("pose applicable");
+
+        // (1,0,0) → (0,1,0) et (2,0,0) → (0,2,0)
+        for (i, attendu) in [[0.0, 1.0, 0.0], [0.0, 2.0, 0.0]].iter().enumerate() {
+            for c in 0..3 {
+                assert!(
+                    (rendu[i].position[c] - attendu[c]).abs() < 1e-4,
+                    "sommet {i} : {:?} au lieu de {attendu:?}",
+                    rendu[i].position
+                );
+            }
+        }
+        // La normale +Y part sur -X, et reste unitaire.
+        assert!((rendu[0].normal[0] + 1.0).abs() < 1e-4, "{:?}", rendu[0].normal);
+        assert!((rendu[0].normal[1]).abs() < 1e-4, "{:?}", rendu[0].normal);
+    }
+
+    /// Une pose d'un AUTRE squelette est refusée, pas appliquée au jugé.
+    ///
+    /// Appliquée, elle rendrait une déformation d'apparence plausible et fausse — le défaut le
+    /// plus coûteux de ce domaine, parce que rien dans l'image ne le signale.
+    #[test]
+    fn une_pose_dun_autre_squelette_est_refusee() {
+        let mesh = chaine();
+        let etrangere = PoseFrame {
+            skeleton: SkeletonId::new(99),
+            time_seconds: 0.0,
+            bones: Vec::new(),
+        };
+        let erreur = apply_pose_cpu(&mesh, &etrangere).expect_err("squelettes différents");
+        assert!(
+            format!("{erreur}").contains("squelette"),
+            "l'erreur doit nommer la cause : {erreur}"
+        );
+    }
+
+    /// Un parent déclaré APRÈS son enfant se résout quand même — la table n'est pas triée.
+    ///
+    /// `resolve_node_worlds` a déjà payé cette hypothèse sur les nœuds glTF ; la refaire ici
+    /// aurait produit un enfant figé à sa pose de liaison, sans erreur.
+    #[test]
+    fn un_parent_declare_apres_son_enfant_se_resout() {
+        let mut mesh = chaine();
+        mesh.joints.swap(0, 1);
+        mesh.joints[0].parent = Some(1); // l'enfant est maintenant en tête
+        mesh.joints[1].parent = None;
+        for vertex in &mut mesh.vertices {
+            vertex.joints[0] = 0; // les sommets suivent l'enfant, désormais à l'index 0
+        }
+        let racine = BonePose {
+            translation: nie_core::Vec3::new(0.0, 5.0, 0.0),
+            ..Default::default()
+        };
+        let rendu = apply_pose_cpu(&mesh, &pose(vec![(RACINE, racine)])).expect("pose applicable");
+        assert!(
+            (rendu[0].position[1] - 5.0).abs() < 1e-5,
+            "l'enfant n'a pas suivi un parent déclaré après lui : {:?}",
+            rendu[0].position
+        );
+    }
+
+    /// Une hiérarchie cyclique est refusée au lieu de boucler.
+    #[test]
+    fn une_hierarchie_cyclique_est_refusee() {
+        let mut mesh = chaine();
+        mesh.joints[0].parent = Some(1);
+        mesh.joints[1].parent = Some(0);
+        let erreur = apply_pose_cpu(&mesh, &pose(Vec::new())).expect_err("cycle");
+        assert!(
+            format!("{erreur}").contains("cyclique"),
+            "l'erreur doit nommer la cause : {erreur}"
+        );
+    }
+
+    /// Un poids qui désigne une jointure hors table est ignoré, et le reste est RENORMALISÉ.
+    ///
+    /// Sans renormalisation le sommet s'effondrerait vers l'origine en proportion du poids perdu,
+    /// ce qui se lit comme un maillage qui fond plutôt que comme un index invalide.
+    #[test]
+    fn un_poids_vers_une_jointure_absente_est_ignore_et_le_reste_renormalise() {
+        let mut mesh = chaine();
+        mesh.vertices[0].joints = [1, 240, 0, 0, 0, 0, 0, 0];
+        mesh.vertices[0].weights = [0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let racine = BonePose {
+            translation: nie_core::Vec3::new(0.0, 4.0, 0.0),
+            ..Default::default()
+        };
+        let rendu = apply_pose_cpu(&mesh, &pose(vec![(RACINE, racine)])).expect("pose applicable");
+        assert!(
+            (rendu[0].position[1] - 4.0).abs() < 1e-5,
+            "le poids restant doit porter tout le sommet : {:?}",
+            rendu[0].position
+        );
+    }
+
+    /// `pose_skin_matrices` rend bien une matrice par jointure — c'est le contrat du chemin GPU.
+    #[test]
+    fn les_matrices_de_peau_couvrent_chaque_jointure() {
+        let mesh = chaine();
+        let matrices = pose_skin_matrices(&mesh, &pose(Vec::new())).expect("pose applicable");
+        assert_eq!(matrices.len(), mesh.joints.len());
+        // Pose de liaison : monde * inverseBind == identité.
+        for (i, m) in matrices.iter().enumerate() {
+            for r in 0..3 {
+                for c in 0..4 {
+                    let attendu = if r == c { 1.0 } else { 0.0 };
+                    assert!(
+                        (m[r][c] - attendu).abs() < 1e-5,
+                        "jointure {i} : la pose de liaison doit donner l'identité, {m:?}"
+                    );
+                }
+            }
+        }
     }
 }
