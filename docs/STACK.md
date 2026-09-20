@@ -77,7 +77,7 @@ Ces rejets sont doctrinaux : ils tiennent tant que l'objectif byte/pixel tient.
 | Écarté | Raison |
 |---|---|
 | **rapier / parry / salva** | Solveur TGS + broadphase/islands/substepping réinjectent un ordre flottant et un ordonnanceur. « Enhanced determinism » = reproductibilité de rapier, pas identité de `nie.exe`. Le jeu a `gravité 2.0/frame²`, `max_collisions_per_frame=5`, 10 `BallMoveKind` extraits des vftables |
-| **bevy_ecs / hecs / legion / specs** (pour le cœur) | Le byte-exact exige des structs 1:1 avec le layout C++ (offsets `0x700`, strides `0x570`) ; un ECS éclate ces structs et casse la correspondance champ-par-champ |
+| **bevy_ecs / hecs / legion / specs** (pour le cœur) | Le byte-exact exige des structs 1:1 avec le layout C++ (offsets `0x700`, strides `0x570`) ; un ECS éclate ces structs et casse la correspondance champ-par-champ. **Ce rejet tient, et il est limité au CŒUR** : `nie-bevy` consomme les sous-crates `bevy_*` comme ADAPTATEUR — assets, rendu, coquille de plateforme — derrière une feature éteinte par défaut. La frontière est vérifiable : `cargo tree -p nie-runtime -i bevy_ecs` est vide, et le rendu lit un instantané qu'il ne modifie pas. Bevy 0.19 exige `wgpu ^29.0.3`, l'épingle du dépôt, donc aucun second wgpu n'entre dans l'arbre |
 | **rstar / kdtree / bvh / pathfinding / navmesh** | N≤23 joueurs : zéro besoin de perf, et toute structure spatiale réordonne les ex-æquo d'un scan linéaire |
 | **fontdue / swash / ttf-parser / rustybuzz** | Aucun `.ttf` livré : le texte est un **atlas bitmap pré-cuit** (`font_def/font.g4tx`, AA bakée). Tout rasteriseur diverge |
 | **rend3 / rafx / lyon** | Les menus sont 100 % sprite/atlas : aucun tracé vectoriel au runtime |
