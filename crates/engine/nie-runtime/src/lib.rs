@@ -231,10 +231,32 @@ impl World {
             .map(|(i, _)| i)
     }
 
-    /// Calcule un hachage FNV-1a 32-bit compact de l'état physique du monde.
+    /// Hachage FNV-1a 32 bits de **tout ce que [`step`](Self::step) peut changer**.
     ///
-    /// Utilisé par le netcode rollback / lockstep pour vérifier la synchronisation
-    /// exacte entre clients et détecter instantanément tout desync.
+    /// `nie-net` le diffuse dans `TickSync` pour détecter une désynchronisation entre clients.
+    /// Un tel détecteur ne vaut que par sa couverture : jusqu'au 2026-09-20 il ignorait `tick`,
+    /// `time`, `kick_timer` et `steal_lock`, si bien que **deux mondes qui allaient diverger
+    /// hachaient pareil**. Ce n'est pas théorique — `kick_timer` décide si une frappe part
+    /// (`cmd_shoot && self.kick_timer <= 0.0`) et `steal_lock` si un tacle aboutit : deux
+    /// clients pouvaient se croire d'accord et jouer deux parties différentes, la divergence
+    /// n'apparaissant qu'au pas suivant, par ses conséquences, ou jamais.
+    ///
+    /// # Ce qui entre, et ce qui n'entre pas
+    ///
+    /// Entrent tous les champs que `step` mute : `tick`, `time`, `kick_timer`, `steal_lock`,
+    /// `score`, `possessor`, le ballon et les joueurs. `team`, `role` et `home` n'entrent pas :
+    /// ils sont posés au coup d'envoi et **aucun chemin ne les réécrit** (vérifié 2026-09-20) ;
+    /// les ajouter coûterait 22 tours de boucle pour des valeurs identiques par construction.
+    /// Le jour où une remplaçante ou un changement de formation les mute, ils doivent entrer.
+    ///
+    /// `input` et `away_input` n'entrent pas non plus, et c'est délibéré : ce sont les entrées
+    /// du **prochain** pas, pas de l'état atteint. En lockstep elles voyagent par leur propre
+    /// canal, et deux clients les appliquent à des instants différents — les hacher ferait
+    /// crier la désynchronisation sur un fonctionnement normal.
+    ///
+    /// Un `f32` est haché par ses **bits**, pas par sa valeur : `-0.0` et `+0.0` sont égaux au
+    /// sens de `==` mais ne sont pas le même état, et `NaN` n'est égal à rien, pas même à
+    /// lui-même. Un comparateur de synchronisation doit voir l'octet.
     #[must_use]
     pub fn state_hash(&self) -> u32 {
         let mut h: u32 = 0x811c9dc5;
@@ -251,6 +273,15 @@ impl World {
         feed(self.score[0]);
         feed(self.score[1]);
         feed(self.possessor.map_or(0xFFFFFFFF, |p| p as u32));
+        // Le compteur de pas : deux mondes à des ticks différents ne sont pas le même état,
+        // même si leurs positions coïncident. Un `u64` se hache en deux mots.
+        feed((self.tick & 0xFFFF_FFFF) as u32);
+        feed((self.tick >> 32) as u32);
+        feed(self.time.to_bits());
+        // Les deux verrous décident du comportement du pas suivant : les omettre rendait une
+        // désynchronisation invisible jusqu'à ce qu'elle produise ses effets.
+        feed(self.kick_timer.to_bits());
+        feed(self.steal_lock.to_bits());
         for p in &self.players {
             feed(p.pos.x.to_bits());
             feed(p.pos.y.to_bits());
@@ -672,5 +703,87 @@ mod tests {
             "joueur extérieur a bougé vers le bas"
         );
     }
-}
 
+    // ─── Détection de désynchronisation ──────────────────────────────────────────────────
+
+    /// Deux mondes qui ne diffèrent que par un compteur de simulation doivent avoir des
+    /// hachages DIFFÉRENTS, parce qu'ils divergeront au pas suivant.
+    ///
+    /// `nie-net` diffuse `state_hash` dans `TickSync` comme détecteur de désynchronisation :
+    /// un hachage aveugle à un état qui change le comportement rend la détection inopérante —
+    /// les deux clients se croient d'accord, jouent deux parties différentes, et rien ne le
+    /// signale. `kick_timer` ouvre ou ferme la frappe (`cmd_shoot && self.kick_timer <= 0.0`),
+    /// `steal_lock` autorise ou interdit le tacle : ce sont des états de jeu, pas des détails.
+    #[test]
+    fn deux_mondes_qui_divergeront_ne_partagent_pas_leur_hachage() {
+        for (nom, poser) in [
+            ("kick_timer", (|w: &mut World| w.kick_timer = KICK_COOLDOWN) as fn(&mut World)),
+            ("steal_lock", |w: &mut World| w.steal_lock = POSSESSION_LOCK),
+            ("tick", |w: &mut World| w.tick = 1),
+            ("time", |w: &mut World| w.time = 1.0),
+        ] {
+            let temoin = World::kickoff();
+            let mut modifie = World::kickoff();
+            poser(&mut modifie);
+            assert_ne!(
+                temoin.state_hash(),
+                modifie.state_hash(),
+                "`{nom}` n'entre pas dans le hachage : une désynchronisation sur ce champ est invisible"
+            );
+        }
+    }
+
+    /// Et la divergence est RÉELLE, pas théorique : sur la même entrée, deux mondes qui ne
+    /// diffèrent que par `kick_timer` produisent deux ballons différents.
+    ///
+    /// C'est ce qui donne son poids au test précédent — sans lui, on pourrait croire que ces
+    /// champs sont du décor.
+    ///
+    /// La possession ne s'établit pas d'elle-même au coup d'envoi (les 22 joueurs sont en
+    /// formation, à plus de `CONTROL_RADIUS` du centre : mesuré, aucun porteur en 12 pas), donc
+    /// la situation est posée explicitement — un joueur de champ sur le ballon, un pas pour que
+    /// `resolve_possession` l'enregistre.
+    #[test]
+    fn kick_timer_change_reellement_la_suite_de_la_simulation() {
+        fn porteur_pret() -> World {
+            let mut w = World::kickoff();
+            let i = w
+                .players
+                .iter()
+                .position(|p| p.team == 0 && p.role != Role::Goalkeeper)
+                .expect("un joueur de champ");
+            w.players[i].pos = w.ball.pos.ground();
+            w.step(1.0 / 60.0);
+            assert_eq!(w.possessor, Some(i), "la possession doit être établie");
+            w
+        }
+
+        let mut libre = porteur_pret();
+        let mut bloque = porteur_pret();
+        assert_eq!(
+            libre.state_hash(),
+            bloque.state_hash(),
+            "les deux mondes partent identiques"
+        );
+        bloque.kick_timer = KICK_COOLDOWN;
+
+        for w in [&mut libre, &mut bloque] {
+            w.input = Input {
+                dir: V2::new(1.0, 0.0),
+                shoot: true,
+            };
+            w.step(1.0 / 60.0);
+        }
+
+        assert_ne!(
+            libre.ball.vel.z.to_bits(),
+            bloque.ball.vel.z.to_bits(),
+            "la frappe doit partir dans un monde et pas dans l'autre"
+        );
+        assert_ne!(
+            libre.state_hash(),
+            bloque.state_hash(),
+            "après divergence, les hachages doivent différer"
+        );
+    }
+}
