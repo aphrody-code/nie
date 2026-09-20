@@ -1,13 +1,13 @@
 //! `/api/v1/online` — Endpoints du mode en ligne, matchmaking et ladder compétitif (`nie-net`).
 
-use axum::extract::Query;
 use axum::Json;
+use axum::extract::Query;
 use serde::Deserialize;
 
 use nie_net::{
-    compute_match_elo, tier_elo_factors, Clan, ClanRegistry, CompetitiveLadder,
-    PlayerCompetitiveProfile, RankTier, DEFAULT_K_FACTOR, LEVEL5_NET_VER_2_3_0,
-    NET_PROTOCOL_VERSION, TICK_RATE_HZ,
+    Clan, ClanRegistry, CompetitiveLadder, DEFAULT_K_FACTOR, LEVEL5_NET_VER_2_3_0,
+    NET_PROTOCOL_VERSION, PlayerCompetitiveProfile, RankTier, TICK_RATE_HZ, compute_match_elo,
+    tier_elo_factors,
 };
 
 /// Query parameters for ELO calculation.
@@ -203,8 +203,16 @@ pub async fn calc_elo(Query(query): Query<CalcEloQuery>) -> Json<serde_json::Val
         compute_match_elo(elo_b, elo_a, DEFAULT_K_FACTOR)
     };
 
-    let delta_a = if is_win_a { res.winner_gain as i32 } else { -(res.loser_loss as i32) };
-    let delta_b = if is_win_a { -(res.loser_loss as i32) } else { res.winner_gain as i32 };
+    let delta_a = if is_win_a {
+        res.winner_gain as i32
+    } else {
+        -(res.loser_loss as i32)
+    };
+    let delta_b = if is_win_a {
+        -(res.loser_loss as i32)
+    } else {
+        res.winner_gain as i32
+    };
 
     let tier_a = RankTier::from_ap(elo_a);
     let tier_b = RankTier::from_ap(elo_b);

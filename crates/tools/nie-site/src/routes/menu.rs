@@ -331,7 +331,12 @@ impl DemandeLocale {
     /// de chemin est une langue et non un dossier : accepter ici ce que la résolution de
     /// compagnon rejettera plus bas ne ferait que déplacer l'échec.
     fn resoudre(&self) -> Result<String, ErreurSite> {
-        let Some(demandee) = self.locale.as_deref().map(str::trim).filter(|l| !l.is_empty()) else {
+        let Some(demandee) = self
+            .locale
+            .as_deref()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+        else {
             return Ok(super::inspect::DEFAULT_LOCALE.to_owned());
         };
         if super::inspect::is_locale_tag(demandee) {

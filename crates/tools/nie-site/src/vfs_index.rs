@@ -1134,8 +1134,7 @@ impl IndexVfs {
         }
         let base = format!("{prefixe}/");
         let debut = self.chemins.partition_point(|c| c.as_str() < base.as_str());
-        let fin = debut
-            + self.chemins[debut..].partition_point(|c| c.starts_with(base.as_str()));
+        let fin = debut + self.chemins[debut..].partition_point(|c| c.starts_with(base.as_str()));
         &self.chemins[debut..fin]
     }
 

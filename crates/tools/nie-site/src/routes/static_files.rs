@@ -474,12 +474,18 @@ mod tests {
     fn base64url_a_deux_trous_que_le_build_evite() {
         // Un tiret DANS l'empreinte : ce découpage la casse en morceaux trop courts.
         // 30 des 252 fichiers émis d'un bundle du 2026-09-20, soit ~1 − (63/64)^8.
-        assert!(!empreinte("Workspace-FpvT45-W.js"), "tiret dans l'empreinte");
+        assert!(
+            !empreinte("Workspace-FpvT45-W.js"),
+            "tiret dans l'empreinte"
+        );
         assert!(!empreinte("julia-cl7-CwDS.js"), "tiret dans l'empreinte");
         // Ni chiffre ni minuscule : c'était le POINT D'ENTRÉE du site, servi `no-cache`.
         assert!(!empreinte("index-QCGMVBRT.js"), "ni chiffre ni minuscule");
         // Le tiret n'est fatal que DANS l'empreinte : dans le radical, il ne gêne pas.
-        assert!(empreinte("objective-c-BDtDVThU.js"), "tiret dans le radical");
+        assert!(
+            empreinte("objective-c-BDtDVThU.js"),
+            "tiret dans le radical"
+        );
         // Et la forme que le build produit désormais passe par la branche hexadécimale.
         assert!(empreinte("index-4f3a9c1e.js"), "hexadecimal, sans tiret");
     }

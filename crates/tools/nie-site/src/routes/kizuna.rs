@@ -172,9 +172,10 @@ fn build(index: &IndexVfs, vfs: &nie_formats::vfs::Vfs) -> Result<Built, String>
     let mut sources = Vec::new();
 
     let mut take = |role: &'static str, key: &'static str| -> Result<String, String> {
-        let (path, bytes) = super::donnees::resoudre(index, key, Some(PREFIX)).ok_or_else(|| {
-            format!("source `{role}` absente : aucun `{key}` sous `{PREFIX}` dans ce VFS")
-        })?;
+        let (path, bytes) =
+            super::donnees::resoudre(index, key, Some(PREFIX)).ok_or_else(|| {
+                format!("source `{role}` absente : aucun `{key}` sous `{PREFIX}` dans ce VFS")
+            })?;
         sources.push(Source {
             role,
             key,

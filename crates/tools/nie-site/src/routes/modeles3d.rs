@@ -286,9 +286,7 @@ impl Famille {
     pub fn dossier_vfs(self) -> Option<String> {
         match self {
             Self::Perso => None,
-            _ if self.arbre().is_some() => {
-                self.sous_dossier().map(|s| format!("data/common/{s}"))
-            }
+            _ if self.arbre().is_some() => self.sous_dossier().map(|s| format!("data/common/{s}")),
             _ => self.sous_dossier().map(|s| format!("{RACINE_CHR}/{s}")),
         }
     }
@@ -808,7 +806,11 @@ pub async fn fiche(
     let mut pieces_octets = 0u64;
     if let Some(dossier) = famille.dossier_vfs() {
         let index = etat.index()?;
-        let d = index.dossier(&format!("{dossier}/{}", chemin_du_code(&code)), 0, usize::MAX);
+        let d = index.dossier(
+            &format!("{dossier}/{}", chemin_du_code(&code)),
+            0,
+            usize::MAX,
+        );
         if d.total_fichiers == 0 {
             return Err(ErreurSite::Introuvable(format!(
                 "modele {}/{code} absent du VFS",
@@ -1300,7 +1302,10 @@ mod tests {
             Famille::EffetMatch.dossier_vfs().as_deref(),
             Some("data/common/effect/battle")
         );
-        assert_eq!(Famille::Menu.dossier_vfs().as_deref(), Some("data/common/menu"));
+        assert_eq!(
+            Famille::Menu.dossier_vfs().as_deref(),
+            Some("data/common/menu")
+        );
         assert_eq!(
             Famille::Waza.dossier_vfs().as_deref(),
             Some("data/common/chr/_waza")
@@ -1335,8 +1340,14 @@ mod tests {
         assert!(!code_valide("-a"));
         assert!(!code_valide("a-"));
         assert!(!code_valide("a--b"));
-        assert_eq!(chemin_du_code("battle-common-ega0001"), "battle/common/ega0001");
-        assert_eq!(code_du_chemin("battle/common/ega0001"), "battle-common-ega0001");
+        assert_eq!(
+            chemin_du_code("battle-common-ega0001"),
+            "battle/common/ega0001"
+        );
+        assert_eq!(
+            code_du_chemin("battle/common/ega0001"),
+            "battle-common-ega0001"
+        );
     }
 
     /// Le listage d'une famille arborescente descend à TOUTE profondeur.
@@ -1348,10 +1359,22 @@ mod tests {
     #[test]
     fn une_famille_arborescente_liste_ses_modeles_a_toute_profondeur() {
         let index = IndexVfs::depuis(vec![
-            ("data/common/map/s/s01g001/s01g001g02/s01g001g02.g4mg".into(), 10),
-            ("data/common/map/s/s01g001/s01g001g02/s01g001g02.g4pkm".into(), 20),
-            ("data/common/map/s/s01g001/s01g001g03/s01g001g03.g4mg".into(), 30),
-            ("data/common/map/s/s01g001/s01g001g04/s01g001g04.objbin".into(), 40),
+            (
+                "data/common/map/s/s01g001/s01g001g02/s01g001g02.g4mg".into(),
+                10,
+            ),
+            (
+                "data/common/map/s/s01g001/s01g001g02/s01g001g02.g4pkm".into(),
+                20,
+            ),
+            (
+                "data/common/map/s/s01g001/s01g001g03/s01g001g03.g4mg".into(),
+                30,
+            ),
+            (
+                "data/common/map/s/s01g001/s01g001g04/s01g001g04.objbin".into(),
+                40,
+            ),
             ("data/common/map/ar/ai001/ai001.g4mg".into(), 50),
         ]);
         let mut codes: Vec<String> = codes_vfs(&index, Famille::MapS)

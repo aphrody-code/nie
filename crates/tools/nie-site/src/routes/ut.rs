@@ -9,15 +9,20 @@
 //! - Spirit cards & special moves lookup
 //! - Cryptographic team export/import (AES-256-GCM + PBKDF2)
 
+use axum::Json;
 use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
-use nie_launcher::spirit::{all_special_moves, all_spirit_cards, search_special_moves, search_spirit_cards};
-use nie_launcher::team::{decrypt_team_envelope, encrypt_team_envelope, TeamExportEnvelope, TeamLineup, DEFAULT_PASSPHRASE};
-use nie_launcher::ut::{calculate_squad_valuation, formation_layout, open_pack, UtDatabase};
+use nie_launcher::spirit::{
+    all_special_moves, all_spirit_cards, search_special_moves, search_spirit_cards,
+};
+use nie_launcher::team::{
+    DEFAULT_PASSPHRASE, TeamExportEnvelope, TeamLineup, decrypt_team_envelope,
+    encrypt_team_envelope,
+};
+use nie_launcher::ut::{UtDatabase, calculate_squad_valuation, formation_layout, open_pack};
 
 /// Query parameters for searching players.
 #[derive(Debug, Deserialize)]
@@ -92,13 +97,28 @@ fn err_json(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<UtE
 pub async fn get_players(Query(query): Query<PlayerSearchQuery>) -> impl IntoResponse {
     let db = match UtDatabase::open_default() {
         Ok(db) => db,
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open UT database: {e}")).into_response(),
+        Err(e) => {
+            return err_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to open UT database: {e}"),
+            )
+            .into_response();
+        }
     };
 
     let limit = query.limit.unwrap_or(100).min(500);
-    match db.search_players(query.q.as_deref(), query.element.as_deref(), query.rarity.as_deref(), limit) {
+    match db.search_players(
+        query.q.as_deref(),
+        query.element.as_deref(),
+        query.rarity.as_deref(),
+        limit,
+    ) {
         Ok(players) => (StatusCode::OK, Json(players)).into_response(),
-        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Search failed: {e}")).into_response(),
+        Err(e) => err_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Search failed: {e}"),
+        )
+        .into_response(),
     }
 }
 
@@ -106,12 +126,22 @@ pub async fn get_players(Query(query): Query<PlayerSearchQuery>) -> impl IntoRes
 pub async fn get_teams() -> impl IntoResponse {
     let db = match UtDatabase::open_default() {
         Ok(db) => db,
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open UT database: {e}")).into_response(),
+        Err(e) => {
+            return err_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to open UT database: {e}"),
+            )
+            .into_response();
+        }
     };
 
     match db.get_teams() {
         Ok(teams) => (StatusCode::OK, Json(teams)).into_response(),
-        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to get teams: {e}")).into_response(),
+        Err(e) => err_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to get teams: {e}"),
+        )
+        .into_response(),
     }
 }
 
@@ -119,12 +149,22 @@ pub async fn get_teams() -> impl IntoResponse {
 pub async fn get_packs() -> impl IntoResponse {
     let db = match UtDatabase::open_default() {
         Ok(db) => db,
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open UT database: {e}")).into_response(),
+        Err(e) => {
+            return err_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to open UT database: {e}"),
+            )
+            .into_response();
+        }
     };
 
     match db.get_packs() {
         Ok(packs) => (StatusCode::OK, Json(packs)).into_response(),
-        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to get packs: {e}")).into_response(),
+        Err(e) => err_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to get packs: {e}"),
+        )
+        .into_response(),
     }
 }
 
@@ -132,18 +172,39 @@ pub async fn get_packs() -> impl IntoResponse {
 pub async fn post_open_pack(Json(req): Json<OpenPackRequest>) -> impl IntoResponse {
     let db = match UtDatabase::open_default() {
         Ok(db) => db,
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open UT database: {e}")).into_response(),
+        Err(e) => {
+            return err_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to open UT database: {e}"),
+            )
+            .into_response();
+        }
     };
 
     let pack = match db.get_pack(&req.pack_id) {
         Ok(Some(p)) => p,
-        Ok(None) => return err_json(StatusCode::NOT_FOUND, format!("Pack '{}' not found", req.pack_id)).into_response(),
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {e}")).into_response(),
+        Ok(None) => {
+            return err_json(
+                StatusCode::NOT_FOUND,
+                format!("Pack '{}' not found", req.pack_id),
+            )
+            .into_response();
+        }
+        Err(e) => {
+            return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {e}"))
+                .into_response();
+        }
     };
 
     let players = match db.get_players() {
         Ok(p) => p,
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load players: {e}")).into_response(),
+        Err(e) => {
+            return err_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load players: {e}"),
+            )
+            .into_response();
+        }
     };
 
     let mut rng = rand::thread_rng();
@@ -213,7 +274,10 @@ pub async fn get_moves(Query(query): Query<SpiritSearchQuery>) -> impl IntoRespo
     };
 
     let filtered = if let Some(ref cat) = query.category {
-        moves.into_iter().filter(|m| m.category.eq_ignore_ascii_case(cat)).collect()
+        moves
+            .into_iter()
+            .filter(|m| m.category.eq_ignore_ascii_case(cat))
+            .collect()
     } else {
         moves
     };
@@ -226,12 +290,22 @@ pub async fn get_moves(Query(query): Query<SpiritSearchQuery>) -> impl IntoRespo
 pub async fn get_uniforms() -> impl IntoResponse {
     let db = match UtDatabase::open_default() {
         Ok(db) => db,
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open UT database: {e}")).into_response(),
+        Err(e) => {
+            return err_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to open UT database: {e}"),
+            )
+            .into_response();
+        }
     };
 
     match db.get_uniforms(100) {
         Ok(uniforms) => (StatusCode::OK, Json(uniforms)).into_response(),
-        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to get uniforms: {e}")).into_response(),
+        Err(e) => err_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to get uniforms: {e}"),
+        )
+        .into_response(),
     }
 }
 
@@ -239,12 +313,22 @@ pub async fn get_uniforms() -> impl IntoResponse {
 pub async fn get_stadiums() -> impl IntoResponse {
     let db = match UtDatabase::open_default() {
         Ok(db) => db,
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open UT database: {e}")).into_response(),
+        Err(e) => {
+            return err_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to open UT database: {e}"),
+            )
+            .into_response();
+        }
     };
 
     match db.get_stadiums(100) {
         Ok(stadiums) => (StatusCode::OK, Json(stadiums)).into_response(),
-        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to get stadiums: {e}")).into_response(),
+        Err(e) => err_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to get stadiums: {e}"),
+        )
+        .into_response(),
     }
 }
 
@@ -258,7 +342,9 @@ pub async fn post_encrypt_team(Json(req): Json<EncryptTeamRequest>) -> impl Into
 
     match encrypt_team_envelope(&req.lineup, pass, &salt, &iv) {
         Ok(envelope) => (StatusCode::OK, Json(envelope)).into_response(),
-        Err(e) => err_json(StatusCode::BAD_REQUEST, format!("Encryption failed: {e}")).into_response(),
+        Err(e) => {
+            err_json(StatusCode::BAD_REQUEST, format!("Encryption failed: {e}")).into_response()
+        }
     }
 }
 
@@ -267,7 +353,9 @@ pub async fn post_decrypt_team(Json(req): Json<DecryptTeamRequest>) -> impl Into
     let pass = req.passphrase.as_deref().unwrap_or(DEFAULT_PASSPHRASE);
     match decrypt_team_envelope(&req.envelope, pass) {
         Ok(lineup) => (StatusCode::OK, Json(lineup)).into_response(),
-        Err(e) => err_json(StatusCode::BAD_REQUEST, format!("Decryption failed: {e}")).into_response(),
+        Err(e) => {
+            err_json(StatusCode::BAD_REQUEST, format!("Decryption failed: {e}")).into_response()
+        }
     }
 }
 

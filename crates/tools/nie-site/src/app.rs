@@ -503,18 +503,9 @@ pub fn routeur(etat: EtatSite) -> Router {
             CHEMINS_HORS_GET[12],
             post(crate::routes::game_data::encode_cfgbin),
         )
-        .route(
-            CHEMINS_HORS_GET[13],
-            post(crate::routes::lua::execute),
-        )
-        .route(
-            CHEMINS_HORS_GET[14],
-            post(crate::routes::lua::eval),
-        )
-        .route(
-            CHEMINS_HORS_GET[15],
-            post(crate::routes::lua::globals),
-        )
+        .route(CHEMINS_HORS_GET[13], post(crate::routes::lua::execute))
+        .route(CHEMINS_HORS_GET[14], post(crate::routes::lua::eval))
+        .route(CHEMINS_HORS_GET[15], post(crate::routes::lua::globals))
         .route(
             CHEMINS_HORS_GET[16],
             post(crate::routes::ut::post_open_pack),
@@ -555,22 +546,24 @@ pub fn routeur(etat: EtatSite) -> Router {
             StatusCode::GATEWAY_TIMEOUT,
             DELAI_REQUETE,
         ))
-        .layer(CatchPanicLayer::custom(|err: Box<dyn std::any::Any + Send + 'static>| {
-            let message = if let Some(s) = err.downcast_ref::<&str>() {
-                *s
-            } else if let Some(s) = err.downcast_ref::<String>() {
-                s.as_str()
-            } else {
-                "panique interne non specifiee"
-            };
-            tracing::error!(panique = message, "panique interceptee dans nie-site");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
-                r#"{"erreur":"erreur interne du serveur"}"#,
-            )
-                .into_response()
-        }))
+        .layer(CatchPanicLayer::custom(
+            |err: Box<dyn std::any::Any + Send + 'static>| {
+                let message = if let Some(s) = err.downcast_ref::<&str>() {
+                    *s
+                } else if let Some(s) = err.downcast_ref::<String>() {
+                    s.as_str()
+                } else {
+                    "panique interne non specifiee"
+                };
+                tracing::error!(panique = message, "panique interceptee dans nie-site");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
+                    r#"{"erreur":"erreur interne du serveur"}"#,
+                )
+                    .into_response()
+            },
+        ))
         .layer(TraceLayer::new_for_http())
         .with_state(etat)
 }
