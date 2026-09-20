@@ -107,13 +107,28 @@ impl FixedStep {
         self.dt
     }
 
-    /// Temps d'horloge accumulé et pas encore consommé — la fraction de pas en cours.
-    ///
-    /// Divisée par [`Self::dt`], c'est le facteur d'interpolation dont le rendu a besoin pour
-    /// afficher un état intermédiaire entre deux pas, comme `STACK.md` le demande.
+    /// Temps d'horloge accumulé et pas encore consommé, en secondes.
     #[must_use]
     pub fn reste(&self) -> f32 {
         self.accumulateur
+    }
+
+    /// Ce même reste, en **fraction d'un pas** — le facteur d'interpolation du rendu.
+    ///
+    /// `docs/STACK.md` demande que « le rendu part d'un état interpolé », et c'est cette valeur
+    /// qui le permet : à `0.5`, l'image doit montrer le monde à mi-chemin entre le pas précédent
+    /// et le pas courant. Sans elle, une simulation à 60 Hz affichée à 144 Hz montre la même
+    /// image plusieurs fois de suite puis saute — le mouvement paraît saccadé alors que la
+    /// simulation est parfaitement régulière, et on va chercher le défaut dans la physique.
+    ///
+    /// Nommée d'après `bevy_time::Fixed::overstep_fraction`, dont la lecture a révélé que
+    /// `reste()` seul laissait cette division à chaque appelant — c'est-à-dire à personne,
+    /// puisque aucun hôte du dépôt n'interpole aujourd'hui.
+    ///
+    /// Toujours dans `[0, 1)` tant que la borne de rattrapage n'est pas atteinte.
+    #[must_use]
+    pub fn overstep_fraction(&self) -> f32 {
+        self.accumulateur / self.dt
     }
 
     /// Absorbe `wall_dt` secondes d'horloge et rend le nombre de pas à exécuter.
@@ -975,5 +990,35 @@ mod tests {
     fn la_cadence_est_unique_dans_le_depot() {
         assert_eq!(TICK_RATE_HZ, 60);
         assert_eq!(TICK_DT.to_bits(), (1.0_f32 / 60.0).to_bits());
+    }
+
+    /// La fraction d'interpolation reste dans `[0, 1)` et suit le temps accumulé.
+    ///
+    /// C'est la valeur que le rendu doit lire pour afficher un état intermédiaire — sans elle,
+    /// une simulation à 60 Hz sur un écran à 144 Hz répète des images puis saute, ce qui se lit
+    /// comme une physique saccadée alors qu'elle est régulière.
+    #[test]
+    fn la_fraction_dinterpolation_suit_le_temps_accumule() {
+        let mut pas = FixedStep::default();
+        assert_eq!(pas.overstep_fraction(), 0.0, "rien d'accumulé au départ");
+
+        assert_eq!(pas.advance(TICK_DT * 0.25), 0, "un quart de pas n'en produit aucun");
+        assert!(
+            (pas.overstep_fraction() - 0.25).abs() < 1e-5,
+            "{}",
+            pas.overstep_fraction()
+        );
+
+        assert_eq!(pas.advance(TICK_DT * 0.5), 0);
+        assert!((pas.overstep_fraction() - 0.75).abs() < 1e-5);
+
+        // Franchir un pas entier consomme le pas et laisse le reste.
+        assert_eq!(pas.advance(TICK_DT * 0.5), 1);
+        assert!(
+            (pas.overstep_fraction() - 0.25).abs() < 1e-5,
+            "après un pas, il reste 0,25 : {}",
+            pas.overstep_fraction()
+        );
+        assert!(pas.overstep_fraction() < 1.0, "toujours une FRACTION de pas");
     }
 }
