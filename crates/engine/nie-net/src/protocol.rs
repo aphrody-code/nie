@@ -524,6 +524,28 @@ pub enum NetMessage {
         player_id: String,
         squad: Option<UtSquadSummary>,
     },
+    // --- Ranked & Tournament Protocols (Achillea Core) ---
+    /// Submits match scoreline with mutual verification.
+    RankedSubmitScore {
+        match_id: String,
+        my_goals: u32,
+        opponent_goals: u32,
+    },
+    /// Broadcast of score agreement, match finalization, and AP deltas.
+    RankedMatchFinished {
+        match_id: String,
+        home_score: u32,
+        away_score: u32,
+        home_ap_delta: i32,
+        away_ap_delta: i32,
+        is_disputed: bool,
+    },
+    /// Tournament bracket progression update.
+    TournamentBracketUpdate {
+        tournament_id: String,
+        current_round: u32,
+        total_rounds: u32,
+    },
     /// Generic protocol error.
     Error { message: String },
 }
