@@ -395,4 +395,64 @@ mod tests {
         k.press(Key::Z); // AZERTY : haut
         assert_eq!(movement(&k), (1.0, 1.0));
     }
+
+    /// La table du navigateur (`bridge.ts`) dit EXACTEMENT la même chose que [`BINDINGS`].
+    ///
+    /// `commandForKey` est synchrone et testé sans WebAssembly : le brancher sur le module le
+    /// coupleraient à son initialisation, et un repli TypeScript recréerait la seconde
+    /// implémentation qu'on vient de supprimer. La garde vaut mieux que le couplage — c'est
+    /// précisément cette dérive-là qui s'est produite (`Tab` et `i` d'un côté, `NumpadEnter` de
+    /// l'autre), et elle n'avait rien pour la signaler.
+    ///
+    /// Saut bruyant si le fichier est absent : cette crate se compile aussi hors du dépôt web.
+    #[test]
+    fn la_table_du_navigateur_dit_la_meme_chose() {
+        let chemin = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../apps/nie-web/src/game/bridge.ts");
+        let Ok(source) = std::fs::read_to_string(&chemin) else {
+            eprintln!("SKIP: {} absent", chemin.display());
+            return;
+        };
+        let Some(debut) = source.find("const KEY_COMMANDS") else {
+            panic!("`KEY_COMMANDS` introuvable dans bridge.ts : la garde ne garde plus rien");
+        };
+        let corps = &source[debut..];
+        let fin = corps.find("};").expect("table non terminée");
+        let corps = &corps[..fin];
+
+        // `"Nom": "CMD_X"` ou `Nom: "CMD_X"`, et la barre d'espace s'écrit `" "`.
+        let mut web: Vec<(String, String)> = Vec::new();
+        for ligne in corps.lines().skip(1) {
+            let Some((gauche, droite)) = ligne.split_once(':') else {
+                continue;
+            };
+            let touche = gauche.trim().trim_matches('"');
+            let Some(cmd) = droite.split('"').nth(1) else {
+                continue;
+            };
+            if touche.is_empty() && !gauche.contains('"') {
+                continue;
+            }
+            web.push((touche.to_owned(), cmd.to_owned()));
+        }
+        assert!(!web.is_empty(), "aucune entrée lue : le parseur de cette garde est cassé");
+
+        for (touche, attendu) in &web {
+            assert_eq!(
+                command_for_name(touche),
+                Some(attendu.as_str()),
+                "`{touche}` → `{attendu}` dans bridge.ts, mais pas dans BINDINGS"
+            );
+        }
+
+        // Et l'inverse : une commande ajoutée côté Rust doit arriver au navigateur.
+        let commandes_web: std::collections::HashSet<&str> =
+            web.iter().map(|(_, c)| c.as_str()).collect();
+        for (touche, cmd) in BINDINGS {
+            assert!(
+                commandes_web.contains(cmd),
+                "`{cmd}` (touche {touche:?}) est dans BINDINGS et absent de bridge.ts"
+            );
+        }
+    }
 }

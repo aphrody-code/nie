@@ -3,6 +3,23 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+/// The menu command a key triggers, or an empty string when it triggers none.
+///
+/// Exposed so the browser stops carrying its own copy of the binding table. That table was
+/// written three times — here, in `nie-game` and in `bridge.ts` — and the three had already
+/// drifted: `Tab` and `i` existed only in the browser, `NumpadEnter` only in the native host.
+/// `nie_app::input::BINDINGS` is now the single source, and it accepts DOM key names directly.
+///
+/// An empty string rather than `null`: `Option<&str>` crosses `wasm_bindgen` as `JsValue`, which
+/// costs the caller a type check for a value the caller already has to test.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[must_use]
+pub fn input_command_for_key(key: &str) -> String {
+    nie_app::input::command_for_name(key)
+        .unwrap_or_default()
+        .to_string()
+}
+
 /// Formats a raw string into canonical Inacode format (`INA-XXXX`).
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[must_use]
