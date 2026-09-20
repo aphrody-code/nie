@@ -37,6 +37,16 @@ test("chaque cible annonce son budget", () => {
 	}
 });
 
+test("les cibles qui compilent ont un budget de compilation", () => {
+	// `buildBinary` ignore son argument de paquet et bâtit les cinq crates du workspace à chaque
+	// fois. Une minute ne couvre pas un `cargo build --release` à froid, et ces cinq cibles
+	// mouraient donc en exit 124 comme `web`.
+	const listing = lister();
+	for (const cible of ["ffi", "cli", "mcp", "model", "site"]) {
+		expect(budget(listing, cible)).toBeGreaterThanOrEqual(900);
+	}
+});
+
 test("le budget de `web` couvre un build, pas seulement une bascule", () => {
 	// 21 s + 57 s + précompression : une minute ne suffit pas, et la valeur exacte importe moins
 	// que le fait qu'elle laisse la place aux trois étapes mesurées.

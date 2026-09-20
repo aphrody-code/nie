@@ -29,6 +29,21 @@ const defaultTimeoutMs = 60_000;
  */
 const validationWindowMs = 30_000;
 
+/**
+ * Every target that calls `buildBinary` pays ONE `cargo build --release --locked` of the five
+ * workspace crates — `buildBinary` ignores its `packageName` and always builds all of them, so
+ * the artefacts it publishes are cut from a single LTO pass. Cold, that is minutes on this host,
+ * and under the default minute those five targets died at exit 124 exactly as `web` did.
+ *
+ * This cap is a hang-breaker that releases the lock, not a pace for the build. What bounds the
+ * outward-facing risk is `validationWindowMs`, which is unchanged: a service that does not answer
+ * its health check is restored to its previous binary within 30 seconds, however long it built.
+ */
+const releaseBuildSeconds = 2_400;
+
+/** Typecheck a Bun package, restart its unit, health-check it. No compilation, but not instant. */
+const bunServiceSeconds = 180;
+
 const runId = new Date().toISOString().replaceAll(/[:.]/gu, "-");
 const lockDirectory = "/tmp/niers-target-deploy.lock";
 const logDirectory = `${repositoryRoot}/var/log/deploy-targets/${runId}`;
@@ -421,6 +436,7 @@ async function publishNativeMcpAliases(): Promise<void> {
 
 const targets: Record<string, Target> = {
 	ffi: {
+		seconds: releaseBuildSeconds,
 		description: "Rust FFI library used by Bun compatibility adapters",
 		deploy: async (context) => {
 			await buildBinary(context, "nie-ffi", "libnie_ffi.so");
@@ -431,6 +447,7 @@ const targets: Record<string, Target> = {
 		},
 	},
 	cli: {
+		seconds: releaseBuildSeconds,
 		description: "Native nie CLI and stdio MCP host",
 		deploy: async (context) => {
 			await buildBinary(context, "nie-cli", "niers");
@@ -439,6 +456,7 @@ const targets: Record<string, Target> = {
 		},
 	},
 	mcp: {
+		seconds: releaseBuildSeconds,
 		description: "Standalone native Rust MCP stdio server",
 		deploy: async (context) => {
 			await buildBinary(context, "nie-mcp", "nie-mcp");
@@ -462,10 +480,13 @@ const targets: Record<string, Target> = {
 		seconds: 900,
 	},
 	inacord: {
+		// Three public URLs, each with its own validation window.
+		seconds: bunServiceSeconds,
 		description: "Inacord release channel behind the site's /inacord and /downloads routes",
 		deploy: deployInacordWeb,
 	},
 	model: {
+		seconds: releaseBuildSeconds,
 		description: "Rust model and VFS asset server",
 		deploy: (context) =>
 			deployBinaryService(
@@ -480,6 +501,7 @@ const targets: Record<string, Target> = {
 			),
 	},
 	site: {
+		seconds: releaseBuildSeconds,
 		description: "Rust HTTP site and API host",
 		deploy: (context) =>
 			deployBinaryService(
@@ -492,6 +514,7 @@ const targets: Record<string, Target> = {
 			),
 	},
 	cron: {
+		seconds: bunServiceSeconds,
 		description: "Bun scheduled-jobs daemon",
 		deploy: (context) =>
 			deployBunService(
@@ -502,6 +525,7 @@ const targets: Record<string, Target> = {
 			),
 	},
 	"cdn-variants": {
+		seconds: bunServiceSeconds,
 		description: "Bun on-demand IEVR image variants",
 		deploy: (context) =>
 			deployBunService(
@@ -512,6 +536,7 @@ const targets: Record<string, Target> = {
 			),
 	},
 	realtime: {
+		seconds: bunServiceSeconds,
 		description: "Bun PostgreSQL realtime compatibility service",
 		deploy: (context) =>
 			deployBunService(
@@ -522,6 +547,7 @@ const targets: Record<string, Target> = {
 			),
 	},
 	storage: {
+		seconds: bunServiceSeconds,
 		description: "Bun local-files and PostgreSQL storage compatibility service",
 		deploy: (context) =>
 			deployBunService(
