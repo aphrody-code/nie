@@ -137,6 +137,15 @@ impl ReSession {
         })
     }
 
+    /// Open a session in read-write YOLO mode.
+    pub fn open_rw(
+        executable: impl Into<PathBuf>,
+        database: impl AsRef<Path>,
+        expected_binary_id: Option<i64>,
+    ) -> Result<Self> {
+        Self::open(executable, database, expected_binary_id)
+    }
+
     #[must_use]
     pub fn target(&self) -> &ReTarget {
         &self.target
@@ -195,9 +204,40 @@ impl ReSession {
         );
         Ok(self.validated_bytes[offset as usize..offset as usize + length].to_vec())
     }
+
+    /// Write/patch a slice in the loaded executable memory image (YOLO read-and-write mode).
+    pub fn write_file(&mut self, offset: u64, bytes: &[u8]) -> Result<()> {
+        anyhow::ensure!(
+            offset
+                .checked_add(bytes.len() as u64)
+                .is_some_and(|end| end <= self.target.size_bytes),
+            "write outside indexed image"
+        );
+        self.validated_bytes[offset as usize..offset as usize + bytes.len()]
+            .copy_from_slice(bytes);
+        Ok(())
+    }
+
+    /// Patch a slice at a virtual address (VA).
+    pub fn patch_va(&mut self, va: u64, bytes: &[u8]) -> Result<()> {
+        let rva = self.va_to_rva(va)?;
+        self.write_file(rva, bytes)
+    }
+
+    /// Save the modified binary to a destination path.
+    pub fn save_as(&self, destination: impl AsRef<Path>) -> Result<()> {
+        std::fs::write(destination.as_ref(), &self.validated_bytes)
+            .with_context(|| format!("save binary to {}", destination.as_ref().display()))
+    }
+
+    /// Save the modified binary in place.
+    pub fn save(&self) -> Result<()> {
+        std::fs::write(&self.target.executable, &self.validated_bytes)
+            .with_context(|| format!("save binary in place to {}", self.target.executable.display()))
+    }
 }
 
-/// Safe facade over the read-only `nie-re` + `nie-trace` integration.
+/// Unified read-and-write facade over `nie-re` + `nie-trace` in YOLO mode.
 #[cfg(feature = "host")]
 pub struct NiersComputerUse;
 
@@ -299,6 +339,63 @@ impl NiersComputerUse {
     #[must_use]
     pub fn catalog_entry(id: &str) -> Option<&'static nie_trace::catalog::Entry> {
         nie_trace::catalog::find(id)
+    }
+
+    /// Write memory in live process (Read-and-Write YOLO mode).
+    pub fn write_memory(
+        pid: i32,
+        address: u64,
+        bytes: &[u8],
+    ) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_exact(pid, address, bytes)
+    }
+
+    /// Write exact byte buffer to live process memory.
+    pub fn write_exact(
+        pid: i32,
+        address: u64,
+        bytes: &[u8],
+    ) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_exact(pid, address, bytes)
+    }
+
+    /// Write typed u8 to live process memory.
+    pub fn write_u8(pid: i32, address: u64, value: u8) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_u8(pid, address, value)
+    }
+
+    /// Write typed u16 to live process memory.
+    pub fn write_u16(pid: i32, address: u64, value: u16) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_u16(pid, address, value)
+    }
+
+    /// Write typed u32 to live process memory.
+    pub fn write_u32(pid: i32, address: u64, value: u32) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_u32(pid, address, value)
+    }
+
+    /// Write typed i32 to live process memory.
+    pub fn write_i32(pid: i32, address: u64, value: i32) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_i32(pid, address, value)
+    }
+
+    /// Write typed u64 to live process memory.
+    pub fn write_u64(pid: i32, address: u64, value: u64) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_u64(pid, address, value)
+    }
+
+    /// Write typed f32 to live process memory.
+    pub fn write_f32(pid: i32, address: u64, value: f32) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_f32(pid, address, value)
+    }
+
+    /// Patch arbitrary memory sequence in live process memory.
+    pub fn patch_bytes(
+        pid: i32,
+        address: u64,
+        patch: &[u8],
+    ) -> Result<(), nie_trace::MemError> {
+        nie_trace::write_exact(pid, address, patch)
     }
 }
 
@@ -505,5 +602,40 @@ mod tests {
     #[test]
     fn live_scans_reject_unbounded_hit_limits() {
         assert!(NiersComputerUse::scan_aob(0, "nie.exe", "90", MAX_SCAN_HITS + 1).is_err());
+    }
+
+    #[test]
+    fn session_allows_write_and_patch_in_yolo_mode() {
+        let dir = std::env::temp_dir().join(format!("nie-cu-session-write-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("nie.exe");
+        let db_path = dir.join("re.sqlite");
+        let bytes = b"reproducible bytes for session write";
+        std::fs::write(&exe, bytes).unwrap();
+        let sha = hex::encode(Sha256::digest(bytes));
+        let db = nie_index::Db::open(&db_path).unwrap();
+        let id = db
+            .upsert_binary(
+                "nie.exe",
+                &sha,
+                "x86_64",
+                64,
+                0x140000000,
+                bytes.len() as i64,
+                None,
+                None,
+            )
+            .unwrap();
+        drop(db);
+        let mut session = ReSession::open_rw(&exe, &db_path, Some(id)).unwrap();
+        session.write_file(0, b"YOLO").unwrap();
+        assert_eq!(session.read_file(0, 4).unwrap(), b"YOLO");
+        session.patch_va(0x140000000, b"MODE").unwrap();
+        assert_eq!(session.read_file(0, 4).unwrap(), b"MODE");
+
+        let out = dir.join("patched.exe");
+        session.save_as(&out).unwrap();
+        assert_eq!(&std::fs::read(&out).unwrap()[..4], b"MODE");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

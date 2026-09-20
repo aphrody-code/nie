@@ -894,6 +894,15 @@ enum MemOp {
         #[arg(long, short = 'o')]
         output: Option<PathBuf>,
     },
+    /// Écrit des octets ou une valeur en mémoire vive (mode YOLO read & write).
+    Write {
+        /// Adresse `0x…` ou module-relative `nie.exe+0xF600CA`.
+        addr: String,
+        /// Données : hex (`90 90 90`, `0x9090`), chaîne (`str:texte`), ou entier.
+        data: String,
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+    },
     /// Dumpe les plages lisibles (module ou --all) vers un dossier.
     Dump {
         #[arg(long, short = 'p', default_value_t = 0)]
@@ -3399,6 +3408,7 @@ fn mem_cmd(op: MemOp) -> anyhow::Result<()> {
             pid,
             output,
         } => mem_read(&addr, len, pid, output.as_deref()),
+        MemOp::Write { addr, data, pid } => mem_write(&addr, &data, pid),
         MemOp::Dump {
             pid,
             module,
@@ -3625,6 +3635,54 @@ fn mem_read(
         None => mem_hexdump(&buf[..got], address),
     }
     Ok(())
+}
+
+fn mem_write(
+    addr: &str,
+    data: &str,
+    pid: i32,
+) -> anyhow::Result<()> {
+    let pid = mem_preflight(pid)?;
+    let address = mem_resolve_addr(addr, pid)?;
+    let bytes = mem_parse_write_data(data)?;
+    nie_trace::write_exact(pid, address, &bytes).context("écriture mémoire live")?;
+    println!("  {} octet(s) écrit(s) @ 0x{address:x} (pid {pid})", bytes.len());
+    Ok(())
+}
+
+fn mem_parse_write_data(data: &str) -> anyhow::Result<Vec<u8>> {
+    let trimmed = data.trim();
+    if let Some(s) = trimmed.strip_prefix("str:") {
+        return Ok(s.as_bytes().to_vec());
+    }
+    if let Some(s) = trimmed.strip_prefix("wstr:") {
+        return Ok(s.encode_utf16().flat_map(|u| u.to_le_bytes()).collect());
+    }
+    let cleaned = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")).unwrap_or(trimmed);
+    let hex_clean: String = cleaned.chars().filter(|c| !c.is_whitespace()).collect();
+    if hex_clean.len().is_multiple_of(2)
+        && !hex_clean.is_empty()
+        && hex_clean.chars().all(|c| c.is_ascii_hexdigit())
+        && let Ok(b) = (0..hex_clean.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex_clean[i..i + 2], 16))
+            .collect::<Result<Vec<u8>, _>>()
+    {
+        return Ok(b);
+    }
+    if let Ok(num) = trimmed.parse::<u64>() {
+        if num <= u8::MAX as u64 {
+            return Ok(vec![num as u8]);
+        }
+        if num <= u16::MAX as u64 {
+            return Ok((num as u16).to_le_bytes().to_vec());
+        }
+        if num <= u32::MAX as u64 {
+            return Ok((num as u32).to_le_bytes().to_vec());
+        }
+        return Ok(num.to_le_bytes().to_vec());
+    }
+    anyhow::bail!("format de données invalide : utiliser des octets hex ('90 90', '0x9090'), 'str:...', 'wstr:...' ou un entier");
 }
 
 fn mem_dump(pid: i32, module: &str, all: bool, output: &std::path::Path) -> anyhow::Result<()> {

@@ -92,7 +92,7 @@ define_cli_tools!(
         CliComputerUse,
         "cli_computer_use",
         "computer-use",
-        "Run `niers computer-use` in process. Pass the exact CLI argument tail in `args`; this surface is read-only."
+        "Run `niers computer-use` in process. Pass the exact CLI argument tail in `args`; supports read-and-write operations in YOLO mode."
     ),
     (
         CliMod,
@@ -338,7 +338,7 @@ define_cli_tools!(
         CliMem,
         "cli_mem",
         "mem",
-        "Inspect live nie.exe memory maps, reads, dumps, scans, Lua fields, palettes, or explicit EAC patches."
+        "Inspect and mutate live nie.exe memory: maps, reads, writes, dumps, scans, Lua fields, palettes, or explicit EAC patches in YOLO read-and-write mode."
     ),
     (
         CliVfs,

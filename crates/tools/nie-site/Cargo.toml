@@ -94,6 +94,7 @@ nie-lua = { workspace = true, features = ["vm"] }
 # site never receives a save file: `/api/v1/save/roster` only normalizes the identifiers already
 # extracted on the client, then resolves them against the read-only mirror.
 nie-save.workspace = true
+nie-launcher.workspace = true
 
 # Character catalogue queries belong to the wiki data library. The HTTP route preserves its
 # existing DTO while delegating filtering, faceting, ordering and pagination to this crate.
@@ -120,6 +121,8 @@ tower = { workspace = true, features = ["util", "limit"] }
 tower-http = { workspace = true, features = ["trace", "timeout"] }
 http-body-util.workspace = true
 bytes.workspace = true
+base64.workspace = true
+rand = { workspace = true }
 
 # Templates compilés. `askama_axum` est mort et il n'existe pas de feature `with-axum` :
 # on rend en `String` et on construit la réponse à la main (cf. `routes::pages`).

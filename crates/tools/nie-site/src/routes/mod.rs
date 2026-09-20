@@ -18,6 +18,8 @@ pub mod graphql;
 pub mod growth;
 pub mod health;
 pub mod inspect;
+/// La Ville de lien de la Station Kizuna — cf. le module pour ce que le catalogue prouve.
+pub mod kizuna;
 pub mod level5;
 pub mod lua;
 pub mod menu;
@@ -41,6 +43,7 @@ pub mod spatial_preview;
 pub mod static_files;
 pub mod team;
 pub mod text;
+pub mod ut;
 pub mod vfs;
 pub mod well_known;
 pub mod wiki;

@@ -325,7 +325,13 @@ const ENTREES: [Entree; 17] = [
         // `*_setting.cfg.bin` reels, et de ces ecrans decoulent les calques, les objbin, les
         // maillages et les textures. La page les compte sur le VFS, et rend les ecrans.
         segment: "modes",
-        heritage: &[],
+        heritage: &[
+            "story_mode",
+            "chronicle_mode",
+            "competition",
+            "victory_road",
+            "bb_stadium",
+        ],
         titres: ["Modes", "Modes", "Modes", "モード"],
         descriptions: [
             "Les modes de jeu, les écrans dont chacun est fait, et le rendu de ces écrans.",

@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 143] = [
+    let instances: [(&str, &[u16]); 163] = [
         ("/healthz", &[200]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
@@ -137,10 +137,21 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/model/chara/c99999999.glb", &[404]),
         // Lua et formats : les capacites repondent sans VFS, le decodage d'un chemin absent de
         // l'index est un 404 — l'index de test ne porte ni `.lua.bin` ni `.cfg.bin`.
+        // La Ville de lien : 503 tant que `craft_obj_config` n'est pas dans le VFS de test,
+        // comme `/api/v1/passives` juste en dessous — une source absente se dit, elle ne se
+        // remplace pas par un catalogue vide.
+        ("/api/v1/kizuna", &[503]),
+        ("/api/v1/kizuna/categories", &[503]),
+        ("/api/v1/kizuna/objects", &[503]),
+        ("/api/v1/kizuna/themes", &[503]),
+        ("/api/v1/kizuna/sources", &[503]),
         ("/api/v1/lua", &[200]),
         ("/api/v1/lua/scripts", &[200]),
         ("/api/v1/lua/scripts/data/x.lua.bin", &[404]),
         ("/api/v1/lua/desassemblage/data/x.lua.bin", &[404]),
+        ("/api/v1/lua/execute", &[200]),
+        ("/api/v1/lua/eval", &[200]),
+        ("/api/v1/lua/globals", &[200]),
         ("/api/v1/menu/runtime/mainmenu01", &[404, 503]),
         ("/api/v1/runtime/audio", &[404, 503]),
         // Menus : l'arbre est relayé vers l'amont, tandis que le layout statique lit le VFS
@@ -299,14 +310,27 @@ async fn toutes_les_routes_declarees_repondent() {
         // instance omits `?path=` (a 400 without it, cf. `axum::extract::Query`'s own
         // rejection) — the family/id instances above already exercise the VFS-backed path.
         ("/api/v1/game-data/decode_cfgbin", &[400]),
+        ("/api/v1/game-data/decode_cfgbin_typed", &[400]),
+        ("/api/v1/game-data/encode_cfgbin", &[200]),
         // Same shape as the game-data families above: the VFS in this test carries none of the
         // `.cfg.bin` `routes::profile` reads, so it 503s honestly rather than rendering an empty
         // "finished game".
         ("/api/v1/profile/complete", &[503]),
+        // IEVR Ultimate Team backend routes
+        ("/api/v1/ut/players", &[200, 500]),
+        ("/api/v1/ut/teams", &[200, 500]),
+        ("/api/v1/ut/packs", &[200, 500]),
+        ("/api/v1/ut/formations", &[200]),
+        ("/api/v1/ut/spirits", &[200]),
+        ("/api/v1/ut/moves", &[200]),
+        ("/api/v1/ut/open-pack", &[200]),
+        ("/api/v1/ut/valuation", &[200]),
+        ("/api/v1/ut/team/encrypt", &[200]),
+        ("/api/v1/ut/team/decrypt", &[200]),
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 141, "le routeur monte 141 routes");
+    assert_eq!(declarees.len(), 161, "le routeur monte 161 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -338,7 +362,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 143, "143 instances interrogees pour 141 routes");
+    assert_eq!(vus, 163, "163 instances interrogees pour 161 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).

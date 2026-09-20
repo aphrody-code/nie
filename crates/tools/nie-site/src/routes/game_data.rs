@@ -275,6 +275,78 @@ pub async fn decode_cfgbin(
     Ok(Cached(valeur))
 }
 
+/// `GET /api/v1/game-data/decode_cfgbin_typed?path=` — typed decode of any `.cfg.bin`.
+///
+/// Dispatches to `nie_app::game_data::decode_cfgbin_typed`, returning `{ cle, famille, json, brut }`.
+/// If the file matches one of the 93 `nie-data` families, `famille` and `json` carry the named fields;
+/// otherwise `famille` is null, `json` is empty, and `brut` carries the full container JSON.
+pub async fn decode_cfgbin_typed(
+    State(etat): State<EtatSite>,
+    Query(demande): Query<DecodeCfgbinQuery>,
+) -> Result<Json<game_data::CfgbinTyped>, ErreurSite> {
+    let vfs = etat.vfs()?;
+    let path = demande.path;
+    let typed = tokio::task::spawn_blocking(move || game_data::decode_cfgbin_typed(&vfs, &path))
+        .await?
+        .map_err(ErreurSite::Introuvable)?;
+    Ok(Json(typed))
+}
+
+/// Body of `POST /api/v1/game-data/encode_cfgbin`.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct EncodeCfgbinRequest {
+    /// VFS path of the `.cfg.bin` being encoded (serves as template for RDBN patch).
+    pub path: String,
+    /// JSON text in inagle format (entries array for T2B or lists for RDBN).
+    pub json: String,
+}
+
+/// Response of `POST /api/v1/game-data/encode_cfgbin`.
+#[derive(Debug, Serialize)]
+pub struct EncodeCfgbinResponse {
+    /// Re-encoded binary bytes in standard Base64.
+    pub b64: String,
+}
+
+/// Contract of `GET /api/v1/game-data/encode_cfgbin`.
+#[derive(Debug, Serialize)]
+pub struct EncodeCfgbinContract {
+    /// Expected path field.
+    pub path: &'static str,
+    /// Expected json field.
+    pub json: &'static str,
+    /// Target route.
+    pub route: &'static str,
+}
+
+/// `GET /api/v1/game-data/encode_cfgbin` — public contract.
+pub async fn encode_cfgbin_contract() -> Json<EncodeCfgbinContract> {
+    Json(EncodeCfgbinContract {
+        path: "string, required VFS path of the .cfg.bin",
+        json: "string, required JSON representation to encode",
+        route: "POST /api/v1/game-data/encode_cfgbin",
+    })
+}
+
+/// `POST /api/v1/game-data/encode_cfgbin` — re-encodes JSON into `.cfg.bin` binary bytes (Base64).
+pub async fn encode_cfgbin(
+    State(etat): State<EtatSite>,
+    Json(demande): Json<EncodeCfgbinRequest>,
+) -> Result<Json<EncodeCfgbinResponse>, ErreurSite> {
+    use base64::Engine;
+    let vfs = etat.vfs()?;
+    let path = demande.path;
+    let value: serde_json::Value = serde_json::from_str(&demande.json)
+        .map_err(|e| ErreurSite::Demande(format!("JSON invalide : {e}")))?;
+    let bytes = tokio::task::spawn_blocking(move || {
+        nie_explore::game_data::encode_cfgbin(&vfs, &path, &value)
+    })
+    .await?
+    .map_err(ErreurSite::Demande)?;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(Json(EncodeCfgbinResponse { b64 }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

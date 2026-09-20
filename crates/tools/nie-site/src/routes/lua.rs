@@ -187,11 +187,21 @@ pub fn capacites_liste() -> Vec<Capacite> {
         },
         Capacite {
             nom: "execution",
-            etat: "refuse",
-            route: None,
-            raison: Some(
-                "charger un chunk de bytecode est une primitive d'execution, pas un decodage",
-            ),
+            etat: "servi",
+            route: Some("/api/v1/lua/execute"),
+            raison: None,
+        },
+        Capacite {
+            nom: "evaluation",
+            etat: "servi",
+            route: Some("/api/v1/lua/eval"),
+            raison: None,
+        },
+        Capacite {
+            nom: "globales",
+            etat: "servi",
+            route: Some("/api/v1/lua/globals"),
+            raison: None,
         },
         Capacite {
             nom: "pilotage_de_menu",
@@ -695,6 +705,210 @@ pub async fn desassemblage(
     Ok(reponse)
 }
 
+// ─── L'exécution et l'évaluation ────────────────────────────────────────────────────────────
+
+/// Corps de `POST /api/v1/lua/execute`.
+#[derive(Debug, Deserialize)]
+pub struct DemandeExecute {
+    /// Chemin VFS du script `.lua.bin` à exécuter.
+    pub path: Option<String>,
+    /// Source Lua texte ou bytecode brut fourni directement.
+    pub source: Option<String>,
+    /// Installer les stubs d'hôtes de menu (`true` par défaut).
+    pub with_menu_host: Option<bool>,
+    /// Limite d'instructions d'exécution.
+    pub instruction_limit: Option<u32>,
+}
+
+/// Contrat de `GET /api/v1/lua/execute`.
+#[derive(Debug, Serialize)]
+pub struct ContratExecute {
+    /// Chemin du script.
+    pub path: &'static str,
+    /// Source Lua.
+    pub source: &'static str,
+    /// Activer les stubs de menu.
+    pub with_menu_host: &'static str,
+    /// Limite d'instructions.
+    pub instruction_limit: &'static str,
+    /// Route d'exécution.
+    pub route: &'static str,
+}
+
+/// `GET /api/v1/lua/execute` — contrat de la route.
+pub async fn contrat_execute() -> Json<ContratExecute> {
+    Json(ContratExecute {
+        path: "string, optional VFS path of .lua.bin",
+        source: "string, optional Lua source code",
+        with_menu_host: "boolean, default true",
+        instruction_limit: "integer, default 1_000_000",
+        route: "POST /api/v1/lua/execute",
+    })
+}
+
+/// `POST /api/v1/lua/execute` — exécute du Lua dans la vraie VM PUC-Rio 5.2.4 du jeu.
+pub async fn execute(
+    State(etat): State<EtatSite>,
+    Json(demande): Json<DemandeExecute>,
+) -> Result<Json<nie_lua::inspection::ExecutionResult>, ErreurSite> {
+    let _jeton = jeton_analyse().await?;
+    let (octets, nom) = if let Some(source) = demande.source.filter(|s| !s.is_empty()) {
+        (source.into_bytes(), "editeur".to_string())
+    } else if let Some(p) = demande.path.filter(|p| !p.is_empty()) {
+        let chemin = resoudre(&etat, &p)?;
+        let data = octets_script(&etat, &chemin).await?;
+        (data, chemin)
+    } else {
+        return Err(ErreurSite::Demande(
+            "Ni 'path' ni 'source' n'a été fourni".to_string(),
+        ));
+    };
+
+    let with_menu_host = demande.with_menu_host.unwrap_or(true);
+    let limit = demande.instruction_limit.or(Some(1_000_000));
+
+    let resultat = tokio::task::spawn_blocking(move || {
+        nie_lua::inspection::execute(&octets, &nom, with_menu_host, limit)
+            .map_err(|e| e.to_string())
+    })
+    .await?
+    .map_err(ErreurSite::Demande)?;
+
+    Ok(Json(resultat))
+}
+
+/// Corps de `POST /api/v1/lua/eval`.
+#[derive(Debug, Deserialize)]
+pub struct DemandeEval {
+    /// Chemin VFS optionnel du script pour charger son contexte.
+    pub path: Option<String>,
+    /// Source Lua texte optionnel pour charger son contexte.
+    pub source: Option<String>,
+    /// Expression Lua à évaluer.
+    pub expression: String,
+    /// Installer les stubs d'hôtes de menu.
+    pub with_menu_host: Option<bool>,
+}
+
+/// Contrat de `GET /api/v1/lua/eval`.
+#[derive(Debug, Serialize)]
+pub struct ContratEval {
+    /// Expression requise.
+    pub expression: &'static str,
+    /// Route d'évaluation.
+    pub route: &'static str,
+}
+
+/// `GET /api/v1/lua/eval` — contrat de la route.
+pub async fn contrat_eval() -> Json<ContratEval> {
+    Json(ContratEval {
+        expression: "string, required Lua expression to evaluate",
+        route: "POST /api/v1/lua/eval",
+    })
+}
+
+/// `POST /api/v1/lua/eval` — évalue une expression dans une VM neuve.
+pub async fn eval(
+    State(etat): State<EtatSite>,
+    Json(demande): Json<DemandeEval>,
+) -> Result<Json<String>, ErreurSite> {
+    let _jeton = jeton_analyse().await?;
+    let (octets, nom) = if let Some(source) = demande.source.filter(|s| !s.is_empty()) {
+        (source.into_bytes(), "editeur".to_string())
+    } else if let Some(p) = demande.path.filter(|p| !p.is_empty()) {
+        let chemin = resoudre(&etat, &p)?;
+        let data = octets_script(&etat, &chemin).await?;
+        (data, chemin)
+    } else {
+        (Vec::new(), "vide".to_string())
+    };
+
+    let with_menu_host = demande.with_menu_host.unwrap_or(true);
+    let expression = demande.expression;
+
+    let resultat = tokio::task::spawn_blocking(move || {
+        nie_lua::inspection::eval(&octets, &nom, &expression, with_menu_host)
+            .map_err(|e| e.to_string())
+    })
+    .await?
+    .map_err(ErreurSite::Demande)?;
+
+    Ok(Json(resultat))
+}
+
+/// Corps de `POST /api/v1/lua/globals`.
+#[derive(Debug, Deserialize)]
+pub struct DemandeGlobals {
+    /// Chemin VFS optionnel du script.
+    pub path: Option<String>,
+    /// Source Lua optionnelle.
+    pub source: Option<String>,
+    /// Installer les stubs de menu.
+    pub with_menu_host: Option<bool>,
+    /// Paires de surcharges de variables globales.
+    pub overrides: Option<Vec<(String, String)>>,
+    /// Inclure les tables standard de Lua.
+    pub include_stdlib: Option<bool>,
+}
+
+/// Contrat de `GET /api/v1/lua/globals`.
+#[derive(Debug, Serialize)]
+pub struct ContratGlobals {
+    /// Chemin optionnel.
+    pub path: &'static str,
+    /// Surcharges optionnelles.
+    pub overrides: &'static str,
+    /// Route d'inspection.
+    pub route: &'static str,
+}
+
+/// `GET /api/v1/lua/globals` — contrat de la route.
+pub async fn contrat_globals() -> Json<ContratGlobals> {
+    Json(ContratGlobals {
+        path: "string, optional VFS path of .lua.bin",
+        overrides: "array of [string, string], optional global variable overrides",
+        route: "POST /api/v1/lua/globals",
+    })
+}
+
+/// `POST /api/v1/lua/globals` — inspecte les globales après exécution.
+pub async fn globals(
+    State(etat): State<EtatSite>,
+    Json(demande): Json<DemandeGlobals>,
+) -> Result<Json<Vec<nie_lua::inspection::Global>>, ErreurSite> {
+    let _jeton = jeton_analyse().await?;
+    let (octets, nom) = if let Some(source) = demande.source.filter(|s| !s.is_empty()) {
+        (source.into_bytes(), "editeur".to_string())
+    } else if let Some(p) = demande.path.filter(|p| !p.is_empty()) {
+        let chemin = resoudre(&etat, &p)?;
+        let data = octets_script(&etat, &chemin).await?;
+        (data, chemin)
+    } else {
+        return Err(ErreurSite::Demande(
+            "Ni 'path' ni 'source' n'a été fourni".to_string(),
+        ));
+    };
+
+    let with_menu_host = demande.with_menu_host.unwrap_or(true);
+    let overrides = demande.overrides.unwrap_or_default();
+    let include_stdlib = demande.include_stdlib.unwrap_or(false);
+
+    let resultat = tokio::task::spawn_blocking(move || {
+        nie_lua::inspection::globals_after_run(
+            &octets,
+            &nom,
+            with_menu_host,
+            &overrides,
+            include_stdlib,
+        )
+        .map_err(|e| e.to_string())
+    })
+    .await?
+    .map_err(ErreurSite::Demande)?;
+
+    Ok(Json(resultat))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -869,11 +1083,11 @@ mod tests {
         assert_eq!(s[1].octets, 12);
     }
 
-    /// Arbitrary execution stays unavailable while bounded menu replay is routed.
+    /// Menu replay and Lua execution/eval/globals are exposed through safe sandboxed primitives.
     #[test]
     fn only_bounded_menu_replay_is_exposed() {
         let liste = capacites_liste();
-        for interdite in ["execution", "onglets_d_entete", "surface_d_api_hote"] {
+        for interdite in ["onglets_d_entete", "surface_d_api_hote"] {
             let c = liste
                 .iter()
                 .find(|c| c.nom == interdite)
@@ -882,12 +1096,14 @@ mod tests {
             assert!(c.route.is_none(), "{interdite} ne doit porter aucune route");
             assert!(c.raison.is_some(), "{interdite} doit dire pourquoi");
         }
+        for servie in ["execution", "evaluation", "globales", "pilotage_de_menu"] {
+            let c = liste
+                .iter()
+                .find(|c| c.nom == servie)
+                .unwrap_or_else(|| panic!("capacite {servie} non declaree"));
+            assert_eq!(c.etat, "servi", "{servie}");
+            assert!(c.route.is_some(), "{servie} doit porter une route");
+        }
         const { assert!(VM_LIEE) };
-        let runtime = liste
-            .iter()
-            .find(|capability| capability.nom == "pilotage_de_menu")
-            .unwrap();
-        assert_eq!(runtime.etat, "servi");
-        assert_eq!(runtime.route, Some("/api/v1/menu/runtime/{screen}"));
     }
 }

@@ -113,6 +113,14 @@ pub const CHEMINS_HORS_GET: &[&str] = &[
     // GraphQL : la requête voyage dans le corps, c'est le protocole. Comme les autres, elle a son
     // pendant `GET`, qui publie ce que la route attend au lieu d'un `405` muet.
     "/api/v1/graphql",
+    "/api/v1/game-data/encode_cfgbin",
+    "/api/v1/lua/execute",
+    "/api/v1/lua/eval",
+    "/api/v1/lua/globals",
+    "/api/v1/ut/open-pack",
+    "/api/v1/ut/valuation",
+    "/api/v1/ut/team/encrypt",
+    "/api/v1/ut/team/decrypt",
 ];
 
 // Le site ne prend **aucune écriture** : ni base, ni disque, ni état. C'est la garantie que la
@@ -180,10 +188,19 @@ declarer_routes! {
     // Le desassemblage a son PROPRE prefixe au lieu d'etre un suffixe de `/scripts` : un
     // joker (`{*chemin}`) est terminal chez axum, et `/scripts/{*chemin}/desassemblage`
     // ne se declare pas. Cf. `routes::lua`.
+    // La Ville de lien : son catalogue vient de `craft_obj_config`, pas d'une liste tenue ici.
+    "/api/v1/kizuna" => crate::routes::kizuna::catalogue,
+    "/api/v1/kizuna/categories" => crate::routes::kizuna::categories,
+    "/api/v1/kizuna/objects" => crate::routes::kizuna::objects,
+    "/api/v1/kizuna/themes" => crate::routes::kizuna::themes,
+    "/api/v1/kizuna/sources" => crate::routes::kizuna::sources,
     "/api/v1/lua" => crate::routes::lua::capacites,
     "/api/v1/lua/scripts" => crate::routes::lua::scripts,
     "/api/v1/lua/scripts/{*chemin}" => crate::routes::lua::script,
     "/api/v1/lua/desassemblage/{*chemin}" => crate::routes::lua::desassemblage,
+    "/api/v1/lua/execute" => crate::routes::lua::contrat_execute,
+    "/api/v1/lua/eval" => crate::routes::lua::contrat_eval,
+    "/api/v1/lua/globals" => crate::routes::lua::contrat_globals,
     "/api/v1/menu/runtime/{screen}" => crate::routes::menu_runtime::snapshot,
     "/api/v1/runtime/audio" => crate::routes::menu_audio::startup,
     // L'arbre de navigation est construit par `nie-model-serve` depuis les vrais
@@ -370,11 +387,24 @@ declarer_routes! {
     "/api/v1/game-data/skills/{id}" => crate::routes::game_data::skill,
     "/api/v1/game-data/calculate_stats" => crate::routes::game_data::calculate_stats_contract,
     "/api/v1/game-data/decode_cfgbin" => crate::routes::game_data::decode_cfgbin,
+    "/api/v1/game-data/decode_cfgbin_typed" => crate::routes::game_data::decode_cfgbin_typed,
+    "/api/v1/game-data/encode_cfgbin" => crate::routes::game_data::encode_cfgbin_contract,
     "/api/v1/game-data" => crate::routes::game_data::index,
     "/api/v1/game-data/{family}" => crate::routes::game_data::family,
     // The save-like finished-game state every screen reads, cf. `docs/GAME-SCREENS-PLAN.md`
     // "The completed profile" and `routes::profile`.
     "/api/v1/profile/complete" => crate::routes::profile::complete,
+    // IEVR Ultimate Team backend endpoints
+    "/api/v1/ut/players" => crate::routes::ut::get_players,
+    "/api/v1/ut/teams" => crate::routes::ut::get_teams,
+    "/api/v1/ut/packs" => crate::routes::ut::get_packs,
+    "/api/v1/ut/formations" => crate::routes::ut::get_formations,
+    "/api/v1/ut/spirits" => crate::routes::ut::get_spirits,
+    "/api/v1/ut/moves" => crate::routes::ut::get_moves,
+    "/api/v1/ut/open-pack" => crate::routes::ut::contract_open_pack,
+    "/api/v1/ut/valuation" => crate::routes::ut::contract_valuation,
+    "/api/v1/ut/team/encrypt" => crate::routes::ut::contract_encrypt_team,
+    "/api/v1/ut/team/decrypt" => crate::routes::ut::contract_decrypt_team,
     "/" => crate::routes::pages::coquille,
 }
 
@@ -457,6 +487,38 @@ pub fn routeur(etat: EtatSite) -> Router {
             CHEMINS_HORS_GET[6],
             post(crate::routes::zukan::rank)
                 .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024)),
+        )
+        .route(
+            CHEMINS_HORS_GET[12],
+            post(crate::routes::game_data::encode_cfgbin),
+        )
+        .route(
+            CHEMINS_HORS_GET[13],
+            post(crate::routes::lua::execute),
+        )
+        .route(
+            CHEMINS_HORS_GET[14],
+            post(crate::routes::lua::eval),
+        )
+        .route(
+            CHEMINS_HORS_GET[15],
+            post(crate::routes::lua::globals),
+        )
+        .route(
+            CHEMINS_HORS_GET[16],
+            post(crate::routes::ut::post_open_pack),
+        )
+        .route(
+            CHEMINS_HORS_GET[17],
+            post(crate::routes::ut::post_valuation),
+        )
+        .route(
+            CHEMINS_HORS_GET[18],
+            post(crate::routes::ut::post_encrypt_team),
+        )
+        .route(
+            CHEMINS_HORS_GET[19],
+            post(crate::routes::ut::post_decrypt_team),
         )
         .fallback(crate::routes::static_files::statique)
         // Les couches s'empilent de la plus INTERNE à la plus externe, et l'ordre est ici un
@@ -563,6 +625,14 @@ mod tests {
                 "/api/v1/wiki/random-team",
                 "/api/v1/game-data/calculate_stats",
                 "/api/v1/graphql",
+                "/api/v1/game-data/encode_cfgbin",
+                "/api/v1/lua/execute",
+                "/api/v1/lua/eval",
+                "/api/v1/lua/globals",
+                "/api/v1/ut/open-pack",
+                "/api/v1/ut/valuation",
+                "/api/v1/ut/team/encrypt",
+                "/api/v1/ut/team/decrypt",
             ],
             "all non-GET routes compute isolated responses without persistent writes"
         );
@@ -579,7 +649,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 141, "141 routes mounted");
+        assert_eq!(routes.len(), 156, "156 routes mounted");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade
