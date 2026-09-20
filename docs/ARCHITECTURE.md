@@ -165,3 +165,48 @@ The archive crate `nie-engine` (`crates/archive/nie-engine/src/cfgbin.rs`) carri
 `FUN_1404784a0`, `FUN_140435ae0`, `FUN_140452ac0`, `FUN_1415f4e20`, `FUN_14160a910`,
 `FUN_141608cd0`, `FUN_14043b3c0` among others — these are the cfg.bin loader's external
 dependencies, each pointing to a real function in the reference binary.
+
+## Les couches, mesurées (2026-09-20)
+
+Un diagramme de couches est une affirmation vérifiable. Celle-ci l'est désormais par une porte :
+
+```sh
+bun --bun scripts/validation/layers.ts          # vérifie, sort non-zéro sur régression
+bun --bun scripts/validation/layers.ts --write  # réimprime la table depuis la mesure
+```
+
+Elle fige le rang **mesuré** — le plus long chemin de dépendances internes — et non un rang
+voulu. Mesuré : **50 crates, 9 rangs (N0..N8), aucune dépendance qui remonte.**
+
+### Ce qu'une version antérieure du diagramme affirmait, et qui ne tenait pas
+
+| Affirmé | Mesuré |
+|---|---|
+| 41 crates | **50**. Absents du diagramme : `aphrody-re`, `ievr-tools`, `nie-aphrody`, `nie-bevy`, `nie-computer-use`, `nie-dump`, `nie-queue`, `nie-tasks`, `nie-zukan` |
+| 6 couches | **9 rangs** |
+| couches étanches unidirectionnelles | la **fondation dépend vers le haut par défaut** : `nie-core → nie-data`, `nie-formats → nie-lua`, plus `nie-ffi → nie-wiki` et `nie-wasm → nie-model-serve`, toutes non optionnelles |
+| `src-tauri` hors du workspace, table `[workspace]` vide, pour éviter le conflit `links = "sqlite3"` | `src-tauri` **est** membre (`Cargo.toml:18`) et n'a aucune table `[workspace]`. `cargo check -p inacord` sort **0** : le conflit ne se manifeste pas. Il est membre **non par défaut**, ce qui n'est pas la même chose qu'être dehors |
+
+**Aucune de ces dépendances n'est un défaut.** `nie-formats` décode le bytecode Lua par
+`nie-lua`, source unique du décodeur : c'est le bon choix. Ce qui était faux, c'est le **rang**
+assigné à ces crates — la règle « extract before you bind » tient, c'est la carte qui ne
+correspondait pas au terrain.
+
+### Une exception, documentée plutôt que tue
+
+Une **dev-dependency** peut remonter sans rien casser : elle rejoint le graphe des tests, pas
+celui de la bibliothèque. `nie-lua` (N1) emprunte ainsi `nie-formats` (N2) pour lire de vrais
+`.lua.bin` du jeu dans ses goldens ; inverser cette dépendance obligerait à dupliquer le VFS.
+La porte laisse passer ce cas en le nommant.
+
+Cargo interdit déjà les cycles dans le graphe de compilation : « aucune dépendance cyclique »
+est vrai par construction et n'a pas besoin d'être testé.
+
+### Ce qui reste invérifiable ici
+
+Les **215 688 unités de forge** sont corroborées par quatre documents du dépôt
+(`AGENTS.md`, `PLAN.md` ×2, la skill `re-workflow`) mais leur source vivante,
+`var/forge/cover.json`, **est absente de cette machine** — `var/` ne porte que des artefacts
+régénérables. Ce qui est présent, `data/forge/registry.json`, compte **34 entrées** et est ancré
+sur `b1fa04ea365868e5…`, qui est bien le binaire cible. Le chiffre n'est donc ni confirmé ni
+infirmé par la mesure : il est régénérable, pas consultable en l'état.
