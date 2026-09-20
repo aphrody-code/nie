@@ -853,7 +853,12 @@ Bun.serve({
 console.log(`🌐 Serveur HTTP et WebSocket à l'écoute sur le port ${PORT}`);
 
 // ─── SERVEUR TCP IPC LOCAL (BUN.LISTEN) ──────────────────────────────────────
-const IPC_PORT = 4001;
+// Port IPC. Ce démon est un fork de celui de `rg`, qui écoute lui aussi sur
+// 4001 : les deux unités se disputaient le port, et celle qui démarrait en
+// second entrait en boucle de redémarrage. 4001 appartient à Rose Griffon
+// (`rg-cron.service`, relayé sur le VPN) ; `niers` prend la valeur d'environnement
+// `CRON_IPC_PORT`, fixée à 4011 par le drop-in systemd de `nie-cron.service`.
+const IPC_PORT = Number(process.env.CRON_IPC_PORT) || 4001;
 
 Bun.listen({
 	hostname: "127.0.0.1",
@@ -923,7 +928,10 @@ onTelemetryUpdate((telemetry) => {
 //     précédente en cherchait un par NOM (`annonces`, `news`, `general`) et
 //     publiait dedans. Un salon d'annonces se DÉSIGNE par un administrateur ;
 //     il ne se devine pas.
-const ANNOUNCE_PORT = 3006;
+// Même collision que `CRON_PORT` et `CRON_IPC_PORT` : ce démon est un fork de
+// celui de `rg`, qui écoute déjà 3006. `niers` prend `CRON_ANNOUNCE_PORT`,
+// fixé à 3016 par le drop-in systemd de `nie-cron.service`.
+const ANNOUNCE_PORT = Number(process.env.CRON_ANNOUNCE_PORT) || 3006;
 const announceSecret = (Bun.env.DISCORD_ANNOUNCE_SECRET ?? "").trim();
 
 if (announceSecret === "") {
