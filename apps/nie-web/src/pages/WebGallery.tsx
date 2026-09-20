@@ -9,6 +9,7 @@ import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { readableSize } from "./screen-parts";
 import { splitLanguagePrefix } from "../routing";
 import { fetchJson } from "@niers/asset-source";
+import { downloadExport, fetchExportFormats } from "../game/export-formats";
 
 /** Name hits expanded into VFS lookups. One exact, bounded catalogue page is requested per hit. */
 const MAX_NAME_CODES = 12;
@@ -83,6 +84,10 @@ export function createWebGalleryServices(
  return {
   nameSource: "wiki-http",
   resolveNames: resolveResourceNames,
+  // La conversion est celle de `nie-site`, pas une réencodage local : le serveur seul sait ce
+  // qu'il sait produire d'un `.g4tx`, et il le déclare fichier par fichier.
+  exportFormats: (path, _gameDir) => fetchExportFormats(path),
+  exportAs: (path, format, _gameDir) => downloadExport(path, format),
   async ls(prefix) {
    const result = await source.parcourir(prefix, { ext: "g4tx", parPage: 1 });
    return { dirs: result.dossiers.map(path => ({
@@ -90,17 +95,22 @@ export function createWebGalleryServices(
     count: result.folderCounts?.[path] ?? 0,
    })) };
   },
-  async findPaged(prefix, ext, limit, offset, _gameDir, query, signal) {
+  async findPaged(prefix, ext, limit, offset, _gameDir, query, signal, sort) {
    if (!source.catalogue) throw new Error("Paged resource listing is unavailable");
    const pageSize = Math.min(200, Math.max(1, Math.floor(limit)));
    const requestedOffset = Math.max(0, Math.floor(offset));
    const page = Math.floor(requestedOffset / pageSize) + 1;
    const skip = requestedOffset % pageSize;
    const term = query?.trim() ?? "";
+   // `/api/v1/recherche` nomme ses critères en français (`tri=nom|taille`, `ordre=asc|desc`) ;
+   // le contrat du composant les nomme en anglais. La traduction se fait ICI, au seul endroit
+   // qui connaît les deux vocabulaires.
+   const ordering = sort ? { tri: sort.by === "size" ? "taille" as const : "nom" as const, ordre: sort.order } : {};
    const result = await source.catalogue("textures", {
     prefixe: prefix,
     ext,
     ...(term ? { q: term } : {}),
+    ...ordering,
     page,
     parPage: pageSize,
     signal,

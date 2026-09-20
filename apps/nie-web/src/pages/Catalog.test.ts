@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { catalogHrefForView, filterStateFromUrl } from "./Catalog";
+import { catalogHrefForView, filterStateFromUrl, galleryHref } from "./Catalog";
 
 describe("catalogue URL state", () => {
 	test("reads every server filter and pagination control from the URL", () => {
@@ -100,5 +100,18 @@ describe("catalogue URL state", () => {
 		expect(audio.searchParams.get("ext")).toBe("awb");
 		expect(video.searchParams.has("ext")).toBeFalse();
 		expect(nativeVideo.searchParams.get("ext")).toBe("webm");
+	});
+});
+
+describe("galerie, onglet de tête", () => {
+	test("garde l’adresse publiée `?display=gallery` sur la route des textures", () => {
+		// L'onglet change de niveau, pas d'adresse : aucune cinquième route n'est servie, et un
+		// lien déjà partagé continue d'ouvrir exactement la même vue.
+		expect(galleryHref("https://nie.test/textures")).toBe("/textures?display=gallery");
+		expect(galleryHref("https://nie.test/ja/sons")).toBe("/ja/textures?display=gallery");
+	});
+
+	test("emporte la recherche en cours vers la galerie", () => {
+		expect(galleryHref("https://nie.test/sons?q=mark")).toBe("/textures?q=mark&display=gallery");
 	});
 });

@@ -114,8 +114,17 @@ export function sousDossierDe(chemin: string): string | null {
   return barre === -1 ? null : reste.slice(0, barre);
 }
 
-/** Préfixe VFS d'une catégorie, éventuellement restreinte à un sous-dossier. */
-export function prefixeCategorie(categorie: string, sousDossier?: string | null): string {
+/**
+ * Préfixe VFS d'une catégorie, éventuellement restreinte à un sous-dossier.
+ *
+ * `null` désigne **toutes les catégories** : le préfixe est alors la racine, et la page rendue
+ * porte les 17 085 illustrations au lieu des quelques centaines d'un dossier. Sans ce cas, une
+ * catégorie était toujours forcée (la première renvoyée par `ls`) et la galerie complète — celle
+ * que le titre annonce — n'était atteignable par aucune combinaison de filtres. Une recherche
+ * ne portait jamais que sur un dossier, ce que rien à l'écran ne disait.
+ */
+export function prefixeCategorie(categorie: string | null, sousDossier?: string | null): string {
+  if (!categorie) return `${RACINE_GALERIE}/`;
   return sousDossier
     ? `${RACINE_GALERIE}/${categorie}/${sousDossier}/`
     : `${RACINE_GALERIE}/${categorie}/`;

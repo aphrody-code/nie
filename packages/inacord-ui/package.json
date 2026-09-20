@@ -36,6 +36,7 @@
 		"./three/*": "./src/three/*.tsx",
 		"./gallery/GalleryView": "./src/gallery/GalleryView.tsx",
 		"./gallery/GalleryFilters": "./src/gallery/GalleryFilters.tsx",
+		"./gallery/ExportMenu": "./src/gallery/ExportMenu.tsx",
 		"./gallery/gallery": "./src/gallery/gallery.ts",
 		"./gallery/contracts": "./src/gallery/contracts.ts",
 		"./shell/game-canvas": "./src/shell/game-canvas.tsx"

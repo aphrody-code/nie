@@ -20,7 +20,8 @@ import { GalleryCard } from "../components/wiki/wiki/GalleryCard";
 // 8 294 752 octets pièce) — c'est exactement l'accident que `thumbs.ts` documente.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { GalleryDirectory as VfsDir, GalleryServices } from "./contracts";
+import type { GalleryDirectory as VfsDir, GalleryServices, GallerySort } from "./contracts";
+import { ExportMenu } from "./ExportMenu";
 import { GalleryFilters } from "./GalleryFilters";
 import {
   EXT_GALERIE,
@@ -42,8 +43,15 @@ import { Icon } from "@niers/inacord-ui/components/ui/Icon";
 import { Input } from "@niers/inacord-ui/components/ui/input";
 import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
 
-/** Illustrations affichées d'un coup — au-delà, un bouton « en afficher plus ». */
-const PAR_PAGE = 60;
+/**
+ * Illustrations affichées d'un coup — au-delà, un bouton « en afficher plus ».
+ *
+ * 120 et pas 200 : `/api/v1/recherche` CLIPE en silence à `PER_PAGE_MAX = 200` (cf. CLAUDE.md),
+ * et une page qui demanderait la borne exacte ne laisserait aucune marge pour l'enrichissement
+ * par nom, qui concatène ses propres résultats à la page de chemins. Ce qui décide vraiment du
+ * confort est le défilement infini, pas la taille d'un lot.
+ */
+const PAR_PAGE = 120;
 /** Delay between visible URL/input state and a remote gallery search. */
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -225,6 +233,13 @@ function Visionneuse({
         >
           <Icon name="download" size={16} /> Exporter en PNG…
         </button>
+        {/* Le PNG reste un raccourci d'un clic ; le menu donne TOUS les formats que l'hôte
+            déclare pour ce fichier-là, y compris le fichier d'origine sans conversion. */}
+        <ExportMenu
+          path={item.chemin}
+          listFormats={services.exportFormats && ((path) => services.exportFormats!(path, gameDir))}
+          download={services.exportAs && ((path, format) => services.exportAs!(path, format, gameDir))}
+        />
         {onOuvrirDansExplorateur && (
           <button
             type="button"
@@ -324,6 +339,7 @@ export function GalleryView({
   };
   const selectSubfolder = (value: string | null) => { setLocalSubfolder(value); onSubfolderChange?.(value); };
   const changeQuery = (value: string) => { setLocalQuery(value); onQueryChange?.(value); };
+  const [tri, setTri] = useState<GallerySort>({ by: "name", order: "asc" });
   const [chargement, setChargement] = useState(true);
   const [chargementSuite, setChargementSuite] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -364,8 +380,11 @@ export function GalleryView({
       .then((l) => {
         if (!active) return;
         setCategories(l.dirs);
-        const selected = l.dirs.some((d) => d.name === categorie) ? categorie : l.dirs[0]?.name ?? null;
-        selectCategory(selected);
+        // Une catégorie inconnue retombe sur « Toutes » (`null`), jamais sur la PREMIÈRE du
+        // dossier : ce repli-là forçait un dossier au montage, si bien que la galerie complète
+        // n'était atteignable par aucune combinaison de filtres et qu'une recherche ne portait
+        // que sur `activity_photo`.
+        if (categorie && !l.dirs.some((d) => d.name === categorie)) selectCategory(null);
         return null;
       })
       .catch((e) => { if (active) setErreur(String(e)); })
@@ -427,13 +446,6 @@ export function GalleryView({
   // First bounded page of the current category (or subfolder). Further pages are requested only
   // when the sentinel is reached; a 12,460-entry folder no longer becomes one 30,000-row query.
   useEffect(() => {
-    if (!categorie) {
-      activeRequest.current?.abort();
-      activeRequest.current = null;
-      setItems([]);
-      setTotalItems(0);
-      return;
-    }
     let annule = false;
     activeRequest.current?.abort();
     const controller = new AbortController();
@@ -453,6 +465,7 @@ export function GalleryView({
         settings.gameDir,
         serverSearch ? serverQuery : undefined,
         controller.signal,
+        tri,
       )
       .then((page) => {
         if (!annule && generation === requestGeneration.current) {
@@ -472,10 +485,10 @@ export function GalleryView({
       annule = true;
       controller.abort();
     };
-  }, [categorie, sousDossier, enrichissements, settings.gameDir, services, serverSearch, serverQuery]);
+  }, [categorie, sousDossier, enrichissements, settings.gameDir, services, serverSearch, serverQuery, tri]);
 
   const chargerSuite = useCallback(() => {
-    if (!categorie || chargement || chargementSuite || items.length >= totalItems) return;
+    if (chargement || chargementSuite || items.length >= totalItems) return;
     const generation = requestGeneration.current;
     activeRequest.current?.abort();
     const controller = new AbortController();
@@ -492,6 +505,7 @@ export function GalleryView({
         settings.gameDir,
         serverSearch ? serverQuery : undefined,
         controller.signal,
+        tri,
       )
       .then((page) => {
         if (generation !== requestGeneration.current) return null;
@@ -509,7 +523,7 @@ export function GalleryView({
         if (activeRequest.current === controller) activeRequest.current = null;
         if (generation === requestGeneration.current) setChargementSuite(false);
       });
-  }, [categorie, chargement, chargementSuite, enrichissements, items.length, settings.gameDir, services, sousDossier, totalItems, serverSearch, serverQuery]);
+  }, [categorie, chargement, chargementSuite, enrichissements, items.length, settings.gameDir, services, sousDossier, totalItems, serverSearch, serverQuery, tri]);
 
   const codes = useMemo(() => items.map(item => resourceCode(item.chemin)), [items]);
   const names = useResolvedNames(services.resolveNames, services.nameSource ?? "", settings.gameLocale, codes);
@@ -563,6 +577,38 @@ export function GalleryView({
           value={recherche}
           onChange={(e) => changeQuery(e.target.value)}
         />
+        {/* Le tri est demandé au serveur d'index (`tri`/`ordre`), pas appliqué à la page déjà
+            reçue : trier ici ne toucherait que les 120 lignes chargées tout en affichant un
+            ordre sur un total de 17 085. */}
+        <div className="flex items-center gap-1" role="group" aria-label="Trier">
+          {([
+            { by: "name", label: "Nom" },
+            { by: "size", label: "Taille" },
+          ] as const).map((option) => (
+            <button
+              key={option.by}
+              type="button"
+              aria-pressed={tri.by === option.by}
+              className={`state-layer rounded-full border px-3 py-1.5 type-label-medium ${
+                tri.by === option.by
+                  ? "border-primary bg-primary text-on-primary"
+                  : "border-outline-variant/30 text-on-surface-variant"
+              }`}
+              onClick={() =>
+                setTri((current) =>
+                  current.by === option.by
+                    ? { by: option.by, order: current.order === "asc" ? "desc" : "asc" }
+                    : { by: option.by, order: "asc" },
+                )
+              }
+            >
+              {option.label}
+              {tri.by === option.by && (
+                <Icon name={tri.order === "asc" ? "arrow_upward" : "arrow_downward"} size={14} />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {erreur && (
@@ -575,6 +621,23 @@ export function GalleryView({
       <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[8rem_minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(180px,220px)_minmax(0,1fr)] sm:grid-rows-1">
         <ScrollArea className="h-32 min-h-0 rounded-2xl border border-app-line bg-app-dark-box sm:h-auto">
           <div className="divide-y divide-app-line">
+            {/* « Toutes » est une VRAIE entrée, pas un effacement de filtre : elle interroge la
+                racine, donc son compte est le total du VFS et la recherche porte sur les 26
+                dossiers d'un coup. */}
+            <button
+              type="button"
+              className={`state-layer flex w-full items-center justify-between gap-2 px-3 py-2 text-left type-body-medium ${
+                categorie === null
+                  ? "bg-secondary-container text-on-secondary-container"
+                  : "text-on-surface"
+              }`}
+              onClick={() => selectCategory(null)}
+            >
+              <span className="min-w-0 flex-1 truncate font-medium">Toutes les catégories</span>
+              <span className="tabular-nums type-label-small text-on-surface-variant">
+                {total.toLocaleString(settings.locale)}
+              </span>
+            </button>
             {categories.map((c) => (
               <button
                 key={c.name}

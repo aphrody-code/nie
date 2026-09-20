@@ -280,3 +280,20 @@ export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
 		})),
 	];
 }
+
+/**
+ * Les adresses que DEUX pages servaient, et l'unique page qui les sert désormais.
+ *
+ * `inacord/gallery` et `gallery_menu` rendaient tous les deux une galerie, mais pas la même :
+ * l'espace de travail montrait le VFS (17 085 `.g4tx` sous `data/dx11/menu/220_img/`, catégories
+ * découvertes par `ls`), l'écran du jeu montrait `gallery_config` (360 lignes). Le second se
+ * présentait comme « la Galerie » tout en n'en portant que 2 %, et le premier n'était annoncé
+ * nulle part. Un visiteur n'avait aucun moyen de savoir laquelle des deux il regardait.
+ *
+ * Une seule survit, avec sa vraie source : l'écran du jeu, qui ouvre la galerie complète sur
+ * `?display=gallery`. L'ancienne adresse y mène en REMPLAÇANT l'historique — elle a été publiée,
+ * elle ne se casse pas, mais elle ne doit pas non plus laisser deux états concurrents vivre.
+ */
+export const MERGED_ROUTES: Readonly<Record<string, { route: string; search: string }>> = {
+	[`${INACORD}/gallery`]: { route: GALLERY, search: "?display=gallery" },
+};

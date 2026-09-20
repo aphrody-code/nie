@@ -51,7 +51,7 @@ import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime"
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 import { NativeText } from "../pages/NativeText";
 import { ScreenStatus } from "../pages/screen-parts";
-import { WebGallery } from "../pages/WebGallery";
+import { Catalog } from "../pages/Catalog";
 import "./trophy-gallery.css";
 import { loadMenuLayout } from "../game/menu-layout";
 import {
@@ -279,7 +279,12 @@ export function TrophyGallery({ onBack }: TrophyGalleryProps) {
 						<h1>Assets de la galerie</h1>
 					</div>
 				</header>
-				<div className="trophy-gallery-assets__browser"><WebGallery /></div>
+				<div className="trophy-gallery-assets__browser">
+					{/* La page complète des médias, et non la seule grille : la galerie y est un
+					    onglet de tête aux côtés des textures, des modèles, des sons et des vidéos.
+					    `?display=gallery` — l'adresse par laquelle cet écran arrive ici — la choisit. */}
+					<Catalog view="textures" />
+				</div>
 			</section>
 		);
 	}

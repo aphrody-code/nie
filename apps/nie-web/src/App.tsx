@@ -25,6 +25,7 @@ import {
 	GALLERY,
 	INACORD,
 	LEGACY_ROUTES,
+	MERGED_ROUTES,
 	MEDIA,
 	MODES,
 	SETTINGS,
@@ -103,8 +104,21 @@ function GameSite() {
 	// Une adresse héritée mène à l'écran officiel du jeu, en remplaçant l'historique
 	useEffect(() => {
 		const canonical = LEGACY_ROUTES[vue];
-		if (canonical) setVue(canonical, undefined, { replace: true });
-	}, [vue, setVue]);
+		if (canonical) {
+			setVue(canonical, undefined, { replace: true });
+			return;
+		}
+		// Et une adresse FUSIONNÉE mène à la page qui a absorbé la sienne, avec le paramètre qui
+		// ouvre la bonne surface : sans lui, `inacord/gallery` atterrirait sur la grille des
+		// succès plutôt que sur la galerie qu'elle servait. Cf. `MERGED_ROUTES`.
+		const merged = MERGED_ROUTES[vue];
+		if (merged) {
+			const url = new URL(window.location.href);
+			url.pathname = `${prefixe}/${merged.route}`;
+			url.search = merged.search;
+			setVue(merged.route, url, { replace: true });
+		}
+	}, [vue, setVue, prefixe]);
 
 	const vfs = etat?.capacites?.vfs ?? null;
 	const startupReady = Boolean(

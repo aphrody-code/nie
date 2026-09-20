@@ -66,6 +66,8 @@ import { agree, Notice, readableSize, ViewTitle } from "./screen-parts";
 import { Modeles3D as Models3D } from "./Models3D";
 import { CatalogAudioBank, CatalogMoviePreview } from "./CatalogMedia";
 import { GameText } from "@niers/inacord-ui";
+import { ExportMenu } from "@niers/inacord-ui/gallery/ExportMenu";
+import { downloadExport, fetchExportFormats } from "../game/export-formats";
 
 /**
  * Tailles de page proposées. Le serveur borne à **200** (`config.rs:27`) : proposer davantage
@@ -402,10 +404,15 @@ function stateFromPanel(value: GameFilterValue): Partial<FilterState> {
 	};
 }
 
-/** Les trois lectures des textures, telles que `?display=` les nomme. */
+/**
+ * Les deux autres lectures des textures, telles que `?display=` les nomme.
+ *
+ * La galerie en est partie : elle est montée au PREMIER niveau (cf. `TOP_TABS`). Son adresse
+ * `?display=gallery` n'a pas bougé pour autant — elle est publiée, et un lien partagé ne se
+ * casse pas pour déplacer un onglet.
+ */
 const TEXTURE_DISPLAYS: readonly GameTab[] = [
 	{ id: "files", label: "Fichiers", icon: GLYPHES.arbre },
-	{ id: "gallery", label: "Galerie", icon: GLYPHES.image },
 	{ id: "text", label: "Textes", icon: GLYPHES.livre },
 ];
 
@@ -424,6 +431,31 @@ const VIEWS: readonly (GameTab & { id: CatalogView })[] = [
 	{ id: "sons", label: "Sons", icon: VIEW_ICONS.sons },
 	{ id: "videos", label: "Vidéos", icon: VIEW_ICONS.videos },
 ];
+
+/**
+ * La galerie, cinquième onglet de tête — et identifiant d'affichage LOCAL, pas une `CatalogView`.
+ *
+ * `CatalogView` est le type de la ROUTE : il est lu par `@niers/asset-source`, par
+ * `entries.ts` (`CATALOGS`) et par le tableau des pages de `nie-site`
+ * (`crates/tools/nie-site/src/routes/pages.rs`). L'élargir imposerait une cinquième route
+ * servie — avec ses quatre compteurs de `routes.rs`, ses `hreflang` et son sitemap — pour une
+ * vue qui est déjà servie par `/textures?display=gallery`. L'onglet change donc de NIVEAU,
+ * pas d'adresse : il reste la route des textures, avec son `display`.
+ */
+const GALLERY_TAB = "galerie";
+
+/** La barre de tête : les quatre catalogues, puis la galerie. */
+const TOP_TABS: readonly GameTab[] = [
+	...VIEWS,
+	{ id: GALLERY_TAB, label: "Galerie", icon: GLYPHES.image },
+];
+
+/** L'adresse canonique de la galerie, dans la langue courante, filtres de texte conservés. */
+export function galleryHref(location: string): string {
+	const target = new URL(catalogHrefForView(location, "textures"), "http://localhost");
+	target.searchParams.set("display", "gallery");
+	return `${target.pathname}${target.search}`;
+}
 
 /**
  * Les médias — **une seule page**, décidé par l'utilisateur le 2026-09-06.
@@ -486,14 +518,38 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 		router.push(catalogHrefForView(location, nextView));
 	};
 
+	/**
+	 * La bande de tête, galerie comprise.
+	 *
+	 * Revenir de la galerie vers « Textures » ne peut pas passer par `setView` : la route ne
+	 * change pas — c'est `display` qui change — et `setView` s'arrête sur `nextView === view`.
+	 * C'est exactement le chemin par lequel l'onglet aurait paru mort.
+	 */
+	const selectTopTab = (next: string) => {
+		if (next === GALLERY_TAB) {
+			if (view === "textures" && gallery) return;
+			router.push(galleryHref(location));
+			return;
+		}
+		// Seule la galerie est concernée : `display=text` reste choisi par la sous-bande, et
+		// recliquer l'onglet de tête déjà actif ne doit pas effacer ce choix-là.
+		if (next === "textures" && gallery) {
+			const url = new URL(catalogHrefForView(location, "textures"), "http://localhost");
+			url.searchParams.delete("display");
+			router.push(`${url.pathname}${url.search}`);
+			return;
+		}
+		setView(next as CatalogView);
+	};
+
 	return (
 		<>
 			{/* One shared game tab strip: keyboard focus, selected state and the visual material
 			    remain identical to the texture sub-view and the other reconstructed screens. */}
 			<GameTabStrip
-				tabs={VIEWS}
-				value={view}
-				onChange={(value) => setView(value as CatalogView)}
+				tabs={TOP_TABS}
+				value={view === "textures" && gallery ? GALLERY_TAB : view}
+				onChange={selectTopTab}
 				previousKey={null}
 				nextKey={null}
 				ariaLabel="Type de média"
@@ -505,10 +561,10 @@ export function Catalog({ view: route }: { view: CatalogView }) {
 			  * game's own tab strip, not three ad-hoc pills. `W`/`C` are removed because this
 			  * host binds no key to them; drawing a cap without a handler is forbidden here.
 			  */}
-			{view === "textures" ? (
+			{view === "textures" && !gallery ? (
 				<GameTabStrip
 					tabs={TEXTURE_DISPLAYS}
-					value={text ? "text" : gallery ? "gallery" : "files"}
+					value={text ? "text" : "files"}
 					onChange={(next) => {
 						const url = new URL(window.location.href);
 						if (next === "files") url.searchParams.delete("display");
@@ -835,6 +891,14 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 									</div>
 								</div>
 								<a href={source.urlFichier(entry.chemin)}>Ouvrir le fichier original</a>
+								{/* Les formats sont ceux que le serveur déclare POUR CE FICHIER ; hors de
+								    l'hôte `nie`, les deux routes d'export n'existent pas et le contrôle le dit. */}
+								<ExportMenu
+									path={entry.chemin}
+									label="Télécharger / Convertir…"
+									listFormats={source.hote === "nie" ? (path: string) => fetchExportFormats(path) : undefined}
+									download={source.hote === "nie" ? downloadExport : undefined}
+								/>
 							</div>
 						</div>
 					))}
