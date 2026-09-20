@@ -1508,11 +1508,31 @@ pub fn extract_piece(
 /// ±3,4 × 10³⁸ — la valeur de `FLT_MAX`, c'est-à-dire un tampon jamais rempli. La rendre étire le
 /// modèle jusqu'à l'infini et fait disparaître tout le reste à l'écran.
 ///
-/// Le seuil est large à dessein : un avatar tient dans deux mètres, et rien de légitime ne dépasse
-/// la centaine.
+/// **Le seuil n'est pas une échelle d'avatar.** Il valait 100 — « un avatar tient dans deux
+/// mètres » — et cette phrase ne parle que de `data/common/chr`. Les maps, les effets, les objets
+/// de menu et les objets d'événement sont écrits en **unités de jeu**, pas en mètres : un dôme de
+/// ciel (`map/sky/sky101c001`) mesure ±1 667, et le filtre le vidait entièrement. Les onze modèles
+/// de la famille `map_sky` sortaient en glTF de 348 octets — zéro maille, aucune erreur.
+///
+/// Recensement du VFS complet (2026-09-20, `examples/census_position_limit`, 15 876 `.g4mg`),
+/// sous-mailles par décade du plus grand `|coordonnée|` :
+///
+/// ```text
+/// sous-arbre           <1e2     <1e3     <1e4     <1e5     <1e6    >=1e6/∞
+/// common/chr          29654       13        0        0        0        25
+/// common/effect       90210      486       43        8        0         5
+/// common/event           44        6        0        0        0         0
+/// common/map          18394    11643      565       12        0        19
+/// common/menu          8131      114       61        0        0         0
+/// ```
+///
+/// La décade `[1e5, 1e6)` est **vide sur tout le corpus** : la géométrie réelle s'arrête sous
+/// 1e5 et le tampon non rempli commence à 3,4e38. Le seuil se pose donc dans ce vide, mesuré,
+/// plutôt que sur une intuition d'échelle. À 100, 12 938 sous-mailles légitimes étaient écartées —
+/// 40 % de celles des maps — pour 49 réellement aberrantes.
 #[must_use]
 pub fn ecarter_positions_aberrantes(prims: Vec<MeshPrimitive>) -> Vec<MeshPrimitive> {
-    const LIMITE: f32 = 100.0;
+    const LIMITE: f32 = 1e5;
     prims
         .into_iter()
         .filter(|p| {

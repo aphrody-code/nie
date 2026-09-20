@@ -20,10 +20,13 @@ fn lire(chemin_partiel: &str) -> Option<Vec<u8>> {
             return None;
         }
     };
+    // Le `.json` dérivé est monté sous le même nom, suffixé : le retenir donnait un
+    // `ListeInconnue("m_LevelLimitInfoList")` qui accusait le patcheur d'un défaut de montage.
+    // Seul le `.cfg.bin` porte la structure RDBN que ce test patche.
     let chemin = vfs
         .iter()
         .map(|(c, _)| c.to_string())
-        .find(|c| c.contains(chemin_partiel))?;
+        .find(|c| c.contains(chemin_partiel) && c.ends_with(".cfg.bin"))?;
     match vfs.read(&chemin) {
         Ok(d) => Some(d),
         Err(e) => {

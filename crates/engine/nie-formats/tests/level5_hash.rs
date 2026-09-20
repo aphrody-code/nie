@@ -119,10 +119,14 @@ fn les_noms_proviennent_bien_des_fichiers_du_jeu() {
     ];
 
     for (fragment, paires) in sources {
+        // Le `.json` DÉRIVÉ est monté à côté du binaire et porte le même fragment de nom. Sans
+        // ce rejet, l'itération peut rendre l'un ou l'autre selon le montage : le test lisait
+        // `cmd_tag_config_2.00.17.00.cfg.bin.json` et concluait que `CMD_TAG_INFO_LIST_END`
+        // n'existe pas dans le jeu. C'est le binaire qui porte les noms hachés.
         let Some(chemin) = vfs
             .iter()
             .map(|(p, _)| p.to_string())
-            .find(|p| p.contains(fragment))
+            .find(|p| p.contains(fragment) && !p.ends_with(".json"))
         else {
             eprintln!("skip {fragment} : non trouvé dans le VFS");
             continue;
