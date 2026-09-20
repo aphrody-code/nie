@@ -2,6 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import type { AssetSource } from "@niers/asset-source";
 import {
 	TEXTURE_DOMAINS,
+	TEXTURE_TOTAL,
 	createWebGalleryServices,
 	rootPrefixForDomain,
 	webGalleryFiltersForCategory,
@@ -175,21 +176,48 @@ describe("createWebGalleryServices", () => {
 		}
 	});
 
-	test("exposes the 5 texture domains and maps root prefixes correctly", () => {
+	test("partitions the whole texture corpus across its 6 domains", () => {
 		expect(TEXTURE_DOMAINS.map(d => d.id)).toEqual([
-			"illustrations",
+			"menu",
 			"characters",
-			"icons",
 			"effects",
 			"maps",
+			"fonts",
+			"events",
 		]);
-		expect(rootPrefixForDomain("illustrations")).toBe("data/dx11/menu/220_img");
+		// La somme EST le corpus : une pastille manquante se voit ici, pas sur un écran.
+		expect(TEXTURE_DOMAINS.reduce((n, d) => n + d.count, 0)).toBe(TEXTURE_TOTAL);
+		// Et les préfixes sont disjoints — sans quoi la somme serait juste par compensation.
+		for (const a of TEXTURE_DOMAINS)
+			for (const b of TEXTURE_DOMAINS)
+				if (a !== b) expect(b.prefix.startsWith(`${a.prefix}/`)).toBe(false);
+		expect(rootPrefixForDomain("menu")).toBe("data/dx11/menu");
 		expect(rootPrefixForDomain("characters")).toBe("data/dx11/chr");
-		expect(rootPrefixForDomain("icons")).toBe("data/dx11/menu/200_icon");
 		expect(rootPrefixForDomain("effects")).toBe("data/dx11/effect");
 		expect(rootPrefixForDomain("maps")).toBe("data/dx11/map");
-		expect(rootPrefixForDomain(null)).toBe("data/dx11/menu/220_img");
-		expect(rootPrefixForDomain("unknown")).toBe("data/dx11/menu/220_img");
+		expect(rootPrefixForDomain("fonts")).toBe("data/dx11/font");
+		expect(rootPrefixForDomain("events")).toBe("data/dx11/event");
+		expect(rootPrefixForDomain(null)).toBe("data/dx11/menu");
+		expect(rootPrefixForDomain("unknown")).toBe("data/dx11/menu");
+	});
+
+	test("keeps the two former domains addressable as categories of the menu tree", () => {
+		expect(rootPrefixForDomain("illustrations")).toBe("data/dx11/menu");
+		expect(rootPrefixForDomain("icons")).toBe("data/dx11/menu");
+		expect(webGalleryFiltersFromUrl("/gallery_menu?domaine=illustrations")).toEqual({
+			query: "",
+			category: "220_img",
+			subfolder: null,
+			domain: "menu",
+		});
+		expect(webGalleryFiltersFromUrl("/gallery_menu?domaine=icons")).toEqual({
+			query: "",
+			category: "200_icon",
+			subfolder: null,
+			domain: "menu",
+		});
+		// Une catégorie écrite dans l'URL est plus précise que celle de l'alias : elle gagne.
+		expect(webGalleryFiltersFromUrl("/gallery_menu?domaine=illustrations&categorie=ev_pic").category).toBe("ev_pic");
 	});
 
 	test("round-trips domaine parameter and resets sub-filters on domain change", () => {
@@ -215,7 +243,9 @@ describe("createWebGalleryServices", () => {
 			domain: "effects",
 		});
 
-		const switchedToDefault = webGalleryFiltersForDomain(switched, "illustrations");
+		// Revenir au domaine par défaut EFFACE le paramètre : l'URL la plus courte est la
+		// canonique, et deux URL pour une même grille se partagent mal.
+		const switchedToDefault = webGalleryFiltersForDomain(switched, "menu");
 		expect(switchedToDefault.domain).toBeUndefined();
 		expect(webGalleryHrefForFilters("/gallery_menu", switchedToDefault)).toBe("/gallery_menu?q=face");
 	});

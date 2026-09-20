@@ -225,7 +225,7 @@ struct UniformMapEntry {
 /// Version de l'assembleur de personnages. À incrémenter à chaque changement de recette ou de
 /// format de sortie : le cache GLB (`var/model-cache`) est purgé au démarrage quand la version
 /// enregistrée dans `VERSION` diffère, et chaque rapport la cite avec le SHA-256 du GLB servi.
-const ASSEMBLER_VERSION: &str = "2026-09-20.animations-1";
+const ASSEMBLER_VERSION: &str = "2026-09-20.animations-2";
 
 /// Cache LRU borné de GLB servis fréquemment.
 ///
@@ -2271,15 +2271,34 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
     Ok(model.to_glb().into())
 }
 
-/// Assemble un modèle de **map/stage** : `data/common/map/<rel>/<base>.{g4mg,g4pkm}` où
-/// `base` = dernier composant de `rel`. Comme les maps n'ont pas de G4MD libre, il est **extrait
-/// du `.g4pkm`** voisin (même mécanique que les modèles waza) ; le G4MG porte la géométrie monde.
-/// Texture embarquée si un `.g4tx` voisin (dx11 ou common) est trouvé. C'est le **monde 3D** du jeu.
-fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
+/// Assemble un modèle d'un arbre `data/common/<racine>/<rel>/<base>.{g4mg,g4md,g4pkm}` où
+/// `base` = dernier composant de `rel`. Comme ces modèles n'ont pas toujours de G4MD libre, il est
+/// **extrait du `.g4pkm`** voisin (même mécanique que les modèles waza) ; le G4MG porte la
+/// géométrie.
+///
+/// Quatre racines partagent exactement cette disposition, relevée sur le VFS de référence le
+/// 2026-09-20 : `map` (2 629 `.g4mg`), `effect` (1 986), `menu` (1 705) et `event` (14). Elles ne
+/// diffèrent que par **où vivent les textures**, et c'est la seule chose dont ce code branche :
+///
+/// - `map` : le `.g4tx` est celui du **stade**, `data/dx11/map/<dossier>/<groupe>.g4tx`, partagé
+///   par toutes les pièces du même groupe — un stade n'a pas un atlas par bâtiment.
+/// - les trois autres : le `.g4tx` est le **voisin exact**, `data/dx11/<racine>/<rel>/<base>.g4tx`.
+///   Vérifié sur `effect/battle/common/ega0001`, dont les quatre fichiers sont un `.g4mg`, un
+///   `.g4pkm`, un `.objbin` sous `data/common/` et ce seul `.g4tx` sous `data/dx11/`.
+///
+/// Les arbres de `data/common/` qui portent des modèles autonomes, dans l'ordre de leur volume.
+///
+/// La liste est **close** : elle borde ce qu'une URL peut désigner, et un nom venu du client
+/// n'y entre jamais. `chr` en est absent à dessein — ses pièces sont reliées par les catalogues
+/// `chara_model`/`chara_parts`, pas par leur dossier, et `/model-full` et `/model-chr` les
+/// servent déjà.
+const RACINES_ARBRE: [&str; 4] = ["map", "effect", "menu", "event"];
+
+fn assemble_tree(state: &State, racine: &str, rel: &str) -> Result<GlbBytes> {
     let base = rel.rsplit('/').next().unwrap_or(rel);
-    let g4mg_path = format!("data/common/map/{rel}/{base}.g4mg");
-    let g4md_path = format!("data/common/map/{rel}/{base}.g4md");
-    let g4pkm_path = format!("data/common/map/{rel}/{base}.g4pkm");
+    let g4mg_path = format!("data/common/{racine}/{rel}/{base}.g4mg");
+    let g4md_path = format!("data/common/{racine}/{rel}/{base}.g4md");
+    let g4pkm_path = format!("data/common/{racine}/{rel}/{base}.g4pkm");
 
     let (g4md, g4mg) = {
         let vfs = &state.vfs;
@@ -2318,7 +2337,7 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
         g4mg,
         component: MeshComponent::Generic,
     })
-    .with_context(|| format!("assemblage map {rel}"))?;
+    .with_context(|| format!("assemblage {racine} {rel}"))?;
 
     // Affecte à chaque primitive (= submesh) son nom de matériau (cœur, sans `_` final).
     if !mat_names.is_empty() && !submesh_mat.is_empty() {
@@ -2334,12 +2353,17 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     // Textures PAR MATÉRIAU depuis le g4tx du STAGE (`<stage>g.g4tx`, 32 textures nommées). Pour
     // chaque matériau distinct, on embarque la texture dont le nom (`<core>.1` base color) matche
     // le `material_name` de la primitive ; `to_glb_embedded` lie alors par nom.
-    let stage_dir = rel.rsplit_once('/').map_or(rel, |(d, _)| d);
-    let group = base.trim_end_matches(|c: char| c.is_ascii_digit());
     let stage_g4tx = {
         let vfs = &state.vfs;
-        vfs.read(&format!("data/dx11/map/{stage_dir}/{group}.g4tx"))
-            .ok()
+        if racine == "map" {
+            let stage_dir = rel.rsplit_once('/').map_or(rel, |(d, _)| d);
+            let group = base.trim_end_matches(|c: char| c.is_ascii_digit());
+            vfs.read(&format!("data/dx11/map/{stage_dir}/{group}.g4tx"))
+                .ok()
+        } else {
+            vfs.read(&format!("data/dx11/{racine}/{rel}/{base}.g4tx"))
+                .ok()
+        }
     };
     if let Some(bytes) = &stage_g4tx
         && let Ok(g4tx) = parse_g4tx(bytes)
@@ -2383,12 +2407,15 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
         if !model.embedded_textures.is_empty() {
             return Ok(model.to_glb_embedded().into());
         }
-        // Repli : texture de sol dominante si aucun binding par matériau n'a abouti.
+        // Repli quand aucun binding par matériau n'a abouti. Pour une map, la texture qui porte
+        // le plus de surface est le sol ; pour un effet ou un objet de menu, l'atlas est souvent
+        // unique et son nom ne reprend pas celui du matériau — prendre la première base-color est
+        // alors exact, pas un pis-aller.
         if let Some(tex) = g4tx
             .textures
             .iter()
             .filter(|t| t.is_dds && t.name.ends_with(".1"))
-            .find(|t| t.name.contains("ground") || t.name.contains("grass"))
+            .find(|t| racine != "map" || t.name.contains("ground") || t.name.contains("grass"))
             && let Some(png_bytes) =
                 g4tx_decode::decode_texture_rgba(bytes, tex).and_then(|(w, h, rgba)| {
                     g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize)
@@ -2405,16 +2432,20 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     Ok(model.to_glb().into())
 }
 
-/// Cache disque pour un modèle de map (`map_<rel-sécurisé>.glb`).
-fn get_or_build_map_glb(state: &State, rel: &str) -> Result<GlbBytes> {
+/// Cache disque pour un modèle d'arbre (`<racine>_<rel-sécurisé>.glb`).
+///
+/// La racine entre dans la clé ET dans le nom de fichier : `effect/battle/common/ega0001` et
+/// `menu/battle/common/ega0001` donneraient sinon la même entrée, et le second servirait le
+/// premier sans qu'aucune réponse ne le dise.
+fn get_or_build_tree_glb(state: &State, racine: &str, rel: &str) -> Result<GlbBytes> {
     let cache_path = state
         .cache_dir
-        .join(format!("map_{}.glb", rel.replace('/', "_")));
-    state.get_or_build_cached_glb(format!("map:{rel}"), &cache_path, || {
-        info!("assemblage live : map {rel}");
-        let glb = assemble_map(state, rel)?;
+        .join(format!("{racine}_{}.glb", rel.replace('/', "_")));
+    state.get_or_build_cached_glb(format!("{racine}:{rel}"), &cache_path, || {
+        info!("assemblage live : {racine} {rel}");
+        let glb = assemble_tree(state, racine, rel)?;
         if let Err(e) = fs::write(&cache_path, &glb) {
-            warn!("écriture cache map {rel} échouée : {e}");
+            warn!("écriture cache {racine} {rel} échouée : {e}");
         }
         Ok(glb)
     })
@@ -5619,7 +5650,21 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
     // `/model-map/<rel>.glb` — modèle de map/stage (géométrie du monde 3D, ex.
     // `s/s02g001/s02g001g02`). Composants alphanum/_ uniquement (anti-traversal, pas de `..`).
-    if let Some(rest) = path.strip_prefix("/model-map/") {
+    // `/model-tree/<racine>/<rel>.glb` — la même route pour les quatre arbres de
+    // `data/common/` qui portent des modèles autonomes. `/model-map/<rel>.glb` en est l'alias
+    // historique et reste servi : il est câblé dans `nie-site` et dans des signets.
+    if let Some((racine, rest)) = path
+        .strip_prefix("/model-map/")
+        .map(|rest| ("map", rest))
+        .or_else(|| {
+            let rest = path.strip_prefix("/model-tree/")?;
+            let (racine, rel) = rest.split_once('/')?;
+            RACINES_ARBRE
+                .iter()
+                .find(|r| **r == racine)
+                .map(|r| (*r, rel))
+        })
+    {
         let rel = rest.strip_suffix(".glb").unwrap_or(rest);
         let valid = !rel.is_empty()
             && rel.len() <= 96
@@ -5629,18 +5674,18 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
             });
         if !valid {
-            respond_text(&mut stream, 400, "Bad Request", "chemin map invalide");
+            respond_text(&mut stream, 400, "Bad Request", "chemin de modèle invalide");
             return;
         }
-        match get_or_build_map_glb(&state, rel) {
+        match get_or_build_tree_glb(&state, racine, rel) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
-                debug!("assemblage map {rel} échoué : {e}");
+                debug!("assemblage {racine} {rel} échoué : {e}");
                 respond_text(
                     &mut stream,
                     404,
                     "Not Found",
-                    &format!("map {rel} non disponible : {e}"),
+                    &format!("{racine} {rel} non disponible : {e}"),
                 );
             }
         }

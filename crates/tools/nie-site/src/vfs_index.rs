@@ -1117,6 +1117,28 @@ impl IndexVfs {
         }
     }
 
+    /// Tous les chemins d'un sous-arbre, dans l'ordre de l'index, quelle que soit leur
+    /// profondeur.
+    ///
+    /// [`Self::dossier`] ne rend que le contenu **direct** d'un préfixe, ce qui suffit à un
+    /// explorateur mais pas à un inventaire : les modèles de `data/common/map/s` vivent deux
+    /// niveaux plus bas (`<stade>/<pièce>/<pièce>.g4mg`), et un appelant qui ne regarde qu'un
+    /// niveau en trouve 2 sur 1 092 sans qu'aucune erreur ne le signale. La tranche est
+    /// obtenue par deux recherches dichotomiques sur les chemins triés — il n'y a pas de
+    /// parcours.
+    #[must_use]
+    pub fn sous_arbre(&self, prefixe: &str) -> &[String] {
+        let prefixe = prefixe.trim_matches('/');
+        if prefixe.is_empty() {
+            return &self.chemins;
+        }
+        let base = format!("{prefixe}/");
+        let debut = self.chemins.partition_point(|c| c.as_str() < base.as_str());
+        let fin = debut
+            + self.chemins[debut..].partition_point(|c| c.starts_with(base.as_str()));
+        &self.chemins[debut..fin]
+    }
+
     /// Dit si un chemin exact est indexé.
     #[must_use]
     pub fn contient(&self, chemin: &str) -> bool {

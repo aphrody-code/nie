@@ -13,7 +13,7 @@ export NIE_GAME_DIR=/home/ubuntu/.local/share/Steam/iecode/inazuma
 niers vfs stats            # 255 342 fichiers, 936 CPK
 ```
 
-## Textures — la galerie en montre moins du tiers
+## Textures — la galerie couvre désormais le corpus entier
 
 `niers vfs find ".g4tx"`, 54 203 fichiers, par arborescence :
 
@@ -26,18 +26,66 @@ niers vfs stats            # 255 342 fichiers, 936 CPK
 | `data/dx11/font` | 34 |
 | `data/dx11/event` | 16 |
 
-La galerie ne liste que `data/dx11/menu/220_img/` : **17 085 fichiers, soit 32 % des textures du
-jeu et 41 % des seules textures de menu**. Les textures de personnage, d'effet et de carte n'ont
-aucune surface web.
+La galerie partitionne désormais ce tableau : ses six domaines (`TEXTURE_DOMAINS`,
+`apps/nie-web/src/pages/WebGallery.tsx`) portent ces six préfixes et rien d'autre, et
+`WebGallery.test.ts` vérifie que leurs comptes **somment à 54 203** et que leurs préfixes sont
+disjoints. Le corpus entier est donc atteignable.
+
+Ce qui l'a été en dernier : les **4 620** textures qui ne sont ni sous `220_img` ni sous
+`200_icon` — les 44 dossiers d'écran de `data/dx11/menu` (match 1 133, équipe 412, combat 398,
+univers 367, victoire 281, Victory Road 239…), plus `font` 34 et `event` 16. Deux domaines de
+premier rang nommés « Illustrations » et « Icônes » ne pouvaient pas les nommer, et aucune
+combinaison de filtres ne les atteignait. `?domaine=illustrations` et `?domaine=icons` restent
+des URL valides : `DOMAIN_ALIASES` les traduit en catégorie du domaine `menu`.
 
 C'est aussi d'où vient le littéral `"54 203 fichiers"` figé dans
 `packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx` : ce n'est pas un nombre de
 fichiers, c'est le nombre de **textures**, affiché sous une autre étiquette.
 
-## Modèles — le catalogue expose six familles, le VFS en porte bien plus
+## Modèles — dix-sept familles, et le listage qui en servait trois à vide
 
-`GET /api/v1/3d` déclare six familles, 6 191 modèles en tout : perso 5 490 (source « miroir »,
-`verifie: false`), waza 273, item 237, keshin 100, armd 89, animal 2.
+`GET /api/v1/3d` déclare **dix-sept** familles. Mesure du 2026-09-20 sur le VFS de référence,
+via un `nie-site` local branché sur un `nie-model-serve` local :
+
+| Famille | Modèles | Famille | Modèles |
+| --- | ---: | --- | ---: |
+| perso (miroir, `verifie: false`) | 5 490 | map_ar | 576 |
+| uniform | 1 022 | map_s | 1 092 |
+| waza | 273 | map_w | 712 |
+| item | 237 | map_k | 177 |
+| keshin | 100 | map_b | 54 |
+| armd | 89 | map_sky | 11 |
+| animal | 2 | effect_battle | 473 |
+| event | 14 | effect_event | 1 507 |
+| | | menu | 1 688 |
+
+Soit **8 027 modèles vérifiés** dans le VFS, plus les 5 490 codes déclarés par le miroir.
+
+Deux choses ont été corrigées pour y arriver, et la première ne se voyait dans aucune réponse.
+
+**Le listage ne descendait que d'un niveau.** `codes_vfs` lisait les sous-dossiers *directs* de
+la racine d'une famille et y cherchait `<code>/<code>.g4mg`. Les pièces d'un stade vivent deux
+niveaux plus bas (`s01g001/s01g001g02/s01g001g02.g4mg`) : `map_s` rendait donc **2 modèles sur
+1 092**, `map_w` **1 sur 712** et `map_k` **0 sur 177** — trois familles servies vides, sans
+erreur, sans trace. `codes_arbre` parcourt le sous-arbre entier (`IndexVfs::sous_arbre`, deux
+recherches dichotomiques sur les chemins triés) et applique le même critère à toute profondeur.
+
+**Un code de famille arborescente est un chemin.** Il est encodé avec `-` plutôt que `/`, parce
+que l'URL du catalogue est `/model/{famille}/{code}.glb` et qu'un `/` y ouvrirait un segment de
+plus, donc une route de plus. Le codage est sans ambiguïté : aucun des 3 705 dossiers de modèle
+des quatre arbres ne contient de tiret (vérifié sur l'index).
+
+Côté amont, les quatre arbres partagent **une** route, `GET /model-tree/<racine>/<rel>.glb`
+(`map`, `effect`, `menu`, `event`). Ils ont exactement la même disposition —
+`data/common/<rel>/<base>.g4mg` et sa texture voisine `data/dx11/<rel>/<base>.g4tx` — et ne
+diffèrent que par là : une map prend le `.g4tx` du *stade*, partagé par tout un groupe.
+`/model-map/<rel>.glb` reste servi comme alias. Échantillon du 2026-09-20 : **48 assemblages sur
+48**, six par famille, du quad de 1 172 octets au bâtiment de 4,6 Mio.
+
+Deux réserves mesurées, qui valent mieux qu'une promesse : un objet 3D de menu est le plus
+souvent un **billboard** — `00_soccer/soccer00/soccer00_01` rend 1 mesh, 1 primitive, 8 sommets,
+0 image — et **17 modèles de menu localisés** (`…/soccer10_05/fr/soccer10_05.g4mg`) restent hors
+catalogue, leur dossier ne portant pas le nom de leur `.g4mg`.
 
 `niers vfs find ".g4md"`, 8 956 fichiers, par famille :
 
@@ -54,13 +102,12 @@ fichiers, c'est le nombre de **textures**, affiché sous une autre étiquette.
 | `data/common/map/w` | 2 |
 | `data/common/chr/_animal` | 1 |
 
-`niers vfs find ".g4mg"`, 15 876 fichiers, ajoute des domaines que le catalogue n'a pas du tout :
-`effect/event` 1 507, `map/s` 1 092, `map/w` 712, `map/ar` 576, `effect/battle` 473,
-`menu/00_soccer` 301, `menu/102_team` 164, `menu/10_win` 145, `map/k` 177.
+`niers vfs find --ext g4mg`, 15 876 fichiers, par arbre : `chr` 9 542, `map` 2 629,
+`effect` 1 986, `menu` 1 705, `event` 14. Les quatre derniers sont ceux que `/model-tree` sert.
 
-Autrement dit : **aucune carte, aucun effet et aucun objet 3D de menu n'est atteignable**, et les
-6 067 visages et 2 622 tenues — les pièces dont un personnage est assemblé — ne sont pas
-parcourables en tant que telles.
+Restent hors catalogue les **6 067 visages** de `_face`, qui ne sont pas des modèles autonomes :
+c'est `chara_model`/`chara_parts` qui les relie à un personnage, et `/model-full` les assemble
+déjà par ce chemin.
 
 ## Animations — le décodeur existe, l'export ne les écrit pas
 

@@ -31,17 +31,49 @@ export interface TextureDomain {
  count: number;
 }
 
+/**
+ * Les six arbres de textures du jeu — une **partition**, pas une sélection.
+ *
+ * Les préfixes sont disjoints et leurs comptes s'additionnent exactement aux 54 203 `.g4tx`
+ * relevés sur le VFS de référence (`niers vfs find --ext g4tx`, 2026-09-20), ce que
+ * `WebGallery.test.ts` vérifie plutôt que de le croire. C'est délibéré : la version précédente
+ * offrait `Illustrations` (220_img) et `Icônes` (200_icon) comme deux domaines de premier rang
+ * et laissait les **44 autres dossiers de `data/dx11/menu`** — 4 570 textures, les écrans de
+ * match, de victoire, de titre, d'avatar — hors de toute combinaison de filtres. Deux pastilles
+ * dont les comptes se lisent comme une somme ne peuvent pas non plus dire qu'il en manque.
+ *
+ * Les deux anciens domaines restent des URL valides : ils sont traduits en catégorie du domaine
+ * `menu` par [`DOMAIN_ALIASES`], donc un lien existant ouvre exactement la même grille.
+ */
 export const TEXTURE_DOMAINS: readonly TextureDomain[] = [
- { id: "illustrations", label: "Illustrations", prefix: "data/dx11/menu/220_img", count: 17085 },
+ { id: "menu", label: "Menus", prefix: "data/dx11/menu", count: 41191 },
  { id: "characters", label: "Personnages", prefix: "data/dx11/chr", count: 9727 },
- { id: "icons", label: "Icônes", prefix: "data/dx11/menu/200_icon", count: 19536 },
  { id: "effects", label: "Effets", prefix: "data/dx11/effect", count: 1995 },
  { id: "maps", label: "Décors & Cartes", prefix: "data/dx11/map", count: 1240 },
+ { id: "fonts", label: "Polices", prefix: "data/dx11/font", count: 34 },
+ { id: "events", label: "Événements", prefix: "data/dx11/event", count: 16 },
 ] as const;
 
+/** Total mesuré des `.g4tx` du jeu — la borne que la partition doit atteindre, pas approcher. */
+export const TEXTURE_TOTAL = 54203;
+
+/**
+ * Domaines d'une version antérieure, traduits en `domaine` + `categorie` du domaine qui les
+ * contient. Un lien partagé ou un signet continue d'ouvrir la même grille.
+ */
+export const DOMAIN_ALIASES: Readonly<Record<string, { domain: string; category: string }>> = {
+ illustrations: { domain: "menu", category: "220_img" },
+ icons: { domain: "menu", category: "200_icon" },
+};
+
+/** Domaine ouvert quand l'URL n'en nomme aucun — le plus fourni, et celui des illustrations. */
+export const DOMAIN_DEFAULT = "menu";
+
 export function rootPrefixForDomain(domain?: string | null): string {
- const found = TEXTURE_DOMAINS.find(d => d.id === domain);
- return found ? found.prefix : "data/dx11/menu/220_img";
+ const alias = domain ? DOMAIN_ALIASES[domain] : undefined;
+ const id = alias?.domain ?? domain;
+ const found = TEXTURE_DOMAINS.find(d => d.id === id);
+ return found ? found.prefix : TEXTURE_DOMAINS[0]!.prefix;
 }
 
 export interface WebGalleryFilterState {
@@ -54,11 +86,14 @@ export interface WebGalleryFilterState {
 export function webGalleryFiltersFromUrl(input: string): WebGalleryFilterState {
  const params = new URL(input, "http://localhost").searchParams;
  const domain = params.get("domaine");
+ const alias = domain ? DOMAIN_ALIASES[domain] : undefined;
  return {
   query: params.get("q") ?? "",
-  category: params.get("categorie"),
+  // Un alias porte SA catégorie : `?domaine=illustrations` doit rendre 220_img, pas la racine
+  // des menus. Une catégorie explicite dans l'URL reste prioritaire — elle est plus précise.
+  category: params.get("categorie") ?? alias?.category ?? null,
   subfolder: params.get("dossier"),
-  ...(domain ? { domain } : {}),
+  ...(alias ? { domain: alias.domain } : domain ? { domain } : {}),
  };
 }
 
@@ -68,7 +103,7 @@ export function webGalleryHrefForFilters(input: string, filters: WebGalleryFilte
   ["q", filters.query],
   ["categorie", filters.category],
   ["dossier", filters.subfolder],
-  ["domaine", filters.domain && filters.domain !== "illustrations" ? filters.domain : null],
+  ["domaine", filters.domain && filters.domain !== DOMAIN_DEFAULT ? filters.domain : null],
  ] as const) {
   if (value) url.searchParams.set(key, value);
   else url.searchParams.delete(key);
@@ -99,7 +134,7 @@ export function webGalleryFiltersForDomain(
 ): WebGalleryFilterState {
  return {
   ...filters,
-  domain: domain && domain !== "illustrations" ? domain : undefined,
+  domain: domain && domain !== DOMAIN_DEFAULT ? domain : undefined,
   category: null,
   subfolder: null,
  };
@@ -249,7 +284,7 @@ export function WebGallery() {
  const services = useMemo(() => createWebGalleryServices(source, setExportError, settings.gameLocale), [source, settings.gameLocale]);
  const location = useSyncExternalStore(subscribeBrowserLocation, browserLocationSnapshot, browserLocationSnapshot);
  const { query, category, subfolder, domain } = webGalleryFiltersFromUrl(location);
- const activeDomain = domain ?? "illustrations";
+ const activeDomain = domain ?? DOMAIN_DEFAULT;
  const writeFilters = (patch: { query?: string; category?: string | null; subfolder?: string | null; domain?: string | null }) => {
   const values = {
    query: patch.query ?? query,

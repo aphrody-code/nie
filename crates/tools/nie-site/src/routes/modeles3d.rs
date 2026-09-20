@@ -150,10 +150,22 @@ pub enum Famille {
     MapW,
     /// La ville Kizuna (`data/common/map/k`).
     MapK,
+    /// Les bâtiments et intérieurs (`data/common/map/b`).
+    MapB,
+    /// Les ciels (`data/common/map/sky`).
+    MapSky,
+    /// Les effets de match (`data/common/effect/battle`).
+    EffetMatch,
+    /// Les effets de scène et d'événement (`data/common/effect/event`).
+    EffetEvenement,
+    /// Les objets 3D des écrans de menu (`data/common/menu`).
+    Menu,
+    /// Les objets 3D d'événement (`data/common/event`).
+    Evenement,
 }
 
-/// Les onze familles, dans l'ordre où elles sont exposées.
-pub const FAMILLES: [Famille; 11] = [
+/// Les dix-sept familles, dans l'ordre où elles sont exposées.
+pub const FAMILLES: [Famille; 17] = [
     Famille::Perso,
     Famille::Waza,
     Famille::Item,
@@ -165,6 +177,12 @@ pub const FAMILLES: [Famille; 11] = [
     Famille::MapS,
     Famille::MapW,
     Famille::MapK,
+    Famille::MapB,
+    Famille::MapSky,
+    Famille::EffetMatch,
+    Famille::EffetEvenement,
+    Famille::Menu,
+    Famille::Evenement,
 ];
 
 impl Famille {
@@ -183,6 +201,12 @@ impl Famille {
             Self::MapS => "map_s",
             Self::MapW => "map_w",
             Self::MapK => "map_k",
+            Self::MapB => "map_b",
+            Self::MapSky => "map_sky",
+            Self::EffetMatch => "effect_battle",
+            Self::EffetEvenement => "effect_event",
+            Self::Menu => "menu",
+            Self::Evenement => "event",
         }
     }
 
@@ -201,6 +225,12 @@ impl Famille {
             Self::MapS => "Stades (maps)",
             Self::MapW => "Monde (maps)",
             Self::MapK => "Kizuna (maps)",
+            Self::MapB => "Bâtiments (maps)",
+            Self::MapSky => "Ciels (maps)",
+            Self::EffetMatch => "Effets de match",
+            Self::EffetEvenement => "Effets de scène",
+            Self::Menu => "Objets 3D de menu",
+            Self::Evenement => "Objets d'événement",
         }
     }
 
@@ -220,6 +250,34 @@ impl Famille {
             Self::MapS => Some("map/s"),
             Self::MapW => Some("map/w"),
             Self::MapK => Some("map/k"),
+            Self::MapB => Some("map/b"),
+            Self::MapSky => Some("map/sky"),
+            Self::EffetMatch => Some("effect/battle"),
+            Self::EffetEvenement => Some("effect/event"),
+            Self::Menu => Some("menu"),
+            Self::Evenement => Some("event"),
+        }
+    }
+
+    /// L'arbre de `data/common/` qui porte la famille, et le chemin de la famille dans cet
+    /// arbre — `None` pour les familles servies par `/model-full` ou `/model-chr`.
+    ///
+    /// C'est ce couple qui décide de la route d'amont : `/model-tree/<racine>/<rel>`, une seule
+    /// route pour les quatre arbres dont les modèles sont **autonomes** (un dossier = un
+    /// modèle), là où un personnage est recomposé depuis ses catalogues.
+    #[must_use]
+    pub fn arbre(self) -> Option<(&'static str, &'static str)> {
+        let sous = self.sous_dossier()?;
+        match self {
+            Self::MapAr | Self::MapS | Self::MapW | Self::MapK | Self::MapB | Self::MapSky => {
+                Some(("map", sous.trim_start_matches("map/")))
+            }
+            Self::EffetMatch | Self::EffetEvenement => {
+                Some(("effect", sous.trim_start_matches("effect/")))
+            }
+            Self::Menu => Some(("menu", "")),
+            Self::Evenement => Some(("event", "")),
+            _ => None,
         }
     }
 
@@ -228,10 +286,9 @@ impl Famille {
     pub fn dossier_vfs(self) -> Option<String> {
         match self {
             Self::Perso => None,
-            Self::MapAr => Some("data/common/map/ar".to_string()),
-            Self::MapS => Some("data/common/map/s".to_string()),
-            Self::MapW => Some("data/common/map/w".to_string()),
-            Self::MapK => Some("data/common/map/k".to_string()),
+            _ if self.arbre().is_some() => {
+                self.sous_dossier().map(|s| format!("data/common/{s}"))
+            }
             _ => self.sous_dossier().map(|s| format!("{RACINE_CHR}/{s}")),
         }
     }
@@ -258,12 +315,17 @@ impl Famille {
     /// `/model-map` pour les maps/stades, et `/model-chr` pour les maillages de personnages/objets.
     #[must_use]
     pub fn chemin_amont(self, code: &str) -> String {
+        if let Some((racine, sous)) = self.arbre() {
+            let rel = chemin_du_code(code);
+            let rel = if sous.is_empty() {
+                rel
+            } else {
+                format!("{sous}/{rel}")
+            };
+            return format!("model-tree/{racine}/{rel}.glb");
+        }
         match self {
             Self::Perso => format!("model-full/{code}.glb"),
-            Self::MapAr => format!("model-map/ar/{code}.glb"),
-            Self::MapS => format!("model-map/s/{code}.glb"),
-            Self::MapW => format!("model-map/w/{code}.glb"),
-            Self::MapK => format!("model-map/k/{code}.glb"),
             _ => {
                 let dossier = self.sous_dossier().unwrap_or("");
                 format!("model-chr/{}/{code}.glb", dossier.trim_start_matches('_'))
@@ -280,10 +342,38 @@ impl Famille {
 #[must_use]
 pub fn code_valide(code: &str) -> bool {
     !code.is_empty()
-        && code.len() <= 32
+        && code.len() <= LONGUEUR_CODE_MAX
         && code
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            .split('-')
+            .all(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+}
+
+/// Longueur maximale d'un code de modèle.
+///
+/// 64 et non 32 : un code de famille arborescente porte un chemin relatif entier
+/// (`battle-common-ega0001`), et le plus long relevé sur le VFS de référence le 2026-09-20 fait
+/// 49 caractères. La borne existe pour qu'une URL ne puisse pas croître sans fin, pas pour
+/// décrire les données — la mesurer au plus juste ferait disparaître des modèles à la prochaine
+/// mise à jour du jeu.
+pub const LONGUEUR_CODE_MAX: usize = 64;
+
+/// Le chemin relatif que désigne un code de famille arborescente.
+///
+/// Les modèles de `map`, `effect`, `menu` et `event` sont **imbriqués** — un stade porte ses
+/// pièces, un écran de menu ses objets — si bien qu'un code n'est pas un nom de dossier mais un
+/// chemin. Le `-` le sépare plutôt que le `/` parce que l'URL du catalogue est
+/// `/model/{famille}/{code}.glb` : un `/` dans le code y ouvrirait un segment de plus, donc une
+/// route de plus, alors que les noms de dossier du jeu n'emploient **aucun tiret** (vérifié sur
+/// les 3 705 modèles des quatre arbres). Le codage est donc réversible sans ambiguïté.
+#[must_use]
+pub fn chemin_du_code(code: &str) -> String {
+    code.replace('-', "/")
+}
+
+/// Le code qui désigne un chemin relatif — l'inverse de [`chemin_du_code`].
+#[must_use]
+pub fn code_du_chemin(rel: &str) -> String {
+    rel.replace('/', "-")
 }
 
 /// Un modèle du catalogue.
@@ -446,6 +536,9 @@ pub fn codes_vfs(index: &IndexVfs, famille: Famille) -> Vec<Modele> {
     let Some(dossier) = famille.dossier_vfs() else {
         return Vec::new();
     };
+    if famille.arbre().is_some() {
+        return codes_arbre(index, famille, &dossier);
+    }
     // `limite = 0` : on ne veut que la liste des sous-dossiers et les totaux, jamais les
     // fichiers directs (il n'y en a pas à ce niveau).
     let racine = index.dossier(&dossier, 0, 0);
@@ -469,6 +562,46 @@ pub fn codes_vfs(index: &IndexVfs, famille: Famille) -> Vec<Modele> {
             ))
         })
         .collect()
+}
+
+/// Les modèles d'une famille **arborescente**, lus sur tout le sous-arbre de l'index.
+///
+/// Le critère est le même que pour une famille plate — `<dossier>/<feuille>.g4mg` — mais il est
+/// cherché à **toute profondeur**. C'est ce qui le sépare de [`codes_vfs`] : les modèles de
+/// `data/common/map/s` vivent sous `<stade>/<pièce>/`, ceux de `data/common/effect/battle` sous
+/// `common/<effet>/`, et un listage à un seul niveau en rendait **2 sur 1 092** pour les stades,
+/// **1 sur 712** pour le monde et **0 sur 177** pour la ville Kizuna — trois familles servies
+/// vides sans qu'aucune réponse ne l'indique (mesuré le 2026-09-20).
+///
+/// Le compte de fichiers est relevé dans la même passe : un dossier de modèle est contigu dans
+/// l'index trié, donc tout chemin partageant son préfixe est une de ses pièces.
+fn codes_arbre(index: &IndexVfs, famille: Famille, dossier: &str) -> Vec<Modele> {
+    let base = format!("{dossier}/");
+    let chemins = index.sous_arbre(dossier);
+    let mut modeles = Vec::new();
+    for (i, chemin) in chemins.iter().enumerate() {
+        let Some(rel) = chemin.strip_prefix(base.as_str()) else {
+            continue;
+        };
+        // Le dossier porte le modèle quand il contient le `.g4mg` **de son propre nom** : c'est
+        // le fichier de géométrie, et l'amont échoue sans lui.
+        let Some((rel_dossier, feuille)) = rel.rsplit_once('/') else {
+            continue;
+        };
+        if feuille.strip_suffix(".g4mg") != rel_dossier.rsplit('/').next() {
+            continue;
+        }
+        let code = code_du_chemin(rel_dossier);
+        if !code_valide(&code) {
+            continue;
+        }
+        // Les pièces du modèle sont les chemins voisins qui partagent le préfixe du dossier.
+        let prefixe = format!("{base}{rel_dossier}/");
+        let debut = chemins[..i].partition_point(|c| c.as_str() < prefixe.as_str());
+        let fichiers = chemins[debut..].partition_point(|c| c.starts_with(prefixe.as_str()));
+        modeles.push(Modele::nouveau(famille, code, None, Some(fichiers)));
+    }
+    modeles
 }
 
 /// Restreint une liste de modèles à ceux dont le code ou le nom contient `motif`.
@@ -675,7 +808,7 @@ pub async fn fiche(
     let mut pieces_octets = 0u64;
     if let Some(dossier) = famille.dossier_vfs() {
         let index = etat.index()?;
-        let d = index.dossier(&format!("{dossier}/{code}"), 0, usize::MAX);
+        let d = index.dossier(&format!("{dossier}/{}", chemin_du_code(&code)), 0, usize::MAX);
         if d.total_fichiers == 0 {
             return Err(ErreurSite::Introuvable(format!(
                 "modele {}/{code} absent du VFS",
@@ -1111,11 +1244,11 @@ mod tests {
     use super::*;
     #[test]
     fn les_familles_sont_distinctes_et_routables() {
-        assert_eq!(FAMILLES.len(), 11);
+        assert_eq!(FAMILLES.len(), 17);
         let mut segments: Vec<&str> = FAMILLES.iter().map(|f| f.segment()).collect();
         segments.sort_unstable();
         segments.dedup();
-        assert_eq!(segments.len(), 11, "onze segments distincts");
+        assert_eq!(segments.len(), 17, "dix-sept segments distincts");
         for f in FAMILLES {
             assert_eq!(Famille::depuis_segment(f.segment()), Some(f));
             assert!(!f.libelle().is_empty());
@@ -1144,14 +1277,30 @@ mod tests {
             Famille::Uniform.chemin_amont("e000401"),
             "model-chr/uniform/e000401.glb"
         );
+        // Les quatre arbres autonomes partagent UNE route d'amont, et le code y redevient le
+        // chemin qu'il encode : `-` est le séparateur, parce qu'un `/` ouvrirait un segment
+        // d'URL de plus.
         assert_eq!(
             Famille::MapAr.chemin_amont("ai001"),
-            "model-map/ar/ai001.glb"
+            "model-tree/map/ar/ai001.glb"
         );
         assert_eq!(
-            Famille::MapS.chemin_amont("s01g001"),
-            "model-map/s/s01g001.glb"
+            Famille::MapS.chemin_amont("s01g001-s01g001g02"),
+            "model-tree/map/s/s01g001/s01g001g02.glb"
         );
+        assert_eq!(
+            Famille::EffetMatch.chemin_amont("common-ega0001"),
+            "model-tree/effect/battle/common/ega0001.glb"
+        );
+        assert_eq!(
+            Famille::Menu.chemin_amont("00_soccer-soccer00-soccer00_01"),
+            "model-tree/menu/00_soccer/soccer00/soccer00_01.glb"
+        );
+        assert_eq!(
+            Famille::EffetMatch.dossier_vfs().as_deref(),
+            Some("data/common/effect/battle")
+        );
+        assert_eq!(Famille::Menu.dossier_vfs().as_deref(), Some("data/common/menu"));
         assert_eq!(
             Famille::Waza.dossier_vfs().as_deref(),
             Some("data/common/chr/_waza")
@@ -1179,7 +1328,48 @@ mod tests {
         assert!(!code_valide("../secret"));
         assert!(!code_valide("a/b"));
         assert!(!code_valide("a b"));
-        assert!(!code_valide(&"x".repeat(33)));
+        assert!(!code_valide(&"x".repeat(LONGUEUR_CODE_MAX + 1)));
+        // Le tiret sépare les composants d'un chemin ; il ne peut donc pas en border un, sans
+        // quoi `-a` décoderait en `/a` et l'amont recevrait un chemin absolu.
+        assert!(code_valide("s01g001-s01g001g02"));
+        assert!(!code_valide("-a"));
+        assert!(!code_valide("a-"));
+        assert!(!code_valide("a--b"));
+        assert_eq!(chemin_du_code("battle-common-ega0001"), "battle/common/ega0001");
+        assert_eq!(code_du_chemin("battle/common/ega0001"), "battle-common-ega0001");
+    }
+
+    /// Le listage d'une famille arborescente descend à TOUTE profondeur.
+    ///
+    /// Le cas est celui qui a été mesuré cassé le 2026-09-20 : les pièces d'un stade sont deux
+    /// niveaux sous la racine de la famille, et un listage à un seul niveau en rendait deux sur
+    /// mille quatre-vingt-douze. L'index de ce test reproduit cette forme, plus un dossier qui
+    /// n'a PAS son `.g4mg` — il doit rester hors de la liste, comme pour une famille plate.
+    #[test]
+    fn une_famille_arborescente_liste_ses_modeles_a_toute_profondeur() {
+        let index = IndexVfs::depuis(vec![
+            ("data/common/map/s/s01g001/s01g001g02/s01g001g02.g4mg".into(), 10),
+            ("data/common/map/s/s01g001/s01g001g02/s01g001g02.g4pkm".into(), 20),
+            ("data/common/map/s/s01g001/s01g001g03/s01g001g03.g4mg".into(), 30),
+            ("data/common/map/s/s01g001/s01g001g04/s01g001g04.objbin".into(), 40),
+            ("data/common/map/ar/ai001/ai001.g4mg".into(), 50),
+        ]);
+        let mut codes: Vec<String> = codes_vfs(&index, Famille::MapS)
+            .into_iter()
+            .map(|m| m.code)
+            .collect();
+        codes.sort();
+        assert_eq!(codes, ["s01g001-s01g001g02", "s01g001-s01g001g03"]);
+        // Les pièces sont comptées dans la même passe, et seulement celles du dossier.
+        let m = &codes_vfs(&index, Famille::MapS)[0];
+        assert_eq!(m.fichiers, Some(2));
+        assert_eq!(m.glb, "/model/map_s/s01g001-s01g001g02.glb");
+        // Une famille arborescente peu profonde reste adressée par un code sans tiret.
+        let ar: Vec<String> = codes_vfs(&index, Famille::MapAr)
+            .into_iter()
+            .map(|m| m.code)
+            .collect();
+        assert_eq!(ar, ["ai001"]);
     }
 
     #[test]
