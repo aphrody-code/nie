@@ -1521,20 +1521,24 @@ fn apply_viewer_pose(state: &State, model: &mut nie_formats::assemble::Assembled
             let mut anim_count = 0;
             for c in &motion.clips {
                 if c.is_additive() {
-                    model.animation_excluded.push(nie_formats::assemble::AnimationExclusion {
-                        name: c.name.clone(),
-                        reason: "clip additif non supporté en glTF de base".into(),
-                    });
+                    model
+                        .animation_excluded
+                        .push(nie_formats::assemble::AnimationExclusion {
+                            name: c.name.clone(),
+                            reason: "clip additif non supporté en glTF de base".into(),
+                        });
                     continue;
                 }
                 if let Some(decoded) = motion.decode_clip(data, c, &resolved, &rest_poses) {
                     model.animation_clips.push(decoded);
                     anim_count += 1;
                 } else {
-                    model.animation_excluded.push(nie_formats::assemble::AnimationExclusion {
-                        name: c.name.clone(),
-                        reason: "décodage du clip impossible ou cibles non résolues".into(),
-                    });
+                    model
+                        .animation_excluded
+                        .push(nie_formats::assemble::AnimationExclusion {
+                            name: c.name.clone(),
+                            reason: "décodage du clip impossible ou cibles non résolues".into(),
+                        });
                 }
             }
 
@@ -4372,7 +4376,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     }
 
     if method != "GET" && method != "HEAD" {
-        respond_text(&mut stream, 405, "Method Not Allowed", "GET, HEAD, OPTIONS uniquement");
+        respond_text(
+            &mut stream,
+            405,
+            "Method Not Allowed",
+            "GET, HEAD, OPTIONS uniquement",
+        );
         return;
     }
     IS_HEAD.with(|h| h.set(method == "HEAD"));
