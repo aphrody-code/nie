@@ -135,6 +135,38 @@ Attention au volume réel : seuls **71 `.g4mt`** sont des fichiers nus ; le mouv
 convertis (vérifié sur un `.g4tx` : PNG 308×180 RGBA, 126 006 octets). Sans `format`, la réponse
 est le fichier brut.
 
+## Les fiches du wiki — treize cartes sans adresse, et pourquoi
+
+Relevé le 2026-09-20 : `packages/inacord-ui/src/components/wiki/` porte **18 composants
+`*Card`/`*Detail`**, et **5** seulement étaient rendus par une route servie (`AuraCard`,
+`GalleryCard`, `ItemCard`, `MoveCard`, `TacticCard`, tous par `GameDataView`). `StadiumCard`
+existait en double : le partagé n'était importé par personne, et `GameDataView` rendait une copie
+locale.
+
+Ce n'était pas de l'abandon. Six cartes avaient été écrites contre des routes `/api/v1/wiki/*`
+qui répondaient **`503 Wiki resource unavailable` en production**, parce que le miroir range ses
+entiers en TEXT et que `row.get::<_, i64>` rendait `InvalidColumnType` (cf.
+`nie_wiki::mirror::entier_souple`). Neuf routes ont été réparées, chacune vérifiée par HTTP
+contre `var/mirror.sqlite` :
+
+| Route | Lignes | Route | Lignes |
+| --- | ---: | --- | ---: |
+| `/api/v1/wiki/auras` | 460 | `/api/v1/wiki/coaches` | 102 |
+| `/api/v1/wiki/tactics` | 81 | `/api/v1/wiki/costumes` | 577 |
+| `/api/v1/wiki/drops` | 98 | `/api/v1/wiki/invocation` | 30 |
+| `/api/v1/wiki/stadiums` | 81 | `/api/v1/wiki/quests` | 182 |
+| | | `/api/v1/wiki/shops` | 15 |
+
+`/wiki` monte **huit** de ces familles sur leurs cartes existantes — jamais une réécriture, et par
+l'adaptateur `desktop/components/wiki/` quand il en existe un, puisque c'est lui qui sait résoudre
+une image dans le VFS.
+
+Deux familles restent volontairement dehors. `DropsCard` décrit un butin d'OBJET
+(`win_treasure`/`item_emission`) là où `/api/v1/wiki/drops` rend des **bonus passifs par équipe** :
+les brancher l'un sur l'autre remplirait la carte de champs vides, ce qui se lit comme une donnée
+manquante et non comme un modèle qui ne s'applique pas. `/trophies` (347 lignes) n'a pas de carte
+du tout.
+
 ## L'autorité de l'interface
 
 `data/menu/` porte **47 captures** du jeu réel, suivies par git. Une reconstruction d'écran se

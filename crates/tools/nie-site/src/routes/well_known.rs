@@ -37,7 +37,7 @@ pub struct UrlPlan {
 
 /// Les routes de navigation publiées au plan de site. Les espaces `/f` et `/b` n'y sont
 /// **jamais** : ce sont 255 000 fichiers, et un plan de site n'est pas un index d'assets.
-pub const PLAN: [UrlPlan; 4] = [
+pub const PLAN: [UrlPlan; 5] = [
     UrlPlan {
         chemin: "/",
         frequence: "daily",
@@ -60,6 +60,13 @@ pub const PLAN: [UrlPlan; 4] = [
         chemin: "/downloads",
         frequence: "weekly",
         priorite: "0.6",
+    },
+    UrlPlan {
+        // Le wiki : les fiches du jeu. Elles bougent quand le miroir est réextrait, et c'est
+        // la page que l'on cherche de l'extérieur — d'où une priorité au-dessus des Options.
+        chemin: "/wiki",
+        frequence: "weekly",
+        priorite: "0.7",
     },
 ];
 
@@ -365,16 +372,16 @@ mod tests {
 
     #[test]
     fn plan_complet() {
-        assert_eq!(PLAN.len(), 4);
+        assert_eq!(PLAN.len(), 5);
         let urls = plan_multilingue("https://nie.aphrody.com");
-        assert_eq!(urls.len(), 16, "4 routes x 4 langues");
+        assert_eq!(urls.len(), 20, "5 routes x 4 langues");
         let rendu = Plan {
             urls: &urls,
             lastmod: Some("2026-09-05".to_owned()),
         }
         .render()
         .unwrap();
-        assert_eq!(rendu.matches("<url>").count(), 16);
+        assert_eq!(rendu.matches("<url>").count(), 20);
         assert!(rendu.starts_with("<?xml"));
         // Le catalogue est RELÉGUÉ : `/medias`, `/explorateur` et les quatre vues restent
         // compris et gardent leurs métadonnées, mais le plan du site ne les annonce plus. Ce
@@ -403,6 +410,9 @@ mod tests {
         assert!(rendu.contains("https://nie.aphrody.com/en/setting_menu"));
         assert!(rendu.contains("https://nie.aphrody.com/chara_edit_menu"));
         assert!(rendu.contains("https://nie.aphrody.com/ja/chara_edit_menu"));
+        // Le wiki, dans les quatre langues comme toute route du plan.
+        assert!(rendu.contains("https://nie.aphrody.com/wiki"));
+        assert!(rendu.contains("https://nie.aphrody.com/es/wiki"));
         // Et les adresses héritées n'y sont PAS : elles mènent à la page, elles ne la doublent
         // pas au plan du site.
         for heritee in [
@@ -414,10 +424,10 @@ mod tests {
                 "{heritee} est héritée, pas canonique"
             );
         }
-        // Chaque entrée porte son groupe complet : 16 x 5 liens alternatifs.
-        assert_eq!(rendu.matches("xhtml:link").count(), 80);
-        assert_eq!(rendu.matches("hreflang=\"x-default\"").count(), 16);
-        assert_eq!(rendu.matches("<lastmod>2026-09-05</lastmod>").count(), 16);
+        // Chaque entrée porte son groupe complet : 20 x 5 liens alternatifs.
+        assert_eq!(rendu.matches("xhtml:link").count(), 100);
+        assert_eq!(rendu.matches("hreflang=\"x-default\"").count(), 20);
+        assert_eq!(rendu.matches("<lastmod>2026-09-05</lastmod>").count(), 20);
         // L'espace de noms xhtml doit être déclaré, sinon les `xhtml:link` sont du bruit.
         assert!(rendu.contains("xmlns:xhtml=\"http://www.w3.org/1999/xhtml\""));
     }
@@ -457,8 +467,8 @@ mod tests {
     #[test]
     fn robots_autorise_les_quatre_langues() {
         let chemins = chemins_autorises();
-        // 4 routes x 4 langues, moins la racine française déjà couverte par `Allow: /$`.
-        assert_eq!(chemins.len(), 15);
+        // 5 routes x 4 langues, moins la racine française déjà couverte par `Allow: /$`.
+        assert_eq!(chemins.len(), 19);
         for attendu in [
             "/en",
             "/es",
@@ -467,6 +477,8 @@ mod tests {
             "/ja/setting_menu",
             "/chara_edit_menu",
             "/en/downloads",
+            "/wiki",
+            "/es/wiki",
         ] {
             assert!(
                 chemins.iter().any(|c| c == attendu),
@@ -480,11 +492,11 @@ mod tests {
         }
         .render()
         .unwrap();
-        // 23 : 15 chemins + `/$` + `/llms.txt` + `/feed.atom` pour le regime general, puis les
+        // 27 : 19 chemins + `/$` + `/llms.txt` + `/feed.atom` pour le regime general, puis les
         // 5 du regime des agents (`/`, `/llms.txt`, `/llms-full.txt`, `/feed.atom`, `/api/v1/`).
         assert_eq!(
             r.matches("Allow: ").count(),
-            23,
+            27,
             "les deux regimes, chemin par chemin"
         );
         assert!(r.contains("Allow: /$"));

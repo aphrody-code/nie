@@ -123,7 +123,7 @@ struct Entree {
 /// segment d'URL brut, en minuscule, identique dans les trois langues — parce qu'il tombait
 /// dans la branche générique de [`metadonnees`]. Une entrée du menu que le serveur ne connaît
 /// pas est une page sans titre, absente du plan du site et non déclarée à `robots.txt`.
-const ENTREES: [Entree; 17] = [
+const ENTREES: [Entree; 18] = [
     Entree {
         // La navigation, qui occupait la racine jusqu'au 2026-09-07. La racine sert le jeu ;
         // le menu a donc son adresse. Il n'est PAS au plan du site : une page de liens vers
@@ -227,6 +227,20 @@ const ENTREES: [Entree; 17] = [
             "Browse the game's decoded data families.",
             "",
             "デコード済みゲームデータを閲覧します。",
+        ],
+    },
+    Entree {
+        // Le wiki : les familles de fiches que `/api/v1/wiki/*` publie, rendues en cartes. Il
+        // n'y a PAS d'adresse héritée — la page est nouvelle, et son segment est déjà celui de
+        // l'espace d'API qui la sert, si bien qu'une seule chaîne nomme les deux.
+        segment: "wiki",
+        heritage: &[],
+        titres: ["Wiki", "Wiki", "Wiki", "ウィキ"],
+        descriptions: [
+            "Les fiches du jeu — auras et Keshin, tactiques, quêtes, boutiques, entraîneurs, stades, capsules et costumes — lues sur le miroir.",
+            "The game's entries — auras and Keshin, tactics, quests, shops, coaches, stadiums, capsules and costumes — read from the mirror.",
+            "",
+            "オーラと化身、タクティクス、クエスト、ショップ、コーチ、スタジアム、カプセル、コスチュームのデータを、ミラーから。",
         ],
     },
     Entree {

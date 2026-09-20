@@ -121,6 +121,16 @@ export const SAVE = "save_menu";
  */
 export const MODES = "modes";
 
+/**
+ * Les fiches du wiki — auras, tactiques, quêtes, boutiques, entraîneurs, stades, capsules,
+ * costumes.
+ *
+ * Elles n'avaient aucune adresse : dix-huit cartes existaient sous `components/wiki/`, treize
+ * n'étaient rendues par aucune route, et six de celles-là visaient des routes qui répondaient
+ * `503` en production. La page ne fait que les monter sur les routes réparées.
+ */
+export const WIKI = "wiki";
+
 /** Published alias that enters the main menu at `/` without replaying startup. */
 export const MENU = "menu";
 
@@ -232,6 +242,7 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[INACORD]: { label: "Inacord", glyph: "livre" },
 	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
 	[MODES]: { label: "Modes", glyph: "livre" },
+	[WIKI]: { label: "Wiki", glyph: "livre" },
 	story_mode: { label: "Mode Histoire", glyph: "ballon" },
 	chronicle_mode: { label: "Mode Chronique", glyph: "livre" },
 	competition: { label: "Mode Compétition", glyph: "ballon" },
@@ -263,6 +274,7 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
 		SAVE,
 		DOWNLOADS,
 		MODES,
+		WIKI,
 		INACORD,
 		...INACORD_VIEW_ROUTES,
 		...PUBLIC_WORKSPACE_ROUTES,

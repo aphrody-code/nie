@@ -541,18 +541,18 @@ async fn documents_well_known() {
     );
     let texte = String::from_utf8(corps).unwrap();
     assert!(texte.starts_with("<?xml"));
-    // 4 routes x 4 langues, et chaque entree porte le groupe complet de ses traductions.
-    // Quatre : l'accueil (le jeu), les Options, l'editeur d'avatar et les telechargements.
-    // Les catalogues et l'explorateur restent SERVIS avec leurs metadonnees, mais le plan ne
-    // les annonce plus.
-    assert_eq!(texte.matches("<url>").count(), 16);
-    assert_eq!(texte.matches("<loc>").count(), 16);
+    // 5 routes x 4 langues, et chaque entree porte le groupe complet de ses traductions.
+    // Cinq : l'accueil (le jeu), les Options, l'editeur d'avatar, les telechargements et le
+    // wiki. Les catalogues et l'explorateur restent SERVIS avec leurs metadonnees, mais le
+    // plan ne les annonce plus.
+    assert_eq!(texte.matches("<url>").count(), 20);
+    assert_eq!(texte.matches("<loc>").count(), 20);
     assert_eq!(
         texte.matches("xhtml:link").count(),
-        80,
+        100,
         "5 alternates par entree"
     );
-    assert_eq!(texte.matches(r#"hreflang="x-default""#).count(), 16);
+    assert_eq!(texte.matches(r#"hreflang="x-default""#).count(), 20);
     // Sans la declaration de l'espace de noms, les `xhtml:link` ne sont que du bruit.
     assert!(texte.contains(r#"xmlns:xhtml="http://www.w3.org/1999/xhtml""#));
     for attendu in [
@@ -560,6 +560,8 @@ async fn documents_well_known() {
         "<loc>https://exemple.test/en/setting_menu</loc>",
         "<loc>https://exemple.test/chara_edit_menu</loc>",
         "<loc>https://exemple.test/ja/downloads</loc>",
+        "<loc>https://exemple.test/wiki</loc>",
+        "<loc>https://exemple.test/es/wiki</loc>",
     ] {
         assert!(texte.contains(attendu), "{attendu} absent du plan");
     }
@@ -1186,6 +1188,53 @@ async fn la_coquille_porte_les_balises_og_de_la_route() {
         "/fr/ n'est pas canonique"
     );
     assert_eq!(entetes[header::LOCATION], "/textures");
+}
+
+/// Le wiki est une page SERVIE, et elle passe par le repli — pas par une route declaree.
+///
+/// La garde va par le ROUTEUR et non par `pages::metadonnees` : une entree de `ENTREES` suffit
+/// a titrer une page, jamais a la faire repondre. C'est exactement ainsi que `/es` etait tombe
+/// (cf. `le_manifeste_repond_dans_les_quatre_langues`) — le handler lisait le prefixe, le
+/// routeur repondait 404.
+#[tokio::test]
+async fn le_wiki_est_servi_titre_et_indexable_dans_les_quatre_langues() {
+    let etat = etat();
+    for (chemin, titre, lang) in [
+        ("/wiki", "Wiki — nie", "fr"),
+        ("/en/wiki", "Wiki — nie", "en"),
+        ("/es/wiki", "Wiki — nie", "es"),
+        ("/ja/wiki", "\u{30a6}\u{30a3}\u{30ad} — nie", "ja"),
+    ] {
+        let (statut, entetes, corps) = reponse(&etat, chemin).await;
+        assert_eq!(statut, StatusCode::OK, "{chemin}");
+        assert_eq!(entetes[header::CONTENT_TYPE], "text/html; charset=utf-8");
+        let html = String::from_utf8(corps).unwrap();
+        assert!(
+            html.contains(&format!("<html lang=\"{lang}\">")),
+            "{chemin}"
+        );
+        assert!(
+            html.contains(&format!("<title>{titre}</title>")),
+            "{chemin} : titre"
+        );
+        assert!(
+            html.contains(&format!(
+                "rel=\"canonical\" href=\"https://nie.aphrody.com{chemin}\""
+            )),
+            "{chemin} : canonical"
+        );
+        // Une page du wiki n'est pas un espace interne : elle doit rester indexable.
+        assert!(!html.contains("noindex"), "{chemin} : indexable");
+        // La route NUE, prefixe de langue retire : c'est elle que le bundle lit.
+        assert!(
+            html.contains("data-route=\"/wiki\""),
+            "{chemin} : data-route"
+        );
+        assert!(
+            html.contains(&format!("data-langue=\"{lang}\"")),
+            "{chemin} : data-langue"
+        );
+    }
 }
 
 #[tokio::test]
