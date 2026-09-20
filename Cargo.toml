@@ -149,6 +149,7 @@ nie-headless = { version = "0.6.0", path = "crates/engine/nie-headless", default
 nie-save = { version = "0.6.0", path = "crates/engine/nie-save" }
 nie-wiki = { version = "0.6.0", path = "crates/tools/nie-wiki" }
 nie-core = { version = "0.6.0", path = "crates/engine/nie-core" }
+nie-bevy = { version = "0.6.0", path = "crates/engine/nie-bevy", default-features = false }
 nie-data = { version = "0.6.0", path = "crates/engine/nie-data" }
 nie-ocgen = { version = "0.6.0", path = "crates/engine/nie-ocgen" }
 # PAS de `nie-engine` ici : la crate est `exclude` du workspace (cf. plus haut) et aucune crate
@@ -262,6 +263,23 @@ tree-sitter-lua = { version = "0.5" }
 ureq = { version = "2", default-features = false }
 web-sys = { version = "0.3" }
 wgpu = { version = "=29.0.3" }
+# Bevy 0.19 — sous-crates. Cette version exige `wgpu ^29.0.3`, exactement l'épingle du dépôt :
+# l'intégration n'introduit donc PAS un second wgpu dans l'arbre, ce qui était la seule raison
+# sérieuse de la refuser. Vérifié sur l'index de crates.io le 2026-09-20.
+bevy_app = { version = "0.19", default-features = false, features = ["std"] }
+bevy_asset = { version = "0.19", default-features = false }
+bevy_ecs = { version = "0.19", default-features = false, features = ["std"] }
+bevy_image = { version = "0.19", default-features = false }
+bevy_math = { version = "0.19", default-features = false }
+bevy_mesh = { version = "0.19", default-features = false }
+bevy_reflect = { version = "0.19", default-features = false }
+# `Extent3d`/`TextureFormat` ne sont PAS réexportés par `bevy_image` : on les prend à la source.
+# Le lock résout déjà 29.0.4 pour `wgpu-types` (transitif de wgpu 29.0.3) — un `=29.0.3` ici ne
+# résoudrait pas, d'où le semver large, borné par l'épingle de `wgpu` elle-même.
+wgpu-types = { version = "29", default-features = false }
+# Flux de chemins pour `AssetReader::read_directory` ; déjà tiré par `bevy_asset`, donc aucun crate en plus.
+futures-lite = { version = "2" }
+
 windows-sys = { version = "0.59" }
 winit = { version = "0.30" }
 winreg = { version = "0.52" }

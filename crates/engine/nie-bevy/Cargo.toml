@@ -1,0 +1,63 @@
+[package]
+name = "nie-bevy"
+description = "Intégration native Bevy : les formats réels du jeu (G4TX, G4MD/G4MG) deviennent des assets Bevy — Image, Mesh — via un greffon et des AssetLoaders"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[[example]]
+name = "load_model"
+required-features = ["bevy"]
+
+[dependencies]
+# `textures` porte `g4tx_decode` (BC7/BGRA8 → RGBA8) ; sans elle le module n'existe pas et le
+# convertisseur d'images ne compile pas. `lua`, dans les features par défaut, n'a rien à faire ici.
+nie-formats = { workspace = true, default-features = false, features = ["std", "textures"] }
+thiserror.workspace = true
+
+# Bevy par SOUS-CRATES, pas par le méta-crate `bevy`.
+#
+# `bevy` tire winit, l'audio, l'interface et le rendu complet — plusieurs centaines de crates —
+# alors que cette intégration n'a besoin que des TYPES d'assets et du contrat de greffon. Les
+# sous-crates sont publiés séparément et à la même version (0.19.1), donc rien n'est reconstruit
+# à la main : c'est le même code, sans les étages dont on ne se sert pas.
+#
+# Optionnels : `crates/engine/*` est un membre PAR DÉFAUT du workspace, donc une dépendance non
+# optionnelle ferait compiler Bevy à chaque `cargo check --workspace`. Ce dépôt a déjà des
+# compilations tuées par la mémoire ; le drapeau suit le précédent de `nie-render3d`
+# (`gpu`, `webgpu`).
+bevy_app = { workspace = true, optional = true }
+bevy_asset = { workspace = true, optional = true }
+bevy_ecs = { workspace = true, optional = true }
+bevy_image = { workspace = true, optional = true }
+bevy_math = { workspace = true, optional = true }
+bevy_mesh = { workspace = true, optional = true }
+# `TypePath` (exigé par `Asset` et `AssetLoader`) se dérive depuis `bevy_reflect`, que
+# `bevy_asset` ne réexporte pas.
+bevy_reflect = { workspace = true, optional = true }
+# `Extent3d`, `TextureDimension`, `TextureFormat` : `bevy_image` les consomme sans les réexporter.
+wgpu-types = { workspace = true, optional = true }
+# `stream::iter` pour énumérer un dossier du VFS ; dépendance de `bevy_asset`, pas un crate de plus.
+futures-lite = { workspace = true, optional = true }
+
+[features]
+default = []
+# Active l'intégration Bevy. Sans elle, la crate ne compile que son contrat d'erreurs : c'est ce
+# qui garde `cargo check --workspace` au même coût qu'avant l'ajout.
+bevy = [
+    "dep:bevy_app",
+    "dep:bevy_asset",
+    "dep:bevy_ecs",
+    "dep:bevy_image",
+    "dep:bevy_math",
+    "dep:bevy_mesh",
+    "dep:bevy_reflect",
+    "dep:wgpu-types",
+    "dep:futures-lite",
+]
