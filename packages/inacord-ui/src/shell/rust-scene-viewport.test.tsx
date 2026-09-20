@@ -25,6 +25,8 @@ function fakeSceneViewer() {
 		set_wireframe: mock((_v: boolean) => {}),
 		select: mock((_id: string) => {}),
 		selected: mock(() => ""),
+		gizmo_axis_at: mock((_x: number, _y: number) => ""),
+		gizmo_drag: mock((_a: string, _fx: number, _fy: number, _tx: number, _ty: number) => [] as number[]),
 	};
 }
 
@@ -164,4 +166,65 @@ test("un clic sur un objet rend son identifiant", async () => {
 		container.querySelector("canvas")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 	});
 	expect(choisis).toEqual(["a.glb#0"]);
+});
+
+/** Un glissement sur une poignée émet `onTransform` avec le déplacement contraint. */
+test("un glissement de gizmo émet le déplacement", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.gizmo_axis_at = mock(() => "x");
+	viewer.gizmo_drag = mock(() => [2.5, 0, 0]);
+	const mouvements: [string, number[]][] = [];
+	await monter(viewer, {
+		selectedId: "a.glb#0",
+		gizmoMode: "translate",
+		onTransform: (id: string, trs: { position: number[] }) => mouvements.push([id, trs.position]),
+	});
+	const canvas = container.querySelector("canvas");
+	await act(async () => {
+		canvas?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
+		canvas?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1 }));
+	});
+	expect(mouvements).toHaveLength(1);
+	expect(mouvements[0]?.[0]).toBe("a.glb#0");
+	expect(mouvements[0]?.[1]).toEqual([2.5, 0, 0]);
+});
+
+/** Hors du mode `translate`, aucune poignée n'est attrapée. */
+test("les autres modes de gizmo ne manipulent pas", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.gizmo_axis_at = mock(() => "x");
+	const mouvements: unknown[] = [];
+	await monter(viewer, {
+		selectedId: "a.glb#0",
+		gizmoMode: "rotate",
+		onTransform: () => mouvements.push(1),
+	});
+	const canvas = container.querySelector("canvas");
+	await act(async () => {
+		canvas?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
+		canvas?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1 }));
+	});
+	expect(viewer.gizmo_axis_at).not.toHaveBeenCalled();
+	expect(mouvements).toHaveLength(0);
+});
+
+/** Le clic qui termine un glissement ne DÉSÉLECTIONNE pas l'objet déplacé. */
+test("relâcher le gizmo ne désélectionne pas", async () => {
+	const viewer = fakeSceneViewer();
+	viewer.gizmo_axis_at = mock(() => "x");
+	viewer.gizmo_drag = mock(() => [1, 0, 0]);
+	const choisis: (string | null)[] = [];
+	await monter(viewer, {
+		selectedId: "a.glb#0",
+		gizmoMode: "translate",
+		onSelect: (id: string | null) => choisis.push(id),
+		onTransform: () => {},
+	});
+	const canvas = container.querySelector("canvas");
+	await act(async () => {
+		canvas?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
+		// Le `click` du navigateur arrive AVANT que le glissement soit oublié.
+		canvas?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+	});
+	expect(choisis).toHaveLength(0);
 });

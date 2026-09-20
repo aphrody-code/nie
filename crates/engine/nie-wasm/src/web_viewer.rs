@@ -83,6 +83,37 @@ impl WebGpuViewer {
         self.inner.set_grid(visible);
     }
 
+    /// L'axe du gizmo sous le pixel : `"x"`, `"y"`, `"z"`, ou chaîne vide si aucune poignée.
+    ///
+    /// Une chaîne plutôt qu'un entier : `wasm_bindgen` traverse les deux aussi bien, et un `"x"`
+    /// se lit dans un journal de navigateur là où un `0` demande de retrouver la convention.
+    #[must_use]
+    pub fn gizmo_axis_at(&self, x: f32, y: f32) -> String {
+        match self.inner.gizmo_axis_at(x, y) {
+            Some(nie_render3d::gizmo::Axis::X) => "x".to_owned(),
+            Some(nie_render3d::gizmo::Axis::Y) => "y".to_owned(),
+            Some(nie_render3d::gizmo::Axis::Z) => "z".to_owned(),
+            None => String::new(),
+        }
+    }
+
+    /// Le déplacement monde entre deux pixels, contraint à l'axe nommé.
+    ///
+    /// Rend `[dx, dy, dz]`, ou un tableau vide quand l'axe est inconnu ou qu'un des deux rayons
+    /// ne rencontre pas le plan de contrainte — l'hôte laisse alors l'objet où il est.
+    #[must_use]
+    pub fn gizmo_drag(&self, axis: &str, from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> Vec<f32> {
+        let axe = match axis {
+            "x" => nie_render3d::gizmo::Axis::X,
+            "y" => nie_render3d::gizmo::Axis::Y,
+            "z" => nie_render3d::gizmo::Axis::Z,
+            _ => return Vec::new(),
+        };
+        self.inner
+            .gizmo_drag(axe, from_x, from_y, to_x, to_y)
+            .map_or_else(Vec::new, |d| d.to_vec())
+    }
+
     /// Affiche ou masque le fil de fer du modèle.
     pub fn set_wireframe(&mut self, visible: bool) {
         self.inner.set_wireframe(visible);

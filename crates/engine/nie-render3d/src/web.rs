@@ -120,6 +120,12 @@ mod browser {
         show_wireframe: bool,
         /// Objet sélectionné, par identifiant de document — celui que `pick` nomme.
         selected: Option<String>,
+        /// Origine et longueur de poignée du gizmo dessiné, quand il y en a un.
+        ///
+        /// Gardées au moment de la composition plutôt que recalculées à l'interaction : deux
+        /// calculs de la boîte englobante pourraient diverger d'une image à l'autre, et
+        /// l'utilisateur attraperait une poignée invisible.
+        gizmo: Option<(crate::vecmath::V3, f32)>,
         fault: Arc<Mutex<Option<String>>>,
     }
 
@@ -288,6 +294,7 @@ mod browser {
                 show_grid: false,
                 show_wireframe: false,
                 selected: None,
+                gizmo: None,
                 fault,
             })
         }
@@ -514,9 +521,16 @@ mod browser {
                     (min[2] + max[2]) * 0.5,
                 ];
                 let demi = ((max[0] - min[0]).max(max[1] - min[1]).max(max[2] - min[2])) * 0.5;
-                segments.extend(crate::gizmo::handles(centre, demi.max(0.1) * 1.6));
+                let longueur = demi.max(0.1) * 1.6;
+                // Retenues pour l'interaction : le test de poignée et le glissement doivent viser
+                // EXACTEMENT ce qui est dessiné, sinon l'utilisateur attrape à côté de ce qu'il voit.
+                self.gizmo = Some((centre, longueur));
+                segments.extend(crate::gizmo::handles(centre, longueur));
             }
 
+            if self.selected.is_none() {
+                self.gizmo = None;
+            }
             self.overlay = if segments.is_empty() {
                 None
             } else {
@@ -546,6 +560,61 @@ mod browser {
                 }
             }
             vu.then_some((min, max))
+        }
+
+        /// Le rayon monde passant par le pixel `(x, y)`, dans la caméra courante.
+        ///
+        /// Partagé par `pick` et par le gizmo : deux constructions de rayon dériveraient, et
+        /// cliquer viserait un point différent de celui qu'on manipule.
+        fn ray_at(&self, x: f32, y: f32) -> Option<crate::pick::Ray> {
+            let model = self.pickable.as_ref()?;
+            let (center, radius) = crate::render::bounds(model);
+            let basis = crate::pick::orbital_basis(
+                center,
+                radius,
+                self.camera.yaw,
+                self.camera.pitch,
+                self.camera.distance,
+            );
+            Some(crate::pick::ray_for_pixel_orbital(
+                &basis,
+                x,
+                y,
+                self.config.width,
+                self.config.height,
+            ))
+        }
+
+        /// L'axe du gizmo sous le pixel, `None` si aucune poignée n'y est.
+        ///
+        /// La tolérance est dérivée de la longueur des poignées : en unités monde, une tolérance
+        /// fixe serait inatteignable sur un grand objet et attraperait les trois axes à la fois
+        /// sur un petit, là où ils se touchent près de l'origine.
+        #[must_use]
+        pub fn gizmo_axis_at(&self, x: f32, y: f32) -> Option<crate::gizmo::Axis> {
+            let (origine, longueur) = self.gizmo?;
+            let ray = self.ray_at(x, y)?;
+            crate::gizmo::axis_under_ray(origine, longueur, &ray, longueur * 0.12)
+        }
+
+        /// Le déplacement monde entre deux pixels, contraint à `axis`.
+        ///
+        /// L'hôte retient le pixel du clic et passe celui du curseur : c'est lui qui sait quand
+        /// un glissement commence et finit, et un navigateur ne suit pas une souris comme une
+        /// fenêtre native.
+        #[must_use]
+        pub fn gizmo_drag(
+            &self,
+            axis: crate::gizmo::Axis,
+            from_x: f32,
+            from_y: f32,
+            to_x: f32,
+            to_y: f32,
+        ) -> Option<crate::vecmath::V3> {
+            let (origine, _) = self.gizmo?;
+            let depart = self.ray_at(from_x, from_y)?;
+            let courant = self.ray_at(to_x, to_y)?;
+            crate::gizmo::drag_along_axis(origine, axis, &depart, &courant)
         }
 
         /// La surface sous le pixel `(x, y)`, dans le backing store courant.

@@ -14,11 +14,9 @@
  *
  * # Ce qu'il ne fait pas, et pourquoi c'est dit plutôt que caché
  *
- * - **Le gizmo ne manipule pas encore.** Ses poignées sont dessinées par le Rust et la
- *   géométrie du glissement existe (`nie_render3d::gizmo::drag_along_axis`), mais la boucle
- *   pointeur → axe attrapé → `onTransform` n'est pas branchée. `gizmoMode` n'a donc d'effet que
- *   sur l'affichage des poignées. Un composant qui prétendrait manipuler sans le faire serait
- *   pire que celui-ci : l'utilisateur glisserait sans rien déplacer.
+ * - **Seule la TRANSLATION est manipulable.** `gizmoMode` vaut `rotate` ou `scale` sans effet :
+ *   le gizmo Rust ne dessine que trois poignées d'axe, et prétendre tourner un objet en le
+ *   translatant serait pire que de ne rien faire.
  * - **Pas d'image de référence.** `referenceImage` est accepté et ignoré ; le canvas Rust n'est
  *   pas transparent sur le chemin WebGL.
  *
@@ -33,6 +31,7 @@ import {
 } from "./rust-model-viewport";
 import type {
 	GizmoMode,
+	NodeTransform,
 	SceneNode,
 	ViewportAsset,
 	ViewportReferenceImage,
@@ -48,7 +47,9 @@ export interface RustSceneViewportProps {
 	selectedId: string | null;
 	onSelect?: (id: string | null) => void;
 	onSceneLoaded?: (nodes: SceneNode[], stats: ViewportStats) => void;
-	/** Accepté pour la compatibilité de contrat ; la manipulation n'est pas branchée. */
+	/** Émis à chaque déplacement du gizmo. Seul `translate` a un effet. */
+	onTransform?: (id: string, trs: NodeTransform) => void;
+	/** `translate` active la manipulation ; les autres modes ne dessinent que les poignées. */
 	gizmoMode?: GizmoMode;
 	notice?: string | null;
 	wireframe?: boolean;
@@ -68,6 +69,8 @@ export function RustSceneViewport({
 	selectedId,
 	onSelect,
 	onSceneLoaded,
+	onTransform,
+	gizmoMode = "none",
 	notice,
 	wireframe = false,
 	showGrid = true,
@@ -186,6 +189,65 @@ export function RustSceneViewport({
 		viewer.select(selectedId ?? "");
 	}, [selectedId, ready]);
 
+	// Glissement du gizmo. L'état vit dans une ref et non dans React : un déplacement émet un
+	// événement par image, et re-rendre le composant à chaque mouvement de souris annulerait
+	// l'intérêt d'un rendu natif.
+	const dragRef = useRef<{ axis: string; x: number; y: number; id: string } | null>(null);
+
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!canvas || !ready) return;
+
+		const local = (e: PointerEvent) => {
+			const r = canvas.getBoundingClientRect();
+			return { x: e.clientX - r.left, y: e.clientY - r.top };
+		};
+
+		const onDown = (e: PointerEvent) => {
+			const viewer = viewerRef.current;
+			if (!viewer || gizmoMode !== "translate" || !selectedId) return;
+			const { x, y } = local(e);
+			const axis = viewer.gizmo_axis_at(x, y);
+			if (!axis) return;
+			dragRef.current = { axis, x, y, id: selectedId };
+			// Capturer le pointeur : sans cela, sortir du canvas en glissant perd les événements
+			// et l'objet reste figé à mi-course sans que rien ne le dise.
+			canvas.setPointerCapture(e.pointerId);
+			e.preventDefault();
+		};
+
+		const onMove = (e: PointerEvent) => {
+			const viewer = viewerRef.current;
+			const drag = dragRef.current;
+			if (!viewer || !drag || !onTransform) return;
+			const { x, y } = local(e);
+			const delta = viewer.gizmo_drag(drag.axis, drag.x, drag.y, x, y);
+			if (delta.length !== 3) return;
+			onTransform(drag.id, {
+				position: [delta[0] ?? 0, delta[1] ?? 0, delta[2] ?? 0],
+				rotation: [0, 0, 0],
+				scale: [1, 1, 1],
+			});
+		};
+
+		const onUp = (e: PointerEvent) => {
+			if (!dragRef.current) return;
+			dragRef.current = null;
+			if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+		};
+
+		canvas.addEventListener("pointerdown", onDown);
+		canvas.addEventListener("pointermove", onMove);
+		canvas.addEventListener("pointerup", onUp);
+		canvas.addEventListener("pointercancel", onUp);
+		return () => {
+			canvas.removeEventListener("pointerdown", onDown);
+			canvas.removeEventListener("pointermove", onMove);
+			canvas.removeEventListener("pointerup", onUp);
+			canvas.removeEventListener("pointercancel", onUp);
+		};
+	}, [ready, gizmoMode, selectedId, onTransform]);
+
 	// Clic : `pick_json` nomme l'objet touché, `undefined` sur le fond — ce qui désélectionne,
 	// comme tout éditeur.
 	useEffect(() => {
@@ -193,7 +255,9 @@ export function RustSceneViewport({
 		if (!canvas || !ready || !onSelect) return;
 		const onClick = (event: MouseEvent) => {
 			const viewer = viewerRef.current;
-			if (!viewer) return;
+			// Un relâchement de gizmo produit aussi un `click` : le traiter comme une sélection
+			// désélectionnerait l'objet qu'on vient de déplacer.
+			if (!viewer || dragRef.current) return;
 			const rect = canvas.getBoundingClientRect();
 			const hit = viewer.pick_json(event.clientX - rect.left, event.clientY - rect.top);
 			if (!hit) {

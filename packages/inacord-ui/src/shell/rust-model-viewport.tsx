@@ -39,6 +39,10 @@ export interface RustSceneViewer extends RustModelViewer {
 	select(id: string): void;
 	/** L'identifiant sélectionné, chaîne vide s'il n'y en a pas. */
 	selected(): string;
+	/** L'axe du gizmo sous le pixel : `"x"`, `"y"`, `"z"`, ou chaîne vide. */
+	gizmo_axis_at(x: number, y: number): string;
+	/** Déplacement monde `[dx, dy, dz]` entre deux pixels, contraint à l'axe ; vide si aucun. */
+	gizmo_drag(axis: string, fromX: number, fromY: number, toX: number, toY: number): Float32Array | number[];
 }
 
 /**
@@ -55,7 +59,9 @@ export function isSceneViewer(viewer: RustModelViewer): viewer is RustSceneViewe
 		typeof v.pick_json === "function" &&
 		typeof v.set_grid === "function" &&
 		typeof v.set_wireframe === "function" &&
-		typeof v.select === "function"
+		typeof v.select === "function" &&
+		typeof v.gizmo_axis_at === "function" &&
+		typeof v.gizmo_drag === "function"
 	);
 }
 export type CreateRustModelViewer = (canvas: HTMLCanvasElement) => Promise<RustModelViewer>;
