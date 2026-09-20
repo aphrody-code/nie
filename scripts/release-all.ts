@@ -73,6 +73,8 @@ const stages: Stage[] = [
 			{ argv: ["cargo", "fmt", "--all", "--check"] },
 			{ argv: ["bun", "run", "docs:check"] },
 			{ argv: ["bun", "run", "check:dependencies"] },
+			// Les couches du workspace : rangs mesurés, aucune dépendance qui remonte.
+			{ argv: ["bun", "run", "check:layers"] },
 			{ argv: ["cargo", "deny", "check", "advisories", "bans", "licenses", "sources"] },
 			{ argv: ["bun", "run", "generate:public-entry-inventory"] },
 			{ argv: ["bun", "run", "validate:shared-capabilities"] },

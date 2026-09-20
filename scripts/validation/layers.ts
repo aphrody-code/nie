@@ -36,6 +36,10 @@
  * Sort non-zéro sur régression, comme les autres portes de `scripts/validation/`.
  */
 
+// Ce fichier est un module : sans un `export`, TypeScript refuse le `await` de premier niveau
+// (TS1375) alors que Bun l'exécute sans broncher. La porte de typecheck des scripts l'a attrapé.
+export {};
+
 const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	// N0 — feuilles : ne dépendent d'aucun crate du workspace.
 	"aphrody-re": 0,

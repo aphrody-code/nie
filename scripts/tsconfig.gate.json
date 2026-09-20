@@ -31,6 +31,7 @@
 		"validation/gate-menu.ts",
 		"validation/image-metrics.test.ts",
 		"validation/image-metrics.ts",
+		"validation/layers.ts",
 		"validation/live-fidelity-audit.ts",
 		"validation/measure-rust-web-coverage.ts",
 		"validation/menu-acceptance.test.ts",
