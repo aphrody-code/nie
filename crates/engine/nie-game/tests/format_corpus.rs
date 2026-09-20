@@ -64,7 +64,22 @@ fn objbin_and_g4pkm_parsers_robust_on_full_corpus() {
         pkm_rate * 100.0
     );
 
-    // Le corpus doit être substantiel (sinon le VFS n'est pas monté correctement).
+    // Un VFS monté SANS aucun fichier de ces formats n'est pas le jeu : c'est le dépôt lui-même,
+    // que `NIE_GAME_DIR` désigne dans l'espace de travail. `donnees_disponibles` ne sait pas les
+    // distinguer — il voit un dossier `data/` dans les deux cas — et ce test échouait donc sur
+    // « corpus trop petit (0) », accusant les parseurs d'un défaut d'environnement.
+    //
+    // Zéro fichier et « moins que le plancher » sont deux constats différents : le premier dit
+    // que le corpus n'est pas là, le second qu'il a rétréci. Seul le second est une régression.
+    if obj_total == 0 && pkm_total == 0 {
+        eprintln!(
+            "SKIP: aucun .objbin ni .g4pkm sous {} — ce VFS n'est pas une installation du jeu",
+            game.display()
+        );
+        return;
+    }
+
+    // Le corpus doit être substantiel (sinon le VFS n'est monté que partiellement).
     assert!(
         obj_total >= 10_000,
         "objbin corpus trop petit ({obj_total})"
