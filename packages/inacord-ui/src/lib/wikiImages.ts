@@ -66,15 +66,67 @@ export function getSkillImageUrl(_skillId?: string | null): string {
   return "";
 }
 
-/** Les icônes d'aura sont indexées par un numéro de famille (`aura_fs/k000010_l.g4tx`) qu'aucune
- * table lue ici ne relie à un `asset_code` : non résolvable sans cet index. */
-export function getAuraImageUrl(_assetCode?: string | null, _subType?: string | null): string {
+/** Les icônes d'aura sont indexées par un numéro de famille (`aura_fs/k000010_l.g4tx`).
+ * Résout le code d'asset (ex: wks00120) vers le chemin VFS correspondant. */
+export function getAuraImageUrl(assetCode?: string | null, _subType?: string | null): string {
+  if (!assetCode) return "";
+  if (assetCode.startsWith("wks") || assetCode.startsWith("wad") || assetCode.startsWith("wkd")) {
+    const num = assetCode.slice(3);
+    return `${ICONES}/10_icon_chr/aura_fs/k${num.padStart(6, "0")}_l.g4tx`;
+  }
   return "";
 }
 
-/** Compat de source avec le module du wiki : ici un chemin VFS est déjà « résolu ». */
+/**
+ * Transforme un chemin d'image hérité du miroir en chemin VFS local,
+ * ou retourne null si le chemin n'est pas résolvable (évite les 404 sur les URL relatives invalides).
+ */
 export function resolveAssetUrl(path: string | null | undefined): string | null {
-  return path ? path : null;
+  if (!path) return null;
+  const trimmed = path.trim();
+  if (!trimmed || trimmed === "\\N" || trimmed === "\\\\N") return null;
+
+  // Normalise un préfixe hérité tel que "/menu/", "menu/" ou "#/menu/"
+  const cleaned = trimmed.replace(/^(?:#\/|\/)?menu\//, "");
+
+  // URL absolue distante (HTTP, data:, blob:)
+  if (
+    cleaned.startsWith("http://") ||
+    cleaned.startsWith("https://") ||
+    cleaned.startsWith("data:") ||
+    cleaned.startsWith("blob:")
+  ) {
+    return cleaned;
+  }
+
+  // URL déjà absolue et servie par nie-site (/assets, /f, /static)
+  if (
+    cleaned.startsWith("/assets/") ||
+    cleaned.startsWith("/f/") ||
+    cleaned.startsWith("/static/")
+  ) {
+    return cleaned;
+  }
+
+  // Déjà un chemin VFS
+  if (cleaned.startsWith("data/")) {
+    return cleaned;
+  }
+
+  // Les chemins du miroir commençant par "200_icon/"
+  if (cleaned.startsWith("200_icon/")) {
+    return `data/dx11/menu/${cleaned}`
+      .replace(/([a-z]\d{6}_l)(?:_\d{5}_l\d{2})?\.webp$/, "$1.g4tx")
+      .replace(/\.webp$/, ".g4tx");
+  }
+
+  // Les bannières / telop commençant par "220_img/"
+  if (cleaned.startsWith("220_img/")) {
+    return `data/dx11/menu/${cleaned}`.replace(/\.webp$/, ".g4tx");
+  }
+
+  // Chemin relatif inconnu / non monté : retourner null pour déclencher le repli UI sans émettre de 404
+  return null;
 }
 
 /** Repli des cartes — vide : l'application n'embarque pas les visuels du site. */

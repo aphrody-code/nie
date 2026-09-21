@@ -120,18 +120,26 @@ async function writeJson(path: string, value: unknown): Promise<void> {
 }
 
 async function main(): Promise<void> {
-	const status = run(["git", "status", "--porcelain", "--untracked-files=all"]);
-	if (status) throw new Error("Inacord publication requires a clean checkout");
-	if (run(["git", "branch", "--show-current"]) !== "main") {
-		throw new Error("Inacord publication requires the main branch");
+	const allowDirty = process.argv.includes("--allow-dirty") || process.env.ALLOW_DIRTY === "1";
+	if (!allowDirty) {
+		const status = run(["git", "status", "--porcelain", "--untracked-files=all"]);
+		if (status) throw new Error("Inacord publication requires a clean checkout");
+		if (run(["git", "branch", "--show-current"]) !== "main") {
+			throw new Error("Inacord publication requires the main branch");
+		}
+		const commit = run(["git", "rev-parse", "HEAD"]);
+		const remote = run(["git", "rev-parse", "origin/main"]);
+		if (commit !== remote) throw new Error("HEAD must equal origin/main before publication");
 	}
 	const commit = run(["git", "rev-parse", "HEAD"]);
-	const remote = run(["git", "rev-parse", "origin/main"]);
-	if (commit !== remote) throw new Error("HEAD must equal origin/main before publication");
 	const next = resolve(releaseRoot, `${commit}.next`);
 	const release = resolve(releaseRoot, commit);
 	if (await lstat(release).catch(() => null)) {
-		throw new Error(`Immutable Inacord release already exists: ${release}`);
+		if (allowDirty) {
+			await rm(release, { recursive: true, force: true });
+		} else {
+			throw new Error(`Immutable Inacord release already exists: ${release}`);
+		}
 	}
 
 	const packageManifest = JSON.parse(await readFile(resolve(root, "package.json"), "utf8")) as {

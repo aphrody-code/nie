@@ -185,6 +185,10 @@ clippy:
 test:
     cargo test --workspace
 
+# Tests ultrarapides en parallèle avec cargo-nextest (2026 fast harness)
+test-fast:
+    cargo nextest run --workspace
+
 # Tests + golden adosses aux vrais fragments du jeu (local VPS uniquement).
 test-real:
     cargo test -p nie-formats --features real-fixtures
@@ -239,6 +243,32 @@ verify:
         bun run typecheck:scripts
         bun run docs:check
     fi
+
+# Déploiement concurrent de toutes les cibles par paliers ordonnés en parallèle
+deploy-all:
+    bun run deploy:target -- --all
+
+# Audit complet du monorepo (dépendances, couches, inventaire, licences) hors du chemin critique
+audit:
+    bun run audit:monorepo
+
+# --- Usine Autonome & IA / ML 2026 --------------------------------------------
+
+# Lance la boucle d'exécution autonome en arrière-plan (Lead Agent + Auditeur Indépendant)
+autopilot *args:
+    bash scripts/autopilot.sh {{args}}
+
+# Exécute un tick unique de l'usine autonome (mesure, implémente, vérifie, audite)
+autopilot-tick:
+    bash scripts/autopilot.sh --once
+
+# Surveille la santé et la disponibilité du serveur d'assemblage 3D & textures ML/Game (port 8790)
+model-serve-health:
+    curl -fsS http://127.0.0.1:8790/health && echo "nie-model-serve: OK (port 8790)"
+
+# Pré-chauffe le cache de modèles 3D (GLB / textures) pour éliminer les temps de latence
+model-serve-prewarm:
+    bash scripts/ops/model-serve-prewarm.sh
 
 # --- Surfaces : construire, vérifier et publier UNE surface à la fois -----------------
 # cli · mcp · site · desktop · model. Cf. CONTRIBUTING.md § « Shipping ».

@@ -60,6 +60,20 @@ export STEAM_TOKEN_STORE="${STEAM_TOKEN_STORE:-$NIE_STEAM_TOKEN_STORE}"
 export NIE_ATLAS_DB="${NIE_ATLAS_DB:-$niers_env_root/var/nie-atlas.sqlite}"
 export NIE_WIKI_DB="${NIE_WIKI_DB:-$niers_env_root/var/nie-wiki.sqlite}"
 
+# ── Compiler Caching & Fast Linking (2026 Optimization) ──────────────────────
+if [ -z "${RUSTC_WRAPPER:-}" ] && command -v sccache >/dev/null 2>&1; then
+    export RUSTC_WRAPPER=sccache
+    export SCCACHE_DIR="${SCCACHE_DIR:-$HOME/.cache/sccache}"
+    export SCCACHE_CACHE_SIZE="${SCCACHE_CACHE_SIZE:-10G}"
+fi
+
+if command -v mold >/dev/null 2>&1 && [ "$(uname -s)" = "Linux" ]; then
+    case "${RUSTFLAGS:-}" in
+        *"-fuse-ld=mold"*) ;;
+        *) export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-fuse-ld=mold" ;;
+    esac
+fi
+
 niers_path_dedupe
 niers_path_prepend "/usr/games"
 niers_path_prepend "$HOME/.bun/bin"

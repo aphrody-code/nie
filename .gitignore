@@ -25,6 +25,7 @@ out/
 packages/*/src/data/**/*.json
 # Sortie par defaut des exportateurs de familles nie-data (`export_formations --out`) : du
 # contenu de jeu (c) LEVEL-5 reserialise en JSON, regenerable, jamais du code du depot.
+/export
 /export/
 # `data/oc/` et `data/menu/` — deux exceptions au `data/` ci-dessus : les OC (doc, provenance,
 # manifestes) sont du travail DU DEPOT, pas du contenu de jeu ; `data/menu/` porte les 33 captures

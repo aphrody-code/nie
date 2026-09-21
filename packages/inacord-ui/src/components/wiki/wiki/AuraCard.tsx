@@ -80,7 +80,7 @@ export function AuraCard({
 	const colorClass = SUBTYPE_COLORS[subType] || SUBTYPE_COLORS.Aura;
 	const label = SUBTYPE_LABELS[subType] || subType;
 	const [imgError, setImgError] = useState(false);
-	const imageUrl = resolveImage?.(image, assetCode, subType) ?? image ?? null;
+	const imageUrl = resolveImage ? resolveImage(image, assetCode, subType) : (image ?? null);
 
 	return (
 		<Link href={`/aura/${category}/${id}`} className={cn("block h-full", className)}>

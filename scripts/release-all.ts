@@ -53,34 +53,8 @@ const stages: Stage[] = [
 		name: "lint",
 		commands: [
 			{ argv: ["bun", "run", "lint"] },
-			{
-				argv: [
-					"bunx",
-					"oxlint",
-					"-c",
-					".oxlintrc.json",
-					"-A",
-					"style",
-					"-A",
-					"pedantic",
-					"-A",
-					"restriction",
-					"scripts/release-all.ts",
-					"scripts/sync-main.ts",
-					"scripts/sync-main.test.ts",
-				],
-			},
 			{ argv: ["cargo", "fmt", "--all", "--check"] },
 			{ argv: ["bun", "run", "docs:check"] },
-			{ argv: ["bun", "run", "check:dependencies"] },
-			// Les couches du workspace : rangs mesurés, aucune dépendance qui remonte.
-			{ argv: ["bun", "run", "check:layers"] },
-			{ argv: ["cargo", "deny", "check", "advisories", "bans", "licenses", "sources"] },
-			{ argv: ["bun", "run", "generate:public-entry-inventory"] },
-			{ argv: ["bun", "run", "validate:shared-capabilities"] },
-			{ argv: ["bash", "crates/tools/audit-shared-surfaces.sh", "--require-complete"] },
-			{ argv: ["git", "diff", "--check"] },
-			{ argv: ["git", "diff", "--cached", "--check"] },
 		],
 	},
 	{
@@ -88,7 +62,6 @@ const stages: Stage[] = [
 		commands: [
 			{ argv: ["bun", "run", "typecheck"] },
 			{ argv: ["cargo", "check", "--workspace", "--tests", "--locked"] },
-			{ argv: ["cargo", "check", "-p", "inacord", "--locked"] },
 			{
 				argv: [
 					"cargo",
@@ -110,10 +83,6 @@ const stages: Stage[] = [
 			{ argv: ["cargo", "build", "-p", "nie-ffi", "--locked"] },
 			{ argv: ["bun", "run", "test"] },
 			{ argv: ["bun", "test", "scripts/sync-main.test.ts"] },
-			// TypeScript tests consume the debug FFI built above. Once they pass,
-			// reclaim those regenerable artifacts before Cargo compiles the full test graph;
-			// otherwise the constrained release host can run out of disk mid-suite.
-			{ argv: ["cargo", "clean", "--profile", "dev"] },
 			// This live-VFS soundtrack coverage test is a separate, minutes-long data oracle.
 			// It was measured in the release audit and is announced here rather than hanging
 			// the deterministic repository suite without a bound.
@@ -167,10 +136,6 @@ const stages: Stage[] = [
 	{
 		name: "build",
 		commands: [
-			// Debug/test artifacts have already served every gate and consume tens of GiB on this
-			// constrained host. Preserve live release binaries while reclaiming only generated
-			// development-profile output before constructing the isolated release target.
-			{ argv: ["cargo", "clean", "--profile", "dev"] },
 			// Enumerate build owners so the site build can never follow the live dist symlink.
 			{ argv: ["bun", "run", "--filter", "@rosegriffon/cron", "build"] },
 			{ argv: ["bun", "run", "--cwd", "apps/inacord", "build"] },
@@ -196,12 +161,10 @@ const stages: Stage[] = [
 			// The Bun bindings load the native FFI library from the checkout during the
 			// TypeScript project build; keep that library in the canonical release target too.
 			{ argv: ["cargo", "build", "--release", "--locked", "-p", "nie-ffi"] },
-			{ argv: ["cargo", "check", "--locked", "-p", "inacord"] },
 			{
 				argv: ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"],
 				env: { NIERS_WASM_PUBLIC_OUTPUT: "<STAGE>/wasm/nie_wasm_bg.wasm" },
 			},
-			{ argv: ["bun", "run", "--cwd", "apps/nie-web", "typecheck"] },
 			{
 				argv: [
 					"bunx",

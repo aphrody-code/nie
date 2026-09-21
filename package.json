@@ -260,7 +260,8 @@
 		"check:dependencies": "uv run --no-project python scripts/validation/dependency-owners.py",
 		"check:layers": "bun --bun scripts/validation/layers.ts",
 		"surfaces": "bun run scripts/surfaces.ts",
-		"gate": "bun run scripts/surfaces.ts gate"
+		"gate": "bun run scripts/surfaces.ts gate",
+		"audit:monorepo": "bun run check:dependencies && bun run check:layers && cargo deny check advisories bans licenses sources && bun run generate:public-entry-inventory && bun run validate:shared-capabilities"
 	},
 	"devDependencies": {
 		"@happy-dom/global-registrator": "catalog:",

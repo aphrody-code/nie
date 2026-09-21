@@ -272,13 +272,12 @@ pub fn script_logical_base(basename: &str) -> String {
             break;
         }
     }
-    // Retire les segments de version finaux `_<[0-9.]+>` (potentiellement plusieurs).
-    while let Some(idx) = s.rfind('_') {
+    // Retire le segment de version final `_<[0-9.]+>` unique.
+    if let Some(idx) = s.rfind('_') {
         let tail = &s[idx + 1..];
-        if tail.is_empty() || !tail.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
-            break;
+        if !tail.is_empty() && tail.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
+            s.truncate(idx);
         }
-        s.truncate(idx);
     }
     s
 }
@@ -490,6 +489,15 @@ mod tests {
             script_logical_base("main_menu_inc_3.00.01.00.lua.bin"),
             include_logical_base("LUA_MAIN_MENU_INC")
         );
+        // Écrans avec numéro de version dans le nom d'écran (ex. title_menu_2).
+        assert_eq!(
+            script_logical_base("title_menu_2_7.01.12.00.lua.bin"),
+            "title_menu_2"
+        );
+        assert_eq!(
+            script_logical_base("title_menu_0.06.41.lua.bin"),
+            "title_menu"
+        );
     }
 
     #[test]
@@ -497,6 +505,8 @@ mod tests {
         let paths = [
             "data/common/script/lua/menu/main_menu_inc_3.00.01.00.lua.bin",
             "data/common/script/lua/menu/prog_base_0.00.00.00.lua.bin",
+            "data/common/script/lua/menu/title_menu_2_7.01.12.00.lua.bin",
+            "data/common/script/lua/menu/title_menu_0.06.41.lua.bin",
             "data/common/script/lua/menu/readme.txt",
         ];
         let (by_name, by_logical) = index_script_paths(paths);
@@ -508,6 +518,16 @@ mod tests {
         assert_eq!(
             resolve_script_path("main_menu_inc_3.00.01.00.lua.bin", &by_name, &by_logical),
             Some(&expected)
+        );
+        let expected_title_2 = paths[2].to_string();
+        assert_eq!(
+            resolve_script_path("title_menu_2", &by_name, &by_logical),
+            Some(&expected_title_2)
+        );
+        let expected_title = paths[3].to_string();
+        assert_eq!(
+            resolve_script_path("title_menu", &by_name, &by_logical),
+            Some(&expected_title)
         );
         assert_eq!(
             resolve_script_path(

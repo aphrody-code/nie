@@ -1426,10 +1426,10 @@ export interface InitOutput {
     readonly __wasm_start: () => void;
     readonly init_panic_hook: () => void;
     readonly net_tournament_circuit_points: (a: number, b: number) => number;
-    readonly __wasm_bindgen_func_elem_4585: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4600: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3594: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3594_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4584: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4599: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3593: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3593_2: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

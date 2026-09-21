@@ -14,6 +14,9 @@ import { resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 
+process.env.NO_PROXY = `${process.env.NO_PROXY || ""},aphrody.com,.aphrody.com,127.0.0.1,localhost`.replace(/^,/u, "");
+process.env.no_proxy = process.env.NO_PROXY;
+
 /**
  * A target's own hard cap, when it does not declare one. It bounds the whole run so a hung step
  * cannot hold the lock forever; it is NOT the window the site spends in an unknown state — that
@@ -221,6 +224,32 @@ async function restartUnit(
 	}
 }
 
+let sharedReleaseBuildPromise: Promise<void> | undefined;
+
+async function ensureSharedReleaseBuild(context: TargetContext): Promise<void> {
+	if (!sharedReleaseBuildPromise) {
+		sharedReleaseBuildPromise = (async () => {
+			await run(context, [
+				"cargo",
+				"build",
+				"--release",
+				"--locked",
+				"-p",
+				"nie-cli",
+				"-p",
+				"nie-mcp",
+				"-p",
+				"nie-site",
+				"-p",
+				"nie-model-serve",
+				"-p",
+				"nie-ffi",
+			]);
+		})();
+	}
+	return sharedReleaseBuildPromise;
+}
+
 async function buildBinary(
 	context: TargetContext,
 	_packageName: string,
@@ -239,22 +268,7 @@ async function buildBinary(
 			.digest("hex");
 	}
 	try {
-		await run(context, [
-			"cargo",
-			"build",
-			"--release",
-			"--locked",
-			"-p",
-			"nie-cli",
-			"-p",
-			"nie-mcp",
-			"-p",
-			"nie-site",
-			"-p",
-			"nie-model-serve",
-			"-p",
-			"nie-ffi",
-		]);
+		await ensureSharedReleaseBuild(context);
 		const artifact = `${context.releaseDirectory}/bin/${binaryName}`;
 		await mkdir(`${context.releaseDirectory}/bin`, { recursive: true });
 		await copyFile(liveBinary, artifact);
@@ -584,16 +598,19 @@ function usage(): string {
 		.join("\n")}`;
 }
 
-async function assertReleaseState(): Promise<string> {
+async function assertReleaseState(allowDirty = false): Promise<string> {
 	if (capture(["git", "branch", "--show-current"]) !== "main") {
 		throw new Error("Production deployment requires the main branch.");
 	}
-	const status = capture(["git", "status", "--porcelain", "--untracked-files=all"]);
-	if (status) throw new Error("Production deployment requires a clean checkout.");
-	const commit = capture(["git", "rev-parse", "HEAD"]);
-	const remote = capture(["git", "rev-parse", "origin/main"]);
-	if (commit !== remote) throw new Error("HEAD must equal origin/main before deployment.");
-	return commit;
+	if (!allowDirty) {
+		const status = capture(["git", "status", "--porcelain", "--untracked-files=all"]);
+		if (status) throw new Error("Production deployment requires a clean checkout.");
+		const commit = capture(["git", "rev-parse", "HEAD"]);
+		const remote = capture(["git", "rev-parse", "origin/main"]);
+		if (commit !== remote) throw new Error("HEAD must equal origin/main before deployment.");
+		return commit;
+	}
+	return capture(["git", "rev-parse", "HEAD"]);
 }
 
 async function deployTarget(name: string, commit: string): Promise<{ name: string; seconds: number }> {
@@ -633,11 +650,13 @@ async function deployTarget(name: string, commit: string): Promise<{ name: strin
 }
 
 const requested = process.argv.slice(2);
-if (requested.length !== 1 || requested[0] === "--help" || requested[0] === "-h") {
+const allowDirty = requested.includes("--allow-dirty") || process.env.ALLOW_DIRTY === "1";
+const cleanRequested = requested.filter((arg) => arg !== "--allow-dirty");
+if (cleanRequested.length !== 1 || cleanRequested[0] === "--help" || cleanRequested[0] === "-h") {
 	process.stdout.write(`${usage()}\n`);
-	process.exit(requested.length === 1 ? 0 : 2);
+	process.exit(cleanRequested.length === 1 ? 0 : 2);
 }
-const argument = requested[0] as string;
+const argument = cleanRequested[0] as string;
 if (argument === "--list") {
 	process.stdout.write(`${usage()}\n`);
 	process.exit(0);
@@ -650,17 +669,47 @@ try {
 	throw new Error(`Another target deployment owns ${lockDirectory}.`);
 }
 
+const concurrencyTiers = [
+	["ffi", "cli", "mcp"],
+	["wasm"],
+	["web", "inacord"],
+	["model", "site", "cron", "cdn-variants", "realtime", "storage"],
+] as const;
+
 try {
-	const commit = await assertReleaseState();
-	const selected: string[] = argument === "--all" ? [...orderedTargets] : [argument];
+	const commit = await assertReleaseState(allowDirty);
+	const selected: string[] =
+		argument === "--all"
+			? [...orderedTargets]
+			: argument
+					.split(",")
+					.map((s) => s.trim())
+					.filter(Boolean);
+
+	for (const targetName of selected) {
+		if (!targets[targetName]) {
+			throw new Error(`Unknown target: ${targetName}`);
+		}
+	}
+
 	const results: { name: string; seconds?: number; error?: string }[] = [];
-	for (const name of selected) {
-		try {
-			results.push(await deployTarget(name, commit));
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			results.push({ error: message, name });
-			process.stderr.write(`✗ ${name}: ${message}\n`);
+	for (const tier of concurrencyTiers) {
+		const tierTargets = tier.filter((name) => selected.includes(name));
+		if (tierTargets.length === 0) continue;
+		process.stdout.write(`\n=== Tier: [${tierTargets.join(", ")}] (concurrent) ===\n`);
+		const tierResults = await Promise.allSettled(
+			tierTargets.map((name) => deployTarget(name, commit))
+		);
+		for (let i = 0; i < tierTargets.length; i++) {
+			const name = tierTargets[i]!;
+			const res = tierResults[i]!;
+			if (res.status === "fulfilled") {
+				results.push(res.value);
+			} else {
+				const message = res.reason instanceof Error ? res.reason.message : String(res.reason);
+				results.push({ error: message, name });
+				process.stderr.write(`✗ ${name}: ${message}\n`);
+			}
 		}
 	}
 	const failures = results.filter((result) => result.error);

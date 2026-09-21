@@ -2089,3 +2089,35 @@ into `niers`:
       - `cargo check --workspace --tests`: 0 errors, passed.
       - `bun run docs:check`: 49/49 indexed, 0 failures, passed.
       - `git diff --check`: 0 issues, passed.
+
+13. **Real WebGPU Headless Audit, VFS Asset Normalization & Isolated aphrody.com VHost — (measured 2026-09-21)**:
+    - **WebGPU Headless Verification & Real Chromium Setup**:
+      - Google Chrome for Testing headless execution with real WebGPU support: `--headless=new --no-sandbox --disable-dev-shm-usage --remote-debugging-port=9226 --enable-unsafe-webgpu --use-gl=angle --use-angle=swiftshader --use-webgpu-adapter=swiftshader --ignore-gpu-blocklist`.
+      - SwiftShader Vulkan 1.4 device providing hardware-accelerated WebGPU adapter without GPU crashes.
+      - Comprehensive automated audit script: `scripts/audit-and-fix-nie.ts`.
+      - Audited all 16 web routes (`/`, `/explore`, `/textures`, `/models`, `/gallery`, `/modes`, `/media`, `/bank`, `/shop`, `/editor_3d`, `/settings`, `/downloads`, `/docs`, `/online`, `/stats`, `/credits`) and 6 API endpoints (`/api/v1/health`, `/api/v1/chara`, `/api/v1/texture/gallery`, `/api/v1/online/status`, `/api/v1/audio/manifest`, `/api/v1/online/ladder`).
+      - 100% clean audit: 16/16 pages passed with 0 console errors, 0 failed network requests, verified DOM ready, verified 1 WebGPU canvas rendered on `/editor_3d`. 6/6 APIs passed with HTTP 200 and valid JSON.
+    - **Production Routing & VHost Decoupling**:
+      - Separated `aphrody.com` and `nie.aphrody.com`: completely removed the 308 redirect from `aphrody.com` to `nie.aphrody.com`.
+      - Reconfigured `deploy/nginx/aphrody.com.conf` (and synced to `/etc/nginx/conf.d/aphrody.com.conf`) to proxy directly to `aphrody-site` (:8083), returning HTTP/2 200.
+      - `nie.aphrody.com` remains dedicated exclusively to `nie-site` (:8085) with clean identity isolation.
+    - **VFS Asset Resolution & Game Texture Fixes**:
+      - `packages/inacord-ui/src/lib/wikiImages.ts`: fixed `resolveAssetUrl` to strip `/menu/` prefix and correctly map `200_icon/` and `220_img/` paths to native `data/dx11/menu/...` `.g4tx` files serviced dynamically by `nie-model-serve` (:8790) via `nie-site`s `/assets/tex/` proxy.
+      - `packages/inacord-ui/src/components/wiki/wiki/AuraCard.tsx`: updated aura image resolution to use `resolveImage` directly without falling back to missing relative `.webp` assets.
+      - Added deployed `apps/nie-web/public/icon_common.webp` and `apps/nie-web/public/static/game/vfs/manifest.json`.
+    - **Runtime Lua Script Base Stripping**:
+      - `crates/engine/nie-lua/src/lib.rs`: improved `script_logical_base()` version stripping logic to only strip a single trailing numeric version suffix (`_\d+$`), preserving compound identifiers while correctly resolving versioned Lua script definitions.
+    - **Concurrency Tiered Deployments & 2026 Modern Tooling**:
+      - `scripts/deploy-target.ts`: parallelized deployment by tiers (Tier 1: ffi/cli/mcp, Tier 2: wasm, Tier 3: web/inacord, Tier 4: services & data) with support for `--allow-dirty`.
+      - `justfile`: added `deploy-all`, `autopilot`, `autopilot-tick`, `model-serve-health`, and `model-serve-prewarm`.
+      - `scripts/niers-env.sh`: configured compiler caching (`sccache`) and fast linking (`mold`) when available.
+    - **Automated Verification Gates**:
+      - `bun test packages/inacord-ui`: 128/128 passed.
+      - `bun run typecheck`: passed with 0 errors across all monorepo workspaces.
+      - `cargo test -p nie-lua`: 143/143 passed.
+      - `cargo clippy -p nie-lua --lib --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo test -p nie-wiki`: 76/76 passed.
+      - `cargo clippy -p nie-wiki --lib --tests -- -D warnings`: 0 warnings, passed.
+      - `cargo test -p nie-site`: 374/374 passed.
+      - `cargo clippy -p nie-site --bin nie-site --tests -- -D warnings`: 0 warnings, passed.
+      - Web production deployment: `bun run deploy:target -- web --allow-dirty` (built, Brotli q11 precompressed 498 assets, published atomically).

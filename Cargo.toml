@@ -316,11 +316,13 @@ chunks_exact_to_as_chunks = "allow"
 opt-level = 3
 lto = "thin"
 codegen-units = 1
+strip = "symbols"
 
 [profile.release-fast]
 inherits = "release"
 lto = "thin"
 codegen-units = 16
+strip = "symbols"
 
 # Keep line-level backtraces while avoiding the full debug and incremental caches that made the
 # complete workspace test graph exceed this release host's disk. Full symbols remain available
