@@ -22,7 +22,7 @@ Type=simple
 User=ubuntu
 Group=ubuntu
 WorkingDirectory=/
-ExecStart=${NIE_REPO_ROOT}/target/release/nie-model-serve \
+ExecStart=/bin/sh -c 'exec "$${NIE_REPO_ROOT}/target/release/nie-model-serve" \
     --game-dir ${NIE_GAME_DIR} \
     --glb-dir  ${NIE_GAME_DIR}/data/dx11/model \
     --crc-manifest ${NIE_REPO_ROOT}/var/model-crc-manifest.ndjson \
@@ -32,7 +32,7 @@ ExecStart=${NIE_REPO_ROOT}/target/release/nie-model-serve \
     --asset-cross-ref ${NIE_REPO_ROOT}/data/asset-cross-reference.json \
     --menu-cfg-dir ${NIE_REPO_ROOT}/data/common/gamedata/menu/cfg \
     --db ${NIE_REPO_ROOT}/var/mirror.sqlite \
-    --port 8790 --threads 10 --http-threads 24 --http-queue 512 --memory-cache-mib 2048
+    --port 8790 --threads 10 --http-threads 24 --http-queue 512 --memory-cache-mib 2048'
 Environment=NIE_REPO_ROOT=%h/nie
 Environment=NIE_GAME_DIR=%h/.local/share/Steam/iecode/inazuma
 Environment=RUST_LOG=info
