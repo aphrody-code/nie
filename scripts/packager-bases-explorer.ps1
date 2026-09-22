@@ -137,7 +137,7 @@ function Invoke-Compression([string] $Source, [string] $Nom) {
 Write-Host "▸ bases embarquées d'Inacord → $Cible"
 
 # Le miroir du wiki. Source canonique : var/mirror.sqlite (lien vers l'instantané courant, posé
-# par scripts/donnees/miroir-inagle.sh) ; à défaut, le dernier instantané daté.
+# par l'outillage de publication) ; à défaut, le dernier instantané daté.
 $Miroir = Join-Path $Root 'var/mirror.sqlite'
 if (-not (Test-Path -LiteralPath $Miroir)) {
     $instantanes = @(Get-ChildItem -Path (Join-Path $Root 'var/miroir') -Filter 'inagle-*.sqlite' -File -ErrorAction SilentlyContinue |
@@ -150,7 +150,7 @@ if (-not (Invoke-Compression $Miroir 'mirror.sqlite')) { exit 1 }
 # pas de lien, un seul fichier.
 if (-not (Invoke-Compression (Join-Path $Root 'var/niers.sqlite') 'niers.sqlite')) { exit 1 }
 
-# Le catalogue des épisodes de la série (packages/ietv → IETVCache), que la vue Cinéma présente
+# Le catalogue des épisodes de la série, que la vue Cinéma présente
 # à côté des cinématiques du jeu. ~290 Ko : le seuil de validité des deux autres (1 Mo) ne s'y
 # applique pas — d'où le contrôle par le nombre d'épisodes plutôt que par la taille.
 $Episodes = Join-Path $Root 'data/anime/episodes.db'

@@ -1,14 +1,23 @@
-export function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+export { b64ToBytes, bytesToB64 } from "../../shared/base64";
+
+/** Decode an even-length hexadecimal string without allocating per-byte substrings. */
+export function hexToBytes(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) throw new Error("hex string must contain an even number of digits");
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    const high = hexValue(hex.charCodeAt(i * 2));
+    const low = hexValue(hex.charCodeAt(i * 2 + 1));
+    if (high < 0 || low < 0) throw new Error("hex string contains an invalid digit");
+    out[i] = (high << 4) | low;
+  }
   return out;
 }
 
-export function bytesToB64(bytes: Uint8Array): string {
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin);
+function hexValue(code: number): number {
+  if (code >= 48 && code <= 57) return code - 48;
+  if (code >= 65 && code <= 70) return code - 55;
+  if (code >= 97 && code <= 102) return code - 87;
+  return -1;
 }
 
 export function humanSize(n: number): string {

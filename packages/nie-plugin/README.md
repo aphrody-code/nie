@@ -1,4 +1,4 @@
-# `nie-plugin`
+# Module interne de préchargement Bun
 
 Repo-scoped Bun loaders for niers game formats and reverse-engineering resources.
 

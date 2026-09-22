@@ -1,6 +1,6 @@
 //! Lecture seule du miroir SQLite — et la parade au lien symbolique qui bascule la nuit.
 //!
-//! `var/mirror.sqlite` est un **lien symbolique daté**, rebasculé par le timer `nie-miroir`.
+//! `var/mirror.sqlite` est un **lien symbolique daté**, publié atomiquement.
 //! `open(2)` résout le lien une seule fois : rebasculer le lien n'a aucun effet sur une
 //! connexion déjà ouverte, qui continue de lire l'ancien inode **indéfiniment, sans la moindre
 //! erreur**. Base figée, zéro signal — le mode d'échec le plus

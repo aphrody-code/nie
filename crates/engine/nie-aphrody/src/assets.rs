@@ -290,13 +290,6 @@ impl Pet {
         Ok(fichiers)
     }
 
-    /// Compatibility alias for [`Pet::brand_assets`].
-    #[deprecated(note = "use brand_assets")]
-    #[must_use = "asset generation errors must be handled"]
-    pub fn assets_de_marque(&self, frame: &Frame, tailles: &[u32]) -> Result<Vec<Fichier>, Error> {
-        self.brand_assets(frame, tailles)
-    }
-
     /// Le manifeste web, avec les icônes que [`Pet::brand_assets`] vient de produire.
     #[must_use]
     pub fn web_manifest(&self, tailles: &[u32]) -> String {
@@ -326,12 +319,5 @@ impl Pet {
             desc = self.pet.description.replace('"', "'"),
             icones = icones.join(",\n"),
         )
-    }
-
-    /// Compatibility alias for [`Pet::web_manifest`].
-    #[deprecated(note = "use web_manifest")]
-    #[must_use]
-    pub fn manifeste_web(&self, tailles: &[u32]) -> String {
-        self.web_manifest(tailles)
     }
 }

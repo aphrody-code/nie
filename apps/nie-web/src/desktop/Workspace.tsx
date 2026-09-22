@@ -1,5 +1,5 @@
 /**
- * The Inacord workspace — its views, and nothing else.
+ * The Inacord workspace — the user-facing VFS explorer, and nothing else.
  *
  * ## Why this file exists
  *
@@ -9,10 +9,9 @@
  * game screens could not reach a tool, and a tool could only reach a game screen through a full
  * page reload (`window.location.assign`).
  *
- * What is left here is the part that was never duplicated: the views themselves, the Explorer's
- * tabs, the editor state, and the three keyboard gestures that only make sense when the Explorer
- * is on screen. The shell above (`shell/UnifiedShell.tsx`) owns everything else, for every screen
- * of the product.
+ * The workspace owns only the Explorer's tabs and the keyboard gestures that make sense while
+ * browsing the VFS. RE, wiki/data, modding, Lua, live memory and authoring remain headless
+ * capabilities behind their API/CLI/MCP/script owners.
  *
  * ## What this component does NOT own
  *
@@ -20,12 +19,11 @@
  * state in `App.tsx` — which is what makes a workspace view addressable, shareable and reachable
  * from the game side without a reload.
  */
-import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent } from "@niers/inacord-ui/components/ui/tabs";
 import { ExplorerView } from "@/components/ExplorerView";
 import { ExplorerTabsBar } from "@/components/ExplorerTabsBar";
-import type { EditorViewProps, EditorViewState } from "./components/editor/EditorView";
 import { DetailPane } from "@/components/DetailPane";
 import { useAppMenuShortcuts, type AppMenuActions } from "@/components/AppMenu";
 import { useBridge } from "@/lib/bridge";
@@ -35,30 +33,6 @@ import { canGoBack, canGoForward, explorerTabs, useExplorerTabs } from "@/lib/ex
 import { setExternalPath, useExternalPath } from "@/lib/externalPath";
 import { libellesVues } from "@/lib/vues";
 import type { WorkspaceActions } from "../shell/workspace-actions";
-
-/** Les vues hors parcours Explorer sont chargées à leur première ouverture. Cela laisse le
- * démarrage et les changements de dossier libres des bundles Monaco, vidéo, forge et catalogue. */
-const DashboardView = lazy(() => import("@/components/DashboardView").then(({ DashboardView }) => ({ default: DashboardView })));
-const EditorView = lazy(async (): Promise<{ default: ComponentType<EditorViewProps> }> => {
-  const module = await import("./components/editor/EditorView");
-  return { default: module.EditorView };
-});
-const GameDataView = lazy(() => import("@/components/GameDataView").then(({ GameDataView }) => ({ default: GameDataView })));
-const SearchView = lazy(() => import("@/components/SearchView").then(({ SearchView }) => ({ default: SearchView })));
-const ModsView = lazy(() => import("@/components/ModsView").then(({ ModsView }) => ({ default: ModsView })));
-const RawCpkView = lazy(() => import("@/components/RawCpkView").then(({ RawCpkView }) => ({ default: RawCpkView })));
-const ReToolsView = lazy(() => import("@/components/ReToolsView").then(({ ReToolsView }) => ({ default: ReToolsView })));
-const LuaView = lazy(() => import("@/components/LuaView").then(({ LuaView }) => ({ default: LuaView })));
-const LiveModView = lazy(() => import("@/components/LiveModView").then(({ LiveModView }) => ({ default: LiveModView })));
-const ViolaView = lazy(() => import("@/components/ViolaView").then(({ ViolaView }) => ({ default: ViolaView })));
-const CinemaView = lazy(() => import("@/components/CinemaView").then(({ CinemaView }) => ({ default: CinemaView })));
-const GalleryView = lazy(() => import("@/components/GalleryView").then(({ GalleryView }) => ({ default: GalleryView })));
-const ToolsView = lazy(() => import("@/components/ToolsView").then(({ ToolsView }) => ({ default: ToolsView })));
-const SaveView = lazy(() => import("@/components/SaveView").then(({ SaveView }) => ({ default: SaveView })));
-
-function VueEnChargement() {
-  return <div className="grid h-full place-items-center text-sm text-ink-faint">Ouverture de la vue…</div>;
-}
 
 export function Workspace({ view, actions, publicMode = false }: {
   view: string;
@@ -73,9 +47,6 @@ export function Workspace({ view, actions, publicMode = false }: {
   const tabsState = useExplorerTabs();
   const explorer = tabsState.tabs.find((x) => x.id === tabsState.activeId) ?? tabsState.tabs[0];
   const activeTabId = explorer.id;
-  /** Mode Éditeur — dossier courant du navigateur de contenu + asset ouvert dans le viewport. */
-  const [editor, setEditor] = useState<EditorViewState>({ prefix: "data/common/chr", selected: null });
-
   // Pont de contrôle MCP : `nie-mcp` peut piloter cette fenêtre (naviguer, ouvrir un asset,
   // changer d'onglet, notifier) — mêmes types de commandes des deux côtés, cf. `@niers/bridge`.
   // Opportuniste : sans serveur en écoute, rien ne se passe et l'application reste intacte.
@@ -163,100 +134,43 @@ export function Workspace({ view, actions, publicMode = false }: {
   }
 
   return (
-    <Tabs value={view} className="h-full min-h-0">
-      <Suspense fallback={<VueEnChargement />}>
-        {!publicMode ? <TabsContent value="dashboard" className="h-full min-h-0">
-          <DashboardView onSelectTab={(id) => actions.openView(id)} />
-        </TabsContent> : null}
-        {!publicMode || view === "editor" ? <TabsContent value="editor" className="h-full min-h-0">
-          <EditorView
-            state={editor}
-            onStateChange={setEditor}
-            onOpenInExplorer={actions.revealInExplorer}
-            authoring={!publicMode}
+    <Tabs value="explorer" className="h-full min-h-0">
+      {/* The desktop product has one visual surface. Other capabilities stay behind API/CLI/MCP. */}
+      <TabsContent value="explorer" className="h-full min-h-0" keepMounted>
+        <div className="flex h-full min-h-0 flex-col">
+          <ExplorerTabsBar
+            tabs={tabsState.tabs}
+            activeId={tabsState.activeId}
+            onActivate={(id) => explorerTabs.activate(id)}
+            onClose={(id) => explorerTabs.close(id)}
+            onNew={() => explorerTabs.open(explorer.prefix)}
           />
-        </TabsContent> : null}
-        {/* `keepMounted` : le panneau de `@base-ui/react` DÉMONTE son contenu quand il
-            n'est pas actif (`keepMounted` vaut `false` par défaut). Sans lui, quitter
-            l'Explorateur détruirait les N instances d'onglet — listings, caches `.cpk` et
-            sélections repartiraient de zéro à chaque aller-retour entre vues. */}
-        <TabsContent value="explorer" className="h-full min-h-0" keepMounted>
-          <div className="flex h-full min-h-0 flex-col">
-            <ExplorerTabsBar
-              tabs={tabsState.tabs}
-              activeId={tabsState.activeId}
-              onActivate={(id) => explorerTabs.activate(id)}
-              onClose={(id) => explorerTabs.close(id)}
-              onNew={() => explorerTabs.open(explorer.prefix)}
-            />
-            <div className="min-h-0 flex-1">
-              {tabsState.tabs.map((tb) => (
-                // `display:none` et NON l'attribut `hidden` : les classes `flex`/`h-full`
-                // de Tailwind portées par le sous-arbre l'emportent sur le
-                // `[hidden]{display:none}` du reset, et l'onglet inactif resterait visible.
-                <div
-                  key={tb.id}
-                  className="h-full min-h-0"
-                  style={tb.id === tabsState.activeId ? undefined : { display: "none" }}
-                >
-				  <ExplorerView
-					authoring={!publicMode}
-                    state={tb}
-                    active={tb.id === tabsState.activeId}
-                    onStateChange={(patch) => explorerTabs.update(tb.id, patch)}
-                    onOpenInNewTab={(prefix) => {
-                      recordVisit(prefix);
-                      explorerTabs.open(prefix);
-                    }}
-                    onBack={() => explorerTabs.back(tb.id)}
-                    onForward={() => explorerTabs.forward(tb.id)}
-                    canGoBack={canGoBack(tb)}
-                    canGoForward={canGoForward(tb)}
-                  />
-                </div>
-              ))}
-            </div>
+          <div className="min-h-0 flex-1">
+            {tabsState.tabs.map((tb) => (
+              <div
+                key={tb.id}
+                className="h-full min-h-0"
+                style={tb.id === tabsState.activeId ? undefined : { display: "none" }}
+              >
+                <ExplorerView
+                  authoring={false}
+                  state={tb}
+                  active={tb.id === tabsState.activeId}
+                  onStateChange={(patch) => explorerTabs.update(tb.id, patch)}
+                  onOpenInNewTab={(prefix) => {
+                    recordVisit(prefix);
+                    explorerTabs.open(prefix);
+                  }}
+                  onBack={() => explorerTabs.back(tb.id)}
+                  onForward={() => explorerTabs.forward(tb.id)}
+                  canGoBack={canGoBack(tb)}
+                  canGoForward={canGoForward(tb)}
+                />
+              </div>
+            ))}
           </div>
-        </TabsContent>
-        {!publicMode ? <TabsContent value="cinema" className="h-full min-h-0">
-          <CinemaView onOpenFile={actions.revealInExplorer} />
-        </TabsContent> : null}
-        <TabsContent value="search" className="h-full min-h-0">
-          <SearchView onOpenFile={actions.revealInExplorer} />
-        </TabsContent>
-        <TabsContent value="data" className="h-full min-h-0">
-          <GameDataView onOpenFile={actions.revealInExplorer} publicMode={publicMode} />
-        </TabsContent>
-        {!publicMode ? <TabsContent value="gallery" className="h-full min-h-0">
-          <GalleryView onOpenFile={actions.revealInExplorer} />
-        </TabsContent> : null}
-        {!publicMode ? <TabsContent value="tools" className="h-full min-h-0">
-          {/* « Ses fichiers » du Traducteur : le code interne part dans la Recherche de
-              l'onglet actif — c'est le geste que le wiki ne peut pas offrir. */}
-          <ToolsView onOpenSearch={actions.openSearch} />
-        </TabsContent> : null}
-        {!publicMode ? <TabsContent value="mods" className="h-full min-h-0">
-          <ModsView onOpenFile={actions.revealInExplorer} />
-        </TabsContent> : null}
-        {!publicMode ? <TabsContent value="cpk" className="h-full min-h-0">
-          <RawCpkView />
-        </TabsContent> : null}
-        {!publicMode ? <TabsContent value="viola" className="h-full min-h-0">
-          <ViolaView />
-        </TabsContent> : null}
-        {!publicMode ? <TabsContent value="livemod" className="h-full min-h-0 overflow-auto">
-          <LiveModView />
-        </TabsContent> : null}
-        {!publicMode ? <TabsContent value="lua" className="h-full min-h-0">
-          <LuaView />
-        </TabsContent> : null}
-        {!publicMode ? <TabsContent value="re" className="h-full min-h-0">
-          <ReToolsView />
-        </TabsContent> : null}
-        {!publicMode ? <TabsContent value="save" className="h-full min-h-0 overflow-auto">
-          <SaveView />
-        </TabsContent> : null}
-      </Suspense>
+        </div>
+      </TabsContent>
     </Tabs>
   );
 }

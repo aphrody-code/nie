@@ -14,7 +14,7 @@
 set -u
 
 # MSYS/Git Bash n'émet PAS de lien symbolique par défaut : `ln -s` y COPIE le fichier, avec
-# exit 0 et sans un mot. Mesuré le 2026-09-06 sur le poste Windows : ~/.local/bin/niers.exe
+# exit 0 et sans un mot. Mesuré le 2026-09-06 sur le poste Windows : ~/.local/bin/nie.exe
 # était un vrai fichier de 27 690 496 octets, `readlink` vide — exactement la copie périmable
 # que l'en-tête ci-dessus dit refuser. `winsymlinks:nativestrict` demande le lien natif ET fait
 # échouer `ln` si le système ne l'accorde pas, au lieu de retomber en silence sur la copie.
@@ -74,7 +74,7 @@ for f in target/release/*; do
     lien "$(basename "$f")" "$racine/$f"
 done
 
-# Preserve the historical command name as an alias of the native Rust server.
+# Preserve the historical MCP command as an alias of the native Rust server.
 if [ -x target/release/nie-mcp ]; then
     lien "niers-mcp" "$racine/target/release/nie-mcp"
 fi
@@ -89,6 +89,4 @@ if [ "$copies" -gt 0 ]; then
     echo "développeur (ou accordez SeCreateSymbolicLinkPrivilege) et relancez."
 fi
 echo
-echo "Rappel de doctrine : \`niers\` est la seule CLI utilisateur. \`nie-mem\` et \`nie-steam\`"
-echo "recouvrent \`niers mem\` et \`niers steam\` — publiés pour l'outillage, mais une commande"
-echo "nouvelle s'écrit dans nie-cli, jamais dans un binaire de plus."
+    echo "Rappel : \`nie\` est la seule CLI utilisateur. Les sous-commandes restent dans nie-cli."

@@ -27,17 +27,12 @@
 )]
 
 pub mod api;
-pub mod matching;
-/// Compatibility exports for the former French module name.
-#[deprecated(since = "0.5.11", note = "use `matching` instead")]
-pub mod appariement {
-    pub use crate::matching::*;
-}
 #[cfg(feature = "host")]
 pub mod client;
 #[cfg(feature = "host")]
 pub mod cross;
 pub mod forge;
+pub mod matching;
 pub mod models;
 pub mod parser;
 #[cfg(feature = "host")]

@@ -13,6 +13,15 @@ Une implémentation maintenue d'IEVR sous une racine. Ce document dit **qui fait
 
 `just all-build` · `just all-test` · `just all-check` pilotent ces deux chaînes.
 
+## Inacord boundary
+
+Inacord Desktop is deliberately a visual, user-facing VFS explorer: it mounts/browses the game
+filesystem and previews decoded resources. It is not the GUI owner for wiki/data queries, 3D
+authoring, modding, reverse engineering, Lua, live memory or archive tooling. Those capabilities
+remain in their existing Rust owners and are consumed through API, CLI, MCP, code and scripts;
+read-only preview data may be rendered by the explorer without turning the GUI into an operator.
+The desktop view registry therefore has one route: `inacord/explorer`.
+
 ## Doctrine — un rôle, un langage
 
 | Langage | Rôles |
@@ -53,7 +62,7 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 
 | Crate | Rôle | Tests |
 |---|---|---:|
-| `aphrody-re` | Triage PE/ELF/Mach-O pur Rust (sections, entropie, empreintes) + extraction de chaînes + désassemblage x86 | 0 |
+| `iecode-re` | Triage PE/ELF/Mach-O pur Rust (sections, entropie, empreintes) + extraction de chaînes + désassemblage x86 | 0 |
 | `nie-pe` | Lecture/écriture byte-exacte du PE64 + découpage du fichier en unités de forge | 24 |
 | `nie-asm` | Encodeur x86-64 dialecte MSVC — réassemble les corps depuis `forge/asm/*.s` | 23 |
 | `nie-forge` | Boucle `split`/`lift`/`cc`/`build`/`verify`/`report`, mesure la part produite | 33 |
@@ -83,6 +92,7 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-save` | Déchiffrement, lecture et édition des saves (XOR clé CRC32) | 57 |
 | `nie-explore` | Aperçu/description des entrées VFS par format | 41 |
 | `nie-viola` | Modding Level-5 (dump/pack/merge/crypto Criware), périmètre outil « Viola » | 51 |
+| `nie-emu` | Backend registry and capability contracts for DS/3DS/Wii/Android runners; no copied emulator core | 3 |
 | `nie-ui` | Source unique typée des jetons de design du jeu (OKLCH, géométrie, mouvement) → CSS | 35 |
 | `nie-aphrody` | Runtime typé du pet « Codex Aphrody v2 » (atlas RGBA, animations, directions) | 56 |
 | `nie-ffi` | Frontière C-ABI — **seul natif chargé côté TS** | 13 |
@@ -100,7 +110,7 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-mcp` | Binding MCP Rust natif (`rmcp`) des commandes partagées de `niers` | 7 |
 | `nie-site` | Serveur HTTP nie (Axum 0.8) : le jeu wasm en `/`, bundle `nie-web`, `/api/v1`, VFS `/f` `/b`, proxy `nie-model-serve` | 275 |
 | `nie-model-serve` | Serveur HTTP live d'assemblage GLB IEVR (corps+face+uniforme depuis CPK, cache disque) | 13 |
-| `ievr-tools` | Binding historique d'outils IEVR ; son inspecteur PE est fourni par `aphrody-re` via ré-export compatible | 8 |
+| `ievr-tools` | Binding historique d'outils IEVR ; son inspecteur PE est fourni par `iecode-re` via ré-export compatible | 8 |
 | `nie-computer-use` | Capture et inspection locale bornée des images utilisées par les workflows d'observation | 6 |
 | `nie-steam` | Acquisition Steam native (download/dump de dépôts IEVR), remplace SteamKit2 | 35 |
 | `nie-zukan` | Ingesteur de l'encyclopédie officielle Level-5 Inagle (JP/FR/EN) | 53 |

@@ -26,7 +26,7 @@
 set -euo pipefail
 
 RACINE="${1:-$PWD}"
-NIERS="${NIERS:-$RACINE/target/release/niers}"
+NIERS="${NIE_BIN:-$RACINE/target/release/nie}"
 MOD="$RACINE/data/mods/victory-road"
 DIST="$RACINE/data/mods/victory-road-dist"
 

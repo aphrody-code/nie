@@ -110,8 +110,7 @@ Set-FileRegex 'Cargo.toml' '^version = "[0-9]*\.[0-9]*\.[0-9]*"' "version = `"$V
 Set-FileRegex 'package.json' '"version": "[0-9]*\.[0-9]*\.[0-9]*"' "`"version`": `"$Version`""
 foreach ($f in @(
         'apps/inacord/package.json',
-        'packages/nie/package.json', 'packages/nie-bridge/package.json',
-        'packages/nie-plugin/package.json')) {
+        'packages/nie/package.json', 'packages/nie-bridge/package.json')) {
     if (Test-Path -LiteralPath $f -PathType Leaf) {
         Set-FileRegex $f '"version": "[0-9]*\.[0-9]*\.[0-9]*"' "`"version`": `"$Version`""
     }
@@ -219,7 +218,7 @@ Write-Host "▸ [7/8] commit + tag $Tag + push…"
 & git add Cargo.toml Cargo.lock package.json bun.lock `
     apps/inacord/package.json apps/inacord/src-tauri/Cargo.toml `
     apps/inacord/src-tauri/tauri.conf.json `
-    packages/nie/package.json packages/nie-bridge/package.json packages/nie-plugin/package.json
+    packages/nie/package.json packages/nie-bridge/package.json
 Assert-Exit 'git add'
 
 # Le bump peut avoir déjà été committé (relance après un échec plus loin dans le pipeline) : un

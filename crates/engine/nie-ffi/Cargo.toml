@@ -10,7 +10,9 @@ rust-version.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
-# nom de lib par défaut = nie_ffi -> produit target/debug/libnie_ffi.so
+name = "iecode"
+# Le package reste `nie-ffi` pour préserver le graphe Cargo ; l'artefact partagé
+# commun porte désormais le nom produit `iecode`.
 
 [lints]
 workspace = true
@@ -34,3 +36,5 @@ image = { workspace = true, features = ["png"] }
 nie-runtime.workspace = true
 # Rust-owned wiki queries exposed to Bun through the native boundary.
 nie-wiki.workspace = true
+# The single in-process console/backend contract exposed to Bun and other hosts.
+nie-emu.workspace = true

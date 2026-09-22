@@ -12,7 +12,8 @@ Tauri, desktop aliases, SQL adapters or filesystem code. Existing settings and
 thumbnail providers remain required host context.
 
 `gallery.ts` is the pure path/category/thumbnail/enrichment/filter model. The old
-desktop `lib/galerie.ts` reexports it. Existing names remain compatible.
+Desktop consumers import the shared gallery contracts and components directly. Existing gallery
+behavior remains owned by this package.
 `GalleryFilters` is the common controlled category/subfolder chip presentation;
 URL writes remain with route adapters.
 

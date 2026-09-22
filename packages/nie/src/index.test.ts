@@ -1,18 +1,18 @@
 /**
- * Preuve du round-trip Rust <-> Bun pour libnie_ffi.
+ * Preuve du round-trip Rust <-> Bun pour iecode.
  *
  * Ces tests appellent RÉELLEMENT le code Rust via bun:ffi (dlopen sur
- * target/debug/libnie_ffi.so) et assertent des valeurs exactes connues du
+ * target/debug/libiecode.so) et assertent des valeurs exactes connues du
  * moteur niers (vérité terrain). Un bug FFI est une corruption silencieuse,
  * pas une exception : on compare donc des octets/entiers précis, pas "truthy".
  *
  * Lancer :   cd /home/aphrody/niers && bun test
- * Prérequis: cargo build -p nie-ffi   (génère target/debug/libnie_ffi.so)
+ * Prérequis: cargo build -p nie-ffi   (génère target/debug/libiecode.so)
  */
 
 import { test, expect, describe } from "bun:test";
 import { resolve } from "node:path";
-import { crc32, CRand, version, wiki } from "./index.ts";
+import { crc32, CRand, emuRegistry, version, wiki } from "./index.ts";
 
 const REPOSITORY_ROOT = resolve(import.meta.dir, "../../..");
 
@@ -269,5 +269,18 @@ describe("version (Rust nie_version -> CString)", () => {
     const v = version();
     expect(v).toMatch(/^\d+\.\d+\.\d+$/);
     expect(v).toBe(pkg.version);
+  });
+});
+
+describe("nie-emu registry (Rust -> Bun FFI)", () => {
+  test("expose une matrice unique sans subprocess", () => {
+    const registry = emuRegistry() as {
+      backends: Array<{ id: string; kind: string }>;
+      adapters: Array<{ capability: string; status: string }>;
+    };
+    expect(registry.backends.some((entry) => entry.id === "dust" && entry.kind === "native_rust")).toBe(true);
+    expect(registry.backends.some((entry) => entry.id === "gecko-wii" && entry.kind === "native_rust")).toBe(true);
+    expect(registry.backends.some((entry) => entry.kind === "external_process")).toBe(false);
+    expect(registry.adapters.some((entry) => entry.capability === "save")).toBe(true);
   });
 });

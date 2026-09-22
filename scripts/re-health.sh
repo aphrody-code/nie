@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# re-health.sh — sante de la stack RE niers. Lecture seule (n'ecrit rien).
+# re-health.sh — sante de la stack RE nie. Lecture seule (n'ecrit rien).
 # Usage : bash scripts/re-health.sh   (ou `just health`)
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 DB="${NIERS_DB:-var/niers.sqlite}"
-BIN="target/release/niers"
+BIN="${NIE_BIN:-target/release/nie}"
 # Racine du jeu : NIE_GAME_DIR (convention du reste du dépôt), NIERS_GAME_DIR (historique),
 # sinon la racine du dépôt — sur une installation Steam, les deux coïncident.
 GAME_DIR="${NIE_GAME_DIR:-${NIERS_GAME_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
@@ -16,7 +16,7 @@ ko(){ printf '  \033[31mKO\033[0m  %s\n' "$1"; }
 hdr(){ printf '\n=== %s ===\n' "$1"; }
 
 hdr "Binaire & cible"
-[ -x "$BIN" ] && ok "niers build present ($BIN)" || ko "niers ABSENT — cargo build --release -p nie-cli"
+[ -x "$BIN" ] && ok "nie build present ($BIN)" || ko "nie ABSENT — cargo build --release -p nie-cli --bin nie"
 [ -f "$EXE" ] && ok "cible RE present ($(du -h "$EXE" | cut -f1))" || ko "exe RE ABSENT: $EXE"
 [ -f "$DB" ]  && ok "KB sqlite ($(du -h "$DB" | cut -f1))" || ko "KB ABSENTE: $DB — just re-seed"
 
@@ -34,7 +34,7 @@ else
   ko "sqlite3 absent ou KB absente — saute l'integrite"
 fi
 
-hdr "Couverture (niers coverage)"
+hdr "Couverture (nie coverage)"
 if [ -x "$BIN" ] && [ -f "$DB" ]; then
   "$BIN" coverage --db "$DB" 2>&1 | sed 's/^/  /'
 else

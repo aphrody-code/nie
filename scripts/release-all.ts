@@ -137,7 +137,6 @@ const stages: Stage[] = [
 		name: "build",
 		commands: [
 			// Enumerate build owners so the site build can never follow the live dist symlink.
-			{ argv: ["bun", "run", "--filter", "@rosegriffon/cron", "build"] },
 			{ argv: ["bun", "run", "--cwd", "apps/inacord", "build"] },
 			{
 				argv: [
@@ -366,7 +365,7 @@ async function assertImmutable(commit: string): Promise<void> {
 
 async function prepareReleaseArtifacts(): Promise<void> {
 	await mkdir(`${releaseStage}/bin`, { recursive: true });
-	for (const binary of ["niers", "nie-mcp", "nie-site", "nie-model-serve"]) {
+	for (const binary of ["nie", "nie-mcp", "nie-site", "nie-model-serve"]) {
 		const source = `${releaseStage}/target/release/${binary}`;
 		if (!(await Bun.file(source).exists())) throw new Error(`Missing release artifact ${source}`);
 		await copyFile(source, `${releaseStage}/bin/${binary}`);
@@ -392,7 +391,7 @@ async function snapshotRollbackArtifacts(): Promise<void> {
 	}
 	// These client-facing binaries are atomically replaced too. They do not have a systemd
 	// process to copy from, so retain the current checked-out artifacts explicitly.
-	for (const binary of ["niers", "nie-mcp"]) {
+	for (const binary of ["nie", "nie-mcp"]) {
 		const source = `target/release/${binary}`;
 		if (!(await Bun.file(source).exists()))
 			throw new Error(`Missing rollback artifact ${source}.`);
@@ -591,7 +590,7 @@ async function deployProduction(commit: string): Promise<void> {
 	const previousInacordChannel = await readlink("var/releases/inacord/public").catch(() => "");
 	const rollback = `${release}/rollback`;
 	await rename(releaseStage, release);
-	for (const binary of ["niers", "nie-mcp", "nie-site", "nie-model-serve"])
+	for (const binary of ["nie", "nie-mcp", "nie-site", "nie-model-serve"])
 		if (!(await Bun.file(`${rollback}/${binary}`).exists()))
 			throw new Error(`Rollback artifact ${binary} is missing.`);
 	await Bun.write(
@@ -606,13 +605,13 @@ async function deployProduction(commit: string): Promise<void> {
 		await rm(nextLink, { force: true });
 		await symlink(`${release}/bundle`, nextLink);
 		await rename(nextLink, "apps/nie-web/dist");
-		for (const binary of ["niers", "nie-mcp", "nie-site", "nie-model-serve"]) {
+		for (const binary of ["nie", "nie-mcp", "nie-site", "nie-model-serve"]) {
 			await atomicCopy(`${release}/bin/${binary}`, `target/release/${binary}`);
 			if ((await sha256(`${release}/bin/${binary}`)) !== (await sha256(`target/release/${binary}`)))
 				throw new Error(`${binary} changed during atomic publication.`);
 		}
-		await runCommand({ argv: ["target/release/niers", "--version"] }, commit);
-		await runCommand({ argv: ["target/release/niers", "mcp", "--help"] }, commit);
+		await runCommand({ argv: ["target/release/nie", "--version"] }, commit);
+		await runCommand({ argv: ["target/release/nie", "mcp", "--help"] }, commit);
 		await runCommand({ argv: ["bun", "scripts/release-inacord.ts"] }, commit);
 		await runCommand({ argv: ["sudo", "systemctl", "restart", "nie-model-serve.service"] }, commit);
 		await waitFor("http://127.0.0.1:8790/health", (body) => {
@@ -655,7 +654,7 @@ async function rollbackProduction(commit: string): Promise<void> {
 		await symlink(previousInacordChannel, channelRollbackLink);
 		await rename(channelRollbackLink, "var/releases/inacord/public");
 	}
-	for (const binary of ["niers", "nie-mcp", "nie-site", "nie-model-serve"]) {
+	for (const binary of ["nie", "nie-mcp", "nie-site", "nie-model-serve"]) {
 		if (await Bun.file(`${rollback}/${binary}`).exists())
 			await atomicCopy(`${rollback}/${binary}`, `target/release/${binary}`);
 	}

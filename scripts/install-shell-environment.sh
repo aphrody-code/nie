@@ -53,7 +53,6 @@ for source in \
     "$private_dir/github.env" \
     "$private_dir/supabase.env" \
     "$private_dir/vercel.env" \
-    "$private_dir/wonderbot.env"
 do
     merge_private_env "$source"
 done

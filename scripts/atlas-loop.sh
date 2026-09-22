@@ -67,7 +67,7 @@ fi
 # --- outils ------------------------------------------------------------------
 
 niers_bin=""
-for candidate in target/release/niers target/debug/niers "$HOME/.local/bin/niers"; do
+for candidate in "${NIE_BIN:-target/release/nie}" target/debug/nie "$HOME/.local/bin/nie"; do
 	[ -x "$candidate" ] && {
 		niers_bin="$candidate"
 		break

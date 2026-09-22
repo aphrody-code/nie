@@ -38,12 +38,14 @@ documents linked there; do not duplicate large specifications here.
 
 ## Target architecture (2026-09-07)
 
-`nie-web` is the **WebAssembly build of `nie.exe`**; Inacord is **one Rust suite** — Desktop,
-Mobile, CLI, library, MCP, Blender plugin — absorbing the legacy Azalée tools, the current
-Inacord inherited from `nie-explorer`, and every Rust crate (core, data, VFS, decoders). The
-component table, and what already exists for each, is in the architecture and ownership section
-of [`PLAN.md`](PLAN.md). Read it before creating a crate: several targets already exist under
-another name.
+`nie-web` is the **WebAssembly build of `nie.exe`**. Inacord is **one Rust capability suite** —
+libraries, API, CLI, MCP, scripts and a deliberately narrow Desktop visual VFS explorer —
+absorbing the legacy Azalée tools, the current Inacord inherited from `nie-explorer`, and every
+Rust crate (core, data, VFS, decoders). The Desktop GUI is not the owner or operator for wiki,
+3D editing, modding, reverse engineering, Lua or live memory; those capabilities stay headless
+and are called through their non-GUI bindings. The component table, and what already exists for
+each, is in the architecture and ownership section of [`PLAN.md`](PLAN.md). Read it before
+creating a crate: several targets already exist under another name.
 
 **A CLI is a binding, never a home.** Logic goes in a library crate; the CLI binary, the GUI,
 the mobile app, the API handler and the MCP tool are five thin callers of one function. The
@@ -57,7 +59,8 @@ that drifts.
   URLs, slugs, JSON keys, database columns, commit messages, code comments, documentation.
 - **French only for prose addressed to the user** — a summary, an explanation, an answer in a
   conversation held in French. Never for an identifier.
-- Frozen product names are the exception: Azalée, Inacord, nie, `niers`, `nie-*`, `inagle_*`.
+- Frozen product names are the exception: Azalée, Inacord, nie, `nie-*`, `inagle_*`. `niers` is
+  retained only as an internal historical/package compatibility name; the public CLI is `nie`.
 - Existing debt is **not** migrated in one pass. An already-served API is renamed in a dedicated
   batch, never in passing: renaming a route while fixing a bug breaks callers that were not part
   of the change.
@@ -232,7 +235,7 @@ Its command logs belong under `var/log/sync-main/<run-id>/`.
 
 ## Known technical traps
 
-- Bun preloads `packages/nie-plugin/src/register.ts`, which loads `libnie_ffi.dll`; build
+- Bun preloads `packages/nie-plugin/src/register.ts`, which loads `iecode.dll`; build
   `cargo build -p nie-ffi` before diagnosing unrelated Bun failures, and identify/stop only the
   process that holds the DLL if Windows reports a lock.
 - Game VFS probing requires `NIE_GAME_DIR` to point at the Steam installation containing `data`.

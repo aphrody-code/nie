@@ -5,7 +5,7 @@ bibliothèque manipule des objets Python.
 
 Deux pièges de ce dépôt sont traités ici, et pas ailleurs :
 
-- **Sur Windows, rustc produit `nie_ffi.dll`, sans préfixe `lib`.** Chercher `libnie_ffi.dll`
+- **Sur Windows, rustc produit `iecode.dll`, sans préfixe `lib`.** Chercher `libiecode.dll`
   échoue silencieusement puis casse au premier appel, avec une erreur qui accuse l'appel et
   non la résolution du chemin.
 - **Une signature `ctypes` non déclarée est un bug qui ne se voit qu'à l'exécution**, et
@@ -88,14 +88,13 @@ class NieBall(ctypes.Structure):
 def _noms_possibles() -> list[str]:
     """Noms de fichier de la lib native, par plateforme.
 
-    Sur Windows on cherche `nie_ffi.dll` **avant** `libnie_ffi.dll` : c'est le nom que rustc
-    produit réellement ici.
+    Sur Windows on cherche `iecode.dll` : c'est le nom commun de la bibliothèque.
     """
     if sys.platform == "win32":
-        return ["nie_ffi.dll", "libnie_ffi.dll"]
+        return ["iecode.dll", "libiecode.dll"]
     if sys.platform == "darwin":
-        return ["libnie_ffi.dylib", "nie_ffi.dylib"]
-    return ["libnie_ffi.so", "nie_ffi.so"]
+        return ["libiecode.dylib", "iecode.dylib"]
+    return ["libiecode.so", "iecode.so"]
 
 
 def _racine_depot() -> Path | None:

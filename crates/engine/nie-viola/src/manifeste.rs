@@ -122,6 +122,18 @@ pub struct Manifeste {
     /// Version du jeu sur laquelle le mod a été construit, si connue.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version_jeu: Option<String>,
+    /// Page source or repository of the mod, when it is publicly distributable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+    /// Release page for this exact mod version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_url: Option<String>,
+    /// Declared mod license, if supplied by the author.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
+    /// SHA-256 of the distributed mod archive, not of copyrighted game data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
     /// Mods requis.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependances: Vec<Dependance>,
@@ -146,6 +158,10 @@ impl Manifeste {
             description: String::new(),
             jeu: jeu_par_defaut(),
             version_jeu: None,
+            source_url: None,
+            release_url: None,
+            license: None,
+            sha256: None,
             dependances: Vec::new(),
             priorite: 0,
         }

@@ -42,18 +42,14 @@ export {};
 
 const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	// N0 — feuilles : ne dépendent d'aucun crate du workspace.
-	"aphrody-re": 0,
+	"iecode-re": 0,
 	"nie-asm": 0,
 	"nie-data": 0,
 	"nie-dump": 0,
-	"nie-geom": 0,
 	"nie-index": 0,
 	"nie-pe": 0,
 	"nie-queue": 0,
-	"nie-sql": 0,
-	"nie-tasks": 0,
 	"nie-trace": 0,
-	"nie-video": 0,
 	"nie-wiki": 0,
 	"nie-zukan": 0,
 	// N1

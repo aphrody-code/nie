@@ -512,7 +512,8 @@ metadata:
 ---
 
 Mesuré le 2026-09-03. La vue Cinéma (`apps/nie-explorer/src/components/CinemaView.tsx`, ~1800 lignes)
-et `packages/ietv` forment **quatre couches**, et une correction qui n'en traite qu'une ne se voit
+Les anciennes couches IETV ont été retirées du workspace ; une correction ne doit désormais
+viser que le propriétaire Rust/Bun canonique et sa surface d'API, sans recréer ces couches.
 jamais à l'écran. C'est l'erreur que j'ai commise trois fois — cf. [[niers-erreurs-a-ne-plus-refaire]].
 
 **1. La base.** `data/anime/episodes.db`. Deux tables :

@@ -18,6 +18,124 @@ boundary requires a new licensing decision, not a release-script bypass.
 
 ## The reverse-engineering workflow — how the next task is chosen (2026-09-11)
 
+### Cleanup and migration batch — 2026-09-22
+
+The Bun workspace was narrowed to the two product apps and five pure libraries: bindings, types,
+API contracts, asset-source contracts, game logic, and Inacord presentation. The obsolete
+`@aphrody/yolo` package, Wonderbot/IETV/Zukan service packages, Discord bot surfaces, and legacy
+Rose Griffon service manifests (`assets`, `auth`, `cron`, `mcp`) were removed from the active
+graph. The Rust MCP and site remain the maintained API/service owners. The release build no
+longer invokes retired Bun services. Duplicate local Rose Griffon foundations (`ui`, `db`,
+`types`, `config`) were removed; `inacord-ui` consumes the canonical packages from the sibling
+`/home/ubuntu/rg` repo. Measured 2026-09-22 with `find apps packages -maxdepth 2 -name
+package.json` plus the root workspace list: 5 local niers libraries, 5 canonical RG packages
+outside this repository, and 2 apps; 13 manifests including the root. The root catalogue was
+reduced to referenced dependencies only, and the obsolete Discord/agent overrides were removed.
+`bun install --frozen-lockfile`, dependency ownership, both product typechecks, and the web suite
+passed: 367 tests, 0 failures, 1,709 assertions across 66 files. The RG checkout was read-only
+during this batch; its pre-existing status had 388 entries and was not changed.
+
+The private `@niers/inacord-ui` surface no longer publishes three obsolete French shell
+subpaths (`shell/ecran-menu`, `shell/geometrie-mainmenu`, `shell/layout-jeu`). A repository-wide
+consumer search found no production import: only the three package export entries and the
+compatibility-only `legacy-shell-modules.test.ts` remained. Those re-exports, exports, and test
+were removed; the canonical modules are `shell/menu-screen`, `shell/main-menu-geometry`, and
+`shell/game-layout`. This is a completed migration boundary, not a public-route rename.
+
+Evidence to retain with the batch: `rg -n 'ecran-menu|geometrie-mainmenu|layout-jeu' apps
+packages crates scripts` returns no maintained-source reference; `bun run --cwd
+apps/nie-web typecheck` and `bun run --cwd apps/nie-web test` are the validation gates. Measured
+2026-09-22: 391 tests passed, 0 failed, 2,076 assertions across 74 files; `bun run docs:check`
+passed with 480 Markdown files, 335 internal links, and 0 failures. The next
+cleanup action is another measured compatibility-boundary audit; do not remove public HTTP aliases
+until their caller ledger and response fixtures prove that boundary is closed.
+
+### Console pipeline selection — 2026-09-22
+
+The authenticated `gh repo list aphrody-code` audit found the maintained `nie` workspace plus
+the related `winDS`, `dscode`, `iecode-csharp` and `iecode-cpp` references (alongside unrelated
+account repositories); no separate maintained DS/3DS/Wii/Android product replaces `nie`. The
+external console survey is recorded in [`docs/CONSOLE-PIPELINE.md`](docs/CONSOLE-PIPELINE.md).
+The selected adapters are Dust/melonDS + ninfs for DS, Azahar + Project_CTR/PyCTR/ninfs for 3DS,
+Dolphin + Wiimms ISO Tools + Gecko-Wii for Wii, and Azahar/read-only package inspection for
+Android. `nie-formats`, `nie-viola`, `nie-index`, `nie-seed`, `nie-dump` and the existing CLI
+remain the only maintained Inazuma owners; external tools are runtime adapters and no ROM, BIOS,
+key, NAND, APK or proprietary SDK was added. The C/C++ layer adds 3dstool, Project_CTR, Wiimms
+ISO Tools and decomp-toolkit; the C# layer adds Lynx, Strikers2013Editor, ndsSharp and the
+optional Unity AssetStudio oracle; Python keeps ninfs, PyCTR, 3DSkit and `inz_cond`. None replaces
+an already-migrated Rust owner. The next bounded act is a shared Rust stage-manifest library
+exposed by the existing `niers` CLI, followed by platform adapters and round-trip tests. The
+initial `nie-emu` Rust registry now owns backend identity/capability contracts without vendoring
+an emulator core. Save,
+memory-editor and launcher coverage is also unified through `nie-save`, `nie-trace`,
+`apps/inacord/src-tauri/live_mod`, `nie-launcher` and `nie-steam`; the historical NoFarmForMe 3DS
+workflow is a behavior oracle only because no verified source repository or license was found.
+
+### Canonical media convergence — 2026-09-22
+
+The useful IETV/Inazuma TV domain was restored as the single pure Bun package
+`packages/nie-media` rather than reviving the retired service, scraper, Discord bot, database or
+UI packages. It owns the shared work taxonomy (games, anime, films, manga and specials), measured
+DS/3DS/Victory Road/Cross game anchors, manga-volume adaptation, media-entry deduplication and
+querying, canonical `snake_case` routes, episode navigation, YouTube/Dailymotion/page source
+contracts, and player URL policy. JSON-LD official-category parsing and finite YouTube Atom parsing
+are adapters only; they perform no network access. The existing SQLite anime catalogue and Rust
+VFS/game-video owner remain the data sources, with the restored desktop `CinemaView` now mounted
+on the desktop media route.
+
+Measured 2026-09-22: `@niers/media` typecheck passed; its 7 tests passed with 47 assertions; the
+web typecheck passed. The runtime matrix now covers DS, 3DS, Wii, Switch/Switch 2, PS4/PS5,
+PlayStation, Xbox, PC, iOS, Android, mobile, arcade and unknown platforms, plus episode, film,
+game-video, manga-volume and special media. Only the PC Victory Road Steam bridge is an actual
+Rust emulator/executor (`nie-steam::emulator`); every other row links the closest measured Rust
+reader, catalog or media owner and is explicitly non-emulating. This package provides the complete convergence contract without pretending
+that an unmeasured list of every licensed canon work has been populated: new measured releases,
+episodes, films or manga volumes enter the same typed catalogue and cannot create a second owner.
+
+The fan-mod/version workflow is documented in [`docs/FAN-MODS.md`](docs/FAN-MODS.md). The Rust
+owners remain `nie-viola` for manifests, VFS validation, merge and CPK packing, `nie-launcher` for
+`.utmod` and save coordination, and `nie-formats` for format identification/round-trips. The
+manifest now records optional source, release, license and SHA-256 provenance fields. No third-party
+mod payload, ROM, ISO, key or decrypted game archive was added.
+
+### Compatibility and generated-state cut — 2026-09-22
+
+The next audit found no maintained consumer for the deprecated French module facades
+`nie_forge::{bornes,donnees}`, `nie_explore::bande_son`, or `nie_zukan::appariement`, and no
+consumer for the deprecated Aphrody methods `assets_de_marque` and `manifeste_web`. They were
+removed rather than kept as duplicate public surfaces. `SaveSummary::{roster_ids,roster_slots}`
+was also removed: the repository reads the canonical `summary.roster.{owned,total_slots}`, while
+the former fields cloned or repeated the same values. The native `autosave_roster` fields remain
+because they are the format parser's source representation and are independently exercised.
+
+The unmarked `nie_explore::menu_layout` re-export was closed in the same audit: no maintained
+caller existed and every route/host already imported the canonical `nie_formats::menu_layout`.
+
+The public episode-navigation export was closed as well. It only re-exported the local
+application rules; its only test duplicated the canonical implementation tests,
+and the remaining desktop caller now imports the canonical owner from `@niers/media`.
+
+The unused desktop `apps/nie-web/src/desktop/lib/galerie.ts` facade was removed. No source imported
+it; desktop gallery components already consume the `@niers/inacord-ui/gallery/*` owner directly.
+
+The ignored `forge/asm/lifted.s` was deleted as a generated 110 MB assembly projection; the
+documented regeneration command is `nie-forge lift`. `target/debug` was removed after the gates;
+the three installed `target/release` binaries and protected `data/`, `var/`, and research checkout
+were retained. The full tree measurement on 2026-09-22 was 34 GB (`du -x -d 1 -h .`), including
+30 GB `var/` and 2.7 GB `data/`; those two roots are indexed/provenance state and game assets,
+not disposable build output.
+
+Proof: `cargo clippy -p nie-forge --lib --locked -- -D warnings`, `nie-explore`, `nie-zukan`,
+`nie-aphrody --lib --tests`, and `nie-save --lib --tests` all passed; `cargo fmt --all -- --check`
+and `git diff --check` pass; repository-wide searches find no removed symbol references outside
+archived historical prose. Public HTTP compatibility routes remain until their existing caller
+ledger and response fixtures close them.
+
+The same audit removed the unreferenced `formatPrice` alias from the shared UI implementation;
+`formatCurrency` is its sole implementation and no maintained source imported the alias. The
+canonical implementation now lives in the sibling RG repository, while niers keeps only its
+Inacord-specific presentation package.
+
 The next task is not picked by intuition, nor read off a stale document: it is **measured**.
 The [atlas](docs/ATLAS.md) indexes every reverse-engineering surface of this repository in one
 database — 6 743 files, 46 crates, 1 063 documents and the 13 793 machine references they
@@ -433,8 +551,8 @@ rather than an impression. Re-measure it with the commands quoted; do not update
 
 ### Pillar 2 now has an explicitly authorized external source audit
 
-`apps/azalee` does **not exist in `niers`**. `apps/` holds `bxc cdn cdn-variants inacord nie-mcp
-nie-web rag-api realtime storage`; the only source of Azalée is `/home/ubuntu/rg/apps/azalee`,
+`apps/` holds the maintained application surfaces (`inacord`, `nie-mcp`, `nie-web`); retired
+compatibility services are intentionally absent from this checkout.
 and the live service runs `/home/ubuntu/rg-releases/azalee/slot-a/apps/azalee/server.js`
 (`systemctl show azalee-web -p ExecStart`). The user explicitly lifted the former repository
 boundary on 2026-09-20 for read-only comparison and migration into `niers`. The Azalée tree remains
@@ -981,26 +1099,29 @@ The remaining siblings write neither field: `0x140542DD0` (901 bytes, 5 chunks) 
 
 ---
 
-## Product direction — two complementary delivery goals
+## Product direction — Inacord is the visual VFS explorer — measured 2026-09-22
 
-The latest user direction preserves both supplied visual references as distinct goals:
+The active product boundary is now explicit:
 
-1. **Inacord is the primary application UI.** Preserve its existing features, components,
-   explorer, editor, navigation, inspectors and tools while converging browser and desktop
-   adapters on their shared implementations. Redesign this functional surface with the game's
-   real icons, colors, fonts and individually decoded artwork as its principal theme. Preserve
-   resource names, slugs and VFS paths in the asset contracts so every themed element remains
-   traceable. Do not replace the mature application with a reduced explorer or menu demo.
-2. **The native game UI remains a separate reconstruction target.** Retain its layouts, scene
-   contracts, Lua state, resource resolution and interactions for the shared backend, mod
-   authoring and production of a new `nie.exe`. The main-menu reference remains a comparison
-   oracle, never a full-screen runtime texture.
+1. **Inacord Desktop is a user-facing VFS explorer.** Its GUI browses mounted game paths,
+   searches within that inventory and renders previews of real resources. It is not a wiki, a
+   3D editor, a modding workbench, a reverse-engineering console, a Lua IDE or a live-memory
+   debugger.
+2. **Capabilities stay headless and composable.** Wiki/data queries, RE, modding, Lua, live
+   memory, archive conversion and authoring belong to their existing Rust libraries and are
+   exposed through API, CLI, MCP, code and scripts. A desktop visual preview may consume their
+   read-only results, but it does not become their operator surface.
+3. **The native game reconstruction remains separate.** Its layouts, scene contracts, Lua state,
+   resource resolution and interactions remain backend/reconstruction work; they do not justify
+   adding authoring tools to the Inacord explorer.
 
-Both goals reuse the same format decoders, VFS, resource loaders and domain libraries. A theme
-change must retain every existing application capability; a native-menu reconstruction must not
-be reported as completion of the Inacord application. Missing resource mappings remain explicit
-work items, not guessed icon substitutions. Perform interaction and visual validation after the
-source implementation phase, as requested by the user.
+This decision supersedes the former “preserve every Inacord GUI capability” direction. The first
+boundary cut removes every non-explorer entry from the desktop view registry and makes the shared
+workspace render only the VFS explorer. Underlying owners and non-GUI bindings remain available to
+the API/CLI/MCP/script surfaces. Evidence on 2026-09-22: `vues.ts` exposes one view (`explorer`),
+the desktop workspace has no editor/wiki/tool tabs, and the browser/desktop typechecks plus the
+five targeted desktop tests pass. The next cut removes now-unreachable GUI-only modules after
+their browser route consumers are classified; do not delete the underlying library owners.
 
 ### Where the game's pixels come from — measured 2026-09-12
 
@@ -1126,7 +1247,7 @@ Rust backend. Bun is limited to thin host bindings and non-IEVR integrations; it
 the IEVR mirror directly or call a remote wiki.
 
 The executable migration boundary, ownership matrix, decommissioning sequence, operations rules,
-and acceptance gates are maintained in [`docs/azalee/`](docs/azalee/README.md). The next
+and acceptance gates are maintained in this plan and the Rust crate documentation. The next
 measurable action is to classify every tracked `data/azalee` artifact by producer, consumer,
 regeneration command, provenance, and retention decision before moving or deleting any of it.
 
@@ -2121,3 +2242,105 @@ into `niers`:
       - `cargo test -p nie-site`: 374/374 passed.
       - `cargo clippy -p nie-site --bin nie-site --tests -- -D warnings`: 0 warnings, passed.
       - Web production deployment: `bun run deploy:target -- web --allow-dirty` (built, Brotli q11 precompressed 498 assets, published atomically).
+
+14. **Unified IECODE absorption boundary — measured 2026-09-22**:
+    - `/home/ubuntu/iecode` is now the single IECODE workspace: all source checkouts and the
+      unified C# core live below `src/`, common scripts below `scripts/`, and documentation plus
+      capability manifests below `docs/`. The former `iecode-csharp` and `workspace` roots are
+      gone; there is no workspace-level `sources/` or `vendor/` directory.
+    - `nie-emu` is the sole in-process platform/capability registry. It exposes `NativeRust`,
+      `DynamicLibrary`, `Wasm` and `ReferenceOnly`; `ExternalProcess` is intentionally absent.
+      The common matrix covers execute, launch, save, memory, inspect, extract, mod and homebrew
+      for DS, 3DS, Wii and Android.
+    - `nie-ffi` now exports `nie_emu_registry_json_out`; Bun consumes it through `emuRegistry()`.
+      The shared native artifact is `libiecode.so`/`iecode.dll` (Cargo package name remains
+      `nie-ffi` only as an internal dependency label).
+    - Python adapters have `pyproject.toml`/`uv.lock` and machine-readable migration manifests;
+      C# adapters have `nie-emu-ffi-mapping.json` and `.md`. These are migration inputs, not
+      subprocess runtime dependencies.
+    - Root IECODE packages were bumped to stable compatible versions: EF Core/Hashing 10.0.12,
+      BCnEncoder 2.3.0, SharpGLTF 1.0.7, CommunityToolkit 8.4.2, xUnit 2.9.3 and test SDK
+      18.10.1. ImageSharp 4 was rejected because it requires a license; System.CommandLine 2.0
+      was rejected until the beta API callers are migrated.
+    - Gates: `cargo test -p nie-emu --lib --locked` 7/7; `cargo build -p nie-ffi --locked`; Bun
+      `@aphrody/nie` typecheck 0 errors and tests 26 pass/6 skipped; .NET 10 tests 274/274 and
+      CLI build 0 errors; four Python `uv lock --check` runs passed; unified CMake Rust/.NET
+      target passed sequentially. The full C/C++ native target remains blocked by absent vcpkg
+      on this host and is not silently represented as green.
+
+15. **Portable niers foundation absorbed by IECODE — measured 2026-09-22**:
+    - The single owners for `iecode-emu`, `iecode-geom`, `iecode-sql`, `iecode-tasks` and
+      `iecode-video` now live under `/home/ubuntu/iecode/src/{emu,geom,sql,tasks,video}/`;
+      no duplicate source copy remains under
+      `/home/ubuntu/niers/crates`.
+    - `/home/ubuntu/iecode/Cargo.toml` is their Rust workspace and `/home/ubuntu/iecode/CMakeLists.txt`
+      exposes the `iecode_shared_rust` test target. The Bun media library now belongs to the
+      unpublished IECODE package `packages/iecode`; no Bun workspace path crosses the repository
+      boundary.
+      The Rust crates are package-ready for crates.io, but publication is gated on the absent
+      `CARGO_REGISTRY_TOKEN`; until that external credential is supplied, the niers checkout
+      retains its temporary local path edge so the passing workspace build is not broken.
+    - Gates: IECODE `cargo check --workspace --tests` passed; IECODE `cargo test -p iecode-emu --lib`
+      passed 7/7; niers `cargo check -p nie-ffi` passed against the moved libraries. The full
+      IECODE vcpkg manifest and native integration gate are now green through C# (274/274); the
+      C++ IECODE target passed through compile, test linking and external-project completion;
+      winDS remains an optional separate target.
+
+16. **Generic reverse-engineering foundation absorbed by IECODE — measured 2026-09-22**:
+    - The portable `iecode-re` crate now lives at `/home/ubuntu/iecode/src/re/`; niers keeps
+      only the `aphrody-re` dependency alias for compatibility while consumers migrate.
+    - It contains no Inazuma-specific logic and is the sole owner for generic PE/ELF/Mach-O
+      triage, hashing, strings and x86 disassembly. No Bun package met the same criterion:
+      the remaining `@niers/*` packages are consumed by the IEVR web/desktop surfaces.
+    - Gates: IECODE `cargo check --workspace --tests` passed; niers `cargo check -p nie-ffi`
+      passed; IECODE Rust tests passed after the move.
+
+17. **IECODE architecture and management gates — measured 2026-09-22**:
+    - Added `/home/ubuntu/iecode/docs/ARCHITECTURE.md` and `workspace.manifest.json` as the
+      ownership/source-of-truth pair for Rust, Bun, uv, .NET 10, CMake/vcpkg and FFI.
+    - Added `scripts/workspace-doctor.ts`, `turbo.json` and root management scripts. The doctor
+      is read-only and rejects duplicate roots, stale nested workspaces and cross-repository
+      source paths. Turbo is pinned through `packageManager: bun@1.4.2` and `turbo@2.11.2`.
+    - Enabled central NuGet package versions and generated packages lock files through
+      `Directory.Build.props`; CI uses locked restore while local restore remains repairable.
+    - Gates: doctor passed; Turbo typecheck/test passed with 7 tests and 47 assertions; uv lock
+      and Ruff passed; Cargo check passed; .NET 10 solution restore/build passed with 0 errors and
+      153 existing warnings; CMake configure presets enumerate 5 native profiles.
+
+18. **Single IECODE CLI decision — measured 2026-09-22**:
+    - Rust is the canonical CLI owner: `/home/ubuntu/iecode/src/cli`, package `iecode-cli`,
+      binary `iecode`. The decision and comparison are recorded in
+      `/home/ubuntu/iecode/docs/CLI-DECISION.md`.
+    - C# remains the `IECODE.Core` library owner, C++ remains the `iecode_core` native backend,
+      Python remains the uv tool/library workspace, and Bun remains the media/FFI package layer.
+      Their command trees are compatibility surfaces and are not merged as competing top-level
+      CLIs. Migration proceeds through typed FFI and parity fixtures, not subprocess chaining.
+    - Initial Rust router exposes `doctor`, `emu list` and `version` with a stable JSON envelope.
+      `cargo check --workspace --tests --locked`, the complete IECODE Rust tests, and both JSON
+      smoke commands passed; the router intentionally does not claim the foreign command suites
+      migrated until their FFI owners and non-zero parity tests exist.
+
+19. **IECODE CLI production boundary — measured 2026-09-22**:
+    - Hardened `/home/ubuntu/iecode/src/cli` as the single Rust binding: deterministic `doctor`,
+      `emu list` and `version` commands, `--json` output, `IECODE_WORKSPACE`/`--workspace`
+      discovery, stable `iecode.cli/v1` error envelopes, stderr diagnostics and exit code `2` on
+      command failure. No path between `iecode` and `niers` is embedded in the binary.
+    - Added four CLI contract tests covering parsing, required commands, known emulator registry
+      presence and the version schema. Human output does not serialize enum strings with quotes.
+    - The production boundary remains explicit: Rust is the router; foreign functionality enters
+      only through library/FFI owners and parity fixtures. No subprocess command chaining or
+      unverified C#/C++/Python migration is reported as complete.
+
+20. **IECODE core comparison and single-crate target — measured 2026-09-22**:
+    - Added `/home/ubuntu/iecode/docs/core/README.md`, `COMPARISON.md` and `UNIFICATION.md`.
+      The measured inventory records Rust's six portable libraries, C++'s 337 implementation
+      files/259 headers and C#'s 172 core files, then separates pure library candidates from
+      CLI, tests, game/runtime, network/database, application and third-party sources.
+    - The target is one canonical Rust `iecode-core` package with feature-gated pure modules and
+      an explicit C ABI. C++ and .NET remain optional native backends until typed ABI fixtures
+      prove parity; Python and Bun remain adapters. This avoids importing C++/C# object layouts,
+      exceptions, process services and IEVR-specific state into every Rust consumer.
+    - The migration order is documented: consolidate Rust libraries, switch `iecode` to the core,
+      establish golden fixtures, isolate C++/.NET exports, bind Bun/Python, then remove compatible
+      crates only after non-zero equal parity counts. No physical collapse was falsely reported
+      as complete in this documentation-only phase.

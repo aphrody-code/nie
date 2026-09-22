@@ -28,7 +28,7 @@ cargo build -p nie-ffi --release
 `target/debug`, en remontant les ancêtres jusqu'à la racine du dépôt. **Aucun chemin de
 machine n'est écrit en dur.**
 
-> Sur Windows, rustc produit `nie_ffi.dll`, **sans** préfixe `lib`. Chercher `libnie_ffi.dll`
+> Sur Windows, rustc produit `iecode.dll`, **sans** préfixe `lib`. Chercher `libiecode.dll`
 > échoue silencieusement puis casse au premier appel, avec une erreur qui accuse l'appel et
 > non la résolution du chemin.
 
@@ -241,4 +241,3 @@ Knowledge base (`var/niers.sqlite`) tables:
 Key binary addresses:
 - `0x1404ecd60` — Core character controller
 - `0x1406d5840` — Core game tick loop
-

@@ -1526,7 +1526,7 @@
       "entry": "vfs_index_scan_start",
       "capability": "vfs-index-scan-start",
       "classification": "portable",
-      "owner": "crates/tools/nie-tasks/src/lib.rs",
+      "owner": "../iecode/src/iecode/nie-tasks/src/lib.rs",
       "rationale": "vfs_index_scan_start delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1544,7 +1544,7 @@
       "entry": "vfs_index_scan_cancel",
       "capability": "vfs-index-scan-cancel",
       "classification": "portable",
-      "owner": "crates/tools/nie-tasks/src/lib.rs",
+      "owner": "../iecode/src/iecode/nie-tasks/src/lib.rs",
       "rationale": "vfs_index_scan_cancel delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1570,7 +1570,7 @@
       "entry": "vfs_index_scan_take",
       "capability": "vfs-index-scan-take",
       "classification": "portable",
-      "owner": "crates/tools/nie-tasks/src/lib.rs",
+      "owner": "../iecode/src/iecode/nie-tasks/src/lib.rs",
       "rationale": "vfs_index_scan_take delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [

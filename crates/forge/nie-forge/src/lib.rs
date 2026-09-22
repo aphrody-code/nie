@@ -49,18 +49,6 @@ pub mod registry;
 pub mod report;
 pub mod store;
 
-/// Deprecated French compatibility surface for [`boundaries`].
-#[deprecated(since = "0.5.9", note = "use `nie_forge::boundaries` instead")]
-pub mod bornes {
-    pub use crate::boundaries::*;
-}
-
-/// Deprecated French compatibility surface for [`data`].
-#[deprecated(since = "0.5.9", note = "use `nie_forge::data` instead")]
-pub mod donnees {
-    pub use crate::data::*;
-}
-
 pub use asmsrc::AsmSource;
 pub use lift::{
     LiftedBody, MAX_LIFT_BODY_BYTES, MAX_LIFT_BODY_INSTRUCTIONS, lift_body, lift_body_text,

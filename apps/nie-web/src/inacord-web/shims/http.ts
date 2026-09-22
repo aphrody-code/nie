@@ -1,3 +1,5 @@
+import { b64ToBytes, bytesToB64 } from "../../shared/base64";
+
 /**
  * HTTP primitives shared by the browser command adapter.
  *
@@ -90,20 +92,12 @@ export async function getBytes(url: string): Promise<ArrayBuffer> {
  */
 export function toBase64(buffer: ArrayBuffer | Uint8Array): string {
 	const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-	const chunk = 0x8000;
-	let binary = "";
-	for (let offset = 0; offset < bytes.length; offset += chunk) {
-		binary += String.fromCharCode(...bytes.subarray(offset, offset + chunk));
-	}
-	return btoa(binary);
+	return bytesToB64(bytes);
 }
 
 /** Decode base64 back into bytes (used by the write-side browser fallbacks). */
 export function fromBase64(data: string): Uint8Array {
-	const binary = atob(data.replace(/^data:[^,]*,/u, ""));
-	const bytes = new Uint8Array(binary.length);
-	for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-	return bytes;
+	return b64ToBytes(data);
 }
 
 /** `GET` raw bytes as base64, optionally truncated like the desktop `max_bytes` bound. */

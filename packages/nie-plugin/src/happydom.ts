@@ -9,7 +9,6 @@
 //   • tout `fetch` vers un autre hôte que `http://localhost:3000` (l'URL par
 //     défaut de la fenêtre simulée) échoue en `NetworkError: Cross-Origin
 //     Request Blocked` — c'est ce qui faisait tomber les tests d'intégration
-//     réseau de `packages/cron/src/tasks/ie-crawl/bxc.test.ts` ;
 //   • `Bun.serve` refuse la `Response` de happy-dom (« Expected a Response
 //     object »), ce qui oblige les tests qui montent un vrai serveur à
 //     désenregistrer happy-dom à la main (cf. les tests réseau du dépôt).

@@ -8,8 +8,7 @@ Il ne redit rien de ce que possèdent déjà les autres :
 | Installer la CLI `niers` seule (`cargo install`) | [`docs/INSTALLATION.md`](docs/INSTALLATION.md) |
 | Les règles de travail du dépôt (outils, pièges, gates) | [`CLAUDE.md`](CLAUDE.md) |
 | La chaîne C++ / MSVC / vcpkg | [`scripts/setup.ps1`](scripts/setup.ps1) |
-| Faire circuler les données **VPS ↔ Windows** en régime établi | [`scripts/ops/sync-machines.sh`](scripts/ops/sync-machines.sh) |
-| Ce qui tourne sur le VPS, et sous quel service | [`packages/mcp/context/exploitation.md`](packages/mcp/context/exploitation.md) |
+	| Ce qui tourne sur le VPS, et sous quel service | [`deploy/README.md`](deploy/README.md) |
 
 ---
 
@@ -99,8 +98,8 @@ d'une installation.
 
 ## 5. Ce que le poste Windows peut faire, et que le VPS ne peut pas
 
-C'est la raison d'être de ce poste, et elle est mesurée dans
-[`scripts/ops/sync-machines.sh`](scripts/ops/sync-machines.sh) :
+C'est la raison d'être de ce poste, et elle est mesurée par les gates natives et les captures
+du dépôt :
 
 - **la forge, chemin B** — `nie-forge cc` compile avec **MSVC 14.44**, le toolset qui a lié
   `nie.exe`. Absent du VPS, donc le chemin qui monte le plus haut n'y existe pas ;
@@ -156,4 +155,3 @@ Knowledge base (`var/niers.sqlite`) tables:
 Key binary addresses:
 - `0x1406d5840` — Main engine tick loop
 - `0x1404ecd60` — Mesh transform dispatch
-

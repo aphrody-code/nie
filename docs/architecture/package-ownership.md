@@ -24,7 +24,7 @@ workspace membership rather than archive directories or generated/vendor code.
 | Responsibility | Canonical owner | Consumers and compatibility surfaces |
 | --- | --- | --- |
 | Browser and desktop frontend source/build | `apps/nie-web` | `apps/inacord` delegates frontend commands and retains the Tauri host. |
-| General UI primitives | `packages/ui` | Identical Inacord/wiki primitives re-export these implementations. |
+| General UI primitives | sibling `rg/packages/ui` | RG owns the shared primitives; niers consumes them and keeps only Inacord-specific presentation in `packages/inacord-ui`. |
 | Game and resource interface composition | `packages/inacord-ui` | Both frontend targets consume its sprites, menus, Explorer reducers and controls. |
 | Asset transport, capability and loading contracts | `packages/asset-source` | HTTP and native adapters provide bytes; components do not duplicate decoders. |
 | Game file decoding | `nie-formats` | Native, Wasm, Explorer and tooling bindings reuse its parsers. |

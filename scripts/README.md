@@ -5,7 +5,7 @@ l'identique, il se cite en `chemin:ligne`, et il ne repasse pas par le quoting d
 
 | Sous-dossier | Contenu |
 |---|---|
-| `donnees/` | rotation du miroir des données extraites (`miroir-inagle.sh`) et pipeline associé |
+| `donnees/` | audits et génération de données dérivées à partir du miroir local |
 | `forge/` | outillage autour de la boucle `nie-forge` |
 | `ghidra/` | pilotage de `analyzeHeadless`, export de fonctions |
 | `validation/` | harnais de validation partagé des preuves uemu |
@@ -17,15 +17,9 @@ par fonction reversée. Elles sont référencées nommément par `justfile`,
 `crates/forge/nie-forge/src/registry.rs` : leur nom fait partie du contrat, elles ne se
 déplacent pas au fil d'un rangement.
 
-## Ne pas renommer sans regarder dehors
-
-`/etc/systemd/system/nie-miroir.service` cible **en dur** `scripts/donnees/miroir-inagle.sh`,
-son timer est actif, et son `ExecStartPost` redémarre `nie-model-serve`. Le déplacer casse
-la rotation nocturne du miroir. C'est pour cette raison que ce dossier n'a pas été
-anglicisé alors que le reste de `scripts/` l'a été.
-
-Réflexe avant tout `git mv` d'un script : `systemctl list-unit-files`, un `rg` dans
-`deploy/`, et une recherche du chemin en absolu.
+Les fichiers de `donnees/` produisent des mesures et des exports locaux à partir du miroir.
+Le miroir consommé par les services est sélectionné atomiquement sous `var/`; aucun service
+de rotation n'est géré par ce dépôt.
 
 ## Python : le fichier, pas la ligne
 

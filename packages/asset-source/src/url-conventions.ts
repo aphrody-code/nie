@@ -24,7 +24,7 @@
  * `/dx11/…` et `/g4tx/…` n'existent pas dans `main.rs` : ce sont des `location` nginx
  * (`/etc/nginx/conf.d/cdn.rosegriffon.conf`). `/dx11/` sert le dump sur disque puis retombe sur
  * `@cpk_live`, qui réécrit `/dx11/<x>.png` → `/tex/dx11/<x>.png` ; `/g4tx/` passe par
- * `cdn-variants` (redimensionnement `?w=`, `format=webp`) puis réécrit vers `/tex/`. Elles ne
+ * le pipeline d'images (redimensionnement `?w=`, `format=webp`) puis réécrit vers `/tex/`. Elles ne
  * sont donc PAS interchangeables avec `/tex/` : `/dx11/` et `/g4tx/` savent redimensionner, pas
  * `/tex/`. C'est pourquoi elles vivent ici sous leur propre nom, et non comme un alias.
  *
@@ -300,7 +300,7 @@ export function cheminIndexIcones(): string {
 
 /** Options de rendu d'une image servie par les `location` nginx. */
 export interface OptionsImage {
-	/** Largeur cible en pixels ; le redimensionnement est fait par `cdn-variants`. */
+	/** Largeur cible en pixels ; le redimensionnement est fait par le pipeline d'images. */
 	largeur?: number;
 	/** Sert la variante WebP plutôt que le PNG. N'a de sens qu'avec `largeur`. */
 	webp?: boolean;

@@ -75,7 +75,7 @@ export const commands = {
 	defaultReDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_re_db", { gameDir }),
 	/**
 	 *  Résout `data/anime/episodes.db` — le catalogue des épisodes de la série (10 saisons, 355
-	 *  épisodes avec vignettes), alimenté par `packages/ietv` et sa tâche `ietv-cache`.
+	 *  épisodes avec vignettes), alimenté par le catalogue distant de la série.
 	 *
 	 *  This is the separate `anime` store, presented beside the game catalogue by Cinema.
 	 *  des cinématiques du jeu. Même ordre de résolution que les deux autres bases : `NIE_ANIME_DB`,

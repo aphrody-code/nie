@@ -30,6 +30,7 @@
  * une modification Rust — c'est ce que la table de `CLAUDE.md` recense, et cet outil le montre.
  */
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // Le port est surchargeable : `differential.ts`, l'autre outil qui a besoin d'un site local,
 // écoute sur 8085. Avoir deux valeurs codées en dur fait lancer le mauvais serveur et rend des
@@ -40,8 +41,11 @@ const ARGS = process.argv.slice(2);
 const SWEEP = ARGS.includes("--sweep") ? Number(ARGS[ARGS.indexOf("--sweep") + 1] ?? 24) : 0;
 const ECRAN = ARGS.find((a) => !a.startsWith("--") && Number.isNaN(Number(a))) ?? "chara_bank_menu";
 
-const glue = await import("/home/ubuntu/niers/apps/nie-web/src/wasm/nie_wasm.js");
-glue.initSync({ module: readFileSync("/home/ubuntu/niers/apps/nie-web/public/static/game/nie_wasm_bg.wasm") });
+const repoRoot = process.env.NIE_REPO_ROOT
+  ? resolve(process.env.NIE_REPO_ROOT)
+  : resolve(import.meta.dir, "../..");
+const glue = await import(resolve(repoRoot, "apps/nie-web/src/wasm/nie_wasm.js"));
+glue.initSync({ module: readFileSync(resolve(repoRoot, "apps/nie-web/public/static/game/nie_wasm_bg.wasm")) });
 
 /** Compare un écran et rend son verdict, sans rien imprimer. */
 async function verdictDe(ecran: string): Promise<string> {

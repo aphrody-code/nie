@@ -1,9 +1,9 @@
 # BXC natif dans niers
 
-La couche métier `ietv`, `zukan`, `wonderbot` et `iecrawl` reste dans niers,
-mais le moteur navigateur BXC reste consommé depuis le registre npm et par le
-binaire natif standalone. Cette séparation évite de recopier le dépôt BXC,
-ses données privées, ses cookies ou ses profils.
+Le moteur navigateur BXC reste externe à niers et n'est plus accompagné d'une couche
+de service Bun locale. Les anciens services IETV, Zukan, Wonderbot et iecrawl ont été
+retirés ; les contrats média utiles sont réunis dans `packages/nie-media`, sans scraper,
+bot ni service résident. Niers conserve ses contrats et sa logique pure maintenus côté Rust/Bun.
 
 ## Installation Windows vérifiée
 

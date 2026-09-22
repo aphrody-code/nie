@@ -28,12 +28,28 @@ names = {manifest["name"] for manifest in manifests.values()}
 require(len(names) == len(manifests), "Workspace package names must be unique")
 bun_edges = 0
 for path, manifest in manifests.items():
+    external_manifest = not path.resolve().is_relative_to(ROOT.resolve())
     for section in ("dependencies", "devDependencies", "optionalDependencies"):
         for name, spec in manifest.get(section, {}).items():
             bun_edges += 1
-            label = f"{path.relative_to(ROOT)}:{section}.{name}"
+            label = f"{path}:{section}.{name}"
+            if external_manifest:
+                # Sibling workspaces own their own catalogues. The root check only
+                # enforces ownership for manifests maintained by this repository.
+                continue
             if name in names:
-                require(spec == "workspace:*", f"{label} must use its local workspace owner")
+                if spec == "workspace:*":
+                    continue
+                if spec.startswith("file:"):
+                    target = (path.parent / spec.removeprefix("file:")).resolve()
+                    target_manifest = target / "package.json"
+                    require(
+                        target_manifest.is_file()
+                        and json.loads(target_manifest.read_text()).get("name") == name,
+                        f"{label} must point at the canonical workspace owner",
+                    )
+                else:
+                    require(False, f"{label} must use its local workspace owner")
             else:
                 require(spec.startswith("catalog:"), f"{label} must use the root catalogue")
                 if spec.startswith("catalog:"):

@@ -17,11 +17,11 @@
 		"test": "bun test --preload ../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts src/ scripts/"
 	},
 	"dependencies": {
-		"@aphrody/ietv-client": "workspace:*",
 		"@monaco-editor/react": "catalog:",
 		"@niers/asset-source": "workspace:*",
 		"@niers/bridge": "workspace:*",
 		"@niers/game": "workspace:*",
+		"niers-media": "^1.0.0",
 		"@niers/inacord-ui": "workspace:*",
 		"@tauri-apps/api": "catalog:",
 		"@tauri-apps/plugin-clipboard-manager": "catalog:",

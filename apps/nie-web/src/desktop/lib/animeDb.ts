@@ -4,18 +4,16 @@
 //
 // ## D'où vient cette base
 //
-// `packages/ietv` (`@aphrody/ietv`) recense les épisodes publiés par la chaîne officielle et les
-// écrit dans ce SQLite ; la tâche `packages/cron/src/tasks/ietv-cache.ts` le rafraîchit. Le
-// paquet lui-même n'est PAS importé ici : c'est un scraper Node qui parle à YouTube, il n'a rien
-// à faire dans une webview. Ce qui voyage jusqu'à l'application, c'est son résultat — la base,
-// embarquée dans l'installeur au même titre que les deux autres (`installer_bases_embarquees`).
+// Le catalogue est produit hors du runtime niers et arrive ici comme une base SQLite déjà
+// validée. Aucun scraper ni collecteur n'est embarqué dans l'application webview.
 //
-// `@aphrody/ietv-client` (le client REST) vise un serveur `/api/ietv` : il reste la bonne porte
+// Le client REST vise un serveur `/api/ietv` : il reste la bonne porte
 // pour un bot ou un site, pas pour une application qui doit fonctionner hors ligne. Le schéma lu
-// ici est celui qu'écrit `IETVCache`, donc les deux chemins servent les mêmes données.
+// ici reste celui du catalogue livré, donc les deux chemins servent les mêmes données.
 import Database from "./sqlite";
 
 import { api } from "./api";
+import { sourceFromEpisode, sourcePlayerUrl } from "niers-media/player";
 
 /** Un épisode de la série. */
 export interface EpisodeAnime {
@@ -250,8 +248,8 @@ export const animeDb = {
    * Recherche plein texte, sur les quatre champs qui peuvent porter le nom d'un épisode.
    *
    * La vue Cinéma filtre en mémoire (elle a déjà les 355 épisodes) ; cette requête sert aux
-   * appelants qui n'ont pas le catalogue sous la main — l'équivalent de `IETVCache.search` côté
-   * bot, avec la même portée de champs que celle qu'`IETVCache` couvre désormais.
+   * appelants qui n'ont pas le catalogue sous la main — l'équivalent de la recherche du catalogue
+   * média canonique, avec la même portée de champs que celle qu'`IETVCache` couvre désormais.
    */
   async chercher(chemin: string, q: string, limite = 200): Promise<EpisodeAnime[]> {
     const terme = q.trim().replace(/[%_]/g, "");
@@ -396,23 +394,20 @@ export const animeDb = {
 // sont parfaitement jouables — ils ne l'étaient pas parce qu'on les envoyait tous à YouTube.
 
 /** Un identifiant YouTube fait onze caractères de l'alphabet base64url. */
-const RE_YOUTUBE = /^[A-Za-z0-9_-]{11}$/;
-
-/** Identifiant Dailymotion, tel que la vignette de la base le porte. */
-const RE_DAILYMOTION = /dailymotion\.com\/thumbnail\/video\/([A-Za-z0-9]+)/;
-
 export type Plateforme = "youtube" | "dailymotion" | "inconnue";
 
 /** Où vit la vidéo de cet épisode. */
 export function plateformeDe(ep: EpisodeAnime): Plateforme {
-  if (RE_YOUTUBE.test(ep.videoId)) return "youtube";
-  if (ep.vignette && RE_DAILYMOTION.test(ep.vignette)) return "dailymotion";
+  const source = sourceFromEpisode(ep.videoId, ep.vignette);
+  if (source?.platform === "youtube") return "youtube";
+  if (source?.platform === "dailymotion") return "dailymotion";
   return "inconnue";
 }
 
 /** L'identifiant de lecture Dailymotion, extrait de la vignette. */
 export function idDailymotion(ep: EpisodeAnime): string | null {
-  return ep.vignette ? (RE_DAILYMOTION.exec(ep.vignette)?.[1] ?? null) : null;
+  const source = sourceFromEpisode(ep.videoId, ep.vignette);
+  return source?.platform === "dailymotion" ? source.id : null;
 }
 
 /**
@@ -427,20 +422,8 @@ export function idDailymotion(ep: EpisodeAnime): string | null {
  * page officielle plutôt que d'afficher un cadre vide.
  */
 export function urlIntegrationEpisode(ep: EpisodeAnime, depart?: number): string | null {
-  const plateforme = plateformeDe(ep);
-  if (plateforme === "youtube") {
-    const p = new URLSearchParams({ autoplay: "1", rel: "0", modestbranding: "1" });
-    if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
-    return `https://www.youtube-nocookie.com/embed/${ep.videoId}?${p}`;
-  }
-  if (plateforme === "dailymotion") {
-    const id = idDailymotion(ep);
-    if (!id) return null;
-    const p = new URLSearchParams({ autoplay: "1", "queue-enable": "false", "sharing-enable": "false" });
-    if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
-    return `https://www.dailymotion.com/embed/video/${id}?${p}`;
-  }
-  return null;
+  const source = sourceFromEpisode(ep.videoId, ep.vignette);
+  return source ? sourcePlayerUrl(source, depart) : null;
 }
 
 /**
@@ -459,31 +442,8 @@ export function urlIntegrationEpisode(ep: EpisodeAnime, depart?: number): string
  *    noir en prétendant lire.
  */
 export function urlIntegrationSource(source: SourceEpisode, depart?: number): string | null {
-  if (source.plateforme === "youtube") {
-    const p = new URLSearchParams({ autoplay: "1", rel: "0", modestbranding: "1" });
-    if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
-    return `https://www.youtube-nocookie.com/embed/${source.sourceId}?${p}`;
-  }
-  if (source.plateforme === "dailymotion") {
-    const p = new URLSearchParams({ autoplay: "1", "queue-enable": "false", "sharing-enable": "false" });
-    if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
-
-    // **`url` porte DÉJÀ l'adresse du lecteur** quand la vidéo est restreinte à celui de la
-    // chaîne : `…/player/<clé>.html?video=<id>` (143 sources sur ce corpus). On la reprend telle
-    // quelle, en n'ajoutant que nos paramètres.
-    //
-    // Ne PAS reconstruire cette adresse à partir d'`origine` : cette colonne contient le nom
-    // lisible de la chaîne (« inazuma-eleven.fr (official) »), pas une clé de lecteur. L'y
-    // employer produisait `…/player/inazuma-eleven.fr (official).html` et le lecteur répondait
-    // « Not found » — vu à l'écran.
-    if (source.url.includes("/player/")) {
-      const base = source.url.split("?")[0];
-      p.set("video", source.sourceId);
-      return `${base}?${p}`;
-    }
-    return `https://www.dailymotion.com/embed/video/${source.sourceId}?${p}`;
-  }
-  return null;
+  if (source.plateforme === "page") return null;
+  return sourcePlayerUrl({ platform: source.plateforme, id: source.sourceId, url: source.url, official: source.officielle === 1 }, depart);
 }
 
 /**

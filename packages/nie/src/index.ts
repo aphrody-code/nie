@@ -11,10 +11,10 @@
  *   detectFormat, decode, decodeFile, decodeToPng, decodeToPngFile,
  *   wiki, vfsOpen, VfsHandle, FontHandle, RgbaColor, SO_PATH, FormatInfo, VfsEntry
  *
- * Résolution de libnie_ffi.so :
+ * Résolution de la bibliothèque partagée `iecode` :
  *   1. NIE_FFI_PATH (override absolu)
- *   2. <workspace-root>/target/debug/libnie_ffi.{suffix}    (dev)
- *   3. <workspace-root>/target/release/libnie_ffi.{suffix}  (release)
+ *   2. <workspace-root>/target/debug/libiecode.{suffix}    (dev)
+ *   3. <workspace-root>/target/release/libiecode.{suffix}  (release)
  *
  * Chemin depuis packages/nie/src/ vers niers/ : 3 niveaux (../../..)
  */
@@ -35,11 +35,11 @@ import { existsSync } from "node:fs";
 // import.meta.dir = packages/nie/src → ../../.. = niers/
 const _wsRoot = process.env["NIERS_ROOT"] ?? `${import.meta.dir}/../../..`;
 
-// Le préfixe `lib` n'existe pas sur Windows : rustc y produit `nie_ffi.dll`.
+// Le préfixe `lib` n'existe pas sur Windows : rustc y produit `iecode.dll`.
 // On teste les deux formes pour chaque profil, debug d'abord.
 const _prefixes = process.platform === "win32" ? ["", "lib"] : ["lib", ""];
 const _candidates = ["debug", "release"].flatMap((profile) =>
-  _prefixes.map((prefix) => `${_wsRoot}/target/${profile}/${prefix}nie_ffi.${suffix}`),
+  _prefixes.map((prefix) => `${_wsRoot}/target/${profile}/${prefix}iecode.${suffix}`),
 );
 
 const _soDebug = _candidates[0]!;
@@ -51,7 +51,7 @@ function resolveSo(): string {
   return _soDebug;
 }
 
-/** Chemin résolu de libnie_ffi.so (diagnostic). */
+/** Chemin résolu de la bibliothèque partagée iecode (diagnostic). */
 export const SO_PATH = resolveSo();
 
 // ─── dlopen ─────────────────────────────────────────────────────────────────
@@ -85,6 +85,7 @@ const symbolsDef = {
     returns: FFIType.void,
   },
   nie_font_free:        { args: [FFIType.ptr],              returns: FFIType.void },
+  nie_emu_registry_json_out: { args: [FFIType.ptr],         returns: FFIType.void },
 } as const;
 
 function loadLib() {
@@ -155,6 +156,13 @@ export function callOut(call: (outPtr: Pointer) => void): Uint8Array | null {
  */
 export function cstr(s: string): Buffer {
   return Buffer.from(s + "\0", "utf8");
+}
+
+/** Retourne la matrice unique des backends et capacités de `nie-emu`. */
+export function emuRegistry(): unknown {
+  const bytes = callOut((out) => symbols.nie_emu_registry_json_out(out));
+  if (!bytes) return null;
+  return JSON.parse(_dec.decode(bytes));
 }
 
 // ─── CRC32 ───────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
 // ## Deux sources, un seul catalogue
 //
 // La série vient de `data/anime/episodes.db` (355 épisodes, dix saisons nommées — Saison 1 à 3,
-// GO, Chrono Stones, Galaxy, Outer Code, Ares, Orion, Films), que `packages/ietv` recense et que
+// GO, Chrono Stones, Galaxy, Outer Code, Ares, Orion, Films), que `niers-media` recense et que
 // l'installeur embarque (cf. `lib/animeDb.ts`). Les cinématiques du jeu viennent du VFS.
 //
 // **`Victory Road` est présentée comme la saison qui suit les autres** : c'est ce qu'elle est
@@ -181,7 +181,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   const idProfil = profil?.id ?? PROFIL_PRINCIPAL;
 
   const [reprises, setReprises] = useState<Reprises>(() => lireReprises(lireProfilActif() ?? PROFIL_PRINCIPAL));
-  /** Épisodes marqués vus, en empreintes `saison:episode` — même règle que le bot Discord. */
+  /** Épisodes marqués vus, en empreintes `saison:episode` — règle partagée du catalogue. */
   const [vus, setVus] = useState<Set<string>>(() => lireVus(lireProfilActif() ?? PROFIL_PRINCIPAL));
   /** Clés des titres mis de côté — le `+` des deux plateformes de référence. */
   const [liste, setListe] = useState<Set<string>>(() => lireListe(lireProfilActif() ?? PROFIL_PRINCIPAL));
@@ -659,7 +659,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   /**
    * Les trous du catalogue, saison par saison — calculés sur le catalogue COMPLET (`episodes`) et
    * non sur le résultat filtré : une recherche qui laisse trois épisodes ne crée pas trente-huit
-   * lacunes. C'est la règle du bot Discord, portée telle quelle (`lib/serie.ts`).
+   * lacunes. C'est la règle canonique, portée telle quelle (`lib/serie.ts`).
    */
   const lacunes = useMemo(() => {
     const parSaison = new Map<number, (number | null)[]>();
@@ -1403,7 +1403,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
           onLire={lire}
           onRetour={() => setVue(VUE_SERIE)}
         >
-          {/* Ce que le catalogue N'A PAS. Le bot Discord le dit depuis toujours ; l'application le
+          {/* Ce que le catalogue N'A PAS. La source mesurée le dit ; l'application le
               taisait, et une saison trouée y ressemblait à une saison courte. */}
           {(() => {
             const numSaison = saisonCourante.elements[0]?.episode?.saison;

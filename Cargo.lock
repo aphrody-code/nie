@@ -257,22 +257,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
-name = "aphrody-re"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "goblin",
- "googletest",
- "hex",
- "iced-x86",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "thiserror 2.0.20",
- "zerocopy",
-]
-
-[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3830,29 +3814,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "googletest"
-version = "0.14.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6b5e2f2b556b7b90297a5a35c8267dd43a537923d2b329beefdba2b4ec19d94"
-dependencies = [
- "googletest_macro",
- "num-traits",
- "regex",
- "rustversion",
-]
-
-[[package]]
-name = "googletest_macro"
-version = "0.14.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ae6abc96141edd26bf5aeec0f119c129c44de3ced09e5073711a02cb74725d0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "gpu-allocator"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4440,14 +4401,79 @@ dependencies = [
 ]
 
 [[package]]
+name = "iecode-emu"
+version = "1.0.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "iecode-geom"
+version = "1.0.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "iecode-re"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "goblin",
+ "hex",
+ "iced-x86",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+ "zerocopy",
+]
+
+[[package]]
+name = "iecode-sql"
+version = "1.0.0"
+dependencies = [
+ "bytes",
+ "rusqlite",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-postgres",
+ "tokio-postgres-rustls",
+]
+
+[[package]]
+name = "iecode-tasks"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "iecode-video"
+version = "1.0.0"
+dependencies = [
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "ievr-tools"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "aphrody-re",
  "byteorder",
  "clap",
  "hex",
+ "iecode-re",
  "serde",
  "serde_json",
 ]
@@ -4540,6 +4566,8 @@ dependencies = [
  "base64 0.22.1",
  "clipboard-win",
  "flate2",
+ "iecode-geom",
+ "iecode-tasks",
  "log",
  "nie-aphrody",
  "nie-app",
@@ -4549,14 +4577,12 @@ dependencies = [
  "nie-explore",
  "nie-forge",
  "nie-formats",
- "nie-geom",
  "nie-lua",
  "nie-pe",
  "nie-queue",
  "nie-runtime",
  "nie-save",
  "nie-steam",
- "nie-tasks",
  "nie-trace",
  "nie-viola",
  "nie-wiki",
@@ -5542,11 +5568,11 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "bcdec_rs",
+ "iecode-geom",
  "nie-core",
  "nie-data",
  "nie-explore",
  "nie-formats",
- "nie-geom",
  "nie-render3d",
  "nie-runtime",
  "png 0.18.1",
@@ -5679,8 +5705,8 @@ dependencies = [
 name = "nie-core"
 version = "1.0.0"
 dependencies = [
+ "iecode-geom",
  "nie-data",
- "nie-geom",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -5721,11 +5747,11 @@ dependencies = [
  "globset",
  "grep-regex",
  "grep-searcher",
+ "iecode-sql",
  "ignore",
  "nie-data",
  "nie-formats",
  "nie-lua",
- "nie-sql",
  "serde",
  "serde_json",
 ]
@@ -5735,6 +5761,7 @@ name = "nie-ffi"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "iecode-emu",
  "image",
  "nie-core",
  "nie-data",
@@ -5800,13 +5827,6 @@ dependencies = [
  "tracing-subscriber",
  "wgpu",
  "winit",
-]
-
-[[package]]
-name = "nie-geom"
-version = "1.0.0"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -5924,8 +5944,8 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "futures-util",
+ "iecode-geom",
  "nie-core",
- "nie-geom",
  "nie-runtime",
  "serde",
  "serde_json",
@@ -5986,10 +6006,10 @@ name = "nie-re"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "aphrody-re",
  "goblin",
  "hashbrown 0.14.5",
  "iced-x86",
+ "iecode-re",
  "nie-dump",
  "nie-index",
  "tracing",
@@ -6004,9 +6024,9 @@ dependencies = [
  "bytemuck",
  "clap",
  "glam",
+ "iecode-video",
  "nie-core",
  "nie-formats",
- "nie-video",
  "png 0.18.1",
  "pollster",
  "serde",
@@ -6021,11 +6041,11 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "clap",
+ "iecode-geom",
+ "iecode-video",
  "nie-core",
  "nie-formats",
- "nie-geom",
  "nie-render3d",
- "nie-video",
  "png 0.18.1",
 ]
 
@@ -6101,23 +6121,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nie-sql"
-version = "1.0.0"
-dependencies = [
- "bytes",
- "rusqlite",
- "rustls",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "thiserror 2.0.20",
- "tokio",
- "tokio-postgres",
- "tokio-postgres-rustls",
-]
-
-[[package]]
 name = "nie-steam"
 version = "1.0.0"
 dependencies = [
@@ -6140,19 +6143,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nie-tasks"
-version = "1.0.0"
-dependencies = [
- "async-trait",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "nie-trace"
 version = "1.0.0"
 dependencies = [
@@ -6168,13 +6158,6 @@ dependencies = [
  "nie-aphrody",
  "nie-formats",
  "serde_json",
-]
-
-[[package]]
-name = "nie-video"
-version = "1.0.0"
-dependencies = [
- "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -6204,9 +6187,10 @@ dependencies = [
 name = "nie-wasm"
 version = "1.0.0"
 dependencies = [
- "aphrody-re",
  "console_error_panic_hook",
  "getrandom 0.2.17",
+ "iecode-re",
+ "iecode-tasks",
  "ievr-tools",
  "nie-app",
  "nie-asm",
@@ -6233,7 +6217,6 @@ dependencies = [
  "nie-save",
  "nie-seed",
  "nie-steam",
- "nie-tasks",
  "nie-trace",
  "nie-zukan",
  "parking_lot",

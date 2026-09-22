@@ -16,7 +16,7 @@ LOG="var/re-heartbeat.log"
 DB="${NIERS_DB:-var/niers.sqlite}"
 GAME_DIR="${NIE_GAME_DIR:-${NIERS_GAME_DIR:-/home/ubuntu/.local/share/Steam/iecode/inazuma}}"
 EXE="${NIE_EXE:-$GAME_DIR/nie_eacpatched.exe}"
-BIN="target/release/niers"
+BIN="${NIE_BIN:-target/release/nie}"
 ROUNDS="${NIERS_ROUNDS:-16}"
 
 log() { printf '[%s] %s\n' "$(date -Is)" "$1" >>"$LOG"; }

@@ -1228,7 +1228,7 @@ fn racines_candidates(game_dir: Option<&str>) -> Vec<PathBuf> {
 
 /// Miroir wiki sous une racine donnée, par ordre de préférence :
 /// 1. `var/mirror.sqlite` — le chemin canonique du lecteur Rust (un lien vers l'instantané
-///    courant, rebasculé atomiquement par `scripts/donnees/miroir-inagle.sh`).
+///    courant, rebasculé atomiquement par l'outillage de publication).
 /// 2. `var/miroir/inagle-*.sqlite` — l'instantané daté le plus récent, si le lien manque.
 /// 3. aucun réseau ni ancien stockage n'est accepté : le miroir doit provenir du VFS local.
 fn miroir_wiki_sous(racine: &std::path::Path) -> Option<PathBuf> {
@@ -1296,7 +1296,7 @@ fn default_re_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<Stri
 }
 
 /// Résout `data/anime/episodes.db` — le catalogue des épisodes de la série (10 saisons, 355
-/// épisodes avec vignettes), alimenté par `packages/ietv` et sa tâche `ietv-cache`.
+/// épisodes avec vignettes), alimenté par le catalogue distant de la série.
 ///
 /// This is the separate `anime` store, presented beside the game catalogue by Cinema.
 /// des cinématiques du jeu. Même ordre de résolution que les deux autres bases : `NIE_ANIME_DB`,

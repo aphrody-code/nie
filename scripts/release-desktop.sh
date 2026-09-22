@@ -57,8 +57,7 @@ echo "▸ [1/8] bump version → $VERSION (workspace Cargo + Bun)…"
 sed -i "s/^version = \"[0-9]*\.[0-9]*\.[0-9]*\"/version = \"$VERSION\"/" Cargo.toml
 sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$VERSION\"/" package.json
 for f in apps/inacord/package.json \
-         packages/nie/package.json packages/nie-bridge/package.json \
-         packages/nie-plugin/package.json; do
+         packages/nie/package.json packages/nie-bridge/package.json; do
 	[ -f "$f" ] && sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$VERSION\"/" "$f"
 done
 sed -i "s/^version = \"[0-9]*\.[0-9]*\.[0-9]*\"/version = \"$VERSION\"/" apps/inacord/src-tauri/Cargo.toml
@@ -142,7 +141,7 @@ echo "▸ [7/8] commit + tag $TAG + push…"
 git add Cargo.toml Cargo.lock package.json bun.lock \
         apps/inacord/package.json apps/inacord/src-tauri/Cargo.toml \
         apps/inacord/src-tauri/tauri.conf.json \
-        packages/nie/package.json packages/nie-bridge/package.json packages/nie-plugin/package.json
+        packages/nie/package.json packages/nie-bridge/package.json
 # Le bump peut avoir deja ete committe (relance apres un echec plus loin dans le pipeline) :
 # un `git commit` sans rien a committer sort en erreur et, avec `set -e`, tue la release juste
 # avant le tag. Le script doit etre rejouable, c'est sa raison d'etre.

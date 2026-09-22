@@ -48,6 +48,7 @@
 //! | `nie_font_render_text`     | Rend une chaîne UTF-8 avec la police → octets PNG RGBA8          |
 //! | `nie_font_render_text_out` | Idem, via `*mut NieBytes` (Bun FFI-friendly)                     |
 //! | `nie_font_free`            | Libère le handle `FontCtx`                                       |
+//! | `nie_emu_registry_json_out` | Expose la matrice backend/capability de `nie-emu`                 |
 //!
 //! # Invariants de sécurité pour les appelants
 //!
@@ -310,6 +311,26 @@ impl NieBytes {
             cap: v.capacity(),
         }
     }
+}
+
+/// Sérialise le registre `nie-emu` (backends et adaptateurs) vers un tampon C-ABI.
+///
+/// La fonction ne découvre rien et ne lance aucun processus. Elle donne aux hôtes Bun, C#,
+/// Python et WASM le même contrat de capacités avant qu'un adaptateur FFI in-process ne soit
+/// sélectionné.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_emu_registry_json_out(out: *mut NieBytes) {
+    if out.is_null() {
+        return;
+    }
+    let value = serde_json::json!({
+        "backends": nie_emu::REGISTRY.all(),
+        "adapters": nie_emu::REGISTRY.adapters(),
+        "common_capabilities": nie_emu::COMMON_CAPABILITIES,
+    });
+    let bytes = serde_json::to_vec(&value).unwrap_or_default();
+    // SAFETY: out is non-null and exclusively owned by the caller for this call.
+    unsafe { *out = NieBytes::from_vec(bytes) };
 }
 
 /// Libère un [`NieBytes`] alloué par ce crate (via `Vec::from_raw_parts`).

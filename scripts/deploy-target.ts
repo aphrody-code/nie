@@ -424,16 +424,6 @@ async function deployWasm(context: TargetContext): Promise<void> {
 	assertDeadline(context);
 }
 
-async function deployBunService(
-	context: TargetContext,
-	typecheck: string[],
-	unit: string,
-	healthUrl: string
-): Promise<void> {
-	await run(context, typecheck);
-	await restartUnit(context, unit, healthUrl, healthyJson);
-}
-
 async function publishNativeMcpAliases(): Promise<void> {
 	const binary = `${repositoryRoot}/target/release/nie-mcp`;
 	const binaryDirectory = "/home/ubuntu/.local/bin";
@@ -453,8 +443,8 @@ const targets: Record<string, Target> = {
 		seconds: releaseBuildSeconds,
 		description: "Rust FFI library used by Bun compatibility adapters",
 		deploy: async (context) => {
-			await buildBinary(context, "nie-ffi", "libnie_ffi.so");
-			const symbols = await run(context, ["nm", "-D", "--defined-only", "target/release/libnie_ffi.so"]);
+			await buildBinary(context, "nie-ffi", "libiecode.so");
+			const symbols = await run(context, ["nm", "-D", "--defined-only", "target/release/libiecode.so"]);
 			if (!symbols.includes("nie_wiki_json_out")) {
 				throw new Error("Rust FFI library does not export nie_wiki_json_out.");
 			}
@@ -465,8 +455,8 @@ const targets: Record<string, Target> = {
 		description: "Native nie CLI and stdio MCP host",
 		deploy: async (context) => {
 			await buildBinary(context, "nie-cli", "niers");
-			await run(context, ["target/release/niers", "--version"]);
-			await run(context, ["target/release/niers", "mcp", "--help"]);
+			await run(context, ["target/release/nie", "--version"]);
+			await run(context, ["target/release/nie", "mcp", "--help"]);
 		},
 	},
 	mcp: {
@@ -527,50 +517,6 @@ const targets: Record<string, Target> = {
 				validateSiteHealth
 			),
 	},
-	cron: {
-		seconds: bunServiceSeconds,
-		description: "Bun scheduled-jobs daemon",
-		deploy: (context) =>
-			deployBunService(
-				context,
-				["bun", "run", "--cwd", "packages/cron", "typecheck"],
-				"nie-cron.service",
-				"http://127.0.0.1:3005/health"
-			),
-	},
-	"cdn-variants": {
-		seconds: bunServiceSeconds,
-		description: "Bun on-demand IEVR image variants",
-		deploy: (context) =>
-			deployBunService(
-				context,
-				["bun", "run", "--cwd", "apps/cdn-variants", "typecheck"],
-				"cdn-variants.service",
-				"http://127.0.0.1:8805/health"
-			),
-	},
-	realtime: {
-		seconds: bunServiceSeconds,
-		description: "Bun PostgreSQL realtime compatibility service",
-		deploy: (context) =>
-			deployBunService(
-				context,
-				["bun", "run", "--cwd", "apps/realtime", "typecheck"],
-				"rg-realtime.service",
-				"http://127.0.0.1:8812/health"
-			),
-	},
-	storage: {
-		seconds: bunServiceSeconds,
-		description: "Bun local-files and PostgreSQL storage compatibility service",
-		deploy: (context) =>
-			deployBunService(
-				context,
-				["bun", "run", "--cwd", "apps/storage", "typecheck"],
-				"rg-storage.service",
-				"http://127.0.0.1:8810/health"
-			),
-	},
 };
 
 const orderedTargets = [
@@ -582,10 +528,6 @@ const orderedTargets = [
 	"inacord",
 	"model",
 	"site",
-	"cron",
-	"cdn-variants",
-	"realtime",
-	"storage",
 ] as const;
 
 function usage(): string {
@@ -673,7 +615,7 @@ const concurrencyTiers = [
 	["ffi", "cli", "mcp"],
 	["wasm"],
 	["web", "inacord"],
-	["model", "site", "cron", "cdn-variants", "realtime", "storage"],
+	["model", "site", "cron"],
 ] as const;
 
 try {

@@ -92,7 +92,7 @@ import { freemem, totalmem } from "node:os";
 /**
  * Racine de CE dépôt, résolue à l'exécution — `scripts/ops/` est deux niveaux sous la racine.
  * Aucun chemin de machine en dur : c'est la même doctrine que côté Rust
- * (`nie_formats::vfs::resolve_game_dir`) et que `packages/cron/src/lib/racine.ts`.
+ * (`nie_formats::vfs::resolve_game_dir`).
  */
 const NIERS_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/u, "");
 

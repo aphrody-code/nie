@@ -14,7 +14,7 @@
 #   STEAM_USER=... STEAM_PASSWORD=... STEAM_GUARD_CODE=... scripts/steam-update.sh
 set -euo pipefail
 
-REPO=/home/ubuntu/niers
+REPO="${NIE_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 BIN="$REPO/target/release/nie-steam"
 DEST=/home/ubuntu/.local/share/Steam/iecode/inazuma
 LOG=/home/ubuntu/steam-update-$(date +%Y%m%d-%H%M%S).log

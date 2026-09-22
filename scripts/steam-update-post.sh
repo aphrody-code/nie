@@ -10,7 +10,7 @@
 set -euo pipefail
 
 GAME=/home/ubuntu/.local/share/Steam/iecode/inazuma
-REPO=/home/ubuntu/niers
+REPO="${NIE_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Sauvegarde de référence. NE PAS coder en dur un chemin daté : le backup du
 # 2 mai (ievr-backup-manifest-1147708054852059036) a été supprimé pour libérer

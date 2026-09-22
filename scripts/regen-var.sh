@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.." || exit 1
 GAME_DIR="${NIE_GAME_DIR:-${NIERS_GAME_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
 EXE="$GAME_DIR/nie_eacpatched.exe"
 DB="var/niers.sqlite"
-BIN="target/release/niers"
+BIN="${NIE_BIN:-target/release/nie}"
 SEED_JSON="refs/iecode-re/research/nie-index.json"
 
 step(){ printf '\n>>> %s\n' "$1"; }

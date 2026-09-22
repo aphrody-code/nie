@@ -11,13 +11,6 @@
 
 #[cfg(feature = "host")]
 pub mod audio;
-#[cfg(feature = "host")]
-pub mod soundtrack;
-#[cfg(feature = "host")]
-#[deprecated(note = "use `nie_explore::soundtrack` instead")]
-pub mod bande_son {
-    pub use crate::soundtrack::*;
-}
 pub mod bridge;
 #[cfg(feature = "host")]
 pub mod cinema;
@@ -37,8 +30,6 @@ pub mod mcp_vfs;
 pub mod menu_audio;
 #[cfg(feature = "host")]
 pub mod menu_icons;
-/// Compatibility facade; menu layout ownership lives in `nie_formats::menu`.
-pub mod menu_layout;
 #[cfg(feature = "host")]
 pub mod menu_mode_analysis;
 pub mod menu_modes;
@@ -49,6 +40,8 @@ pub mod native_metadata;
 pub mod native_video;
 pub mod related;
 pub mod search_query;
+#[cfg(feature = "host")]
+pub mod soundtrack;
 pub mod spatial_preview;
 #[cfg(feature = "host")]
 pub mod uniform_map;

@@ -19,7 +19,6 @@ import {
 	AVATAR,
 	BANK,
 	CATALOGS,
-	DATA,
 	DOWNLOADS,
 	EXPLORER,
 	GALLERY,
@@ -28,7 +27,6 @@ import {
 	MERGED_ROUTES,
 	MEDIA,
 	MODES,
-	WIKI,
 	SETTINGS,
 	SHOP,
 	recognizedRoutes,
@@ -46,7 +44,6 @@ import { Settings } from "./pages/Settings";
 import { Avatar } from "./pages/Avatar";
 import { Modes } from "./pages/Modes";
 import { Catalog } from "./pages/Catalog";
-import { WikiCards } from "./pages/WikiCards";
 import DownloadPage from "./inacord-web/DownloadPage";
 import { UnifiedShell, workspaceViewOf } from "./shell/UnifiedShell";
 import { createWorkspaceActions } from "./shell/workspace-actions";
@@ -242,11 +239,6 @@ function GameSite() {
 	// Téléchargements Inacord
 	if (vue === DOWNLOADS) {
 		return shell(<div className="inacord-downloads"><DownloadPage /></div>);
-	}
-
-	// Fiches du wiki : les cartes montées sur les routes `/api/v1/wiki/*`
-	if (vue === WIKI) {
-		return shell(<WikiCards />);
 	}
 
 	// Fiches et catalogue des modes de jeu

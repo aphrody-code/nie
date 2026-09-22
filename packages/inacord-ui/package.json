@@ -29,9 +29,6 @@
 		"./avatar/request": "./src/avatar/request.ts",
 		"./shell/menu-screen": "./src/shell/menu-screen.tsx",
 		"./shell/native-scene-layers": "./src/shell/native-scene-layers.tsx",
-		"./shell/ecran-menu": "./src/shell/ecran-menu.tsx",
-		"./shell/geometrie-mainmenu": "./src/shell/geometrie-mainmenu.ts",
-		"./shell/layout-jeu": "./src/shell/layout-jeu.ts",
 		"./shell/*": "./src/shell/*",
 		"./three/*": "./src/three/*.tsx",
 		"./gallery/GalleryView": "./src/gallery/GalleryView.tsx",
@@ -46,7 +43,7 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@rosegriffon/ui": "workspace:*",
+		"@rosegriffon/ui": "^1.0.1",
 		"@base-ui/react": "catalog:",
 		"@niers/asset-source": "workspace:*",
 		"@niers/game": "workspace:*",

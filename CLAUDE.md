@@ -38,9 +38,10 @@ before creating a crate — `inacord-api` and `inacord-core` already exist under
    bindings and the memory shims; stub the OS-specific bindings (win32, memory hooks) onto web
    targets.
 2. **Inacord, 100 % Rust.** Merge the data, format and VFS crates inherited from `nie-explorer`
-   and the legacy Azalée tools into the Cargo workspace, then bind the extracted libraries to
-   five surfaces: native desktop GUI, cross-compiled mobile, `axum`/`tokio` API, a native Rust
-   MCP server (`rmcp`, stdio and SSE), and a Blender bridge over C-FFI or IPC.
+   and the legacy Azalée tools into the Cargo workspace. Bind the extracted libraries to API,
+   CLI, MCP, code/scripts and mobile/Blender integrations; keep the native desktop GUI as the
+   user-facing VFS explorer and visual preview only, never as the operator for RE, wiki, Lua,
+   modding, live memory or 3D authoring.
 
 **Extract before you bind.** Logic moves into a library crate with its tests, the existing CLI
 keeps working through that library, and only then does a second surface appear. A GUI written
@@ -99,7 +100,7 @@ diff, so the list exists to be re-run rather than remembered.
 | `apps/nie-web/public/static/game/nie_wasm_bg.wasm` | compare its mtime/size against `crates/engine/nie-wasm/` | `bun run --filter nie-web build:wasm` |
 | `apps/nie-web/public/static/game/nie_viewer_web_bg.wasm` | same | `bun run --filter nie-web build:wasm-viewer` |
 | `apps/nie-web/public/static/game/nie_lua_web.wasm` | `lua-runtime.test.ts` (directional) | emsdk recipe in `nie-lua-web/README.md` |
-| `target/release/libnie_ffi.so` | `bun run --filter '@aphrody/nie' test` | `cargo build -p nie-ffi --release` |
+| `target/release/libiecode.so` | `bun run --filter '@aphrody/nie' test` | `cargo build -p nie-ffi --release` |
 
 Only the first three are outside the build chain by design; `nie-lua-web` is outside it because
 it needs emsdk, which is exactly why it went stale.
@@ -137,7 +138,7 @@ it copied.
   repository root reports failures that belong to an old release. Use `bun run test` (which fans
   out to each package) or a package's own script from its directory: `apps/nie-web` gives
   189 pass / 0 fail where `--root apps/nie-web/src` gives 3 phantom failures.
-- **A stale `target/release/libnie_ffi.so` fails `@aphrody/nie` as a version desync.** Its test
+- **A stale `target/release/libiecode.so` fails `@aphrody/nie` as a version desync.** Its test
   asserts the FFI library reports the crate's version; on 2026-09-13 both manifests said 0.6.0
   and the `.so`, dated 11 September, answered 0.5.11. Nothing is desynchronised — the artefact is
   old. `cargo build -p nie-ffi --release` fixes it, and no version should be bumped to "fix" it.

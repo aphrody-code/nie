@@ -820,17 +820,6 @@ pub struct SaveSummary {
 
     /// Scalaires AUTOSAVE (datetime + playtime), `None` si non parsables.
     pub autosave_scalars: Option<body::autosave_roster::AutosaveScalars>,
-
-    // Champs legacy (rétrocompatibilité — pointent sur roster.owned)
-    // NE PAS utiliser dans le nouveau code ; préférer summary.roster.owned.
-    /// DEPRECATED — utiliser `summary.roster.owned` à la place.
-    /// Conservé pour rétrocompatibilité avec le code existant (page /save azalee).
-    #[doc(hidden)]
-    pub roster_ids: Vec<body::autosave_roster::CharaId>,
-
-    /// DEPRECATED — utiliser `summary.roster.total_slots` à la place.
-    #[doc(hidden)]
-    pub roster_slots: usize,
 }
 
 /// Construit un [`SaveSummary`] depuis un [`LivesContainer`] déchiffré.
@@ -892,7 +881,6 @@ pub fn summarize(container: &LivesContainer) -> SaveSummary {
 
     // Construire le Roster depuis les CharaId bruts (sans résolution de noms).
     let owned: Vec<CharaRef> = raw_ids.iter().map(|&id| CharaRef::from_id(id)).collect();
-    let roster_ids_legacy = raw_ids.clone();
     let roster = Roster { owned, total_slots };
 
     // Équipe active : section OPAQUE non décodée — Team vide.
@@ -916,9 +904,6 @@ pub fn summarize(container: &LivesContainer) -> SaveSummary {
         roster,
         team,
         autosave_scalars,
-        // Legacy
-        roster_ids: roster_ids_legacy,
-        roster_slots: total_slots,
     }
 }
 
@@ -1314,7 +1299,7 @@ mod tests {
     }
 
     #[test]
-    fn shared_blob_views_preserve_legacy_fields_and_body() {
+    fn shared_blob_views_preserve_roster_and_body() {
         let container = LivesContainer {
             slot_name: "slot".into(),
             key: 0,
@@ -1400,10 +1385,6 @@ mod tests {
         // Champs HEADERSAVE toujours cohérents
         assert_eq!(summary.player_name, "AstraJinWoo");
         assert_eq!(summary.level_str, "218");
-
-        // Compatibilité legacy : roster_ids/roster_slots toujours peuplés
-        assert_eq!(summary.roster_ids.len(), 4534, "legacy roster_ids");
-        assert_eq!(summary.roster_slots, 6000, "legacy roster_slots");
 
         eprintln!(
             "roster_ancres ok: count={} unique={} first_id=0x{:08X}",

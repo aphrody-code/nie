@@ -1,32 +1,32 @@
-// Shared series rules used by Inacord and the Discord bot.
+// Shared series rules used by the Inacord hosts.
 //
 // ## Why share instead of copying
 //
-// The bot and the Cinema view answer the same navigation questions. Their pure episode rules now
+// The Cinema view and the host answer the same navigation questions. Their pure episode rules now
 // come from one browser-compatible module, so an update cannot silently diverge between surfaces.
 //
 // The gap detector remains an adapter over Inacord's number-only input. `prochainNonVu` and
-// `voisins` are compatibility names backed by `@aphrody/ietv-client`.
+// `voisins` remains the compatibility name used by the desktop surface.
 //
-// Ce qui N'EST PAS porté : la persistance. Le bot garde la progression par membre Discord, en
-// base ; ici elle tient dans `localStorage`, cloisonnée par profil (`lib/profils.ts`) — c'est
+// Ce qui N'EST PAS porté : la persistance. Elle reste dans l'hôte, cloisonnée par profil
+// (`lib/profils.ts`) — c'est
 // déjà où vivent les positions de lecture des cinématiques.
-import { neighboringEpisodes } from "@aphrody/ietv-client/episode-navigation";
+import { neighboringEpisodes } from "./episode-navigation";
 
 import { clePourProfil, PROFIL_PRINCIPAL } from "./profils";
 
-export { nextUnwatchedEpisode as prochainNonVu } from "@aphrody/ietv-client/episode-navigation";
+export { nextUnwatchedEpisode as prochainNonVu } from "./episode-navigation";
 
 /** Clé de persistance des épisodes marqués vus, avant cloisonnement par profil. */
 const CLE_VUS = "nie-explorer:cinema:vus";
 
-/** Un épisode, désigné comme le fait le bot : par sa saison et son numéro. */
+/** Un épisode, désigné par sa saison et son numéro. */
 export interface CleEpisode {
   saison: number;
   episode: number;
 }
 
-/** Les trous d'une saison. Porté de `wonderbot/src/lacunes.ts`. */
+/** Les trous d'une saison. */
 export interface LacuneSaison {
   saison: number;
   /** Numéros absents entre le premier et le dernier épisode connus. */
@@ -43,7 +43,7 @@ export interface LacuneSaison {
  * annonce : une saison dont les cinq derniers épisodes n'ont jamais été publiés n'a pas de trou,
  * elle est courte, et présenter cela comme un manque serait faux.
  *
- * Porté de `wonderbot/src/lacunes.ts` (`lacunesDeSaison`).
+ * Calcul des épisodes manquants dans une saison.
  */
 export function lacunesDeSaison(saison: number, numeros: readonly (number | null)[]): LacuneSaison | null {
   const presents = [...new Set(numeros.filter((n): n is number => n !== null))];
@@ -73,7 +73,7 @@ export function decrireLacune(lacune: LacuneSaison): string {
  * Quand l'épisode courant n'est pas au catalogue (source retirée entre-temps), on l'encadre quand
  * même plutôt que de laisser la navigation sans issue.
  *
- * Shared through `@aphrody/ietv-client/episode-navigation`.
+ * Shared through the local episode-navigation module.
  */
 export function voisins(
   disponibles: readonly number[],

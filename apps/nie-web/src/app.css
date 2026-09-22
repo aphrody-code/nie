@@ -33,7 +33,7 @@
  * classes their compatibility entries re-export. */
 @source ".";
 @source "../../../packages/inacord-ui/src";
-@source "../../../packages/ui/src/components";
+@source "../../../rg/packages/ui/src/components";
 @source "../node_modules/@spacedrive/primitives/dist";
 
 @import "tw-animate-css";

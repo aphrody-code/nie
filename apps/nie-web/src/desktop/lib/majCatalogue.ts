@@ -3,7 +3,7 @@
 // ## Le problème qu'elle règle
 //
 // `data/anime/episodes.db` voyage dans l'installeur : les 355 épisodes qu'il contient sont ceux
-// du jour du build. Le VPS, lui, remoissonne chaque nuit (`packages/cron/src/tasks/ietv-cache`).
+// du jour du build. Le serveur distant publie les mises à jour du catalogue indépendamment.
 // Sans ce module, la seule façon de voir un épisode publié après l'installation était de
 // réinstaller l'application.
 //

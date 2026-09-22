@@ -266,7 +266,7 @@
       "nie-wasm"
     ],
     "workspace_compatibility_checked": [
-      "aphrody-re",
+      "iecode-re",
       "nie-asm",
       "nie-dump",
       "nie-forge",

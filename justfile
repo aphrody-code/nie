@@ -1,4 +1,4 @@
-# justfile — orchestrateur de la stack RE niers.
+# justfile — orchestrateur de la stack RE nie.
 # Requiert `just` (cargo install just). Toolchain nightly-2026-05-17 (cf rust-toolchain.toml).
 # Variables surchargeables : `just exe=/autre/nie.exe re-all`, ou via env NIERS_GAME_DIR.
 
@@ -9,7 +9,7 @@ set positional-arguments
 game_dir := env_var_or_default("NIERS_GAME_DIR", "/home/ubuntu/.local/share/Steam/iecode/inazuma")
 exe      := game_dir / "nie_eacpatched.exe"
 db       := "var/niers.sqlite"
-bin      := "target/release/niers"
+bin      := "target/release/nie"
 seed_json := "refs/iecode-re/research/nie-index.json"
 rounds   := "16"
 
@@ -21,12 +21,19 @@ atlas_redis := env_var_or_default("NIERS_ATLAS_REDIS", "redis://127.0.0.1/4")
 default:
     @just --list
 
+# Transfer portable docs/scripts/deployment source with a SHA-256 manifest.
+workspace-export output="var/transfers/latest":
+    bun scripts/workspace-transfer.ts export --output {{output}}
+
+workspace-import manifest root=".":
+    bun scripts/workspace-transfer.ts import --manifest {{manifest}} --root {{root}} --dry-run
+
 # --- Build -------------------------------------------------------------------
 
-# Compile le binaire niers en release. Ni mold ni target-cpu=native : .cargo/config.toml les
+# Compile le binaire nie en release. Ni mold ni target-cpu=native : .cargo/config.toml les
 # écarte volontairement (un `native` change l'ordre des flottants et casse les goldens byte-exacts).
 build:
-    cargo build --release -p nie-cli
+    cargo build --release -p nie-cli --bin nie
 
 # Compile tout le workspace.
 build-all:
@@ -199,7 +206,7 @@ check: fmt-check clippy test
     @echo "check=OK"
 
 # --- TypeScript / Bun ---------------------------------------------------------
-# `build:ffi` d'abord : bunfig.toml precharge nie-plugin, qui charge nie_ffi.dll.
+# `build:ffi` d'abord : bunfig.toml precharge nie-plugin, qui charge iecode.dll.
 # Sans la lib, TOUTE commande bun du depot echoue (cf. CLAUDE.md).
 
 ts-install:

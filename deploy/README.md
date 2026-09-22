@@ -77,15 +77,23 @@ normal en non-root et arrive **après** la validation : la configuration a été
 
 ## systemd
 
+Les unités n'embarquent plus le chemin d'un checkout particulier. Elles utilisent
+`NIE_REPO_ROOT` et `NIE_GAME_DIR`, avec les valeurs par défaut `%h/nie` et
+`%h/.local/share/Steam/iecode/inazuma`. Sur un hôte existant, créer avant l'installation
+`/etc/nie/nie.env` :
+
+```ini
+NIE_REPO_ROOT=/home/ubuntu/nie
+NIE_GAME_DIR=/home/ubuntu/.local/share/Steam/iecode/inazuma
+```
+
+Le fichier est lu par `nie-site` et `nie-model-serve`; il permet de changer de checkout sans
+modifier les unités ni le code.
+
 | Unité | Ce qu'elle sert |
 |---|---|
 | `nie-site.service` | le site, `127.0.0.1:8085`, derrière nginx |
 | `nie-model-serve.service` | le décodage des fichiers du jeu à la volée, `127.0.0.1:8790` |
-| `nie-cron.service` | le démon de tâches (`packages/cron`) |
-| `nie-miroir.service` + `.timer` | la rotation nocturne du miroir des données extraites, à 04:10 UTC |
-| `rg-storage`, `rg-realtime`, `rag-api` | le socle du wiki en Bun natif |
-| `cdn-variants.service` | la fabrique des variantes de taille, `127.0.0.1:8805` |
-| `niers-wonderbot.service` | le bot, exécuté depuis `apps/bxc` mais avec ce dépôt pour racine |
 
 ## Ce qui n'est PAS ici, et pourquoi
 
@@ -93,9 +101,8 @@ The native Rust MCP server is a per-client stdio process (`nie-mcp` or `niers mc
 long-running HTTP unit. The retired HTTP unit remains masked on the host to prevent accidental
 reactivation.
 
-The editorial `rg-cdn.service` is owned by `/home/ubuntu/rg/infra/systemd/rg-cdn.service`; its
-source and working directory are outside this repository. `cdn-variants.service` remains here
-because it decodes and transforms IEVR assets through NIE owners.
+External infrastructure units are owned by their respective deployment repositories and are not
+duplicated here.
 
 La machine porte aussi les unités `bxc-*` et `rg-*` (CDN, postgrest, sauvegarde, watchdogs) et
 les vhosts `rosegriffon.conf`, `cdn.rosegriffon.conf`, `supabase*`, `studio.*`. Ils
@@ -105,13 +112,8 @@ tient `rg`, ce dépôt tient `niers`.
 
 ## Avant de renommer ou de déplacer quoi que ce soit
 
-`nie-miroir.service` cible **en dur** `scripts/donnees/miroir-inagle.sh`, son timer est actif,
-et son `ExecStartPost` redémarre `nie-model-serve`. Déplacer ce script casse la rotation du
-miroir, et la réparation demande un `daemon-reload` — donc l'accord de l'utilisateur. C'est
-pour cette raison que `scripts/donnees/` n'a pas été anglicisé.
-
 ```bash
-systemctl list-unit-files | grep -E 'azalee|nie-|rg-'   # ce qui est installé
+systemctl list-unit-files | grep -E 'nie-|mcp'           # ce qui est installé
 systemctl --failed                                       # ce qui est tombé
 diff /etc/systemd/system/nie-site.service deploy/systemd/nie-site.service
 ```

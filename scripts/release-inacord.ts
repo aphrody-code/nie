@@ -192,7 +192,7 @@ async function main(): Promise<void> {
 		);
 	}
 
-	for (const binary of ["niers", "nie-mcp"]) {
+	for (const binary of ["nie", "nie-mcp"]) {
 		const path = resolve(root, "target/release", binary);
 		const info = await stat(path).catch(() => null);
 		if (!info?.isFile()) throw new Error(`Missing release binary: ${path}`);
@@ -203,7 +203,7 @@ async function main(): Promise<void> {
 	await rm(archiveStage, { recursive: true, force: true });
 	await mkdir(resolve(archiveStage, "cli"), { recursive: true });
 	await mkdir(resolve(archiveStage, "mcp"), { recursive: true });
-	await copyFile(resolve(root, "target/release/niers"), resolve(archiveStage, "cli/niers"));
+	await copyFile(resolve(root, "target/release/nie"), resolve(archiveStage, "cli/nie"));
 	await copyFile(resolve(root, "target/release/nie-mcp"), resolve(archiveStage, "mcp/nie-mcp"));
 	await chmod(resolve(archiveStage, "cli/niers"), 0o755);
 	await chmod(resolve(archiveStage, "mcp/nie-mcp"), 0o755);
@@ -213,7 +213,7 @@ async function main(): Promise<void> {
 	const blenderArchive = resolve(next, "files/plugins", `niers-blender-${blenderVersion}.zip`);
 	const agentArchive = resolve(next, "files/plugins", `niers-agent-plugin-${version}.zip`);
 	run(["zip", "-qr", blenderArchive, "niers-blender", "-x", "*/__pycache__/*", "*.pyc"], resolve(root, "plugins"));
-	run(["zip", "-qr", agentArchive, "niers-plugin"], resolve(root, "plugins"));
+	run(["zip", "-qr", agentArchive, "nie"], resolve(root, "plugins"));
 
 	const nsisPath = resolve(next, "files/desktop/windows-x86_64", nsisName);
 	const msiPath = resolve(next, "files/desktop/windows-x86_64", msiName);

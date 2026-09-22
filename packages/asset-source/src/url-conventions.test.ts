@@ -63,7 +63,7 @@ describe("les routes annoncées existent dans nie-model-serve", () => {
 	}
 
 	test("`/dx11` et `/g4tx` ne sont PAS des routes du serveur", () => {
-		// Elles n'existent que dans nginx (alias disque + `cdn-variants`, puis réécriture vers
+		// Elles n'existent que dans nginx (alias disque + transformation d'image, puis réécriture vers
 		// `/tex/`). Les traiter comme des alias de `/tex/` ferait perdre le redimensionnement
 		// `?w=&format=webp`, que `/tex/` ne sait pas faire.
 		expect(routeImplementee("/dx11")).toBe(false);

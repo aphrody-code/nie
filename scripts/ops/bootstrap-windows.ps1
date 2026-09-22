@@ -267,6 +267,6 @@ if (Test-Path $inv) {
 
 Write-Host "`nEnsuite, dans un terminal NEUF (pour que NIE_GAME_DIR existe) :" -ForegroundColor Cyan
 Write-Host '  cargo build --release -p nie-cli'
-Write-Host '  .\target\release\niers.exe info        # doit annoncer 255 308 entrées'
+Write-Host '  .\target\release\nie.exe info        # doit annoncer 255 308 entrées'
 Write-Host '  bun install ; bun run build:ffi'
 Write-Host "`nLe détail, et ce qui reste à faire à la main : LOCAL.md"

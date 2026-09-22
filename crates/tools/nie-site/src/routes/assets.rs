@@ -26,7 +26,7 @@
 //! Client-only fetch/React behavior and lazy loading are not IEVR rules; presence manifests
 //! (`item-image`, `menu-asset`, modèles et Miximax) sont des résultats générés depuis un VFS ou
 //! une sonde HTTP ; `getOptimizedImageUrl` est le protocole privé de Next.js ; enfin les variantes
-//! `?w=&format=webp` appartiennent à `cdn-variants` et le miroir Zukan 360° est absent. Les
+//! `?w=&format=webp` appartiennent au pipeline d'images et le miroir Zukan 360° est absent. Les
 //! manifests remain host inputs, and these external services are not
 //! déguisés en capacité native inventée.
 

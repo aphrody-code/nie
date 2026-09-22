@@ -99,7 +99,7 @@ zerocopy = { version = "0.8" }
 # (`lib.rs` + `headers`) ; les modules forensics d'aphrody — adobe, asar,
 # electron, golang, google — et les modules sous drapeau — leveldb, magika,
 # yara — sont écartés : `nie-re` n'appelle que `triage()` et `Format`.
-aphrody-re = { version = "1.0.0", path = "crates/forge/aphrody-re" }
+aphrody-re = { package = "iecode-re", version = "1.0.0", path = "../iecode/crates/re" }
 
 # décodage audio CRI (HCA, ACB, AWB) — licence MIT
 cridecoder = { version = "0.2.3", default-features = false }
@@ -144,7 +144,7 @@ nie-queue = { version = "1.0.0", path = "crates/forge/nie-queue", default-featur
 nie-seed = { version = "1.0.0", path = "crates/forge/nie-seed", default-features = false }
 nie-formats = { version = "1.0.0", path = "crates/engine/nie-formats", default-features = false }
 nie-explore = { version = "1.0.0", path = "crates/engine/nie-explore", default-features = false }
-nie-sql = { version = "1.0.0", path = "crates/engine/nie-sql" }
+nie-sql = { package = "iecode-sql", version = "1.0.0", path = "../iecode/crates/sql" }
 nie-headless = { version = "1.0.0", path = "crates/engine/nie-headless", default-features = false }
 nie-save = { version = "1.0.0", path = "crates/engine/nie-save" }
 nie-wiki = { version = "1.0.0", path = "crates/tools/nie-wiki" }
@@ -165,7 +165,7 @@ nie-render3d = { version = "1.0.0", path = "crates/engine/nie-render3d", default
 # nie-video : propriétaire UNIQUE de la chaîne « trames RGBA → fichier vidéo ». Tout appelant qui
 # produit une séquence passe par elle ; le motif « PNG dans un répertoire temporaire + ffmpeg -i
 # f_%04d.png » qu'elle remplace vivait en trois copies.
-nie-video = { version = "1.0.0", path = "crates/engine/nie-video" }
+nie-video = { package = "iecode-video", version = "1.0.0", path = "../iecode/crates/video" }
 nie-aphrody = { version = "1.0.0", path = "crates/engine/nie-aphrody" }
 # nie-ui : source unique, typée, des jetons de design du jeu (couleurs OKLCH, géométrie,
 # mouvement) — génère le CSS de packages/inacord-ui/src/shell/game-tokens.css et relie
@@ -174,6 +174,7 @@ nie-ui = { version = "1.0.0", path = "crates/engine/nie-ui" }
 # `nie-runtime` : le moteur de match. Declare ici parce que `nie-ffi` le consomme desormais —
 # c'est ce qui rend la simulation pilotable depuis Python (`niepy`) et donc depuis Ren'Py.
 nie-runtime = { version = "1.0.0", path = "crates/engine/nie-runtime" }
+nie-emu = { package = "iecode-emu", version = "1.0.0", path = "../iecode/crates/emu" }
 nie-viola = { version = "1.0.0", path = "crates/engine/nie-viola" }
 nie-launcher = { version = "1.0.0", path = "crates/tools/nie-launcher" }
 nie-steam = { version = "1.0.0", path = "crates/tools/nie-steam", default-features = false }
@@ -181,7 +182,7 @@ nie-net = { version = "1.0.0", path = "crates/engine/nie-net", default-features 
 
 # chaîne « image → SVG → raster » (skill pixel-perfect, crate nie-aphrody).
 # Choix mesurés le 2026-09-05, avec les rejets et leur raison :
-# plugins/niers-plugin/skills/pixel-perfect/references/bibliotheques.md
+# plugins/nie/skills/pixel-perfect/references/bibliotheques.md
 # À retenir : `dssim` est AGPL (banni, `image-compare` rend le même SSIM en MIT),
 # potrace est GPL et sans crate, et `vtracer` tirerait un SECOND `image` (^0.23)
 # plus clap 2 et pyo3. La vectorisation, elle, n'a tiré AUCUNE dépendance : suivre le
@@ -232,8 +233,8 @@ nie-camera = { version = "1.0.0", path = "crates/engine/nie-camera", default-fea
 nie-cli = { version = "1.0.0", path = "crates/tools/nie-cli" }
 nie-computer-use = { version = "1.0.0", path = "crates/tools/nie-computer-use", default-features = false }
 nie-editor = { version = "1.0.0", path = "crates/tools/nie-editor", default-features = false }
-nie-geom = { version = "1.0.0", path = "crates/engine/nie-geom" }
-nie-tasks = { version = "1.0.0", path = "crates/tools/nie-tasks", default-features = false }
+nie-geom = { package = "iecode-geom", version = "1.0.0", path = "../iecode/crates/geom" }
+nie-tasks = { package = "iecode-tasks", version = "1.0.0", path = "../iecode/crates/tasks", default-features = false }
 percent-encoding = { version = "2" }
 png = { version = "0.18" }
 pollster = { version = "0.4" }

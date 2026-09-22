@@ -26,7 +26,7 @@ const TOKEN_STORE =
 	process.env.STEAM_TOKEN_STORE ?? join(HOME, ".local/share/iecode/steam-tokens.json");
 const PRESET = process.env.DUMP_PRESET ?? "full";
 const OUT = process.env.DUMP_OUT ?? join(HOME, "niers-dump");
-const NIERS = process.env.NIERS_BIN ?? join(import.meta.dir, "../target/release/niers.exe");
+const NIERS = process.env.NIE_BIN ?? join(import.meta.dir, "../target/release/nie.exe");
 const useBuiltBinary = existsSync(NIERS);
 
 async function runNiers(...args: string[]) {

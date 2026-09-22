@@ -19,9 +19,7 @@ import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "re
 import {
 	AVATAR,
 	BANK,
-	DATA,
 	DOWNLOADS,
-	EDITOR_3D,
 	EXPLORER,
 	GALLERY,
 	INACORD,
@@ -29,7 +27,6 @@ import {
 	MEDIA,
 	MEDIA_LANDING,
 	MODES,
-	SEARCH,
 	SETTINGS,
 	SHOP,
 	recognizedRoutes,
@@ -48,6 +45,7 @@ import { Game } from "../pages/Game";
 import { PlayerBank } from "../screens/PlayerBank";
 import { Shop } from "../screens/Shop";
 import { TrophyGallery } from "../screens/TrophyGallery";
+import { CinemaView } from "./components/CinemaView";
 import { Settings } from "../pages/Settings";
 import DownloadPage from "../inacord-web/DownloadPage";
 import { HOME, splitLanguagePrefix } from "../routing";
@@ -196,6 +194,9 @@ function DesktopSite() {
 	}
 	if (route === DOWNLOADS) {
 		return shell(<div className="inacord-downloads"><DownloadPage /></div>);
+	}
+	if (route === MEDIA) {
+		return shell(<CinemaView />);
 	}
 	if (route === MODES || route.startsWith(`${MODES}/`)) {
 		return shell(<Modes prefix={prefixe} route={route} />);

@@ -39,7 +39,7 @@ import { SkipToContent } from "@niers/inacord-ui/components/wiki/accessibility/S
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { AVATAR, BANK, CATALOGS, DATA, EDITOR_3D, EXPLORER, GALLERY, INACORD, MEDIA_LANDING, MODES, SEARCH, SETTINGS, SHOP, entryLabel, menuEntries } from "../entries";
+import { AVATAR, BANK, CATALOGS, EXPLORER, GALLERY, INACORD, MEDIA_LANDING, MODES, SETTINGS, SHOP, entryLabel, menuEntries } from "../entries";
 import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
 import { GAME_REACHABLE, NATIVE_WINDOW } from "../host";
 import { HOME } from "../routing";
@@ -90,10 +90,7 @@ export function inacordViewOf(route: string): string | null {
  * workspace title cannot disagree.
  */
 export function workspaceViewOf(route: string): string | null {
-	if (route === EDITOR_3D) return "editor";
 	if (route === EXPLORER) return "explorer";
-	if (route === SEARCH) return "search";
-	if (route === DATA) return "data";
 	return inacordViewOf(route);
 }
 
@@ -135,12 +132,11 @@ export function gameSection(current: string): SidebarSection {
 }
 
 /** The Inacord view sections, honouring the « Outils avancés » setting. */
-export function workspaceSections(current: string, advanced: boolean, t: (key: string) => string): SidebarSection[] {
+export function workspaceSections(current: string, _advanced: boolean, t: (key: string) => string): SidebarSection[] {
 	const view = inacordViewOf(current);
-	return (["principal", "donnees", "outils"] as const).map((groupe: GroupeVue) => ({
+	return (["principal"] as const).map((groupe: GroupeVue) => ({
 		label: LIBELLE_GROUPE[groupe],
 		items: vuesDuGroupe(groupe)
-			.filter((v) => advanced || !v.avancee)
 			.map((v) => ({
 				id: workspaceRoute(v.id),
 				label: t(v.cle),

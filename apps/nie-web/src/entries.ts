@@ -22,18 +22,6 @@ import { splitLanguagePrefix } from "./routing";
 /** The VFS explorer, backed by the path-oriented VFS API. */
 export const EXPLORER = "explorateur";
 
-/** Host 3D workspace, promoted beside avatar creation and VFS browsing. */
-export const EDITOR_3D = "editor_3d";
-
-/**
- * Distinct public workspace surfaces. Search queries the cross-source index; Data exposes only
- * decoded game-data families. Generic SQLite remains on explicit authoring routes. These views
- * share the workspace host, not an implementation or a canonical URL.
- */
-export const SEARCH = "recherche";
-export const DATA = "donnees";
-export const PUBLIC_WORKSPACE_ROUTES = [EDITOR_3D, SEARCH, DATA] as const;
-
 /**
  * Les catalogues que le serveur publie sous forme d'URL, dans son document d'accueil.
  *
@@ -107,16 +95,6 @@ export const SHOP = "shop_menu";
  * ici, sinon la liste dériverait de celle qui fait autorité.
  */
 export const MODES = "modes";
-
-/**
- * Les fiches du wiki — auras, tactiques, quêtes, boutiques, entraîneurs, stades, capsules,
- * costumes.
- *
- * Elles n'avaient aucune adresse : dix-huit cartes existaient sous `components/wiki/`, treize
- * n'étaient rendues par aucune route, et six de celles-là visaient des routes qui répondaient
- * `503` en production. La page ne fait que les monter sur les routes réparées.
- */
-export const WIKI = "wiki";
 
 /** Published alias that enters the main menu at `/` without replaying startup. */
 export const MENU = "menu";
@@ -197,9 +175,6 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	videos: { label: "Vidéos", glyph: "film" },
 	[MEDIA]: { label: "Médias", glyph: "image" },
 	[EXPLORER]: { label: "Explorer", glyph: "arbre" },
-	[EDITOR_3D]: { label: "Éditeur 3D", glyph: "cube" },
-	[SEARCH]: { label: "Recherche", glyph: "arbre" },
-	[DATA]: { label: "Données", glyph: "livre" },
 	[SETTINGS]: { label: "Options", glyph: "engrenage" },
 	[AVATAR]: { label: "Avatar", glyph: "ballon" },
 	[BANK]: { label: "Banque", glyph: "livre" },
@@ -208,7 +183,6 @@ const PRESENTATION: Record<string, { label: string; glyph: GlyphName }> = {
 	[INACORD]: { label: "Inacord", glyph: "livre" },
 	[DOWNLOADS]: { label: "Téléchargements", glyph: "cube" },
 	[MODES]: { label: "Modes", glyph: "livre" },
-	[WIKI]: { label: "Wiki", glyph: "livre" },
 	story_mode: { label: "Mode Histoire", glyph: "ballon" },
 	chronicle_mode: { label: "Mode Chronique", glyph: "livre" },
 	competition: { label: "Mode Compétition", glyph: "ballon" },
@@ -224,9 +198,9 @@ export function entryLabel(route: string): string {
 /**
  * Routes recognized by the host, including compatibility inputs.
  *
- * `/recherche` and `/donnees` are independent pages. `/textures`, `/modeles`, `/sons` and
- * `/videos` are canonical catalogue views; `/medias` remains a compatibility input that
- * redirects to one of them.
+ * `/textures`, `/modeles`, `/sons` and `/videos` are canonical catalogue views; `/medias` remains
+ * a compatibility input that redirects to one of them. Wiki/data and reverse-engineering
+ * queries have no GUI route; their API/CLI/MCP owners remain available.
  */
 export function recognizedRoutes(health: SiteHealth | null): string[] {
 	return [
@@ -237,28 +211,22 @@ export function recognizedRoutes(health: SiteHealth | null): string[] {
 		...menuEntries(health).map((entry) => entry.route),
 		DOWNLOADS,
 		MODES,
-		WIKI,
 		INACORD,
 		...INACORD_VIEW_ROUTES,
-		...PUBLIC_WORKSPACE_ROUTES,
 		...CATALOGS,
 		...Object.keys(LEGACY_ROUTES),
 	];
 }
 
 /**
- * The workspace views, addressable one by one: `/inacord/cinema` opens the Cinema view inside
- * the unified shell. `/inacord` alone stays valid and opens the explorer.
+ * The workspace view, addressable as `/inacord/explorer`. `/inacord` alone stays valid and opens
+ * the same explorer.
  *
  * The identifiers are NOT re-declared here — they come from the view registry
  * (`desktop/lib/vues.ts`), the single place that says what the workspace contains.
  *
- * That sentence was already written here while the list right below it was hand-copied, and
- * the two had drifted apart in both directions (measured 2026-09-19). The literal declared
- * `character`, `database`, `network`, `mod` and `script`, which the registry does not carry —
- * five addresses the router accepted and no view could answer — and it omitted `gallery`,
- * `cpk`, `tools`, `mods`, `re`, `viola`, `livemod` and `lua`, eight views that existed and
- * had no URL. `IDS_VUES` is the registry's own derived list, so neither can happen again.
+ * `IDS_VUES` is the registry's own derived list, so no headless capability becomes an accidental
+ * desktop route.
  */
 export const INACORD_VIEW_ROUTES: readonly string[] = IDS_VUES.map((id) => `${INACORD}/${id}`);
 
@@ -269,11 +237,11 @@ export const INACORD_VIEW_ROUTES: readonly string[] = IDS_VUES.map((id) => `${IN
 export function menuEntries(_health: SiteHealth | null): MenuEntry[] {
 	return [
 		{ route: MEDIA_LANDING, label: entryLabel(MEDIA), glyph: PRESENTATION[MEDIA]!.glyph },
-		...[AVATAR, EXPLORER, EDITOR_3D, BANK, GALLERY, SHOP, SEARCH, DATA, SETTINGS].map((route) => ({
+		...[AVATAR, EXPLORER, BANK, GALLERY, SHOP, SETTINGS].map((route) => ({
 			route,
 			label: entryLabel(route),
 			glyph: PRESENTATION[route]?.glyph ?? "arbre",
-			priority: route === EXPLORER || route === EDITOR_3D || route === GALLERY ? "primary" as const : "secondary" as const,
+			priority: route === EXPLORER || route === GALLERY ? "primary" as const : "secondary" as const,
 		})),
 	];
 }

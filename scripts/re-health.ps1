@@ -10,7 +10,7 @@ Set-Location (Join-Path $PSScriptRoot '..')
 $racine = (Get-Location).Path
 
 $DB = if ($env:NIERS_DB) { $env:NIERS_DB } else { 'var/niers.sqlite' }
-$BIN = 'target/release/niers'
+$BIN = if ($env:NIE_BIN) { $env:NIE_BIN } else { 'target/release/nie' }
 # Sous Windows le binaire porte l'extension .exe : MSYS la résolvait toute seule pour `[ -x ]`,
 # ici il faut la chercher explicitement. Ce n'est pas un assouplissement de la garde — la
 # question posée reste « le binaire niers est-il construit ? ».

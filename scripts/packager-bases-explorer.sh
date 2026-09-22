@@ -51,7 +51,7 @@ compresser() {
 echo "▸ bases embarquées de nie-explorer → $CIBLE"
 
 # Le miroir du wiki. Sa source canonique est `var/mirror.sqlite` (lien vers l'instantané courant,
-# posé par scripts/donnees/miroir-inagle.sh) ; à défaut, le dernier instantané daté.
+# posé par l'outillage de publication) ; à défaut, le dernier instantané daté.
 MIROIR="$RACINE/var/mirror.sqlite"
 if [ ! -e "$MIROIR" ]; then
 	MIROIR="$(ls -1t "$RACINE"/var/miroir/inagle-*.sqlite 2>/dev/null | head -1 || true)"
@@ -62,8 +62,8 @@ compresser "$MIROIR" "mirror.sqlite"
 # pas de lien, un seul fichier.
 compresser "$RACINE/var/niers.sqlite" "niers.sqlite"
 
-# Le catalogue des épisodes de la série (`packages/ietv` → `IETVCache`), que la vue Cinéma
-# présente à côté des cinématiques du jeu. 290 Ko : le seuil de validité des deux autres (1 Mo)
+# Le catalogue des épisodes de la série, que la vue Cinéma présente à côté des cinématiques du
+# jeu. 290 Ko : le seuil de validité des deux autres (1 Mo)
 # ne s'y applique pas — d'où le contrôle par le nombre d'épisodes plutôt que par la taille.
 EPISODES="$RACINE/data/anime/episodes.db"
 if [ -f "$EPISODES" ]; then

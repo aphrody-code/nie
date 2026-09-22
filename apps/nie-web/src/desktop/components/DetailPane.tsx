@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { formatDescription, translateEffect } from "@niers/game/text";
 import { api, type ExportFormat } from "@/lib/api";
 import { useSettings, type Locale } from "@niers/inacord-ui/lib/settings";
-import { b64ToBytes, bytesToB64, hexLines, humanSize } from "@/lib/bytes";
+import { b64ToBytes, bytesToB64, hexLines, hexToBytes, humanSize } from "@/lib/bytes";
 import { modsDb, type ModRow } from "@/lib/modsDb";
 import { stageReplacement, stageTextureReplacement } from "@/lib/modWorkspace";
 import { codeOf } from "@/lib/vfsIndexDb";
@@ -309,8 +309,7 @@ export function DetailPane({ target, readOnly = false }: { target: DetailTarget 
       toast.error("Hex invalide (nombre impair de chiffres)");
       return;
     }
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    const bytes = hexToBytes(hex);
     const dest = await save({ defaultPath: name });
     if (!dest) return;
     setBusy(true);
@@ -342,8 +341,7 @@ export function DetailPane({ target, readOnly = false }: { target: DetailTarget 
       { title: "Écrire en place", kind: "warning" },
     );
     if (!ok) return;
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    const bytes = hexToBytes(hex);
     setBusy(true);
     try {
       const written = await api.writeB64(target.path, bytesToB64(bytes), settings.gameDir);

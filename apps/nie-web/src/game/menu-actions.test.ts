@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { AVATAR, BANK, DATA, EDITOR_3D, EXPLORER, GALLERY, INACORD, MEDIA_LANDING, MODES, SEARCH, SETTINGS, SHOP, menuEntries } from "../entries";
+import { AVATAR, BANK, EXPLORER, GALLERY, INACORD, MEDIA_LANDING, MODES, SETTINGS, SHOP, menuEntries } from "../entries";
 import { bindMenuActions } from "./menu-actions";
 
 describe("catalogue menu bindings", () => {
 	test("preserves catalogue presentation/order and invokes the matching host destination", () => {
 		const opened: string[] = [];
 		const entries = menuEntries(null);
-		const bindings = Object.fromEntries([MEDIA_LANDING, MODES, BANK, GALLERY, SHOP, AVATAR, EXPLORER, EDITOR_3D, SEARCH, DATA, SETTINGS].map((route) => [
+		const bindings = Object.fromEntries([MEDIA_LANDING, MODES, BANK, GALLERY, SHOP, AVATAR, EXPLORER, SETTINGS].map((route) => [
 			route, { id: route, onActivate: () => opened.push(route) },
 		]));
 		const actions = bindMenuActions(entries, bindings);
@@ -14,7 +14,7 @@ describe("catalogue menu bindings", () => {
 			entries.map(({ label, glyph, priority }) => ({ label, glyph, priority })),
 		);
 		expect(actions.filter(action => action.priority === "primary").map(action => action.id)).toEqual([
-			EXPLORER, EDITOR_3D, GALLERY,
+			EXPLORER, GALLERY,
 		]);
 		for (const action of actions) action.onActivate();
 		expect(opened).toEqual(entries.map((entry) => entry.route));
