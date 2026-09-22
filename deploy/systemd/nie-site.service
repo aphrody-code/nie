@@ -26,7 +26,7 @@ Type=simple
 User=ubuntu
 Group=ubuntu
 WorkingDirectory=/
-ExecStart=/bin/sh -c 'exec "$${NIE_REPO_ROOT}/target/release/nie-site" \
+ExecStart=/bin/sh -c 'exec "$NIE_REPO_ROOT/target/release/nie-site" \
     --listen 127.0.0.1:8085 \
     --db ${NIE_REPO_ROOT}/var/mirror.sqlite \
     --upstream http://127.0.0.1:8790 \
