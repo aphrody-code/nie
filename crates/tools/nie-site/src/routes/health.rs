@@ -37,6 +37,31 @@ pub async fn healthz(State(etat): State<EtatSite>) -> Json<Sante> {
     })
 }
 
+/// Vérifie la chaîne de production avant d'autoriser le trafic dépendant des assets.
+pub async fn readyz(State(etat): State<EtatSite>) -> impl IntoResponse {
+    let vfs_pret = matches!(
+        etat.vfs.read().ok().as_deref(),
+        Some(crate::state::StatutVfs::Pret { .. })
+    );
+    let amont = etat
+        .client
+        .get(format!("{}/health", etat.config.amont))
+        .send()
+        .await
+        .is_ok_and(|r| r.status().is_success());
+    let body = serde_json::json!({
+        "etat": if vfs_pret && amont { "ok" } else { "degrade" },
+        "vfs": vfs_pret,
+        "model_serve": amont,
+    });
+    let status = if vfs_pret && amont {
+        axum::http::StatusCode::OK
+    } else {
+        axum::http::StatusCode::SERVICE_UNAVAILABLE
+    };
+    (status, axum::Json(body))
+}
+
 /// Compatibility response for Azalee's former `GET /api/health` endpoint.
 #[derive(Debug, Serialize)]
 pub struct LegacySante {

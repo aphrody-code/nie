@@ -136,6 +136,7 @@ pub const CHEMINS_HORS_GET: &[&str] = &[
 // fige la liste : une sixième y entrera par une décision visible, jamais par inadvertance.
 declarer_routes! {
     "/healthz" => crate::routes::health::healthz,
+    "/readyz" => crate::routes::health::readyz,
     "/robots.txt" => crate::routes::well_known::robots,
     "/llms.txt" => crate::routes::well_known::llms,
     "/llms-full.txt" => crate::routes::well_known::llms_complet,
@@ -697,7 +698,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 193, "193 routes mounted");
+        assert_eq!(routes.len(), 194, "194 routes mounted");
         for route in [
             "/api/skills",
             "/api/skills/{id}",
