@@ -28,16 +28,16 @@ import {
   type ResultatTraduction,
   type TypeEntite,
 } from "@/lib/traduction";
-import { japaneseToRomaji } from "@niers/game/text";
+import { japaneseToRomaji } from "@nie/game/text";
 
 import { api } from "@/lib/api";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { wikiDb } from "@/lib/wikiDb";
-import { Alert, AlertDescription, AlertTitle } from "@niers/inacord-ui/components/ui/alert";
-import { Badge } from "@niers/inacord-ui/components/ui/badge";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Input } from "@niers/inacord-ui/components/ui/input";
-import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@nie/inacord-ui/components/ui/alert";
+import { Badge } from "@nie/inacord-ui/components/ui/badge";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { Input } from "@nie/inacord-ui/components/ui/input";
+import { ScrollArea } from "@nie/inacord-ui/components/ui/scroll-area";
 
 /** Filtres de type, dans l'ordre des pastilles. `null` = tous. */
 const TYPES: (TypeEntite | null)[] = [

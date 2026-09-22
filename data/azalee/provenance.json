@@ -1,5 +1,5 @@
 {
-  "schema": "niers.azalee.provenance/v1",
+  "schema": "nie.azalee.provenance/v1",
   "source_revision": "93aea3ba8b703d8ca66ca8d3b98988edea3c97df",
   "generator": "bun scripts/azalee-provenance.ts --source-root <rg-checkout> --source-ref 93aea3ba8b703d8ca66ca8d3b98988edea3c97df --write",
   "validation": "bun scripts/azalee-provenance.ts --source-root <rg-checkout>",
@@ -26,7 +26,7 @@
         "packages/azalee/scripts/sync-inagle-entries.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/wiki/service.ts"
         ]
@@ -60,7 +60,7 @@
         "scripts/rag-build-edges.ts"
       ],
       "consumers": {
-        "niers": [
+        "nie": [
           "crates/tools/nie-wiki/src/legacy_teams.rs"
         ],
         "rg": [
@@ -95,7 +95,7 @@
         "scripts/rag-build-edges.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/images/utils.ts"
         ]
@@ -127,7 +127,7 @@
         "packages/azalee/scripts/build-chr-model-manifest.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/images/utils.ts"
         ]
@@ -157,7 +157,7 @@
       "producer": null,
       "producer_candidates": [],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/wiki/game-text-shared.ts",
           "packages/azalee/src/wiki/game-text.ts"
@@ -194,7 +194,7 @@
         "packages/azalee/scripts/build-skills-cutin-served.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/config.ts",
           "packages/azalee/src/cpk/index.ts",
@@ -230,7 +230,7 @@
         "packages/azalee/scripts/build-menu-asset-manifest.ts"
       ],
       "consumers": {
-        "niers": [
+        "nie": [
           "crates/tools/nie-wiki/src/legacy_teams.rs"
         ],
         "rg": [
@@ -269,7 +269,7 @@
         "apps/azalee/scripts/build-game-text-index.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/game-text/index.ts",
           "packages/azalee/test/game-text.test.ts"
@@ -306,7 +306,7 @@
         "apps/azalee/scripts/build-game-text-index.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/config.ts",
           "packages/azalee/src/game-text/index.ts",
@@ -342,7 +342,7 @@
         "packages/azalee/scripts/build-item-image-manifest.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/icon-index/index.ts",
           "packages/azalee/src/icon-index/shared.ts"
@@ -373,7 +373,7 @@
       "producer": null,
       "producer_candidates": [],
       "consumers": {
-        "niers": [
+        "nie": [
           "crates/tools/nie-wiki/src/legacy_equipment.rs"
         ],
         "rg": [
@@ -408,7 +408,7 @@
         "scripts/rag-build-edges.ts"
       ],
       "consumers": {
-        "niers": [
+        "nie": [
           "crates/tools/nie-wiki/src/legacy_equipment.rs"
         ],
         "rg": [
@@ -442,7 +442,7 @@
         "packages/azalee/scripts/build-keshin-model-manifest.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/images/utils.ts",
           "packages/azalee/src/wiki/service.ts"
@@ -475,7 +475,7 @@
         "packages/azalee/scripts/build-menu-asset-manifest.ts"
       ],
       "consumers": {
-        "niers": [
+        "nie": [
           "crates/tools/nie-wiki/src/legacy_equipment.rs"
         ],
         "rg": [
@@ -509,7 +509,7 @@
         "packages/azalee/scripts/build-menu-gallery-manifest.ts"
       ],
       "consumers": {
-        "niers": [
+        "nie": [
           "crates/tools/nie-wiki/src/gallery.rs",
           "packages/inacord-ui/src/gallery/gallery.ts"
         ],
@@ -545,7 +545,7 @@
         "scripts/rag-build-edges.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "packages/azalee/src/images/utils.ts"
         ]
@@ -575,7 +575,7 @@
       "producer": "crates/engine/nie-data/src/bin/export_passives.rs",
       "producer_candidates": [],
       "consumers": {
-        "niers": [
+        "nie": [
           "apps/nie-web/src/desktop/components/wiki/PassiveCard.tsx",
           "crates/engine/nie-data/src/bin/export_passives.rs",
           "crates/tools/nie-wiki/src/passives.rs",
@@ -628,7 +628,7 @@
         "packages/azalee/scripts/build-skills-cutin-served.ts"
       ],
       "consumers": {
-        "niers": [
+        "nie": [
           "crates/engine/nie-core/src/azalee/skills_cutin.rs"
         ],
         "rg": [
@@ -662,7 +662,7 @@
         "packages/azalee/scripts/build-skills-cutin-served.ts"
       ],
       "consumers": {
-        "niers": [
+        "nie": [
           "crates/engine/nie-core/src/azalee/skills_cutin.rs",
           "crates/engine/nie-data/src/bin/export_skills.rs"
         ],
@@ -716,7 +716,7 @@
         "scripts/inagle/pipeline/audit-zukan-matches.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "apps/azalee/app/dashboard/zukan-review/page.tsx"
         ]
@@ -755,7 +755,7 @@
         "scripts/inagle/pipeline/remap-zukan-mirror.ts"
       ],
       "consumers": {
-        "niers": [],
+        "nie": [],
         "rg": [
           "apps/azalee/app/dashboard/zukan-review/page.tsx"
         ]

@@ -108,7 +108,7 @@ const activeHours5H = ((maxTurns5H * 1.5) / 60).toFixed(1);
 const report = `# RAPPORT D'ESTIMATION D'USAGE & CAPACITÉ — GEMINI 3.8 FLASH (THINKING LOW)
 
 *Date d'évaluation : 2026-09-07T01:55:00+02:00*
-*Environnement : Antigravity CLI (agy v1.1.27) / Bun v1.4.0 / Rust Monorepo \`niers\`*
+*Environnement : Antigravity CLI (agy v1.1.27) / Bun v1.4.0 / Rust Monorepo \`nie\`*
 
 ---
 
@@ -132,7 +132,7 @@ const report = `# RAPPORT D'ESTIMATION D'USAGE & CAPACITÉ — GEMINI 3.8 FLASH 
 
 ---
 
-## 3. Surface de Code Rust Trackée (\`niers\`)
+## 3. Surface de Code Rust Trackée (\`nie\`)
 
 | Périmètre | Fichiers \`.rs\` | Lignes de Code | Taille Brute | Tokens Équivalents (Code brut) |
 | :--- | :--- | :--- | :--- | :--- |

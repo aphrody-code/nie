@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
-import type { AssetSource } from "@niers/asset-source";
-import { INITIAL_AVATAR_STATE } from "@niers/inacord-ui/avatar/contract";
+import type { AssetSource } from "@nie/asset-source";
+import { INITIAL_AVATAR_STATE } from "@nie/inacord-ui/avatar/contract";
 import { avatarProject, profileWithPlayerStats, resolvePlayerReference } from "./AvatarExtensions";
 
 describe("Avatar OC extensions", () => {
@@ -41,7 +41,7 @@ describe("Avatar OC extensions", () => {
 
 	test("delegates OC serialization to the Rust-WASM owner with stats and file metadata", async () => {
 		const owner = mock(async (_catalog, state, metadata) => JSON.stringify({
-			schema: "niers.oc.avatar-document/v1", avatarState: state, ...metadata,
+			schema: "nie.oc.avatar-document/v1", avatarState: state, ...metadata,
 		}));
 		const catalog = { categories: [], modelesDeBase: { morphologies: [], visages: [] } } as never;
 		const json = await avatarProject(catalog, {
@@ -54,7 +54,7 @@ describe("Avatar OC extensions", () => {
 		}, owner);
 		const document = JSON.parse(json);
 		expect(document).toMatchObject({
-			schema: "niers.oc.avatar-document/v1",
+			schema: "nie.oc.avatar-document/v1",
 			slug: "my-oc",
 			avatarState: { profile: { kick: 77, agility: 88 } },
 			references: [{ kind: "glb", value: "avatar.glb", bytes: 1234, sha256: "a".repeat(64) }],

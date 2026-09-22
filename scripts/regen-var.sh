@@ -5,16 +5,16 @@
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
-# Racine du jeu : NIE_GAME_DIR (convention du reste du dépôt), NIERS_GAME_DIR (historique),
+# Racine du jeu : NIE_GAME_DIR (convention du reste du dépôt), NIE_GAME_DIR (historique),
 # sinon la racine du dépôt — sur une installation Steam, les deux coïncident.
-GAME_DIR="${NIE_GAME_DIR:-${NIERS_GAME_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
+GAME_DIR="${NIE_GAME_DIR:-${NIE_GAME_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
 EXE="$GAME_DIR/nie_eacpatched.exe"
-DB="var/niers.sqlite"
+DB="var/nie.sqlite"
 BIN="${NIE_BIN:-target/release/nie}"
 SEED_JSON="refs/iecode-re/research/nie-index.json"
 
 step(){ printf '\n>>> %s\n' "$1"; }
-[ -x "$BIN" ] || { echo 'niers absent — cargo build --release -p nie-cli'; exit 1; }
+[ -x "$BIN" ] || { echo 'nie absent — cargo build --release -p nie-cli'; exit 1; }
 [ -f "$EXE" ] || { echo "exe absent: $EXE"; exit 1; }
 
 do_kb=false; do_models=false; do_textures=false

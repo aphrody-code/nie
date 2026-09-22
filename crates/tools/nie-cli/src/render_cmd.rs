@@ -1,6 +1,6 @@
 //! Captures de contrôle visuel pour les GLB assemblés par NIE.
 //!
-//! Cette façade reste dans `niers` : un agent ou un humain peut ainsi demander une vue stable
+//! Cette façade reste dans `nie` : un agent ou un humain peut ainsi demander une vue stable
 //! ou une rotation complète sans connaître le binaire de rendu interne ni assembler ffmpeg.
 
 use std::fs;

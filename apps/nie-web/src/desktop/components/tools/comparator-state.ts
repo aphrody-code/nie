@@ -5,7 +5,7 @@ export interface ComparisonSelection {
 }
 
 export interface ComparisonShare {
-	schema: "niers.compare.v1";
+	schema: "nie.compare.v1";
 	left: ComparisonSelection;
 	right: ComparisonSelection;
 	level: number;
@@ -39,7 +39,7 @@ export function parseComparisonShare(text: string): ComparisonShare {
 	const payload: unknown = JSON.parse(text);
 	if (!payload || typeof payload !== "object") throw new Error("Invalid comparison payload");
 	const value = payload as Record<string, unknown>;
-	if (value.schema !== "niers.compare.v1" || typeof value.level !== "number"
+	if (value.schema !== "nie.compare.v1" || typeof value.level !== "number"
 		|| !Number.isInteger(value.level) || value.level < 1 || value.level > 99) {
 		throw new Error("Invalid comparison schema or level");
 	}
@@ -52,7 +52,7 @@ export function parseComparisonShare(text: string): ComparisonShare {
 		}
 		return { id: record.id, name: record.name };
 	};
-	return { schema: "niers.compare.v1", left: selection(value.left), right: selection(value.right), level: value.level };
+	return { schema: "nie.compare.v1", left: selection(value.left), right: selection(value.right), level: value.level };
 }
 
 export function comparisonShareText(
@@ -62,7 +62,7 @@ export function comparisonShareText(
 ): string {
 	if (!Number.isFinite(level)) throw new Error("Invalid comparison level");
 	const payload: ComparisonShare = {
-		schema: "niers.compare.v1",
+		schema: "nie.compare.v1",
 		left,
 		right,
 		level: Math.min(99, Math.max(1, Math.trunc(level))),

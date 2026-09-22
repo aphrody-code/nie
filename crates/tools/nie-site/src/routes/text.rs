@@ -13,7 +13,7 @@
 //!
 //! # Nommage
 //!
-//! Ce module est le premier écrit sous la règle du **2026-09-06** : `niers` est un projet
+//! Ce module est le premier écrit sous la règle du **2026-09-06** : `nie` est un projet
 //! mondial, donc **tout identifiant est en anglais** — nom de fichier, types, champs, et
 //! surtout les **URLs et les clés JSON**, qui sont ce qu'un consommateur étranger lit.
 //! La prose des commentaires reste en français, comme dans les vingt modules voisins. Cf.
@@ -68,7 +68,7 @@ use crate::vfs_index::{IndexVfs, Requete};
 
 /// Préfixe VFS sous lequel vit **tout** le texte localisé du jeu.
 ///
-/// Mesuré, pas supposé : `niers vfs find 'common/text/' -n 300000` rend 44 242 entrées, dont
+/// Mesuré, pas supposé : `nie vfs find 'common/text/' -n 300000` rend 44 242 entrées, dont
 /// 980 seulement sont des tables de texte ; les autres sont des événements, des cartes de
 /// correspondance (`system_text_map`) et des scripts.
 pub const ROOT: &str = "data/common/text/";

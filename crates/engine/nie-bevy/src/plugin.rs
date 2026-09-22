@@ -5,9 +5,9 @@ use bevy_asset::AssetApp;
 use bevy_image::Image;
 use bevy_mesh::Mesh;
 
-use crate::loader::{G4mdLoader, G4txLoader, NiersModel};
+use crate::loader::{G4mdLoader, G4txLoader, NieModel};
 
-/// Enregistre les chargeurs `.g4tx` → [`Image`] et `.g4md` → [`NiersModel`].
+/// Enregistre les chargeurs `.g4tx` → [`Image`] et `.g4md` → [`NieModel`].
 ///
 /// À ajouter **après** `bevy_asset::AssetPlugin` : `register_asset_loader` a besoin du serveur
 /// d'assets. `init_asset::<Image>()` et `init_asset::<Mesh>()` sont idempotents, donc une
@@ -17,13 +17,13 @@ use crate::loader::{G4mdLoader, G4txLoader, NiersModel};
 /// enregistrée à part par l'application, parce qu'une source se déclare avant `AssetPlugin` et
 /// qu'un greffon ajouté après ne peut plus le faire.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct NiersAssetPlugin;
+pub struct NieAssetPlugin;
 
-impl Plugin for NiersAssetPlugin {
+impl Plugin for NieAssetPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<Image>()
             .init_asset::<Mesh>()
-            .init_asset::<NiersModel>()
+            .init_asset::<NieModel>()
             .register_asset_loader(G4txLoader)
             .register_asset_loader(G4mdLoader);
     }

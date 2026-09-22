@@ -1,5 +1,5 @@
 {
-  "schema": "niers.oc.reference-evidence/v1",
+  "schema": "nie.oc.reference-evidence/v1",
   "reference_internal_code": "c02023290",
   "source_kind": "local_json_dump",
   "checkout_state": {
@@ -10,7 +10,7 @@
     "lua_bin_tree_present": false
   },
   "live_vfs_probe": {
-    "tool": "niers vfs stat/find",
+    "tool": "nie vfs stat/find",
     "available": true,
     "captured_at": "2026-09-07T00:32:58.822853+02:00",
     "reference_asset_count": 17,

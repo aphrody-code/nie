@@ -13,15 +13,15 @@ import {
   getSettings,
   setSettings,
   useSettings,
-} from "@niers/inacord-ui/lib/settings";
-import { SettingsScreen } from "@niers/inacord-ui";
-import { Input } from "@niers/inacord-ui/components/ui/input";
-import { Label } from "@niers/inacord-ui/components/ui/label";
-import { Button } from "@niers/inacord-ui/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@niers/inacord-ui/components/ui/card";
-import { Badge } from "@niers/inacord-ui/components/ui/badge";
-import { Progress } from "@niers/inacord-ui/components/ui/progress";
-import { Switch } from "@niers/inacord-ui/components/ui/switch";
+} from "@nie/inacord-ui/lib/settings";
+import { SettingsScreen } from "@nie/inacord-ui";
+import { Input } from "@nie/inacord-ui/components/ui/input";
+import { Label } from "@nie/inacord-ui/components/ui/label";
+import { Button } from "@nie/inacord-ui/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@nie/inacord-ui/components/ui/card";
+import { Badge } from "@nie/inacord-ui/components/ui/badge";
+import { Progress } from "@nie/inacord-ui/components/ui/progress";
+import { Switch } from "@nie/inacord-ui/components/ui/switch";
 
 export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}) {
   const settings = useSettings();
@@ -55,7 +55,7 @@ export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}
         toast.success(`Mise à jour ${update.version} disponible`);
       } else {
         setPendingUpdate(null);
-        toast.success("niers est à jour");
+        toast.success("nie est à jour");
       }
     } catch (e) {
       toast.error(String(e));
@@ -79,7 +79,7 @@ export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}
   async function installBlenderAddon() {
     setInstallingBlenderAddon(true);
     try {
-      const msg = await api.installNiersBlenderAddon(settings.blenderExe, settings.gameDir);
+      const msg = await api.installNieBlenderAddon(settings.blenderExe, settings.gameDir);
       toast.success(msg);
     } catch (e) {
       toast.error(String(e));
@@ -246,7 +246,7 @@ export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}
 
       <Card>
         <CardHeader>
-          <CardTitle>Extension Blender (plugins/niers-blender)</CardTitle>
+          <CardTitle>Extension Blender (plugins/nie-blender)</CardTitle>
           <CardDescription>
             Pour « Ouvrir dans Blender » sur les modèles G4MD/G4MG/G4SK/G4MT. Le chemin de{" "}
             <code>blender.exe</code> se règle dans « Options → Chemins ».
@@ -255,7 +255,7 @@ export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Button size="sm" variant="outline" onClick={installBlenderAddon} disabled={installingBlenderAddon}>
-              {installingBlenderAddon ? "Installation…" : "🧩 Installer l'extension Blender niers"}
+              {installingBlenderAddon ? "Installation…" : "🧩 Installer l'extension Blender nie"}
             </Button>
             <p className="type-body-small text-on-surface-variant">
               Installe/active <strong>vraiment</strong> l'extension dans le dossier d'addons de Blender
@@ -280,7 +280,7 @@ export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}
 
       <Card>
         <CardHeader>
-          <CardTitle>Pont Blender ↔ niers</CardTitle>
+          <CardTitle>Pont Blender ↔ nie</CardTitle>
           <CardDescription>
             Importer un <code>.blend</code> existant (aperçu instantané, sans ouvrir Blender) ou construire
             une VRAIE scène — personnage + cut-in de technique, uniquement des assets réels du VFS local
@@ -491,11 +491,11 @@ export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}
 }
 
 /**
- * Serveur MCP `niers-game` — l'explorateur le déclare aux clients MCP, et le laisse en retour
+ * Serveur MCP `nie-game` — l'explorateur le déclare aux clients MCP, et le laisse en retour
  * piloter cette fenêtre.
  *
  * Les deux moitiés du couple sont réunies ici : l'installation (écriture fusionnée dans la
- * config du client, côté Rust) et l'interrupteur du pont de contrôle (`@niers/bridge`).
+ * config du client, côté Rust) et l'interrupteur du pont de contrôle (`@nie/bridge`).
  */
 function McpCard() {
   const settings = useSettings();

@@ -1,11 +1,11 @@
-# LOCAL.md — cloner `niers` sur Windows, branché au jeu
+# LOCAL.md — cloner `nie` sur Windows, branché au jeu
 
 Ce fichier a **un seul sujet** : monter un poste de travail Windows à partir d'un clone frais.
 Il ne redit rien de ce que possèdent déjà les autres :
 
 | Ce que vous cherchez | Où c'est écrit |
 |---|---|
-| Installer la CLI `niers` seule (`cargo install`) | [`docs/INSTALLATION.md`](docs/INSTALLATION.md) |
+| Installer la CLI `nie` seule (`cargo install`) | [`docs/INSTALLATION.md`](docs/INSTALLATION.md) |
 | Les règles de travail du dépôt (outils, pièges, gates) | [`CLAUDE.md`](CLAUDE.md) |
 | La chaîne C++ / MSVC / vcpkg | [`scripts/setup.ps1`](scripts/setup.ps1) |
 	| Ce qui tourne sur le VPS, et sous quel service | [`deploy/README.md`](deploy/README.md) |
@@ -23,7 +23,7 @@ de base vide ou de 503, jamais du fichier absent.
 | Les fichiers du jeu (`data/common`, `data/dx11`, les `.cpk`) | ~57 Go installés | **Steam**, pas le VPS | assets © LEVEL-5 : `.gitignore` les exclut, et les pousser serait une redistribution |
 | Les gisements (`var/mirror.sqlite`, `data/anime/episodes.db`) | 69 Mo | le VPS | produits par les moissons nocturnes, ils changent tous les jours |
 | Les index dérivés (`var/vfs/inventaire.txt`, `data/re/`) | 37 Mo | le VPS | régénérables ici, mais la copie prend une minute quand la reconstruction prend une heure |
-| La base de reverse (`var/niers.sqlite`) | **17 Go** | le VPS | facultative, **et trompeuse** : voir § 6 |
+| La base de reverse (`var/nie.sqlite`) | **17 Go** | le VPS | facultative, **et trompeuse** : voir § 6 |
 
 Le jeu vient de Steam et **pas** du VPS. C'est le point qui surprend : le VPS porte bien un dump
 de 111 Go, mais le poste Windows a l'installation Steam, qui est la même chose en mieux — c'est
@@ -49,8 +49,8 @@ forge** : [`scripts/setup.ps1`](scripts/setup.ps1) s'en occupe, séparément.
 ## 3. En trois commandes
 
 ```powershell
-git clone https://github.com/aphrody-code/nie.git niers
-cd niers
+git clone https://github.com/aphrody-code/nie.git nie
+cd nie
 pwsh -File scripts\ops\bootstrap-windows.ps1
 ```
 
@@ -77,10 +77,10 @@ la vérification y échouerait pour une raison qui n'a rien à voir avec le dép
 
 ```powershell
 cargo build --release -p nie-cli
-.\target\release\niers.exe info
+.\target\release\nie.exe info
 ```
 
-`niers info` doit annoncer **255 308 entrées** et **936 packs**. Un autre nombre, ou une erreur
+`nie info` doit annoncer **255 308 entrées** et **936 packs**. Un autre nombre, ou une erreur
 qui parle de `cpk_list.cfg.bin`, veut dire que `NIE_GAME_DIR` ne pointe pas la racine du jeu —
 c'est le dossier qui **contient** `data\cpk_list.cfg.bin`, pas le dossier `data`.
 
@@ -106,14 +106,14 @@ du dépôt :
 - **tout ce qui se voit** — rendu 3D, `nie-game --menu`, l'application Inacord (Tauri), les
   captures de vérification : il faut un écran et un GPU ;
 - **lire la mémoire du jeu** — `nie-mem.exe` et `nie-edit.exe` (`ReadProcessMemory`), avec
-  élévation. `niers mem` est l'équivalent Linux et n'existe pas ici ;
+  élévation. `nie mem` est l'équivalent Linux et n'existe pas ici ;
 - **les anciennes sources IECODE** — elles sont archivées dans les dépôts dédiés et ne sont plus
-  une chaîne de build de `niers`. Un lot C#
+  une chaîne de build de `nie`. Un lot C#
   ne peut y être que *relu*, jamais vérifié.
 
 Inversement, le VPS garde la moisson réseau et les 19 services.
 
-## 6. `var/niers.sqlite` — 17 Go, et un piège
+## 6. `var/nie.sqlite` — 17 Go, et un piège
 
 La base de reverse n'est **pas** rapatriée par défaut, et la taille n'est pas la seule raison.
 
@@ -124,14 +124,14 @@ sha `4c2b91fbae6f…` / 31 468 032 octets, quand la cible documentée est `b1fa0
 chaque fois.
 
 Conséquence pratique : ne citez aucun de ses nombres comme une mesure de `nie.exe` avant d'avoir
-rejoué `niers rebuild --db var\niers.sqlite --exe nie.exe`. Si votre travail n'est pas du
+rejoué `nie rebuild --db var\nie.sqlite --exe nie.exe`. Si votre travail n'est pas du
 reverse, `-WithRe` ne vous apporte rien.
 
 ## 7. Quand quelque chose ne marche pas
 
 | Symptôme | Cause réelle |
 |---|---|
-| `niers info` parle de `cpk_list.cfg.bin` | `NIE_GAME_DIR` vise `…\data` au lieu de la racine, ou le terminal est antérieur au script |
+| `nie info` parle de `cpk_list.cfg.bin` | `NIE_GAME_DIR` vise `…\data` au lieu de la racine, ou le terminal est antérieur au script |
 | Une commande `export_*` échoue hors du dépôt | même cause : ces binaires n'ont pas de `--help` et ne disent rien d'autre |
 | `bunx tsc --noEmit` échoue sur `apps/nie-web` (`TS5101`) | le `tsc` global n'est pas celui du workspace. La gate est `bun run --filter '*nie-web*' typecheck` |
 | Un `import … from "nie"` ne trouve pas ses exports | `bun install` n'a pas été lancé **à la racine** |
@@ -145,7 +145,7 @@ qu'on n'a pas interrogé la chose et obtenu un nombre.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — 117 068 functions of `nie.exe`
 - `coverage` — binary classification coverage
 - `pdata_func` — `.pdata` function entry boundaries

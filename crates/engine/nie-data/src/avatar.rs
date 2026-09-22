@@ -1,6 +1,6 @@
 //! Shared avatar selections and resource composition, without VFS, HTTP or rendering.
 //!
-//! The resolved catalogue is the existing `niers avatar export` contract. Resource selection
+//! The resolved catalogue is the existing `nie avatar export` contract. Resource selection
 //! is extracted from Azalée's `app/avatar/composition.ts`; all hosts can consume the same result.
 //! The original first-part fallback is retained, but explicitly reported as an unverified
 //! initial recipe. Native share-code mappings and approximate face/clothing deformations are

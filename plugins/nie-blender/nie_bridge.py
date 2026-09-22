@@ -1,14 +1,14 @@
-# niers_bridge — pont natif entre l'addon Blender « niers — G4 Blender Tools » et l'écosystème
-# niers : `niers.exe` (CLI Rust, VFS local and Rust-owned wiki mirror).
+# nie_bridge — pont natif entre l'addon Blender « nie — G4 Blender Tools » et l'écosystème
+# nie : `nie.exe` (CLI Rust, VFS local and Rust-owned wiki mirror).
 #
-# Recherche personnage/technique par nom localisé via `niers.exe`. Le CLI appelle directement
+# Recherche personnage/technique par nom localisé via `nie.exe`. Le CLI appelle directement
 # `nie-wiki`; Blender ne réimplémente ni SQL ni la politique de données.
 #
-# Côté Rust, `crates/tools/nie-cli/src/main.rs` documente `-j/--json` de `niers vfs
+# Côté Rust, `crates/tools/nie-cli/src/main.rs` documente `-j/--json` de `nie vfs
 # find`/`chara`/`waza` comme étant destiné à ce pont.
 #
-# Panneau « niers — Recherche » (View3D > Sidebar > niers) : deux onglets, Fichiers (recherche VFS
-# substring, `niers vfs find --json`) et Personnage/Technique (noms localisés, miroir Rust local).
+# Panneau « nie — Recherche » (View3D > Sidebar > nie) : deux onglets, Fichiers (recherche VFS
+# substring, `nie vfs find --json`) et Personnage/Technique (noms localisés, miroir Rust local).
 # Import réel via l'opérateur `import_scene.level5_g4`. **NE PAS appeler**
 # `level5_g4_port.load_original_model` (l'opérateur du wizard d'export) : il ne crée aucun
 # maillage — même piège que dans `open_in_blender` côté `nie-explorer`.
@@ -38,14 +38,14 @@ IMPORTABLE_MODEL_EXTENSIONS = {".g4md", ".g4pkm"}
 # Sous-chemins candidats du binaire CLI relatifs à la racine du jeu (`<jeu>/target/{profil}/...`),
 # mêmes profils que `cargo build -p nie-cli` produit — pas de suffixe `.exe` en dur : marche aussi
 # sur une addon Blender Linux/macOS pointée sur un checkout de dev du jeu.
-_NIERS_EXE_SUBPATHS = (
-    ("target", "release", "niers.exe"),
-    ("target", "debug", "niers.exe"),
-    ("target", "release", "niers"),
-    ("target", "debug", "niers"),
+_NIE_EXE_SUBPATHS = (
+    ("target", "release", "nie.exe"),
+    ("target", "debug", "nie.exe"),
+    ("target", "release", "nie"),
+    ("target", "debug", "nie"),
 )
 
-# Processus/threads `niers.exe`/réseau actuellement en vol, pour nettoyage forcé si l'addon est
+# Processus/threads `nie.exe`/réseau actuellement en vol, pour nettoyage forcé si l'addon est
 # désactivé pendant qu'une recherche/extraction tourne (sinon le timer continuerait à tourner
 # après `unregister()` et toucherait des données Blender potentiellement invalidées — piège
 # documenté des addons à base de `bpy.app.timers`/process externes/threads).
@@ -62,7 +62,7 @@ def addon_preferences(context):
 
 
 def _game_dir_from_raw_data_root(raw_data_root: str) -> Path | None:
-    """`raw_data_root` pointe sur `<jeu>/data` (convention niers, cf. `inferred_raw_data_root`
+    """`raw_data_root` pointe sur `<jeu>/data` (convention nie, cf. `inferred_raw_data_root`
     de `g4_animation_addon.py`) — la racine du jeu est son PARENT si le dossier s'appelle
     littéralement `data`, sinon on le prend tel quel (config non standard, pas de préemption)."""
     if not raw_data_root:
@@ -71,14 +71,14 @@ def _game_dir_from_raw_data_root(raw_data_root: str) -> Path | None:
     return root.parent if root.name.lower() == "data" else root
 
 
-def resolve_niers_exe(context) -> Path | None:
-    """Résout `niers.exe`, dans l'ordre : préférence explicite (`niers_cli_path`) > sous-dossier
+def resolve_nie_exe(context) -> Path | None:
+    """Résout `nie.exe`, dans l'ordre : préférence explicite (`nie_cli_path`) > sous-dossier
     `target/{release,debug}` de la racine du jeu (déduite de `raw_data_root`, PAS devinée) >
     `NIE_GAME_DIR` (posé par `nie-explorer` quand ce script tourne via son bootstrap) > `PATH`.
     Ne retourne JAMAIS un chemin qui n'existe pas sur disque — l'appelant doit gérer `None`."""
     prefs = addon_preferences(context)
 
-    configured = getattr(prefs, "niers_cli_path", "") if prefs is not None else ""
+    configured = getattr(prefs, "nie_cli_path", "") if prefs is not None else ""
     if configured:
         p = Path(bpy.path.abspath(configured))
         if p.is_file():
@@ -91,12 +91,12 @@ def resolve_niers_exe(context) -> Path | None:
             game_dir = Path(env_dir)
 
     if game_dir is not None:
-        for parts in _NIERS_EXE_SUBPATHS:
+        for parts in _NIE_EXE_SUBPATHS:
             candidate = game_dir.joinpath(*parts)
             if candidate.is_file():
                 return candidate
 
-    which = shutil.which("niers")
+    which = shutil.which("nie")
     return Path(which) if which else None
 
 
@@ -166,13 +166,13 @@ def _local_waza_row_to_result(row: dict) -> dict:
     }
 
 
-class NiersBridgeResult(PropertyGroup):
+class NieBridgeResult(PropertyGroup):
     path: StringProperty(name="Path")
     size: IntProperty(name="Size")
     cpk: StringProperty(name="CPK")
 
 
-class NiersBridgeCharaResult(PropertyGroup):
+class NieBridgeCharaResult(PropertyGroup):
     source: StringProperty(name="Source")
     internal_code: StringProperty(name="Code")
     name_fr: StringProperty(name="FR")
@@ -183,8 +183,8 @@ class NiersBridgeCharaResult(PropertyGroup):
     is_hyper: BoolProperty(name="Hyper")
 
 
-class _NiersProcessOperator(Operator):
-    """Base commune des opérateurs qui lancent `niers.exe <args>` SANS bloquer l'UI : `Popen` +
+class _NieProcessOperator(Operator):
+    """Base commune des opérateurs qui lancent `nie.exe <args>` SANS bloquer l'UI : `Popen` +
     timer modal (`wm.event_timer_add`) qui poll `proc.poll()` toutes les 0.1 s, Échap annule.
     Les sous-classes implémentent `build_args(context) -> list[str] | None` (retourne `None` +
     `self.report` déjà appelé pour annuler avant même de lancer le process) et
@@ -201,9 +201,9 @@ class _NiersProcessOperator(Operator):
         raise NotImplementedError
 
     def invoke(self, context, event):
-        niers_exe = resolve_niers_exe(context)
-        if niers_exe is None:
-            self.report({"ERROR"}, "niers.exe introuvable — voir Préférences > niers — G4 Blender Tools > niers.exe")
+        nie_exe = resolve_nie_exe(context)
+        if nie_exe is None:
+            self.report({"ERROR"}, "nie.exe introuvable — voir Préférences > nie — G4 Blender Tools > nie.exe")
             return {"CANCELLED"}
 
         args = self.build_args(context)
@@ -212,14 +212,14 @@ class _NiersProcessOperator(Operator):
 
         try:
             self._proc = subprocess.Popen(
-                [str(niers_exe), *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                [str(nie_exe), *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
         except Exception as exc:
-            self.report({"ERROR"}, f"Échec de lancement de niers.exe : {exc}")
+            self.report({"ERROR"}, f"Échec de lancement de nie.exe : {exc}")
             return {"CANCELLED"}
         _active_procs.append(self._proc)
 
-        context.workspace.status_text_set(f"niers : {self.bl_label}… (Échap pour annuler)")
+        context.workspace.status_text_set(f"nie : {self.bl_label}… (Échap pour annuler)")
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
@@ -243,14 +243,14 @@ class _NiersProcessOperator(Operator):
 
         if returncode != 0:
             detail = (stderr or stdout or "").strip()
-            self.report({"ERROR"}, f"niers.exe a échoué : {detail or returncode}")
+            self.report({"ERROR"}, f"nie.exe a échoué : {detail or returncode}")
             return {"CANCELLED"}
 
         try:
             self.on_success(context, stdout)
         except Exception:
             traceback.print_exc()
-            self.report({"ERROR"}, "Échec après niers.exe — voir la console")
+            self.report({"ERROR"}, "Échec après nie.exe — voir la console")
             return {"CANCELLED"}
         return {"FINISHED"}
 
@@ -265,9 +265,9 @@ class _NiersProcessOperator(Operator):
         self._proc = None
 
 
-class _NiersThreadOperator(Operator):
+class _NieThreadOperator(Operator):
     """Base for non-blocking local worker operators without
-    lancer `niers.exe` — même principe non bloquant que [`_NiersProcessOperator`], avec un
+    lancer `nie.exe` — même principe non bloquant que [`_NieProcessOperator`], avec un
     `threading.Thread` à la place d'un `Popen`. `prepare(context)` tourne sur le thread PRINCIPAL
     (accès `bpy`/`context` valide, extrait les données nécessaires en Python simple) ;
     `work(prepared)` tourne sur le thread de FOND (ne doit JAMAIS toucher `bpy`/`context` — pas
@@ -306,7 +306,7 @@ class _NiersThreadOperator(Operator):
         self._thread.start()
         _active_threads.append(self._thread)
 
-        context.workspace.status_text_set(f"niers : {self.bl_label}…")
+        context.workspace.status_text_set(f"nie : {self.bl_label}…")
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
@@ -342,19 +342,19 @@ class _NiersThreadOperator(Operator):
         self._thread = None
 
 
-class NIERS_BRIDGE_OT_search(_NiersProcessOperator):
-    bl_idname = "niers_bridge.search"
+class NIE_BRIDGE_OT_search(_NieProcessOperator):
+    bl_idname = "nie_bridge.search"
     bl_label = "Chercher"
-    bl_description = "Cherche des fichiers dans le VFS du jeu (`niers vfs find --json`, sous-chaîne insensible à la casse)"
+    bl_description = "Cherche des fichiers dans le VFS du jeu (`nie vfs find --json`, sous-chaîne insensible à la casse)"
 
     def build_args(self, context):
         scene = context.scene
-        query = scene.niers_bridge_query.strip()
+        query = scene.nie_bridge_query.strip()
         if not query:
             self.report({"ERROR"}, "Requête vide")
             return None
         args = ["vfs", "find", query, "--json", "-n", "200"]
-        ext = scene.niers_bridge_ext_filter.strip().lstrip(".")
+        ext = scene.nie_bridge_ext_filter.strip().lstrip(".")
         if ext:
             args += ["--ext", ext]
         return args
@@ -362,21 +362,21 @@ class NIERS_BRIDGE_OT_search(_NiersProcessOperator):
     def on_success(self, context, stdout):
         entries = json.loads(stdout)
         scene = context.scene
-        scene.niers_bridge_results.clear()
+        scene.nie_bridge_results.clear()
         for entry in entries:
-            item = scene.niers_bridge_results.add()
+            item = scene.nie_bridge_results.add()
             item.path = entry.get("path", "")
             item.size = int(entry.get("size", 0) or 0)
             item.cpk = entry.get("cpk", "")
-        scene.niers_bridge_result_index = 0 if len(scene.niers_bridge_results) else -1
+        scene.nie_bridge_result_index = 0 if len(scene.nie_bridge_results) else -1
         self.report({"INFO"}, f"{len(entries)} résultat(s)")
 
 
-class NIERS_BRIDGE_OT_import_selected(_NiersProcessOperator):
-    bl_idname = "niers_bridge.import_selected"
+class NIE_BRIDGE_OT_import_selected(_NieProcessOperator):
+    bl_idname = "nie_bridge.import_selected"
     bl_label = "Importer / Extraire"
     bl_description = (
-        "Extrait le résultat sélectionné via `niers vfs extract` ; l'importe directement dans la "
+        "Extrait le résultat sélectionné via `nie vfs extract` ; l'importe directement dans la "
         "scène si c'est un modèle G4MD/G4PKM (le vrai importeur, pas le wizard d'export)"
     )
 
@@ -385,19 +385,19 @@ class NIERS_BRIDGE_OT_import_selected(_NiersProcessOperator):
 
     def build_args(self, context):
         scene = context.scene
-        idx = scene.niers_bridge_result_index
-        if idx < 0 or idx >= len(scene.niers_bridge_results):
+        idx = scene.nie_bridge_result_index
+        if idx < 0 or idx >= len(scene.nie_bridge_results):
             self.report({"ERROR"}, "Aucun résultat sélectionné")
             return None
-        item = scene.niers_bridge_results[idx]
+        item = scene.nie_bridge_results[idx]
         path = item.path
         self._basename = path.rsplit("/", 1)[-1]
-        # Préfixe de DOSSIER (pas le fichier seul) : `niers vfs extract` accepte un préfixe et
+        # Préfixe de DOSSIER (pas le fichier seul) : `nie vfs extract` accepte un préfixe et
         # extrait tout ce qui matche — récupère au passage les frères g4mg/g4sk/g4tx/g4mt requis
         # par `import_scene.level5_g4` pour la géométrie/le squelette/les textures.
         folder = path.rsplit("/", 1)[0] if "/" in path else path
         tempdir = Path(bpy.app.tempdir) if bpy.app.tempdir else Path(__import__("tempfile").gettempdir())
-        self._dest = tempdir / "niers-bridge" / str(abs(hash((path, idx))))
+        self._dest = tempdir / "nie-bridge" / str(abs(hash((path, idx))))
         self._dest.mkdir(parents=True, exist_ok=True)
         return ["vfs", "extract", folder, "--out", str(self._dest)]
 
@@ -430,22 +430,22 @@ class NIERS_BRIDGE_OT_import_selected(_NiersProcessOperator):
         self.report({"INFO"}, f"Importé : {self._basename}")
 
 
-class NIERS_BRIDGE_OT_search_chara_waza(_NiersThreadOperator):
-    bl_idname = "niers_bridge.search_chara_waza"
+class NIE_BRIDGE_OT_search_chara_waza(_NieThreadOperator):
+    bl_idname = "nie_bridge.search_chara_waza"
     bl_label = "Chercher (perso/technique)"
     bl_description = "Search a character or skill by localized name through the Rust CLI and local mirror"
 
     def prepare(self, context):
         scene = context.scene
-        query = scene.niers_bridge_chara_query.strip()
+        query = scene.nie_bridge_chara_query.strip()
         if not query:
             self.report({"ERROR"}, "Requête vide")
             return None
         return {
-            "kind": scene.niers_bridge_kind,
+            "kind": scene.nie_bridge_kind,
             "query": query,
             "wiki_db": resolve_wiki_db(context),
-            "niers_exe": resolve_niers_exe(context),
+            "nie_exe": resolve_nie_exe(context),
         }
 
     def work(self, prepared):
@@ -454,9 +454,9 @@ class NIERS_BRIDGE_OT_search_chara_waza(_NiersThreadOperator):
         results: list[dict] = []
         notices: list[str] = []
 
-        if prepared["wiki_db"] is not None and prepared["niers_exe"] is not None:
+        if prepared["wiki_db"] is not None and prepared["nie_exe"] is not None:
             try:
-                rows = search_local(prepared["niers_exe"], prepared["wiki_db"], kind, query)
+                rows = search_local(prepared["nie_exe"], prepared["wiki_db"], kind, query)
                 mapper = _local_chara_row_to_result if kind == "CHARA" else _local_waza_row_to_result
                 results.extend(mapper(r) for r in rows)
             except Exception as exc:
@@ -465,18 +465,18 @@ class NIERS_BRIDGE_OT_search_chara_waza(_NiersThreadOperator):
         elif prepared["wiki_db"] is None:
             notices.append("local wiki mirror not found")
         else:
-            notices.append("niers.exe not found")
+            notices.append("nie.exe not found")
 
         return {"results": results, "notices": notices}
 
     def on_result(self, context, result):
         scene = context.scene
-        scene.niers_bridge_chara_results.clear()
+        scene.nie_bridge_chara_results.clear()
         for r in result["results"]:
-            item = scene.niers_bridge_chara_results.add()
+            item = scene.nie_bridge_chara_results.add()
             for key, value in r.items():
                 setattr(item, key, value)
-        scene.niers_bridge_chara_result_index = 0 if len(scene.niers_bridge_chara_results) else -1
+        scene.nie_bridge_chara_result_index = 0 if len(scene.nie_bridge_chara_results) else -1
 
         msg = f"{len(result['results'])} résultat(s)"
         if result["notices"]:
@@ -485,36 +485,36 @@ class NIERS_BRIDGE_OT_search_chara_waza(_NiersThreadOperator):
             self.report({"INFO"}, msg)
 
 
-class NIERS_BRIDGE_OT_use_chara_as_file_query(Operator):
-    bl_idname = "niers_bridge.use_chara_as_file_query"
+class NIE_BRIDGE_OT_use_chara_as_file_query(Operator):
+    bl_idname = "nie_bridge.use_chara_as_file_query"
     bl_label = "Voir les fichiers"
     bl_description = "Bascule sur l'onglet Fichiers et cherche les VRAIS fichiers VFS de ce personnage/technique (par code interne)"
 
     def execute(self, context):
         scene = context.scene
-        idx = scene.niers_bridge_chara_result_index
-        if idx < 0 or idx >= len(scene.niers_bridge_chara_results):
+        idx = scene.nie_bridge_chara_result_index
+        if idx < 0 or idx >= len(scene.nie_bridge_chara_results):
             self.report({"ERROR"}, "Aucun résultat sélectionné")
             return {"CANCELLED"}
-        code = scene.niers_bridge_chara_results[idx].internal_code
+        code = scene.nie_bridge_chara_results[idx].internal_code
         if not code:
             self.report({"ERROR"}, "This result has no known internal code")
             return {"CANCELLED"}
 
-        scene.niers_bridge_kind = "FILES"
-        scene.niers_bridge_query = code
-        scene.niers_bridge_ext_filter = ""
-        bpy.ops.niers_bridge.search("INVOKE_DEFAULT")
+        scene.nie_bridge_kind = "FILES"
+        scene.nie_bridge_query = code
+        scene.nie_bridge_ext_filter = ""
+        bpy.ops.nie_bridge.search("INVOKE_DEFAULT")
         return {"FINISHED"}
 
 
-class NIERS_BRIDGE_UL_results(UIList):
+class NIE_BRIDGE_UL_results(UIList):
     """Filtre par nom NATIF (icône loupe dans l'en-tête de liste, cf. `UI_UL_list.
     filter_items_by_name`) — filtre les résultats DÉJÀ récupérés, côté client, sans relancer
-    `niers.exe` : `niers_bridge_query`/§Chercher va chercher côté VFS, ce filtre affine
+    `nie.exe` : `nie_bridge_query`/§Chercher va chercher côté VFS, ce filtre affine
     instantanément la liste déjà en main (ex. restreindre aux `.g4tx` parmi les résultats d'une
     recherche plus large). Sans ce `filter_items`, le filtre par défaut de `UIList` chercherait
-    une propriété `name` que `NiersBridgeResult` n'a pas (elle a `path`) — jamais de correspondance."""
+    une propriété `name` que `NieBridgeResult` n'a pas (elle a `path`) — jamais de correspondance."""
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {"DEFAULT", "COMPACT"}:
@@ -536,8 +536,8 @@ class NIERS_BRIDGE_UL_results(UIList):
         return flt_flags, flt_neworder
 
 
-class NIERS_BRIDGE_UL_chara_results(UIList):
-    """Même principe de filtre natif que [`NIERS_BRIDGE_UL_results`], sur `name_fr`."""
+class NIE_BRIDGE_UL_chara_results(UIList):
+    """Même principe de filtre natif que [`NIE_BRIDGE_UL_results`], sur `name_fr`."""
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {"DEFAULT", "COMPACT"}:
@@ -565,21 +565,21 @@ class NIERS_BRIDGE_UL_chara_results(UIList):
         return flt_flags, flt_neworder
 
 
-class NIERS_BRIDGE_PT_panel(Panel):
-    bl_label = "niers — Recherche"
-    bl_idname = "NIERS_BRIDGE_PT_panel"
+class NIE_BRIDGE_PT_panel(Panel):
+    bl_label = "nie — Recherche"
+    bl_idname = "NIE_BRIDGE_PT_panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "niers"
+    bl_category = "nie"
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
 
-        niers_exe = resolve_niers_exe(context)
+        nie_exe = resolve_nie_exe(context)
         layout.row().label(
-            text=f"niers.exe : {niers_exe.name}" if niers_exe else "niers.exe introuvable",
-            icon="CHECKMARK" if niers_exe else "ERROR",
+            text=f"nie.exe : {nie_exe.name}" if nie_exe else "nie.exe introuvable",
+            icon="CHECKMARK" if nie_exe else "ERROR",
         )
         wiki_db = resolve_wiki_db(context)
         layout.row().label(
@@ -587,61 +587,61 @@ class NIERS_BRIDGE_PT_panel(Panel):
             icon="CHECKMARK" if wiki_db else "INFO",
         )
 
-        layout.row().prop(scene, "niers_bridge_kind", expand=True)
+        layout.row().prop(scene, "nie_bridge_kind", expand=True)
 
-        if scene.niers_bridge_kind == "FILES":
+        if scene.nie_bridge_kind == "FILES":
             self._draw_files(layout, scene)
         else:
             self._draw_chara_waza(layout, scene)
 
     def _draw_files(self, layout, scene):
         row = layout.row(align=True)
-        row.prop(scene, "niers_bridge_query", text="", icon="VIEWZOOM")
-        row.prop(scene, "niers_bridge_ext_filter", text="", icon="FILTER")
-        layout.operator(NIERS_BRIDGE_OT_search.bl_idname, icon="VIEWZOOM")
+        row.prop(scene, "nie_bridge_query", text="", icon="VIEWZOOM")
+        row.prop(scene, "nie_bridge_ext_filter", text="", icon="FILTER")
+        layout.operator(NIE_BRIDGE_OT_search.bl_idname, icon="VIEWZOOM")
 
         layout.template_list(
-            "NIERS_BRIDGE_UL_results", "", scene, "niers_bridge_results", scene, "niers_bridge_result_index", rows=8
+            "NIE_BRIDGE_UL_results", "", scene, "nie_bridge_results", scene, "nie_bridge_result_index", rows=8
         )
 
-        has_selection = 0 <= scene.niers_bridge_result_index < len(scene.niers_bridge_results)
+        has_selection = 0 <= scene.nie_bridge_result_index < len(scene.nie_bridge_results)
         row = layout.row()
         row.enabled = has_selection
-        row.operator(NIERS_BRIDGE_OT_import_selected.bl_idname, icon="IMPORT")
+        row.operator(NIE_BRIDGE_OT_import_selected.bl_idname, icon="IMPORT")
         if has_selection:
-            selected = scene.niers_bridge_results[scene.niers_bridge_result_index]
+            selected = scene.nie_bridge_results[scene.nie_bridge_result_index]
             layout.label(text=selected.cpk, icon="PACKAGE")
 
     def _draw_chara_waza(self, layout, scene):
-        layout.prop(scene, "niers_bridge_chara_query", text="", icon="VIEWZOOM")
-        layout.operator(NIERS_BRIDGE_OT_search_chara_waza.bl_idname, icon="VIEWZOOM")
+        layout.prop(scene, "nie_bridge_chara_query", text="", icon="VIEWZOOM")
+        layout.operator(NIE_BRIDGE_OT_search_chara_waza.bl_idname, icon="VIEWZOOM")
 
         layout.template_list(
-            "NIERS_BRIDGE_UL_chara_results",
+            "NIE_BRIDGE_UL_chara_results",
             "",
             scene,
-            "niers_bridge_chara_results",
+            "nie_bridge_chara_results",
             scene,
-            "niers_bridge_chara_result_index",
+            "nie_bridge_chara_result_index",
             rows=8,
         )
 
-        has_selection = 0 <= scene.niers_bridge_chara_result_index < len(scene.niers_bridge_chara_results)
+        has_selection = 0 <= scene.nie_bridge_chara_result_index < len(scene.nie_bridge_chara_results)
         row = layout.row()
         row.enabled = has_selection
-        row.operator(NIERS_BRIDGE_OT_use_chara_as_file_query.bl_idname, icon="FILE_FOLDER")
+        row.operator(NIE_BRIDGE_OT_use_chara_as_file_query.bl_idname, icon="FILE_FOLDER")
 
 
 classes = [
-    NiersBridgeResult,
-    NiersBridgeCharaResult,
-    NIERS_BRIDGE_OT_search,
-    NIERS_BRIDGE_OT_import_selected,
-    NIERS_BRIDGE_OT_search_chara_waza,
-    NIERS_BRIDGE_OT_use_chara_as_file_query,
-    NIERS_BRIDGE_UL_results,
-    NIERS_BRIDGE_UL_chara_results,
-    NIERS_BRIDGE_PT_panel,
+    NieBridgeResult,
+    NieBridgeCharaResult,
+    NIE_BRIDGE_OT_search,
+    NIE_BRIDGE_OT_import_selected,
+    NIE_BRIDGE_OT_search_chara_waza,
+    NIE_BRIDGE_OT_use_chara_as_file_query,
+    NIE_BRIDGE_UL_results,
+    NIE_BRIDGE_UL_chara_results,
+    NIE_BRIDGE_PT_panel,
 ]
 
 
@@ -649,27 +649,27 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.Scene.niers_bridge_kind = EnumProperty(
+    bpy.types.Scene.nie_bridge_kind = EnumProperty(
         name="Type",
         items=(
-            ("FILES", "📁 Fichiers", "Recherche par chemin VFS (niers.exe, substring)"),
+            ("FILES", "📁 Fichiers", "Recherche par chemin VFS (nie.exe, substring)"),
             ("CHARA", "👤 Personnage", "Recherche par nom FR/EN/JA (miroir Rust local)"),
             ("WAZA", "⚡ Technique", "Recherche par nom FR/EN/JA (miroir Rust local)"),
         ),
         default="FILES",
     )
-    bpy.types.Scene.niers_bridge_query = StringProperty(name="Requête", description="Sous-chaîne cherchée dans les chemins VFS")
-    bpy.types.Scene.niers_bridge_ext_filter = StringProperty(
+    bpy.types.Scene.nie_bridge_query = StringProperty(name="Requête", description="Sous-chaîne cherchée dans les chemins VFS")
+    bpy.types.Scene.nie_bridge_ext_filter = StringProperty(
         name="Extension", description="Filtre optionnel par extension (ex. `g4md`, sans le point)"
     )
-    bpy.types.Scene.niers_bridge_results = bpy.props.CollectionProperty(type=NiersBridgeResult)
-    bpy.types.Scene.niers_bridge_result_index = IntProperty(default=-1)
+    bpy.types.Scene.nie_bridge_results = bpy.props.CollectionProperty(type=NieBridgeResult)
+    bpy.types.Scene.nie_bridge_result_index = IntProperty(default=-1)
 
-    bpy.types.Scene.niers_bridge_chara_query = StringProperty(
+    bpy.types.Scene.nie_bridge_chara_query = StringProperty(
         name="Requête", description="Nom (FR/EN/JA), ID ou code interne d'un personnage/technique"
     )
-    bpy.types.Scene.niers_bridge_chara_results = bpy.props.CollectionProperty(type=NiersBridgeCharaResult)
-    bpy.types.Scene.niers_bridge_chara_result_index = IntProperty(default=-1)
+    bpy.types.Scene.nie_bridge_chara_results = bpy.props.CollectionProperty(type=NieBridgeCharaResult)
+    bpy.types.Scene.nie_bridge_chara_result_index = IntProperty(default=-1)
 
 
 def unregister():
@@ -685,13 +685,13 @@ def unregister():
     _active_procs.clear()
     _active_threads.clear()  # les threads en vol se terminent d'eux-mêmes (daemon=True), non tuables de force.
 
-    del bpy.types.Scene.niers_bridge_chara_result_index
-    del bpy.types.Scene.niers_bridge_chara_results
-    del bpy.types.Scene.niers_bridge_chara_query
-    del bpy.types.Scene.niers_bridge_result_index
-    del bpy.types.Scene.niers_bridge_results
-    del bpy.types.Scene.niers_bridge_ext_filter
-    del bpy.types.Scene.niers_bridge_query
-    del bpy.types.Scene.niers_bridge_kind
+    del bpy.types.Scene.nie_bridge_chara_result_index
+    del bpy.types.Scene.nie_bridge_chara_results
+    del bpy.types.Scene.nie_bridge_chara_query
+    del bpy.types.Scene.nie_bridge_result_index
+    del bpy.types.Scene.nie_bridge_results
+    del bpy.types.Scene.nie_bridge_ext_filter
+    del bpy.types.Scene.nie_bridge_query
+    del bpy.types.Scene.nie_bridge_kind
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

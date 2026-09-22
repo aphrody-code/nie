@@ -1,6 +1,6 @@
 //! Rendu **top-down CPU** du [`World`](crate::World) en tampon RGBA8 — terrain, lignes, joueurs,
 //! ballon (avec ombre/hauteur). Zéro GPU : déterministe et headless. C'est le « moteur d'affichage »
-//! minimal du moteur niers ; il sera remplaçable par le pipeline wgpu/3D sans toucher la simulation.
+//! minimal du moteur nie ; il sera remplaçable par le pipeline wgpu/3D sans toucher la simulation.
 
 // La rastérisation convertit en permanence des coordonnées f32 en indices de pixels.
 #![allow(

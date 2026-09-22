@@ -1,7 +1,7 @@
 //! Remplace **une seule région** d'un atlas `.g4tx` par une image PNG, en réécrivant les pixels
 //! dans leur **format d'origine et à taille identique**.
 //!
-//! Pourquoi ce détour plutôt que `niers mod texture` : cet atlas est compressé (BC7) et porte
+//! Pourquoi ce détour plutôt que `nie mod texture` : cet atlas est compressé (BC7) et porte
 //! plusieurs régions. Réencoder en BGRA8 changerait la taille des données, donc les offsets, donc
 //! casserait la table des régions. Ici, la taille des blocs BC7 ne dépend que des dimensions —
 //! inchangées — donc `data_size` est rigoureusement identique et **seuls les octets de pixels

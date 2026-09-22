@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/friendmap/friendmap_config_0.00.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/friendmap/friendmap_config_0.00.00.cfg.bin.json`
 //! - 2 listes dans ce fichier :
 //!   - `m_friendMapLineInfo` — 39 entrées décrivant les lignes des cartes d'amitié ;
 //!     chaque entrée référence un rang (`lineNo`, local à la carte parente) et

@@ -3,7 +3,7 @@
 #
 # Sépare l'auth (courte, consomme le code Steam Guard une seule fois) du
 # téléchargement (long, token-only, relançable sans Guard). Le refresh token
-# est mis en cache dans ~/.local/share/niers/steam-tokens.json au 1er login.
+# est mis en cache dans ~/.local/share/nie/steam-tokens.json au 1er login.
 #
 # Secrets attendus dans l'environnement (jamais écrits sur disque par ce script) :
 #   STEAM_USER        (requis)

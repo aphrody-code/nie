@@ -7,13 +7,13 @@
  * Supports the 9 authentic game locales:
  * de, en, es, fr, it, ja, pt, zh_hans, zh_hant.
  */
-import type { GameLocale } from "@niers/inacord-ui";
+import type { GameLocale } from "@nie/inacord-ui";
 import {
 	type GameTextRef,
 	type GameTextResolver,
 	fetchGameText,
 	refKey,
-} from "@niers/inacord-ui/lib/game-text";
+} from "@nie/inacord-ui/lib/game-text";
 import { cfgbin_text_map_json } from "../wasm/nie_wasm.js";
 import { ensureWasm } from "./bridge";
 import { offlineVfs } from "./offline-vfs";

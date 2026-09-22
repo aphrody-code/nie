@@ -1,4 +1,4 @@
-//! Rendu 3D **GPU (wgpu)** du viewport niers — le portage annoncé par la doc de [`crate::render`]
+//! Rendu 3D **GPU (wgpu)** du viewport nie — le portage annoncé par la doc de [`crate::render`]
 //! (« le portage GPU/wgpu est l'évolution suivante »).
 //!
 //! Même contrat que le rastériseur CPU de référence ([`crate::render::render`]) : un

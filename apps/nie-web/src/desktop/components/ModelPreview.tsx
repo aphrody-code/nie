@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { RustModelViewport } from "@niers/inacord-ui/shell/rust-model-viewport";
+import { RustModelViewport } from "@nie/inacord-ui/shell/rust-model-viewport";
 import { api } from "@/lib/api";
 import { b64ToBytes } from "@/lib/bytes";
 import { createCpuNativeViewer, createOpaqueNativeViewer } from "../../game/native-viewer";

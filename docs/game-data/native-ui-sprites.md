@@ -1,6 +1,6 @@
 # Native UI sprite sheets and shared presentation
 
-Source inventory recorded on 2026-09-08 on `vps-203bea89`, checkout `/home/ubuntu/niers`.
+Source inventory recorded on 2026-09-08 on `vps-203bea89`, checkout `/home/ubuntu/nie`.
 This document describes current scene resource declarations and their intended roles. It does
 not certify visual fidelity, complete native state recovery, or that every declared region has
 been exercised in the browser. Validation is deferred to the final gate for this batch.

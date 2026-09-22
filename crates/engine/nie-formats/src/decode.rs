@@ -1,5 +1,5 @@
 //! Décodage générique « octets → JSON » : **la** table de dispatch du dépôt, partagée par la FFI
-//! (`nie-ffi`) et la CLI (`niers decode`). Une famille ajoutée ici profite aux deux.
+//! (`nie-ffi`) et la CLI (`nie decode`). Une famille ajoutée ici profite aux deux.
 //!
 //! Ordre de dispatch (le premier qui parse gagne) :
 //! 1. `\x1bLua` (bytecode Lua 5.2) et `lip\0` — testés avant [`crate::detect`], qui ne les

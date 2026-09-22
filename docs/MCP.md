@@ -1,7 +1,7 @@
 # Native Rust MCP server
 
-Measured state on 2026-09-07: `niers-game` is a fully native Rust MCP server provided by the
-`crates/tools/nie-mcp` crate and the equivalent `niers mcp` command. It replaces the former
+Measured state on 2026-09-07: `nie-game` is a fully native Rust MCP server provided by the
+`crates/tools/nie-mcp` crate and the equivalent `nie mcp` command. It replaces the former
 former Bun/TypeScript MCP surface, which depended on the TypeScript SDK, Zod, and FFI.
 
 ## Architecture
@@ -23,7 +23,7 @@ dispatch function. Output capture is thread-local, bounded to 8 MiB, and blockin
 outside Tokio async tasks. The small `src/bin.rs` remains the terminal binding.
 
 ```text
-MCP client ──stdio──> nie-mcp / niers mcp
+MCP client ──stdio──> nie-mcp / nie mcp
                          │
                          ├── rmcp + schemars schemas
                          ├── in-process nie-cli dispatch
@@ -39,7 +39,7 @@ the terminal, keeping Clap as the single source of truth for nested commands and
 
 `cli_atlas` is the entry point for anything reverse-engineering: one call searches documents,
 symbols, tools, files and crates at once (`{"args": ["search", "<term>"]}`), and
-`{"args": ["gaps"]}` returns the ranked road to 100 %. It reads `NIERS_ATLAS`; `build` and
+`{"args": ["gaps"]}` returns the ranked road to 100 %. It reads `NIE_ATLAS`; `build` and
 `sync` write it, everything else is read-only.
 
 | Family | Tools |
@@ -71,7 +71,7 @@ A compatibility-tool failure is returned as an MCP result with `isError: true`. 
 tool returns the structured envelope `{ success, stdout, stderr, error, truncated }`, allowing a
 client to distinguish Clap or domain errors without parsing free-form output.
 
-`re_query` opens `NIERS_SQLITE` read-only, validates both SQL shape and SQLite's
+`re_query` opens `NIE_SQLITE` read-only, validates both SQL shape and SQLite's
 `Statement::readonly`, bounds rows, preserves large integers, and formats address columns as
 hexadecimal. VFS operations call `nie-formats` directly, while `repo_read` reuses the confined
 repository API from `nie-explore`.
@@ -84,7 +84,7 @@ available through `cli_convert` and `cli_render`.
 
 ## Inacord bridge
 
-The Rust server listens only on `ws://127.0.0.1:8791/bridge`. `NIERS_BRIDGE_PORT` can override
+The Rust server listens only on `ws://127.0.0.1:8791/bridge`. `NIE_BRIDGE_PORT` can override
 the port. The bridge is optional: a busy port or absent UI does not disable other MCP tools.
 
 The versioned protocol remains in `packages/nie-bridge/src/protocol.ts` as the WebView client
@@ -107,7 +107,7 @@ Portable project configuration:
 ```json
 {
   "mcpServers": {
-    "niers-game": {
+    "nie-game": {
       "type": "stdio",
       "command": "cargo",
       "args": ["run", "--release", "--quiet", "--package", "nie-mcp", "--"]
@@ -124,15 +124,15 @@ Recognized environment variables:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `NIERS_REPO` | root inferred from the manifest | `repo_read`, `game_launch`, and generated configuration |
+| `NIE_REPO` | root inferred from the manifest | `repo_read`, `game_launch`, and generated configuration |
 | `NIE_GAME_DIR` | native `nie-formats` resolution | VFS and game data |
-| `NIERS_SQLITE` | `<repo>/var/niers.sqlite` | read-only RE tools |
-| `NIERS_ATLAS` | `<repo>/var/nie-atlas.sqlite` | `cli_atlas` — the single index over every RE surface |
-| `NIERS_ATLAS_REDIS` | `redis://127.0.0.1/4` | `cli_atlas sync` mirror |
+| `NIE_SQLITE` | `<repo>/var/nie.sqlite` | read-only RE tools |
+| `NIE_ATLAS` | `<repo>/var/nie-atlas.sqlite` | `cli_atlas` — the single index over every RE surface |
+| `NIE_ATLAS_REDIS` | `redis://127.0.0.1/4` | `cli_atlas sync` mirror |
 | `NIE_APHRODY_API_URL` | `http://127.0.0.1:8085` | `aphrody_api_health` compatibility |
 | `MODEL_SERVE_URL` | `http://127.0.0.1:8790` | `asset_get` with `decode: "model"` |
-| `NIERS_BRIDGE_PORT` | `8791` | local Inacord bridge |
-| `NIERS_GAME_EXE` | `nie.exe` | executable launched by `game_launch` |
+| `NIE_BRIDGE_PORT` | `8791` | local Inacord bridge |
+| `NIE_GAME_EXE` | `nie.exe` | executable launched by `game_launch` |
 
 ## Verification and maintenance
 
@@ -152,7 +152,7 @@ bunx tsc --noEmit -p packages/nie-bridge/tsconfig.json
 about `nie.exe` (`re_coverage`, `re_query`, `re_function` by address **and** by name,
 `cli_atlas`) and corroborates every function start it returns against the compiler's own
 `.pdata` unwind table, read independently with `nie-pe`. It is data-gated — without
-`var/niers.sqlite` and `nie.exe` it reports what it skipped and passes. Measured on
+`var/nie.sqlite` and `nie.exe` it reports what it skipped and passes. Measured on
 2026-09-11: **43.00 %** corroboration (172/400), because the knowledge base is anchored on
 another build; see [`RE.md`](RE.md).
 

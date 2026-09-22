@@ -3,8 +3,8 @@
 #
 # Pour chacune des entrees .usm du VFS (les deux montages `data/common/movie` et
 # `data/dx11/movie`), le script mesure :
-#   * ce que declare le CONTENEUR USM       -> `niers video liste --rapide` (tables @UTF)
-#   * ce que mesure le FLUX ELEMENTAIRE     -> `ffprobe` sur l'export produit par `niers video export`
+#   * ce que declare le CONTENEUR USM       -> `nie video liste --rapide` (tables @UTF)
+#   * ce que mesure le FLUX ELEMENTAIRE     -> `ffprobe` sur l'export produit par `nie video export`
 #   * la presence au CATALOGUE servi         -> jointure sur var/model-cache/video-catalog.json
 #
 # Rien n'est suppose : le codec, la definition et le nombre d'images lus par ffprobe viennent
@@ -30,7 +30,7 @@ RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SORTIE_DIR="$RACINE/var/video-audit"
 TMP="$SORTIE_DIR/tmp"
 CATALOGUE="$RACINE/var/model-cache/video-catalog.json"
-NIERS="${NIERS:-niers}"
+NIE="${NIE:-nie}"
 
 MONTAGE=tous
 LIMITE=0
@@ -52,7 +52,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-command -v "$NIERS"  >/dev/null || { echo "niers introuvable"  >&2; exit 1; }
+command -v "$NIE"  >/dev/null || { echo "nie introuvable"  >&2; exit 1; }
 command -v ffprobe   >/dev/null || { echo "ffprobe introuvable" >&2; exit 1; }
 command -v jq        >/dev/null || { echo "jq introuvable"      >&2; exit 1; }
 
@@ -64,7 +64,7 @@ cd "$RACINE"
 echo "[1/4] index VFS des .usm" >&2
 INDEX="$SORTIE_DIR/index-usm.json"
 if [ "$RAFRAICHIR" = 1 ] || [ ! -s "$INDEX" ]; then
-  "$NIERS" vfs find .usm --ext usm -n 1000 -j > "$INDEX"
+  "$NIE" vfs find .usm --ext usm -n 1000 -j > "$INDEX"
 fi
 echo "      $(jq 'length' "$INDEX") entrees" >&2
 
@@ -74,7 +74,7 @@ for m in common dx11; do
   case "$MONTAGE" in tous) ;; "$m") ;; *) continue ;; esac
   f="$SORTIE_DIR/liste-$m.json"
   if [ "$RAFRAICHIR" = 1 ] || [ ! -s "$f" ]; then
-    "$NIERS" video liste --prefixe "data/$m/movie" --json --rapide > "$f"
+    "$NIE" video liste --prefixe "data/$m/movie" --json --rapide > "$f"
   fi
   echo "      $m : $(jq '.films|length' "$f") films" >&2
 done
@@ -109,8 +109,8 @@ for chemin in "${CHEMINS[@]}"; do
     rm -f "$TMP/piste."*
     base="$TMP/piste"
     # Remux si un conteneur web existe pour ce codec, flux elementaire sinon.
-    if ! "$NIERS" video export "$chemin" --out "$base.mp4" --audio >"$TMP/export.log" 2>&1; then
-      "$NIERS" video export "$chemin" --out "$base.mp4" --brut --audio >"$TMP/export.log" 2>&1 || true
+    if ! "$NIE" video export "$chemin" --out "$base.mp4" --audio >"$TMP/export.log" 2>&1; then
+      "$NIE" video export "$chemin" --out "$base.mp4" --brut --audio >"$TMP/export.log" 2>&1 || true
     fi
     piste="$(ls "$TMP"/piste.mp4 "$TMP"/piste.webm "$TMP"/piste.m2v "$TMP"/piste.h264 \
               "$TMP"/piste.ivf "$TMP"/piste.bin 2>/dev/null | head -1 || true)"
@@ -181,8 +181,8 @@ jq -n \
   | ($idx | map({key: .path, value: .}) | from_entries) as $IDX
   | {
       genere: $genere,
-      source: {index: "niers vfs find --ext usm", conteneur: "niers video liste --rapide",
-               flux: "ffprobe -count_frames sur niers video export", catalogue: "var/model-cache/video-catalog.json"},
+      source: {index: "nie vfs find --ext usm", conteneur: "nie video liste --rapide",
+               flux: "ffprobe -count_frames sur nie video export", catalogue: "var/model-cache/video-catalog.json"},
       entrees: ($lignes | length),
       films: [ $lignes[] | . as $l
         | ($UTF[$l.chemin] // null) as $u

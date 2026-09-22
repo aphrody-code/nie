@@ -1,12 +1,12 @@
 // Atelier de convergence : il ne fabrique ni modèle ni sprite. Le catalogue est l'export de
-// `niers avatar export`, le GLB vient de `nie-model-serve`, et le viewport parent charge cet
+// `nie avatar export`, le GLB vient de `nie-model-serve`, et le viewport parent charge cet
 // artefact exactement comme n'importe quel GLB VFS.
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
-import { cn } from "@niers/inacord-ui/lib/utils";
-import { INITIAL_AVATAR_STATE, type AvatarCatalog as Catalogue } from "@niers/inacord-ui/avatar/contract";
-import { avatarModelUrl } from "@niers/inacord-ui/avatar/request";
+import { cn } from "@nie/inacord-ui/lib/utils";
+import { INITIAL_AVATAR_STATE, type AvatarCatalog as Catalogue } from "@nie/inacord-ui/avatar/contract";
+import { avatarModelUrl } from "@nie/inacord-ui/avatar/request";
 
 /** Categories proven to change a mesh, a face layer, or the resolved face-base recipe. */
 const RENDERABLE_CATEGORIES = new Set([3, 4, 6, 7, 8, 9, 10, 11, 12, 13]);

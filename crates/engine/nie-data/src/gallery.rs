@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/gallery/gallery_config_1.03.71.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/gallery/gallery_config_1.03.71.00.cfg.bin.json`
 //! - 1 liste dans ce fichier :
 //!   - `m_GalleryInfoList` — 360 entrées `GALLERY_INFO`, chacune décrivant une illustration
 //!     débloquable dans la galerie du jeu.

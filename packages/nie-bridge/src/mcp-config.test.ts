@@ -13,13 +13,13 @@ test("avec une racine Windows, le chemin est absolu et séparé par des antislas
   expect(entry.args.slice(3, 5)).toEqual(["--manifest-path", "C:\\Jeux\\IEVR\\Cargo.toml"]);
   expect(entry.env).toMatchObject({
     NIE_REPO: "C:\\Jeux\\IEVR",
-    NIERS_REPO: "C:\\Jeux\\IEVR",
+    NIE_REPO: "C:\\Jeux\\IEVR",
   });
 });
 
 test("avec une racine POSIX, le séparateur reste la barre oblique", () => {
-  const entry = mcpServerEntry({ repoRoot: "/home/ubuntu/niers/" });
-  expect(entry.args.slice(3, 5)).toEqual(["--manifest-path", "/home/ubuntu/niers/Cargo.toml"]);
+  const entry = mcpServerEntry({ repoRoot: "/home/ubuntu/nie/" });
+  expect(entry.args.slice(3, 5)).toEqual(["--manifest-path", "/home/ubuntu/nie/Cargo.toml"]);
 });
 
 test("le dossier du jeu passe par l'environnement, et seulement s'il est renseigné", () => {

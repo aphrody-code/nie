@@ -4,7 +4,7 @@
 //
 // ## D'où vient cette base
 //
-// Le catalogue est produit hors du runtime niers et arrive ici comme une base SQLite déjà
+// Le catalogue est produit hors du runtime nie et arrive ici comme une base SQLite déjà
 // validée. Aucun scraper ni collecteur n'est embarqué dans l'application webview.
 //
 // Le client REST vise un serveur `/api/ietv` : il reste la bonne porte
@@ -13,7 +13,7 @@
 import Database from "./sqlite";
 
 import { api } from "./api";
-import { sourceFromEpisode, sourcePlayerUrl } from "niers-media/player";
+import { sourceFromEpisode, sourcePlayerUrl } from "nie-media/player";
 
 /** Un épisode de la série. */
 export interface EpisodeAnime {

@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/chara_bank/soccer_club_room_config.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/chara_bank/soccer_club_room_config.cfg.bin.json`
 //! - 1 liste dans ce fichier (`version = 100`) :
 //!   - `m_soccerClubRoomCharaRestrictionInfoList` — 41 entrées
 //!     `SOCCER_CLUB_ROOM_CHARA_RESTRICTION_INFO`, décrivant les restrictions de gestion

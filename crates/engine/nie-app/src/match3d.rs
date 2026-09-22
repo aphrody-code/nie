@@ -42,7 +42,7 @@ fn lire_personnage(vfs: &Vfs, dossier: &str, code: &str) -> Result<Model> {
 /// modèles du VFS qui portent les quatre fichiers nécessaires (`g4md` + `g4mg` + `g4sk` + `g4tx`)
 /// sont sous `chr/_face/` : ce sont des TÊTES. Un personnage complet s'assemble à partir de sa
 /// tête et de son uniforme, ce que fait `nie-model-serve` — mais seulement avec le manifeste
-/// `var/uniform-model-map.ndjson`, que `niers uniform-map` doit générer et qui est absent ici.
+/// `var/uniform-model-map.ndjson`, que `nie uniform-map` doit générer et qui est absent ici.
 /// Tant qu'il manque, le match affiche des têtes, et il vaut mieux le dire que le laisser
 /// découvrir à l'écran.
 ///

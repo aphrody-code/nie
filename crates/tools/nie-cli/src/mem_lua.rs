@@ -1,4 +1,4 @@
-//! `niers mem lua-field` — relève la valeur d'un champ de table Lua dans le jeu vivant.
+//! `nie mem lua-field` — relève la valeur d'un champ de table Lua dans le jeu vivant.
 //!
 //! Certaines valeurs d'écran ne vivent dans **aucun fichier** du jeu : le chunk Lua déclare la
 //! clé (`listRowNum`, `listLineNum`, `pageNum`…) mais ne l'affecte jamais ; c'est le moteur C++
@@ -193,7 +193,7 @@ fn voisins(pid: i32, node: u64, rayon: i64, max_nom: usize) -> Vec<(String, Stri
     out
 }
 
-/// Point d'entrée de `niers mem lua-field`.
+/// Point d'entrée de `nie mem lua-field`.
 ///
 /// `rayon` > 0 déclenche l'affichage des entrées voisines de chaque `Node` trouvé — c'est ce qui
 /// donne la table d'état complète (`listNum`, `listRowNum`, `listLineNum`, `pageNum`, `lastLine`)

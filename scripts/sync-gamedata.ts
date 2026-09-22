@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * Pipeline 100% natif niers : télécharge/valide IEVR via le downloader Steam Rust natif,
- * then selectively dumps the VFS (preset `wiki`, `assets`, or `full`) with the `niers` CLI.
+ * Pipeline 100% natif nie : télécharge/valide IEVR via le downloader Steam Rust natif,
+ * then selectively dumps the VFS (preset `wiki`, `assets`, or `full`) with the `nie` CLI.
  *
  * Env :
  *   STEAM_USER        compte Steam possédant IEVR (requis sauf SKIP_DOWNLOAD=1).
@@ -10,7 +10,7 @@
  *   IEVR_GAME_DIR     dir d'install (défaut ~/.local/share/Steam/iecode/inazuma)
  *   STEAM_TOKEN_STORE cache JSON des jetons (défaut ~/.local/share/iecode/steam-tokens.json)
  *   DUMP_PRESET       wiki | assets | full (default full)
- *   DUMP_OUT          sortie du dump (défaut ~/niers-dump)
+ *   DUMP_OUT          sortie du dump (défaut ~/nie-dump)
  *   SKIP_DOWNLOAD=1   saute le download (dump seulement, sur l'install existante)
  *
  * Usage : bun run sync:gamedata
@@ -25,13 +25,13 @@ const GAME_DIR = process.env.IEVR_GAME_DIR ?? join(HOME, ".local/share/Steam/iec
 const TOKEN_STORE =
 	process.env.STEAM_TOKEN_STORE ?? join(HOME, ".local/share/iecode/steam-tokens.json");
 const PRESET = process.env.DUMP_PRESET ?? "full";
-const OUT = process.env.DUMP_OUT ?? join(HOME, "niers-dump");
-const NIERS = process.env.NIE_BIN ?? join(import.meta.dir, "../target/release/nie.exe");
-const useBuiltBinary = existsSync(NIERS);
+const OUT = process.env.DUMP_OUT ?? join(HOME, "nie-dump");
+const NIE = process.env.NIE_BIN ?? join(import.meta.dir, "../target/release/nie.exe");
+const useBuiltBinary = existsSync(NIE);
 
-async function runNiers(...args: string[]) {
+async function runNie(...args: string[]) {
 	if (useBuiltBinary) {
-		await $`${NIERS} ${args}`;
+		await $`${NIE} ${args}`;
 	} else {
 		await $`cargo run --release -q -p nie-cli -- ${args}`;
 	}
@@ -48,12 +48,12 @@ if (process.env.SKIP_DOWNLOAD !== "1") {
 		throw new Error("STEAM_USER requis (ou SKIP_DOWNLOAD=1 pour dumper l'install existante).");
 	}
 	console.info(`▸ download natif : app ${APP_ID} → ${GAME_DIR}`);
-	await runNiers("steam", "download", APP_ID, "-o", GAME_DIR, "--token-store", TOKEN_STORE);
+	await runNie("steam", "download", APP_ID, "-o", GAME_DIR, "--token-store", TOKEN_STORE);
 }
 
 // 2. Selective dump: useful game data, localized text, and assets selected by the Rust preset.
-console.info(`▸ dump niers --preset ${PRESET} → ${OUT}`);
-await runNiers("viola", "dump", "--game-dir", GAME_DIR, "-o", OUT, "--preset", PRESET);
+console.info(`▸ dump nie --preset ${PRESET} → ${OUT}`);
+await runNie("viola", "dump", "--game-dir", GAME_DIR, "-o", OUT, "--preset", PRESET);
 
 console.info(`\n✓ Data ready: ${OUT}`);
 console.info(`  → use the Rust VFS/wiki readers with NIE_GAME_DIR=${GAME_DIR}`);

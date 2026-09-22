@@ -10,7 +10,7 @@
 //! | forme | exemple | producteur |
 //! |-------|---------|------------|
 //! | **iecode** (« étiquetée ») | `{"type":"Int","value":"128840881"}` | dumps `*.cfg.bin.json` (inagle / C#) |
-//! | **native** (serde, tag externe) | `{"Int":128840881}` | [`nie_formats::cfgbin::Value`] via `niers decode` |
+//! | **native** (serde, tag externe) | `{"Int":128840881}` | [`nie_formats::cfgbin::Value`] via `nie decode` |
 //!
 //! La forme iecode porte **toujours la valeur en chaîne** ; la forme native porte un
 //! `serde_json::Number` (ou une chaîne pour `String`). Sans le support de la seconde, un JSON
@@ -20,7 +20,7 @@
 //!
 //! Source : `inagle` (ConfigNode/ConfigVariable),
 //! `inagle` (CfgBinEntry/CfgBinVariable). Échantillon réel :
-//! `/home/ubuntu/niers/data/common/text/fr/skill_text.cfg.bin.json`.
+//! `/home/ubuntu/nie/data/common/text/fr/skill_text.cfg.bin.json`.
 
 use alloc::string::String;
 use alloc::vec::Vec;

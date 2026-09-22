@@ -30,7 +30,7 @@ use nie_runtime::{GOAL_HALF, GOAL_HEIGHT, HALF_LEN, HALF_WID, Player, Role, Worl
     about = "Rend un match 3D : la physique nie-runtime pilote le rendu 3D (caméra télé) → MP4"
 )]
 struct Cli {
-    #[arg(long, default_value = "/tmp/niers-match3d.mp4")]
+    #[arg(long, default_value = "/tmp/nie-match3d.mp4")]
     out: PathBuf,
     #[arg(long, default_value_t = 300)]
     frames: u32,

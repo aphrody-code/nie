@@ -7,5 +7,5 @@ try {
     cargo fetch --locked
     bun install --frozen-lockfile
     cargo check --workspace --tests
-    Write-Host 'niers workspace setup complete'
+    Write-Host 'nie workspace setup complete'
 } finally { Pop-Location }

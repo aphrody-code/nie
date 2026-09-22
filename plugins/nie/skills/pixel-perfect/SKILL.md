@@ -19,7 +19,7 @@ Ordre de préférence, du plus fidèle au moins fidèle :
 
 | Rang | Source | Comment l'obtenir |
 |---|---|---|
-| 1 | la **texture du VFS** (G4TX, lossless, non redimensionnée) | `niers vfs find <motif>` puis `niers vfs extract <chemin> -o <fichier>` |
+| 1 | la **texture du VFS** (G4TX, lossless, non redimensionnée) | `nie vfs find <motif>` puis `nie vfs extract <chemin> -o <fichier>` |
 | 2 | le **rendu du dépôt** (composition déterministe, reproductible) | `nie-game --menu <ECRAN> --capture /tmp/<x>.png` |
 | 3 | le **layout runtime** (positions réelles, issues des scripts Lua) | `nie-game --menu <ECRAN> --runtime --export-layout /tmp/<x>.json` |
 | 4 | un **screenshot** (compressé, mis à l'échelle, filtré par le GPU) | dernier recours |
@@ -28,7 +28,7 @@ Un screenshot a subi un redimensionnement et souvent une compression : ses coule
 pas celles du jeu. S'il est la seule source, le dire dans le document d'analyse.
 
 Rappels : le chemin VFS cité de mémoire est presque toujours faux (les fichiers portent un
-numéro de version) — viser le **dossier** et vérifier par `niers vfs find`. Le service
+numéro de version) — viser le **dossier** et vérifier par `nie vfs find`. Le service
 `nie-model-serve` sert les mêmes pixels en HTTP (`/tex/<chemin-sans-.g4tx>.png`).
 
 ## 1. Mesurer
@@ -168,7 +168,7 @@ rattache le jeton à la mesure dont il sort.
 
 ### D. Extraire une texture / un asset plat
 
-`niers vfs extract`, puis `nie_formats::image_out` pour l'encodage (WebP lossless, GIF, JPEG,
+`nie vfs extract`, puis `nie_formats::image_out` pour l'encodage (WebP lossless, GIF, JPEG,
 BMP, TGA, TIFF, QOI — le PNG est hors de la feature `images`). Nommer le fichier par la
 **sous-entité** exportée, jamais par le fichier source : sinon tous les téléchargements se
 recouvrent (cf. la mémoire `export-nom-fichier-sous-entite`).

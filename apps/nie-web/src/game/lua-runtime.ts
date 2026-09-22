@@ -59,7 +59,7 @@
  * nom — `shop_menu` a trois voisins et aucun homonyme — ne résout rien, et le dit.
  */
 import { createLuaRuntime, type LuaRuntime } from "../../../../crates/engine/nie-lua-web/js/nie-lua-web";
-import { fetchBytes, fetchJson } from "@niers/asset-source";
+import { fetchBytes, fetchJson } from "@nie/asset-source";
 import { vfsResources } from "./vfs-resources";
 
 /** L'artefact emscripten, servi comme le module du jeu. */

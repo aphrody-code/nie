@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source": "Visual identification of the captures; nie-game CLI used to mount and inspect the repository VFS",
   "cli": {
-    "command": "target/debug/niers.exe info (NIE_GAME_DIR=<Steam game root>)",
+    "command": "target/debug/nie.exe info (NIE_GAME_DIR=<Steam game root>)",
     "vfs_assets_mounted": 255308,
     "g4tx_entries_listed": 54203,
     "cpk_packages_mounted": 936,
@@ -43,7 +43,7 @@
     "source": "var/vfs/inventaire.txt",
     "payload_status": "all 1197 Lua payloads extracted from the mounted local Steam VFS",
     "extraction": {
-      "command": "target/debug/niers.exe vfs extract data --ext lua.bin --out var/lua-vfs-all",
+      "command": "target/debug/nie.exe vfs extract data --ext lua.bin --out var/lua-vfs-all",
       "files": 1197,
       "bytes": 10694973,
       "failures": 0,
@@ -60,7 +60,7 @@
     ]
   },
   "lua_audit": {
-    "command": "target/debug/niers.exe lua-audit --game-dir <Steam game root> --instruction-limit 200000 --menu-host",
+    "command": "target/debug/nie.exe lua-audit --game-dir <Steam game root> --instruction-limit 200000 --menu-host",
     "scripts": 1197,
     "decoded": 1197,
     "decode_errors": 0,
@@ -430,7 +430,7 @@
       "description": "A sibling pipeline delivered by Codex in parallel, over the same data/menu/manifest.json + *_setting.cfg.bin corpus, exposing menu settings as typed data (FFI/WASM/catalog) rather than as design tokens (nie-ui's lane). No file overlap with the nie-ui/inacord-ui/nie-web lane.",
       "commits": ["be1eaa11", "5679b238", "78eac842", "08c6db76", "c720d9b0", "d05f10e7"],
       "nie_cli_mode_coverage_strict": {
-        "command": "niers mode coverage --strict",
+        "command": "nie mode coverage --strict",
         "modes": 12,
         "screens_total_steam": 475,
         "screens_classified": 109,
@@ -710,7 +710,7 @@
     "inacord-ui-settings": "packages/inacord-ui/src/components/settings/**",
     "nie-web": "apps/nie-web (accueil, explorateur, catalogue, /settings)",
     "nie-site": "crates/tools/nie-site (routes /, /settings, /medias, /explorateur x3 langues)",
-    "nie-cli": "crates/tools/nie-cli/src/mode_index.rs (niers mode coverage --strict)",
+    "nie-cli": "crates/tools/nie-cli/src/mode_index.rs (nie mode coverage --strict)",
     "nie-ffi": "crates/engine/nie-ffi/src/lib.rs (decodeMenuSetting, vfs.menuSetting)",
     "nie-wasm": "cfgbin_menu_setting_json()",
     "nie-catalog": "packages/nie-catalog/src/jeu.ts (URLs canoniques /typed/..._menu_setting.cfg.bin.json)"

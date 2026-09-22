@@ -16,7 +16,7 @@
 //! | [`ctrl`] | contrôleurs portés : poursuite, shake de tir, interpolation, offset, blend |
 //! | [`map`] | carte RE statique : VA, tables de dispatch, hiérarchie RTTI, chemins d'assets |
 //! | [`live`] | lecture/écriture de la caméra dans le process `nie.exe` vivant |
-//! | [`db`] | indexation de tout ce savoir dans `var/niers.sqlite` (tables `cam_*`) |
+//! | [`db`] | indexation de tout ce savoir dans `var/nie.sqlite` (tables `cam_*`) |
 //!
 //! ## Provenance des faits
 //!

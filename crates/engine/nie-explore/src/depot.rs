@@ -2,8 +2,8 @@
 //!
 //! ## Pourquoi ce module existe ici
 //!
-//! Three surfaces need the same capability: `niers find`/`grep` (CLI), the native Rust
-//! `niers-game` MCP server (`repo_read` plus the `cli_find`/`cli_grep` bindings), and the Inacord
+//! Three surfaces need the same capability: `nie find`/`grep` (CLI), the native Rust
+//! `nie-game` MCP server (`repo_read` plus the `cli_find`/`cli_grep` bindings), and the Inacord
 //! desktop app (Tauri commands). Each previously had its own partial implementation:
 //!
 //! - `nie-cli/src/search_cmd.rs` portait le moteur `ignore`/`grep-*`, mais mêlé à l'affichage
@@ -609,7 +609,7 @@ impl Depot {
 /// Prépare un parcours `ignore` **sans confinement** : racine libre, fichiers cachés,
 /// respect de `.gitignore`, profondeur.
 ///
-/// Public parce que `niers find`/`niers grep` cherchent sur tout le disque (dumps, scratchpad,
+/// Public parce que `nie find`/`nie grep` cherchent sur tout le disque (dumps, scratchpad,
 /// arbres hors dépôt) et ne peuvent donc pas passer par [`Depot`], qui confine par construction.
 /// Ils partagent malgré tout ce parcours et [`construire_globs`], au lieu d'en garder une copie.
 ///

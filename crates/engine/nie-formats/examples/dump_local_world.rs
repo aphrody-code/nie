@@ -13,7 +13,7 @@
 //! x = 1 046 163. A single world column reads as corrupt data; both columns name the cause.
 //!
 //! ```sh
-//! niers vfs extract data/common/menu/75_vroad/vroad01/vroad01_71/vroad01_71.g4pkm --out /tmp/x
+//! nie vfs extract data/common/menu/75_vroad/vroad01/vroad01_71/vroad01_71.g4pkm --out /tmp/x
 //! cargo run -p nie-formats --example dump_local_world -- /tmp/x [--open]
 //! ```
 

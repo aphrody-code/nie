@@ -261,7 +261,7 @@ pub struct DecodeCfgbinQuery {
 
 /// `GET /api/v1/game-data/decode_cfgbin?path=` — any `.cfg.bin`, RDBN or T2B, generic decode
 /// (`nie_app::game_data::decode_cfgbin`, itself `nie_explore::bridge` — the same engine as
-/// `niers vfs cat`). Distinct from `/api/v1/formats/decode/{path}` only in URL shape: both rend
+/// `nie vfs cat`). Distinct from `/api/v1/formats/decode/{path}` only in URL shape: both rend
 /// the generic container structure, not a named family (cf. `routes::donnees` for the named one).
 pub async fn decode_cfgbin(
     State(etat): State<EtatSite>,

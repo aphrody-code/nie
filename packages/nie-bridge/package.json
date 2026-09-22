@@ -1,5 +1,5 @@
 {
-	"name": "@niers/bridge",
+	"name": "@nie/bridge",
 	"version": "1.0.0",
 	"private": true,
 	"description": "Control bridge contract and client for the native Rust nie-mcp server and Inacord.",

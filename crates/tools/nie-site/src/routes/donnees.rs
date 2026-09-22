@@ -11,7 +11,7 @@
 //! c'est précisément la règle du dépôt : *ne pas réimplémenter d'un côté ce que l'autre fait*.
 //!
 //! **La différence avec `/api/v1/formats/decode` n'est pas cosmétique**, et le dépôt l'a déjà
-//! payée : `niers decode` rend le RDBN **brut** (`header`/`types`/`fields`), et un consommateur
+//! payée : `nie decode` rend le RDBN **brut** (`header`/`types`/`fields`), et un consommateur
 //! typé y lit zéro élément **en annonçant un succès**. Les deux routes coexistent donc, et
 //! chacune dit ce qu'elle rend :
 //!

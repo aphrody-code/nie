@@ -1,8 +1,8 @@
 import {
   ExplorerTabsBar as SharedExplorerTabsBar,
   type ExplorerTabsBarProps as SharedExplorerTabsBarProps,
-} from "@niers/inacord-ui/explorer/explorer-surface";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
+} from "@nie/inacord-ui/explorer/explorer-surface";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
 
 import type { ExplorerTab } from "@/lib/explorerTabs";
 

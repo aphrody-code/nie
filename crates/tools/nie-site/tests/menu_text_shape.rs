@@ -23,7 +23,7 @@
 //! close ; ce test reste pour qu'elle le demeure.
 //!
 //! Conditionné : `NIE_MENU_TEXT` doit désigner un `menu_text.cfg.bin` extrait
-//! (`niers vfs extract data/common/text/fr/menu_text.cfg.bin --out <fichier>`).
+//! (`nie vfs extract data/common/text/fr/menu_text.cfg.bin --out <fichier>`).
 
 #[test]
 fn le_chemin_natif_et_la_route_comptent_les_memes_lignes() {

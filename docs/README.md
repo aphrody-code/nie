@@ -64,8 +64,8 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | --- | --- |
 | [`SITE.md`](SITE.md) | What `nie.aphrody.com` is and is not: names, the placeholder home page, the one startup gate, the silent pagination clip. |
 | [`MCP.md`](MCP.md) | The pure-Rust native MCP server (`rmcp`), its security model and its tests. |
-| [`NIE-ET-CLI.md`](NIE-ET-CLI.md) | Architecture of `nie.exe` and complete operational manual of the `niers` CLI. |
-| [`INSTALLATION.md`](INSTALLATION.md) | Installing the `niers` CLI from the `nie-cli` package. |
+| [`NIE-ET-CLI.md`](NIE-ET-CLI.md) | Architecture of `nie.exe` and complete operational manual of the `nie` CLI. |
+| [`INSTALLATION.md`](INSTALLATION.md) | Installing the `nie` CLI from the `nie-cli` package. |
 | [`STEAM-LINUX.md`](STEAM-LINUX.md) | Steam/Proton/SteamCMD setup for running `nie.exe` natively on Linux. |
 | [`IEVR-SAVE-EDITOR-PORT.md`](IEVR-SAVE-EDITOR-PORT.md) | Reverse engineering and native Rust port of the Save Editor (v2.2.2, .NET 9): 33 memory hooks, 142 Spirit Cards, 1 299 Supertechniques. |
 | [`FAN-MODS.md`](FAN-MODS.md) | Version inventory, legal acquisition, VFS mod manifests, `.utmod` handling and the Rust creation/validation workflow. |
@@ -92,7 +92,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | Document | What it owns |
 | --- | --- |
 | [`A2A-CODEX.md`](A2A-CODEX.md) | The agent-to-agent wire protocol. The rules about *not overwriting each other* live in `AGENTS.md` § 2. |
-| [`WORKFLOW-UNIFIE.md`](WORKFLOW-UNIFIE.md) | Going from a human request to a reproducible proof, across nie/WinClean/niers/Ghidra. |
+| [`WORKFLOW-UNIFIE.md`](WORKFLOW-UNIFIE.md) | Going from a human request to a reproducible proof, across nie/WinClean/nie/Ghidra. |
 
 ## History
 
@@ -100,7 +100,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | --- | --- |
 | [`../PROVENANCE.md`](../PROVENANCE.md) | Per-tree provenance, and what was dropped on import. |
 | [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md) | The source-to-crate ledger of the C++ and C# toolkits, exported 2026-09-07. |
-| [`ABSORPTION-IECODE.md`](ABSORPTION-IECODE.md) | The absorption gate, closed. `niers` is the maintained implementation. |
+| [`ABSORPTION-IECODE.md`](ABSORPTION-IECODE.md) | The absorption gate, closed. `nie` is the maintained implementation. |
 | [`archive/`](archive/) | Superseded plans, kept dated rather than deleted. |
 
 ## The two invariants
@@ -112,7 +112,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — 117 068 functions of `nie.exe`
 - `coverage` — binary coverage metrics
 - `xref` — call-graph topology

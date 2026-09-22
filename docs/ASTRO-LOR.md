@@ -87,7 +87,7 @@ la liste exacte des locales sont dans `data/oc/astro-lor/game/evidence/reference
 Codes retenus, dans un espace de noms qui ne peut pas entrer en collision avec les
 codes extraits du binaire : **`c99019010`** (Inazuma Eleven, groupe `01_IE1`) et
 **`c99019020`** (Victory Road, groupe `11_VICTORY`). Les douze groupes de
-`data/common/chr/_face/` sont relevés par `niers vfs ls`, pas supposés.
+`data/common/chr/_face/` sont relevés par `nie vfs ls`, pas supposés.
 
 Tables où il doit être déclaré, toutes repérées dans le VFS avec leur chemin
 versionné : `chara_base`, `chara_param`, `chara_model`, `chara_parts`,
@@ -137,7 +137,7 @@ Ces 16 octets sont un **pied de page**, relevé sur tout le corpus par
 `cargo run -p nie-formats --example cfgbin_pied --release` :
 
 ```
-70 798 fichiers T2B — 100 % portent la chaîne « t2b » dans leurs 16 derniers octets
+70 798 fichiers T2B — 100 % portent la chaîne « t2b » dans leurs 16 dernie octets
 ×57 824   01 74 32 62 FE 01 01 00 01 00 FF FF FF FF FF FF
 ×12 974   01 74 32 62 FE 01 00 00 01 00 FF FF FF FF FF FF
 ```
@@ -220,25 +220,25 @@ sans dépendre de V2.
 Quatre choses ont été vérifiées ici ; deux ont démenti ce que ce document disait, et la
 dernière a été corrigée dans le code plutôt que constatée.
 
-**La voie C# est historique et archivée.** Les capacités maintenues passent par `niers` natif ;
+**La voie C# est historique et archivée.** Les capacités maintenues passent par `nie` natif ;
 aucune assembly .NET n'est requise. Tout ce qui passait par
 là est indisponible.
 
 **La voie Rust existe, et personne ne l'avait citée.**
 `nie_formats::g4tx_encode` fournit `decode_png_to_rgba8`, `encode_dds_bgra8` et
-`encode_g4tx_single_texture`, et `niers mod texture` les appelle déjà.
+`encode_g4tx_single_texture`, et `nie mod texture` les appelle déjà.
 Aucun besoin de dotnet.
 
 **L'obstacle mesuré : les icônes de portrait ne sont pas mono-texture.** Vérifié sur
 quatre personnages de quatre séries (`c01000100`, `c02023290`, `c02023380`,
 `c05024700`) : **toutes** portent **deux** textures de 256×256, nommées
 `<code>_1_l00` et `<code>_2_l00`. `encode_g4tx_single_texture` n'en écrit qu'une,
-et `niers mod texture` refusait donc le fichier.
+et `nie mod texture` refusait donc le fichier.
 
 **L'écart est comblé côté bibliothèque.** `nie_formats::g4tx_encode::encode_g4tx_multi_texture`
 écrit `texture_count` textures principales et `sub_texture_count` régions d'atlas, en
 suivant les formules d'offsets de `g4tx::parse` (`sub_entry_offset`, `hash_offset`,
-`id_offset`, `string_offset`, `nxtch_base`). `niers mod texture` prend un `--texture <nom>`
+`id_offset`, `string_offset`, `nxtch_base`). `nie mod texture` prend un `--texture <nom>`
 qui dit laquelle remplacer ; les autres payloads sont recopiés **octet pour octet** depuis
 le fichier d'origine, les régions sont reportées, et le conteneur produit est reparsé
 immédiatement — nom, id et nombre de régions de chaque texture doivent revenir, sinon la
@@ -279,7 +279,7 @@ réduire à 256×256 pour épouser le gabarit.
 
 ### V4 — Injecter dans le VFS · non bloquant
 
-Le cycle existe : `niers mod init` → `add` → `set` → `validate` → `install`.
+Le cycle existe : `nie mod init` → `add` → `set` → `validate` → `install`.
 `install` part toujours du `cpk_list` vanilla sauvegardé, et refuse au-delà de 64
 entrées déjà *loose*. `uninstall` relit et compare les octets après restauration.
 
@@ -294,7 +294,7 @@ précédente ait la sienne.
 |---|---|---|
 | 1 | Aller-retour byte-exact sur les neuf tables `chara_*` | `sha256` identique, neuf fois |
 | 2 | Ajouter une ligne à `chara_base` et relire par le **jeu** | le jeu démarre et lit la table |
-| 3 | Icônes de portrait en G4TX | `niers vfs cat` les redécode, l'icône s'affiche en menu |
+| 3 | Icônes de portrait en G4TX | `nie vfs cat` les redécode, l'icône s'affiche en menu |
 | 4 | Tête empruntée + texture propre | Astro apparaît, reconnaissable |
 | 5 | Déclarer poste, élément, statistiques (`chara_param`) | il est sélectionnable et joue |
 | 6 | Techniques : relier les 26 aux tables de waza | elles se déclenchent en match |
@@ -311,7 +311,7 @@ est en aval n'est que du volume.
 
 - **Un chemin VFS cité de mémoire est presque toujours faux** : les fichiers du
   jeu portent un numéro de version. Viser le dossier, vérifier par
-  `niers vfs find` avant d'écrire un chemin dans du code ou un test.
+  `nie vfs find` avant d'écrire un chemin dans du code ou un test.
 - **Un fichier relu correctement par le dépôt n'est pas un fichier valide** : seul
   le lancement du jeu tranche.
 - **Le wiki n'est pas le jeu.** Astro a une fiche complète et ne joue pas. Les
@@ -328,13 +328,13 @@ est en aval n'est que du volume.
   (un fichier, ou `--vfs <motif>` pour tout le corpus)
 - Relevé du pied T2B : `cargo run -p nie-formats --example cfgbin_pied`
 - Patch en place : `nie_formats::t2b_patch`, `nie_formats::rdbn_patch`
-- Modding LEVEL-5 en Rust natif : crate `nie-viola`, commande `niers viola`
-- Modding : `niers mod`, et la section « Modding » de `CLAUDE.md`
+- Modding LEVEL-5 en Rust natif : crate `nie-viola`, commande `nie viola`
+- Modding : `nie mod`, et la section « Modding » de `CLAUDE.md`
 - Éditeur d'avatar : `docs/AVATAR.md`
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — character and skill ID CRC32 hashes
 - `function` — character stats evaluation routines in `nie.exe`
 - `xref` — cross-references to skill tables

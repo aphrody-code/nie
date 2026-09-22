@@ -5,7 +5,7 @@
 # Doit rester sous ~3 s et ne jamais echouer (exit 0 quoi qu'il arrive).
 
 set -u
-# La racine se DEDUIT, elle ne se suppose pas. Ce hook se repliait sur /home/ubuntu/niers
+# La racine se DEDUIT, elle ne se suppose pas. Ce hook se repliait sur /home/ubuntu/nie
 # en dur : sous Codex, ou CLAUDE_PROJECT_DIR n'existe pas, le `cd` echouait et le `|| exit 0`
 # rendait 0 SANS UNE LIGNE de sortie — le hook d'etat se taisait a chaque session, et rien
 # ne le disait. Mesure le 2026-09-06 sur le poste Windows : 0 ligne, exit 0.
@@ -17,7 +17,7 @@ if ! cd "$RACINE" 2>/dev/null; then
   exit 0
 fi
 q() { timeout 5 sqlite3 -noheader -separator ' ' "$@" 2>/dev/null; }
-KB=var/niers.sqlite
+KB=var/nie.sqlite
 
 echo "=== etat mesure du depot (hook SessionStart, $(date '+%F %H:%M')) ==="
 
@@ -34,7 +34,7 @@ echo "machine   $(uname -sm) — $(nproc) coeurs, $MEM, disque $(df -h --output=
 # C:\Windows\system32\bash.exe, c'est-a-dire WSL. `uname -s` y rend « Linux » et ce hook
 # annoncait « CETTE machine est le VPS Linux » sur le poste Windows : le mensonge exact que
 # CLAUDE.md § Deux machines reproche a la version en dur. Mesure : `bash -c pwd` rend
-# /mnt/c/Users/aphro/niers, et non C:\Users\aphro\niers.
+# /mnt/c/Users/aphro/nie, et non C:\Users\aphro\nie.
 if [ "$(uname -s)" = "Linux" ] && grep -qi microsoft /proc/version 2>/dev/null; then
   echo "          CETTE machine est le poste Windows, vu au travers de WSL (pas le VPS)."
   echo "          Le depot est monte sur /mnt/c : les binaires .exe, MSVC et le jeu Steam sont"
@@ -85,8 +85,8 @@ if [ -f "$ATLAS" ]; then
   n=$(q "$ATLAS" "select count(*) from v_atlas_gap_ranked;")
   age=$(q "$ATLAS" "select cast((julianday('now')-julianday(max(scanned_at)))*24 as int) from atlas_artifact;")
   echo "atlas     ${a:-indisponible} (indexe il y a ${age:-?} h)"
-  echo "          ${n:-0} ecarts ouverts, n1 : ${g:-aucun} — 'niers atlas gaps' pour la route, 'niers atlas next' pour le prochain chantier"
-  echo "          CHERCHER AVEC 'niers atlas search <terme>' AVANT tout rg/find : il couvre docs, symboles, outils, fichiers et crates d'un coup."
+  echo "          ${n:-0} ecarts ouverts, n1 : ${g:-aucun} — 'nie atlas gaps' pour la route, 'nie atlas next' pour le prochain chantier"
+  echo "          CHERCHER AVEC 'nie atlas search <terme>' AVANT tout rg/find : il couvre docs, symboles, outils, fichiers et crates d'un coup."
 else
   echo "atlas     $ATLAS absent — 'just atlas' le construit (~3 min), cf. docs/ATLAS.md"
 fi
@@ -114,7 +114,7 @@ echo "VFS       NIE_GAME_DIR=${NIE_GAME_DIR:-non posee}"
 
 # --- services ---------------------------------------------------------------
 s=$(timeout 5 systemctl list-units --type=service --state=running --no-legend --no-pager 2>/dev/null \
-    | awk '{print $1}' | grep -E '(azalee|niers|nie-|rg-|bxc|cdn)' | sed 's/\.service$//' | tr '\n' ' ')
+    | awk '{print $1}' | grep -E '(azalee|nie|nie-|rg-|bxc|cdn)' | sed 's/\.service$//' | tr '\n' ' ')
 echo "services  ${s:-aucun service du projet en cours}"
 f=$(timeout 5 systemctl list-units --type=service --state=failed --no-legend --no-pager 2>/dev/null \
     | awk '{print $1}' | sed 's/\.service$//' | tr '\n' ' ')

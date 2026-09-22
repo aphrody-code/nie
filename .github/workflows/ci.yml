@@ -1,4 +1,4 @@
-# CI niers — runner SELF-HOSTED obligatoire.
+# CI nie — runner SELF-HOSTED obligatoire.
 #
 # POURQUOI PAS UN RUNNER GITHUB
 # Le dépôt dépend en `path` du dépôt frère `../aphrody` (8,1 Gio, privé) : sans lui,
@@ -10,7 +10,7 @@
 # POURQUOI LA PORTE EST CADRÉE, ET POURQUOI ELLE RESTE UN SEUL JOB
 # Le dépôt publie cinq surfaces (cli, mcp, site, desktop, model) et elles partagent
 # l'essentiel de leurs crates : union des cinq fermetures = 36 des 47 membres, et `cli`
-# n'en a aucune qui lui soit propre. Mesuré sur les 400 derniers commits, un job par
+# n'en a aucune qui lui soit propre. Mesuré sur les 400 dernie commits, un job par
 # surface coûterait 19 638 compilations de crate (21 475 si `nie-wasm` a sa lane) contre
 # 18 800 pour un `clippy --workspace` — un découpage par surface est PLUS cher, parce que
 # chaque crate partagée serait recompilée une fois par lane. Il ferait aussi tourner cinq
@@ -54,7 +54,7 @@ permissions:
 
 jobs:
   plan:
-    runs-on: [self-hosted, niers-vps]
+    runs-on: [self-hosted, nie-vps]
     timeout-minutes: 5
     outputs:
       surfaces: ${{ steps.plan.outputs.surfaces }}
@@ -94,7 +94,7 @@ jobs:
   quality:
     needs: plan
     if: needs.plan.outputs.any == 'true'
-    runs-on: [self-hosted, niers-vps]
+    runs-on: [self-hosted, nie-vps]
     timeout-minutes: 45
     env:
       CARGO_TERM_COLOR: always
@@ -102,7 +102,7 @@ jobs:
       # Cible partagée avec l'arbre de travail : sur un disque à 96 %, un second
       # `target/` de plusieurs gigaoctets ferait tomber le déploiement d'azalée sous son
       # propre garde-fou (il refuse en dessous de 5 Gio libres).
-      CARGO_TARGET_DIR: /home/ubuntu/niers/target
+      CARGO_TARGET_DIR: /home/ubuntu/nie/target
       SURFACES: ${{ needs.plan.outputs.surfaces }}
     steps:
       - uses: actions/checkout@v4
@@ -142,7 +142,7 @@ jobs:
   scripts:
     # Le cliquet de types de `scripts/` : 55 fichiers TypeScript y vivaient sans qu'aucun
     # tsconfig ne les couvre, release et deploy compris. Cf. scripts/tsconfig.gate.json.
-    runs-on: [self-hosted, niers-vps]
+    runs-on: [self-hosted, nie-vps]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

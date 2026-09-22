@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Automation daemon for A2A synchronization in niers.
+ * Automation daemon for A2A synchronization in nie.
  * Usage: bun scripts/a2a-sync.ts [tick|status|heartbeat]
  */
 import { existsSync, writeFileSync, appendFileSync } from "fs";
 
 const command = process.argv[2] || "heartbeat";
-const astraId = "astra@aphrody-code/niers";
+const astraId = "astra@aphrody-code/nie";
 const heartbeatFile = ".coord/heartbeat-astra.txt";
 const now = new Date().toISOString();
 

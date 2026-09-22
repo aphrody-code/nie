@@ -10,7 +10,7 @@ import {
 	type GameNavigationState,
 } from "./navigation";
 import type { OpeningPhase } from "./opening-sequence";
-import { writeBrowserHistory, type NavigationOptions } from "@niers/inacord-ui/lib/browser-navigation";
+import { writeBrowserHistory, type NavigationOptions } from "@nie/inacord-ui/lib/browser-navigation";
 
 /** One screen state survives route unmounts, history traversal, and page reloads. */
 export function useGameNavigation(routes: readonly string[], serverRoute?: string | null) {

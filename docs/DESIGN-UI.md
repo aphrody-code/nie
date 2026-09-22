@@ -82,7 +82,7 @@ recalculés) puis étend sa classe de base commune (`.nie-sprite`) avec l'habill
 cette crate mesure déjà : transition `--jeu-duree-rapide`, rayon `--jeu-rayon`, anneau de focus
 `--jeu-accent-azur` — les mêmes jetons que [`compose::TILE`] emploie pour une tuile du menu, posés
 ici sur une icône. Testé contre un atlas réel du jeu (`data/dx11/font/gaiji_game.g4tx`, localisé
-par `niers vfs find gaiji_game`), gardé par `nie_formats::vfs` (s'auto-saute à voix haute si le
+par `nie vfs find gaiji_game`), gardé par `nie_formats::vfs` (s'auto-saute à voix haute si le
 jeu n'est pas monté sur la machine qui lance les tests — jamais un vert silencieux).
 
 ## Polices — recensé, pas porté
@@ -260,7 +260,7 @@ lecture de `data/menu` sur le même corpus `*_setting.cfg.bin`, sans toucher un 
 
 | Commit | Portée |
 |---|---|
-| `be1eaa11` | `crates/tools/nie-cli` — `niers mode coverage --strict` : 475 écrans Steam vus, 109 classés dans 12 modes, 366 non classés, 0 doublon |
+| `be1eaa11` | `crates/tools/nie-cli` — `nie mode coverage --strict` : 475 écrans Steam vus, 109 classés dans 12 modes, 366 non classés, 0 doublon |
 | `5679b238` | `crates/engine/nie-game` — audit de tous les réglages de menu en une passe VFS |
 | `78eac842`/`08c6db76` | `crates/engine/nie-ffi` — `decodeMenuSetting()`/`vfs.menuSetting()` exposés à Bun, 13 tests |
 | `c720d9b0` | binding WASM — `cfgbin_menu_setting_json()` |

@@ -242,7 +242,7 @@ impl ReSession {
 
 /// Unified read-and-write facade over `nie-re` + `nie-trace` in YOLO mode.
 #[cfg(feature = "host")]
-pub struct NiersComputerUse;
+pub struct NieComputerUse;
 
 #[cfg(feature = "host")]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -264,7 +264,7 @@ pub struct LiveHit {
 }
 
 #[cfg(feature = "host")]
-impl NiersComputerUse {
+impl NieComputerUse {
     #[must_use]
     pub fn find_nie_pid() -> Option<i32> {
         nie_trace::find_pid_by_name(NIE_PROCESS_NAME)
@@ -535,7 +535,7 @@ mod tests {
 
     #[test]
     fn snapshot_is_bounded_to_nie() {
-        assert_eq!(NiersComputerUse::snapshot(None).process_name, "nie.exe");
+        assert_eq!(NieComputerUse::snapshot(None).process_name, "nie.exe");
     }
 
     #[test]
@@ -586,13 +586,13 @@ mod tests {
 
     #[test]
     fn live_reads_reject_unbounded_lengths_before_backend() {
-        let error = NiersComputerUse::read_memory(0, 0, MAX_READ_BYTES + 1).unwrap_err();
+        let error = NieComputerUse::read_memory(0, 0, MAX_READ_BYTES + 1).unwrap_err();
         assert!(matches!(error, nie_trace::MemError::InvalidLength { .. }));
     }
 
     #[test]
     fn live_scans_reject_unbounded_hit_limits() {
-        assert!(NiersComputerUse::scan_aob(0, "nie.exe", "90", MAX_SCAN_HITS + 1).is_err());
+        assert!(NieComputerUse::scan_aob(0, "nie.exe", "90", MAX_SCAN_HITS + 1).is_err());
     }
 
     #[test]

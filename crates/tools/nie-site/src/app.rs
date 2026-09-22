@@ -331,7 +331,7 @@ declarer_routes! {
     "/api/v1/conditions" => crate::routes::conditions::capabilities,
     "/api/v1/conditions/{blob}" => crate::routes::conditions::condition,
     // Deux capacites de la CLI que le web n'exposait pas. `nie-cli` n'a PAS de cible `[lib]`
-    // (que `[[bin]] name = "niers"`) : rien n'y est importable, et la logique est donc reecrite
+    // (que `[[bin]] name = "nie"`) : rien n'y est importable, et la logique est donc reecrite
     // ici contre `nie-formats`/`nie-lua`, sans une feature de plus. Cf. `routes::screens`.
     "/api/v1/icons" => crate::routes::screens::icons,
     "/api/v1/icons/{name}" => crate::routes::screens::icon,
@@ -402,7 +402,7 @@ declarer_routes! {
     // Legacy Azalee roster URL, with a compatibility DTO and the same read-only mirror.
     "/api/save/resolve-roster" => crate::routes::save::legacy_contract,
     // La matrice de couverture du plan (§ 4). Elle est LUE, jamais mesuree ici : mesurer,
-    // c'est lancer `niers --help`, lire quatre arbres de sources et parcourir 255 308 lignes
+    // c'est lancer `nie --help`, lire quatre arbres de sources et parcourir 255 308 lignes
     // d'inventaire. Cf. `routes::couverture`.
     "/couverture" => crate::routes::couverture::page,
     "/api/v1/couverture" => crate::routes::couverture::json,

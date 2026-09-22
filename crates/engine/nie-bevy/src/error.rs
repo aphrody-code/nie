@@ -17,7 +17,7 @@ use thiserror::Error;
 /// La conversion vers `bevy_ecs::error::BevyError`, exigée par `AssetLoader::Error`, est
 /// automatique : `BevyError` a un `From<E>` pour tout `E: std::error::Error + Send + Sync`.
 #[derive(Debug, Error)]
-pub enum NiersAssetError {
+pub enum NieAssetError {
     /// Le conteneur ne se décode pas — magic inattendu, troncature, version non gérée.
     #[error("{format}: decode failed: {reason}")]
     Decode {

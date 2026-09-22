@@ -110,7 +110,7 @@ impl Drop for Server {
 #[test]
 fn the_server_answers_real_questions_about_the_binary() {
     let root = repo_root();
-    let kb = root.join("var/niers.sqlite");
+    let kb = root.join("var/nie.sqlite");
     let exe = root.join("nie.exe");
     if !kb.is_file() || !exe.is_file() {
         eprintln!(
@@ -124,8 +124,8 @@ fn the_server_answers_real_questions_about_the_binary() {
 
     let child = Command::new(env!("CARGO_BIN_EXE_nie-mcp"))
         .current_dir(&root)
-        .env("NIERS_REPO", &root)
-        .env("NIERS_SQLITE", &kb)
+        .env("NIE_REPO", &root)
+        .env("NIE_SQLITE", &kb)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())

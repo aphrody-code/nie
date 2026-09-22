@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/photo_mode/photo_mode_random_pose_config.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/photo_mode/photo_mode_random_pose_config.cfg.bin.json`
 //! - 1 liste dans ce fichier :
 //!   - `m_randomPoseList` — 91 entrées `RANDOM_POSE`, chacune décrivant une pose
 //!     (animation de motion) tirée au hasard pour un personnage en mode photo.

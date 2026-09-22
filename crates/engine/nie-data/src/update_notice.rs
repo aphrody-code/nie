@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/update_notice/update_notice_config_0.00.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/update_notice/update_notice_config_0.00.00.cfg.bin.json`
 //! - Pas de parser inagle connu : le dump `.cfg.bin.json` EST la vérité terrain.
 //! - Format **`lists`** (champs nommés), identique à `banner` / `formation`.
 //! - Deux listes dans ce fichier :

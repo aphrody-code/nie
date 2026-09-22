@@ -189,58 +189,58 @@ pub static MODULES_TYPES: &[&str] = &[
 
 /// Toutes les décisions de classement, source par source.
 pub static REGLES: &[Regle] = &[
-    // ---------------------------------------------------------------- niers (sous-commandes)
+    // ---------------------------------------------------------------- nie (sous-commandes)
     r!(
-        "niers-vfs",
-        Niers,
+        "nie-vfs",
+        Nie,
         Motif::Exact("vfs"),
         servi("/b/{*prefixe}")
     ),
     r!(
-        "niers-decode",
-        Niers,
+        "nie-decode",
+        Nie,
         Motif::Exact("decode"),
         servi("/api/v1/formats/decode/{*chemin}")
     ),
     r!(
-        "niers-format",
-        Niers,
+        "nie-format",
+        Nie,
         Motif::Exact("format"),
         servi("/api/v1/formats/decode/{*chemin}")
     ),
     r!(
-        "niers-lua",
-        Niers,
+        "nie-lua",
+        Nie,
         Motif::Exact("lua"),
         servi("/api/v1/lua/scripts/{*chemin}")
     ),
     r!(
-        "niers-textures",
-        Niers,
+        "nie-textures",
+        Nie,
         Motif::Exact("textures"),
         servi("/api/v1/{vue}")
     ),
     r!(
-        "niers-video",
-        Niers,
+        "nie-video",
+        Nie,
         Motif::Exact("video"),
         servi("/api/v1/{vue}")
     ),
     r!(
-        "niers-wiki",
-        Niers,
+        "nie-wiki",
+        Nie,
         Motif::Exact("wiki"),
         servi("/api/v1/chara")
     ),
     r!(
-        "niers-render",
-        Niers,
+        "nie-render",
+        Nie,
         Motif::Exact("render"),
         servi("/model/{famille}/{fichier}")
     ),
     r!(
-        "niers-info",
-        Niers,
+        "nie-info",
+        Nie,
         Motif::Exact("info"),
         servi("/api/v1/health")
     ),
@@ -248,16 +248,16 @@ pub static REGLES: &[Regle] = &[
     // il manque la route. C'est du câblage, et c'est le défaut 1 du lot 8 — `/b` accepte `q`
     // et l'ignore.
     r!(
-        "niers-recherche",
-        Niers,
+        "nie-recherche",
+        Nie,
         Motif::Exact("find"),
         interne(
             "cherche sur le DISQUE de la machine (moteur `ignore`) ; la recherche dans le VFS du jeu, elle, est servie par /api/v1/recherche"
         )
     ),
     r!(
-        "niers-grep",
-        Niers,
+        "nie-grep",
+        Nie,
         Motif::Exact("grep"),
         interne(
             "cherche dans le CONTENU des fichiers du disque : un service web ne lit pas l'arbre de la machine"
@@ -270,14 +270,14 @@ pub static REGLES: &[Regle] = &[
     // `nie-formats`/`nie-lua`, sans une feature de plus. Une raison qui cite un chemin
     // inexistant envoie le lot suivant chercher au mauvais endroit.
     r!(
-        "niers-icons",
-        Niers,
+        "nie-icons",
+        Nie,
         Motif::Exact("icons"),
         servi("/api/v1/icons")
     ),
     r!(
-        "niers-mode",
-        Niers,
+        "nie-mode",
+        Nie,
         Motif::Exact("mode"),
         servi("/api/v1/modes/{slug}")
     ),
@@ -285,8 +285,8 @@ pub static REGLES: &[Regle] = &[
     // `chara_edit_parts_type_config` sont dans `typed::decode_by_key` depuis le 2026-09-06, et
     // `/api/v1/donnees/famille/{cle}` les sert sans qu'on ait à connaître le chemin VFS.
     r!(
-        "niers-avatar",
-        Niers,
+        "nie-avatar",
+        Nie,
         Motif::Exact("avatar"),
         servi("/api/v1/donnees/famille/{cle}")
     ),
@@ -294,111 +294,111 @@ pub static REGLES: &[Regle] = &[
     // servies en process ; l'encodage d'image (8 formats) reste chez `nie-model-serve`, qui
     // porte les features `images`/`textures` que ce service refuse délibérément d'allumer.
     r!(
-        "niers-convert",
-        Niers,
+        "nie-convert",
+        Nie,
         Motif::Exact("convert"),
         servi("/assets/{*chemin}")
     ),
     r!(
-        "niers-img",
-        Niers,
+        "nie-img",
+        Nie,
         Motif::Exact("img"),
         interne("édition d'image : elle écrit un fichier, un site en lecture seule n'écrit pas")
     ),
     r!(
-        "niers-save",
-        Niers,
+        "nie-save",
+        Nie,
         Motif::Exact("save"),
         interne("sauvegardes de joueur : données personnelles, hors périmètre contractuel")
     ),
     r!(
-        "niers-strings",
-        Niers,
+        "nie-strings",
+        Nie,
         Motif::Exact("strings"),
         interne("reverse du binaire : coûteux, privilégié, sans public")
     ),
     r!(
-        "niers-coverage",
-        Niers,
+        "nie-coverage",
+        Nie,
         Motif::Exact("coverage"),
         interne("couverture du RE : mesure interne du dépôt, pas une capacité du jeu")
     ),
     r!(
-        "niers-uniform-map",
-        Niers,
+        "nie-uniform-map",
+        Nie,
         Motif::Exact("uniform-map"),
         interne("construction d'un manifeste d'index : outil de build, consommé par l'amont")
     ),
     r!(
-        "niers-refresh",
-        Niers,
+        "nie-refresh",
+        Nie,
         Motif::Exact("refresh-typed-json"),
         interne("régénère des fichiers à côté du dump : écriture disque")
     ),
     r!(
-        "niers-menu-predecode",
-        Niers,
+        "nie-menu-predecode",
+        Nie,
         Motif::Exact("menu-predecode"),
         interne("pré-décode dans le dump disque : écriture disque")
     ),
     r!(
-        "niers-seed-ui",
-        Niers,
+        "nie-seed-ui",
+        Nie,
         Motif::Exact("seed-ui"),
         interne("ingère dans la base de connaissance : écriture")
     ),
     r!(
-        "niers-vn",
-        Niers,
+        "nie-vn",
+        Nie,
         Motif::Exact("vn"),
         interne("produit un catalogue local jamais versionné")
     ),
     r!(
-        "niers-mem",
-        Niers,
+        "nie-mem",
+        Nie,
         Motif::Exact("mem"),
         interne("lit la mémoire d'un process du jeu : privilège, machine locale")
     ),
     r!(
-        "niers-steam",
-        Niers,
+        "nie-steam",
+        Nie,
         Motif::Exact("steam"),
         interne("identifiants Steam : secrets, jamais côté site")
     ),
     r!(
-        "niers-mod",
-        Niers,
+        "nie-mod",
+        Nie,
         Motif::Exact("mod"),
         interne("écrit dans l'installation du jeu : machine locale")
     ),
     r!(
-        "niers-viola",
-        Niers,
+        "nie-viola",
+        Nie,
         Motif::Exact("viola"),
         interne("modding LEVEL-5 : écriture, façade d'administration")
     ),
     r!(
-        "niers-cpp",
-        Niers,
+        "nie-cpp",
+        Nie,
         Motif::Exact("cpp"),
         interne("façade vers le toolkit C++ : API d'administration, non affichée")
     ),
     r!(
-        "niers-cs",
-        Niers,
+        "nie-cs",
+        Nie,
         Motif::Exact("cs"),
         interne("façade vers l'outillage .NET : API d'administration, non affichée")
     ),
     r!(
-        "niers-backends",
-        Niers,
+        "nie-backends",
+        Nie,
         Motif::Exact("backends"),
         interne("dit ce qui est construit sur CETTE machine : sans objet en ligne")
     ),
-    // Le reverse et la forge, en bloc : neuf commandes qui lisent ou écrivent `var/niers.sqlite`.
+    // Le reverse et la forge, en bloc : neuf commandes qui lisent ou écrivent `var/nie.sqlite`.
     filet!(
-        "niers-reverse",
-        Niers,
+        "nie-reverse",
+        Nie,
         Motif::Tout,
         interne("boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)")
     ),
@@ -682,7 +682,7 @@ pub static REGLES: &[Regle] = &[
     r!(
         "inacord-blender-addon",
         Inacord,
-        Motif::Exact("install_niers_blender_addon"),
+        Motif::Exact("install_nie_blender_addon"),
         interne("installe un greffon sur la machine de l'utilisateur")
     ),
     r!(
@@ -1043,7 +1043,7 @@ pub static REGLES: &[Regle] = &[
         Motif::Exact("planche"),
         servi("/api/v1/inspect/plate")
     ),
-    // La route existe, décode et se teste — mais **le corpus de ce jeu est vide** : `niers vfs
+    // La route existe, décode et se teste — mais **le corpus de ce jeu est vide** : `nie vfs
     // find 'nxtch'` rend 0, et le contenu d'un `.g4tx` est du DDS (vérifié sur `an000100.g4tx`,
     // 6 magics `DDS `, 0 `NXTCH`). La réponse publie `corpus: 0` plutôt que de laisser croire à
     // une panne. Servi veut dire « la route rend le contenu interprété », pas « ce jeu en a ».

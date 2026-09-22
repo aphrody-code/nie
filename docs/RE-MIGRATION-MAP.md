@@ -6,7 +6,7 @@ Ce document fournit la synthèse exhaustive, classifiée et mesurée de tout le 
 
 ## 1. Classification Globale de `nie.exe` (117 068 fonctions)
 
-Mesure extraite directement de la base de connaissance canonique (`var/niers.sqlite`, binaire #2 `nie.exe#pdata`) :
+Mesure extraite directement de la base de connaissance canonique (`var/nie.sqlite`, binaire #2 `nie.exe#pdata`) :
 
 | Sous-système | Fonctions Total | Nommées (PDB/RTTI/Str/Lua) | Confiance >= 0.3 | Crate Rust Cible / Propriétaire | Statut de Portage Rust |
 |---|---:|---:|---:|---|---|
@@ -23,7 +23,7 @@ Mesure extraite directement de la base de connaissance canonique (`var/niers.sql
 | **VFS / Conteneurs** | 529 | 150 | 77 | `nie-formats::{cpk, cfgbin, crilayla}` | Complet (100% CPK chiffrés, RDBN/T2B, décompression CRILAYLA) |
 | **Input / Contrôleurs** | 468 | 130 | 67 | `nie-game`, `nie-core` | Modéré (mapping touches T2B décodé, bindings winit) |
 | **Standalone / Feuilles** | 19 515 | 8 189 | 0 | `nie-core`, fonctions utilitaires standard | En cours (fonctions feuilles pures math/string/hash) |
-| **TOTAL** | **117 068** | **49 158 (41.99%)** | **97 553 (83.33%)** | Workspace `niers` (46 crates maintenus) | **83.33% classifié structurellement** |
+| **TOTAL** | **117 068** | **49 158 (41.99%)** | **97 553 (83.33%)** | Workspace `nie` (46 crates maintenus) | **83.33% classifié structurellement** |
 
 ---
 
@@ -31,7 +31,7 @@ Mesure extraite directement de la base de connaissance canonique (`var/niers.sql
 
 Tout le savoir RE du dépôt est désormais consolidé et interconnecté :
 
-1. **La Base de Connaissance Centrale (`var/niers.sqlite`)** :
+1. **La Base de Connaissance Centrale (`var/nie.sqlite`)** :
    - Table `function` : Indexe les 117 068 fonctions de `nie.exe` issues des tables `.pdata` d'unwind PE64.
    - Table `rtti_class` & `rtti_base` : 1 745 classes C++ MSVC avec hiérarchie d'héritage complète (`game::*`, `lives::*`, `physx::*`).
    - Table `xref` : Plus de 400 000 arêtes du graphe d'appel (calls directs, appels indirects de vtables, références de chaînes).
@@ -41,7 +41,7 @@ Tout le savoir RE du dépôt est désormais consolidé et interconnecté :
 
 2. **L'Atlas Global (`var/nie-atlas.sqlite`)** :
    - Index unifié couvrant 6 856 artefacts, 51 crates, 1 078 documents techniques, 15 162 références machines croisées (`0x14...`, fonctions, tables, hashes).
-   - Suivi en temps réel des gaps de parité (`niers atlas gaps` & `niers atlas status`).
+   - Suivi en temps réel des gaps de parité (`nie atlas gaps` & `nie atlas status`).
 
 3. **Le Répertoire de Décompilation & Archives (`crates/archive/nie-engine/`)** :
    - 15 000+ lignes de C/C++ portées en Rust préliminaire, contenant **434 marqueurs `// EXTERN: FUN_140...`**.
@@ -84,7 +84,7 @@ Chaque brique migrée depuis le pseudo-C Ghidra ou `crates/archive/nie-engine` v
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — 117 068 functions of `nie.exe`
 - `coverage` — binary coverage rate
 - `pdata_func` — 55 351 authoritative function start addresses

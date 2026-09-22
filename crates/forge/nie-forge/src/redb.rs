@@ -1,4 +1,4 @@
-//! Lecture de la base de connaissance RE (`var/niers.sqlite`).
+//! Lecture de la base de connaissance RE (`var/nie.sqlite`).
 //!
 //! L'échafaudage de reverse a nommé **6 429 fonctions** structurellement
 //! (RTTI + vtables) et borné **50 674 racines** via `.pdata`. La forge s'en sert

@@ -336,14 +336,14 @@ Tout ce qui suit vit dans `crates/engine/nie-camera` (32 tests, clippy 0 warning
 6. **Localisateur AOB de l'objet caméra** : `live` fonctionne par scan heuristique faute de
    signature validée sur un dump ; une entrée dans `nie-trace::catalog` rendrait l'accès direct.
 
-## 8. Index SQL — `var/niers.sqlite`
+## 8. Index SQL — `var/nie.sqlite`
 
 Tout ce qui précède est **indexé dans la base de connaissance**, migration
 `crates/forge/nie-index/src/camera.sql` (`nie_index::CAMERA_SCHEMA`, appliquée par
 `Db::init` — `meta.schema_version = 2`). Peuplement : `nie-cam index`.
 
 ```bash
-nie-cam index --db var/niers.sqlite --samples   # tout, échantillons compris
+nie-cam index --db var/nie.sqlite --samples   # tout, échantillons compris
 nie-cam index --no-anims                        # carte + configs seulement
 nie-cam stats                                   # état de l'index
 ```

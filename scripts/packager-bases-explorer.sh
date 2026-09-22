@@ -58,9 +58,9 @@ if [ ! -e "$MIROIR" ]; then
 fi
 compresser "$MIROIR" "mirror.sqlite"
 
-# La base de reverse. Contrairement au miroir, elle se reconstruit sur place (`niers rebuild`) :
+# La base de reverse. Contrairement au miroir, elle se reconstruit sur place (`nie rebuild`) :
 # pas de lien, un seul fichier.
-compresser "$RACINE/var/niers.sqlite" "niers.sqlite"
+compresser "$RACINE/var/nie.sqlite" "nie.sqlite"
 
 # Le catalogue des épisodes de la série, que la vue Cinéma présente à côté des cinématiques du
 # jeu. 290 Ko : le seuil de validité des deux autres (1 Mo)

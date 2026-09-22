@@ -16,7 +16,7 @@ site. Sont dans le périmètre :
 
 | Surface | Ce qui compte comme vulnérabilité |
 |---|---|
-| CLI `niers`, binaires `crates/` | exécution de code par un fichier de jeu malformé, écriture hors du répertoire visé |
+| CLI `nie`, binaires `crates/` | exécution de code par un fichier de jeu malformé, écriture hors du répertoire visé |
 | Inacord (`apps/inacord`, Tauri) | contournement de l'allowlist, exécution de commande depuis le front, chaîne de mise à jour (signature) |
 | `nie-model-serve`, `nie-site` | path traversal, SSRF, or disclosure of a file outside the served VFS |
 | `nie-mcp` | outil MCP permettant de lire ou d'écrire hors du dépôt |
@@ -33,14 +33,14 @@ Sont **hors** périmètre :
 
 ## Chaîne de publication
 
-Les installeurs de l'application de bureau sont signés par la clé `~/.tauri/niers.key`, et
+Les installeurs de l'application de bureau sont signés par la clé `~/.tauri/nie.key`, et
 l'updater refuse un paquet dont la signature ne correspond pas. Un installeur non signé ou
 signé par une autre clé n'est pas un livrable de ce projet : le signaler.
 
 ## Secrets
 
 Aucun secret ne doit entrer dans le dépôt. Les jetons de service vivent dans
-`~/.config/niers/` (permissions `0600`) et dans les unités systemd du VPS. Un secret
+`~/.config/nie/` (permissions `0600`) et dans les unités systemd du VPS. Un secret
 committé par erreur doit être révoqué avant d'être retiré de l'historique — retirer sans
 révoquer ne protège rien.
 

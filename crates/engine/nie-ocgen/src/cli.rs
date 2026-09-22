@@ -1,6 +1,6 @@
 //! The command surface, kept in the library so every host runs the same code.
 //!
-//! `niers ocgen` and the standalone `nie-ocgen` binary are both a `clap` derive plus a call to
+//! `nie ocgen` and the standalone `nie-ocgen` binary are both a `clap` derive plus a call to
 //! [`run`]. Nothing here decides anything the pipeline does not already decide; putting the logic
 //! in the library is what stops a second implementation from drifting away from the first, which
 //! this repository has already paid for on keeper, menu and match-sim.

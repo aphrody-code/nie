@@ -1,21 +1,21 @@
 # justfile — orchestrateur de la stack RE nie.
 # Requiert `just` (cargo install just). Toolchain nightly-2026-05-17 (cf rust-toolchain.toml).
-# Variables surchargeables : `just exe=/autre/nie.exe re-all`, ou via env NIERS_GAME_DIR.
+# Variables surchargeables : `just exe=/autre/nie.exe re-all`, ou via env NIE_GAME_DIR.
 
 set shell := ["bash", "-uc"]
 set positional-arguments
 
-# Cible RE (binaire PE), base KB, binaire niers.
-game_dir := env_var_or_default("NIERS_GAME_DIR", "/home/ubuntu/.local/share/Steam/iecode/inazuma")
+# Cible RE (binaire PE), base KB, binaire nie.
+game_dir := env_var_or_default("NIE_GAME_DIR", "/home/ubuntu/.local/share/Steam/iecode/inazuma")
 exe      := game_dir / "nie_eacpatched.exe"
-db       := "var/niers.sqlite"
+db       := "var/nie.sqlite"
 bin      := "target/release/nie"
 seed_json := "refs/iecode-re/research/nie-index.json"
 rounds   := "16"
 
 # Atlas : index unique des surfaces RE (cf. docs/ATLAS.md).
 atlas_db    := "var/nie-atlas.sqlite"
-atlas_redis := env_var_or_default("NIERS_ATLAS_REDIS", "redis://127.0.0.1/4")
+atlas_redis := env_var_or_default("NIE_ATLAS_REDIS", "redis://127.0.0.1/4")
 
 # Liste les recettes (defaut).
 default:

@@ -30,7 +30,7 @@
 //! ## Surface exposée
 //!
 //! En plus des parsers de formats (`nie-formats`), ce crate expose au navigateur le
-//! savoir VÉRIFIÉ déjà porté dans les autres crates niers :
+//! savoir VÉRIFIÉ déjà porté dans les autres crates nie :
 //!
 //! - **`nie-core`** — calcul de statistiques (courbe de croissance lv1→99, ancrée sur
 //!   `inagle/stat-calculator.ts`) et machine à états du match (FSM 11 états + score).
@@ -4892,7 +4892,7 @@ impl nie_formats::menu_screen::MenuSource for FichiersNavigateur {
 /// 3. `required_companions()` — les noms logiques que ces `.objbin` désignent ; `provide_companion`
 ///    dit où chacun vit, `provide_file` en donne les octets ;
 /// 4. `build(locale, menu_text_json, visibility_json)` — le layout, au schéma
-///    `niers.menu.layout/v1`.
+///    `nie.menu.layout/v1`.
 ///
 /// Deux tours sont nécessaires parce qu'un `.objbin` ne se lit pas sans être téléchargé, et que
 /// ce qu'il désigne ne se connaît pas avant de l'avoir lu. C'est le jeu lui-même qui impose cet
@@ -4985,7 +4985,7 @@ impl MenuScreenBuilder {
             .insert(logical.to_owned(), path.to_owned());
     }
 
-    /// Le layout, au schéma `niers.menu.layout/v1`.
+    /// Le layout, au schéma `nie.menu.layout/v1`.
     ///
     /// `menu_text_json` : `[[hash, "texte"], …]` — les libellés de la locale, que la page tient
     /// de `/api/v1/text`. Une liste vide rend un layout sans libellé, ce qui est exact.

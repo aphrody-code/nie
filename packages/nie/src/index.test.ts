@@ -3,10 +3,10 @@
  *
  * Ces tests appellent RÉELLEMENT le code Rust via bun:ffi (dlopen sur
  * target/debug/libiecode.so) et assertent des valeurs exactes connues du
- * moteur niers (vérité terrain). Un bug FFI est une corruption silencieuse,
+ * moteur nie (vérité terrain). Un bug FFI est une corruption silencieuse,
  * pas une exception : on compare donc des octets/entiers précis, pas "truthy".
  *
- * Lancer :   cd /home/aphrody/niers && bun test
+ * Lancer :   cd /home/aphrody/nie && bun test
  * Prérequis: cargo build -p nie-ffi   (génère target/debug/libiecode.so)
  */
 

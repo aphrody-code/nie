@@ -39,7 +39,7 @@ impl Oklch {
 
 /// Une couleur du design system du jeu : sa valeur OKLCH, et d'où elle vient.
 ///
-/// Les quatre derniers champs recopient le commentaire de fin de ligne du CSS — c'est la preuve
+/// Les quatre dernie champs recopient le commentaire de fin de ligne du CSS — c'est la preuve
 /// de provenance que la consigne du dépôt exige pour chaque jeton.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ColorToken {

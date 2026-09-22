@@ -1,4 +1,4 @@
-//! Headless CLI game engine runtime (`niers play`).
+//! Headless CLI game engine runtime (`nie play`).
 //!
 //! Executes the identical game loop across WASM, Win32, Linux, and CLI:
 //! - State machine transitions (`Screen::Title`, `Screen::Menu`, `Screen::ModeSelect`, `Screen::Match`, `Screen::Story`)

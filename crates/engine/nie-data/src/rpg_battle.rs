@@ -3,7 +3,7 @@
 //! ## Vérité terrain
 //!
 //! Tous les fichiers source se trouvent dans :
-//! `/home/ubuntu/niers/data/common/gamedata/rpg_battle/`
+//! `/home/ubuntu/nie/data/common/gamedata/rpg_battle/`
 //!
 //! ## Périmètre porté (8 parseurs, FAIT)
 //!

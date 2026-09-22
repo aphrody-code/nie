@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { AvatarCatalog, AvatarComposition } from "@niers/inacord-ui/avatar/contract";
+import type { AvatarCatalog, AvatarComposition } from "@nie/inacord-ui/avatar/contract";
 import { api } from "@/lib/api";
 import { AvatarPipelinePanel } from "./AvatarPipelinePanel";
 

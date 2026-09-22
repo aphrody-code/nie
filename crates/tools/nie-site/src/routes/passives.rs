@@ -56,7 +56,7 @@ const LANGUAGES: [&str; 3] = ["fr", "en", "ja"];
 
 /// Les clés de famille des cinq sources, telles que `nie_data::typed::family_key` les dérive.
 ///
-/// Mesuré, pas supposé (`niers vfs find 'passive_skill' -n 20`, 2026-09-06) : les fichiers du
+/// Mesuré, pas supposé (`nie vfs find 'passive_skill' -n 20`, 2026-09-06) : les fichiers du
 /// jeu portent un numéro de version (`passive_skill_config_5.00.07.00.cfg.bin`) que personne ne
 /// devine. On résout donc par **clé de famille**, jamais par chemin écrit à la main — c'est la
 /// même règle que `routes::donnees` et elle survit à la prochaine mise à jour du jeu.

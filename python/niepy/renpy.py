@@ -1,4 +1,4 @@
-"""Pont entre le catalogue exporté par `niers vn export` et un projet Ren'Py.
+"""Pont entre le catalogue exporté par `nie vn export` et un projet Ren'Py.
 
 Ce module ne dépend **pas** de Ren'Py : il se contente de lire `catalogue.json` et de rendre
 des objets Python et des chaînes de script. On peut donc le tester hors moteur, ce qui est le
@@ -126,7 +126,7 @@ class Personnage:
 
 
 class Catalogue:
-    """Le catalogue complet exporté par `niers vn export`."""
+    """Le catalogue complet exporté par `nie vn export`."""
 
     def __init__(self, donnees: dict[str, Any], racine: Path) -> None:
         """Construit le catalogue depuis le JSON déjà chargé et sa racine sur disque."""
@@ -153,7 +153,7 @@ class Catalogue:
         if not chemin.is_file():
             raise FileNotFoundError(
                 f"{chemin} est absent. Produis-le avec :\n"
-                f"    niers vn export --out {racine}"
+                f"    nie vn export --out {racine}"
             )
         with chemin.open("r", encoding="utf-8") as flux:
             return cls(json.load(flux), racine)

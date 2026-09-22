@@ -19,8 +19,8 @@
     ],
     "defaultPrompt": [
       "Ask the atlas where the reconstruction of nie.exe stands, and what to do next.",
-      "Inspect a NIERS game asset using the native Rust tools.",
-      "Find the canonical crate for this NIERS capability."
+      "Inspect a NIE game asset using the native Rust tools.",
+      "Find the canonical crate for this NIE capability."
     ]
   }
 }

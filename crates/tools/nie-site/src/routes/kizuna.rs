@@ -315,7 +315,7 @@ pub async fn themes(State(state): State<EtatSite>) -> Result<Json<Vec<Theme>>, E
 /// `GET /api/v1/kizuna/sources` — les fichiers du jeu réellement lus.
 ///
 /// Elle existe pour que le catalogue soit **vérifiable** : un client peut confronter le chemin
-/// et la taille à ce que `niers vfs stat` répond, plutôt que de croire les comptes sur parole.
+/// et la taille à ce que `nie vfs stat` répond, plutôt que de croire les comptes sur parole.
 pub async fn sources(State(state): State<EtatSite>) -> Result<Json<Vec<Source>>, ErreurSite> {
     let b = tokio::task::spawn_blocking(move || built(&state)).await??;
     Ok(Json(b.sources.clone()))

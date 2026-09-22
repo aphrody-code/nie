@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! Dump réel : `/home/ubuntu/niers/data/common/gamedata/light/light_overwrite_config_1.03.21.00.cfg.bin.json`
+//! Dump réel : `/home/ubuntu/nie/data/common/gamedata/light/light_overwrite_config_1.03.21.00.cfg.bin.json`
 //!
 //! Le fichier utilise le format **`entries`** (noeuds nommés, variables positionnelles), comme
 //! `command/*.cfg.bin.json` — pas de champs nommés (`lists`).

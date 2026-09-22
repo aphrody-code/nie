@@ -7,7 +7,7 @@
  * A capture whose tokens resolve nothing is reported as `missing`, not silently dropped.
  *
  * Refresh the dump with:
- *   niers vfs find "data/" -n 400000 --json > var/outputs/menu-inventory/vfs-paths.json
+ *   nie vfs find "data/" -n 400000 --json > var/outputs/menu-inventory/vfs-paths.json
  */
 import { createHash } from "node:crypto";
 import { readdirSync } from "node:fs";

@@ -1,8 +1,8 @@
 """Ligne de commande de `niepy` — `uv run python -m niepy <commande>`.
 
-Ce point d'entrée ne double pas `niers` : il couvre ce qui appartient au monde Python, à
+Ce point d'entrée ne double pas `nie` : il couvre ce qui appartient au monde Python, à
 savoir la génération de script Ren'Py et l'export de données vers un projet Python. Les
-assets (voix, portraits, musique) restent produits par `niers vn export`, qui sait lire les
+assets (voix, portraits, musique) restent produits par `nie vn export`, qui sait lire les
 CPK.
 
     uv run python -m niepy renpy --out <projet>/game/nie
@@ -320,7 +320,7 @@ def _cmd_info(_args: argparse.Namespace) -> int:
 def construire_parseur() -> argparse.ArgumentParser:
     """Construit le parseur d'arguments."""
     parseur = argparse.ArgumentParser(
-        prog="niepy", description="Pont Python vers le moteur et les données de niers."
+        prog="niepy", description="Pont Python vers le moteur et les données de nie."
     )
     sous = parseur.add_subparsers(dest="commande", required=True)
 

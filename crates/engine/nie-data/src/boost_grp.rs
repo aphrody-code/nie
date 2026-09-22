@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/boost_grp/boost_player_group_config_0.00.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/boost_grp/boost_player_group_config_0.00.00.cfg.bin.json`
 //! - Format **`entries`** (noeuds nommés, variables positionnelles) — même convention que `command.rs`.
 //! - 3 listes dans le fichier, identifiées par leur préfixe de noeud :
 //!

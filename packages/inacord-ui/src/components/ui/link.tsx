@@ -8,7 +8,7 @@
 // navigateur externe sur une page qui n'existe pas hors ligne.
 import { createContext, useContext, type AnchorHTMLAttributes, type ReactNode } from "react";
 
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 /** Route du wiki telle qu'un composant porté l'écrit : `/chara/<code>`, `/skill/<code>`, … */
 export type RouteWiki = string;

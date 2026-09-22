@@ -1,6 +1,6 @@
-# Installer la CLI Niers
+# Installer la CLI Nie
 
-La CLI utilisateur est le binaire **`niers`**, fourni par le paquet Cargo
+La CLI utilisateur est le binaire **`nie`**, fourni par le paquet Cargo
 **`nie-cli`**. Le dépôt canonique est
 <https://github.com/aphrody-code/nie>. Il reste privé à la publication Cargo
 (`publish = false`) : l'installation reproductible se fait depuis Git avec le
@@ -17,7 +17,7 @@ N° RG-L5-VR-2026-001. Installer la CLI ne redistribue pas les données du jeu.
 - Windows 10/11, macOS ou Linux 64 bits.
 
 Certaines commandes dépendent de la plateforme ou d'outils externes. En
-particulier, `niers mem` utilise `process_vm_readv` et n'est disponible que sous
+particulier, `nie mem` utilise `process_vm_readv` et n'est disponible que sous
 Linux. Les opérations de formats, de modding et d'acquisition sont natives Rust
 et ne requièrent ni CMake, ni vcpkg, ni .NET.
 
@@ -27,10 +27,10 @@ Sur Linux, macOS, PowerShell ou `cmd.exe` :
 
 ```console
 cargo install --git https://github.com/aphrody-code/nie --package nie-cli --locked
-niers --version
+nie --version
 ```
 
-Cargo place `niers` dans son répertoire global de binaires, habituellement
+Cargo place `nie` dans son répertoire global de binaires, habituellement
 `$CARGO_HOME/bin` (`~/.cargo/bin` sur Linux et macOS,
 `%USERPROFILE%\.cargo\bin` sur Windows). Ce répertoire doit être présent dans
 `PATH`.
@@ -42,7 +42,7 @@ commande suit la branche par défaut du dépôt.
 
 ```console
 cargo install --git https://github.com/aphrody-code/nie --package nie-cli --locked --force
-niers --version
+nie --version
 ```
 
 Pour une mise à jour contrôlée, ajouter le nouveau `--tag vX.Y.Z`. `--force`
@@ -54,7 +54,7 @@ remplace uniquement les binaires appartenant au paquet Cargo ciblé.
 cargo uninstall nie-cli
 ```
 
-Cette commande retire le binaire `niers` suivi par Cargo. Elle ne supprime ni
+Cette commande retire le binaire `nie` suivi par Cargo. Elle ne supprime ni
 une installation du jeu, ni les données utilisateur, ni un clone local du
 dépôt.
 
@@ -63,14 +63,14 @@ dépôt.
 `just installer` est réservé aux contributeurs : il expose par liens
 symboliques tous les outils déjà compilés du workspace ainsi que les lanceurs
 Bun. Un gestionnaire de paquets et un utilisateur final doivent cibler
-exclusivement le paquet `nie-cli` et le binaire `niers` avec les commandes
+exclusivement le paquet `nie-cli` et le binaire `nie` avec les commandes
 ci-dessus.
 
 Pour le manuel d'utilisation complet de toutes les commandes de la CLI et l'architecture du binaire original `nie.exe`, consulter [`NIE-ET-CLI.md`](NIE-ET-CLI.md).
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `forge_unit` — physical units produced by `nie-forge`
 - `function` — functions identified in `nie.exe`
 - `coverage` — classification metrics

@@ -8,9 +8,9 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@niers/inacord-ui/components/ui/command";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Shortcut } from "@niers/inacord-ui/components/ui/shortcut";
+} from "@nie/inacord-ui/components/ui/command";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { Shortcut } from "@nie/inacord-ui/components/ui/shortcut";
 import { PINNED_PLACES, useRecentPlaces } from "@/lib/places";
 import { useT } from "@/lib/i18n";
 import { VUES } from "@/lib/vues";
@@ -50,7 +50,7 @@ export function CommandPalette({
   }
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="niers" description="Aller à…">
+    <CommandDialog open={open} onOpenChange={setOpen} title="nie" description="Aller à…">
       <CommandInput placeholder="Aller à… (dossier, ou Entrée pour chercher dans le VFS)" value={query} onValueChange={setQuery} />
       <CommandList>
         <CommandEmpty>

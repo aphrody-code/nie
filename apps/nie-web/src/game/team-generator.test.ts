@@ -1,7 +1,7 @@
 import { beforeAll, expect, spyOn, test } from "bun:test";
 import init, * as wasm from "../wasm/nie_wasm.js";
 import { configureTeamGeneratorRuntime, filtrerVivier, genererEquipe, type Joueur } from "../desktop/lib/equipe";
-import type { Formation } from "@niers/game/game/formations";
+import type { Formation } from "@nie/game/game/formations";
 import fixtures from "../../../../packages/nie-game/test/fixtures/team-generator.json";
 
 beforeAll(async () => {

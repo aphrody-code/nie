@@ -103,12 +103,12 @@ Exemples bruts :
 
 ## Notes pour le portage
 
-- Aucune valeur exploitable pour le moteur niers : pas d'IDs/hashes de jeu, pas de libellés `cfg.bin`/TEXT_INFO. Les seuls identifiants sont des **snowflakes Discord** (guild/channel/message/role/emoji).
+- Aucune valeur exploitable pour le moteur nie : pas d'IDs/hashes de jeu, pas de libellés `cfg.bin`/TEXT_INFO. Les seuls identifiants sont des **snowflakes Discord** (guild/channel/message/role/emoji).
 - Réutilisable seulement comme **corpus FR communautaire** (veille produit, sentiment joueurs) — hors périmètre des crates.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — VFS name resolution tables
 - `function` — network and social chat interfaces in `nie.exe`
 - `coverage` — coverage rate of the network boundary

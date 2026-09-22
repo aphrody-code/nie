@@ -21,7 +21,7 @@
 //! `[fieldId (Int), index (Int), condition (Int=0 ou String base64), imagePath (String), _ (Int), _ (Int)]`.
 //!
 //! Le parseur n'utilise que `fieldId`, `index`, `condition` et `imagePath` (comme inagle) ;
-//! les deux derniers entiers (rôle inconnu sans le header C++ `GDSSoccerGameOption`) sont ignorés.
+//! les deux dernie entiers (rôle inconnu sans le header C++ `GDSSoccerGameOption`) sont ignorés.
 
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;

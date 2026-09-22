@@ -192,7 +192,7 @@ const site = [...getRoutes.map(route => ({...route, method:"GET"})), ...posts.ma
   });
 site.push(mapping("site", "FALLBACK {*path}", "crates/tools/nie-site/src/routes/static_files.rs", "transport", "Static bundle fallback is HTTP transport."));
 
-const inventory = { schema: "niers.public-entry-inventory/v1", proofLevel: "source-delegation", proofLimitation: "Verified call-chain evidence does not prove the absence of residual portable logic in bindings; that requires semantic audit and review.", generatedFrom: {
+const inventory = { schema: "nie.public-entry-inventory/v1", proofLevel: "source-delegation", proofLimitation: "Verified call-chain evidence does not prove the absence of residual portable logic in bindings; that requires semantic audit and review.", generatedFrom: {
   cli: "Cmd", mcp: "#[tool(name)]", inacord: "tauri_specta::collect_commands!", site: "declarer_routes! + explicit post routes"
 }, entries: [...cli, ...mcp, ...inacord, ...site] };
 await Bun.write("scripts/validation/public-entry-inventory.json", `${JSON.stringify(inventory, null, 2)}\n`);

@@ -1,4 +1,4 @@
-//! Interactive FSM for the niers prototype (title screen → menu → local `nie-runtime`
+//! Interactive FSM for the nie prototype (title screen → menu → local `nie-runtime`
 //! simulation → story mode). Moved from `nie-wasm` (Phase 5 deduplication): screen logic lives
 //! in `nie-app` and is shared by every front end (wasm today; nie-game/nie-play eventually).
 //!
@@ -16,7 +16,7 @@ const STORY_UNAVAILABLE: &str =
 const CONTENT_UNAVAILABLE: &str =
     "Contenu indisponible — aucune donnée réelle n'a été chargée (Échap : retour).";
 
-/// Current screen of the interactive niers prototype. Its nine tabs are [`MENU`] and its five
+/// Current screen of the interactive nie prototype. Its nine tabs are [`MENU`] and its five
 /// selectable modes are [`MODES`].
 #[derive(Default)]
 pub enum Screen {

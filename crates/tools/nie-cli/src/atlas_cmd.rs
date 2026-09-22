@@ -1,4 +1,4 @@
-//! `niers atlas` — l'index unique des surfaces RE du dépôt.
+//! `nie atlas` — l'index unique des surfaces RE du dépôt.
 //!
 //! Une seule base (`var/nie-atlas.sqlite`) rassemble ce qui était éparpillé : la base de
 //! connaissance de 19 Go, l'arborescence `data/re/`, la forge (`forge/`, `data/forge/`), les
@@ -26,13 +26,13 @@ pub enum AtlasCmd {
     /// connaissance, binaires, outils, métriques et écarts.
     Build {
         /// Base atlas cible.
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Racine du dépôt.
         #[arg(long, default_value = ".")]
         root: PathBuf,
         /// Base de connaissance à digérer.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         kb: PathBuf,
         /// Saute le digest de la base de connaissance (scan de fichiers seul).
         #[arg(long)]
@@ -52,14 +52,14 @@ pub enum AtlasCmd {
     },
     /// Une ligne d'état mesurée.
     Status {
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         #[arg(long)]
         json: bool,
     },
     /// Affiche l'inventaire des 38 écrans de menu réels et leur couverture.
     Menu {
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         #[arg(long)]
         json: bool,
@@ -68,7 +68,7 @@ pub enum AtlasCmd {
     Search {
         /// Motif recherché.
         query: String,
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Restreint à un type (`doc`, `symbol`, `tool`, `artifact`, `crate`).
         #[arg(long)]
@@ -80,7 +80,7 @@ pub enum AtlasCmd {
     },
     /// La route vers les 100 %, classée par travail restant × poids.
     Gaps {
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         #[arg(long, default_value_t = 20)]
         limit: usize,
@@ -89,7 +89,7 @@ pub enum AtlasCmd {
     },
     /// Le prochain chantier (écart le mieux classé), en JSON pour la boucle autonome.
     Next {
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
     },
     /// Enregistre une mesure dans la chronologie (source obligatoire : la commande qui l'a produite).
@@ -98,7 +98,7 @@ pub enum AtlasCmd {
         name: String,
         /// Valeur mesurée.
         value: f64,
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Total, quand la métrique est un ratio.
         #[arg(long)]
@@ -117,7 +117,7 @@ pub enum AtlasCmd {
     Run {
         /// Étape exécutée.
         step: String,
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Domaine visé (`forge.identity`, `re.named`…).
         #[arg(long)]
@@ -137,7 +137,7 @@ pub enum AtlasCmd {
     },
     /// Documents indexés, classés par ancrage machine (adresses, symboles, empreintes).
     Docs {
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// N'affiche que les documents sans aucune référence machine.
         #[arg(long)]
@@ -147,7 +147,7 @@ pub enum AtlasCmd {
     },
     /// Fichiers strictement identiques (même sha256) présents à plusieurs chemins.
     Dupes {
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Restreint à une zone (`re-data`, `doc`, `forge`, `crate`…).
         #[arg(long)]
@@ -157,16 +157,16 @@ pub enum AtlasCmd {
     },
     /// Miroir Redis de l'index (statut, écarts, outils, symbole → adresse).
     Sync {
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
-        #[arg(long, env = "NIERS_ATLAS_REDIS", default_value = nie_index::atlas::DEFAULT_ATLAS_REDIS)]
+        #[arg(long, env = "NIE_ATLAS_REDIS", default_value = nie_index::atlas::DEFAULT_ATLAS_REDIS)]
         redis: String,
         #[arg(long, default_value = "atlas")]
         prefix: String,
     },
     /// Lie et marque les symboles nommés de la KB apparaissant dans le code source Rust du workspace.
     Link {
-        #[arg(long, env = "NIERS_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
+        #[arg(long, env = "NIE_ATLAS", default_value = nie_index::atlas::DEFAULT_ATLAS_PATH)]
         db: PathBuf,
         /// Racine du dépôt.
         #[arg(long, default_value = ".")]
@@ -278,7 +278,7 @@ fn build(
         .context("import des outils du dépôt")?;
     tools += atlas
         .import_tools(&cli_tools())
-        .context("import des sous-commandes niers")?;
+        .context("import des sous-commandes nie")?;
 
     let mut kb_digest = None;
     if !no_kb {
@@ -381,7 +381,7 @@ fn build(
 /// Métriques dérivées du digest de la base de connaissance.
 ///
 /// La couverture n'est pas recalculée ici : la dernière ligne de `kb.coverage`, écrite par
-/// `niers rebuild`, est reprise telle quelle — c'est la mesure honnête de la boucle.
+/// `nie rebuild`, est reprise telle quelle — c'est la mesure honnête de la boucle.
 fn record_kb_metrics(atlas: &Atlas, digest: &nie_index::atlas::KbDigest) -> Result<()> {
     atlas.record_metric(
         "kb.rows",
@@ -725,7 +725,7 @@ fn git_tracked(root: &Path) -> HashSet<String> {
         .collect()
 }
 
-/// Les sous-commandes de `niers`, lues sur la définition clap elle-même : l'index ne peut
+/// Les sous-commandes de `nie`, lues sur la définition clap elle-même : l'index ne peut
 /// pas dériver de la CLI réelle.
 fn cli_tools() -> Vec<ToolRecord> {
     let cmd = crate::Cli::command();

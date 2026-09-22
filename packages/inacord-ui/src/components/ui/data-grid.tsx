@@ -8,7 +8,7 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
 
 import { Icon } from "./Icon";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 export interface DataGridColumn {
   key: string;

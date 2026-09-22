@@ -4,7 +4,7 @@
 // (Épinglés/Récents, cf. ExplorerView.tsx `PlacesSidebar`).
 import { Collapsible as CollapsiblePrimitive } from "@base-ui/react/collapsible"
 
-import { cn } from "@niers/inacord-ui/lib/utils"
+import { cn } from "@nie/inacord-ui/lib/utils"
 
 const Collapsible = CollapsiblePrimitive.Root
 

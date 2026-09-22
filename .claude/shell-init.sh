@@ -16,17 +16,17 @@
 # GARDE-FOU DE PROFONDEUR : seul le shell de premier niveau est modifié. Les scripts du dépôt,
 # les build-scripts cargo et les recettes cmake gardent leur sémantique — changer la leur ferait
 # échouer des builds pour une raison sans rapport avec leur code.
-if [ -z "${NIERS_SHELL_INIT:-}" ]; then
-    export NIERS_SHELL_INIT=1
+if [ -z "${NIE_SHELL_INIT:-}" ]; then
+    export NIE_SHELL_INIT=1
     set -o pipefail
 fi
 
-# Claude Code loads this file only for the niers project. Keep game paths and private variables
+# Claude Code loads this file only for the nie project. Keep game paths and private variables
 # in the same repository-scoped environment used by direnv and Codex instead of duplicating them
 # in agent settings.
-niers_shell_root=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-if [ -r "$niers_shell_root/scripts/niers-env.sh" ]; then
+nie_shell_root=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+if [ -r "$nie_shell_root/scripts/nie-env.sh" ]; then
     # shellcheck disable=SC1090
-    . "$niers_shell_root/scripts/niers-env.sh"
+    . "$nie_shell_root/scripts/nie-env.sh"
 fi
-unset niers_shell_root
+unset nie_shell_root

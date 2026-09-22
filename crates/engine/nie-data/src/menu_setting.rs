@@ -6,7 +6,7 @@
 //!
 //! - Dump réel : `data/common/gamedata/menu/cfg/main_menu_setting.cfg.bin` (VFS IEVR),
 //!   format **T2B** (`entries`). 485 fichiers `*_menu_setting.cfg.bin` (un par écran).
-//! - **PAS de parseur inagle** : RE originale niers. Validée **end-to-end** par auto-cohérence
+//! - **PAS de parseur inagle** : RE originale nie. Validée **end-to-end** par auto-cohérence
 //!   forte — pour CHAQUE layer, `var[0] == CRC32(var[1])` (l'identifiant EST le CRC32 du nom ;
 //!   vérifié sur les 13 layers de `main_menu`, cf. `tests/menu_setting_golden.rs`).
 //!
@@ -37,7 +37,7 @@
 //! | 3.. | Int    | `params` — drapeaux/groupes (draw/focus/visibilité) ; valeurs   |
 //! |     |        | observées mais sémantique non confirmée → préservées telles     |
 //!
-//! Les deux derniers `params` valent `1` (probable `visible`/`valid`) sur tout `main_menu`,
+//! Les deux dernie `params` valent `1` (probable `visible`/`valid`) sur tout `main_menu`,
 //! mais on ne les NOMME pas faute de contre-exemple (discipline anti-faux-FAIT).
 
 use alloc::string::String;

@@ -6,7 +6,7 @@
 //! nameHash @var1 (réinterprétés u32 = `>>> 0`), itemId @var2 collecté en `Set` (dédup,
 //! ordre conservé). Valeurs extraites via l'exemple jetable `nie-model-serve` (supprimé après).
 //!
-//! Disposition niers (`cfgbin_to_t2b_iecode_root`) : l'item-list `SHOP_INFO_ITEM_LIST_BEG_x`
+//! Disposition nie (`cfgbin_to_t2b_iecode_root`) : l'item-list `SHOP_INFO_ITEM_LIST_BEG_x`
 //! est un *frère* du shop `SHOP_INFO_x`, ses items lui étant rattachés séquentiellement.
 
 mod common;
@@ -202,7 +202,7 @@ fn item_node(idx: usize, item_id: i64) -> Value {
     })
 }
 
-/// Construit un bloc shop niers : `SHOP_INFO_x` suivi de son frère `SHOP_INFO_ITEM_LIST_BEG_x`.
+/// Construit un bloc shop nie : `SHOP_INFO_x` suivi de son frère `SHOP_INFO_ITEM_LIST_BEG_x`.
 fn shop_block(shop_idx: usize, shop_id: i64, name_hash: i64, items: &[i64]) -> Vec<Value> {
     let item_children: Vec<Value> = items
         .iter()

@@ -1,4 +1,4 @@
-//! `niers decode` (fichier ou arborescence → JSON / PNG) et `niers format` (détection seule).
+//! `nie decode` (fichier ou arborescence → JSON / PNG) et `nie format` (détection seule).
 //!
 //! Le dispatch de format n'est pas réimplémenté ici : il vient de
 //! [`nie_formats::decode`], partagé avec la FFI. Le parallélisme vient de rayon.
@@ -175,7 +175,7 @@ fn collect_cfg_bin(dir: &Path) -> Vec<PathBuf> {
 /// Régénère, à côté de chaque `*.cfg.bin` sous `dir`, le `*.cfg.bin.json` en forme **iecode**
 /// (`nie_formats::cfgbin::to_iecode_json` — RDBN `{lists}` / T2B `{entries}`) : c'est la forme
 /// que lisent les parseurs typés de `nie-data` (golden tests, `export_*`), à distinguer du JSON
-/// structurel brut que rend `niers decode` sans `--typed`.
+/// structurel brut que rend `nie decode` sans `--typed`.
 ///
 /// `force=false` saute un `.json` déjà plus récent que son `.cfg.bin` (même convention que
 /// `IECODE.Core/Dump/DataPathExporter.cs`, pour rester idempotent sur un corpus déjà à jour).
@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn collect_ignore_les_extensions_inconnues() {
-        let dir = std::env::temp_dir().join("niers-decode-test");
+        let dir = std::env::temp_dir().join("nie-decode-test");
         let _ = fs::create_dir_all(&dir);
         let _ = fs::write(dir.join("a.txt"), b"x");
         assert!(collect(&dir).iter().all(|p| p.extension().is_some()));

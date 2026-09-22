@@ -24,7 +24,7 @@ import {
 	largeurTuile,
 	PENTE_PANNEAU,
 	PENTE_TUILE,
-} from "@niers/inacord-ui";
+} from "@nie/inacord-ui";
 import { describe, expect, test } from "bun:test";
 
 /** Le canevas du jeu, celui de l'export de layout. */

@@ -1,4 +1,4 @@
-//! `niers img` — édition d'image en ligne de commande.
+//! `nie img` — édition d'image en ligne de commande.
 //!
 //! Socle : [`image`], la bibliothèque de référence de l'écosystème Rust (décodeurs/encodeurs
 //! PNG, JPEG, WebP, GIF, BMP, TIFF + opérations géométriques). Elle est déjà une dépendance du
@@ -53,7 +53,7 @@ fn filter_of(name: &str) -> Result<FilterType> {
     })
 }
 
-/// `niers img recolor` — applique le filtre couleur de [`nie_formats::recolor`] à une image.
+/// `nie img recolor` — applique le filtre couleur de [`nie_formats::recolor`] à une image.
 ///
 /// L'image est forcée en RGBA8 : le filtre travaille sur quatre octets par pixel, et une source
 /// en niveaux de gris ou en RGB doit donc porter un canal alpha avant d'y entrer. L'alpha
@@ -71,7 +71,7 @@ pub fn recolor(src: &Path, dst: &Path, filtre: &nie_formats::recolor::Recolor) -
     Ok(())
 }
 
-/// `niers img info` — dimensions, format et couleur, sans rien réécrire.
+/// `nie img info` — dimensions, format et couleur, sans rien réécrire.
 pub fn info(src: &Path) -> Result<()> {
     let reader = ImageReader::open(src)
         .with_context(|| format!("ouverture {}", src.display()))?
@@ -94,7 +94,7 @@ pub fn info(src: &Path) -> Result<()> {
     Ok(())
 }
 
-/// `niers img resize` — redimensionne, en préservant le ratio si une seule dimension est donnée.
+/// `nie img resize` — redimensionne, en préservant le ratio si une seule dimension est donnée.
 pub fn resize(
     src: &Path,
     dst: &Path,
@@ -137,7 +137,7 @@ pub fn resize(
     Ok(())
 }
 
-/// `niers img crop` — recadre une région, en refusant de sortir de l'image.
+/// `nie img crop` — recadre une région, en refusant de sortir de l'image.
 pub fn crop(src: &Path, dst: &Path, x: u32, y: u32, w: u32, h: u32) -> Result<()> {
     let img = load(src)?;
     let (iw, ih) = img.dimensions();
@@ -150,7 +150,7 @@ pub fn crop(src: &Path, dst: &Path, x: u32, y: u32, w: u32, h: u32) -> Result<()
     Ok(())
 }
 
-/// `niers img convert` — réencode vers le format déduit de l'extension de sortie.
+/// `nie img convert` — réencode vers le format déduit de l'extension de sortie.
 pub fn convert(src: &Path, dst: &Path) -> Result<()> {
     let img = load(src)?;
     let (w, h) = img.dimensions();
@@ -159,7 +159,7 @@ pub fn convert(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-/// `niers img composite` — superpose `overlay` sur `base` à la position donnée (alpha respecté).
+/// `nie img composite` — superpose `overlay` sur `base` à la position donnée (alpha respecté).
 ///
 /// C'est l'opération qui recompose un visuel du jeu séparé en calques : un fond et sa couche
 /// de texte localisée vivent dans deux `.g4tx` distincts.
@@ -287,7 +287,7 @@ pub fn couleur_hex(s: &str) -> Result<[u8; 4]> {
     }
 }
 
-/// Sous-commandes de `niers img`, résolues depuis `main`.
+/// Sous-commandes de `nie img`, résolues depuis `main`.
 pub enum Op {
     Info {
         src: PathBuf,
@@ -450,7 +450,7 @@ fn ligne_score(s: &ScoreRegion) -> String {
     )
 }
 
-/// `niers img diff` — compare un rendu à une capture du vrai jeu.
+/// `nie img diff` — compare un rendu à une capture du vrai jeu.
 ///
 /// La sortie est **par région** : un score global mélange toujours une zone juste et une zone
 /// fausse, et ne dit pas laquelle. Les régions marquées `dynamique` (personnage 3D, particules,

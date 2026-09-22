@@ -20,16 +20,16 @@ Verified on an RTX 4070: D3D12, Vulkan and the software rasteriser produce captu
 
 ## Visual QA of an assembled GLB
 
-`niers render` produces reviewable artefacts from an assembled GLB: a lossless PNG for a stable
+`nie render` produces reviewable artefacts from an assembled GLB: a lossless PNG for a stable
 reference view, and a looping GIF turntable for silhouette, UV and texture checks. It keeps the
 same camera framing across runs, and bounds dimensions and frame count so an accidental command
 cannot exhaust the workstation.
 
 ```bash
 # A reproducible real-character probe: Shawn Froste's c02023290 model.
-niers render glb-png c02023290.glb -o shawn.png --width 2048 --height 2048 \
+nie render glb-png c02023290.glb -o shawn.png --width 2048 --height 2048 \
   --gpu --backend dx12 --hardware-only
-niers render glb-gif c02023290.glb -o shawn-turntable.gif --width 720 --height 720 \
+nie render glb-gif c02023290.glb -o shawn-turntable.gif --width 720 --height 720 \
   --frames 24 --fps 12 --gpu --backend dx12 --hardware-only
 ```
 

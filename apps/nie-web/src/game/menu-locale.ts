@@ -1,5 +1,5 @@
-import type { GameLocale } from "@niers/inacord-ui";
-import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import type { GameLocale } from "@nie/inacord-ui";
+import type { NativeMenuScene } from "@nie/inacord-ui/shell/native-title-menu";
 
 /**
  * Select the locale pack using the VFS convention shared by measured menu scenes.

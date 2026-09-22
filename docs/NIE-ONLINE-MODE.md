@@ -38,7 +38,7 @@ flowchart TD
             Ach_Elo["competitive.rs<br/>11 Rangs (Fer à Légendaire) & ELO Directionnel"]
             Ach_Tourn["tournament.rs<br/>Arbres Simple/Double Élim, Suisse, Points Circuit"]
             Ach_Ranked["ranked.rs<br/>ChallengeStore Base-32, Double Validation, Forfait"]
-            Ach_Clan["clans.rs<br/>Rosters, Rôles, Tags [TAG], AP Saisonniers"]
+            Ach_Clan["clans.rs<br/>Rosters, Rôles, Tags [TAG], AP Saisonnie"]
         end
 
         subgraph FUT_Ecosystem ["3. Écosystème Ultimate Team (UT)"]
@@ -66,7 +66,7 @@ flowchart TD
 ## 2. Couche 1 : Ingénierie Inverse Level-5 & Machine d'États
 
 ### 2.1 Les 12 Phases de Matchmaking (`GameNetMatchmakeStateMachine`)
-L'analyse de `nie.exe` (binaire de référence de 33 918 464 octets) à l'adresse `0x14173B600` documente les 12 états rigides reproduits dans [`state_machine.rs`](file:///home/ubuntu/niers/crates/engine/nie-net/src/state_machine.rs) :
+L'analyse de `nie.exe` (binaire de référence de 33 918 464 octets) à l'adresse `0x14173B600` documente les 12 états rigides reproduits dans [`state_machine.rs`](file:///home/ubuntu/nie/crates/engine/nie-net/src/state_machine.rs) :
 
 | Phase | Nom Symbolique Ghidra | Rôle & Transition Réseau |
 |:---:|:---|:---|
@@ -104,7 +104,7 @@ Comme dans `nie.exe`, aucune coordonnée brute des 22 joueurs n'est diffusée en
 ## 3. Couche 2 : Le Moteur Compétitif Achillea (Rose Griffon)
 
 ### 3.1 Échelle des 11 Rangs & Progression Directionnelle Asymétrique
-Le sous-système [`competitive.rs`](file:///home/ubuntu/niers/crates/engine/nie-net/src/competitive.rs) implémente les 11 rangs officiels du circuit compétitif :
+Le sous-système [`competitive.rs`](file:///home/ubuntu/nie/crates/engine/nie-net/src/competitive.rs) implémente les 11 rangs officiels du circuit compétitif :
 
 | Index | Rang | Nom FR | Nom EN | Seuil AP | $K_{\mathrm{win}}$ | $K_{\mathrm{loss}}$ | Règle d'Équité |
 |:---:|:---|:---|:---|:---:|:---:|:---:|:---|
@@ -300,17 +300,17 @@ console.log(agree.disputed); // false
 const hash = net_state_hash(BigInt(120), 0.0, 15.2, 2, 1);
 ```
 
-### 7.3 Commandes CLI Opérationnelles (`niers net`)
+### 7.3 Commandes CLI Opérationnelles (`nie net`)
 
-Le binaire CLI universel `niers` fournit la suite de commandes d'administration et de test :
+Le binaire CLI universel `nie` fournit la suite de commandes d'administration et de test :
 
-- **`niers net server`** : Démarre le serveur local de matchmaking et de simulation déterministe (`--addr 0.0.0.0:8085 --tick-rate 60`).
-- **`niers net room create`** : Instancie une salle de match Inacode (`--mode 1v1 --name "Tournoi" --slots 2`).
-- **`niers net sim-match`** : Exécute une simulation déterministe à 60 Hz entre deux bots avec validation du zéro-desync (`--ticks 120`).
-- **`niers net challenge create <HOST> <OPPONENT>`** : Émet un code de défi de 8 caractères Base-32 avec expiration TTL de 30 min.
-- **`niers net ladder`** : Affiche le classement e-sport officiel avec paliers et statistiques (`--limit 10`).
-- **`niers net clans`** : Affiche le tableau des clubs et clans avec leurs tags officiels `[TAG]`.
-- **`niers net calc-elo <AP_A> <AP_B> <OUTCOME>`** : Calcule l'impact ELO d'un match (`win`, `loss`, `draw`) avec facteurs $K$ asymétriques.
+- **`nie net server`** : Démarre le serveur local de matchmaking et de simulation déterministe (`--addr 0.0.0.0:8085 --tick-rate 60`).
+- **`nie net room create`** : Instancie une salle de match Inacode (`--mode 1v1 --name "Tournoi" --slots 2`).
+- **`nie net sim-match`** : Exécute une simulation déterministe à 60 Hz entre deux bots avec validation du zéro-desync (`--ticks 120`).
+- **`nie net challenge create <HOST> <OPPONENT>`** : Émet un code de défi de 8 caractères Base-32 avec expiration TTL de 30 min.
+- **`nie net ladder`** : Affiche le classement e-sport officiel avec paliers et statistiques (`--limit 10`).
+- **`nie net clans`** : Affiche le tableau des clubs et clans avec leurs tags officiels `[TAG]`.
+- **`nie net calc-elo <AP_A> <AP_B> <OUTCOME>`** : Calcule l'impact ELO d'un match (`win`, `loss`, `draw`) avec facteurs $K$ asymétriques.
 
 ---
 

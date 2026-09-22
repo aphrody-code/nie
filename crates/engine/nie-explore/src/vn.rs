@@ -98,7 +98,7 @@ pub fn plan_export(
 ) -> Result<ExportPlan, String> {
     if options.codes.is_empty() && options.names.is_empty() {
         return Err(format!(
-            "désigner le casting avec --noms ou --casting ({} personnages doublés disponibles ; `niers vn casting --chercher <nom>` aide à les trouver)",
+            "désigner le casting avec --noms ou --casting ({} personnages doublés disponibles ; `nie vn casting --chercher <nom>` aide à les trouver)",
             banks.len()
         ));
     }

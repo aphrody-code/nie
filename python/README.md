@@ -1,6 +1,6 @@
-# `niepy` — niers vu depuis Python
+# `niepy` — nie vu depuis Python
 
-La porte d'entrée Python vers le moteur et les données de *niers*. C'est ce qui permet à un
+La porte d'entrée Python vers le moteur et les données de *nie*. C'est ce qui permet à un
 visual novel Ren'Py d'utiliser le vrai moteur et les vrais assets, sans réimplémenter quoi que
 ce soit.
 
@@ -113,7 +113,7 @@ r.capturer_region("atlas.g4tx", "icone_01", "game/nie/images/icone_01.png")
 `nie-game` est atteint en **sous-processus**, jamais en process, et c'est délibéré : il n'a
 pas de `lib.rs`, c'est un hôte wgpu. Charger un contexte GPU dans une bibliothèque elle-même
 chargée par le Python de Ren'Py est une bonne façon d'obtenir des plantages illisibles. Le
-dépôt applique déjà cette règle à la CLI Rust `niers`, pour la même raison.
+dépôt applique déjà cette règle à la CLI Rust `nie`, pour la même raison.
 
 Seuls les modes **hors-écran** sont exposés. `--window` et `--play` ouvrent une fenêtre et ne
 rendent la main qu'à sa fermeture : les appeler depuis un jeu déjà lancé le bloquerait.
@@ -189,7 +189,7 @@ D'abord produire les assets, depuis la CLI Rust :
 
 ```bash
 # Les assets : voix, portraits, musique + catalogue.json. En Rust, car il faut lire les CPK.
-niers vn export --out <projet-renpy>/game/nie
+nie vn export --out <projet-renpy>/game/nie
 
 # Le .rpy qui les déclare, et les données du jeu en JSON. En Python, car c'est un artefact
 # du monde Ren'Py.
@@ -232,7 +232,7 @@ couche Rust.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — 117 068 functions of `nie.exe`
 - `coverage` — binary coverage rates
 - `hash_name` — VFS and UI CRC32 name entries

@@ -21,7 +21,7 @@
  * si `useCapacites()` la mesure vraie. Aucune condition d'hôte n'est écrite dans un composant :
  * c'est la capacité qui décide, et un réglage caché n'est jamais montré-puis-en-échec.
  */
-import type { CapacitesSource } from "@niers/asset-source";
+import type { CapacitesSource } from "@nie/asset-source";
 import {
 	SHIPPED_GAME_LOCALES,
 	type GameLocale,
@@ -232,7 +232,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
 		kind: "text",
 		label: "Blender",
 		description:
-			"Desktop app: path of blender.exe used by the niers-blender extension. The site cannot launch a local Blender; the value is kept for the desktop build.",
+			"Desktop app: path of blender.exe used by the nie-blender extension. The site cannot launch a local Blender; the value is kept for the desktop build.",
 		default: "",
 		portable: true,
 	},

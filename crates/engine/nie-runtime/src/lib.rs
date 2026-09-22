@@ -1,4 +1,4 @@
-//! **Moteur de jeu niers** — boucle intégrée qui TOURNE (état-monde + physique + gameplay),
+//! **Moteur de jeu nie** — boucle intégrée qui TOURNE (état-monde + physique + gameplay),
 //! en Rust pur, headless et **déterministe**. Le rendu top-down vit dans [`render`], la boucle
 //! et la sortie vidéo dans le binaire `nie-runtime`.
 //!
@@ -7,7 +7,7 @@
 //! incrémentalement. Ancrages RE réels : la **gravité du ballon = [`nie_core::BALL_GRAVITY`]**
 //! (`2.0`, bits IEEE `0x40000000`, confirmés dans `ball_component.c`), 11 v 11, un GK par camp.
 //!
-//! Ce qui est **propre au moteur niers** (simulation temps-réel jouable) est distinct de ce qui
+//! Ce qui est **propre au moteur nie** (simulation temps-réel jouable) est distinct de ce qui
 //! est **porté byte-exact** de IEVR (constantes, structures). La physique PhysX exacte et la
 //! résolution de but event-driven de IEVR sont des pistes séparées (cf. `nie-engine`, le système
 //! d'événements reversé) qui remplaceront progressivement les approximations d'ici.

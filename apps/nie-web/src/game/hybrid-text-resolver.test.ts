@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createHybridGameTextResolver } from "./hybrid-text-resolver";
-import type { GameTextRef, GameTextResolver } from "@niers/inacord-ui/lib/game-text";
+import type { GameTextRef, GameTextResolver } from "@nie/inacord-ui/lib/game-text";
 
 describe("hybridGameTextResolver", () => {
 	test("delegates to fallback resolver when local VFS does not have the text table", async () => {

@@ -1,5 +1,5 @@
 //! Détection réelle de l'installation Steam d'*Inazuma Eleven: Victory Road* — remplace
-//! l'ancien repli codé en dur (`/home/aphrody/niers`, un chemin de dev WSL qui n'existe sur
+//! l'ancien repli codé en dur (`/home/aphrody/nie`, un chemin de dev WSL qui n'existe sur
 //! aucune machine utilisatrice) par une VRAIE résolution via le registre Windows + le format
 //! `libraryfolders.vdf` de Steam, exactement comme le fait le client Steam lui-même.
 //!
@@ -232,7 +232,7 @@ mod tests {
     /// Détection de bout en bout sur la VRAIE installation Steam de ce poste (registre +
     /// `libraryfolders.vdf` + `appmanifest_2799860.acf` réels) — prouve que
     /// `detect_game_dir()` retrouve le jeu sans variable d'environnement ni chemin codé en
-    /// dur, contrairement à l'ancien repli `/home/aphrody/niers`. Skip (pas d'échec) sur une
+    /// dur, contrairement à l'ancien repli `/home/aphrody/nie`. Skip (pas d'échec) sur une
     /// machine sans Steam/le jeu.
     #[test]
     fn detect_game_dir_trouve_le_vrai_jeu_steam() {

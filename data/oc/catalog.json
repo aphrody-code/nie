@@ -1,5 +1,5 @@
 {
-  "schema": "niers.oc.catalog/v1",
+  "schema": "nie.oc.catalog/v1",
   "root": "data/oc",
   "policy": {
     "game_assets_are_not_copied_here": true,
@@ -10,7 +10,7 @@
   "contracts": [
     {
       "path": "data/oc/astro-lor/game/character-contract.json",
-      "schema": "niers.oc.character-contract/v1",
+      "schema": "nie.oc.character-contract/v1",
       "character_slug": "astro-lor",
       "variants": [
         "c99019010",

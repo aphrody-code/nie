@@ -1,4 +1,4 @@
-//! **Renderer 3D niers** — charge un GLB réel (modèle reconstruit depuis les CPK par
+//! **Renderer 3D nie** — charge un GLB réel (modèle reconstruit depuis les CPK par
 //! `nie_formats::assemble`) et le rend en **perspective 3D texturée** (rastérisation CPU : z-buffer,
 //! backface culling, échantillonnage des atlas PNG embarqués + éclairage Lambert). C'est le maillon
 //! « rendu 3D » qui manquait : le vrai jeu est en 3D, et ce module affiche les **vrais maillages et

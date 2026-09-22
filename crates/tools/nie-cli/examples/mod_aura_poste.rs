@@ -300,8 +300,8 @@ fn main() {
             eprintln!(
                 "\n{chemin_mod} : {e}\n\
                  Crée le mod d'abord :\n  \
-                 niers mod init --nom auras --auteur <toi> -d {dir}\n  \
-                 niers mod add -d {dir} {f_param}"
+                 nie mod init --nom auras --auteur <toi> -d {dir}\n  \
+                 nie mod add -d {dir} {f_param}"
             );
             std::process::exit(1);
         }

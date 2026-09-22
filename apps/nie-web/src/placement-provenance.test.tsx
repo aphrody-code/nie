@@ -8,7 +8,7 @@
  * refuser une forme qu'il ne reconnaît pas, et laisser la provenance observable.
  */
 import { describe, expect, test } from "bun:test";
-import { lireLayout } from "@niers/inacord-ui/shell/game-layout";
+import { lireLayout } from "@nie/inacord-ui/shell/game-layout";
 
 const canvas = { w: 1280, h: 720 };
 const transform = { x: 640, y: 360, scaleX: 1, scaleY: 1, rot: 0, anchorX: 0.5, anchorY: 0.5 };

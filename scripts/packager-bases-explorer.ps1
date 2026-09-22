@@ -5,9 +5,9 @@
 # Windows, sans dépendance à Git Bash / MSYS (ni stat, ni gzip, ni du, ni find, ni wc).
 #
 # Prépare les bases QUI VOYAGENT AVEC l'installeur d'Inacord : le miroir du wiki
-# (var/mirror.sqlite), la base de reverse (var/niers.sqlite) et le catalogue des épisodes
+# (var/mirror.sqlite), la base de reverse (var/nie.sqlite) et le catalogue des épisodes
 # (data/anime/episodes.db) sont compressés en .gz dans apps/inacord/src-tauri/resources/db/,
-# lus par `bundle.resources`, puis décompressés vers %APPDATA%\dev.niers.explorer\db\ au
+# lus par `bundle.resources`, puis décompressés vers %APPDATA%\dev.nie.explorer\db\ au
 # premier lancement.
 #
 # Idempotent : une archive plus récente que sa source n'est pas recompressée.
@@ -146,9 +146,9 @@ if (-not (Test-Path -LiteralPath $Miroir)) {
 }
 if (-not (Invoke-Compression $Miroir 'mirror.sqlite')) { exit 1 }
 
-# La base de reverse. Contrairement au miroir, elle se reconstruit sur place (`niers rebuild`) :
+# La base de reverse. Contrairement au miroir, elle se reconstruit sur place (`nie rebuild`) :
 # pas de lien, un seul fichier.
-if (-not (Invoke-Compression (Join-Path $Root 'var/niers.sqlite') 'niers.sqlite')) { exit 1 }
+if (-not (Invoke-Compression (Join-Path $Root 'var/nie.sqlite') 'nie.sqlite')) { exit 1 }
 
 # Le catalogue des épisodes de la série, que la vue Cinéma présente
 # à côté des cinématiques du jeu. ~290 Ko : le seuil de validité des deux autres (1 Mo) ne s'y

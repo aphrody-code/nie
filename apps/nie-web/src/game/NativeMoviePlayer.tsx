@@ -1,8 +1,8 @@
-import { useAssetSource } from "@niers/inacord-ui";
-import { playMediaPair, synchronizeMediaClock } from "@niers/inacord-ui/lib/media-sync";
+import { useAssetSource } from "@nie/inacord-ui";
+import { playMediaPair, synchronizeMediaClock } from "@nie/inacord-ui/lib/media-sync";
 import { useEffect, useRef, useState } from "react";
 import { acquireOpeningMedia } from "./opening-media";
-import { GameText } from "@niers/inacord-ui";
+import { GameText } from "@nie/inacord-ui";
 
 /** Native movie host shared by opening playback and demand-activated media inspection. */
 export function NativeMoviePlayer({ path, onReady, onEnded, presentation = "opening" }: {

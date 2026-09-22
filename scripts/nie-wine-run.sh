@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# nie-wine-run.sh — lance un exe Windows dans le prefixe niers avec le Wine de Proton
+# nie-wine-run.sh — lance un exe Windows dans le prefixe nie avec le Wine de Proton
 # (wine-11.0 + DXVK + vkd3d-proton) en NATIF, sans pressure-vessel ni script `proton`.
 #
 # Complement de crates/forge/nie-trace/scripts/boot-nie-direct.sh : ce dernier passe par
 # `python3 proton runinprefix`, qui exige les variables STEAM_COMPAT_* et ne survit pas a
 # l'absence de client Steam. Ici on appelle le wine du Proton directement — le prefixe
-# est le meme (~/.local/share/niers/runtime/proton-prefix/pfx).
+# est le meme (~/.local/share/nie/runtime/proton-prefix/pfx).
 #
 # Le prefixe se prepare avec scripts/nie-wine-setup.sh (idempotent).
 #
 # Usage: scripts/nie-wine-run.sh <exe> [args...]
 set -uo pipefail
 GAME="${NIE_GAME_PATH:-$HOME/.local/share/Steam/iecode/inazuma}"
-BASE="${NIE_RUNTIME_BASE:-$HOME/.local/share/niers/runtime}"
+BASE="${NIE_RUNTIME_BASE:-$HOME/.local/share/nie/runtime}"
 P="$GAME/files"
 
 export WINEPREFIX="$BASE/proton-prefix/pfx"

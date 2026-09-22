@@ -4,7 +4,7 @@
 // ## Deux sources, un seul catalogue
 //
 // La série vient de `data/anime/episodes.db` (355 épisodes, dix saisons nommées — Saison 1 à 3,
-// GO, Chrono Stones, Galaxy, Outer Code, Ares, Orion, Films), que `niers-media` recense et que
+// GO, Chrono Stones, Galaxy, Outer Code, Ares, Orion, Films), que `nie-media` recense et que
 // l'installeur embarque (cf. `lib/animeDb.ts`). Les cinématiques du jeu viennent du VFS.
 //
 // **`Victory Road` est présentée comme la saison qui suit les autres** : c'est ce qu'elle est
@@ -58,11 +58,11 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { AvatarProfil, ChoixProfil } from "@/components/cinema/ChoixProfil";
 import { FicheDetail } from "@/components/cinema/FicheDetail";
 import { HerosCarrousel } from "@/components/cinema/HerosCarrousel";
-import { Alert, AlertDescription, AlertTitle } from "@niers/inacord-ui/components/ui/alert";
-import { Button } from "@niers/inacord-ui/components/ui/button";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Input } from "@niers/inacord-ui/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@niers/inacord-ui/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@nie/inacord-ui/components/ui/alert";
+import { Button } from "@nie/inacord-ui/components/ui/button";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { Input } from "@nie/inacord-ui/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@nie/inacord-ui/components/ui/select";
 import { VideoPlayer, formaterDuree, urlVideo } from "@/components/VideoPlayer";
 import { api } from "@/lib/api";
 import {
@@ -122,8 +122,8 @@ import {
   voisins,
   type LacuneSaison,
 } from "@/lib/serie";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
+import { cn } from "@nie/inacord-ui/lib/utils";
 import type { FilmDto } from "@/lib/bindings";
 
 /** Vues de la navigation principale. Une saison ouverte porte sa propre clé (`s3`). */

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { stageVfs } from "./stage-vfs";
 
 test("canonical build stages only integrity-checked archives and publishes manifest last", () => {
-	const directory = mkdtempSync(join(tmpdir(), "niers-vfs-stage-"));
+	const directory = mkdtempSync(join(tmpdir(), "nie-vfs-stage-"));
 	try {
 		const bytes = new Uint8Array([1, 2, 3]);
 		const sha256 = createHash("sha256").update(bytes).digest("hex");

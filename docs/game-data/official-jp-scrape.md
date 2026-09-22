@@ -193,7 +193,7 @@ le contenu de jeu.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — Official release topic and DLC string hashes
 - `function` — game release version probe and network update routines in `nie.exe`
 - `xref` — update check call chains

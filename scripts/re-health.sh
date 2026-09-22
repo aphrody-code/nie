@@ -4,11 +4,11 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
-DB="${NIERS_DB:-var/niers.sqlite}"
+DB="${NIE_DB:-var/nie.sqlite}"
 BIN="${NIE_BIN:-target/release/nie}"
-# Racine du jeu : NIE_GAME_DIR (convention du reste du dépôt), NIERS_GAME_DIR (historique),
+# Racine du jeu : NIE_GAME_DIR (convention du reste du dépôt), NIE_GAME_DIR (historique),
 # sinon la racine du dépôt — sur une installation Steam, les deux coïncident.
-GAME_DIR="${NIE_GAME_DIR:-${NIERS_GAME_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
+GAME_DIR="${NIE_GAME_DIR:-${NIE_GAME_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
 EXE="$GAME_DIR/nie_eacpatched.exe"
 
 ok(){ printf '  \033[32mOK\033[0m  %s\n' "$1"; }

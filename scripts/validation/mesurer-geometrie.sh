@@ -13,7 +13,7 @@
 #   echantillon  fichiers par famille  (défaut 25)
 #
 # Prérequis : `var/vfs/inventaire.txt` (255 308 lignes, `chemin taille [cpk]`), régénérable par
-#   niers vfs find 'data/' -n 300000 > var/vfs/inventaire.txt
+#   nie vfs find 'data/' -n 300000 > var/vfs/inventaire.txt
 set -euo pipefail
 
 BASE="${1:-http://127.0.0.1:8085}"

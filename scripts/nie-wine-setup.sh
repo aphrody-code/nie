@@ -29,7 +29,7 @@
 #     a quelques images par seconde -- cf. le piege d'entree dans scripts/nie-wine-run.sh.
 set -euo pipefail
 GAME="${NIE_GAME_PATH:-$HOME/.local/share/Steam/iecode/inazuma}"
-BASE="${NIE_RUNTIME_BASE:-$HOME/.local/share/niers/runtime}"
+BASE="${NIE_RUNTIME_BASE:-$HOME/.local/share/nie/runtime}"
 P="$GAME/files"
 PFX="$BASE/proton-prefix/pfx"
 DISP="${NIE_DISPLAY:-:99}"

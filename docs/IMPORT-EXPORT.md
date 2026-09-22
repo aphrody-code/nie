@@ -34,7 +34,7 @@ bun scripts/workspace-transfer.ts import \
 Import accepts only relative paths under the portable allow-list. It rejects traversal, absolute
 paths, generated directories, game assets and secret-like files. Every source is checked against
 the manifest before writing. The destination root is selected by `--root` or `NIE_REPO_ROOT`; no
-path connecting IECODE and NIE/NIERS is embedded in the tool.
+path connecting IECODE and NIE/NIE is embedded in the tool.
 
 This is a source/config transfer, not a release publisher. Run the normal lint, typecheck, tests,
 Rust checks and release gates after importing. Do not put copyrighted game dumps in the transfer.

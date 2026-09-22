@@ -4,7 +4,7 @@
  * `LEGACY_FORMATIONS` (8) : positions estimées à l'œil depuis le CSS de zukan.inazuma.jp
  * (conservées pour compat des `id` persistés — URLs partagées / équipes sauvegardées).
  * `GAME_FORMATIONS` (83) : **vraies formations du jeu**, coordonnées `f32` byte-exactes
- * décodées par niers (`nie-data/formation.rs` → `data/formations-full.json` via le binaire
+ * décodées par nie (`nie-data/formation.rs` → `data/formations-full.json` via le binaire
  * `export_formations`). `FORMATIONS` expose les deux (legacy d'abord → index 0 inchangé).
  *
  * Coordonnées : pourcentages sur un terrain portrait. `top` depuis le haut (but adverse en
@@ -232,7 +232,7 @@ export const ROLE_LABELS: Record<string, string> = {
 	MF: "MIL",
 };
 
-// ── Vraies formations du jeu (data/formations-full.json, niers) ───────────────
+// ── Vraies formations du jeu (data/formations-full.json, nie) ───────────────
 
 interface RawGamePosition {
 	position_no: number;

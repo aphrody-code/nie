@@ -104,6 +104,6 @@ nie-ocgen icons astro-lor           # les conteneurs G4TX de portrait + leurs PN
 nie-ocgen encode <dossier> --out X  # tout iecode *.cfg.bin.json → cfg.bin
 ```
 
-`niers ocgen <sous-commande>` fait exactement la même chose : les deux surfaces appellent
+`nie ocgen <sous-commande>` fait exactement la même chose : les deux surfaces appellent
 [`cli::run`](src/cli.rs). La logique reste dans la bibliothèque — une deuxième implémentation
 finirait par diverger, et ce dépôt l'a déjà payé sur keeper, menu et match-sim.

@@ -13,7 +13,7 @@ async function command(args: string[]) {
 	return { stdout, stderr, code };
 }
 beforeAll(async () => {
-	directory = await mkdtemp(join(tmpdir(), "niers-visual-gate-"));
+	directory = await mkdtemp(join(tmpdir(), "nie-visual-gate-"));
 	const result = await command(["magick", reference, "-resize", "1920x1080", join(directory, "capture.png")]);
 	if (result.code !== 0) throw Error(result.stderr);
 });

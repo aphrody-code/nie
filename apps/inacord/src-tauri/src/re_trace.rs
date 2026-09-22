@@ -252,7 +252,7 @@ pub struct ReDumpHitDto {
     /// Offset dans le module (RVA), hexadécimal `0x…`.
     rva: Option<String>,
     /// Adresse **statique** correspondante (`0x140000000 + rva`) si le coup est dans `nie.exe` —
-    /// c'est celle qui se cherche dans `var/niers.sqlite` et dans le désassemblage.
+    /// c'est celle qui se cherche dans `var/nie.sqlite` et dans le désassemblage.
     statique: Option<String>,
 }
 

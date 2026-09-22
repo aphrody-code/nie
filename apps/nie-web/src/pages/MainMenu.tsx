@@ -1,4 +1,4 @@
-import { GameCanvas, type GameLocale, type NomGlyphe, useAssetSource, useSettings } from "@niers/inacord-ui";
+import { GameCanvas, type GameLocale, type NomGlyphe, useAssetSource, useSettings } from "@nie/inacord-ui";
 import {
 	initialMenuState,
 	createStandardGamepadMenuSampler,
@@ -6,17 +6,17 @@ import {
 	reduceMenuInteraction,
 	type MenuIntent,
 	type MenuInteractionItem,
-} from "@niers/inacord-ui/shell/menu-interaction";
-import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu.ts";
-import { NativeSceneLayers, type NativeSceneAssetState } from "@niers/inacord-ui/shell/native-scene-layers";
-import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
+} from "@nie/inacord-ui/shell/menu-interaction";
+import type { NativeMenuScene } from "@nie/inacord-ui/shell/native-title-menu.ts";
+import { NativeSceneLayers, type NativeSceneAssetState } from "@nie/inacord-ui/shell/native-scene-layers";
+import { emitNativeCommand } from "@nie/inacord-ui/lib/native-command";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";
 import { localizeMenuSceneAssets } from "../game/menu-locale";
 import "./main-menu.css";
 import { ScreenStatus } from "./screen-parts";
-import { GameText } from "@niers/inacord-ui";
+import { GameText } from "@nie/inacord-ui";
 
 export interface MainMenuAction {
 	id: string;

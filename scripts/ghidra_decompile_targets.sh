@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Décompile par-VA les fonctions de jeu encore non portées, en réutilisant le projet Ghidra
-# déjà analysé (var/ghidra-proj/niers_nie) — PAS de ré-analyse (-noanalysis -process).
+# déjà analysé (var/ghidra-proj/nie_nie) — PAS de ré-analyse (-noanalysis -process).
 # Pré-requis : l'analyse Ghidra initiale (analyzeHeadless -import) doit être TERMINÉE.
 # Sortie : un .c par fonction dans var/ghidra-decompile/.
 set -euo pipefail
@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 EXE_NAME="nie_eacpatched.exe"
 PROJ_DIR="var/ghidra-proj"
-PROJ_NAME="niers_nie"
+PROJ_NAME="nie_nie"
 SCRIPTS=".agents/skills/ghidra-headless/scripts/ghidra_scripts"
 OUT="var/ghidra-decompile"
 mkdir -p "$OUT"

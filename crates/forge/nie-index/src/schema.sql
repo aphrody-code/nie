@@ -1,4 +1,4 @@
--- Schéma de la base de connaissance niers. Tout ce que la boucle RE découvre ou
+-- Schéma de la base de connaissance nie. Tout ce que la boucle RE découvre ou
 -- importe (savoir fusionné iecode/inagle) est durable ici. WAL pour concurrence workers.
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS glob (
 
 -- Strings référencées par une fonction (st de nie-index.json) = ancres de propagation.
 -- source : NULL = héritage de l'index Ghidra replié sur .pdata (rebuild_from_pdata),
--- 'rdata-xref' = dérivé du désassemblage réel (`niers strings`). Ne jamais confondre les deux.
+-- 'rdata-xref' = dérivé du désassemblage réel (`nie strings`). Ne jamais confondre les deux.
 CREATE TABLE IF NOT EXISTS func_str_ref (
     id          INTEGER PRIMARY KEY,
     binary_id   INTEGER NOT NULL REFERENCES binary(id) ON DELETE CASCADE,

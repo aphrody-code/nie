@@ -119,7 +119,7 @@ const CMD_GET_GLOBAL_STATE_A: u32 = 0xA4B1_D1BC; // () -> bool
 const CMD_GET_OBJECT_ACTIVE: u32 = 0xB641_D667; // (objId, [index]) -> bool
 // () -> bool=TRUE ; handler 0x140CBF150 reversé (désassemblage nie.exe ce cycle) : lit un octet de
 // config global `[ [0x1421107A8]+0x69C8 ]+0x2CAA1E`, l'applique via 0x1405CF860(ctx, byte), puis
-// renvoie **AL=1 inconditionnellement**. Appelé sans argument dans `OnInit` de main_menu. niers ne
+// renvoie **AL=1 inconditionnellement**. Appelé sans argument dans `OnInit` de main_menu. nie ne
 // peut pas répliquer la mutation d'état moteur (0x1405CF860), MAIS la valeur de retour CORRECTE est
 // **1** (le défaut getter `0.0` serait FAUX si le script teste le retour). Reversé ce cycle (le 1ᵉʳ
 // des cmdId « semantics TBD » résolu par désassemblage local).
@@ -129,7 +129,7 @@ const CMD_APPLY_GLOBAL_CONFIG_TRUE: u32 = 0x65E8_25B1; // () -> bool (toujours t
 //   → `mov al,1; ret` INCONDITIONNEL. Utilisé par `shop`.
 const CMD_APPLY_QUERY_TRUE: u32 = 0xC313_5B00; // () -> bool (toujours true)
 // 0xB9FFF3C9 (handler 0x140C96A50) : branche sur le flag global `[0x141D842F0]` ; **cas par défaut
-//   (flag==0, = l'état frais de menu de niers)** : `apply 0x1405CF9E0(ctx,0)` → `mov al,1; ret`.
+//   (flag==0, = l'état frais de menu de nie)** : `apply 0x1405CF9E0(ctx,0)` → `mov al,1; ret`.
 //   (La branche flag!=0 appelle 0x1416935D0 — non atteinte hors save chargée.) Utilisé par `title02`.
 const CMD_APPLY_DEFAULT_TRUE: u32 = 0xB9FF_F3C9; // () -> bool (true en état par défaut)
 // 0x74578BF4 (handler 0x140CEECE0, trouvé via la table de dispatch extraite — cf.
@@ -142,13 +142,13 @@ const CMD_SET_GLOBAL_FLAG_TRUE: u32 = 0x7457_8BF4; // (bool) -> 1 (pose un flag 
 // d'items 0x1410C18D0 (via 0x140CF5B60), renvoie al=1 (0 si <4 args). **Le MÊME manager 0x140CF5B60
 // est lu par GetObjectAttr (handler 0x140CF4F90)** → le `count` (arg3) ENREGISTRÉ ici est CELUI que
 // GetItemButtonNum relit. Donc le nombre d'items vient du SCRIPT, pas (seulement) du save-state.
-// Confirmé : args réels `(2250456639,…,8)` == golden `object_attr[2250456639]=8`. Modèle niers :
+// Confirmé : args réels `(2250456639,…,8)` == golden `object_attr[2250456639]=8`. Modèle nie :
 // `object_attr[objId]=count` → débloque GetItemButtonNum depuis les données du script.
 const CMD_REGISTER_ITEM_LIST_COUNT: u32 = 0x16C1_C4C0; // (objId, hash, _, count) -> bool
 // (objId, index, [bool], [bool]) -> bool=true ; handler 0x140CE6B20 reversé : `FindObject(mgr, objId)`
 // (0x14051B5D0) puis écrit `word [obj+0x154] = index` (clampé/bouclé au compte `[obj+0x150]`), pose le
 // flag dirty `[obj+0x161]=1` si changé, renvoie al=1. = sélection/curseur d'item de liste. Présent
-// dans title02 ET shop. Modèle niers : `obj.selected_index = index`.
+// dans title02 ET shop. Modèle nie : `obj.selected_index = index`.
 const CMD_SET_SELECTED_INDEX: u32 = 0x6A06_BC75; // (objId, index, ...) -> bool
 // (objId, itemIndex, bool) -> bool=true ; handlers 0x140CC69F0 / 0x140CC7670 reversés : find-object
 // (mgr 0x140CF5B60 + 0x14051B5D0) puis posent un FLAG par-item à `itemIndex`, renvoient al=1 (al=0 si
@@ -210,7 +210,7 @@ const CMD_GET_NODE_INDEX_BY_HASH: u32 = 0x06B1_9AFF; // (objId, index, hash) -> 
 /// (`scripts/extract_funclua_table.py` → handler, puis désassemblage r2). Chaque handler lit ses
 /// args, applique une valeur à l'état moteur (`call 0x1405CF730`/`0x1404Exxx`) et renvoie **AL=1**
 /// sur le chemin principal (garde no-arg → 0). Critère de sûreté vérifié sur CHAQUE entrée : **≤ 2
-/// `ret` et `main_return = mov al,1`** (le `ret` non-principal = la garde no-arg `xor al,al`). niers
+/// `ret` et `main_return = mov al,1`** (le `ret` non-principal = la garde no-arg `xor al,al`). nie
 /// ne réplique pas la mutation moteur, mais le RETOUR correct est **1** (le défaut getter `0` serait
 /// FAUX si le script teste le retour). Exclus : handlers à 3+ ret, à retour principal 0, ou à `al`
 /// écrit conditionnellement (`sete al`). Observés inconnus sur `shop`.
@@ -1721,7 +1721,7 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
         // ── Famille « apply → return true » (no-arg) : handlers 0x140CBF150 / 0x140CEEE80 /
         // 0x140C96A50 REVERSÉS (désassemblage nie.exe). Chacun lit/query un état moteur, l'applique,
         // et renvoie **AL=1** (inconditionnel pour les 2 premiers ; cas par défaut flag==0 pour le 3ᵉ
-        // = l'état frais de niers). niers ne réplique pas la mutation moteur, mais le RETOUR correct
+        // = l'état frais de nie). nie ne réplique pas la mutation moteur, mais le RETOUR correct
         // est `1` (le défaut getter `0` serait FAUX si le script teste le retour). Cf. consts.
         // `CMD_SET_GLOBAL_FLAG_TRUE` (0x74578BF4, 1 arg) partage la même sémantique de RETOUR :
         // pose un flag moteur global (hors layout) et renvoie 1. Cf. son const pour le désassemblage.

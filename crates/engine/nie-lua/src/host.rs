@@ -23,7 +23,7 @@
 //!
 //! ## Différence assumée avec Overload
 //!
-//! Overload **conçoit** l'API que ses scripts utiliseront ; niers la **retro-conçoit**. Les noms
+//! Overload **conçoit** l'API que ses scripts utiliseront ; nie la **retro-conçoit**. Les noms
 //! posés ici (`Debug.Log`, `Math.Lerp`…) sont donc des services utilitaires pour nos propres
 //! scripts d'outillage et de test, pas une prétention à reproduire l'API de Level-5 — celle-ci
 //! vit dans [`crate::menu_host`], adossée au reverse de `nie.exe`.

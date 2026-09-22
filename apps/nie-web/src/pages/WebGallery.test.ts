@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import type { AssetSource } from "@niers/asset-source";
+import type { AssetSource } from "@nie/asset-source";
 import {
 	TEXTURE_DOMAINS,
 	TEXTURE_TOTAL,

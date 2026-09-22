@@ -16,7 +16,7 @@ import {
 	type AssetSource,
 	AUCUNE_CAPACITE,
 	type CapacitesSource,
-} from "@niers/asset-source";
+} from "@nie/asset-source";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
 /** Ce que le contexte transporte : la source, et ce qu'elle sait faire. */

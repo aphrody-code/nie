@@ -48,7 +48,7 @@ const releaseBuildSeconds = 2_400;
 const bunServiceSeconds = 180;
 
 const runId = new Date().toISOString().replaceAll(/[:.]/gu, "-");
-const lockDirectory = "/tmp/niers-target-deploy.lock";
+const lockDirectory = "/tmp/nie-target-deploy.lock";
 const logDirectory = `${repositoryRoot}/var/log/deploy-targets/${runId}`;
 
 type Validator = (body: string) => void;
@@ -428,7 +428,7 @@ async function publishNativeMcpAliases(): Promise<void> {
 	const binary = `${repositoryRoot}/target/release/nie-mcp`;
 	const binaryDirectory = "/home/ubuntu/.local/bin";
 	await mkdir(binaryDirectory, { recursive: true });
-	for (const name of ["nie-mcp", "niers-mcp"]) {
+	for (const name of ["nie-mcp", "nie-mcp"]) {
 		const destination = `${binaryDirectory}/${name}`;
 		await rm(destination, { force: true });
 		await symlink(binary, destination);
@@ -454,7 +454,7 @@ const targets: Record<string, Target> = {
 		seconds: releaseBuildSeconds,
 		description: "Native nie CLI and stdio MCP host",
 		deploy: async (context) => {
-			await buildBinary(context, "nie-cli", "niers");
+			await buildBinary(context, "nie-cli", "nie");
 			await run(context, ["target/release/nie", "--version"]);
 			await run(context, ["target/release/nie", "mcp", "--help"]);
 		},

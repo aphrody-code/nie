@@ -1,6 +1,6 @@
 #![recursion_limit = "256"]
 
-//! `nie-game` — hôte GUI natif wgpu, pilier D1/C4 pixel-perfect de niers.
+//! `nie-game` — hôte GUI natif wgpu, pilier D1/C4 pixel-perfect de nie.
 //!
 //! ## Modes d'exécution
 //!
@@ -62,7 +62,7 @@ use nie_formats::raster2d::{crop_rgba, scale_nearest};
 // binaire inutilisable partout ailleurs — et sur une installation Steam, la racine du jeu EST le
 // répertoire courant.
 
-/// Hôte GUI natif wgpu — pilier D1/C4 pixel-perfect pour niers.
+/// Hôte GUI natif wgpu — pilier D1/C4 pixel-perfect pour nie.
 ///
 /// Monte le VFS CPK Steam, décode une texture `.g4tx` réelle en RGBA8, l'envoie
 /// sur GPU via un pipeline wgpu plein écran.
@@ -170,7 +170,7 @@ struct Cli {
     export_layout: Option<PathBuf>,
 
     /// Nom d'écran à écrire dans le champ `screen` du layout exporté (défaut = valeur de `--menu`).
-    /// Ex. : niers énumère le préfixe objbin `mainmenu` mais azalee attend `100_mainmenu`.
+    /// Ex. : nie énumère le préfixe objbin `mainmenu` mais azalee attend `100_mainmenu`.
     #[arg(long)]
     screen_name: Option<String>,
 
@@ -2428,7 +2428,7 @@ fn setting_objbin_paths_with_lookup(
 // ── Export de layout (contrat azalee `@rose-griffon/menu-render`) ─────────────
 
 /// Exporte le LAYOUT d'un écran de menu en JSON consommé par azalee (renderer WebGPU /
-/// PNG serveur), en lieu et place de l'export iecode. Réutilise le pipeline niers amélioré :
+/// PNG serveur), en lieu et place de l'export iecode. Réutilise le pipeline nie amélioré :
 /// placement **motion-fallback** (D1.a, `menu::place_on_canvas`) + sélection de texture
 /// non-dummy (D1.b, `g4tx::select_main_texture`) + résolution de locale déterministe.
 ///
@@ -2521,7 +2521,7 @@ fn cmd_menu_matrix(game_dir: &Path, out: &Path) -> Result<()> {
 
     let screen_count = rows.len();
     let result = json!({
-        "schema": "niers.menu.matrix/v1",
+        "schema": "nie.menu.matrix/v1",
         "vfsAssets": vfs.asset_count(),
         "screens": rows,
         "summary": {
@@ -4746,7 +4746,7 @@ impl winit::application::ApplicationHandler for AppFenetre {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let attrs = winit::window::Window::default_attributes()
             .with_title(if self.jeu.is_some() {
-                "niers — Inazuma Eleven: Victory Road"
+                "nie — Inazuma Eleven: Victory Road"
             } else {
                 "nie-game — IEVR texture viewer"
             })

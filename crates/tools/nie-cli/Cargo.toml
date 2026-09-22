@@ -65,7 +65,7 @@ schemars.workspace = true
 rmcp = { workspace = true, features = ["server", "transport-io", "macros", "schemars"] }
 rayon.workspace = true
 
-# `niers strings` : géométrie du PE (sections, ImageBase) et décodage de .text.
+# `nie strings` : géométrie du PE (sections, ImageBase) et décodage de .text.
 goblin.workspace = true
 iced-x86.workspace = true
 
@@ -75,7 +75,7 @@ image_dds = { workspace = true, features = ["ddsfile", "image"] }
 image = { workspace = true, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
 png.workspace = true
 
-# `niers find` / `niers grep` : recherche de fichiers et de contenu sur le disque.
+# `nie find` / `nie grep` : recherche de fichiers et de contenu sur le disque.
 ignore.workspace = true
 globset.workspace = true
 grep-searcher.workspace = true

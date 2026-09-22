@@ -1,4 +1,4 @@
-//! Deduplicated breadth-first frontiers for the niers reverse-engineering loop.
+//! Deduplicated breadth-first frontiers for the nie reverse-engineering loop.
 //!
 //! [`MemoryFrontier`] provides a deterministic, bounded planner that is portable to WebAssembly.
 //! With the default `host` feature, [`Frontier`] preserves the shared Redis frontier used by
@@ -278,7 +278,7 @@ pub enum QueueError {
 #[cfg(feature = "host")]
 pub type Result<T> = std::result::Result<T, QueueError>;
 
-/// Shared Redis BFS frontier for one binary (key prefix: `niers:<binary>`).
+/// Shared Redis BFS frontier for one binary (key prefix: `nie:<binary>`).
 #[cfg(feature = "host")]
 pub struct Frontier {
     conn: redis::Connection,
@@ -294,8 +294,8 @@ impl Frontier {
         let conn = client.get_connection()?;
         Ok(Self {
             conn,
-            seen_key: format!("niers:{tag}:seen"),
-            list_key: format!("niers:{tag}:frontier"),
+            seen_key: format!("nie:{tag}:seen"),
+            list_key: format!("nie:{tag}:frontier"),
         })
     }
 

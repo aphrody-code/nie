@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
 
-import { cn } from "@niers/inacord-ui/lib/utils"
+import { cn } from "@nie/inacord-ui/lib/utils"
 import {
   Dialog,
   DialogContent,

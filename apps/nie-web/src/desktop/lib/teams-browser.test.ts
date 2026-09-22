@@ -2,9 +2,9 @@ import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { createBrowserTeamStore, MAX_SAVED_TEAMS, MAX_TEAM_STORAGE_BYTES, TEAM_STORAGE_KEY } from "./teams-browser";
 import { teamsDb } from "./teamsDb";
 import Database from "./sqlite";
-import type { TeamMember } from "@niers/game/game/team-types";
+import type { TeamMember } from "@nie/game/game/team-types";
 
-const neighborKey = "niers.teams.test.neighbor";
+const neighborKey = "nie.teams.test.neighbor";
 let previous: string | null;
 let previousNeighbor: string | null;
 const storage = () => window.localStorage;

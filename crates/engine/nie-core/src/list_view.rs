@@ -685,7 +685,7 @@ mod tests {
         }
     }
 
-    /// Les paramètres RÉELS de `team14_01_chara_bank_list.objbin`, décodés par `niers decode`.
+    /// Les paramètres RÉELS de `team14_01_chara_bank_list.objbin`, décodés par `nie decode`.
     ///
     /// Ce test ne prouve pas un comportement du jeu : il fixe le PONT entre un fichier et le
     /// modèle, pour qu'un changement d'offset ou de nom se voie. La correspondance elle-même

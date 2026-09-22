@@ -1,4 +1,4 @@
-# Export des fonctions analysées par Ghidra vers un CSV ingérable par niers.
+# Export des fonctions analysées par Ghidra vers un CSV ingérable par nie.
 #
 # Script Ghidra (Jython) : à passer à `analyzeHeadless … -postScript`.
 # Écrit une ligne par fonction : adresse, nom, source du nom, taille, nb de
@@ -11,7 +11,7 @@
 # donc leur nom *réel*.
 #
 # Sortie : $NIE_GHIDRA_OUT, ou <projet>/ghidra-functions.csv à défaut.
-# @category niers
+# @category nie
 
 import os
 
@@ -52,5 +52,5 @@ with open(out_path, "w") as fh:
             % (f.getEntryPoint().getOffset(), safe, src, size, f.getParameterCount(), cc)
         )
 
-print("[niers] %d fonctions exportees (%d avec un nom non par defaut) -> %s"
+print("[nie] %d fonctions exportees (%d avec un nom non par defaut) -> %s"
       % (n_total, n_named, out_path))

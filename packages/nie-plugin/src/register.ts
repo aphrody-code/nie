@@ -20,15 +20,15 @@
  *      nie:re/lua/<nom>               → Uint8Array (data/lua_scripts/<nom>)
  *
  * Chemins depuis packages/nie-plugin/src/ :
- *   ../../.. = racine workspace niers/
+ *   ../../.. = racine workspace nie/
  */
 
 import { decode, decodeToPng } from "@aphrody/nie";
 
 // ─── chemins des données RE ─────────────────────────────────────────────────
 
-// import.meta.dir = packages/nie-plugin/src → 3 niveaux → niers/
-const _wsRoot = process.env["NIERS_ROOT"] ?? `${import.meta.dir}/../../..`;
+// import.meta.dir = packages/nie-plugin/src → 3 niveaux → nie/
+const _wsRoot = process.env["NIE_ROOT"] ?? `${import.meta.dir}/../../..`;
 const RE_DIR  = `${_wsRoot}/data/re`;
 const LUA_DIR = `${_wsRoot}/data/lua_scripts`;
 

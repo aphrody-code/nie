@@ -1,6 +1,6 @@
 //! `nie-ffi` — Frontière FFI C-ABI.
 //!
-//! Expose la logique niers à des runtimes extérieurs (Bun, Node, C, Python…) via une interface
+//! Expose la logique nie à des runtimes extérieurs (Bun, Node, C, Python…) via une interface
 //! `extern "C"` stable.
 //!
 //! # Fonctions exportées — existantes
@@ -484,7 +484,7 @@ pub extern "C" fn nie_format_name(kind: u32) -> *const c_char {
 /// Dispatch interne : détecte le format et sérialise en JSON.
 ///
 /// La table de dispatch vit dans [`nie_formats::decode::to_json`], partagée avec la CLI
-/// (`niers decode`) : une famille ajoutée là-bas profite aux deux d'un coup.
+/// (`nie decode`) : une famille ajoutée là-bas profite aux deux d'un coup.
 fn decode_json_impl(data: &[u8]) -> NieBytes {
     match nie_formats::decode::to_json(data) {
         Some(v) => NieBytes::from_vec(v),
@@ -890,7 +890,7 @@ const VFS_LIST_CAP: usize = 50_000;
 ///
 /// Exemple côté Bun :
 /// ```js
-/// const gameDataDir = "/home/user/niers/data"; // contient cpk_list.cfg.bin
+/// const gameDataDir = "/home/user/nie/data"; // contient cpk_list.cfg.bin
 /// const vfs = nie_vfs_open(gameDataDir);        // null sur erreur
 /// ```
 ///

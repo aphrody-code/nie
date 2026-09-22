@@ -1,7 +1,7 @@
 import { ensureWasm } from "./bridge";
 import { PreloadedVfs } from "../wasm/nie_wasm.js";
 import { vfsResources, type VfsResources } from "./vfs-resources";
-import { fetchBytes } from "@niers/asset-source";
+import { fetchBytes } from "@nie/asset-source";
 
 export interface VfsArchiveReference {
 	id: string;

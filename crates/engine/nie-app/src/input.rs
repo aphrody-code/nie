@@ -20,7 +20,7 @@
 //!
 //! [`ButtonInput`] suit la structure de `bevy_input::ButtonInput` : trois ensembles — enfoncé,
 //! vient d'être enfoncé, vient d'être relâché — et un `clear()` par image qui ne vide que les
-//! deux derniers. C'est un modèle éprouvé, et sa subtilité utile est qu'un `press()` sur une
+//! deux dernie. C'est un modèle éprouvé, et sa subtilité utile est qu'un `press()` sur une
 //! touche **déjà** enfoncée n'alimente pas `just_pressed` : la répétition clavier du système ne
 //! fait donc pas défiler un menu.
 //!

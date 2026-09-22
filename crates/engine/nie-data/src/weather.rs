@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! Deux fichiers dans `/home/ubuntu/niers/data/common/gamedata/weather/` :
+//! Deux fichiers dans `/home/ubuntu/nie/data/common/gamedata/weather/` :
 //!
 //! | Fichier | Format | Taille |
 //! |---------|--------|--------|

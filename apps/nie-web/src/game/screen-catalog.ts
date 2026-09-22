@@ -4,7 +4,7 @@ export interface IconCatalog { total_indexed:number; results: Page<IconEntry> }
 export interface ModeSummary { slug:string; label:string; prefixes:string[]; official:boolean; content_route:string }
 export interface ModeCatalog { total_modes:number; official_modes:number; results: Page<ModeSummary> }
 
-import { fetchJson, HttpError } from "@niers/asset-source";
+import { fetchJson, HttpError } from "@nie/asset-source";
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
 	try {

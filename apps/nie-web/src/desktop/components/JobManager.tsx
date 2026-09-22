@@ -5,12 +5,12 @@
 //
 // La source de vérité est la table `jobs` de `mods.db` (cf. `lib/jobsDb.ts`), pas un état React :
 // c'est ce qui rend le suivi survivant à un changement d'onglet et à un redémarrage de l'app.
-import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Popover, PopoverContent, PopoverTrigger } from "@niers/inacord-ui/components/ui/popover";
-import { Progress } from "@niers/inacord-ui/components/ui/progress";
+import { CircleButton } from "@nie/inacord-ui/components/ui/circle-button";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { Popover, PopoverContent, PopoverTrigger } from "@nie/inacord-ui/components/ui/popover";
+import { Progress } from "@nie/inacord-ui/components/ui/progress";
 import { jobsDb, useJobs, type JobRow, type JobStatus } from "@/lib/jobsDb";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 import { NATIVE_WINDOW } from "../../host";
 
 const STATUS_LABEL: Record<JobStatus, string> = {

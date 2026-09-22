@@ -9,5 +9,5 @@ Push-Location $Root
 try {
     if ($Release) { cargo build --workspace --release } else { cargo build --workspace }
     if ($Tests) { cargo test --workspace }
-    Write-Host "niers build complete ($($Release ? 'release' : 'debug'))"
+    Write-Host "nie build complete ($($Release ? 'release' : 'debug'))"
 } finally { Pop-Location }

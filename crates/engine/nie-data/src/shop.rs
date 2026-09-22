@@ -11,7 +11,7 @@
 //! Côté **inagle** (son convertisseur `config-parser.ts`), l'item-list est un *enfant* du
 //! shop : `SHOP_INFO_LIST_BEG_x > SHOP_INFO_x > SHOP_INFO_ITEM_LIST_BEG_x > SHOP_INFO_ITEM_y`.
 //!
-//! Côté **niers** (`cfgbin_to_t2b_iecode_root`, qui imbrique sur les marqueurs `_BEG`/`_END`),
+//! Côté **nie** (`cfgbin_to_t2b_iecode_root`, qui imbrique sur les marqueurs `_BEG`/`_END`),
 //! le noeud `SHOP_INFO_x` n'a **pas** de marqueur `_BEG` : il est donc une feuille, et son
 //! item-list `SHOP_INFO_ITEM_LIST_BEG_x` est un **frère** placé juste après lui :
 //!
@@ -28,7 +28,7 @@
 //! ```
 //!
 //! Le parseur gère **les deux dispositions** : l'item-list est rattaché au shop courant
-//! qu'il soit un frère (niers) ou un enfant (inagle). Dans les deux cas, on extrait
+//! qu'il soit un frère (nie) ou un enfant (inagle). Dans les deux cas, on extrait
 //! exactement les mêmes données qu'inagle (shopId, nameHash, ensemble d'itemId).
 //!
 //! ## Variables positionnelles
@@ -97,7 +97,7 @@ impl ShopInfo {
 /// Parse un `shop_config_*.cfg.bin.json` complet en liste de [`ShopInfo`].
 ///
 /// Port 1:1 de `loadShopConfig` (inagle `shop-config.ts`), adapté aux deux dispositions
-/// d'item-list (frère niers ou enfant inagle, cf. doc du module).
+/// d'item-list (frère nie ou enfant inagle, cf. doc du module).
 ///
 /// Règles (identiques à inagle) :
 /// - un shop n'est retenu que si `var[0]` et `var[1]` existent et sont de type `Int` ;
@@ -126,7 +126,7 @@ pub fn parse_shop_config(root: &Value) -> Vec<ShopInfo> {
                     current = None;
                 }
             } else if is_item_list_node(name) {
-                // Disposition niers : l'item-list est un frère rattaché au shop courant.
+                // Disposition nie : l'item-list est un frère rattaché au shop courant.
                 if let Some(idx) = current {
                     collect_items_from_list(child, &mut shops[idx].items);
                 }
@@ -234,7 +234,7 @@ mod tests {
         })
     }
 
-    /// Fixture niers (item-list = frère du shop), valeurs réelles de `SHOP_INFO_2`
+    /// Fixture nie (item-list = frère du shop), valeurs réelles de `SHOP_INFO_2`
     /// (avec son doublon `-1937608713`).
     #[test]
     fn shop2_dedup_set_comme_inagle() {

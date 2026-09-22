@@ -1,2 +1,2 @@
-/** Compatibility path for the desktop host; the canonical owner is niers-media. */
-export { neighboringEpisodes, nextUnwatchedEpisode } from "niers-media/navigation";
+/** Compatibility path for the desktop host; the canonical owner is nie-media. */
+export { neighboringEpisodes, nextUnwatchedEpisode } from "nie-media/navigation";

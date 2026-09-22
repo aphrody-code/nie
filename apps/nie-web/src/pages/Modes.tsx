@@ -3,7 +3,7 @@
  *
  * ## Ce que cette page ajoute au wiki qu'elle remplace
  *
- * Azalée servait `/mode` et `/mode/<slug>` en lisant les JSON de `niers mode export` : elle
+ * Azalée servait `/mode` et `/mode/<slug>` en lisant les JSON de `nie mode export` : elle
  * pouvait NOMMER les écrans d'un mode, pas les montrer. Ici, chaque écran est demandé à
  * `GET /api/v1/menu/render/<ecran>`, qui compose le calque, les objets de menu et les textures
  * du jeu et rend un PNG. La page n'est donc plus une liste de noms de fichiers.
@@ -55,20 +55,20 @@ import {
   GameText,
   GLYPHES,
   Link,
-} from "@niers/inacord-ui";
+} from "@nie/inacord-ui";
 import {
   browserLocationSnapshot,
   subscribeBrowserLocation,
   writeBrowserHistory,
-} from "@niers/inacord-ui/lib/browser-navigation";
+} from "@nie/inacord-ui/lib/browser-navigation";
 import {
   fetchGameText,
   refKey,
   type GameTextRef,
-} from "@niers/inacord-ui/lib/game-text";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+} from "@nie/inacord-ui/lib/game-text";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { MODES } from "../entries";
-import { fetchJson, resilientFetch, HttpError } from "@niers/asset-source";
+import { fetchJson, resilientFetch, HttpError } from "@nie/asset-source";
 
 /** La famille de texte qui porte le nom des modes. */
 const LABEL_FAMILY = "menu_text";

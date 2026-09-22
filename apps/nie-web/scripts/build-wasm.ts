@@ -26,7 +26,7 @@ const GENERATED_WASM_TYPESCRIPT = fileURLToPath(
 const TRACKED_PUBLIC_WASM = fileURLToPath(
 	new URL("../public/static/game/nie_wasm_bg.wasm", import.meta.url)
 );
-const PUBLIC_WASM = process.env.NIERS_WASM_PUBLIC_OUTPUT ?? TRACKED_PUBLIC_WASM;
+const PUBLIC_WASM = process.env.NIE_WASM_PUBLIC_OUTPUT ?? TRACKED_PUBLIC_WASM;
 const VERIFY_TRACKED_BINDINGS = PUBLIC_WASM !== TRACKED_PUBLIC_WASM;
 const MAX_WASM_BYTES = 6 * 1024 * 1024;
 

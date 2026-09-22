@@ -1,13 +1,13 @@
 // Pont de contrôle : laisse le serveur MCP `nie-mcp` piloter cette fenêtre (naviguer, ouvrir
-// un asset, changer d'onglet, notifier). Le protocole vient de `@niers/bridge`, importé tel
+// un asset, changer d'onglet, notifier). Le protocole vient de `@nie/bridge`, importé tel
 // quel par les deux bouts — la même union `BridgeCommand` sert ici et côté serveur, donc une
 // commande ajoutée sans être traitée casse la compilation au lieu de partir en silence.
 //
 // Le pont est opportuniste et facultatif : sans serveur MCP en écoute, `connectBridge`
 // réessaie en arrière-plan et l'explorateur fonctionne normalement.
 import { useEffect, useRef, useState } from "react";
-import { connectBridge, type BridgeHandlers } from "@niers/bridge";
-import { getSettings } from "@niers/inacord-ui/lib/settings";
+import { connectBridge, type BridgeHandlers } from "@nie/bridge";
+import { getSettings } from "@nie/inacord-ui/lib/settings";
 import { NATIVE_WINDOW } from "../../host";
 import inacordPackage from "../../../../inacord/package.json";
 

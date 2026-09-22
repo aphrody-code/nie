@@ -20,7 +20,7 @@ echecs=()
 titre() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 titre "1. Les commandes attendues sont-elles publiées ?"
-for c in niers export_skills export_passives export_formations export_aphrody; do
+for c in nie export_skills export_passives export_formations export_aphrody; do
     if chemin=$(command -v "$c" 2>/dev/null); then
         printf '  ✓ %-20s %s\n' "$c" "$chemin"
     else
@@ -35,7 +35,7 @@ if [ ${#manquants[@]} -gt 0 ]; then
 fi
 
 titre "2. Le propriétaire Rust répond-il ?"
-niers wiki --help >/dev/null || echecs+=("niers wiki --help")
+nie wiki --help >/dev/null || echecs+=("nie wiki --help")
 
 [ "$sec" = "--verif-seule" ] && { echo; echo "vérification seule : rien exporté."; exit 0; }
 

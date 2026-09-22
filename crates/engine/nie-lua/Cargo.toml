@@ -18,7 +18,7 @@ mlua = { workspace = true, optional = true, features = ["lua52", "vendored"] }
 thiserror.workspace = true
 
 # Sérialisation des types de `bytecode` : un chunk décodé doit pouvoir sortir en
-# JSON (`niers decode` sur un `.lua.bin`), pas seulement en désassemblage texte.
+# JSON (`nie decode` sur un `.lua.bin`), pas seulement en désassemblage texte.
 serde = { workspace = true, features = ["derive"] }
 
 # Analyse statique des sources Lua décompilées : AST concret, sans exécuter le code.

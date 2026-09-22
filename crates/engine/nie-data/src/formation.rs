@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/formation/formation_config_0.02.16.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/formation/formation_config_0.02.16.cfg.bin.json`
 //! - 5 listes dans ce fichier :
 //!   - `m_SoccerPositionInfoList` — 10 types de position (poids offensif/défensif/ligne centrale).
 //!   - `m_SoccerFormPlacementInfoList` — 1 073 slots de placement (11 par formation réelle ;

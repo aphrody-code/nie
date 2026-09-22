@@ -5,8 +5,8 @@ description: Probe and operate the approved Computer Use boundary for the local 
 
 # Computer Use — nie.exe and Ghidra
 
-Use `niers computer-use nie-exe` to verify the exact executable path and
-`niers computer-use ghidra` to verify the local Ghidra MCP endpoint. These
+Use `nie computer-use nie-exe` to verify the exact executable path and
+`nie computer-use ghidra` to verify the local Ghidra MCP endpoint. These
 commands are probes: they do not launch, click, patch, or write.
 
 The output is JSON and follows `schemas/computer-use-probe.schema.json`.

@@ -1,4 +1,4 @@
-//! `niers lua-run` — exécution d'un chunk Lua brut avec résolution VFS des includes.
+//! `nie lua-run` — exécution d'un chunk Lua brut avec résolution VFS des includes.
 
 use std::path::{Path, PathBuf};
 use std::rc::Rc;

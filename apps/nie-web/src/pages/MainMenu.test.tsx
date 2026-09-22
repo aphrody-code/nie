@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { AssetSourceProvider } from "@niers/inacord-ui";
-import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu.ts";
+import { AssetSourceProvider } from "@nie/inacord-ui";
+import type { NativeMenuScene } from "@nie/inacord-ui/shell/native-title-menu.ts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";

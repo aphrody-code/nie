@@ -9,10 +9,10 @@
 // sont acceptées puis ignorées, pour que le code porté reste identique à sa source.
 import type { CSSProperties, ImgHTMLAttributes } from "react";
 
-import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { useThumbnail } from "@niers/inacord-ui/lib/thumbs";
-import { estCheminVfs } from "@niers/inacord-ui/lib/wikiImages";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
+import { useThumbnail } from "@nie/inacord-ui/lib/thumbs";
+import { estCheminVfs } from "@nie/inacord-ui/lib/wikiImages";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 export interface ImageProps
   extends Omit<ImgHTMLAttributes<HTMLImageElement>, "width" | "height" | "placeholder"> {

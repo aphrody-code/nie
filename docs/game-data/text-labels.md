@@ -280,7 +280,7 @@ Plus thématiques : `[CTEAMPARAM01]`, `[CPASSIVE01]`, `[CMODE0x]`, `[CREPORT01]`
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC32 to string resolutions for text labels and keys
 - `function` — localized string parsing routines in `nie.exe`
 - `xref` — cross-references to text lookups

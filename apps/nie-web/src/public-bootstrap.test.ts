@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { SanteApi } from "@niers/asset-source/nie-site";
+import type { SanteApi } from "@nie/asset-source/nie-site";
 import {
 	isFreshPublicRoot,
 	isStartupReady,

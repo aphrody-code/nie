@@ -1,4 +1,4 @@
-//! Moteur RE niers.
+//! Moteur RE nie.
 //!
 //! Trois capacités, implémentées au fil de la boucle :
 //! - `rtti` : récupération RTTI MSVC (`.rdata` → classes `lives::*`/`game::*` + hiérarchie).

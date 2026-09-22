@@ -108,5 +108,5 @@ chargé sous Wine), et une branche défensive sans entrée correspondante. `--mo
 
 Complète [`dump-exploitation.md`](./dump-exploitation.md) (le dump *offline* d'où viennent les
 localisateurs) et le flux `nie-mem` (lecture seule). La résolution AOB live + l'auto-check des RVAs
-sert aussi à **mesurer la dérive de build** (vtable/hook live ≠ `var/niers.sqlite`) sur n'importe
+sert aussi à **mesurer la dérive de build** (vtable/hook live ≠ `var/nie.sqlite`) sur n'importe
 quel build du jeu, sans re-dumper.

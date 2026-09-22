@@ -28,7 +28,7 @@ $ESC = [char]27
 function titre([string]$m) { Write-Host ''; Write-Host "$ESC[1m$m$ESC[0m" }
 
 titre '1. Les commandes attendues sont-elles publiées ?'
-foreach ($c in @('niers', 'export_skills', 'export_passives', 'export_formations', 'export_aphrody')) {
+foreach ($c in @('nie', 'export_skills', 'export_passives', 'export_formations', 'export_aphrody')) {
     $cmd = Get-Command -Name $c -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($cmd) {
         Write-Host ('  ✓ {0,-20} {1}' -f $c, $cmd.Source)
@@ -48,8 +48,8 @@ titre '2. Le propriétaire Rust répond-il ?'
 # pré-armé : sous Set-StrictMode, le lire alors qu'aucun natif n'a encore tourné dans la
 # session fait planter le script au lieu de compter un échec.
 $global:LASTEXITCODE = 0
-& (Get-Command niers -CommandType Application | Select-Object -First 1).Source wiki --help | Out-Null
-if ($LASTEXITCODE -ne 0) { $echecs.Add('niers wiki --help') }
+& (Get-Command nie -CommandType Application | Select-Object -First 1).Source wiki --help | Out-Null
+if ($LASTEXITCODE -ne 0) { $echecs.Add('nie wiki --help') }
 
 if ($sec -eq '--verif-seule') {
     Write-Host ''

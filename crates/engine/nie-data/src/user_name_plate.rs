@@ -5,7 +5,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/user_name_plate/user_name_plate_config_1.03.50.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/user_name_plate/user_name_plate_config_1.03.50.00.cfg.bin.json`
 //! - 1 liste dans ce fichier :
 //!   - `m_userNamePlateInfoList` — 142 entrées `USER_NAME_PLATE_INFO`, chacune décrivant
 //!     une plaque de nom débloquable.

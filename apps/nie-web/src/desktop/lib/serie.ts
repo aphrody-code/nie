@@ -40,7 +40,7 @@ export interface LacuneSaison {
  *
  * Rend `null` quand la saison est complète, vide, ou n'a qu'un seul épisode identifié — il n'y a
  * alors aucun intervalle où chercher. La borne est celle du CATALOGUE, pas celle que la chaîne
- * annonce : une saison dont les cinq derniers épisodes n'ont jamais été publiés n'a pas de trou,
+ * annonce : une saison dont les cinq dernie épisodes n'ont jamais été publiés n'a pas de trou,
  * elle est courte, et présenter cela comme un manque serait faux.
  *
  * Calcul des épisodes manquants dans une saison.

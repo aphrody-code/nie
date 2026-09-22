@@ -145,7 +145,7 @@ Chiffres sortis de l'outil, pas d'une estimation. Le binaire produit est **byte-
 > des deux machines ne peut donc rejouer la mesure : ces pourcentages sont, à ce jour, la trace
 > d'un run de 2026-08-10 sur une cible qui n'a pas changé — pas un résultat reconfirmé. Le binaire
 > installé localement porte bien le sha256 `b1fa04ea3658…` et 33 918 464 octets (revérifié le
-> 2026-08-28 par `niers info`), donc la cible est la bonne ; c'est l'état interne de la forge qui
+> 2026-08-28 par `nie info`), donc la cible est la bonne ; c'est l'état interne de la forge qui
 > manque, pas le binaire.
 
 Mesure **rejouée le 2026-09-03** sur la cible `b1fa04ea3658…` :

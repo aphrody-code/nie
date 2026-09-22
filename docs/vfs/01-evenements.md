@@ -227,7 +227,7 @@ Uniquement des routes appuyées sur un parseur déjà existant :
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC-32 hashes for event scenes, commands, script variables and triggers
 - `function` — Lua event dispatcher and cutscene triggers in `nie.exe`
 - `xref` — call-graph edges from event callbacks to engine subsystems

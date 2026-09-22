@@ -10,7 +10,7 @@
 //! rien sur ce que le jeu accepte.
 //!
 //! Cet exemple ne devine pas la sémantique du pied à partir d'un seul échantillon : il relève
-//! les seize derniers octets de tous les T2B du jeu et ventile par motif, en marquant quels
+//! les seize dernie octets de tous les T2B du jeu et ventile par motif, en marquant quels
 //! octets sont **constants** sur tout le corpus et lesquels **varient**. Ce qui varie est un
 //! champ ; ce qui ne varie pas est une signature.
 //!
@@ -78,9 +78,9 @@ fn main() {
     }
 
     println!("{n_t2b} fichiers T2B lus ({n_trop_court} trop courts pour porter un pied)");
-    println!("{n_avec_signature} portent la chaîne « t2b » dans leurs {PIED} derniers octets\n");
+    println!("{n_avec_signature} portent la chaîne « t2b » dans leurs {PIED} dernie octets\n");
 
-    println!("Position par position, sur les {PIED} derniers octets :");
+    println!("Position par position, sur les {PIED} dernie octets :");
     println!("{:>4}  {:<9} {:>8}  détail", "off", "état", "valeurs");
     for (i, vues) in valeurs_vues.iter().enumerate() {
         let etat = if vues.len() == 1 {

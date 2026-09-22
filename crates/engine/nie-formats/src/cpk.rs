@@ -1609,7 +1609,7 @@ mod tests {
         };
         let clear = decrypt_cpk_list(&enc).expect("déchiffrement AES-256-CBC");
 
-        // Footer T2B dans les 64 derniers octets.
+        // Footer T2B dans les 64 dernie octets.
         let tail = &clear[clear.len().saturating_sub(64)..];
         assert!(
             tail.windows(4).any(|w| w == [0x01, 0x74, 0x32, 0x62]),

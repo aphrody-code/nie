@@ -1,7 +1,7 @@
 /** Layered startup and menu built from VFS assets, shared geometry, and explicit incomplete states. */
-import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
-import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
-import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
+import { createStandardGamepadMenuSampler } from "@nie/inacord-ui/shell/menu-interaction";
+import { emitNativeCommand } from "@nie/inacord-ui/lib/native-command";
+import type { SanteApi as SiteHealth } from "@nie/asset-source/nie-site";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AVATAR, BANK, GALLERY, SETTINGS, SHOP, menuEntries } from "../entries";
 import { bindMenuActions } from "../game/menu-actions";

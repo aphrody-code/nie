@@ -1,7 +1,7 @@
 import type React from "react";
-import { GAME_ICON_ATLASES, GAME_ICONS } from "@niers/inacord-ui/config/game-icons";
-import type { GameIconKey } from "@niers/inacord-ui/config/game-icons";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { GAME_ICON_ATLASES, GAME_ICONS } from "@nie/inacord-ui/config/game-icons";
+import type { GameIconKey } from "@nie/inacord-ui/config/game-icons";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 interface GameSpriteIconProps extends React.HTMLAttributes<HTMLSpanElement> {
 	/** Cle de l'icone dans GAME_ICONS. */

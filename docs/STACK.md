@@ -23,14 +23,14 @@ Versions lues dans `Cargo.lock`, pas déclarées d'intention.
 | Textures | `image_dds` + `bcdec_rs` + `png` | — | BCn/DDS → RGBA8 ; source unique `nie_formats::g4tx_decode` |
 | Éditeur de scène | `eframe`/`egui` (natif) · `nie-render3d` (navigateur) | — | `fyrox` et `fyroxed_base` ont quitté `Cargo.lock` avec le binaire `legacy-fyrox` ; cette ligne les annonçait encore. Le viewport du navigateur rend par `nie-render3d` depuis le 2026-09-20, `three` restant le repli sous WebGL 1 |
 | Sérialisation | `serde` + `serde_json` | 1 | Toujours feature-gated, **jamais** sur le chemin de l'octet |
-| Base de connaissance | `rusqlite` (bundled) | 0.37 | `var/niers.sqlite` |
+| Base de connaissance | `rusqlite` (bundled) | 0.37 | `var/nie.sqlite` |
 | Désassemblage | `iced-x86` + `goblin` | — | `nie-re`, `nie-asm` — pas de dépendance externe à r2/objdump |
 
 ### Reverse engineering et Computer Use
 
 La chaîne canonique est `nie-re` (analyse statique et base SQLite) → `nie-trace` (processus vivant)
 → `nie-computer-use` (façade d’orchestration). Les consommateurs sont `nie-cli re`, `nie mem`, les
-exemples de dumps et Inacord en lecture de `var/niers.sqlite`. Les fichiers locaux correspondants
+exemples de dumps et Inacord en lecture de `var/nie.sqlite`. Les fichiers locaux correspondants
 sont les crates sous `crates/forge/` et `crates/tools/`; ils correspondent à `origin/main` du dépôt
 [aphrody-code/nie](https://github.com/aphrody-code/nie) sur l’audit du 2026-09-07.
 
@@ -46,7 +46,7 @@ dépendance** : ce sont des ports du décompilé (`nie-core`, `nie-formats::menu
 
 ## Deux environnements, un binaire
 
-niers tourne sur un serveur Linux sans GPU (indexation RE, forge, services HTTP) et sur un poste
+nie tourne sur un serveur Linux sans GPU (indexation RE, forge, services HTTP) et sur un poste
 Windows avec GPU (rendu, capture, jeu). Rien n'est compilé pour l'un au détriment de l'autre :
 
 | | Serveur Linux | Poste Windows |
@@ -119,7 +119,7 @@ Ces rejets sont doctrinaux : ils tiennent tant que l'objectif byte/pixel tient.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) grounding for the runtime stack:
+Knowledge base (`var/nie.sqlite`) grounding for the runtime stack:
 
 - `function` — 117 068 function records of `nie.exe`
 - `coverage` — coverage metrics verified against `.pdata`

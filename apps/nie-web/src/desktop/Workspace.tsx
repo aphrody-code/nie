@@ -21,7 +21,7 @@
  */
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { Tabs, TabsContent } from "@niers/inacord-ui/components/ui/tabs";
+import { Tabs, TabsContent } from "@nie/inacord-ui/components/ui/tabs";
 import { ExplorerView } from "@/components/ExplorerView";
 import { ExplorerTabsBar } from "@/components/ExplorerTabsBar";
 import { DetailPane } from "@/components/DetailPane";
@@ -48,10 +48,10 @@ export function Workspace({ view, actions, publicMode = false }: {
   const explorer = tabsState.tabs.find((x) => x.id === tabsState.activeId) ?? tabsState.tabs[0];
   const activeTabId = explorer.id;
   // Pont de contrôle MCP : `nie-mcp` peut piloter cette fenêtre (naviguer, ouvrir un asset,
-  // changer d'onglet, notifier) — mêmes types de commandes des deux côtés, cf. `@niers/bridge`.
+  // changer d'onglet, notifier) — mêmes types de commandes des deux côtés, cf. `@nie/bridge`.
   // Opportuniste : sans serveur en écoute, rien ne se passe et l'application reste intacte.
   // Le protocole du pont ne connaît qu'UN couple `prefix`/`selected` : il décrit et pilote donc
-  // l'onglet ACTIF, jamais les autres. Étendre `@niers/bridge` aux onglets serait un changement de
+  // l'onglet ACTIF, jamais les autres. Étendre `@nie/bridge` aux onglets serait un changement de
   // protocole des deux côtés, hors périmètre.
   useBridge({
     getState: () => ({ tab: view, prefix: explorer.prefix, selected: explorer.selected, externalPath }),

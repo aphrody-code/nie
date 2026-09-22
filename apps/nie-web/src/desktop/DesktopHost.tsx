@@ -14,8 +14,8 @@
  * These used to sit inside the workspace component, which is why they only ran when someone opened
  * `/inacord`, and ran again as a second application on top of the site.
  */
-import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { getSettings, setSettings } from "@niers/inacord-ui/lib/settings";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
+import { getSettings, setSettings } from "@nie/inacord-ui/lib/settings";
 import { ThemeProvider, useTheme } from "next-themes";
 import { useEffect, useMemo } from "react";
 import { listen } from "@tauri-apps/api/event";

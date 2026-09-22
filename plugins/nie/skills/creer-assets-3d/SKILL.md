@@ -7,7 +7,7 @@ description: Créer ou retoucher localement un asset 3D pour NIE avec Blender, p
 
 Produire l’asset demandé, sa source éditable et un aperçu vérifié. Respecter la direction artistique, la destination et le périmètre de la demande ; aucune génération payante ni clé API n’est nécessaire à ce workflow.
 
-Lire [la carte des outils](references/outils-locaux.md) pour choisir les points d’entrée réellement présents. Lire aussi `../niers-monorepo/SKILL.md` avant une modification dans le dépôt. Pour un format du jeu, consulter `../ievr-terminologie/SKILL.md` et la fiche pertinente de `../formats-level5/SKILL.md`.
+Lire [la carte des outils](references/outils-locaux.md) pour choisir les points d’entrée réellement présents. Lire aussi `../nie-monorepo/SKILL.md` avant une modification dans le dépôt. Pour un format du jeu, consulter `../ievr-terminologie/SKILL.md` et la fiche pertinente de `../formats-level5/SKILL.md`.
 
 ## Préparer et fabriquer
 

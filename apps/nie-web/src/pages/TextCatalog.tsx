@@ -6,14 +6,14 @@ import {
   GamePanel,
   GameSearchBar,
   GLYPHES,
-} from "@niers/inacord-ui";
+} from "@nie/inacord-ui";
 import {
   browserLocationSnapshot,
   subscribeBrowserLocation,
   writeBrowserHistory,
-} from "@niers/inacord-ui/lib/browser-navigation";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { fetchJson } from "@niers/asset-source";
+} from "@nie/inacord-ui/lib/browser-navigation";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
+import { fetchJson } from "@nie/asset-source";
 
 type TextFamily = {
   family: string;

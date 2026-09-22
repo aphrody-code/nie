@@ -16,7 +16,7 @@ and `crates/tools/nie-site`.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC32 and string hashes for skills and passives
 - `function` — passive calculation and evaluation routines in `nie.exe`
 - `coverage` — coverage rate of gameplay mechanics

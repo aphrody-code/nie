@@ -153,7 +153,7 @@ pub async fn setting(
     })?;
     let setting = nie_data::menu_setting::parse(&racine);
     Ok(Json(json!({
-        "schema": "niers.menu.setting/v1",
+        "schema": "nie.menu.setting/v1",
         "screen": screen,
         "path": chemin,
         "bytes": octets.len(),

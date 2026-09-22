@@ -4,18 +4,18 @@ Toutes les valeurs de cette page ont été relevées, aucune n'est citée. La co
 est donnée à chaque fois ; elles se re-mesurent, elles ne se recopient pas.
 
 Le VFS n'est PAS celui que `NIE_GAME_DIR` désigne par défaut dans un shell du dépôt — là, il
-pointe sur le dépôt lui-même et `niers vfs stats` rend 156 876 fichiers et **0 CPK**, ce qui se
+pointe sur le dépôt lui-même et `nie vfs stats` rend 156 876 fichiers et **0 CPK**, ce qui se
 lit comme un corpus alors que c'est une arborescence de sources. L'installation réelle est celle
 que déclare `deploy/systemd/nie-site.service` :
 
 ```sh
 export NIE_GAME_DIR=/home/ubuntu/.local/share/Steam/iecode/inazuma
-niers vfs stats            # 255 342 fichiers, 936 CPK
+nie vfs stats            # 255 342 fichiers, 936 CPK
 ```
 
 ## Textures — la galerie couvre désormais le corpus entier
 
-`niers vfs find ".g4tx"`, 54 203 fichiers, par arborescence :
+`nie vfs find ".g4tx"`, 54 203 fichiers, par arborescence :
 
 | Arborescence | `.g4tx` |
 | --- | ---: |
@@ -42,7 +42,7 @@ C'est aussi d'où vient le littéral figé dans
 `packages/inacord-ui/src/components/wiki/wiki/MediaShell.tsx`. Il annonçait `54 203 fichiers`,
 ce qui n'était pas un nombre de fichiers mais **de textures** ; l'étiquette a été corrigée le
 2026-09-20 et la tuile dit maintenant `54 203 textures`. Le chiffre, lui, reste écrit à la main :
-il se re-mesure par `niers vfs find --ext g4tx`, et le test de la galerie est ce qui le tient.
+il se re-mesure par `nie vfs find --ext g4tx`, et le test de la galerie est ce qui le tient.
 
 ## Modèles — dix-sept familles, et le listage qui en servait trois à vide
 
@@ -89,7 +89,7 @@ souvent un **billboard** — `00_soccer/soccer00/soccer00_01` rend 1 mesh, 1 pri
 0 image — et **17 modèles de menu localisés** (`…/soccer10_05/fr/soccer10_05.g4mg`) restent hors
 catalogue, leur dossier ne portant pas le nom de leur `.g4mg`.
 
-`niers vfs find ".g4md"`, 8 956 fichiers, par famille :
+`nie vfs find ".g4md"`, 8 956 fichiers, par famille :
 
 | Famille | `.g4md` |
 | --- | ---: |
@@ -104,8 +104,8 @@ catalogue, leur dossier ne portant pas le nom de leur `.g4mg`.
 | `data/common/map/w` | 2 |
 | `data/common/chr/_animal` | 1 |
 
-`niers vfs find --ext g4mg`, 15 876 fichiers, par arbre : `chr` 9 542, `map` 2 629,
-`effect` 1 986, `menu` 1 705, `event` 14. Les quatre derniers sont ceux que `/model-tree` sert.
+`nie vfs find --ext g4mg`, 15 876 fichiers, par arbre : `chr` 9 542, `map` 2 629,
+`effect` 1 986, `menu` 1 705, `event` 14. Les quatre dernie sont ceux que `/model-tree` sert.
 
 Restent hors catalogue les **6 067 visages** de `_face`, qui ne sont pas des modèles autonomes :
 c'est `chara_model`/`chara_parts` qui les relie à un personnage, et `/model-full` les assemble

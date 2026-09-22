@@ -134,11 +134,11 @@
       "version": "1.0.0",
       "dependencies": {
         "@monaco-editor/react": "catalog:",
-        "@niers/asset-source": "workspace:*",
-        "@niers/bridge": "workspace:*",
-        "@niers/game": "workspace:*",
-		"@niers/media": "workspace:*",
-        "@niers/inacord-ui": "workspace:*",
+        "@nie/asset-source": "workspace:*",
+        "@nie/bridge": "workspace:*",
+        "@nie/game": "workspace:*",
+		"@nie/media": "workspace:*",
+        "@nie/inacord-ui": "workspace:*",
         "@tauri-apps/api": "catalog:",
         "@tauri-apps/plugin-clipboard-manager": "catalog:",
         "@tauri-apps/plugin-dialog": "catalog:",
@@ -169,7 +169,7 @@
       },
     },
     "packages/asset-source": {
-      "name": "@niers/asset-source",
+      "name": "@nie/asset-source",
       "version": "1.0.0",
       "devDependencies": {
         "@types/bun": "catalog:",
@@ -177,12 +177,12 @@
       },
     },
     "packages/inacord-ui": {
-      "name": "@niers/inacord-ui",
+      "name": "@nie/inacord-ui",
       "version": "1.0.0",
       "dependencies": {
         "@base-ui/react": "catalog:",
-        "@niers/asset-source": "workspace:*",
-        "@niers/game": "workspace:*",
+        "@nie/asset-source": "workspace:*",
+        "@nie/game": "workspace:*",
         "@radix-ui/react-accordion": "catalog:",
         "@radix-ui/react-alert-dialog": "catalog:",
         "@radix-ui/react-aspect-ratio": "catalog:",
@@ -236,7 +236,7 @@
       },
     },
     "packages/nie-bridge": {
-      "name": "@niers/bridge",
+      "name": "@nie/bridge",
       "version": "1.0.0",
       "devDependencies": {
         "@types/bun": "catalog:",
@@ -244,7 +244,7 @@
       },
     },
     "packages/nie-game": {
-      "name": "@niers/game",
+      "name": "@nie/game",
       "version": "1.0.0",
       "dependencies": {
         "wanakana": "catalog:",
@@ -255,7 +255,7 @@
       },
     },
 	"packages/nie-media": {
-	  "name": "@niers/media",
+	  "name": "@nie/media",
 	  "version": "1.0.0",
 	  "devDependencies": {
 		"@types/bun": "catalog:",
@@ -552,15 +552,15 @@
 
     "@next/swc-win32-x64-msvc": ["@next/swc-win32-x64-msvc@16.3.0-canary.37", "", { "os": "win32", "cpu": "x64" }, "sha512-A2ftVpTYNLu8HOOcvB3HP+XLSsvBFKia3GvfnXzYzpUVkMy4HZo1e2OjDbG071dgCUczrrkOhvxzMYg9vkkolQ=="],
 
-    "@niers/asset-source": ["@niers/asset-source@workspace:packages/asset-source"],
+    "@nie/asset-source": ["@nie/asset-source@workspace:packages/asset-source"],
 
-    "@niers/bridge": ["@niers/bridge@workspace:packages/nie-bridge"],
+    "@nie/bridge": ["@nie/bridge@workspace:packages/nie-bridge"],
 
-    "@niers/game": ["@niers/game@workspace:packages/nie-game"],
+    "@nie/game": ["@nie/game@workspace:packages/nie-game"],
 
-    "@niers/inacord-ui": ["@niers/inacord-ui@workspace:packages/inacord-ui"],
+    "@nie/inacord-ui": ["@nie/inacord-ui@workspace:packages/inacord-ui"],
 
-	"@niers/media": ["@niers/media@workspace:packages/nie-media"],
+	"@nie/media": ["@nie/media@workspace:packages/nie-media"],
 
     "@noble/ciphers": ["@noble/ciphers@1.3.0", "", {}, "sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw=="],
 

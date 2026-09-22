@@ -21,16 +21,16 @@ import { Icon } from "../../../components/wiki/ui/Icon";
  * Ils dérivent donc à chaque mise à jour du jeu — au 15/08/2026 l'écart accumulé était de
  * −1 077 textures, −109 banques, −2 vidéos et −1 mode, sans que rien ne le signale.
  *
- * Pour les rafraîchir, depuis le dépôt `niers` (les extensions sont celles du VFS, pas des
+ * Pour les rafraîchir, depuis le dépôt `nie` (les extensions sont celles du VFS, pas des
  * catégories de l'UI) :
  *
  * ```
- * niers vfs stats --top 40     # .g4tx = textures, .acb = banques de sons, .usm = vidéos
+ * nie vfs stats --top 40     # .g4tx = textures, .acb = banques de sons, .usm = vidéos
  * ```
  *
  * Deux pièges de comptage : les `.usm` sont **dupliqués** sous `data/dx11/movie` ET
  * `data/common/movie` (194 fichiers pour 98 vidéos distinctes — compter les basenames
- * uniques) ; et `niers vfs find` **plafonne à 102 résultats** sans `-n`, ce qui donne un
+ * uniques) ; et `nie vfs find` **plafonne à 102 résultats** sans `-n`, ce qui donne un
  * faux compte rond. Le nombre de modes vient de `data/modes.json`.
  */
 const COLLECTIONS = [

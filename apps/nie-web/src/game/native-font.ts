@@ -1,5 +1,5 @@
 /** Host binding: VFS bytes enter the native Rust decoder; browsers only paint its RGBA. */
-import type { AssetSource } from "@niers/asset-source";
+import type { AssetSource } from "@nie/asset-source";
 import { ensureWasm } from "./bridge";
 import { WasmBitmapFont } from "../wasm/nie_wasm.js";
 import { vfsResources } from "./vfs-resources";

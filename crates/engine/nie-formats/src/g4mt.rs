@@ -11,7 +11,7 @@
 //! à 383 frames) → table de cibles (hash CRC32 du nom d'os, résolu contre un G4SK réel) → canaux
 //! typés à encodage variable, échantillonnés par interpolation keyframe (LERP/SLERP/STEP). Reversé
 //! et validé croisé contre une implémentation Python indépendante
-//! (`plugins/niers-blender/g4mt_probe.py`/`g4mt_motion.py`, submodule tiers) sur des fichiers réels du VFS.
+//! (`plugins/nie-blender/g4mt_probe.py`/`g4mt_motion.py`, submodule tiers) sur des fichiers réels du VFS.
 
 use crate::FormatError;
 use crate::level5::{self, Level5Header};
@@ -1156,7 +1156,7 @@ mod tests {
         );
     }
 
-    /// Golden croisé contre l'implémentation Python indépendante (`plugins/niers-blender`, submodule)
+    /// Golden croisé contre l'implémentation Python indépendante (`plugins/nie-blender`, submodule)
     /// sur le VRAI conteneur multi-clips `c000101_p250.g4mt` (37 clips, jusqu'à 383 frames) + son
     /// G4SK compagnon — le cas exact que l'ancien scan à offsets fixes ne pouvait pas décoder.
     #[cfg(feature = "real-fixtures")]

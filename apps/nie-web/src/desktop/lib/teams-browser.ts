@@ -1,8 +1,8 @@
 /** Browser-local transport for saved compositions; no SQL interpretation or server writes. */
-import type { TeamMember } from "@niers/game/game/team-types";
+import type { TeamMember } from "@nie/game/game/team-types";
 import type { EquipeEnregistree, LigneEquipe } from "./teamsDb";
 
-export const TEAM_STORAGE_KEY = "niers.teams.v1";
+export const TEAM_STORAGE_KEY = "nie.teams.v1";
 export const MAX_SAVED_TEAMS = 256;
 export const MAX_TEAM_STORAGE_BYTES = 2 * 1024 * 1024;
 

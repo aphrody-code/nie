@@ -1,7 +1,7 @@
 /** Browser lifecycle and input binding for the shared Rust renderer. */
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { GameText } from "../lib/game-text-context";
-import { fetchBytes } from "@niers/asset-source";
+import { fetchBytes } from "@nie/asset-source";
 
 export interface RustModelViewer {
 	load_glb(bytes: Uint8Array): void;

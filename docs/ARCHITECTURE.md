@@ -38,9 +38,9 @@ Règles qui en découlent :
 ## La CLI unique
 
 ```bash
-niers decode <src>    # fichier ou arborescence → JSON / PNG (rayon)
-niers viola dump ...  # extraction VFS native
-niers steam sync ...  # acquisition Steam native
+nie decode <src>    # fichier ou arborescence → JSON / PNG (rayon)
+nie viola dump ...  # extraction VFS native
+nie steam sync ...  # acquisition Steam native
 ```
 
 Il n'existe plus de délégation vers un binaire C++, une assembly .NET, CMake ou vcpkg.
@@ -55,7 +55,7 @@ ci-dessous. La colonne `tests` est un INSTANTANÉ, pas un invariant : elle datai
 workspace** : `nie-engine` en est exclu explicitement (`exclude = […]` dans le `Cargo.toml`
 racine — ~15 000 lignes portées des fichiers C décompilés, 434 marqueurs `// EXTERN:`, consommées
 par aucune crate vivante) ; `nie-rs` n'a jamais figuré dans `members` (son propre `Cargo.lock`
-autonome, origine dans l'outil externe `iecode-re`, pas un livrable niers). Les deux restent en
+autonome, origine dans l'outil externe `iecode-re`, pas un livrable nie). Les deux restent en
 lecture seule, référence de portage, jamais compilées par `cargo build --workspace`.
 
 ### `crates/forge/*` — produire le binaire (10)
@@ -67,7 +67,7 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-asm` | Encodeur x86-64 dialecte MSVC — réassemble les corps depuis `forge/asm/*.s` | 23 |
 | `nie-forge` | Boucle `split`/`lift`/`cc`/`build`/`verify`/`report`, mesure la part produite | 33 |
 | `nie-re` | RTTI MSVC, indexation goblin/iced-x86, propagation de labels sur le call-graph | 73 |
-| `nie-index` | Base de connaissance SQLite (`var/niers.sqlite`) | 4 |
+| `nie-index` | Base de connaissance SQLite (`var/nie.sqlite`) | 4 |
 | `nie-seed` | Import du savoir fusionné (index Ghidra, RTTI, formats iecode, hash→nom inagle) | 24 |
 | `nie-queue` | Frontière BFS dédupliquée (redis), workers parallèles sur fonctions non résolues | 0 |
 | `nie-dump` | Lecture/scan AOB d'un minidump Windows de `nie.exe` | 6 |
@@ -106,8 +106,8 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 
 | Crate | Rôle | Tests |
 |---|---|---:|
-| `nie-cli` | Binaire `niers` — la seule CLI utilisateur, pilote aussi la boucle RE et la frontière redis | 24 |
-| `nie-mcp` | Binding MCP Rust natif (`rmcp`) des commandes partagées de `niers` | 7 |
+| `nie-cli` | Binaire `nie` — la seule CLI utilisateur, pilote aussi la boucle RE et la frontière redis | 24 |
+| `nie-mcp` | Binding MCP Rust natif (`rmcp`) des commandes partagées de `nie` | 7 |
 | `nie-site` | Serveur HTTP nie (Axum 0.8) : le jeu wasm en `/`, bundle `nie-web`, `/api/v1`, VFS `/f` `/b`, proxy `nie-model-serve` | 275 |
 | `nie-model-serve` | Serveur HTTP live d'assemblage GLB IEVR (corps+face+uniforme depuis CPK, cache disque) | 13 |
 | `ievr-tools` | Binding historique d'outils IEVR ; son inspecteur PE est fourni par `iecode-re` via ré-export compatible | 8 |
@@ -124,7 +124,7 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | Pont | Sens | Point d'entrée |
 |---|---|---|
 | `packages/nie` | Rust → TS | `nie_ffi` via `bun:ffi` (préchargé par `bunfig.toml`) — **seul** natif chargé côté TS |
-| `scripts/sync-gamedata.ts` | TS → Rust | `niers steam` puis `niers viola` |
+| `scripts/sync-gamedata.ts` | TS → Rust | `nie steam` puis `nie viola` |
 | `packages/nie-bridge` | Rust ↔ TS | contrat WebSocket entre le serveur Rust `nie-mcp` et le client WebView Inacord |
 
 `crates/archive/nie-rs` est du décompilé porté en Rust, hors workspace et compilé
@@ -157,14 +157,14 @@ des tests qui restent verts.
 
 ## RE anchors
 
-The knowledge base (`var/niers.sqlite`) tables that correspond to each architectural layer:
+The knowledge base (`var/nie.sqlite`) tables that correspond to each architectural layer:
 
 - `function` — 117 068 entries, the complete function inventory of `nie.exe`
 - `rtti_class` and `rtti_base` — MSVC RTTI hierarchy (1 745 classes with inheritance)
 - `xref` — call-graph edges, the backbone of the propagation in `nie-re`
-- `coverage` — classification snapshots, the metric `niers rebuild` writes
+- `coverage` — classification snapshots, the metric `nie rebuild` writes
 - `pdata_func` — 55 351 `.pdata` entries, the authoritative function boundaries
-- `hash_name` — CRC-32 ↔ string resolution, populated by `niers seed-ui`
+- `hash_name` — CRC-32 ↔ string resolution, populated by `nie seed-ui`
 - `symbol` — resolved symbols beyond Ghidra's initial export
 - `anchor` — manually confirmed function↔name bindings
 - `forge_unit` — binary subdivision for byte-exact production

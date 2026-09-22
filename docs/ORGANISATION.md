@@ -3,7 +3,7 @@
 Ce document dit **où va quoi**, et pourquoi. Il prend pour modèle
 [`openai/codex`](https://github.com/openai/codex) — un monorepo polyglotte de taille
 comparable, dont la structure est publique et lisible — et note explicitement les endroits
-où niers s'en écarte, avec la raison. Un écart non justifié ici est un écart à corriger.
+où nie s'en écarte, avec la raison. Un écart non justifié ici est un écart à corriger.
 
 La carte des *responsabilités* (qui fait autorité sur quoi, quelles fusions sont interdites)
 reste [`ARCHITECTURE.md`](ARCHITECTURE.md). Ce document-ci ne parle que d'**emplacements**.
@@ -34,11 +34,11 @@ Relevés sur l'arbre réel (`api.github.com/repos/openai/codex`, branche `main`)
 ## Structure actuelle
 
 ```
-niers/
+nie/
 ├── crates/          Rust — 36 crates compilées + 2 archivées   → crates/README.md
 │   ├── forge/       produire nie.exe au byte près, et le reverse qui l'alimente
 │   ├── engine/      le moteur
-│   ├── tools/       l'outillage, dont la CLI `niers`
+│   ├── tools/       l'outillage, dont la CLI `nie`
 │   └── archive/     hors build, référence en lecture seule
 ├── python/          Python — le paquet `niepy` et ses tests
 ├── packages/        Bun/TS — 19 bibliothèques                   → packages/README.md
@@ -60,10 +60,10 @@ niers/
 
 | Ce que c'est | Où | Pourquoi |
 |---|---|---|
-| une commande utilisateur | `crates/tools/nie-cli` | `niers` est la **seule** CLI native |
+| une commande utilisateur | `crates/tools/nie-cli` | `nie` est la **seule** CLI native |
 | une bibliothèque TypeScript | `packages/` | pas de `bin` |
 | une application TypeScript | `apps/` | a un point d'entrée qu'on lance |
-| une recherche qu'on rejouera | `crates/tools/nie-cli` (`niers find`/`grep`) | `rg` en direct ne vaut que pour l'exploration jetable d'une session |
+| une recherche qu'on rejouera | `crates/tools/nie-cli` (`nie find`/`grep`) | `rg` en direct ne vaut que pour l'exploration jetable d'une session |
 | plus de 2 lignes de Python | un fichier dans `scripts/` | un `python -c` traverse deux couches de quoting |
 | une preuve uemu | `scripts/validate_<sujet>.py` | son nom est cité par `forge/registry.json` et `nie-pe` |
 | un document | `docs/`, indexé dans `docs/README.md` | ce qui n'y est ni mesurable ni vérifiable n'y a pas sa place |
@@ -102,7 +102,7 @@ l'utilisateur puisque c'est une suppression.
 
 ### Les noms de `docs/`
 
-Codex écrit `docs/getting-started.md` ; niers écrit le plan canonique racine `PLAN.md`. Le kebab-case minuscule
+Codex écrit `docs/getting-started.md` ; nie écrit le plan canonique racine `PLAN.md`. Le kebab-case minuscule
 est la convention la plus répandue, mais renommer 22 documents cités par `CLAUDE.md`,
 `AGENTS.md`, les plugins et le code n'apporte que de la cohérence de casse, contre un coût
 de rupture réel pour les deux agents et tous les liens existants. **Écart assumé** : la
@@ -120,7 +120,7 @@ déplacer coûterait cher pour un gain de symétrie.
 
 ### Les crates ne sont pas plates
 
-Codex range 80 crates à plat sous `codex-rs/`. Niers les range par rôle
+Codex range 80 crates à plat sous `codex-rs/`. Nie les range par rôle
 (`forge` / `engine` / `tools` / `archive`). **Écart assumé, et documenté dans
 `Cargo.toml`** : le rôle décide de ce qui a le droit de dépendre de quoi, et c'est la seule
 question structurante ici.
@@ -142,7 +142,7 @@ une décision de l'utilisateur, pas un effet de bord d'un rangement.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `forge_unit` — the physical unit mapping of `nie.exe`
 - `function` — functions indexed across the repository
 - `coverage` — continuous classification metrics

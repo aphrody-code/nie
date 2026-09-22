@@ -78,7 +78,7 @@ Every skill includes complete YAML metadata, structured progressive disclosure, 
 | `aphrody-yolo-grind` | `skills/aphrody-yolo-grind` | Continuous parallel-grind mode that dispatches parallel YOLO agents per tick to drive open plan/todo items to production-ready as fast as possible. Auto... |
 | `autopilot` | `skills/autopilot` | Launch the universal autopilot loop — dual-agent autonomous background daemon (Lead Developer + Independent Auditor) piloting any repository infinitely ... |
 | `start` | `skills/start` | Continuous autonomous execution mode that follows PLAN.md end-to-end, making decisions on every reversible choice without asking the user. Mission targe... |
-| `unified-workflow` | `skills/unified-workflow` | Route Aphrody, WinClean, niers, Ghidra and Computer Use work through bounded runs with manifests, evidence and explicit proof levels. |
+| `unified-workflow` | `skills/unified-workflow` | Route Aphrody, WinClean, nie, Ghidra and Computer Use work through bounded runs with manifests, evidence and explicit proof levels. |
 | `yolo-grind` | `skills/yolo-grind` | Continuous parallel-grind mode that dispatches parallel YOLO agents per tick to drive open plan/todo items to production-ready across any repository (Ru... |
 | `yolo-perfect-grind` | `skills/yolo-perfect-grind` | Forced-loop coding mode. Wraps /loop 30s /yolo-grind with an explicit perfection oracle — does NOT exit until the codebase meets all objective metrics. ... |
 

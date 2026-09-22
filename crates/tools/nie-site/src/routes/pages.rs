@@ -1269,7 +1269,7 @@ mod tests {
             }
         }
         assert!(navigation_redirect(&"/tools/unknown".parse().unwrap()).is_none());
-        assert!(navigation_redirect(&"/tools/niers".parse().unwrap()).is_none());
+        assert!(navigation_redirect(&"/tools/nie".parse().unwrap()).is_none());
     }
 
     fn page(route: &str, langue: Langue) -> String {

@@ -69,7 +69,7 @@ export interface OcReference {
 	rawSlots?: number[] | null;
 }
 export interface OcAvatarDocument {
-	schema: "niers.oc.avatar-document/v1";
+	schema: "nie.oc.avatar-document/v1";
 	slug: string;
 	internalCode: string | null;
 	avatarState: AvatarState;

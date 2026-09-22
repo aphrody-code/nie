@@ -1,4 +1,4 @@
-// Pipeline de LIGNES du viewport niers — grille, fil de fer, contour de sélection, gizmo.
+// Pipeline de LIGNES du viewport nie — grille, fil de fer, contour de sélection, gizmo.
 //
 // Séparé de `gpu.wgsl` parce qu'il ne partage presque rien avec lui : pas de normale, pas d'UV,
 // pas d'atlas, pas d'éclairage. Un segment porte sa couleur et rien d'autre. Les fusionner

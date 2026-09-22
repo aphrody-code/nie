@@ -27,7 +27,7 @@ let temporaire: string | null = null;
 afterEach(() => {
 	if (temporaire) rmSync(temporaire, { recursive: true, force: true });
 	temporaire = null;
-	delete process.env.NIERS_WEB_OUT_DIR;
+	delete process.env.NIE_WEB_OUT_DIR;
 	delete process.env.NIE_WEB_OUT_DIR;
 });
 

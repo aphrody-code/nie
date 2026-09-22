@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/music_app/music_app_config.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/music_app/music_app_config.cfg.bin.json`
 //! - Format **`entries`** (noeuds nommés, variables positionnelles).
 //! - Structure à 3 niveaux :
 //!   - `MUSIC_APP_INFO_LIST_BEG_0` — conteneur racine (var\[0\] = 4 = nombre de groupes).

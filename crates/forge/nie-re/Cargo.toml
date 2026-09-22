@@ -1,6 +1,6 @@
 [package]
 name = "nie-re"
-description = "Moteur RE niers : RTTI MSVC, indexation goblin/iced-x86, propagation de labels sur le call-graph"
+description = "Moteur RE nie : RTTI MSVC, indexation goblin/iced-x86, propagation de labels sur le call-graph"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true

@@ -1,5 +1,5 @@
 {
-	"extends": "../../tsconfig.niers-base.json",
+	"extends": "../../tsconfig.nie-base.json",
 	"compilerOptions": {
 		"noEmit": true,
 		"declaration": false,

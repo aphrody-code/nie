@@ -15,7 +15,7 @@ détecte via `data/cpk_list.cfg.bin`. `Vfs::init()` prend `<racine>/data`, pas l
 `common/`/`dx11/` sont là, `NIE_DUMP_DIR` le force. Un dump local couvre 255 308 / 255 308 chemins
 de l'index (100,000 %, mesuré le 2026-08-28) et rend des octets identiques à l'extraction.
 
-Inspection : `niers vfs ls|find|stat|cat|extract|stats|formats`.
+Inspection : `nie vfs ls|find|stat|cat|extract|stats|formats`.
 
 **Ce que le dépôt sait réellement lire** — la matrice de couverture régénérée le 2026-09-07
 sur le poste Windows local (`nie-site --regenerer-couverture var/couverture-site.json`) :
@@ -166,14 +166,14 @@ est un dégradé alpha, et le repeindre détruirait sa découpe.
 
 `g4tx_recolor::reencode_with_payloads` est la **source unique** de la reconstruction partielle
 d'un conteneur : charges non touchées recopiées octet pour octet, régions d'atlas reportées,
-relecture immédiate vérifiant noms, ids et comptes de régions. `niers mod texture` et
-`niers mod recolor` passent tous deux par elle.
+relecture immédiate vérifiant noms, ids et comptes de régions. `nie mod texture` et
+`nie mod recolor` passent tous deux par elle.
 
 Surface CLI :
 
 ```sh
-niers mod recolor data/dx11/menu/220_img/telop_waza/fr/<skill_id>.g4tx --teinte 120
-niers mod recolor <chemin-vfs> --rampe '#FF4400,#FF8800,#FFCC00' --force 0.8
+nie mod recolor data/dx11/menu/220_img/telop_waza/fr/<skill_id>.g4tx --teinte 120
+nie mod recolor <chemin-vfs> --rampe '#FF4400,#FF8800,#FFCC00' --force 0.8
 ```
 
 `recolor` accepte les conteneurs découpés en régions, là où `texture` les refuse : une
@@ -202,7 +202,7 @@ effect textures » — que ce dépôt ne partage pas : `nie_data::skill` constru
 
 | Champ | Valeur |
 |---|---|
-| Chiffrement | XORShift (Matsumoto-Kurita), graine dans les 4 derniers octets |
+| Chiffrement | XORShift (Matsumoto-Kurita), graine dans les 4 dernie octets |
 | CRC32 | à l'offset −8 depuis la fin |
 | Footer | `01 74 32 62 FE` |
 | Structure | Entrées hiérarchiques clé-valeur typées |
@@ -234,7 +234,7 @@ La clé HCA d'IEVR est `0x00D2997C0DC5EE72`.
 | Algorithme | Contexte | Clé |
 |---|---|---|
 | XOR CRI | fichiers CPK, assets CRI | CRC32(nom) XOR `0x1717E18E` |
-| XORShift | `cfg.bin` | générateur à 4 états, graine = 4 derniers octets |
+| XORShift | `cfg.bin` | générateur à 4 états, graine = 4 dernie octets |
 | CRC32 | validation, dérivation de clés | polynôme `0xEDB88320` |
 
 Attention : `crc32` (avec complément final) et `crc32_nie` (accumulateur brut) sont **deux
@@ -263,7 +263,7 @@ Format d'archive binaire utilisé par `UTLauncher` pour distribuer des packs de 
 | `0x19..0x1C` | 4 octets | uint32 LE | Taille de l'en-tête de métadonnées |
 | `0x1D..` | variable | Chiffré | Charge utile chiffrée en AES-256 avec authentification HMAC-SHA256 |
 
-Inspecteur natif : `nie_launcher::package::inspect_package_header` (`niers launcher package info <file>`).
+Inspecteur natif : `nie_launcher::package::inspect_package_header` (`nie launcher package info <file>`).
 
 ### Enveloppe d'équipe exportée (`exportarPlantilla`)
 
@@ -273,7 +273,7 @@ les compositions d'équipes vers le jeu :
 - **Dérivation de clé** : PBKDF2-SHA256 (210 000 itérations)
 - **Clé canonique** : `Rmfr4Dic6EAQaSgmLF__S64v7AgTNXb3q7-BLsBO5_0`
 - **Champs** : `v` (version=1), `alg` (`AES-GCM`), `salt` (16 bytes base64), `iv` (12 bytes base64), `datos` (ciphertext base64).
-- **Moteur natif** : `nie_launcher::team` (`niers launcher team decrypt/encrypt`).
+- **Moteur natif** : `nie_launcher::team` (`nie launcher team decrypt/encrypt`).
 
 ### Conteneur de sauvegarde `002AB8F4-USERDATALIVE`
 
@@ -281,4 +281,4 @@ Format de sauvegarde Steam PC de `nie.exe` :
 - Magic : `0x9DCE66C3` little-endian en tête d'en-tête `0x800` octets.
 - Keystream : Dérivé par CRC32 de la clé de compte sur les décalages alignés.
 - Corps : 8 descripteurs `0x80` octets pour `AUTOSAVE_data.bin` (27 chunks) et `HEADERSAVE_data.bin`.
-- Gestionnaire natif : `nie_save` et `nie_launcher::save` (`niers launcher save park/restore/inject-team`).
+- Gestionnaire natif : `nie_save` et `nie_launcher::save` (`nie launcher save park/restore/inject-team`).

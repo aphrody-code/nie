@@ -1,4 +1,4 @@
-//! `niers avatar` — l'**éditeur d'avatar** (`chara_edit`) résolu de bout en bout.
+//! `nie avatar` — l'**éditeur d'avatar** (`chara_edit`) résolu de bout en bout.
 //!
 //! ## Ce que la commande relie
 //!
@@ -22,7 +22,7 @@
 //!   + `.g4mg`). C'est aussi la clé des tables de pose de `20_EDIT`.
 //! - `textureName` → **pas** une texture de modèle : l'**icône d'interface** de la vignette dans
 //!   la grille de l'éditeur (`icon_ava_face06_004`), résolue par `hash_name` de la base de
-//!   connaissance (source `vfs-ui`, cf. `niers seed-ui`).
+//!   connaissance (source `vfs-ui`, cf. `nie seed-ui`).
 //! - `presetID` d'une recette → le hash du nom d'une part de la catégorie « preset »
 //!   (`preset_01_normal`) : le même identifiant est à la fois une vignette sélectionnable et une
 //!   recette de 62 à 72 lignes.
@@ -210,7 +210,7 @@ fn panneaux(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> Vec<Panneau> {
 /// Fragments de nom qui désignent un contenu que le dépôt ne reproduit pas encore.
 const MOTIFS_DYNAMIQUES: [&str; 4] = ["model", "chara_3d", "cursor", "shadow"];
 
-/// `niers avatar roi` — dérive les régions de mesure d'un écran depuis son layout.
+/// `nie avatar roi` — dérive les régions de mesure d'un écran depuis son layout.
 fn roi(ecran: &str, layouts: &Path, out: Option<&Path>) -> Result<()> {
     let chemin = layouts.join(format!("{ecran}.json"));
     let txt = std::fs::read_to_string(&chemin)
@@ -288,7 +288,7 @@ fn roi(ecran: &str, layouts: &Path, out: Option<&Path>) -> Result<()> {
         println!(
             "  Ces objets sont des emplacements 3D : le layout leur donne un sprite factice posé au\n  \
              centre. Leur étendue réelle n'est dans aucun fichier lu ici ; la mesure les compte donc\n  \
-             encore, et le rapport de `niers img diff` l'annonce par une surface exclue plus faible."
+             encore, et le rapport de `nie img diff` l'annonce par une surface exclue plus faible."
         );
     }
 
@@ -362,7 +362,7 @@ fn mesures_json(m: &nie_formats::planche::Mesures) -> Json {
 /// coin, assez grossier pour qu'une maille de quelques centaines de sommets remplisse ses cases.
 const GRILLE_UV: usize = 32;
 
-/// `niers avatar depliage` — dit quelle part du carré UV chaque sous-maille échantillonne.
+/// `nie avatar depliage` — dit quelle part du carré UV chaque sous-maille échantillonne.
 ///
 /// C'est le chaînon manquant entre une planche et la maille qui la lit. Une planche se mesure
 /// (cf. [`nie_formats::planche`]), une maille se déplie, et une composition n'est juste que si les
@@ -526,7 +526,7 @@ fn extraire_planche(
     Ok(ecrits)
 }
 
-/// Les options de `niers avatar planches`, telles que la ligne de commande les porte.
+/// Les options de `nie avatar planches`, telles que la ligne de commande les porte.
 struct OptionsPlanches<'a> {
     /// Préfixe VFS balayé.
     prefix: &'a str,
@@ -544,7 +544,7 @@ struct OptionsPlanches<'a> {
     limit: usize,
 }
 
-/// `niers avatar planches` — mesure les planches d'un préfixe du VFS et agrège par famille.
+/// `nie avatar planches` — mesure les planches d'un préfixe du VFS et agrège par famille.
 ///
 /// La commande **constate** : elle ne modifie aucune donnée du jeu. Son intérêt est le contraste —
 /// une famille dont les 80 planches rendent la même convention justifie la règle codée pour elle,
@@ -775,7 +775,7 @@ fn court(chemin: &str) -> String {
     segments.join("/")
 }
 
-/// Ce que `niers avatar` sait faire.
+/// Ce que `nie avatar` sait faire.
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum AvatarCmd {
     /// Vue d'ensemble : les 16 listes, les catégories et leur taux de résolution.
@@ -800,7 +800,7 @@ pub enum AvatarCmd {
         #[arg(short, long, default_value = "var/avatar-resolved.json")]
         out: std::path::PathBuf,
     },
-    /// Dérive les régions de mesure d'un écran depuis son layout, pour `niers img diff`.
+    /// Dérive les régions de mesure d'un écran depuis son layout, pour `nie img diff`.
     ///
     /// Un rectangle tracé sur une capture est une valeur calée sur l'image de référence : il fait
     /// remonter le score sans rien prouver, et il ne se régénère pas. Ici les régions viennent des
@@ -1251,7 +1251,7 @@ fn part_json(
     })
 }
 
-/// Point d'entrée de `niers avatar`.
+/// Point d'entrée de `nie avatar`.
 pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
     // L'analyse des planches ne lit que des textures : la servir avant le catalogue évite de
     // décoder cinq `cfg.bin` et le bytecode des écrans pour rien, et la rend utilisable même là

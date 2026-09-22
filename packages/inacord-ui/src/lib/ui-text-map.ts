@@ -1378,7 +1378,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 	{
 		label: "Médias",
 		searchHits: 2,
-		closest: "On voit souvent le collège NAGUMOHARA\ndans les médias ces derniers temps. Avec un peu de chance,\nça fera revenir les touristes au port...",
+		closest: "On voit souvent le collège NAGUMOHARA\ndans les médias ces dernie temps. Avec un peu de chance,\nça fera revenir les touristes au port...",
 		closestFamily: "w21_npc_text",
 		closestHash: "0x925f668f",
 		usedAt: ["apps/nie-web/src/desktop/components/GameDataView.tsx:601", "apps/nie-web/src/desktop/components/GameDataView.tsx:619", "apps/nie-web/src/entries.ts:198", "apps/nie-web/src/pages/Catalog.tsx:729"],
@@ -2386,7 +2386,7 @@ export const UI_TEXT_NOT_FOUND: readonly UiTextMiss[] = [
 	{
 		label: "Minimum",
 		searchHits: 2,
-		closest: "[$gaiji_system01] Veuillez sélectionner une équipe avec au minimum\n5 joueurs saisonniers titulaires.",
+		closest: "[$gaiji_system01] Veuillez sélectionner une équipe avec au minimum\n5 joueurs saisonnie titulaires.",
 		closestFamily: "system_text",
 		closestHash: "0x65822679",
 		usedAt: ["packages/inacord-ui/src/entities/EntityExplorer.tsx:238"],

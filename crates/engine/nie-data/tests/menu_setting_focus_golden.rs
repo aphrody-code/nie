@@ -3,7 +3,7 @@
 //! des deux formes JSON** de variable CfgBin.
 //!
 //! Vérité terrain : `data/common/gamedata/menu/cfg/main_menu_setting.cfg.bin` (VFS IEVR, 3792
-//! octets, T2B, 7 listes racines), décodé par `niers decode`. C'est l'écran que montre une
+//! octets, T2B, 7 listes racines), décodé par `nie decode`. C'est l'écran que montre une
 //! capture du menu principal : bandeau AVATAR / VOTRE ÉQUIPE, rangée de tuiles de mode
 //! (`mode_base01_atl` de `mainmenu90_01.g4tx`), rangée secondaire, guides de boutons.
 //!
@@ -292,7 +292,7 @@ fn focus_shift_absent_de_cet_ecran_ne_casse_rien() {
 
 #[test]
 fn les_deux_formes_donnent_le_meme_ecran() {
-    // Le cœur du correctif `cfgbin::Node::var` : `{"Int":13}` (natif, produit par `niers decode`)
+    // Le cœur du correctif `cfgbin::Node::var` : `{"Int":13}` (natif, produit par `nie decode`)
     // et `{"type":"Int","value":"13"}` (iecode) doivent décrire le MÊME écran. Avant, la forme
     // native se lisait « toutes variables absentes » et le parseur renvoyait des listes vides
     // SANS erreur — un faux vert silencieux.

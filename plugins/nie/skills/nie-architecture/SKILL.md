@@ -1,13 +1,13 @@
 ---
-name: niers-architecture
-description: Apply the settled niers architecture: a complete Inacord application with a native game theme, a retained native game reconstruction target, and one shared library owner per capability across web, desktop, CLI, MCP and forge.
+name: nie-architecture
+description: Apply the settled nie architecture: a complete Inacord application with a native game theme, a retained native game reconstruction target, and one shared library owner per capability across web, desktop, CLI, MCP and forge.
 ---
 
-# niers architecture
+# nie architecture
 
 `PLAN.md` is the sole execution plan and measured status ledger. This skill fixes architectural
 choices; it does not certify that their implementation or reverse engineering is complete.
-Use `niers-monorepo` for paths, dependency conventions and scoped commands.
+Use `nie-monorepo` for paths, dependency conventions and scoped commands.
 
 ## Two retained product goals
 
@@ -38,7 +38,7 @@ parser or cloud-backed IEVR adapter is permitted.
 |---|---|
 | Frontend source/build and host composition | `apps/nie-web`; `apps/inacord` retains Tauri packaging and compatibility facades |
 | Native OS integration | `apps/inacord/src-tauri`, inside the root Rust workspace |
-| General presentation primitives | sibling `rg/packages/ui`; `packages/inacord-ui` owns niers-specific presentation |
+| General presentation primitives | sibling `rg/packages/ui`; `packages/inacord-ui` owns nie-specific presentation |
 | Shared Inacord/game components and selection/navigation primitives | `packages/inacord-ui` |
 | Asset loading, transport and capability contracts | `packages/asset-source` |
 | Binary format decoding, including Level-5/Criware families | `nie-formats` |

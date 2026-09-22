@@ -1,6 +1,6 @@
 [package]
 name = "nie-formats"
-description = "Parsers de formats Level-5 (CPK, cfg.bin, G4*, CriLayla, Criware) portés en Rust no_std-friendly pour niers headless + wasm"
+description = "Parsers de formats Level-5 (CPK, cfg.bin, G4*, CriLayla, Criware) portés en Rust no_std-friendly pour nie headless + wasm"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true

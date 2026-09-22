@@ -61,7 +61,7 @@ impl Inventaire {
 /// muette annoncerait une couverture qu'elle n'a pas mesurée.
 pub fn mesurer(racine: &Path) -> anyhow::Result<Inventaire> {
     let mut inv = Inventaire::default();
-    niers(racine, &mut inv)?;
+    nie(racine, &mut inv)?;
     inacord(racine, &mut inv)?;
     modules(
         racine,
@@ -81,15 +81,15 @@ pub fn mesurer(racine: &Path) -> anyhow::Result<Inventaire> {
     Ok(inv)
 }
 
-/// `niers --help` — les sous-commandes de la CLI unique, `help` exclue (elle n'est pas une
+/// `nie --help` — les sous-commandes de la CLI unique, `help` exclue (elle n'est pas une
 /// capacité du dépôt, c'est clap qui la pose).
-fn niers(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
+fn nie(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
     let binaire = {
-        let local = racine.join("target/release/niers");
+        let local = racine.join("target/release/nie");
         if local.is_file() {
             local
         } else {
-            PathBuf::from("niers")
+            PathBuf::from("nie")
         }
     };
     let sortie = std::process::Command::new(&binaire)
@@ -130,11 +130,11 @@ fn niers(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
             if nom == "help" {
                 continue;
             }
-            inv.pousser(Source::Niers, nom, 1);
+            inv.pousser(Source::Nie, nom, 1);
             n += 1;
         }
     }
-    anyhow::ensure!(n > 0, "`niers --help` n'a listé aucune sous-commande");
+    anyhow::ensure!(n > 0, "`nie --help` n'a listé aucune sous-commande");
     Ok(())
 }
 
@@ -262,14 +262,14 @@ fn iecode(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
 ///
 /// - **des chemins du VFS contiennent un espace** (`…/u021801/u021802 .g4md`). Découper la
 ///   ligne par espaces croissants en fait de faux « fichiers sans extension » : le chemin se
-///   lit en retirant les DEUX derniers champs (taille, cpk), jamais en prenant le premier ;
+///   lit en retirant les DEUX dernie champs (taille, cpk), jamais en prenant le premier ;
 /// - `.bin` seul confond trois corpus. `.cfg.bin` (71 101) et `.lua.bin` (1 197) sont servis
 ///   par deux routes différentes ; les compter ensemble en cacherait une.
 fn vfs(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
     let chemin = racine.join("var/vfs/inventaire.txt");
     let texte = fs::read_to_string(&chemin).map_err(|e| {
         anyhow::anyhow!(
-            "{} illisible ({e}) — le regénérer par `niers vfs find 'data/' -n 300000`",
+            "{} illisible ({e}) — le regénérer par `nie vfs find 'data/' -n 300000`",
             chemin.display()
         )
     })?;
@@ -290,7 +290,7 @@ fn vfs(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Retire de la ligne d'inventaire les deux derniers champs (`taille` et `[cpk]`).
+/// Retire de la ligne d'inventaire les deux dernie champs (`taille` et `[cpk]`).
 fn chemin_du_vfs(ligne: &str) -> &str {
     let mut fin = ligne.trim_end();
     for _ in 0..2 {

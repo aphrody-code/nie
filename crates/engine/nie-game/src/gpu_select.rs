@@ -1,6 +1,6 @@
 //! Sélection du backend et de l'adaptateur GPU, par plateforme.
 //!
-//! niers tourne dans deux environnements aux contraintes opposées, et le même binaire doit
+//! nie tourne dans deux environnements aux contraintes opposées, et le même binaire doit
 //! servir les deux :
 //!
 //! - **Windows, poste de travail** — l'objectif est le GPU discret. D3D12 est le backend natif

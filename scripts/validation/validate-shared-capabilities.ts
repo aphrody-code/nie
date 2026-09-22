@@ -34,7 +34,7 @@ const siteRoutes = [...site.matchAll(/^\s*"(\/[^" ]+)"\s*=>/gm)].map(match => ma
 const tauriCommands = [...tauri.matchAll(/^\s*#\[tauri::command(?:\([^)]*\))?\]\s*\n(?:\s*#\[[^\n]+\]\s*\n)*\s*(?:pub )?(?:async )?fn ([a-z][a-z0-9_]*)/gm)].map(match => match[1]);
 const registered = tauri.match(/collect_commands!\[([\s\S]*?)\n\s*\]\)/)?.[1] ?? "";
 for (const command of tauriCommands) if (!registered.includes(command)) failures.push(`inacord registry omits #[tauri::command] ${command}`);
-if (!mcp.includes('nie_cli::main_entry_with(["niers", "mcp"])')) failures.push("MCP is not an in-process CLI adapter");
+if (!mcp.includes('nie_cli::main_entry_with(["nie", "mcp"])')) failures.push("MCP is not an in-process CLI adapter");
 if (!cliCommands.length) failures.push("CLI registry parsed zero commands");
 if (!siteRoutes.length || new Set(siteRoutes).size !== siteRoutes.length) failures.push("site route registry is empty or duplicated");
 if (!tauriCommands.length) failures.push("Inacord registry parsed zero commands");

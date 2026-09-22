@@ -3,7 +3,7 @@
 // base-ui nécessaire.
 import type { ComponentProps } from "react"
 
-import { cn } from "@niers/inacord-ui/lib/utils"
+import { cn } from "@nie/inacord-ui/lib/utils"
 
 export interface ShortcutProps extends Omit<ComponentProps<"kbd">, "children"> {
   /** Texte du raccourci affiché (ex. `"Ctrl+K"`, `"↵"`) — même API que

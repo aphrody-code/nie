@@ -1,6 +1,6 @@
 //! Assemble un GLB texturé (g4md+g4mg+g4tx) et l'écrit sur disque — même recette que
 //! `apps/inacord/src-tauri/src/lib.rs::vfs_glb_preview_png_b64` (bouton « Aperçu 3D »
-//! de niers-explorer), en CLI pour vérification/scripting hors app.
+//! de nie-explorer), en CLI pour vérification/scripting hors app.
 //! Usage : `cargo run -p nie-formats --example model_glb_preview -- <mesh.g4md> <mesh.g4mg> <mesh.g4tx|-> <out.glb>`
 //! Le troisième argument accepte `-` : certains meshes du jeu (`base_normal_02`,
 //! `base_normal_03`, `base_big_00`) n'ont pas de `.g4tx` à leur nom, et leur

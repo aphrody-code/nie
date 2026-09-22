@@ -225,9 +225,9 @@ mod tests {
          "draft":false,"prerelease":false,"assets":[]},
         {"tag_name":"v0.5.9","body":"des notes","published_at":"2026-09-01T10:00:00Z",
          "draft":false,"prerelease":false,"assets":[
-            {"name":"niers_0.5.9_x64-setup.exe","browser_download_url":"https://exemple.test/s.exe"},
-            {"name":"niers_0.5.9_x64-setup.exe.sig","browser_download_url":"https://exemple.test/s.exe.sig"},
-            {"name":"niers_0.5.9_x64_en-US.msi","browser_download_url":"https://exemple.test/s.msi"}]}
+            {"name":"nie_0.5.9_x64-setup.exe","browser_download_url":"https://exemple.test/s.exe"},
+            {"name":"nie_0.5.9_x64-setup.exe.sig","browser_download_url":"https://exemple.test/s.exe.sig"},
+            {"name":"nie_0.5.9_x64_en-US.msi","browser_download_url":"https://exemple.test/s.msi"}]}
     ]"#;
 
     #[test]
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn un_installeur_sans_signature_n_est_pas_retenu() {
-        let sans = INDEX.replace("niers_0.5.9_x64-setup.exe.sig", "autre-chose.txt");
+        let sans = INDEX.replace("nie_0.5.9_x64-setup.exe.sig", "autre-chose.txt");
         let e = choisir(sans.as_bytes()).expect_err("aucune release installable");
         assert_eq!(e.statut(), StatusCode::NOT_FOUND);
     }

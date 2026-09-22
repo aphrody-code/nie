@@ -1,9 +1,9 @@
-import { useAssetSource, useCapacites } from "@niers/inacord-ui";
-import { NativeAudioPlayer, type NativeAudioManifest, type NativeAudioState } from "@niers/inacord-ui/lib/native-audio";
-import { NATIVE_COMMAND_EVENT } from "@niers/inacord-ui/lib/native-command";
+import { useAssetSource, useCapacites } from "@nie/inacord-ui";
+import { NativeAudioPlayer, type NativeAudioManifest, type NativeAudioState } from "@nie/inacord-ui/lib/native-audio";
+import { NATIVE_COMMAND_EVENT } from "@nie/inacord-ui/lib/native-command";
 import { useEffect, useRef, useState } from "react";
 import { NativeResources } from "./native-resources";
-import { fetchJson } from "@niers/asset-source";
+import { fetchJson } from "@nie/asset-source";
 
 /** Persistent startup owner: decoding is native, host fetches are bounded and disposable. */
 export function StartupResources({ titleActive }: { titleActive: boolean }) {

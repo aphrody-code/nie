@@ -279,7 +279,7 @@ def validate_reference_evidence(contract: dict[str, object], path: Path) -> None
 
 def validate_contract(contract: dict[str, object], path: Path) -> None:
     """Reject contracts that cannot be mapped to the game's VFS naming contract."""
-    if contract.get("schema") != "niers.oc.character-contract/v1":
+    if contract.get("schema") != "nie.oc.character-contract/v1":
         raise ValueError(f"{path}: unsupported contract schema")
     game = contract.get("game", {})
     if (
@@ -396,7 +396,7 @@ def validate_contract(contract: dict[str, object], path: Path) -> None:
 
 def build_catalog() -> dict[str, object]:
     return {
-        "schema": "niers.oc.catalog/v1",
+        "schema": "nie.oc.catalog/v1",
         "root": "data/oc",
         "policy": {
             "game_assets_are_not_copied_here": True,

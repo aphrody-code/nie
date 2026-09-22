@@ -6,7 +6,7 @@
 # republier les cinq à chaque fois, donc à ne jamais publier. Un tag `cli-v0.6.1` ne
 # construit que la fermeture du CLI et ne produit que son artefact.
 #
-#   cli-v*      niers, la ligne de commande native
+#   cli-v*      nie, la ligne de commande native
 #   mcp-v*      nie-mcp, le serveur Model Context Protocol
 #   site-v*     nie-site et le module WebAssembly qu'il sert
 #   desktop-v*  Inacord, l'application Tauri
@@ -41,11 +41,11 @@ permissions:
 
 jobs:
   release:
-    runs-on: [self-hosted, niers-vps]
+    runs-on: [self-hosted, nie-vps]
     timeout-minutes: 60
     env:
       CARGO_TERM_COLOR: always
-      CARGO_TARGET_DIR: /home/ubuntu/niers/target
+      CARGO_TARGET_DIR: /home/ubuntu/nie/target
     steps:
       - uses: actions/checkout@v4
 
@@ -82,7 +82,7 @@ jobs:
           # Chaque surface ne publie QUE son propre binaire : c'est tout l'objet des tags
           # préfixés, et joindre un artefact voisin recréerait le couplage qu'ils suppriment.
           case "$surface" in
-            cli)     assets='target/release/niers' ;;
+            cli)     assets='target/release/nie' ;;
             mcp)     assets='target/release/nie-mcp' ;;
             site)    assets='target/release/nie-site' ;;
             desktop) assets='target/release/inacord' ;;

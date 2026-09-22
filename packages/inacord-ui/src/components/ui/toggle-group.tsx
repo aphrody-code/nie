@@ -5,7 +5,7 @@
 import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group"
 import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
 
-import { cn } from "@niers/inacord-ui/lib/utils"
+import { cn } from "@nie/inacord-ui/lib/utils"
 
 function ToggleGroup({ className, ...props }: ToggleGroupPrimitive.Props) {
   return (

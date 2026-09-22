@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/dictionary/dictionary_config_0.00.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/dictionary/dictionary_config_0.00.00.cfg.bin.json`
 //! - 6 listes dans ce fichier :
 //!   - `m_HabitatList` — 43 zones d'habitat (lieux où apparaissent les personnages en mode
 //!     encyclopédie, `DICTIONARY_HABITAT_DATA`).
@@ -44,7 +44,7 @@ use crate::hash::HashId;
 /// Définit la carte et le nom affiché pour la zone d'apparition du personnage.
 ///
 /// Dump réel :
-/// `/home/ubuntu/niers/data/common/gamedata/dictionary/dictionary_config_0.00.00.cfg.bin.json`,
+/// `/home/ubuntu/nie/data/common/gamedata/dictionary/dictionary_config_0.00.00.cfg.bin.json`,
 /// liste `m_HabitatList` (43 entrées).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

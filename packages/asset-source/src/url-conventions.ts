@@ -394,7 +394,7 @@ export function urlFicheFilm(chemin: string): string {
 	return baseJeu() + cheminFicheFilm(chemin);
 }
 
-/** Le catalogue complet des cinématiques, publié hors ligne par `niers video catalogue`. */
+/** Le catalogue complet des cinématiques, publié hors ligne par `nie video catalogue`. */
 export function urlCatalogueFilms(): string {
 	return baseJeu() + cheminCatalogueFilms();
 }

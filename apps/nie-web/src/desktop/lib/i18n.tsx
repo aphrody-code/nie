@@ -1,12 +1,12 @@
 // i18n minimal, sans dépendance (react-i18next serait surdimensionné pour ~80 clés).
 // Dictionnaires FR/EN/JA + hook `useT()` réactif sur `useSettings().locale`.
-import { useSettings } from "@niers/inacord-ui/lib/settings";
-import type { Locale } from "@niers/inacord-ui/lib/settings";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
+import type { Locale } from "@nie/inacord-ui/lib/settings";
 
 type Dict = Record<string, string>;
 
 const fr: Dict = {
-  "app.title": "niers",
+  "app.title": "nie",
   // Une clé PAR VUE, sans exception : six vues portaient leur libellé en dur dans `App.tsx`
   // (« Éditeur », « Cinéma », « Galerie », « Outils wiki », « Viola », « Live mod », « Lua »),
   // donc restaient en français dans les trois locales. Le registre `lib/vues.ts` lit ces clés.
@@ -59,7 +59,7 @@ const fr: Dict = {
 };
 
 const en: Dict = {
-  "app.title": "niers",
+  "app.title": "nie",
   "tab.dashboard": "Dashboard",
   "tab.editor": "3D editor",
   "tab.explorer": "Explorer",
@@ -106,7 +106,7 @@ const en: Dict = {
 };
 
 const ja: Dict = {
-  "app.title": "niers",
+  "app.title": "nie",
   "tab.dashboard": "ダッシュボード",
   "tab.editor": "3Dエディター",
   "tab.explorer": "エクスプローラー",

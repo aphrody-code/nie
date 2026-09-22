@@ -26,7 +26,7 @@ export CYGWIN=winsymlinks:nativestrict
 
 cd "$(dirname "$0")/.." || exit 1
 racine=$PWD
-dest=${NIERS_BIN_DIR:-$HOME/.local/bin}
+dest=${NIE_BIN_DIR:-$HOME/.local/bin}
 sec=${1:-}
 
 mkdir -p "$dest"
@@ -76,7 +76,7 @@ done
 
 # Preserve the historical MCP command as an alias of the native Rust server.
 if [ -x target/release/nie-mcp ]; then
-    lien "niers-mcp" "$racine/target/release/nie-mcp"
+    lien "nie-mcp" "$racine/target/release/nie-mcp"
 fi
 
 echo

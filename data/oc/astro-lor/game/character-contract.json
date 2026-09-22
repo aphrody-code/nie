@@ -1,5 +1,5 @@
 {
-  "schema": "niers.oc.character-contract/v1",
+  "schema": "nie.oc.character-contract/v1",
   "character_slug": "astro-lor",
   "game": {
     "title": "Inazuma Eleven Victory Road",

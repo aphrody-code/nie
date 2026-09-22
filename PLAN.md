@@ -1,4 +1,4 @@
-# NIERS — Reconstruct the game engine that produced `nie.exe`
+# NIE — Reconstruct the game engine that produced `nie.exe`
 
 ## Stable repository release 1.0.0 — 2026-09-20
 
@@ -9,7 +9,7 @@ exact commit is gated, packaged, pushed, deployed, live-validated, tagged, and r
 not rename the remaining reverse-engineering, Azalée parity, native-rendering, or no-React gaps as
 complete; their measured limits remain in this plan.
 
-The distributable npm surface is deliberately limited to the two public niers bindings. Internal
+The distributable npm surface is deliberately limited to the two public nie bindings. Internal
 applications and compatibility packages remain private or retain their own independent versions.
 Rust packages remain `publish = false`: the workspace's commercial `LICENSE` is not an OSI crate
 license and does not authorize a crates.io source release. The stable Rust distribution is the
@@ -28,14 +28,14 @@ graph. The Rust MCP and site remain the maintained API/service owners. The relea
 longer invokes retired Bun services. Duplicate local Rose Griffon foundations (`ui`, `db`,
 `types`, `config`) were removed; `inacord-ui` consumes the canonical packages from the sibling
 `/home/ubuntu/rg` repo. Measured 2026-09-22 with `find apps packages -maxdepth 2 -name
-package.json` plus the root workspace list: 5 local niers libraries, 5 canonical RG packages
+package.json` plus the root workspace list: 5 local nie libraries, 5 canonical RG packages
 outside this repository, and 2 apps; 13 manifests including the root. The root catalogue was
 reduced to referenced dependencies only, and the obsolete Discord/agent overrides were removed.
 `bun install --frozen-lockfile`, dependency ownership, both product typechecks, and the web suite
 passed: 367 tests, 0 failures, 1,709 assertions across 66 files. The RG checkout was read-only
 during this batch; its pre-existing status had 388 entries and was not changed.
 
-The private `@niers/inacord-ui` surface no longer publishes three obsolete French shell
+The private `@nie/inacord-ui` surface no longer publishes three obsolete French shell
 subpaths (`shell/ecran-menu`, `shell/geometrie-mainmenu`, `shell/layout-jeu`). A repository-wide
 consumer search found no production import: only the three package export entries and the
 compatibility-only `legacy-shell-modules.test.ts` remained. Those re-exports, exports, and test
@@ -64,7 +64,7 @@ key, NAND, APK or proprietary SDK was added. The C/C++ layer adds 3dstool, Proje
 ISO Tools and decomp-toolkit; the C# layer adds Lynx, Strikers2013Editor, ndsSharp and the
 optional Unity AssetStudio oracle; Python keeps ninfs, PyCTR, 3DSkit and `inz_cond`. None replaces
 an already-migrated Rust owner. The next bounded act is a shared Rust stage-manifest library
-exposed by the existing `niers` CLI, followed by platform adapters and round-trip tests. The
+exposed by the existing `nie` CLI, followed by platform adapters and round-trip tests. The
 initial `nie-emu` Rust registry now owns backend identity/capability contracts without vendoring
 an emulator core. Save,
 memory-editor and launcher coverage is also unified through `nie-save`, `nie-trace`,
@@ -83,7 +83,7 @@ are adapters only; they perform no network access. The existing SQLite anime cat
 VFS/game-video owner remain the data sources, with the restored desktop `CinemaView` now mounted
 on the desktop media route.
 
-Measured 2026-09-22: `@niers/media` typecheck passed; its 7 tests passed with 47 assertions; the
+Measured 2026-09-22: `@nie/media` typecheck passed; its 7 tests passed with 47 assertions; the
 web typecheck passed. The runtime matrix now covers DS, 3DS, Wii, Switch/Switch 2, PS4/PS5,
 PlayStation, Xbox, PC, iOS, Android, mobile, arcade and unknown platforms, plus episode, film,
 game-video, manga-volume and special media. Only the PC Victory Road Steam bridge is an actual
@@ -113,10 +113,10 @@ caller existed and every route/host already imported the canonical `nie_formats:
 
 The public episode-navigation export was closed as well. It only re-exported the local
 application rules; its only test duplicated the canonical implementation tests,
-and the remaining desktop caller now imports the canonical owner from `@niers/media`.
+and the remaining desktop caller now imports the canonical owner from `@nie/media`.
 
 The unused desktop `apps/nie-web/src/desktop/lib/galerie.ts` facade was removed. No source imported
-it; desktop gallery components already consume the `@niers/inacord-ui/gallery/*` owner directly.
+it; desktop gallery components already consume the `@nie/inacord-ui/gallery/*` owner directly.
 
 The ignored `forge/asm/lifted.s` was deleted as a generated 110 MB assembly projection; the
 documented regeneration command is `nie-forge lift`. `target/debug` was removed after the gates;
@@ -133,7 +133,7 @@ ledger and response fixtures close them.
 
 The same audit removed the unreferenced `formatPrice` alias from the shared UI implementation;
 `formatCurrency` is its sole implementation and no maintained source imported the alias. The
-canonical implementation now lives in the sibling RG repository, while niers keeps only its
+canonical implementation now lives in the sibling RG repository, while nie keeps only its
 Inacord-specific presentation package.
 
 The next task is not picked by intuition, nor read off a stale document: it is **measured**.
@@ -144,9 +144,9 @@ binaries and the 178 runnable tools — and ranks what is missing.
 
 ```bash
 just atlas                  # (re)build the index + the Redis db4 mirror
-niers atlas gaps            # the road to 100 %, ranked by (target − current) × weight
-niers atlas next            # the next task, as JSON, for an agent or the loop
-niers atlas search <term>   # docs + symbols + tools + files + crates, in one query
+nie atlas gaps            # the road to 100 %, ranked by (target − current) × weight
+nie atlas next            # the next task, as JSON, for an agent or the loop
+nie atlas search <term>   # docs + symbols + tools + files + crates, in one query
 bash scripts/atlas-loop.sh  # one autonomous tick: measure → index → rank → one bounded act → re-measure
 ```
 
@@ -157,14 +157,14 @@ Snapshot measured on `vps-203bea89`, 2026-09-11 — **regenerate it, never quote
 | Gap | Measured | Score | Next action |
 |---|---|---|---|
 | `re.anchoring` | 43.00 % of named functions start on a real `.pdata` root of the reference | 456 | `just re-seed && just re-rebuild` on `nie.exe` |
-| `re.named` | 12.57 % (13 653 / 108 650) | 437 | `just re-rebuild`, then `niers seed-ui` |
+| `re.named` | 12.57 % (13 653 / 108 650) | 437 | `just re-rebuild`, then `nie seed-ui` |
 | `forge.units` | 0.00 % (7 / 215 688) | 400 | `just forge-cc` |
 | `port.symbols` | 1.37 % (189 / 13 845) | 296 | name the ported functions after their binary symbol |
 | `forge.lifted` | 48.80 % (105 266 / 215 688) | 256 | `nie-forge lift` |
 | `forge.produced` | 74.061759 % | 233 | `just forge` |
 | `forge.code` | 92.447995 % of `.text` | 45 | `nie-forge lift --max-len` |
 | `re.classified` | 92.65 % (100 664 / 108 650) | 44 | `just re-rebuild` |
-| `docs.anchored` | 89.84 % (955 / 1 063) | 20 | `niers atlas docs --orphans` |
+| `docs.anchored` | 89.84 % (955 / 1 063) | 20 | `nie atlas docs --orphans` |
 | `forge.identity` | **100 %** — `dist/nie.exe` is byte-identical | done | hold it |
 
 Weights encode what "100 %" means here, in order: identity 10, produced 9, anchoring 8, uemu
@@ -180,7 +180,7 @@ address quoted from `function` is not an address of `nie.exe`. See [`docs/RE.md`
 ### Rules this workflow imposes on the plan
 
 1. **No number enters this plan unless `atlas_metric` holds it**, with the command that
-   produced it. `niers atlas metric <name> <value> --source '<command>'` is how a measurement
+   produced it. `nie atlas metric <name> <value> --source '<command>'` is how a measurement
    becomes citable.
 2. **An unmeasured gap does not exist.** `refresh_gaps` creates a row only for a metric that
    was really recorded — an absent measurement leaves nothing, never a zero that would read
@@ -198,7 +198,7 @@ address quoted from `function` is not an address of `nie.exe`. See [`docs/RE.md`
 The Linux host now has the native Steam and SteamCMD packages, Bun dependencies, and the
 Rust/Bun/Python/.NET/C/C++ toolchains used by this checkout. `nie-steam` authenticated the
 configured account and inspected app `2799860` / content depot `2799861` successfully. The
-private token store is `/home/ubuntu/.local/share/niers/steam-tokens.json` (`0600`). The
+private token store is `/home/ubuntu/.local/share/nie/steam-tokens.json` (`0600`). The
 planned install root is `/home/ubuntu/.local/share/Steam/iecode/inazuma`; Proton remains
 unavailable until the depot supplies its `files/` tree.
 
@@ -212,12 +212,12 @@ in [`docs/STEAM-LINUX.md`](docs/STEAM-LINUX.md).
 ### Repository shell environment — measured 2026-09-20
 
 `bash scripts/install-shell-environment.sh` on `vps-203bea89` merged the six existing private
-niers environment sources into the ignored `0600` `.env.local` without logging values (98 keys,
+nie environment sources into the ignored `0600` `.env.local` without logging values (98 keys,
 zero missing), kept `.env` as a symlink, installed the non-secret user environment plus a
 `0644` system PATH fragment, and published six current release binaries through
-`~/.local/bin` symlinks. A clean login resolves `niers`, `nie-mcp`, Steam/SteamCMD, Rust, Bun, uv,
+`~/.local/bin` symlinks. A clean login resolves `nie`, `nie-mcp`, Steam/SteamCMD, Rust, Bun, uv,
 Codex, Claude and agy; `direnv exec .` resolves the real Steam VFS and a shell outside the checkout
-does not set `NIERS_ENV_ACTIVE`. Claude reports the niers plugin enabled at project scope and
+does not set `NIE_ENV_ACTIVE`. Claude reports the nie plugin enabled at project scope and
 disabled outside; Codex is disabled globally and enabled by `.codex/config.toml`; agy brackets its
 global-only enablement around serialized sessions launched from this checkout. Plugin validation
 processed 18 skills and one MCP server. See [`docs/DEVELOPMENT-ENVIRONMENT.md`](docs/DEVELOPMENT-ENVIRONMENT.md).
@@ -256,7 +256,7 @@ and Master Gloves score 70, while YUTO's Cape and Champion's Scarf share the acc
 70 and are both retained. The other 16 item categories expose no comparable bonus and are recorded
 as unranked instead of receiving an invented winner.
 
-`niers vfs bundle --profile aphrody_lean --out
+`nie vfs bundle --profile aphrody_lean --out
 var/vfs/main_menu-fr-aphrody-lean.nievfs` selected 85 files and 100,619,449 payload bytes from the
 installed VFS. The deterministic archive is 100,629,774 bytes, SHA-256
 `7865dbfd2415cebc802ec28c910464b8149651477f2077aebb75a5a03983be57`; Brotli 11 reduces it to
@@ -301,7 +301,7 @@ Bank and Gallery oracle comparisons pass; do not infer visual fidelity from rout
 ## Azalée absorption parity gate — measured 2026-09-20
 
 The user explicitly lifted the repository boundary for a read-only comparison with
-`/home/ubuntu/rg/apps/azalee`; implementation still belongs in the settled `niers` owners, not in a
+`/home/ubuntu/rg/apps/azalee`; implementation still belongs in the settled `nie` owners, not in a
 new Azalée runtime dependency. The archived 2026-09-05 Next build reports 120 outputs; that is NOT
 120 source pages. Read-only enumeration on this Linux host with
 `bun scripts/azalee-route-ledger.ts /home/ubuntu/rg d5659256 docs/azalee/route-ledger.json`
@@ -421,7 +421,7 @@ This later batch supersedes the earlier unwired-archive snapshot above, not the 
 native-rendering and application-parity gates. On `vps-203bea89`, the canonical
 `apps/nie-web/scripts/build-wasm.ts` produced a 4,875,709-byte main module, below the 6 MiB
 bound (`stat -c %s apps/nie-web/public/static/game/nie_wasm_bg.wasm`).
-`niers vfs bundle --profile aphrody_lean --out
+`nie vfs bundle --profile aphrody_lean --out
 var/vfs/main_menu-fr-aphrody-split-source.nievfs --split-dir var/vfs/main_menu-fr-split`
 now emits physically separate, content-addressed archives rather than only category labels.
 The source archive still contains 85 entries and occupies 100,629,774 bytes; inspect the output
@@ -555,7 +555,7 @@ rather than an impression. Re-measure it with the commands quoted; do not update
 compatibility services are intentionally absent from this checkout.
 and the live service runs `/home/ubuntu/rg-releases/azalee/slot-a/apps/azalee/server.js`
 (`systemctl show azalee-web -p ExecStart`). The user explicitly lifted the former repository
-boundary on 2026-09-20 for read-only comparison and migration into `niers`. The Azalée tree remains
+boundary on 2026-09-20 for read-only comparison and migration into `nie`. The Azalée tree remains
 provenance/reference rather than a new runtime dependency; all new owners and production code stay
 in this repository.
 
@@ -857,7 +857,7 @@ Its readable strings include **`DispMaxValue`**, a direct candidate for the visi
 no layout data — so the parameters live on the list object, which is where the reversal says the
 state lives too.
 
-**Measured, and it settles the question.** `niers decode` on that objbin — the CLI was already
+**Measured, and it settles the question.** `nie decode` on that objbin — the CLI was already
 built, so no compile was needed — prints the `CMenuListViewCharaBank` component in full:
 
     mViewStart 1   mViewNum 7   mLineNum 6   mLocatorNum 54
@@ -1221,7 +1221,7 @@ IPA.
 
 The repository `aphrody-code/nie` is public. The dependency audit found that all externally
 referenced `@aphrody/*` registry packages and the Rust git dependency are already public; internal
-`@niers/*` workspaces remain source packages in this public monorepo rather than being published
+`@nie/*` workspaces remain source packages in this public monorepo rather than being published
 under an unowned registry name. The agent plugin starts an installed `nie-mcp` binary and no
 longer requires a source checkout or Rust toolchain.
 
@@ -1294,7 +1294,7 @@ Every iteration follows one auditable sequence:
 1. Re-measure the current forge and functional baselines (`bash scripts/atlas-loop.sh
    --no-act` does it in one pass and records every number with its source); never promote
    historical counts to current proof without rerunning them on the named host and revision.
-2. Select the highest-yield concrete blocker from `niers atlas next` — which ranks the whole
+2. Select the highest-yield concrete blocker from `nie atlas next` — which ranks the whole
    measured surface — then narrow it with `nie-forge lift --top 0`, `nie-forge candidates
    --no-reloc`, the RE knowledge base, or a failing functional fixture.
 3. Implement the capability in its single owning library and preserve compatibility facades.
@@ -1534,7 +1534,7 @@ gate remains open.
 #### Chara Edit portable OC interchange — implemented bounded session slice, 2026-09-13
 
 `nie-data::avatar_reference` now owns import and export of the versioned
-`niers.oc.avatar-document/v1` document. The WASM host is a thin JSON binding: Rust validates the
+`nie.oc.avatar-document/v1` document. The WASM host is a thin JSON binding: Rust validates the
 slug, optional `cXXXXXXXX` code, complete `AvatarState`, at most 32 references, provenance and
 file metadata before serializing. The document carries filename, byte length and SHA-256 for
 local GLB/PNG references, never the binary payload and never a write into `data/oc`. The
@@ -1598,7 +1598,7 @@ Its OPEN rows remain debt; none of its measurements is current proof.
 
 ## Original Characters (OC) full VFS integration & production validation — 2026-09-11
 
-Integrated Original Characters (`data/oc/`, specifically Astro Lor `c99019010` and `c99019020`) into the core VFS engine (`nie-formats::vfs::Vfs`), CLI (`nie-cli` binary `niers`), and data pipeline:
+Integrated Original Characters (`data/oc/`, specifically Astro Lor `c99019010` and `c99019020`) into the core VFS engine (`nie-formats::vfs::Vfs`), CLI (`nie-cli` binary `nie`), and data pipeline:
 
 1. **VFS Overlay & Discovery Engine (`nie-formats`):**
    - Added transparent overlay system (`overlays: HashMap<String, PathBuf>`) into `Vfs` struct.
@@ -1615,7 +1615,7 @@ Integrated Original Characters (`data/oc/`, specifically Astro Lor `c99019010` a
 
 3. **Toolchain & Quality Gates:**
    - Identified bundled MinGW GCC 13.2.0 toolchain under `var/vcpkg/` enabling full C/C++ compilation for native Rust dependencies (`zstd-sys`, `mlua-sys`, `aws-lc-sys`) under `x86_64-pc-windows-gnu`.
-   - Built and linked `nie-cli` binary `target/debug/niers.exe` and `target/release/niers.exe`, updating `~/.local/bin/niers.exe`.
+   - Built and linked `nie-cli` binary `target/debug/nie.exe` and `target/release/nie.exe`, updating `~/.local/bin/nie.exe`.
    - Built `target/debug/nie_ffi.dll` (51.7 MB) required by Bun FFI integration tests.
    - Fixed `packages/nie/src/index.ts` FFI symbols typing (`as any`) resolving `TS4111` strict index signature access errors across the monorepo.
    - Fixed `packages/nie/package.json` version alignment with workspace (`0.5.11`).
@@ -1623,7 +1623,7 @@ Integrated Original Characters (`data/oc/`, specifically Astro Lor `c99019010` a
    - Measured gates:
      - `cargo clippy -p nie-formats --lib -- -D warnings`: 0 warnings, exit 0
      - `cargo clippy -p nie-ocgen --lib -- -D warnings`: 0 warnings, exit 0
-     - `cargo clippy -p nie-cli --bin niers -- -D warnings`: 0 warnings, exit 0
+     - `cargo clippy -p nie-cli --bin nie -- -D warnings`: 0 warnings, exit 0
      - `cargo test -p nie-formats --lib`: 325 passed, 0 failed, exit 0
      - `cargo test -p nie-ocgen`: 13 passed, 0 failed, exit 0
      - `cargo test -p nie-explore --lib --no-default-features`: 39 passed, 0 failed, exit 0
@@ -1693,7 +1693,7 @@ Comprehensive reverse-engineering across four core engine systems, media crawlin
    - Built standalone IVF (Indeo Video Format / VP90 `DKIF`) encoder and decoder in `nie-formats::ivf`.
    - Implemented `demuxer_webm_vp9` in `nie-formats::webm` to extract raw VP9 bitstream frames without container overhead.
    - Implemented `muxer_usm_vp9` in `nie-formats::usm` constructing bitstream chunks, `@SFV` blocks, and `@UTF` directory headers.
-   - Added `niers video convert-webm` CLI command converting WebM directly to IVF and USM (`who01060.ivf`: 1280x720, 316 frames, 5.27s, 1,354,973 B).
+   - Added `nie video convert-webm` CLI command converting WebM directly to IVF and USM (`who01060.ivf`: 1280x720, 316 frames, 5.27s, 1,354,973 B).
 
 5. **Astro Lor Skills & Auras Integration (`data/oc/astro-lor/source/skills/`):**
    - Downloaded and linked official media: `aura_soul.webm`, `saute-mouton.webm`, `who01060.png`, `ev61_01060.png`, `who01360.webm`, `who01360_poster.jpg`, `who01360.png`.
@@ -1720,16 +1720,16 @@ Full unification of the game engine runtime, cross-platform compilation gates, a
 2. **Native Menu Catalog (38 screens) & Atlas Pipeline (`nie-index`, `nie-cli atlas`):**
    - Designed and created `atlas_menu_screen` schema in `atlas.sql` and updated `v_atlas_status` view.
    - Imported all 38 cataloged screens from `data/menu/screen-inventory.json`, indexing recipe configurations, referenced/missing objbins, Lua presence, and pairing status (38/38 resolved).
-   - Added `niers atlas menu` subcommand displaying the complete 38-screen inventory table.
+   - Added `nie atlas menu` subcommand displaying the complete 38-screen inventory table.
    - Metric `menu.screens` recorded at 38/38 (100.0 %), closing the gap with `status: done`.
    - Verified: `cargo test -p nie-index` (18/18 unit tests + 1/1 doctest passed).
 
-3. **Multiplatform Headless Game Runtime (`niers play` & `nie-wasm`):**
-   - Implemented `niers play` CLI command supporting deterministic frame simulation, IEVR input dispatch (`CMD_ENTER`, `CMD_BACK`, `CMD_FCS_MTX_*`), match physics simulation (22 players, live ball tracking), framebuffer rendering (1280x720), PPM export, and JSON summaries.
-   - Verified `niers play` scenarios:
-     - Headless boot & menu: `niers play --frames 30 --json` (status OK, final screen `Menu(sel=0)`)
-     - Menu navigation & PPM dump: `niers play --screen menu --cmd "down,down,enter" --frames 10 --out var/test_menu.ppm --json` (final screen `Info(Marque-pages d'informations)`, PPM rendered)
-     - Match simulation: `niers play --match --match-seconds 5.0 --json` (300 frames, score 0-0, live ball coordinates tracked)
+3. **Multiplatform Headless Game Runtime (`nie play` & `nie-wasm`):**
+   - Implemented `nie play` CLI command supporting deterministic frame simulation, IEVR input dispatch (`CMD_ENTER`, `CMD_BACK`, `CMD_FCS_MTX_*`), match physics simulation (22 players, live ball tracking), framebuffer rendering (1280x720), PPM export, and JSON summaries.
+   - Verified `nie play` scenarios:
+     - Headless boot & menu: `nie play --frames 30 --json` (status OK, final screen `Menu(sel=0)`)
+     - Menu navigation & PPM dump: `nie play --screen menu --cmd "down,down,enter" --frames 10 --out var/test_menu.ppm --json` (final screen `Info(Marque-pages d'informations)`, PPM rendered)
+     - Match simulation: `nie play --match --match-seconds 5.0 --json` (300 frames, score 0-0, live ball coordinates tracked)
    - Exposed `menu_screens_catalog_json()` in `nie-wasm` with unit tests (65/65 passed).
    - Verified multi-platform target gates:
      - **WASM:** `cargo check -p nie-wasm --target wasm32-unknown-unknown` (exit 0)
@@ -1745,7 +1745,7 @@ Full unification of the game engine runtime, cross-platform compilation gates, a
    - `cargo clippy -p nie-index --lib --tests -- -D warnings`: 0 warnings, exit 0
    - `cargo clippy -p nie-wasm --lib --tests -- -D warnings`: 0 warnings, exit 0
    - `cargo clippy -p nie-cli --bins --tests -- -D warnings`: 0 warnings, exit 0
-   - `niers atlas status`: `menu_screens=38`, `artifacts=5292`, `crates=46`, `docs=591`, `tools=179`, `gaps_open=3`, `runs=1`
+   - `nie atlas status`: `menu_screens=38`, `artifacts=5292`, `crates=46`, `docs=591`, `tools=179`, `gaps_open=3`, `runs=1`
 
 API: persisted identifiers, parent hierarchy, local full quaternion/TRS, inherited visibility,
 bounded validation and JSON v1→v2 migration. V1 retains its 128-object limit; v2 permits at most
@@ -1972,7 +1972,7 @@ désormais un nombre plutôt qu'une impression.
 
 All external C# tools across the IEVR ecosystem (`IEVR Ultimate Team`, `EACLauncher`, and `InazumaElevenVRSaveEditor` v2.2.2)
 have been reverse-engineered, extracted, and ported into native Rust within `nie-launcher` and `nie-trace`, unifying the entire pipeline
-into `niers`:
+into `nie`:
 
 1. **Memory Hook Catalog (`nie-trace::catalog`)**:
    Expanded from 25 to 33 live memory signatures and code caves extracted from `InazumaElevenVRSaveEditor.exe` (PE offset `0x1444000`,
@@ -1992,7 +1992,7 @@ into `niers`:
    - `nie_launcher::save` & `vfs`: Save slot parking, team slot injection, and mod package metadata parsing.
 
 4. **CLI & MCP Surface (`nie-cli`)**:
-   - Added `niers launcher spirit cards [--json] [--search <query>]` and `niers launcher spirit moves [--json] [--category <cat>]`.
+   - Added `nie launcher spirit cards [--json] [--search <query>]` and `nie launcher spirit moves [--json] [--category <cat>]`.
    - Exposed `CliLauncher` tool in MCP server (`crates/tools/nie-cli/src/mcp.rs`).
 
 5. **Production Readiness & Web Bundle Compression (`nie-web`)**:
@@ -2019,22 +2019,22 @@ into `niers`:
 
 7. **`nie.exe` Native Reverse Engineering Breakthrough & Surface Atlas (measured 2026-09-19)**:
    - **Authentic Target**: `nie.exe` at `/home/ubuntu/.local/share/Steam/iecode/inazuma/nie.exe` (SHA-256 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`, 33,918,464 bytes).
-   - **`.pdata` Rebuilding & Anchor Point Extraction (`niers rebuild`)**:
+   - **`.pdata` Rebuilding & Anchor Point Extraction (`nie rebuild`)**:
      - 55,351 authoritative function roots anchored (100% of reference binary `.pdata`).
      - 17,896 string cross-references, 54,156 constant evaluations, 1,745 RTTI classes linked.
-   - **MSVC RTTI Discovery (`niers rtti`)**:
+   - **MSVC RTTI Discovery (`nie rtti`)**:
      - 2,906 RTTI classes, 2,906 type descriptors, 4,219 base classes, and 7,549 virtual methods.
-   - **UI CRC32 Ingestion (`niers seed-ui --textures`)**:
+   - **UI CRC32 Ingestion (`nie seed-ui --textures`)**:
      - 62,125 UI names ingested into `hash_name` across 475 screens, 4,858 layers, 4,915 commands, 656 groups, 3,373 objects, 12,732 components, 74,468 textures, and 33,800 texture regions.
-   - **Machine String Decoding & Instruction-Level Anchoring (`niers strings`)**:
+   - **Machine String Decoding & Instruction-Level Anchoring (`nie strings`)**:
      - 32,571 strings extracted (.rdata/.data), 3,614,474 instructions decoded, 22,016 exact (function, string) pairs anchored into `func_str_ref` and `xref`.
-   - **Leaf Function Recovery (`niers recover`)**:
+   - **Leaf Function Recovery (`nie recover`)**:
      - 59,224 leaf functions recovered from `.text` gaps (explaining 98.20% of non-pdata bytes).
      - 1,528 non-RTTI vtables (37,334 slots, 11,588 methods).
      - 136 `funcLua` dispatch tables (7,504 entries, 6,786 script handlers).
-   - **Multi-Round Label Propagation (`niers propagate`)**:
+   - **Multi-Round Label Propagation (`nie propagate`)**:
      - Label-spreading across 37,306 call-graph edges (+6,713 functions classified).
-   - **Total Engine Coverage (`niers coverage`)**:
+   - **Total Engine Coverage (`nie coverage`)**:
      - Total Functions: **117,068**
      - Categorized Functions: **94,164 / 117,068 (80.44%)**
      - Named Functions: **49,158** (up from 7,289, +574%)
@@ -2063,11 +2063,11 @@ into `niers`:
      - Squad Valuation Engine: market and quick-sell calculation for decrypted lineups.
      - Thread-safe SQLite reader (`UtDatabase`).
    - **CLI & MCP Surface (`nie-cli`)**:
-     - `niers launcher ut packs [--json]`: lists all packs with prices & drop rates.
-     - `niers launcher ut open <pack-id> [--seed <n>] [--json]`: simulates opening packs with exact odds.
-     - `niers launcher ut players [-q <query>] [-e <element>] [-r <rarity>] [--limit <n>] [--json]`: searches player database.
-     - `niers launcher ut formation <name> [--json]`: displays 2D pitch slot coordinates.
-     - `niers launcher ut value <file> [--passphrase <key>] [--json]`: calculates market/quick-sell value.
+     - `nie launcher ut packs [--json]`: lists all packs with prices & drop rates.
+     - `nie launcher ut open <pack-id> [--seed <n>] [--json]`: simulates opening packs with exact odds.
+     - `nie launcher ut players [-q <query>] [-e <element>] [-r <rarity>] [--limit <n>] [--json]`: searches player database.
+     - `nie launcher ut formation <name> [--json]`: displays 2D pitch slot coordinates.
+     - `nie launcher ut value <file> [--passphrase <key>] [--json]`: calculates market/quick-sell value.
      - Integrated into native MCP server `cli_launcher`.
    - **Automated Quality Gates**:
      - `cargo test -p nie-launcher`: 8/8 passed.
@@ -2108,22 +2108,22 @@ into `niers`:
      - `bun run --cwd apps/nie-web typecheck`: 0 errors, passed.
 
 10. **Full Multi-Surface Online Mode & Competitive Wiring (`nie-cli`, `nie-wasm`, `nie-site`) — (measured 2026-09-20)**:
-    - **CLI Surface (`niers net`)**:
+    - **CLI Surface (`nie net`)**:
       - Integrated `nie-net` into `nie-cli` with dedicated `net_cmd` module.
-      - Implemented `niers net server`: starts authoritative WebSocket server with matchmaking & Kizuna Town hub.
-      - Implemented `niers net room create`: creates Inacode rooms (`INA-XXXX`) with 1v1 / 2v2 modes.
-      - Implemented `niers net sim-match`: automated 60 Hz deterministic simulation with rollback & FNV-1a hash verification (0-desync).
-      - Implemented `niers net challenge create`: creates shareable 8-char base-32 challenge invitations.
-      - Implemented `niers net ladder`: displays competitive leaderboard with the 11 official rank tiers (Fer to Légendaire).
-      - Implemented `niers net clans`: displays clan leaderboards and accumulated AP contributions.
-      - Implemented `niers net calc-elo`: computes asymmetric progressive ELO deltas with directional K-factors.
+      - Implemented `nie net server`: starts authoritative WebSocket server with matchmaking & Kizuna Town hub.
+      - Implemented `nie net room create`: creates Inacode rooms (`INA-XXXX`) with 1v1 / 2v2 modes.
+      - Implemented `nie net sim-match`: automated 60 Hz deterministic simulation with rollback & FNV-1a hash verification (0-desync).
+      - Implemented `nie net challenge create`: creates shareable 8-char base-32 challenge invitations.
+      - Implemented `nie net ladder`: displays competitive leaderboard with the 11 official rank tiers (Fer to Légendaire).
+      - Implemented `nie net clans`: displays clan leaderboards and accumulated AP contributions.
+      - Implemented `nie net calc-elo`: computes asymmetric progressive ELO deltas with directional K-factors.
     - **WebAssembly Surface (`nie-wasm::net`)**:
       - Exported WASM bindings for Web/JS runtime in `apps/nie-web`: `net_format_inacode`, `net_generate_inacode`, `net_rank_tier_info`, `net_compute_elo`, `net_generate_challenge_code`, `net_verify_scores`, `net_tournament_circuit_points`, `net_validate_clan_tag`, and `net_state_hash`.
     - **HTTP REST & API Surface (`nie-site`)**:
       - Mounted 6 official online endpoints under `/api/v1/online`: `/status`, `/tiers`, `/ladder`, `/clans`, `/challenge`, `/calc-elo`.
       - Expanded mounted route contract from 163 to 169 routes, covered by 171 test instances.
     - **Unified Documentation Coverage**:
-      - Updated `docs/NIE-ET-CLI.md` with operational guide for `niers net` commands (`server`, `room create`, `sim-match`, `challenge create`, `ladder`, `clans`, `calc-elo`).
+      - Updated `docs/NIE-ET-CLI.md` with operational guide for `nie net` commands (`server`, `room create`, `sim-match`, `challenge create`, `ladder`, `clans`, `calc-elo`).
       - Updated `docs/NIE-ONLINE-MODE.md` with complete REST API tables, WebAssembly bindings examples, and CLI workflows.
       - Updated `docs/esport/README.md` with third-party integration guides for Discord bots, tournament websites, and overlays.
     - **Automated Verification Gates**:
@@ -2231,7 +2231,7 @@ into `niers`:
     - **Concurrency Tiered Deployments & 2026 Modern Tooling**:
       - `scripts/deploy-target.ts`: parallelized deployment by tiers (Tier 1: ffi/cli/mcp, Tier 2: wasm, Tier 3: web/inacord, Tier 4: services & data) with support for `--allow-dirty`.
       - `justfile`: added `deploy-all`, `autopilot`, `autopilot-tick`, `model-serve-health`, and `model-serve-prewarm`.
-      - `scripts/niers-env.sh`: configured compiler caching (`sccache`) and fast linking (`mold`) when available.
+      - `scripts/nie-env.sh`: configured compiler caching (`sccache`) and fast linking (`mold`) when available.
     - **Automated Verification Gates**:
       - `bun test packages/inacord-ui`: 128/128 passed.
       - `bun run typecheck`: passed with 0 errors across all monorepo workspaces.
@@ -2268,31 +2268,31 @@ into `niers`:
       target passed sequentially. The full C/C++ native target remains blocked by absent vcpkg
       on this host and is not silently represented as green.
 
-15. **Portable niers foundation absorbed by IECODE — measured 2026-09-22**:
+15. **Portable nie foundation absorbed by IECODE — measured 2026-09-22**:
     - The single owners for `iecode-emu`, `iecode-geom`, `iecode-sql`, `iecode-tasks` and
       `iecode-video` now live under `/home/ubuntu/iecode/src/{emu,geom,sql,tasks,video}/`;
       no duplicate source copy remains under
-      `/home/ubuntu/niers/crates`.
+      `/home/ubuntu/nie/crates`.
     - `/home/ubuntu/iecode/Cargo.toml` is their Rust workspace and `/home/ubuntu/iecode/CMakeLists.txt`
       exposes the `iecode_shared_rust` test target. The Bun media library now belongs to the
       unpublished IECODE package `packages/iecode`; no Bun workspace path crosses the repository
       boundary.
       The Rust crates are package-ready for crates.io, but publication is gated on the absent
-      `CARGO_REGISTRY_TOKEN`; until that external credential is supplied, the niers checkout
+      `CARGO_REGISTRY_TOKEN`; until that external credential is supplied, the nie checkout
       retains its temporary local path edge so the passing workspace build is not broken.
     - Gates: IECODE `cargo check --workspace --tests` passed; IECODE `cargo test -p iecode-emu --lib`
-      passed 7/7; niers `cargo check -p nie-ffi` passed against the moved libraries. The full
+      passed 7/7; nie `cargo check -p nie-ffi` passed against the moved libraries. The full
       IECODE vcpkg manifest and native integration gate are now green through C# (274/274); the
       C++ IECODE target passed through compile, test linking and external-project completion;
       winDS remains an optional separate target.
 
 16. **Generic reverse-engineering foundation absorbed by IECODE — measured 2026-09-22**:
-    - The portable `iecode-re` crate now lives at `/home/ubuntu/iecode/src/re/`; niers keeps
+    - The portable `iecode-re` crate now lives at `/home/ubuntu/iecode/src/re/`; nie keeps
       only the `aphrody-re` dependency alias for compatibility while consumers migrate.
     - It contains no Inazuma-specific logic and is the sole owner for generic PE/ELF/Mach-O
       triage, hashing, strings and x86 disassembly. No Bun package met the same criterion:
-      the remaining `@niers/*` packages are consumed by the IEVR web/desktop surfaces.
-    - Gates: IECODE `cargo check --workspace --tests` passed; niers `cargo check -p nie-ffi`
+      the remaining `@nie/*` packages are consumed by the IEVR web/desktop surfaces.
+    - Gates: IECODE `cargo check --workspace --tests` passed; nie `cargo check -p nie-ffi`
       passed; IECODE Rust tests passed after the move.
 
 17. **IECODE architecture and management gates — measured 2026-09-22**:
@@ -2324,7 +2324,7 @@ into `niers`:
     - Hardened `/home/ubuntu/iecode/src/cli` as the single Rust binding: deterministic `doctor`,
       `emu list` and `version` commands, `--json` output, `IECODE_WORKSPACE`/`--workspace`
       discovery, stable `iecode.cli/v1` error envelopes, stderr diagnostics and exit code `2` on
-      command failure. No path between `iecode` and `niers` is embedded in the binary.
+      command failure. No path between `iecode` and `nie` is embedded in the binary.
     - Added four CLI contract tests covering parsing, required commands, known emulator registry
       presence and the version schema. Human output does not serialize enum strings with quotes.
     - The production boundary remains explicit: Rust is the router; foreign functionality enters

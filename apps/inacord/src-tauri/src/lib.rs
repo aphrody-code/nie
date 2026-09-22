@@ -1,6 +1,6 @@
 //! Backend Tauri de `nie-explorer` — explorateur/éditeur du VFS (CPK) d'Inazuma Eleven:
 //! Victory Road. Toute la logique de décodage vient de `nie-formats`/`nie-explore` (même
-//! moteur que `niers vfs cat`, cf. `CLAUDE.md` anti-doublon) ; ce module n'est qu'une façade
+//! moteur que `nie vfs cat`, cf. `CLAUDE.md` anti-doublon) ; ce module n'est qu'une façade
 //! IPC (JSON) au-dessus de ces crates + une recherche chara/waza via le miroir `nie-wiki`.
 
 use std::path::{Component, Path, PathBuf};
@@ -140,7 +140,7 @@ fn mods_migrations() -> Vec<Migration> {
             // plusieurs compositions NOMMÉES persistantes sans réseau ni authentification.
             //
             // `members` est le JSON `Record<créneau, TeamMember>` de
-            // `@niers/game/game/team-types` — la MÊME forme que le wiki persiste, pour
+            // `@nie/game/game/team-types` — la MÊME forme que le wiki persiste, pour
             // que le code de partage reste interchangeable entre les deux surfaces.
             version: 4,
             description: "teams (compositions d'équipe locales, sans session)",
@@ -475,7 +475,7 @@ async fn preload_vfs(
 /// `limit`/`offset` sont facultatifs : `None` = tout le dossier (comportement historique).
 /// `limit = 0` renvoie la structure et `file_total` SANS aucun fichier — ce que veut un arbre.
 ///
-/// Le calcul lui-même vit dans [`nie_explore::listing::ls_paged`], partagé avec `niers vfs ls` et
+/// Le calcul lui-même vit dans [`nie_explore::listing::ls_paged`], partagé avec `nie vfs ls` et
 /// le service HTTP `nie-model-serve` : le VFS étant un index plat, cette vue « dossier » est
 /// calculée, et elle divergeait auparavant entre les trois façades.
 #[tauri::command]
@@ -1269,7 +1269,7 @@ fn default_wiki_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<St
         .map(|p| p.display().to_string())
 }
 
-/// Résout `var/niers.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
+/// Résout `var/nie.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
 /// cf. `src/lib/reDb.ts`). Commande Rust plutôt qu'un `exists()` JS (`@tauri-apps/plugin-fs`) :
 /// la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un `std::fs` Rust n'a pas cette
 /// restriction — même raison que [`default_wiki_db`] au-dessus.
@@ -1283,14 +1283,14 @@ fn default_re_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<Stri
     {
         return Some(v);
     }
-    for base in bases_embarquees(&app, "niers.sqlite") {
+    for base in bases_embarquees(&app, "nie.sqlite") {
         if base.is_file() {
             return Some(base.display().to_string());
         }
     }
     racines_candidates(game_dir.as_deref())
         .iter()
-        .map(|r| r.join("var").join("niers.sqlite"))
+        .map(|r| r.join("var").join("nie.sqlite"))
         .find(|p| p.is_file())
         .map(|p| p.display().to_string())
 }
@@ -1677,7 +1677,7 @@ fn vfs_related(
 
 /// Liste toutes les techniques du jeu (`nie_data::skill`, cf. `game_data.rs`) — première
 /// donnée de jeu STATIQUE câblée depuis `nie-data` (dépendance déclarée mais jamais utilisée
-/// avant), via le pont déjà existant `nie_explore::bridge` (même moteur que `niers vfs cat`).
+/// avant), via le pont déjà existant `nie_explore::bridge` (même moteur que `nie vfs cat`).
 #[tauri::command]
 #[specta::specta]
 fn game_data_skills(
@@ -1969,9 +1969,9 @@ fn game_data_calculate_stats(
 /// configuration du jeu (personnages, objets, techniques, auras, boutiques, quêtes, trophées,
 /// tactiques, capsules, costumes… plusieurs centaines de fichiers dans `data/common/gamedata/`
 /// et `data/common/text/`), pas seulement les quelques modules `nie-data` câblés individuellement
-/// avec un DTO typé (`game_data.rs`) — cf. demande utilisatrice « niers doit couvrir tout
+/// avec un DTO typé (`game_data.rs`) — cf. demande utilisatrice « nie doit couvrir tout
 /// nie.exe ». Générique : aucun parseur par format à écrire, juste le pont déjà
-/// vérifié [`nie_explore::bridge`] (même moteur que `niers vfs cat`).
+/// vérifié [`nie_explore::bridge`] (même moteur que `nie vfs cat`).
 #[tauri::command]
 #[specta::specta]
 fn vfs_decode_cfgbin(
@@ -2835,7 +2835,7 @@ fn export_mod_as_cpk(
     Ok(bytes.len() as f64)
 }
 
-// ─── Pont Blender (plugins/niers-blender) ─────────────────────────────────────────────────────
+// ─── Pont Blender (plugins/nie-blender) ─────────────────────────────────────────────────────
 
 /// Candidats d'installation Blender à essayer si aucun chemin explicite n'est fourni.
 const BLENDER_CANDIDATES: &[&str] = &[
@@ -2862,26 +2862,26 @@ fn resolve_blender_exe(blender_exe: Option<String>) -> Result<PathBuf, String> {
 }
 
 /// Dépôt source amont de l'addon Blender (Level-5 G4 Blender Tools, licence de republication
-/// confirmée auprès de l'auteur — cf. `plugins/niers-blender/README.md` en-tête).
-/// `plugins/niers-blender` est **vendorisé** dans niers (fichiers réguliers versionnés, PAS un
-/// submodule Git) : une utilisatrice qui clone `niers` l'a directement, sans étape
+/// confirmée auprès de l'auteur — cf. `plugins/nie-blender/README.md` en-tête).
+/// `plugins/nie-blender` est **vendorisé** dans nie (fichiers réguliers versionnés, PAS un
+/// submodule Git) : une utilisatrice qui clone `nie` l'a directement, sans étape
 /// `git submodule update --init`. Cette constante ne sert donc qu'au filet de sécurité ci-dessous.
-const NIERS_BLENDER_ADDON_GIT_URL: &str = "https://github.com/The-RealBobi/G4_Blender.git";
+const NIE_BLENDER_ADDON_GIT_URL: &str = "https://github.com/The-RealBobi/G4_Blender.git";
 
 /// Nom du **module Python** de l'addon, indépendant du nom du dossier source. Blender l'active par
-/// ce nom (`addon_enable(module=…)`, `import niers`), et un identifiant Python ne peut pas porter
-/// de tiret : le dossier `plugins/niers-blender` est donc chargé par chemin explicite, et zippé
+/// ce nom (`addon_enable(module=…)`, `import nie`), et un identifiant Python ne peut pas porter
+/// de tiret : le dossier `plugins/nie-blender` est donc chargé par chemin explicite, et zippé
 /// sous cette racine-là.
-const NIERS_BLENDER_MODULE: &str = "niers";
+const NIE_BLENDER_MODULE: &str = "nie";
 
-/// Garantit que `<root>/plugins/niers-blender/__init__.py` existe et renvoie le dossier de l'addon
-/// lui-même. Dans niers c'est TOUJOURS vrai (vendorisé, cf. constante ci-dessus) ; ce filet de
+/// Garantit que `<root>/plugins/nie-blender/__init__.py` existe et renvoie le dossier de l'addon
+/// lui-même. Dans nie c'est TOUJOURS vrai (vendorisé, cf. constante ci-dessus) ; ce filet de
 /// sécurité clone l'addon à la volée pour le cas où `root` (le dossier du JEU, résolu par
 /// [`resolve_root`]) n'est PAS un checkout de ce dépôt — un build distribué de `nie-explorer`
 /// pointé sur une simple install Steam n'a que le jeu.
-fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String> {
+fn ensure_nie_blender_addon(root: &std::path::Path) -> Result<PathBuf, String> {
     let plugins_dir = root.join("plugins");
-    let addon_dir = plugins_dir.join("niers-blender");
+    let addon_dir = plugins_dir.join("nie-blender");
     if addon_dir.join("__init__.py").is_file() {
         return Ok(addon_dir);
     }
@@ -2894,14 +2894,14 @@ fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String>
             .map_err(|e| format!("nettoyage de {} : {e}", addon_dir.display()))?;
     }
     let status = std::process::Command::new("git")
-        .args(["clone", "--depth", "1", NIERS_BLENDER_ADDON_GIT_URL])
+        .args(["clone", "--depth", "1", NIE_BLENDER_ADDON_GIT_URL])
         .arg(&addon_dir)
         .stdin(std::process::Stdio::null())
         .status()
         .map_err(|e| format!("échec de lancement de git (introuvable sur le PATH ?) : {e}"))?;
     if !status.success() {
         return Err(format!(
-            "échec du clonage de l'extension Blender niers ({status}) — {NIERS_BLENDER_ADDON_GIT_URL}"
+            "échec du clonage de l'extension Blender nie ({status}) — {NIE_BLENDER_ADDON_GIT_URL}"
         ));
     }
     if !addon_dir.join("__init__.py").is_file() {
@@ -2915,11 +2915,11 @@ fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String>
 
 /// Extrait `path` (+ ses fichiers frères de même basename dans le même dossier VFS : g4mg/g4sk/
 /// g4tx/g4mt) vers un dossier temporaire, lance Blender avec un script d'amorçage qui active
-/// l'addon `plugins/niers-blender` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
-/// utilisateur Blender — cloné à la volée via [`ensure_niers_blender_addon`] si absent) puis
+/// l'addon `plugins/nie-blender` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
+/// utilisateur Blender — cloné à la volée via [`ensure_nie_blender_addon`] si absent) puis
 /// importe RÉELLEMENT le modèle via l'opérateur `import_scene.level5_g4` (« File > Import >
 /// Level-5 G4 Model »). Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau
-/// de recherche niers→Blender (`niers_bridge.py`) l'utilise pour retrouver `niers.exe` et le VFS
+/// de recherche nie→Blender (`nie_bridge.py`) l'utilise pour retrouver `nie.exe` et le VFS
 /// sans deviner.
 ///
 /// **Bug corrigé (2026-08-08, « Blender ouvre un fichier vide »)** : le script d'amorçage
@@ -2927,7 +2927,7 @@ fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String>
 /// l'opérateur « choisir le template original » du **wizard d'export/portage** (`g4_port_addon.
 /// py`, panneau « 1. Original model template » : il peuple les *réglages* internes de l'addon
 /// pour un futur export, ne crée AUCUN objet maillage). Confirmé par lecture du code source de
-/// l'addon (`plugins/niers-blender/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
+/// l'addon (`plugins/nie-blender/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
 /// `apply_original_model_to_settings`, pas un import). Le VRAI importeur (« File > Import >
 /// Level-5 G4 Model », README de l'addon) est `import_scene.level5_g4` — **validé par un test
 /// réel `blender --background --python`** sur le vrai `c01000010.g4md` : 3 objets créés
@@ -2944,7 +2944,7 @@ fn open_in_blender(
 ) -> Result<String, String> {
     let blender = resolve_blender_exe(blender_exe)?;
     let root = resolve_root(game_dir.as_deref());
-    let addon_dir = ensure_niers_blender_addon(&root)?;
+    let addon_dir = ensure_nie_blender_addon(&root)?;
 
     let built = with_vfs(Some(root.display().to_string()), &state, |vfs| {
         let stamp = std::time::SystemTime::now()
@@ -3012,7 +3012,7 @@ fn open_in_blender(
     let script_path = export_dir.join("_bootstrap.py");
     let script = format!(
         r#"import importlib.util, sys, traceback
-# Le dossier source porte un tiret (`niers-blender`) : il n'est pas importable par son nom.
+# Le dossier source porte un tiret (`nie-blender`) : il n'est pas importable par son nom.
 # On charge son `__init__.py` par chemin explicite, sous le nom de module attendu par Blender.
 try:
     _spec = importlib.util.spec_from_file_location({module_name:?}, {addon_init:?})
@@ -3020,7 +3020,7 @@ try:
     sys.modules[{module_name:?}] = g4b
     _spec.loader.exec_module(g4b)
     g4b.register()
-    print("[nie-explorer] addon niers activé")
+    print("[nie-explorer] addon nie activé")
 except Exception:
     traceback.print_exc()
 
@@ -3058,7 +3058,7 @@ def _nie_explorer_import():
 # besoin pour sa barre de progression) -- un appel synchrone immediat peut echouer en silence.
 bpy.app.timers.register(_nie_explorer_import, first_interval=0.3)
 "#,
-        module_name = NIERS_BLENDER_MODULE,
+        module_name = NIE_BLENDER_MODULE,
         addon_init = addon_dir.join("__init__.py").display().to_string(),
         error_log = error_log.display().to_string(),
         main_path = main_path.display().to_string(),
@@ -3073,7 +3073,7 @@ bpy.app.timers.register(_nie_explorer_import, first_interval=0.3)
         // n'est déjà sous un dossier `data/common/...` (ce qui EST le cas ici, cf. préservation du
         // chemin VFS ci-dessus — la résolution par chemin suffit pour ce fichier précis) ; posé
         // quand même en filet pour toute résolution qui remonterait plus haut (skelette partagé
-        // hors de l'arborescence exportée, cf. `LEVEL5_G4_RAW_ROOT` dans `plugins/niers-blender/__init__.py`).
+        // hors de l'arborescence exportée, cf. `LEVEL5_G4_RAW_ROOT` dans `plugins/nie-blender/__init__.py`).
         .env(
             "LEVEL5_G4_RAW_ROOT",
             root.join("data").display().to_string(),
@@ -3102,31 +3102,31 @@ bpy.app.timers.register(_nie_explorer_import, first_interval=0.3)
     ))
 }
 
-// ─── Installation PERSISTANTE de l'extension Blender niers (« lier au max Blender et niers ») ─
+// ─── Installation PERSISTANTE de l'extension Blender nie (« lier au max Blender et nie ») ─
 //
 // [`open_in_blender`] ci-dessus est un lien TRANSITOIRE : addon activé via `sys.path` pour la
 // durée d'un seul process Blender lancé PAR nie-explorer, jamais installé dans le vrai dossier
 // d'addons utilisateur. Cette section installe l'extension **pour de vrai** (comme Preferences >
 // Add-ons > Install from Disk le ferait) ET configure sa préférence `raw_data_root` sur le VRAI
 // dossier `data/` du jeu — un Blender lancé ensuite INDÉPENDAMMENT de nie-explorer (double-clic
-// sur l'icône, pas de bootstrap) a alors l'addon actif ET connaît déjà le dépôt de données niers,
+// sur l'icône, pas de bootstrap) a alors l'addon actif ET connaît déjà le dépôt de données nie,
 // sans que l'utilisatrice n'ouvre jamais Préférences > Add-ons.
 
-/// Zippe `addon_dir` (`plugins/niers-blender`) sous la racine [`NIERS_BLENDER_MODULE`]
-/// (`niers/__init__.py`, pas `__init__.py` à plat) — requis par `bpy.ops.preferences.addon_install`
+/// Zippe `addon_dir` (`plugins/nie-blender`) sous la racine [`NIE_BLENDER_MODULE`]
+/// (`nie/__init__.py`, pas `__init__.py` à plat) — requis par `bpy.ops.preferences.addon_install`
 /// pour une extension multi-fichiers (cf. README de l'addon : « package the directory as ZIP
 /// while keeping its folder name and `__init__.py` at the add-on root »).
 ///
 /// La racine est le **nom de module**, pas le nom du dossier source : Blender dérive le nom du
-/// module Python de l'entrée racine de l'archive, et `niers-blender` n'est pas un identifiant
+/// module Python de l'entrée racine de l'archive, et `nie-blender` n'est pas un identifiant
 /// Python valide. Exclut `.git`.
 fn zip_addon_dir(addon_dir: &std::path::Path) -> Result<PathBuf, String> {
-    let addon_name = NIERS_BLENDER_MODULE.to_string();
+    let addon_name = NIE_BLENDER_MODULE.to_string();
     let dest_dir = std::env::temp_dir()
         .join("nie-explorer")
         .join("blender-addon");
     std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
-    let zip_path = dest_dir.join("niers-addon.zip");
+    let zip_path = dest_dir.join("nie-addon.zip");
     let file = std::fs::File::create(&zip_path)
         .map_err(|e| format!("création de {} : {e}", zip_path.display()))?;
     let mut writer = zip::ZipWriter::new(file);
@@ -3171,22 +3171,22 @@ fn zip_addon_dir(addon_dir: &std::path::Path) -> Result<PathBuf, String> {
     Ok(zip_path)
 }
 
-/// Installe/met à jour l'extension Blender **niers** dans le vrai dossier d'addons de
+/// Installe/met à jour l'extension Blender **nie** dans le vrai dossier d'addons de
 /// l'utilisatrice (`bpy.ops.preferences.addon_install` + `addon_enable`, PAS le bootstrap
 /// `sys.path` transitoire de [`open_in_blender`]) et configure sa préférence `raw_data_root` sur
 /// le vrai `<jeu>/data` (résolu par `inferred_raw_data_root`/`candidate_data_roots` de l'addon
-/// pour la recherche de squelette partagé/pièces de personnage — cf. `plugins/niers-blender/g4_animation_
+/// pour la recherche de squelette partagé/pièces de personnage — cf. `plugins/nie-blender/g4_animation_
 /// addon.py`) — persisté via `bpy.ops.wm.save_userpref()`, donc actif au prochain lancement de
 /// Blender INDÉPENDAMMENT de nie-explorer. Bloquant (`--background`, `.output()` synchrone) : pas
 /// de fenêtre à garder ouverte contrairement à [`open_in_blender`], donc pas de fuite de process.
 #[tauri::command]
 #[specta::specta]
-fn install_niers_blender_addon(
+fn install_nie_blender_addon(
     blender_exe: Option<String>,
     game_dir: Option<String>,
 ) -> Result<String, String> {
     let root = resolve_root(game_dir.as_deref());
-    let addon_dir = ensure_niers_blender_addon(&root)?;
+    let addon_dir = ensure_nie_blender_addon(&root)?;
     let blender = resolve_blender_exe(blender_exe)?;
     let zip_path = zip_addon_dir(&addon_dir)?;
 
@@ -3200,8 +3200,8 @@ OK_MARKER = "NIE_EXPLORER_ADDON_INSTALL_OK"
 
 try:
     bpy.ops.preferences.addon_install(filepath={zip_path:?}, overwrite=True)
-    bpy.ops.preferences.addon_enable(module="niers")
-    prefs = bpy.context.preferences.addons["niers"].preferences
+    bpy.ops.preferences.addon_enable(module="nie")
+    prefs = bpy.context.preferences.addons["nie"].preferences
     prefs.raw_data_root = {data_root:?}
     bpy.ops.wm.save_userpref()
     print(OK_MARKER)
@@ -3230,7 +3230,7 @@ except Exception:
 
     if stdout.contains("NIE_EXPLORER_ADDON_INSTALL_OK") {
         Ok(format!(
-            "Extension niers installée + activée (Préférences Blender persistées). Dossier de données lié : {}",
+            "Extension nie installée + activée (Préférences Blender persistées). Dossier de données lié : {}",
             data_root.display()
         ))
     } else {
@@ -3243,15 +3243,15 @@ except Exception:
             detail.push_str("\n… (tronqué)");
         }
         Err(format!(
-            "échec de l'installation de l'extension Blender niers :\n{detail}"
+            "échec de l'installation de l'extension Blender nie :\n{detail}"
         ))
     }
 }
 
-// ─── Pont Blender ↔ niers : importer un .blend existant, construire une scène technique ──────
+// ─── Pont Blender ↔ nie : importer un .blend existant, construire une scène technique ──────
 //
-// Demande utilisatrice (2026-08-08) : « tu dois faire un pont entre blender et niers, pouvoir
-// importer ce type de fichier dans niers et pouvoir construire une scène blender via niers,
+// Demande utilisatrice (2026-08-08) : « tu dois faire un pont entre blender et nie, pouvoir
+// importer ce type de fichier dans nie et pouvoir construire une scène blender via nie,
 // par exemple fait moi une scène avec byron love qui fait savoir suprême ». Deux commandes :
 // [`blender_preview_png_b64`] (importer/prévisualiser N'IMPORTE QUEL `.blend` local dans
 // nie-explorer) et [`blender_build_skill_scene`] (construire un `.blend` réel : modèle de
@@ -3388,10 +3388,10 @@ fn read_png_b64_if_exists(png_path: &std::path::Path) -> Option<String> {
         .map(|b| base64::engine::general_purpose::STANDARD.encode(&b))
 }
 
-/// Ouvre N'IMPORTE QUEL `.blend` local (pas forcément un asset VFS niers — le fichier que
+/// Ouvre N'IMPORTE QUEL `.blend` local (pas forcément un asset VFS nie — le fichier que
 /// l'utilisatrice pointe, ex. une scène déjà construite) en headless, cadre une caméra sur son
 /// contenu et rend un aperçu PNG base64 — c'est le côté « importer ce type de fichier dans
-/// niers » du pont : nie-explorer peut prévisualiser un `.blend` sans lancer l'UI Blender.
+/// nie » du pont : nie-explorer peut prévisualiser un `.blend` sans lancer l'UI Blender.
 #[tauri::command]
 #[specta::specta]
 fn blender_preview_png_b64(path: String, blender_exe: Option<String>) -> Result<String, String> {
@@ -3474,7 +3474,7 @@ fn blender_build_skill_scene(
 ) -> Result<BlenderSceneResultDto, String> {
     let blender = resolve_blender_exe(blender_exe)?;
     let root = resolve_root(game_dir.as_deref());
-    let addon_dir = ensure_niers_blender_addon(&root)?;
+    let addon_dir = ensure_nie_blender_addon(&root)?;
 
     let staged = with_vfs(Some(root.display().to_string()), &state, |vfs| {
         let skill = game_data::find_skill(vfs, &skill_query)?
@@ -3615,7 +3615,7 @@ if errors:
 bpy.ops.wm.save_as_mainfile(filepath={out_blend:?})
 print("NIE_EXPLORER_SCENE_SAVED", {out_blend:?})
 "#,
-        module_name = NIERS_BLENDER_MODULE,
+        module_name = NIE_BLENDER_MODULE,
         addon_init = addon_dir.join("__init__.py").display().to_string(),
         error_log = error_log.display().to_string(),
         chara_entry = chara_entry.as_ref().map(|p| p.display().to_string()),
@@ -3674,7 +3674,7 @@ print("NIE_EXPLORER_SCENE_SAVED", {out_blend:?})
 // developer.blender.org/docs/handbook/building_blender/python_module — et PyPI publie bien un
 // build 5.2.0/Python 3.13 correspondant à la version installée) : vérifié après coup que ce
 // module embarquable n'a PAS de window manager (`bpy.context.window`/`context.workspace`
-// absents, opérateurs GUI en échec) — or `plugins/niers-blender` s'appuie dessus (barre de progression
+// absents, opérateurs GUI en échec) — or `plugins/nie-blender` s'appuie dessus (barre de progression
 // `context.window_manager.progress_update`, panneau N, préférences d'addon), donc PAS un bon
 // candidat à l'embarquement headless sans réécrire l'addon. L'intégration Blender de ce fichier
 // ([`open_in_blender`]) lance donc le vrai Blender GUI en process séparé — choix délibéré, pas
@@ -4921,7 +4921,7 @@ fn model_service_get(base_url: &str, path: &str, max_bytes: usize) -> Result<Vec
     read_to_end_bounded(response.into_reader(), max_bytes, &url)
 }
 
-/// Charge le catalogue réellement exporté par `niers avatar export` depuis le service de modèles.
+/// Charge le catalogue réellement exporté par `nie avatar export` depuis le service de modèles.
 #[tauri::command]
 #[specta::specta]
 async fn model_service_avatar_catalog(base_url: String) -> Result<RawJson, String> {
@@ -5312,7 +5312,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         describe_disk_file,
         read_disk_file_b64,
         open_in_blender,
-        install_niers_blender_addon,
+        install_nie_blender_addon,
         blender_preview_png_b64,
         blender_open_scene,
         blender_build_skill_scene,
@@ -5447,7 +5447,7 @@ pub fn run() {
         }))
         // Journal PERSISTANT — enregistré juste après `single-instance` (qui doit rester premier)
         // et AVANT tous les autres, pour que leur initialisation soit déjà tracée. Deux cibles :
-        // `LogDir` → `%APPDATA%\dev.niers.explorer\logs\nie-explorer.log` (le fichier à demander
+        // `LogDir` → `%APPDATA%\dev.nie.explorer\logs\nie-explorer.log` (le fichier à demander
         // à une utilisatrice qui signale une anomalie : en release Windows aucune console n'est
         // attachée, `eprintln!` n'écrivait donc nulle part), et `Stdout` pour `tauri dev`.
         // `Webview` va dans l'autre sens : il pousse les logs RUST vers la console du webview
@@ -5480,7 +5480,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        // `niers://…` — open a title from the Rust site. It MUST be registered AFTER
+        // `nie://…` — open a title from the Rust site. It MUST be registered AFTER
         // `single-instance` sur Windows/Linux : le système relance l'exe avec l'URL en argv, et
         // c'est `single-instance` qui la fait remonter à l'instance vivante. L'inverse ouvre une
         // seconde fenêtre. L'enregistrement du schéma auprès de Windows se fait à
@@ -5545,20 +5545,20 @@ pub fn run() {
                     }
                 });
             }
-            // `niers://…` — deux temps, tous deux nécessaires :
+            // `nie://…` — deux temps, tous deux nécessaires :
             //  1. `register_all()` écrit l'association du schéma dans HKCU pour l'exe COURANT.
             //     C'est indispensable en `tauri dev` (aucun installeur n'est passé) et inoffensif
             //     sur une install (elle réécrit la même valeur). Best-effort : un poste où la
             //     clé est verrouillée par une stratégie ne doit pas empêcher l'app de démarrer.
             //  2. `on_open_url` relaie chaque URL reçue en événement Tauri `deep-link` — même
             //     forme que l'événement `open-path` déjà utilisé pour « Ouvrir avec ». La charge
-            //     utile est la liste des URLs telles quelles (`niers://titre/<id>`), c'est au
+            //     utile est la liste des URLs telles quelles (`nie://titre/<id>`), c'est au
             //     front de les router.
             {
                 use tauri_plugin_deep_link::DeepLinkExt as _;
                 #[cfg(any(target_os = "windows", target_os = "linux"))]
                 if let Err(e) = app.deep_link().register_all() {
-                    log::warn!("schéma niers:// non enregistré : {e}");
+                    log::warn!("schéma nie:// non enregistré : {e}");
                 }
                 let app_handle = app.handle().clone();
                 app.deep_link().on_open_url(move |event| {
@@ -5648,21 +5648,21 @@ pub fn run() {
 mod real_fixtures_tests {
     use super::{
         CpkReader, Vfs, assemble_glb_for_preview, assemble_glb_from_cpk_entries,
-        ensure_niers_blender_addon,
+        ensure_nie_blender_addon,
     };
 
-    /// `plugins/niers-blender` est vendorisé dans niers : il doit être détecté PRÉSENT sans
+    /// `plugins/nie-blender` est vendorisé dans nie : il doit être détecté PRÉSENT sans
     /// déclencher de `git clone` (rapide, déterministe — pas de dépendance réseau dans ce test).
     /// Le chemin réseau (`git clone` si absent, filet de sécurité pour un `game_dir` qui n'est pas
     /// un checkout de ce dépôt) se vérifie manuellement contre le vrai dépôt GitHub, pas ici
     /// (pas d'accès réseau garanti en CI).
     #[test]
-    fn ensure_niers_blender_addon_detecte_le_vendoring_deja_present() {
+    fn ensure_nie_blender_addon_detecte_le_vendoring_deja_present() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-        let addon_dir = ensure_niers_blender_addon(&root)
-            .expect("plugins/niers-blender doit déjà être présent (vendorisé)");
+        let addon_dir = ensure_nie_blender_addon(&root)
+            .expect("plugins/nie-blender doit déjà être présent (vendorisé)");
         assert!(
-            addon_dir.ends_with("niers-blender"),
+            addon_dir.ends_with("nie-blender"),
             "chemin inattendu : {}",
             addon_dir.display()
         );
@@ -5687,7 +5687,7 @@ mod real_fixtures_tests {
         vfs.init(&data_dir).expect("init VFS depuis le vrai data/");
 
         // `c01000010` = visage IE1 d'Endou (même fixture que `nie_formats::assemble::tests`,
-        // casse réelle du VFS vérifiée via `niers vfs find c01000010` : `01_IE1`, pas `01_ie1`).
+        // casse réelle du VFS vérifiée via `nie vfs find c01000010` : `01_IE1`, pas `01_ie1`).
         let path = "data/common/chr/_face/01_IE1/c01000010/c01000010.g4md";
         let (stem, glb) = assemble_glb_for_preview(&vfs, path).expect("assemblage GLB réel");
         assert_eq!(stem, "c01000010");

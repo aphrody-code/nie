@@ -16,7 +16,7 @@
 //!
 //! Under `kernel.yama.ptrace_scope=1`, `process_vm_readv(2)` is permitted only against a
 //! **descendant** of the calling process. A shell script that launches the game makes the *shell*
-//! the ancestor, so `niers mem` only works when it is started from that same shell. When the
+//! the ancestor, so `nie mem` only works when it is started from that same shell. When the
 //! process that launches the game is the one that later reads its memory, the permission holds by
 //! construction — no `CAP_SYS_PTRACE`, no `setcap`, and therefore no disturbance of the Vulkan
 //! environment. See [`crate::wine_memory::likely_permitted`].
@@ -128,7 +128,7 @@ impl ProtonError {
 pub struct Layout {
     /// Root of the Steam install (`NIE_GAME_PATH`), holding `files/` and `data/`.
     pub game_dir: PathBuf,
-    /// Root of the niers runtime area (`NIE_RUNTIME_BASE`): prefix, logs, shader cache.
+    /// Root of the nie runtime area (`NIE_RUNTIME_BASE`): prefix, logs, shader cache.
     pub runtime_base: PathBuf,
     /// `STEAM_COMPAT_DATA_PATH` — the directory *containing* `pfx`, not `pfx` itself.
     pub compat_data: PathBuf,
@@ -163,7 +163,7 @@ impl Layout {
         let game_dir = non_empty_path("NIE_GAME_PATH")
             .unwrap_or_else(|| home.join(".local/share/Steam/iecode/inazuma"));
         let runtime_base = non_empty_path("NIE_RUNTIME_BASE")
-            .unwrap_or_else(|| home.join(".local/share/niers/runtime"));
+            .unwrap_or_else(|| home.join(".local/share/nie/runtime"));
         // `NIE_DISPLAY` wins over `DISPLAY` on purpose: it is the one `nie-wine-setup.sh` brings
         // up with Xvfb. Over SSH with X forwarding both are set, and rendering the game into the
         // forwarded display would push every frame over the network.
@@ -895,7 +895,7 @@ mod tests {
     fn layout() -> Layout {
         Layout::rooted(
             PathBuf::from("/games/inazuma"),
-            PathBuf::from("/run/niers"),
+            PathBuf::from("/run/nie"),
             ":99".to_owned(),
         )
     }
@@ -905,8 +905,8 @@ mod tests {
         // STEAM_COMPAT_DATA_PATH names the parent, WINEPREFIX the `pfx` inside it. Passing the
         // same path for both is the classic way to get a prefix Proton refuses to reuse.
         let l = layout();
-        assert_eq!(l.compat_data, PathBuf::from("/run/niers/proton-prefix"));
-        assert_eq!(l.prefix, PathBuf::from("/run/niers/proton-prefix/pfx"));
+        assert_eq!(l.compat_data, PathBuf::from("/run/nie/proton-prefix"));
+        assert_eq!(l.prefix, PathBuf::from("/run/nie/proton-prefix/pfx"));
         assert_eq!(l.prefix.parent(), Some(l.compat_data.as_path()));
     }
 
@@ -945,11 +945,11 @@ mod tests {
 
         assert_eq!(
             env.get(&OsString::from("WINEPREFIX")),
-            Some(&OsString::from("/run/niers/proton-prefix/pfx"))
+            Some(&OsString::from("/run/nie/proton-prefix/pfx"))
         );
         assert_eq!(
             env.get(&OsString::from("STEAM_COMPAT_DATA_PATH")),
-            Some(&OsString::from("/run/niers/proton-prefix"))
+            Some(&OsString::from("/run/nie/proton-prefix"))
         );
         // The game reads this one itself; it is not only Proton bookkeeping.
         assert_eq!(
@@ -982,7 +982,7 @@ mod tests {
     fn locating_proton_in_an_empty_tree_names_the_download_not_the_distro_wine() {
         let l = Layout::rooted(
             PathBuf::from("/nonexistent-game-root"),
-            PathBuf::from("/run/niers"),
+            PathBuf::from("/run/nie"),
             ":99".to_owned(),
         );
         let err = Runtime::locate(&l).expect_err("no Proton under a path that does not exist");
@@ -1053,7 +1053,7 @@ mod tests {
             "{}",
             vkd3d_sentinel(&l).display()
         );
-        assert!(!prefix_is_complete(&l), "no prefix exists under /run/niers");
+        assert!(!prefix_is_complete(&l), "no prefix exists under /run/nie");
     }
 
     #[test]

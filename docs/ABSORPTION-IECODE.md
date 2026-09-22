@@ -1,6 +1,6 @@
 # IECODE absorption — closed
 
-The absorption gate is closed. `niers` is the maintained CLI and Rust implementation; the former
+The absorption gate is closed. `nie` is the maintained CLI and Rust implementation; the former
 C++ and C# trees are no longer part of this checkout.
 
 The complete source-to-crate mapping, compatibility boundary, measured pre-removal gates, and
@@ -20,7 +20,7 @@ corresponding Rust crate with a counted verification gate.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — functions ported from IECODE
 - `coverage` — coverage rate of the ported functions
 - `xref` — call topology

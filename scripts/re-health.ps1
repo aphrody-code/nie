@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env pwsh
-# re-health.ps1 — santé de la stack RE niers. Lecture seule (n'écrit rien).
+# re-health.ps1 — santé de la stack RE nie. Lecture seule (n'écrit rien).
 # Portage PowerShell 7 de scripts/re-health.sh, qui reste la référence sur le VPS Linux.
 # Usage : pwsh -NoProfile -File scripts/re-health.ps1
 
@@ -9,19 +9,19 @@ Set-StrictMode -Version Latest
 Set-Location (Join-Path $PSScriptRoot '..')
 $racine = (Get-Location).Path
 
-$DB = if ($env:NIERS_DB) { $env:NIERS_DB } else { 'var/niers.sqlite' }
+$DB = if ($env:NIE_DB) { $env:NIE_DB } else { 'var/nie.sqlite' }
 $BIN = if ($env:NIE_BIN) { $env:NIE_BIN } else { 'target/release/nie' }
 # Sous Windows le binaire porte l'extension .exe : MSYS la résolvait toute seule pour `[ -x ]`,
 # ici il faut la chercher explicitement. Ce n'est pas un assouplissement de la garde — la
-# question posée reste « le binaire niers est-il construit ? ».
+# question posée reste « le binaire nie est-il construit ? ».
 $BIN_EXE = if (Test-Path -LiteralPath $BIN -PathType Leaf) { $BIN }
 elseif (Test-Path -LiteralPath "$BIN.exe" -PathType Leaf) { "$BIN.exe" }
 else { $null }
 
-# Racine du jeu : NIE_GAME_DIR (convention du reste du dépôt), NIERS_GAME_DIR (historique),
+# Racine du jeu : NIE_GAME_DIR (convention du reste du dépôt), NIE_GAME_DIR (historique),
 # sinon la racine du dépôt — sur une installation Steam, les deux coïncident.
 $GAME_DIR = if ($env:NIE_GAME_DIR) { $env:NIE_GAME_DIR }
-elseif ($env:NIERS_GAME_DIR) { $env:NIERS_GAME_DIR }
+elseif ($env:NIE_GAME_DIR) { $env:NIE_GAME_DIR }
 else { $racine }
 $EXE = Join-Path $GAME_DIR 'nie_eacpatched.exe'
 
@@ -55,7 +55,7 @@ function Get-TailleLisible([string]$p) {
 }
 
 hdr 'Binaire & cible'
-if ($BIN_EXE) { ok "niers build present ($BIN)" } else { ko 'niers ABSENT — cargo build --release -p nie-cli' }
+if ($BIN_EXE) { ok "nie build present ($BIN)" } else { ko 'nie ABSENT — cargo build --release -p nie-cli' }
 if (Test-Path -LiteralPath $EXE -PathType Leaf) { ok "cible RE present ($(Get-TailleLisible $EXE))" } else { ko "exe RE ABSENT: $EXE" }
 if (Test-Path -LiteralPath $DB -PathType Leaf) { ok "KB sqlite ($(Get-TailleLisible $DB))" } else { ko "KB ABSENTE: $DB — just re-seed" }
 
@@ -80,7 +80,7 @@ if ($sqlite -and (Test-Path -LiteralPath $DB -PathType Leaf)) {
     ko "sqlite3 absent ou KB absente — saute l'integrite"
 }
 
-hdr 'Couverture (niers coverage)'
+hdr 'Couverture (nie coverage)'
 if ($BIN_EXE -and (Test-Path -LiteralPath $DB -PathType Leaf)) {
     $sortie = & $BIN_EXE coverage --db $DB 2>&1
     foreach ($l in @($sortie)) { Write-Host ('  ' + $l) }

@@ -5,8 +5,8 @@ A setting whose layers all point at absent OBJBIN files is a stale recipe: rende
 produces an empty screen, which must not be mistaken for a screen that has no objects.
 
 Inputs:
-  var/outputs/menu-inventory/cfg/          (niers vfs extract data/common/gamedata/menu/cfg)
-  var/outputs/menu-inventory/vfs-paths.json (niers vfs find "data/" -n 400000 --json)
+  var/outputs/menu-inventory/cfg/          (nie vfs extract data/common/gamedata/menu/cfg)
+  var/outputs/menu-inventory/vfs-paths.json (nie vfs find "data/" -n 400000 --json)
 Output:
   var/outputs/menu-inventory/objbin-reference-audit.json
 """

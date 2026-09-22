@@ -193,7 +193,7 @@ les familles à noms autoportés, spécifique dès qu'il faut une jointure de te
 
 ## Outils de reverse
 
-Recherche de fonctions labellisées, classes RTTI et xrefs sur `var/niers.sqlite`, avec renommage
+Recherche de fonctions labellisées, classes RTTI et xrefs sur `var/nie.sqlite`, avec renommage
 écrit en base (`name_source = 'user-edit'`).
 
 **Lecture du process vivant** — détection, plages du module, lecture d'octets, dump des plages
@@ -255,7 +255,7 @@ comptes, chaque candidat étant validé par déchiffrement réel plutôt que par
 
 ## Blender, recherche, ponts
 
-L'extension `plugins/niers-blender` s'installe réellement (dossier d'addons utilisateur,
+L'extension `plugins/nie-blender` s'installe réellement (dossier d'addons utilisateur,
 préférence de racine de données persistée), et son panneau cherche dans le VFS ou par nom localisé
 (miroir SQLite + GraphQL azalee) puis importe le modèle trouvé, sans jamais geler l'interface. Le
 pont inverse construit une scène `.blend` depuis un personnage et une technique.
@@ -263,7 +263,7 @@ pont inverse construit une scène `.blend` depuis un personnage et une technique
 Recherche personnage/technique sur deux sources interrogées en parallèle, une source indisponible
 devenant une notice et jamais un silence. Palette de commandes Ctrl+K.
 
-Pont de contrôle avec le serveur MCP `niers-game` (l'un pilote l'autre), interface localisée
+Pont de contrôle avec le serveur MCP `nie-game` (l'un pilote l'autre), interface localisée
 FR/EN/JA, fenêtre sans bordure réelle avec menus Win32 natifs.
 
 ---
@@ -271,7 +271,7 @@ FR/EN/JA, fenêtre sans bordure réelle avec menus Win32 natifs.
 ## Ce qui reste ouvert
 
 **Vérifié seulement par compilation.** L'application n'a pas été lancée à l'écran depuis les
-derniers ajouts : onglets multiples, vues table/arbre, gizmos, panneau d'animations, scan AOB et
+dernie ajouts : onglets multiples, vues table/arbre, gizmos, panneau d'animations, scan AOB et
 onglets de données sont validés par `tsc`, `cargo check` et les tests qui s'exécutent, pas par
 observation. C'est la limite la plus large de ce document.
 
@@ -336,7 +336,7 @@ NIE_DUMP_DIR=<dump> cargo run -p nie-formats --example dump_couverture
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — 117 068 functions of `nie.exe`
 - `coverage` — binary classification coverage
 - `hash_name` — VFS and UI hash entries

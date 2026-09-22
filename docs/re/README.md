@@ -13,7 +13,7 @@ The local-to-canonical consumer and parity decision is recorded in
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — all 117 068 functions of `nie.exe`
 - `coverage` — coverage rate of `.pdata` entry points
 - `xref` — call-graph relationships

@@ -1,10 +1,10 @@
-# Workflow unifié — nie, WinClean, niers et Ghidra
+# Workflow unifié — nie, WinClean, nie et Ghidra
 
 **Statut :** contrat opérationnel proposé, 2026-09-07.
 
 Ce document décrit comment passer d'une demande humaine à une preuve reproductible. Il ne
 fusionne pas les produits : `nie` est le site d'outils comme le jeu, Inacord reste
-jeu et `niers` le socle d'analyse.
+jeu et `nie` le socle d'analyse.
 
 ## 1. Principe directeur
 
@@ -13,7 +13,7 @@ Chaque action suit la chaîne suivante :
 ```text
 demande humaine
   -> plan borné et identifiant de run
-  -> niers (CLI / crates Rust / MCP)
+  -> nie (CLI / crates Rust / MCP)
   -> outil spécialisé (nie, WinClean ou Ghidra)
   -> artefact + journal + preuve
   -> décision humaine ou étape suivante
@@ -27,22 +27,22 @@ le code de sortie et l'artefact observé.
 
 | Surface | Responsabilité | Entrée canonique | Sortie attendue |
 |---|---|---|---|
-| `niers` | orchestration, formats Level-5, VFS, données, CLI, traces et rapports | chemins VFS, binaire, dump, config de run | JSON/PNG/GLB/rapport reproductible |
-| nie (`nie-site`) | présentation publique et API d'outils autorisée | résultats validés de `niers` | page ou endpoint borné, sans accès arbitraire au dépôt |
+| `nie` | orchestration, formats Level-5, VFS, données, CLI, traces et rapports | chemins VFS, binaire, dump, config de run | JSON/PNG/GLB/rapport reproductible |
+| nie (`nie-site`) | présentation publique et API d'outils autorisée | résultats validés de `nie` | page ou endpoint borné, sans accès arbitraire au dépôt |
 | WinClean | observation et contrôle Windows explicitement autorisé | application, fenêtre, PID, action native | observation avant/après, PID et état UI |
 | Ghidra/GhidrAssistMCP | analyse interactive du binaire actuellement ouvert | projet CodeBrowser, binaire, adresse/fonction | décompilation, symboles, xrefs, structures, export |
 | Codex Computer Use | pilotage visible et vérification de l'interface | surface déclarée, état observé | action UI et nouvelle observation |
 
 WinClean et Computer Use ne deviennent pas des moteurs de vérité : ils pilotent ou observent.
-Ghidra produit du savoir de RE ; `niers` le normalise et le versionne. nie ne reçoit que des
+Ghidra produit du savoir de RE ; `nie` le normalise et le versionne. nie ne reçoit que des
 résultats explicitement destinés à être servis.
 
 ## 3. Routage par type de demande
 
-1. **Données, formats, VFS ou batch** : commencer par `niers` (`vfs`, `decode`, `lua`, `wiki`,
+1. **Données, formats, VFS ou batch** : commencer par `nie` (`vfs`, `decode`, `lua`, `wiki`,
    `render`, `report`). Utiliser MCP ou la CLI selon le besoin ; le chemin VFS et le hash restent
    les identifiants de référence.
-2. **RE d'un binaire** : vérifier d'abord le binaire et son empreinte avec `niers`/`aphrody-re`,
+2. **RE d'un binaire** : vérifier d'abord le binaire et son empreinte avec `nie`/`aphrody-re`,
    puis utiliser Ghidra pour la décompilation et les xrefs. Exporter le résultat dans un format
    consommable par `nie-seed` ou `nie-index`, sans traiter un index historique désaligné comme la
    vérité terrain. La parité se mesure dans cet ordre : fichier local → consommateur → équivalent
@@ -116,7 +116,7 @@ Ce contrat permet de chaîner les lots : le `results/manifest.json` d'un run dev
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `forge_unit` — unit partition tracking
 - `function` — 117 068 functions tracked across workflow iterations
 - `coverage` — gate evaluation tracking

@@ -13,7 +13,7 @@ import {
   updateTab,
   type ExplorerTabPatch,
   type ExplorerTabsState,
-} from "@niers/inacord-ui/explorer/explorer-tabs";
+} from "@nie/inacord-ui/explorer/explorer-tabs";
 
 export {
   activateTab,
@@ -33,7 +33,7 @@ export type {
   ExplorerTabPatch,
   ExplorerTabsState,
   ExplorerViewMode,
-} from "@niers/inacord-ui/explorer/explorer-tabs";
+} from "@nie/inacord-ui/explorer/explorer-tabs";
 
 const STORAGE_KEY = "nie-explorer:tabs";
 /** Préfixe du premier onglet — l'Explorateur s'ouvrait déjà là avant les onglets. */

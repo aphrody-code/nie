@@ -1,6 +1,6 @@
 // Paramètres persistés (localStorage — pas de plugin-store nécessaire pour ces quelques valeurs).
 import { useSyncExternalStore } from "react";
-import { isGameLocale, type GameLocale } from "@niers/asset-source";
+import { isGameLocale, type GameLocale } from "@nie/asset-source";
 
 /** Language of the host shell and its URL. The public site currently serves these routes. */
 export type Locale = "fr" | "en" | "es" | "ja";
@@ -13,8 +13,8 @@ export type Locale = "fr" | "en" | "es" | "ja";
  * a translated route. Hosts must obtain the available set from `/api/v1/text` and never
  * substitute an authored translation for a missing game string.
  */
-export type { GameLocale } from "@niers/asset-source";
-export { GAME_LOCALES, SHIPPED_GAME_LOCALES } from "@niers/asset-source";
+export type { GameLocale } from "@nie/asset-source";
+export { GAME_LOCALES, SHIPPED_GAME_LOCALES } from "@nie/asset-source";
 
 /** Former palette values kept only so persisted pre-migration JSON remains readable. */
 export type AccentTheme = "spacedrive" | "midnight" | "noir" | "slate" | "nord" | "mocha";
@@ -62,7 +62,7 @@ export interface Settings {
   accentTheme: AccentTheme;
   /**
    * Autorise le serveur MCP `nie-mcp` à piloter cette fenêtre (naviguer, ouvrir un asset,
-   * changer d'onglet) via le pont local `@niers/bridge`. Désactivé, aucun socket n'est ouvert.
+   * changer d'onglet) via le pont local `@nie/bridge`. Désactivé, aucun socket n'est ouvert.
    */
   bridgeEnabled: boolean;
   /**

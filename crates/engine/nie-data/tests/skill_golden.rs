@@ -2,7 +2,7 @@
 //! Tests golden `skill` — valeurs réelles tirées de :
 //! `skill/skill_config_4.00.17.00.cfg.bin.json`
 //! (première valeur de `m_skillInfoList`, whs00010) et
-//! `/home/ubuntu/niers/data/common/text/fr/skill_text.cfg.bin.json` (nom/desc whs00010).
+//! `/home/ubuntu/nie/data/common/text/fr/skill_text.cfg.bin.json` (nom/desc whs00010).
 
 mod common;
 

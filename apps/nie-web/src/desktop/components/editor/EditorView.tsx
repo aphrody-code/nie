@@ -1,6 +1,6 @@
 // Mode ÉDITEUR — nie-explorer en logiciel type Unreal Engine.
 //
-// Disposition canonique d'un éditeur de moteur, chaque zone servie par ce que niers sait déjà
+// Disposition canonique d'un éditeur de moteur, chaque zone servie par ce que nie sait déjà
 // faire :
 //
 //   ┌──────────────────────────── barre d'outils ────────────────────────────┐
@@ -46,15 +46,15 @@ import {
   type ViewportReferenceImage,
 } from "@/components/editor/Viewport3D";
 import { PropertyEditor } from "@/components/PropertyEditor";
-import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { SplitPane } from "@niers/inacord-ui/components/ui/split-pane";
-import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
+import { CircleButton } from "@nie/inacord-ui/components/ui/circle-button";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { SplitPane } from "@nie/inacord-ui/components/ui/split-pane";
+import { Tabs, TabsList, TabsTrigger } from "@nie/inacord-ui/components/ui/tabs";
 import { api, type MotionClips } from "@/lib/api";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { codeOf } from "@/lib/vfsIndexDb";
 import { b64ToBytes, bytesToB64, humanSize } from "@/lib/bytes";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 import { NATIVE_WINDOW } from "../../../host";
 import { inspectModelGlb, renderModelPng, replaceModelTextureGlb, type ModelGlbInspection } from "../../../game/model-render";
 import { editorExportName, importEditorGlb, importEditorPng } from "./editor-interchange";
@@ -65,8 +65,8 @@ import {
   type AvatarCatalog,
   type OcAvatarDocument,
   type OcReference,
-} from "@niers/inacord-ui/avatar/contract";
-import { useAssetSource } from "@niers/inacord-ui/source";
+} from "@nie/inacord-ui/avatar/contract";
+import { useAssetSource } from "@nie/inacord-ui/source";
 import "./editor-view.css";
 
 /** Extensions qui ouvrent réellement quelque chose dans le viewport (cf. `assemble_glb_for_preview`

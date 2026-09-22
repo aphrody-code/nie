@@ -6,7 +6,7 @@
 #   → publish the Rust site release metadata.
 #
 # Usage :
-#   $env:TAURI_SIGNING_PRIVATE_KEY_PATH = "$HOME/.tauri/niers.key"
+#   $env:TAURI_SIGNING_PRIVATE_KEY_PATH = "$HOME/.tauri/nie.key"
 #   pwsh -NoProfile -File scripts/release-desktop.ps1 0.5.0
 #   pwsh -NoProfile -File scripts/release-desktop.ps1 0.5.0
 #
@@ -97,7 +97,7 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
 
 $MaisonDefaut = if ($env:HOME) { $env:HOME } else { $env:USERPROFILE }
 $KeyPath = if ($env:TAURI_SIGNING_PRIVATE_KEY_PATH) { $env:TAURI_SIGNING_PRIVATE_KEY_PATH }
-           else { Join-Path $MaisonDefaut '.tauri/niers.key' }
+           else { Join-Path $MaisonDefaut '.tauri/nie.key' }
 if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
     Write-Err "ERREUR: clé de signature absente ($KeyPath)."
     Write-Err "  Génère-la une fois avec : bunx tauri signer generate -w $KeyPath --ci"
@@ -131,8 +131,8 @@ Write-Host '▸ [3/8] sanity check (shared Cargo workspace)…'
 & cargo check --workspace
 Assert-Exit 'cargo check --workspace'
 
-Write-Host '▸ [4/8] zip extension Blender (plugins/niers-blender, hors __pycache__)…'
-$manifeste = Get-Content -LiteralPath 'plugins/niers-blender/blender_manifest.toml'
+Write-Host '▸ [4/8] zip extension Blender (plugins/nie-blender, hors __pycache__)…'
+$manifeste = Get-Content -LiteralPath 'plugins/nie-blender/blender_manifest.toml'
 $ligneVersion = ($manifeste | Where-Object { $_ -match '^version' } | Select-Object -First 1)
 $mVersion = [regex]::Match("$ligneVersion", '"([0-9.]+)"')
 if (-not $mVersion.Success) {
@@ -145,15 +145,15 @@ $ZipStage = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRa
 New-Item -ItemType Directory -Force -Path $ZipStage | Out-Null
 # racine = nom de MODULE Python (le dossier source a un tiret). On copie le RÉPERTOIRE, pas
 # `dir/*` : le glob de Copy-Item saute les entrées cachées, là où `cp -r dir/.` les emporte.
-Copy-Item -LiteralPath 'plugins/niers-blender' -Destination (Join-Path $ZipStage 'niers') -Recurse -Force
+Copy-Item -LiteralPath 'plugins/nie-blender' -Destination (Join-Path $ZipStage 'nie') -Recurse -Force
 Get-ChildItem -LiteralPath $ZipStage -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue |
     ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
 
 New-Item -ItemType Directory -Force -Path (Join-Path $DesktopReleaseDir 'bundle') | Out-Null
-$BlenderZip = Join-Path $DesktopReleaseDir "bundle/niers-$BlenderVersion.zip"
+$BlenderZip = Join-Path $DesktopReleaseDir "bundle/nie-$BlenderVersion.zip"
 # `zip` n'existe pas sur une install Windows standard (ni Git Bash, ni MSYS ne le fournissent) :
 # Compress-Archive est ici natif, c'est déjà ce que le .sh appelait en repli.
-Compress-Archive -Path (Join-Path $ZipStage 'niers') -DestinationPath $BlenderZip -Force
+Compress-Archive -Path (Join-Path $ZipStage 'nie') -DestinationPath $BlenderZip -Force
 Remove-Item -LiteralPath $ZipStage -Recurse -Force
 Write-Host "  → $BlenderZip (addon v$BlenderVersion)"
 
@@ -232,7 +232,7 @@ if ($LASTEXITCODE -eq 0) {
     & git commit -m "chore(release): bump $Version"
     Assert-Exit 'git commit'
 }
-& git tag -a $Tag -m "niers $Tag"
+& git tag -a $Tag -m "nie $Tag"
 Assert-Exit 'git tag'
 & git push origin main
 Assert-Exit 'git push origin main'
@@ -241,7 +241,7 @@ Assert-Exit "git push origin $Tag"
 
 Write-Host "▸ [8/8] GitHub Release $Tag (upload msi+nsis+sig+blender zip)…"
 & gh release create $Tag `
-    --title "niers $Tag" `
+    --title "nie $Tag" `
     --notes "App desktop (Tauri v2) signée minisign + extension Blender v$BlenderVersion. Détail : docs/PLAN.md, apps/inacord/ROADMAP.md." `
     $Msi "$Msi.sig" $Nsis "$Nsis.sig" $BlenderZip
 Assert-Exit 'gh release create'

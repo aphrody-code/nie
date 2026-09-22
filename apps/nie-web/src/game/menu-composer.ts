@@ -3,7 +3,7 @@
  *
  * ## Ce que ce fichier remplace
  *
- * Les layouts de menu étaient dessinés en DOM (`@niers/inacord-ui/shell/layout-render`) : un
+ * Les layouts de menu étaient dessinés en DOM (`@nie/inacord-ui/shell/layout-render`) : un
  * `<img>` par objet, positionné par un `transform` CSS. Cette voie ne sait faire aucune des
  * quatre opérations que le jeu applique — échantillonnage bilinéaire, rotation autour d'une
  * ancre, teinte, mélange additif — et elle n'avait aucun moyen de les apprendre : le navigateur

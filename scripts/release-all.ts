@@ -162,7 +162,7 @@ const stages: Stage[] = [
 			{ argv: ["cargo", "build", "--release", "--locked", "-p", "nie-ffi"] },
 			{
 				argv: ["bun", "run", "--cwd", "apps/nie-web", "build:wasm"],
-				env: { NIERS_WASM_PUBLIC_OUTPUT: "<STAGE>/wasm/nie_wasm_bg.wasm" },
+				env: { NIE_WASM_PUBLIC_OUTPUT: "<STAGE>/wasm/nie_wasm_bg.wasm" },
 			},
 			{
 				argv: [
@@ -316,14 +316,14 @@ async function preflightProduction(): Promise<void> {
 		?.trim()
 		.split(/\s+/u);
 	const availableGiB = Number(diskLine?.[3] ?? 0) / 1024 / 1024;
-	const minimumDiskGiB = Number(process.env.NIERS_RELEASE_MIN_DISK_GIB ?? 15);
+	const minimumDiskGiB = Number(process.env.NIE_RELEASE_MIN_DISK_GIB ?? 15);
 	if (availableGiB < minimumDiskGiB)
 		throw new Error(
 			`Release needs ${minimumDiskGiB} GiB free; only ${availableGiB.toFixed(1)} GiB is available.`
 		);
 	const memory = await Bun.file("/proc/meminfo").text();
 	const availableMemoryMiB = Number(memory.match(/^MemAvailable:\s+(\d+)/mu)?.[1] ?? 0) / 1024;
-	const minimumMemoryMiB = Number(process.env.NIERS_RELEASE_MIN_MEMORY_MIB ?? 6144);
+	const minimumMemoryMiB = Number(process.env.NIE_RELEASE_MIN_MEMORY_MIB ?? 6144);
 	if (availableMemoryMiB < minimumMemoryMiB)
 		throw new Error(
 			`Release needs ${minimumMemoryMiB} MiB available memory; only ${availableMemoryMiB.toFixed(0)} MiB is available.`
@@ -409,7 +409,7 @@ async function writeReleaseManifest(
 	summaries: { stage: StageName; seconds: string }[]
 ): Promise<void> {
 	const paths = [
-		"bin/niers",
+		"bin/nie",
 		"bin/nie-mcp",
 		"bin/nie-site",
 		"bin/nie-model-serve",
@@ -736,7 +736,7 @@ async function runCommand(command: Command, releaseCommit?: string): Promise<voi
 		env: {
 			...process.env,
 			...expanded.env,
-			...(releaseCommit ? { NIERS_RELEASE_COMMIT: releaseCommit } : {}),
+			...(releaseCommit ? { NIE_RELEASE_COMMIT: releaseCommit } : {}),
 		},
 		stdin: "inherit",
 		stdout: "pipe",
@@ -755,7 +755,7 @@ async function runCommand(command: Command, releaseCommit?: string): Promise<voi
 const pipelineStart = performance.now();
 const summaries: { stage: StageName; seconds: string }[] = [];
 let releaseCommit: string | undefined;
-const lockPath = "/tmp/niers-release-all.lock";
+const lockPath = "/tmp/nie-release-all.lock";
 let failure: unknown;
 try {
 	await mkdir(logDirectory, { recursive: true });

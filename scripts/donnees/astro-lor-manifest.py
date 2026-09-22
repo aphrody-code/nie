@@ -4,7 +4,7 @@ Rien n'est cité de mémoire. Le manifeste se construit en trois temps :
 
 1. on demande au VFS les fichiers d'un personnage EXISTANT, qui sert de gabarit ;
 2. on décline ces chemins pour les codes internes d'Astro, en respectant le groupe de
-   dossier de sa série (`01_IE1`, `11_VICTORY`, … — la liste vient de `niers vfs ls`) ;
+   dossier de sa série (`01_IE1`, `11_VICTORY`, … — la liste vient de `nie vfs ls`) ;
 3. on interroge le VFS pour chaque chemin cible, et on regarde sur le disque quelles
    sources sont déjà là.
 
@@ -29,7 +29,7 @@ PUBLIC = RACINE / "data" / "oc" / "astro-lor"
 # sont partagés et ne portent pas le code du personnage.
 GABARIT = "c02023290"
 
-# Les douze groupes de `data/common/chr/_face/`, relevés par `niers vfs ls`.
+# Les douze groupes de `data/common/chr/_face/`, relevés par `nie vfs ls`.
 GROUPES = ["01_IE1", "02_IE2", "03_IE3", "04_GO1", "05_GO2", "06_GO3",
            "07_ARES", "08_ORION", "11_VICTORY", "20_EDIT", "21_MANNEQUIN", "22_COMBO"]
 
@@ -56,11 +56,11 @@ ROLES = [
      "outil": None, "note": "Lecture validée byte-exact (extract_skin) ; écriture à faire."},
     {"cle": "texture_tete", "gabarit": "dx11/chr/_face/{groupe}/{code}/{code}.g4tx",
      "format": "G4TX", "role": "Texture de la tête",
-     "outil": "niers (conversion d'image → G4TX, encodage BC7)",
+     "outil": "nie (conversion d'image → G4TX, encodage BC7)",
      "note": "Le décodage BC7 est validé ; l'encodage passe par la voie C#/C++."},
     {"cle": "icone_portrait", "gabarit": "dx11/menu/200_icon/10_icon_chr/face/{code}_l.g4tx",
      "format": "G4TX", "role": "Icône de portrait (menus, fiche, effectif)",
-     "outil": "niers (conversion d'image → G4TX)",
+     "outil": "nie (conversion d'image → G4TX)",
      "note": "Une source 512×512 existe déjà pour les deux variantes."},
     {"cle": "voix_acb", "gabarit": "common/sound_asset/ja/{code}.acb",
      "format": "ACB (CriWare)", "role": "Banque de voix",
@@ -106,7 +106,7 @@ def vfs(requete: str, limite: int = 200) -> list[dict]:
     """Interroge le VFS. Une erreur de l'outil rend une liste vide, jamais une invention."""
     try:
         sortie = subprocess.run(
-            ["niers", "vfs", "find", requete, "--json", "-n", str(limite)],
+            ["nie", "vfs", "find", requete, "--json", "-n", str(limite)],
             capture_output=True, text=True, timeout=420, cwd=RACINE)
     except (OSError, subprocess.TimeoutExpired):
         return []
@@ -263,7 +263,7 @@ manifeste = {
         {
             "nom": "Budget d'entrées loose",
             "bloquant": False,
-            "constat": "`niers mod install` refuse au-delà de 64 entrées déjà loose dans "
+            "constat": "`nie mod install` refuse au-delà de 64 entrées déjà loose dans "
                        "le cpk_list : le fichier a alors déjà été packé.",
         },
     ],

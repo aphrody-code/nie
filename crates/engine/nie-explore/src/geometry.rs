@@ -162,7 +162,7 @@ pub fn famille_au_magic(octets: &[u8]) -> Option<Famille> {
         return Some(Famille::Col);
     }
     // `objbin::is_objb` n'est **pas** un test de magic, et l'appeler ici a produit un faux
-    // positif mesuré : il cherche le pied de page `01 74 32 62` (« t2b ») dans les 32 derniers
+    // positif mesuré : il cherche le pied de page `01 74 32 62` (« t2b ») dans les 32 dernie
     // octets, c'est-à-dire la signature du conteneur **cfg.bin** dont un objbin n'est qu'un
     // cas. Deux `s47g001_placement.cfg.bin.rNNNNN` y répondaient « oui », partaient au parseur
     // objbin et rendaient « OBJ_BGN attendu » — une erreur qui accuse le fichier quand c'est

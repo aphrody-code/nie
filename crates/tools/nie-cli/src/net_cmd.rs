@@ -1,4 +1,4 @@
-//! CLI operations for the NIE Online multiplayer, networking, and competitive engine (`niers net`).
+//! CLI operations for the NIE Online multiplayer, networking, and competitive engine (`nie net`).
 
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};

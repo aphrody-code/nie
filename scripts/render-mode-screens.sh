@@ -25,10 +25,10 @@ cd "$RACINE"
 
 JEU="${NIE_GAME:-target/release/nie-game}"
 [ -x "$JEU" ] || { echo "binaire absent : $JEU — cargo build -p nie-game --release" >&2; exit 1; }
-[ -f data/modes.json ] || { echo "data/modes.json absent — niers mode export -o data/modes.json" >&2; exit 1; }
+[ -f data/modes.json ] || { echo "data/modes.json absent — nie mode export -o data/modes.json" >&2; exit 1; }
 
 # Les écrans d'un mode viennent du catalogue, jamais d'une liste recopiée ici : une liste en
-# dur se périme au premier `niers mode index` et personne ne s'en aperçoit.
+# dur se périme au premier `nie mode index` et personne ne s'en aperçoit.
 ecrans_du_mode() {
     python3 -c "
 import json, sys

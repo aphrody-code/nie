@@ -59,8 +59,8 @@ flowchart TD
     end
 
     subgraph Interfaces ["Monorepo Surfaces"]
-        CliCmd["niers launcher ut ...<br/>- packs<br/>- open &lt;pack&gt;<br/>- players [-q/--rarity]<br/>- formation &lt;name&gt;<br/>- value &lt;file&gt;"]
-        EacCmd["niers launcher eac scan|patch"]
+        CliCmd["nie launcher ut ...<br/>- packs<br/>- open &lt;pack&gt;<br/>- players [-q/--rarity]<br/>- formation &lt;name&gt;<br/>- value &lt;file&gt;"]
+        EacCmd["nie launcher eac scan|patch"]
         McpServer["nie-mcp Server<br/>Tool: cli_launcher"]
         Webapp["apps/nie-web<br/>291/291 Tests Green"]
 
@@ -256,40 +256,40 @@ Three Array-of-Bytes (AOB) patterns are scanned across memory or the disk execut
 
 ## 8. CLI & MCP Operational Reference
 
-All capabilities are unified under `niers launcher`:
+All capabilities are unified under `nie launcher`:
 
 ```bash
 # 1. Ultimate Team - Pack Catalog
-niers launcher ut packs
-niers launcher ut packs --json
+nie launcher ut packs
+nie launcher ut packs --json
 
 # 2. Ultimate Team - Pack Opening Simulation
-niers launcher ut open sobre-oro
-niers launcher ut open sobre-oro --seed 42 --json
+nie launcher ut open sobre-oro
+nie launcher ut open sobre-oro --seed 42 --json
 
 # 3. Ultimate Team - Player Search
-niers launcher ut players -q "Mark Evans"
-niers launcher ut players -e "Fuego" -r "Legendario" --limit 10
+nie launcher ut players -q "Mark Evans"
+nie launcher ut players -e "Fuego" -r "Legendario" --limit 10
 
 # 4. Ultimate Team - 2D Pitch Formations
-niers launcher ut formation "4-3-3"
-niers launcher ut formation "3-4-3" --json
+nie launcher ut formation "4-3-3"
+nie launcher ut formation "3-4-3" --json
 
 # 5. Ultimate Team - Squad Valuation
-niers launcher ut value my_exported_team.json
-niers launcher ut value encrypted_team.json --passphrase "custom_key"
+nie launcher ut value my_exported_team.json
+nie launcher ut value encrypted_team.json --passphrase "custom_key"
 
 # 6. Easy Anti-Cheat Bypass
-niers launcher eac scan /path/to/nie.exe
-niers launcher eac patch /path/to/nie.exe -o /path/to/nie_eacpatched.exe
+nie launcher eac scan /path/to/nie.exe
+nie launcher eac patch /path/to/nie.exe -o /path/to/nie_eacpatched.exe
 
 # 7. Team Cryptography
-niers launcher team decrypt encrypted_squad.json -o lineup.json
-niers launcher team encrypt lineup.json -o envelope.json
+nie launcher team decrypt encrypted_squad.json -o lineup.json
+nie launcher team encrypt lineup.json -o envelope.json
 
 # 8. Save Slot Coordination
-niers launcher save park --live-save USERDATALIVE --mod-save MOD_USERDATALIVE
-niers launcher save inject-team --save USERDATALIVE --team lineup.json
+nie launcher save park --live-save USERDATALIVE --mod-save MOD_USERDATALIVE
+nie launcher save inject-team --save USERDATALIVE --team lineup.json
 ```
 
 ### MCP Tool `cli_launcher`

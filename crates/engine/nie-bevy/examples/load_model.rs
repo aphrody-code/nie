@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 use bevy_app::{App, TaskPoolPlugin};
 use bevy_asset::{AssetMetaCheck, AssetPlugin, AssetServer, Assets, Handle, LoadState};
 use bevy_mesh::Mesh;
-use nie_bevy::{NiersAssetPlugin, NiersModel, VFS_SOURCE, register_vfs_source};
+use nie_bevy::{NieAssetPlugin, NieModel, VFS_SOURCE, register_vfs_source};
 use nie_formats::vfs::{Vfs, resolve_game_dir};
 
 /// Deux candidats : le premier indexe ses sous-mailles localement, le second (`k000010`) dans
@@ -55,13 +55,13 @@ fn main() -> ExitCode {
             meta_check: AssetMetaCheck::Never,
             ..Default::default()
         },
-        NiersAssetPlugin,
+        NieAssetPlugin,
     ));
 
     let mut loaded_any = false;
     for candidate in CANDIDATES {
         let path = format!("{VFS_SOURCE}://{candidate}");
-        let handle: Handle<NiersModel> = app.world().resource::<AssetServer>().load(path.clone());
+        let handle: Handle<NieModel> = app.world().resource::<AssetServer>().load(path.clone());
 
         let started = Instant::now();
         let mut updates = 0usize;
@@ -82,10 +82,10 @@ fn main() -> ExitCode {
 
         match outcome {
             Ok(()) => {
-                let models = app.world().resource::<Assets<NiersModel>>();
+                let models = app.world().resource::<Assets<NieModel>>();
                 let meshes = app.world().resource::<Assets<Mesh>>();
                 let Some(model) = models.get(&handle) else {
-                    eprintln!("{candidate}: Loaded but absent from Assets<NiersModel>");
+                    eprintln!("{candidate}: Loaded but absent from Assets<NieModel>");
                     return ExitCode::FAILURE;
                 };
                 let resolved = model

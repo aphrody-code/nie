@@ -96,7 +96,7 @@ fn parse_headersave_ancres_validees() {
         "body_opaque taille incorrecte"
     );
 
-    // Sortie terse (format niers convention : clé=val)
+    // Sortie terse (format nie convention : clé=val)
     println!(
         "headersave ok joueur={} niveau={} uid={} slots={} actifs={} ts={:04}-{:02}-{:02}",
         hs.player_name,

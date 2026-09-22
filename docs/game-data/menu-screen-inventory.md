@@ -1,13 +1,13 @@
 # Menu screen inventory and OBJBIN reference audit
 
-Measured on 2026-09-08 against the VFS mounted from `NIE_GAME_DIR=/home/ubuntu/niers`.
+Measured on 2026-09-08 against the VFS mounted from `NIE_GAME_DIR=/home/ubuntu/nie`.
 
 ## Reproduce
 
 ```sh
 mkdir -p var/outputs/menu-inventory
-niers vfs find "data/" -n 400000 --json > var/outputs/menu-inventory/vfs-paths.json
-niers vfs extract data/common/gamedata/menu/cfg --out var/outputs/menu-inventory/cfg
+nie vfs find "data/" -n 400000 --json > var/outputs/menu-inventory/vfs-paths.json
+nie vfs extract data/common/gamedata/menu/cfg --out var/outputs/menu-inventory/cfg
 bun --bun scripts/validation/menu-screen-inventory.ts
 python3 scripts/validation/menu-objbin-reference-audit.py
 ```
@@ -81,7 +81,7 @@ those three screens can be rebuilt from their setting layers directly.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC32 and string hashes for screen names, objbins and layers
 - `function` — menu setup and screen lifecycle functions in `nie.exe`
 - `coverage` — menu screen coverage stats

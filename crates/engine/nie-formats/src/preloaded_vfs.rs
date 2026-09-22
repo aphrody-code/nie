@@ -32,7 +32,7 @@ struct BundleEntry {
     crc32: u32,
 }
 
-/// Validated read-only view over one `niers.vfs.bundle/v1` container.
+/// Validated read-only view over one `nie.vfs.bundle/v1` container.
 #[derive(Debug, Clone)]
 pub struct PreloadedVfsBundle {
     bytes: Vec<u8>,
@@ -80,7 +80,7 @@ impl PreloadedVfsBundle {
             .ok_or("truncated preloaded VFS header")?;
         let manifest: BundleManifest =
             serde_json::from_slice(header).map_err(|error| error.to_string())?;
-        if manifest.schema_version != 1 || manifest.kind != "niers.vfs.bundle/v1" {
+        if manifest.schema_version != 1 || manifest.kind != "nie.vfs.bundle/v1" {
             return Err("unsupported preloaded VFS manifest".to_owned());
         }
         if manifest.entries.len() > MAX_ENTRIES {
@@ -229,7 +229,7 @@ pub fn startup_plan_json(locale: &str) -> Result<String, String> {
     }
     serde_json::to_string(&serde_json::json!({
         "schemaVersion": 1,
-        "bundleFormat": "niers.vfs.bundle/v1",
+        "bundleFormat": "nie.vfs.bundle/v1",
         "startupScreen": "main_menu",
         "containsResourceBytes": false,
         "exactPaths": [
@@ -291,7 +291,7 @@ pub fn pack(mut files: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, String> {
         .collect();
     let header = serde_json::to_vec(&BundleManifest {
         schema_version: 1,
-        kind: "niers.vfs.bundle/v1".to_owned(),
+        kind: "nie.vfs.bundle/v1".to_owned(),
         entries,
     })
     .map_err(|error| error.to_string())?;
@@ -421,7 +421,7 @@ mod tests {
         for length in [u64::MAX, usize::MAX as u64, MAX_BUNDLE_BYTES as u64] {
             let header = serde_json::to_vec(&BundleManifest {
                 schema_version: 1,
-                kind: "niers.vfs.bundle/v1".to_owned(),
+                kind: "nie.vfs.bundle/v1".to_owned(),
                 entries: vec![BundleEntry {
                     path: "data/overflow.bin".to_owned(),
                     offset: 0,

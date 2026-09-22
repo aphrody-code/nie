@@ -1,4 +1,4 @@
-import { ResourceLoader, type AssetSource } from "@niers/asset-source";
+import { ResourceLoader, type AssetSource } from "@nie/asset-source";
 import {
 	audio_bank_json, audio_bank_cue_to_wav, g4tx_to_png, g4tx_named_to_png,
 	vfs_content_summary, usm_metadata_json, usm_video_track_bytes,

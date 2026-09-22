@@ -49,7 +49,7 @@ les dépôts dédiés. Les validations de cette annexe doivent désormais cibler
    - [x] Workflow de publication enregistré via la note demandée (commit/push, synchronisation VPS, rebuild/déploiement, services et CDN ; respecter les demandes plus récentes).
 7. Livraison
    - ✗ Tests ciblés, compilation, lancement réel et captures ; corriger les erreurs rencontrées — tests compilatoires passés, captures et lancement complet non prouvés.
-   - ✗ Commit/push du code vérifié, pull de niers et rg sur VPS sans écraser de modifications — non autorisé et non réalisé dans cette reprise.
+   - ✗ Commit/push du code vérifié, pull de nie et rg sur VPS sans écraser de modifications — non autorisé et non réalisé dans cette reprise.
    - ✗ Rebuild des composants concernés, déploiement Azalée, redémarrages des services concernés et invalidation/versionnement des caches CDN — action de production non autorisée.
    - ✗ Contrôles publics, versions locales/distantes concordantes et bilan des limites restantes — deux routes live (`/avatar`, `/options`) restent 404.
 
@@ -59,7 +59,7 @@ Livraison urgente demandée le 5 septembre : commit local, push main, synchronis
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC32 and string hashes for 3D model parts and textures
 - `function` — 3D mesh processing and rendering in `nie.exe`
 - `coverage` — 3D engine coverage metrics

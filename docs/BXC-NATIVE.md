@@ -1,9 +1,9 @@
-# BXC natif dans niers
+# BXC natif dans nie
 
-Le moteur navigateur BXC reste externe à niers et n'est plus accompagné d'une couche
+Le moteur navigateur BXC reste externe à nie et n'est plus accompagné d'une couche
 de service Bun locale. Les anciens services IETV, Zukan, Wonderbot et iecrawl ont été
 retirés ; les contrats média utiles sont réunis dans `packages/nie-media`, sans scraper,
-bot ni service résident. Niers conserve ses contrats et sa logique pure maintenus côté Rust/Bun.
+bot ni service résident. Nie conserve ses contrats et sa logique pure maintenus côté Rust/Bun.
 
 ## Installation Windows vérifiée
 
@@ -24,7 +24,7 @@ $env:BXC_CWD = "$env:USERPROFILE\.bxc\bin"
 ```
 
 `BXC_CWD` est important dans ce monorepo : le binaire standalone ne doit pas
-hériter du `bunfig.toml` de niers, qui précharge le plugin de formats IEVR.
+hériter du `bunfig.toml` de nie, qui précharge le plugin de formats IEVR.
 
 ## Paquet TypeScript
 
@@ -37,7 +37,7 @@ Les secrets, cookies, profils CDP et bases BXC restent hors dépôt.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — VFS and network endpoint hashes
 - `function` — network client and Steam backend bindings in `nie.exe`
 - `coverage` — coverage metrics

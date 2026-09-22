@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn les_chemins_des_ailes_sont_ceux_mesures_dans_le_vfs() {
-        // Chemins relevés le 2026-09-19 par `niers vfs find ev60_00340`. Ils sont figés ici
+        // Chemins relevés le 2026-09-19 par `nie vfs find ev60_00340`. Ils sont figés ici
         // parce qu'une faute de casse ou de segment ne se voit qu'à l'exécution, sur un VFS.
         let a = ailes();
         assert_eq!(a.role, Role3d::Ailes);

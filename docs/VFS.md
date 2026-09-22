@@ -1,7 +1,7 @@
 # VFS — la carte complète, et ce qu'il faudrait pour tout servir
 
 > Établi le 2026-09-06 par six agents, un par domaine, sur un inventaire figé
-> (`var/vfs/inventaire.txt`, 255 308 entrées produites par `niers vfs find 'data/' -n 300000`).
+> (`var/vfs/inventaire.txt`, 255 308 entrées produites par `nie vfs find 'data/' -n 300000`).
 > Chaque domaine a son document détaillé ; **celui-ci ne fait que la synthèse et la matrice**.
 > Aucun compte de ce fichier n'est estimé : ils sont tous recalculés depuis l'inventaire.
 >
@@ -10,7 +10,7 @@
 > ci-dessous restent donc ceux du 2026-09-06 et ne peuvent pas être revérifiés en l'état. Le VFS
 > monté en production en compte aujourd'hui **255 342** — la différence n'est pas une dérive de
 > ce document, c'est un inventaire plus ancien. Régénérer :
-> `niers vfs find 'data/' -n 300000 > var/vfs/inventaire.txt`.
+> `nie vfs find 'data/' -n 300000 > var/vfs/inventaire.txt`.
 
 L'objectif que ce document sert : **que nie expose le VFS comme `nie.exe` le lit** — chaque
 fichier, chaque dossier, chaque mode atteignable par une route, ou classé avec sa raison.
@@ -226,7 +226,7 @@ le code qui la servait.
 - **Un compte porte sa commande.** Tout chiffre d'ici est reproductible sur
   `var/vfs/inventaire.txt` et `var/vfs/extensions.txt`.
 - **Un chemin VFS ne se cite pas de mémoire** : les fichiers portent un numéro de version
-  (`chara_act_cfg.1.03.91.00.cfg.bin`). Vérifier par `niers vfs find` avant d'écrire un chemin
+  (`chara_act_cfg.1.03.91.00.cfg.bin`). Vérifier par `nie vfs find` avant d'écrire un chemin
   dans du code ou un test.
 - **Une mesure porte sa date.** `nie-model-serve` a été mesuré saturé (16,3 Gio contre un
   `MemoryHigh` de 16 G, tous les rendus en 504) pendant que six agents interrogeaient le VFS en
@@ -237,7 +237,7 @@ le code qui la servait.
 
 The explicit Steam-root mount is now the reference for menu work: local and
 `ovh-vps-ubuntu-direct` both report 255 308 VFS entries and 936 CPKs. The local loose-file count
-is 11 versus 5 on the VPS; the logical path and format histograms match. `niers vfs extract data
+is 11 versus 5 on the VPS; the logical path and format histograms match. `nie vfs extract data
 --ext lua.bin --out var/lua-vfs-all` produced 1 197 files and 10 694 973 bytes with 0 failures;
 the extracted path set is identical to the inventory and every chunk has Lua 5.2 magic.
 
@@ -250,12 +250,12 @@ that the ignored game payload belongs in Git.
 
 The KB tables that back this document's claims:
 
-- `hash_name` — CRC-32 name resolution for every VFS entry, populated by `niers seed-ui`
+- `hash_name` — CRC-32 name resolution for every VFS entry, populated by `nie seed-ui`
 - `function` — the 117 068 functions of `nie.exe`, including the CPK/VFS layer
 - `xref` — call edges and string references that anchor VFS routines
 - `func_str_ref` — string-to-function anchors, including `.cpk` path strings
 - `pdata_func` — the 55 351 authoritative function boundaries from `.pdata`
-- `coverage` — classification progress measured by `niers rebuild`
+- `coverage` — classification progress measured by `nie rebuild`
 
 Key VFS addresses in `nie.exe` (reference binary `b1fa04ea3658`, 33 918 464 bytes):
 

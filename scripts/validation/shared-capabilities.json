@@ -1,5 +1,5 @@
 {
-  "schema": "niers.shared-capabilities/v1",
+  "schema": "nie.shared-capabilities/v1",
   "surfaces": ["site", "cli", "mcp", "inacord", "browser"],
   "registries": {
     "cli": "crates/tools/nie-cli/src/main.rs",

@@ -170,7 +170,7 @@ pub fn merge_data_sheet(data: Option<&str>, sheet_data: Option<&str>) -> serde_j
 /// ici plutôt que chez l'un de ses appelants :
 ///
 /// - 2026-09-19 — `inagle_skills.power_max`, `power_min`, `tp_cost`, `is_hyper` sont `text` sur
-///   leurs 1 002 lignes, et `inagle_items.rarity` sur ses 1 807 : `niers vfs waza` échouait sur
+///   leurs 1 002 lignes, et `inagle_items.rarity` sur ses 1 807 : `nie vfs waza` échouait sur
 ///   toute requête, pas seulement sur celles hors plage.
 /// - 2026-09-20 — `element_id` est `text` sur les cinq tables d'aura, et neuf autres colonnes
 ///   le sont sur `inagle_tactics`, `_drops`, `_stadiums`, `_coordinators`, `_costumes`,

@@ -1,14 +1,14 @@
 import { resolveResourceNames } from "../game/resource-names";
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { useAssetSource } from "@niers/inacord-ui";
-import type { AssetSource } from "@niers/asset-source";
-import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
-import { GALLERY_PAGE_SIZE, GalleryView } from "@niers/inacord-ui/gallery/GalleryView";
-import type { GalleryServices } from "@niers/inacord-ui/gallery/contracts";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { useAssetSource } from "@nie/inacord-ui";
+import type { AssetSource } from "@nie/asset-source";
+import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@nie/inacord-ui/lib/browser-navigation";
+import { GALLERY_PAGE_SIZE, GalleryView } from "@nie/inacord-ui/gallery/GalleryView";
+import type { GalleryServices } from "@nie/inacord-ui/gallery/contracts";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { readableSize } from "./screen-parts";
 import { splitLanguagePrefix } from "../routing";
-import { fetchJson } from "@niers/asset-source";
+import { fetchJson } from "@nie/asset-source";
 import { downloadExport, fetchExportFormats } from "../game/export-formats";
 
 /** Name hits expanded into VFS lookups. One exact, bounded catalogue page is requested per hit. */
@@ -35,7 +35,7 @@ export interface TextureDomain {
  * Les six arbres de textures du jeu — une **partition**, pas une sélection.
  *
  * Les préfixes sont disjoints et leurs comptes s'additionnent exactement aux 54 203 `.g4tx`
- * relevés sur le VFS de référence (`niers vfs find --ext g4tx`, 2026-09-20), ce que
+ * relevés sur le VFS de référence (`nie vfs find --ext g4tx`, 2026-09-20), ce que
  * `WebGallery.test.ts` vérifie plutôt que de le croire. C'est délibéré : la version précédente
  * offrait `Illustrations` (220_img) et `Icônes` (200_icon) comme deux domaines de premier rang
  * et laissait les **44 autres dossiers de `data/dx11/menu`** — 4 570 textures, les écrans de

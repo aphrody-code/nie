@@ -22,7 +22,7 @@ on:
 
 jobs:
   docs:
-    runs-on: [self-hosted, niers-vps]
+    runs-on: [self-hosted, nie-vps]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

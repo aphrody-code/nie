@@ -171,7 +171,7 @@ Ce document a longtemps désigné « l’injection documentée du contexte natif
 résiduelles » comme la prochaine étape RE. **C’est faux pour douze d’entre elles**, et le
 vérifier coûtait un désassemblage.
 
-`niers lua-audit` rend maintenant `missingHostReadSinks` : pour chaque lecture indéfinie, ce que
+`nie lua-audit` rend maintenant `missingHostReadSinks` : pour chaque lecture indéfinie, ce que
 devient sa valeur, relevé statiquement par `nie_lua::bytecode::global_reads`. Sur le corpus
 complet, **les 13 noms sortent tous en `tableArrayItem`** — la valeur n’alimente que la partie
 TABLEAU d’un constructeur de table :
@@ -262,7 +262,7 @@ faute de piloter les closures qui les portent.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC32 and string hashes for Lua commands, modules and functions
 - `function` — Lua host functions and dispatch loop in `nie.exe`
 - `xref` — call-graph topology for Lua host functions

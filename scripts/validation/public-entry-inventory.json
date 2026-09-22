@@ -1,5 +1,5 @@
 {
-  "schema": "niers.public-entry-inventory/v1",
+  "schema": "nie.public-entry-inventory/v1",
   "proofLevel": "source-delegation",
   "proofLimitation": "Verified call-chain evidence does not prove the absence of residual portable logic in bindings; that requires semantic audit and review.",
   "generatedFrom": {
@@ -2619,15 +2619,15 @@
     },
     {
       "surface": "inacord",
-      "entry": "install_niers_blender_addon",
-      "capability": "install-niers-blender-addon",
+      "entry": "install_nie_blender_addon",
+      "capability": "install-nie-blender-addon",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "install_niers_blender_addon requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "rationale": "install_nie_blender_addon requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "fn install_niers_blender_addon"
+          "fn install_nie_blender_addon"
         ]
       ]
     },

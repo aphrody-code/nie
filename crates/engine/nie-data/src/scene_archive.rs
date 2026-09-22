@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/scene_archive/scene_archive_config_4.00.18.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/scene_archive/scene_archive_config_4.00.18.00.cfg.bin.json`
 //! - 2 listes dans ce fichier (format `lists`, comme `formation_config`) :
 //!   - `m_sceneArchiveFlags` — 6 entrées `SCENE_ARCHIVE_FLAGS`, chacune portant
 //!     un `activeTempBitFlagCrc` (hash CRC du flag de progression actif).

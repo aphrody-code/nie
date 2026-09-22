@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# patch-eac.sh — rend l'échec d'init EOS EasyAntiCheat NON-FATAL pour le boot headless de niers.
+# patch-eac.sh — rend l'échec d'init EOS EasyAntiCheat NON-FATAL pour le boot headless de nie.
 #
 # Le vrai jeu, lancé headless, échoue à `EOS_Platform_GetAntiCheatClientInterface` (renvoie NULL
 # sans backend EAC) et affiche la modale fatale « ERROR CODE E-02000200 / Failed to load game
@@ -12,7 +12,7 @@
 # Opère sur une COPIE dans le dossier du jeu (DLL voisines — Goldberg steam_api64, proxy EOSSDK
 # — résolues). NE touche JAMAIS l'original. Vérifie les 5 octets avant d'écrire.
 #
-# Équivalent natif : `niers mem patch-eac --src <nie.exe> --dst <nie_eacpatched.exe>`
+# Équivalent natif : `nie mem patch-eac --src <nie.exe> --dst <nie_eacpatched.exe>`
 # (cf. nie_trace::patch_eac) — ce script reste utile sans build Rust.
 #
 # Usage: NIE_GAME_PATH=/chemin/du/jeu patch-eac.sh

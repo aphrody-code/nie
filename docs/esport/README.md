@@ -8,7 +8,7 @@ Elle unifie l'ingénierie inversée de `nie.exe` et l'intégration du moteur com
 
 ## 1. Vue d'Ensemble de l'Architecture Compétitive
 
-Le sous-système compétitif e-sport est logé au cœur de [`crates/engine/nie-net`](file:///home/ubuntu/niers/crates/engine/nie-net) :
+Le sous-système compétitif e-sport est logé au cœur de [`crates/engine/nie-net`](file:///home/ubuntu/nie/crates/engine/nie-net) :
 
 ```mermaid
 flowchart TD
@@ -165,21 +165,21 @@ Toutes les données de compétition sont exposées sous `/api/v1/online` :
 - **`POST /api/v1/online/challenge`** : Génération d'un code de match officiel Base-32 avec TTL de 30 minutes.
 - **`POST /api/v1/online/calc-elo`** : Calculatrice d'arbitrage (projection de deltas $\Delta\mathrm{AP}$ et nouveaux paliers).
 
-### 7.2 Commandes CLI E-Sport (`niers net`)
+### 7.2 Commandes CLI E-Sport (`nie net`)
 
-Les organisateurs et arbitres peuvent interagir directement en ligne de commande via la CLI unifiée `niers` :
+Les organisateurs et arbitres peuvent interagir directement en ligne de commande via la CLI unifiée `nie` :
 ```bash
 # Consulter le top 10 du ladder officiel
-niers net ladder --limit 10
+nie net ladder --limit 10
 
 # Consulter le classement des clans
-niers net clans
+nie net clans
 
 # Arbitrer un match et calculer les deltas AP
-niers net calc-elo 1450 1410 win
+nie net calc-elo 1450 1410 win
 
 # Générer un code de défi officiel pour un match de poule
-niers net challenge create player_a player_b
+nie net challenge create player_a player_b
 ```
 
 ### 7.3 Liaisons WebAssembly Client (`nie-wasm::net`)

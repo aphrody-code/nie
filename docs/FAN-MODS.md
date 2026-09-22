@@ -33,7 +33,7 @@ platforms.
    `release_url`, `license`, and `sha256` identify what it targets and where it came from.
 4. Test in a disposable copy. Keep the vanilla `cpk_list.cfg.bin` as the recovery baseline.
 5. Verify the resulting VFS and launch only the supported platform. Unsupported console rows are
-   readable/inspectable contracts, not claims that niers emulates that console.
+   readable/inspectable contracts, not claims that nie emulates that console.
 
 ## Mod directory format
 

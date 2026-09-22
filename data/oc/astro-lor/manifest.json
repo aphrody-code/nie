@@ -165,7 +165,7 @@
           "present_dans_le_jeu": false,
           "statut": "a_produire",
           "source": null,
-          "outil": "niers (conversion d'image → G4TX, encodage BC7)",
+          "outil": "nie (conversion d'image → G4TX, encodage BC7)",
           "note": "Le décodage BC7 est validé ; l'encodage passe par la voie C#/C++."
         },
         {
@@ -179,7 +179,7 @@
             "fichier": "data/oc/astro-lor/face-og.webp",
             "octets": 41020
           },
-          "outil": "niers (conversion d'image → G4TX)",
+          "outil": "nie (conversion d'image → G4TX)",
           "note": "Une source 512×512 existe déjà pour les deux variantes."
         },
         {
@@ -264,7 +264,7 @@
           "present_dans_le_jeu": false,
           "statut": "a_produire",
           "source": null,
-          "outil": "niers (conversion d'image → G4TX, encodage BC7)",
+          "outil": "nie (conversion d'image → G4TX, encodage BC7)",
           "note": "Le décodage BC7 est validé ; l'encodage passe par la voie C#/C++."
         },
         {
@@ -278,7 +278,7 @@
             "fichier": "data/oc/astro-lor/face-go.webp",
             "octets": 37050
           },
-          "outil": "niers (conversion d'image → G4TX)",
+          "outil": "nie (conversion d'image → G4TX)",
           "note": "Une source 512×512 existe déjà pour les deux variantes."
         },
         {
@@ -668,7 +668,7 @@
     {
       "nom": "Budget d'entrées loose",
       "bloquant": false,
-      "constat": "`niers mod install` refuse au-delà de 64 entrées déjà loose dans le cpk_list : le fichier a alors déjà été packé."
+      "constat": "`nie mod install` refuse au-delà de 64 entrées déjà loose dans le cpk_list : le fichier a alors déjà été packé."
     }
   ],
   "hors_perimetre_du_manifeste": [

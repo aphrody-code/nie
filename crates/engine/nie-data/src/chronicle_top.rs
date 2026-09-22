@@ -4,7 +4,7 @@
 //! ## Vérité terrain
 //!
 //! Dump réel :
-//! `/home/ubuntu/niers/data/common/gamedata/chronicle_top/chronicle_top_caravan_config.cfg.bin.json`
+//! `/home/ubuntu/nie/data/common/gamedata/chronicle_top/chronicle_top_caravan_config.cfg.bin.json`
 //!
 //! Une seule liste dans ce fichier :
 //! - `m_chronicleTopCaravanInfoList` (`CHRONICLE_TOP_CARAVAN_INFO`) — 5 entrées.

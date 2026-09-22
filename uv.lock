@@ -107,7 +107,7 @@ wheels = [
 ]
 
 [[package]]
-name = "niers-tools"
+name = "nie-tools"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

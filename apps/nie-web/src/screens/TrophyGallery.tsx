@@ -32,9 +32,9 @@
  * jouent par `NativeMoviePlayer`.
  */
 import { LayoutCanvas } from "../game/LayoutCanvas";
-import { fetchJson } from "@niers/asset-source";
-import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useGameTextResolver, useSettings } from "@niers/inacord-ui";
-import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
+import { fetchJson } from "@nie/asset-source";
+import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useGameTextResolver, useSettings } from "@nie/inacord-ui";
+import { lireLayout, type LayoutJeu } from "@nie/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
 	filterGallery,
@@ -59,7 +59,7 @@ import {
 	browserLocationSnapshot,
 	subscribeBrowserLocation,
 	writeBrowserHistory,
-} from "@niers/inacord-ui/lib/browser-navigation";
+} from "@nie/inacord-ui/lib/browser-navigation";
 import {
 	trophyGalleryHistoryMode,
 	trophyGalleryHrefForSurface,

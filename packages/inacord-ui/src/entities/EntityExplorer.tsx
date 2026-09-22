@@ -5,7 +5,7 @@ import type {
 	EntityRowsOptions,
 	EntityRowsPage,
 	EntityTable,
-} from "@niers/asset-source";
+} from "@nie/asset-source";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "../lib/browser-navigation";
 import { useAssetSource } from "../source";

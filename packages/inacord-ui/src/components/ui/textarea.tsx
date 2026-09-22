@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { cn } from "@niers/inacord-ui/lib/utils"
+import { cn } from "@nie/inacord-ui/lib/utils"
 
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (

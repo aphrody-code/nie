@@ -1,9 +1,9 @@
 /** Native desktop adapter for the Rust `nie-wiki` owner. */
 import { commands, type JsonValue } from "./bindings";
-import { localizedName, type ResolvedName } from "@niers/inacord-ui/lib/resolved-names";
-import type { GameLocale } from "@niers/inacord-ui/lib/settings";
-export type { ResolvedName } from "@niers/inacord-ui/lib/resolved-names";
-import { japaneseToRomaji } from "@niers/game/text";
+import { localizedName, type ResolvedName } from "@nie/inacord-ui/lib/resolved-names";
+import type { GameLocale } from "@nie/inacord-ui/lib/settings";
+export type { ResolvedName } from "@nie/inacord-ui/lib/resolved-names";
+import { japaneseToRomaji } from "@nie/game/text";
 
 import { dedoublonnerParNom, type EntreeNoms } from "@/lib/traduction";
 import type { StaffRow, NameRow, RosterRow, TechniqueRow } from "./wikiContracts";

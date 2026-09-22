@@ -1,6 +1,6 @@
 //! `/couverture` et `/api/v1/couverture` — la matrice du § 4 du plan, servie.
 //!
-//! Le service **ne mesure pas** : mesurer, c'est lancer `niers --help`, lire quatre arbres de
+//! Le service **ne mesure pas** : mesurer, c'est lancer `nie --help`, lire quatre arbres de
 //! sources et parcourir 255 308 lignes d'inventaire. Une route web ne fait pas cela. La matrice
 //! est produite hors ligne par `nie-site --regenerer-couverture <fichier>` et lue ici.
 //!

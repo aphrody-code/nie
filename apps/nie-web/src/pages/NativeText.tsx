@@ -1,5 +1,5 @@
 /** Accessible native bitmap text. No system-font substitute is drawn on failure. */
-import { useAssetSource } from "@niers/inacord-ui";
+import { useAssetSource } from "@nie/inacord-ui";
 import { useEffect, useRef, useState } from "react";
 import { NATIVE_FONT_TEXTURE, nativeTextRaster } from "../game/native-font";
 

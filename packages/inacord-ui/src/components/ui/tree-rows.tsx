@@ -7,7 +7,7 @@
 import { useCallback, useRef, useState, type ReactNode, type UIEvent } from "react";
 
 import { Icon } from "./Icon";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 export interface TreeRowItem {
   key: string;

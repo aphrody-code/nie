@@ -64,7 +64,7 @@ pub(super) struct BridgeControl {
 
 impl Default for BridgeControl {
     fn default() -> Self {
-        let port = std::env::var("NIERS_BRIDGE_PORT")
+        let port = std::env::var("NIE_BRIDGE_PORT")
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(DEFAULT_PORT);
@@ -94,21 +94,21 @@ impl BridgeControl {
             Ok(listener) => listener,
             Err(error) => {
                 eprintln!(
-                    "[niers-game] explorer bridge unavailable on {}: {error}",
+                    "[nie-game] explorer bridge unavailable on {}: {error}",
                     self.url()
                 );
                 return;
             }
         };
         self.inner.listening.store(true, Ordering::Release);
-        eprintln!("[niers-game] explorer bridge listening on {}", self.url());
+        eprintln!("[nie-game] explorer bridge listening on {}", self.url());
         let control = self.clone();
         tokio::spawn(async move {
             while let Ok((stream, _)) = listener.accept().await {
                 let control = control.clone();
                 tokio::spawn(async move {
                     if let Err(error) = control.accept(stream).await {
-                        eprintln!("[niers-game] explorer bridge connection failed: {error}");
+                        eprintln!("[nie-game] explorer bridge connection failed: {error}");
                     }
                 });
             }

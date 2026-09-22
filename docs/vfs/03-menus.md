@@ -124,7 +124,7 @@ Cause du deuxième cas, vérifiée dans le message d'avertissement du binaire lu
 (`crates/engine/nie-game/src/main.rs:3078`, fonction `cmd_export_layout_runtime`) :
 > « 0 objet muté par le runtime. Le chemin driver → MenuState → layout est CÂBLÉ et exécute
 > les vrais scripts, mais `GetItemButtonNum` (fonction DU script) lit l'état scène/save C++
-> que niers ne fournit pas encore ⇒ `OnSetupLayer` crée 0 objet. »
+> que nie ne fournit pas encore ⇒ `OnSetupLayer` crée 0 objet. »
 
 `GetItemButtonNum` est implémentée dans `crates/engine/nie-lua/src/menu_host.rs:1799-1976`
 (commentaire `:397-399` : « le nombre d'items vient du SCRIPT, pas (seulement) du save-state »).
@@ -254,7 +254,7 @@ HTML et n'est pas l'API menu.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC-32 hashes for UI elements, screens, buttons, layers and commands
 - `function` — UI component methods and menu dispatch loops in `nie.exe`
 - `rtti_class` — UI classes (`lives::CMenuAnimation`, `lives::CMenuRenderComponent`, `lives::CMenuAttachLocator`)

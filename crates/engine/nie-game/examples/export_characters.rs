@@ -188,7 +188,7 @@ fn main() {
     }
 
     let doc = json!({
-        "schema": "niers/characters-resolved/v3",
+        "schema": "nie/characters-resolved/v3",
         "locale": "fr",
         "count": roster.len(),
         "characters": roster,

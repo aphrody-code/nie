@@ -48,7 +48,7 @@ et **26 correspondances runtime**. La baseline précédente donnait respectiveme
 25. Les **15 identifiants de commandes générales** encore inconnus sont une frontière distincte
 et restent visibles dans `runtimeSummary.unknownGeneralCmds`.
 
-Mesure rejouée depuis `/home/ubuntu/niers` le 2026-09-08 :
+Mesure rejouée depuis `/home/ubuntu/nie` le 2026-09-08 :
 
 ```text
 cargo run -p nie-game --release -- --menu main_menu --from-setting --runtime --export-layout /tmp/mainmenu-runtime-after.json --screen-name mainmenu01
@@ -73,11 +73,11 @@ Valeurs figées dans `packages/inacord-ui/src/shell/main-menu-geometry.ts`.
 
 ## Baseline de fidélité rejouable (2026-09-07)
 
-La capture et sa comparaison ont été produites dans le checkout `/home/ubuntu/niers` avec :
+La capture et sa comparaison ont été produites dans le checkout `/home/ubuntu/nie` avec :
 
 ```text
 target/release/nie-game --menu main_menu --from-setting --capture /tmp/nie-main-menu-from-setting.png
-target/release/niers img diff /tmp/nie-main-menu-from-setting.png data/menu/main_menu.png --downscale-ref -o /tmp/nie-main-menu-current-diff
+target/release/nie img diff /tmp/nie-main-menu-from-setting.png data/menu/main_menu.png --downscale-ref -o /tmp/nie-main-menu-current-diff
 ```
 
 Le VFS a monté **255 308 assets**. Le setting a fourni **13 layers** ; le moteur a exclu 10
@@ -93,11 +93,11 @@ sortie normalisée à 1280×720, soit **921 600 pixels** :
 | SSIM global | 0,5266 | **0,5373** |
 | Pixels opaques | 100 % | 100 % |
 
-La comparaison après modification a été rejouée depuis `/home/ubuntu/niers` avec :
+La comparaison après modification a été rejouée depuis `/home/ubuntu/nie` avec :
 
 ```text
 target/release/nie-game --menu main_menu --from-setting --capture /tmp/nie-main-menu-after.png
-target/release/niers img diff /tmp/nie-main-menu-after.png data/menu/main_menu.png --downscale-ref -o /tmp/nie-main-menu-after-diff
+target/release/nie img diff /tmp/nie-main-menu-after.png data/menu/main_menu.png --downscale-ref -o /tmp/nie-main-menu-after-diff
 ```
 
 Le gain de SSIM est de **+0,0107** sur la même référence et les mêmes 921 600 pixels. Trois

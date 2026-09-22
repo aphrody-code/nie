@@ -80,7 +80,7 @@ function ciblePubliee(lien: string): string | null {
 /**
  * Le répertoire où un build ORDINAIRE écrit.
  *
- * - `NIE_WEB_OUT_DIR` l'emporte ; `NIERS_WEB_OUT_DIR` reste accepté pour compatibilité.
+ * - `NIE_WEB_OUT_DIR` l'emporte ; `NIE_WEB_OUT_DIR` reste accepté pour compatibilité.
  * - `dist` n'est pas un lien → `dist`. Rien n'est publié depuis un tel arbre (une unité systemd
  *   qui lirait un répertoire ordinaire du dépôt serait un autre problème, et le garde ci-dessous
  *   le dirait quand même).
@@ -89,7 +89,7 @@ function ciblePubliee(lien: string): string | null {
  * @throws si le chemin retenu est, après résolution, celui que `dist` désigne.
  */
 export function resolveBuildOutDir(lien: string = publishedLink): string {
-	const configuredOutDir = process.env.NIE_WEB_OUT_DIR ?? process.env.NIERS_WEB_OUT_DIR;
+	const configuredOutDir = process.env.NIE_WEB_OUT_DIR ?? process.env.NIE_WEB_OUT_DIR;
 	const choisi = configuredOutDir
 		? resolve(configuredOutDir)
 		: ciblePubliee(lien) === null

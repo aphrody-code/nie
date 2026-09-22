@@ -2,10 +2,10 @@
  * L'implémentation d'`AssetSource` pour Inacord.
  *
  * Elle enveloppe `api` — les liaisons `tauri-specta` générées depuis le Rust — et la présente
- * sous la forme que l'interface partagée attend. Les composants de `@niers/inacord-ui` ne
+ * sous la forme que l'interface partagée attend. Les composants de `@nie/inacord-ui` ne
  * voient donc jamais Tauri, alors qu'ils tournent dans une fenêtre Tauri.
  *
- * ## Pourquoi cette enveloppe vit ici et non dans `@niers/asset-source`
+ * ## Pourquoi cette enveloppe vit ici et non dans `@nie/asset-source`
  *
  * Le plan prévoyait de la placer dans le paquet, aux côtés du contrat. Elle y aurait fait
  * dépendre de Tauri un paquet que le navigateur doit consommer — exactement ce que la gate
@@ -24,7 +24,7 @@ import {
 	type OptionsParcours,
 	type SanteApi,
 	type VueCatalogue,
-} from "@niers/asset-source";
+} from "@nie/asset-source";
 
 import { api } from "./api";
 

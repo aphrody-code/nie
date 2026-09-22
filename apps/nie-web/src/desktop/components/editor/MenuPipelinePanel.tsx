@@ -2,7 +2,7 @@
 // du jeu. Ce panneau ne dessine aucune approximation CSS du menu.
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { GameText } from "@niers/inacord-ui";
+import { GameText } from "@nie/inacord-ui";
 
 export function MenuPipelinePanel({ baseUrl }: { baseUrl: string }) {
   const [screen, setScreen] = useState("");

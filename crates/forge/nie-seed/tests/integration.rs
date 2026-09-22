@@ -11,8 +11,8 @@ use std::path::Path;
 use nie_index::Db;
 use nie_seed::{formats, inagle, rtti_classes};
 
-/// Chemin de la base niers.sqlite déjà initialisée (binary_id = 1).
-const NIERS_SQLITE: &str = "var/niers.sqlite";
+/// Chemin de la base nie.sqlite déjà initialisée (binary_id = 1).
+const NIE_SQLITE: &str = "var/nie.sqlite";
 const BINARY_ID: i64 = 1;
 
 /// Chemin du fichier RTTI.
@@ -25,7 +25,7 @@ const INAGLE_DIR: &str = "refs/azalee-backups";
 #[test]
 #[ignore]
 fn ingest_all_reel() {
-    let mut db = Db::open(NIERS_SQLITE).expect("ouverture niers.sqlite");
+    let mut db = Db::open(NIE_SQLITE).expect("ouverture nie.sqlite");
 
     let refs_root = Path::new("refs");
     let inagle_dir = Path::new(INAGLE_DIR);

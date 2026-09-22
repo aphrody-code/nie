@@ -18,26 +18,26 @@ import {
   useRef,
   useState,
 } from "react";
-import { NativeAvatarEditor } from "@niers/inacord-ui/avatar/NativeAvatarEditor";
+import { NativeAvatarEditor } from "@nie/inacord-ui/avatar/NativeAvatarEditor";
 import {
   INITIAL_AVATAR_STATE,
   type AvatarCatalog,
   type AvatarComposition,
   type AvatarState,
-} from "@niers/inacord-ui/avatar/contract";
-import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
-import type { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
-import { RustModelViewport } from "@niers/inacord-ui/shell/rust-model-viewport";
-import { GameHintBar } from "@niers/inacord-ui/components/game/GameHintBar";
+} from "@nie/inacord-ui/avatar/contract";
+import type { NativeMenuScene } from "@nie/inacord-ui/shell/native-title-menu";
+import type { createStandardGamepadMenuSampler } from "@nie/inacord-ui/shell/menu-interaction";
+import { RustModelViewport } from "@nie/inacord-ui/shell/rust-model-viewport";
+import { GameHintBar } from "@nie/inacord-ui/components/game/GameHintBar";
 import { avatarModelUrl, resolveAvatar } from "../game/avatar-runtime";
 import { loadMenuPresentation } from "../game/bridge";
 import { createCpuNativeViewer, createNativeViewer } from "../game/native-viewer";
 import { NativeText } from "./NativeText";
 import { ScreenStatus } from "./screen-parts";
-import "@niers/inacord-ui/avatar/avatar-editor.css";
+import "@nie/inacord-ui/avatar/avatar-editor.css";
 import "./avatar-studio.css";
-import { GameText } from "@niers/inacord-ui";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { GameText } from "@nie/inacord-ui";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { localizeMenuSceneAssets } from "../game/menu-locale";
 import { AvatarExtensions, profileWithPlayerStats, type AvatarPlayerReference } from "../avatar/AvatarExtensions";
 

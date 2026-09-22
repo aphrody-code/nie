@@ -1,5 +1,5 @@
 /**
- * Description de l'entrée de configuration du serveur MCP `niers-game`.
+ * Description de l'entrée de configuration du serveur MCP `nie-game`.
  *
  * Partagée entre `nie-explorer` (qui l'écrit dans la config d'un client MCP depuis ses
  * Paramètres) et `nie-mcp` (qui s'en sert pour se diagnostiquer) : une seule définition de
@@ -7,7 +7,7 @@
  */
 
 /** Nom sous lequel le serveur apparaît chez les clients MCP. */
-export const MCP_SERVER_NAME = "niers-game";
+export const MCP_SERVER_NAME = "nie-game";
 
 /** Manifeste du serveur Rust natif, relatif à la racine du repo. */
 export const MCP_ENTRYPOINT = "Cargo.toml";
@@ -23,7 +23,7 @@ export interface McpServerEntry {
 /** Options de génération. */
 export interface McpEntryOptions {
   /**
-   * Racine du repo niers. Requise pour Claude Desktop, qui lance le serveur depuis un
+   * Racine du repo nie. Requise pour Claude Desktop, qui lance le serveur depuis un
    * répertoire courant arbitraire ; laisser vide pour Claude Code, dont le `.mcp.json` de
    * projet s'exécute déjà à la racine.
    */
@@ -45,7 +45,7 @@ export function mcpServerEntry(options: McpEntryOptions = {}): McpServerEntry {
   const env: Record<string, string> = {};
   if (root !== "") {
     env["NIE_REPO"] = root;
-    env["NIERS_REPO"] = root;
+    env["NIE_REPO"] = root;
   }
   if (options.gameDir !== undefined && options.gameDir.trim() !== "") env["NIE_GAME_DIR"] = options.gameDir.trim();
   if (options.aphrodyApiUrl !== undefined && options.aphrodyApiUrl.trim() !== "") {
@@ -60,7 +60,7 @@ export function mcpServerEntry(options: McpEntryOptions = {}): McpServerEntry {
   };
 }
 
-/** Objet complet `{ mcpServers: { "niers-game": … } }`, à fusionner dans une config existante. */
+/** Objet complet `{ mcpServers: { "nie-game": … } }`, à fusionner dans une config existante. */
 export function mcpConfigFragment(options: McpEntryOptions = {}): {
   mcpServers: Record<string, McpServerEntry>;
 } {

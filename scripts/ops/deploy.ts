@@ -94,7 +94,7 @@ import { freemem, totalmem } from "node:os";
  * Aucun chemin de machine en dur : c'est la même doctrine que côté Rust
  * (`nie_formats::vfs::resolve_game_dir`).
  */
-const NIERS_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/u, "");
+const NIE_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/u, "");
 
 /**
  * Optional external repository root for the editorial deployment compatibility path. Game-data
@@ -237,7 +237,7 @@ async function run(
 	const started = Date.now();
 	const proc = Bun.spawn(command, {
 		// Repli seulement : tout appel qui dépend d'un dépôt passe `cwd: app.repoRoot`.
-		cwd: options.cwd ?? NIERS_ROOT,
+		cwd: options.cwd ?? NIE_ROOT,
 		env: { ...process.env, ...(options.env ?? {}) },
 		stdout: options.inherit ? "inherit" : "pipe",
 		stderr: options.inherit ? "inherit" : "pipe",
@@ -1500,7 +1500,7 @@ async function main(): Promise<number> {
 		} finally {
 			await flushLog();
 			logFile = null;
-			// Rétention : 30 derniers journaux.
+			// Rétention : 30 dernie journaux.
 			const journaux = (await readdir(`${appRoot(app)}/logs`)).sort();
 			await Promise.all(
 				journaux

@@ -193,7 +193,7 @@ fn eldorado_id_non_nul_et_index_hors_borne() {
 fn vrai_fichier_si_present() {
     // Validation byte-à-byte contre le vrai dump si monté localement (sinon skip).
     // Source VFS : data/common/gamedata/skill/skill_telop_info_config_0.00.00.cfg.bin.
-    let path = "/home/aphrody/niers/data/common/gamedata/skill/\
+    let path = "/home/aphrody/nie/data/common/gamedata/skill/\
                 skill_telop_info_config_0.00.00.cfg.bin.json";
     if !std::path::Path::new(path).exists() {
         return;

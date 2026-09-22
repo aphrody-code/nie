@@ -1,6 +1,6 @@
 [package]
 name = "nie-explore"
-description = "Moteur partagé d'aperçu/description des entrées VFS (CPK) par format — utilisé par `niers vfs cat` (nie-cli) et l'app desktop `nie-explorer` (Tauri)"
+description = "Moteur partagé d'aperçu/description des entrées VFS (CPK) par format — utilisé par `nie vfs cat` (nie-cli) et l'app desktop `nie-explorer` (Tauri)"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true

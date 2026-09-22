@@ -12,15 +12,15 @@
 // courante au lieu de la remplacer.
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Input } from "@niers/inacord-ui/components/ui/input";
-import { ToggleGroup, ToggleGroupItem } from "@niers/inacord-ui/components/ui/toggle-group";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { Input } from "@nie/inacord-ui/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@nie/inacord-ui/components/ui/toggle-group";
 import { api, type VfsDir } from "@/lib/api";
 import { humanSize } from "@/lib/bytes";
 import { showVfsFileContextMenu, showVfsFolderContextMenu } from "@/lib/contextMenu";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { useThumbnail } from "@niers/inacord-ui/lib/thumbs";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
+import { useThumbnail } from "@nie/inacord-ui/lib/thumbs";
+import { cn } from "@nie/inacord-ui/lib/utils";
 import { NATIVE_WINDOW } from "../../../host";
 
 /** Familles d'assets — le filtre qu'un éditeur propose (Unreal : Static Mesh / Texture / Audio…). */

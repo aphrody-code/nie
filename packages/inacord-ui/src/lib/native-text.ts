@@ -20,7 +20,7 @@ export interface NativeTextMatches {
 /** Host adapter. Browser, Tauri and Wasm use their own VFS transport behind this contract. */
 export type NativeTextResolver = (locale: GameLocale, family: string, hash: string) => Promise<NativeTextMatches>;
 
-import { fetchJson } from "@niers/asset-source";
+import { fetchJson } from "@nie/asset-source";
 
 /**
  * Browser adapter for the measured server VFS catalogue. It never carries a copy of game text.

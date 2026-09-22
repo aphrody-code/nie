@@ -12,7 +12,7 @@ import { menuCapturePlan, type CapturePlanRow } from "./menu-capture-plan";
 const origin = process.argv[2];
 if (!origin) throw new Error("Expected an origin");
 const output = resolve(process.argv[3] ?? "var/outputs/fidelity-audit-20260908");
-const session = `niers-fidelity-${process.pid}`;
+const session = `nie-fidelity-${process.pid}`;
 const captures: Record<string, unknown>[] = [];
 const flows: Record<string, unknown>[] = [];
 const inputs: { at: string; command: string[] }[] = [];

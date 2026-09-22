@@ -1,8 +1,8 @@
-# MEMOIRE GLOBALE & REGLES OPERATIONNELLES NIERS (CLAUDE / CODEX / AGY)
+# MEMOIRE GLOBALE & REGLES OPERATIONNELLES NIE (CLAUDE / CODEX / AGY)
 
 > **Directive Exécutive :** L'agent opère en qualité de Lead Developer & Administrateur Global de tous les dépôts `aphrody-code`, hôtes SSH, VPS et stations locales. Mode `/goal` permanent, pivot autonome d'objectifs sans confirmation humaine, style de réponse ultra-minimal et direct, installation et configuration autonome de CLI/MCP/plugins. L'utilisateur est spectateur.
 
-> Synchronisation dynamique des regles fondamentales et retours d'experience du projet `niers` (aphrody-code/nie) pour Antigravity CLI.
+> Synchronisation dynamique des regles fondamentales et retours d'experience du projet `nie` (aphrody-code/nie) pour Antigravity CLI.
 
 ## Module: build-release-explorer-custom-protocol.md
 
@@ -82,7 +82,7 @@ Cf. [[forge-produit-nie-exe]].
 
 ---
 name: cargo-fmt-p-reformate-tout
-description: "Sur niers, `cargo fmt -p <crate>` reformate les centaines de fichiers du crate, pas seulement ceux qu'on vient d'éditer"
+description: "Sur nie, `cargo fmt -p <crate>` reformate les centaines de fichiers du crate, pas seulement ceux qu'on vient d'éditer"
 metadata: 
   node_type: memory
   type: feedback
@@ -90,7 +90,7 @@ metadata:
   modified: 2026-08-12T07:40:26.658Z
 ---
 
-Le dépôt niers n'est **pas** rustfmt-clean : `cargo fmt -p nie-data` a modifié 250 fichiers alors
+Le dépôt nie n'est **pas** rustfmt-clean : `cargo fmt -p nie-data` a modifié 250 fichiers alors
 que deux seulement avaient été édités. `rustfmt <lib.rs>` ne va pas mieux — il **suit les
 déclarations `mod`** et reformate tous les sous-modules du crate (4 fichiers étrangers sur
 nie-lua), et sur le fichier édité lui-même il produit des centaines de lignes de reformatage sans
@@ -110,11 +110,11 @@ qu'il sert ligne 47).
 
 ---
 
-## Module: cli-unique-niers.md
+## Module: cli-unique-nie.md
 
 ---
-name: cli-unique-niers
-description: niers est la seule CLI ; iecode (C++) et IECODE.CLI (.NET) sont derrière une façade
+name: cli-unique-nie
+description: nie est la seule CLI ; iecode (C++) et IECODE.CLI (.NET) sont derrière une façade
 metadata: 
   node_type: memory
   type: project
@@ -122,7 +122,7 @@ metadata:
   modified: 2026-08-11T01:48:06.704Z
 ---
 
-`niers cpp <args>` → binaire C++ `iecode` · `niers cs <args>` → `IECODE.CLI` .NET · `niers backends` → ce qui est construit et où. Code : `crates/tools/nie-cli/src/delegate.rs`. Surcharges `NIE_IECODE_EXE` / `NIE_IECODE_DLL`.
+`nie cpp <args>` → binaire C++ `iecode` · `nie cs <args>` → `IECODE.CLI` .NET · `nie backends` → ce qui est construit et où. Code : `crates/tools/nie-cli/src/delegate.rs`. Surcharges `NIE_IECODE_EXE` / `NIE_IECODE_DLL`.
 
 **Why:** supprimer les deux CLI d'un trait perdrait ~60 commandes ; la façade permet de porter commande par commande sans rien casser.
 
@@ -134,7 +134,7 @@ metadata:
 
 ---
 name: depot-sappelle-nie
-description: "Le dépôt s'appelle nie (aphrody-code/nie), pas niers ; la CLI reste niers"
+description: "Le dépôt s'appelle nie (aphrody-code/nie), pas nie ; la CLI reste nie"
 metadata: 
   node_type: memory
   type: project
@@ -146,7 +146,7 @@ Remote : `https://github.com/aphrody-code/nie.git`. Paquet Bun racine : `nie-mon
 
 **Why:** le dépôt porte le nom de sa cible, `nie.exe`, depuis l'unification des quatre implémentations.
 
-**How to apply:** le binaire CLI **reste `niers`** — `nie` seul désignerait le binaire du jeu, que la forge produit dans `dist/nie.exe`. Ne pas renommer `var/niers.sqlite` ni `tools/niers` (addon Blender). Voir [[doctrine-polyglotte]].
+**How to apply:** le binaire CLI **reste `nie`** — `nie` seul désignerait le binaire du jeu, que la forge produit dans `dist/nie.exe`. Ne pas renommer `var/nie.sqlite` ni `tools/nie` (addon Blender). Voir [[doctrine-polyglotte]].
 
 ---
 
@@ -212,7 +212,7 @@ Ne pas écrire dans les `.md` : dates de session, « avant c'était… », réci
 
 ---
 name: doctrine-polyglotte
-description: "Répartition des rôles entre C++, C#, Rust et Bun dans le dépôt unifié niers"
+description: "Répartition des rôles entre C++, C#, Rust et Bun dans le dépôt unifié nie"
 metadata: 
   node_type: memory
   type: project
@@ -224,12 +224,12 @@ Un rôle, un langage :
 
 - **C++** (`src/`) — C décompilé → jeu `nie` jouable, et libs qui n'existent qu'en C++ (assimp, Bullet, driver kernel). **Rien d'autre.**
 - **C#** (`csharp/`) — dump, pack, memory, conversion de texture.
-- **Rust** (`crates/`) — la **seule CLI** (`niers`), GUI, core lib, wasm, RE, byte-exact.
+- **Rust** (`crates/`) — la **seule CLI** (`nie`), GUI, core lib, wasm, RE, byte-exact.
 - **Bun/TS** (`packages/`, `apps/`) — MCP, serveur web, types, API, UI.
 
 **Why:** décidé par le propriétaire les 2026-08-11. La conversion de texture C++ est la moins bonne des trois (Rust et C# dominent) : ne pas l'étendre. Le driver mémoire reste C++ (kernel, signature).
 
-**How to apply:** une commande nouvelle s'écrit en Rust, jamais dans les CLI C++/C#. Le registre des portages en cours est `docs/PORTAGES.md`. Voir [[cli-unique-niers]].
+**How to apply:** une commande nouvelle s'écrit en Rust, jamais dans les CLI C++/C#. Le registre des portages en cours est `docs/PORTAGES.md`. Voir [[cli-unique-nie]].
 
 ---
 
@@ -245,7 +245,7 @@ metadata:
   modified: 2026-08-10T20:01:10.804Z
 ---
 
-Depuis le 2026-08-10, l'objectif de niers est double : le moteur Rust **et** une chaîne qui
+Depuis le 2026-08-10, l'objectif de nie est double : le moteur Rust **et** une chaîne qui
 **produit** `nie.exe` identique au byte près. La forge (`crates/forge/`, doc `docs/FORGE.md`) est le
 **juge** : un portage qui ne fait pas bouger son chiffre n'a rien prouvé.
 
@@ -269,7 +269,7 @@ rien.
 Résidu : sections de données `.rdata` (4,4 Mo) et `.data` (2,4 Mo) — à modéliser, pas à décoder ;
 puis le palier **G5**, la forge calculant sa propre disposition mémoire, intact.
 
-`niers.sqlite` est branché (`nie_forge::redb`) : il nomme les corps produits et la forge le contredit
+`nie.sqlite` est branché (`nie_forge::redb`) : il nomme les corps produits et la forge le contredit
 en retour — `pdata_roots_db=50674` vs `pdata_roots_forge=55351`, écart publié à chaque relevé.
 
 ---
@@ -323,7 +323,7 @@ dans `cpp/decomp/functions/*.c`, annotées `/* @nie 0x… */`. Cf. [[forge-produ
 
 ---
 name: no-claude-attribution
-description: "Ne jamais faire apparaître Claude/Anthropic comme auteur, co-auteur, contributeur ou dans un texte du repo niers"
+description: "Ne jamais faire apparaître Claude/Anthropic comme auteur, co-auteur, contributeur ou dans un texte du repo nie"
 metadata: 
   node_type: memory
   type: feedback
@@ -332,9 +332,9 @@ metadata:
 ---
 
 Interdiction absolue et permanente : ne jamais me mettre (Claude / Anthropic) comme
-co-auteur, contributeur ou collaborateur du repo `niers`, ni écrire mon nom dans un
+co-auteur, contributeur ou collaborateur du repo `nie`, ni écrire mon nom dans un
 texte du dépôt (commit, PR, README, code), ni apparaître dans
-`github.com/aphrody-code/niers/graphs/contributors`.
+`github.com/aphrody-code/nie/graphs/contributors`.
 
 **Pourquoi** : demande explicite et véhémente de l'utilisateur (« c'est grave c'est du
 viol ») après avoir constaté "Claude Sonnet 5" comme co-auteur sur GitHub via les
@@ -350,7 +350,7 @@ Claude Code » dans les corps de PR.
   réécrit via `git filter-repo --message-callback` (uvx git-filter-repo, script de
   callback en Python) pour retirer rétroactivement ces mentions, puis force-push sur
   origin (main + 2 branches feature + 3 tags v0.1.0/v0.2.0/v0.3.0). Corps des PR #1/#2
-  nettoyés via `gh pr edit`. Vérifié via `gh api repos/aphrody-code/niers/contributors`
+  nettoyés via `gh pr edit`. Vérifié via `gh api repos/aphrody-code/nie/contributors`
   → un seul contributeur (aphrody-code).
 - Limite connue : `refs/pull/{1,2}/head` sont des refs GitHub en lecture seule
   (rejet "deny updating a hidden ref") — impossible à réécrire, cosmétique seulement,
@@ -426,7 +426,7 @@ machine. Ce qui fonctionne à la place :
 
 ---
 name: toujours-release-apres-livraison
-description: "After a niers delivery, update the release metadata and publish only when explicitly requested"
+description: "After a nie delivery, update the release metadata and publish only when explicitly requested"
 metadata: 
   node_type: memory
   type: feedback
@@ -448,9 +448,9 @@ contrôle de taille plancher), commit `chore(release): bump X.Y.Z`, tag, push, p
 
 - Choisir la version en semver sur le contenu réel : correctif seul → patch, fonctionnalité
   ajoutée → mineur.
-- `nie.aphrody.com/tools/niers` and `/latest.json` are served by the Rust site release.
+- `nie.aphrody.com/tools/nie` and `/latest.json` are served by the Rust site release.
 - Prérequis : arbre de travail **entièrement propre** (le garde-fou regarde aussi les fichiers
-  non suivis), branche `main`, `gh` authentifié, clé `~/.tauri/niers.key`.
+  non suivis), branche `main`, `gh` authentifié, clé `~/.tauri/nie.key`.
 
 **Why:** demande explicite de l'utilisateur — s'arrêter au push laisse le travail invisible pour
 qui utilise l'application ; l'updater Tauri et la page de téléchargement ne voient qu'une release.
@@ -465,7 +465,7 @@ attendre l'autorisation. Voir [[workflow-main-direct]] et
 
 ---
 name: workflow-main-direct
-description: "Toujours travailler directement sur main du repo niers — jamais de branches feature ni de PR, add/commit/push automatique"
+description: "Toujours travailler directement sur main du repo nie — jamais de branches feature ni de PR, add/commit/push automatique"
 metadata: 
   node_type: memory
   type: feedback
@@ -473,7 +473,7 @@ metadata:
   modified: 2026-08-08T19:47:29.273Z
 ---
 
-Sur le repo `niers`, interdiction d'utiliser des branches feature ou des Pull Requests
+Sur le repo `nie`, interdiction d'utiliser des branches feature ou des Pull Requests
 pour du travail courant. Toujours : `git add` + `git commit` + `git push` directement
 sur `main`, sans demander confirmation, à chaque étape/jalon terminé.
 
@@ -499,10 +499,10 @@ de flux).
 
 ---
 
-## Module: niers-cinema-ietv-architecture.md
+## Module: nie-cinema-ietv-architecture.md
 
 ---
-name: niers-cinema-ietv-architecture
+name: nie-cinema-ietv-architecture
 description: "Architecture du Cinéma de nie-explorer et du catalogue ietv — les quatre couches à traverser, les chiffres mesurés, et où chacune ment"
 metadata: 
   node_type: memory
@@ -514,7 +514,7 @@ metadata:
 Mesuré le 2026-09-03. La vue Cinéma (`apps/nie-explorer/src/components/CinemaView.tsx`, ~1800 lignes)
 Les anciennes couches IETV ont été retirées du workspace ; une correction ne doit désormais
 viser que le propriétaire Rust/Bun canonique et sa surface d'API, sans recréer ces couches.
-jamais à l'écran. C'est l'erreur que j'ai commise trois fois — cf. [[niers-erreurs-a-ne-plus-refaire]].
+jamais à l'écran. C'est l'erreur que j'ai commise trois fois — cf. [[nie-erreurs-a-ne-plus-refaire]].
 
 **1. La base.** `data/anime/episodes.db`. Deux tables :
 - `episodes` : **931 lignes pour 355 épisodes réels** — une ligne par (chaîne, saison, numéro, langue).
@@ -538,18 +538,18 @@ saison — et Outer Code / Ares / Orion repartent de 1. `titreCourt()` (`lib/ser
 préfixe à la présentation ; la donnée brute reste intacte.
 
 **4. Quelle base est réellement lue.** `default_anime_db` (`src-tauri/src/lib.rs:1193`) essaie dans
-l'ordre : `NIE_ANIME_DB` → `%APPDATA%\dev.niers.explorer\db\episodes.db` → `<dépôt>/data/anime/`.
+l'ordre : `NIE_ANIME_DB` → `%APPDATA%\dev.nie.explorer\db\episodes.db` → `<dépôt>/data/anime/`.
 **La base d'APPDATA prime** : migrer celle du dépôt ne change RIEN dans l'app tant qu'on ne la
 copie pas (`sqlite3 src ".backup 'C:/chemin/windows'"` — `sqlite3` est un binaire Windows, il ne
 résout pas les chemins MSYS).
 
 ---
 
-## Module: niers-erreurs-a-ne-plus-refaire.md
+## Module: nie-erreurs-a-ne-plus-refaire.md
 
 ---
-name: niers-erreurs-a-ne-plus-refaire
-description: "Les quatre erreurs commises sur le Cinéma de niers le 2026-09-03, et la vérification qui les aurait toutes évitées"
+name: nie-erreurs-a-ne-plus-refaire
+description: "Les quatre erreurs commises sur le Cinéma de nie le 2026-09-03, et la vérification qui les aurait toutes évitées"
 metadata: 
   node_type: memory
   type: feedback
@@ -558,7 +558,7 @@ metadata:
 ---
 
 L'utilisateur, le 2026-09-03 : « arrête de faire les mêmes erreurs, va au bout des choses ».
-Quatre erreurs, la même cause. Contexte technique : [[niers-cinema-ietv-architecture]].
+Quatre erreurs, la même cause. Contexte technique : [[nie-cinema-ietv-architecture]].
 
 **1. Annoncer une correction sans l'avoir vue à l'écran.** J'ai annoncé la barre de recherche
 « mise en avant » (loupe, bordure, largeur). Elle n'était pas rendue DU TOUT. Le test qui l'a
@@ -593,10 +593,10 @@ intermédiaire.
 
 ---
 
-## Module: niers-live-modding-nie-trace.md
+## Module: nie-live-modding-nie-trace.md
 
 ---
-name: niers-live-modding-nie-trace
+name: nie-live-modding-nie-trace
 description: "Comment modder IEVR en direct — recettes nie-mem, structure de l'équipe active, et le piège des faux positifs de scan"
 metadata: 
   node_type: memory
@@ -627,15 +627,15 @@ CRC-32 du nom) : `charaParamId` +0x00, `uniformId` +0x04, `shoesId` +0x08, `glov
 `emblemId` +0x10, `uniformNo` +0x14, `scPosNo` +0x16, `isCaptain` +0x17. Le roster porte **deux
 `uniformId`** (deux tenues) : une garde ne couvre qu'une tenue, prévoir les deux jeux de règles.
 
-Voir [[niers-toujours-commit-push-build-lancer]].
+Voir [[nie-toujours-commit-push-build-lancer]].
 
 ---
 
-## Module: niers-toujours-commit-push-build-lancer.md
+## Module: nie-toujours-commit-push-build-lancer.md
 
 ---
-name: niers-toujours-commit-push-build-lancer
-description: "Sur le dépôt niers, terminer chaque session de travail par commit sur main + push + build release complet + relance de nie-explorer, sans le demander"
+name: nie-toujours-commit-push-build-lancer
+description: "Sur le dépôt nie, terminer chaque session de travail par commit sur main + push + build release complet + relance de nie-explorer, sans le demander"
 metadata: 
   node_type: memory
   type: feedback
@@ -643,7 +643,7 @@ metadata:
   modified: 2026-08-29T18:02:45.556Z
 ---
 
-Sur le dépôt niers (`C:\Users\aphro\nie`), à la fin de chaque lot de travail : **tout commiter sur
+Sur le dépôt nie (`C:\Users\aphro\nie`), à la fin de chaque lot de travail : **tout commiter sur
 `main`**, **pousser**, **construire tout** (Rust release `cargo build --release --workspace`, FFI
 `bun run build:ffi`, puis l'app Tauri), et **relancer `nie-explorer` frais**. Sans attendre qu'on
 le demande, et sans demander l'autorisation.
@@ -657,14 +657,14 @@ tournant — pas quand il compile.
 Attention : l'arbre porte souvent des modifications d'**autres sessions parallèles** (vu sur
 `nie-viola`, `nie-cli/src/mod_cmd.rs`, `nie-formats/Cargo.toml`) — les commiter aussi puisque
 « tout », mais dans un commit distinct et en le disant, jamais mélangées à mon travail. Voir
-[[niers-live-modding-nie-trace]].
+[[nie-live-modding-nie-trace]].
 
 ---
 
-## Module: niers-vps-build-different.md
+## Module: nie-vps-build-different.md
 
 ---
-name: niers-vps-build-different
+name: nie-vps-build-different
 description: "Le VPS n'est joignable que par ovh-vps-ubuntu-direct, et sa base RE indexe un AUTRE build de nie.exe — fusionner par adresse corromprait la KB locale"
 metadata: 
   node_type: memory
@@ -673,11 +673,11 @@ metadata:
   modified: 2026-08-29T21:48:18.905Z
 ---
 
-Le VPS OVH (dépôt `~/niers`) n'est joignable que par l'alias SSH
+Le VPS OVH (dépôt `~/nie`) n'est joignable que par l'alias SSH
 `ovh-vps-ubuntu-direct` (51.77.147.152) : le tunnel WireGuard (`vps`, `ovh-vps`
 → 10.8.0.1) tombe en timeout depuis cette machine.
 
-**Sa base `var/niers.sqlite` (14 Go) indexe `nie_eacpatched.exe` sha
+**Sa base `var/nie.sqlite` (14 Go) indexe `nie_eacpatched.exe` sha
 `4c2b91fbae6f…` / 31 468 032 o — l'AUTRE build**, pas la cible locale
 `b1fa04ea3658…` / 33 918 464 o. Les `vaddr` ne correspondent donc pas :
 importer ses noms par adresse injecterait des symboles faux dans la KB locale.
@@ -701,7 +701,7 @@ binaire indexé, pas la taille de la base.
 `SELECT sha256 FROM binary` des deux côtés. S'ils diffèrent, n'importer que ce
 qui est indépendant des adresses (`hash_name`, `mode`, `cam_*`).
 
-Voir [[niers-toujours-commit-push-build-lancer]].
+Voir [[nie-toujours-commit-push-build-lancer]].
 
 ---
 
@@ -741,11 +741,11 @@ L'utilisateur me considère comme le super administrateur de son PC personnel (W
 
 ---
 
-## Module: niers-data-menu-pipeline.md
+## Module: nie-data-menu-pipeline.md
 
 ---
-name: niers-data-menu-pipeline
-description: "niers — data/menu (33 captures des menus du jeu, SUIVI par git, dépôt public assumé) alimente nie-ui puis nie-web/inacord-ui ; jamais nie-web directement"
+name: nie-data-menu-pipeline
+description: "nie — data/menu (33 captures des menus du jeu, SUIVI par git, dépôt public assumé) alimente nie-ui puis nie-web/inacord-ui ; jamais nie-web directement"
 metadata:
   node_type: memory
   type: project
@@ -754,7 +754,7 @@ metadata:
 ---
 
 Décidé par l'utilisateur le 2026-09-06 (goal « @data/menu to nie-ui to nie web* »), corrigé le
-2026-09-07 : `C:\Users\aphro\niers\data\menu\` = 33 captures 2560×1440 du vrai jeu (main_menu,
+2026-09-07 : `C:\Users\aphro\nie\data\menu\` = 33 captures 2560×1440 du vrai jeu (main_menu,
 filters_*, options, controls, shop…) + `manifest.json`.
 
 **Ce répertoire est SUIVI par git** (35 fichiers, commit `a0d464d6`) et poussé sur
@@ -796,7 +796,7 @@ Note : `bun` n'est PAS dans le PATH du shell SSH non-login → utiliser `/home/u
 
 Services systemd hébergés (units dans /etc/systemd/system) : `nie-site`, `nie-miroir`, `nie-cron`, `rg-mcp`, `rg-cdn`, `nie-model-serve`, and the separately managed infrastructure services.
 
-**Tendance au disque plein** (`/` à 100 % le 2026-06-19, root cause d'effondrement en cascade). Gros postes : `niers/target` (cache build Rust ~31 Go, régénérable), `.local/Steam/iecode/inazuma` (~71 Go de packs .cpk), `niers/data` (6,8 Go). Le memfd 47 Go d'iecode-cdn (bun doublemapper) est de la mémoire virtuelle, PAS du disque.
+**Tendance au disque plein** (`/` à 100 % le 2026-06-19, root cause d'effondrement en cascade). Gros postes : `nie/target` (cache build Rust ~31 Go, régénérable), `.local/Steam/iecode/inazuma` (~71 Go de packs .cpk), `nie/data` (6,8 Go). Le memfd 47 Go d'iecode-cdn (bun doublemapper) est de la mémoire virtuelle, PAS du disque.
 
 **Bugs applicatifs connus (non résolus, code de l'utilisateur)** : external infrastructure failures remain outside the Rust IEVR path and must be measured from the live service before acting.
 
@@ -1171,7 +1171,7 @@ metadata:
 
 **Shenron n'est PAS sur le VPS principal.** Il vit sur un second VPS, alias SSH
 `dbfr` dans `~/.ssh/config`. Le VPS `ovh-vps`/`vps` (WireGuard `10.8.0.1`,
-direct `51.77.147.152`) heberge bxc/niers/rg/achillea, mais aucun repo shenron —
+direct `51.77.147.152`) heberge bxc/nie/rg/achillea, mais aucun repo shenron —
 seulement des vestiges (timers systemd, `/var/backups/shenron.conf.*`).
 
 Sur `dbfr` : `~/shenron` (monorepo Bun, site Next sur `apps/site`), `~/bxc`,

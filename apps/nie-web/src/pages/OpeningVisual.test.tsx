@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
-import { AssetSourceProvider } from "@niers/inacord-ui";
+import { AssetSourceProvider } from "@nie/inacord-ui";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Game } from "./Game";

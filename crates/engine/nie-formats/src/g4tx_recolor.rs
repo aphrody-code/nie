@@ -3,8 +3,8 @@
 //!
 //! Ce module est le seul endroit du dépôt qui reconstruit un conteneur G4TX en ne remplaçant
 //! qu'une partie de ses textures : [`reencode_with_payloads`] recopie **octet pour octet** les
-//! charges non touchées et reporte toutes les régions d'atlas, et `niers mod texture` comme
-//! `niers mod recolor` passent par lui. Deux reconstructions dériveraient.
+//! charges non touchées et reporte toutes les régions d'atlas, et `nie mod texture` comme
+//! `nie mod recolor` passent par lui. Deux reconstructions dériveraient.
 //!
 //! ## Pourquoi la recoloration accepte les atlas, là où le remplacement les refuse
 //!
@@ -169,7 +169,7 @@ pub struct Recoloration {
 ///
 /// Les textures recolorées ressortent en **BGRA8 non compressé** : le conteneur est reconstruit,
 /// donc les offsets sont recalculés et un changement de taille ne casse rien. C'est le même
-/// choix que `niers mod texture`.
+/// choix que `nie mod texture`.
 ///
 /// # Errors
 ///

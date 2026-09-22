@@ -1,4 +1,4 @@
-//! Indexation de tout le savoir caméra dans la base de connaissance `var/niers.sqlite`.
+//! Indexation de tout le savoir caméra dans la base de connaissance `var/nie.sqlite`.
 //!
 //! Remplit les tables `cam_*` créées par la migration `nie_index::CAMERA_SCHEMA` :
 //!

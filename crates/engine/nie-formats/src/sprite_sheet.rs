@@ -153,7 +153,7 @@ impl SpriteSheet {
         let url = echapper_url(image_url);
         let mut css = String::new();
         css.push_str(&format!(
-            "/* {} — {} région(s), atlas {}×{}. Généré par niers. */\n",
+            "/* {} — {} région(s), atlas {}×{}. Généré par nie. */\n",
             self.nom,
             self.sprites.len(),
             self.largeur,

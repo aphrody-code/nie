@@ -210,7 +210,7 @@ fn valid_file_metadata(reference: &OcReference, maximum: usize) -> bool {
 
 #[cfg(feature = "serde")]
 fn validate_oc_document(document: &OcAvatarDocument) -> bool {
-    document.schema == "niers.oc.avatar-document/v1"
+    document.schema == "nie.oc.avatar-document/v1"
         && valid_player_identifier(&document.slug)
         && document
             .internal_code
@@ -308,7 +308,7 @@ pub fn export_avatar_oc_document(
         reason: error.to_string(),
     })?;
     let document = OcAvatarDocument {
-        schema: "niers.oc.avatar-document/v1".into(),
+        schema: "nie.oc.avatar-document/v1".into(),
         slug: metadata.slug,
         internal_code: metadata.internal_code,
         avatar_state: state.clone(),
@@ -829,7 +829,7 @@ mod tests {
             "physical":242,"agility":256,"intelligence":279
         });
         let oc = serde_json::json!({
-            "schema": "niers.oc.avatar-document/v1",
+            "schema": "nie.oc.avatar-document/v1",
             "slug": "new-oc",
             "internalCode": null,
             "avatarState": oc_state,
@@ -890,7 +890,7 @@ mod tests {
         const SHA256: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
         let document = |kind: &str, value: &str, bytes: Option<usize>, sha256: Option<&str>| {
             serde_json::json!({
-                "schema": "niers.oc.avatar-document/v1",
+                "schema": "nie.oc.avatar-document/v1",
                 "slug": "bounded-reference",
                 "internalCode": null,
                 "avatarState": AvatarState::default(),
@@ -1004,7 +1004,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(document.schema, "niers.oc.avatar-document/v1");
+        assert_eq!(document.schema, "nie.oc.avatar-document/v1");
         assert_eq!(document.avatar_state.profile.kick, Some(120));
         assert_eq!(document.references[0].bytes, Some(4096));
 

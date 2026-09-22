@@ -205,7 +205,7 @@ Results:
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — VFS paths and icon resource CRC32 hashes
 - `function` — G4TX texture decoder and memory mapping routines in `nie.exe`
 - `xref` — texture lookup xrefs

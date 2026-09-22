@@ -31,7 +31,7 @@ INVENTAIRE="$RACINE/var/vfs/inventaire.txt"
 
 [ -f "$INVENTAIRE" ] || { echo "inventaire absent: $INVENTAIRE" >&2; exit 1; }
 
-# Le chemin se lit en retirant les DEUX derniers champs (taille, cpk) : des chemins du VFS
+# Le chemin se lit en retirant les DEUX dernie champs (taille, cpk) : des chemins du VFS
 # contiennent un espace, et un decoupage par espaces croissants les casse.
 CHEMINS=$(mktemp); trap 'rm -f "$CHEMINS"' EXIT
 sed -E 's/ [0-9]+ \[[^]]*\]$//; s/ [0-9]+ \[?[^ ]*\]?$//' "$INVENTAIRE" > "$CHEMINS"

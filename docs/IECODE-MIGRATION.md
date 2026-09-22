@@ -1,13 +1,13 @@
 # IECODE migration ledger
 
-`niers` is now the only implementation shipped in this repository. The former native and .NET
+`nie` is now the only implementation shipped in this repository. The former native and .NET
 toolkits were exported at their final tested revisions to [iecode-cpp](https://github.com/aphrody-code/iecode-cpp)
 and [iecode-csharp](https://github.com/aphrody-code/iecode-csharp). They remain historical references,
 not build dependencies.
 
 ## Mapping
 
-| Legacy area | Rust owner in `niers` | Migration status | Compatibility evidence |
+| Legacy area | Rust owner in `nie` | Migration status | Compatibility evidence |
 |---|---|---|---|
 | CPK/CRI-FS, UTF, ACB/AWB/USM, ADX/HCA | `nie-formats` | complete | format unit tests and real-fixture gates |
 | Level-5 CFG/RDBN/T2B, G4*, OBJBIN, MEVBIN, NAVM, P3LIP | `nie-formats` | complete for supported formats | parser tests, VFS dispatch, coverage matrix |
@@ -19,7 +19,7 @@ not build dependencies.
 | RE/index/dump/trace tooling | `nie-re`, `nie-dump`, `nie-index`, `nie-trace`, `nie-forge` | complete for the current workflows | workspace gates and forge identity report |
 | native FFI and Bun/WASM integration | `nie-ffi`, `nie-wasm`, `packages/nie-plugin` | complete | FFI build and Bun type/test gates |
 | C++ runtime/gameplay prototype | no shipped replacement; `nie-game` is the maintained runtime boundary | retired from this repository | retained only in the dedicated historical repository |
-| .NET CLI façade | `nie-cli` | retired; all maintained commands are native Rust | `scripts/sync-gamedata.ts` uses `niers` directly |
+| .NET CLI façade | `nie-cli` | retired; all maintained commands are native Rust | `scripts/sync-gamedata.ts` uses `nie` directly |
 
 ## Retired build surface
 

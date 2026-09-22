@@ -23,9 +23,9 @@ Two goals, and only two:
 | `inacord-gui` | native Rust desktop | one GUI replacing the CLI surface | **does not exist** — `apps/inacord` is Tauri + React (`packages/inacord-ui`) |
 | `inacord-mobile` | Rust mobile | native mobile runtime and UI | **does not exist** |
 | `inacord-api` | Rust `axum` / `tokio` | network services, RPC, endpoints | `crates/tools/nie-site` (axum 0.8) and `crates/tools/nie-model-serve` already are this, under other names |
-| `inacord-mcp` | Rust MCP (`rmcp`, stdio) | every tool exposed to LLMs | `crates/tools/nie-mcp` + `niers mcp` expose 56 native tools; `packages/nie-bridge` now retains only the WebView client contract |
-| legacy Azalée tools | Rust libraries plus thin Inacord bindings | absorb the offline wiki CLI and headless tooling without absorbing the Azalée editorial product | `@niers/azalee-tools` is still Bun/TypeScript: **24 top-level commands**, 7 nested `data` commands and 41 headless routes; its compatibility baseline is 197 tests passed, 5 skipped, 0 failed on 2026-09-07 |
-| `inacord-blender` | C-ABI / FFI / IPC | the Blender bridge | `plugins/niers-blender` (Python add-on) + `crates/engine/nie-ffi` (`cdylib`) — the two are not yet joined |
+| `inacord-mcp` | Rust MCP (`rmcp`, stdio) | every tool exposed to LLMs | `crates/tools/nie-mcp` + `nie mcp` expose 56 native tools; `packages/nie-bridge` now retains only the WebView client contract |
+| legacy Azalée tools | Rust libraries plus thin Inacord bindings | absorb the offline wiki CLI and headless tooling without absorbing the Azalée editorial product | `@nie/azalee-tools` is still Bun/TypeScript: **24 top-level commands**, 7 nested `data` commands and 41 headless routes; its compatibility baseline is 197 tests passed, 5 skipped, 0 failed on 2026-09-07 |
+| `inacord-blender` | C-ABI / FFI / IPC | the Blender bridge | `plugins/nie-blender` (Python add-on) + `crates/engine/nie-ffi` (`cdylib`) — the two are not yet joined |
 
 ## The rule that makes it worth doing
 
@@ -86,4 +86,4 @@ not counted as successes.
 
 Every file, folder, variable, type, URL, slug and JSON key is in **English**. French is only for
 prose addressed to the user. Frozen product names are the exception: Azalée, Inacord, nie,
-`niers`, `nie-*`, `inagle_*`.
+`nie`, `nie-*`, `inagle_*`.

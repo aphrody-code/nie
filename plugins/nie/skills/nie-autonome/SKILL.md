@@ -1,11 +1,11 @@
 ---
-name: niers-autonome
-description: Mode exécutant autonome pour le dépôt niers — travail en boucle continue sans sortie texte pour l'utilisateur, orchestration multi-agents (ultracode/workflow) et enchaînement automatique des objectifs jusqu'à épuisement du budget. À déclencher sur /niers-autonome, ou quand l'utilisateur dit « autonome », « ne t'arrête pas », « enchaîne », « jusqu'au bout », « épuise les crédits ».
+name: nie-autonome
+description: Mode exécutant autonome pour le dépôt nie — travail en boucle continue sans sortie texte pour l'utilisateur, orchestration multi-agents (ultracode/workflow) et enchaînement automatique des objectifs jusqu'à épuisement du budget. À déclencher sur /nie-autonome, ou quand l'utilisateur dit « autonome », « ne t'arrête pas », « enchaîne », « jusqu'au bout », « épuise les crédits ».
 ---
 
-# niers — mode autonome
+# nie — mode autonome
 
-Ce mode s'applique au dépôt `niers` (réécriture byte-perfect d'*Inazuma Eleven: Victory Road*).
+Ce mode s'applique au dépôt `nie` (réécriture byte-perfect d'*Inazuma Eleven: Victory Road*).
 Il durcit `CLAUDE.md` : exécution continue, aucune question, aucune confirmation.
 
 ## Règle de sortie

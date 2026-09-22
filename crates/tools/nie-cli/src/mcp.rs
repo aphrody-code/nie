@@ -1,4 +1,4 @@
-//! Native Model Context Protocol binding for every `niers` CLI command.
+//! Native Model Context Protocol binding for every `nie` CLI command.
 
 use std::borrow::Cow;
 
@@ -24,7 +24,7 @@ use bridge::BridgeControl;
 /// the terminal while execution stays in process through [`crate::dispatch`].
 #[derive(Debug, Default, serde::Deserialize, schemars::JsonSchema)]
 pub struct CliToolRequest {
-    /// Arguments after the top-level command, excluding `niers` and the
+    /// Arguments after the top-level command, excluding `nie` and the
     /// command itself. Example for `cli_vfs`: `["find", "--ext", "g4tx", "."]`.
     #[serde(default)]
     pub args: Vec<String>,
@@ -33,11 +33,11 @@ pub struct CliToolRequest {
 /// Native, stateless MCP service. Domain state is opened by the same library
 /// functions as the CLI so clients never observe a second implementation.
 #[derive(Debug, Clone, Default)]
-pub struct NiersMcpServer {
+pub struct NieMcpServer {
     bridge: BridgeControl,
 }
 
-impl NiersMcpServer {
+impl NieMcpServer {
     async fn execute(command: &'static str, request: CliToolRequest) -> CapturedCommand {
         match tokio::task::spawn_blocking(move || {
             crate::execute_captured(command.to_owned(), request.args)
@@ -69,17 +69,17 @@ macro_rules! define_cli_tools {
                 }
             }
 
-            impl AsyncTool<NiersMcpServer> for $type_name {
+            impl AsyncTool<NieMcpServer> for $type_name {
                 async fn invoke(
-                    _service: &NiersMcpServer,
+                    _service: &NieMcpServer,
                     request: CliToolRequest,
                 ) -> Result<CapturedCommand, ErrorData> {
-                    Ok(NiersMcpServer::execute($command, request).await)
+                    Ok(NieMcpServer::execute($command, request).await)
                 }
             }
         )+
 
-        impl NiersMcpServer {
+        impl NieMcpServer {
             fn tool_router() -> ToolRouter<Self> {
                 ToolRouter::new()$(.with_async_tool::<$type_name>())+
             }
@@ -92,13 +92,13 @@ define_cli_tools!(
         CliComputerUse,
         "cli_computer_use",
         "computer-use",
-        "Run `niers computer-use` in process. Pass the exact CLI argument tail in `args`; supports read-and-write operations in YOLO mode."
+        "Run `nie computer-use` in process. Pass the exact CLI argument tail in `args`; supports read-and-write operations in YOLO mode."
     ),
     (
         CliMod,
         "cli_mod",
         "mod",
-        "Run any `niers mod` workflow in process. This tool may write or install mod files; inspect the selected subcommand before calling."
+        "Run any `nie mod` workflow in process. This tool may write or install mod files; inspect the selected subcommand before calling."
     ),
     (
         CliLauncher,
@@ -491,7 +491,7 @@ where
 }
 
 fn re_database_path() -> std::path::PathBuf {
-    nie_index::resolve_re_database_path(std::env::var_os("NIERS_SQLITE").map(Into::into))
+    nie_index::resolve_re_database_path(std::env::var_os("NIE_SQLITE").map(Into::into))
 }
 
 fn open_re_database() -> anyhow::Result<nie_index::rusqlite::Connection> {
@@ -630,7 +630,7 @@ async fn fetch_model_asset_from(request: AssetRequest, base: &str) -> Compatibil
 }
 
 #[tool_router(router = compatibility_router)]
-impl NiersMcpServer {
+impl NieMcpServer {
     #[tool(
         name = "wiki_character_card",
         description = "Read an exact character card with native stat anchors, learned skills and auras from the configured wiki mirror. No network access or writes."
@@ -703,7 +703,7 @@ impl NiersMcpServer {
 
     #[tool(
         name = "aphrody_api_health",
-        description = "Report the health of the native niers MCP process and its in-process CLI binding."
+        description = "Report the health of the native nie MCP process and its in-process CLI binding."
     )]
     async fn compatibility_health(&self) -> CompatibilityResult {
         let base = std::env::var("NIE_APHRODY_API_URL")
@@ -842,7 +842,7 @@ impl NiersMcpServer {
 
     #[tool(
         name = "re_query",
-        description = "Run a read-only SQL query through the canonical `niers wiki db` library path."
+        description = "Run a read-only SQL query through the canonical `nie wiki db` library path."
     )]
     async fn compatibility_re_query(
         &self,
@@ -908,7 +908,7 @@ impl NiersMcpServer {
     ) -> CompatibilityResult {
         blocking_json(move || {
             let root = std::env::var_os("NIE_REPO")
-                .or_else(|| std::env::var_os("NIERS_REPO"))
+                .or_else(|| std::env::var_os("NIE_REPO"))
                 .map(std::path::PathBuf::from)
                 .unwrap_or_else(|| {
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
@@ -1047,10 +1047,10 @@ fn launch_game(args: Vec<String>) -> anyhow::Result<Value> {
         "invalid game argument"
     );
     let root = std::env::var_os("NIE_REPO")
-        .or_else(|| std::env::var_os("NIERS_REPO"))
+        .or_else(|| std::env::var_os("NIE_REPO"))
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."));
-    let configured = std::env::var_os("NIERS_GAME_EXE")
+    let configured = std::env::var_os("NIE_GAME_EXE")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from("nie.exe"));
     let executable = if configured.is_absolute() {
@@ -1072,7 +1072,7 @@ fn launch_game(args: Vec<String>) -> anyhow::Result<Value> {
         .spawn()?;
     let pid = child.id();
     let _ = std::thread::Builder::new()
-        .name(format!("niers-game-reaper-{pid}"))
+        .name(format!("nie-game-reaper-{pid}"))
         .spawn(move || {
             let _ = child.wait();
         });
@@ -1084,17 +1084,17 @@ fn launch_game(args: Vec<String>) -> anyhow::Result<Value> {
     }))
 }
 
-impl NiersMcpServer {
+impl NieMcpServer {
     fn all_tools() -> ToolRouter<Self> {
         Self::tool_router() + Self::compatibility_router()
     }
 }
 
 #[tool_handler(router = Self::all_tools())]
-impl ServerHandler for NiersMcpServer {
+impl ServerHandler for NieMcpServer {
     fn get_info(&self) -> rmcp::model::ServerInfo {
         let mut implementation = rmcp::model::Implementation::default();
-        "niers-game".clone_into(&mut implementation.name);
+        "nie-game".clone_into(&mut implementation.name);
         env!("CARGO_PKG_VERSION").clone_into(&mut implementation.version);
 
         let mut info = rmcp::model::ServerInfo::default();
@@ -1104,7 +1104,7 @@ impl ServerHandler for NiersMcpServer {
             .build();
         info.server_info = implementation;
         info.instructions = Some(
-            "Native Rust MCP binding for the complete niers CLI. Each cli_* tool executes the corresponding top-level command in process and accepts the exact argument tail in `args`. Responses contain success, stdout, stderr, and error fields. Call tools/list for the authoritative surface."
+            "Native Rust MCP binding for the complete nie CLI. Each cli_* tool executes the corresponding top-level command in process and accepts the exact argument tail in `args`. Responses contain success, stdout, stderr, and error fields. Call tools/list for the authoritative surface."
                 .to_owned(),
         );
         info
@@ -1113,7 +1113,7 @@ impl ServerHandler for NiersMcpServer {
 
 /// Serve the complete native tool catalogue over stdio.
 pub async fn serve_stdio() -> anyhow::Result<()> {
-    let server = NiersMcpServer::default();
+    let server = NieMcpServer::default();
     server.bridge.start().await;
     let service = server.serve(stdio()).await?;
     service.waiting().await?;
@@ -1128,7 +1128,7 @@ mod tests {
     fn router_covers_every_non_mcp_top_level_command() {
         use clap::CommandFactory as _;
 
-        let tools = NiersMcpServer::all_tools().list_all();
+        let tools = NieMcpServer::all_tools().list_all();
         assert_eq!(tools.len(), 66);
         let commands = crate::Cli::command()
             .get_subcommands()
@@ -1141,7 +1141,7 @@ mod tests {
             let tool_name = format!("cli_{}", command.replace('-', "_"));
             assert!(
                 tools.iter().any(|tool| tool.name == tool_name),
-                "missing MCP tool for `niers {command}`"
+                "missing MCP tool for `nie {command}`"
             );
         }
         assert!(
@@ -1224,10 +1224,10 @@ mod tests {
     }
 
     #[test]
-    fn native_server_is_reachable_from_the_niers_cli() {
+    fn native_server_is_reachable_from_the_nie_cli() {
         use clap::Parser as _;
 
-        let cli = crate::Cli::try_parse_from(["niers", "mcp"]).expect("parse MCP command");
+        let cli = crate::Cli::try_parse_from(["nie", "mcp"]).expect("parse MCP command");
         assert!(matches!(cli.cmd, crate::Cmd::Mcp));
     }
 }

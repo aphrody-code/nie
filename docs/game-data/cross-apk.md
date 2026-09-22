@@ -253,7 +253,7 @@ Contrairement aux familles issues du moteur Level-5 « Lives » (Victory Road), 
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — Cross-game internal character ID mappings
 - `function` — Criware and audio wrapper functions matching Cross's CriAtom assets
 - `xref` — cross-references to character and skill code lookups

@@ -84,8 +84,8 @@ enum Cmd {
     },
     /// Indexe tout le savoir caméra dans la base de connaissance (tables `cam_*`).
     Index {
-        /// Base SQLite (défaut : `var/niers.sqlite`).
-        #[arg(long, default_value = "var/niers.sqlite")]
+        /// Base SQLite (défaut : `var/nie.sqlite`).
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Racine du jeu (défaut : détection automatique).
         #[arg(long)]
@@ -106,7 +106,7 @@ enum Cmd {
     /// Affiche l'état de l'index caméra de la base.
     Stats {
         /// Base SQLite.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
     },
 }

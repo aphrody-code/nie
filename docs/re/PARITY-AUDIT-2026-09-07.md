@@ -3,7 +3,7 @@
 ## Canonical source
 
 The canonical repository is [aphrody-code/nie](https://github.com/aphrody-code/nie). The local
-checkout is `C:\Users\aphro\niers`, branch `main`, remote `origin` points to that repository.
+checkout is `C:\Users\aphro\nie`, branch `main`, remote `origin` points to that repository.
 The audited `nie-re`, `nie-dump`, `nie-trace`, and `nie-computer-use` paths have no local diff
 against `origin/main`.
 
@@ -14,7 +14,7 @@ against `origin/main`.
 | `crates/forge/nie-re/src/` | `nie-cli re`, RE examples, SQLite KB | `nie_re::{pdata,rtti,vtable,disasm,recover,...}` | keep |
 | `crates/forge/nie-dump/src/` | dump census and AOB scans | `nie_re::dump` re-export of `nie_dump` | keep |
 | `crates/forge/nie-trace/src/` | `nie mem`, `nie-mem`, `nie-edit` | typed Windows/Wine memory, scans, maps | keep; add Windows parity |
-| `crates/tools/nie-computer-use/src/` | `computer-use` probe and typed RE bridge | `NiersComputerUse` + `ReSession` | keep; identity and bounds verified |
+| `crates/tools/nie-computer-use/src/` | `computer-use` probe and typed RE bridge | `NieComputerUse` + `ReSession` | keep; identity and bounds verified |
 
 ## Gates
 
@@ -33,7 +33,7 @@ gates; writes, EAC patches, recipes and process launch remain separate explicit 
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — 117 068 functions of `nie.exe`
 - `coverage` — binary coverage rate
 - `pdata_func` — 55 351 authoritative function starts

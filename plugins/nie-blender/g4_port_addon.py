@@ -3126,7 +3126,7 @@ class LEVEL5_G4PORT_PT_panel(Panel):
     bl_idname = "LEVEL5_G4PORT_PT_panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "niers"  # Renommé 2026-08-08 — unifié avec niers_bridge.py sous un seul onglet.
+    bl_category = "nie"  # Renommé 2026-08-08 — unifié avec nie_bridge.py sous un seul onglet.
 
     def draw(self, context):
         layout = self.layout

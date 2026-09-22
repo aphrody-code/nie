@@ -2,9 +2,9 @@
  * Inacord Desktop Application — authoring, reverse engineering, and VFS workspace.
  * Kept exclusively for desktop / dev builds (mode === 'desktop').
  */
-import type { AssetSource, VueCatalogue } from "@niers/asset-source";
+import type { AssetSource, VueCatalogue } from "@nie/asset-source";
 import { creerDesktopSource } from "./lib/desktop-source";
-import { type SanteApi, sante } from "@niers/asset-source/nie-site";
+import { type SanteApi, sante } from "@nie/asset-source/nie-site";
 import {
 	AssetSourceProvider,
 	FournisseurNavigation,
@@ -12,9 +12,9 @@ import {
 	useApplySettings,
 	useCapacites,
 	useErreurSource,
-} from "@niers/inacord-ui";
-import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+} from "@nie/inacord-ui";
+import { createStandardGamepadMenuSampler } from "@nie/inacord-ui/shell/menu-interaction";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
 	AVATAR,

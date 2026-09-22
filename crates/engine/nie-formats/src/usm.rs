@@ -411,7 +411,7 @@ pub struct Usm {
     /// Total des octets vidéo — renseigné même quand les images ne sont pas retenues.
     pub octets_video: u64,
     /// Tables `@UTF` des blocs d'en-tête, dans l'ordre du fichier — la source de vérité du
-    /// conteneur, gardée telle quelle pour l'inspection (`niers video info --tables`).
+    /// conteneur, gardée telle quelle pour l'inspection (`nie video info --tables`).
     pub entetes: Vec<UtfTable>,
 }
 

@@ -9,8 +9,8 @@
  * Le chemin voyage en SEGMENTS : c'en est un, et `encodeURIComponent` est appliqué composant par
  * composant pour ne pas transformer les `/` du VFS en `%2F`.
  */
-import { fetchJson } from "@niers/asset-source";
-import type { ExportFormat } from "@niers/inacord-ui/gallery/contracts";
+import { fetchJson } from "@nie/asset-source";
+import type { ExportFormat } from "@nie/inacord-ui/gallery/contracts";
 
 /** Réponse de `/api/v1/export/formats/<chemin>`, recopiée du DTO servi. */
 interface ExportFormatsResponse {

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { fetchCharaCatalog, type CharaCatalogEntry } from "@niers/asset-source/chara";
-import type { AssetSource, EntityRow } from "@niers/asset-source";
-import { useAssetSource } from "@niers/inacord-ui/source";
-import type { AvatarCatalog, AvatarProfile, AvatarReferenceImport, AvatarState, OcReference } from "@niers/inacord-ui/avatar/contract";
+import { fetchCharaCatalog, type CharaCatalogEntry } from "@nie/asset-source/chara";
+import type { AssetSource, EntityRow } from "@nie/asset-source";
+import { useAssetSource } from "@nie/inacord-ui/source";
+import type { AvatarCatalog, AvatarProfile, AvatarReferenceImport, AvatarState, OcReference } from "@nie/inacord-ui/avatar/contract";
 import { exportAvatarOcDocument, importAvatarReference } from "../game/avatar-runtime";
 import { inspectModelGlb, replaceModelTextureGlb } from "../game/model-render";
 

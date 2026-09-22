@@ -35,7 +35,7 @@ that price on keeper, menu and match-sim.
   URLs, slugs, JSON keys, database columns, commit messages, code comments, documentation.
 - **French only for prose addressed to the user** — a summary or an explanation, in a
   conversation held in French. Never an identifier.
-- Frozen product names are the exception: Azalée, Inacord, nie, `niers`, `nie-*`, `inagle_*`.
+- Frozen product names are the exception: Azalée, Inacord, nie, `nie`, `nie-*`, `inagle_*`.
 - Existing debt is **not** migrated in one pass: an already-served API is renamed in a dedicated
   batch, never in passing.
 

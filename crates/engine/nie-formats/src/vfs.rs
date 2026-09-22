@@ -1586,7 +1586,7 @@ mod tests {
         assert!(vfs.find("data/oc/astro-lor/face-go.webp").is_some());
         assert!(vfs.find("data/oc/astro-lor/bd-page-1.webp").is_some());
 
-        // Sections 4, 5 and 5b assert on artefacts that `niers ocgen` writes into
+        // Sections 4, 5 and 5b assert on artefacts that `nie ocgen` writes into
         // `var/ocgen`, which is generated state no clean checkout carries. Assert each
         // family only where its generator has actually run, and name the ones skipped:
         // a silent skip would read exactly like a pass.

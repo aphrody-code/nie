@@ -1,4 +1,4 @@
-//! `niers video` — inventaire, mesure, remux et export des cinématiques du jeu.
+//! `nie video` — inventaire, mesure, remux et export des cinématiques du jeu.
 //!
 //! Les 97 films d'Inazuma Eleven: Victory Road (194 entrées VFS, chaque film étant présent sous
 //! `common/movie` et `dx11/movie`) sont des conteneurs **USM / Sofdec2** : du H.264 et du HCA
@@ -20,7 +20,7 @@
 //! l'entrelacement du conteneur USM (en-têtes de bloc de 32 octets, bourrage d'alignement sur 32,
 //! et la piste sonore quand elle est exportée à part). `info` et `export` chiffrent ce gain.
 //!
-//! Les trois codecs du corpus, mesurés par `niers video catalogue` : **75 H.264**, **20 MPEG-2**,
+//! Les trois codecs du corpus, mesurés par `nie video catalogue` : **75 H.264**, **20 MPEG-2**,
 //! **2 VP9**. Les MPEG-2 (les écrans-titres et les deux logos) n'ont pas de conteneur web — ils
 //! sortent en flux élémentaire `.m2v`, que VLC et mpv lisent.
 
@@ -31,7 +31,7 @@ use nie_explore::cinema::{self, Film};
 use nie_formats::usm::{self, Usm};
 use nie_formats::vfs::Vfs;
 
-/// Sous-commandes de `niers video`.
+/// Sous-commandes de `nie video`.
 #[derive(clap::Subcommand, Debug)]
 pub enum VideoCmd {
     /// Métadonnées d'un film + mesure du remux MP4 (dimensions, cadence, durée, gain).

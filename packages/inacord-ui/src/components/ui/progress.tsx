@@ -4,7 +4,7 @@
 // emploi. `null` (au lieu de spacedrive `pending`) = indéterminé, valeur native de base-ui.
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
 
-import { cn } from "@niers/inacord-ui/lib/utils"
+import { cn } from "@nie/inacord-ui/lib/utils"
 
 function Progress({
   className,

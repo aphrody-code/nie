@@ -2,7 +2,7 @@
 //! présence de l'extension DX10. Sert à diagnostiquer les textures « non servies » (le
 //! décodeur de `nie-model-serve` suppose un header DX10 ; un DDS legacy/uncompressed casse).
 //!
-//! Usage : `NIE_GAME_DIR=/home/aphrody/niers cargo run -p nie-model-serve --example probe_g4tx_dds -- <vfs-path>`
+//! Usage : `NIE_GAME_DIR=/home/aphrody/nie cargo run -p nie-model-serve --example probe_g4tx_dds -- <vfs-path>`
 
 use image_dds::{ImageFormat, Surface};
 use nie_formats::g4tx::parse as parse_g4tx;

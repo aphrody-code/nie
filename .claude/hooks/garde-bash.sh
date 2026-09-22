@@ -48,7 +48,7 @@ printf '%s' "$cmd" | grep -qE 'pkill[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*-f' && 
 # Le `[^;&|]*` est essentiel : avec `.*`, la regex traversait les separateurs et un
 # `rm -rf target/debug/x ; du -sh target/release` etait refuse a tort (vecu le 2026-09-02).
 printf '%s' "$cmd" | grep -qE 'rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*[[:space:]]+[^;&|]*target/release([[:space:]]|/|$)' && decision deny \
-  "target/release/ contient 20 binaires deja construits (niers, nie-forge, nie-game, nie-play…) qui evitent des rebuilds de plusieurs minutes. Supprime un binaire precis, ou nettoie target/debug/{incremental,examples}."
+  "target/release/ contient 20 binaires deja construits (nie, nie-forge, nie-game, nie-play…) qui evitent des rebuilds de plusieurs minutes. Supprime un binaire precis, ou nettoie target/debug/{incremental,examples}."
 
 printf '%s' "$cmd" | grep -qE 'git[[:space:]]+(add|commit).*(-f|--force).*(^|[[:space:]/])(data/|nie\.exe|nie_eacpatched\.exe)' && decision deny \
   "Ces chemins sont des assets (c) LEVEL-5, gitignores expres. Ne jamais les forcer dans un commit."
@@ -70,7 +70,7 @@ mot 'python3?' && decision allow \
 mot 'node' && decision allow \
   "Rappel : ici tout passe par Bun. 'bun run' ne suffit pas — le shebang '#!/usr/bin/env node' est honore et relance node. Utilise 'bun --bun <script>'."
 
-printf '%s' "$cmd" | grep -qE 'bun[[:space:]]+install' && ! printf '%s' "$cmd" | grep -qE '(cd[[:space:]]+/home/ubuntu/niers[[:space:]]*(;|&&)|^[[:space:]]*bun[[:space:]]+install)' && decision allow \
+printf '%s' "$cmd" | grep -qE 'bun[[:space:]]+install' && ! printf '%s' "$cmd" | grep -qE '(cd[[:space:]]+/home/ubuntu/nie[[:space:]]*(;|&&)|^[[:space:]]*bun[[:space:]]+install)' && decision allow \
   "Rappel : 'bun install' se lance depuis la RACINE, jamais dans un sous-paquet — un seul lockfile, et les versions sont partagees par catalogue. Lance ailleurs, il desynchronise l'arbre."
 
 printf '%s' "$cmd" | grep -qE "(^|[;&|(]|&&|\|\|)[[:space:]]*(uv[[:space:]]+run[[:space:]]+)?(--with[[:space:]]+[^[:space:]]+[[:space:]]+)?python3?[[:space:]]+-c[[:space:]]*[\"'][[:space:]]*$" \

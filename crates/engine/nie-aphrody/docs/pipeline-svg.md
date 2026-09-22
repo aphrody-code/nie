@@ -221,7 +221,7 @@ lui qui a produit cette variante.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC32 and string hashes for UI sprites and icons
 - `function` — 2D vector blitting and texture rasterization in `nie.exe`
 - `coverage` — 2D raster engine coverage

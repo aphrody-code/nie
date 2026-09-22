@@ -2,7 +2,7 @@
 //! Tests golden `menu_setting` — écran réel tiré du VFS IEVR :
 //! `data/common/gamedata/menu/cfg/main_menu_setting.cfg.bin` (T2B `entries`).
 //!
-//! RE originale niers (aucun parseur inagle). Les 13 `MENU_LAYER_INFO` + 3 `MENU_RES`
+//! RE originale nie (aucun parseur inagle). Les 13 `MENU_LAYER_INFO` + 3 `MENU_RES`
 //! ci-dessous sont extraits TELS QUELS du dump (probe `parse_t2b`), aucune valeur inventée.
 //! **Validation forte end-to-end** : pour chaque layer, `layer_id == CRC32(name)` — l'identifiant
 //! EST le CRC32 du nom (poly 0xEDB88320), ce qui prouve l'interprétation positionnelle des champs.

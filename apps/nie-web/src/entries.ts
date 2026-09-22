@@ -14,8 +14,8 @@
  * donnée d'inventaire là où l'on choisit une destination. Le jeu, lui, ne met aucun compte sur
  * les tuiles de son menu.
  */
-import type { SanteApi as SiteHealth } from "@niers/asset-source";
-import type { NomGlyphe as GlyphName } from "@niers/inacord-ui";
+import type { SanteApi as SiteHealth } from "@nie/asset-source";
+import type { NomGlyphe as GlyphName } from "@nie/inacord-ui";
 import { IDS_VUES } from "./desktop/lib/vues";
 import { splitLanguagePrefix } from "./routing";
 

@@ -13,7 +13,7 @@ body:
     attributes:
       label: Commande exacte
       description: La ligne lancée, telle quelle.
-      placeholder: niers vfs find chara_base
+      placeholder: nie vfs find chara_base
     validations:
       required: true
   - type: textarea
@@ -28,7 +28,7 @@ body:
     attributes:
       label: Surface concernée
       options:
-        - cli — niers, la ligne de commande
+        - cli — nie, la ligne de commande
         - mcp — nie-mcp, le serveur Model Context Protocol
         - site — nie-site et le module WebAssembly
         - desktop — Inacord, l'application Tauri
@@ -41,7 +41,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: "`niers --version`, ou le tag / commit."
+      description: "`nie --version`, ou le tag / commit."
     validations:
       required: true
   - type: input

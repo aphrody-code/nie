@@ -25,12 +25,12 @@ set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 ATLAS_DB="${ATLAS_DB:-var/nie-atlas.sqlite}"
-KB_DB="${NIERS_DB:-var/niers.sqlite}"
-REDIS_URL="${NIERS_ATLAS_REDIS:-redis://127.0.0.1/4}"
+KB_DB="${NIE_DB:-var/nie.sqlite}"
+REDIS_URL="${NIE_ATLAS_REDIS:-redis://127.0.0.1/4}"
 LOG="${ATLAS_LOG:-var/atlas-loop.ndjson}"
 MIN_FREE_MIB="${ATLAS_MIN_FREE_MIB:-2048}"
 # Plafond de temps d'une action : une etape qui part en vrille est coupee, pas laissee
-# a tourner jusqu'au prochain tick (`niers propagate` sur une KB de 19 Go, par exemple).
+# a tourner jusqu'au prochain tick (`nie propagate` sur une KB de 19 Go, par exemple).
 ACT_TIMEOUT="${ATLAS_ACT_TIMEOUT:-1800}"
 REF_EXE="${NIE_EXE:-nie.exe}"
 
@@ -66,15 +66,15 @@ fi
 
 # --- outils ------------------------------------------------------------------
 
-niers_bin=""
+nie_bin=""
 for candidate in "${NIE_BIN:-target/release/nie}" target/debug/nie "$HOME/.local/bin/nie"; do
 	[ -x "$candidate" ] && {
-		niers_bin="$candidate"
+		nie_bin="$candidate"
 		break
 	}
 done
-[ -n "$niers_bin" ] || {
-	echo "atlas-loop: binaire niers absent — cargo build --release -p nie-cli" >&2
+[ -n "$nie_bin" ] || {
+	echo "atlas-loop: binaire nie absent — cargo build --release -p nie-cli" >&2
 	exit 1
 }
 
@@ -102,15 +102,15 @@ emit() { # emit <step> <ok> <ms> <detail>
 record_run() { # record_run <step> <area> <ok:0|1> <ms> <detail>
 	local flag=""
 	[ "$3" = "true" ] && flag="--ok"
-	"$niers_bin" atlas run "$1" --db "$ATLAS_DB" --area "${2:-none}" $flag --ms "$4" \
+	"$nie_bin" atlas run "$1" --db "$ATLAS_DB" --area "${2:-none}" $flag --ms "$4" \
 		--log "$(printf '%.400s' "${5:-}")" >/dev/null 2>&1
 }
 
 record_metric() { # record_metric <name> <value> <total|-> <source>
 	if [ "$3" = "-" ]; then
-		"$niers_bin" atlas metric "$1" "$2" --db "$ATLAS_DB" --source "$4" >/dev/null
+		"$nie_bin" atlas metric "$1" "$2" --db "$ATLAS_DB" --source "$4" >/dev/null
 	else
-		"$niers_bin" atlas metric "$1" "$2" --db "$ATLAS_DB" --total "$3" --source "$4" >/dev/null
+		"$nie_bin" atlas metric "$1" "$2" --db "$ATLAS_DB" --total "$3" --source "$4" >/dev/null
 	fi
 }
 
@@ -214,7 +214,7 @@ indexer() {
 	local t0 out rc ms kb_flag=()
 	[ -f "$KB_DB" ] || kb_flag=(--no-kb)
 	t0=$(now_ms)
-	out=$("$niers_bin" atlas build --db "$ATLAS_DB" --kb "$KB_DB" --redis "$REDIS_URL" "${kb_flag[@]}" 2>&1)
+	out=$("$nie_bin" atlas build --db "$ATLAS_DB" --kb "$KB_DB" --redis "$REDIS_URL" "${kb_flag[@]}" 2>&1)
 	rc=$?
 	ms=$(($(now_ms) - t0))
 	if [ "$rc" -eq 0 ]; then
@@ -228,7 +228,7 @@ indexer() {
 agir() {
 	[ "$act" = "1" ] || return
 	local gap area t0 out rc ms free
-	gap=$("$niers_bin" atlas next --db "$ATLAS_DB" 2>/dev/null)
+	gap=$("$nie_bin" atlas next --db "$ATLAS_DB" 2>/dev/null)
 	area=$(printf '%s' "$gap" | jq -r '.area // empty' 2>/dev/null)
 	[ -n "$area" ] || {
 		emit atlas.next true 0 "aucun écart ouvert"
@@ -260,25 +260,25 @@ agir() {
 		mesure_identite
 		;;
 	re.classified | re.named | re.pdata-text)
-		local exe="${NIE_EXE_RE:-${NIERS_GAME_DIR:-/home/ubuntu/.local/share/Steam/iecode/inazuma}/nie_eacpatched.exe}"
+		local exe="${NIE_EXE_RE:-${NIE_GAME_DIR:-/home/ubuntu/.local/share/Steam/iecode/inazuma}/nie_eacpatched.exe}"
 		if [ ! -f "$exe" ] || [ ! -f "$KB_DB" ]; then
 			emit "act:$area" false 0 "cible RE ou KB absente"
 			return
 		fi
 		# `rebuild` et pas `propagate` : docs/RE.md est explicite — lancer les sous-étapes
 		# à la main (disasm avant rtti) produit un résultat incomplet SANS erreur.
-		out=$(timeout "$ACT_TIMEOUT" "$niers_bin" rebuild --db "$KB_DB" --exe "$exe" --rounds "${NIERS_ROUNDS:-16}" 2>&1)
+		out=$(timeout "$ACT_TIMEOUT" "$nie_bin" rebuild --db "$KB_DB" --exe "$exe" --rounds "${NIE_ROUNDS:-16}" 2>&1)
 		rc=$?
 		ms=$(($(now_ms) - t0))
 		[ "$rc" -eq 0 ] && emit "act:$area" true "$ms" "$(printf '%s' "$out" | tail -1)" ||
 			emit "act:$area" false "$ms" "$(printf '%s' "$out" | tail -1)"
-		record_run "niers.rebuild" "$area" "$([ "$rc" -eq 0 ] && echo true || echo false)" "$ms" "$out"
+		record_run "nie.rebuild" "$area" "$([ "$rc" -eq 0 ] && echo true || echo false)" "$ms" "$out"
 		;;
 	proofs.uemu)
 		ATLAS_PROOFS=1 mesure_preuves
 		;;
 	docs.anchored)
-		out=$("$niers_bin" atlas docs --db "$ATLAS_DB" --orphans --limit 10 2>&1)
+		out=$("$nie_bin" atlas docs --db "$ATLAS_DB" --orphans --limit 10 2>&1)
 		ms=$(($(now_ms) - t0))
 		emit "act:$area" true "$ms" "$(printf '%s' "$out" | tail -1) — documents sans ancrage listés"
 		record_run "atlas.docs" "$area" true "$ms" "$out"
@@ -302,7 +302,7 @@ for tick in $(seq 1 "$ticks"); do
 	mesure_re_real
 	indexer
 	agir
-	"$niers_bin" atlas status --db "$ATLAS_DB"
-	"$niers_bin" atlas gaps --db "$ATLAS_DB" --limit 8
+	"$nie_bin" atlas status --db "$ATLAS_DB"
+	"$nie_bin" atlas gaps --db "$ATLAS_DB" --limit 8
 done
 exit 0

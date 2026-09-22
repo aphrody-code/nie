@@ -3,7 +3,7 @@
   "requested_scope": "inspect one bounded asset and publish its validated report",
   "tool_versions": {
     "aphrody": "record --version output",
-    "niers": "record --version output",
+    "nie": "record --version output",
     "ghidra": "record active CodeBrowser version when used"
   },
   "inputs": [

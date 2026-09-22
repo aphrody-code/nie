@@ -9,7 +9,7 @@ import { resolve } from "node:path";
 const origin = process.argv[2];
 if (!origin) throw new Error("Usage: gate-menu-browser.ts <origin> [output-directory]");
 const output = resolve(process.argv[3] ?? "var/outputs/menu-browser");
-const session = `niers-menu-gate-${process.pid}`;
+const session = `nie-menu-gate-${process.pid}`;
 const checks: { name: string; passed: boolean; actual: unknown }[] = [];
 
 async function browser(...args: string[]): Promise<any> {

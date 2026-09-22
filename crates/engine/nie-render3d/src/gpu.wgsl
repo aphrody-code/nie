@@ -1,4 +1,4 @@
-// Pipeline de rendu 3D GPU du viewport niers.
+// Pipeline de rendu 3D GPU du viewport nie.
 //
 // Reproduit les règles du rastériseur CPU de référence (`render.rs`) pour que les deux chemins
 // restent comparables : projection perspective, éclairage Lambert sur la normale, échantillonnage

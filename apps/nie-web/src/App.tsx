@@ -2,8 +2,8 @@
  * The application — WebAssembly build of nie.exe.
  * Serves exclusively the real game and its authentic screens.
  */
-import { creerWebSource, type AssetSource } from "@niers/asset-source";
-import { type SanteApi, sante } from "@niers/asset-source/nie-site";
+import { creerWebSource, type AssetSource } from "@nie/asset-source";
+import { type SanteApi, sante } from "@nie/asset-source/nie-site";
 import {
 	AssetSourceProvider,
 	FournisseurNavigation,
@@ -11,9 +11,9 @@ import {
 	useApplySettings,
 	useCapacites,
 	useErreurSource,
-} from "@niers/inacord-ui";
-import { createStandardGamepadMenuSampler } from "@niers/inacord-ui/shell/menu-interaction";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+} from "@nie/inacord-ui";
+import { createStandardGamepadMenuSampler } from "@nie/inacord-ui/shell/menu-interaction";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
 	AVATAR,
@@ -31,7 +31,7 @@ import {
 	SHOP,
 	recognizedRoutes,
 } from "./entries";
-import type { VueCatalogue } from "@niers/asset-source";
+import type { VueCatalogue } from "@nie/asset-source";
 import { useGameNavigation } from "./game/use-game-navigation";
 import { StartupResources } from "./game/StartupResources";
 import { useWasmReadiness } from "./game/wasm-readiness";

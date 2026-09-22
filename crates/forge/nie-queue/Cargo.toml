@@ -1,6 +1,6 @@
 [package]
 name = "nie-queue"
-description = "Bounded deduplicated BFS frontiers for the niers reverse-engineering loop"
+description = "Bounded deduplicated BFS frontiers for the nie reverse-engineering loop"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true

@@ -2,7 +2,7 @@
 # Source this file from ~/.bashrc or ~/.profile. It is intentionally quiet for SSH/scp.
 _nie_workspace_root="${NIE_REPO_ROOT:-}"
 if [ -z "$_nie_workspace_root" ]; then
-	for _nie_candidate in "$HOME/nie" "$HOME/niers"; do
+	for _nie_candidate in "$HOME/nie" "$HOME/nie"; do
 		if [ -f "$_nie_candidate/scripts/configure-workspaces.sh" ]; then
 			_nie_workspace_root="$_nie_candidate"
 			break

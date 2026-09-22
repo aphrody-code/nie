@@ -15,7 +15,7 @@ pytest.importorskip("niepy")
 
 from niepy.renpy import Catalogue  # noqa: E402
 
-# Catalogue minimal, de forme identique à celui qu'écrit `niers vn export`.
+# Catalogue minimal, de forme identique à celui qu'écrit `nie vn export`.
 CATALOGUE = {
     "version": 1,
     "langue": "fr",
@@ -30,7 +30,7 @@ CATALOGUE = {
                 {"source": "…/_face/x.g4tx", "fichier": "images/c01000010/face.png", "role": "expressions"},
             ],
             # `ligne` est un IDENTIFIANT, pas un numéro : c'est la forme que produit
-            # réellement `niers vn export`. Un entier ici — ce qu'il y avait — laissait
+            # réellement `nie vn export`. Un entier ici — ce qu'il y avait — laissait
             # passer un `int()` qui casse sur tout catalogue réel.
             "dialogues": [
                 {"evenement": "ev01_01200", "ligne": "ev01_01200_010_010", "texte": "…"}
@@ -70,7 +70,7 @@ def test_identifiant_de_replique_reste_une_chaine(catalogue: Catalogue) -> None:
 
 def test_catalogue_absent_dit_quoi_lancer(tmp_path: Path) -> None:
     """L'erreur porte la commande à lancer — une trace nue n'aide personne dans un init python."""
-    with pytest.raises(FileNotFoundError, match="niers vn export"):
+    with pytest.raises(FileNotFoundError, match="nie vn export"):
         Catalogue.charger(tmp_path / "vide")
 
 

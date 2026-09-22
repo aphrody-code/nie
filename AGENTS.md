@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Repository guidance for coding agents working in `aphrody-code/nie` (`niers`). Keep this file
+Repository guidance for coding agents working in `aphrody-code/nie` (`nie`). Keep this file
 short and operational. Human-facing project history belongs in [`PLAN.md`](PLAN.md) and the
 documents linked there; do not duplicate large specifications here.
 
@@ -31,9 +31,9 @@ documents linked there; do not duplicate large specifications here.
   generated bulk data unless the repository explicitly tracks that exact artifact.
 - `var/nie-atlas.sqlite`: the single index over every RE surface — files, crates, Markdown
   claims, the 19 GB knowledge-base digest, forge units, binaries, tools, metrics and the
-  ranked road to 100 %. Built by `just atlas`, queried by `niers atlas {status,search,gaps,
+  ranked road to 100 %. Built by `just atlas`, queried by `nie atlas {status,search,gaps,
   next,dupes}`, mirrored into Redis db4, driven by `scripts/atlas-loop.sh`. Ask it before
-  searching the tree by hand: `niers atlas search <term>` covers all surfaces at once.
+  searching the tree by hand: `nie atlas search <term>` covers all surfaces at once.
   See [docs/ATLAS.md](docs/ATLAS.md).
 
 ## Target architecture (2026-09-07)
@@ -59,7 +59,7 @@ that drifts.
   URLs, slugs, JSON keys, database columns, commit messages, code comments, documentation.
 - **French only for prose addressed to the user** — a summary, an explanation, an answer in a
   conversation held in French. Never for an identifier.
-- Frozen product names are the exception: Azalée, Inacord, nie, `nie-*`, `inagle_*`. `niers` is
+- Frozen product names are the exception: Azalée, Inacord, nie, `nie-*`, `inagle_*`. `nie` is
   retained only as an internal historical/package compatibility name; the public CLI is `nie`.
 - Existing debt is **not** migrated in one pass. An already-served API is renamed in a dedicated
   batch, never in passing: renaming a route while fixing a bug breaks callers that were not part
@@ -82,7 +82,7 @@ that drifts.
 - Make the smallest coherent change; preserve public signatures and existing integrations.
 - Keep code, filenames, schemas, routes, public API keys, and agent-facing documentation in
   English. French is for human reports and explanations. Preserve frozen product names: Azalée,
-  Inacord, nie, `niers`, `nie-*`, and `inagle_*`.
+  Inacord, nie, `nie`, `nie-*`, and `inagle_*`.
 - The **site** is `nie`, on `nie.aphrody.com` (`aphrody.com` and `www.` only `308` to it).
   **Aphrody** is a character — `crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
   Byron Love — and the name of the separate `aphrody-code/aphrody` repository. It is never the

@@ -1,6 +1,6 @@
 # A2A wire protocol — how the agents on this repository talk
 
-This file owns **one thing**: the mechanics of agent-to-agent messaging on `/home/ubuntu/niers`.
+This file owns **one thing**: the mechanics of agent-to-agent messaging on `/home/ubuntu/nie`.
 The rules about *not overwriting each other* live in [`AGENTS.md`](../AGENTS.md) § 2, and every
 repository rule lives in [`CLAUDE.md`](../CLAUDE.md). Neither is repeated here.
 
@@ -10,8 +10,8 @@ The machine-readable version of this document is [`ai.json`](../ai.json) (A2A v1
 
 | Agent | A2A identity | Role | Launch |
 |---|---|---|---|
-| Claude Code | `claude@aphrody-code/niers` | orchestrator — splits, arbitrates | interactive session |
-| Codex | `codex@aphrody-code/niers` | executor — works its scope | `codex exec --cd /home/ubuntu/niers` |
+| Claude Code | `claude@aphrody-code/nie` | orchestrator — splits, arbitrates | interactive session |
+| Codex | `codex@aphrody-code/nie` | executor — works its scope | `codex exec --cd /home/ubuntu/nie` |
 
 ## Three channels, not interchangeable
 
@@ -67,11 +67,11 @@ Both agents share the same MCP servers, declared in `~/.config/aphrody/mcp.json`
 
 - `aphrody` — documentation search (`docs_auto_search`), reverse engineering (`re_triage`,
   `re_disasm`), and `aphrody_mcp_call` to bounce onto any other server;
-- `niers-game` — game VFS, assets, RE knowledge base, explorer control.
+- `nie-game` — game VFS, assets, RE knowledge base, explorer control.
 
 ```bash
 aphrody mcp list
-aphrody mcp call --server niers-game --tool vfs_search --args '{"query":"..."}'
+aphrody mcp call --server nie-game --tool vfs_search --args '{"query":"..."}'
 ```
 
 MCP is for **acting**, never for coordinating: an MCP call leaves no trace the other agent can
@@ -86,7 +86,7 @@ aphrody a2a tick --iteration 0 --side claude --peer codex --kind fact \
   --subject "claim: scope" --body "claude: <paths> | codex: <paths>"
 
 # 2. The work (Codex), non-interactive, writes bounded to the repository
-codex exec --cd /home/ubuntu/niers -s workspace-write "<instruction, scope included>"
+codex exec --cd /home/ubuntu/nie -s workspace-write "<instruction, scope included>"
 
 # 3. Handing back (Codex), then review and commit
 aphrody a2a tick --iteration 1 --side codex --peer claude --kind fact \
@@ -133,7 +133,7 @@ measuring produces a false result with nothing to signal it.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `forge_unit` — unit ownership coordination
 - `function` — functions assigned across multi-agent sessions
 - `coverage` — shared coverage metrics

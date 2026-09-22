@@ -1,4 +1,4 @@
-# niers — moteur Rust d'Inazuma Eleven: Victory Road, et forge de son binaire.
+# nie — moteur Rust d'Inazuma Eleven: Victory Road, et forge de son binaire.
 #
 # OBJECTIF : produire `nie.exe` **identique au byte près** depuis ce workspace.
 # Les crates sont donc rangées par rôle dans cette chaîne (cf. docs/FORGE.md) :
@@ -61,7 +61,7 @@ serde = { version = "1" }
 serde_json = { version = "1", default-features = false }
 schemars = { version = "1" }
 # Official Rust SDK for the Model Context Protocol. Keep the same reviewed
-# revision as the production aphrody-mcp sibling until the native niers MCP
+# revision as the production aphrody-mcp sibling until the native nie MCP
 # compatibility suite authorises an SDK upgrade.
 rmcp = { version = "1.8.0" }
 
@@ -94,7 +94,7 @@ iced-x86 = { version = "1.21" }
 zerocopy = { version = "0.8" }
 # Triage PE / disasm / strings / entropy. Crate INTERNALISÉ le 2026-08-15 : il
 # vivait dans `../aphrody`, hors du dépôt, et une dépendance de chemin vers un
-# répertoire voisin faisait dépendre la compilation de niers d'un arbre qui n'est
+# répertoire voisin faisait dépendre la compilation de nie d'un arbre qui n'est
 # ni versionné ici ni garanti présent. Seul le noyau de triage est repris
 # (`lib.rs` + `headers`) ; les modules forensics d'aphrody — adobe, asar,
 # electron, golang, google — et les modules sous drapeau — leveldb, magika,
@@ -334,7 +334,7 @@ incremental = false
 
 # Dev rapide pour la boucle RE : on optimise les DEPENDANCES (iced-x86, goblin, rusqlite,
 # rayon…) à opt-level=2 — la boucle disasm/seed/propagate tourne ~5-10x plus vite en dev —
-# tout en gardant les crates niers à opt-level=0 (compilation rapide à chaque edit).
+# tout en gardant les crates nie à opt-level=0 (compilation rapide à chaque edit).
 [profile.dev.package."*"]
 opt-level = 2
 debug = false

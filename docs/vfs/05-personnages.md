@@ -209,7 +209,7 @@ qui tire des GLB live héritera de ce même risque tant que le budget n'est pas 
 Les effets (`vfxo`/`pfxo`/`cfxo`/`gfxo`/`ptlb`/`fxbin`) : **aucune de ces extensions n'apparaît
 dans l'inventaire lot5** (l'extraction réelle donne `ptlb`, `clobin`, `linb`, `mevbin`,
 `objbin`, `g4tg` — pas de fichier `.vfxo`/`.pfxo`/`.cfxo`/`.gfxo`/`.fxbin` dans ce domaine). Ne
-pas les citer comme existants sans nouvelle vérification par `niers vfs find`. Aucun décodeur
+pas les citer comme existants sans nouvelle vérification par `nie vfs find`. Aucun décodeur
 dédié n'a été trouvé pour `ptlb`/`clobin`/`linb`/`g4tg`
 (`rg -l "ptlb|clobin|linb::|g4tg" crates/engine/nie-formats/src/` ne matche que `cfgbin.rs`,
 `decode.rs`, `dxbc.rs`, `main.rs` de model-serve — pas de parseur typé). **Les effets ne sont
@@ -276,12 +276,12 @@ awk '{s+=$2} END{print s}' var/vfs/lot5-chr.txt
 sqlite3 var/mirror.sqlite "SELECT count(DISTINCT …) FROM inagle_characters WHERE internal_code LIKE 'c%';"
 curl -s http://127.0.0.1:8085/api/v1/3d | jq .
 systemctl status nie-model-serve --no-pager
-niers vfs find "_item/b000003"
+nie vfs find "_item/b000003"
 ```
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC-32 hashes for bone targets, meshes, materials and blend shapes
 - `function` — character animation, skeleton evaluation and rendering functions in `nie.exe`
 - `rtti_class` — character controllers (`game::SoccerCharaCtrl`, `lives::CBlendShapeProp`, `lives::CSetupMeshVisible`)

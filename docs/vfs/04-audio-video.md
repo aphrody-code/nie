@@ -268,7 +268,7 @@ jq -s '{total_cues: (map(.cueCount // 0) | add), banques: length}' /tmp/acb_out/
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRI/audio cue name and path hashes
 - `function` — audio and video dispatch routines in `nie.exe`
 - `xref` — cross-references to sound controllers and decoders

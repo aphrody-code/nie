@@ -5,7 +5,7 @@ The directories in this folder are versioned deliverables for external hosts.
 | Extension | Hosts | Contents |
 |---|---|---|
 | [`nie/`](nie) | Codex, Claude Code, Antigravity (`agy`) | Host adapters, 18 NIE skills, and the native Rust `nie` MCP declaration |
-| [`niers-blender/`](niers-blender) | Blender | G4 asset import, character/map/animation/camera/texture workflows, and native-base patch export |
+| [`nie-blender/`](nie-blender) | Blender | G4 asset import, character/map/animation/camera/texture workflows, and native-base patch export |
 
 `nie` follows the multi-host layout used by Aphrody's YOLO package: Codex uses
 `.codex-plugin/plugin.json`, Claude Code uses `.claude-plugin/plugin.json` and the local

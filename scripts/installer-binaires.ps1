@@ -19,7 +19,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $racine = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$dest = if ($env:NIERS_BIN_DIR) { $env:NIERS_BIN_DIR } else { Join-Path $HOME '.local\bin' }
+$dest = if ($env:NIE_BIN_DIR) { $env:NIE_BIN_DIR } else { Join-Path $HOME '.local\bin' }
 $sec = if ($args.Count -ge 1) { [string]$args[0] } else { '' }
 
 if (-not (Test-Path -LiteralPath $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
@@ -125,7 +125,7 @@ if (Test-Path -LiteralPath $release) {
 # Preserve the historical command name as an alias of the native Rust server.
 $nativeMcp = Join-Path $release 'nie-mcp.exe'
 if (Test-Path -LiteralPath $nativeMcp) {
-    New-Lien 'niers-mcp.exe' $nativeMcp
+    New-Lien 'nie-mcp.exe' $nativeMcp
 }
 
 Write-Host ''
@@ -138,7 +138,7 @@ if ($copies -gt 0) {
     Write-Host 'développeur (ou accordez SeCreateSymbolicLinkPrivilege) et relancez.'
 }
 Write-Host ''
-Write-Host 'Rappel de doctrine : `niers` est la seule CLI utilisateur. `nie-mem` et `nie-steam`'
-Write-Host 'recouvrent `niers mem` et `niers steam` — publiés pour l''outillage, mais une commande'
+Write-Host 'Rappel de doctrine : `nie` est la seule CLI utilisateur. `nie-mem` et `nie-steam`'
+Write-Host 'recouvrent `nie mem` et `nie steam` — publiés pour l''outillage, mais une commande'
 Write-Host 'nouvelle s''écrit dans nie-cli, jamais dans un binaire de plus.'
 exit 0

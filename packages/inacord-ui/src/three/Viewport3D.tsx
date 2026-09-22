@@ -5,7 +5,7 @@
 // maillage, wireframe : le viewport d'un éditeur, pas une planche-contact.
 //
 // three.js est importé depuis le paquet npm (bundlé par Vite) — aucun CDN, l'app reste
-// intégralement hors ligne comme le reste de niers (même contrainte que `monacoSetup.ts`).
+// intégralement hors ligne comme le reste de nie (même contrainte que `monacoSetup.ts`).
 //
 // Les transformations faites au gizmo sont LOCALES À LA SESSION : elles ne sont écrites nulle
 // part et disparaissent au rechargement. Aucun encodeur géométrique n'existe côté Rust — `g4mg.rs`,

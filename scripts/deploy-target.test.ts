@@ -68,7 +68,7 @@ test("la fenêtre de retour arrière est annoncée, et reste courte", () => {
 
 /** Lister ne déploie pas : ni verrou, ni journal, ni répertoire de release. */
 test("`--list` ne prend pas le verrou", () => {
-	expect(existsSync("/tmp/niers-target-deploy.lock")).toBe(false);
+	expect(existsSync("/tmp/nie-target-deploy.lock")).toBe(false);
 	lister();
-	expect(existsSync("/tmp/niers-target-deploy.lock")).toBe(false);
+	expect(existsSync("/tmp/nie-target-deploy.lock")).toBe(false);
 });

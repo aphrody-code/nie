@@ -39,7 +39,7 @@ pub fn write_save(
     fs::write(path, encrypted).map_err(|e| format!("écriture {} : {e}", path.display()).into())
 }
 
-/// Affiche un résumé terse du conteneur (format `clé=val`, convention niers).
+/// Affiche un résumé terse du conteneur (format `clé=val`, convention nie).
 pub fn print_summary(container: &LivesContainer) {
     println!(
         "slot={} key=0x{:08X} entries={} blobs={}",

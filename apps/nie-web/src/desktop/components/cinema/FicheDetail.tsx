@@ -17,11 +17,11 @@
 // rien. Le sélecteur de saison est le `Select` du design system, comme partout ailleurs.
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Button } from "@niers/inacord-ui/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@niers/inacord-ui/components/ui/dialog";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@niers/inacord-ui/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
+import { Button } from "@nie/inacord-ui/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@nie/inacord-ui/components/ui/dialog";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@nie/inacord-ui/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@nie/inacord-ui/components/ui/tabs";
 import { formaterDuree, urlVideo } from "@/components/VideoPlayer";
 import { afficheConnue, poserAffiche } from "@/lib/affiches";
 import {
@@ -34,8 +34,8 @@ import {
 } from "@/lib/cinema";
 import { empreinte } from "@/lib/serie";
 import type { SourceLecture } from "@/lib/sources";
-import { cn } from "@niers/inacord-ui/lib/utils";
-import { GameText } from "@niers/inacord-ui";
+import { cn } from "@nie/inacord-ui/lib/utils";
+import { GameText } from "@nie/inacord-ui";
 
 export interface FicheDetailProps {
   element: ElementCinema;

@@ -2,7 +2,7 @@
 //!
 //! # Pourquoi ces deux routes existent
 //!
-//! Deux capacités d'abord accessibles par `niers icons` et `niers mode` sont également servies
+//! Deux capacités d'abord accessibles par `nie icons` et `nie mode` sont également servies
 //! ici. L'indexation des icônes appartient désormais à `nie_explore::menu_icons`; cette route
 //! ne possède que les URLs, la pagination et le cache HTTP. L'agrégation des modes reste encore
 //! locale en attendant sa migration vers le même propriétaire partagé :
@@ -83,7 +83,7 @@ use crate::vfs_index::{IndexVfs, Requete};
 ///
 /// Comparé par `contains` et non par `starts_with` : les atlas sont sous `data/dx11/menu/…`
 /// sur un montage packs comme sur un dump, et préfixer en dur `data/dx11/` ferait dépendre
-/// l'index du montage. Mesuré le 2026-09-06 (`niers vfs find 'menu/' -n 300000`) : 41 191
+/// l'index du montage. Mesuré le 2026-09-06 (`nie vfs find 'menu/' -n 300000`) : 41 191
 /// `.g4tx` sous `menu/`, dont **19 534** sous `menu/200_icon/`.
 pub const ICONS_ROOT: &str = "menu/200_icon/";
 
@@ -1118,7 +1118,7 @@ pub async fn mode(
             reason: "le site ne lit pas nie.exe : les cles de message d'un mode ne sont \
                      nommees que dans les chaines du binaire, hors du VFS et hors du \
                      perimetre d'un serveur web",
-            alternative: "`niers mode contenu <slug>` les resout en local ; le texte \
+            alternative: "`nie mode contenu <slug>` les resout en local ; le texte \
                           localise, lui, est servi par /api/v1/text",
         },
         elapsed_ms,
@@ -1179,7 +1179,7 @@ struct ScreenIndex {
     ///
     /// C'est ce qui transforme « 36 % » d'un reste-à-faire en un **fait sur le jeu** :
     /// vérifié le 2026-09-06 sur `cmn01_10_new_icon_tab`, `team13_03_grid_item_root` et
-    /// `act01_04_achieve_icon_bronze`, `niers vfs find <nom>` rend **0 résultat** — ces
+    /// `act01_04_achieve_icon_bronze`, `nie vfs find <nom>` rend **0 résultat** — ces
     /// calques n'existent sous AUCUNE forme dans les 255 308 entrées. Le plafond n'est pas
     /// dans le câblage du site.
     missing_layers: BTreeMap<String, usize>,
@@ -1401,7 +1401,7 @@ pub async fn screens(
         missing_route: "/api/v1/screens/missing",
         ceiling: "un ecran n'est `served` que si TOUS ses calques resolvent. Les calques qui \
                   manquent ne sont PAS un defaut de cablage : verifie le 2026-09-06, \
-                  `niers vfs find <nom>` rend 0 resultat sur les 255 308 entrees pour \
+                  `nie vfs find <nom>` rend 0 resultat sur les 255 308 entrees pour \
                   `cmn01_10_new_icon_tab`, `team13_03_grid_item_root` et \
                   `act01_04_achieve_icon_bronze`. Le jeu declare des calques dont l'asset \
                   n'est pas livre dans ce build — contenu coupe, ou construit au runtime par \

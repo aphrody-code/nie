@@ -57,7 +57,7 @@ cloud database or silently substitute an external catalog.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC32 and string hashes for models, textures, cut-ins and passives
 - `function` — VFS parsing and resource management in `nie.exe`
 - `coverage` — coverage rate of asset resolution functions

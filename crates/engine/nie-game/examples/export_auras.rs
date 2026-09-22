@@ -94,7 +94,7 @@ fn main() {
     }
 
     let doc = json!({
-        "schema": "niers/auras-resolved/v1",
+        "schema": "nie/auras-resolved/v1",
         "locale": "fr",
         "count": list.len(),
         "auras": list,

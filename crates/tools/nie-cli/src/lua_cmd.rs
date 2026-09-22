@@ -1,4 +1,4 @@
-//! `niers lua` — analyse statique des sources Lua, fichier isolé ou arborescence.
+//! `nie lua` — analyse statique des sources Lua, fichier isolé ou arborescence.
 //!
 //! L'analyse elle-même n'est pas ici : elle vient de [`nie_lua::static_analysis`], partagée
 //! avec le reste du moteur. Ce module ne fait que le parcours d'entrée et le rendu en lignes
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn un_repertoire_sans_lua_est_une_erreur() {
-        let dir = std::env::temp_dir().join("niers-lua-vide");
+        let dir = std::env::temp_dir().join("nie-lua-vide");
         let _ = std::fs::create_dir_all(&dir);
         let d = Detail {
             functions: false,

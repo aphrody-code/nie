@@ -6,7 +6,7 @@ embed games, BIOS files, keys, NAND images, or proprietary SDKs.
 
 ## Ownership
 
-`niers` remains a thin compatibility surface. `nie-emu` is the single in-process owner for
+`nie` remains a thin compatibility surface. `nie-emu` is the single in-process owner for
 execution, inspection, saves, memory, extraction and mod capability contracts. Rust backends
 are linked directly; C/C++/C#/Python implementations are migration sources or shared-library/
 WASM FFI providers. No emulator operation may invoke a CLI or spawn a subprocess.
@@ -199,7 +199,7 @@ be promoted to a runtime or mod package.
 ## First implementation boundary
 
 The next code batch should add one Rust library crate for the pipeline manifest and stage graph,
-then expose it through the existing `niers` CLI and MCP binding. It should reuse `nie-formats`,
+then expose it through the existing `nie` CLI and MCP binding. It should reuse `nie-formats`,
 `nie-viola`, `nie-index`, `nie-seed` and `nie-dump`; it should not add a second parser or vendor
 an emulator. The initial `nie-emu` registry now owns platform/backend identity and capability
 contracts; external commands are optional capabilities discovered at runtime and recorded in the

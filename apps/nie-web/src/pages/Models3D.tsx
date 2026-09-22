@@ -34,16 +34,16 @@
  * partagé remet les octets au `WebGpuViewer` de `nie-wasm`, façade du parseur et du renderer Rust.
  * La caméra initiale reste lue sur `/api/v1/3d`, puis les interactions passent par cette façade.
  */
-import { RustModelViewport } from "@niers/inacord-ui/shell/rust-model-viewport";
+import { RustModelViewport } from "@nie/inacord-ui/shell/rust-model-viewport";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   browserLocationSnapshot,
   subscribeBrowserLocation,
   writeBrowserHistory,
-} from "@niers/inacord-ui/lib/browser-navigation";
+} from "@nie/inacord-ui/lib/browser-navigation";
 import { createCpuNativeViewer, createOpaqueNativeViewer } from "../game/native-viewer";
 import { agree, Notice, ScreenStatus, ViewTitle } from "./screen-parts";
-import { fetchJson } from "@niers/asset-source";
+import { fetchJson } from "@nie/asset-source";
 import "./models-3d.css";
 
 /** 24 cartes par défaut : une grille pleine sans imposer 60 rendus à froid au serveur. */

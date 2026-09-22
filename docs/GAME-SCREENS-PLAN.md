@@ -17,7 +17,7 @@ scripts and the game data say, and the profile is derived from the game's own ta
 | Compiled presentation (title, options row, avatar) | `nie-wasm` | `menu_presentation_json(id)` |
 | Game data, one call per family (26) | `nie-app::game_data` via `nie-site` | `GET /api/v1/game-data/{family}`, `POST …/calculate_stats` |
 | Wiki tables | `nie-site` | `/api/v1/wiki/*`, `/api/v1/entites/{table}` |
-| Renderers | `@niers/inacord-ui` + `nie-wasm` | `GameCanvas`, `NativeSceneLayers`, `NativeSprite`, `NativeText`; the pixels come from `LayoutCanvas` → `MenuComposer` (the game's compositor in WebAssembly), not from DOM `<img>` |
+| Renderers | `@nie/inacord-ui` + `nie-wasm` | `GameCanvas`, `NativeSceneLayers`, `NativeSprite`, `NativeText`; the pixels come from `LayoutCanvas` → `MenuComposer` (the game's compositor in WebAssembly), not from DOM `<img>` |
 | Main menu bindings | `apps/nie-web/src/pages/MainMenu.tsx` | `title_menu_2` runtime, `bindMenuActions` |
 | Captures (33, 2560×1440) + manifest | `data/menu/` | `manifest.json` → `canonical_screen` per capture |
 

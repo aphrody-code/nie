@@ -26,7 +26,7 @@
 //!
 //! ## Ce qu'on ajoute
 //!
-//! Overload conçoit l'API que ses scripts consomment ; niers la retro-conçoit. La session tient
+//! Overload conçoit l'API que ses scripts consomment ; nie la retro-conçoit. La session tient
 //! donc le compte de ce que les scripts **réclament sans l'obtenir** ([`LuaSession::api_report`]) :
 //! c'est la liste de travail du portage moteur, produite par l'exécution elle-même.
 

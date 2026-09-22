@@ -13,7 +13,7 @@ describe("sync-main decisions", () => {
 describe("artifact allowlist", () => {
 	test("allows release-owned files only", () => {
 		expect(allowedArtifactPath("bin/nie-site")).toBeTrue();
-		expect(allowedArtifactPath("bin/niers")).toBeTrue();
+		expect(allowedArtifactPath("bin/nie")).toBeTrue();
 		expect(allowedArtifactPath("bin/nie-model-serve")).toBeTrue();
 		expect(allowedArtifactPath("bundle/static/app.js.br")).toBeTrue();
 		expect(allowedArtifactPath("nie-site")).toBeFalse();

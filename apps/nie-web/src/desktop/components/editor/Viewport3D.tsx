@@ -20,8 +20,8 @@ import {
   Viewport3D as SharedViewport3D,
   type Viewport3DProps as SharedViewport3DProps,
   type Viewport3DServices,
-} from "@niers/inacord-ui/three/Viewport3D";
-import { RustSceneViewport } from "@niers/inacord-ui/shell/rust-scene-viewport.tsx";
+} from "@nie/inacord-ui/three/Viewport3D";
+import { RustSceneViewport } from "@nie/inacord-ui/shell/rust-scene-viewport.tsx";
 import { createSceneViewer } from "../../../game/native-viewer";
 import { b64ToBytes } from "@/lib/bytes";
 
@@ -32,7 +32,7 @@ export type {
   GizmoMode,
   NodeTransform,
   ViewportReferenceImage,
-} from "@niers/inacord-ui/three/Viewport3D";
+} from "@nie/inacord-ui/three/Viewport3D";
 
 export type Viewport3DProps = Omit<SharedViewport3DProps, "services">;
 const services: Viewport3DServices = { decodeBase64: b64ToBytes };

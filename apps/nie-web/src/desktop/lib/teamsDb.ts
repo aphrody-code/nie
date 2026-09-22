@@ -15,13 +15,13 @@
 // seule à sauvegarder.
 //
 // Ce qui n'est PAS ici : le format d'échange. Une composition se partage par le code de
-// `@niers/game/game/team-code`, identique à celui des URLs du wiki — cf. `equipe.ts`.
+// `@nie/game/game/team-code`, identique à celui des URLs du wiki — cf. `equipe.ts`.
 import Database from "./sqlite";
 // Browser hosts use a versioned, bounded local store; native SQLite remains unchanged.
 import { NATIVE_WINDOW } from "../../host";
 import { createBrowserTeamStore } from "./teams-browser";
 
-import type { TeamMember } from "@niers/game/game/team-types";
+import type { TeamMember } from "@nie/game/game/team-types";
 
 /** Une composition enregistrée, telle que la table la stocke. */
 export interface LigneEquipe {

@@ -7,7 +7,7 @@
 // redimensionne par son bord GAUCHE, pas droit).
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 export interface SplitPaneProps {
   /** Axe de séparation : `x` = deux colonnes, `y` = deux lignes. */

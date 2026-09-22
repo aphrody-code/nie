@@ -1,4 +1,4 @@
-# Bevy et niers — ce qu'il a, ce qu'on a, ce qu'on lui prend
+# Bevy et nie — ce qu'il a, ce qu'on a, ce qu'on lui prend
 
 Relevé du 2026-09-20 sur **Bevy 0.19.1**, par lecture des sources publiées
 (`static.crates.io`), pas de la mémoire.
@@ -59,7 +59,7 @@ profondeur continu.
 
 ## Ce qu'ils ont et qu'on n'a pas
 
-| Manque niers, mesuré | Crate Bevy | Remarque |
+| Manque nie, mesuré | Crate Bevy | Remarque |
 |---|---|---|
 | Aucune navigation de focus partagée — nos commandes s'appellent pourtant `CMD_FCS_MTX_{UP,DOWN,LEFT,RIGHT}` | **`bevy_input_focus`** | Fournit `InputFocus`, `FocusGained`/`FocusLost`, `tab_navigation` et **`directional_navigation`** : exactement notre « matrice de focus », en première main |
 | Caméra orbitale dupliquée au moins 3 fois (`rust-model-viewport.tsx`, `nie-editor`, `WebViewer::orbit`) | **`bevy_camera_controller`** | Contrôleurs sous drapeaux séparés ; le crate dit lui-même que copier le code est un usage prévu |

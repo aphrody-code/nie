@@ -1,8 +1,8 @@
-//! Binaire `nie-runtime` — exécute la boucle moteur niers (simulation + physique + rendu) et
+//! Binaire `nie-runtime` — exécute la boucle moteur nie (simulation + physique + rendu) et
 //! produit une **vidéo MP4** (ou des frames PNG) d'un match déterministe. Headless.
 //!
 //! ```text
-//! nie-runtime --frames 600 --fps 60 --out /tmp/niers-match.mp4
+//! nie-runtime --frames 600 --fps 60 --out /tmp/nie-match.mp4
 //! ```
 
 #![forbid(unsafe_code)]
@@ -23,7 +23,7 @@ use nie_runtime::{HALF_LEN, HALF_WID, World};
 const MARGIN: u32 = 28;
 
 #[derive(Parser, Debug)]
-#[command(about = "Moteur niers : simule + rend un match déterministe → MP4/PNG (headless)")]
+#[command(about = "Moteur nie : simule + rend un match déterministe → MP4/PNG (headless)")]
 struct Cli {
     /// Nombre de pas/frames à simuler.
     #[arg(long, default_value_t = 600)]
@@ -38,7 +38,7 @@ struct Cli {
     #[arg(long, default_value_t = 0)]
     height: u32,
     /// Fichier MP4 de sortie.
-    #[arg(long, default_value = "/tmp/niers-match.mp4")]
+    #[arg(long, default_value = "/tmp/nie-match.mp4")]
     out: PathBuf,
     /// N'encode pas la vidéo : écrit seulement la dernière frame en PNG (à côté de `--out`).
     #[arg(long, default_value_t = false)]
@@ -74,7 +74,7 @@ fn main() -> Result<()> {
     };
     let dt = 1.0 / fps as f32;
 
-    let dir = std::env::temp_dir().join(format!("niers-frames-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("nie-frames-{}", std::process::id()));
     let want_frames = !cli.no_video;
     if want_frames {
         std::fs::create_dir_all(&dir).context("créer le dossier de frames")?;

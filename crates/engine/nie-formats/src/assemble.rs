@@ -2430,7 +2430,7 @@ pub struct AvatarPiece {
 /// étant blanche ; et surtout `eyebrow_00` est la variante **« sans sourcil »** de sa famille.
 /// Les 39 autres conteneurs portent bien leur tracé — dans le vert de leur masque, comme l'œil :
 /// 1,57 à 5,46 % de la surface, emprise `v[0,120 ; 0,792]`. Relevé sur les 431 planches de
-/// `_facetex` par `niers avatar planches` (cf. [`crate::planche`]) : 78 des 80 planches de
+/// `_facetex` par `nie avatar planches` (cf. [`crate::planche`]) : 78 des 80 planches de
 /// `04_eyebrow` rendent la convention `trace-vert`.
 ///
 /// La cause était donc dans le compositeur, qui réservait cette convention à `01_eye` par un test

@@ -11,7 +11,7 @@
 //    composants qui font déjà `try { await api.foo() } catch (e) { toast.error(String(e)) }`.
 // 2. Convertir `gameDir?: string` (ergonomie historique de l'UI, chaîne vide = auto-détection)
 //    vers `string | null` (forme exacte attendue par les bindings générés).
-import type { AvatarCatalog, AvatarComposition, AvatarState } from "@niers/inacord-ui/avatar/contract";
+import type { AvatarCatalog, AvatarComposition, AvatarState } from "@nie/inacord-ui/avatar/contract";
 import {
   commands,
   type ActivityDto,
@@ -196,7 +196,7 @@ export const api = {
   checkGameDir: (game_dir: string) => commands.checkGameDir(game_dir),
   // Local VFS-derived wiki mirror auto-detected (NIE_WIKI_DB/SQLITE_DB_PATH or var/mirror.sqlite).
   defaultWikiDb: (gameDir?: string) => commands.defaultWikiDb(gd(gameDir)),
-  // `var/niers.sqlite` — base RE (fonctions/classes RTTI/xrefs), cf. `src/lib/reDb.ts`.
+  // `var/nie.sqlite` — base RE (fonctions/classes RTTI/xrefs), cf. `src/lib/reDb.ts`.
   defaultReDb: (gameDir?: string) => commands.defaultReDb(gd(gameDir)),
   // `data/anime/episodes.db` — catalogue des épisodes de la série, cf. `src/lib/animeDb.ts`.
   defaultAnimeDb: (gameDir?: string) => commands.defaultAnimeDb(gd(gameDir)),
@@ -291,10 +291,10 @@ export const api = {
   // Installation PERSISTANTE de l'extension (dossier d'addons Blender réel + raw_data_root lié
   // au vrai <jeu>/data, survit à un Blender relancé sans passer par nie-explorer) — distinct de
   // openInBlender (bootstrap sys.path transitoire, un seul process).
-  installNiersBlenderAddon: (blenderExe?: string, gameDir?: string) =>
-    unwrap<string>(commands.installNiersBlenderAddon(blenderExe || null, gd(gameDir))),
+  installNieBlenderAddon: (blenderExe?: string, gameDir?: string) =>
+    unwrap<string>(commands.installNieBlenderAddon(blenderExe || null, gd(gameDir))),
 
-  // Pont Blender ↔ niers : importer un .blend existant dans nie-explorer (aperçu headless) et
+  // Pont Blender ↔ nie : importer un .blend existant dans nie-explorer (aperçu headless) et
   // construire une VRAIE scène (personnage + cut-in de technique, assets VFS réels uniquement).
   blenderPreviewPngB64: (path: string, blenderExe?: string) =>
     unwrap<string>(commands.blenderPreviewPngB64(path, blenderExe || null)),
@@ -492,9 +492,9 @@ export const api = {
   reDumpOpen: (cheminDmp: string) => unwrap<ReDumpInfo>(commands.reDumpOpen(cheminDmp)),
   reDumpScan: (cheminDmp: string, motif: string, limite = 0) => unwrap<ReDumpScan>(commands.reDumpScan(cheminDmp, motif, limite)),
 
-  // Serveur MCP `niers-game` : l'explorateur le déclare aux clients MCP (Claude Code /
+  // Serveur MCP `nie-game` : l'explorateur le déclare aux clients MCP (Claude Code /
   // Claude Desktop) depuis les Paramètres. C'est l'autre moitié du couple — le serveur pilote
-  // en retour cette fenêtre par le pont `@niers/bridge` (cf. `lib/bridge.ts`).
+  // en retour cette fenêtre par le pont `@nie/bridge` (cf. `lib/bridge.ts`).
   mcpStatus: (target: McpTarget) => unwrap<McpStatus>(commands.mcpStatus(target)),
   mcpInstall: (target: McpTarget, gameDir?: string) =>
     unwrap<McpInstall>(commands.mcpInstall(target, gameDir?.trim() ? gameDir.trim() : null)),

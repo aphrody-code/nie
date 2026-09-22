@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "./App";
 import { loadMenuPresentation } from "./game/bridge";
-import { setSettings } from "@niers/inacord-ui/lib/settings";
+import { setSettings } from "@nie/inacord-ui/lib/settings";
 
 let root: Root | null;
 let container: HTMLDivElement;

@@ -1,4 +1,4 @@
-import type { AssetSource } from "@niers/asset-source";
+import type { AssetSource } from "@nie/asset-source";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { nativeAssetUrl, type NativeSceneRect } from "./native-title-menu";
 import "./native-sprite.css";

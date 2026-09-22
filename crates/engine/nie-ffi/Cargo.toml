@@ -1,6 +1,6 @@
 [package]
 name = "nie-ffi"
-description = "Frontière FFI C-ABI: expose la logique niers (CRC32 RDBN, PRNG CRand MT19937, décodage formats, VFS) à Bun et autres runtimes"
+description = "Frontière FFI C-ABI: expose la logique nie (CRC32 RDBN, PRNG CRand MT19937, décodage formats, VFS) à Bun et autres runtimes"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true

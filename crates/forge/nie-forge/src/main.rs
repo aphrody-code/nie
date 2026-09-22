@@ -42,7 +42,7 @@ struct Paths {
     #[arg(long, global = true, default_value = "forge/asm")]
     asm: PathBuf,
     /// Base de connaissance RE : noms de fonctions et racines `.pdata`.
-    #[arg(long, global = true, default_value = "var/niers.sqlite")]
+    #[arg(long, global = true, default_value = "var/nie.sqlite")]
     db: PathBuf,
 }
 
@@ -830,7 +830,7 @@ fn cmd_candidates(paths: &Paths, max_len: usize, top: usize, no_reloc: bool) -> 
     let mut groups: HashMap<Vec<u8>, Group> = HashMap::new();
     for u in &store.cover.units {
         // Les fonctions `.pdata` **et** les corps feuilles isolés du résidu : ces
-        // derniers n'ont pas d'information d'unwind mais sont bien du code.
+        // dernie n'ont pas d'information d'unwind mais sont bien du code.
         if !matches!(u.kind, UnitKind::Function | UnitKind::CodeResidue) || u.len > max_len {
             continue;
         }

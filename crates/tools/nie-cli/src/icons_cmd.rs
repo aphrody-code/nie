@@ -1,4 +1,4 @@
-//! `niers icons` — index des **icônes du jeu** et extraction à la demande.
+//! `nie icons` — index des **icônes du jeu** et extraction à la demande.
 //!
 //! ## Pourquoi un index et non un dossier de PNG
 //!
@@ -42,7 +42,7 @@ fn charger_map(chemin: &Path) -> BTreeMap<String, String> {
     }
 }
 
-/// Ce que `niers icons` sait faire.
+/// Ce que `nie icons` sait faire.
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum IconsCmd {
     /// Écrit l'index des icônes (nom → atlas + rectangle) en JSON.
@@ -106,7 +106,7 @@ fn icon_json(name: &str, icon: &MenuIcon) -> serde_json::Value {
     })
 }
 
-/// Point d'entrée de `niers icons`.
+/// Point d'entrée de `nie icons`.
 pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
     let mut vfs = Vfs::new();
     vfs.init(game_dir.join("data")).context("init VFS")?;

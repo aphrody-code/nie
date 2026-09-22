@@ -1,6 +1,6 @@
 # Provenance
 
-`niers` is the maintained implementation and the only build/runtime surface in this repository.
+`nie` is the maintained implementation and the only build/runtime surface in this repository.
 
 | Area | Maintained owner | Historical source |
 |---|---|---|

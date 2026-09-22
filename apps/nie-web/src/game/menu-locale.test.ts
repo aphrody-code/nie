@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import type { NativeMenuScene } from "@nie/inacord-ui/shell/native-title-menu";
 
 import scene from "../../../../crates/engine/nie-formats/src/menu_scenes/avatar-common.json";
 import { localizeMenuSceneAssets } from "./menu-locale";

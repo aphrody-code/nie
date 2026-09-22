@@ -1,7 +1,7 @@
 # Atlas — l'index unique des surfaces RE
 
 Le savoir de ce dépôt vivait en huit endroits sans jointure : une base de connaissance de
-19 Go (`var/niers.sqlite`), une arborescence `data/re/` de 4 000 fichiers, une forge
+19 Go (`var/nie.sqlite`), une arborescence `data/re/` de 4 000 fichiers, une forge
 (`forge/asm/lifted.s`, `var/forge/cover.json`, `data/forge/registry.json`), des exports
 (`export/`, `data/export*`), 1 063 documents Markdown, 46 crates, 178 outils exécutables et
 trois binaires `nie.exe`. Aucun de ces gisements ne savait ce que les autres contenaient.
@@ -11,11 +11,11 @@ en 3 minutes, dont 8 secondes hors digest de la base de connaissance — et en p
 l'interroge sans ouvrir SQLite.
 
 ```
-niers atlas build      # (re)construit l'index + le miroir redis
-niers atlas status     # une ligne mesurée
-niers atlas search X   # cherche dans TOUTES les surfaces d'un coup
-niers atlas gaps       # la route vers les 100 %, classée
-niers atlas next       # le prochain chantier, en JSON, pour la boucle
+nie atlas build      # (re)construit l'index + le miroir redis
+nie atlas status     # une ligne mesurée
+nie atlas search X   # cherche dans TOUTES les surfaces d'un coup
+nie atlas gaps       # la route vers les 100 %, classée
+nie atlas next       # le prochain chantier, en JSON, pour la boucle
 ```
 
 ## Ce qui est indexé, et d'où ça vient
@@ -25,11 +25,11 @@ niers atlas next       # le prochain chantier, en JSON, pour la boucle
 | `atlas_artifact` | tout fichier de la chaîne RE/forge : chemin, zone, type, taille, sha256, mtime, lignes, suivi git | marche du dépôt (`crates`, `docs`, `forge`, `data/re`, `data/forge`, `export*`, `scripts`, `python`, `deploy`, `dist`, `refs`) |
 | `atlas_crate` + `atlas_crate_dep` | les crates : rang, version, LOC, tests, `unsafe`, `// EXTERN:`/`todo!()`, dépendances | lecture directe des `Cargo.toml` (jamais `cargo metadata` : il prend le verrou du workspace) |
 | `atlas_doc`, `atlas_doc_section`, `atlas_doc_ref` | le corpus Markdown, ses sections, et **ce qu'il affirme de la machine** : adresses `0x14…`, `FUN_…`, empreintes sha256, tables de la KB, crates, commandes, chemins | parse des `.md` indexés |
-| `atlas_kb_table` | inventaire de la base de connaissance : une ligne par table, avec son compte | `ATTACH … mode=ro` sur `var/niers.sqlite` |
+| `atlas_kb_table` | inventaire de la base de connaissance : une ligne par table, avec son compte | `ATTACH … mode=ro` sur `var/nie.sqlite` |
 | `atlas_symbol` | les fonctions **nommées** de la KB (nom, adresse, sous-système, confiance) + `ported` | `kb.function WHERE name IS NOT NULL` |
 | `atlas_unit` | le découpage du binaire de référence et l'état de production de chaque unité | `var/forge/cover.json`, `forge/asm/lifted.s`, `data/forge/registry.json`, `kb.forge_unit` |
 | `atlas_binary` | `nie.exe` (référence), `dist/nie.exe` (produit), `nie_eacpatched.exe` (patché) + identité byte-à-byte | sha256 sur fichier |
-| `atlas_tool` | ce qui est exécutable : sous-commandes `niers` (lues sur la définition clap), recettes `just`, scripts | clap + `justfile` + `scripts/` |
+| `atlas_tool` | ce qui est exécutable : sous-commandes `nie` (lues sur la définition clap), recettes `just`, scripts | clap + `justfile` + `scripts/` |
 | `atlas_metric` | **chaque chiffre mesuré**, avec la commande qui l'a produit | `atlas build`, `scripts/atlas-loop.sh` |
 | `atlas_gap` | un écart mesurable par domaine, vers 100 % | dérivé des métriques, jamais inventé |
 | `atlas_run` | ce que la boucle autonome a fait, et en combien de temps | `atlas run` |
@@ -69,11 +69,11 @@ atlas-build files=6743 bytes=1054134948 crates=46 docs=1063 doc_refs=13758 binar
 | `proofs.uemu` | preuves uemu au vert (l'oracle byte-exact) | 7 | `just preuves` |
 | `forge.code` | part du `.text` produite | 6 | `nie-forge lift` |
 | `re.classified` | fonctions classées | 6 | `just re-rebuild` |
-| `re.named` | fonctions nommées | 5 | `niers propagate`, `niers seed-ui` |
+| `re.named` | fonctions nommées | 5 | `nie propagate`, `nie seed-ui` |
 | `forge.lifted` | unités relevées en assembleur | 5 | `nie-forge lift` |
 | `forge.units` | unités dont la source C redonne les octets | 4 | `just forge-cc` |
-| `port.symbols` | symboles cités par une source Rust | 3 | `niers atlas link` |
-| `docs.anchored` | documents ancrés sur la machine | 2 | `niers atlas docs --orphans` |
+| `port.symbols` | symboles cités par une source Rust | 3 | `nie atlas link` |
+| `docs.anchored` | documents ancrés sur la machine | 2 | `nie atlas docs --orphans` |
 
 `port.symbols` est une **borne basse assumée** : un nom cité en commentaire compte, une
 réimplémentation anonyme ne compte pas.
@@ -91,10 +91,10 @@ Un tick :
 
 1. **mesure** `nie-forge report --json` (produced, code_rust), l'identité `dist/nie.exe` ↔
    `nie.exe`, et — sur demande — les preuves uemu ;
-2. **indexe** tout le dépôt (`niers atlas build`) et pousse le miroir Redis ;
-3. **classe** les écarts et prend le mieux placé (`niers atlas next`) ;
+2. **indexe** tout le dépôt (`nie atlas build`) et pousse le miroir Redis ;
+3. **classe** les écarts et prend le mieux placé (`nie atlas next`) ;
 4. **agit** une fois, dans une action bornée et réversible :
-   `forge.*` → `nie-forge build` + `verify` ; `re.*` → `niers propagate` ;
+   `forge.*` → `nie-forge build` + `verify` ; `re.*` → `nie propagate` ;
    `proofs.uemu` → `scripts/proofs.sh` ; `docs.anchored` → liste les documents orphelins ;
    tout le reste → journalise « décision humaine ou agent », sans rien toucher ;
 5. **re-mesure** et écrit le tout dans `atlas_run` + `var/atlas-loop.ndjson`.
@@ -108,7 +108,7 @@ Pour une cadence horaire, la ligne cron **n'est pas installée** (changer ce qui
 l'hôte reste sous la main de l'utilisateur) :
 
 ```cron
-23 * * * * cd /home/ubuntu/niers && bash scripts/atlas-loop.sh --no-act >> var/atlas-loop.log 2>&1
+23 * * * * cd /home/ubuntu/nie && bash scripts/atlas-loop.sh --no-act >> var/atlas-loop.log 2>&1
 ```
 
 ## Le miroir Redis
@@ -143,7 +143,7 @@ redis-cli -n 4 get atlas:sym:CMenuAttachLocator
 - **`pragma_table_info` n'accepte pas un nom qualifié** (`kb.forge_unit`) sur tous les
   builds SQLite ; l'atlas lit le DDL dans `kb.sqlite_master`.
 - **Deux copies du corpus amont** : `refs/iecode-re/` et `data/re/50-source/upstream-iecode/`
-  sont byte-identiques document par document (`niers atlas dupes` les compte). Décider
+  sont byte-identiques document par document (`nie atlas dupes` les compte). Décider
   laquelle fait autorité est un chantier ouvert, pas un bug de l'index.
 - Le binaire `target/release/nie-forge` peut être **antérieur au format de `cover.json`**
   (`unknown variant 'inline_data'`) ; la boucle prend le plus récent des deux
@@ -151,7 +151,7 @@ redis-cli -n 4 get atlas:sym:CMenuAttachLocator
 
 ## Rapport aux bases existantes
 
-L'atlas **ne remplace pas** `var/niers.sqlite` : il en publie l'inventaire et la partie
+L'atlas **ne remplace pas** `var/nie.sqlite` : il en publie l'inventaire et la partie
 interrogeable (les 13 653 noms), et pointe vers elle pour le reste (xrefs, chaînes,
 constantes, 2,6 M d'échantillons de keyframes caméra). Le schéma vit dans la même crate que
 celui de la base de connaissance — `crates/forge/nie-index/src/atlas.sql` à côté de

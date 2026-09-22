@@ -50,7 +50,7 @@ mod tests {
 
     /// Golden VFS, comme `nie_wasm::tests_sprite_sheet::feuille_de_sprites_d_un_atlas_reel` :
     /// un vrai atlas d'interface du jeu (`data/dx11/font/gaiji_game.g4tx`, 110 régions mesurées
-    /// par `niers vfs find`) doit produire un CSS exploitable. S'auto-saute, à voix haute, si le
+    /// par `nie vfs find`) doit produire un CSS exploitable. S'auto-saute, à voix haute, si le
     /// jeu n'est pas monté sur cette machine — jamais un vert silencieux.
     #[test]
     fn icon_sheet_css_habille_un_atlas_reel_du_jeu() {

@@ -38,7 +38,7 @@ import type {
 	EntreeVfs as VfsEntry,
 	SourceCatalogPage,
 	VueCatalogue as CatalogView,
-} from "@niers/asset-source";
+} from "@nie/asset-source";
 import {
 	describeFilters,
 	GameCountBadge,
@@ -55,18 +55,18 @@ import {
 	useRouter,
 	useAssetSource,
 	useCapacites as useCapabilities,
-} from "@niers/inacord-ui";
-import { ExplorerEntries, ExplorerSurface } from "@niers/inacord-ui/explorer/explorer-surface";
-import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-controls";
+} from "@nie/inacord-ui";
+import { ExplorerEntries, ExplorerSurface } from "@nie/inacord-ui/explorer/explorer-surface";
+import { PaginationControls } from "@nie/inacord-ui/components/ui/pagination-controls";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
+import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@nie/inacord-ui/lib/browser-navigation";
 import { entryLabel, MEDIA } from "../entries";
 import { pathForEntry, splitLanguagePrefix } from "../routing";
 import { agree, Notice, readableSize, ViewTitle } from "./screen-parts";
 import { Modeles3D as Models3D } from "./Models3D";
 import { CatalogAudioBank, CatalogMoviePreview, SemanticMovieCatalog } from "./CatalogMedia";
-import { GameText } from "@niers/inacord-ui";
-import { ExportMenu } from "@niers/inacord-ui/gallery/ExportMenu";
+import { GameText } from "@nie/inacord-ui";
+import { ExportMenu } from "@nie/inacord-ui/gallery/ExportMenu";
 import { downloadExport, fetchExportFormats } from "../game/export-formats";
 
 /**
@@ -441,7 +441,7 @@ const VIEWS: readonly (GameTab & { id: CatalogView })[] = [
 /**
  * La galerie, cinquième onglet de tête — et identifiant d'affichage LOCAL, pas une `CatalogView`.
  *
- * `CatalogView` est le type de la ROUTE : il est lu par `@niers/asset-source`, par
+ * `CatalogView` est le type de la ROUTE : il est lu par `@nie/asset-source`, par
  * `entries.ts` (`CATALOGS`) et par le tableau des pages de `nie-site`
  * (`crates/tools/nie-site/src/routes/pages.rs`). L'élargir imposerait une cinquième route
  * servie — avec ses quatre compteurs de `routes.rs`, ses `hreflang` et son sitemap — pour une

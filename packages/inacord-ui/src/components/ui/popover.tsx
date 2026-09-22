@@ -4,7 +4,7 @@
 // « Options d'affichage » de l'Explorateur (cf. ExplorerView.tsx).
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 
-import { cn } from "@niers/inacord-ui/lib/utils"
+import { cn } from "@nie/inacord-ui/lib/utils"
 
 const Popover = PopoverPrimitive.Root
 const PopoverTrigger = PopoverPrimitive.Trigger

@@ -1,5 +1,5 @@
 {
-	"name": "@niers/inacord-ui",
+	"name": "@nie/inacord-ui",
 	"version": "1.0.0",
 	"private": true,
 	"description": "L'interface partagee d'Inacord et de nie. Aucun acces direct a l'hote : tout passe par AssetSource.",
@@ -45,8 +45,8 @@
 	"dependencies": {
 		"@rosegriffon/ui": "^1.0.1",
 		"@base-ui/react": "catalog:",
-		"@niers/asset-source": "workspace:*",
-		"@niers/game": "workspace:*",
+		"@nie/asset-source": "workspace:*",
+		"@nie/game": "workspace:*",
 		"@radix-ui/react-accordion": "catalog:",
 		"@radix-ui/react-alert-dialog": "catalog:",
 		"@radix-ui/react-aspect-ratio": "catalog:",

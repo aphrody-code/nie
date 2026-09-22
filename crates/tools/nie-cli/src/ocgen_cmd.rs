@@ -1,4 +1,4 @@
-//! `niers ocgen` — thin binding onto [`nie_ocgen::cli`].
+//! `nie ocgen` — thin binding onto [`nie_ocgen::cli`].
 //!
 //! The command lives in the library so the standalone `nie-ocgen` binary and this sub-command run
 //! the same code. Anything added here rather than there is a second implementation waiting to

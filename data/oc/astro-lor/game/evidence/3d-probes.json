@@ -1,9 +1,9 @@
 {
-  "schema": "niers.oc.3d-probes/v1",
+  "schema": "nie.oc.3d-probes/v1",
   "captured_at": "2026-09-11",
   "method": [
-    "Each rectangle was cropped out of the sheet with `niers img crop`, scaled to a tile with",
-    "`niers img resize`, assembled into a contact strip with `niers img composite`, and looked at.",
+    "Each rectangle was cropped out of the sheet with `nie img crop`, scaled to a tile with",
+    "`nie img resize`, assembled into a contact strip with `nie img composite`, and looked at.",
     "A probe was kept only once the tile showed the intended material and nothing else worth",
     "mentioning. Four of the first ten placements were wrong on inspection and were moved.",
     "No image was generated: every pixel here comes from the author's own sheets."

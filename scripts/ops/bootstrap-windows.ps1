@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    Prépare un clone Windows de `niers` : le branche sur l'installation Steam du jeu, et
+    Prépare un clone Windows de `nie` : le branche sur l'installation Steam du jeu, et
     rapatrie du VPS ce que Git ne porte pas.
 
 .DESCRIPTION
@@ -32,7 +32,7 @@
     `data\cpk_list.cfg.bin`, pas le dossier `data` lui-même.
 
 .PARAMETER WithRe
-    Rapatrie aussi `var/niers.sqlite` (**17 Go**). Absent par défaut, et pas seulement pour la
+    Rapatrie aussi `var/nie.sqlite` (**17 Go**). Absent par défaut, et pas seulement pour la
     taille : cette base est **ancrée sur un autre binaire** que le `nie.exe` installé
     (cf. `CLAUDE.md` § Base de connaissance), donc ses chiffres ne décrivent pas la cible. La
     rapatrier ne se justifie que pour un travail de reverse assumé.
@@ -59,7 +59,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$Distant = '/home/ubuntu/niers'
+$Distant = '/home/ubuntu/nie'
 $AppId = 2799860   # INAZUMA ELEVEN Victory Road, cf. nie_steam::IEVR_STEAM_APP_ID
 
 function Etape   { param([string]$M) Write-Host "`n$M" -ForegroundColor Cyan }
@@ -67,7 +67,7 @@ function Ok      { param([string]$M) Write-Host "  [ok]   $M" -ForegroundColor G
 function Note    { param([string]$M) Write-Host "  [note] $M" -ForegroundColor Yellow }
 function Echouer { param([string]$M) Write-Host "  [ko]   $M" -ForegroundColor Red; exit 1 }
 
-Write-Host '=== niers — clone Windows ===' -ForegroundColor Cyan
+Write-Host '=== nie — clone Windows ===' -ForegroundColor Cyan
 Write-Host "    dépôt : $Root"
 Write-Host "    VPS   : ${VpsHost}:$Distant"
 
@@ -137,7 +137,7 @@ if (-not $GameDir) {
 }
 
 # La garde qui compte : la racine du jeu est celle qui porte `data\cpk_list.cfg.bin`. Sans ce
-# fichier, `Vfs::init` ne monte rien et TOUT le reste (goldens, MCP, `niers info`) échoue avec
+# fichier, `Vfs::init` ne monte rien et TOUT le reste (goldens, MCP, `nie info`) échoue avec
 # un message qui parle de VFS, jamais de chemin.
 $cpkList = Join-Path $GameDir 'data\cpk_list.cfg.bin'
 if (-not (Test-Path $cpkList)) {
@@ -174,7 +174,7 @@ if ($SkipVps) {
     # On vérifie l'accès AVANT de lancer six copies : un `Permission denied` au sixième
     # transfert laisserait un état à moitié importé, plus difficile à diagnostiquer qu'un refus
     # net au départ.
-    & ssh -o BatchMode=yes -o ConnectTimeout=10 $VpsHost 'test -d /home/ubuntu/niers' 2>$null
+    & ssh -o BatchMode=yes -o ConnectTimeout=10 $VpsHost 'test -d /home/ubuntu/nie' 2>$null
     if ($LASTEXITCODE -ne 0) {
         Echouer "$VpsHost injoignable ou $Distant absent. Vérifier l'alias SSH (ne PAS viser ovh-vps : il passe par le VPN et expire)."
     }
@@ -185,7 +185,7 @@ if ($SkipVps) {
     #   - on résout le lien côté VPS, sinon on copie un lien mort ;
     #   - on passe par `sqlite3 .backup`, jamais `cp` : copier le seul fichier principal d'une
     #     base WAL perd les écritures récentes (42 épisodes manquants, mesuré le 2026-09-03).
-    $tmp = '/tmp/niers-export'
+    $tmp = '/tmp/nie-export'
     # Ce fichier .ps1 est en CRLF (Windows) : un here-string brut porte donc des `\r\n`, que
     # `ssh` transmet tels quels au bash distant. Un `\r` en fin de ligne s'accroche à l'argument
     # suivant ("set -e\r" -> bash lit l'option "-e\r") et fait échouer le script à la première
@@ -208,7 +208,7 @@ sqlite3 $Distant/data/anime/episodes.db ".backup '$tmp/episodes.db'"
         @{ De = "$Distant/var/vfs/inventaire.txt";  Vers = 'var\vfs\inventaire.txt' },
         @{ De = "$Distant/var/vfs/extensions.txt";  Vers = 'var\vfs\extensions.txt' }
     )
-    if ($WithRe) { $copies += @{ De = "$Distant/var/niers.sqlite"; Vers = 'var\niers.sqlite' } }
+    if ($WithRe) { $copies += @{ De = "$Distant/var/nie.sqlite"; Vers = 'var\nie.sqlite' } }
 
     foreach ($c in $copies) {
         $dest = Join-Path $Root $c.Vers
@@ -262,7 +262,7 @@ if (Test-Path $inv) {
     $lignes = (Get-Content $inv -ReadCount 0).Count
     Ok "inventaire VFS : $lignes lignes"
 } else {
-    Note 'inventaire VFS : absent — régénérable par `niers vfs find "data/" -n 300000 > var\vfs\inventaire.txt`'
+    Note 'inventaire VFS : absent — régénérable par `nie vfs find "data/" -n 300000 > var\vfs\inventaire.txt`'
 }
 
 Write-Host "`nEnsuite, dans un terminal NEUF (pour que NIE_GAME_DIR existe) :" -ForegroundColor Cyan

@@ -5,7 +5,7 @@ import { cn } from "../../../lib/utils";
 
 /**
  * Bloc des 7 stats IEVR à un palier de niveau donné.
- * Aligné sur `StatBlock` de l'ingesteur niers `nie-zukan` (mêmes clés, même ordre).
+ * Aligné sur `StatBlock` de l'ingesteur nie `nie-zukan` (mêmes clés, même ordre).
  */
 export interface StatBlock {
 	kick: number;
@@ -19,7 +19,7 @@ export interface StatBlock {
 
 /**
  * Courbes de stats sur les 4 paliers du Zukan (Lv50/100/150/200).
- * Chaque palier est OPTIONNEL : l'ingesteur niers n'extrait de façon fiable
+ * Chaque palier est OPTIONNEL : l'ingesteur nie n'extrait de façon fiable
  * que le Lv50 (seule colonne pré-rendue dans le HTML) ; 100/150/200 peuvent
  * manquer. Le composant s'adapte au nombre de paliers réellement fournis.
  */

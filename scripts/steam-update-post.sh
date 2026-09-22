@@ -40,7 +40,7 @@ echo "nie.exe courant = $new_sha"
 if [[ "$new_sha" == "$old_sha" ]]; then
   echo "→ binaire INCHANGÉ (MAJ content-only) : base RE toujours valide."
 else
-  echo "→ binaire CHANGÉ : base RE (niers.sqlite, ancres VA) à régénérer/re-ancrer."
+  echo "→ binaire CHANGÉ : base RE (nie.sqlite, ancres VA) à régénérer/re-ancrer."
 fi
 
 echo "== restauration émulation Steam/EOS (écrasée par le download) =="
@@ -70,5 +70,5 @@ echo "== RESTE À FAIRE (manuel, si binaire changé) =="
 echo " • Base RE : bash $REPO/scripts/regen-var.sh --kb   (seed+rebuild sur le nouvel exe, long)"
 echo " • Oracle byte-exact : re-ancrer les ~85 VA de scripts/uemu.py + validate_re.py"
 echo " • Constantes gelées à re-vérifier : clé AES CPK (nie-formats/src/cpk.rs:284), patch EAC"
-echo " • Artefacts CPK (si contenu changé) : niers textures (model-crc-manifest), index redis"
+echo " • Artefacts CPK (si contenu changé) : nie textures (model-crc-manifest), index redis"
 echo " • Sauvegarde ancien build conservée : $BK"

@@ -95,7 +95,7 @@ function renderHomepage(products: Product[]): string {
 <style>*{box-sizing:border-box}body{margin:0;background:#071018;color:#eaf5ff;font:15px/1.45 system-ui,sans-serif}main{width:min(860px,calc(100% - 32px));margin:auto;padding:56px 0 80px}header{display:flex;gap:24px;align-items:center;justify-content:space-between;margin-bottom:36px}h1{font-size:clamp(36px,8vw,68px);line-height:1;margin:0}h2{margin:42px 0 12px}p{color:#a9bdca;margin:.35rem 0}.actions{display:flex;gap:10px;flex-wrap:wrap}a{color:#6fe4ff}a.primary,.download{background:#6fe4ff;color:#041014;text-decoration:none;font-weight:750;border-radius:999px;padding:11px 17px}.ghost{border:1px solid #35505f;border-radius:999px;padding:10px 16px;text-decoration:none}ul{list-style:none;padding:0;margin:0;border-top:1px solid #263d49}li{display:flex;gap:20px;align-items:center;justify-content:space-between;padding:18px 0;border-bottom:1px solid #263d49}small{display:block;color:#78a0b2;margin-top:3px}.download{white-space:nowrap;padding:8px 13px}.unavailable{color:#78909b;font-size:13px}code{background:#10232d;border-radius:6px;padding:2px 6px}section.quick{border:1px solid #263d49;border-radius:16px;padding:20px;margin-top:42px}.quick p{margin:.8rem 0}@media(max-width:620px){main{padding-top:32px}header,li{align-items:flex-start;flex-direction:column}.download{width:100%;text-align:center}}</style></head>
 <body><main><header><div><h1>Inacord</h1><p>Desktop, CLI, MCP, mobile web et plugins — un seul endroit.</p></div><nav class="actions"><a class="primary" href="/inacord">Ouvrir l’app</a><a class="ghost" href="#quickstart">Docs rapides</a></nav></header>
 <ul>${links}</ul>
-<section class="quick" id="quickstart"><h2>Docs rapides</h2><p><strong>Desktop</strong> — lancez l’installateur Windows. Les mises à jour signées arrivent automatiquement par le canal stable.</p><p><strong>CLI</strong> — extrayez l’archive puis installez avec <code>install -m 0755 niers ~/.local/bin/niers</code>.</p><p><strong>MCP</strong> — placez <code>nie-mcp</code> sur votre <code>PATH</code>, puis configurez-le comme serveur stdio avec la commande <code>nie-mcp</code>.</p><p><strong>Plugins</strong> — importez l’archive Blender ou le plugin agent depuis leur gestionnaire respectif.</p><p><strong>Mobile</strong> — ouvrez <a href="/inacord">l’app web</a> puis utilisez « Ajouter à l’écran d’accueil ».</p></section>
+<section class="quick" id="quickstart"><h2>Docs rapides</h2><p><strong>Desktop</strong> — lancez l’installateur Windows. Les mises à jour signées arrivent automatiquement par le canal stable.</p><p><strong>CLI</strong> — extrayez l’archive puis installez avec <code>install -m 0755 nie ~/.local/bin/nie</code>.</p><p><strong>MCP</strong> — placez <code>nie-mcp</code> sur votre <code>PATH</code>, puis configurez-le comme serveur stdio avec la commande <code>nie-mcp</code>.</p><p><strong>Plugins</strong> — importez l’archive Blender ou le plugin agent depuis leur gestionnaire respectif.</p><p><strong>Mobile</strong> — ouvrez <a href="/inacord">l’app web</a> puis utilisez « Ajouter à l’écran d’accueil ».</p></section>
 </main></body></html>\n`;
 }
 
@@ -149,7 +149,7 @@ async function main(): Promise<void> {
 	if (!/^\d+\.\d+\.\d+$/u.test(version)) throw new Error("Invalid workspace version");
 	const desktopVersion = desktopTag.replace(/^v/u, "");
 	const blenderManifest = await readFile(
-		resolve(root, "plugins/niers-blender/blender_manifest.toml"),
+		resolve(root, "plugins/nie-blender/blender_manifest.toml"),
 		"utf8",
 	);
 	const blenderVersion = /^version\s*=\s*"([^"]+)"/mu.exec(blenderManifest)?.[1];
@@ -197,7 +197,7 @@ async function main(): Promise<void> {
 		const info = await stat(path).catch(() => null);
 		if (!info?.isFile()) throw new Error(`Missing release binary: ${path}`);
 	}
-	const cliArchive = resolve(next, "files/cli/linux-x86_64", `niers-${version}-linux-x86_64.tar.gz`);
+	const cliArchive = resolve(next, "files/cli/linux-x86_64", `nie-${version}-linux-x86_64.tar.gz`);
 	const mcpArchive = resolve(next, "files/mcp/linux-x86_64", `nie-mcp-${version}-linux-x86_64.tar.gz`);
 	const archiveStage = resolve(releaseRoot, "archive-stage");
 	await rm(archiveStage, { recursive: true, force: true });
@@ -205,14 +205,14 @@ async function main(): Promise<void> {
 	await mkdir(resolve(archiveStage, "mcp"), { recursive: true });
 	await copyFile(resolve(root, "target/release/nie"), resolve(archiveStage, "cli/nie"));
 	await copyFile(resolve(root, "target/release/nie-mcp"), resolve(archiveStage, "mcp/nie-mcp"));
-	await chmod(resolve(archiveStage, "cli/niers"), 0o755);
+	await chmod(resolve(archiveStage, "cli/nie"), 0o755);
 	await chmod(resolve(archiveStage, "mcp/nie-mcp"), 0o755);
-	run(["tar", "-czf", cliArchive, "-C", resolve(archiveStage, "cli"), "niers"]);
+	run(["tar", "-czf", cliArchive, "-C", resolve(archiveStage, "cli"), "nie"]);
 	run(["tar", "-czf", mcpArchive, "-C", resolve(archiveStage, "mcp"), "nie-mcp"]);
 
-	const blenderArchive = resolve(next, "files/plugins", `niers-blender-${blenderVersion}.zip`);
-	const agentArchive = resolve(next, "files/plugins", `niers-agent-plugin-${version}.zip`);
-	run(["zip", "-qr", blenderArchive, "niers-blender", "-x", "*/__pycache__/*", "*.pyc"], resolve(root, "plugins"));
+	const blenderArchive = resolve(next, "files/plugins", `nie-blender-${blenderVersion}.zip`);
+	const agentArchive = resolve(next, "files/plugins", `nie-agent-plugin-${version}.zip`);
+	run(["zip", "-qr", blenderArchive, "nie-blender", "-x", "*/__pycache__/*", "*.pyc"], resolve(root, "plugins"));
 	run(["zip", "-qr", agentArchive, "nie"], resolve(root, "plugins"));
 
 	const nsisPath = resolve(next, "files/desktop/windows-x86_64", nsisName);
@@ -280,7 +280,7 @@ async function main(): Promise<void> {
 			{
 				id: "cli-linux",
 				kind: "cli",
-				name: "niers CLI",
+				name: "nie CLI",
 				description: "Native command-line tools for Linux.",
 				status: "available",
 				version,

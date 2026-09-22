@@ -29,7 +29,7 @@ const unifiedAgentsContent = `# UNIFIED-AGENTS.md — Single Authority & Operati
 ### 1.2 Language Convention
 - **English** for all machine-readable and technical identifiers: file & directory names, variables, functions, types, fields, constants, modules, **URLs, route patterns, query parameters, site slugs, public JSON keys**, CLI commands, DB tables/columns, and documentation written for agents.
 - **French** strictly reserved for prose addressed to the user (reports, summaries, explanations).
-- **Product Names Frozen:** Inacord, nie, \`niers\`, and the \`nie-*\` crates. Existing mirror table prefixes are data-schema contracts.
+- **Product Names Frozen:** Inacord, nie, \`nie\`, and the \`nie-*\` crates. Existing mirror table prefixes are data-schema contracts.
 
 ### 1.3 Never Overwrite Another Agent
 1. **Announce Scope Before Writing:** Post a \`claim: <paths>\` before touching files outside your current batch.
@@ -66,9 +66,9 @@ const unifiedAgentsContent = `# UNIFIED-AGENTS.md — Single Authority & Operati
 - **TypeScript Gate:** \`bun run typecheck\` (validates the 5 workspaces).
 
 ### 3.2 Polyglot Architecture
-- **Rust (\`crates/\`):** The primary CLI (\`niers\`), GUI core, WebAssembly, formats, rendering, and RE.
+- **Rust (\`crates/\`):** The primary CLI (\`nie\`), GUI core, WebAssembly, formats, rendering, and RE.
 - **Bun/TypeScript (\`packages/\`, \`apps/\`):** \`packages/inacord-ui\` shared UI, the Inacord WebSocket client contract (\`packages/nie-bridge\`), web serving (\`apps/nie-web\`), and pipelines. The MCP server is native Rust (\`crates/tools/nie-mcp\`).
-- **Rust (\`crates/\`):** Maintained format parsers, game runtime, RE tooling, and the \`niers\` CLI.
+- **Rust (\`crates/\`):** Maintained format parsers, game runtime, RE tooling, and the \`nie\` CLI.
 - **Historical IECODE:** C++/.NET sources are maintained only in their dedicated historical repositories; they are not build inputs here.
 
 ### 3.3 Critical Traps & Anti-Patterns

@@ -23,7 +23,7 @@
 //!
 //! ## `unsafe`
 //!
-//! Seul crate de niers à faire de la FFI OS (libc / windows-sys), confinée aux backends et
+//! Seul crate de nie à faire de la FFI OS (libc / windows-sys), confinée aux backends et
 //! documentée `SAFETY`. Le reste (types, scan, patch) est sûr. Pas de `forbid(unsafe_code)`.
 //!
 //! Building with `--no-default-features` keeps only the portable [`aob`] scanner and [`catalog`]

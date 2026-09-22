@@ -1,6 +1,6 @@
-//! `niers find` et `niers grep` — recherche de fichiers et de contenu **sur le disque**.
+//! `nie find` et `nie grep` — recherche de fichiers et de contenu **sur le disque**.
 //!
-//! Complète `niers vfs find`, qui ne voit que l'intérieur des CPK du jeu. Ici c'est l'arbre de
+//! Complète `nie vfs find`, qui ne voit que l'intérieur des CPK du jeu. Ici c'est l'arbre de
 //! travail : sources, dumps, scratchpad.
 //!
 //! ## Pourquoi dans la CLI plutôt qu'en shell
@@ -59,7 +59,7 @@ fn walker(dir: &Path, hidden: bool, no_ignore: bool, depth: Option<usize>) -> Wa
     w
 }
 
-/// Options de `niers find`.
+/// Options de `nie find`.
 pub struct FindArgs {
     /// Sous-chaîne cherchée dans le chemin (vide = tout lister).
     pub pattern: String,
@@ -169,7 +169,7 @@ fn args_case(needle: &str) -> bool {
     needle.chars().any(char::is_uppercase)
 }
 
-/// Options de `niers grep`.
+/// Options de `nie grep`.
 pub struct GrepArgs {
     /// Expression régulière cherchée dans le contenu.
     pub pattern: String,

@@ -1,7 +1,7 @@
 # G4CM — les caméras de cutscene, du conteneur à la trajectoire
 
 État mesuré le **2026-09-19** sur le corpus complet : **1 215 fichiers** `.g4cm`, tous décodés et
-indexés dans `var/niers.sqlite`.
+indexés dans `var/nie.sqlite`.
 
 **Le verrou est levé.** Ce document décrivait un chantier à moitié fait dont la moitié manquante
 était la déquantification des échantillons. Elle est désormais **prouvée byte-exact contre
@@ -237,22 +237,22 @@ consomme des valeurs déjà décodées.
 ## Reproduire les mesures
 
 ```sh
-# Peupler l'index caméra (tables cam_* de var/niers.sqlite)
+# Peupler l'index caméra (tables cam_* de var/nie.sqlite)
 cargo run -p nie-camera --bin nie-cam -- index \
-    --db var/niers.sqlite \
+    --db var/nie.sqlite \
     --game-dir <racine-du-jeu> \
     --exe dist/nie.exe
-nie-cam stats --db var/niers.sqlite
+nie-cam stats --db var/nie.sqlite
 
 # Plages réelles par genre, sur les seuls canaux décodés
-sqlite3 var/niers.sqlite "
+sqlite3 var/nie.sqlite "
   SELECT kind, COUNT(*), ROUND(MIN(v_min),2), ROUND(MAX(v_max),2)
   FROM cam_anim_channel
   WHERE encoding='f32' AND ABS(v_min)<1e4 AND ABS(v_max)<1e4
   GROUP BY kind ORDER BY kind;"
 
 # Recensement des encodages
-sqlite3 var/niers.sqlite "SELECT * FROM v_cam_channel_stats;"
+sqlite3 var/nie.sqlite "SELECT * FROM v_cam_channel_stats;"
 
 # Les trois invariants du barème et de l'alignement, sur le corpus entier
 cargo run -p nie-formats --release --example g4cm_scale_census -- var/tmp/allcams

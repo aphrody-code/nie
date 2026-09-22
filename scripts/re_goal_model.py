@@ -7,7 +7,7 @@ Usage :
   re_goal_model.py disasm <func_vaddr> [bytes] # désassemble une fonction (iced-x86)
 
 Le binaire : nie_eacpatched.exe (EAC-patché, build courant du VPS). Layout MSVC : le slot
-stocké comme `vtable_vaddr` dans niers.sqlite est le COL ; les pointeurs de vméthodes
+stocké comme `vtable_vaddr` dans nie.sqlite est le COL ; les pointeurs de vméthodes
 commencent à COL+8 (cf. mémoire c3-modele-but-anchors)."""
 import sys
 import pefile

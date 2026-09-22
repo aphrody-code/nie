@@ -49,7 +49,7 @@
 //!
 //! ## L'extraction a été faite — et elle confirme
 //!
-//! `niers vfs extract data/common/script/lua/ --out <dir>` rend 651 fichiers, dont un
+//! `nie vfs extract data/common/script/lua/ --out <dir>` rend 651 fichiers, dont un
 //! `main_menu_inc_3.00.01.00.lua.bin` de 13 092 octets : la copie du jeu, celle de
 //! `data/lua_dump/`, pas celle de `data/lua_scripts/`. Le relevé rejoué dessus
 //! (`NIE_LUA_MOUNT=<dir>`) rend **0 définition** pour les cinq, 40 lectures pour la première.
@@ -95,7 +95,7 @@
 //! ```text
 //! 13 362 o  data/lua_scripts/main_menu_inc_3.00.01.00.lua.bin          ← définit les cinq
 //! 13 092 o  data/lua_dump/common/script/lua/include/menu/…             ← ne les définit pas
-//! 13 092 o  le VFS du jeu (`niers vfs find main_menu_inc`)             ← l'arbitre
+//! 13 092 o  le VFS du jeu (`nie vfs find main_menu_inc`)             ← l'arbitre
 //! ```
 //!
 //! `data/lua_scripts/` est un dump PLAT qui diverge du jeu. Le balayage ne lit donc plus que les
@@ -126,7 +126,7 @@ fn scripts() -> Vec<PathBuf> {
         |_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."),
         PathBuf::from,
     );
-    // Un montage FRAÎCHEMENT extrait a priorité : `niers vfs extract data/common/script/lua/
+    // Un montage FRAÎCHEMENT extrait a priorité : `nie vfs extract data/common/script/lua/
     // --out <dir>` produit la seule copie dont on sache qu'elle vient du jeu, et c'est ce que
     // `NIE_LUA_MOUNT` désigne. Sans lui, on retombe sur les dumps du dépôt.
     if let Ok(mount) = std::env::var("NIE_LUA_MOUNT") {
@@ -140,7 +140,7 @@ fn scripts() -> Vec<PathBuf> {
     let mut trouves = Vec::new();
     // SEULEMENT les montages en forme de VFS. `data/lua_scripts/` est un dump PLAT qui diverge
     // du jeu : sa copie de `main_menu_inc_3.00.01.00.lua.bin` fait 13 362 octets là où le VFS
-    // en porte 13 092 (`niers vfs find`, 2026-09-12), et elle définit cinq globales que la
+    // en porte 13 092 (`nie vfs find`, 2026-09-12), et elle définit cinq globales que la
     // vraie ne définit pas. L'y inclure faisait conclure que ces fonctions étaient du Lua.
     for base in ["data/lua_dump", "data/re/40-derived/dumps/lua-vfs-all"] {
         collecter(&racine.join(base).join("common"), &mut trouves);

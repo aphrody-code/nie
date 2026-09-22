@@ -1,4 +1,4 @@
-# NIERS unified execution plan
+# NIE unified execution plan
 
 Last consolidated: 2026-09-08. This is the repository's only active plan, priority list,
 decision ledger, and completion gate. Historical plans are preserved under
@@ -100,7 +100,7 @@ Boundaries that must not be collapsed merely because names are close:
   G4MD/G4MG controls, avatar/menu pipelines, and a native Live Mod bridge. Git-history review did
   not identify a deleted UI worth restoring without reintroducing obsolete wiki/web coupling.
 
-Latest relevant gates run from `/home/ubuntu/niers` on 2026-09-08:
+Latest relevant gates run from `/home/ubuntu/nie` on 2026-09-08:
 
 | Gate | Result |
 |---|---:|
@@ -162,7 +162,7 @@ succeed, zero unresolved visible transforms, and native/Wasm object-state equali
 
 ### P2 — Input, motion and navigation parity
 
-- Use `@niers/inacord-ui/shell/menu-interaction` as the shared spatial-navigation reducer.
+- Use `@nie/inacord-ui/shell/menu-interaction` as the shared spatial-navigation reducer.
 - Connect pointer hover/press/release, focus, keyboard, touch, and standard gamepad polling.
 - Derive action availability and destinations from the runtime/menu catalogue, not a site-only
   hardcoded list.
@@ -252,7 +252,7 @@ report. A service being `active` or a page returning 200 is insufficient.
 
 ## Active batch evidence — portable menu scene and shared input (2026-09-08)
 
-Measured on host `vps-203bea89`, checkout `/home/ubuntu/niers`:
+Measured on host `vps-203bea89`, checkout `/home/ubuntu/nie`:
 
 - `nie-lua` now owns portable `MenuState`, a versioned lossless `MenuScene`, and the existing
   object-hash merge compatibility projection previously embedded in `nie-game`. Native exports
@@ -280,7 +280,7 @@ Measured on host `vps-203bea89`, checkout `/home/ubuntu/niers`:
 | `cargo fmt --all -- --check` | passed |
 | `bun test apps/nie-web/src packages/inacord-ui/src/shell/menu-interaction.test.ts scripts/validation/image-metrics.test.ts` | 101 passed, 0 failed, 338 assertions |
 | `bun run typecheck` in `apps/nie-web` | passed |
-| `NIE_SITE_STATIC_DIR=/home/ubuntu/niers/var/releases/menu-batch/bundle scripts/e2e-site.sh --no-build` | 66 checks passed, 0 failed, 0 skipped; 255308 VFS entries |
+| `NIE_SITE_STATIC_DIR=/home/ubuntu/nie/var/releases/menu-batch/bundle scripts/e2e-site.sh --no-build` | 66 checks passed, 0 failed, 0 skipped; 255308 VFS entries |
 | `var/outputs/menu-visual/baseline/report.json` | SSIM 0.5576746728; RGB mean absolute delta 70.78096/255; 99.5601% changed pixels |
 | `bun scripts/validation/gate-menu-browser.ts http://127.0.0.1:18085 var/outputs/menu-visual/final-staged` | 17 passed, 0 failed; 151 requests, 0 failed; 2 VFS images; all 4 destinations |
 | `var/outputs/menu-visual/final-staged/report.json` | SSIM 0.5576746727661485; RGB mean absolute delta 70.7809553433642/255; changed fraction 0.995600887345679 |
@@ -321,7 +321,7 @@ requires runtime layout export and injects the validated state before callbacks.
 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`.
 These offsets are not asserted to be save-file fields or given guessed product meanings.
 
-On `/home/ubuntu/niers`, host `vps-203bea89`, 2026-09-08: Lua library tests passed 118 with
+On `/home/ubuntu/nie`, host `vps-203bea89`, 2026-09-08: Lua library tests passed 118 with
 1 ignored; VM-free tests passed 7 with 1 ignored; game unit tests passed 8; Wasm library tests
 passed 64. Lua/game clippy and portable Lua check passed. The explicitly executed
 `menu_native_state` reference-VFS integration test passed: no input retains 14 unknown general
@@ -359,11 +359,11 @@ Legacy numeric layouts remain readable. A centered asset pose is not labelled un
 because it is centered. Loading exports with no executed scripts now identify `static-assets`.
 
 The already tracked Web metadata was regenerated from the same verified recipes, using the freshly
-built `target/debug/nie-game` on `vps-203bea89` in `/home/ubuntu/niers`:
+built `target/debug/nie-game` on `vps-203bea89` in `/home/ubuntu/nie`:
 
 ```text
---game-dir /home/ubuntu/niers --menu main_menu --from-setting --runtime --screen-name mainmenu01 --export-layout apps/nie-web/src/layouts/mainmenu01.layout.json
---game-dir /home/ubuntu/niers --menu loading01 --runtime --export-layout apps/nie-web/src/layouts/loading01.layout.json
+--game-dir /home/ubuntu/nie --menu main_menu --from-setting --runtime --screen-name mainmenu01 --export-layout apps/nie-web/src/layouts/mainmenu01.layout.json
+--game-dir /home/ubuntu/nie --menu loading01 --runtime --export-layout apps/nie-web/src/layouts/loading01.layout.json
 ```
 
 The main menu retains 30 objects, 22 requested visible: 12 attachment-locator placements,

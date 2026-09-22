@@ -9,14 +9,14 @@
  *   - un `.cfg.bin` réel se décode en JSON structuré (menu_setting T2b),
  *   - `detectFormat` reconnaît les magies.
  *
- * Lancer :  NIE_GAME_DIR=/home/aphrody/niers bun test packages/nie/
+ * Lancer :  NIE_GAME_DIR=/home/aphrody/nie bun test packages/nie/
  */
 
 import { test, expect, describe } from "bun:test";
 import { existsSync } from "node:fs";
 import { vfsOpen, decode, decodeMenuSetting, decodeToPng, detectFormat } from "./index.ts";
 
-const GAME_DIR = process.env["NIE_GAME_DIR"] ?? "/home/aphrody/niers";
+const GAME_DIR = process.env["NIE_GAME_DIR"] ?? "/home/aphrody/nie";
 const DATA_DIR = `${GAME_DIR}/data`;
 const HAS_GAME = existsSync(`${DATA_DIR}/cpk_list.cfg.bin`);
 

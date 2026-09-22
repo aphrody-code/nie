@@ -153,7 +153,7 @@ export default function DownloadPage() {
 			<div className="section-heading"><h2>Docs rapides</h2><p>Commencer sans détour.</p></div>
 			<div className="quickstart__grid">
 				<div><span>01</span><h3>Desktop</h3><p>Lancez l’installateur. Les versions signées utilisent ensuite le canal stable de mise à jour.</p></div>
-				<div><span>02</span><h3>CLI</h3><p>Extrayez l’archive, puis placez <code>niers</code> dans votre <code>PATH</code>.</p></div>
+				<div><span>02</span><h3>CLI</h3><p>Extrayez l’archive, puis placez <code>nie</code> dans votre <code>PATH</code>.</p></div>
 				<div><span>03</span><h3>MCP</h3><p>Déclarez <code>nie-mcp</code> comme serveur stdio dans votre client compatible.</p></div>
 				<div><span>04</span><h3>Mobile</h3><p>Ajoutez cette page à votre écran d’accueil ; le bouton ci-dessus le fait quand le navigateur le propose.</p></div>
 			</div>

@@ -2,7 +2,7 @@
 yanked = "deny"
 unmaintained = "workspace"
 ignore = [
-  { id = "RUSTSEC-2023-0071", reason = "Transitive through steamroom; niers performs local Steam authentication and does not expose RSA private-key operations to network timing observers. No patched rsa 0.9 release exists." },
+  { id = "RUSTSEC-2023-0071", reason = "Transitive through steamroom; nie performs local Steam authentication and does not expose RSA private-key operations to network timing observers. No patched rsa 0.9 release exists." },
 ]
 
 [bans]

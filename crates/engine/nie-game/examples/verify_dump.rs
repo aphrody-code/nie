@@ -2,7 +2,7 @@
 //!
 //! Usage :
 //! ```text
-//! NIE_GAME_DIR=/home/aphrody/niers \
+//! NIE_GAME_DIR=/home/aphrody/nie \
 //!   cargo run -p nie-game --example verify_dump -- \
 //!     <chemin_interne_vfs> <chemin_fichier_dumpé>
 //! ```

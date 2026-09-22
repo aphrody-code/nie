@@ -73,7 +73,7 @@ fn main() {
     }
 
     let manifest = json!({
-        "schema": "niers/databases-manifest/v1",
+        "schema": "nie/databases-manifest/v1",
         "locale": "fr",
         "source": "VFS live IEVR (résolution texte nie-data)",
         "databaseCount": entries.len(),

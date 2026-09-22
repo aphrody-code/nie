@@ -6,7 +6,7 @@ Cahier des charges de routes pour nie, sur le périmètre :
 `data/dx11/shader/`, `data/dx11/event/`.
 
 Source : `var/vfs/lot6-monde.txt` (chemin, taille, `[cpk]`), extrait du VFS live (255 308 entrées).
-Toutes les commandes ci-dessous sont rejouables telles quelles depuis `/home/ubuntu/niers`.
+Toutes les commandes ci-dessous sont rejouables telles quelles depuis `/home/ubuntu/nie`.
 
 ## 1. Les chiffres
 
@@ -66,7 +66,7 @@ là que la priorité de routage doit aller.
 
 - **Cartes par code** : `s10g001`, `b10g001`, `w16` — préfixe de type (`s`=scénario/stage,
   `b`=bâtiment, `w`=monde ouvert) + numéro de zone + suffixe de sous-zone (`g001`). Vérifié
-  (`niers vfs find s10g001 -n 5`, `niers vfs find w16 -n 5`) : 124 fichiers sous `s10g001`, 138
+  (`nie vfs find s10g001 -n 5`, `nie vfs find w16 -n 5`) : 124 fichiers sous `s10g001`, 138
   sous `w16`, répartis entre `data/common/gamedata/map/<code>/` (config) et
   `data/common/map/_light/<code>_g1/` (géométrie d'éclairage, suffixes `_su00`…`_su12`, `_cl00`…).
 - **Shaders versionnés par dossier unique** : tous les 2 870 fichiers de `data/dx11/shader/`
@@ -75,7 +75,7 @@ là que la priorité de routage doit aller.
 - **Fichiers versionnés par suffixe numérique** : `chara_act_cfg.1.03.91.00.cfg.bin` (16 880
   puis 70 352 octets selon la version), `w16_encount_config_1.01.13.00.cfg.bin` /
   `…_1.01.31.00…` / `…_1.01.80.00…` (trois versions coexistantes du même fichier logique, tailles
-  944/1056/1072 o) — **ne jamais deviner un numéro de version**, toujours `niers vfs find`.
+  944/1056/1072 o) — **ne jamais deviner un numéro de version**, toujours `nie vfs find`.
 - **`event_bustup_talk_data_config_c16_3.00.06.cfg.bin`** : le code personnage (`c16`, `c20`,
   `c21`, `c22`…) est encodé dans le nom, pas dans un sous-dossier.
 - `data/common/map/` niveau 4 : dominé par `s` (4 919), `w` (3 155), `ar` (1 740, arène ?),
@@ -257,7 +257,7 @@ Aucune route sans décodeur existant — classées par ce qui est immédiatement
 
 1. **`/api/v1/gamedata/map/{code}`** — agrège tous les `.cfg.bin` d'un code de carte
    (`s10g001`, `w16`…) via le décodeur générique (§5) déjà en service ; pas de nouveau parseur,
-   juste un agrégateur de chemins (`niers vfs find <code>`).
+   juste un agrégateur de chemins (`nie vfs find <code>`).
 2. **`/api/v1/collision/{chemin}`** — décoder `.col` via `col::parse` (existe,
    `crates/engine/nie-formats/src/col.rs:49`) et rendre un JSON de mesh de collision. **À
    écrire** : le endpoint HTTP seul manque, le parseur est prêt.
@@ -299,7 +299,7 @@ Aucune route sans décodeur existant — classées par ce qui est immédiatement
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC32 and string mappings for gamedata fields, maps, skills and collisions
 - `function` — world scene graph, map loading, collision detection and game rule routines in `nie.exe`
 - `xref` — cross-references to map status, skill config, and game state loops

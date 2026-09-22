@@ -29,13 +29,13 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@niers/inacord-ui/components/ui/select";
-import { Slider } from "@niers/inacord-ui/components/ui/slider";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@nie/inacord-ui/components/ui/select";
+import { Slider } from "@nie/inacord-ui/components/ui/slider";
 import { api } from "@/lib/api";
 import type { FilmDto } from "@/lib/bindings";
-import { cn } from "@niers/inacord-ui/lib/utils";
-import { synchronizeMediaClock } from "@niers/inacord-ui/lib/media-sync";
+import { cn } from "@nie/inacord-ui/lib/utils";
+import { synchronizeMediaClock } from "@nie/inacord-ui/lib/media-sync";
 
 /** Délai d'inactivité avant escamotage des contrôles, en millisecondes. */
 const DELAI_MASQUAGE = 2600;
@@ -694,7 +694,7 @@ export function VideoPlayer({
               <LigneFiche intitule="XOR CRI" valeur={film.chiffre === null ? null : film.chiffre ? "oui" : "non"} />
               <LigneFiche intitule="Nom d'origine" valeur={film.nom_origine} />
               {/* Le chemin en entier, sélectionnable : c'est ce qu'on recopie dans une commande
-                  `niers vfs extract` ou dans un test. */}
+                  `nie vfs extract` ou dans un test. */}
               <div className="mt-2 select-text break-all border-t border-white/10 pt-2 font-mono text-[10px] text-white/45">
                 {film.chemin}
               </div>

@@ -601,7 +601,7 @@ mod tests {
     /// Vérification sur les vraies saves du VPS (test intégration, skip si absent).
     ///
     /// Ce test charge `data/saves/002AB8F4-USERDATALIVE` (chemin depuis la racine du workspace
-    /// niers). Il est SKIP si le fichier est absent (CI). Sur le VPS il valide les invariants
+    /// nie). Il est SKIP si le fichier est absent (CI). Sur le VPS il valide les invariants
     /// confirmés par RE.
     #[test]
     #[cfg_attr(not(feature = "real-saves"), ignore)]

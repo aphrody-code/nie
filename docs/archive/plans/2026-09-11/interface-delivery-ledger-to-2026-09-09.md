@@ -528,12 +528,12 @@ the verified snapshot schema contract, not as a TypeScript package owner.
 
 The desktop wiki boundary is native as well: Tauri `wiki_query` dispatches named operations into
 `nie-wiki`, while the webview keeps only DTO contracts and localization. The former desktop
-TypeScript SQL module and migration validator are deleted. Blender searches call `niers.exe`, and
+TypeScript SQL module and migration validator are deleted. Blender searches call `nie.exe`, and
 menu predecode scans indexed VFS textures directly instead of requiring deleted Azalée layouts.
 Dump presets are the English Rust-owned `wiki`, `assets`, and `full` choices.
 
-The obsolete `@niers/catalog` Bun facade and the disconnected `apps/nie-bot` copy are also
-deleted. VFS URL conventions moved to `@niers/asset-source`; the remaining Bun surface is a
+The obsolete `@nie/catalog` Bun facade and the disconnected `apps/nie-bot` copy are also
+deleted. VFS URL conventions moved to `@nie/asset-source`; the remaining Bun surface is a
 transport/presentation adapter and no longer owns an `inagle_*` query or join.
 
 Completion gates:

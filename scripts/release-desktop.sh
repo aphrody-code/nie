@@ -8,7 +8,7 @@
 # create` avec upload manuel des 5 assets) par UNE commande idempotente et rejouable.
 #
 # Usage :
-#   TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/niers.key ./scripts/release-desktop.sh 0.5.0
+#   TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/nie.key ./scripts/release-desktop.sh 0.5.0
 #   ./scripts/release-desktop.sh 0.5.0
 #
 # NOTE — the website release metadata endpoint reads the latest GitHub release directly;
@@ -45,7 +45,7 @@ TAG="v$VERSION"
 [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ] || { echo "ERREUR: doit être sur main (workflow main direct, cf. CLAUDE.md)." >&2; exit 1; }
 git rev-parse "$TAG" >/dev/null 2>&1 && { echo "ERREUR: le tag $TAG existe déjà." >&2; exit 1; }
 command -v gh >/dev/null || { echo "ERREUR: gh CLI introuvable." >&2; exit 1; }
-KEY_PATH="${TAURI_SIGNING_PRIVATE_KEY_PATH:-$HOME/.tauri/niers.key}"
+KEY_PATH="${TAURI_SIGNING_PRIVATE_KEY_PATH:-$HOME/.tauri/nie.key}"
 [ -f "$KEY_PATH" ] || {
 	echo "ERREUR: clé de signature absente ($KEY_PATH)." >&2
 	echo "  Génère-la une fois avec : bunx tauri signer generate -w $KEY_PATH --ci" >&2
@@ -70,24 +70,24 @@ bun install
 echo "▸ [3/8] sanity check (shared Cargo workspace)…"
 cargo check --workspace
 
-echo "▸ [4/8] zip extension Blender (plugins/niers-blender, hors __pycache__)…"
-BLENDER_VERSION="$(grep -m1 '^version' plugins/niers-blender/blender_manifest.toml | sed -E 's/.*"([0-9.]+)".*/\1/')"
+echo "▸ [4/8] zip extension Blender (plugins/nie-blender, hors __pycache__)…"
+BLENDER_VERSION="$(grep -m1 '^version' plugins/nie-blender/blender_manifest.toml | sed -E 's/.*"([0-9.]+)".*/\1/')"
 ZIP_STAGE="$(mktemp -d)"
-mkdir -p "$ZIP_STAGE/niers"   # racine = nom de MODULE Python (le dossier source a un tiret)
-cp -r plugins/niers-blender/. "$ZIP_STAGE/niers/"
+mkdir -p "$ZIP_STAGE/nie"   # racine = nom de MODULE Python (le dossier source a un tiret)
+cp -r plugins/nie-blender/. "$ZIP_STAGE/nie/"
 find "$ZIP_STAGE" -iname "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 mkdir -p "$DESKTOP_RELEASE_DIR/bundle"
-BLENDER_ZIP="$DESKTOP_RELEASE_DIR/bundle/niers-$BLENDER_VERSION.zip"
+BLENDER_ZIP="$DESKTOP_RELEASE_DIR/bundle/nie-$BLENDER_VERSION.zip"
 # `zip` n'existe pas sur une install Windows standard (ni Git Bash, ni MSYS ne le fournissent) :
 # repli sur Compress-Archive, présent partout où PowerShell l'est. Sans ce repli, la release
 # s'arrêtait ici alors que tout le reste était prêt.
 if command -v zip >/dev/null; then
-	(cd "$ZIP_STAGE" && zip -qr "$BLENDER_ZIP" niers)
+	(cd "$ZIP_STAGE" && zip -qr "$BLENDER_ZIP" nie)
 elif command -v powershell >/dev/null; then
 	# Compress-Archive refuse d'écraser sans -Force et veut des chemins Windows.
 	WIN_STAGE="$(cd "$ZIP_STAGE" && pwd -W 2>/dev/null || echo "$ZIP_STAGE")"
 	WIN_ZIP="$(cd "$(dirname "$BLENDER_ZIP")" && pwd -W 2>/dev/null || dirname "$BLENDER_ZIP")/$(basename "$BLENDER_ZIP")"
-	powershell -NoProfile -Command 		"Compress-Archive -Path '$WIN_STAGE/niers' -DestinationPath '$WIN_ZIP' -Force" >/dev/null
+	powershell -NoProfile -Command 		"Compress-Archive -Path '$WIN_STAGE/nie' -DestinationPath '$WIN_ZIP' -Force" >/dev/null
 else
 	echo "ERREUR: ni zip ni powershell disponibles pour empaqueter l'extension Blender." >&2
 	exit 1
@@ -152,13 +152,13 @@ if git diff --cached --quiet; then
 else
 	git commit -m "chore(release): bump $VERSION"
 fi
-git tag -a "$TAG" -m "niers $TAG"
+git tag -a "$TAG" -m "nie $TAG"
 git push origin main
 git push origin "$TAG"
 
 echo "▸ [8/8] GitHub Release $TAG (upload msi+nsis+sig+blender zip)…"
 gh release create "$TAG" \
-	--title "niers $TAG" \
+	--title "nie $TAG" \
 	--notes "App desktop (Tauri v2) signée minisign + extension Blender v$BLENDER_VERSION. Détail : docs/PLAN.md, apps/inacord/ROADMAP.md." \
 	"$MSI" "$MSI.sig" "$NSIS" "$NSIS.sig" "$BLENDER_ZIP"
 

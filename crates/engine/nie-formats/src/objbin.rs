@@ -439,7 +439,7 @@ struct RawEntry {
 
 /// Vérifie rapidement si un tampon est un fichier `.objbin` valide.
 ///
-/// Recherche le pied de page cfg.bin `01 74 32 62` dans les 32 derniers octets.
+/// Recherche le pied de page cfg.bin `01 74 32 62` dans les 32 dernie octets.
 pub fn is_objb(data: &[u8]) -> bool {
     if data.len() < 16 {
         return false;
@@ -1155,13 +1155,13 @@ mod tests {
 
     #[test]
     fn is_objb_pied_de_page_valide() {
-        // Footer cfg.bin 01 74 32 62 aux derniers octets.
+        // Footer cfg.bin 01 74 32 62 aux dernie octets.
         let mut data = vec![0u8; 64];
         data[60] = 0x01;
         data[61] = 0x74;
         data[62] = 0x32;
         data[63] = 0x62;
-        assert!(is_objb(&data), "footer présent dans les 32 derniers octets");
+        assert!(is_objb(&data), "footer présent dans les 32 dernie octets");
     }
 
     #[test]

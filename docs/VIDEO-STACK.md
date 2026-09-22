@@ -136,7 +136,7 @@ audio/vidéo restent à valider sur un vrai fichier.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — Sofdec USM decoding routines in `nie.exe`
 - `xref` — video playback hooks and audio sync
 - `rtti_class` — `lives::CCriSofdecDecoder` class hierarchy

@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { forwardRef } from "react";
 
 import { Icon } from "./Icon";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 export const circleButtonStyles = cva(
   [

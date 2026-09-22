@@ -3,7 +3,7 @@
 //! ## Pourquoi il existe à côté de [`crate::mp4`]
 //!
 //! Le corpus de cinématiques n'est pas dans un seul codec. Mesuré sur les 97 films du jeu
-//! (`niers video catalogue`) : **75 en H.264**, **20 en MPEG-2**, **2 en VP9**. Les deux VP9 sont
+//! (`nie video catalogue`) : **75 en H.264**, **20 en MPEG-2**, **2 en VP9**. Les deux VP9 sont
 //! `ev09_05300` et `ev20_01300` — c'est-à-dire les deux plus longs du jeu, 21 minutes chacun,
 //! et leurs conteneurs le disent sans détour (`nomOrigine = "S:\…\VP9\ev20_01300.usm"`).
 //!
@@ -403,8 +403,8 @@ pub fn muxer_vp9(
     e.ouvrir(ID_INFO);
     e.entier(ID_TIMESTAMP_SCALE, ECHELLE_NS);
     e.flottant(ID_DURATION, duree_ms as f64);
-    e.texte(ID_MUXING_APP, "niers");
-    e.texte(ID_WRITING_APP, "niers");
+    e.texte(ID_MUXING_APP, "nie");
+    e.texte(ID_WRITING_APP, "nie");
     e.fermer();
 
     let pos_tracks = (e.o.len() - base_segment) as u64;

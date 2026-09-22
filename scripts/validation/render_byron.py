@@ -1,12 +1,12 @@
 import bpy, math, sys
 from mathutils import Vector
 
-sys.path.insert(0, r'C:\Users\aphro\nie\plugins\niers-blender')
+sys.path.insert(0, r'C:\Users\aphro\nie\plugins\nie-blender')
 try:
-    import __init__ as niers_blender
-    niers_blender.register()
+    import __init__ as nie_blender
+    nie_blender.register()
 except Exception as exc:
-    print('NIERS_ADDON_REGISTER', repr(exc))
+    print('NIE_ADDON_REGISTER', repr(exc))
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=r'C:\Users\aphro\nie\outputs\byron-current.glb')

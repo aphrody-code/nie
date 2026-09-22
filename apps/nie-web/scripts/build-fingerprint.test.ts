@@ -70,7 +70,7 @@ test("tout ce que le bundler émet est reconnu comme empreinté", () => {
 			}
 		})(),
 	);
-	const bundle = join(appRoot, process.env.NIE_WEB_BUNDLE ?? process.env.NIERS_WEB_BUNDLE ?? "dist-build");
+	const bundle = join(appRoot, process.env.NIE_WEB_BUNDLE ?? process.env.NIE_WEB_BUNDLE ?? "dist-build");
 	let fichiers: string[];
 	try {
 		fichiers = lister(bundle).map((p) => relative(bundle, p));

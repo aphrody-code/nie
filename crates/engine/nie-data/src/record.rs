@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/record/record_config.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/record/record_config.cfg.bin.json`
 //! - Fichier de 30 232 octets, 31 entrées `RECORD_INFO_*` enfants d'un noeud
 //!   `RECORD_INFO_LIST_BEG_0` (var\[0\]=31).
 //!

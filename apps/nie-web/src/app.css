@@ -41,8 +41,8 @@
 @import "./base.css";
 @import "./desktop/styles.css";
 @import "./inacord-web/inacord-web.css";
-@import "@niers/inacord-ui/shell/game-tokens.css";
+@import "@nie/inacord-ui/shell/game-tokens.css";
 /* Les classes `game-*` des écrans du jeu (Options, filtres), engendrées depuis les captures. */
-@import "@niers/inacord-ui/shell/game-screens.css";
+@import "@nie/inacord-ui/shell/game-screens.css";
 /* Final adapter: every host role resolves to the measured menu roles above. */
-@import "@niers/inacord-ui/shell/inacord-tool-theme.css";
+@import "@nie/inacord-ui/shell/inacord-tool-theme.css";

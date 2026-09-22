@@ -1,4 +1,4 @@
-//! `niers vn` — alimente un projet de visual novel avec les assets réels du jeu.
+//! `nie vn` — alimente un projet de visual novel avec les assets réels du jeu.
 //!
 //! Le VN (`nie-vn-engine`, un fork de Ren'Py) ne contient aucun asset : il lit un **catalogue**
 //! produit ici, sur la machine de l'utilisateur, depuis son installation du jeu. Rien de ce que
@@ -28,7 +28,7 @@ use nie_explore::vn::{
 };
 use nie_formats::vfs::Vfs;
 
-/// Sous-commandes de `niers vn`.
+/// Sous-commandes de `nie vn`.
 #[derive(clap::Subcommand, Debug)]
 pub enum VnCmd {
     /// Liste les personnages doublés, du plus fourni au moins fourni.
@@ -88,7 +88,7 @@ pub enum VnCmd {
     },
 }
 
-/// Point d'entrée de `niers vn`.
+/// Point d'entrée de `nie vn`.
 pub fn run(cmd: &VnCmd, vfs: &Vfs) -> Result<()> {
     match cmd {
         VnCmd::Casting {

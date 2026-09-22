@@ -37,7 +37,7 @@ ExecStart=/bin/sh -c 'exec "$NIE_REPO_ROOT/target/release/nie-site" \
 # et /f + /b passent de 503 à 200 quand l'index des ~255 000 entrées est construit.
 #
 # ── LE JEU, PAS LE DÉPÔT (corrigé 2026-09-19) ──────────────────────────────
-# Cette ligne a désigné `/home/ubuntu/niers` depuis la création de l'unité. Le
+# Cette ligne a désigné `/home/ubuntu/nie` depuis la création de l'unité. Le
 # dépôt ne contient AUCUN CPK — `data/` est gitignore par obligation légale —
 # et le VFS s'y rabattait sur un dump : `/healthz` annonçait alors
 # `vfs_entrees: 156873` et `vfs_cpks: 0`, contre les ~255 000 que le
@@ -54,7 +54,7 @@ ExecStart=/bin/sh -c 'exec "$NIE_REPO_ROOT/target/release/nie-site" \
 #
 # Même racine que `--game-dir` de `nie-model-serve`, qui lui l'a toujours eue.
 # Override NIE_REPO_ROOT in /etc/nie/nie.env on hosts that use another checkout.
-Environment=NIE_REPO_ROOT=/home/ubuntu/niers
+Environment=NIE_REPO_ROOT=/home/ubuntu/nie
 Environment=NIE_GAME_DIR=/home/ubuntu/.local/share/Steam/iecode/inazuma
 EnvironmentFile=-/etc/nie/nie.env
 Environment=RUST_LOG=info

@@ -20,7 +20,7 @@ detectFormat(bytes);            // { kind, name }
 ```
 
 Ou, sans écrire de code : outil MCP `vfs_stat` (donne le format détecté et le mode de décodage),
-ou `niers vfs stat <chemin>`.
+ou `nie vfs stat <chemin>`.
 
 ## Décoder
 
@@ -29,7 +29,7 @@ ou `niers vfs stat <chemin>`.
 | MCP `asset_get` | Explorer, inspecter | `decode: "cfg" \| "tex" \| "raw"` en process ; `"audio"` et `"model"` via `nie-model-serve` |
 | `packages/nie` (FFI) | Depuis TypeScript | `decode(bytes)` → JSON ; `decodeToPng(bytes)` pour G4TX |
 | Crate Rust | Depuis Rust | `nie_formats::<module>` |
-| CLI | En ligne de commande | `niers vfs cat <chemin>` (décodage structuré, repli hexdump) |
+| CLI | En ligne de commande | `nie vfs cat <chemin>` (décodage structuré, repli hexdump) |
 | Probes | Explorer une famille | `target/debug/examples/probe_rdbn <prefix>` · `probe_t2b <prefix>` |
 
 ## Familles
@@ -49,7 +49,7 @@ contient, et les pièges connus.
 
 - **Vérifier le magic, pas l'extension.** Les deux divergent dans le VFS.
 - **Ne jamais inventer un offset.** Si la disposition n'est pas dans le module, la lire dans le
-  fichier (`niers vfs cat`, hexdump) avant d'écrire du code.
+  fichier (`nie vfs cat`, hexdump) avant d'écrire du code.
 - **Un décodage qui « marche » peut être faux** : un `.cfg.bin` lu avec la mauvaise branche
   (RDBN au lieu de T2B) rend des valeurs plausibles et fausses. Contrôler contre le jeu ou un
   golden.

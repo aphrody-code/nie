@@ -16,7 +16,7 @@
 //! `icon_trophy01`), while the matcher was handed the atlas itself, 912×532.
 //!
 //! ```sh
-//! niers vfs extract data/common/menu/75_vroad/vroad01/vroad01_71/vroad01_71.g4pkm --out /tmp/x
+//! nie vfs extract data/common/menu/75_vroad/vroad01/vroad01_71/vroad01_71.g4pkm --out /tmp/x
 //! cargo run -p nie-formats --example dump_g4pkm_poses -- /tmp/x 912 532
 //! ```
 

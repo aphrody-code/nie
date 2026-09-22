@@ -32,7 +32,7 @@
 import { ensureWasm } from "./bridge";
 import { menuTextLines } from "./lua-runtime";
 import { MenuScreenBuilder } from "../wasm/nie_wasm.js";
-import { fetchBytes, fetchJson } from "@niers/asset-source";
+import { fetchBytes, fetchJson } from "@nie/asset-source";
 import { vfsResources } from "./vfs-resources";
 
 /** L'espace de fichiers du VFS servi par `nie-site`. */

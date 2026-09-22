@@ -1,7 +1,7 @@
 # Codex — tout le plan en un jour
 
 > **Consigne de l'utilisateur, 2026-09-06.** Elle **remplace** la frontière du 2026-09-05
-> (« Codex dans `rg`, Claude dans `niers` ») : Codex prend en charge **tout le plan**
+> (« Codex dans `rg`, Claude dans `nie` ») : Codex prend en charge **tout le plan**
 > ([`/PLAN.md`](../PLAN.md), J1 → J7) et l'exécute **en une seule journée**, en raisonnement
 > maximal et en exécution proactive.
 
@@ -36,7 +36,7 @@ parallèle.
 |---|---|---|
 | Le workspace Rust compile | `cargo check --workspace --tests` = **0 erreur**, 26,5 s, 34 crates | joué le 2026-09-06 |
 | Le typecheck Bun **échoue sur deux paquets** | `@rosegriffon/mcp` : 5 erreurs `TS2307` (`@rosegriffon/azalee/server` introuvable) · `@rosegriffon/cron` : 3 erreurs `TS2305` (`@aphrody/bxc` sans `detectPii`/`redactPii`/`redactObject`) | `bun run typecheck` |
-| Le reste du typecheck est vert | `inacord`, `nie-web`, `@niers/inacord-ui`, `azalee-tools`, `azalee-web` = 0 | idem |
+| Le reste du typecheck est vert | `inacord`, `nie-web`, `@nie/inacord-ui`, `azalee-tools`, `azalee-web` = 0 | idem |
 | `nie-site` en production sert un binaire **périmé** | `/api/v1/episodes` rend **500** en ligne ; la cause (WAL + `ProtectSystem=strict`) est corrigée dans les sources, le binaire n'a pas été rebâti | session parallèle, 2026-09-06 |
 | nie rend le menu principal | 14 blocs mesurés contre la capture du jeu ; écart ≤ 10 px sur 6 d'entre eux, 392 px sur la rangée (assumé : 5 entrées réelles contre 8 tuiles) | `scripts/validation/measure-mainmenu.py` |
 | Le dépôt est poussé | `a25ea27..f683f36 main` — 532 fichiers, `cargo check` vert avant push | 2026-09-06 |
@@ -120,7 +120,7 @@ liens**, jamais se contenter du code HTTP — c'est exactement le piège qui a c
   404 vignettes sans `srcset`, markup aplati.
 - ISR `revalidate = 3600` + `dynamicParams` sur les 6 fiches, `POST /api/ops/revalidate/wiki`.
 - Lot 2 de `docs/MIGRATION-EXPLORATEUR.md` §4 : pages `/tools/*` mortes et leurs 7 références
-  entrantes — **sauf `app/tools/niers/latest.json/route.ts`**, qui est l'updater des Inacord
+  entrantes — **sauf `app/tools/nie/latest.json/route.ts`**, qui est l'updater des Inacord
   déjà installés. Le casser fige silencieusement toutes les 0.5.x.
 
 **Gate :** `/chara` < 250 Ko en `br`, `<img>` sans `srcset` = 0.
@@ -140,11 +140,11 @@ rg -l '@tauri-apps' packages/inacord-ui | wc -l
 
 **Gate :** les deux rendent **0**. Départ mesuré : 13 fichiers, 23 imports, 19 mentions.
 
-**Mesuré le 2026-09-06 : la gate est TENUE — 0 violation.** Les deux derniers matches de la
+**Mesuré le 2026-09-06 : la gate est TENUE — 0 violation.** Les deux dernie matches de la
 forme non filtrée sont des exceptions, et aucune n'est un oubli :
 
 1. `apps/inacord/src-tauri/tauri.conf.json:41` — l'updater des 0.5.x déjà installées lit encore
-   `azalee.rosegriffon.fr/tools/niers/latest.json` (qui redirige), en **2ᵉ** position derrière
+   `azalee.rosegriffon.fr/tools/nie/latest.json` (qui redirige), en **2ᵉ** position derrière
    `nie.aphrody.com/downloads/inacord/latest.json`. Le retirer figerait silencieusement toutes les
    0.5.x. Il partira quand le parc aura basculé, pas avant.
 2. `packages/inacord-ui/src/components/ui/skeleton.tsx:6-7` — un **commentaire de doctrine**,
@@ -181,7 +181,7 @@ L'installation et le redémarrage, eux, sont au § 5.
 
 La journee finie, la cible suivante est deja ecrite :
 [`docs/PLAN-SITE-ULTIME.md`](PLAN-SITE-ULTIME.md). Elle ne demande pas d'ecrire des capacites
-nouvelles — elle demande de **servir celles qui existent** : 41 sous-commandes `niers` et
+nouvelles — elle demande de **servir celles qui existent** : 41 sous-commandes `nie` et
 155 commandes Tauri pour 14 chemins d'API aujourd'hui. Son instrument est une matrice de
 couverture a CINQ etats — `servi`, `partiel`, `manquant` (le decodeur existe ici, la route
 non), `bloque` (ni l'un ni l'autre : du reverse d'abord) et `interne` (avec sa raison) — et sa
@@ -263,7 +263,7 @@ aphrody a2a tick --iteration <n> --side codex --peer claude --kind fact \
 - `--kind` n'accepte que `fact` et `ping` ; le type réel se code dans le **sujet**.
 - Listener de ce dépôt : `127.0.0.1:8792` (`8788` est celui du dépôt `aphrody`).
 - **Commits.** La règle « un seul auteur » tombe pour cette mission : Codex committe ses
-  propres lots dans `niers`, un lot par commit, avec le compte de sa gate dans le message.
+  propres lots dans `nie`, un lot par commit, avec le compte de sa gate dans le message.
   En contrepartie, `claim:` avant d'écrire devient obligatoire, sans exception — trois
   sessions écrivent en parallèle et un démon externe peut capter un lot à mi-course.
 - **Fichiers d'arbitrage** (`CLAUDE.md`, `AGENTS.md`, `.gitignore`, `justfile`, manifestes
@@ -284,7 +284,7 @@ fait et annoncé fini coûte plus cher qu'un plan à moitié fait.
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — 117 068 functions of `nie.exe`
 - `coverage` — binary coverage rate
 - `pdata_func` — 55 351 authoritative function start addresses

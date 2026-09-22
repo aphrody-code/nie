@@ -1,12 +1,12 @@
 ---
-name: niers-monorepo
-description: Navigate the niers Rust and Bun workspaces, choose the existing owner for a capability, and apply shared dependency, host, validation, and commit conventions. Use before placing files, changing packages, or building niers.
+name: nie-monorepo
+description: Navigate the nie Rust and Bun workspaces, choose the existing owner for a capability, and apply shared dependency, host, validation, and commit conventions. Use before placing files, changing packages, or building nie.
 ---
 
-# niers monorepo
+# nie monorepo
 
 Read `PLAN.md` first: it is the only active execution plan. Read the nearest `AGENTS.md`
-before editing. Use `niers-architecture` for the settled product and ownership boundaries.
+before editing. Use `nie-architecture` for the settled product and ownership boundaries.
 Archived plans are historical evidence, not instructions.
 
 ## Source layout
@@ -21,7 +21,7 @@ Archived plans are historical evidence, not instructions.
 | `apps/nie-web/src/desktop` | Existing mature Inacord application, being adapted for shared hosting |
 | `apps/inacord/src-tauri` | Native host, a member of the root Cargo workspace |
 | `apps/inacord` | Tauri packaging, native public assets and frontend compatibility entrypoints |
-| sibling `rg/packages/ui` | General UI primitives owned by the RG repository; niers consumes the package without copying it |
+| sibling `rg/packages/ui` | General UI primitives owned by the RG repository; nie consumes the package without copying it |
 | `packages/inacord-ui` | Shared application/game presentation, Explorer controls and resource components |
 | `packages/asset-source` | Asset transport, loading and capability contracts |
 | `packages/nie` | Rust FFI consumption from Bun |

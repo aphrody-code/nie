@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { setSettings } from "@niers/inacord-ui/lib/settings";
+import { setSettings } from "@nie/inacord-ui/lib/settings";
 import {
   TextCatalog,
   textCatalogHrefForState,

@@ -3,7 +3,7 @@
 Inventaire source : `var/vfs/lot2-texte.txt` (une ligne `chemin taille [cpk]`), couvrant
 `data/common/text/`, `data/common/font/`, `data/common/property/`, `data/dx11/text/`,
 `data/dx11/font/`. Toutes les commandes de ce document sont rejouables telles quelles depuis
-la racine du dépôt (`NIE_GAME_DIR=/home/ubuntu/niers`).
+la racine du dépôt (`NIE_GAME_DIR=/home/ubuntu/nie`).
 
 ## 1. Les chiffres
 
@@ -307,7 +307,7 @@ côté décodeur, puisque le décodeur g4tx fonctionne sur le miroir `dx11`).
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `hash_name` — CRC-32 hashes for localized string tokens and property nodes
 - `function` — font glyph decoding, string lookup and text formatting routines in `nie.exe`
 - `rtti_class` — text system classes (`lives::CFontManager`, `game::CMenuListViewDictionary`)

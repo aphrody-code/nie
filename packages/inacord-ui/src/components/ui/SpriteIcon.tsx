@@ -1,7 +1,7 @@
 import type React from "react";
-import { SPRITES, feuilleSpritesCourante } from "@niers/inacord-ui/config/sprites";
-import type { SpriteKey } from "@niers/inacord-ui/config/sprites";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { SPRITES, feuilleSpritesCourante } from "@nie/inacord-ui/config/sprites";
+import type { SpriteKey } from "@nie/inacord-ui/config/sprites";
+import { cn } from "@nie/inacord-ui/lib/utils";
 import styles from "./SpriteIcon.module.css";
 
 // Native spritesheet dimensions

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { OcReference } from "@niers/inacord-ui/avatar/contract";
+import type { OcReference } from "@nie/inacord-ui/avatar/contract";
 import { loadOcReference, resolveOcReferenceUrl } from "./oc-reference-loader";
 
 const payload = new TextEncoder().encode("validated OC bytes");

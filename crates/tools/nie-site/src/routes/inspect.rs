@@ -40,7 +40,7 @@
 //!
 //! ## Le corpus NXTCH est vide, et la route le dit
 //!
-//! Mesuré le 2026-09-06 sur ce montage : `niers vfs find 'nxtch'` rend **0 résultat**, et le
+//! Mesuré le 2026-09-06 sur ce montage : `nie vfs find 'nxtch'` rend **0 résultat**, et le
 //! payload d'un `.g4tx` de ce build est du **DDS** — vérifié sur
 //! `data/dx11/chr/_animal/an000100/an000100.g4tx` (3 498 240 o) : `grep -c NXTCH` = 0,
 //! `grep -ac 'DDS '` = 6. NXTCH est le conteneur de texture **Switch** (tuiles GOB Tegra X1) ;
@@ -57,7 +57,7 @@
 //! prose en français (cf. `CLAUDE.md` § *Langue*, et `routes::text`, le module de référence).
 //! Une seule exception, documentée à son point d'emploi : `?form=json` republie **verbatim**
 //! le manifeste de `nie_formats::sprite_sheet::vers_json`, dont les clés sont françaises —
-//! c'est une API **déjà servie** (`nie_wasm::g4tx_sprite_sheet_json`, la CLI `niers`,
+//! c'est une API **déjà servie** (`nie_wasm::g4tx_sprite_sheet_json`, la CLI `nie`,
 //! `apps/inacord`), et une API déjà servie ne se renomme pas au passage.
 //!
 //! Aucun `format!("{:?}")` n'entre dans une réponse : chaque énumération de `nie-formats` est
@@ -84,7 +84,7 @@ use crate::vfs_index::{DemandeFiltre, IndexVfs};
 
 /// Taille au-delà de laquelle une source du VFS n'est pas lue pour être inspectée.
 ///
-/// Mesuré le 2026-09-06 (`niers vfs find '.g4tx' -n 100000`, agrégé en `awk`) : le VFS porte
+/// Mesuré le 2026-09-06 (`nie vfs find '.g4tx' -n 100000`, agrégé en `awk`) : le VFS porte
 /// **54 203** `.g4tx`, dont le plus gros pèse **347 230 704 octets** — un atlas de carte
 /// (`data/dx11/map/s/s38g001/s38g001g.g4tx`). Lire cela pour en extraire une liste de
 /// rectangles serait payer 331 Mio de RAM pour quelques kilo-octets de sortie. La borne de
@@ -820,7 +820,7 @@ pub struct FontSummary {
     ///
     /// Trois états, et ils sont distincts : absent du JSON (rien n'a été demandé), `null` (le
     /// point de code n'est pas dans cette police), un objet (il y est). Confondre les deux
-    /// derniers ferait passer « absent » pour « pas demandé ».
+    /// dernie ferait passer « absent » pour « pas demandé ».
     #[serde(skip_serializing_if = "Option::is_none")]
     pub glyph: Option<Option<Glyph>>,
 }

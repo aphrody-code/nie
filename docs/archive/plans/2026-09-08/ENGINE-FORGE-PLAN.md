@@ -66,16 +66,16 @@ Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre
 | Couverture | Ce qu'elle mesure | État |
 |---|---|---|
 | **Forge** | part de `nie.exe` produite par le dépôt | **74,004890 %** produit, **92,239011 %** du code Rust — mesure rejouée le 2026-09-07 avec `cargo run -q -p nie-forge -- report`, après `build` identique à la cible : 33 918 464 octets, 219 751 unités Rust, 25 101 322 octets Rust, 0 rejet |
-| **Formats** | fichiers du VFS dans un format parsé | **88,91 %** réellement décodés (226 994 / 255 316) — mesure du 2026-08-28 sur le dump complet, `niers vfs formats --parse`, 0 fichier illisible. **94,80 %** en retirant les 15 876 `.g4mg`, qui ne sont pas décodables seuls par construction. S'y ajoutent 11 215 fichiers au magic connu sans décodeur autonome (`@UTF` 5 513, `AWB` 5 512, `USM` 190 : conteneurs média), et 1 197 `.lua.bin` que `nie-lua` exécute déjà sans passer par `decode`. Reste **~30 fichiers** réellement non lus. L'ancien chiffre de 99,56 % n'était adossé à aucune commande : il n'est pas « tombé », il n'a jamais été rejouable |
+| **Formats** | fichiers du VFS dans un format parsé | **88,91 %** réellement décodés (226 994 / 255 316) — mesure du 2026-08-28 sur le dump complet, `nie vfs formats --parse`, 0 fichier illisible. **94,80 %** en retirant les 15 876 `.g4mg`, qui ne sont pas décodables seuls par construction. S'y ajoutent 11 215 fichiers au magic connu sans décodeur autonome (`@UTF` 5 513, `AWB` 5 512, `USM` 190 : conteneurs média), et 1 197 `.lua.bin` que `nie-lua` exécute déjà sans passer par `decode`. Reste **~30 fichiers** réellement non lus. L'ancien chiffre de 99,56 % n'était adossé à aucune commande : il n'est pas « tombé », il n'a jamais été rejouable |
 | **Données** | familles `cfg.bin` typées et recalculées au bit | 117 modules, **121 familles routées**, 127 fichiers golden |
 | **Logique** | fonctions de gameplay portées **et** validées byte-exact | **43** validations dans la suite oracle — non rejouées le 2026-08-15 ; le binaire cible n'a pas changé (cf. Forge ci-dessus) donc rien n'indique qu'elles soient tombées, mais elles n'ont pas non plus été reconfirmées cette session |
-| **RE** | fonctions classifiées / nommées | **La KB n'est pas la même d'une machine à l'autre — citer la machine avec le chiffre.** Sur la machine Windows le 2026-08-28, `niers coverage --db var/niers.sqlite` donne **87,63 %** (48 503 / 55 351) et **257 nommées** : cette base-là n'a pas les noms du VPS (table `symbol` vide), elle est à réindexer avant d'en tirer quoi que ce soit. Mesures du VPS ci-dessous. Mesure du 2026-08-10 : 93,36 % (49 280 / 52 783) · 6 429 nommées (12,18 %). **Revérifié 2026-08-15** (`niers rebuild` sur le binaire actuellement installé, byte-identique à celui du 2026-08-10) : **91,22 %** classées (97 006 / 106 340) · 6 429 nommées (**6,05 %**, même compte brut sur un dénominateur qui a grossi — le VPS a transité par un AUTRE build entre le 2026-08-14 soir et le 2026-08-15, cf. `docs/RE.md`, ce qui a pu affecter l'indexation entre-temps) |
+| **RE** | fonctions classifiées / nommées | **La KB n'est pas la même d'une machine à l'autre — citer la machine avec le chiffre.** Sur la machine Windows le 2026-08-28, `nie coverage --db var/nie.sqlite` donne **87,63 %** (48 503 / 55 351) et **257 nommées** : cette base-là n'a pas les noms du VPS (table `symbol` vide), elle est à réindexer avant d'en tirer quoi que ce soit. Mesures du VPS ci-dessous. Mesure du 2026-08-10 : 93,36 % (49 280 / 52 783) · 6 429 nommées (12,18 %). **Revérifié 2026-08-15** (`nie rebuild` sur le binaire actuellement installé, byte-identique à celui du 2026-08-10) : **91,22 %** classées (97 006 / 106 340) · 6 429 nommées (**6,05 %**, même compte brut sur un dénominateur qui a grossi — le VPS a transité par un AUTRE build entre le 2026-08-14 soir et le 2026-08-15, cf. `docs/RE.md`, ce qui a pu affecter l'indexation entre-temps) |
 | **Rendu** | Δpixel contre capture de référence | **SSIM 0,5266**, ΔE moyen 14,26, 11,49 % de pixels exacts sur 921 600 — baseline locale du 2026-09-07, détails et commandes dans [`mainmenu01-visual-analysis.md`](mainmenu01-visual-analysis.md) ; encore gaté sur la composition runtime complète |
 
-Ces chiffres se régénèrent : `nie-forge report`, `niers vfs stats`, `niers vfs formats --parse`,
-`niers coverage`, `uv run scripts/validate_re.py`. La ligne **Formats** n'avait justement aucune
+Ces chiffres se régénèrent : `nie-forge report`, `nie vfs stats`, `nie vfs formats --parse`,
+`nie coverage`, `uv run scripts/validate_re.py`. La ligne **Formats** n'avait justement aucune
 commande derrière elle jusqu'au 2026-08-28 — un chiffre que personne ne pouvait falsifier, dans un
-document qui n'accepte que des chiffres falsifiables ; `niers vfs formats` a été écrite pour ça.
+document qui n'accepte que des chiffres falsifiables ; `nie vfs formats` a été écrite pour ça.
 **Piège vécu le 2026-08-15** : une doc « corrigée » sur une
 installation Steam locale transitoirement sur un autre build (`docs/RE.md`, commit du
 2026-08-14) s'est révélée elle-même périmée dès que le build de référence est revenu — ne jamais
@@ -125,7 +125,7 @@ d'extraire 255 000 fichiers d'archives devient une lecture de fichiers.
 Reste : la hiérarchie d'os `g4sk` garde un fallback heuristique sur certains fichiers (les
 matrices, elles, sont byte-exactes).
 
-**Ce qui n'est pas lu, nommé et compté** (`niers vfs formats --parse`, dump complet, 2026-08-28) :
+**Ce qui n'est pas lu, nommé et compté** (`nie vfs formats --parse`, dump complet, 2026-08-28) :
 
 | Fichiers | Extension | Ce que c'est |
 |---:|---|---|
@@ -146,7 +146,7 @@ isolés. Les `.g4mg` ne peuvent pas l'être, les `.lua.bin` le sont ailleurs.
 
 **Huit parseurs n'étaient branchés nulle part** (constaté et corrigé le 2026-08-28). `g4sk`,
 `navm`, `g4mt`, `g4cm`, `g4la`, `g4ma`, `g4vs` et `col` existaient, testés, mais absents de
-`decode` — la table de dispatch que partagent la FFI, `niers decode`, l'explorateur et le MCP.
+`decode` — la table de dispatch que partagent la FFI, `nie decode`, l'explorateur et le MCP.
 Un parseur qu'elle ignore est invisible à tout le monde. Ils y sont, et un test
 (`decode_dispatch`) vérifie la correspondance extension → parseur sur de vrais fichiers, pour que
 le prochain n'y échappe pas : `.g4nv` → `navm`, `.col` → `col (PXCL)`, etc. Effet mesuré :
@@ -325,7 +325,7 @@ Le second confirme la convention par recoupement : `cmn01_40` est exactement le 
 `cmn01_40_list_base_empty` relevé pendant la construction du `main_menu`.
 
 Chaîne complète prouvée de bout en bout — `sprite_hash` → chemin logique → chemin VFS → `.g4tx` →
-**PNG décodé** (`niers decode`, 592 766 o sur `icon_common`). La table des **54 203** chemins
+**PNG décodé** (`nie decode`, 592 766 o sur `icon_common`). La table des **54 203** chemins
 `.g4tx` est ingérée dans `hash_name` sous `kind='texture_path'` (`source='crc32-logique'`), donc
 résoluble par tout le pipeline.
 
@@ -420,7 +420,7 @@ Restent :
   qu'un contenu arbitraire** ;
 - « Sauvegarder » — une action, pas une liste (`nie-save` sait lire et éditer les vraies saves) ;
 - **le son** — le dépôt décode déjà tout l'audio du jeu (`cri_audio::decode_to_wav`, HCA/ADX/AWB/
-  ACB, feature `audio-decode`), et `niers convert --to wav` l'expose. Ce qui manque est la
+  ACB, feature `audio-decode`), et `nie convert --to wav` l'expose. Ce qui manque est la
   **sortie audio temps réel** : aucune dépendance de ce type n'existe dans le dépôt, et en ajouter
   une (cpal, rodio) engage la portabilité wasm et `no_std` du cœur. C'est une décision
   d'architecture à prendre, pas un détail à enchaîner.
@@ -437,7 +437,7 @@ comprendre les formats.
 ### L'application — `apps/inacord`
 
 Explorateur du VFS, éditeur de données, atelier de modding et boîte à outils de reverse, en Tauri.
-Elle ne réimplémente rien : elle appelle les mêmes crates que `niers`, en process. C'est aussi le
+Elle ne réimplémente rien : elle appelle les mêmes crates que `nie`, en process. C'est aussi le
 banc d'essai le plus exigeant du portage — un format mal parsé s'y voit immédiatement.
 
 État, limites assumées et écarts restants : [`apps/inacord/ROADMAP.md`](../apps/inacord/ROADMAP.md).
@@ -463,6 +463,6 @@ wasm-portables ou byte-exactes sans re-validation.
 3. **La physique de match byte-fidèle** — poursuivre les ports validés par oracle.
 4. **Le dialogue du mode Histoire** — résoudre la source du texte au runtime.
 5. **Rendre les mesures rejouables** — la ligne Formats l'est depuis le 2026-08-28
-   (`niers vfs formats`) ; restent la forge (§2) et la KB de la machine Windows (`symbol` vide,
+   (`nie vfs formats`) ; restent la forge (§2) et la KB de la machine Windows (`symbol` vide,
    257 noms contre 6 429 sur le VPS). Un chiffre qu'aucune commande ne régénère finit par
    décrire un état que plus personne n'a sous les yeux.

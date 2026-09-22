@@ -2,12 +2,12 @@
 # boot-nie-direct.sh — lance nie.exe (IEVR) HEADLESS en DIRECT via le wine du Proton fourni,
 # SANS le shim steam.exe (qui assert sur lsteamclient faute de vrai client Steam).
 # On contourne GameBootstrapper/EAC (exe nu, patché via patch-eac.sh), DXVK sur lavapipe,
-# d3dcompiler_47 MS natif. Le but : un nie.exe vivant dont `niers mem` lit la mémoire pour
+# d3dcompiler_47 MS natif. Le but : un nie.exe vivant dont `nie mem` lit la mémoire pour
 # valider au réel les structs reversées (RE single-player offline, jeu possédé).
 #
 # IMPORTANT (ptrace) : ce script est le PARENT de nie.exe → ancêtre → `process_vm_readv` permis
 # même sous kernel.yama.ptrace_scope=1, sans CAP_SYS_PTRACE ni setcap (ce qui préserverait
-# l'environnement Vulkan). Lancer `niers mem ...` depuis le même arbre de process, ou ce shell.
+# l'environnement Vulkan). Lancer `nie mem ...` depuis le même arbre de process, ou ce shell.
 #
 # Pré-requis posés une fois (idempotents) :
 #   - prefix Proton initialisé (proton run a déjà tourné une fois)
@@ -18,7 +18,7 @@
 # Usage: NIE_GAME_PATH=/jeu boot-nie-direct.sh [timeout_s] [exe]   (timeout 0 = infini)
 set -uo pipefail
 GAME="${NIE_GAME_PATH:-/home/ubuntu/.local/share/Steam/iecode/inazuma}"
-BASE="${NIE_RUNTIME_BASE:-$HOME/.local/share/niers/runtime}"
+BASE="${NIE_RUNTIME_BASE:-$HOME/.local/share/nie/runtime}"
 TIMEOUT="${1:-0}"
 EXE="${2:-$GAME/nie_eacpatched.exe}"
 TS="$(date +%Y%m%d-%H%M%S 2>/dev/null || echo run)"

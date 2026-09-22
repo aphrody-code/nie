@@ -1,5 +1,5 @@
 /** Lazy host adapter shared by the builder and random-team tool. */
-import * as codec from "@niers/game/game/team-code";
+import * as codec from "@nie/game/game/team-code";
 import * as wasm from "../wasm/nie_wasm.js";
 import { ensureWasm } from "./bridge";
 

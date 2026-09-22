@@ -1,4 +1,4 @@
-// Base RE `var/niers.sqlite` (statique, HORS LIGNE) — mesure du 2026-08-30 : **117 494
+// Base RE `var/nie.sqlite` (statique, HORS LIGNE) — mesure du 2026-08-30 : **117 494
 // fonctions** dont 49 426 nommées et 102 053 classées par sous-système, 1 745 classes RTTI
 // (adresse de vtable réelle) et ~250 000 xrefs, produites par `nie-re` (bornes `.pdata`,
 // récupération des feuilles, RTTI, tables funcLua, références de chaînes, propagation de
@@ -131,7 +131,7 @@ function binClause(binId: number | null, prefix: string): string {
   return binId === null ? "" : `${prefix} binary_id = ${binId}`;
 }
 
-/** `<game>/var/niers.sqlite` — same auto-detection convention as the wiki mirror
+/** `<game>/var/nie.sqlite` — same auto-detection convention as the wiki mirror
  * (`var/mirror.sqlite`): one repository, both live below `<root>/var/`. Resolved by Rust
  * (`default_re_db`) : la portée `fs:scope` de l'app ne couvre que `$APPDATA`. */
 export async function defaultReDbPath(gameDir: string): Promise<string | null> {
@@ -284,7 +284,7 @@ export const reDb = {
 
   /**
    * Renomme une fonction (§5 roadmap « édition des labels ») — écrit DIRECTEMENT dans
-   * `niers.sqlite` via `shared SQLite owner` (même mécanisme de lecture que `searchFunctions`, la
+   * `nie.sqlite` via `shared SQLite owner` (même mécanisme de lecture que `searchFunctions`, la
    * base n'est PAS ouverte en lecture seule). `name_source` passe à `'user-edit'` : distingue un
    * nom entré manuellement dans l'app des sources RE existantes (`'vtable-struct'`/`'ghidra'`/
    * `'pdb'`, cf. `docs/PLAN.md` E2) — même discipline de provenance que le reste du projet
@@ -335,7 +335,7 @@ export const reDb = {
   },
 };
 
-/** Volumétrie de `niers.sqlite` — cf. [`reDb.stats`]. */
+/** Volumétrie de `nie.sqlite` — cf. [`reDb.stats`]. */
 export interface ReStats {
   fonctions: number;
   nommees: number;

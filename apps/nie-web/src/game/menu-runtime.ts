@@ -1,5 +1,5 @@
 /** Thin transport for bounded native Lua menu replay; no source evaluation or simulated success. */
-import { fetchJson, type GameLocale } from "@niers/asset-source";
+import { fetchJson, type GameLocale } from "@nie/asset-source";
 export const MENU_CALLBACKS = [
 	"PreStep", "Step", "PostStep", "SceneStep", "OnInit", "OnEnter", "OnSubEnter", "OnFunction", "OnBack",
 	"OnSetupLayer", "OnOpenLayer", "OnCloseLayer", "OnOpenEndLayer", "OnCloseEndLayer", "OnUpdateLayer",

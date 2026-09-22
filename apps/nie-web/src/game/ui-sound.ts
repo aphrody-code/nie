@@ -2,7 +2,7 @@
  * High-fidelity Web Audio sound engine for authentic Inazuma Eleven UI interactions.
  * Zero external audio latency, runs procedurally in AudioContext with native cues bridge.
  */
-import { emitNativeCommand } from "@niers/inacord-ui/lib/native-command";
+import { emitNativeCommand } from "@nie/inacord-ui/lib/native-command";
 
 export type UiSoundType =
 	| "cursor"

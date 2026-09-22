@@ -1,6 +1,6 @@
 # Inazuma Eleven VR - Save Editor & Memory Trainer Port
 
-Comprehensive technical specification and reverse-engineering audit for the port of `ievrsaveeditor.com` (InazumaElevenVRSaveEditor v2.2.2 by "An Average Developer" / GameBanana Tool #21299) into the native Rust workspace `aphrody-code/nie` (`niers`).
+Comprehensive technical specification and reverse-engineering audit for the port of `ievrsaveeditor.com` (InazumaElevenVRSaveEditor v2.2.2 by "An Average Developer" / GameBanana Tool #21299) into the native Rust workspace `aphrody-code/nie` (`nie`).
 
 ---
 
@@ -20,7 +20,7 @@ Comprehensive technical specification and reverse-engineering audit for the port
 
 ## 2. Memory Catalog & Hook Specification (`nie-trace::catalog`)
 
-All 33 memory signatures and injection points are mapped in [`crates/forge/nie-trace/src/catalog.rs`](file:///home/ubuntu/niers/crates/forge/nie-trace/src/catalog.rs):
+All 33 memory signatures and injection points are mapped in [`crates/forge/nie-trace/src/catalog.rs`](file:///home/ubuntu/nie/crates/forge/nie-trace/src/catalog.rs):
 
 ### 2.1 Player & Abilearn Board
 - `max-abilities`: AOB `44 8B 6F 10 8B 47 04`, RVA `0xD8FF75`, Field `+0x10`. Forces player stats to maximum.
@@ -88,26 +88,26 @@ All 33 memory signatures and injection points are mapped in [`crates/forge/nie-t
 
 ## 4. Single Unified Pipeline Integration
 
-All features are unified under the canonical CLI binary `niers` and MCP server:
+All features are unified under the canonical CLI binary `nie` and MCP server:
 
 ```bash
 # Query spirit cards
-niers launcher spirit cards -q "Axel Blaze"
+nie launcher spirit cards -q "Axel Blaze"
 
 # Query special moves by category
-niers launcher spirit moves -q "God Hand" -c Goalkeep
+nie launcher spirit moves -q "God Hand" -c Goalkeep
 
 # Inspect memory catalog
-niers mem catalog --category match
+nie mem catalog --category match
 
 # Apply memory recipes live
-niers mem recette --file recipe.txt --force
+nie mem recette --file recipe.txt --force
 
 # EAC offline bypass
-niers launcher eac scan --file nie.exe
-niers launcher eac patch --file nie.exe -o nie_patched.exe
+nie launcher eac scan --file nie.exe
+nie launcher eac patch --file nie.exe -o nie_patched.exe
 
 # Save container swap & team injection
-niers launcher save park --live-save 002AB8F4-USERDATALIVE --mod-save custom.sav
-niers launcher team decrypt --file team.json
+nie launcher save park --live-save 002AB8F4-USERDATALIVE --mod-save custom.sav
+nie launcher team decrypt --file team.json
 ```

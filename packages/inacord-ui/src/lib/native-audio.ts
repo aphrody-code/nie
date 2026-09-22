@@ -1,4 +1,4 @@
-import { ResourceLoader, type AssetSource } from "@niers/asset-source";
+import { ResourceLoader, type AssetSource } from "@nie/asset-source";
 
 export interface NativeAudioCue {
 	bank: string;

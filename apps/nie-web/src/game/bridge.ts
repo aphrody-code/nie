@@ -21,7 +21,7 @@
  * enverrait à `nie-model-serve`, qui n'en sait rien. `/static/` est servi par le bundle
  * lui-même, avec sa pré-compression et son cache — c'est là qu'ils vivent.
  */
-import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+import type { NativeMenuScene } from "@nie/inacord-ui/shell/native-title-menu";
 import init, { crc32 as wasmCrc32, WasmGame, menu_presentation_json } from "../wasm/nie_wasm.js";
 import { vfsResources } from "./vfs-resources";
 

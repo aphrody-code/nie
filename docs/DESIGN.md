@@ -1,4 +1,4 @@
-# niers — DESIGN : rendu pixel-perfect des écrans START et MENU
+# nie — DESIGN : rendu pixel-perfect des écrans START et MENU
 
 > Conception du **rendu pixel-perfect** des deux écrans de référence du repo — `start.png`
 > (écran START « COMMENCER ») et `menu.png` (menu principal) — d'*Inazuma Eleven: Victory Road*
@@ -16,7 +16,7 @@ Les couches de placement (ancêtre-fallback) et de sélection de texture non-dum
 `title02` rend ses 18 sprites on-écran. Ce qui reste sépare « écran cartographié » de « écran rendu
 identique » : le texte et la police, le driver de menu runtime, et la 3D in-menu.
 
-Les deux écrans sont **données-présentes** dans le VFS et niers sait *composer* en CPU/GPU — le
+Les deux écrans sont **données-présentes** dans le VFS et nie sait *composer* en CPU/GPU — le
 rendu était **quasi vide** au départ parce qu'il manquait les couches **runtime** que le moteur
 applique par-dessus les fichiers statiques :
 
@@ -29,7 +29,7 @@ applique par-dessus les fichiers statiques :
   3D + texte Lua). Qualitativement plus dur que title02.
 - La position visible **n'est PAS** un frame de keyframe : les slide-in **n'ont pas de keyframes dans
   les fichiers** (RE iecode). La solution réelle est une **heuristique d'ancêtre on-écran**
-  (`GetMotionFinalPose`), un port borné — niers a déjà toutes les structures (`is_off_screen_1920`,
+  (`GetMotionFinalPose`), un port borné — nie a déjà toutes les structures (`is_off_screen_1920`,
   `parent_index`, `world_bind_pose`).
 - Le texte visible (COMMENCER, Deluxe Edition, légal…) est en grande partie **pré-rendu par locale**
   (textures `gtxt_*` / `title02_*` sous `<LG>/`) — pas besoin de moteur de police pour celui-là ; seul
@@ -114,7 +114,7 @@ Binaire prébuild `target/release/nie-game`, jeu monté par défaut :
 
 - `--menu title02 --capture` : **10/18 objbin rendus**, à leur bind pose (souvent hors champ) ; la
   plupart piochent un **dummy 4×4** → invisibles ; 8 skip « pas de g4tx_path » (widgets texte). Canvas
-  quasi vide (`/tmp/niers-shots/title02.png`).
+  quasi vide (`/tmp/nie-shots/title02.png`).
 - `--menu mainmenu01 --capture` : **22/31 rendus** depuis D1.c (textures co-localisées du Groupe B ;
   8 du Groupe A = compositions runtime sans assets ; placement centre, bloqué sur le driver C++/Lua D1.c).
 
@@ -146,12 +146,12 @@ Chaque objbin déclare `SkeletonAnime`→g4pkm et (optionnellement) `Texture`→
 (`objbin.rs:546-547`). 10 portent un `g4tx_path`, 8 non (widgets bg/locator/texte-runtime → skip
 `main.rs:1234`) — vérifié par `RUST_LOG=info ... --menu title02` : 18 objbin trouvés, 8 skip
 « pas de g4tx_path » (`00,02,03,04,04_ps,06,09,20`), 10 sprites rendus (`01,07,08,10,11,12,21,22,23,24`).
-La position de niers vient de la **bind pose** du squelette g4pkm (`menu.rs:57` `place_on_canvas`,
+La position de nie vient de la **bind pose** du squelette g4pkm (`menu.rs:57` `place_on_canvas`,
 `menu.rs:78` `pick_best_pose`) ; pour la quasi-totalité des éléments cette bind pose est **hors-écran**
-(template caché), la position visible réelle venant de l'animation d'ouverture (chunk G4MA du g4pkm) que niers
+(template caché), la position visible réelle venant de l'animation d'ouverture (chunk G4MA du g4pkm) que nie
 **n'applique pas**. Toutes les positions ci-dessous (`x,y` css 1280×720) sont reproduites via `place_on_canvas`.
 
-| Élément visible start.png | objbin | g4tx (texture réelle / pioche niers, localisé) | Classe | Statut niers actuel | Besoin pixel-perfect |
+| Élément visible start.png | objbin | g4tx (texture réelle / pioche nie, localisé) | Classe | Statut nie actuel | Besoin pixel-perfect |
 |---|---|---|---|---|---|
 | Fond terrain + persos top-down (+ 2 héros centraux, cf. open) | `title02_00_title_bg_2` | `Texture`=None ; atlas `title02_00.g4tx` 3 tex : `bg_title02_02` **2640×1200** (⚠ **PAS le champ vert** — vérifié par dump PNG 2026-06-15 : c'est un **motif décoratif pâle quasi-transparent** d'icônes [ballons/crampons/maillots] sur blanc), `title02_00` 2660×1200 (subs `bg_title02` 800×1200, `bg_title02_par` 1856×1036 parallax), `bg_title02_01` 12×12 | SPRITE-STATIQUE multi-couches | **SKIP** « pas de g4tx_path » → fond totalement absent. Base pose on-écran (x=400,y=320) | **Le CHAMP VERT top-down de start.png n'est PAS dans `title02_00.g4tx`** — vérifié par dump des **3** textures : `bg_title02_02` = motif d'icônes pâle, l'atlas `title02_00` = gradient bleu pâle + particules, `bg_title02_01` = 12×12. **TOUTES des overlays pâles/UI.** Le champ vert + les persos animés du fond de start.png sont une **SCÈNE 3D rendue par le moteur** (le titre montre des persos jouant sur un terrain top-down), **pas des textures de menu**. ⇒ **Plafond SSIM par textures-menu SEULES ≈ 0,25** : le fond dominant exige le système de **scène 3D / skinning / animation** (D2/D3, le plus profond du plan). Le travail de textures-menu (placement, sélection, texte statique) ne peut PAS, à lui seul, dépasser ce plafond sur `title02`. |
 | Logo INAZUMA ELEVEN (bas-gauche) | `title02_01_title_logo_2` | `title02_01.g4tx` **1600×1200**, localisé | SPRITE-ANIMÉ | **RENDU mais hors-écran** : bind pose x=1628.5,y=486.4, scale 0.213 → OFF-SCREEN (x>1280) | Placement motion-aware : remonter à l'ancêtre on-écran (cf. iecode `GetMotionFinalPose`), absent du port `menu.rs` |
@@ -160,14 +160,14 @@ La position de niers vient de la **bind pose** du squelette g4pkm (`menu.rs:57` 
 | « Quitter le jeu » + icône bouton (bas-centre) | `title02_08_explanation_button_guide` | `title02_08.g4tx` **60×52** (icône bouton, 1 tex), non-localisé | SPRITE-ANIMÉ (icône) + TEXTE-RUNTIME | **RENDU mais hors-écran** : bind pose x=2560.7,y=1752.7 | Motion-aware pour l'icône + texte runtime « Quitter le jeu » |
 | « ver 6.0.2  0.79 240 » (haut-droite) | `title02_04_version` | `Texture`=None ; `Primitive(6 numbers)`, bones `_num_ver01..`, `_gtxt_ver01` | TEXTE-RUNTIME / PRIMITIVE | **SKIP** ; bind pose hors-écran (`place_on_canvas` x≈2552) | Système de nombres/primitives + glyphes gtxt |
 | (variante PlayStation de la version) | `title02_04_version_ps` | `Texture`=None ; idem ci-dessus | TEXTE-RUNTIME / PRIMITIVE | **SKIP** ; non affiché sur PC (bind pose x≈2468 hors-écran) | Gating plateforme (ne dessiner qu'une des deux) |
-| Compteur de victoires (masqué, save) | `title02_07_victory_counter` | `title02_07.g4tx` **réel 312×104** (subs `count_v_base01` 312×56 + `gtxt_victory01` 292×44 = texte VICTORY localisé) + 2 dummies 4×4 (`num_victory_dmy01/02`), localisé | SPRITE-ATLAS + PRIMITIVE | **RENDU invisible** : niers pioche la 1ʳᵉ tex DDS = `num_victory_dmy01` **4×4** (`main.rs:1263`) ; placement x=1830.7,y=1030.7 hors-écran | Compteur de victoires : visible seulement avec save ; sélection texture + numbers system |
+| Compteur de victoires (masqué, save) | `title02_07_victory_counter` | `title02_07.g4tx` **réel 312×104** (subs `count_v_base01` 312×56 + `gtxt_victory01` 292×44 = texte VICTORY localisé) + 2 dummies 4×4 (`num_victory_dmy01/02`), localisé | SPRITE-ATLAS + PRIMITIVE | **RENDU invisible** : nie pioche la 1ʳᵉ tex DDS = `num_victory_dmy01` **4×4** (`main.rs:1263`) ; placement x=1830.7,y=1030.7 hors-écran | Compteur de victoires : visible seulement avec save ; sélection texture + numbers system |
 | Bannière info (masquée) | `title02_06_information_banner` | `Texture`=None ; `Text(_text_info01,_text_btn01)`+`AttachLocator` | TEXTE-RUNTIME | **SKIP** (base pose on-écran 699,466) ; masqué | Texte runtime + gating |
 | Ballon de flavor text (masqué) | `title02_09_flavor_balloon` | `Texture`=None ; `Text(_text_explain01)` | TEXTE-RUNTIME | **SKIP** ; bind pose hors-écran (x=1599,y=1231) | Texte runtime + gating |
-| Bannière MON ÉQUIPE (save, masquée) | `title02_10_my_team_banner` | atlas `title02_10.g4tx` **2192×1744**, 11 subs (`gtxt_myteam01` 480×80 + `gtxt_teamlevel01` 280×40 texte localisé, `myteam_msk01` 1164², `myteam_base01/02/03` 1024×288) + 5 dummies 4×4, localisé | SPRITE-ATLAS (save UI) | **RENDU invisible** : niers pioche la 1ʳᵉ tex DDS = `myteam_a_dmy01` **4×4** (`main.rs:1263`) ; hors-écran (x=2525) | Sélection de la bonne tex/atlas + UV sous-tex + gating save |
-| Bannière AVATAR (save, masquée) | `title02_11_avatar_banner` | atlas `title02_11.g4tx` **1724×1732**, subs dont `gtxt_avatar01` **440×80** (label « AVATAR » localisé incrusté) + tex `title02_11_base` 1028×392, localisé | SPRITE-ATLAS (save UI) | **RENDU mal placé** : niers pioche `avatar_base02` 1028×288 (1ʳᵉ DDS), bind pose x=744,y=764.7 hors-écran | idem 10 + gating save |
+| Bannière MON ÉQUIPE (save, masquée) | `title02_10_my_team_banner` | atlas `title02_10.g4tx` **2192×1744**, 11 subs (`gtxt_myteam01` 480×80 + `gtxt_teamlevel01` 280×40 texte localisé, `myteam_msk01` 1164², `myteam_base01/02/03` 1024×288) + 5 dummies 4×4, localisé | SPRITE-ATLAS (save UI) | **RENDU invisible** : nie pioche la 1ʳᵉ tex DDS = `myteam_a_dmy01` **4×4** (`main.rs:1263`) ; hors-écran (x=2525) | Sélection de la bonne tex/atlas + UV sous-tex + gating save |
+| Bannière AVATAR (save, masquée) | `title02_11_avatar_banner` | atlas `title02_11.g4tx` **1724×1732**, subs dont `gtxt_avatar01` **440×80** (label « AVATAR » localisé incrusté) + tex `title02_11_base` 1028×392, localisé | SPRITE-ATLAS (save UI) | **RENDU mal placé** : nie pioche `avatar_base02` 1028×288 (1ʳᵉ DDS), bind pose x=744,y=764.7 hors-écran | idem 10 + gating save |
 | Détail compteur victoires (masqué) | `title02_12_victory_counter_detail` | atlas `title02_12.g4tx` : tex `title02_12` 1124×240 + `count_v_focus01_atl` **236×104** (1ʳᵉ DDS piochée) + dummies 4×4, localisé | SPRITE-ATLAS + PRIMITIVE | **RENDU mal placé** ; bind pose x=1599 hors-écran | Atlas/UV + numbers + gating |
 | Locator bouton achat DLC (masqué) | `title02_20_dlc_buy_btn_atc_locator` | `Texture`=None ; `AttachLocator` | LOCATOR | **SKIP** (base pose on-écran 640,360) ; masqué | Attach + gating DLC |
-| Bouton « acheter DLC » (masqué) | `title02_21_dlc_buy_btn` | `title02_21.g4tx` **réel 456×368** (`buy_btn_base01/ok01/ol01` 456×104 + icônes 44×44) + dummy `buy_btn_dmy01` 4×4 | SPRITE-ANIMÉ (DLC) | **RENDU ON-SCREEN** (bind pose 496.7,333.3) mais niers pioche `buy_btn_dmy01` 4×4 ⇒ **invisible** — **NE DEVRAIT PAS apparaître** | Gating DLC (masquer si non pertinent) |
+| Bouton « acheter DLC » (masqué) | `title02_21_dlc_buy_btn` | `title02_21.g4tx` **réel 456×368** (`buy_btn_base01/ok01/ol01` 456×104 + icônes 44×44) + dummy `buy_btn_dmy01` 4×4 | SPRITE-ANIMÉ (DLC) | **RENDU ON-SCREEN** (bind pose 496.7,333.3) mais nie pioche `buy_btn_dmy01` 4×4 ⇒ **invisible** — **NE DEVRAIT PAS apparaître** | Gating DLC (masquer si non pertinent) |
 | Logo DLC (masqué) | `title02_22_dlc_logo` | `title02_22.g4tx` **4×4** (unique tex `title02_22`, sub `logo_dlc_dmy01`) | SPRITE (DLC) | **RENDU ON-SCREEN** (525.3,336.0), tex 4×4 ⇒ invisible | Gating DLC |
 | Logo DLC simple (masqué) | `title02_23_dlc_logo_simple` | `title02_23.g4tx` : 1ʳᵉ DDS `icon_logo_dlc_200` **156×80** (réel, piochée) ; atlas aussi `title02_23_icon` 156×248 (dlc_300/400/500), localisé | SPRITE (DLC) | **RENDU ON-SCREEN VISIBLE** (612.0,348.7) — **FAUX** : dessine un sprite DLC au centre | Gating DLC |
 | Logo DLC simple + ballon (masqué) | `title02_24_dlc_logo_simple_balloon` | `title02_24.g4tx` **380×124** (réel, 1ʳᵉ DDS piochée), localisé | SPRITE (DLC) | **RENDU ON-SCREEN VISIBLE** (513.3,342.7) — **FAUX** | Gating DLC |
@@ -177,7 +177,7 @@ La position de niers vient de la **bind pose** du squelette g4pkm (`menu.rs:57` 
 > (1ʳᵉ tex DDS réelle) ; **21 et 22 piochent un dummy 4×4 → invisibles**. Tout ce qui doit être visible
 > (fond, logo, COMMENCER, version, Quitter) est soit skip (pas de `g4tx_path`), soit placé hors-écran à la bind pose,
 > soit rendu avec une mauvaise texture d'atlas (dummy 4×4 pioché en 1ʳᵉ position). D'où
-> `/tmp/niers-shots/title02.png` quasi vide.
+> `/tmp/nie-shots/title02.png` quasi vide.
 
 ### FAIT — élucidation de title02_10 / title02_11 « localisés » (étape 5)
 
@@ -207,7 +207,7 @@ Hypothèse « splash promo » → **REJETÉE**. Ces bannières sont des panneaux
    09 (flavor) en texte/primitive ; 00 (bg, via g4md), 02/20 (locators). + le texte « Quitter le jeu » (08, dont
    l'objbin porte l'icône g4tx 60×52). Besoin : police + glyphes gtxt + table de texte localisée + système Primitive/numbers.
 5. **Gating d'état (Lua)** : masquer les widgets DLC (20–24) et bannières save (07,10,11,12) sur title vierge ;
-   choisir version vs version_ps selon la plateforme. Actuellement niers dessine les logos DLC 23/24.
+   choisir version vs version_ps selon la plateforme. Actuellement nie dessine les logos DLC 23/24.
 6. **Rendu par mesh** : chaque objet-menu se dessine via des meshes g4md/g4mg (UV→atlas), pas un blit de texture
    entière ; les 18 `.g4mg` sont la géométrie (pas de la motion — `g4mg.rs:1`, « Extraction de géométrie G4MG »).
 
@@ -231,7 +231,7 @@ Hypothèse « splash promo » → **REJETÉE**. Ces bannières sont des panneaux
 > **VERDICT (recoupé iecode `G4mgParser.cs`, 2026-06-15)** : `nie-formats::g4mg::extract_geometry` est
 > un **port 1:1 FIDÈLE** d'iecode — même taille d'enregistrement submesh (`0x50`), même champ stride
 > (`+0x2E`), mêmes `FindAttribute(vtype 2/10)`, même `derivedStride = faceDataBase / totalVerts`. Le
-> champ `+0x2E` vaut **0** pour ces meshes de menu → iecode ET niers retombent tous deux sur
+> champ `+0x2E` vaut **0** pour ces meshes de menu → iecode ET nie retombent tous deux sur
 > `derivedStride` = `384/20` = 19 et **échouent IDENTIQUEMENT**. ⇒ **le layout g4mg menu multi-submesh
 > est NON RÉSOLU dans la référence iecode elle-même** (ses parseurs/tests visent les meshes de perso +
 > quads mono-submesh). Le rendu de fond exige donc une **RE ORIGINALE au-delà d'iecode** (reverser le
@@ -286,7 +286,7 @@ Hypothèse « splash promo » → **REJETÉE**. Ces bannières sont des panneaux
 > Le binding texture des 23 objbin du Groupe B est donc la **CONVENTION co-localisée** (texture nommée comme
 > le conteneur du mesh), PAS le matériau g4pkm ni Lua `SetSprite` (hypothèse §5 ci-dessous, désormais écartée).
 > Confirmé : iecode a la MÊME limite (sprite gated sur `obj.G4txPath`, `MenuLayoutExporter.cs:127`) → il rend
-> aussi mainmenu01 vide ; **niers le dépasse ici.** Le bloqueur restant est le **PLACEMENT** : ces widgets sont
+> aussi mainmenu01 vide ; **nie le dépasse ici.** Le bloqueur restant est le **PLACEMENT** : ces widgets sont
 > ANIMÉS (bind pose g4pkm hors-écran, ex. `_save_base01` @ y≈-3044) → leur position réelle vient de la **motion
 > d'ouverture** (mevbin), pas de la bind pose ; le fallback bind-pose les regroupe au centre → SSIM mainmenu01
 > reste ≈ 0,004 (gate `mainmenu01_ssim_vs_reference`) jusqu'à l'émulation du **driver C++/Lua** (**D1.c**ⁱ — les
@@ -296,7 +296,7 @@ Hypothèse « splash promo » → **REJETÉE**. Ces bannières sont des panneaux
 - `nie-game --menu mainmenu01` → **31 objbin** correspondants. Avant D1.c : **0 sprite rendu** (canvas blanc).
   Après D1.c (fallback co-localisé) : **22 sprites de textures réelles** rendus (placement encore au centre,
   bloqué sur le driver C++/Lua D1.c). Le Groupe A (8 objbin runtime) reste à 0.
-- `nie-game --menu mainmenu` (préfixe large) → **117 objbin**, **22 sprites rendus** mais MAL placés (cf. `/tmp/niers-shots/mainmenu.png` : « TEAM DOCK », blob vert, « CH » = débris de sous-écrans). Ces 22 sprites proviennent EXCLUSIVEMENT des sous-écrans `mainmenu02/03/04/90/99`, pas de mainmenu01.
+- `nie-game --menu mainmenu` (préfixe large) → **117 objbin**, **22 sprites rendus** mais MAL placés (cf. `/tmp/nie-shots/mainmenu.png` : « TEAM DOCK », blob vert, « CH » = débris de sous-écrans). Ces 22 sprites proviennent EXCLUSIVEMENT des sous-écrans `mainmenu02/03/04/90/99`, pas de mainmenu01.
 - Cause du sur-pull : le filtre d'écran de `build_sprite_list` (`crates/engine/nie-game/src/main.rs:1151-1168`) fait `basename.starts_with(screen)` ; avec `screen="mainmenu"` il avale tous les `mainmenu*` (02 formation-list, 04 formation, 90 listes partagées). **Bug** : pour cet écran le filtre devrait être `mainmenu01` + les partagés réellement actifs (`mainmenu90_*` background/header), pas tous les sous-écrans.
 
 **Conclusion (RÉVISÉE D1.c) :** le gap mainmenu01 se scinde en deux. **Groupe B (23 objbin)** = textures
@@ -316,7 +316,7 @@ Le pipeline `build_sprite_list` (`main.rs:1143`) exige, dans l'ordre : objbin pa
 
 Classes (comme start-screen) : SPRITE-STATIQUE / SPRITE-RUNTIME (sprite réel mais assigné/sélectionné à l'exécution) / TEXTE-RUNTIME / 3D / HINT / LOCATOR / PRIMITIVE.
 
-| Élément visuel (menu.png) | objbin mainmenu01 | Asset g4tx réel | Statut niers | Pourquoi | Classe |
+| Élément visuel (menu.png) | objbin mainmenu01 | Asset g4tx réel | Statut nie | Pourquoi | Classe |
 |---|---|---|---|---|---|
 | Fond ciel bleu + traînées lumineuses | `_00_background` | aucun (g4pkm+g4tx absents) | NON_FAIT | conteneur runtime ; fond = scène 3D ou atlas partagé `mainmenu90_00` (2640×1100) sélectionné runtime | 3D / SPRITE-RUNTIME |
 | Barre haut « Ver 6.0.2 » + « 0.79 240 » | `_01_base_info` | aucun (g4pkm+g4tx absents) | NON_FAIT | widget runtime ; texte injecté par `SetText` (menu_host.rs:351) | TEXTE-RUNTIME |
@@ -325,7 +325,7 @@ Classes (comme start-screen) : SPRITE-STATIQUE / SPRITE-RUNTIME (sprite réel ma
 | Panneau VOTRE ÉQUIPE (vert) + « NIVEAU DE L'ÉQUIPE 99 » + icônes persos | `_02`/`_03_chara_status` | aucun | NON_FAIT | panneau runtime + **modèles 3D** miniatures de l'équipe + texte | 3D + TEXTE-RUNTIME |
 | Rangée 7 tuiles iso (éclair, voiture, antenne, ballon, BB, trophée, panier) + rangée 3 tuiles (livre+!, engrenage, info+1) | `_04_menu_list` + `_05_menu_list_button` | aucun | NON_FAIT | géométrie de liste construite runtime ; **icônes par item assignées via Lua `SetSprite`** (frame d'atlas, probable `mainmenu90_01` 2044×2012) | SPRITE-RUNTIME (Lua) |
 | Logo central INAZUMA ELEVEN Victory Road | — (hors objbin mainmenu01) | `220_img/logo_title/…` | NON_FAIT | sprite partagé assigné runtime (pas un objbin mainmenu01) | SPRITE-RUNTIME |
-| Carte notif « Joueurs saisonniers disponibles » + bouton X « Informations » | partagé `mainmenu90_*` / `_01_base_info` | indéterminé | NON_FAIT | bannière runtime + invite bouton | TEXTE-RUNTIME + HINT |
+| Carte notif « Joueurs saisonnie disponibles » + bouton X « Informations » | partagé `mainmenu90_*` / `_01_base_info` | indéterminé | NON_FAIT | bannière runtime + invite bouton | TEXTE-RUNTIME + HINT |
 | Bouton « Alt : Inazuma Post » + badge Victory Road (haut-droite) | partagé `mainmenu90_02_header_tab_*` | `mainmenu90_02` (5280×520, atlas onglets) | NON_FAIT | onglet d'en-tête ; objbin sans Texture | SPRITE-RUNTIME / HINT |
 | Hints bas : « Guide joueur » + icône perso + « Y ? » + « X » | `_06..._19` button_guide (23) | `mainmenu01_06..19.g4tx` (existent) | NON_FAIT | g4pkm OK mais pas de `Texture` dans l'objbin → icône liée runtime | HINT |
 | Ombre sous le perso 3D | `_08_chara_3d_shadow` | `mainmenu01_08.g4tx` (64×64) | NON_FAIT | blob d'ombre du modèle 3D ; texture non liée dans l'objbin | HINT / 3D-shadow |
@@ -379,7 +379,7 @@ pas une lecture de motion. C'est `G4pkmMotion.GetMotionFinalPose` (`G4pkmMotion.
    jusqu'au premier ancêtre dans l'écran (en pratique `_pos_base01` à l'origine 0,0 = centre écran),
    en **conservant la scale du bone feuille hors-écran** (`:113-115`, `:131-138`).
 
-Le caveat niers correspond exactement à ce gap : `crates/engine/nie-formats/src/menu.rs:12-15`
+Le caveat nie correspond exactement à ce gap : `crates/engine/nie-formats/src/menu.rs:12-15`
 (« Les éléments **animés** (glissement d'entrée) ont une bind pose hors-écran ; leur position finale
 dépend des keyframes runtime (absentes des fichiers) — non couverts ici. ») et
 `crates/engine/nie-formats/src/g4pkm.rs:18` (« `title00_09` / `_pos_scl_base01` : tx=1873 ty=-39 → hors-écran
@@ -387,7 +387,7 @@ dépend des keyframes runtime (absentes des fichiers) — non couverts ici. ») 
 
 ### Mapping `mot_open_hash` → placement (ce qu'il fait et ne fait PAS)
 
-`AnimationComponent.mot_open_hash` est **déjà parsé** côté niers
+`AnimationComponent.mot_open_hash` est **déjà parsé** côté nie
 (`crates/engine/nie-formats/src/objbin.rs:120-128`, alimenté par `build_animation_component` `:693-717` depuis
 la propriété `m_nameMotOpen`). Mais il ne pilote **aucune** logique de position :
 
@@ -413,7 +413,7 @@ Les blocs d'animation sont des **sous-fichiers du container G4PK** (`.g4pkm`), p
 - `crates/engine/nie-formats/src/g4pkm.rs:22-23` : « Container G4PK … contenant plusieurs sous-fichiers :
   G4SK (squelette), G4MD (géométrie), G4MA (animation), G4MT (matériau) » ;
 - `G4pkmMotion.cs:200-211` (G4MA = bone animation, G4MT = material animation ; header 0x40 partagé) ;
-- niers sait déjà extraire n'importe quel sous-fichier par magic : `extract_sub_file`
+- nie sait déjà extraire n'importe quel sous-fichier par magic : `extract_sub_file`
   (`g4pkm.rs:253-299`, fn privée générique, actuellement appelée seulement pour `MAGIC_G4SK`
   via `parse` `:185`). Le container générique est aussi exposé par `g4pk.rs:87-106`
   (`G4pkFile`/`G4pk`).
@@ -428,7 +428,7 @@ les motions ne sont pas des entrées VFS distinctes mais des blocs internes aux 
 par `resolve_vfs_basename` + `vfs.read` puis `g4pkm::parse`
 (`crates/engine/nie-game/src/main.rs:1198-1228`).
 
-### État de l'art côté niers
+### État de l'art côté nie
 
 **FAIT**
 - Toutes les **structures de données** requises pour le fallback existent déjà : `Transform2D`
@@ -658,7 +658,7 @@ vectorielle (pas de TTF/OTF/FreeType embarqué : `find … -iname '*.ttf' -o '*.
 en-tête off-by-4, aucun fichier NXTCH réel pour valider —
 `crates/engine/nie-formats/src/nxtch.rs`). **Les `.g4tx` police observés sont DDS, pas NXTCH**,
 donc le décodage DDS existant suffit pour eux. **Le parseur `.g4tg` (métriques de glyphes)
-n'existe NI dans niers NI dans iecode** (`grep g4tg` iecode = 0) → format à reverser
+n'existe NI dans nie NI dans iecode** (`grep g4tg` iecode = 0) → format à reverser
 (NON_FAIT).
 
 ### 3. Multi-script et conséquences pixel-perfect
@@ -753,7 +753,7 @@ vérifiés dans `/tmp/vfs_g4tx.txt` (ex. `title02_01/`, `gtxt_title02`, banners)
 
 Le vrai moteur Level-5 « Lives » ne dessine pas un layout figé : pour chaque écran il exécute un script Lua 5.2 (`.lua.bin`) qui définit des callbacks (`OnSetupLayer`, `OnOpenLayer`, …). À l'ouverture, le moteur appelle ces callbacks, qui émettent des `funcLuaMenuCommand(cmdId, layerId, …args)`. Chaque commande mute l'état en mémoire des objets du layer (visible, sprite, texte, nombre…). Le rendu final = layout statique `objbin + g4pkm/G4SK + g4tx` **muté par-dessus** par ces commandes. C'est exactement pourquoi `title02` (8 widgets « pas de g4tx_path ») et `mainmenu01` (panneaux texte/nombre) apparaissent vides en rendu statique : leur contenu est posé par le script, pas par l'asset.
 
-`niers` a déjà la VM et le modèle d'état (`nie-lua`), mais **le renderer (`nie-game`) ne les utilise pas**.
+`nie` a déjà la VM et le modèle d'état (`nie-lua`), mais **le renderer (`nie-game`) ne les utilise pas**.
 
 ### Flux cible complet
 
@@ -776,7 +776,7 @@ MenuState { layers: { layerId → { objects: { objHash → MenuObjectState } } }
    join objbin.name → objHash via crc32(name)  (cfgbin.rs:625)
 ```
 
-Le moteur expose ~616 scripts sous `data/common/script/lua/` (`lib.rs:10`). `niers` exécute le **bytecode d'origine** dans sa VM exacte (mlua `lua52`+`vendored`) — supérieur à iecode qui décompile via `unluac` puis réinterprète sous MoonSharp (chemin lossy, `LuaRuntime.cs:13-16`).
+Le moteur expose ~616 scripts sous `data/common/script/lua/` (`lib.rs:10`). `nie` exécute le **bytecode d'origine** dans sa VM exacte (mlua `lua52`+`vendored`) — supérieur à iecode qui décompile via `unluac` puis réinterprète sous MoonSharp (chemin lossy, `LuaRuntime.cs:13-16`).
 
 ### Référence iecode (vérité terrain de la sémantique)
 
@@ -787,7 +787,7 @@ Le moteur expose ~616 scripts sous `data/common/script/lua/` (`lib.rs:10`). `nie
 - `LuaRuntimeTests.cs:80-114` — `qrcode_menu.lua.bin` : `OnSetupLayer(292844459)` (= `general_win`) émet ≥ 2 commandes ; décompilé : `funcLuaMenuCommand(1018283794, 1189944233, 0)` puis `funcLuaMenuCommand(1848885328, 292844459, …)`.
 - `LuaRuntimeTests.cs:202-239` — `savedata…` : `OnOpenLayer(536044352,1)` émet `cmdId 711242136` (= `0x2A64B198` = `SetObjectVisible`) ; `OnChangeLayerGroup` émet `711242136` + `532421851`.
 
-Le mapping `cmdId → nom` complet vit dans `re/lua/funclua-cmdids.json` (chargé par `FuncLuaCommands.Load` `:36`, recherché par `LoadDefault` `:67`) **+** `re/menu/hash-dictionary.json` (résolution `hash → nom`). **Ces deux fichiers sont absents de ce checkout iecode et du repo `niers`** (vérifié : `find … funclua-cmdids.json / hash-dictionary.json` → vide ; l'arbre `iecode/re/` ne contient qu'un `re/rag/` vide). `cmdId = CRC32(nom C++ interne)` mais le forward-lookup n'est **pas** confirmé — les noms sont inférés des patterns d'arguments (`FuncLuaCommands.cs:9-12`).
+Le mapping `cmdId → nom` complet vit dans `re/lua/funclua-cmdids.json` (chargé par `FuncLuaCommands.Load` `:36`, recherché par `LoadDefault` `:67`) **+** `re/menu/hash-dictionary.json` (résolution `hash → nom`). **Ces deux fichiers sont absents de ce checkout iecode et du repo `nie`** (vérifié : `find … funclua-cmdids.json / hash-dictionary.json` → vide ; l'arbre `iecode/re/` ne contient qu'un `re/rag/` vide). `cmdId = CRC32(nom C++ interne)` mais le forward-lookup n'est **pas** confirmé — les noms sont inférés des patterns d'arguments (`FuncLuaCommands.cs:9-12`).
 
 ### État du portage
 
@@ -867,7 +867,7 @@ semantique draw_type>=2 ; resolution camera_name_hash->matrice
 
 ## 10. Gate pixel-perfect + référence
 
-But du gate : prouver que le rendu niers d'un écran est **identique au vrai `nie.exe`**, pas seulement
+But du gate : prouver que le rendu nie d'un écran est **identique au vrai `nie.exe`**, pas seulement
 auto-cohérent. La doctrine est un gate **à deux étages** : égalité octet d'abord, SSIM ensuite. Cette
 section sépare ce qui est conçu (papier), ce qui est codé (auto-cohérence interne), et ce qui manque
 réellement (la capture de référence du jeu) pour transformer le gate en *preuve* d'identité.
@@ -913,7 +913,7 @@ espace pré-multiplié, via `comparer_cpu_gpu` (`main.rs:1623-1646`) : échec si
 dans une tolérance de **4/255 par canal** (`main.rs:1846-1853`). Canvas de référence : 1280×720
 effacé en **transparent** (`main.rs:1739-1744`).
 
-Les **deux côtés sont produits par niers** (GPU wgpu vs compositeur CPU maison). `--verify` prouve
+Les **deux côtés sont produits par nie** (GPU wgpu vs compositeur CPU maison). `--verify` prouve
 donc l'**équivalence du pipeline CPU↔GPU** — un filet de régression interne utile — et ne dit
 **rien** sur la conformité à `nie.exe`. Ce n'est pas le gate pixel-perfect.
 
@@ -937,16 +937,16 @@ pas de prétention pixel-perfect »). Options évaluées :
   ils ont été **re-capturés le 2026-06-14 (18:15/18:16)**. Contenu vérifié visuellement :
   `start.png` = **title02** (logo IEVR + « COMMENCER » + « ver 6.0.2 0.79 240 ») ; `menu.png` =
   **mainmenu01** (AVATAR / VICTOIRES 212 / VOTRE ÉQUIPE, panneau d'icônes, « Guide joueur »). Ce sont
-  bien des frames du **vrai jeu** (niers ne sort que du 1280×720 et ne rend pas ces écrans complets).
+  bien des frames du **vrai jeu** (nie ne sort que du 1280×720 et ne rend pas ces écrans complets).
   Ils ne sont **référencés nulle part** dans le code/docs/scripts (grep : 0 occurrence).
 
 **Verdict** : (a) et (c) désignent **le même artefact** — les deux PNG 2560×1440 sont le **seul golden
 exploitable** aujourd'hui. (b) est écarté faute d'outil de capture de framebuffer.
 
-Limites de ce golden : (1) résolution = **2× la résolution canonique** niers (voir plus bas), donc
+Limites de ce golden : (1) résolution = **2× la résolution canonique** nie (voir plus bas), donc
 ré-échantillonnage obligatoire ; (2) **frame unique choisie à la main**, phase d'animation idle non
 contrôlée ; (3) **contenu dynamique** spécifique au compte (« VICTOIRES 212 », « NIVEAU DE L'ÉQUIPE
-99 », bandeau « Joueurs saisonniers », badge « Deluxe Edition », overlay « ver 6.0.2 0.79 240ʼ») qui
+99 », bandeau « Joueurs saisonnie », badge « Deluxe Edition », overlay « ver 6.0.2 0.79 240ʼ») qui
 ne matchera **jamais** un layout statique.
 
 ### Scaffolding de test (NON_FAIT — spécification)
@@ -955,11 +955,11 @@ Résolution canonique : **1280×720** (`crates/engine/nie-game/src/main.rs:1670-
 Les références sont **2560×1440** = **exactement 2×**, et les deux sont en **16:9** (1,778) — donc
 **même aspect, aucun letterbox** (l'ancien 600×340 ≈ 1,765 du prompt n'est plus d'actualité).
 Politique de ré-échantillonnage à figer : soit downscale box ×½ de la réf vers 1280×720, soit rendre
-niers à 2560×1440 ; tout resampling **casse l'égalité octet** (réservé à l'étage SSIM).
+nie à 2560×1440 ; tout resampling **casse l'égalité octet** (réservé à l'étage SSIM).
 
 Deux **baselines distinctes** à ne pas confondre :
-- **Golden de régression** = sortie niers *blessée* (`UPDATE_GOLDEN=1`) → cible de l'**étage 1 octet**
-  (détecte les régressions niers, CPU==GPU, déterminisme run-to-run).
+- **Golden de régression** = sortie nie *blessée* (`UPDATE_GOLDEN=1`) → cible de l'**étage 1 octet**
+  (détecte les régressions nie, CPU==GPU, déterminisme run-to-run).
 - **Référence jeu** = `start.png`/`menu.png` ré-échantillonnés → cible de l'**étage 2 SSIM** (seule
   chose qui prouve l'identité au jeu).
 
@@ -978,13 +978,13 @@ Spec proposée, alignée sur `STACK.md:20` :
 ### Ce qui bloque la preuve pixel-perfect (honnêteté)
 
 - **L'égalité octet vs un screenshot du jeu est IMPOSSIBLE** pour l'écran composé : (1) mismatch de
-  résolution + resampling, (2) **rasterizer différent** (GPU réel du jeu vs wgpu/lavapipe niers : AA,
+  résolution + resampling, (2) **rasterizer différent** (GPU réel du jeu vs wgpu/lavapipe nie : AA,
   filtrage, arrondis ≠ bit-à-bit), (3) contenu dynamique. L'étage octet reste la preuve pour les
-  **formats/données** (cf. `PLAN.md`) et pour le **déterminisme interne** de niers, **pas** face
+  **formats/données** (cf. `PLAN.md`) et pour le **déterminisme interne** de nie, **pas** face
   au screenshot. La phrase « égalité octet = vraie preuve d'identité » (`STACK.md:20`) ne vaut donc
-  que contre un golden produit par niers, pas contre la réf jeu.
+  que contre un golden produit par nie, pas contre la réf jeu.
 - **Le SSIM est le gate réaliste vs le jeu, mais inatteignable aujourd'hui** car le rendu est
-  incomplet : `title02` = sprites en **bind pose** (canvas quasi vide, `/tmp/niers-shots/title02.png`
+  incomplet : `title02` = sprites en **bind pose** (canvas quasi vide, `/tmp/nie-shots/title02.png`
   = 44987 o, surtout transparent) ; `mainmenu` = **22/117** sprites mal placés, fonds absents (« g4pkm
   absent du VFS ») et widgets texte ignorés (« pas de g4tx_path ») (`/tmp/mainmenu.log`). SSIM actuel
   ≈ 0.
@@ -1031,7 +1031,7 @@ objets cachés masqués ; aucun widget DLC sur title vierge.
 **Vague D1.d — Texte (couche 4).** (i) Voie rapide : substituer `<LG>` dans `resolve_vfs_basename`
 (`main.rs:1117-1126`, bug : matche par basename seul) → libellés **pré-rendus** corrects (Deluxe
 Edition, légal, gtxt_). (ii) Voie police : reverser le format **`.g4tg`** (métriques glyphes, chemin
-`g4.rs:789`, NON parsé ni dans niers ni iecode) + rasteriseur de glyphes depuis `font_def.g4tx`
+`g4.rs:789`, NON parsé ni dans nie ni iecode) + rasteriseur de glyphes depuis `font_def.g4tx`
 (4096×2048) / `gaiji_game.g4tx` (117 régions) ; résoudre `MenuTextSetting` (hash → table
 `common/text/<locale>/`, modèle déjà porté `passives.rs:269-353`). *Gate* : COMMENCER / ver 6.0.2 /
 VICTOIRES 212 / NIVEAU 99 corrects, bonne locale.
@@ -1067,7 +1067,7 @@ trajectoire la plus courte vers une première preuve SSIM.
 
 - L'**égalité octet vs un screenshot du jeu est impossible** pour l'écran composé (résolution 2×,
   raster GPU réel ≠ wgpu/lavapipe, contenu dynamique par compte). L'étage octet reste la preuve pour
-  les **formats/données** et le **déterminisme interne** de niers ; vs le jeu, seul le **SSIM hors ROI**
+  les **formats/données** et le **déterminisme interne** de nie ; vs le jeu, seul le **SSIM hors ROI**
   prouve l'identité.
 - Tant que le placement/fonds ne sont pas complétés, le SSIM réel ≈ 0 : la preuve pixel-perfect est
   **NON_FAIT** ; son déblocage suit l'ordre D1.a → D1.f.

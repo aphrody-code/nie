@@ -1081,7 +1081,7 @@ pub fn parse_t2b(data: &[u8]) -> Result<CfgBinFile, FormatError> {
 }
 
 /// Encode un arbre `CfgEntry` en fichier T2B binaire — inverse de [`parse_t2b`]. Écrit suite à
-/// la demande utilisatrice « niers doit pouvoir éditer, pas juste explorer » : `nie-formats`
+/// la demande utilisatrice « nie doit pouvoir éditer, pas juste explorer » : `nie-formats`
 /// n'avait jusqu'ici AUCUN encodeur (RDBN ni T2B), seulement des décodeurs.
 ///
 /// Ne vise PAS un round-trip octet-identique à un fichier T2B d'origine quelconque
@@ -1690,7 +1690,7 @@ pub fn encode_rdbn(lists: &[RdbnList]) -> Result<Vec<u8>, String> {
 // `csharp/IECODE.Core/Dump/DataPathExporter.cs` — RDBN -> `{ "lists": [{name,typeName,values}] }`,
 // T2B -> `{ "entries": [{name,variables,children}] }` avec les frères de même nom suffixés
 // `_0`, `_1`… (les parseurs matchent un préfixe à underscore final). Portée depuis la copie
-// privée de `nie-model-serve` (`cfgbin_to_typed_root` et consorts) pour que `niers decode
+// privée de `nie-model-serve` (`cfgbin_to_typed_root` et consorts) pour que `nie decode
 // --typed` et toute autre régénération de corpus `.cfg.bin.json` produisent la MÊME forme,
 // au lieu de deux implémentations qui dérivent l'une de l'autre.
 

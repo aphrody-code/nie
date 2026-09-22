@@ -67,7 +67,7 @@ sed -e 's#/etc/letsencrypt/live/aphrody.com/fullchain.pem#'"$PWD"'/c.pem#g' \
     -e 's#/etc/letsencrypt/options-ssl-nginx.conf#'"$PWD"'/opts.inc#g' \
     -e 's#/etc/letsencrypt/ssl-dhparams.pem#'"$PWD"'/dh.pem#g' \
     -e 's#/etc/nginx/conf.d/snippets-mcp.inc#'"$PWD"'/mcp.inc#g' \
-    ~/niers/deploy/nginx/aphrody.com.conf > vhost.conf
+    ~/nie/deploy/nginx/aphrody.com.conf > vhost.conf
 printf 'events {}\nhttp { include %s/vhost.conf; }\n' "$PWD" > nginx.conf
 nginx -t -c "$PWD/nginx.conf"
 ```
@@ -78,7 +78,7 @@ normal en non-root et arrive **après** la validation : la configuration a été
 ## systemd
 
 Les unités n'embarquent plus le chemin d'un checkout particulier. Elles utilisent
-`NIE_REPO_ROOT` et `NIE_GAME_DIR`, avec les valeurs par défaut `/home/ubuntu/niers` et
+`NIE_REPO_ROOT` et `NIE_GAME_DIR`, avec les valeurs par défaut `/home/ubuntu/nie` et
 `%h/.local/share/Steam/iecode/inazuma`. Sur un hôte existant, créer avant l'installation
 `/etc/nie/nie.env` :
 
@@ -97,7 +97,7 @@ modifier les unités ni le code.
 
 ## Ce qui n'est PAS ici, et pourquoi
 
-The native Rust MCP server is a per-client stdio process (`nie-mcp` or `niers mcp`), not a
+The native Rust MCP server is a per-client stdio process (`nie-mcp` or `nie mcp`), not a
 long-running HTTP unit. The retired HTTP unit remains masked on the host to prevent accidental
 reactivation.
 
@@ -108,7 +108,7 @@ La machine porte aussi les unités `bxc-*` et `rg-*` (CDN, postgrest, sauvegarde
 les vhosts `rosegriffon.conf`, `cdn.rosegriffon.conf`, `supabase*`, `studio.*`. Ils
 appartiennent aux dépôts `bxc` et `rg` : les recopier ici créerait une seconde source de vérité
 pour des fichiers que ce dépôt ne modifie pas. La frontière est celle du 2026-09-05 — Codex
-tient `rg`, ce dépôt tient `niers`.
+tient `rg`, ce dépôt tient `nie`.
 
 ## Avant de renommer ou de déplacer quoi que ce soit
 

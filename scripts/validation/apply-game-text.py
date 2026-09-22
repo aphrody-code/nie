@@ -50,7 +50,7 @@ def import_line(path: Path) -> str:
     if PACKAGE in path.parents:
         relative = Path("../" * len(path.relative_to(PACKAGE).parts[:-1]) or "./")
         return f'import {{ GameText }} from "{relative.as_posix().rstrip("/")}/lib/game-text-context";\n'
-    return 'import { GameText } from "@niers/inacord-ui";\n'
+    return 'import { GameText } from "@nie/inacord-ui";\n'
 
 
 def ensure_import(source: str, path: Path) -> str:

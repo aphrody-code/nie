@@ -13,10 +13,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, type ForgeBlocker, type ForgeReport } from "@/lib/api";
 import { defaultReDbPath, reDb, type ClasseForge, type StatutForge } from "@/lib/reDb";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { Button } from "@niers/inacord-ui/components/ui/button";
-import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
-import { Alert, AlertDescription, AlertTitle } from "@niers/inacord-ui/components/ui/alert";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
+import { Button } from "@nie/inacord-ui/components/ui/button";
+import { ScrollArea } from "@nie/inacord-ui/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@nie/inacord-ui/components/ui/alert";
 
 /** Sépare les milliers à la française — ces nombres se lisent, ils ne se survolent pas. */
 function o(n: number): string {
@@ -45,7 +45,7 @@ export function ReForgeView() {
   const [classes, setClasses] = useState<ClasseForge[]>([]);
   const parametres = useSettings();
 
-  // La répartition et le classement viennent de `niers.sqlite`, pas des artefacts de `var/forge/`
+  // La répartition et le classement viennent de `nie.sqlite`, pas des artefacts de `var/forge/`
   // que relit `forgeReport` : ce sont deux vues du même travail, et la base est la seule à savoir
   // à QUELLE classe appartient un corps bloqué.
   useEffect(() => {
@@ -100,7 +100,7 @@ export function ReForgeView() {
           <AlertDescription>
             {error}
             <div className="mt-2 text-xs opacity-70">
-              Le recouvrement se produit avec <code>nie-forge split --exe nie.exe --db var/niers.sqlite</code>,
+              Le recouvrement se produit avec <code>nie-forge split --exe nie.exe --db var/nie.sqlite</code>,
               puis <code>nie-forge lift</code>.
             </div>
           </AlertDescription>

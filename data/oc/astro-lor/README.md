@@ -43,7 +43,7 @@ Les dérivés publiés, eux, sont versionnés : voir plus bas, et la raison qui 
 ## Provenance
 
 Les **9 planches** viennent d'un message Discord, récupéré par le bot
-`niers-wonderbot`. Le journal `provenance/discord-<id>.json` porte, pour chaque
+`nie-wonderbot`. Le journal `provenance/discord-<id>.json` porte, pour chaque
 image, son identifiant Discord, son empreinte sha256, ses dimensions et son poids.
 
 Les **3 pages de bande dessinée** viennent d'URL fournies à la main. Elles n'ont pas

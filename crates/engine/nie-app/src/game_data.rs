@@ -2,12 +2,12 @@
 //! (`vfs_ls`/`vfs_describe`) et du miroir wiki azalee (`wikiDb`/`nameResolve`) : lecture directe
 //! des `.cfg.bin` du jeu, décodés par les VRAIS parseurs typés de `nie-data` (déjà une
 //! dépendance déclarée mais jamais câblée dans une commande jusqu'ici — cf. demande
-//! utilisatrice « toutes les features, api et code de niers et des crates doivent être
+//! utilisatrice « toutes les features, api et code de nie et des crates doivent être
 //! utilisable et utilisé dans l'app »).
 //!
 //! Le pont bytes→JSON forme "inagle" qu'attendent les parseurs `nie-data` (`parse_skill_config`,
 //! et ~115 autres modules du même crate) existe déjà et est TESTÉ : [`nie_explore::bridge`]
-//! (`t2b_to_json`/`rdbn_to_json`), utilisé par `niers vfs cat`. Ce module ne fait que l'appeler
+//! (`t2b_to_json`/`rdbn_to_json`), utilisé par `nie vfs cat`. Ce module ne fait que l'appeler
 //! avec les bons chemins VFS — pas de nouvelle logique de décodage, zéro doublon.
 //!
 //! Un seul module câblé pour l'instant (techniques) : les ~115 autres (personnages, objets,
@@ -473,7 +473,7 @@ pub fn calculate_character_stats(
 /// is_rdbn`) vers la forme JSON "inagle" (`{"lists":[...]}` ou `{"entries":[...]}`) — couvre
 /// TOUS les fichiers de configuration du jeu (plusieurs centaines sous `data/common/gamedata/`
 /// et `data/common/text/`), pas seulement les modules `nie-data` câblés individuellement avec un
-/// DTO typé (`list_skills` ci-dessus) — cf. demande utilisatrice « niers doit couvrir tout
+/// DTO typé (`list_skills` ci-dessus) — cf. demande utilisatrice « nie doit couvrir tout
 /// nie.exe ». Générique : délègue au pont canonique `nie_explore::game_data`, sans parseur
 /// dupliqué dans l'hôte Tauri.
 pub fn decode_cfgbin(vfs: &Vfs, path: &str) -> Result<serde_json::Value, String> {
@@ -2083,7 +2083,7 @@ mod tests {
     }
 
     /// Feintes : 9 lignes `m_trickInfoList` dans `skill/trick_config.cfg.bin` (vérifié par
-    /// `niers vfs cat` sur le jeu monté).
+    /// `nie vfs cat` sur le jeu monté).
     #[test]
     fn list_tricks_sur_le_vrai_jeu() {
         let Some(vfs) = real_vfs_or_skip("list_tricks_sur_le_vrai_jeu") else {
@@ -2155,7 +2155,7 @@ mod tests {
         assert_eq!(teams[0].name.as_deref(), Some("Raimon"));
     }
 
-    /// Formations : 115 formations / 1073 placements (comptes relevés par `niers vfs cat` sur
+    /// Formations : 115 formations / 1073 placements (comptes relevés par `nie vfs cat` sur
     /// `formation_config_0.02.16.cfg.bin`). Aucun nom attendu — `formation_text.cfg.bin` n'existe
     /// pas dans cette version du jeu.
     #[test]
@@ -2181,7 +2181,7 @@ mod tests {
     }
 
     /// Uniformes : 627 lignes `m_UniformInfoList` sur 1247 modèles (comptes relevés par
-    /// `niers vfs cat` sur `character/uniform_config_1.03.52.00.cfg.bin`).
+    /// `nie vfs cat` sur `character/uniform_config_1.03.52.00.cfg.bin`).
     #[test]
     fn list_uniforms_sur_le_vrai_jeu() {
         let Some(vfs) = real_vfs_or_skip("list_uniforms_sur_le_vrai_jeu") else {
@@ -2203,7 +2203,7 @@ mod tests {
 
     /// Vérifie que le décodeur GÉNÉRIQUE (`decode_cfgbin`) marche sur un large échantillon
     /// de VRAIS `.cfg.bin` du jeu, pas seulement `skill_config` — preuve de couverture large
-    /// (« niers doit couvrir tout nie.exe »), RDBN et T2B mélangés, sans aucun crash/erreur.
+    /// (« nie doit couvrir tout nie.exe »), RDBN et T2B mélangés, sans aucun crash/erreur.
     #[test]
     fn decode_cfgbin_sur_un_echantillon_large() {
         let dir = nie_formats::vfs::resolve_game_dir()

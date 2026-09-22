@@ -1,4 +1,4 @@
-import type { AssetSource } from "@niers/asset-source";
+import type { AssetSource } from "@nie/asset-source";
 import { useEffect, useState, type CSSProperties } from "react";
 import { NativeResources } from "./native-resources";
 

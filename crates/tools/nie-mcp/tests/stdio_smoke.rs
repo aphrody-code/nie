@@ -31,7 +31,7 @@ fn text_content(response: &serde_json::Value) -> &str {
 #[test]
 fn initialize_list_and_call_stay_on_clean_stdio() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_nie-mcp"))
-        .env("NIERS_GAME_EXE", "missing-native-smoke-game.exe")
+        .env("NIE_GAME_EXE", "missing-native-smoke-game.exe")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -55,7 +55,7 @@ fn initialize_list_and_call_stay_on_clean_stdio() {
         }),
     );
     let initialized = response_for(&mut reader, 1);
-    assert_eq!(initialized["result"]["serverInfo"]["name"], "niers-game");
+    assert_eq!(initialized["result"]["serverInfo"]["name"], "nie-game");
 
     request(
         &mut stdin,

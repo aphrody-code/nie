@@ -1,7 +1,7 @@
-import type { NameResolver, ResolvedName } from "@niers/inacord-ui/lib/resolved-names";
-import { useResolvedNames, nameWithId } from "@niers/inacord-ui/lib/resolved-names";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
-import { fetchJson } from "@niers/asset-source";
+import type { NameResolver, ResolvedName } from "@nie/inacord-ui/lib/resolved-names";
+import { useResolvedNames, nameWithId } from "@nie/inacord-ui/lib/resolved-names";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
+import { fetchJson } from "@nie/asset-source";
 
 export const resolveResourceNames: NameResolver = async (_source, codes, locale) => {
     const names = new Map<string, ResolvedName>();

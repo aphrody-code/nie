@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/dungeon/gimmick_system_num_config.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/dungeon/gimmick_system_num_config.cfg.bin.json`
 //! - Format : `entries` (noeuds nommés, variables positionnelles).
 //! - Structure récursive : **4 groupes** (`DUNGEON_NUM_TABLE_GROUP_0..3`) imbriqués via leurs
 //!   entrées de données. GROUP_0 contient 6 entrées, dont DATA_5 pointe vers GROUP_1 (3

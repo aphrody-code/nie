@@ -33,18 +33,18 @@ import {
 	useSettings,
 	useGameTextResolver,
 	type GameLocale,
-} from "@niers/inacord-ui";
+} from "@nie/inacord-ui";
 import {
 	fetchCharaCatalog,
 	type CharaCatalogEntry,
 	type CharaCatalogPage,
 	type CharaFacet,
 	type CharaSort,
-} from "@niers/asset-source/chara";
-import { fetchJson } from "@niers/asset-source";
-import { StatHeptagon } from "@niers/inacord-ui/components/wiki/wiki/StatHeptagon";
-import { getCharacterFaceUrl } from "@niers/inacord-ui/lib/wikiImages";
-import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
+} from "@nie/asset-source/chara";
+import { fetchJson } from "@nie/asset-source";
+import { StatHeptagon } from "@nie/inacord-ui/components/wiki/wiki/StatHeptagon";
+import { getCharacterFaceUrl } from "@nie/inacord-ui/lib/wikiImages";
+import { lireLayout, type LayoutJeu } from "@nie/inacord-ui/shell/game-layout";
 import { listPage, stepCursor } from "../game/list-page";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { LayoutCanvas } from "../game/LayoutCanvas";
@@ -67,7 +67,7 @@ import {
 	browserLocationSnapshot,
 	subscribeBrowserLocation,
 	writeBrowserHistory,
-} from "@niers/inacord-ui/lib/browser-navigation";
+} from "@nie/inacord-ui/lib/browser-navigation";
 
 /** L'écran du jeu dont cette page est la reproduction. */
 const SCREEN = "chara_bank_menu";
@@ -953,7 +953,7 @@ function enrichFilterOption(familyId: string, value: string, count?: number) {
 										 * Le chemin vient du module partagé, il n'est pas reconstruit ici.
 										 *
 										 * Cette ligne composait `data/dx11/chara/face/<code>.g4tx`, qui N'EXISTE PAS :
-										 * `niers vfs find c01001230` ne rend rien sous ce préfixe, et la requête
+										 * `nie vfs find c01001230` ne rend rien sous ce préfixe, et la requête
 										 * correspondante répondait 404 quand la bonne rend 31 788 octets. Toutes les
 										 * vignettes de la Banque étaient donc muettes, et le `onError` juste en dessous
 										 * masquait l'image — un défaut qu'aucun écran ne signalait. Le dépôt portait ce

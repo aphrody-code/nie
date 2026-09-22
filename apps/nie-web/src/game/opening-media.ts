@@ -1,4 +1,4 @@
-import { ResourceLoader, type AssetSource } from "@niers/asset-source";
+import { ResourceLoader, type AssetSource } from "@nie/asset-source";
 
 type MediaSource = Pick<AssetSource, "urlVideo" | "urlVideoAudio">;
 type Pool = { loader: ResourceLoader; users: number };

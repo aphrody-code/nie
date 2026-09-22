@@ -180,7 +180,7 @@ fn main() {
         "[export_passives] OK — player_count={player_count} team_count={team_count} lot_count={lot_count} taille={kb}Ko → {out_path}"
     );
 
-    // Sortie standard machine-readable (1 ligne terse comme convention niers CLI)
+    // Sortie standard machine-readable (1 ligne terse comme convention nie CLI)
     println!(
         "player_count={player_count} team_count={team_count} lot_count={lot_count} unique_effects={unique_effect_count} unique_string_ids={unique_string_id_count} out={out_path} size_kb={kb}"
     );

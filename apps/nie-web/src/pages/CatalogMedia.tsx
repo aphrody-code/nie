@@ -9,16 +9,16 @@ import {
 	type GameFilterFamily,
 	type GameFilterValue,
 	useGameKeys,
-} from "@niers/inacord-ui";
-import { useAssetSource } from "@niers/inacord-ui";
-import { ExplorerEntries, ExplorerSurface } from "@niers/inacord-ui/explorer/explorer-surface";
-import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-controls";
-import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
+} from "@nie/inacord-ui";
+import { useAssetSource } from "@nie/inacord-ui";
+import { ExplorerEntries, ExplorerSurface } from "@nie/inacord-ui/explorer/explorer-surface";
+import { PaginationControls } from "@nie/inacord-ui/components/ui/pagination-controls";
+import { browserLocationSnapshot, subscribeBrowserLocation, writeBrowserHistory } from "@nie/inacord-ui/lib/browser-navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { NativeResources, type NativeAudioBank, type NativeVideoMetadata } from "../game/native-resources";
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
-import { GameText } from "@niers/inacord-ui";
-import type { AssetSource } from "@niers/asset-source";
+import { GameText } from "@nie/inacord-ui";
+import type { AssetSource } from "@nie/asset-source";
 import { api } from "../desktop/lib/api";
 import type { FilmDto } from "../desktop/lib/bindings";
 import { readableSize } from "./screen-parts";

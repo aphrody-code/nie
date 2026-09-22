@@ -771,7 +771,7 @@ fn ecrire_moov(
     b.u32(0);
     b.u32(0);
     b.u32(0);
-    b.brut(b"niers\0"); // nom du gestionnaire, terminé par un nul
+    b.brut(b"nie\0"); // nom du gestionnaire, terminé par un nul
     b.fermer();
 
     b.ouvrir(b"minf");
@@ -1219,7 +1219,7 @@ mod tests {
             "le SPS reste la taille codée"
         );
 
-        // `tkhd` : largeur/hauteur 16.16 aux deux derniers champs de la boîte (version 0).
+        // `tkhd` : largeur/hauteur 16.16 aux deux dernie champs de la boîte (version 0).
         let pos = mp4
             .windows(4)
             .position(|w| w == b"tkhd")

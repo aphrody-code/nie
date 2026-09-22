@@ -2,7 +2,7 @@
 //!
 //! Ce sont des chunks **bytecode Lua 5.2 PUC-Rio** (`\x1bLua`, version `0x52`). Le décodeur est
 //! celui de `nie-lua` ; ce test vérifie qu'il est bien branché sur `nie_formats::decode` — donc
-//! atteignable par `nie_decode_json`, `niers decode`, l'explorateur et le MCP — et que le JSON
+//! atteignable par `nie_decode_json`, `nie decode`, l'explorateur et le MCP — et que le JSON
 //! produit porte réellement le contenu du chunk, pas seulement un en-tête.
 //!
 //! Il **annonce son saut** quand ni l'installation ni le dump ne sont disponibles.

@@ -1,7 +1,7 @@
 import type React from "react";
-import { SPRITE_SHEET_COMMON_SRC, SPRITES_COMMON } from "@niers/inacord-ui/config/sprites-common";
-import type { SpriteCommonKey } from "@niers/inacord-ui/config/sprites-common";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { SPRITE_SHEET_COMMON_SRC, SPRITES_COMMON } from "@nie/inacord-ui/config/sprites-common";
+import type { SpriteCommonKey } from "@nie/inacord-ui/config/sprites-common";
+import { cn } from "@nie/inacord-ui/lib/utils";
 import styles from "./SpriteIcon.module.css";
 
 // Native spritesheet dimensions

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration « caméra » de la base de connaissance niers (schema_version 2).
+-- Migration « caméra » de la base de connaissance nie (schema_version 2).
 --
 -- Indexe TOUT ce que le projet sait de la caméra d'Inazuma Eleven: Victory Road :
 --   1. la carte du reverse (classes RTTI, dispatchers Lua, symboles, paramètres,

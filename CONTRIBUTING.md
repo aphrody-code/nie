@@ -37,7 +37,7 @@ crate counts derived live from `cargo metadata`:
 
 | Surface | Artefact | Root crate | Release tag |
 | --- | --- | --- | --- |
-| `cli` | `niers` — VFS, formats, the reverse-engineering atlas | `nie-cli` | `cli-v*` |
+| `cli` | `nie` — VFS, formats, the reverse-engineering atlas | `nie-cli` | `cli-v*` |
 | `mcp` | `nie-mcp` — the native Model Context Protocol server | `nie-mcp` | `mcp-v*` |
 | `site` | `nie-site` and the WebAssembly module it serves | `nie-site`, `nie-wasm` | `site-v*` |
 | `desktop` | Inacord, the Tauri application | `inacord` | `desktop-v*` |
@@ -119,10 +119,10 @@ right lane by itself and no hand-written list can drift.
   caller keeps working through that library, and only then does a second surface appear. This
   repository has already paid for the alternative on keeper, menu and match-sim.
 - **One owner per capability.** Before creating a crate or a package, find who already owns the
-  capability — `niers atlas search <term>` covers docs, symbols, tools, files and crates at once.
+  capability — `nie atlas search <term>` covers docs, symbols, tools, files and crates at once.
 - **English for everything the machine reads**: files, directories, identifiers, URLs, JSON keys,
   database columns, commit messages, code comments, documentation. French is for prose addressed
-  to a human. Frozen product names are the exception: Azalée, Inacord, nie, `niers`, `nie-*`.
+  to a human. Frozen product names are the exception: Azalée, Inacord, nie, `nie`, `nie-*`.
 
 ## Commits
 

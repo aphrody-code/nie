@@ -1,4 +1,4 @@
-"""`niepy` — la porte d'entrée Python vers le moteur et les données de *niers*.
+"""`niepy` — la porte d'entrée Python vers le moteur et les données de *nie*.
 
 Trois usages, du plus simple au plus engageant :
 

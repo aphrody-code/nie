@@ -87,9 +87,9 @@ class Resultat:
 
 
 def histogramme() -> list[tuple[str, int]]:
-    """Les extensions du VFS et leur compte, par `niers vfs stats`."""
+    """Les extensions du VFS et leur compte, par `nie vfs stats`."""
     sortie = subprocess.run(
-        ["niers", "vfs", "stats"], capture_output=True, text=True, timeout=300, check=False
+        ["nie", "vfs", "stats"], capture_output=True, text=True, timeout=300, check=False
     ).stdout
     paires: list[tuple[str, int]] = []
     for ligne in sortie.splitlines():
@@ -100,9 +100,9 @@ def histogramme() -> list[tuple[str, int]]:
 
 
 def echantillonner(ext: str, combien: int) -> list[str]:
-    """Des chemins reels de cette extension, tires par `niers vfs find`."""
+    """Des chemins reels de cette extension, tires par `nie vfs find`."""
     r = subprocess.run(
-        ["niers", "vfs", "find", "data", "--ext", ext, "-n", str(combien), "--json"],
+        ["nie", "vfs", "find", "data", "--ext", ext, "-n", str(combien), "--json"],
         capture_output=True,
         text=True,
         timeout=300,
@@ -194,7 +194,7 @@ def main() -> int:
 
     exts = [(e, n) for e, n in histogramme() if n >= args.min]
     if not exts:
-        print("aucune extension mesuree — `niers vfs stats` a-t-il repondu ?", file=sys.stderr)
+        print("aucune extension mesuree — `nie vfs stats` a-t-il repondu ?", file=sys.stderr)
         return 2
 
     resultats = []

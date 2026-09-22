@@ -1,7 +1,7 @@
 # NIE multi-host plugin
 
 NIE is a shared Agent Skills and native Rust MCP package for Codex, Claude Code, and
-Antigravity CLI (`agy`). The hosts share the same 18 skills and `niers-game` MCP server; only
+Antigravity CLI (`agy`). The hosts share the same 18 skills and `nie-game` MCP server; only
 their lightweight manifests differ.
 
 ## Start here

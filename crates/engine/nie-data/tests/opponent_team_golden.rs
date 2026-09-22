@@ -202,7 +202,7 @@ fn practice_match_info_champs() {
 fn vrai_fichier_si_present() {
     // Validation contre le vrai dump si monté localement (sinon skip).
     // Source VFS : data/common/gamedata/team/opponent_team_config_1.03.05.00.cfg.bin.
-    let path = "/home/aphrody/niers/data/common/gamedata/team/\
+    let path = "/home/aphrody/nie/data/common/gamedata/team/\
                 opponent_team_config_1.03.05.00.cfg.bin.json";
     if !std::path::Path::new(path).exists() {
         return;

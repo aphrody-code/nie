@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ExportFormat } from "./contracts";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
 
 export interface ExportMenuProps {
   /** Chemin VFS verbatim du fichier — jamais reconstruit à partir d'un nom affiché. */

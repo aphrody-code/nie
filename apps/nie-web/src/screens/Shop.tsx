@@ -28,9 +28,9 @@
  * sans son gestionnaire.
  */
 import { LayoutCanvas } from "../game/LayoutCanvas";
-import { fetchJson } from "@niers/asset-source";
-import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useGameTextResolver, useSettings } from "@niers/inacord-ui";
-import { lireLayout, type LayoutJeu } from "@niers/inacord-ui/shell/game-layout";
+import { fetchJson } from "@nie/asset-source";
+import { GameCanvas, GameHintBar, GameSearchBar, type GameLocale, useGameTextResolver, useSettings } from "@nie/inacord-ui";
+import { lireLayout, type LayoutJeu } from "@nie/inacord-ui/shell/game-layout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listPage, stepCursor } from "../game/list-page";
 import { createMenuRuntime, type MenuRuntimeResult } from "../game/menu-runtime";

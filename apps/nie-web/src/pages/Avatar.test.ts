@@ -6,8 +6,8 @@ import {
   avatar_reference_import_json,
   export_avatar_oc_document_json,
 } from "../wasm/nie_wasm.js";
-import { avatarModelUrl } from "@niers/inacord-ui/avatar/request";
-import type { AvatarComposition } from "@niers/inacord-ui/avatar/contract";
+import { avatarModelUrl } from "@nie/inacord-ui/avatar/request";
+import type { AvatarComposition } from "@nie/inacord-ui/avatar/contract";
 
 const catalog = {
   categories: [
@@ -262,7 +262,7 @@ describe("avatar host uses the actual compiled Rust resolver", () => {
       }),
     ));
     expect(document).toMatchObject({
-      schema: "niers.oc.avatar-document/v1",
+      schema: "nie.oc.avatar-document/v1",
       slug: "rust-owned-oc",
       avatarState: { profile: { kick: 120, intelligence: 130 } },
       references: [{ kind: "glb", bytes: 4096, sha256: "a".repeat(64) }],

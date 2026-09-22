@@ -1,4 +1,4 @@
-//! **nie-play** — front-end HEADLESS/GOLDEN du jeu niers.
+//! **nie-play** — front-end HEADLESS/GOLDEN du jeu nie.
 //!
 //! Mince client de [`nie_app`] : il fournit un Renderer CPU + un flow scripté, exécute la machine à
 //! états du cœur ([`nie_app::GameState`]), et écrit le playthrough en PNG (→ MP4 via ffmpeg). Le

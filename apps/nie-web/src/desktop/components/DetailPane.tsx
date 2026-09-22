@@ -1,11 +1,11 @@
-import { nameWithId, resolvedKindLabel } from "@niers/inacord-ui/lib/resolved-names";
+import { nameWithId, resolvedKindLabel } from "@nie/inacord-ui/lib/resolved-names";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { save, confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
-import { formatDescription, translateEffect } from "@niers/game/text";
+import { formatDescription, translateEffect } from "@nie/game/text";
 import { api, type ExportFormat } from "@/lib/api";
-import { useSettings, type Locale } from "@niers/inacord-ui/lib/settings";
+import { useSettings, type Locale } from "@nie/inacord-ui/lib/settings";
 import { b64ToBytes, bytesToB64, hexLines, hexToBytes, humanSize } from "@/lib/bytes";
 import { modsDb, type ModRow } from "@/lib/modsDb";
 import { stageReplacement, stageTextureReplacement } from "@/lib/modWorkspace";
@@ -16,18 +16,18 @@ import { AudioBankPanel } from "@/components/AudioBankPanel";
 import { CameraTrackView } from "@/components/CameraTrackView";
 import { NavmeshView } from "@/components/NavmeshView";
 import { ModelPreview } from "@/components/ModelPreview";
-import { Button } from "@niers/inacord-ui/components/ui/button";
-import { Badge } from "@niers/inacord-ui/components/ui/badge";
-import { Separator } from "@niers/inacord-ui/components/ui/separator";
-import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
+import { Button } from "@nie/inacord-ui/components/ui/button";
+import { Badge } from "@nie/inacord-ui/components/ui/badge";
+import { Separator } from "@nie/inacord-ui/components/ui/separator";
+import { ScrollArea } from "@nie/inacord-ui/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@nie/inacord-ui/components/ui/tabs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@niers/inacord-ui/components/ui/select";
+} from "@nie/inacord-ui/components/ui/select";
 import { NATIVE_WINDOW } from "../../host";
 
 // Monaco et ses workers ne sont utiles qu'après le décodage explicite d'un `.cfg.bin`.

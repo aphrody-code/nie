@@ -54,13 +54,13 @@ pub mod plugin;
 #[cfg(feature = "bevy")]
 pub mod vfs_source;
 
-pub use error::NiersAssetError;
+pub use error::NieAssetError;
 
 #[cfg(feature = "bevy")]
 pub use assets::{image_from_g4tx, mesh_from_g4md_g4mg, meshes_from_g4md_g4mg};
 #[cfg(feature = "bevy")]
-pub use loader::{G4mdLoader, G4txLoader, NiersModel};
+pub use loader::{G4mdLoader, G4txLoader, NieModel};
 #[cfg(feature = "bevy")]
-pub use plugin::NiersAssetPlugin;
+pub use plugin::NieAssetPlugin;
 #[cfg(feature = "bevy")]
 pub use vfs_source::{VFS_SOURCE, VfsAssetReader, register_vfs_source};

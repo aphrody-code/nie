@@ -1,6 +1,6 @@
 [package]
 name = "nie-play"
-description = "Front-end HEADLESS/GOLDEN du jeu niers : exécute la machine à états de nie-app via un flow scripté + un Renderer CPU, et écrit le playthrough en PNG/MP4 déterministes. Le match vient de la vraie FSM nie-core."
+description = "Front-end HEADLESS/GOLDEN du jeu nie : exécute la machine à états de nie-app via un flow scripté + un Renderer CPU, et écrit le playthrough en PNG/MP4 déterministes. Le match vient de la vraie FSM nie-core."
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true

@@ -1,7 +1,7 @@
 [project]
 name = "niepy"
 version = "0.1.0"
-description = "Porte d'entrée Python vers le moteur et les données de niers (Inazuma Eleven: Victory Road) — VFS, décodeurs de formats, simulation de match, pont Ren'Py."
+description = "Porte d'entrée Python vers le moteur et les données de nie (Inazuma Eleven: Victory Road) — VFS, décodeurs de formats, simulation de match, pont Ren'Py."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

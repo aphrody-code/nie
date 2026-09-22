@@ -12,7 +12,7 @@
 //
 // ## Ce qui est résolu, et ce qui ne peut pas l'être
 //
-// Nommage RELEVÉ sur l'installation Steam (`niers vfs ls`, 2026-09-03), pas supposé :
+// Nommage RELEVÉ sur l'installation Steam (`nie vfs ls`, 2026-09-03), pas supposé :
 //
 // | Famille    | Chemin VFS                                                     | Forme         |
 // |------------|----------------------------------------------------------------|---------------|

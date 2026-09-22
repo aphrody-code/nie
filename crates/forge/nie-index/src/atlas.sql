@@ -3,7 +3,7 @@
 -- forge units, binaries, tools, metrics and the ranked road to 100 %.
 --
 -- The atlas lives in its own database (`var/nie-atlas.sqlite`) so it stays small,
--- portable and cheap to rebuild; `var/niers.sqlite` (19 GB knowledge base) is read
+-- portable and cheap to rebuild; `var/nie.sqlite` (19 GB knowledge base) is read
 -- through ATTACH and only its digest is copied here. Every table is idempotent
 -- (`INSERT … ON CONFLICT`) so a rescan never duplicates a row.
 PRAGMA journal_mode = WAL;
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS atlas_doc_ref (
 );
 CREATE INDEX IF NOT EXISTS idx_doc_ref_value ON atlas_doc_ref(kind, value);
 
--- Inventory of the knowledge base (`var/niers.sqlite`): one row per table, so the
+-- Inventory of the knowledge base (`var/nie.sqlite`): one row per table, so the
 -- atlas knows everything the 19 GB database holds without copying it.
 CREATE TABLE IF NOT EXISTS atlas_kb_table (
     name       TEXT PRIMARY KEY,

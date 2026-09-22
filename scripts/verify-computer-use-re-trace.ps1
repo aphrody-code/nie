@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Binary = (Join-Path $PSScriptRoot '..\data\re\10-binary\input\nie.exe'),
-    [string]$Database = (Join-Path $PSScriptRoot '..\var\niers.sqlite')
+    [string]$Database = (Join-Path $PSScriptRoot '..\var\nie.sqlite')
 )
 
 $ErrorActionPreference = 'Stop'

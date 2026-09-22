@@ -112,7 +112,7 @@ pub fn run(
     let plan = plan::plan(&recipe.slug, &generated, dump_root);
 
     let report = RunReport {
-        schema: "niers.ocgen.run/v1".to_string(),
+        schema: "nie.ocgen.run/v1".to_string(),
         slug: recipe.slug.clone(),
         catalog_version: sources.catalog_version.clone(),
         references: references

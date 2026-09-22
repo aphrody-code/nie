@@ -8,7 +8,7 @@
  * This module deliberately imports no UI framework. It is the first extraction boundary for the
  * public host: readiness, retry and the transition into the menu are plain DOM and TypeScript.
  */
-import { sante, type SanteApi } from "@niers/asset-source/nie-site";
+import { sante, type SanteApi } from "@nie/asset-source/nie-site";
 import { ensureWasm } from "./game/bridge";
 import { gameNavigationHistory } from "./game/navigation";
 import { splitLanguagePrefix } from "./routing";

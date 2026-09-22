@@ -1,14 +1,14 @@
 //! Catalogue du rôle de chaque dossier du VFS — PAS deviné : sourcé de `docs/FORMATS.md`
 //! (niveau 2, inventaire exhaustif des 250 800 fichiers réels, daté 2026-06-13) et de
 //! `docs/PLAN.md` (état C1 « formats lus »), plus des sous-dossiers vérifiés en DIRECT
-//! contre le VFS réel au fil de cette session (`niers vfs find`/`niers vfs chara`, 2026-08-07 —
+//! contre le VFS réel au fil de cette session (`nie vfs find`/`nie vfs chara`, 2026-08-07 —
 //! marqués « session »). Une entrée sans provenance vérifiable n'est pas ajoutée : `describe_folder`
 //! retourne `None` plutôt que d'inventer un rôle.
 //!
 //! Correspondance par PLUS LONG préfixe de segment (`data/common/chr/_face` gagne sur
 //! `data/common/chr` pour un chemin sous `_face/`).
 
-/// Rôle d'un dossier + statut d'exploitation par niers (✓ exploité / partiel / ✗ non exploité).
+/// Rôle d'un dossier + statut d'exploitation par nie (✓ exploité / partiel / ✗ non exploité).
 pub struct FolderRole {
     pub prefix: &'static str,
     pub role: &'static str,

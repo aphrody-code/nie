@@ -388,7 +388,7 @@ mod tests {
         // Un film qui n'existe pas ne doit se voir attribuer AUCUNE piste.
         assert!(piste_de_film(&vfs, "film_qui_n_existe_pas", None, None).is_none());
 
-        let cache = std::env::temp_dir().join("niers-bande-son-test");
+        let cache = std::env::temp_dir().join("nie-bande-son-test");
         let wav = wav_de_la_cue(&vfs, &cache, piste.awb_id).expect("décodage WAV");
         assert_eq!(&wav[..4], b"RIFF", "en-tête WAV attendu");
         assert_eq!(&wav[8..12], b"WAVE");

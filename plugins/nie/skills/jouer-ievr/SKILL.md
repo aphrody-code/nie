@@ -1,15 +1,15 @@
 ---
 name: jouer-ievr
-description: Faire tourner et « jouer » Inazuma Eleven Victory Road depuis le dépôt niers — lancer nie.exe, simuler un match déterministe avec le moteur Rust (nie-runtime, nie-headless, nie-play), rendre les vrais assets avec nie-game, observer le jeu en mémoire avec nie-trace, et piloter l'explorateur par le pont MCP. À charger pour lancer, jouer, simuler, rejouer, capturer ou observer le jeu.
+description: Faire tourner et « jouer » Inazuma Eleven Victory Road depuis le dépôt nie — lancer nie.exe, simuler un match déterministe avec le moteur Rust (nie-runtime, nie-headless, nie-play), rendre les vrais assets avec nie-game, observer le jeu en mémoire avec nie-trace, et piloter l'explorateur par le pont MCP. À charger pour lancer, jouer, simuler, rejouer, capturer ou observer le jeu.
 ---
 
-# Jouer à IEVR depuis niers
+# Jouer à IEVR depuis nie
 
 Il y a **deux jeux** dans ce dépôt, et il faut choisir lequel on veut faire tourner.
 
 1. **`nie.exe`** — le vrai jeu Level-5, à la racine du dépôt. On peut le **lancer** et
    l'**observer**, pas le piloter.
-2. **Le moteur niers** — une simulation Rust déterministe et scriptable, jouable de bout en bout
+2. **Le moteur nie** — une simulation Rust déterministe et scriptable, jouable de bout en bout
    sans le jeu original. C'est là qu'on « joue » de façon reproductible.
 
 ## Ce qui est possible aujourd'hui, et ce qui ne l'est pas
@@ -76,5 +76,5 @@ Quand `nie-explorer` tourne et que son pont est activé, le serveur MCP le dirig
 ## Honnêteté sur les résultats
 
 Un match simulé n'est pas une partie du vrai jeu : la physique PhysX exacte et la résolution de
-but event-driven de IEVR sont des pistes séparées. Dire « le moteur niers donne X » et non « le
+but event-driven de IEVR sont des pistes séparées. Dire « le moteur nie donne X » et non « le
 jeu donne X », sauf si l'écart a été mesuré contre le binaire.

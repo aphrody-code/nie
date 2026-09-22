@@ -1,6 +1,6 @@
 /** Desktop binding to the shared batched resolver; locale follows persisted settings. */
-import { useResolvedNames as useSharedResolvedNames } from "@niers/inacord-ui/lib/resolved-names";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { useResolvedNames as useSharedResolvedNames } from "@nie/inacord-ui/lib/resolved-names";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { wikiDb, type ResolvedName } from "@/lib/wikiDb";
 
 const resolveNames = wikiDb.resolveManyByCode;

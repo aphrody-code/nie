@@ -165,7 +165,7 @@ fn recherche_par_id() {
 fn vrai_fichier_si_present() {
     // Validation contre le vrai dump si monté localement (sinon skip).
     // Source VFS : data/common/gamedata/character/belong_team_config_0.00.00.cfg.bin.
-    let path = "/home/aphrody/niers/data/common/gamedata/character/\
+    let path = "/home/aphrody/nie/data/common/gamedata/character/\
                 belong_team_config_0.00.00.cfg.bin.json";
     if !std::path::Path::new(path).exists() {
         return;

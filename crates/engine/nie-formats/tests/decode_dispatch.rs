@@ -1,6 +1,6 @@
 //! La table de dispatch `decode` doit router **tout parseur autonome du crate**.
 //!
-//! Un parseur qui existe mais que `decode` ignore est invisible : ni la FFI, ni `niers decode`,
+//! Un parseur qui existe mais que `decode` ignore est invisible : ni la FFI, ni `nie decode`,
 //! ni l'explorateur, ni le MCP ne l'atteignent. C'est ce qui est arrivé à `g4sk`, `navm`, `g4mt`,
 //! `g4cm`, `g4la`, `g4ma`, `g4vs` et `col` — huit modules écrits, testés, et non branchés.
 //!

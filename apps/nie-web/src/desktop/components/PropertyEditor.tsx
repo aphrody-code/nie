@@ -1,5 +1,5 @@
-import { nameWithId, resolvedKindLabel } from "@niers/inacord-ui/lib/resolved-names";
-// Éditeur de propriétés — l'inspecteur « façon IDE » de niers.
+import { nameWithId, resolvedKindLabel } from "@nie/inacord-ui/lib/resolved-names";
+// Éditeur de propriétés — l'inspecteur « façon IDE » de nie.
 //
 // Une entité du jeu (un joueur, une technique, un objet, un mode de jeu) n'existe pas dans UN
 // fichier : elle est éclatée entre son modèle 3D, ses textures, ses sons, ses lignes de config
@@ -15,7 +15,7 @@ import { nameWithId, resolvedKindLabel } from "@niers/inacord-ui/lib/resolved-na
 //   • Données   — les `.cfg.bin` liés, décodés en JSON et RÉÉCRITS par les encodeurs vérifiés
 //                 (`encode_cfgbin_config`, T2B et RDBN) — c'est le même chemin d'édition que
 //                 `DetailPane`, pas une seconde implémentation.
-//   • Moteur    — fonctions labellisées, classes RTTI et adresses statiques de `niers.sqlite`
+//   • Moteur    — fonctions labellisées, classes RTTI et adresses statiques de `nie.sqlite`
 //                 (`nie-re`) dont le nom mentionne le code : le pont entre la donnée et le code
 //                 machine qui la lit, avec l'adresse à ouvrir dans r2/Ghidra ou dans l'onglet
 //                 Live (lecture mémoire du process en cours).
@@ -28,18 +28,18 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 
-import { Badge } from "@niers/inacord-ui/components/ui/badge";
-import { Button } from "@niers/inacord-ui/components/ui/button";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { ScrollArea } from "@niers/inacord-ui/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
+import { Badge } from "@nie/inacord-ui/components/ui/badge";
+import { Button } from "@nie/inacord-ui/components/ui/button";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { ScrollArea } from "@nie/inacord-ui/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@nie/inacord-ui/components/ui/tabs";
 import { api } from "@/lib/api";
 import { humanSize } from "@/lib/bytes";
 import { useResolvedName } from "@/lib/nameResolve";
 import { defaultReDbPath, reDb, toStaticHex, type FunctionRow, type RttiClassRow } from "@/lib/reDb";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { codeOf, vfsIndexDb } from "@/lib/vfsIndexDb";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 // Même séparation que l'inspecteur : un panneau de propriétés ne charge Monaco qu'au moment où
 // l'utilisateur édite réellement une configuration décodée.
@@ -394,13 +394,13 @@ export function PropertyEditor({
         <ScrollArea className="min-h-0 flex-1">
           {!reDbPath && (
             <p className="p-2 text-xs text-ink-faint">
-              Base RE introuvable (<code>var/niers.sqlite</code>) — l'onglet Moteur relie une entité
+              Base RE introuvable (<code>var/nie.sqlite</code>) — l'onglet Moteur relie une entité
               au code machine de <code>nie.exe</code> qui la manipule ; sans cette base, rien à
               relier.
             </p>
           )}
           {engineError && <p className="p-2 text-xs text-status-error">{engineError}</p>}
-          {engineLoading && <p className="p-2 text-xs text-ink-faint">recherche dans niers.sqlite…</p>}
+          {engineLoading && <p className="p-2 text-xs text-ink-faint">recherche dans nie.sqlite…</p>}
           {reDbPath && !engineLoading && (
             <div className="flex flex-col gap-3 pb-2">
               <div>

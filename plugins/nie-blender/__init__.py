@@ -1,16 +1,16 @@
-# Renommé 2026-08-08 (vendorisation dans `niers`, cf. `NIERS_VENDORING_NOTE.md`) : le module
-# Python reste `niers` (nom de dossier = ADDON_ID, référencé partout côté Rust — `plugins/niers-blender/
+# Renommé 2026-08-08 (vendorisation dans `nie`, cf. `NIE_VENDORING_NOTE.md`) : le module
+# Python reste `nie` (nom de dossier = ADDON_ID, référencé partout côté Rust — `plugins/nie-blender/
 # __init__.py`) ; seul l'affichage change ici. Auteur original du code G4 préservé.
 bl_info = {
-    "name": "niers — G4 Blender Tools",
-    "author": "Bobi (Level-5 G4 Blender Tools) · niers (Rose Griffon)",
+    "name": "nie — G4 Blender Tools",
+    "author": "Bobi (Level-5 G4 Blender Tools) · nie (Rose Griffon)",
     # Doit rester aligné sur `version` de `blender_manifest.toml` : le legacy `bl_info` (Blender
     # < 4.2) et le manifeste d'extension décrivent le MÊME addon, et le zip de release est nommé
     # d'après le manifeste.
     "version": (1, 1, 0),
     "blender": (4, 0, 0),
-    "location": "File > Import/Export > G4MD / G4PKM · View3D > Sidebar > niers",
-    "description": "Import/export G4 (Level-5) and VFS/wiki search through the Rust niers CLI",
+    "location": "File > Import/Export > G4MD / G4PKM · View3D > Sidebar > nie",
+    "description": "Import/export G4 (Level-5) and VFS/wiki search through the Rust nie CLI",
     "category": "Import-Export",
 }
 
@@ -91,20 +91,20 @@ if __package__:
 else:
     from g4_model_probe import extract_g4tx, map_scene_placements
 
-# niers_bridge : panneau de recherche de fichiers VFS (`niers vfs find --json`) + import direct
-# du résultat sélectionné — pont natif niers.exe <-> Blender, ajouté 2026-08-08 (demande
-# utilisatrice « lier au max Blender et niers », cf. docs/PLAN.md du repo niers). Le `-j/--json`
-# de `niers vfs find` référence CE fichier depuis avant qu'il n'existe (cf. crate `nie-cli`,
-# doc-comment "pour consommation programmatique (ex. niers_bridge.py de l'addon Blender
-# plugins/niers-blender)") — l'intention existait côté Rust, ce module la concrétise côté Blender.
+# nie_bridge : panneau de recherche de fichiers VFS (`nie vfs find --json`) + import direct
+# du résultat sélectionné — pont natif nie.exe <-> Blender, ajouté 2026-08-08 (demande
+# utilisatrice « lier au max Blender et nie », cf. docs/PLAN.md du repo nie). Le `-j/--json`
+# de `nie vfs find` référence CE fichier depuis avant qu'il n'existe (cf. crate `nie-cli`,
+# doc-comment "pour consommation programmatique (ex. nie_bridge.py de l'addon Blender
+# plugins/nie-blender)") — l'intention existait côté Rust, ce module la concrétise côté Blender.
 if __package__:
-    from . import niers_bridge
+    from . import nie_bridge
 else:
-    import niers_bridge
+    import nie_bridge
 
 g4_port_addon.ADDON_ID = ADDON_ID
 g4_animation_addon.ADDON_ID = ADDON_ID
-niers_bridge.ADDON_ID = ADDON_ID
+nie_bridge.ADDON_ID = ADDON_ID
 
 
 def outline_mode_changed(preferences, _context) -> None:
@@ -286,13 +286,13 @@ class G4ImporterPreferences(AddonPreferences):
         default="",
         description="Optional raw/data root. Required when importing by model name instead of selecting a file",
     )
-    niers_cli_path: StringProperty(
-        name="niers.exe",
+    nie_cli_path: StringProperty(
+        name="nie.exe",
         subtype="FILE_PATH",
         default="",
         description=(
-            "Optional override for niers.exe (VFS search CLI, `niers_bridge` panel). Empty = "
-            "auto-detect under <Raw Data Root>/../target/{release,debug}/niers.exe, or the "
+            "Optional override for nie.exe (VFS search CLI, `nie_bridge` panel). Empty = "
+            "auto-detect under <Raw Data Root>/../target/{release,debug}/nie.exe, or the "
             "NIE_GAME_DIR environment variable, or PATH"
         ),
     )
@@ -426,15 +426,15 @@ class G4ImporterPreferences(AddonPreferences):
         shared_box.prop(self, "probe_script")
         shared_box.prop(self, "raw_data_root")
         shared_box.prop(self, "chara_model_xml")
-        shared_box.prop(self, "niers_cli_path")
-        resolved = niers_bridge.resolve_niers_exe(context)
+        shared_box.prop(self, "nie_cli_path")
+        resolved = nie_bridge.resolve_nie_exe(context)
         info_row = shared_box.row()
         info_row.label(
-            text=f"niers.exe: {resolved}" if resolved else "niers.exe: introuvable (voir NIE_GAME_DIR / Raw Data Root)",
+            text=f"nie.exe: {resolved}" if resolved else "nie.exe: introuvable (voir NIE_GAME_DIR / Raw Data Root)",
             icon="CHECKMARK" if resolved else "ERROR",
         )
         shared_box.prop(self, "wiki_db_path")
-        resolved_db = niers_bridge.resolve_wiki_db(context)
+        resolved_db = nie_bridge.resolve_wiki_db(context)
         db_row = shared_box.row()
         db_row.label(
             text=f"miroir wiki: {resolved_db}" if resolved_db else "miroir wiki: non trouvé",
@@ -4647,7 +4647,7 @@ def register():
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     g4_animation_addon.register()
     g4_port_addon.register()
-    niers_bridge.register()
+    nie_bridge.register()
     if refresh_level5_outlines_on_load not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(refresh_level5_outlines_on_load)
 
@@ -4655,7 +4655,7 @@ def register():
 def unregister():
     if refresh_level5_outlines_on_load in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(refresh_level5_outlines_on_load)
-    niers_bridge.unregister()
+    nie_bridge.unregister()
     g4_port_addon.unregister()
     g4_animation_addon.unregister()
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)

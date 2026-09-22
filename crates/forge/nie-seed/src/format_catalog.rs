@@ -1,6 +1,6 @@
 //! Ingestion du catalogue de formats exporté par iecode (`iecode export-knowledge`).
 //!
-//! iecode (C# .NET 10) ne peut pas être appelé depuis niers (full-Rust). Il publie
+//! iecode (C# .NET 10) ne peut pas être appelé depuis nie (full-Rust). Il publie
 //! donc son savoir sur les formats binaires LEVEL-5 / CRIWARE d'IEVR sous forme d'un
 //! artefact JSON stable et versionné, produit par :
 //!

@@ -12,7 +12,7 @@ async function archive(id: string, path: string, text: string, corrupt = false) 
 	const payload = new TextEncoder().encode(text);
 	const header = new TextEncoder().encode(JSON.stringify({
 		schemaVersion: 1,
-		kind: "niers.vfs.bundle/v1",
+		kind: "nie.vfs.bundle/v1",
 		entries: [{ path, offset: 0, length: payload.length, crc32: crc32(text) }],
 	}));
 	const bytes = new Uint8Array(12 + header.length + payload.length);

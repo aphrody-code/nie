@@ -1,4 +1,4 @@
-import type { AssetSource } from "@niers/asset-source";
+import type { AssetSource } from "@nie/asset-source";
 
 export interface NativeSceneRect {
 	x: number;

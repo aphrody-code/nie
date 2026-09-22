@@ -1,14 +1,14 @@
 ---
 name: unified-workflow
-description: Route Aphrody, WinClean, niers, Ghidra and Computer Use work through bounded runs with manifests, evidence and explicit proof levels.
+description: Route Aphrody, WinClean, nie, Ghidra and Computer Use work through bounded runs with manifests, evidence and explicit proof levels.
 ---
 
 # Unified workflow
 
-Use this skill for any non-trivial task that crosses Aphrody, WinClean, niers,
+Use this skill for any non-trivial task that crosses Aphrody, WinClean, nie,
 Ghidra, a visible Windows surface or a live MCP endpoint. Read
 `docs/WORKFLOW-UNIFIE.md` in the Aphrody repository first; it is the normative
-contract and is synchronized from the niers specification.
+contract and is synchronized from the nie specification.
 
 ## Start every run
 
@@ -25,8 +25,8 @@ Never reuse another agent's run directory.
 
 ## Route before acting
 
-- Data, VFS, Level-5 formats, batch, render or reports: start with `niers`.
-- Binary reverse engineering: verify the input and hash with `niers` or
+- Data, VFS, Level-5 formats, batch, render or reports: start with `nie`.
+- Binary reverse engineering: verify the input and hash with `nie` or
   `aphrody-re`, then use the currently open Ghidra CodeBrowser session.
 - Windows application or game state: observe with WinClean or Computer Use,
   capture PID/window state, perform the bounded action, then observe again.
@@ -59,7 +59,7 @@ hypotheses and unvalidated surfaces in the report.
 Use the MCP server already declared by the active plugin/project. Do not add a
 cross-repository stdio path or copy a token into config merely to make a tool
 appear available. For optional surfaces (WinClean, Ghidra, Computer Use or
-niers), verify live availability before claiming P3. MCP stdio diagnostics go
+nie), verify live availability before claiming P3. MCP stdio diagnostics go
 to stderr; stdout remains JSON-RPC.
 
 For destructive Windows or external operations, state the exact target and

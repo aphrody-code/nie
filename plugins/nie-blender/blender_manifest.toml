@@ -1,11 +1,11 @@
-# Blender Extensions manifest (Blender >=4.2) for `niers`, in `plugins/niers-blender`.
-# `niers_bridge.py` searches files/chara/waza through the VFS and the local SQLite mirror.
+# Blender Extensions manifest (Blender >=4.2) for `nie`, in `plugins/nie-blender`.
+# `nie_bridge.py` searches files/chara/waza through the VFS and the local SQLite mirror.
 # G4 decoding (G4MD/G4MG/G4SK/G4MT/G4PKM parsers) comes from Bobi's upstream project
 # (github.com/The-RealBobi/G4_Blender), credited below.
 #
 # Local modernization of an upstream addon with no declared license (`license` on GitHub is null
-# and no LICENSE file exists). Redistribution and modification are authorized by the niers project
-# owner (see `NIERS_VENDORING_NOTE.md`). The GPL-3.0-or-later declaration follows Blender's addon
+# and no LICENSE file exists). Redistribution and modification are authorized by the nie project
+# owner (see `NIE_VENDORING_NOTE.md`). The GPL-3.0-or-later declaration follows Blender's addon
 # ecosystem convention for substantial `bpy` code and does not assert the upstream author's intent.
 #
 # Reference schema: https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html
@@ -13,11 +13,11 @@
 
 schema_version = "1.0.0"
 
-id = "niers"
+id = "nie"
 version = "1.1.0"
-name = "niers"
+name = "nie"
 tagline = "Level-5 G4 assets (Inazuma Eleven VR) + VFS/wiki search"
-maintainer = "niers — upstream G4 decoding by Bobi (github.com/The-RealBobi/G4_Blender)"
+maintainer = "nie — upstream G4 decoding by Bobi (github.com/The-RealBobi/G4_Blender)"
 type = "add-on"
 website = "https://github.com/aphrody-code/nie"
 
@@ -39,7 +39,7 @@ copyright = [
 ]
 
 # No third-party wheels: dependencies are Python's standard library plus bpy/mathutils supplied by
-# Blender. Wiki queries run through the Rust `niers` CLI; this addon has no database or HTTP client.
+# Blender. Wiki queries run through the Rust `nie` CLI; this addon has no database or HTTP client.
 # wheels = []
 
 [permissions]
@@ -63,5 +63,5 @@ paths_exclude_pattern = [
 	".git",
 	".gitattributes",
 	".gitignore",
-	"NIERS_VENDORING_NOTE.md",
+	"NIE_VENDORING_NOTE.md",
 ]

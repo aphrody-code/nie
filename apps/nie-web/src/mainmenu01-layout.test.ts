@@ -13,7 +13,7 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import { echellePourZone, type LayoutJeu, lireLayout } from "@niers/inacord-ui";
+import { echellePourZone, type LayoutJeu, lireLayout } from "@nie/inacord-ui";
 
 import brut from "./layouts/mainmenu01.layout.json";
 

@@ -1,7 +1,7 @@
 //! Catalogue des cinématiques — **une seule construction, trois façades**.
 //!
 //! Les 97 films d'*Inazuma Eleven: Victory Road* sont des conteneurs USM/Sofdec2. Trois surfaces
-//! du dépôt en publiaient chacune sa propre fiche : `niers video` (CLI), `nie-model-serve`
+//! du dépôt en publiaient chacune sa propre fiche : `nie video` (CLI), `nie-model-serve`
 //! (route `/video/catalog.json` que consomme la page `/videos` d'azalée) et l'explorateur Tauri.
 //! Les trois lisaient les mêmes octets et n'en disaient pas la même chose : le serveur ignorait
 //! la bande-son externe que la CLI joignait déjà, et rapportait `octets: 0` pour les pistes.
@@ -531,7 +531,7 @@ fn depuis_apercu(chemin: &str, taille: u64, a: &Apercu) -> Film {
 
 /// Fiche d'un film **déjà démultiplexé** — pour ne pas relire ce qu'on tient en main.
 ///
-/// C'est ce que [`complet`] appelle après son démultiplexage ; `niers video export`, qui a déjà
+/// C'est ce que [`complet`] appelle après son démultiplexage ; `nie video export`, qui a déjà
 /// l'`Usm` sous la main, l'appelle directement plutôt que de rouvrir le fichier.
 #[must_use]
 pub fn fiche_de_usm(

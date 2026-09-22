@@ -7,7 +7,7 @@
 //
 // Ajout propre à la cible Windows : `WindowControls` à droite (spacedrive garde une barre de
 // titre native et n'en a pas besoin).
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
 import { WindowControls } from "@/components/ui/window-controls";
 
 export function TopBar({

@@ -1,4 +1,4 @@
-# Conventions de build de niers.
+# Conventions de build de nie.
 #
 # Le dépôt sert deux environnements : un serveur Linux sans GPU (indexation RE, forge, services
 # HTTP) et un poste Windows avec GPU (rendu, capture, jeu). Aucune section ci-dessous ne suppose

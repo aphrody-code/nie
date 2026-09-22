@@ -238,7 +238,7 @@ struct Cli {
     #[arg(long, required = true)]
     glb: Vec<PathBuf>,
     /// Sortie : PNG si --frames 1, sinon MP4 turntable.
-    #[arg(long, default_value = "/tmp/niers-model.png")]
+    #[arg(long, default_value = "/tmp/nie-model.png")]
     out: PathBuf,
     /// Nombre d'images (1 = vue fixe PNG ; >1 = tour complet → MP4).
     #[arg(long, default_value_t = 1)]

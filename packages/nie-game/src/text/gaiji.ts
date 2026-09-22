@@ -1,7 +1,7 @@
 /**
  * Glyphes gaiji « niveau / évolution de technique » — atlas `gaiji_game2.g4tx` du jeu, exposé via
- * le sous-texturage natif (`g4tx_info_json`, niers) : chaque glyphe est une sous-texture nommée
- * `gaiji_wlv<…>` avec son rect exact dans l'atlas (416×436). Intégration « niers → azalee ».
+ * le sous-texturage natif (`g4tx_info_json`, nie) : chaque glyphe est une sous-texture nommée
+ * `gaiji_wlv<…>` avec son rect exact dans l'atlas (416×436). Intégration « nie → azalee ».
  *
  * Rects = vérité terrain (décodés du g4tx, byte-exact) ; libellés = lecture visuelle confirmée des
  * glyphes décodés. L'atlas décodé est servi par le CDN (`/dx11/font/fr/gaiji_game2.png`, g4tx→png).

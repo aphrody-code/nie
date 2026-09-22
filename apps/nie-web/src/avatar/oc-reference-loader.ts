@@ -1,4 +1,4 @@
-import type { OcReference } from "@niers/inacord-ui/avatar/contract";
+import type { OcReference } from "@nie/inacord-ui/avatar/contract";
 
 const MAX_GLB_BYTES = 64 * 1024 * 1024;
 const MAX_PNG_BYTES = 32 * 1024 * 1024;

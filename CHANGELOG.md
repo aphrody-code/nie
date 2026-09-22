@@ -84,14 +84,14 @@ listé qui ne s'y retrouve.
 
 ## [0.5.11] — 2026-09-07
 
-- Configure l'exécution du CLI BXC natif 0.9.7 depuis niers sans charger le
+- Configure l'exécution du CLI BXC natif 0.9.7 depuis nie sans charger le
   preload Bun du monorepo.
 - Documente l'installation Windows et la séparation entre le paquet npm BXC
   publié et le binaire standalone.
 
 ## [0.5.10] — 2026-09-07
 
-- Regroupe la couche Inazuma/IEVR, IETV, Zukan et Wonderbot dans `niers`.
+- Regroupe la couche Inazuma/IEVR, IETV, Zukan et Wonderbot dans `nie`.
 - Ajoute l’outil standalone `ievr-tools` pour l’inventaire et l’analyse binaire.
 
 ### Modifié
@@ -134,7 +134,7 @@ reverse-engineering.
 
 ## [0.5.0] — 2026-08-12
 
-95 commits. CLI `niers`, explorateur Tauri, forge, `nie-lua`, plugin.
+95 commits. CLI `nie`, explorateur Tauri, forge, `nie-lua`, plugin.
 
 ## [0.4.0] — 2026-08-08
 

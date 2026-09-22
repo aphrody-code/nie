@@ -1,4 +1,4 @@
-//! `niers mode` — catalogue des **modes de jeu** : écrans, calques, objets, assets et scripts.
+//! `nie mode` — catalogue des **modes de jeu** : écrans, calques, objets, assets et scripts.
 //!
 //! ## Ce qu'est un « mode » ici
 //!
@@ -118,7 +118,7 @@ pub fn menu_coverage_json(vfs: &Vfs) -> Json {
         .collect::<Vec<_>>();
 
     serde_json::json!({
-        "schema": "niers.menu.coverage/v1",
+        "schema": "nie.menu.coverage/v1",
         "settings": {
             "unique": screens.len(),
             "classified": classified,

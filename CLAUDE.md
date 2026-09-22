@@ -54,7 +54,7 @@ that price on keeper, menu and match-sim.
   URLs, slugs, JSON keys, database columns, commit messages, code comments, documentation.
 - **French only for prose addressed to the user** — a summary or an explanation, in a
   conversation held in French. Never an identifier.
-- Frozen product names are the exception: Azalée, Inacord, nie, `niers`, `nie-*`, `inagle_*`.
+- Frozen product names are the exception: Azalée, Inacord, nie, `nie`, `nie-*`, `inagle_*`.
 - Existing debt is **not** migrated in one pass: an already-served API is renamed in a dedicated
   batch, never in passing.
 
@@ -145,7 +145,7 @@ it copied.
 
 - **`data/lua_scripts/` DIVERGES from the game's VFS — do not analyse it.** It is a flat dump,
   and its `main_menu_inc_3.00.01.00.lua.bin` is 13 362 bytes where the VFS carries 13 092
-  (`niers vfs find`, measured 2026-09-12). The larger copy DEFINES five globals the real file
+  (`nie vfs find`, measured 2026-09-12). The larger copy DEFINES five globals the real file
   does not, which is enough to turn "these are `nie.exe` functions" into "these are Lua". Scan
   `data/lua_dump/` or `data/re/40-derived/dumps/lua-vfs-all/`, both VFS-shaped, and report
   findings with FULL paths: two mounts carry the same basename with different bytes.
@@ -154,7 +154,7 @@ it copied.
   Searching the `.lua.bin` corpus for `SetCtrlGuideTextCommon` returned 0 files with `grep -rl`
   and 48 with the `xargs` form (measured 2026-09-12), which turned "this name does not exist in
   the game" into a written conclusion that was wrong. On this repository's binary corpora
-  (`.lua.bin`, `.cfg.bin`, `.objbin`), prefer `niers grep`/`rg -a`, or the `xargs` form.
+  (`.lua.bin`, `.cfg.bin`, `.objbin`), prefer `nie grep`/`rg -a`, or the `xargs` form.
 
 - **A wasm build killed "low on memory" wants `CARGO_BUILD_JOBS=1`, not a weaker LTO.** Three
   `nie-viewer-web` builds died that way while `earlyoom`'s own journal never dropped below 41 %
@@ -244,13 +244,13 @@ it copied.
   reads before concluding the brackets reach a user.
 
 - **The knowledge base's build differs from `dist/nie.exe` — but its CLASS addresses hold.**
-  `var/niers.sqlite` is anchored on `nie_eacpatched.exe` (31 468 032 B, `4c2b91fb…`); the target
+  `var/nie.sqlite` is anchored on `nie_eacpatched.exe` (31 468 032 B, `4c2b91fb…`); the target
   is 33 918 464 B, `b1fa04ea…`. The blanket warning "do not cite its numbers" is too strong:
   measured 2026-09-13, 1 745 class names are common and **all 1 745 carry the same
   `vtable_vaddr`**, zero divergence (only `GDSGroupCaptureCustomConfig`, `PostEventState` and
   `UniformBlockDataNode` are KB-only). Coverage COUNTS remain unusable as target measurements;
   class and vtable addresses are usable. Re-extract onto the target in one command — insert a
-  `binary` row, then `niers rtti --exe dist/nie.exe --db <new.sqlite>` (2 906 COLs, 1 745
+  `binary` row, then `nie rtti --exe dist/nie.exe --db <new.sqlite>` (2 906 COLs, 1 745
   classes).
 - **`rtti_class.vtable_vaddr` is the COL slot, not the methods.** It holds the Complete Object
   Locator pointer; methods start at `+8`. Reading from it yields an `.rdata` address where a
@@ -501,7 +501,7 @@ left that list; those five did not. Publishing this repository's own targets is 
 
 ## Deploying the site — measured 2026-09-20, and one hole closed
 
-`nie-site` serves `--bundle-dir /home/ubuntu/niers/apps/nie-web/dist` (`deploy/systemd/nie-site.service`,
+`nie-site` serves `--bundle-dir /home/ubuntu/nie/apps/nie-web/dist` (`deploy/systemd/nie-site.service`,
 installed copy identical to the repository's). `dist` is a **symlink**, and it is the publication
 pointer: nginx proxies `nie.aphrody.com` to `127.0.0.1:8085` and `nie-site` reads that directory
 per request, so whatever the link resolves to is live, instantly, with no restart.

@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/fast_travel/fast_travel_config_0.00.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/fast_travel/fast_travel_config_0.00.00.cfg.bin.json`
 //! - 1 liste : `m_fastTravelMapInfoList` — 6 entrées dans ce dump.
 //!   Chaque entrée `FAST_TRAVEL_MAP_INFO` contient :
 //!   - `id` — hash identifiant unique du point de voyage rapide.

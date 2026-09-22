@@ -12,16 +12,16 @@
 // Le rendu d'un item reprend `SpaceItem.tsx` : `rounded-md`, icône 16 px, libellé tronqué,
 // actif = `bg-accent`.
 import { useState } from "react";
-import { NativeToolSurface } from "@niers/inacord-ui/shell/native-tool-surface.tsx";
+import { NativeToolSurface } from "@nie/inacord-ui/shell/native-tool-surface.tsx";
 
-import { CircleButton } from "@niers/inacord-ui/components/ui/circle-button";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
+import { CircleButton } from "@nie/inacord-ui/components/ui/circle-button";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
 import { JobManagerButton } from "@/components/JobManager";
 import { useT } from "@/lib/i18n";
 import { DOWNLOADS } from "../../entries";
 import { NATIVE_WINDOW } from "../../host";
-import { cn } from "@niers/inacord-ui/lib/utils";
-import { GameText } from "@niers/inacord-ui";
+import { cn } from "@nie/inacord-ui/lib/utils";
+import { GameText } from "@nie/inacord-ui";
 
 /**
  * Browser-only: the native builds are one click away from the footer. Under Tauri the app IS the
@@ -92,7 +92,7 @@ export function Sidebar({
     // la barre laisse voir le fond de la fenêtre et ne s'en détache que par sa teinte.
     <div className="flex h-full w-[200px] min-w-[168px] max-w-[280px] flex-col bg-transparent">
       <div className="flex h-full flex-col overflow-hidden bg-sidebar/30">
-        {/* Pas d'en-tête de marque : ni logo ni titre « niers » (demande utilisatrice). Le
+        {/* Pas d'en-tête de marque : ni logo ni titre « nie » (demande utilisatrice). Le
          * `pt-11` ne sert qu'à dégager la hauteur de la barre supérieure (zone de titre), pas à
          * loger un bandeau. */}
         <nav className="relative z-[51] flex h-full flex-col gap-2 px-2 pb-2 pt-11">

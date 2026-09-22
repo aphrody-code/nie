@@ -86,7 +86,7 @@ location ^~ /model/ {
 location ^~ /model-full/ {
     # Le cache disque d'abord : un assemblage coute plusieurs secondes, le relire coute un
     # `open()`.
-    alias /home/ubuntu/niers/var/model-cache/;
+    alias /home/ubuntu/nie/var/model-cache/;
 
     expires off;
     etag off;

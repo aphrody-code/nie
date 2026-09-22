@@ -9,7 +9,7 @@ The requested invariant — "the site and its backend share all domain code with
 and MCP" — is **not yet true**.
 
 - The standalone MCP executable is a proven thin binding: `nie-mcp` depends on `nie-cli` and its
-  `main` only calls `nie_cli::main_entry_with(["niers", "mcp"])`. MCP command parsing and dispatch
+  `main` only calls `nie_cli::main_entry_with(["nie", "mcp"])`. MCP command parsing and dispatch
   therefore execute the CLI library in-process.
 - The site, CLI, and Inacord depend on many of the same engine libraries. This proves shared owners
   for the capabilities listed below, but not that every capability is shared.
@@ -38,7 +38,7 @@ enforce the requested invariant; it intentionally fails while a known duplicated
 
 | Capability | Canonical owner | CLI path | Site/backend path | Inacord path | MCP path | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| CLI parsing and dispatch | `nie-cli` library | `nie_cli::main_entry` | Not an HTTP owner | Not a desktop owner | `nie_cli::main_entry_with(["niers", "mcp"])` | MCP shared exactly |
+| CLI parsing and dispatch | `nie-cli` library | `nie_cli::main_entry` | Not an HTTP owner | Not a desktop owner | `nie_cli::main_entry_with(["nie", "mcp"])` | MCP shared exactly |
 | VFS open/read | `nie-formats::vfs` | `open_vfs`, `vfs_cmd` | `EtatSite::vfs`, VFS routes | Tauri commands call `nie_formats::vfs` | MCP dispatches the CLI path | Shared engine owner; adapters differ |
 | Typed game data | `nie-data::typed` and family modules | Decode/data commands | `routes::donnees`, `routes::text`, family routes | `game_data` and Tauri commands | MCP dispatches CLI tools | Shared decoding owner |
 | Lua decode/runtime | `nie-lua` | `lua_cmd`, `lua_run_cmd` | `routes::lua`, `routes::menu_runtime` | `lua_session`, `lua_tools` | MCP dispatches CLI tools | Shared VM/parser; policies differ by host |

@@ -4,7 +4,7 @@
 //! # Pourquoi ce crate existe
 //!
 //! Le dépôt portait déjà ces opérations deux fois — en C# (`csharp/IECODE.Core`) et en C++
-//! (`src/viola/`) — mais aucune n'était atteignable depuis `nie-explorer` ni `niers` sans
+//! (`src/viola/`) — mais aucune n'était atteignable depuis `nie-explorer` ni `nie` sans
 //! lancer un binaire construit à côté. La doctrine du dépôt met la CLI, la GUI et le cœur en
 //! Rust ; ce crate est ce cœur, et il s'appelle en process.
 //!

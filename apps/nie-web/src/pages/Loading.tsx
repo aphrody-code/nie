@@ -5,7 +5,7 @@
  * The only work on the critical path is the server readiness probe that opens both databases and
  * waits for the complete VFS index.
  */
-import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
+import type { SanteApi as SiteHealth } from "@nie/asset-source/nie-site";
 import { ScreenStatus } from "./screen-parts";
 
 export interface LoadingProps {

@@ -9,7 +9,7 @@ RIP-relative target is the address you asked about, without assuming a particula
 encoding: it reports candidates with their surrounding bytes so the caller can judge.
 
 It is deliberately a CANDIDATE finder. A 4-byte displacement can coincide, so every hit must be
-confirmed by disassembling around it — `niers disasm` and the uemu oracle are what prove a
+confirmed by disassembling around it — `nie disasm` and the uemu oracle are what prove a
 function, not this.
 
 Usage

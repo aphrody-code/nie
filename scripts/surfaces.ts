@@ -63,7 +63,7 @@ const repositoryRoot = resolve(import.meta.dir, "..");
 export const surfaces: readonly Surface[] = [
 	{
 		name: "cli",
-		description: "niers — the native command line: VFS, formats, reverse-engineering atlas.",
+		description: "nie — the native command line: VFS, formats, reverse-engineering atlas.",
 		rootCrates: ["nie-cli"],
 		extraPaths: ["packages/nie", "crates/tools/nie-cli"],
 		build: [["cargo", "build", "--release", "--locked", "-p", "nie-cli"]],

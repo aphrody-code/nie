@@ -1,11 +1,11 @@
-//! Installation du serveur MCP `niers-game` dans la configuration d'un client MCP.
+//! Installation du serveur MCP `nie-game` dans la configuration d'un client MCP.
 //!
 //! L'explorateur et le serveur MCP forment une paire : le serveur pilote l'explorateur par le
 //! serveur Rust natif, et c'est l'explorateur qui le déclare à Claude Code / Claude Desktop
 //! depuis ses Paramètres — l'utilisatrice n'a pas à éditer un JSON à la main.
 //!
 //! L'écriture est une **fusion** : les autres serveurs MCP déjà déclarés sont conservés, seule
-//! l'entrée `niers-game` est ajoutée ou remplacée. Le fichier existant est sauvegardé en `.bak`
+//! l'entrée `nie-game` est ajoutée ou remplacée. Le fichier existant est sauvegardé en `.bak`
 //! avant réécriture.
 
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 /// Nom de l'entrée dans `mcpServers`.
-const SERVER_NAME: &str = "niers-game";
+const SERVER_NAME: &str = "nie-game";
 
 /// Manifest of the native server, relative to the repository root.
 const ENTRYPOINT: &str = "crates/tools/nie-mcp/Cargo.toml";
@@ -35,7 +35,7 @@ pub struct McpStatusDto {
     pub config_path: String,
     /// Vrai si ce fichier existe déjà.
     pub config_exists: bool,
-    /// Vrai si `niers-game` y est déjà déclaré.
+    /// Vrai si `nie-game` y est déjà déclaré.
     pub installed: bool,
     /// Commande actuellement déclarée, si elle l'est.
     pub current_command: Option<String>,
@@ -50,13 +50,13 @@ pub struct McpStatusDto {
 pub struct McpInstallDto {
     /// Fichier écrit.
     pub config_path: String,
-    /// Vrai si une entrée `niers-game` préexistante a été remplacée.
+    /// Vrai si une entrée `nie-game` préexistante a été remplacée.
     pub replaced: bool,
     /// Chemin de la sauvegarde `.bak`, si le fichier existait.
     pub backup_path: Option<String>,
 }
 
-/// Racine du repo niers, déduite de l'exécutable puis du répertoire courant.
+/// Racine du repo nie, déduite de l'exécutable puis du répertoire courant.
 ///
 /// En dev (`cargo tauri dev`) le binaire est dans `apps/inacord/src-tauri/target/debug` ;
 /// en release il est installé ailleurs, et c'est alors le dossier du jeu (= racine du repo sur
@@ -103,7 +103,7 @@ fn config_path(target: McpTarget) -> Result<PathBuf, String> {
     }
 }
 
-/// Entrée `mcpServers["niers-game"]` pour un client donné.
+/// Entrée `mcpServers["nie-game"]` pour un client donné.
 ///
 /// Claude Code lance les serveurs de projet depuis la racine du dépôt : un chemin relatif y
 /// reste valable d'une machine à l'autre. Claude Desktop, lui, part d'un répertoire courant
@@ -121,7 +121,7 @@ fn server_entry(target: McpTarget, game_dir: Option<&str>) -> serde_json::Value 
         McpTarget::ClaudeDesktop => {
             let mut env = serde_json::Map::new();
             env.insert(
-                "NIERS_REPO".to_string(),
+                "NIE_REPO".to_string(),
                 serde_json::Value::String(root.display().to_string()),
             );
             (
@@ -194,7 +194,7 @@ pub fn mcp_status(target: McpTarget) -> Result<McpStatusDto, String> {
     })
 }
 
-/// Déclare `niers-game` dans la configuration du client visé, en préservant le reste.
+/// Déclare `nie-game` dans la configuration du client visé, en préservant le reste.
 #[tauri::command]
 #[specta::specta]
 pub fn mcp_install(target: McpTarget, game_dir: Option<String>) -> Result<McpInstallDto, String> {
@@ -202,7 +202,7 @@ pub fn mcp_install(target: McpTarget, game_dir: Option<String>) -> Result<McpIns
     let entrypoint = repo_root().join(ENTRYPOINT);
     if !entrypoint.is_file() {
         return Err(format!(
-            "point d'entrée du serveur introuvable : {} — le dépôt niers doit être présent à côté du jeu",
+            "point d'entrée du serveur introuvable : {} — le dépôt nie doit être présent à côté du jeu",
             entrypoint.display()
         ));
     }
@@ -267,7 +267,7 @@ mod tests {
         let args = entry["args"].as_array().expect("args");
         assert_eq!(args[4].as_str(), Some("nie-mcp"));
         assert_eq!(entry["command"].as_str(), Some("cargo"));
-        assert!(entry["env"].get("NIERS_REPO").is_none());
+        assert!(entry["env"].get("NIE_REPO").is_none());
     }
 
     #[test]

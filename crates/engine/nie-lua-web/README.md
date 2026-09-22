@@ -26,7 +26,7 @@ The two crates never share a `.wasm` module; the browser loads `nie-wasm`'s modu
 everything else and this crate's module for menu/scene Lua logic, bridging them via
 `nie_lua_web_load_script`/`nie_lua_web_replay` and JS-side plumbing.
 
-`nie-wasm` also owns the validated `niers.vfs.bundle/v1` startup container. It embeds only the
+`nie-wasm` also owns the validated `nie.vfs.bundle/v1` startup container. It embeds only the
 format and a path/discovery plan, never game bytes. After the host copies the bundle entries into
 this module with `nie_lua_web_load_script`, `nie_lua_web_readiness_json(screen)` reports separate
 `readyForReplay` and `readyForInitialRender` gates. The latter requires the resolved versioned
@@ -221,7 +221,7 @@ line counts inside a `nie-site` test does not work: the VFS mounts asynchronousl
 has no way to await it, so the test skips itself and proves nothing. Measuring this needs the
 running server on both sides, not a test.
 
-Nor does the CLI shortcut work: `niers decode` on the extracted
+Nor does the CLI shortcut work: `nie decode` on the extracted
 `text/fr/menu_text.cfg.bin` renders the RAW container structure, not the `{entries}` iecode form
 `nie_data::text::parse_text_file` consumes, so counting lines from it answers a different
 question. The conversion is `nie_formats::cfgbin::to_iecode_json`, which the CLI exposes only

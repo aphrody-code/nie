@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pefile
 
-DB = Path(sys.argv[1] if len(sys.argv) > 1 else "var/niers.sqlite")
+DB = Path(sys.argv[1] if len(sys.argv) > 1 else "var/nie.sqlite")
 EXE = Path(sys.argv[2] if len(sys.argv) > 2 else "nie.exe")
 
 

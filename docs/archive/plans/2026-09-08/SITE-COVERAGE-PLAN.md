@@ -25,7 +25,7 @@
 > This session replaced the inventory-only proof with a proof against the real Steam CPK
 > payloads, using an explicit `NIE_GAME_DIR`: local and `ovh-vps-ubuntu-direct` both mount
 > **255,308 entries and 936 CPKs** (11 loose local files versus 5 on the VPS; logical paths and
-> format histograms match). `niers vfs extract data --ext lua.bin --out var/lua-vfs-all` produced
+> format histograms match). `nie vfs extract data --ext lua.bin --out var/lua-vfs-all` produced
 > **1,197/1,197** files, **10,694,973 bytes**, and 0 failures; Lua 5.2 magic and the complete
 > path set match the inventory.
 >
@@ -123,7 +123,7 @@
 >
 > **Ce que cet amendement ne dit pas :** la matrice de couverture du § 4
 > (`var/couverture-site.json` + `/couverture`) n'existe toujours pas. La gate est atteinte sur
-> le **VFS**, qui n'est qu'une des sources de la matrice — les 41 commandes de `niers`, les 155
+> le **VFS**, qui n'est qu'une des sources de la matrice — les 41 commandes de `nie`, les 155
 > d'Inacord et les 81 pages d'Azalée restent non classées. Dire « gate maîtresse atteinte » sans
 > cette phrase serait exactement le genre de raccourci que le § 3 recense.
 
@@ -156,7 +156,7 @@
 >   `parse_player_passives` prend **trois** tables de texte, pas deux. Une raison qui cite un
 >   chemin inexistant envoie le lot suivant chercher au mauvais endroit : elle coûte plus qu'une
 >   ligne vide.
-> - **Deux capacités étaient déjà servies** sans que personne l'ait vu : `niers avatar` et les
+> - **Deux capacités étaient déjà servies** sans que personne l'ait vu : `nie avatar` et les
 >   deux commandes d'avatar d'Inacord le sont par `/api/v1/donnees/famille/chara_edit`
 >   (16 listes), depuis que `chara_edit` est entré dans `decode_by_key` le matin même. Deux des
 >   six pages `/tools/*` d'Azalée l'étaient aussi (`/tools/stats` par `/api/v1/regles/stats`,
@@ -268,10 +268,10 @@
 
 > **Amendement du 2026-09-07 (10) — mesure courante et fermeture des trois modèles 3D.**
 >
-> `nie-site --regenerer-couverture var/couverture-site.json --racine-depot C:\\Users\\aphro\\niers`
+> `nie-site --regenerer-couverture var/couverture-site.json --racine-depot C:\\Users\\aphro\\nie`
 > rejoué sur le dépôt courant produit **578 capacités**, **255 843 unités de poids** et **84
 > routes montées** : `servi=282`, `manquant=0`, `partiel=0`, `bloqué=1` (9 unités),
-> `interne=295`. Les sources mesurées sont désormais `niers=43`, Inacord=158, Azalée=74 pages
+> `interne=295`. Les sources mesurées sont désormais `nie=43`, Inacord=158, Azalée=74 pages
 > et 26 routes API, `nie-data=115`, `nie-formats=46`, `nie-lua=34`, iecode=39 et VFS=43
 > extensions. La même matrice servie par un `nie-site` lancé répond 200 sur `/couverture` et
 > `/api/v1/couverture` (135 507 octets).
@@ -294,7 +294,7 @@ Un seul site — nie, servi par `nie-site`, monté par `apps/nie-web` et par Ina
 - **`nie-lua` sert les menus et les scripts** — la disposition et le comportement viennent du
   runtime, pas d'un gabarit écrit à la main ;
 - **`nie-aphrody` sert les icônes, les assets, les pets et les personnages** d'Aphrody ;
-- **tout ce que `niers` sait faire est servi par l'API de `nie-site`** ;
+- **tout ce que `nie` sait faire est servi par l'API de `nie-site`** ;
 - **tout ce que `nie-explorer` savait faire est servi par `nie-web` et Inacord**.
 
 **Ce qui n'est pas montré à l'utilisateur final n'est pas exclu du périmètre.** Une capacité
@@ -309,7 +309,7 @@ Rien ici n'est cité de mémoire ; chaque ligne a une commande.
 | Surface | Compte | Commande |
 |---|---|---|
 | Crates du workspace | **37** | `cargo metadata --no-deps \| jq '.packages \| length'` |
-| Sous-commandes de `niers` | **41** | `niers --help` |
+| Sous-commandes de `nie` | **41** | `nie --help` |
 | Commandes Tauri d'Inacord | **155** uniques | `rg -A2 '#\[tauri::command\]' apps/inacord/src-tauri/src` |
 | Routes servies par `nie-site` | **19** déclarations, **~14** chemins distincts | `rg -o '\.route\("[^"]+"' crates/tools/nie-site/src/app.rs` |
 | Modules de `nie-data` | **117** | `ls crates/engine/nie-data/src/*.rs` |
@@ -321,7 +321,7 @@ Rien ici n'est cité de mémoire ; chaque ligne a une commande.
 | Fichiers en **sas** `nie-web/src/legacy/` | **87** | `fd . apps/nie-web/src/legacy` |
 | Pages réelles de `nie-web` hors sas | **5** | `fd -e tsx . apps/nie-web/src --exclude legacy` |
 | Sous-commandes du toolkit C++ `iecode` | **39** | `ls src/cli/commands/*.cpp` |
-| Entrées du VFS | **255 308** | `niers info` |
+| Entrées du VFS | **255 308** | `nie info` |
 
 **L'écart qui définit ce plan :** 41 commandes CLI et 155 commandes desktop, pour **14 chemins
 d'API**. Le dépôt sait faire environ dix fois ce qu'il expose. Ce plan ne demande pas d'écrire
@@ -329,7 +329,7 @@ des capacités nouvelles : il demande de **servir celles qui existent**.
 
 ## 2 bis. Ce que la session RE/Lua a établi — le capital le plus sous-exploité
 
-Mesuré par Codex les 2026-09-05 et 06, rejouable par `niers lua audit` :
+Mesuré par Codex les 2026-09-05 et 06, rejouable par `nie lua audit` :
 
 | Mesure | Valeur | Ce qu'elle change |
 |---|---|---|
@@ -337,9 +337,9 @@ Mesuré par Codex les 2026-09-05 et 06, rejouable par `niers lua audit` :
 | Scripts de menu | **552 / 552**, 0 erreur | la couche menu est entièrement franchie |
 | Includes non résolus | **0** | la résolution VFS des `include` est complète |
 | Constantes non définies | **47 symboles, 225 occurrences** | c'est le SEUL écart restant, et il est chiffré |
-| KB `var/niers.sqlite` | 153 073 fonctions, 1 748 classes RTTI ; `pdata` 94 785, `ghidra` 60 183, `vtable-struct` 13 653 | la carte est là, elle n'est pas exploitée par le site |
+| KB `var/nie.sqlite` | 153 073 fonctions, 1 748 classes RTTI ; `pdata` 94 785, `ghidra` 60 183, `vtable-struct` 13 653 | la carte est là, elle n'est pas exploitée par le site |
 | Vtables vérifiées dans l'image | **1 748 / 1 748** lisibles, 1 745 en `.rdata`, 1 745 pointant du code à +8 | la carte RTTI est structurellement cohérente |
-| Couverture brute `niers rebuild --rounds 4` | 100 664 / 108 650 = **92,65 %**, nommées 13 653 = 12,57 % | l'écart nommé/classé reste le vrai chantier RE |
+| Couverture brute `nie rebuild --rounds 4` | 100 664 / 108 650 = **92,65 %**, nommées 13 653 = 12,57 % | l'écart nommé/classé reste le vrai chantier RE |
 
 Les 47 constantes en tête d'occurrences : `CHARA_EDIT_RECIPE_TYPE_FASHION` (49),
 `EVEN_BONE_L21..L24` et `R21..R24` (13 chacune), `VICTORY_TOP_INC` (11),
@@ -389,7 +389,7 @@ Ce plan est fondé sur ces échecs. Chaque ligne est un défaut réellement pay�
 
 | Défaut | Correction | Preuve |
 |---|---|---|
-| Portail TS rouge sur 2 paquets | `mcp` redirigé vers `@niers/azalee-tools/server/index` ; `cron` déclare `@aphrody/bxc` et reçoit une passerelle de types | `bun run typecheck` = **0 sur les 5 workspaces** |
+| Portail TS rouge sur 2 paquets | `mcp` redirigé vers `@nie/azalee-tools/server/index` ; `cron` déclare `@aphrody/bxc` et reçoit une passerelle de types | `bun run typecheck` = **0 sur les 5 workspaces** |
 | Binaire `nie-site` périmé en ligne | rebâti et redémarré | `/healthz`, `/api/v1/{health,episodes,textures}`, `/feed.atom` = **200**, TTFB 0,66–6,4 ms |
 | Pagination `/chara` commitée mais jamais déployée | déploiement bleu/vert sans coupure | **60 fiches uniques** servies, bascule en 887 ms puis 596 ms, `/` 200 tout du long |
 
@@ -442,7 +442,7 @@ comme `manquant` ; une extension classée `inconnu` compte comme `bloqué` — o
 qu'on n'a pas identifié.
 
 Sources de la matrice, toutes déjà présentes : **le VFS lui-même (255 308 entrées, la source la
-plus large — `docs/VFS.md`)**, `niers --help`, l'`invoke_handler` de `src-tauri`, les modules de
+plus large — `docs/VFS.md`)**, `nie --help`, l'`invoke_handler` de `src-tauri`, les modules de
 `nie-data` et `nie-formats`, les `pub fn` de `nie-lua`, les pages d'Azalée, les sous-commandes
 d'`iecode`.
 
@@ -452,7 +452,7 @@ d'`iecode`.
 `/api/v1/couverture` (JSON), régénéré par **une commande** :
 
 ```
-nie-site --regenerer-couverture var/couverture-site.json --racine-depot /home/ubuntu/niers
+nie-site --regenerer-couverture var/couverture-site.json --racine-depot /home/ubuntu/nie
 ```
 
 Il tient en trois pièces séparées, et cette séparation est ce qui l'empêche de mentir :
@@ -466,7 +466,7 @@ Il tient en trois pièces séparées, et cette séparation est ce qui l'empêche
 Trois gardes le rendent **falsifiable**, ce qui manquait à toute matrice tenue à la main :
 
 - une capacité qu'aucune règle ne reconnaît sort en `manquant` « non classée » — une commande
-  ajoutée à `niers` demain apparaît d'elle-même, personne n'a à y penser ;
+  ajoutée à `nie` demain apparaît d'elle-même, personne n'a à y penser ;
 - une capacité dont la règle cite une route **qui n'est montée nulle part** est *rétrogradée* en
   `manquant`, et l'incohérence est publiée. La matrice ne se croit pas sur parole : elle
   confronte chaque `servi` à `app::chemins()` ;
@@ -505,12 +505,12 @@ Ce que la journée a produit, dans l'ordre où la matrice l'a désigné :
 produisent des *images*, et les features `images`/`textures` restent éteintes dans ce service),
 6 pages `/tools/*` d'Azalée, 6 modules `nie-data` dont deux qui ne peuvent pas passer par la
 façade (`passives` exige deux tables de texte, `team` fait doublon avec `enjoy_mode_team`),
-4 sous-commandes `niers` (`avatar`, `convert`, `icons`, `mode`), 2 commandes d'avatar d'Inacord,
+4 sous-commandes `nie` (`avatar`, `convert`, `icons`, `mode`), 2 commandes d'avatar d'Inacord,
 et `/api/save/resolve-roster`.
 
 | Source | Total | `manquant` (avant → après) |
 |---|---:|---:|
-| `niers` — sous-commandes | 40 | 6 → 6 |
+| `nie` — sous-commandes | 40 | 6 → 6 |
 | Inacord — commandes IPC | 158 | 28 → 27 |
 | Azalée — pages | 81 | 38 → 38 |
 | Azalée — routes d'API | 26 | 1 → 1 |
@@ -523,7 +523,7 @@ et `/api/save/resolve-roster`.
 **La gate maîtresse est ROMPUE : `manquant = 205`.** C'est le premier chiffre honnête que ce
 plan possède, et il corrige trois comptes que le plan citait de mémoire :
 
-- **`niers` a 40 sous-commandes, pas 41** (`help` n'en est pas une, c'est clap qui la pose) ;
+- **`nie` a 40 sous-commandes, pas 41** (`help` n'en est pas une, c'est clap qui la pose) ;
   Inacord en a **158**, pas 155 ; `nie-data` **116** modules et `nie-formats` **46**, pas 117 et
   47 ; Azalée a **26** routes d'API et non 24 (trois `route.ts` vivent hors d'`app/api`).
   Seuls `nie-lua` (34), les pages d'Azalée (81) et `iecode` (39) étaient exacts.
@@ -557,9 +557,9 @@ verte — sauf mention explicite.
 
 **Gate :** les trois portails rendent leur compte ; `/api/v1/episodes` répond 200 en ligne.
 
-### Lot 1 — l'API totale : `niers` (41) → `nie-site`
+### Lot 1 — l'API totale : `nie` (41) → `nie-site`
 
-Chaque sous-commande de `niers` devient une route `/api/v1/*` ou est classée `interne`.
+Chaque sous-commande de `nie` devient une route `/api/v1/*` ou est classée `interne`.
 
 Répartition attendue, à trancher commande par commande dans la matrice :
 
@@ -693,11 +693,11 @@ déclarée « reste sur Azalée » **avec sa raison** (Azalée demeure le wiki d
 ### Lot 7 — les gisements et la surface Rust
 
 - Les anciennes commandes IECODE sont archivées ; les capacités maintenues sont exposées par
-  `niers`, `nie-site` et les crates Rust correspondantes.
-- Les quatre gisements (`jeu`, `extrait`, `re`, `anime`) passent par `@niers/catalog` — jamais
+  `nie`, `nie-site` et les crates Rust correspondantes.
+- Les quatre gisements (`jeu`, `extrait`, `re`, `anime`) passent par `@nie/catalog` — jamais
   une base rouverte à la main.
-- `nie-db` / `niers push` (amendement A2) : la couche SQL native remplace les 18 importeurs
-  Bun. Gate connue : `niers push --dry-run` annonce table par table, puis un push réel rend
+- `nie-db` / `nie push` (amendement A2) : la couche SQL native remplace les 18 importeurs
+  Bun. Gate connue : `nie push --dry-run` annonce table par table, puis un push réel rend
   **le même total qu'aujourd'hui, écart 0**.
 
 ### Lot 8 — les filtres : chaque page de nie vaut son équivalent
@@ -1152,7 +1152,7 @@ arithmétique ne la trouve.
    à la définition : un seul calque absent retire `servi` à un écran qui en compte soixante.
    Les **975 noms de calque distincts** introuvables sont énumérés par
    `GET /api/v1/screens/missing`, les plus réclamés d'abord (`team00_01_chara_card_for_leader`
-   par **17** écrans). Vérifié un par un sur trois d'entre eux : `niers vfs find <nom>` rend
+   par **17** écrans). Vérifié un par un sur trois d'entre eux : `nie vfs find <nom>` rend
    **0 résultat sur les 255 308 entrées** — ni `.objbin`, ni archive, ni autre extension. Le jeu
    **déclare des calques dont l'asset n'est pas livré dans ce build**. C'est un fait sur la
    donnée, pas un reste-à-faire, et la route le dit dans son champ `ceiling` plutôt que de

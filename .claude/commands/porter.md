@@ -12,5 +12,5 @@ Famille visee : $ARGUMENTS
 3. **Porter** dans `crates/engine/nie-data/src/`, en suivant l'idiome du module voisin le plus proche.
 4. **Golden test** : `cargo test -p nie-data --test <fam>_golden`. Un golden qui se saute faute de dump est un faux vert — annonce le saut.
    N'appelle jamais un fichier de test `*update*`/`*setup*`/`*install*`/`*patch*` (piege d'elevation Windows, cf. `notice_maj_golden.rs`).
-5. **Aller jusqu'a azalee** : une famille portee qui reste en vase clos ne compte pas. Export JSON / route `nie-model-serve` / `niers wiki`, jusqu'a une page qui l'affiche.
+5. **Aller jusqu'a azalee** : une famille portee qui reste en vase clos ne compte pas. Export JSON / route `nie-model-serve` / `nie wiki`, jusqu'a une page qui l'affiche.
 6. `cargo clippy -p nie-data --lib --tests` doit rendre 0 warning avant de committer.

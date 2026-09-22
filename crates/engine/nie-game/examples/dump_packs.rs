@@ -26,8 +26,8 @@
 //!
 //! Usage :
 //! ```text
-//! NIE_GAME_DIR=/home/aphrody/niers \
-//!   cargo run -p nie-game --release --example dump_packs -- --out /home/aphrody/niers/data
+//! NIE_GAME_DIR=/home/aphrody/nie \
+//!   cargo run -p nie-game --release --example dump_packs -- --out /home/aphrody/nie/data
 //! ```
 //! Flags : `--out <DIR>` (défaut `<game_dir>/data`), `--filter <PREFIXE>` (répétable),
 //! `--jobs <N>`, `--limit <N>` (échantillon), `--dry-run`, `--force`, `--reserve-gib <N>`.

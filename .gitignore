@@ -147,7 +147,7 @@ nie_eacpatched.exe
 /GameBootstrapper.exe
 /GameBootstrapper.ini
 
-# Outil tiers (save editor, ~98 Mio) posé dans le dossier du jeu — jamais un artefact niers.
+# Outil tiers (save editor, ~98 Mio) posé dans le dossier du jeu — jamais un artefact nie.
 /InazumaElevenVRSaveEditor.exe
 
 # Artefacts NTFS (marqueur "téléchargé depuis Internet") qu'un `git add .` peut capturer par erreur.
@@ -201,7 +201,7 @@ __pycache__/
 # La regle inverse (`*.md` + une dizaine de `!` a tenir a jour) a fait disparaitre du depot,
 # en silence et une fois chacun : `AGENTS.md` (le SEUL fichier d'instructions de Codex — sur
 # un clone frais il demarrait sans consigne), les 5 sous-agents et les 5 skills du plugin
-# `niers` (un LIVRABLE), et les README des personnages originaux. Aucun de ces trous ne
+# `nie` (un LIVRABLE), et les README des personnages originaux. Aucun de ces trous ne
 # s'est signale : un `.md` ignore ne produit ni erreur ni avertissement, il n'existe juste
 # pas chez le suivant. Le cout d'une liste d'exceptions qu'on oublie d'etendre est plus eleve
 # que celui de versionner un markdown de trop.

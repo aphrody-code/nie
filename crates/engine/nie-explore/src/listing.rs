@@ -2,7 +2,7 @@
 //!
 //! Le VFS est un index plat (`chemin interne → CPK conteneur`) : il n'a pas de notion de
 //! répertoire. Cette vue-là est donc CALCULÉE, et elle l'était jusqu'ici en trois endroits qui
-//! divergeaient : la commande Tauri `vfs_ls` de l'app desktop, `niers vfs ls` (CLI), et — sans
+//! divergeaient : la commande Tauri `vfs_ls` de l'app desktop, `nie vfs ls` (CLI), et — sans
 //! passer par le VFS du tout — l'index SQLite figé de l'explorateur web d'azalée, régénéré à la
 //! main depuis un NDJSON.
 //!

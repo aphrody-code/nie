@@ -14,7 +14,7 @@
 # Piège payé le 2026-09-06, et corrigé ici : **des chemins du VFS contiennent un espace**
 # (`…/u021801/u021802 .g4md`). Découper l'inventaire par espaces croissants fait apparaître deux
 # faux « fichiers sans extension » et fausse tout comptage par extension. Le chemin se lit donc
-# en retirant les DEUX derniers champs (taille, cpk), jamais en prenant le premier.
+# en retirant les DEUX dernie champs (taille, cpk), jamais en prenant le premier.
 set -euo pipefail
 
 BASE="${1:-http://127.0.0.1:8085}"
@@ -24,7 +24,7 @@ INVENTAIRE="$RACINE/var/vfs/inventaire.txt"
 
 [ -f "$INVENTAIRE" ] || { echo "inventaire absent: $INVENTAIRE" >&2; exit 1; }
 
-# chemin<TAB>extension, en retirant les deux derniers champs.
+# chemin<TAB>extension, en retirant les deux dernie champs.
 CHEMINS=$(mktemp)
 trap 'rm -f "$CHEMINS"' EXIT
 sed -E 's/ [0-9]+ \[[^]]*\]$//; s/ [0-9]+ \[?[^ ]*\]?$//' "$INVENTAIRE" \

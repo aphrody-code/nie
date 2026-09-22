@@ -22,12 +22,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tracing::warn;
 
-/// Chemin par défaut du token store niers.
-/// `~/.local/share/niers/steam-tokens.json`
+/// Chemin par défaut du token store nie.
+/// `~/.local/share/nie/steam-tokens.json`
 pub fn default_path() -> PathBuf {
     dirs_next::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("niers")
+        .join("nie")
         .join("steam-tokens.json")
 }
 

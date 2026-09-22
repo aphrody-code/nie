@@ -274,7 +274,7 @@ fn quest_validation_vrai_fichier_si_present() {
     // Validation byte-à-byte contre le vrai dump si présent (gitignore / hors VFS export).
     // Source : data/common/gamedata/quest/quest_config_1.04.11.00.cfg.bin.json.
     let path =
-        "/home/aphrody/niers/data/common/gamedata/quest/quest_config_1.04.11.00.cfg.bin.json";
+        "/home/aphrody/nie/data/common/gamedata/quest/quest_config_1.04.11.00.cfg.bin.json";
     if !std::path::Path::new(path).exists() {
         return;
     }

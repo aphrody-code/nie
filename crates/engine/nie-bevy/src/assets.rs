@@ -16,7 +16,7 @@ use nie_formats::g4mg::{self, SubmeshGeometry, VertexSkin};
 use nie_formats::{g4md, g4tx};
 use wgpu_types::{Extent3d, TextureDimension, TextureFormat};
 
-use crate::NiersAssetError;
+use crate::NieAssetError;
 
 // ─── Textures ────────────────────────────────────────────────────────────────────────────────
 
@@ -34,11 +34,11 @@ use crate::NiersAssetError;
 ///
 /// # Errors
 ///
-/// - le conteneur ne se décode pas ([`NiersAssetError::Decode`]) ;
-/// - il ne porte aucune texture, ou pas celle demandée ([`NiersAssetError::Empty`]) ;
-/// - le payload n'est pas un DDS exploitable ([`NiersAssetError::Unsupported`]).
-pub fn image_from_g4tx(bytes: &[u8], index: usize) -> Result<Image, NiersAssetError> {
-    let atlas = g4tx::parse(bytes).map_err(|error| NiersAssetError::Decode {
+/// - le conteneur ne se décode pas ([`NieAssetError::Decode`]) ;
+/// - il ne porte aucune texture, ou pas celle demandée ([`NieAssetError::Empty`]) ;
+/// - le payload n'est pas un DDS exploitable ([`NieAssetError::Unsupported`]).
+pub fn image_from_g4tx(bytes: &[u8], index: usize) -> Result<Image, NieAssetError> {
+    let atlas = g4tx::parse(bytes).map_err(|error| NieAssetError::Decode {
         format: "g4tx",
         reason: error.to_string(),
     })?;
@@ -46,7 +46,7 @@ pub fn image_from_g4tx(bytes: &[u8], index: usize) -> Result<Image, NiersAssetEr
     let texture = atlas
         .textures
         .get(index)
-        .ok_or_else(|| NiersAssetError::Empty {
+        .ok_or_else(|| NieAssetError::Empty {
             format: "g4tx",
             reason: format!(
                 "texture {index} requested, the container carries {}",
@@ -55,7 +55,7 @@ pub fn image_from_g4tx(bytes: &[u8], index: usize) -> Result<Image, NiersAssetEr
         })?;
 
     let (width, height, rgba) = nie_formats::g4tx_decode::decode_texture_rgba(bytes, texture)
-        .ok_or_else(|| NiersAssetError::Unsupported {
+        .ok_or_else(|| NieAssetError::Unsupported {
             format: "g4tx",
             reason: format!(
                 "`{}` has no decodable DDS payload ({}x{})",
@@ -84,10 +84,10 @@ pub fn image_from_g4tx(bytes: &[u8], index: usize) -> Result<Image, NiersAssetEr
 /// # Errors
 ///
 /// Le conteneur ne se décode pas.
-pub fn g4tx_texture_count(bytes: &[u8]) -> Result<usize, NiersAssetError> {
+pub fn g4tx_texture_count(bytes: &[u8]) -> Result<usize, NieAssetError> {
     g4tx::parse(bytes)
         .map(|atlas| atlas.textures.len())
-        .map_err(|error| NiersAssetError::Decode {
+        .map_err(|error| NieAssetError::Decode {
             format: "g4tx",
             reason: error.to_string(),
         })
@@ -160,28 +160,28 @@ pub fn reduce_influences(bones: &[u8; 8], weights: &[f32; 8]) -> ([u16; 4], [f32
 ///
 /// # Errors
 ///
-/// - positions ou indices vides ([`NiersAssetError::Empty`]) ;
+/// - positions ou indices vides ([`NieAssetError::Empty`]) ;
 /// - nombre d'indices non multiple de trois, indice hors table, UV ou skinning de longueur
-///   différente des positions ([`NiersAssetError::Unsupported`]).
+///   différente des positions ([`NieAssetError::Unsupported`]).
 pub fn mesh_from_geometry(
     geometry: &SubmeshGeometry,
     skin: Option<&[VertexSkin]>,
-) -> Result<Mesh, NiersAssetError> {
+) -> Result<Mesh, NieAssetError> {
     let vertex_count = geometry.positions.len();
     if vertex_count == 0 {
-        return Err(NiersAssetError::Empty {
+        return Err(NieAssetError::Empty {
             format: "g4mg",
             reason: format!("submesh {} has no vertex", geometry.index),
         });
     }
     if geometry.indices.is_empty() {
-        return Err(NiersAssetError::Empty {
+        return Err(NieAssetError::Empty {
             format: "g4mg",
             reason: format!("submesh {} has no index", geometry.index),
         });
     }
     if !geometry.indices.len().is_multiple_of(3) {
-        return Err(NiersAssetError::Unsupported {
+        return Err(NieAssetError::Unsupported {
             format: "g4mg",
             reason: format!(
                 "submesh {}: {} indices is not a whole number of triangles",
@@ -196,7 +196,7 @@ pub fn mesh_from_geometry(
         .copied()
         .find(|index| *index as usize >= vertex_count)
     {
-        return Err(NiersAssetError::Unsupported {
+        return Err(NieAssetError::Unsupported {
             format: "g4mg",
             reason: format!(
                 "submesh {}: index {out_of_range} but only {vertex_count} vertices (global index space?)",
@@ -205,7 +205,7 @@ pub fn mesh_from_geometry(
         });
     }
     if !geometry.uv0.is_empty() && geometry.uv0.len() != vertex_count {
-        return Err(NiersAssetError::Unsupported {
+        return Err(NieAssetError::Unsupported {
             format: "g4mg",
             reason: format!(
                 "submesh {}: {} uv for {vertex_count} vertices",
@@ -217,7 +217,7 @@ pub fn mesh_from_geometry(
     if let Some(skin) = skin
         && skin.len() != vertex_count
     {
-        return Err(NiersAssetError::Unsupported {
+        return Err(NieAssetError::Unsupported {
             format: "g4mg",
             reason: format!(
                 "submesh {}: {} skinned vertices for {vertex_count} positions",
@@ -274,17 +274,17 @@ pub fn mesh_from_geometry(
 ///
 /// # Errors
 ///
-/// - le G4MD ne se décode pas ([`NiersAssetError::Decode`]) ;
-/// - il ne décrit aucune sous-maille ([`NiersAssetError::Empty`]) ;
+/// - le G4MD ne se décode pas ([`NieAssetError::Decode`]) ;
+/// - il ne décrit aucune sous-maille ([`NieAssetError::Empty`]) ;
 /// - une sous-maille échoue [`mesh_from_geometry`] — l'erreur porte son index.
-pub fn meshes_from_g4md_g4mg(md: &[u8], mg: &[u8]) -> Result<Vec<Mesh>, NiersAssetError> {
-    let descriptor = g4md::parse(md).map_err(|error| NiersAssetError::Decode {
+pub fn meshes_from_g4md_g4mg(md: &[u8], mg: &[u8]) -> Result<Vec<Mesh>, NieAssetError> {
+    let descriptor = g4md::parse(md).map_err(|error| NieAssetError::Decode {
         format: "g4md",
         reason: error.to_string(),
     })?;
     let geometries = g4mg::extract_geometry(mg, &descriptor);
     if geometries.is_empty() {
-        return Err(NiersAssetError::Empty {
+        return Err(NieAssetError::Empty {
             format: "g4mg",
             reason: "the descriptor lists no submesh".to_owned(),
         });
@@ -302,10 +302,10 @@ pub fn meshes_from_g4md_g4mg(md: &[u8], mg: &[u8]) -> Result<Vec<Mesh>, NiersAss
 ///
 /// # Errors
 ///
-/// Comme [`meshes_from_g4md_g4mg`], plus [`NiersAssetError::Empty`] si `submesh` dépasse le
+/// Comme [`meshes_from_g4md_g4mg`], plus [`NieAssetError::Empty`] si `submesh` dépasse le
 /// nombre de sous-mailles.
-pub fn mesh_from_g4md_g4mg(md: &[u8], mg: &[u8], submesh: usize) -> Result<Mesh, NiersAssetError> {
-    let descriptor = g4md::parse(md).map_err(|error| NiersAssetError::Decode {
+pub fn mesh_from_g4md_g4mg(md: &[u8], mg: &[u8], submesh: usize) -> Result<Mesh, NieAssetError> {
+    let descriptor = g4md::parse(md).map_err(|error| NieAssetError::Decode {
         format: "g4md",
         reason: error.to_string(),
     })?;
@@ -313,7 +313,7 @@ pub fn mesh_from_g4md_g4mg(md: &[u8], mg: &[u8], submesh: usize) -> Result<Mesh,
     let geometry = geometries
         .iter()
         .find(|geometry| geometry.index == submesh)
-        .ok_or_else(|| NiersAssetError::Empty {
+        .ok_or_else(|| NieAssetError::Empty {
             format: "g4mg",
             reason: format!(
                 "submesh {submesh} requested, the descriptor lists {}",
@@ -413,7 +413,7 @@ mod tests {
         geometry.indices = vec![0, 1, 7];
         let error = mesh_from_geometry(&geometry, None).expect_err("refus attendu");
         assert!(
-            matches!(error, NiersAssetError::Unsupported { format: "g4mg", .. }),
+            matches!(error, NieAssetError::Unsupported { format: "g4mg", .. }),
             "{error}"
         );
         assert!(error.to_string().contains('7'), "{error}");
@@ -426,7 +426,7 @@ mod tests {
         geometry.indices = vec![0, 1];
         assert!(matches!(
             mesh_from_geometry(&geometry, None),
-            Err(NiersAssetError::Unsupported { .. })
+            Err(NieAssetError::Unsupported { .. })
         ));
     }
 
@@ -437,7 +437,7 @@ mod tests {
         geometry.uv0 = vec![Vec2 { u: 0.0, v: 0.0 }];
         assert!(matches!(
             mesh_from_geometry(&geometry, None),
-            Err(NiersAssetError::Unsupported { .. })
+            Err(NieAssetError::Unsupported { .. })
         ));
     }
 
@@ -475,12 +475,12 @@ mod tests {
     fn un_tampon_quelconque_est_refuse_en_nommant_le_format() {
         let error = image_from_g4tx(b"not a g4tx", 0).expect_err("refus attendu");
         assert!(
-            matches!(error, NiersAssetError::Decode { format: "g4tx", .. }),
+            matches!(error, NieAssetError::Decode { format: "g4tx", .. }),
             "{error}"
         );
         let error = meshes_from_g4md_g4mg(b"not a g4md", b"").expect_err("refus attendu");
         assert!(
-            matches!(error, NiersAssetError::Decode { format: "g4md", .. }),
+            matches!(error, NieAssetError::Decode { format: "g4md", .. }),
             "{error}"
         );
     }
@@ -527,7 +527,7 @@ mod tests {
                     size.width, size.height
                 );
             }
-            Err(NiersAssetError::Unsupported { .. }) => {
+            Err(NieAssetError::Unsupported { .. }) => {
                 eprintln!("SKIP: {path} has no DDS payload")
             }
             Err(other) => panic!("{path}: {other}"),
@@ -587,7 +587,7 @@ mod tests {
                 // le cas de `k000010`, dont la géométrie vit dans l'espace global du G4MG. Ce qui
                 // ne serait pas légitime, c'est un panic ou une erreur sans cause lisible.
                 Err(
-                    error @ (NiersAssetError::Unsupported { .. } | NiersAssetError::Empty { .. }),
+                    error @ (NieAssetError::Unsupported { .. } | NieAssetError::Empty { .. }),
                 ) => {
                     eprintln!("{stem}: named refusal, as designed: {error}");
                 }

@@ -364,7 +364,7 @@ const DESKTOP_ONLY: Record<string, string> = {
 	raw_cpk_audio_preview_b64: "Décoder un audio d’un CPK du disque",
 	raw_cpk_video_preview_b64: "Décoder une vidéo d’un CPK du disque",
 	raw_cpk_glb_bytes_b64: "Assembler un modèle d’un CPK du disque",
-	install_niers_blender_addon: "Installer l’add-on Blender",
+	install_nie_blender_addon: "Installer l’add-on Blender",
 	blender_preview_png_b64: "Le rendu Blender",
 	blender_open_scene: "Ouvrir une scène dans Blender",
 	blender_build_skill_scene: "Construire une scène Blender",

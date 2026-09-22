@@ -5,7 +5,7 @@
 //! encoder rend un fichier identique à l'octet près si rien n'a été touché.
 //!
 //! Le codec vivait dans `nie-camera` ; il est ici pour que `nie_formats::decode` — donc la FFI
-//! (`nie_decode_json`), `niers decode`, l'explorateur et le MCP — l'atteignent. `nie-camera` le
+//! (`nie_decode_json`), `nie decode`, l'explorateur et le MCP — l'atteignent. `nie-camera` le
 //! réexporte, il n'y a toujours qu'**une** implémentation.
 //!
 //! ## Structure (reversée, validée sur 150 fichiers réels + confirmée par le code machine)

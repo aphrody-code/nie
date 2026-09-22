@@ -3,7 +3,7 @@
 
 Why this exists
 ---------------
-`niers rtti` INGESTS classes into the knowledge base; nothing READ a vtable back, so every
+`nie rtti` INGESTS classes into the knowledge base; nothing READ a vtable back, so every
 attempt went through throwaway inline Python — and each one re-learned the same two traps.
 
 Trap 1 — `rtti_class.vtable_vaddr` is NOT where the methods are. It is the slot holding the
@@ -141,7 +141,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--exe", required=True, help="PE to read; never inferred")
     parser.add_argument("--class", dest="klass", help="undecorated RTTI class name")
-    parser.add_argument("--vtable", help="COL slot address, as `niers rtti` stores it (hex)")
+    parser.add_argument("--vtable", help="COL slot address, as `nie rtti` stores it (hex)")
     parser.add_argument("--slots", type=int, default=24, help="how many method slots to print")
     args = parser.parse_args()
 

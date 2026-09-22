@@ -107,12 +107,12 @@ seed  →  rebuild (pdata → vtable → disasm → propagate)  →  coverage
 > L'ordre compte : `disasm` avant `rtti` produit un résultat incomplet **sans erreur**. Toujours
 > passer par `just re-rebuild`, qui orchestre les sous-étapes, plutôt que les CLI brutes.
 
-`niers seed`, `rtti`, `index`, `pdata`, `rebuild`, `disasm`, `propagate`, `coverage`, `queue`,
+`nie seed`, `rtti`, `index`, `pdata`, `rebuild`, `disasm`, `propagate`, `coverage`, `queue`,
 `textures`, `uniform-map`, `menu-predecode`, `save`, `wiki`, `mem` (runtime, `nie-trace`).
 
-**Stores** : `var/niers.sqlite` (base de connaissance — tables `function`, `xref`, `coverage`,
+**Stores** : `var/nie.sqlite` (base de connaissance — tables `function`, `xref`, `coverage`,
 `rtti_class`, `func_str_ref` ; schéma dans `crates/forge/nie-index/src/schema.sql`) et redis db0
-(frontière BFS `nie-queue`) / db3 (index fichiers CPK et textures). Piège : `NIERS_REDIS`
+(frontière BFS `nie-queue`) / db3 (index fichiers CPK et textures). Piège : `NIE_REDIS`
 surcharge **toutes** les commandes — ne pas l'exporter pour `textures`/`menu-predecode`, qui
 visent db3.
 
@@ -167,7 +167,7 @@ référence, lue indépendamment par `nie-pe` :
 | Racines `.pdata` indexées dans la base (`pdata_func`) | 50 674 | **55 351** (alignement 100 %) |
 | Empreinte du binaire ancré dans `binary` (id 2) | `4c2b91fb…` (ancien) | **`b1fa04ea…` (exact Steam reference)** |
 
-La base de connaissance `var/niers.sqlite` est désormais **pleinement ré-ancrée** sur le binaire officiel
+La base de connaissance `var/nie.sqlite` est désormais **pleinement ré-ancrée** sur le binaire officiel
 `nie.exe` (`b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`). L'écart d'alignement historique
 est résolu : 100 % des adresses citées correspondent à des fonctions réelles de `nie.exe`.
 
@@ -183,7 +183,7 @@ Sur le binaire cible `b1fa04ea3658…`, mesuré directement dans le fichier :
   instanciation de patron. **Elles n'existaient dans aucune table** — ni comme nœuds, ni comme
   cibles d'appel.
 
-`nie_re::recover` (commande `niers recover`) les récupère par point fixe — références directes
+`nie_re::recover` (commande `nie recover`) les récupère par point fixe — références directes
 (`call`/`jmp rel32`, pointeurs de données) puis balayage linéaire des résidus recalé sur la
 frontière de 16 octets — chaque début n'étant retenu que si son décodage atteint un terminateur
 réel. La provenance est distinguée : `leaf-ref` (désignée par une référence) vs `leaf-scan`
@@ -197,7 +197,7 @@ distinctes) — classes compilées sans RTTI, tables de rappels, tables d'interf
 
 ### Les deux chiffres de la base, et lequel citer
 
-`var/niers.sqlite` indexe deux espaces sous deux `binary_id`. Ne pas les confondre :
+`var/nie.sqlite` indexe deux espaces sous deux `binary_id`. Ne pas les confondre :
 
 | Espace | Fonctions | Classées | Nommées | Statut |
 |---|---|---|---|---|
@@ -259,7 +259,7 @@ niveau. Le point de rendement décroissant est ici.
 
 ### Ce que ça donne bout à bout
 
-`niers`/MCP `re_function` sur `fn_SetNaviStopLayerVisible` (`0x14179fa70`, 6 940 octets,
+`nie`/MCP `re_function` sur `fn_SetNaviStopLayerVisible` (`0x14179fa70`, 6 940 octets,
 sous-système `menu`) — un nom obtenu par la seule chaîne identifiante que cette fonction manipule :
 
 - **appelée par** `game::CMapMenu::vmethod_0`, `game::CMenuMinimap::vmethod_11`,
@@ -276,9 +276,9 @@ plutôt qu'elles ne s'empilent.
 ### La boucle à rejouer
 
 ```bash
-niers recover --db var/niers.sqlite --exe nie.exe   # feuilles, formes, vtables anonymes,
+nie recover --db var/nie.sqlite --exe nie.exe   # feuilles, formes, vtables anonymes,
                                                     # chaînes, funcLua, contiguïté, snapshot
-niers rebuild --db var/niers.sqlite --exe nie.exe   # propagation sur le graphe enrichi
+nie rebuild --db var/nie.sqlite --exe nie.exe   # propagation sur le graphe enrichi
 ```
 
 Les deux passes sont **idempotentes** et se renforcent : `recover` pose des ancres dures que

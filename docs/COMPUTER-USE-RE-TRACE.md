@@ -4,7 +4,7 @@
 
 `nie-computer-use` est la frontière d'orchestration pour l'analyse de `nie.exe` et de la session
 Ghidra. Les modules publics sont réexportés sans copie : `nie_computer_use::re` pour le RE statique
-et `nie_computer_use::trace` pour le processus vivant. La façade `NiersComputerUse` ne propose par
+et `nie_computer_use::trace` pour le processus vivant. La façade `NieComputerUse` ne propose par
 défaut que des opérations bornées et read-only.
 
 ## Capacités retenues
@@ -51,10 +51,10 @@ La couverture publique ne signifie pas que les mutations sont autorisées par Co
 
 | Fichier local | Consommateur | Équivalent Rust canonique | Parité vérifiée | Décision |
 |---|---|---|---|---|
-| `crates/forge/nie-re/src/*.rs` | `nie-cli re`, exemples RE, base `var/niers.sqlite`, Inacord en lecture | mêmes modules `nie-re` du dépôt [aphrody-code/nie](https://github.com/aphrody-code/nie) | `cargo test -p nie-re --lib --locked`: **72 réussis, 0 échec, 1 ignoré** | conserver |
+| `crates/forge/nie-re/src/*.rs` | `nie-cli re`, exemples RE, base `var/nie.sqlite`, Inacord en lecture | mêmes modules `nie-re` du dépôt [aphrody-code/nie](https://github.com/aphrody-code/nie) | `cargo test -p nie-re --lib --locked`: **72 réussis, 0 échec, 1 ignoré** | conserver |
 | `crates/forge/nie-dump/src/lib.rs` | exemples `dump_scan`/`dump_census`, scans de dumps | crate `nie-dump`, réexporté par `nie-re::dump` | couvert par la compilation et les tests de `nie-re` ; smoke réel dépend d’un dump | conserver |
 | `crates/forge/nie-trace/src/*.rs` | `nie mem`, `nie-edit`, `nie-mem`, consommateurs live | mêmes backends Windows/Wine du dépôt canonique | `cargo test -p nie-trace --tests --locked`: **43 réussis, 0 échec** ; le test `self_mem` est Linux-only | conserver, compléter la parité Windows |
-| `crates/tools/nie-computer-use/src/lib.rs` | commande `computer-use`, orchestration agent | façade Rust locale `NiersComputerUse` + `ReSession` | `cargo test -p nie-computer-use --tests --locked`: **9 réussis** ; session SQLite/hash, lectures et scans bornés | conserver |
+| `crates/tools/nie-computer-use/src/lib.rs` | commande `computer-use`, orchestration agent | façade Rust locale `NieComputerUse` + `ReSession` | `cargo test -p nie-computer-use --tests --locked`: **9 réussis** ; session SQLite/hash, lectures et scans bornés | conserver |
 | scripts/exports Ghidra | Ghidra headless ou CodeBrowser | `nie-re::ghidra_import` (CSV exact) | import CSV disponible ; handshake MCP et identité binaire non prouvés | migrer vers un adaptateur typé |
 
 ### Contrat reproductible livré
@@ -77,7 +77,7 @@ CodeBrowser ; une preuve Ghidra complète doit fournir l’identité du programm
 
 ## RE anchors
 
-Knowledge base (`var/niers.sqlite`) tables:
+Knowledge base (`var/nie.sqlite`) tables:
 - `function` — 117 068 functions of `nie.exe`
 - `coverage` — coverage rate of `.pdata` entry points
 - `pdata_func` — 55 351 authoritative function start addresses

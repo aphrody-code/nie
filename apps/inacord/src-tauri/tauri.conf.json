@@ -3,7 +3,7 @@
   "productName": "Inacord",
   "mainBinaryName": "inacord",
   "version": "1.0.0",
-  "identifier": "dev.niers.explorer",
+  "identifier": "dev.nie.explorer",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -31,7 +31,7 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["niers"]
+        "schemes": ["nie"]
       }
     },
     "updater": {

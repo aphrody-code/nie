@@ -36,8 +36,8 @@ Tout est CRC-32 (`nie_formats::cfgbin::crc32`), mais les cibles diffèrent :
 - **`resourceName1` / `resourceName2`** → un **modèle 3D** du VFS.
   `hairF001` → `_hairF/hairF001.g4md` + `.g4mg`. C'est aussi la clé des tables de pose de `20_EDIT`.
 - **`textureName`** → **pas** une texture de modèle, mais l'**icône d'interface** de la vignette
-  dans la grille (`icon_ava_face06_004`), résolue par `hash_name` de `var/niers.sqlite`
-  (source `vfs-ui`, cf. `niers seed-ui`).
+  dans la grille (`icon_ava_face06_004`), résolue par `hash_name` de `var/nie.sqlite`
+  (source `vfs-ui`, cf. `nie seed-ui`).
 - **`presetID`** d'une recette → le hash du nom d'une part de la catégorie « preset »
   (`preset_01_normal`). Le même identifiant est **à la fois** une vignette sélectionnable **et**
   une recette de 62 à 72 lignes.
@@ -65,7 +65,7 @@ Branché sur le dispatch typé (`nie_data::typed`, commit `dedba2a`). Structures
 Le motif `info` (offset + count) → `data` est celui de tout le format : chaque liste `*Info`
 découpe une plage dans la liste `*Data` correspondante. Aucun index n'est deviné.
 
-## 4. Le catalogue, chiffré — `niers avatar catalog`
+## 4. Le catalogue, chiffré — `nie avatar catalog`
 
 ```
 502 parts, 20 catégories, 218 curseurs, 470 couleurs, 38 recettes (2704 lignes)
@@ -118,7 +118,7 @@ confirmé côté binaire** (cf. §9).
 
 ## 5. Ce qui est outillé
 
-### CLI — `niers avatar` (`crates/tools/nie-cli/src/avatar_cmd.rs`, 1 048 l.)
+### CLI — `nie avatar` (`crates/tools/nie-cli/src/avatar_cmd.rs`, 1 048 l.)
 
 | Sous-commande | Effet |
 |---|---|
@@ -129,7 +129,7 @@ confirmé côté binaire** (cf. §9).
 | `icons [-o <dir>] [--atlas-prefix …]` | localise les vignettes dans les atlas, les extrait en PNG |
 | `roi <écran> [-o <json>]` | dérive les régions de mesure d'un écran **depuis son layout**, et déclare non dérivables celles dont la géométrie est un repli |
 
-### CLI — `niers icons` (`icons_cmd.rs`, 180 l.)
+### CLI — `nie icons` (`icons_cmd.rs`, 180 l.)
 
 Index des icônes du jeu, **sans les matérialiser** : plus de 5 000 conteneurs sous
 `menu/200_icon/` (dont 4 195 pour les seuls portraits), soit des dizaines de gigaoctets si on les
@@ -169,7 +169,7 @@ décodait tous — alors que `nie-model-serve` sait déjà décoder n'importe qu
   `chara_edit_menu` : 18 objets. `chara_edit_parts_menu` : 63 objets.
 - **Rectangles de sprite résolus : 950** (2026-08-20), contre 13 auparavant, et **plus aucun
   hachage de région non résolu** (937 occurrences réparées). Deux causes, corrigées séparément :
-  le dictionnaire hachage → nom ignorait les noms qui vivent dans les `.g4tx` (`niers icons dict`),
+  le dictionnaire hachage → nom ignorait les noms qui vivent dans les `.g4tx` (`nie icons dict`),
   et la résolution ne voyait que les sous-textures alors qu'une icône peut être une **texture
   entière** du conteneur (`g4tx::named_rect`). Sans elles, ces sprites étaient blités en atlas
   complet — 2640×1364 à la place d'une icône de 56×56.
@@ -193,7 +193,7 @@ Les 42 écrans totalisent **12 `cmdId` non gérés pour 1 254 appels**, dont `0x
 **Ces adresses sont valides pour le binaire courant** — vérifié le 2026-08-20 en régénérant la table
 par `uv run scripts/extract_funclua_table.py` : **0/12 handlers ont bougé**, la table est identique
 à celle du 2026-08-15. Le doute venait d'un contrôle mal posé contre `pdata_func`, table qui est
-vide pour ce binaire dans `var/niers.sqlite` — l'absence d'index n'est pas une adresse périmée.
+vide pour ce binaire dans `var/nie.sqlite` — l'absence d'index n'est pas une adresse périmée.
 (Le script, lui, localise la table par un cmdId d'ancrage stable, précisément parce que les
 handlers se déplacent d'un build à l'autre.)
 
@@ -335,7 +335,7 @@ pas). La fonction de peuplement est nommée, le champ qui lui manque est nommé,
 qu'aucun fichier lisible ne le fournit.
 
 Le remplir demanderait de fabriquer une valeur que le jeu lit de son moteur. La voie honnête pour
-l'obtenir existe et sort du cadre statique : `niers mem`, qui lit la mémoire d'un `nie.exe` vivant.
+l'obtenir existe et sort du cadre statique : `nie mem`, qui lit la mémoire d'un `nie.exe` vivant.
 Relever ces trois champs sur l'écran de grille donnerait la valeur réelle plutôt qu'une valeur
 plausible.
 
@@ -351,7 +351,7 @@ Les golden « réels » s'exécutent (corpus présent) — ce ne sont pas des sa
 
 ## 8. Travail non commité
 
-`crates/tools/nie-cli/src/main.rs` (+13 l.) : le **câblage de `niers icons`**.
+`crates/tools/nie-cli/src/main.rs` (+13 l.) : le **câblage de `nie icons`**.
 `icons_cmd.rs` a été commité dans `cf19cfb` **sans son `mod icons_cmd;`** — dans l'arbre commité le
 fichier n'est donc pas compilé et la commande n'existe pas. Le diff local le répare (module,
 variante `Cmd::Icons`, dispatch). Il compile et ne produit aucun warning.
@@ -439,7 +439,7 @@ dépôt, et c'est le point de départ réaliste pour un écran de l'éditeur.
 **Aucun écran `chara_edit` n'est dans ce gate.** Les 18 captures de `var/refs-avatar/` ne sont
 adossées à aucun test : elles ont servi de référence visuelle, jamais de référence mesurée.
 
-### La métrique — `niers img diff`
+### La métrique — `nie img diff`
 
 Depuis le 2026-08-20, la comparaison est un outil du dépôt (`nie_formats::imgmetric`, sans
 dépendance externe : `dssim-core` est en AGPL, incompatible). Trois niveaux, dans l'ordre de la
@@ -574,7 +574,7 @@ avertissement de sauvegarde, **écran-titre** (`ver.7.1.2 0.90 301`), invite *Cr
 l'**Avatar Editor** lui-même — onglets *Style*, *Body Type*, *Face & Hairstyle*, panneau
 *Face Presets*, panneau *Hairstyle / Bangs / Hair Color*.
 
-### 13.2 `niers mem lua-field` — du nom de champ à sa valeur
+### 13.2 `nie mem lua-field` — du nom de champ à sa valeur
 
 Nouvelle sous-commande (`crates/tools/nie-cli/src/mem_lua.rs`). La chaîne, en trois pas :
 
@@ -595,7 +595,7 @@ globales, les pools de constantes).
 ### 13.3 Ce que la mémoire dit
 
 ```
-niers mem lua-field listRowNum --numeric -r 6
+nie mem lua-field listRowNum --numeric -r 6
 ```
 
 | Écran (repéré par la table voisine) | `listNum` | `listRowNum` | `listLineNum` | `pageNum` |
@@ -633,7 +633,7 @@ distance se chiffre.
 
 Protocole : capture de la page à la **même résolution** que la référence
 (`scripts/validation/measure-mainmenu.py`, 1920 × 1080, Chromium système), puis
-`niers img diff … --roi` sur cinq régions nommées — un score global masque toujours une zone
+`nie img diff … --roi` sur cinq régions nommées — un score global masque toujours une zone
 parfaite et une zone fausse.
 
 | Région | px | avant | après | ΔE moy. après |
@@ -831,7 +831,7 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
   `m_CharaEditColorDataList` ne porte que des identifiants, le binaire ne contient pas le motif
   d'une entrée connue, et contrairement aux canaux `red`/`green`/`blue`, **aucun** des 165
   identifiants ne s'y résout depuis les chaînes (0 sur 165). Seule la mémoire du jeu les porte, et
-  c'est de là qu'elles viennent désormais : `niers mem palettes` les relève sur le jeu lancé sous
+  c'est de là qu'elles viennent désormais : `nie mem palettes` les relève sur le jeu lancé sous
   Wine. Forme de la table : par entrée, l'identifiant CRC-32 en little-endian sur 4 octets, puis la
   couleur **ARGB** sur 4 octets. La recherche est bornée par les identifiants attendus, et les
   entrées non opaques sont écartées — un balayage libre produit des coïncidences à coup sûr.
@@ -1285,7 +1285,7 @@ d'encre à poser pour l'œil.
 
 ### 16.17 La voie mémoire : praticable, mais elle demande de piloter le jeu
 
-Le processus tourne toujours (`nie_eacpatched.exe`), et `niers mem scan` s'y attache. Mais aucune
+Le processus tourne toujours (`nie_eacpatched.exe`), et `nie mem scan` s'y attache. Mais aucune
 des chaînes attendues n'y figure — ni `face_10`, ni `chara_edit`, ni `hairF001`, ni `u117401`,
 toutes à zéro occurrence. Le jeu n'est pas sur l'écran de l'éditeur : ses ressources ne sont pas
 chargées, et il n'y a donc rien à y lire.
@@ -1332,7 +1332,7 @@ C'est le seul obstacle qui sépare encore du relevé mémoire.
 `--window`, après `windowactivate` + `windowfocus`, les touches passent. C'est ce qui a ouvert
 l'écran de création d'avatar, resté sourd à tous les clics.
 
-**2. `niers mem scan` se limite au module `nie.exe` par défaut.** Les noms de ressources vivent dans
+**2. `nie mem scan` se limite au module `nie.exe` par défaut.** Les noms de ressources vivent dans
 le tas : il faut `--all`. Sans lui, `face_10` donnait zéro occurrence alors que le jeu était sur
 l'écran ; avec lui, huit.
 
@@ -1357,7 +1357,7 @@ noms de matériaux, et recouper avec ce que la maille consomme. C'est ce relevé
 hypothèse sur les familles — qui dira d'où viennent les yeux. Le travail est cadré, outillé, et le
 jeu n'a qu'à rester sur cet écran.
 
-**Rappel de méthode** : la lecture se fait avec `niers mem read <adr> --len N` (l'adresse est
+**Rappel de méthode** : la lecture se fait avec `nie mem read <adr> --len N` (l'adresse est
 positionnelle, pas `--addr`), et le hexdump se découpe en coupant les 49 premiers caractères de
 chaque ligne pour ne garder que l'ASCII.
 
@@ -1475,14 +1475,14 @@ faite de pastilles, non de vignettes, ce qui trompe un sélecteur cherchant des 
 ## Régénérer chaque chiffre de ce document
 
 ```bash
-niers avatar catalog                          # §4 — catalogue, catégories, rubriques, résolution
-niers avatar export -o var/avatar-resolved.json
-niers icons index                             # §5 — var/icons-index.json
+nie avatar catalog                          # §4 — catalogue, catégories, rubriques, résolution
+nie avatar export -o var/avatar-resolved.json
+nie icons index                             # §5 — var/icons-index.json
 cargo test -p nie-data --test chara_edit_golden --test font_color_golden   # §7
 cargo test -p nie-game --test menu_render_gate                             # §11
 ls data/common/gamedata/menu/cfg | grep '^chara_edit' | grep -c '\.cfg\.bin$'   # 42 écrans
 ls var/avatar-ui/layouts | wc -l                                               # 42 layouts
 ls var/refs-avatar | wc -l                                                     # 18 captures
-niers mem lua-field listRowNum --numeric -r 6   # §13 — jeu lancé (scripts/nie-wine-setup.sh)
-niers img diff <page.png> var/refs-avatar/live/chara_edit_style_01.png --roi <roi.json>  # §14
+nie mem lua-field listRowNum --numeric -r 6   # §13 — jeu lancé (scripts/nie-wine-setup.sh)
+nie img diff <page.png> var/refs-avatar/live/chara_edit_style_01.png --roi <roi.json>  # §14
 ```

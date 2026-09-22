@@ -9,7 +9,7 @@
 //!
 //! ## Pourquoi `nie-forge` est lié sans sa feature `redb`
 //!
-//! Son module `redb` lit `var/niers.sqlite` via `rusqlite`, qui porte
+//! Son module `redb` lit `var/nie.sqlite` via `rusqlite`, qui porte
 //! `links = "sqlite3"`. Cargo interdit deux copies d'une bibliothèque `links`,
 //! et l'explorateur en a déjà une (le `sqlx-sqlite` de `tauri-plugin-sql`).
 //! Le reste du crate — recouvrement, registre, source assembleur, rapport —
@@ -95,7 +95,7 @@ fn resolve_root(root: Option<String>) -> Result<std::path::PathBuf, String> {
     let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
     find_repo_root(&cwd).ok_or_else(|| {
         format!(
-            "racine du dépôt introuvable depuis {} — indiquer le chemin du dépôt niers",
+            "racine du dépôt introuvable depuis {} — indiquer le chemin du dépôt nie",
             cwd.display()
         )
     })
@@ -243,7 +243,7 @@ mod tests {
         let dir = std::env::temp_dir().join("nie_forge_absent_test");
         std::fs::create_dir_all(&dir).unwrap();
         // Un `forge/` sans registre ne compte pas : c'est le registre qui
-        // atteste d'un dépôt niers, pas le nom du répertoire.
+        // atteste d'un dépôt nie, pas le nom du répertoire.
         std::fs::create_dir_all(dir.join("forge")).unwrap();
         assert!(resolve_root(Some(dir.display().to_string())).is_err());
         let _ = std::fs::remove_dir_all(&dir);

@@ -65,7 +65,7 @@ export const commands = {
 	 */
 	wikiQuery: (dbPath: string, operation: string, args: unknown) => typedError<unknown, string>(__TAURI_INVOKE("wiki_query", { dbPath, operation, args })),
 	/**
-	 *  Résout `var/niers.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
+	 *  Résout `var/nie.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
 	 *  cf. `src/lib/reDb.ts`). Commande Rust plutôt qu'un `exists()` JS (`@tauri-apps/plugin-fs`) :
 	 *  la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un `std::fs` Rust n'a pas cette
 	 *  restriction — même raison que [`default_wiki_db`] au-dessus.
@@ -95,7 +95,7 @@ export const commands = {
 	 *  `limit`/`offset` sont facultatifs : `None` = tout le dossier (comportement historique).
 	 *  `limit = 0` renvoie la structure et `file_total` SANS aucun fichier — ce que veut un arbre.
 	 *
-	 *  Le calcul lui-même vit dans [`nie_explore::listing::ls_paged`], partagé avec `niers vfs ls` et
+	 *  Le calcul lui-même vit dans [`nie_explore::listing::ls_paged`], partagé avec `nie vfs ls` et
 	 *  le service HTTP `nie-model-serve` : le VFS étant un index plat, cette vue « dossier » est
 	 *  calculée, et elle divergeait auparavant entre les trois façades.
 	 */
@@ -266,7 +266,7 @@ export const commands = {
 	/**
 	 *  Liste toutes les techniques du jeu (`nie_data::skill`, cf. `game_data.rs`) — première
 	 *  donnée de jeu STATIQUE câblée depuis `nie-data` (dépendance déclarée mais jamais utilisée
-	 *  avant), via le pont déjà existant `nie_explore::bridge` (même moteur que `niers vfs cat`).
+	 *  avant), via le pont déjà existant `nie_explore::bridge` (même moteur que `nie vfs cat`).
 	 */
 	gameDataSkills: (gameDir: string | null) => typedError<SkillDto[], string>(__TAURI_INVOKE("game_data_skills", { gameDir })),
 	/**  Objets (armes/consommables/costumes/…, `nie_data::item`) — même patron que [`game_data_skills`]. */
@@ -359,9 +359,9 @@ export const commands = {
 	 *  configuration du jeu (personnages, objets, techniques, auras, boutiques, quêtes, trophées,
 	 *  tactiques, capsules, costumes… plusieurs centaines de fichiers dans `data/common/gamedata/`
 	 *  et `data/common/text/`), pas seulement les quelques modules `nie-data` câblés individuellement
-	 *  avec un DTO typé (`game_data.rs`) — cf. demande utilisatrice « niers doit couvrir tout
+	 *  avec un DTO typé (`game_data.rs`) — cf. demande utilisatrice « nie doit couvrir tout
 	 *  nie.exe ». Générique : aucun parseur par format à écrire, juste le pont déjà
-	 *  vérifié [`nie_explore::bridge`] (même moteur que `niers vfs cat`).
+	 *  vérifié [`nie_explore::bridge`] (même moteur que `nie vfs cat`).
 	 */
 	vfsDecodeCfgbin: (path: string, gameDir: string | null) => typedError<unknown, string>(__TAURI_INVOKE("vfs_decode_cfgbin", { path, gameDir })),
 	/**
@@ -553,11 +553,11 @@ export const commands = {
 	/**
 	 *  Extrait `path` (+ ses fichiers frères de même basename dans le même dossier VFS : g4mg/g4sk/
 	 *  g4tx/g4mt) vers un dossier temporaire, lance Blender avec un script d'amorçage qui active
-	 *  l'addon `plugins/niers-blender` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
-	 *  utilisateur Blender — cloné à la volée via [`ensure_niers_blender_addon`] si absent) puis
+	 *  l'addon `plugins/nie-blender` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
+	 *  utilisateur Blender — cloné à la volée via [`ensure_nie_blender_addon`] si absent) puis
 	 *  importe RÉELLEMENT le modèle via l'opérateur `import_scene.level5_g4` (« File > Import >
 	 *  Level-5 G4 Model »). Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau
-	 *  de recherche niers→Blender (`niers_bridge.py`) l'utilise pour retrouver `niers.exe` et le VFS
+	 *  de recherche nie→Blender (`nie_bridge.py`) l'utilise pour retrouver `nie.exe` et le VFS
 	 *  sans deviner.
 	 *
 	 *  **Bug corrigé (2026-08-08, « Blender ouvre un fichier vide »)** : le script d'amorçage
@@ -565,7 +565,7 @@ export const commands = {
 	 *  l'opérateur « choisir le template original » du **wizard d'export/portage** (`g4_port_addon.
 	 *  py`, panneau « 1. Original model template » : il peuple les *réglages* internes de l'addon
 	 *  pour un futur export, ne crée AUCUN objet maillage). Confirmé par lecture du code source de
-	 *  l'addon (`plugins/niers-blender/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
+	 *  l'addon (`plugins/nie-blender/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
 	 *  `apply_original_model_to_settings`, pas un import). Le VRAI importeur (« File > Import >
 	 *  Level-5 G4 Model », README de l'addon) est `import_scene.level5_g4` — **validé par un test
 	 *  réel `blender --background --python`** sur le vrai `c01000010.g4md` : 3 objets créés
@@ -575,21 +575,21 @@ export const commands = {
 	 */
 	openInBlender: (path: string, blenderExe: string | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("open_in_blender", { path, blenderExe, gameDir })),
 	/**
-	 *  Installe/met à jour l'extension Blender **niers** dans le vrai dossier d'addons de
+	 *  Installe/met à jour l'extension Blender **nie** dans le vrai dossier d'addons de
 	 *  l'utilisatrice (`bpy.ops.preferences.addon_install` + `addon_enable`, PAS le bootstrap
 	 *  `sys.path` transitoire de [`open_in_blender`]) et configure sa préférence `raw_data_root` sur
 	 *  le vrai `<jeu>/data` (résolu par `inferred_raw_data_root`/`candidate_data_roots` de l'addon
-	 *  pour la recherche de squelette partagé/pièces de personnage — cf. `plugins/niers-blender/g4_animation_
+	 *  pour la recherche de squelette partagé/pièces de personnage — cf. `plugins/nie-blender/g4_animation_
 	 *  addon.py`) — persisté via `bpy.ops.wm.save_userpref()`, donc actif au prochain lancement de
 	 *  Blender INDÉPENDAMMENT de nie-explorer. Bloquant (`--background`, `.output()` synchrone) : pas
 	 *  de fenêtre à garder ouverte contrairement à [`open_in_blender`], donc pas de fuite de process.
 	 */
-	installNiersBlenderAddon: (blenderExe: string | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("install_niers_blender_addon", { blenderExe, gameDir })),
+	installNieBlenderAddon: (blenderExe: string | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("install_nie_blender_addon", { blenderExe, gameDir })),
 	/**
-	 *  Ouvre N'IMPORTE QUEL `.blend` local (pas forcément un asset VFS niers — le fichier que
+	 *  Ouvre N'IMPORTE QUEL `.blend` local (pas forcément un asset VFS nie — le fichier que
 	 *  l'utilisatrice pointe, ex. une scène déjà construite) en headless, cadre une caméra sur son
 	 *  contenu et rend un aperçu PNG base64 — c'est le côté « importer ce type de fichier dans
-	 *  niers » du pont : nie-explorer peut prévisualiser un `.blend` sans lancer l'UI Blender.
+	 *  nie » du pont : nie-explorer peut prévisualiser un `.blend` sans lancer l'UI Blender.
 	 */
 	blenderPreviewPngB64: (path: string, blenderExe: string | null) => typedError<string, string>(__TAURI_INVOKE("blender_preview_png_b64", { path, blenderExe })),
 	/**
@@ -606,7 +606,7 @@ export const commands = {
 	 *  (`warnings`) plutôt que de construire une scène vide en silence ou d'échouer sans explication.
 	 */
 	blenderBuildSkillScene: (internalCode: string, skillQuery: string, blenderExe: string | null, gameDir: string | null) => typedError<BlenderSceneResultDto, string>(__TAURI_INVOKE("blender_build_skill_scene", { internalCode, skillQuery, blenderExe, gameDir })),
-	/**  Charge le catalogue réellement exporté par `niers avatar export` depuis le service de modèles. */
+	/**  Charge le catalogue réellement exporté par `nie avatar export` depuis le service de modèles. */
 	modelServiceAvatarCatalog: (baseUrl: string) => typedError<unknown, string>(__TAURI_INVOKE("model_service_avatar_catalog", { baseUrl })),
 	/**  Resolve editor selections through the same pure library as the WebAssembly and HTTP hosts. */
 	resolveAvatarComposition: (catalogJson: string, stateJson: string) => typedError<unknown, string>(__TAURI_INVOKE("resolve_avatar_composition", { catalogJson, stateJson })),
@@ -894,7 +894,7 @@ export const commands = {
 	reDumpScan: (cheminDmp: string, motif: string, limite: number) => typedError<ReDumpScanDto, string>(__TAURI_INVOKE("re_dump_scan", { cheminDmp, motif, limite })),
 	/**  Décrit l'état d'installation sans rien modifier. */
 	mcpStatus: (target: McpTarget) => typedError<McpStatusDto, string>(__TAURI_INVOKE("mcp_status", { target })),
-	/**  Déclare `niers-game` dans la configuration du client visé, en préservant le reste. */
+	/**  Déclare `nie-game` dans la configuration du client visé, en préservant le reste. */
 	mcpInstall: (target: McpTarget, gameDir: string | null) => typedError<McpInstallDto, string>(__TAURI_INVOKE("mcp_install", { target, gameDir })),
 	/**
 	 *  Démarre un *dump* en tâche de fond et rend immédiatement son identifiant.
@@ -1747,7 +1747,7 @@ export type LuaSessionGlobalDto = {
 export type McpInstallDto = {
 	/**  Fichier écrit. */
 	config_path: string,
-	/**  Vrai si une entrée `niers-game` préexistante a été remplacée. */
+	/**  Vrai si une entrée `nie-game` préexistante a été remplacée. */
 	replaced: boolean,
 	/**  Chemin de la sauvegarde `.bak`, si le fichier existait. */
 	backup_path: string | null,
@@ -1759,7 +1759,7 @@ export type McpStatusDto = {
 	config_path: string,
 	/**  Vrai si ce fichier existe déjà. */
 	config_exists: boolean,
-	/**  Vrai si `niers-game` y est déjà déclaré. */
+	/**  Vrai si `nie-game` y est déjà déclaré. */
 	installed: boolean,
 	/**  Commande actuellement déclarée, si elle l'est. */
 	current_command: string | null,
@@ -2064,7 +2064,7 @@ export type ReDumpHitDto = {
 	rva: string | null,
 	/**
 	 *  Adresse **statique** correspondante (`0x140000000 + rva`) si le coup est dans `nie.exe` —
-	 *  c'est celle qui se cherche dans `var/niers.sqlite` et dans le désassemblage.
+	 *  c'est celle qui se cherche dans `var/nie.sqlite` et dans le désassemblage.
 	 */
 	statique: string | null,
 };

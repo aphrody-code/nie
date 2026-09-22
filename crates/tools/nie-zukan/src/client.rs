@@ -17,7 +17,7 @@ pub const BASE_URL: &str = "https://zukan.inazuma.jp";
 
 /// User-Agent poli identifiant notre outil.
 pub const USER_AGENT: &str =
-    "Mozilla/5.0 (niers-zukan-ingestor/0.1; +https://rosegriffon.fr; respectful-scraper)";
+    "Mozilla/5.0 (nie-zukan-ingestor/0.1; +https://rosegriffon.fr; respectful-scraper)";
 
 /// Délai minimum entre deux requêtes (politesse serveur Level-5).
 pub const RATE_LIMIT_MS: u64 = 350;
@@ -33,7 +33,7 @@ pub struct ZukanClient {
 
 impl ZukanClient {
     /// Crée un nouveau client. `cache_root` est le répertoire racine du cache
-    /// (ex. `/home/ubuntu/niers/var/zukan`).
+    /// (ex. `/home/ubuntu/nie/var/zukan`).
     pub fn new(cache_root: PathBuf) -> Result<Self> {
         let inner = reqwest::blocking::Client::builder()
             .user_agent(USER_AGENT)

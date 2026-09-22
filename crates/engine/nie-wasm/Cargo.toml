@@ -1,6 +1,6 @@
 [package]
 name = "nie-wasm"
-description = "Bindings WebAssembly pour le savoir niers vérifié : nie-formats (detect/CRILAYLA/@UTF/G4*), nie-core (stats growth + FSM de match) et nie-data (lookup skill/aura/item) exposés au navigateur via wasm-bindgen"
+description = "Bindings WebAssembly pour le savoir nie vérifié : nie-formats (detect/CRILAYLA/@UTF/G4*), nie-core (stats growth + FSM de match) et nie-data (lookup skill/aura/item) exposés au navigateur via wasm-bindgen"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true

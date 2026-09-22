@@ -12,7 +12,7 @@ use bevy_app::{App, TaskPoolPlugin};
 use bevy_asset::{Asset, AssetMetaCheck, AssetPlugin, AssetServer, Assets, Handle, LoadState};
 use bevy_image::Image;
 use bevy_mesh::Mesh;
-use nie_bevy::{NiersAssetPlugin, NiersModel, VFS_SOURCE, register_vfs_source};
+use nie_bevy::{NieAssetPlugin, NieModel, VFS_SOURCE, register_vfs_source};
 use nie_formats::vfs::{Vfs, resolve_game_dir};
 
 fn headless_app() -> Option<App> {
@@ -30,7 +30,7 @@ fn headless_app() -> Option<App> {
             meta_check: AssetMetaCheck::Never,
             ..Default::default()
         },
-        NiersAssetPlugin,
+        NieAssetPlugin,
     ));
     Some(app)
 }
@@ -60,10 +60,10 @@ fn un_modele_du_jeu_charge_depuis_le_vfs_en_meshes_bevy() {
         return;
     };
     let path = format!("{VFS_SOURCE}://data/common/chr/_face/11_VICTORY/c11010010/c11010010.g4md");
-    let handle: Handle<NiersModel> = app.world().resource::<AssetServer>().load(path);
+    let handle: Handle<NieModel> = app.world().resource::<AssetServer>().load(path);
     drive(&mut app, &handle).expect("c11010010 loads");
 
-    let models = app.world().resource::<Assets<NiersModel>>();
+    let models = app.world().resource::<Assets<NieModel>>();
     let meshes = app.world().resource::<Assets<Mesh>>();
     let model = models.get(&handle).expect("model present");
     assert!(model.submesh_count > 0);

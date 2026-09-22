@@ -30,9 +30,9 @@
   },
   "par_source": [
     {
-      "source": "niers",
-      "libelle": "niers — sous-commandes",
-      "commande": "niers --help",
+      "source": "nie",
+      "libelle": "nie — sous-commandes",
+      "commande": "nie --help",
       "unite": "capacités",
       "total": {
         "capacites": 43,
@@ -345,8 +345,8 @@
   ],
   "filets": [
     {
-      "id": "niers-reverse",
-      "source": "niers",
+      "id": "nie-reverse",
+      "source": "nie",
       "etat": "interne",
       "capacites": 12,
       "poids": 12,
@@ -414,7 +414,7 @@
       "etat": "interne",
       "capacites": 39,
       "poids": 39,
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "id": "vfs-effets",
@@ -428,346 +428,346 @@
   "incoherences": [],
   "capacites": [
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "computer-use",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "cpp",
       "poids": 1,
-      "regle": "niers-cpp",
+      "regle": "nie-cpp",
       "etat": "interne",
       "raison": "façade vers le toolkit C++ : API d'administration, non affichée"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "cs",
       "poids": 1,
-      "regle": "niers-cs",
+      "regle": "nie-cs",
       "etat": "interne",
       "raison": "façade vers l'outillage .NET : API d'administration, non affichée"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "backends",
       "poids": 1,
-      "regle": "niers-backends",
+      "regle": "nie-backends",
       "etat": "interne",
       "raison": "dit ce qui est construit sur CETTE machine : sans objet en ligne"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "mod",
       "poids": 1,
-      "regle": "niers-mod",
+      "regle": "nie-mod",
       "etat": "interne",
       "raison": "écrit dans l'installation du jeu : machine locale"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "viola",
       "poids": 1,
-      "regle": "niers-viola",
+      "regle": "nie-viola",
       "etat": "interne",
       "raison": "modding LEVEL-5 : écriture, façade d'administration"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "format",
       "poids": 1,
-      "regle": "niers-format",
+      "regle": "nie-format",
       "etat": "servi",
       "route": "/api/v1/formats/decode/{*chemin}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "decode",
       "poids": 1,
-      "regle": "niers-decode",
+      "regle": "nie-decode",
       "etat": "servi",
       "route": "/api/v1/formats/decode/{*chemin}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "refresh-typed-json",
       "poids": 1,
-      "regle": "niers-refresh",
+      "regle": "nie-refresh",
       "etat": "interne",
       "raison": "régénère des fichiers à côté du dump : écriture disque"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "steam",
       "poids": 1,
-      "regle": "niers-steam",
+      "regle": "nie-steam",
       "etat": "interne",
       "raison": "identifiants Steam : secrets, jamais côté site"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "info",
       "poids": 1,
-      "regle": "niers-info",
+      "regle": "nie-info",
       "etat": "servi",
       "route": "/api/v1/health"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "convert",
       "poids": 1,
-      "regle": "niers-convert",
+      "regle": "nie-convert",
       "etat": "servi",
       "route": "/assets/{*chemin}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "render",
       "poids": 1,
-      "regle": "niers-render",
+      "regle": "nie-render",
       "etat": "servi",
       "route": "/model/{famille}/{fichier}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "lua",
       "poids": 1,
-      "regle": "niers-lua",
+      "regle": "nie-lua",
       "etat": "servi",
       "route": "/api/v1/lua/scripts/{*chemin}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "lua-run",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "lua-audit",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "seed",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "seed-ui",
       "poids": 1,
-      "regle": "niers-seed-ui",
+      "regle": "nie-seed-ui",
       "etat": "interne",
       "raison": "ingère dans la base de connaissance : écriture"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "strings",
       "poids": 1,
-      "regle": "niers-strings",
+      "regle": "nie-strings",
       "etat": "interne",
       "raison": "reverse du binaire : coûteux, privilégié, sans public"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "find",
       "poids": 1,
-      "regle": "niers-recherche",
+      "regle": "nie-recherche",
       "etat": "interne",
       "raison": "cherche sur le DISQUE de la machine (moteur `ignore`) ; la recherche dans le VFS du jeu, elle, est servie par /api/v1/recherche"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "grep",
       "poids": 1,
-      "regle": "niers-grep",
+      "regle": "nie-grep",
       "etat": "interne",
       "raison": "cherche dans le CONTENU des fichiers du disque : un service web ne lit pas l'arbre de la machine"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "img",
       "poids": 1,
-      "regle": "niers-img",
+      "regle": "nie-img",
       "etat": "interne",
       "raison": "édition d'image : elle écrit un fichier, un site en lecture seule n'écrit pas"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "mode",
       "poids": 1,
-      "regle": "niers-mode",
+      "regle": "nie-mode",
       "etat": "servi",
       "route": "/api/v1/modes/{slug}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "icons",
       "poids": 1,
-      "regle": "niers-icons",
+      "regle": "nie-icons",
       "etat": "servi",
       "route": "/api/v1/icons"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "avatar",
       "poids": 1,
-      "regle": "niers-avatar",
+      "regle": "nie-avatar",
       "etat": "servi",
       "route": "/api/v1/donnees/famille/{cle}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "coverage",
       "poids": 1,
-      "regle": "niers-coverage",
+      "regle": "nie-coverage",
       "etat": "interne",
       "raison": "couverture du RE : mesure interne du dépôt, pas une capacité du jeu"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "queue",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "propagate",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "rtti",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "index",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "disasm",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "pdata",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "rebuild",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "recover",
       "poids": 1,
-      "regle": "niers-reverse",
+      "regle": "nie-reverse",
       "etat": "interne",
       "raison": "boucle de reverse-engineering : coûteuse, privilégiée, sans public (§ 5, lot 1)"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "save",
       "poids": 1,
-      "regle": "niers-save",
+      "regle": "nie-save",
       "etat": "interne",
       "raison": "sauvegardes de joueur : données personnelles, hors périmètre contractuel"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "wiki",
       "poids": 1,
-      "regle": "niers-wiki",
+      "regle": "nie-wiki",
       "etat": "servi",
       "route": "/api/v1/chara"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "uniform-map",
       "poids": 1,
-      "regle": "niers-uniform-map",
+      "regle": "nie-uniform-map",
       "etat": "interne",
       "raison": "construction d'un manifeste d'index : outil de build, consommé par l'amont"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "textures",
       "poids": 1,
-      "regle": "niers-textures",
+      "regle": "nie-textures",
       "etat": "servi",
       "route": "/api/v1/{vue}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "menu-predecode",
       "poids": 1,
-      "regle": "niers-menu-predecode",
+      "regle": "nie-menu-predecode",
       "etat": "interne",
       "raison": "pré-décode dans le dump disque : écriture disque"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "mem",
       "poids": 1,
-      "regle": "niers-mem",
+      "regle": "nie-mem",
       "etat": "interne",
       "raison": "lit la mémoire d'un process du jeu : privilège, machine locale"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "vfs",
       "poids": 1,
-      "regle": "niers-vfs",
+      "regle": "nie-vfs",
       "etat": "servi",
       "route": "/b/{*prefixe}"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "vn",
       "poids": 1,
-      "regle": "niers-vn",
+      "regle": "nie-vn",
       "etat": "interne",
       "raison": "produit un catalogue local jamais versionné"
     },
     {
-      "source": "niers",
+      "source": "nie",
       "nom": "video",
       "poids": 1,
-      "regle": "niers-video",
+      "regle": "nie-video",
       "etat": "servi",
       "route": "/api/v1/{vue}"
     },
@@ -1485,7 +1485,7 @@
     },
     {
       "source": "inacord",
-      "nom": "install_niers_blender_addon",
+      "nom": "install_nie_blender_addon",
       "poids": 1,
       "regle": "inacord-blender-addon",
       "etat": "interne",
@@ -2621,7 +2621,7 @@
     },
     {
       "source": "azalee",
-      "nom": "/tools/niers",
+      "nom": "/tools/nie",
       "poids": 1,
       "regle": "azalee-outils-updater",
       "etat": "interne",
@@ -2829,7 +2829,7 @@
     },
     {
       "source": "azalee-api",
-      "nom": "/tools/niers/latest.json",
+      "nom": "/tools/nie/latest.json",
       "poids": 1,
       "regle": "azalee-api-updater",
       "etat": "interne",
@@ -4401,7 +4401,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4409,7 +4409,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4417,7 +4417,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4425,7 +4425,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4433,7 +4433,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4441,7 +4441,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4449,7 +4449,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4457,7 +4457,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4465,7 +4465,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4473,7 +4473,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4481,7 +4481,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4489,7 +4489,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4497,7 +4497,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4505,7 +4505,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4513,7 +4513,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4521,7 +4521,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4529,7 +4529,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4537,7 +4537,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4545,7 +4545,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4553,7 +4553,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4561,7 +4561,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4569,7 +4569,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4577,7 +4577,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4585,7 +4585,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4593,7 +4593,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4601,7 +4601,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4609,7 +4609,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4617,7 +4617,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4625,7 +4625,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4633,7 +4633,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4641,7 +4641,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4649,7 +4649,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4657,7 +4657,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4665,7 +4665,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4673,7 +4673,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4681,7 +4681,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4689,7 +4689,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4697,7 +4697,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "iecode",
@@ -4705,7 +4705,7 @@
       "poids": 1,
       "regle": "iecode-admin",
       "etat": "interne",
-      "raison": "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+      "raison": "toolkit C++ atteint par `nie cpp` : API d'administration, non affichée (§ 5, lot 7)"
     },
     {
       "source": "vfs",

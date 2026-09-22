@@ -121,7 +121,7 @@ pub struct KbDigest {
     pub coverage: Option<KbCoverage>,
 }
 
-/// Last row of the knowledge base's `coverage` table — the measurement `niers rebuild`
+/// Last row of the knowledge base's `coverage` table — the measurement `nie rebuild`
 /// writes, copied verbatim rather than recomputed.
 #[derive(Debug, Default, Clone, Copy, serde::Serialize)]
 pub struct KbCoverage {
@@ -1275,10 +1275,10 @@ impl Atlas {
                 5.0,
                 // `just re-rebuild` et non les CLI brutes : docs/RE.md le dit, `disasm`
                 // avant `rtti` rend un résultat incomplet SANS erreur.
-                "just re-rebuild, puis niers seed-ui",
+                "just re-rebuild, puis nie seed-ui",
             ),
             ("proofs.ok", "proofs.uemu", 7.0, "just preuves"),
-            ("pdata.text", "re.pdata-text", 4.0, "niers recover"),
+            ("pdata.text", "re.pdata-text", 4.0, "nie recover"),
             (
                 // Mesuré par `cargo test -p nie-mcp --test re_real` : la part des fonctions
                 // nommées de la KB qui commencent vraiment sur une racine `.pdata` du binaire
@@ -1323,7 +1323,7 @@ impl Atlas {
                 100.0,
                 "pct",
                 2.0,
-                Some("niers atlas docs --orphans"),
+                Some("nie atlas docs --orphans"),
                 Some(&format!("atlas_doc {anchored}/{docs}")),
             )?;
             created += 1;
@@ -1343,7 +1343,7 @@ impl Atlas {
                 100.0,
                 "pct",
                 3.0,
-                Some("niers atlas link"),
+                Some("nie atlas link"),
                 Some(&format!("atlas_symbol {ported}/{symbols}")),
             )?;
             created += 1;
@@ -1364,7 +1364,7 @@ impl Atlas {
                 100.0,
                 "pct",
                 5.0,
-                Some("niers atlas menu"),
+                Some("nie atlas menu"),
                 Some(&format!("atlas_menu_screen {paired}/{menu_screens}")),
             )?;
             created += 1;
@@ -2223,7 +2223,7 @@ fn extract_refs(line: &str, line_no: usize, out: &mut Vec<(usize, &'static str, 
             out.push((line_no, "table", trimmed.to_string()));
         }
     }
-    for keyword in ["niers ", "just ", "cargo "] {
+    for keyword in ["nie ", "just ", "cargo "] {
         let mut from = 0usize;
         while let Some(pos) = line[from..].find(keyword) {
             let abs = from + pos + keyword.len();
@@ -2314,7 +2314,7 @@ mod tests {
 
     #[test]
     fn markdown_yields_sections_and_machine_references() {
-        let raw = "# Titre\n\nLa fonction FUN_140452820 vit en 0x140452820 dans `crates/forge/nie-re/src/lib.rs`.\n\n## Mesure\n\n`niers coverage` lit la table function.\n";
+        let raw = "# Titre\n\nLa fonction FUN_140452820 vit en 0x140452820 dans `crates/forge/nie-re/src/lib.rs`.\n\n## Mesure\n\n`nie coverage` lit la table function.\n";
         let doc = parse_markdown(raw);
         assert_eq!(doc.title.as_deref(), Some("Titre"));
         assert_eq!(doc.sections.len(), 2);
@@ -2336,7 +2336,7 @@ mod tests {
         assert!(
             doc.refs
                 .iter()
-                .any(|(_, k, v)| *k == "cmd" && v == "niers coverage")
+                .any(|(_, k, v)| *k == "cmd" && v == "nie coverage")
         );
         assert!(
             doc.refs
@@ -2383,7 +2383,7 @@ mod tests {
                 "re.classified",
                 100_664.0,
                 Some(108_650.0),
-                "niers coverage",
+                "nie coverage",
                 None,
                 None,
             )

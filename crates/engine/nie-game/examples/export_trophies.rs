@@ -108,7 +108,7 @@ fn main() {
     }
 
     let doc = json!({
-        "schema": "niers/trophies-resolved/v1",
+        "schema": "nie/trophies-resolved/v1",
         "locale": "fr",
         "count": list.len(),
         "trophies": list,

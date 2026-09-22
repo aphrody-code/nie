@@ -35,7 +35,7 @@ use nie_data::skill::{CutinAssets, SkillInfo, parse_skill_config};
 ///
 /// Vérifié : `inagle_characters` (8 lignes) + index CPK (`_face/<sous-dir>/<code>/<code>.g4*`).
 ///
-/// `face_subdir` en MAJUSCULES : casse réelle du VFS (`niers vfs find "_face/"`), pas une
+/// `face_subdir` en MAJUSCULES : casse réelle du VFS (`nie vfs find "_face/"`), pas une
 /// convention libre — un `face_subdir` en minuscules construit une URL byte-différente que le
 /// CDN/CPK, insensible à la casse pour le proxy de redimensionnement mais PAS pour le
 /// passthrough direct (404 vécu sur `/demo`, 2026-08-15).

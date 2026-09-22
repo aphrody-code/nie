@@ -24,7 +24,7 @@
 //!
 //! ## Body type
 //!
-//! Résolu depuis `var/body-type-manifest.ndjson` (généré par `niers body-map`).
+//! Résolu depuis `var/body-type-manifest.ndjson` (généré par `nie body-map`).
 //! Fallback : `type_idx=0` (base_normal_00) si le code est absent.
 //!
 //! ## Cache
@@ -193,7 +193,7 @@ struct Cli {
     audit_filter: Option<String>,
 
     /// Expose le **code du dépôt** en lecture seule sous `/depot/…` (lister, lire, trouver,
-    /// chercher), sur le même moteur que `niers find`/`grep`, le serveur MCP et l'app desktop.
+    /// chercher), sur le même moteur que `nie find`/`grep`, le serveur MCP et l'app desktop.
     ///
     /// **Éteint par défaut, et il doit le rester sans décision explicite** : cette instance est
     /// joignable publiquement (`cdn.rosegriffon.fr`). Le moteur refuse déjà la traversée, les
@@ -202,7 +202,7 @@ struct Cli {
     #[arg(long)]
     depot_code: bool,
 
-    /// Racine du dépôt niers servie par `--depot-code`. Défaut : le répertoire courant, ou le
+    /// Racine du dépôt nie servie par `--depot-code`. Défaut : le répertoire courant, ou le
     /// premier ancêtre portant `Cargo.toml` et `crates/`.
     #[arg(long)]
     depot_racine: Option<PathBuf>,
@@ -2963,7 +2963,7 @@ fn video_unavailable_response() -> Vec<u8> {
 // ── Catalogue des cinématiques (page /videos d'azalée, page Cinéma de l'explorateur) ──────────
 //
 // La fiche d'un film n'est plus construite ici : elle vit dans `nie_explore::cinema`, avec la
-// CLI `niers video` et l'explorateur. Ce serveur n'en est plus qu'une façade HTTP. Le catalogue
+// CLI `nie video` et l'explorateur. Ce serveur n'en est plus qu'une façade HTTP. Le catalogue
 // que publiait cette section ignorait la bande-son externe — que la CLI joignait déjà — et
 // annonçait `octets: 0` sur les pistes, parce que trois fiches concurrentes décrivaient les
 // mêmes octets.
@@ -2992,7 +2992,7 @@ fn fiche_video(state: &State, chemin: &str) -> serde_json::Value {
 /// `--uniform-map` :
 ///
 /// ```text
-/// niers video catalogue --out <cache-dir>/video-catalog.json
+/// nie video catalogue --out <cache-dir>/video-catalog.json
 /// ```
 ///
 /// L'empreinte du corpus (nombre de films et volume) est revérifiée à chaque requête : un
@@ -3001,7 +3001,7 @@ fn catalogue_video(state: &State) -> Result<String, String> {
     let cache = state.cache_dir.join(FICHIER_CATALOGUE);
     let texte = fs::read_to_string(&cache).map_err(|_| {
         format!(
-            "catalogue absent — le produire avec `niers video catalogue --out {}`",
+            "catalogue absent — le produire avec `nie video catalogue --out {}`",
             cache.display()
         )
     })?;
@@ -3018,10 +3018,10 @@ fn catalogue_video(state: &State) -> Result<String, String> {
     match lue {
         Some(e) if e == attendue => Ok(texte),
         Some(e) => Err(format!(
-            "catalogue périmé (empreinte {e} ≠ {attendue}) — le régénérer avec `niers video catalogue`"
+            "catalogue périmé (empreinte {e} ≠ {attendue}) — le régénérer avec `nie video catalogue`"
         )),
         None => {
-            Err("catalogue sans empreinte — régénérer avec `niers video catalogue`".to_string())
+            Err("catalogue sans empreinte — régénérer avec `nie video catalogue`".to_string())
         }
     }
 }
@@ -3527,7 +3527,7 @@ fn get_or_build_avatar_glb(
                         // Pour tout ce qui se pose PAR-DESSUS, la convention ne se décide pas sur le
                         // nom de la famille : elle se **mesure**, planche par planche. Le test
                         // `rel.starts_with("01_eye")` qui régnait ici privait le sourcil de son tracé —
-                        // relevé sur les 431 planches de `_facetex` (`niers avatar planches`), 78 des
+                        // relevé sur les 431 planches de `_facetex` (`nie avatar planches`), 78 des
                         // 80 planches de `04_eyebrow` suivent la convention de l'œil, et AUCUNE des
                         // six familles n'a de convention unique. Cf. `nie_formats::planche`.
                         let convention = nie_formats::planche::mesurer(w, h, &rgba).map_or(
@@ -4377,7 +4377,7 @@ fn parse_range(header: &str, total: usize) -> Option<(usize, usize)> {
     }
     let last = total - 1;
     let (start, end) = if a.is_empty() {
-        // suffixe `-N` : les N derniers octets.
+        // suffixe `-N` : les N dernie octets.
         let n: usize = b.trim().parse().ok()?;
         (total.saturating_sub(n), last)
     } else {
@@ -4709,7 +4709,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
     // `/depot/…` — le CODE du dépôt, en lecture seule, sur `nie_explore::depot`.
     //
-    // Quatrième façade du même moteur, après `niers find`/`grep`, le serveur MCP et l'app
+    // Quatrième façade du même moteur, après `nie find`/`grep`, le serveur MCP et l'app
     // desktop : mêmes règles de confinement, mêmes exclusions, mêmes plafonds. Rien n'est
     // réimplémenté ici, et il n'y a donc aucune politique d'accès à tenir à jour en double.
     //
@@ -4950,7 +4950,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 // `css=1` : plutôt que le catalogue JSON, rend directement la feuille CSS de la
                 // PREMIÈRE texture (celle qu'adresse `/tex/<rel>.png` en forme 1:1) — mêmes
                 // rectangles, recopiés du conteneur comme `nie_formats::sprite_sheet`
-                // (`niers convert --to css`), mais sans ré-encoder l'atlas : le CSS pointe sur
+                // (`nie convert --to css`), mais sans ré-encoder l'atlas : le CSS pointe sur
                 // la route `/tex/<rel>.png` déjà servie, pas d'image dupliquée à générer/cacher.
                 if param(query, "css").as_deref() == Some("1") {
                     let Some(feuille) = nie_formats::sprite_sheet::depuis_g4tx(&g4tx, 0) else {
@@ -4979,7 +4979,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     .map(|t| {
                         // Rectangles des régions (recopiés du conteneur, jamais recalculés) :
                         // ce qui manquait pour construire un sprite-sheet CSS/SVG côté client
-                        // sans repasser par un export CLI hors-ligne (`niers convert --to css`).
+                        // sans repasser par un export CLI hors-ligne (`nie convert --to css`).
                         // Rôle sémantique : `data/asset-cross-reference.json` (build-asset-
                         // cross-reference.ts) associe un nom de texture aux entrées cfgbin/Lua
                         // qui la référencent (`entries/items.json` champ `imageUrl`, id
@@ -5193,7 +5193,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
     // `/icons/index.json` — l'index des icônes du jeu (nom → atlas + rectangle + URL).
     //
-    // Produit par `niers icons index`. Les icônes elles-mêmes ne sont PAS matérialisées : les
+    // Produit par `nie icons index`. Les icônes elles-mêmes ne sont PAS matérialisées : les
     // atlas pèsent des centaines de mégaoctets, et chaque entrée porte l'URL `/tex/…` qui les
     // décode à la demande.
     if path == "/icons/index.json" || path == "/icons/index" {
@@ -5211,7 +5211,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 &mut stream,
                 404,
                 "Not Found",
-                &format!("index absent ({chemin} : {e}) — le produire par `niers icons index`"),
+                &format!("index absent ({chemin} : {e}) — le produire par `nie icons index`"),
             ),
         }
         return;
@@ -5255,7 +5255,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
     // `/avatar/catalog.json` — le catalogue résolu de l'éditeur d'avatar.
     //
-    // Le fichier est **produit par `niers avatar export`**, pas recalculé ici : la résolution
+    // Le fichier est **produit par `nie avatar export`**, pas recalculé ici : la résolution
     // croise le VFS, la base de connaissance (noms d'icônes) et `menu_text`, et ce travail vit
     // déjà dans `nie-cli`. Le servir tel quel évite d'en tenir deux versions.
     if path == "/avatar/catalog.json" || path == "/avatar/catalog" {
@@ -5274,7 +5274,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 404,
                 "Not Found",
                 &format!(
-                    "catalogue absent ({chemin} : {e}) — le produire par `niers avatar export -o {chemin}`"
+                    "catalogue absent ({chemin} : {e}) — le produire par `nie avatar export -o {chemin}`"
                 ),
             ),
         }
@@ -6202,7 +6202,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
 // ── Résolution du miroir SQLite ───────────────────────────────────────────────
 
-/// Remonte jusqu'à un ancêtre qui ressemble à la racine du dépôt niers.
+/// Remonte jusqu'à un ancêtre qui ressemble à la racine du dépôt nie.
 ///
 /// Même marqueur que la commande Tauri équivalente (`Cargo.toml` **et** `crates/`) : aucun
 /// chemin de machine en dur, c'est la doctrine de `resolve_game_dir` appliquée au dépôt.
@@ -6216,7 +6216,7 @@ fn resolve_depot_racine() -> Result<PathBuf> {
         cur = dir.parent();
     }
     anyhow::bail!(
-        "racine du dépôt niers introuvable depuis {} — passer --depot-racine",
+        "racine du dépôt nie introuvable depuis {} — passer --depot-racine",
         cwd.display()
     )
 }
@@ -6243,7 +6243,7 @@ fn resolve_db(racine: &Path, db_override: Option<&Path>) -> Option<PathBuf> {
         }
     }
 
-    // Répertoire de backups niers.
+    // Répertoire de backups nie.
     let backups = racine.join("data/backups");
     if backups.is_dir() {
         let mut candidates: Vec<PathBuf> = fs::read_dir(&backups)

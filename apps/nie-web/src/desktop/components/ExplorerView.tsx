@@ -1,14 +1,14 @@
-import { nameWithId } from "@niers/inacord-ui/lib/resolved-names";
+import { nameWithId } from "@nie/inacord-ui/lib/resolved-names";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { api, type FolderRole, type RawCpkEntry, type VfsDir } from "@/lib/api";
-import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { useSettings } from "@nie/inacord-ui/lib/settings";
 import { humanSize } from "@/lib/bytes";
 import { recordVisit, togglePin, usePinnedPlaces } from "@/lib/places";
 import { codeOf } from "@/lib/vfsIndexDb";
-import { useThumbnail } from "@niers/inacord-ui/lib/thumbs";
+import { useThumbnail } from "@nie/inacord-ui/lib/thumbs";
 import { useResolvedNames } from "@/lib/nameResolve";
 import {
   showExportSelectionMenu,
@@ -17,7 +17,7 @@ import {
   showVfsFolderContextMenu,
 } from "@/lib/contextMenu";
 import { registerFileOps } from "@/lib/editBus";
-import { SplitPane } from "@niers/inacord-ui/components/ui/split-pane";
+import { SplitPane } from "@nie/inacord-ui/components/ui/split-pane";
 import {
   ExplorerBreadcrumbs,
   ExplorerEntries,
@@ -25,34 +25,34 @@ import {
   ExplorerSurface,
   ExplorerToolbar,
   ExplorerToolbarButton,
-} from "@niers/inacord-ui/explorer/explorer-surface";
-import "@niers/inacord-ui/explorer/explorer-surface.css";
+} from "@nie/inacord-ui/explorer/explorer-surface";
+import "@nie/inacord-ui/explorer/explorer-surface.css";
 import type { ExplorerTab, ExplorerTabPatch } from "@/lib/explorerTabs";
 import { modsDb } from "@/lib/modsDb";
 import { stageReplacement, stageReplacementFromPath } from "@/lib/modWorkspace";
-import { Badge } from "@niers/inacord-ui/components/ui/badge";
-import { Icon } from "@niers/inacord-ui/components/ui/Icon";
-import { Popover, PopoverContent, PopoverTrigger } from "@niers/inacord-ui/components/ui/popover";
-import { ToggleGroup, ToggleGroupItem } from "@niers/inacord-ui/components/ui/toggle-group";
-import { Slider } from "@niers/inacord-ui/components/ui/slider";
+import { Badge } from "@nie/inacord-ui/components/ui/badge";
+import { Icon } from "@nie/inacord-ui/components/ui/Icon";
+import { Popover, PopoverContent, PopoverTrigger } from "@nie/inacord-ui/components/ui/popover";
+import { ToggleGroup, ToggleGroupItem } from "@nie/inacord-ui/components/ui/toggle-group";
+import { Slider } from "@nie/inacord-ui/components/ui/slider";
 import { useT } from "@/lib/i18n";
 import { DetailPane, type DetailTarget } from "@/components/DetailPane";
 import { PropertyEditor } from "@/components/PropertyEditor";
 import { SelectionBar } from "@/components/SelectionBar";
-import { Tabs, TabsList, TabsTrigger } from "@niers/inacord-ui/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@nie/inacord-ui/components/ui/tabs";
 import {
   type GameFilterFamily,
   GameFilterPanel,
   type GameFilterValue,
   GameText,
   GLYPHES,
-} from "@niers/inacord-ui";
+} from "@nie/inacord-ui";
 import {
   browserLocationSnapshot,
   subscribeBrowserLocation,
   writeBrowserHistory,
-} from "@niers/inacord-ui/lib/browser-navigation";
-import { PaginationControls } from "@niers/inacord-ui/components/ui/pagination-controls";
+} from "@nie/inacord-ui/lib/browser-navigation";
+import { PaginationControls } from "@nie/inacord-ui/components/ui/pagination-controls";
 import { NATIVE_WINDOW } from "../../host";
 
 type SortKey = "name" | "size";

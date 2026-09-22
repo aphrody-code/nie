@@ -1,8 +1,8 @@
 /** Thin WebAssembly adapter: Rust resolves every resource and relationship. */
-import type { AvatarCatalog, AvatarComposition, AvatarReferenceImport, AvatarState, OcReference } from "@niers/inacord-ui/avatar/contract";
+import type { AvatarCatalog, AvatarComposition, AvatarReferenceImport, AvatarState, OcReference } from "@nie/inacord-ui/avatar/contract";
 import { avatar_composition_json, avatar_reference_import_json, export_avatar_oc_document_json } from "../wasm/nie_wasm.js";
 import { ensureWasm } from "./bridge";
-export { avatarModelUrl } from "@niers/inacord-ui/avatar/request";
+export { avatarModelUrl } from "@nie/inacord-ui/avatar/request";
 
 export async function resolveAvatar(catalog: AvatarCatalog, state: AvatarState): Promise<AvatarComposition> {
 	await ensureWasm();

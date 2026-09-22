@@ -18,8 +18,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
 import { copySelectionActive, pasteActive, selectAllActive } from "@/lib/editBus";
-import { getSettings, setSettings } from "@niers/inacord-ui/lib/settings";
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { getSettings, setSettings } from "@nie/inacord-ui/lib/settings";
+import { cn } from "@nie/inacord-ui/lib/utils";
 import { IDS_VUES } from "@/lib/vues";
 
 export interface AppMenuActions {

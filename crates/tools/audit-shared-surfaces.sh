@@ -33,7 +33,7 @@ else
 fi
 
 if contains 'nie-cli.workspace = true' crates/tools/nie-mcp/Cargo.toml \
-  && contains 'nie_cli::main_entry_with(["niers", "mcp"])' crates/tools/nie-mcp/src/main.rs; then
+  && contains 'nie_cli::main_entry_with(["nie", "mcp"])' crates/tools/nie-mcp/src/main.rs; then
   row mcp_thin_binding PASS 'nie-mcp depends on and directly enters nie-cli in-process'
 else
   row mcp_thin_binding FAIL 'nie-mcp does not have the expected direct nie-cli binding'

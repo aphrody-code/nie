@@ -1,14 +1,14 @@
 /** Opening presentation consumes native VFS media and engine-owned scene metadata. */
-import { GameCanvas, useAssetSource } from "@niers/inacord-ui";
-import { type NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
-import type { SanteApi as SiteHealth } from "@niers/asset-source/nie-site";
+import { GameCanvas, useAssetSource } from "@nie/inacord-ui";
+import { type NativeMenuScene } from "@nie/inacord-ui/shell/native-title-menu";
+import type { SanteApi as SiteHealth } from "@nie/asset-source/nie-site";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
 import { OPENING_LOGO_MOVIES, type OpeningPhase } from "../game/opening-sequence";
 import { NativeMoviePlayer } from "../game/NativeMoviePlayer";
 import { NativeText } from "./NativeText";
 import { Loading } from "./Loading";
-import { NativeSceneLayers } from "@niers/inacord-ui/shell/native-scene-layers";
+import { NativeSceneLayers } from "@nie/inacord-ui/shell/native-scene-layers";
 
 export interface OpeningVisualProps {
 	phase: Exclude<OpeningPhase, "menu">;

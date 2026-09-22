@@ -5,7 +5,7 @@
 //! - `download <appId>` : télécharge vers --output
 //! - `sync` : download IEVR (app 2799860) vers --output
 //!
-//! Token store par défaut : `~/.local/share/niers/steam-tokens.json`.
+//! Token store par défaut : `~/.local/share/nie/steam-tokens.json`.
 
 use std::path::PathBuf;
 
@@ -19,7 +19,7 @@ use tracing_subscriber::EnvFilter;
 #[derive(Parser, Debug)]
 #[command(
     name = "nie-steam",
-    about = "Acquisition Steam native pour niers (IEVR app 2799860)",
+    about = "Acquisition Steam native pour nie (IEVR app 2799860)",
     version
 )]
 struct Cli {

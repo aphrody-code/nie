@@ -28,9 +28,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 
 # Source repository environment (sccache, mold, Steam paths, atlas DB)
-if [ -r "scripts/niers-env.sh" ]; then
+if [ -r "scripts/nie-env.sh" ]; then
     # shellcheck disable=SC1091
-    . "scripts/niers-env.sh"
+    . "scripts/nie-env.sh"
 fi
 
 mkdir -p var/run var/log .coord
@@ -52,7 +52,7 @@ if [ -z "$PLAN_FILE" ] || [ ! -f "$PLAN_FILE" ]; then
     done
 fi
 
-echo "=== Niers Autonomous Usine Autonome Started (PID: $MY_PID) ==="
+echo "=== Nie Autonomous Usine Autonome Started (PID: $MY_PID) ==="
 echo "Repository : $REPO_ROOT"
 echo "Plan File  : ${PLAN_FILE:-'Autonomous Atlas / None'}"
 echo "Logging to : $LOG_FILE"
@@ -116,7 +116,7 @@ while true; do
     if [ "$DRY_RUN" -eq 1 ]; then
         lead_output="Dry run: lead dispatch skipped."
     elif command -v agy >/dev/null 2>&1; then
-        (agy -p "$prompt" --dangerously-skip-permissions --model gemini-3.8-flash-low) > /tmp/niers_lead.log 2>&1 &
+        (agy -p "$prompt" --dangerously-skip-permissions --model gemini-3.8-flash-low) > /tmp/nie_lead.log 2>&1 &
         lead_pid=$!
         timeout_counter=0
         while kill -0 "$lead_pid" 2>/dev/null; do
@@ -129,10 +129,10 @@ while true; do
             fi
         done
         if [ -z "$lead_output" ]; then
-            lead_output=$(head -c 800 /tmp/niers_lead.log 2>/dev/null | tr -d '"\r\n')
+            lead_output=$(head -c 800 /tmp/nie_lead.log 2>/dev/null | tr -d '"\r\n')
         fi
     elif command -v claude >/dev/null 2>&1; then
-        (claude -p "$prompt" --dangerously-skip-permissions) > /tmp/niers_lead.log 2>&1 &
+        (claude -p "$prompt" --dangerously-skip-permissions) > /tmp/nie_lead.log 2>&1 &
         lead_pid=$!
         timeout_counter=0
         while kill -0 "$lead_pid" 2>/dev/null; do
@@ -145,15 +145,15 @@ while true; do
             fi
         done
         if [ -z "$lead_output" ]; then
-            lead_output=$(head -c 800 /tmp/niers_lead.log 2>/dev/null | tr -d '"\r\n')
+            lead_output=$(head -c 800 /tmp/nie_lead.log 2>/dev/null | tr -d '"\r\n')
         fi
     else
         # Local non-agent verification execution
         echo "Executing automated gate verification directly..."
-        if eval "$verify_cmd" > /tmp/niers_verify.log 2>&1; then
+        if eval "$verify_cmd" > /tmp/nie_verify.log 2>&1; then
             lead_output="Gate verification PASSED"
         else
-            lead_output="Gate verification FAILED: $(head -n 5 /tmp/niers_verify.log | tr '\n' ' ')"
+            lead_output="Gate verification FAILED: $(head -n 5 /tmp/nie_verify.log | tr '\n' ' ')"
         fi
     fi
 
@@ -169,8 +169,8 @@ while true; do
         auditor_output=$(claude -p "$audit_prompt" --dangerously-skip-permissions 2>&1 | head -c 800 | tr -d '"\r\n')
     else
         # Local auditor verification
-        git status --short > /tmp/niers_git_status.log 2>&1
-        auditor_output="Git status checked: $(head -n 3 /tmp/niers_git_status.log | tr '\n' ' ')"
+        git status --short > /tmp/nie_git_status.log 2>&1
+        auditor_output="Git status checked: $(head -n 3 /tmp/nie_git_status.log | tr '\n' ' ')"
     fi
 
     # Log entry

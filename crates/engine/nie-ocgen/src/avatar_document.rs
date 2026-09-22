@@ -60,7 +60,7 @@ mod tests {
 
     fn document(recipe: Option<serde_json::Value>) -> OcAvatarDocument {
         OcAvatarDocument {
-            schema: "niers.oc.avatar-document/v1".into(),
+            schema: "nie.oc.avatar-document/v1".into(),
             slug: "new-oc".into(),
             internal_code: Some("c99000010".into()),
             avatar_state: AvatarState::default(),

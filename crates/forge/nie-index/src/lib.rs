@@ -25,7 +25,7 @@ mod host {
     /// Resolve the reverse-engineering SQLite database used by native bindings.
     ///
     /// An explicit caller path wins, allowing the CLI and MCP host to retain their
-    /// `NIERS_SQLITE` compatibility override. The fallback is anchored to the
+    /// `NIE_SQLITE` compatibility override. The fallback is anchored to the
     /// workspace layout from this owning crate rather than a user home directory
     /// or a caller's current working directory.
     #[must_use]
@@ -36,7 +36,7 @@ mod host {
     /// Return the repository-local fallback for the RE knowledge database.
     #[must_use]
     pub fn default_re_database_path() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../var/niers.sqlite")
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../var/nie.sqlite")
     }
 
     /// Schéma SQL embarqué.
@@ -182,7 +182,7 @@ mod host {
                 && let Ok(mut rconn) = pool.get()
             {
                 use redis::Commands;
-                let redis_key = format!("niers:meta:{}", key);
+                let redis_key = format!("nie:meta:{}", key);
                 let _: std::result::Result<(), redis::RedisError> = rconn.set(redis_key, value);
             }
             Ok(())
@@ -193,7 +193,7 @@ mod host {
                 && let Ok(mut rconn) = pool.get()
             {
                 use redis::Commands;
-                let redis_key = format!("niers:meta:{}", key);
+                let redis_key = format!("nie:meta:{}", key);
                 if let Ok(val) = rconn.get::<_, String>(redis_key) {
                     return Ok(Some(val));
                 }
@@ -520,7 +520,7 @@ mod host {
                 resolve_re_database_path(Some(override_path.clone())),
                 override_path
             );
-            assert!(default_re_database_path().ends_with("var/niers.sqlite"));
+            assert!(default_re_database_path().ends_with("var/nie.sqlite"));
         }
 
         /// Le filtre des noms Ghidra ne doit pas emporter les noms qui commencent

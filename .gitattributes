@@ -1,4 +1,4 @@
-# Attributs Git de niers — dépôt travaillé depuis DEUX machines (poste Windows + VPS Linux).
+# Attributs Git de nie — dépôt travaillé depuis DEUX machines (poste Windows + VPS Linux).
 #
 # POURQUOI IL N'Y A PAS DE `* text=auto`
 # Le dépôt porte des fixtures comparées au byte près (forge, goldens nie-data, dumps PE).

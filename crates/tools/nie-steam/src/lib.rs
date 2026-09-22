@@ -1,4 +1,4 @@
-//! Acquisition Steam native pour niers — download/dump des depots IEVR en Rust pur.
+//! Acquisition Steam native pour nie — download/dump des depots IEVR en Rust pur.
 //!
 //! Port de `IECODE.Core/Steam/` (C#, sur SteamKit2) vers Rust, sur la fondation
 //! [`steamroom`] / [`steamroom_client`]. Couche specifique iecode portee ici ;

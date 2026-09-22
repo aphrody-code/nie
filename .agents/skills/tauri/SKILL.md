@@ -19,7 +19,7 @@ metadata:
 
 Tauri bundles a Rust backend around any web frontend into a small native
 binary. This repo's own instance is `apps/inacord/src-tauri` (product
-"Inacord", identifier `dev.niers.explorer`) — read it alongside this skill
+"Inacord", identifier `dev.nie.explorer`) — read it alongside this skill
 for a real, current example rather than a toy one.
 
 Always confirm exact API/config shape against the official docs before
@@ -138,11 +138,11 @@ identifiers (`window:default` → `core:window:default`).
 
 ## This repo's instance
 
-`apps/inacord/src-tauri` is the one real Tauri app in `niers` — do not
+`apps/inacord/src-tauri` is the one real Tauri app in `nie` — do not
 create a second Tauri crate elsewhere (the orphaned, `Cargo.toml`-less
 `crates/tools/inacord/` seen in earlier git status snapshots is stray build
 output, not a crate; the real one is under `apps/`). It already wires:
-`deep-link` (custom `niers://` scheme) and `updater` (minisign pubkey +
+`deep-link` (custom `nie://` scheme) and `updater` (minisign pubkey +
 release-channel JSON endpoint) plugins in `tauri.conf.json`, transparent/
 undecorated window chrome, and a single `capabilities/default.json`.
 Extend that file's `permissions` array rather than inventing a new

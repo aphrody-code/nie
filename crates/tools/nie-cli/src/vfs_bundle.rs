@@ -2,7 +2,7 @@
 //!
 //! This module is public so native tools can reuse the selection and measurement logic without
 //! invoking the CLI. It never embeds game bytes in the repository: bytes enter through
-//! [`BundleSource`] and leave only in the returned `niers.vfs.bundle/v1` container.
+//! [`BundleSource`] and leave only in the returned `nie.vfs.bundle/v1` container.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, OpenOptions};
@@ -817,7 +817,7 @@ fn initial_plan_exact_paths(
         .map_err(anyhow::Error::msg)?;
     let plan: serde_json::Value =
         serde_json::from_str(&plan_json).context("decode shared initial VFS plan")?;
-    if plan["bundleFormat"] != "niers.vfs.bundle/v1" {
+    if plan["bundleFormat"] != "nie.vfs.bundle/v1" {
         bail!("shared initial VFS plan has an unsupported bundle format");
     }
     let planned_screen = plan["startupScreen"]
@@ -1108,7 +1108,7 @@ pub fn generate<S: BundleSource>(
     let sha256 = hex::encode(Sha256::digest(&bundle));
     let report = GenerationReport {
         schema_version: 1,
-        bundle_format: "niers.vfs.bundle/v1",
+        bundle_format: "nie.vfs.bundle/v1",
         screen: options.screen.clone(),
         locale: options.locale.clone(),
         profile: options.profile.as_str(),
@@ -1220,7 +1220,7 @@ mod tests {
         GeneratedBundle {
             report: GenerationReport {
                 schema_version: 1,
-                bundle_format: "niers.vfs.bundle/v1",
+                bundle_format: "nie.vfs.bundle/v1",
                 screen: "main_menu".into(),
                 locale: "fr".into(),
                 profile: "aphrody_lean",
@@ -1461,7 +1461,7 @@ mod tests {
     #[test]
     fn atomic_writer_refuses_overwrite_and_leaves_no_temporary_file() {
         let root = std::env::temp_dir().join(format!(
-            "niers-vfs-bundle-test-{}-{}",
+            "nie-vfs-bundle-test-{}-{}",
             std::process::id(),
             std::thread::current().name().unwrap_or("worker")
         ));

@@ -1,6 +1,6 @@
 //! `nie-ocgen` — the original-character 3D generation pipeline, as a standalone command.
 //!
-//! Same code as `niers ocgen`: both are a `clap` parse and a call into [`nie_ocgen::cli::run`].
+//! Same code as `nie ocgen`: both are a `clap` parse and a call into [`nie_ocgen::cli::run`].
 
 use clap::Parser;
 

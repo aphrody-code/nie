@@ -1,4 +1,4 @@
-import type { AssetSource } from "@niers/asset-source";
+import type { AssetSource } from "@nie/asset-source";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NativeMenuScene } from "./native-title-menu";
 import { NativeSprite, nativeSpriteUrl, type NativeSpriteResourceFailure, type NativeSpriteState } from "./native-sprite";

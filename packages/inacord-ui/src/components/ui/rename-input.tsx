@@ -1,12 +1,12 @@
 // Édition de nom en ligne (double-clic → input → Entrée valide/Échap annule/perte de focus
 // annule, comme le Finder macOS) — logique portée de
-// `var/spaceui/packages/explorer/src/RenameInput.tsx` (spacedrive), simplifiée : niers n'a pas
+// `var/spaceui/packages/explorer/src/RenameInput.tsx` (spacedrive), simplifiée : nie n'a pas
 // le concept d'« extension affichée séparément » de spacedrive (utilisé ici pour renommer un mod,
 // cf. ModsView.tsx — pas un fichier VFS, qui reste en lecture seule).
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { Input } from "./input"
-import { cn } from "@niers/inacord-ui/lib/utils"
+import { cn } from "@nie/inacord-ui/lib/utils"
 
 export interface RenameInputProps {
   /** Nom courant. */

@@ -197,7 +197,7 @@ fn find_text(entries: &[(u32, String)], hash: u32) -> Option<&str> {
 /// CRC32 du nom d'un objet à ce que l'exécution Lua en dit — un objet absent garde `visible:
 /// null`.
 ///
-/// Le résultat suit le schéma `niers.menu.layout/v1`, celui que `lireLayout`
+/// Le résultat suit le schéma `nie.menu.layout/v1`, celui que `lireLayout`
 /// (`packages/inacord-ui/src/shell/game-layout.ts`) lit.
 #[must_use]
 pub fn build(
@@ -472,7 +472,7 @@ pub fn build(
         .filter(|object| !object["visible"].is_null())
         .count();
     json!({
-        "schema": "niers.menu.layout/v1",
+        "schema": "nie.menu.layout/v1",
         "screen": spec.screen.clone(),
         "locale": locale,
         "canvas": { "w": spec.canvas[0], "h": spec.canvas[1] },
@@ -574,7 +574,7 @@ mod tests {
     #[test]
     fn le_schema_et_le_canvas_viennent_de_la_specification() {
         let layout = build(&Vide, &spec(), "ja", &[], &BTreeMap::new());
-        assert_eq!(layout["schema"], "niers.menu.layout/v1");
+        assert_eq!(layout["schema"], "nie.menu.layout/v1");
         assert_eq!(layout["screen"], "chara_bank_menu");
         assert_eq!(layout["locale"], "ja");
         assert_eq!(layout["canvas"], json!({ "w": 1280, "h": 720 }));

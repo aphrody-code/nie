@@ -1,6 +1,6 @@
 //! Réconciliation de la base de connaissance avec le **découpage byte-exact**.
 //!
-//! La base RE (`var/niers.sqlite`) et la forge décrivent le même objet par deux
+//! La base RE (`var/nie.sqlite`) et la forge décrivent le même objet par deux
 //! chemins indépendants : la première par le reverse (`.pdata`, RTTI, vtables,
 //! chaînes), la seconde par un recouvrement total du fichier qui se réassemble
 //! à l'octet près. Faire porter au même endroit ce que chacune sait, c'est

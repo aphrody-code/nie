@@ -62,7 +62,7 @@ fi
 
 # --- 2. La consigne commune ----------------------------------------------------------
 CONSIGNE=$(cat <<CONSIGNE
-Tu es « $SIDE ». Tu codes en parallele de « $PEER » sur /home/ubuntu/niers, en autonomie
+Tu es « $SIDE ». Tu codes en parallele de « $PEER » sur /home/ubuntu/nie, en autonomie
 complete : personne ne validera tes choix, c'est a toi de decider et d'executer.
 Reponds en francais. Lis AGENTS.md, docs/A2A-CODEX.md et CLAUDE.md si tu ne les as pas lus.
 
@@ -88,7 +88,7 @@ REGLES DU DEPOT :
   JAMAIS cargo build --workspace --all-targets : le disque est a 92 %, ca le sature.
 - Une suite qui affiche « 0 passed » n'est pas verte : elle n'a pas tourne.
 - Un chemin VFS cite de memoire est presque toujours faux (les fichiers du jeu portent un
-  numero de version) : resous-le par niers vfs find avant de l'ecrire.
+  numero de version) : resous-le par nie vfs find avant de l'ecrire.
 
 QUAND TU AS FINI, DEUX TICKS, DANS CET ORDRE. Note bien : --kind n'accepte QUE `fact` et
 `ping`, tout le reste retombe sur `ping` en silence — le type se code dans le sujet.

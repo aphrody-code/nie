@@ -10,7 +10,7 @@
 # Il ne rend PAS le mode jouable, et aucun mod de données ne le pourrait, pour une raison
 # mesurée trois fois par des chemins indépendants :
 #
-#   1. `niers mode index` -> victory-road est le SEUL mode à g4tx = 0. Aucune texture propre ;
+#   1. `nie mode index` -> victory-road est le SEUL mode à g4tx = 0. Aucune texture propre ;
 #      ses objbin vivent sous `soccer99_*`, un dossier qui n'en contient aucune.
 #   2. `mode_text` -> 0 libellé d'interface résolu, là où kizuna-station en a 17 et team-dock 13.
 #   3. Ses écrans s'appellent `fake_vroad_entry_menu`, `fake_vroad_qualifier`,
@@ -26,11 +26,11 @@
 set -euo pipefail
 
 RACINE="${1:-$PWD}"
-NIERS="${NIE_BIN:-$RACINE/target/release/nie}"
+NIE="${NIE_BIN:-$RACINE/target/release/nie}"
 MOD="$RACINE/data/mods/victory-road"
 DIST="$RACINE/data/mods/victory-road-dist"
 
-[ -x "$NIERS" ] || { echo "niers introuvable : $NIERS (cargo build --release -p nie-cli)" >&2; exit 1; }
+[ -x "$NIE" ] || { echo "nie introuvable : $NIE (cargo build --release -p nie-cli)" >&2; exit 1; }
 export NIE_GAME_DIR="$RACINE"
 
 echo "→ collecte des fichiers du mode"
@@ -41,15 +41,15 @@ mkdir -p "$MOD"
 # (translittérations de ロード), plus `victoryroad` pour la bannière. Chercher un seul de ces
 # motifs en manque les deux tiers.
 for motif in vroad victory_load victory_lode victoryroad; do
-	"$NIERS" vfs find "$motif" -n 200 2>/dev/null | awk '{print $2}' | grep -E '^data/' || true
+	"$NIE" vfs find "$motif" -n 200 2>/dev/null | awk '{print $2}' | grep -E '^data/' || true
 done | sort -u | while read -r f; do
 	mkdir -p "$MOD/$(dirname "$f")"
-	"$NIERS" vfs extract "$f" -o "$MOD/$f" >/dev/null
+	"$NIE" vfs extract "$f" -o "$MOD/$f" >/dev/null
 done
 
 echo "→ $(find "$MOD" -type f | wc -l) fichiers collectés"
 echo "→ bascule hors des paquets"
-"$NIERS" viola pack --mod-dir "$MOD" -o "$DIST"
+"$NIE" viola pack --mod-dir "$MOD" -o "$DIST"
 
 echo
 echo "Mod prêt : $DIST"

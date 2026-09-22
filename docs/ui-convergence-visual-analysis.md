@@ -248,8 +248,8 @@ target/release/pixel mesurer <capture-C> --boite 272 108 2514 1257 --k 8
 target/release/pixel mesurer <capture-C> --boite 333 650 584 973 --k 8
 # contenu 2243x1150 ; première carte 252x324
 
-magick <capture-A> -crop 2199x1237+180+47 +repage -resize 2560x1440! /tmp/niers-capture1-canvas.png
-target/release/pixel comparer /tmp/niers-capture1-canvas.png data/menu/main_menu_alt.png --json
+magick <capture-A> -crop 2199x1237+180+47 +repage -resize 2560x1440! /tmp/nie-capture1-canvas.png
+target/release/pixel comparer /tmp/nie-capture1-canvas.png data/menu/main_menu_alt.png --json
 # ssim 0.36322615020342736 ; pixels_dans_tolerance_pct 11.041666666666666 ; tolerance 0
 ```
 

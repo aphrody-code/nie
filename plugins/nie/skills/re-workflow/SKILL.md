@@ -1,9 +1,9 @@
 ---
 name: re-workflow
-description: La boucle de reverse-engineering du dépôt niers, pilotée par l'atlas — l'index unique de toutes les surfaces RE (fichiers, crates, docs, base de connaissance de 19 Go, unités de forge, binaires, outils). À déclencher dès qu'il s'agit de chercher quelque chose dans le dépôt RE, de savoir où en est la reconstruction de `nie.exe`, de choisir le prochain chantier, ou quand l'utilisateur dit « atlas », « où en est-on », « quoi faire ensuite », « couverture », « forge », « 100 % ».
+description: La boucle de reverse-engineering du dépôt nie, pilotée par l'atlas — l'index unique de toutes les surfaces RE (fichiers, crates, docs, base de connaissance de 19 Go, unités de forge, binaires, outils). À déclencher dès qu'il s'agit de chercher quelque chose dans le dépôt RE, de savoir où en est la reconstruction de `nie.exe`, de choisir le prochain chantier, ou quand l'utilisateur dit « atlas », « où en est-on », « quoi faire ensuite », « couverture », « forge », « 100 % ».
 ---
 
-# niers — la boucle de reverse-engineering
+# nie — la boucle de reverse-engineering
 
 Le dépôt reconstruit `nie.exe` (Inazuma Eleven: Victory Road, PE x86-64) et prouve sa
 compréhension en le **reproduisant octet pour octet**. Le reverse-engineering est le moyen ;
@@ -14,23 +14,23 @@ la mesure est le juge.
 Tout ce que le dépôt sait vit dans **une** base, `var/nie-atlas.sqlite` (miroir Redis `db4`) :
 
 ```bash
-niers atlas search <terme>   # docs + symboles + outils + fichiers + crates, en une requête
-niers atlas status           # une ligne mesurée
-niers atlas gaps             # la route vers les 100 %, classée
-niers atlas next             # le prochain chantier, en JSON
-niers atlas docs --orphans   # les documents qui n'ancrent rien sur la machine
-niers atlas dupes            # les fichiers strictement identiques à plusieurs chemins
+nie atlas search <terme>   # docs + symboles + outils + fichiers + crates, en une requête
+nie atlas status           # une ligne mesurée
+nie atlas gaps             # la route vers les 100 %, classée
+nie atlas next             # le prochain chantier, en JSON
+nie atlas docs --orphans   # les documents qui n'ancrent rien sur la machine
+nie atlas dupes            # les fichiers strictement identiques à plusieurs chemins
 just atlas                   # (re)construire l'index (~3 min à froid, 8 s sans le digest KB)
 ```
 
 Un `rg` à la racine dépasse 60 s ; l'atlas répond en millisecondes et couvre des surfaces qu'un
 `grep` ne voit pas (le digest de la base de connaissance, les unités de forge, les outils).
-Ne fouiller l'arbre à la main que si l'atlas n'a rien — et, dans ce cas, `niers find` /
-`niers grep` (moteur ripgrep) plutôt que les binaires système.
+Ne fouiller l'arbre à la main que si l'atlas n'a rien — et, dans ce cas, `nie find` /
+`nie grep` (moteur ripgrep) plutôt que les binaires système.
 
 ## Règle n° 2 — le prochain chantier se lit, il ne s'invente pas
 
-`niers atlas gaps` classe chaque écart par `(cible − courant) × poids`. Les poids disent ce que
+`nie atlas gaps` classe chaque écart par `(cible − courant) × poids`. Les poids disent ce que
 « 100 % » veut dire ici, dans l'ordre : identité du binaire 10, part produite 9, preuves uemu 7,
 `.text` 6, fonctions classées 6, fonctions nommées 5, unités relevées 5, unités byte-exactes 4,
 symboles portés 3, documents ancrés 2.
@@ -53,7 +53,7 @@ de `push`, de suppression, de service, de `/etc`, ni de `pkill` ; garde-disque �
 Un chiffre n'entre dans l'index qu'accompagné de la commande qui l'a produit :
 
 ```bash
-niers atlas metric proofs.ok 12 --total 47 --source 'bash scripts/proofs.sh' --refresh
+nie atlas metric proofs.ok 12 --total 47 --source 'bash scripts/proofs.sh' --refresh
 ```
 
 Et un écart n'existe que si sa métrique a réellement été mesurée : `refresh_gaps` ne crée
@@ -76,14 +76,14 @@ Tout ce qui n'est pas validable est marqué incomplet, jamais « fait ».
 `cargo test -p nie-mcp --test re_real` interroge le **vrai** serveur sur stdio (`re_coverage`,
 `re_query`, `re_function` par adresse **et** par nom, `cli_atlas status`/`gaps`) puis corrobore
 ses réponses contre la table `.pdata` du binaire de référence, lue indépendamment par `nie-pe`.
-Le test est *data-gated* : sans `var/niers.sqlite` ni `nie.exe`, il dit ce qu'il saute et passe.
+Le test est *data-gated* : sans `var/nie.sqlite` ni `nie.exe`, il dit ce qu'il saute et passe.
 
 **Mesure du 2026-09-11 — à connaître avant de citer la base** : sur 400 fonctions nommées,
 **43,00 % seulement** commencent sur une vraie racine `.pdata` de `nie.exe` (172/400 ; 163 de
 plus tombent à l'intérieur d'un corps). Le binaire de référence a **55 351** racines `.pdata`,
 la base en a indexé **50 674** : elle décrit un **autre build** (`binary.sha256 = 4c2b91fb…`,
 31 468 032 o) que la cible (`b1fa04ea…`, 33 918 464 o). D'où l'écart `re.anchoring` dans
-`niers atlas gaps` : ré-ancrer la base est le préalable à toute citation de ses adresses.
+`nie atlas gaps` : ré-ancrer la base est le préalable à toute citation de ses adresses.
 
 Attention au format des réponses : `re_query` rend les colonnes d'adresse en **chaînes
 hexadécimales** (`"0x140452820"`), pas en nombres.
@@ -93,7 +93,7 @@ hexadécimales** (`"0x140452820"`), pas en nombres.
 ```
 Ghidra → nie-re / nie-index → nie-trace → nie-computer-use
                  ↓
-            var/niers.sqlite (19 Go)  →  digest dans l'atlas
+            var/nie.sqlite (19 Go)  →  digest dans l'atlas
 ```
 
 - `nie-re` : PE, `.pdata`, RTTI, vtables, désassemblage iced-x86, base de connaissance.

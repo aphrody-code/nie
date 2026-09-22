@@ -1,4 +1,4 @@
-import { cn } from "@niers/inacord-ui/lib/utils";
+import { cn } from "@nie/inacord-ui/lib/utils";
 
 /**
  * Mapping rareté → couleurs d'affichage

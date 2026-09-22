@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import * as codec from "@niers/game/game/team-code";
+import * as codec from "@nie/game/game/team-code";
 import fixtures from "../../../../packages/nie-game/test/fixtures/team-code.json";
 import init, * as wasm from "../wasm/nie_wasm.js";
 

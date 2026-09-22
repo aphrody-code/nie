@@ -2,7 +2,7 @@
 //! [`nie_formats::vfs::Vfs`] et produit un résumé structuré lisible (une ligne par entrée),
 //! ou `None` si aucun décodeur ne reconnaît le contenu (l'appelant retombe sur un hexdump brut).
 //!
-//! Utilisé par `niers vfs cat`/`stat` (crate `nie-cli`) **et** par le backend Tauri de l'app
+//! Utilisé par `nie vfs cat`/`stat` (crate `nie-cli`) **et** par le backend Tauri de l'app
 //! desktop `nie-explorer` (`apps/inacord/src-tauri`) — un seul décodeur-dispatch, deux
 //! façades (CLI texte / IPC JSON), pour éviter que les deux dérivent (cf. `CLAUDE.md`,
 //! anti-doublon).

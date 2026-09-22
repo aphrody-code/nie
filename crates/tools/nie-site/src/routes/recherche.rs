@@ -6,7 +6,7 @@
 //! `chara_base*`. Il n'existait donc **aucune** façon de trouver un fichier par son nom sur ce
 //! site, alors que l'index qui le permet est monté au démarrage et porte déjà tous les filtres.
 //!
-//! C'est le manque que la matrice de couverture désignait sous trois noms : `niers vfs find`,
+//! C'est le manque que la matrice de couverture désignait sous trois noms : `nie vfs find`,
 //! `vfs_find` et `vfs_find_paged`. Un seul câblage les sert tous les trois.
 //!
 //! **La réponse publie ce qui a été réellement appliqué** (`filtres`), et le total **filtré**

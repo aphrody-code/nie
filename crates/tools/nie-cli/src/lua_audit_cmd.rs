@@ -1,4 +1,4 @@
-//! `niers lua-audit` — mesure batch de l'exécution des chunks Lua bruts du VFS.
+//! `nie lua-audit` — mesure batch de l'exécution des chunks Lua bruts du VFS.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

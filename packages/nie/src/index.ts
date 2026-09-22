@@ -16,7 +16,7 @@
  *   2. <workspace-root>/target/debug/libiecode.{suffix}    (dev)
  *   3. <workspace-root>/target/release/libiecode.{suffix}  (release)
  *
- * Chemin depuis packages/nie/src/ vers niers/ : 3 niveaux (../../..)
+ * Chemin depuis packages/nie/src/ vers nie/ : 3 niveaux (../../..)
  */
 
 import {
@@ -32,8 +32,8 @@ import { existsSync } from "node:fs";
 
 // ─── résolution du .so ──────────────────────────────────────────────────────
 
-// import.meta.dir = packages/nie/src → ../../.. = niers/
-const _wsRoot = process.env["NIERS_ROOT"] ?? `${import.meta.dir}/../../..`;
+// import.meta.dir = packages/nie/src → ../../.. = nie/
+const _wsRoot = process.env["NIE_ROOT"] ?? `${import.meta.dir}/../../..`;
 
 // Le préfixe `lib` n'existe pas sur Windows : rustc y produit `iecode.dll`.
 // On teste les deux formes pour chaque profil, debug d'abord.
@@ -403,7 +403,7 @@ export interface MenuSetting {
  * Handle RAII sur le VFS monté.
  *
  * @example
- * using vfs = vfsOpen("/home/user/niers/data");
+ * using vfs = vfsOpen("/home/user/nie/data");
  * if (vfs) {
  *   const bytes = vfs.read("chr/c000001/c000001.g4tx");
  * }

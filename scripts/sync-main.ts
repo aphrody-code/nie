@@ -15,7 +15,7 @@ export function decideRelation(local: string, remote: string, localContainsRemot
 
 export function allowedArtifactPath(path: string): boolean {
 	if (!path || path.startsWith("/") || path.includes("\\") || path.split("/").includes("..")) return false;
-	return /^(?:bin\/(?:niers|nie-site|nie-model-serve)|bundle\/[A-Za-z0-9._/-]+)$/u.test(path);
+	return /^(?:bin\/(?:nie|nie-site|nie-model-serve)|bundle\/[A-Za-z0-9._/-]+)$/u.test(path);
 }
 
 type Artifact = { path: string; sha256: string };
@@ -28,10 +28,10 @@ const localOnly = args.includes("--local-only");
 const unknown = args.filter((arg) => arg !== "--apply" && arg !== "--local-only");
 if (unknown.length) throw new Error(`Unknown option(s): ${unknown.join(", ")}`);
 
-const sshAlias = process.env["NIERS_VPS_ALIAS"] ?? "vps";
-const remoteRepo = process.env["NIE_VPS_REPO"] ?? process.env["NIERS_VPS_REPO"] ?? "/home/ubuntu/nie";
-if (!remoteRepo.startsWith("/") || remoteRepo.includes("\n") || remoteRepo.includes("\0")) throw new Error("NIERS_VPS_REPO must be an absolute path.");
-if (!/^[A-Za-z0-9_.@-]+$/u.test(sshAlias)) throw new Error("NIERS_VPS_ALIAS contains unsafe characters.");
+const sshAlias = process.env["NIE_VPS_ALIAS"] ?? "vps";
+const remoteRepo = process.env["NIE_VPS_REPO"] ?? process.env["NIE_VPS_REPO"] ?? "/home/ubuntu/nie";
+if (!remoteRepo.startsWith("/") || remoteRepo.includes("\n") || remoteRepo.includes("\0")) throw new Error("NIE_VPS_REPO must be an absolute path.");
+if (!/^[A-Za-z0-9_.@-]+$/u.test(sshAlias)) throw new Error("NIE_VPS_ALIAS contains unsafe characters.");
 
 const runId = new Date().toISOString().replaceAll(/[:.]/gu, "-");
 const logDir = resolve("var/log/sync-main", runId);

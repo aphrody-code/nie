@@ -12,7 +12,7 @@ use bevy_mesh::Mesh;
 use bevy_reflect::TypePath;
 
 use crate::assets::{g4tx_texture_count, image_from_g4tx, meshes_from_g4md_g4mg};
-use crate::error::NiersAssetError;
+use crate::error::NieAssetError;
 
 /// Un modèle du jeu chargé : ses sous-mailles, une [`Mesh`] chacune.
 ///
@@ -20,7 +20,7 @@ use crate::error::NiersAssetError;
 /// peut donc aussi charger `nie://…/x.g4md#Mesh2` seul. Les compteurs sont là pour qu'un
 /// consommateur puisse dire ce qu'il a reçu sans résoudre chaque handle.
 #[derive(Asset, TypePath, Debug, Default)]
-pub struct NiersModel {
+pub struct NieModel {
     /// Une entrée par sous-maille, dans l'ordre du descripteur.
     #[dependency]
     pub meshes: Vec<Handle<Mesh>>,
@@ -42,14 +42,14 @@ pub struct G4txLoader;
 impl AssetLoader for G4txLoader {
     type Asset = Image;
     type Settings = ();
-    type Error = NiersAssetError;
+    type Error = NieAssetError;
 
     async fn load(
         &self,
         reader: &mut dyn Reader,
         _settings: &(),
         load_context: &mut LoadContext<'_>,
-    ) -> Result<Image, NiersAssetError> {
+    ) -> Result<Image, NieAssetError> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
 
@@ -68,21 +68,21 @@ impl AssetLoader for G4txLoader {
     }
 }
 
-/// `.g4md` (+ `.g4mg` voisin) → [`NiersModel`], une [`Mesh`] étiquetée par sous-maille.
+/// `.g4md` (+ `.g4mg` voisin) → [`NieModel`], une [`Mesh`] étiquetée par sous-maille.
 #[derive(Debug, Default, Clone, Copy, TypePath)]
 pub struct G4mdLoader;
 
 impl AssetLoader for G4mdLoader {
-    type Asset = NiersModel;
+    type Asset = NieModel;
     type Settings = ();
-    type Error = NiersAssetError;
+    type Error = NieAssetError;
 
     async fn load(
         &self,
         reader: &mut dyn Reader,
         _settings: &(),
         load_context: &mut LoadContext<'_>,
-    ) -> Result<NiersModel, NiersAssetError> {
+    ) -> Result<NieModel, NieAssetError> {
         let mut md = Vec::new();
         reader.read_to_end(&mut md).await?;
 
@@ -94,7 +94,7 @@ impl AssetLoader for G4mdLoader {
         let mg = load_context
             .read_asset_bytes(sibling)
             .await
-            .map_err(|error| NiersAssetError::Dependency {
+            .map_err(|error| NieAssetError::Dependency {
                 path: sibling_path.display().to_string(),
                 reason: error.to_string(),
             })?;
@@ -107,7 +107,7 @@ impl AssetLoader for G4mdLoader {
             vertex_counts.push(mesh.count_vertices());
             handles.push(load_context.add_labeled_asset(format!("Mesh{index}"), mesh));
         }
-        Ok(NiersModel {
+        Ok(NieModel {
             meshes: handles,
             submesh_count,
             vertex_counts,

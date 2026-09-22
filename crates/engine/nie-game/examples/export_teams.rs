@@ -129,7 +129,7 @@ fn main() {
     }
 
     let doc = json!({
-        "schema": "niers/teams-resolved/v1",
+        "schema": "nie/teams-resolved/v1",
         "locale": "fr",
         "count": list.len(),
         "teams": list,

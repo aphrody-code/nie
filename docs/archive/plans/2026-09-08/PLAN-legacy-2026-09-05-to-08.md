@@ -18,7 +18,7 @@ confirmation. Only then does it mount the clean native reference
 framebuffer are no longer in the public post-START path. The invented version, team level, win
 counts and beta announcement disappeared with that component; `/menu` is retained only as a
 compatibility redirect to `/`. Two transparent hit regions use the geometry shared by
-`@niers/inacord-ui` to open the avatar and settings surfaces without redrawing the capture. The
+`@nie/inacord-ui` to open the avatar and settings surfaces without redrawing the capture. The
 generated images are checked at build time, so an incomplete deployment cannot silently pass.
 The scoped Web gate now reports **84 passed / 0 failed / 345 assertions**, TypeScript reports
 **0 errors**, and the production build compiles **174 modules** and precompresses **8 files,
@@ -57,10 +57,10 @@ work: lazy views, cancellable persistent VFS indexing, the shared 3D viewport an
 controls, avatar/menu pipelines, and the native Live Mod bridge. No deleted UI was restored merely
 because it once existed, and no publishable package was removed without external-consumer proof.
 
-## 2026-09-08 amendment — multi-host NIERS plugin
+## 2026-09-08 amendment — multi-host NIE plugin
 
-`plugins/niers-plugin` and its checked-in `.agents/plugins/niers-plugin` runtime mirror now use
-the shared 17 skills and the portable native Rust `niers-game` declaration across Codex, Claude
+`plugins/nie-plugin` and its checked-in `.agents/plugins/nie-plugin` runtime mirror now use
+the shared 17 skills and the portable native Rust `nie-game` declaration across Codex, Claude
 Code, and Antigravity CLI (`agy`). The three host adapters are `.codex-plugin/plugin.json`,
 `.claude-plugin/plugin.json`, and root `plugin.json`; Claude's local marketplace and `agy`'s
 `mcp_config.json` are retained alongside Codex's `.mcp.json`.
@@ -70,17 +70,17 @@ and run `bun test packages/mcp/test/plugin.test.ts`.
 
 ## Amendement du 2026-09-07 — migration MCP Bun → Rust native clôturée
 
-Le serveur `niers-game` est désormais fourni par `crates/tools/nie-mcp` et par `niers mcp`, sur
+Le serveur `nie-game` est désormais fourni par `crates/tools/nie-mcp` et par `nie mcp`, sur
 le SDK officiel Rust `rmcp` épinglé au commit déjà validé par `aphrody-mcp`. Sa surface mesurée
 compte **56 outils** : **40 `cli_*`**, soit une liaison in-process pour chacune des 40 commandes
-de premier niveau de `niers` autres que `mcp`, et les **16 noms compatibles** de l’ancien serveur
+de premier niveau de `nie` autres que `mcp`, et les **16 noms compatibles** de l’ancien serveur
 Bun. Le test du routeur compare maintenant les outils à l’inventaire Clap réel, au lieu de ne
 vérifier qu’un nombre récité.
 
 La CLI est devenue une cible de bibliothèque à dispatch partagé ; son binaire terminal est une
 liaison mince. La capture stdout/stderr est locale au thread, bornée à 8 Mio et ne redirige
 jamais le stdout global réservé à JSON-RPC. Les opérations bloquantes passent par les workers
-Tokio. Les outils RE ouvrent `NIERS_SQLITE` en lecture seule, valident `Statement::readonly`,
+Tokio. Les outils RE ouvrent `NIE_SQLITE` en lecture seule, valident `Statement::readonly`,
 bornent les résultats et sérialisent les adresses en hexadécimal. Le pont Inacord est lui aussi
 Rust natif : WebSocket limité à `127.0.0.1:8791/bridge`, handshake versionné, une connexion à la
 fois et délai de 5 secondes. `packages/nie-bridge` ne conserve que le contrat et le client
@@ -89,13 +89,13 @@ retirés de ce chemin d’exécution.
 
 Les configurations `.mcp.json`, `.codex/config.toml`, les deux configurations du plugin et
 l’installateur MCP d’Inacord lancent Cargo/`nie-mcp`. La spécification opératoire est
-[`docs/MCP.md`](docs/MCP.md). Mesures rejouées depuis `/home/ubuntu/niers` le 2026-09-07 : tests
+[`docs/MCP.md`](docs/MCP.md). Mesures rejouées depuis `/home/ubuntu/nie` le 2026-09-07 : tests
 MCP de `nie-cli` **7 passés / 0 échec**, smoke stdio natif **1 passé / 0 échec** (initialisation,
 56 outils, appels succès/erreur, stdout propre), deux clippy stricts à **0 avertissement**,
 `cargo check --workspace --tests` vert sur **41 paquets / 315 cibles déclarées**, contrôle Cargo
 indépendant d’Inacord vert, tests du contrat `nie-bridge` **6 passés / 0 échec**, tests plugin MCP
 **12 passés / 0 échec**, et typecheck Bun **26/26 workspaces**. Les trois probes réels de
-`@niers/catalog` dépassent le délai Bun implicite de 5 secondes ; son script fixe désormais le
+`@nie/catalog` dépassent le délai Bun implicite de 5 secondes ; son script fixe désormais le
 délai à 20 secondes et passe **51 tests / 0 échec / 102 assertions**. La suite racine
 `bun run test` est verte. `docs:check` examine
 **336 Markdown / 235 liens** et retrouve
@@ -145,7 +145,7 @@ ses filtres, facettes, tris et sa pagination à `nie-wiki`. `nie-lua` dispose pa
 driver typé de **25 callbacks** avec budget d'instructions et rapports comptés. La construction
 du scénario standard (layers, items, puis `PreStep`/`Step`/`PostStep`) vit elle aussi dans cette
 bibliothèque : `nie-game` la consomme désormais au lieu d'en garder une copie dans son binaire.
-Gates rejouées dans `/home/ubuntu/niers` les 2026-09-07 et 2026-09-08 : `nie-wasm` **59 passés / 0 échec**,
+Gates rejouées dans `/home/ubuntu/nie` les 2026-09-07 et 2026-09-08 : `nie-wasm` **59 passés / 0 échec**,
 `nie-lua` **110 passés / 0 échec / 1 ignoré**, `nie-game` **7 unitaires + 16 intégration
 passés / 0 échec / 2 ignorés**, les clippy ciblés natifs/wasm à **0 avertissement**, tests Web
 **67 passés / 0 échec / 236 assertions**, `nie-wiki` **15 passés / 0 échec**, `nie-site`
@@ -173,7 +173,7 @@ le même scénario passe de **126 connues / 2 inconnues / 9 objets mutés / 25 c
 **128 connues / 0 inconnue / 10 objets mutés / 26 correspondances**, avec **105 événements
 demandés / 102 dispatchés / 102 réussis** inchangés. Les 15 commandes générales encore inconnues,
 les 7 positions et le transfert de cet état C++/Lua au renderer restent hors preuve. Gate rejouée
-dans `/home/ubuntu/niers` le 2026-09-08 : `nie-lua` **112 passés / 0 échec / 1 ignoré**, Clippy
+dans `/home/ubuntu/nie` le 2026-09-08 : `nie-lua` **112 passés / 0 échec / 1 ignoré**, Clippy
 strict **0 avertissement**.
 
 Le lot de nommage privé migre les dossiers et fichiers Web en anglais sans modifier les stems du
@@ -186,12 +186,12 @@ sont pas renommés dans ce lot : ils nécessitent leurs propres alias de compati
 La surface historique d'Azalée Tools est maintenant bornée avant absorption : le programme
 Commander expose **24 commandes de premier niveau**, `data` porte **7 sous-commandes**, et le
 serveur headless déclare **41 routes**. La commande
-`bun run --filter @niers/azalee-tools test`, rejouée dans `/home/ubuntu/niers` le 2026-09-07,
+`bun run --filter @nie/azalee-tools test`, rejouée dans `/home/ubuntu/nie` le 2026-09-07,
 donne **197 passés / 0 échec / 5 ignorés** et son typecheck ciblé donne **0 erreur**. Ces nombres
 restent l'oracle de compatibilité, pas une preuve d'absorption. Le ledger exécutable
 `docs/inacord-unification.json`, vérifié par `bun run measure:inacord-unification`, correspond
 exactement aux **24/24 commandes** : **0 complète, 13 partielles et 11 ouvertes**. Les 13
-partielles ont déjà une bibliothèque `nie-wiki` et un binding `niers wiki`, mais il leur manque
+partielles ont déjà une bibliothèque `nie-wiki` et un binding `nie wiki`, mais il leur manque
 encore un test de parité croisé ; le serveur natif les rend aussi accessibles par
 `nie-mcp cli_wiki`. Le premier probe réel, `compare 'Mark Evans' 'Axel Blaze' --level 50
 --json` sur `var/miroir/inagle-2026-09-07T10-17-52.sqlite`, confirme que ce binding n'est pas
@@ -199,11 +199,11 @@ encore compatible. Après alignement du contrat JSON, des codes position/éléme
 partielle (`lv30` absent ⇒ interpolation directe `lv1 → lv99`), de la déduplication des variantes
 et de la résolution JSON des skills, le premier passage de
 `bun run measure:azalee-compare-parity` était descendu de **125 à 44 chemins divergents**. La
-gate finale ferme ces derniers écarts comme décrit ci-dessous. Elle ne publie que les chemins,
+gate finale ferme ces dernie écarts comme décrit ci-dessous. Elle ne publie que les chemins,
 jamais les valeurs du jeu, et le ledger exige une gate explicitement `passing` à **0 différence**
 avant `complete`.
 `db` est la première ligne fermée : `bun run measure:azalee-db-parity` compare **4 requêtes**
-(schéma, CTE avec `NULL`/entier/texte, PRAGMA) entre Azalée, `niers wiki db` et
+(schéma, CTE avec `NULL`/entier/texte, PRAGMA) entre Azalée, `nie wiki db` et
 `nie-mcp cli_wiki`, avec **0 différence** ; les **3/3 surfaces** rejettent aussi un CTE de
 mutation. Le port vérifie
 désormais `rusqlite::Statement::readonly` après préparation — y compris pour les CTE et PRAGMA —
@@ -212,7 +212,7 @@ construction pour les 23 autres commandes et l'ancien outil reste disponible jus
 mesurée de chaque ligne. Le ledger compte désormais **1 complète, 12 partielles et 11 ouvertes**.
 `redis` est la deuxième ligne fermée : `bun run measure:azalee-redis-parity`, exécuté contre
 Redis local `redis://127.0.0.1:6379/0` le 2026-09-07, réalise **14 comparaisons** entre Azalée,
-`niers wiki redis` et `nie-mcp cli_wiki` avec **0 différence**. Les objets, tableaux, chaînes,
+`nie wiki redis` et `nie-mcp cli_wiki` avec **0 différence**. Les objets, tableaux, chaînes,
 valeurs absentes et réponses `set`/`get`/`del` gardent les mêmes types ; **3 contrôles TTL**
 confirment l'expiration de 3 600 secondes. La gate utilise une clé unique et compte **0 clé
 temporaire restante** après son `finally`. Le ledger compte donc **2 complètes, 11 partielles et
@@ -221,8 +221,8 @@ temporaire restante** après son `finally`. Le ledger compte donc **2 complètes
 `inagle_event_subtitles`, qui ne porte ni `dialogueId` ni locuteur ; la bibliothèque lit désormais
 le même `all-gamedata/story_text_database.json` que l'oracle Azalée. La commande Rust ajoute le
 filtre `--speaker` par nom ou identifiant et conserve l'ordre du corpus. La gate
-`bun run measure:azalee-dialogue-parity`, rejouée dans `/home/ubuntu/niers` le 2026-09-07,
-compare **4 probes / 7 répliques** via Azalée, `niers wiki dialogue` et `nie-mcp cli_wiki` avec
+`bun run measure:azalee-dialogue-parity`, rejouée dans `/home/ubuntu/nie` le 2026-09-07,
+compare **4 probes / 7 répliques** via Azalée, `nie wiki dialogue` et `nie-mcp cli_wiki` avec
 **0 sortie divergente**. Le ledger compte maintenant **3 complètes, 10 partielles et 11
 ouvertes** ; `--check` reste rouge pour les 21 commandes restantes.
 `audit` est la quatrième ligne fermée. Le port précédent auditait sept tables de publication,
@@ -268,7 +268,7 @@ Le ledger compte **7 complètes, 6 partielles et 11 ouvertes** ; `--check` reste
 `status` est la huitième ligne fermée. Le rapport partagé restitue maintenant les cinq sections
 Azalée (`sqlite`, `redis`, `git`, `process`, `system`) avec le même schéma camelCase et les mêmes
 unités. Le probe Redis historique est conservé en lecture seule (`GET status:ping`) ; l'ancien
-port Rust écrivait à tort `niers:status:ping` dans deux bases. La gate
+port Rust écrivait à tort `nie:status:ping` dans deux bases. La gate
 `bun run measure:azalee-status-parity`, rejouée sur le même snapshot et Redis local le
 2026-09-07, vérifie les **3 surfaces**, compare exactement les valeurs stables, valide le type et
 l'unité des mesures volatiles, puis observe **0 sortie normalisée divergente / 0 mutation Redis**.
@@ -313,9 +313,9 @@ résolus/manquants et les modèles dont l'identifiant reste runtime. Aucune affi
 
 ## Amendement du 2026-09-07 — absorption IECODE clôturée
 
-Le portage des capacités nécessaires est désormais consommable depuis `niers` :
-`scripts/sync-gamedata.ts` utilise `niers steam` pour l’acquisition et `niers viola dump` pour
-le dump sélectif. Les sous-commandes de délégation `niers cpp` et `niers cs` ont été retirées,
+Le portage des capacités nécessaires est désormais consommable depuis `nie` :
+`scripts/sync-gamedata.ts` utilise `nie steam` pour l’acquisition et `nie viola dump` pour
+le dump sélectif. Les sous-commandes de délégation `nie cpp` et `nie cs` ont été retirées,
 ainsi que `delegate.rs`, les recettes CMake/vcpkg/.NET et les benchmarks qui exigeaient les
 anciens arbres. Les sources historiques ont été exportées dans les dépôts dédiés
 [`iecode-cpp`](https://github.com/aphrody-code/iecode-cpp) et
@@ -337,7 +337,7 @@ les gates Rust et Bun après retrait, puis corriger uniquement les régressions 
 > --lib --tests` : **337 passés, 0 échoué, 1 ignoré** (316 unitaires + 21 intégration) ;
 > `cargo clippy -p nie-site --bins --tests -- -D warnings` : **0 avertissement** ;
 > `cargo build -p nie-ffi` : **vert** ; `bun run typecheck` : **29/29 workspaces, 0 erreur** ;
-> `bun run test` : **exit 0**, dont `@niers/azalee-tools` **196 pass, 6 skip, 0 fail** et
+> `bun run test` : **exit 0**, dont `@nie/azalee-tools` **196 pass, 6 skip, 0 fail** et
 > `nie` **29 pass, 1 skip, 0 fail** ; `bun run docs:check` : **303 fichiers Markdown,
 > 213 liens internes, 0 échec**. Les skips sont explicitement déclarés par les tests et ne sont
 > pas comptés comme réussites. Les actions de production et les décisions utilisateur restent
@@ -357,8 +357,8 @@ les gates Rust et Bun après retrait, puis corriger uniquement les régressions 
 > que la couverture complète du VFS est terminée.
 
 > **Blocage `.g4tg` mesuré — 2026-09-07.** Les 9 chemins `.g4tg` renvoyés par
-> `niers vfs find --ext g4tg --limit 20 --json .` ont chacun été passés à
-> `niers vfs formats --parse --prefix <chemin> --json` : **9 examinés, 0 reconnus, 9 inconnus**.
+> `nie vfs find --ext g4tg --limit 20 --json .` ont chacun été passés à
+> `nie vfs formats --parse --prefix <chemin> --json` : **9 examinés, 0 reconnus, 9 inconnus**.
 > Le format nécessite donc encore du reverse-engineering ; aucun autre fichier n’est manquant
 > dans la matrice de serving.
 
@@ -473,12 +473,12 @@ moteur et de la forge restent dans [`docs/PLAN.md`](docs/PLAN.md), son annexe te
 > ré-inclusion.
 >
 > **Reste ouvert.** Les 74 tests Bun (au moins une grappe est un vrai bug : `packages/mcp` teste
-> encore un plugin `rose-griffon` que le débranding a renommé `niers`) ; ~4 500 avertissements de
+> encore un plugin `rose-griffon` que le débranding a renommé `nie`) ; ~4 500 avertissements de
 > style oxlint (la porte est déjà à exit 0) ; l'audit UI d'Inacord a rendu **2 défauts bloquants**
 > (palette de commandes morte, donc Cinéma et Tableau de bord inatteignables ; « 200 fonction(s) »
 > qui affiche un `LIMIT` comme un compte) et 10 autres, non encore corrigés ; et la question des
-> **17 Go de `var/niers.sqlite`** — cette base décrit un binaire (`4c2b91fbae6f…`, 31 468 032 o)
-> qui n'est **pas** le `nie.exe` local (`b1fa04ea3658…`, 33 918 464 o) : un `niers rebuild` local
+> **17 Go de `var/nie.sqlite`** — cette base décrit un binaire (`4c2b91fbae6f…`, 31 468 032 o)
+> qui n'est **pas** le `nie.exe` local (`b1fa04ea3658…`, 33 918 464 o) : un `nie rebuild` local
 > contre la vraie cible vaut mieux qu'un transfert, mais la décision appartient à l'utilisateur.
 
 > **Amendement du 2026-09-06 (7) — la gate maîtresse est TENUE.** `manquant = 0`,
@@ -568,7 +568,7 @@ moteur et de la forge restent dans [`docs/PLAN.md`](docs/PLAN.md), son annexe te
 >
 > **Premier résultat : 583 capacités sur 9 sources, `servi` 114, `manquant` 205, `partiel` 0,
 > `bloqué` 10, `interne` 254 — gate ROMPUE.** Elle corrige quatre comptes que ce dépôt citait de
-> mémoire (`niers` a **40** sous-commandes et non 41, Inacord **158** et non 155, `nie-data`
+> mémoire (`nie` a **40** sous-commandes et non 41, Inacord **158** et non 155, `nie-data`
 > **116** modules et `nie-formats` **46** au lieu de 117 et 47, Azalée **26** routes d'API et non
 > 24), et elle en contredit un cinquième : **le VFS n'est pas à `manquant = 0`**, il porte
 > **21 250 fichiers** dont le décodeur est écrit ici sans qu'aucune route ne l'appelle — 21 047
@@ -619,13 +619,13 @@ moteur et de la forge restent dans [`docs/PLAN.md`](docs/PLAN.md), son annexe te
 > **Amendement du 2026-09-06 (2) — l'horizon change d'echelle.** L'utilisateur demande un
 > niveau d'exigence couvrant **toute la surface du depot** vers **un seul site ultime** :
 > [`docs/PLAN-SITE-ULTIME.md`](docs/PLAN-SITE-ULTIME.md). Mesure de depart : 41 sous-commandes
-> `niers` et 155 commandes Tauri pour **14 chemins d'API** — le depot sait faire dix fois ce
+> `nie` et 155 commandes Tauri pour **14 chemins d'API** — le depot sait faire dix fois ce
 > qu'il expose. Ce plan-ci reste la reference pour la bascule Azalee vers Vercel et ses gates.
 >
 > **Amendement du 2026-09-06 — la semaine est compressée en une journée.** L'utilisateur confie
 > **tout** ce plan à **Codex**, qui l'exécute en un jour, en raisonnement maximal et en
-> exécution proactive. La frontière du 2026-09-05 (« Codex dans `rg`, Claude dans `niers` ») ne
-> vaut plus : Codex écrit dans `niers` et y committe ses lots. L'ordre d'exécution, les huit
+> exécution proactive. La frontière du 2026-09-05 (« Codex dans `rg`, Claude dans `nie` ») ne
+> vaut plus : Codex écrit dans `nie` et y committe ses lots. L'ordre d'exécution, les huit
 > gates chiffrées, l'état mesuré du 2026-09-06 et les six gestes qui exigent un go sont dans
 > [`docs/CODEX-JOUR-UNIQUE.md`](docs/CODEX-JOUR-UNIQUE.md). Le tableau ci-dessous décrit la
 > répartition d'origine ; il est conservé parce que les gates et les rollbacks de chaque
@@ -635,18 +635,18 @@ moteur et de la forge restent dans [`docs/PLAN.md`](docs/PLAN.md), son annexe te
 
 | Agent | Moteur | Dépôt en écriture | Mission | Commits |
 |---|---|---|---|---|
-| **Fable 5.1** | Claude Code (`claude@aphrody-code/niers`) | `/home/ubuntu/niers` | orchestrateur ; tout le code : wiki serverless, `asset-source`, `inacord-ui`, `apps/inacord`, `apps/nie-web`, `crates/tools/nie-site`, DA du jeu, docs | seul auteur de commits dans `niers` |
-| **GPT 6** | Codex (`codex@aphrody-code/niers`) | `/home/ubuntu/rg` et l'infrastructure du VPS | la production actuelle et son extinction : remédiation sécurité (8 actions), nginx (vhost `nie.aphrody.com`, `supabase-compat.inc`, vhost `nie-model-serve`), unités systemd, arrêt d'`azalee-web` à J6, `deploy.ts` sans cible `azalee` | seul auteur de commits dans `rg` |
+| **Fable 5.1** | Claude Code (`claude@aphrody-code/nie`) | `/home/ubuntu/nie` | orchestrateur ; tout le code : wiki serverless, `asset-source`, `inacord-ui`, `apps/inacord`, `apps/nie-web`, `crates/tools/nie-site`, DA du jeu, docs | seul auteur de commits dans `nie` |
+| **GPT 6** | Codex (`codex@aphrody-code/nie`) | `/home/ubuntu/rg` et l'infrastructure du VPS | la production actuelle et son extinction : remédiation sécurité (8 actions), nginx (vhost `nie.aphrody.com`, `supabase-compat.inc`, vhost `nie-model-serve`), unités systemd, arrêt d'`azalee-web` à J6, `deploy.ts` sans cible `azalee` | seul auteur de commits dans `rg` |
 | **Astra** | Gemini (CLI `gemini` / `agy`) | **aucun** — écrit dans `var/mesures/` (hors dépôt) | vérificateur indépendant : rejoue chaque gate depuis un autre shell, matrices `curl`/`hyperfine`, captures `bxc` (rendu réel, CSP comprise), revue DA contre la référence, compte tout ; ne corrige rien | aucun ; rend des `fact:` A2A |
 
-**Frontière (consigne utilisateur du 2026-09-05) :** Codex dans `rg`, Claude dans `niers`,
+**Frontière (consigne utilisateur du 2026-09-05) :** Codex dans `rg`, Claude dans `nie`,
 chacun son dépôt, chacun sa mission. Plus de rapatriement, plus de build concurrent croisé.
 Le tick Codex `env-b002ca32` a lu la frontière **à l'envers** ; le tick de J1 la rétablit.
 
 **Protocole :** `aphrody a2a tick --iteration <n> --side <moi> --peer <lui> --kind fact
 --subject "<type>: <sujet>" --body "<mesure>"` ; types `goal:` (ordre), `claim:` (périmètre),
 `fact:` (mesure), `block:` (arbitrage), `done:` (lot fini, avec ses comptes). Un `fact` porte
-un chiffre, jamais une intention. Astra a reçu son identité `astra@aphrody-code/niers`
+un chiffre, jamais une intention. Astra a reçu son identité `astra@aphrody-code/nie`
 (rôle `verifier`) dans `ai.json` et sa boîte `.coord/inbox-from-astra.jsonl` — fait à J1.
 
 > **ABROGÉ le 2026-09-06 — mode urgence.** Le paragraphe ci-dessous exigeait un go explicite
@@ -674,7 +674,7 @@ un chiffre, jamais une intention. Astra a reçu son identité `astra@aphrody-cod
 | Production `/textures`, `/modeles` | TTFB **392 ms**, **229 ms** | idem |
 | Supabase Cloud | 224 tables, 1 478 colonnes, 5 vues, 155 + 64 policies ; 65 tables / 165 277 lignes, 0 écart | `load-mirror-to-cloud.sh`, `84d4a54` |
 | Ce que le wiki lit encore de local | `bun:sqlite` 41 fichiers, `node:fs` 44, `/home/ubuntu` 15, compat Supabase 19 ; 91 pages, 30 routes API | `rg -l`, `apps/azalee` + `packages/azalee` |
-| Explorateur | 158 fichiers TS/TSX, 34 avec `@tauri-apps`, `api.ts` 630 l., `productName: "niers"` 0.5.9, identifiant `dev.niers.explorer` | `rg`, `tauri.conf.json` |
+| Explorateur | 158 fichiers TS/TSX, 34 avec `@tauri-apps`, `api.ts` 630 l., `productName: "nie"` 0.5.9, identifiant `dev.nie.explorer` | `rg`, `tauri.conf.json` |
 | `nie.aphrody.com` | DNS → ce VPS, TLS émis, 10 hôtes dans un seul bloc nginx, CSP `default-src 'none'`. **Corrigé le 2026-09-05 au soir** : `aphrody-site` (:8083) n'écoutait plus du tout — les dix hôtes rendaient **502**, pas 265 o | `dig`, `curl`, `ss -ltnp`, `conf.d/aphrody.com.conf` |
 | `Cargo.lock` | `axum` **absent** ; `tokio` 1.53.1, `tower` 0.5.3, `tower-http` 0.6.11, `rusqlite` 0.37.0, `reqwest` 0.13.4, `wgpu` 29.0.3 présents | `awk` sur le lock |
 | Sécurité self-host | RPC anonyme destructif, `anon` écrit sur 129 tables, 2 105 lignes `discord_members` publiques, JWT lisible, SSH root par mot de passe | `docs/SECURITE-BASCULE.md`, `4f53936` |
@@ -782,7 +782,7 @@ relisant le code.
 
 | Qui | Quoi | Gate |
 |---|---|---|
-| Fable | déplacer hors d'`apps/azalee` ce qui lit un fichier : `/cpk`, `/textures`, `/modeles`, `/mode`, `/sons`, `/videos`, `/avatar`, `/demo`, `/save`, `/vroid`, `api/cpk`, `api/mode-tex`, `lib/cpk/index.ts`, le wasm — vers `apps/nie-web` (en attente J5) · retirer le Proxy SQLite du chemin métier, **une seule** URL Supabase (plus de `pickUrl` en cascade) · les 19 consommateurs compat → `*.supabase.co` · `vercel link` + variables (`~/.config/niers/vercel.env`, jamais affichées) · **preview #1** · les 308 vers `nie.aphrody.com` écrites derrière `NEXT_PUBLIC_TOOLS_ORIGIN`, inactives | `rg -l 'bun:sqlite\|node:fs\|/home/ubuntu\|SQLITE_DB_PATH\|SUPABASE_INTERNAL_URL\|DATABASE_URL' apps/azalee packages/azalee` → **0** ; Gate 1 contre la preview : `/chara` ≥ 50, fiche 200 |
+| Fable | déplacer hors d'`apps/azalee` ce qui lit un fichier : `/cpk`, `/textures`, `/modeles`, `/mode`, `/sons`, `/videos`, `/avatar`, `/demo`, `/save`, `/vroid`, `api/cpk`, `api/mode-tex`, `lib/cpk/index.ts`, le wasm — vers `apps/nie-web` (en attente J5) · retirer le Proxy SQLite du chemin métier, **une seule** URL Supabase (plus de `pickUrl` en cascade) · les 19 consommateurs compat → `*.supabase.co` · `vercel link` + variables (`~/.config/nie/vercel.env`, jamais affichées) · **preview #1** · les 308 vers `nie.aphrody.com` écrites derrière `NEXT_PUBLIC_TOOLS_ORIGIN`, inactives | `rg -l 'bun:sqlite\|node:fs\|/home/ubuntu\|SQLITE_DB_PATH\|SUPABASE_INTERNAL_URL\|DATABASE_URL' apps/azalee packages/azalee` → **0** ; Gate 1 contre la preview : `/chara` ≥ 50, fiche 200 |
 | Codex | sécurité **1–2** (révoquer l'exécution `anon` des RPC d'écriture et les grants d'écriture ; retirer `discord_members`/`settings` de l'accès anonyme), **avec go** · `nie-model-serve` : `limit_req`/`limit_conn` prêts | `POST /rest/v1/rpc/rg_liberer_profil_discord` → 401/403 ; `GET /rest/v1/discord_members?limit=1` → 401/403 ; comptes de grants avant/après |
 | Astra | Gate 1 contre la preview depuis **l'extérieur** du VPS · latence preview → eu-west-3 : fiche perso n = 20, p50/p95/p99 · `bxc` : rendu réel de `/`, `/chara`, une fiche (CSP, chunks) | p95 fiche **< 800 ms**, sinon `block:` |
 
@@ -792,7 +792,7 @@ relisant le code.
 
 | Qui | Quoi | Gate |
 |---|---|---|
-| Fable | `/chara` : pagination (620 → 60 liens), `srcset` par `cdn-variants ?w=&format=webp` sur les 404 vignettes, markup aplati · ISR `revalidate = 3600` + `dynamicParams` sur les 6 fiches, `POST /api/ops/revalidate/wiki` · lot 2 de `docs/MIGRATION-EXPLORATEUR.md` §4 : pages `/tools/*` mortes et leurs 7 références entrantes — **sauf** `app/tools/niers/latest.json/route.ts` — **fait le 2026-09-06** (18 fichiers supprimés ; menu, plan de site, redirections, boutons « Comparer » et ossature média corrigés dans le même geste) · unité `deploy/nie-miroir-cloud.service` (miroir → Cloud → revalidation) écrite, pas installée · preview #2 | `/chara` **< 250 Ko** en `br`, `<img>` sans `srcset` = **0**, Gate 1 sur preview #2 |
+| Fable | `/chara` : pagination (620 → 60 liens), `srcset` par `cdn-variants ?w=&format=webp` sur les 404 vignettes, markup aplati · ISR `revalidate = 3600` + `dynamicParams` sur les 6 fiches, `POST /api/ops/revalidate/wiki` · lot 2 de `docs/MIGRATION-EXPLORATEUR.md` §4 : pages `/tools/*` mortes et leurs 7 références entrantes — **sauf** `app/tools/nie/latest.json/route.ts` — **fait le 2026-09-06** (18 fichiers supprimés ; menu, plan de site, redirections, boutons « Comparer » et ossature média corrigés dans le même geste) · unité `deploy/nie-miroir-cloud.service` (miroir → Cloud → revalidation) écrite, pas installée · preview #2 | `/chara` **< 250 Ko** en `br`, `<img>` sans `srcset` = **0**, Gate 1 sur preview #2 |
 | Codex | sécurité **3–4** : plan de rotation atomique de `SUPABASE_JWT_SECRET` (liste des services qui le valident, ordre, retour arrière) ; SSH : vérifier une session par clé puis `PermitRootLogin no`, `PasswordAuthentication no` — **avec go** · installer `nie-miroir-cloud.timer` (`daemon-reload` **avec go**) | `sshd -T` montre les deux valeurs ; le timer est `active` ; le plan de rotation est un `fact:` |
 | Astra | matrice **avant/après** J3 sur la preview (mêmes 5 URL × 20) · Lighthouse mobile sur `/`, `/chara`, une fiche · vérifie le compte de `<img srcset>` par lui-même | deltas publiés ; aucun régressif sur `/` |
 
@@ -819,9 +819,9 @@ met à jour une 0.5.9 réelle (Windows) au lieu d'installer à côté — sinon 
 
 | Qui | Quoi | Gate |
 |---|---|---|
-| Fable | `crates/tools/nie-site` : `main/app/config/error`, routes `health`, `well_known`, `static_files` (pré-compressé `br`/`zstd`, immuable par empreinte), **`/f/<chemin VFS verbatim>`** (une ressource, extension du jeu conservée) et **`/b/<préfixe VFS>`** (parcours d'un dossier) — amendement A3, chemin en **segment**, jamais en query ; les vues nommées (`/textures`, `/modeles`, `/sons`, `/videos`) sont des **filtres enregistrés** sur ces deux espaces, elles ne désignent jamais un fichier · `api/v1` (`rusqlite` ro, pagination, DTO), `assets` (proxy `nie-model-serve :8790` : `limit`, `timeout` 10 s, taille bornée, cache `moka`, ETag `blake3`), `index.html` via `askama` (titre, `og:` par route), erreurs, `robots.txt`, `sitemap.xml`, CSP posée par la crate ; tests qui **comptent** ; `benches/routing.rs` · `apps/nie-web` : hôte Vite d'`inacord-ui` + `web-source.ts`, les routes sorties du wiki à J2 · **DA du jeu** : `niers design tokens` → `game-tokens.css` (70 variables), coquille **menu principal** pour nie (`shell/main-menu/` : `SkewTile`, `TileRow`, `HeaderBanner`, `SidePanel`, `TitleBand`, `VersionChip`, `Callout`, `Badge`) sur les textures du jeu servies par `/assets` · coquille **InaCord** pour Inacord (`shell/inacord/` : `PhoneFrame`, `RoomList`, `MessageThread`, `HexBackdrop`, `TabBar` ; panneaux `#323544`/`#374D5B`, accent `#4FAECC`), références archivées dans `data/design/` · `deploy/nie-site.service` (`Restart=always`, `MemoryMax`) · `cargo build --release -p nie-site` | `cargo clippy -p nie-site --all-targets -- -D warnings` = 0 ; `cargo test -p nie-site` compte ; bundle initial **< 300 Ko gz** ; 70 tokens ; TTFB local `/api/v1/textures?page=1` **< 50 ms** |
+| Fable | `crates/tools/nie-site` : `main/app/config/error`, routes `health`, `well_known`, `static_files` (pré-compressé `br`/`zstd`, immuable par empreinte), **`/f/<chemin VFS verbatim>`** (une ressource, extension du jeu conservée) et **`/b/<préfixe VFS>`** (parcours d'un dossier) — amendement A3, chemin en **segment**, jamais en query ; les vues nommées (`/textures`, `/modeles`, `/sons`, `/videos`) sont des **filtres enregistrés** sur ces deux espaces, elles ne désignent jamais un fichier · `api/v1` (`rusqlite` ro, pagination, DTO), `assets` (proxy `nie-model-serve :8790` : `limit`, `timeout` 10 s, taille bornée, cache `moka`, ETag `blake3`), `index.html` via `askama` (titre, `og:` par route), erreurs, `robots.txt`, `sitemap.xml`, CSP posée par la crate ; tests qui **comptent** ; `benches/routing.rs` · `apps/nie-web` : hôte Vite d'`inacord-ui` + `web-source.ts`, les routes sorties du wiki à J2 · **DA du jeu** : `nie design tokens` → `game-tokens.css` (70 variables), coquille **menu principal** pour nie (`shell/main-menu/` : `SkewTile`, `TileRow`, `HeaderBanner`, `SidePanel`, `TitleBand`, `VersionChip`, `Callout`, `Badge`) sur les textures du jeu servies par `/assets` · coquille **InaCord** pour Inacord (`shell/inacord/` : `PhoneFrame`, `RoomList`, `MessageThread`, `HexBackdrop`, `TabBar` ; panneaux `#323544`/`#374D5B`, accent `#4FAECC`), références archivées dans `data/design/` · `deploy/nie-site.service` (`Restart=always`, `MemoryMax`) · `cargo build --release -p nie-site` | `cargo clippy -p nie-site --all-targets -- -D warnings` = 0 ; `cargo test -p nie-site` compte ; bundle initial **< 300 Ko gz** ; 70 tokens ; TTFB local `/api/v1/textures?page=1` **< 50 ms** |
 | Codex | installer `nie-site.service` (**go**) · appliquer la découpe du vhost et retirer la CSP nginx du bloc `nie.`, `nginx -t`, **reload avec go** · `aphrody.com` et `www` → 308 · vérifier les 10 hôtes après | `nie.aphrody.com/healthz` rend ses `capacites` (la sonde ne se nomme plus) ; `aphrody.com` rend 308 ; les 5 autres hôtes répondent **comme avant** (diff des `curl -sI`) ; la CSP vue est celle de `nie-site` |
-| Astra | Gate 5 : `hyperfine --warmup 3` sur `/`, `/api/v1/textures?page=1`, `/f/<une texture>` ; **200 chemins tirés de `niers vfs find` répondent 200 sur `/f/`** sous leur forme VFS exacte, dont une entité nommée `unknown` (gate A3) ; poids du bundle ; **capture `bxc` de `nie.aphrody.com`** posée à côté de `data/design/aphrody-ui-ref-mainmenu-7.1.2.png` pour revue ; les 10 hôtes avant/après | TTFB `/textures` **< 50 ms** (départ 392), `/modeles` **< 50 ms** (départ 229) ; 200/200 chemins VFS ; aucune régression sur `api.`, `mcp.`, `downloads.` |
+| Astra | Gate 5 : `hyperfine --warmup 3` sur `/`, `/api/v1/textures?page=1`, `/f/<une texture>` ; **200 chemins tirés de `nie vfs find` répondent 200 sur `/f/`** sous leur forme VFS exacte, dont une entité nommée `unknown` (gate A3) ; poids du bundle ; **capture `bxc` de `nie.aphrody.com`** posée à côté de `data/design/aphrody-ui-ref-mainmenu-7.1.2.png` pour revue ; les 10 hôtes avant/après | TTFB `/textures` **< 50 ms** (départ 392), `/modeles` **< 50 ms** (départ 229) ; 200/200 chemins VFS ; aucune régression sur `api.`, `mcp.`, `downloads.` |
 
 **Rollback :** restaurer le vhost précédent, ce qui restaure les **502** — car rien n'écoute sur `:8083` et `aphrody-site` n'existe plus comme service. Le rollback écrit ici supposait un repli qui n'existait pas ; le vrai filet est que ces hôtes étaient déjà hors service, donc la bascule ne pouvait rien casser.
 
@@ -829,7 +829,7 @@ met à jour une 0.5.9 réelle (Windows) au lieu d'installer à côté — sinon 
 
 | Qui | Quoi | Gate |
 |---|---|---|
-| Fable | `vercel --prod` (**go**) · `NEXT_PUBLIC_TOOLS_ORIGIN=https://nie.aphrody.com` : les dix 308 s'activent · Gate 1 contre la production dès le DNS basculé · `docs/EXPLOITATION.md`, `docs/AZALEE.md`, `docs/MIGRATION-EXPLORATEUR.md` mis à jour · release Inacord **si** la mise à jour depuis 0.5.9 est vérifiée, sinon J7 ou après | `dig +short azalee.rosegriffon.fr` = Vercel ; `/chara` ≥ 50 liens en prod ; `/tools/niers/latest.json` **200** ; les dix préfixes **308** vers `nie.aphrody.com` ; `/tools` **pas** redirigé |
+| Fable | `vercel --prod` (**go**) · `NEXT_PUBLIC_TOOLS_ORIGIN=https://nie.aphrody.com` : les dix 308 s'activent · Gate 1 contre la production dès le DNS basculé · `docs/EXPLOITATION.md`, `docs/AZALEE.md`, `docs/MIGRATION-EXPLORATEUR.md` mis à jour · release Inacord **si** la mise à jour depuis 0.5.9 est vérifiée, sinon J7 ou après | `dig +short azalee.rosegriffon.fr` = Vercel ; `/chara` ≥ 50 liens en prod ; `/tools/nie/latest.json` **200** ; les dix préfixes **308** vers `nie.aphrody.com` ; `/tools` **pas** redirigé |
 | Utilisateur | bascule DNS `azalee.rosegriffon.fr` → Vercel (registrar) | — |
 | Codex | `systemctl stop azalee-web` (**go**, unité conservée 7 jours) · `supabase-compat.inc` et le vhost `azalee` retirés de nginx, vhost public de `nie-model-serve` retiré, **reload avec go** · sécurité **7–8** : `NEXT_PUBLIC_SUPABASE_URL` n'est plus servie par le VPS, ports publics et vhosts revus · `deploy.ts` de `rg` sans cible `azalee` (déjà `410ed795`), `rg-releases/azalee` gardé 7 jours | `ss -ltnp` : rien de nouveau en écoute publique ; `nginx -t` ; les 19 consommateurs compat répondent depuis `*.supabase.co` |
 | Astra | Gate 6 complet : Gate 1 en production, updater 200, les dix 308, Realtime **101**, une URL signée Storage télécharge, `nie.aphrody.com` intact, `azalee-web` arrêté | tout publié en un `fact:` avec chaque compte |
@@ -858,14 +858,14 @@ suivante : **on ne bascule pas un vendredi soir.**
   révisable. Étapes 1 à 4 enchaînables juste après la semaine ; étapes 5 et 6 seulement quand
   quelqu'un accepte de modérer.
 
-- **`nie-db` et `niers push`** (amendement A2) : couche SQL native — `rusqlite` pour SQLite,
+- **`nie-db` et `nie push`** (amendement A2) : couche SQL native — `rusqlite` pour SQLite,
   `sqlx` 0.8 pour PostgreSQL — et reprise du workflow des tables `inagle_*` (18 importeurs,
-  2 575 l. du paquet Bun), alimentée par `nie-data`. Gate : `niers push --dry-run` annonce
+  2 575 l. du paquet Bun), alimentée par `nie-data`. Gate : `nie push --dry-run` annonce
   les lignes table par table, puis un push réel rend **le même total qu'aujourd'hui, écart
   0**. Jusque-là, `nie-site` ne crée **aucune nouvelle** lecture d'`inagle_*` et le miroir
   nocturne reste la source. C'est le premier lot après la semaine.
 - **Rebranchement des cinq requêtes** de `nie-model-serve` et `nie-play` sur le gisement
-  produit par `niers push` — suit `nie-db`, ne le précède pas.
+  produit par `nie push` — suit `nie-db`, ne le précède pas.
 - Mobile Tauri d'Inacord, jeu mobile natif, adaptateur Steam : spécifiés dans
   `docs/stack/game-platforms.md` et `desktop-mobile.md`, **non commencés**.
 - Bump `wgpu 29.0.3 → 30.0.1` : lot compilé et golden-testé, pas cette semaine.
@@ -890,12 +890,12 @@ publique d'`nie.aphrody.com` avec des assets du jeu qui la rend nécessaire.
 
 | Risque | Propriétaire | Parade | Rollback |
 |---|---|---|---|
-| Une redirection attrape `/tools/*` et coupe l'updater d'Inacord | Fable | dix préfixes explicites, jamais de regex ; `/tools/niers/latest.json` testé à J6 | retirer la ligne, redéployer |
+| Une redirection attrape `/tools/*` et coupe l'updater d'Inacord | Fable | dix préfixes explicites, jamais de regex ; `/tools/nie/latest.json` testé à J6 | retirer la ligne, redéployer |
 | Latence Vercel → eu-west-3 > 800 ms au p95 | Astra mesure, Fable corrige | ISR sur les fiches ; sinon `block:` et la bascule attend | pas de bascule |
 | `supabase-compat.inc` : realtime/storage morts sans erreur de build | Fable + Codex | 19 consommateurs → `*.supabase.co` à J2, handshake 101 vérifié à J6 | `azalee-web` redémarré |
 | Découpe du vhost `aphrody.com` coupe `api.`/`mcp.`/`downloads.` | Codex | brouillon J4, `nginx -t`, `curl -sI` des 11 hôtes avant/après | `git revert` du vhost puis reload |
 | CSP nginx + CSP `nie-site` s'additionnent et cassent le site | Codex | pas d'`add_header CSP` sur le bloc nie | idem |
-| Renommage `niers → Inacord` installe à côté au lieu de mettre à jour | Fable | identifiant conservé ; test sur une 0.5.9 réelle avant release | ne pas publier |
+| Renommage `nie → Inacord` installe à côté au lieu de mettre à jour | Fable | identifiant conservé ; test sur une 0.5.9 réelle avant release | ne pas publier |
 | Un agent écrit dans le dépôt de l'autre, ou le démon capte un lot à mi-course | tous | `claim:` avant d'écrire ; relire `git log` ; un commit par lot | `git revert` |
 | Faux vert (200, exit 0, N pages) sur un site vide | Astra | **compter**, toujours ; deux agents publient les mêmes comptes | — |
 

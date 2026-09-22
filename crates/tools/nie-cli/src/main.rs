@@ -144,7 +144,7 @@ enum Cmd {
     },
     /// Régénère, à côté de chaque `*.cfg.bin` d'une arborescence, le `*.cfg.bin.json` en forme
     /// **iecode** (`{entries}`/`{lists}`) — celle que lisent les parseurs typés de `nie-data`
-    /// (golden tests, `export_*`), PAS celle de `niers decode` (structure brute, générique).
+    /// (golden tests, `export_*`), PAS celle de `nie decode` (structure brute, générique).
     /// Idempotent : saute un `.json` déjà plus récent que son `.cfg.bin` sauf `--force`.
     RefreshTypedJson {
         /// Répertoire à parcourir (récursif).
@@ -159,8 +159,8 @@ enum Cmd {
     /// Récupère le jeu depuis Steam — y compris EAC, EOS et Steamworks.
     ///
     /// La forge produit `nie.exe` ; elle ne produit aucun des composants tiers signés qui le
-    /// lancent. C'est Steam qui les fournit, donc `niers steam` est la seule voie vers une
-    /// installation réellement démarrable (cf. `niers info`, section « chaine de lancement »).
+    /// lancent. C'est Steam qui les fournit, donc `nie steam` est la seule voie vers une
+    /// installation réellement démarrable (cf. `nie info`, section « chaine de lancement »).
     Steam {
         #[command(subcommand)]
         op: SteamOp,
@@ -289,7 +289,7 @@ enum Cmd {
     /// Importe le savoir fusionné (index Ghidra nie-index.json) dans la base de connaissance.
     Seed {
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Fichier research/nie-index.json.
         #[arg(long)]
@@ -304,7 +304,7 @@ enum Cmd {
     /// Rend inversables les CRC-32 croisés dans les `cfg.bin`, les `objbin` et le binaire.
     SeedUi {
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Racine du jeu (défaut : résolution à l'exécution, cf. `resolve_game_dir`).
         #[arg(long)]
@@ -324,7 +324,7 @@ enum Cmd {
         #[arg(long)]
         exe: PathBuf,
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Longueur minimale retenue, en caractères.
         #[arg(long, default_value_t = 4)]
@@ -347,7 +347,7 @@ enum Cmd {
     },
     /// Cherche des fichiers par chemin sur le disque (moteur `ignore`, celui de ripgrep/fd).
     ///
-    /// Complète `niers vfs find`, qui ne voit que l'intérieur des CPK.
+    /// Complète `nie vfs find`, qui ne voit que l'intérieur des CPK.
     Find {
         /// Sous-chaîne cherchée dans le chemin (vide = tout lister).
         #[arg(default_value = "")]
@@ -438,7 +438,7 @@ enum Cmd {
         #[arg(long)]
         game_dir: Option<PathBuf>,
         /// Base de connaissance, pour résoudre les noms d'icônes.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
     },
     /// Génération 3D d'un personnage original : morphologie, chara_edit, couleurs mesurées.
@@ -454,21 +454,21 @@ enum Cmd {
     },
     /// Affiche la couverture (fonctions classifiées) du binaire indexé.
     Coverage {
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
     },
     /// Opérations sur la frontière BFS redis.
     Queue {
         #[command(subcommand)]
         op: QueueOp,
-        #[arg(long, env = "NIERS_REDIS", default_value = "redis://127.0.0.1/")]
+        #[arg(long, env = "NIE_REDIS", default_value = "redis://127.0.0.1/")]
         redis: String,
         #[arg(long, default_value = "nie")]
         tag: String,
     },
     /// Propage les labels sur le call-graph (auto-ML, ancrage strings + label-spreading).
     Propagate {
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         #[arg(long, default_value_t = 16)]
         rounds: usize,
@@ -476,7 +476,7 @@ enum Cmd {
     /// Extrait les classes RTTI MSVC depuis nie_eacpatched.exe et les ingère dans la base.
     Rtti {
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Chemin vers nie_eacpatched.exe (ou nie.exe).
         #[arg(long)]
@@ -485,7 +485,7 @@ enum Cmd {
     /// Triage PE/ELF via aphrody-re : sections + imports/exports ingérés dans la base.
     Index {
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Binaire à indexer.
         #[arg(long)]
@@ -494,7 +494,7 @@ enum Cmd {
     /// Récupère les arêtes d'appel manquantes par désassemblage iced-x86 de `.text`.
     Disasm {
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Binaire à désassembler (nie_eacpatched.exe ou nie.exe).
         #[arg(long)]
@@ -503,7 +503,7 @@ enum Cmd {
     /// Découvre les fonctions AUTORITAIRES via `.pdata` et mesure le désalignement Ghidra.
     Pdata {
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Binaire PE x64 (nie_eacpatched.exe ou nie.exe).
         #[arg(long)]
@@ -512,7 +512,7 @@ enum Cmd {
     /// Refonde la carte sur `.pdata` (vrais débuts), ré-ancre Ghidra, disasm + propage. Couverture HONNÊTE.
     Rebuild {
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Binaire PE x64.
         #[arg(long)]
@@ -523,7 +523,7 @@ enum Cmd {
     /// Récupère les fonctions feuilles de `.text` invisibles à `.pdata`.
     Recover {
         /// Base sqlite cible.
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Binaire PE x64.
         #[arg(long)]
@@ -631,7 +631,7 @@ enum Cmd {
 
     /// Le vrai `nie.exe`, vivant : préparer Proton, le lancer, lire sa mémoire.
     ///
-    /// Joint les trois surfaces que `niers` tenait séparées — `steam` pose le jeu sur le disque,
+    /// Joint les trois surfaces que `nie` tenait séparées — `steam` pose le jeu sur le disque,
     /// Proton le fait tourner, `mem` le lit. Le lancement passe par le Proton livré AVEC le jeu
     /// (`<racine>/files`), jamais par le Wine de la distribution : lui n'a ni DXVK ni
     /// vkd3d-proton.
@@ -641,12 +641,12 @@ enum Cmd {
     },
 }
 
-/// Sous-commandes de `niers mode` (catalogue des modes de jeu).
+/// Sous-commandes de `nie mode` (catalogue des modes de jeu).
 #[derive(Subcommand)]
 enum ModeOp {
     /// (Re)construit le catalogue dans la base : un mode, ses écrans et ses assets.
     Index {
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         #[arg(long)]
         game_dir: Option<PathBuf>,
@@ -665,7 +665,7 @@ enum ModeOp {
     },
     /// Exporte le catalogue en JSON (destiné à azalée).
     Export {
-        #[arg(long, default_value = "var/niers.sqlite")]
+        #[arg(long, default_value = "var/nie.sqlite")]
         db: PathBuf,
         /// Fichier de sortie ; `-` ou absent = stdout.
         #[arg(long, short = 'o')]
@@ -690,7 +690,7 @@ enum ModeOp {
     },
 }
 
-/// Sous-commandes de `niers render` (contrôle visuel de GLB assemblés).
+/// Sous-commandes de `nie render` (contrôle visuel de GLB assemblés).
 #[derive(Subcommand)]
 enum RenderOp {
     /// Rend une vue fixe d'un GLB en PNG (qualité sans perte).
@@ -751,7 +751,7 @@ enum RenderOp {
     },
 }
 
-/// Sous-commandes de `niers img` (édition d'image via la bibliothèque `image`).
+/// Sous-commandes de `nie img` (édition d'image via la bibliothèque `image`).
 #[derive(Subcommand)]
 enum ImgOp {
     /// Dimensions, format et espace colorimétrique, sans rien réécrire.
@@ -774,7 +774,7 @@ enum ImgOp {
     },
     /// Recolore une image : décalage TSV et/ou rampe de luminance, alpha préservé.
     ///
-    /// Même filtre que `niers mod recolor` (`nie_formats::recolor`) — de quoi régler les
+    /// Même filtre que `nie mod recolor` (`nie_formats::recolor`) — de quoi régler les
     /// paramètres sur un PNG avant de les appliquer à un `.g4tx` du jeu.
     Recolor {
         src: PathBuf,
@@ -875,7 +875,7 @@ enum ImgOp {
     },
 }
 
-/// Sous-commandes de `niers mem` (RE runtime via nie-trace).
+/// Sous-commandes de `nie mem` (RE runtime via nie-trace).
 #[derive(Subcommand)]
 enum MemOp {
     /// Liste les plages mémoire (filtrées par --module sauf --all).
@@ -964,7 +964,7 @@ enum MemOp {
     /// Relève la table `colorPresetID → couleur` des palettes de l'éditeur d'avatar.
     ///
     /// Ces valeurs n'existent ni dans le catalogue, ni dans le binaire : seul le jeu vivant les
-    /// porte. Les identifiants attendus viennent du catalogue résolu (`niers avatar export`).
+    /// porte. Les identifiants attendus viennent du catalogue résolu (`nie avatar export`).
     Palettes {
         /// Fichier JSON du catalogue résolu, d'où sont lus les identifiants attendus.
         #[arg(long, default_value = "var/avatar-resolved.json")]
@@ -1016,7 +1016,7 @@ enum MemOp {
     },
 }
 
-/// Sous-commandes de `niers vfs` (explorateur CPK / VFS).
+/// Sous-commandes de `nie vfs` (explorateur CPK / VFS).
 ///
 /// `--game-dir` est optionnel partout : par défaut, résolu via
 /// [`nie_formats::vfs::resolve_game_dir`] (`NIE_GAME_DIR`, sinon le répertoire courant s'il
@@ -1059,7 +1059,7 @@ enum VfsOp {
         #[arg(long, short = 'n', default_value_t = 100)]
         limit: usize,
         /// Sortie JSON (tableau compact sur une ligne) — pour consommation programmatique
-        /// (ex. `niers_bridge.py` de l'addon Blender `plugins/niers-blender`, recherche de fichiers sans
+        /// (ex. `nie_bridge.py` de l'addon Blender `plugins/nie-blender`, recherche de fichiers sans
         /// dépendre du miroir wiki contrairement à `chara`/`waza`).
         #[arg(long, short = 'j')]
         json: bool,
@@ -1156,7 +1156,7 @@ enum VfsOp {
         #[arg(long)]
         position: Option<String>,
         /// Sortie JSON (tableau compact sur une ligne) — pour consommation programmatique
-        /// (ex. `niers_bridge.py` de l'addon Blender `plugins/niers-blender`).
+        /// (ex. `nie_bridge.py` de l'addon Blender `plugins/nie-blender`).
         #[arg(long, short = 'j')]
         json: bool,
         #[arg(long, short = 'n', default_value_t = 50)]
@@ -1770,7 +1770,7 @@ enum WikiOp {
     },
     /// Génère une équipe aléatoire depuis le miroir.
     ///
-    /// Requiert un seed explicite — le RNG non seédé est interdit dans niers.
+    /// Requiert un seed explicite — le RNG non seédé est interdit dans nie.
     RandomTeam {
         /// Seed entier pour le PRNG (déterministe).
         #[arg(long, short = 's')]
@@ -2160,7 +2160,7 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             }
             "show" | "calc" => {
                 let id = args.first().ok_or_else(|| {
-                    anyhow::anyhow!("Usage: niers wiki team-builder {} <id>", action)
+                    anyhow::anyhow!("Usage: nie wiki team-builder {} <id>", action)
                 })?;
                 let entry = api::execute_wiki(api::WikiCommand::TeamBuilderEntry {
                     id: id.clone(),
@@ -2436,10 +2436,10 @@ fn steam_cmd(op: SteamOp) -> anyhow::Result<()> {
     })
 }
 
-/// Sous-commandes de `niers live` — Proton et le `nie.exe` vivant.
+/// Sous-commandes de `nie live` — Proton et le `nie.exe` vivant.
 ///
 /// `--game-dir` n'est PAS `NIE_GAME_DIR`. Deux racines distinctes coexistent : `NIE_GAME_DIR`
-/// désigne l'arbre dont `niers` lit le VFS (sur cette machine, le dépôt lui-même), tandis que
+/// désigne l'arbre dont `nie` lit le VFS (sur cette machine, le dépôt lui-même), tandis que
 /// `NIE_GAME_PATH` désigne l'installation Steam, seule à porter `files/` et donc Proton. Les
 /// confondre rend un « wine introuvable » sur une racine par ailleurs parfaitement valide.
 #[derive(Subcommand)]
@@ -2517,7 +2517,7 @@ enum LiveOp {
     },
 }
 
-/// Exécute une opération `niers live`.
+/// Exécute une opération `nie live`.
 ///
 /// Proton est une couche de compatibilité Linux ; sur un hôte Windows le jeu est natif et n'a
 /// rien à traverser. La sous-commande reste néanmoins déclarée sur toutes les plateformes, pour
@@ -2539,7 +2539,7 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
     /// Exécutable par défaut : la copie sans EAC si elle existe, sinon le binaire d'origine.
     ///
     /// L'ordre compte. La chaîne officielle charge le pilote anti-triche, et un process lancé
-    /// sous ce pilote n'est pas lisible depuis un outil tiers ; `niers mem patch-eac` produit
+    /// sous ce pilote n'est pas lisible depuis un outil tiers ; `nie mem patch-eac` produit
     /// précisément cette copie.
     /// Taille du bureau virtuel Wine, ou `None` si l'appelant l'a explicitement refusé.
     ///
@@ -2701,8 +2701,8 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
                 println!("log           {}", lancement.log.display());
                 if scope >= 1 {
                     println!(
-                        "note          ptrace_scope={scope} : un `niers mem` LANCÉ À PART sera \
-                         refusé, faute d'être un ancêtre. Utilise `niers live probe`, qui lance \
+                        "note          ptrace_scope={scope} : un `nie mem` LANCÉ À PART sera \
+                         refusé, faute d'être un ancêtre. Utilise `nie live probe`, qui lance \
                          et lit dans le même processus."
                     );
                 }
@@ -2719,7 +2719,7 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
             let pid =
                 nie_trace::find_pid_by_name(nie_trace::proton::GAME_COMM).ok_or_else(|| {
                     anyhow::anyhow!(
-                        "aucun process « {} » — lance le jeu avec `niers live run`",
+                        "aucun process « {} » — lance le jeu avec `nie live run`",
                         nie_trace::proton::GAME_COMM
                     )
                 })?;
@@ -2778,7 +2778,7 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
             let base = nie_trace::find_module_base(pid, nie_trace::proton::GAME_COMM)
                 .ok_or_else(|| anyhow::anyhow!("module introuvable dans le process {pid}"))?;
             // Mesuré avant la lecture, pas déduit après son échec : si Proton ré-exécute le jeu
-            // hors de l'arbre de `niers`, la descendance est rompue et `process_vm_readv` rend
+            // hors de l'arbre de `nie`, la descendance est rompue et `process_vm_readv` rend
             // EPERM. Le dire ici distingue « pas ancêtre » de « mauvaise adresse ».
             if !nie_trace::likely_permitted(pid) {
                 println!(
@@ -2806,8 +2806,8 @@ fn live_cmd(op: LiveOp) -> anyhow::Result<()> {
 #[cfg(not(target_os = "linux"))]
 fn live_cmd(_op: LiveOp) -> anyhow::Result<()> {
     anyhow::bail!(
-        "`niers live` pilote Proton, qui n'existe que sous Linux. Sur un hôte Windows le jeu est \
-         natif : lance-le, puis lis-le avec `niers mem`."
+        "`nie live` pilote Proton, qui n'existe que sous Linux. Sur un hôte Windows le jeu est \
+         natif : lance-le, puis lis-le avec `nie mem`."
     )
 }
 
@@ -2828,7 +2828,7 @@ fn racine_jeu(arg: Option<PathBuf>) -> PathBuf {
 /// plus déroutante, puisque `target/debug/nie.exe` est le binaire qu'on explore au quotidien.
 const PILE_CLI: usize = 64 * 1024 * 1024;
 
-/// Run the `niers` command-line entry point.
+/// Run the `nie` command-line entry point.
 pub fn main_entry() -> anyhow::Result<()> {
     std::thread::Builder::new()
         .stack_size(PILE_CLI)
@@ -3419,11 +3419,11 @@ pub fn execute_captured(command: String, args: Vec<String>) -> CapturedCommand {
         ));
     }
     let thread = std::thread::Builder::new()
-        .name(format!("niers-cli-{command}"))
+        .name(format!("nie-cli-{command}"))
         .stack_size(PILE_CLI)
         .spawn(move || {
             output::capture(|| {
-                let argv = std::iter::once("niers".to_owned())
+                let argv = std::iter::once("nie".to_owned())
                     .chain(std::iter::once(command))
                     .chain(args)
                     .collect::<Vec<_>>();
@@ -3443,7 +3443,7 @@ pub fn execute_captured(command: String, args: Vec<String>) -> CapturedCommand {
     }
 }
 
-// ─── niers mem — RE en direct via nie-trace (Linux/Wine et Windows natif) ────────────
+// ─── nie mem — RE en direct via nie-trace (Linux/Wine et Windows natif) ────────────
 
 fn mem_cmd(op: MemOp) -> anyhow::Result<()> {
     match op {
@@ -4134,7 +4134,7 @@ fn analysis_binary(conn: &nie_index::rusqlite::Connection) -> anyhow::Result<i64
         [],
         |r| r.get(0),
     )
-    .context("aucun binaire indexé — lancer `niers seed` d'abord")
+    .context("aucun binaire indexé — lancer `nie seed` d'abord")
 }
 
 fn coverage(db_path: &std::path::Path) -> anyhow::Result<()> {
@@ -4200,7 +4200,7 @@ fn rtti(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Result
         .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| {
             r.get(0)
         })
-        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+        .context("aucun binaire indexé — lancer `nie seed` d'abord")?;
 
     let bytes =
         std::fs::read(exe_path).with_context(|| format!("lecture {}", exe_path.display()))?;
@@ -4221,7 +4221,7 @@ fn index(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resul
         .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| {
             r.get(0)
         })
-        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+        .context("aucun binaire indexé — lancer `nie seed` d'abord")?;
 
     let stats = nie_re::indexer::triage_into(&mut db, bin, exe_path).context("indexation PE")?;
 
@@ -4239,7 +4239,7 @@ fn disasm(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resu
         .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| {
             r.get(0)
         })
-        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+        .context("aucun binaire indexé — lancer `nie seed` d'abord")?;
 
     // A/B : NIE_NO_INDIRECT=1 détecte les LEA (stats) mais ne les insère pas.
     let skip_lea = std::env::var("NIE_NO_INDIRECT").is_ok();
@@ -4269,7 +4269,7 @@ fn pdata(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resul
         .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| {
             r.get(0)
         })
-        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+        .context("aucun binaire indexé — lancer `nie seed` d'abord")?;
 
     let stats =
         nie_re::pdata::discover_into(&mut db, bin, exe_path).context("découverte .pdata")?;
@@ -4305,7 +4305,7 @@ fn pdata_binary_id(db: &nie_index::Db) -> anyhow::Result<i64> {
             [],
             |r| r.get(0),
         )
-        .context("binaire #pdata absent — lancer `niers rebuild` d'abord")
+        .context("binaire #pdata absent — lancer `nie rebuild` d'abord")
 }
 
 fn recover_cmd(
@@ -4413,7 +4413,7 @@ fn rebuild(
         .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |row| {
             row.get(0)
         })
-        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+        .context("aucun binaire indexé — lancer `nie seed` d'abord")?;
     let report = nie_re::workflow::rebuild(
         &mut db,
         exe_path,
@@ -4680,7 +4680,7 @@ fn textures(
         0
     };
 
-    // Sortie terse (convention niers : 1 ligne clé=val)
+    // Sortie terse (convention nie : 1 ligne clé=val)
     if dropped > 0 {
         println!(
             "tex.parsed={parsed} tex.failed={failed} tex.total={total_found} tex.dropped={dropped} manifest={} redis_index={}",
@@ -5286,10 +5286,10 @@ fn menu_predecode_cmd(game_dir: &std::path::Path, redis_url: &str) -> anyhow::Re
     Ok(())
 }
 
-// ─── niers vfs — explorateur CPK (VFS) ─────────────────────────────────────────────
+// ─── nie vfs — explorateur CPK (VFS) ─────────────────────────────────────────────
 
 // ---------------------------------------------------------------------------
-// niers convert — un asset du jeu vers un format d'échange
+// nie convert — un asset du jeu vers un format d'échange
 // ---------------------------------------------------------------------------
 
 /// Lit la source : fichier du disque si présent, sinon entrée du VFS.
@@ -6199,10 +6199,10 @@ fn vfs_ls(prefix: &str, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Une entrée de `niers vfs find --json` — même convention compacte-sur-une-ligne que
+/// Une entrée de `nie vfs find --json` — même convention compacte-sur-une-ligne que
 /// [`SearchJsonEntry`] (`chara`/`waza`), mais SANS dépendance au miroir wiki : `find` marche sur
 /// n'importe quelle install du jeu (VFS seul), c'est la recherche « fichiers » générique que
-/// `niers_bridge.py` (addon Blender `plugins/niers-blender`) utilise pour son panneau de recherche.
+/// `nie_bridge.py` (addon Blender `plugins/nie-blender`) utilise pour son panneau de recherche.
 #[derive(serde::Serialize)]
 struct FindJsonEntry<'a> {
     path: &'a str,
@@ -6670,7 +6670,7 @@ fn matches_filter(have: Option<&str>, want: Option<&str>) -> bool {
 }
 
 /// Entrée JSON d'un résultat de recherche chara/waza (`--json`) — consommée par
-/// `plugins/niers-blender/niers_bridge.py` (panneau de recherche Blender) ou tout autre script.
+/// `plugins/nie-blender/nie_bridge.py` (panneau de recherche Blender) ou tout autre script.
 #[derive(serde::Serialize)]
 struct SearchJsonEntry {
     id: String,

@@ -1,8 +1,8 @@
-//! `niers mod` — le cycle de modding, de bout en bout, en ligne de commande.
+//! `nie mod` — le cycle de modding, de bout en bout, en ligne de commande.
 //!
 //! # Le trou que ce module comble
 //!
-//! `niers viola` savait **dumper, vérifier, fusionner et packer**, mais pas **éditer**. Les
+//! `nie viola` savait **dumper, vérifier, fusionner et packer**, mais pas **éditer**. Les
 //! encodeurs existaient pourtant et étaient prouvés sur le jeu réel — `cfgbin::encode_t2b`,
 //! `cfgbin::encode_rdbn`, `g4tx_encode::encode_g4tx_single_texture` — sans **aucun appelant**
 //! dans cette CLI. Autrement dit, la seule façon de produire un asset modifié était de passer
@@ -414,7 +414,7 @@ fn init(nom: &str, auteur: &str, dir: &Path, description: &str) -> anyhow::Resul
     m.ecrire(dir).map_err(anyhow::Error::msg)?;
     println!("mod       {nom} v{} par {auteur}", m.version);
     println!("manifeste {}", Manifeste::chemin(dir).display());
-    println!("\nEnsuite : `niers mod add <chemin-vfs>` pour y faire entrer un fichier du jeu.");
+    println!("\nEnsuite : `nie mod add <chemin-vfs>` pour y faire entrer un fichier du jeu.");
     Ok(())
 }
 
@@ -652,7 +652,7 @@ fn texture(
 
     // La reconstruction du conteneur — charges non touchées recopiées octet pour octet, régions
     // d'atlas reportées, relecture immédiate du résultat — vit dans `nie_formats::g4tx_recolor`.
-    // C'est la source unique, partagée avec `niers mod recolor` : deux reconstructions
+    // C'est la source unique, partagée avec `nie mod recolor` : deux reconstructions
     // dériveraient, et celle-ci a déjà à tenir quatre invariants (noms, ids, comptes de régions,
     // reparse).
     let mut charges: Vec<NouvelleCharge> = atlas
@@ -688,7 +688,7 @@ fn texture(
     Ok(())
 }
 
-/// Les réglages de `niers mod recolor`, regroupés — sept arguments de plus sur `recolor` auraient
+/// Les réglages de `nie mod recolor`, regroupés — sept arguments de plus sur `recolor` auraient
 /// déclenché `clippy::too_many_arguments` et se seraient lus comme une suite de flottants anonymes.
 struct Filtre<'a> {
     teinte: f32,
@@ -1029,7 +1029,7 @@ fn install(
     );
     println!("copiés     {copies}");
     println!("installé dans {}", racine.display());
-    println!("\n`niers mod uninstall` rend au jeu son cpk_list d'origine, à l'octet.");
+    println!("\n`nie mod uninstall` rend au jeu son cpk_list d'origine, à l'octet.");
     Ok(())
 }
 
@@ -1041,7 +1041,7 @@ fn uninstall(game_dir: Option<PathBuf>, dir: Option<&Path>) -> anyhow::Result<()
     if !sauvegarde.is_file() {
         bail!(
             "aucune sauvegarde à « {} » — rien à restaurer (le mod n'a pas été installé par \
-             `niers mod install`)",
+             `nie mod install`)",
             sauvegarde.display()
         );
     }

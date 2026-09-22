@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import type { AssetSource, OptionsPage } from "@niers/asset-source";
-import { AssetSourceProvider } from "@niers/inacord-ui";
+import type { AssetSource, OptionsPage } from "@nie/asset-source";
+import { AssetSourceProvider } from "@nie/inacord-ui";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Catalog } from "./Catalog";

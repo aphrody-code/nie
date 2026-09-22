@@ -4,7 +4,7 @@
 //! main. Ce module en porte les trois pièces, séparées à dessein :
 //!
 //! 1. la **mesure** ([`mesure`]) — elle énumère les capacités depuis les sources réelles du
-//!    dépôt (`niers --help`, l'`invoke_handler` de `src-tauri`, les pages d'Azalée, les modules
+//!    dépôt (`nie --help`, l'`invoke_handler` de `src-tauri`, les pages d'Azalée, les modules
 //!    des crates, l'inventaire du VFS) et ne décide de rien ;
 //! 2. le **classement** ([`REGLES`]) — des décisions humaines, écrites, versionnées, chacune
 //!    portant sa raison ;
@@ -12,7 +12,7 @@
 //!    la matrice, ses agrégats et sa gate.
 //!
 //! Ce que cette séparation empêche, et qui est le mode d'échec de toute matrice tenue à la
-//! main : **une capacité ne peut pas disparaître en silence**. Une commande ajoutée à `niers`
+//! main : **une capacité ne peut pas disparaître en silence**. Une commande ajoutée à `nie`
 //! qu'aucune règle ne couvre sort en `manquant` avec la raison « non classée » ; une règle qui
 //! ne classe plus rien sort dans `regles_mortes`. La matrice vieillit **bruyamment**.
 //!
@@ -70,7 +70,7 @@ pub fn serialize_public_matrix(
 #[serde(rename_all = "kebab-case")]
 pub enum Source {
     /// Les sous-commandes de la CLI unique.
-    Niers,
+    Nie,
     /// Les commandes IPC de l'hôte desktop (`collect_commands!` de `apps/inacord/src-tauri`).
     Inacord,
     /// Les modules publics de `nie-data`.
@@ -90,7 +90,7 @@ impl Source {
     #[must_use]
     pub const fn libelle(self) -> &'static str {
         match self {
-            Self::Niers => "niers — sous-commandes",
+            Self::Nie => "nie — sous-commandes",
             Self::Inacord => "Inacord — commandes IPC",
             Self::NieData => "nie-data — modules",
             Self::NieFormats => "nie-formats — modules",
@@ -104,7 +104,7 @@ impl Source {
     #[must_use]
     pub const fn commande(self) -> &'static str {
         match self {
-            Self::Niers => "niers --help",
+            Self::Nie => "nie --help",
             Self::Inacord => "collect_commands! de apps/inacord/src-tauri/src/lib.rs",
             Self::NieData => "rg '^pub mod ' crates/engine/nie-data/src/lib.rs",
             Self::NieFormats => "rg '^pub mod ' crates/engine/nie-formats/src/lib.rs",
@@ -127,7 +127,7 @@ impl Source {
     #[must_use]
     pub const fn toutes() -> [Self; 7] {
         [
-            Self::Niers,
+            Self::Nie,
             Self::Inacord,
             Self::NieData,
             Self::NieFormats,
@@ -330,7 +330,7 @@ pub struct Capacite {
 }
 
 /// Un compte : des capacités **et** leur poids. Les deux, parce qu'une extension du VFS pèse
-/// 54 203 fichiers et une sous-commande de `niers` en pèse une.
+/// 54 203 fichiers et une sous-commande de `nie` en pèse une.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct Compte {
     /// Nombre de lignes de la matrice.
@@ -671,7 +671,7 @@ mod tests {
     fn une_route_qui_nexiste_pas_retrograde_la_capacite() {
         // La garde qui empêche la matrice de se croire sur parole : une règle peut citer
         // n'importe quelle route, seule sa présence dans le routeur la rend `servi`.
-        let inv = inventaire(&[(Source::Niers, "vfs", 1)]);
+        let inv = inventaire(&[(Source::Nie, "vfs", 1)]);
         let m = construire(&inv, &["/healthz"]);
         assert_eq!(m.capacites[0].etat.nom(), "manquant");
         assert_eq!(m.incoherences.len(), 1, "l'incohérence est publiée");
@@ -791,7 +791,7 @@ mod tests {
             (Source::Vfs, ".cfg.bin", 71_101),
             (Source::Vfs, ".awb", 5_512),
             (Source::Vfs, ".g4tg", 9),
-            (Source::Niers, "vfs", 1),
+            (Source::Nie, "vfs", 1),
             (Source::NieData, "module_ajoute_demain_sans_route", 1),
         ]);
         let m = construire(&inv, &crate::app::chemins());
@@ -840,7 +840,7 @@ mod tests {
         // La contre-épreuve : une décision sans objet, elle, EST signalée. Sans cette moitié,
         // le test passerait aussi sur une implémentation qui ne signale plus rien du tout.
         assert!(
-            m.regles_mortes.iter().any(|mort| mort == "niers-vfs"),
+            m.regles_mortes.iter().any(|mort| mort == "nie-vfs"),
             "une décision sans objet doit sortir dans `regles_mortes` : {:?}",
             m.regles_mortes
         );

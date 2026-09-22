@@ -24,14 +24,14 @@ et adresses virtuelles · chemins VFS · noms de tables `.cfg.bin` · noms de cr
 | Terme | Source de vérité | Comment |
 |---|---|---|
 | Format, magic, extension | `crates/engine/nie-formats/src/lib.rs` (`enum FileFormat`) et un module par format | `Grep` sur l'enum ; le module `<fmt>.rs` porte le parseur réel |
-| Chemin VFS, existence d'un fichier | Le VFS lui-même (255 308 fichiers) | outil MCP `vfs_search` / `vfs_stat`, ou `niers vfs find <sous-chaîne> -j` |
-| Personnage, technique | Miroir wiki | `niers vfs chara <nom\|id\|code>` · `niers vfs waza <nom\|id\|code>` |
-| Symbole reversé, adresse | `var/niers.sqlite` | outil MCP `re_function` (par nom ou vaddr) ou `re_query` |
+| Chemin VFS, existence d'un fichier | Le VFS lui-même (255 308 fichiers) | outil MCP `vfs_search` / `vfs_stat`, ou `nie vfs find <sous-chaîne> -j` |
+| Personnage, technique | Miroir wiki | `nie vfs chara <nom\|id\|code>` · `nie vfs waza <nom\|id\|code>` |
+| Symbole reversé, adresse | `var/nie.sqlite` | outil MCP `re_function` (par nom ou vaddr) ou `re_query` |
 | Table / clé d'un `.cfg.bin` | Le fichier décodé | outil MCP `asset_get` avec `decode: "cfg"`, ou `probe_rdbn` / `probe_t2b` |
 | Famille de données portée | `crates/engine/nie-data/src/` | `grep -rl "<MARKER_LIST>" crates/engine/nie-data/src/` — **les modules portent des noms de concept, pas de format** |
 | Crate, chemin du dépôt | `cargo metadata --no-deps` | ne jamais déduire un chemin de crate de son nom |
 
-Tables de `var/niers.sqlite` (lecture seule, `SELECT` uniquement) : `function`, `coverage`,
+Tables de `var/nie.sqlite` (lecture seule, `SELECT` uniquement) : `function`, `coverage`,
 `rtti_class`, `rtti_base`, `xref`, `str`, `pdata_func`, `hash_name`, `symbol`, `section`,
 `format`, `format_field`, `anchor`, `glob`, `hypothesis`, `binary`, `meta`, `func_const`,
 `func_str_ref`, et la famille `cam_*` (caméra).
@@ -58,7 +58,7 @@ une date, le VFS et la KB sont l'état présent.
   `…/x.g4tx.png` est l'erreur classique. En voie FFI le chemin garde son `.g4tx`.
 - **`Vfs::init()` prend `<racine>/data`**, pas la racine — sinon « impossible d'ouvrir
   cpk_list.cfg.bin », un message qui n'indique pas la vraie cause.
-- **`niers vfs extract -o` attend un fichier**, pas un dossier : sinon « Accès refusé (os
+- **`nie vfs extract -o` attend un fichier**, pas un dossier : sinon « Accès refusé (os
   error 5) », qui n'a rien à voir avec des permissions.
 - **`nie.exe` est à la racine du dépôt**, pas dans `data/`. Base image `0x140000000`.
 - **Un retour conditionnel n'est pas une constante** : porter un `sete al` / `found ? 1 : 0`

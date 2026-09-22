@@ -15,8 +15,8 @@ import {
 	SettingsScreen,
 	getSettings,
 	setSettings,
-} from "@niers/inacord-ui";
-import type { NativeMenuScene } from "@niers/inacord-ui/shell/native-title-menu";
+} from "@nie/inacord-ui";
+import type { NativeMenuScene } from "@nie/inacord-ui/shell/native-title-menu";
 import { useEffect, useState } from "react";
 import { loadMenuPresentation } from "../game/bridge";
 import { SETTINGS } from "../entries";

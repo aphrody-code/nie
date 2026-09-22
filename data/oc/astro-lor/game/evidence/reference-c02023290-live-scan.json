@@ -1,5 +1,5 @@
 {
-  "schema": "niers.oc.live-scan-evidence/v1",
+  "schema": "nie.oc.live-scan-evidence/v1",
   "reference_internal_code": "c02023290",
   "captured_on_host": "Windows",
   "scope": "read-only scan of the installed game VFS, decoded cfg.bin tables, reference assets, running process metadata, and visible game window",
@@ -133,10 +133,10 @@
       "model_full": {"c99019010": 404, "c99019020": 404},
       "example_target_g4md": {"path": "data/common/chr/_face/01_IE1/c99019010/c99019010.g4md", "http_status": 404}
     },
-    "niers_game_mcp": {
+    "nie_game_mcp": {
       "available": false,
       "startup_error": "target/debug/nie_ffi.dll does not export nie_menu_setting_json_out, required by packages/nie/src/index.ts",
-      "fallbacks": ["niers vfs", "nie-model-serve"]
+      "fallbacks": ["nie vfs", "nie-model-serve"]
     }
   },
   "memory_tool_probes": {
@@ -149,10 +149,10 @@
     },
     "rust_nie_cli": {
       "commands": [
-        "niers mem maps --pid 17768 --module nie.exe",
-        "niers mem scan str:c02023290 --pid 17768 --all --limit 20"
+        "nie mem maps --pid 17768 --module nie.exe",
+        "nie mem scan str:c02023290 --pid 17768 --all --limit 20"
       ],
-      "result": "`niers mem` est Linux-only (process_vm_readv).",
+      "result": "`nie mem` est Linux-only (process_vm_readv).",
       "exit_code": 1,
       "read_attempted": false,
       "implementation": "nie-cli delegation to nie-trace Linux/Wine path"

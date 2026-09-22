@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/banner/tutorial_banner_config_0.00.00.cfg.bin.json`
+//! - Dump réel : `/home/ubuntu/nie/data/common/gamedata/banner/tutorial_banner_config_0.00.00.cfg.bin.json`
 //! - Une seule liste dans ce fichier :
 //!   - `m_tutorialBannerInfoList` — 3 entrées de type `TUTORIAL_BANNER_INFO` décrivant
 //!     les bannières tutoriel affichées en jeu (icône, texte titre, texte explication,

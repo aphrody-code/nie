@@ -1,9 +1,9 @@
 # Module interne de préchargement Bun
 
-Repo-scoped Bun loaders for niers game formats and reverse-engineering resources.
+Repo-scoped Bun loaders for nie game formats and reverse-engineering resources.
 
-Install `@aphrody/nie` and build the native `nie-ffi` library first. Set `NIERS_ROOT` to the
-niers checkout; this keeps VFS, Lua and reverse-engineering resource lookup inside that checkout.
+Install `@aphrody/nie` and build the native `nie-ffi` library first. Set `NIE_ROOT` to the
+nie checkout; this keeps VFS, Lua and reverse-engineering resource lookup inside that checkout.
 The repository's shell hook performs this activation only while the current directory belongs to
 the checkout.
 

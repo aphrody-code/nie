@@ -1,9 +1,9 @@
 # --db : miroir SQLite des données de jeu. Sans lui, /story-scene
 # repond 503 « miroir SQLite absent » : la resolution automatique ne le trouve pas
-# depuis WorkingDirectory=/home/ubuntu/niers.
+# depuis WorkingDirectory=/home/ubuntu/nie.
 # --uniform-map : resolution des uniformes (CRC32 -> G4MD+G4TX).
 # --menu-cfg-dir : les dumps `*_setting.cfg.bin.json` que lit /menu-tree. Ils vivent dans le
-# depot niers (475 fichiers), PAS dans l'installation Steam : sans ce drapeau la route se
+# depot nie (475 fichiers), PAS dans l'installation Steam : sans ce drapeau la route se
 # rabat sur `<game-dir>/data/common/gamedata/menu/cfg`, qui n'existe pas cote Steam, et
 # /menu-tree repond 404 « aucun menu_setting (dump absent ?) » — une route eteinte en
 # silence, alors que les donnees sont la.
@@ -33,7 +33,7 @@ ExecStart=/bin/sh -c 'exec "$NIE_REPO_ROOT/target/release/nie-model-serve" \
     --menu-cfg-dir ${NIE_REPO_ROOT}/data/common/gamedata/menu/cfg \
     --db ${NIE_REPO_ROOT}/var/mirror.sqlite \
     --port 8790 --threads 10 --http-threads 24 --http-queue 512 --memory-cache-mib 2048'
-Environment=NIE_REPO_ROOT=/home/ubuntu/niers
+Environment=NIE_REPO_ROOT=/home/ubuntu/nie
 Environment=NIE_GAME_DIR=/home/ubuntu/.local/share/Steam/iecode/inazuma
 Environment=RUST_LOG=info
 EnvironmentFile=-/etc/nie/nie.env

@@ -1,4 +1,4 @@
-//! **nie-app** — shared application-state and rendering prototype for niers.
+//! **nie-app** — shared application-state and rendering prototype for nie.
 //!
 //! It owns the rendering DTO ([`GameState`]), the abstract rendering contract ([`Renderer`]),
 //! and the interactive state machine ([`flow::Screen`]). `Screen` delegates rendering to
