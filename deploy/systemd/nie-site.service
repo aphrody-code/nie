@@ -54,7 +54,7 @@ ExecStart=/bin/sh -c 'exec "$${NIE_REPO_ROOT}/target/release/nie-site" \
 #
 # Même racine que `--game-dir` de `nie-model-serve`, qui lui l'a toujours eue.
 # Override NIE_REPO_ROOT in /etc/nie/nie.env on hosts that use another checkout.
-Environment=NIE_REPO_ROOT=%h/nie
+Environment=NIE_REPO_ROOT=%h/niers
 Environment=NIE_GAME_DIR=%h/.local/share/Steam/iecode/inazuma
 EnvironmentFile=-/etc/nie/nie.env
 Environment=RUST_LOG=info

@@ -78,7 +78,7 @@ normal en non-root et arrive **après** la validation : la configuration a été
 ## systemd
 
 Les unités n'embarquent plus le chemin d'un checkout particulier. Elles utilisent
-`NIE_REPO_ROOT` et `NIE_GAME_DIR`, avec les valeurs par défaut `%h/nie` et
+`NIE_REPO_ROOT` et `NIE_GAME_DIR`, avec les valeurs par défaut `%h/niers` et
 `%h/.local/share/Steam/iecode/inazuma`. Sur un hôte existant, créer avant l'installation
 `/etc/nie/nie.env` :
 
