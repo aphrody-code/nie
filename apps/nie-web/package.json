@@ -14,7 +14,7 @@
 		"build:wasm-viewer": "bun --bun scripts/build-viewer-wasm.ts",
 		"preview": "vite preview",
 		"typecheck": "bunx tsc --noEmit",
-		"test": "bun test --preload ../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts src/ scripts/"
+		"test": "bun test --parallel=1 --isolate --max-concurrency 1 --preload ../../packages/nie-plugin/src/register.ts --preload ../../packages/nie-plugin/src/happydom.ts src/ scripts/"
 	},
 	"dependencies": {
 		"@monaco-editor/react": "catalog:",
