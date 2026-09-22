@@ -33,7 +33,7 @@ ExecStart=/bin/sh -c 'exec "$NIE_REPO_ROOT/target/release/nie-model-serve" \
     --menu-cfg-dir ${NIE_REPO_ROOT}/data/common/gamedata/menu/cfg \
     --db ${NIE_REPO_ROOT}/var/mirror.sqlite \
     --port 8790 --threads 10 --http-threads 24 --http-queue 512 --memory-cache-mib 2048'
-Environment=NIE_REPO_ROOT=/home/ubuntu/niers
+Environment=NIE_REPO_ROOT=/home/ubuntu/nie
 Environment=NIE_GAME_DIR=/home/ubuntu/.local/share/Steam/iecode/inazuma
 Environment=RUST_LOG=info
 EnvironmentFile=-/etc/nie/nie.env
