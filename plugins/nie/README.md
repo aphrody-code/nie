@@ -1,13 +1,13 @@
-# NIERS multi-host plugin
+# NIE multi-host plugin
 
-NIERS is a shared Agent Skills and native Rust MCP package for Codex, Claude Code, and
+NIE is a shared Agent Skills and native Rust MCP package for Codex, Claude Code, and
 Antigravity CLI (`agy`). The hosts share the same 18 skills and `niers-game` MCP server; only
 their lightweight manifests differ.
 
 ## Start here
 
 `re-workflow` is the entry-point skill: it teaches the atlas-driven reverse-engineering loop —
-`niers atlas search` before any tree walk, `niers atlas gaps` to read the ranked road to 100 %,
+`nie atlas search` before any tree walk, `nie atlas gaps` to read the ranked road to 100 %,
 `scripts/atlas-loop.sh` to run one measured, bounded tick. See `docs/ATLAS.md` in the
 repository.
 
@@ -37,8 +37,8 @@ adapter convention used by Aphrody's YOLO package.
 ## Verification
 
 ```bash
-python3 /home/ubuntu/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py plugins/niers-plugin
+python3 /home/ubuntu/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py plugins/nie
 ```
 
-`plugins/niers-plugin` is the only checked-in plugin source. Host-local installation directories
+`plugins/nie` is the only checked-in plugin source. Host-local installation directories
 are generated outside the repository; no runtime mirror is committed under `.agents/plugins`.

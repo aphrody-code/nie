@@ -3,7 +3,7 @@
  *
  * # Le défaut que ce module ferme
  *
- * `nie-site` sert `--bundle-dir /home/ubuntu/niers/apps/nie-web/dist` (unité systemd), et `dist`
+ * `nie-site` sert `--bundle-dir ${NIE_REPO_ROOT}/apps/nie-web/dist` (unité systemd), et `dist`
  * est un lien symbolique. La règle « si `dist` est un lien, écrire à côté » existait déjà, en
  * double, dans `vite.config.ts` et `precompress.ts` ; son intention est écrite noir sur blanc
  * dans le second (« A staged release must be compressed before it replaces the live bundle »).

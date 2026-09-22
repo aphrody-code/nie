@@ -1,8 +1,8 @@
 {
   "$schema": "https://code.claude.com/schema/plugin.json",
-  "name": "niers",
+  "name": "nie",
   "version": "0.3.0",
-  "description": "Native Rust tools for the NIERS game workspace: the atlas-driven reverse-engineering loop, Level-5 formats, assets, Inacord, and the niers-game MCP server.",
+  "description": "Native Rust tools for the NIE game workspace: the atlas-driven reverse-engineering loop, Level-5 formats, assets, Inacord, and the NIE MCP server.",
   "author": {
     "name": "Aphrody Dev"
   },

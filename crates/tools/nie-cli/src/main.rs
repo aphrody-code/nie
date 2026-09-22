@@ -1,4 +1,4 @@
-//! `niers` — pilote la boucle RE autonome (seed → propagate → coverage) et la frontière redis.
+//! `nie` — pilote la boucle RE autonome (seed → propagate → coverage) et la frontière redis.
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
@@ -66,9 +66,17 @@ fn parse_addr(s: &str) -> Result<i64, String> {
     }
 }
 
+fn default_data_root() -> PathBuf {
+    std::env::var_os("NIE_REPO_ROOT")
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("data")
+}
+
 #[derive(Parser)]
 #[command(
-    name = "niers",
+    name = "nie",
     version,
     about = "Boucle RE + réimplémentation Rust d'Inazuma Eleven: Victory Road"
 )]
@@ -1933,7 +1941,7 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
         } => {
             let data_root = data_root
                 .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
-                .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
+                .unwrap_or_else(default_data_root);
             let result = api::execute_wiki(api::WikiCommand::SkillLookup {
                 query: q.clone(),
                 data_root,
@@ -1965,7 +1973,7 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
         } => {
             let data_root = data_root
                 .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
-                .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
+                .unwrap_or_else(default_data_root);
             let result = api::execute_wiki(api::WikiCommand::TeamLookup {
                 query: q.clone(),
                 database: db,
@@ -2234,7 +2242,7 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
             let conn = mirror::open(db.as_deref())?;
             let data_root = data_root
                 .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
-                .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
+                .unwrap_or_else(default_data_root);
             let skills = data_root.join("all-gamedata/skills.json");
             let report = query::audit_mirror(&conn, &skills)?;
             if json {
@@ -2253,7 +2261,7 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
         } => {
             let data_root = data_root
                 .or_else(|| std::env::var_os("DATA_PATH").map(std::path::PathBuf::from))
-                .unwrap_or_else(|| std::path::PathBuf::from("/home/ubuntu/niers/data"));
+                .unwrap_or_else(default_data_root);
             let database = data_root.join("all-gamedata/story_text_database.json");
             let matches = query::search_dialogues(&database, &q, speaker.as_deref(), limit)?;
             if json {
@@ -2817,7 +2825,7 @@ fn racine_jeu(arg: Option<PathBuf>) -> PathBuf {
 /// Le profil debug n'inline rien : les frames de clap (46 sous-commandes) et du montage du VFS
 /// (255 308 entrées) dépassent le 1 Mio par défaut de Windows, et **toute** commande débordait,
 /// y compris `backends`. En release le problème n'existe pas — ce qui rendait la panne d'autant
-/// plus déroutante, puisque `target/debug/niers.exe` est le binaire qu'on explore au quotidien.
+/// plus déroutante, puisque `target/debug/nie.exe` est le binaire qu'on explore au quotidien.
 const PILE_CLI: usize = 64 * 1024 * 1024;
 
 /// Run the `niers` command-line entry point.

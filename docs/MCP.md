@@ -118,7 +118,7 @@ Portable project configuration:
 
 For a desktop client launched from another directory, Inacord adds
 `--manifest-path <repository>/Cargo.toml`. The four versioned declarations are `.mcp.json`,
-`.codex/config.toml`, and `plugins/niers-plugin/mcp_config.json`.
+`.codex/config.toml`, and `plugins/nie/mcp_config.json`.
 
 Recognized environment variables:
 

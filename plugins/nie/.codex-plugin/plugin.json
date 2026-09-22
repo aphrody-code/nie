@@ -1,16 +1,16 @@
 {
-  "name": "niers",
+  "name": "nie",
   "version": "0.3.0+codex.20260911",
-  "description": "Native Rust tooling for the niers game workspace: the atlas-driven reverse-engineering loop, formats, assets, and Inacord.",
+  "description": "Native Rust tooling for the NIE game workspace: the atlas-driven reverse-engineering loop, formats, assets, and Inacord.",
   "author": {
     "name": "Aphrody Dev"
   },
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "NIERS",
+    "displayName": "NIE",
     "shortDescription": "Native Rust game-development tools",
-    "longDescription": "Codex skills and native Rust MCP tools for NIERS: the atlas-driven reverse-engineering loop, formats, assets, and Inacord.",
+    "longDescription": "Codex skills and native Rust MCP tools for NIE: the atlas-driven reverse-engineering loop, formats, assets, and Inacord.",
     "developerName": "Aphrody Dev",
     "category": "Developer Tools",
     "capabilities": [

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 
-const dir = "plugins/niers-plugin/skills";
+const dir = "plugins/nie/skills";
 const skills = readdirSync(dir, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)

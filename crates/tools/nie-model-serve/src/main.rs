@@ -7346,13 +7346,7 @@ mod tests {
     /// Répertoire du jeu IEVR pour les tests adossés au VFS réel : `NIE_GAME_DIR` sinon
     /// l'install Steam par défaut. `None` ⇒ le test se SKIP proprement (CI sans jeu).
     fn game_dir_for_test() -> Option<std::path::PathBuf> {
-        let candidates = [
-            std::env::var("NIE_GAME_DIR").ok(),
-            Some(
-                "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                    .to_string(),
-            ),
-        ];
+        let candidates = [std::env::var("NIE_GAME_DIR").ok()];
         candidates
             .into_iter()
             .flatten()
@@ -7363,7 +7357,7 @@ mod tests {
     /// Vrai si ce répertoire `data/` est celui du **jeu**, et non un arbre qui lui ressemble.
     ///
     /// L'ancien garde n'exigeait que `data/` soit un dossier. Le DÉPÔT en a un : avec
-    /// `NIE_GAME_DIR=/home/ubuntu/niers`, le test montait le dépôt, y trouvait zéro `.awb`, et
+    /// `NIE_GAME_DIR` pointant sur le dépôt, le test montait le dépôt, y trouvait zéro `.awb`, et
     /// échouait sur « moins de 3 AWB dans le VFS (0) » — un défaut d'environnement rapporté
     /// comme un défaut de décodage. Le `eprintln!("skip …")` prévu pour la CI ne se déclenchait
     /// jamais. La preuve demandée est donc un ASSET : le manifeste de CPK, ou un CPK.

@@ -38,7 +38,7 @@ function linkCandidates(sourcePath: string, rawTarget: string): string[] {
     candidates.push(resolve(dirname(resolve(root, mirror)), rawTarget));
   }
   if (sourcePath.startsWith(".agents/skills/")) {
-    const mirror = `plugins/niers-plugin/skills/${sourcePath.slice(".agents/skills/".length)}`;
+    const mirror = `plugins/nie/skills/${sourcePath.slice(".agents/skills/".length)}`;
     candidates.push(resolve(dirname(resolve(root, mirror)), rawTarget));
   }
   return candidates;

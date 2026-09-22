@@ -2,7 +2,7 @@
 //!
 //! Aucun chemin de machine n'est compilé ici : la racine du jeu se résout à l'exécution par
 //! [`nie_formats::vfs::resolve_game_dir`], et les autres chemins ont une valeur par défaut
-//! **relative** au répertoire de travail (celui de l'unité systemd, `/home/ubuntu/niers`).
+//! **relative** au répertoire de travail configuré par `NIE_REPO_ROOT` dans l'unité systemd.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -12,7 +12,7 @@ use clap::Parser;
 
 /// Adresse d'écoute par défaut : boucle locale uniquement, nginx est devant.
 pub const ADRESSE_DEFAUT: &str = "127.0.0.1:8085";
-/// Miroir SQLite par défaut (lien symbolique daté, rebasculé chaque nuit par `nie-miroir`).
+/// Miroir SQLite par défaut (lien symbolique daté, publié atomiquement).
 pub const DB_DEFAUT: &str = "var/mirror.sqlite";
 /// Amont de décodage par défaut — `nie-model-serve`, lui aussi sur la boucle locale.
 pub const AMONT_DEFAUT: &str = "http://127.0.0.1:8790";

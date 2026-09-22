@@ -1,5 +1,0 @@
-{
-  "name": "niers",
-  "version": "0.3.0",
-  "description": "Native Rust NIERS development tools for Antigravity CLI (agy): the atlas-driven reverse-engineering loop, game formats, assets, Inacord, and MCP."
-}

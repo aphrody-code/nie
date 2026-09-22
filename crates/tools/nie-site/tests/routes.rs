@@ -1602,7 +1602,7 @@ async fn le_flux_atom_publie_les_episodes_moissonnes() {
 async fn un_catalogue_wal_reste_lisible_dans_un_repertoire_non_inscriptible() {
     // Reproduction du 500 de production du 2026-09-05 : `/api/v1/episodes` rendait
     // « unable to open database file » sur une base WAL présente et lisible, parce que
-    // `ProtectSystem=strict` + `ReadOnlyPaths=/home/ubuntu/niers` empêchent SQLite de créer le
+    // `ProtectSystem=strict` et le checkout configuré empêchent SQLite de créer le
     // fichier `-shm` qu'un WAL exige, même en lecture seule.
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("episodes.db");

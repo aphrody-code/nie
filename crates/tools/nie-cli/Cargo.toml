@@ -1,6 +1,6 @@
 [package]
 name = "nie-cli"
-description = "Binaire `niers` : pilote la boucle RE (seed, propagate, coverage) et la frontière redis"
+description = "Binaire `nie` : pilote la boucle RE (seed, propagate, coverage) et la frontière redis"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true
@@ -10,14 +10,14 @@ rust-version.workspace = true
 autobins = false
 
 [[bin]]
-name = "niers"
+name = "nie"
 path = "src/bin.rs"
 
 [lib]
 path = "src/main.rs"
 
 [package.metadata.aphrody-package]
-binary = "niers"
+binary = "nie"
 install-package = "nie-cli"
 supported-os = ["linux", "macos", "windows"]
 
