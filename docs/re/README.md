@@ -1,6 +1,7 @@
 # Reverse-engineering center
 
-The canonical local reverse-engineering workspace is [`data/re`](../../data/re/00-index/README.md).
+The canonical reverse-engineering contract is [`docs/RE.md`](../RE.md); generated local data is
+optional and is not required for a clean checkout.
 
 `docs/re` intentionally contains only this lightweight entry point. Binaries,
 VFS inventories, Ghidra projects, dumps, derived data, IECODE snapshots, and

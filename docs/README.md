@@ -76,6 +76,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`ASTRO-LOR.md`](ASTRO-LOR.md) | Astro Lor, an **original** character: present in no CPK, produced entirely here. |
 | [`EXPORT-APP.md`](EXPORT-APP.md) | The app-icon export tool: 30 000+ files to WebP + zstd in one archive. |
 | [`BXC-NATIVE.md`](BXC-NATIVE.md) | Why the external BXC browser engine has no local Bun service layer. |
+| [`AFUBUKI-UNIFIED-PIPELINE.md`](AFUBUKI-UNIFIED-PIPELINE.md) | Unified Afubuki VFS, Zukan, OC and rendering pipeline. |
 
 ## Operations and infrastructure
 
@@ -93,6 +94,7 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | --- | --- |
 | [`A2A-CODEX.md`](A2A-CODEX.md) | The agent-to-agent wire protocol. The rules about *not overwriting each other* live in `AGENTS.md` § 2. |
 | [`WORKFLOW-UNIFIE.md`](WORKFLOW-UNIFIE.md) | Going from a human request to a reproducible proof, across nie/WinClean/nie/Ghidra. |
+| [`AGENT-SYNC.md`](AGENT-SYNC.md) | Synchronisation contract between local agents and the VPS. |
 
 ## History
 
@@ -101,6 +103,8 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`../PROVENANCE.md`](../PROVENANCE.md) | Per-tree provenance, and what was dropped on import. |
 | [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md) | The source-to-crate ledger of the C++ and C# toolkits, exported 2026-09-07. |
 | [`ABSORPTION-IECODE.md`](ABSORPTION-IECODE.md) | The absorption gate, closed. `nie` is the maintained implementation. |
+| [`IMPORT-EXPORT.md`](IMPORT-EXPORT.md) | Import/export boundaries for game data and assets. |
+| [`PUBLIC-NAMING.md`](PUBLIC-NAMING.md) | Public naming and identity conventions. |
 | [`archive/`](archive/) | Superseded plans, kept dated rather than deleted. |
 
 ## The two invariants
