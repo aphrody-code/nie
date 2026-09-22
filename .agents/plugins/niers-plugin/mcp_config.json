@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "niers-game": {
-      "type": "stdio",
-      "command": "nie-mcp",
-      "args": []
-    }
-  }
-}

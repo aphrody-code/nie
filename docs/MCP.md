@@ -2,7 +2,7 @@
 
 Measured state on 2026-09-07: `niers-game` is a fully native Rust MCP server provided by the
 `crates/tools/nie-mcp` crate and the equivalent `niers mcp` command. It replaces the former
-`apps/nie-mcp` server, which depended on Bun, the TypeScript SDK, Zod, and FFI.
+former Bun/TypeScript MCP surface, which depended on the TypeScript SDK, Zod, and FFI.
 
 ## Architecture
 
@@ -118,8 +118,7 @@ Portable project configuration:
 
 For a desktop client launched from another directory, Inacord adds
 `--manifest-path <repository>/Cargo.toml`. The four versioned declarations are `.mcp.json`,
-`.codex/config.toml`, `plugins/niers-plugin/mcp_config.json`, and
-`.agents/plugins/niers-plugin/mcp_config.json`.
+`.codex/config.toml`, and `plugins/niers-plugin/mcp_config.json`.
 
 Recognized environment variables:
 

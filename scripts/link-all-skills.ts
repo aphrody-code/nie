@@ -1,14 +1,18 @@
-import { readdirSync, existsSync } from "fs";
-import { join } from "path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, symlinkSync } from "fs";
+import { dirname, join, relative, resolve } from "path";
 
-const src = "plugins/niers-plugin/skills";
-const dest = ".agents/skills";
+const root = resolve(import.meta.dir, "..");
+const src = resolve(root, "plugins/niers-plugin/skills");
+const dest = resolve(root, ".agents/skills");
+mkdirSync(dest, { recursive: true });
 
-for (const s of readdirSync(src)) {
-  const target = join(dest, s);
-  if (!existsSync(target)) {
-    const fullSrc = join("C:/Users/aphro/niers", src, s);
-    Bun.spawnSync(["powershell", "-Command", `New-Item -ItemType Junction -Path "${target}" -Target "${fullSrc}"`]);
-    console.log(`Linked skill: ${s}`);
+for (const name of readdirSync(src)) {
+  const source = join(src, name);
+  const target = join(dest, name);
+  if (!lstatSync(source).isDirectory() || existsSync(target)) {
+    continue;
   }
+
+  symlinkSync(relative(dirname(target), source), target, "dir");
+  console.log(`Linked skill: ${name}`);
 }

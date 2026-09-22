@@ -38,8 +38,7 @@ adapter convention used by Aphrody's YOLO package.
 
 ```bash
 python3 /home/ubuntu/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py plugins/niers-plugin
-bun test packages/mcp/test/plugin.test.ts
 ```
 
-The checked-in `.agents/plugins/niers-plugin` directory is a runtime mirror. Its manifests, MCP
-declarations, README, and skills must remain aligned with this source plugin.
+`plugins/niers-plugin` is the only checked-in plugin source. Host-local installation directories
+are generated outside the repository; no runtime mirror is committed under `.agents/plugins`.

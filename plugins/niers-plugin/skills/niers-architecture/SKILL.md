@@ -38,7 +38,7 @@ parser or cloud-backed IEVR adapter is permitted.
 |---|---|
 | Frontend source/build and host composition | `apps/nie-web`; `apps/inacord` retains Tauri packaging and compatibility facades |
 | Native OS integration | `apps/inacord/src-tauri`, inside the root Rust workspace |
-| General presentation primitives | `packages/ui` |
+| General presentation primitives | sibling `rg/packages/ui`; `packages/inacord-ui` owns niers-specific presentation |
 | Shared Inacord/game components and selection/navigation primitives | `packages/inacord-ui` |
 | Asset loading, transport and capability contracts | `packages/asset-source` |
 | Binary format decoding, including Level-5/Criware families | `nie-formats` |

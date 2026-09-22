@@ -21,7 +21,7 @@ Archived plans are historical evidence, not instructions.
 | `apps/nie-web/src/desktop` | Existing mature Inacord application, being adapted for shared hosting |
 | `apps/inacord/src-tauri` | Native host, a member of the root Cargo workspace |
 | `apps/inacord` | Tauri packaging, native public assets and frontend compatibility entrypoints |
-| `packages/ui` | General UI primitives |
+| sibling `rg/packages/ui` | General UI primitives owned by the RG repository; niers consumes the package without copying it |
 | `packages/inacord-ui` | Shared application/game presentation, Explorer controls and resource components |
 | `packages/asset-source` | Asset transport, loading and capability contracts |
 | `packages/nie` | Rust FFI consumption from Bun |
@@ -63,7 +63,7 @@ cargo clippy -p <library-crate> --lib --tests --locked -- -D warnings
 cargo test -p <library-crate> --locked <test-filter>
 cargo run -p inacord --bin export-bindings --features dev-bindings --locked
 bun run --cwd apps/nie-web typecheck
-bun run --cwd apps/nie-web typecheck
+bun run --cwd apps/nie-web typecheck:desktop
 ```
 
 The binding generator writes `apps/nie-web/src/desktop/lib/bindings.ts`. Never hand-edit generated
