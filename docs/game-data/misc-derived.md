@@ -117,6 +117,14 @@ Mêmes 44 entrées que `-full` mais sans le champ `quotedTweets` (champs : `id, 
 | Éveil | Awakening — transformation qui débloque de nouvelles capacités. |
 | Mode | Mode Change — changement de style de jeu. |
 | Miximax | Fusion temporaire avec l'esprit d'un autre joueur. |
+
+### Référence Afubuki
+
+La référence locale Byron Love/Aphrodi × Shawn Froste/Shirou Fubuki est le
+Mixi-Max **Afubuki**, exporté sous le libellé `Mix 'n' Match: Afubuki` dans
+`data/oc/afubuki`. Le slot historique « Mix 'n' Match Axel » est uniquement
+une information de remplacement, pas le nom canonique. Les fichiers restent
+`reference_only` tant qu'un hash VFS dédié n'a pas été résolu.
 | Tension | Jauge d'énergie consommée par les Super Techniques (pas TP, pas mana). |
 | Feu (火) | Élément 1 — fort contre Forêt, faible contre Montagne. |
 | Forêt (林) | Élément 2 — fort contre Vent, faible contre Feu. |

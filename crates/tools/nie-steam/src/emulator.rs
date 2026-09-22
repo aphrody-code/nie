@@ -125,7 +125,7 @@ impl Default for SteamEmulatorState {
         Self {
             app_id: IEVR_STEAM_APP_ID,
             local_steam_id: DEFAULT_LOCAL_STEAM_ID,
-            persona_name: "Commander Aphrody".into(),
+            persona_name: "Afubuki".into(),
             initialized: false,
             local_rich_presence: HashMap::new(),
             friends,
@@ -309,8 +309,8 @@ mod tests {
         assert!(emu.init());
         assert_eq!(emu.get_steam_id(), DEFAULT_LOCAL_STEAM_ID);
 
-        emu.set_persona_name("Aphrody God");
-        assert_eq!(emu.get_persona_name(), "Aphrody God");
+        emu.set_persona_name("Afubuki");
+        assert_eq!(emu.get_persona_name(), "Afubuki");
 
         assert_eq!(emu.get_friend_count(), 3);
         let f0 = emu.get_friend_by_index(0).unwrap();

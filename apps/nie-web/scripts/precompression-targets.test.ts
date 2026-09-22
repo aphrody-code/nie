@@ -5,7 +5,7 @@ describe("precompression targets", () => {
 	test("includes the native WebAssembly and VFS runtime payloads", () => {
 		expect(PRECOMPRESSION_EXTENSIONS).toContain(".wasm");
 		expect(PRECOMPRESSION_EXTENSIONS).toContain(".nievfs");
-		expect(isPrecompressionTarget("static/game/aphrody_lean-fr.nievfs")).toBe(true);
+		expect(isPrecompressionTarget("static/game/afubuki_lean-fr.nievfs")).toBe(true);
 	});
 
 	test("does not recompress image and GPU texture containers", () => {

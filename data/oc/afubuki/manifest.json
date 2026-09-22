@@ -1,0 +1,27 @@
+{
+  "schema": "nie.oc.reference-manifest/v1",
+  "character_slug": "afubuki",
+  "kind": "canon-vfs-reference",
+  "native_vfs": "data/oc/afubuki/game/native-vfs.json",
+  "identity": "data/oc/afubuki/game/identity.json",
+  "complete_profile": "data/oc/afubuki/game/complete-profile.json",
+  "default_identity": {
+    "avatar": "afubuki",
+    "primary_character": "afubuki",
+    "nie_soul": "afubuki",
+    "steam_persona": "Afubuki"
+  },
+  "asset_inventory": "data/ref/afubuki/meta/manifest.json",
+  "miximax": {
+    "slug": "afubuki",
+    "runtime_id": "0x2A80A796",
+    "canonical_name_en": "Mix 'n' Match Afubuki",
+    "replaces_display_name": "Mix 'n' Match Axel",
+    "source_text_hash": "0x4785C8B1",
+    "name_fr": "Transfo. Miximax : Afubuki",
+    "name_en": "Mix 'n' Match: Afubuki",
+    "partner": "Shawn Froste / Shirou Fubuki",
+    "hash": "0x2A80A796",
+    "has_asset": false
+  }
+}

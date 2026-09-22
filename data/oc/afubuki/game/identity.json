@@ -1,0 +1,27 @@
+{
+  "schema": "nie.oc.identity/v1",
+  "slug": "afubuki",
+  "display_name": "Afubuki",
+  "miximax_name_en": "Mix 'n' Match: Afubuki",
+  "roles": {
+    "default_avatar": true,
+    "primary_character": true,
+    "nie_soul": true,
+    "steam_persona": true
+  },
+  "base": {
+    "owner": "Byron Love / Aphrodi",
+    "partner": "Shawn Froste / Shirou Fubuki",
+    "reference_vfs_code": "c01001900",
+    "reference_vfs_path": "data/common/chr/_face/01_IE1/c01001900",
+    "asset_policy": "reuse_verified_vfs_assets",
+    "synthetic_asset": false
+  },
+  "runtime": {
+    "miximax_id": "miximax_0x2A80A796",
+    "profile": "data/oc/afubuki/game/basara-profile.json",
+    "native_vfs": "data/oc/afubuki/game/native-vfs.json",
+    "override_mode": "metadata_contract_only"
+  },
+  "rule": "This contract selects Afubuki wherever an OC identity selector is supported; it does not rewrite nie.exe or claim an unsupported save/VFS override."
+}

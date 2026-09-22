@@ -1,0 +1,29 @@
+{
+  "schema": "nie.oc.native-vfs/v1",
+  "source_reference": "data/ref/afubuki/meta/manifest.json",
+  "identity_contract": "data/oc/afubuki/game/identity.json",
+  "default_roles": ["default_avatar", "primary_character", "nie_soul", "steam_persona"],
+  "characters": {
+    "byron": ["c01001900", "c05026590", "c07080010"],
+    "shawn": ["c02023290", "c02023370", "c02023380", "c05024700", "c07090010", "c11902360"]
+  },
+  "miximax": {
+    "slug": "afubuki",
+    "runtime_id": "0x2A80A796",
+    "canonical_name_en": "Mix 'n' Match Afubuki",
+    "replaces_display_name": "Mix 'n' Match Axel",
+    "source_text_hash": "0x4785C8B1",
+    "name_fr": "Transfo. Miximax : Afubuki",
+    "name_en": "Mix 'n' Match: Afubuki",
+    "partner": "Shawn Froste / Shirou Fubuki",
+    "status": "reference_only_no_dedicated_vfs_hash",
+    "asset_policy": "no_synthetic_asset"
+  },
+  "vfs_templates": [
+    "data/common/chr/_face/<series_group>/<code>/<code>.g4md",
+    "data/common/chr/_face/<series_group>/<code>/<code>.g4mg",
+    "data/dx11/chr/_face/<series_group>/<code>/<code>.g4tx",
+    "data/common/sound_asset/ja/<code>.acb",
+    "data/common/sound_asset/ja/<code>.awb"
+  ]
+}

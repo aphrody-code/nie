@@ -1,0 +1,52 @@
+{
+  "schema": "nie.oc.miximax-reference/v1",
+  "slug": "afubuki",
+  "status": "reference_only",
+  "source": {
+    "vfs_path": "data/common/gamedata/character/basara_chara_config_0.00.00.00.cfg.bin",
+    "parser": "nie_data::basara::parse_basara_chara_config",
+    "fixture_source": "crates/engine/nie-data/tests/basara_golden.rs"
+  },
+  "verified_basara_shape": {
+    "build_info_count": 71,
+    "build_type_count": 426,
+    "build_type_domain": "0..=5",
+    "type_info": "[offset, count] into m_basaraBuildTypeList"
+  },
+  "miximax": {
+    "id": "miximax_0x2A80A796",
+    "hash": "0x2A80A796",
+    "slug": "afubuki",
+    "name_fr": "Transfo. Miximax : Afubuki",
+    "name_en": "Mix 'n' Match: Afubuki",
+    "name_ja": null,
+    "description_fr": "Fusion de référence entre Byron Love / Aphrodi et Shawn Froste / Shirou Fubuki.",
+    "description_en": "Reference fusion between Byron Love / Aphrodi and Shawn Froste / Shirou Fubuki.",
+    "description_ja": null,
+    "type": "Miximax",
+    "sub_type": "Miximax",
+    "element_id": null,
+    "image_url": null,
+    "icon_code": null,
+    "asset_code": null,
+    "has_asset": false,
+    "sheet_data": {
+      "subType": "Miximax",
+      "origin": "Référence VFS canonique Byron Love / Shawn Froste",
+      "partner": "Shawn Froste / Shirou Fubuki",
+      "runtime_id": "0x2A80A796",
+        "canonical_name_en": "Mix 'n' Match: Afubuki",
+        "replaces_display_name": "Mix 'n' Match Axel"
+    },
+    "data": {
+      "origin": "Référence VFS canonique Byron Love / Shawn Froste",
+      "owner": "Byron Love / Shawn Froste",
+      "partner": "Shawn Froste / Shirou Fubuki",
+      "runtime_id": "0x2A80A796",
+        "canonical_name_en": "Mix 'n' Match: Afubuki",
+        "replaces_display_name": "Mix 'n' Match Axel"
+    },
+    "native_vfs_patch": false
+  },
+  "rule": "Do not claim a Basara build, skill, aura, stat curve or asset until its row is resolved from the live cfg.bin/VFS."
+}

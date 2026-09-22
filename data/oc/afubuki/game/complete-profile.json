@@ -1,0 +1,42 @@
+{
+  "schema": "nie.oc.complete-profile/v1",
+  "slug": "afubuki",
+  "display_name": "Afubuki",
+  "identity": "data/oc/afubuki/game/identity.json",
+  "components": ["Byron Love / Aphrodi / Terumi Afuro", "Shawn Froste / Shirou Fubuki / Atsuya Fubuki"],
+  "versions": {
+    "byron": ["c01001900", "c05026590", "c07080010"],
+    "shawn": ["c02023290", "c02023370", "c02023380", "c05024700", "c07090010", "c11902360"]
+  },
+  "miximax": {
+    "id": "miximax_0x2A80A796",
+    "name_en": "Mix 'n' Match: Afubuki",
+    "name_fr": "Transfo. Miximax : Afubuki",
+    "owner": "Byron Love / Aphrodi",
+    "partner": "Shawn Froste / Shirou Fubuki",
+    "asset_policy": "all_verified_assets_only",
+    "dedicated_asset": false
+  },
+  "assets": {
+    "inventory": "data/ref/afubuki/meta/manifest.json",
+    "native_vfs": "data/oc/afubuki/game/native-vfs.json",
+    "basara": "data/oc/afubuki/game/basara-profile.json",
+    "chara_edit": {
+      "mode": "reference_character_assets",
+      "avatar_contract": "data/oc/afubuki/game/identity.json",
+      "source_policy": "reuse_verified_vfs_assets"
+    }
+  },
+  "coverage": {
+    "models": true,
+    "textures": true,
+    "audio": true,
+    "videos": true,
+    "text_fr": true,
+    "text_en": true,
+    "text_ja": true,
+    "miximax": true,
+    "chara_edit_avatar": true
+  },
+  "runtime_status": "contract_ready_reference_only"
+}

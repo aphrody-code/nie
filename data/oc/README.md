@@ -18,7 +18,10 @@ data/oc/
     └── source/          les originaux — JAMAIS versionnés (œuvre de leur auteur)
 ```
 
-Personnages présents : [`astro-lor/`](astro-lor/README.md).
+Personnages présents : [`astro-lor/`](astro-lor/README.md) et
+[`afubuki/`](afubuki/README.md). Afubuki porte aussi
+`game/identity.json`, le contrat de sélection de l'avatar par défaut, du
+personnage principal et de l'âme de N.I.E. pour les consommateurs compatibles.
 
 Chaque personnage peut porter `game/character-contract.json`. Ce contrat ne remplace pas les
 fichiers du jeu : il décrit les chemins VFS versionnés, les formats/magics vérifiés, les nœuds de

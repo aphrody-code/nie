@@ -75,6 +75,14 @@ pub enum OcgenCmd {
         #[arg(short, long, default_value = "var/ocgen")]
         out: PathBuf,
     },
+    /// Valide le profil complet d'un OC : identité, variantes, Mixi-Max, assets et chara_edit.
+    Validate {
+        /// Character slug under `data/oc/`.
+        slug: String,
+        /// Racine des contrats OC.
+        #[arg(long, default_value = "data")]
+        data: PathBuf,
+    },
 }
 
 /// Character directory for a slug.
@@ -436,6 +444,32 @@ pub fn run(op: &OcgenCmd) -> Result<(), Error> {
                     .collect::<Vec<_>>()
                     .join(", ")
             );
+            Ok(())
+        }
+        OcgenCmd::Validate { slug, data } => {
+            let root = oc_root(data, slug);
+            let profile_path = root.join("game/complete-profile.json");
+            let identity_path = root.join("game/identity.json");
+            let basara_path = root.join("game/basara-profile.json");
+            let profile: serde_json::Value = serde_json::from_slice(&std::fs::read(&profile_path).map_err(|e| Error::Io(format!("lecture {} : {e}", profile_path.display())))?)
+                .map_err(|e| Error::Format(format!("{} : {e}", profile_path.display())))?;
+            let identity: serde_json::Value = serde_json::from_slice(&std::fs::read(&identity_path).map_err(|e| Error::Io(format!("lecture {} : {e}", identity_path.display())))?)
+                .map_err(|e| Error::Format(format!("{} : {e}", identity_path.display())))?;
+            let basara: serde_json::Value = serde_json::from_slice(&std::fs::read(&basara_path).map_err(|e| Error::Io(format!("lecture {} : {e}", basara_path.display())))?)
+                .map_err(|e| Error::Format(format!("{} : {e}", basara_path.display())))?;
+            let variants = profile.pointer("/versions/byron").and_then(|v| v.as_array()).map_or(0, Vec::len)
+                + profile.pointer("/versions/shawn").and_then(|v| v.as_array()).map_or(0, Vec::len);
+            let coverage = profile.pointer("/coverage").and_then(|v| v.as_object()).map_or(0, |o| o.values().filter(|v| v.as_bool() == Some(true)).count());
+            let roles = identity.pointer("/roles").and_then(|v| v.as_object()).map_or(0, |o| o.values().filter(|v| v.as_bool() == Some(true)).count());
+            let miximax = profile.pointer("/miximax/id").and_then(serde_json::Value::as_str).unwrap_or("absent");
+            let basara_shape = basara.pointer("/verified_basara_shape").is_some();
+            if profile.get("schema").and_then(serde_json::Value::as_str) != Some("nie.oc.complete-profile/v1")
+                || identity.get("schema").and_then(serde_json::Value::as_str) != Some("nie.oc.identity/v1")
+                || !basara_shape || variants == 0 || coverage == 0 || roles == 0
+            {
+                return Err(Error::Format(format!("{slug} : contrat OC incomplet")));
+            }
+            println!("OC {slug} valide : {variants} variantes, {coverage} couvertures, {roles} rôles, Mixi-Max {miximax}");
             Ok(())
         }
     }

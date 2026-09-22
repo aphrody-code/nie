@@ -84,8 +84,8 @@ impl BundleSource for nie_formats::vfs::Vfs {
 pub enum InitialBundleProfile {
     /// Existing broad profile retained for compatibility and non-critical deferred loading.
     Complete,
-    /// Initial critical path centered on Aphrody and measured, explicitly selected content.
-    #[value(name = "aphrody_lean")]
+    /// Initial critical path centered on Afubuki and measured, explicitly selected content.
+    #[value(name = "afubuki_lean", alias = "aphrody_lean")]
     AphrodyLean,
 }
 
@@ -94,7 +94,7 @@ impl InitialBundleProfile {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Complete => "complete",
-            Self::AphrodyLean => "aphrody_lean",
+            Self::AphrodyLean => "afubuki_lean",
         }
     }
 }
@@ -111,7 +111,7 @@ impl Default for InitialBundleOptions {
         Self {
             screen: "main_menu".to_owned(),
             locale: "fr".to_owned(),
-            profile: InitialBundleProfile::Complete,
+            profile: InitialBundleProfile::AphrodyLean,
         }
     }
 }
@@ -1223,7 +1223,7 @@ mod tests {
                 bundle_format: "nie.vfs.bundle/v1",
                 screen: "main_menu".into(),
                 locale: "fr".into(),
-                profile: "aphrody_lean",
+                profile: "afubuki_lean",
                 sha256: hex::encode(Sha256::digest(&bytes)),
                 main_script: String::new(),
                 loaded_include_names: Vec::new(),

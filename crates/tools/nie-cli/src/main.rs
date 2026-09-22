@@ -442,6 +442,7 @@ enum Cmd {
         db: PathBuf,
     },
     /// Génération 3D d'un personnage original : morphologie, chara_edit, couleurs mesurées.
+    #[command(name = "oc", visible_alias = "ocgen")]
     Ocgen {
         #[command(subcommand)]
         op: ocgen_cmd::OcgenCmd,
@@ -1029,7 +1030,7 @@ enum VfsOp {
         screen: String,
         #[arg(long, default_value = "fr")]
         locale: String,
-        /// Content profile. `aphrody_lean` keeps non-critical game assets out of startup.
+        /// Content profile. `afubuki_lean` keeps non-critical game assets out of startup.
         #[arg(long, value_enum, default_value = "complete")]
         profile: vfs_bundle::InitialBundleProfile,
         #[arg(long, short = 'o')]
