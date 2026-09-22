@@ -51,7 +51,7 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 			apply: "build" as const,
 			configResolved(config) { resolvedOutDir = resolve(config.root, config.build.outDir); },
 			writeBundle() {
-				const source = process.env.NIERS_VFS_BUNDLE_DIR;
+				const source = process.env.NIE_VFS_BUNDLE_DIR ?? process.env.NIERS_VFS_BUNDLE_DIR;
 				if (source) console.log(`VFS candidate: ${stageVfs(source, resolvedOutDir)} verified archives`);
 			},
 		}, {

@@ -28,6 +28,7 @@ afterEach(() => {
 	if (temporaire) rmSync(temporaire, { recursive: true, force: true });
 	temporaire = null;
 	delete process.env.NIERS_WEB_OUT_DIR;
+	delete process.env.NIE_WEB_OUT_DIR;
 });
 
 test("un build ordinaire n'écrit jamais dans le bundle servi", () => {
@@ -49,20 +50,20 @@ test("viser le bundle servi lève, au lieu de l'effacer", () => {
 	expect(() => assertNePubliePas(lienPublie)).toThrow(/bundle SERVI/);
 });
 
-test("NIERS_WEB_OUT_DIR ne contourne pas le garde", () => {
+test("NIE_WEB_OUT_DIR ne contourne pas le garde", () => {
 	if (!lienPublie) {
 		console.warn(`SKIP: ${publishedLink} n'est pas un lien symbolique — rien n'est publié ici`);
 		return;
 	}
-	process.env.NIERS_WEB_OUT_DIR = lienPublie;
+	process.env.NIE_WEB_OUT_DIR = lienPublie;
 	expect(() => resolveBuildOutDir()).toThrow(/bundle SERVI/);
 });
 
-test("un répertoire quelconque passe, et `NIERS_WEB_OUT_DIR` l'emporte", () => {
+test("un répertoire quelconque passe, et `NIE_WEB_OUT_DIR` l'emporte", () => {
 	const ailleurs = mkdtempSync(join(tmpdir(), "nie-out-dir-"));
 	temporaire = ailleurs;
 	expect(() => assertNePubliePas(ailleurs)).not.toThrow();
-	process.env.NIERS_WEB_OUT_DIR = ailleurs;
+	process.env.NIE_WEB_OUT_DIR = ailleurs;
 	expect(resolveBuildOutDir()).toBe(realpathSync(ailleurs));
 });
 

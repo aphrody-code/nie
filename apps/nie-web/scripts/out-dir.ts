@@ -80,7 +80,7 @@ function ciblePubliee(lien: string): string | null {
 /**
  * Le répertoire où un build ORDINAIRE écrit.
  *
- * - `NIERS_WEB_OUT_DIR` l'emporte : c'est l'échappatoire d'un appelant qui sait ce qu'il fait.
+ * - `NIE_WEB_OUT_DIR` l'emporte ; `NIERS_WEB_OUT_DIR` reste accepté pour compatibilité.
  * - `dist` n'est pas un lien → `dist`. Rien n'est publié depuis un tel arbre (une unité systemd
  *   qui lirait un répertoire ordinaire du dépôt serait un autre problème, et le garde ci-dessous
  *   le dirait quand même).
@@ -89,8 +89,9 @@ function ciblePubliee(lien: string): string | null {
  * @throws si le chemin retenu est, après résolution, celui que `dist` désigne.
  */
 export function resolveBuildOutDir(lien: string = publishedLink): string {
-	const choisi = process.env.NIERS_WEB_OUT_DIR
-		? resolve(process.env.NIERS_WEB_OUT_DIR)
+	const configuredOutDir = process.env.NIE_WEB_OUT_DIR ?? process.env.NIERS_WEB_OUT_DIR;
+	const choisi = configuredOutDir
+		? resolve(configuredOutDir)
 		: ciblePubliee(lien) === null
 			? lien
 			: resolve(appRoot, "dist-build");
@@ -118,7 +119,7 @@ export function assertNePubliePas(outDir: string, lien: string = publishedLink):
 			`  ${lien} -> ${cible}`,
 			"`vite build` vide son outDir avant d'écrire : le site répondrait 404 pendant tout le build.",
 			"Publier passe par `bun run deploy:target web`, qui bâtit à part puis bascule le lien.",
-			"Pour bâtir ailleurs sans publier : NIERS_WEB_OUT_DIR=<chemin hors du lien>.",
+			"Pour bâtir ailleurs sans publier : NIE_WEB_OUT_DIR=<chemin hors du lien>.",
 		].join("\n"),
 	);
 }

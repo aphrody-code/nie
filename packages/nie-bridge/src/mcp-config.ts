@@ -43,7 +43,10 @@ export interface McpEntryOptions {
 export function mcpServerEntry(options: McpEntryOptions = {}): McpServerEntry {
   const root = options.repoRoot?.trim() ?? "";
   const env: Record<string, string> = {};
-  if (root !== "") env["NIERS_REPO"] = root;
+  if (root !== "") {
+    env["NIE_REPO"] = root;
+    env["NIERS_REPO"] = root;
+  }
   if (options.gameDir !== undefined && options.gameDir.trim() !== "") env["NIE_GAME_DIR"] = options.gameDir.trim();
   if (options.aphrodyApiUrl !== undefined && options.aphrodyApiUrl.trim() !== "") {
     env["NIE_APHRODY_API_URL"] = options.aphrodyApiUrl.trim().replace(/\/+$/, "");

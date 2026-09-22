@@ -49,13 +49,14 @@ elif [ -r "$niers_env_root/.env" ]; then
     set +a
 fi
 
-export NIERS_REPO="${NIERS_REPO:-$niers_env_root}"
+export NIE_REPO="${NIE_REPO:-${NIERS_REPO:-$niers_env_root}}"
+export NIERS_REPO="${NIERS_REPO:-$NIE_REPO}"
 export NIE_GAME_DIR="${NIE_GAME_DIR:-$HOME/.local/share/Steam/iecode/inazuma}"
 export IEVR_GAME_DIR="${IEVR_GAME_DIR:-$NIE_GAME_DIR}"
 export NIE_GAME_PATH="${NIE_GAME_PATH:-$NIE_GAME_DIR}"
 export STEAM_LIBRARY_PATH="${STEAM_LIBRARY_PATH:-$HOME/.local/share/Steam}"
-export NIE_RUNTIME_BASE="${NIE_RUNTIME_BASE:-$HOME/.local/share/niers/runtime}"
-export NIE_STEAM_TOKEN_STORE="${NIE_STEAM_TOKEN_STORE:-$HOME/.local/share/niers/steam-tokens.json}"
+export NIE_RUNTIME_BASE="${NIE_RUNTIME_BASE:-$HOME/.local/share/nie/runtime}"
+export NIE_STEAM_TOKEN_STORE="${NIE_STEAM_TOKEN_STORE:-$HOME/.local/share/nie/steam-tokens.json}"
 export STEAM_TOKEN_STORE="${STEAM_TOKEN_STORE:-$NIE_STEAM_TOKEN_STORE}"
 export NIE_ATLAS_DB="${NIE_ATLAS_DB:-$niers_env_root/var/nie-atlas.sqlite}"
 export NIE_WIKI_DB="${NIE_WIKI_DB:-$niers_env_root/var/nie-wiki.sqlite}"

@@ -1,8 +1,9 @@
 {
   "env": {
-    "NIERS_REPO": "/home/ubuntu/niers",
-    "BASH_ENV": "/home/ubuntu/niers/.claude/shell-init.sh",
-    "NIE_GAME_DIR": "/home/ubuntu/niers"
+    "NIE_REPO": "/home/ubuntu/nie",
+    "NIERS_REPO": "/home/ubuntu/nie",
+    "BASH_ENV": "/home/ubuntu/nie/.claude/shell-init.sh",
+    "NIE_GAME_DIR": "/home/ubuntu/nie"
   },
   "permissions": {
     "defaultMode": "bypassPermissions"

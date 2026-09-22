@@ -907,7 +907,8 @@ impl NiersMcpServer {
         Parameters(request): Parameters<RepoReadRequest>,
     ) -> CompatibilityResult {
         blocking_json(move || {
-            let root = std::env::var_os("NIERS_REPO")
+            let root = std::env::var_os("NIE_REPO")
+                .or_else(|| std::env::var_os("NIERS_REPO"))
                 .map(std::path::PathBuf::from)
                 .unwrap_or_else(|| {
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
@@ -1045,7 +1046,8 @@ fn launch_game(args: Vec<String>) -> anyhow::Result<Value> {
             .all(|arg| arg.len() <= 16 * 1024 && !arg.contains('\0')),
         "invalid game argument"
     );
-    let root = std::env::var_os("NIERS_REPO")
+    let root = std::env::var_os("NIE_REPO")
+        .or_else(|| std::env::var_os("NIERS_REPO"))
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."));
     let configured = std::env::var_os("NIERS_GAME_EXE")
