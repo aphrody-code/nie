@@ -11,7 +11,10 @@ test("sans racine, le chemin reste relatif — forme versionnable du .mcp.json",
 test("avec une racine Windows, le chemin est absolu et séparé par des antislashs", () => {
   const entry = mcpServerEntry({ repoRoot: "C:\\Jeux\\IEVR" });
   expect(entry.args.slice(3, 5)).toEqual(["--manifest-path", "C:\\Jeux\\IEVR\\Cargo.toml"]);
-  expect(entry.env["NIERS_REPO"]).toBe("C:\\Jeux\\IEVR");
+  expect(entry.env).toMatchObject({
+    NIE_REPO: "C:\\Jeux\\IEVR",
+    NIERS_REPO: "C:\\Jeux\\IEVR",
+  });
 });
 
 test("avec une racine POSIX, le séparateur reste la barre oblique", () => {

@@ -1,16 +1,16 @@
 {
-  "name": "niers",
+  "name": "nie",
   "version": "1.0.0",
   "spec": "a2a/v1.0",
-  "id": "niers@aphrody-code/niers",
+  "id": "nie@aphrody-code/nie",
   "schema_version": "1.0.0",
   "kind": "agent",
   "description": "Pure Rust native implementation and byte-exact reverse engineering of Inazuma Eleven: Victory Road. Multi-agent coordination via JSONL mailboxes and local JSON-RPC listener.",
   "a2a_protocol_version": "1.0",
-  "documentation_url": "https://github.com/aphrody-code/aphrody/blob/main/docs/a2a/README.md",
+  "documentation_url": "https://github.com/aphrody-code/nie/blob/main/docs/A2A-CODEX.md",
   "provider": {
     "organization": "aphrody-code",
-    "url": "https://github.com/aphrody-code/aphrody"
+    "url": "https://github.com/aphrody-code/nie"
   },
   "supported_interfaces": [
     {
@@ -51,7 +51,7 @@
   ],
   "peers": [
     {
-      "id": "claude@aphrody-code/niers",
+      "id": "claude@aphrody-code/nie",
       "role": "orchestrator",
       "transport": "claude-code",
       "binary": "claude",
@@ -59,15 +59,15 @@
       "description": "Claude Code orchestrator."
     },
     {
-      "id": "codex@aphrody-code/niers",
+      "id": "codex@aphrody-code/nie",
       "role": "subagent",
       "transport": "cli",
       "binary": "codex",
-      "invocation": "codex exec --cd /home/ubuntu/niers --skip-git-repo-check <prompt>",
+      "invocation": "codex exec --cd /home/ubuntu/nie --skip-git-repo-check <prompt>",
       "description": "Codex CLI non-interactive executor."
     },
     {
-      "id": "astra@aphrody-code/niers",
+      "id": "astra@aphrody-code/nie",
       "role": "verifier",
       "transport": "cli",
       "binary": "agy",
@@ -78,14 +78,14 @@
   "coordination": {
     "channel_dir": ".coord",
     "mailboxes": {
-      "claude@aphrody-code/niers": ".coord/inbox-from-claude.jsonl",
-      "codex@aphrody-code/niers": ".coord/inbox-from-codex.jsonl",
-      "astra@aphrody-code/niers": ".coord/inbox-from-astra.jsonl"
+      "claude@aphrody-code/nie": ".coord/inbox-from-claude.jsonl",
+      "codex@aphrody-code/nie": ".coord/inbox-from-codex.jsonl",
+      "astra@aphrody-code/nie": ".coord/inbox-from-astra.jsonl"
     },
     "heartbeats": {
-      "claude@aphrody-code/niers": ".coord/heartbeat-claude.txt",
-      "codex@aphrody-code/niers": ".coord/heartbeat-codex.txt",
-      "astra@aphrody-code/niers": ".coord/heartbeat-astra.txt"
+      "claude@aphrody-code/nie": ".coord/heartbeat-claude.txt",
+      "codex@aphrody-code/nie": ".coord/heartbeat-codex.txt",
+      "astra@aphrody-code/nie": ".coord/heartbeat-astra.txt"
     },
     "protocol": "docs/A2A-CODEX.md"
   }
