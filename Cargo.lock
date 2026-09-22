@@ -6016,6 +6016,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-render"
+version = "1.0.0"
+dependencies = [
+ "nie-formats",
+ "nie-render3d",
+ "nie-runtime",
+]
+
+[[package]]
 name = "nie-render3d"
 version = "1.0.0"
 dependencies = [

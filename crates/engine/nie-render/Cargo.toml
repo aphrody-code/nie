@@ -1,0 +1,18 @@
+[package]
+name = "nie-render"
+description = "Façade de rendu nie: 2D, 3D CPU/GPU, GUI et WASM"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-formats = { workspace = true, features = ["std"] }
+nie-render3d = { workspace = true, default-features = false }
+nie-runtime.workspace = true
+
