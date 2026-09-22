@@ -1,6 +1,6 @@
 ---
 name: nie-architecture
-description: Apply the settled nie architecture: a complete Inacord application with a native game theme, a retained native game reconstruction target, and one shared library owner per capability across web, desktop, CLI, MCP and forge.
+description: "Apply the settled nie architecture: a complete Inacord application with a native game theme, a retained native game reconstruction target, and one shared library owner per capability across web, desktop, CLI, MCP and forge."
 ---
 
 # nie architecture
