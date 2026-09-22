@@ -69,9 +69,10 @@ if (wasmBindgenCliVersion !== wasmBindgenPin) {
 mkdirSync(BINDINGS_DIRECTORY, { recursive: true });
 const temporaryDirectory = mkdtempSync(join(BINDINGS_DIRECTORY, ".build-"));
 const temporaryJavaScript = join(temporaryDirectory, "nie_wasm.js");
-const temporaryTypeScript = join(temporaryDirectory, "nie_wasm.d.ts");
-const temporaryWasm = join(temporaryDirectory, "nie_wasm_bg.wasm");
-const temporaryWasmTypeScript = join(temporaryDirectory, "nie_wasm_bg.wasm.d.ts");
+	const temporaryTypeScript = join(temporaryDirectory, "nie_wasm.d.ts");
+	const temporaryWasm = join(temporaryDirectory, "nie_wasm_bg.wasm");
+	const optimizedWasm = join(temporaryDirectory, "nie_wasm_bg.optimized.wasm");
+	const temporaryWasmTypeScript = join(temporaryDirectory, "nie_wasm_bg.wasm.d.ts");
 
 try {
 	await run("cargo", [
@@ -111,21 +112,29 @@ try {
 	// Keep Binaryen's validator aligned with Rust's wasm32 generic CPU plus the SIMD routines
 	// present in image/render dependencies. Explicit flags avoid `--all-features`, which could let
 	// optimization passes introduce proposals outside the browser compatibility contract.
-	await run("wasm-opt", [
-		"-O3",
-		"--strip-debug",
-		"--enable-mutable-globals",
-		"--enable-nontrapping-float-to-int",
-		"--enable-simd",
-		"--enable-bulk-memory",
-		"--enable-sign-ext",
-		"--enable-reference-types",
-		"--enable-multivalue",
-		temporaryWasm,
-		"-o",
-		temporaryWasm,
-	]);
-	const optimizedBytes = readFileSync(temporaryWasm);
+	if (process.platform === "win32") {
+		// Binaryen 125 can hang indefinitely on this module under Windows/MSVC. The Rust
+		// output is already valid; keep the mandatory validation/smoke test and leave
+		// optimization to the Linux release worker where the tool is reliable.
+		copyFileSync(temporaryWasm, optimizedWasm);
+	} else {
+		await run("wasm-opt", [
+			"-O3",
+			"--strip-debug",
+			"--enable-mutable-globals",
+			"--enable-nontrapping-float-to-int",
+			"--enable-simd",
+			"--enable-bulk-memory",
+			"--enable-sign-ext",
+			"--enable-reference-types",
+			"--enable-multivalue",
+			temporaryWasm,
+			"-o",
+			optimizedWasm,
+		]);
+	}
+	const optimizedBytes = readFileSync(optimizedWasm);
+	copyFileSync(optimizedWasm, temporaryWasm);
 	if (!WebAssembly.validate(optimizedBytes)) {
 		throw new Error("wasm-opt produced an invalid WebAssembly module");
 	}

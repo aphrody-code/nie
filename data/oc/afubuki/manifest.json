@@ -5,6 +5,7 @@
   "native_vfs": "data/oc/afubuki/game/native-vfs.json",
   "identity": "data/oc/afubuki/game/identity.json",
   "complete_profile": "data/oc/afubuki/game/complete-profile.json",
+  "seo": "data/oc/afubuki/seo.json",
   "default_identity": {
     "avatar": "afubuki",
     "primary_character": "afubuki",

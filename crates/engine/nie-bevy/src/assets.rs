@@ -586,9 +586,7 @@ mod tests {
                 // indices sortent de la table, `Empty` quand l'extraction n'en rend aucun — c'est
                 // le cas de `k000010`, dont la géométrie vit dans l'espace global du G4MG. Ce qui
                 // ne serait pas légitime, c'est un panic ou une erreur sans cause lisible.
-                Err(
-                    error @ (NieAssetError::Unsupported { .. } | NieAssetError::Empty { .. }),
-                ) => {
+                Err(error @ (NieAssetError::Unsupported { .. } | NieAssetError::Empty { .. })) => {
                     eprintln!("{stem}: named refusal, as designed: {error}");
                 }
                 Err(other) => panic!("{stem}: {other}"),

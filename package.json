@@ -11,7 +11,8 @@
 			"packages/inacord-ui",
 			"packages/nie",
 			"packages/nie-bridge",
-			"packages/nie-game"
+			"packages/nie-game",
+			"packages/nie-media"
 		],
 		"catalog": {
 			"@base-ui/react": "^1.7.0",

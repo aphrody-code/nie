@@ -7,7 +7,7 @@
 
 [build]
 # v0 mangling = symboles démanglés lisibles dans les stacktraces et les outils de RE.
-rustflags = ["-C", "symbol-mangling-version=v0"]
+rustflags = ["-C", "symbol-mangling-version=v0", "-A", "linker_messages"]
 # Keep dep-info paths relative to the workspace so local and CI compiler caches remain reusable
 # when the checkout moves. This does not alter generated binaries.
 dep-info-basedir = "."
@@ -22,12 +22,12 @@ dep-info-basedir = "."
 # processeur qui compile, ce qui change l'ordre des opérations flottantes et casse les goldens
 # byte-exacts. `x86-64-v2` est le plancher retenu pour les binaires distribués (cf. package.sh).
 [target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "symbol-mangling-version=v0"]
+rustflags = ["-C", "symbol-mangling-version=v0", "-A", "linker_messages"]
 
 # ── Windows natif (MSVC) ──────────────────────────────────────────────────────
 # La cible de travail sur poste : c'est elle qui exerce D3D12 et les pilotes NVIDIA.
 [target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "symbol-mangling-version=v0"]
+rustflags = ["-C", "symbol-mangling-version=v0", "-A", "linker_messages"]
 
 # ── Windows cross-compilé depuis Linux (mingw) ────────────────────────────────
 # Sert au packaging distribuable produit depuis le serveur (`scripts/package.sh`).
@@ -35,6 +35,7 @@ rustflags = ["-C", "symbol-mangling-version=v0"]
 linker = "x86_64-w64-mingw32-gcc"
 rustflags = [
   "-C", "symbol-mangling-version=v0",
+  "-A", "linker_messages",
   "-C", "link-arg=-fstack-protector",
 ]
 
@@ -43,6 +44,7 @@ rustflags = [
 [target.wasm32-unknown-unknown]
 rustflags = [
   "-C", "symbol-mangling-version=v0",
+  "-A", "linker_messages",
   "-C", "target-feature=+bulk-memory,+mutable-globals,+nontrapping-fptoint,+sign-ext,+simd128",
 ]
 

@@ -1,7 +1,7 @@
 {
-	"name": "nie",
-	"short_name": "nie",
-	"description": "Browse, decode and export the files of Inazuma Eleven: Victory Road, from their original path.",
+	"name": "nie — Afubuki",
+	"short_name": "Afubuki",
+	"description": "Afubuki fusionne Byron Love et Shawn Froste dans un Mixi-Max documenté avec les assets VFS vérifiés de N.I.E.",
 	"icons": [
 		{ "src": "/static/icon-16.png", "sizes": "16x16", "type": "image/png" },
 		{ "src": "/static/icon-32.png", "sizes": "32x32", "type": "image/png" },

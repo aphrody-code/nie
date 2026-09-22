@@ -1,0 +1,20 @@
+{
+  "schema": "nie.oc.seo/v1",
+  "slug": "afubuki",
+  "canonical_name": "Afubuki",
+  "asset_manifest": "data/ref/afubuki/meta/manifest.json",
+  "favicon": "/static/afubuki.svg",
+  "game_locales": {
+    "de": {"title": "Afubuki – Mix 'n' Match Byron Love × Shawn Froste", "description": "Afubuki verbindet Byron Love (Aphrodi/Terumi Afuro) und Shawn Froste (Shirou/Atsuya Fubuki) in einem dokumentierten Mixi-Max mit verifizierten VFS-Modellen, Texturen, Stimmen und Spieltexten."},
+    "en": {"title": "Afubuki – Mix 'n' Match Byron Love × Shawn Froste", "description": "Afubuki combines Byron Love (Aphrodi/Terumi Afuro) and Shawn Froste (Shirou/Atsuya Fubuki) in a documented Mixi-Max with verified VFS models, textures, voices and game text."},
+    "es": {"title": "Afubuki – Mix 'n' Match Byron Love × Shawn Froste", "description": "Afubuki combina a Byron Love (Aphrodi/Terumi Afuro) y Shawn Froste (Shirou/Atsuya Fubuki) en un Mixi-Max documentado con modelos, texturas, voces y textos del VFS verificados."},
+    "fr": {"title": "Afubuki – Mix 'n' Match Byron Love × Shawn Froste", "description": "Afubuki fusionne Byron Love (Aphrodi/Terumi Afuro) et Shawn Froste (Shirou/Atsuya Fubuki) dans un Mixi-Max documenté avec modèles, textures, voix et textes VFS vérifiés."},
+    "it": {"title": "Afubuki – Mix 'n' Match Byron Love × Shawn Froste", "description": "Afubuki unisce Byron Love (Aphrodi/Terumi Afuro) e Shawn Froste (Shirou/Atsuya Fubuki) in un Mixi-Max documentato con modelli, texture, voci e testi VFS verificati."},
+    "ja": {"title": "アフブキ – バイロン・ラブ × 吹雪士郎 Mix 'n' Match", "description": "アフブキはバイロン・ラブ（アフロディ／亜風炉照美）と吹雪士郎・アツヤを組み合わせた、VFSのモデル、テクスチャ、音声、ゲームテキストを確認できるMixi-Maxです。"},
+    "pt": {"title": "Afubuki – Mix 'n' Match Byron Love × Shawn Froste", "description": "Afubuki combina Byron Love (Aphrodi/Terumi Afuro) e Shawn Froste (Shirou/Atsuya Fubuki) num Mixi-Max documentado, com modelos, texturas, vozes e textos VFS verificados."},
+    "zh_hans": {"title": "Afubuki – Byron Love × Shawn Froste Mix 'n' Match", "description": "Afubuki 将 Byron Love（Aphrodi／Terumi Afuro）与 Shawn Froste（Shirou／Atsuya Fubuki）结合为有文档记录的 Mixi-Max，并收录已验证的 VFS 模型、纹理、语音和游戏文本。"},
+    "zh_hant": {"title": "Afubuki – Byron Love × Shawn Froste Mix 'n' Match", "description": "Afubuki 將 Byron Love（Aphrodi／Terumi Afuro）與 Shawn Froste（Shirou／Atsuya Fubuki）結合為有文件記錄的 Mixi-Max，並收錄已驗證的 VFS 模型、紋理、語音與遊戲文字。"}
+  },
+  "site_hreflang": {"fr": "/", "en": "/en/", "es": "/es/", "ja": "/ja/"},
+  "open_graph": {"type": "website", "image": "/static/afubuki.svg", "site_name": "nie — Afubuki"}
+}

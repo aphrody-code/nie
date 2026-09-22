@@ -38,6 +38,11 @@ ou le VFS de Steam tant qu'un point d'injection runtime dédié n'est pas prouv�
 assets extraits, le Mixi-Max et le contrat avatar `chara_edit`. La commande
 canonique est `nie oc`; `nie ocgen` reste accepté comme alias.
 
+`seo.json` fusionne les descriptions Byron/Fubuki dans les neuf locales du
+jeu (`de`, `en`, `es`, `fr`, `it`, `ja`, `pt`, `zh_hans`, `zh_hant`). Le site
+utilise les quatre routes réellement exposées (`fr`, `en`, `es`, `ja`). Le
+favicon Afubuki est servi par `/static/afubuki.svg`.
+
 Le générateur `scripts/donnees/afubuki-oc.py` produit un SQL rejouable qui
 crée la ligne `inagle_miximax` et rattache l'aura aux identifiants de
 personnages déjà présents. Les chemins `data/common/...` et `data/dx11/...`

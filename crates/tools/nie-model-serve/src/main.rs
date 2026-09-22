@@ -3020,9 +3020,7 @@ fn catalogue_video(state: &State) -> Result<String, String> {
         Some(e) => Err(format!(
             "catalogue périmé (empreinte {e} ≠ {attendue}) — le régénérer avec `nie video catalogue`"
         )),
-        None => {
-            Err("catalogue sans empreinte — régénérer avec `nie video catalogue`".to_string())
-        }
+        None => Err("catalogue sans empreinte — régénérer avec `nie video catalogue`".to_string()),
     }
 }
 

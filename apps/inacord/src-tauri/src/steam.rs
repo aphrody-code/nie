@@ -44,21 +44,21 @@ fn steam_install_path() -> Option<PathBuf> {
     use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    if let Ok(key) = hklm.open_subkey(r"SOFTWARE\WOW6432Node\Valve\Steam") {
-        if let Ok(path) = key.get_value::<String, _>("InstallPath") {
-            return Some(PathBuf::from(path));
-        }
+    if let Ok(key) = hklm.open_subkey(r"SOFTWARE\WOW6432Node\Valve\Steam")
+        && let Ok(path) = key.get_value::<String, _>("InstallPath")
+    {
+        return Some(PathBuf::from(path));
     }
-    if let Ok(key) = hklm.open_subkey(r"SOFTWARE\Valve\Steam") {
-        if let Ok(path) = key.get_value::<String, _>("InstallPath") {
-            return Some(PathBuf::from(path));
-        }
+    if let Ok(key) = hklm.open_subkey(r"SOFTWARE\Valve\Steam")
+        && let Ok(path) = key.get_value::<String, _>("InstallPath")
+    {
+        return Some(PathBuf::from(path));
     }
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    if let Ok(key) = hkcu.open_subkey(r"Software\Valve\Steam") {
-        if let Ok(path) = key.get_value::<String, _>("SteamPath") {
-            return Some(PathBuf::from(path));
-        }
+    if let Ok(key) = hkcu.open_subkey(r"Software\Valve\Steam")
+        && let Ok(path) = key.get_value::<String, _>("SteamPath")
+    {
+        return Some(PathBuf::from(path));
     }
     None
 }

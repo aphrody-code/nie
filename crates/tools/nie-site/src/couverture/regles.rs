@@ -190,12 +190,7 @@ pub static MODULES_TYPES: &[&str] = &[
 /// Toutes les décisions de classement, source par source.
 pub static REGLES: &[Regle] = &[
     // ---------------------------------------------------------------- nie (sous-commandes)
-    r!(
-        "nie-vfs",
-        Nie,
-        Motif::Exact("vfs"),
-        servi("/b/{*prefixe}")
-    ),
+    r!("nie-vfs", Nie, Motif::Exact("vfs"), servi("/b/{*prefixe}")),
     r!(
         "nie-decode",
         Nie,

@@ -1,0 +1,10 @@
+{
+	"name": "nie-media",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./player": "./src/player.ts",
+		"./navigation": "./src/navigation.ts"
+	}
+}

@@ -318,6 +318,12 @@ impl NieBytes {
 /// La fonction ne découvre rien et ne lance aucun processus. Elle donne aux hôtes Bun, C#,
 /// Python et WASM le même contrat de capacités avant qu'un adaptateur FFI in-process ne soit
 /// sélectionné.
+///
+/// # Safety
+///
+/// `out` doit être nul ou pointer vers un `NieBytes` accessible en écriture et exclusivement
+/// détenu par l'appelant pendant cette invocation. Lorsque `out` est non nul, l'appelant doit
+/// libérer le tampon produit avec l'API de libération FFI correspondante.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nie_emu_registry_json_out(out: *mut NieBytes) {
     if out.is_null() {

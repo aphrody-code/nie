@@ -208,10 +208,10 @@ export const zukan_rank_json: (a: number, b: number, c: number, d: number, e: nu
 export const __wasm_start: () => void;
 export const init_panic_hook: () => void;
 export const net_tournament_circuit_points: (a: number, b: number) => number;
-export const __wasm_bindgen_func_elem_4584: (a: number, b: number, c: number, d: number) => void;
-export const __wasm_bindgen_func_elem_4599: (a: number, b: number, c: number, d: number) => void;
-export const __wasm_bindgen_func_elem_3593: (a: number, b: number, c: number) => void;
-export const __wasm_bindgen_func_elem_3593_2: (a: number, b: number, c: number) => void;
+export const __wasm_bindgen_func_elem_4585: (a: number, b: number, c: number, d: number) => void;
+export const __wasm_bindgen_func_elem_4600: (a: number, b: number, c: number, d: number) => void;
+export const __wasm_bindgen_func_elem_3594: (a: number, b: number, c: number) => void;
+export const __wasm_bindgen_func_elem_3594_2: (a: number, b: number, c: number) => void;
 export const __wbindgen_export: (a: number, b: number) => number;
 export const __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_export3: (a: number) => void;
