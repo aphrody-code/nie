@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
 
 const read = (path: string) => Bun.file(new URL(path, import.meta.url)).text();
 const luminance = (hex: string) => {
@@ -54,8 +55,8 @@ describe("single game theme contract", () => {
 		const tokenCss = await read("../../../packages/inacord-ui/src/shell/game-screens.css");
 		const defined = new Set([...tokenCss.matchAll(/--(screen-[a-z0-9-]+)\s*:/gu)].map(match => match[1]));
 		const roots = [
-			new URL("./", import.meta.url).pathname,
-			new URL("../../../packages/inacord-ui/src/", import.meta.url).pathname,
+			fileURLToPath(new URL("./", import.meta.url)),
+			fileURLToPath(new URL("../../../packages/inacord-ui/src/", import.meta.url)),
 		];
 		const consumed = new Set<string>();
 		for (const cwd of roots) {

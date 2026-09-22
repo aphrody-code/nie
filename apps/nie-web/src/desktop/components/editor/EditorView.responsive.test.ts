@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const css = readFileSync(new URL("./editor-view.css", import.meta.url), "utf8");
-const editor = readFileSync(new URL("./EditorView.tsx", import.meta.url), "utf8");
+const editor = readFileSync(new URL("./EditorView.tsx", import.meta.url), "utf8").replaceAll("\r\n", "\n");
 const browser = readFileSync(new URL("./ContentBrowser.tsx", import.meta.url), "utf8");
 
 describe("public editor responsive geometry", () => {

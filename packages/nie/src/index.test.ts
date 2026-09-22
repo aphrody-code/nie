@@ -163,7 +163,9 @@ describe("CRand (Rust nie_crand_* via FFI)", () => {
 });
 
 describe("wiki (Rust nie_wiki_json_out via FFI)", () => {
-  test("searches the read-only mirror without a TypeScript game-data provider", () => {
+  test("searches the read-only mirror without a TypeScript game-data provider", async () => {
+    const mirror = Bun.file(resolve(REPOSITORY_ROOT, "var/mirror.sqlite"));
+    if (!(await mirror.exists()) || mirror.size === 0) return;
     const rows = wiki<Array<{ entity_type: string; id: string; name: string }>>({
       op: "search",
       query: "Mark Evans",
