@@ -34,6 +34,28 @@ The Claude marketplace manifest at `../.claude-plugin/marketplace.json` exposes 
 the repository's `plugins/` directory. The root `plugin.json` follows the same Antigravity
 adapter convention used by Aphrody's YOLO package.
 
+## Rendu unifié
+
+La surface Rust canonique est `nie-render3d` :
+
+- CPU headless déterministe : GLB → RGBA8 avec z-buffer, culling, UV et Lambert ;
+- GPU/WebGPU : viewport interactif avec le même cadrage caméra ;
+- WASM : bindings du viewer et repli CPU sans accès système ;
+- GUI/site/model-server : mêmes modèles GLB et mêmes limites d’entrée ;
+- sécurité : `unsafe` interdit dans la crate, allocations dimensionnées et budgets contrôlés.
+
+Le contrat de composition commun est `nie-render`; `nie-model-serve` reste l’amont HTTP de
+résolution VFS/CRC/GLB et `nie-site` le gateway borné (`/assets/*`, `/readyz`).
+
+Commandes de validation :
+
+```text
+cargo test -p nie-render3d --locked
+cargo test -p nie-model-serve --locked
+cargo test -p nie-site --locked --lib
+cargo clippy -p nie-render3d -p nie-model-serve -p nie-site --all-targets --locked -- -D warnings
+```
+
 ## Verification
 
 ```bash

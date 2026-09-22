@@ -1,6 +1,6 @@
 {
   "name": "nie",
-  "version": "0.3.0+codex.20260911",
+  "version": "0.3.0+codex.20260922215644",
   "description": "Native Rust tooling for the NIE game workspace: the atlas-driven reverse-engineering loop, formats, assets, and Inacord.",
   "author": {
     "name": "Aphrody Dev"

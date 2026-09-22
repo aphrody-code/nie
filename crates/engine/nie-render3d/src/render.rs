@@ -84,6 +84,15 @@ pub fn couleur_fond(y: u32, h: u32) -> [u8; 4] {
 /// Rend `model` vu sous l'angle `angle` (radians) en RGBA8 `w`×`h`.
 #[must_use]
 pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
+    let Some(pixel_count) = (w as usize).checked_mul(h as usize) else {
+        return Vec::new();
+    };
+    let Some(byte_count) = pixel_count.checked_mul(4) else {
+        return Vec::new();
+    };
+    if w == 0 || h == 0 {
+        return Vec::new();
+    }
     let (center, radius) = bounds(model);
     let inv = 1.0 / radius;
     let (cy, sy) = (angle.cos(), angle.sin());
@@ -106,16 +115,16 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
     let scale = h as f32 * 0.5;
 
     let light = normv([0.35, 0.75, 0.55]);
-    let mut px = vec![0u8; (w * h * 4) as usize];
+    let mut px = vec![0u8; byte_count];
     // Fond : dégradé vertical sombre.
     for y in 0..h {
         let bg = couleur_fond(y, h);
-        for x in 0..w {
-            let i = ((y * w + x) * 4) as usize;
-            px[i..i + 4].copy_from_slice(&bg);
+        let row_start = (y as usize) * (w as usize) * 4;
+        for pixel in px[row_start..row_start + (w as usize) * 4].chunks_exact_mut(4) {
+            pixel.copy_from_slice(&bg);
         }
     }
-    let mut zbuf = vec![f32::INFINITY; (w * h) as usize];
+    let mut zbuf = vec![f32::INFINITY; pixel_count];
 
     // Projette un sommet (centré/normalisé/orienté) → (sx_px, sy_px, depth) ou None si derrière.
     let project = |v: V3| -> Option<(f32, f32, f32)> {
