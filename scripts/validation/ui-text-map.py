@@ -381,7 +381,19 @@ def transform_of(record: dict) -> str:
 
 def emit(mapped: dict, misses: list[dict], label_count: int, mesure: datetime.date) -> str:
     js = lambda value: json.dumps(value, ensure_ascii=False)
-    rel = lambda location: str(Path(location).relative_to(REPO))
+    def rel(location: str) -> str:
+        """Return a stable repo-relative source path, including shared checkout paths."""
+        path = Path(location)
+        try:
+            return str(path.relative_to(REPO))
+        except ValueError:
+            # On the VPS some workspace packages resolve through the shared Niers checkout.
+            # Keep the logical project path in the generated contract rather than leaking an
+            # absolute host path or aborting emission.
+            match = re.search(r"(?:^|/)(apps|packages)/.+$", location.replace("\\", "/"))
+            if match:
+                return match.group(0).lstrip("/")
+            raise
     order = lambda record: (-len(record["locations"]), record["label"])
 
     exact = sorted(mapped["exact"], key=order)

@@ -7,6 +7,7 @@
  * libellé, un libellé rangé des deux côtés à la fois.
  */
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "bun:test";
 
@@ -45,7 +46,7 @@ describe("UI_TEXT_MAP", () => {
 		// n'existe plus. 113 fichiers cités au dernier relevé ; le générateur les relit tous,
 		// donc régénérer suffit à réparer. Les LIGNES, elles, ne sont pas vérifiées : elles
 		// bougent à chaque édition et les exiger rendrait ce test faux en permanence.
-		const racine = new URL("../../../../", import.meta.url).pathname;
+		const racine = fileURLToPath(new URL("../../../../", import.meta.url));
 		const manquants = new Set<string>();
 		for (const entry of [...UI_TEXT_MAP, ...UI_TEXT_VARIANTS, ...UI_TEXT_NOT_FOUND]) {
 			for (const use of entry.usedAt) {
