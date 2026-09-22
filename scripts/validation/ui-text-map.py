@@ -109,7 +109,19 @@ def sources():
                 continue
             for name in files:
                 if name.endswith((".ts", ".tsx")) and not SKIP_FILES.search(name):
-                    yield Path(dirpath) / name
+                    path = Path(dirpath) / name
+                    try:
+                        logical = path.relative_to(REPO)
+                    except ValueError:
+                        match = re.search(r"(?:^|/)(apps|packages)/.+$", str(path).replace("\\", "/"))
+                        if not match:
+                            continue
+                        logical = Path(match.group(0).lstrip("/"))
+                    # Shared checkout symlinks can expose files from Niers that are not part of
+                    # this repository. They must not enter a generated contract for N.I.E.
+                    candidate = REPO / logical
+                    if candidate.exists():
+                        yield candidate
 
 
 # --------------------------------------------------------------------------- inventory
