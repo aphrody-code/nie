@@ -16,7 +16,7 @@ fichier. Chaque écart connu est écrit ci-dessous plutôt que supposé absent.
 | | `cdn.aphrody.com` | `127.0.0.1:8790` — `nie-model-serve`, sous limite de débit |
 | | `downloads.` `bot.` `admin.` `n2b.` | `127.0.0.1:8084` — `bxc-site`, dépôt `bxc` |
 | | `mcp.aphrody.com` | `127.0.0.1:8808` — serveur MCP |
-| `nginx/bxc.aphrody.com.conf` | `bxc.aphrody.com` | `127.0.0.1:8084` — **capture, ne pas modifier ici** |
+| `../aphrody-infra/nginx/aphrody/bxc.aphrody.com.conf` | `bxc.aphrody.com` | propriété du dépôt `aphrody-infra` |
 
 Les douze hôtes partagent le certificat `letsencrypt/live/aphrody.com`. `bxc.aphrody.com` a son
 propre fichier depuis le 2026-09-07 : il est copié ici pour que l'inventaire du domaine soit
@@ -67,7 +67,7 @@ sed -e 's#/etc/letsencrypt/live/aphrody.com/fullchain.pem#'"$PWD"'/c.pem#g' \
     -e 's#/etc/letsencrypt/options-ssl-nginx.conf#'"$PWD"'/opts.inc#g' \
     -e 's#/etc/letsencrypt/ssl-dhparams.pem#'"$PWD"'/dh.pem#g' \
     -e 's#/etc/nginx/conf.d/snippets-mcp.inc#'"$PWD"'/mcp.inc#g' \
-    ~/nie/deploy/nginx/aphrody.com.conf > vhost.conf
+    ~/aphrody-infra/nginx/aphrody/aphrody.com.conf > vhost.conf
 printf 'events {}\nhttp { include %s/vhost.conf; }\n' "$PWD" > nginx.conf
 nginx -t -c "$PWD/nginx.conf"
 ```

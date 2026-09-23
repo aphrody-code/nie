@@ -25,7 +25,7 @@ Several documents still offered « repoint the vhost at `:8083`, `aphrody-site` 
 stopped » as the rollback for the `nie-site` switchover. That was already false on 2026-09-05
 and it is false now: there is no service to fall back to, and repointing there returns `502`.
 
-**The real rollback is `git revert` on `deploy/nginx/aphrody.com.conf`, then `nginx -t` and a
+**The real rollback is `git revert` on `nginx/aphrody/aphrody.com.conf` (dépôt aphrody-infra), then `nginx -t` and a
 reload.** The file is versioned precisely so that the previous state is recoverable; the
 machine's own copy is not a backup.
 

@@ -331,7 +331,7 @@ async function preflightProduction(): Promise<void> {
 	for (const [source, installed] of [
 		["deploy/systemd/nie-site.service", "/etc/systemd/system/nie-site.service"],
 		["deploy/systemd/nie-model-serve.service", "/etc/systemd/system/nie-model-serve.service"],
-		["deploy/nginx/aphrody.com.conf", "/etc/nginx/conf.d/aphrody.com.conf"],
+		["../aphrody-infra/nginx/aphrody/aphrody.com.conf", "/etc/nginx/conf.d/aphrody.com.conf"],
 	] as const) {
 		if ((await commandExit(["cmp", "-s", source, installed])) !== 0)
 			throw new Error(`Installed production configuration drifts from ${source}.`);
