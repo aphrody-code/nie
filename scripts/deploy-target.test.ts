@@ -11,9 +11,10 @@
  * qui sort avant de prendre le verrou. Déployer depuis une suite de tests publierait.
  */
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "bun:test";
 
-const script = new URL("./deploy-target.ts", import.meta.url).pathname;
+const script = fileURLToPath(new URL("./deploy-target.ts", import.meta.url));
 
 function lister(): string {
 	const result = Bun.spawnSync(["bun", script, "--list"], { stderr: "pipe", stdout: "pipe" });
@@ -32,7 +33,7 @@ function budget(listing: string, cible: string): number {
 
 test("chaque cible annonce son budget", () => {
 	const listing = lister();
-	for (const cible of ["ffi", "cli", "mcp", "wasm", "web", "inacord", "model", "site", "cron"]) {
+	for (const cible of ["ffi", "cli", "mcp", "wasm", "web", "inacord", "model", "site"]) {
 		expect(budget(listing, cible)).toBeGreaterThan(0);
 	}
 });

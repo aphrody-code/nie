@@ -14,8 +14,8 @@ import { resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 
-process.env.NO_PROXY = `${process.env.NO_PROXY || ""},aphrody.com,.aphrody.com,127.0.0.1,localhost`.replace(/^,/u, "");
-process.env.no_proxy = process.env.NO_PROXY;
+process.env["NO_PROXY"] = `${process.env["NO_PROXY"] || ""},aphrody.com,.aphrody.com,127.0.0.1,localhost`.replace(/^,/u, "");
+process.env["no_proxy"] = process.env["NO_PROXY"];
 
 /**
  * A target's own hard cap, when it does not declare one. It bounds the whole run so a hung step
@@ -171,13 +171,6 @@ function requireJsonObject(body: string): Record<string, unknown> {
 	}
 	return value as Record<string, unknown>;
 }
-
-const healthyJson = (body: string) => {
-	const value = requireJsonObject(body);
-	if (value["ok"] !== true && value["status"] !== "healthy") {
-		throw new Error("Health response does not report a ready service.");
-	}
-};
 
 function validateSiteHealth(body: string): void {
 	const value = requireJsonObject(body);
@@ -592,7 +585,7 @@ async function deployTarget(name: string, commit: string): Promise<{ name: strin
 }
 
 const requested = process.argv.slice(2);
-const allowDirty = requested.includes("--allow-dirty") || process.env.ALLOW_DIRTY === "1";
+const allowDirty = requested.includes("--allow-dirty") || process.env["ALLOW_DIRTY"] === "1";
 const cleanRequested = requested.filter((arg) => arg !== "--allow-dirty");
 if (cleanRequested.length !== 1 || cleanRequested[0] === "--help" || cleanRequested[0] === "-h") {
 	process.stdout.write(`${usage()}\n`);
@@ -615,7 +608,7 @@ const concurrencyTiers = [
 	["ffi", "cli", "mcp"],
 	["wasm"],
 	["web", "inacord"],
-	["model", "site", "cron"],
+	["model", "site"],
 ] as const;
 
 try {

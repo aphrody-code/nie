@@ -5,14 +5,14 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 
-const repoRoot = resolve(process.env.NIE_REPO_ROOT ?? join(import.meta.dir, ".."));
+const repoRoot = resolve(process.env["NIE_REPO_ROOT"] ?? join(import.meta.dir, ".."));
 const home = homedir();
-const sourceRoots = (process.env.NIE_MEMORY_SOURCES?.split(":") ?? [
+const sourceRoots = (process.env["NIE_MEMORY_SOURCES"]?.split(":") ?? [
 	join(home, ".aphrody", "workspaces", "ie", "memory"),
 	join(home, ".claude", "projects", "-home-ubuntu-nie", "memory"),
 	join(repoRoot, ".agents", "rules"),
 ]).filter(Boolean);
-const targetRoots = (process.env.NIE_MEMORY_TARGETS?.split(":") ?? [
+const targetRoots = (process.env["NIE_MEMORY_TARGETS"]?.split(":") ?? [
 	join(repoRoot, ".agents", "rules"),
 	join(home, ".claude", "projects", "-home-ubuntu-nie", "memory"),
 	join(home, ".aphrody", "workspaces", "ie", "memory"),

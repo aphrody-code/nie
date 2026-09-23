@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const dbPath = process.env.KNOWLEDGE_DB
+const dbPath = process.env["KNOWLEDGE_DB"]
   ?? join(homedir(), ".aphrody", "workspace", "knowledge.db");
 const dbFile = Bun.file(dbPath);
 

@@ -2354,3 +2354,15 @@ into `nie`:
   includes live in `aphrody-infra/nginx/aphrody/`. `release-all.ts` checks drift against
   `../aphrody-infra/nginx/aphrody/aphrody.com.conf`.
 - nie keeps its own units: `deploy/systemd/nie-site.service`, `nie-model-serve.service`.
+
+### Script gate repaired — 2026-09-23
+
+- `typecheck:scripts`: 10 errors → 0 (index-signature `env` access, dead `healthyJson`).
+- `deploy-target`: the retired `cron` target was still listed in `concurrencyTiers` and in its
+  test; removed. The test resolved its script with `URL.pathname`, which breaks on Windows
+  (`/C:/…`); it now uses `fileURLToPath`.
+- The 38 frozen menu references had been losslessly recompressed in `8bf226b` (0 differing
+  pixels, verified with `magick compare -metric AE`) so their bytes no longer matched
+  `data/menu/screen-inventory.json`. The original blobs were restored from `fcdc0ea`; all 38
+  hashes match again. The visual gate needs ImageMagick (`magick`) on the host.
+- Gate: `bun test scripts/` 39 pass / 0 fail; `typecheck:scripts` clean; `lint` exit 0.
