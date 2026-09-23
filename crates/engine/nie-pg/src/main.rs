@@ -37,11 +37,16 @@ enum Command {
     },
     /// Prints imported volumes.
     Status,
+    /// Checks that the game install is complete (every referenced CPK present). No database.
+    Check,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+    if matches!(cli.command, Command::Check) {
+        return check();
+    }
     let url = cli
         .url
         .or_else(|| std::env::var("DATABASE_URL").ok())
@@ -57,8 +62,58 @@ async fn main() -> Result<()> {
             import(&mut client, &prefix, limit).await?;
         }
         Command::Status => status(&client).await?,
+        Command::Check => unreachable!("handled before connecting"),
     }
     Ok(())
+}
+
+/// Compares the CPKs `cpk_list.cfg.bin` references with the packs on disk, so a partial
+/// copy of the game is reported before an import rather than as thousands of skipped files.
+fn check() -> Result<()> {
+    let vfs = nie_formats::vfs::open_game().context("VFS not found (NIE_GAME_DIR)")?;
+    let packs = vfs.game_data_dir().join("packs");
+    let mut referenced: std::collections::BTreeMap<&str, (usize, usize)> = Default::default();
+    for (path, entry) in vfs.iter() {
+        if entry.cpk_filename.is_empty() {
+            continue;
+        }
+        let slot = referenced.entry(entry.cpk_filename.as_str()).or_default();
+        slot.0 += 1;
+        if is_cfgbin_path(path) {
+            slot.1 += 1;
+        }
+    }
+    let missing: Vec<_> = referenced
+        .iter()
+        .filter(|(cpk, _)| !packs.join(cpk).is_file())
+        .collect();
+    let lost =
+        |i: fn(&(usize, usize)) -> usize| -> usize { missing.iter().map(|(_, c)| i(c)).sum() };
+    let total = |i: fn(&(usize, usize)) -> usize| -> usize { referenced.values().map(i).sum() };
+    println!("vfs: {}", vfs.game_data_dir().display());
+    println!(
+        "cpk: {} referenced, {} present, {} missing",
+        referenced.len(),
+        referenced.len() - missing.len(),
+        missing.len()
+    );
+    println!(
+        "files: {} / {} readable | cfg.bin: {} / {} readable",
+        total(|c| c.0) - lost(|c| c.0),
+        total(|c| c.0),
+        total(|c| c.1) - lost(|c| c.1),
+        total(|c| c.1)
+    );
+    if missing.is_empty() {
+        println!("complete");
+        Ok(())
+    } else {
+        bail!(
+            "incomplete game install: {} CPK missing under {}",
+            missing.len(),
+            packs.display()
+        )
+    }
 }
 
 async fn connect(url: &str) -> Result<Client> {
