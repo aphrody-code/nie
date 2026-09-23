@@ -567,6 +567,11 @@ pub fn routeur(etat: EtatSite) -> Router {
             etat.clone(),
             crate::debit::limiter,
         ))
+        // Closes the raw game spaces (`/f`, `/b`) before any work; see `raw_gate`.
+        .layer(axum::middleware::from_fn_with_state(
+            etat.clone(),
+            crate::raw_gate::gate,
+        ))
         .layer(axum::middleware::from_fn(entetes_securite))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::GATEWAY_TIMEOUT,

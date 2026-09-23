@@ -46,9 +46,14 @@ fn config_nue() -> Config {
         statique: "/nonexistent/dist".into(),
         // Port 1 : jamais en écoute, la connexion est refusée immédiatement.
         amont: "http://127.0.0.1:1".to_owned(),
+        raw_vfs_token: nie_site::raw_gate::Token::new(RAW_TOKEN),
         ..Config::default()
     }
 }
+
+/// Token the test client presents on every request, so the raw spaces `/f` and `/b` stay
+/// testable behind `raw_gate`.
+const RAW_TOKEN: &str = "test-raw-vfs-token-0123456789abcdef";
 
 fn etat_avec(regle: impl FnOnce(&mut Config)) -> EtatSite {
     let mut config = config_nue();
@@ -65,6 +70,7 @@ async fn reponse_avec(
     requete: axum::http::request::Builder,
 ) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
     let app = nie_site::routeur(etat.clone());
+    let requete = requete.header("authorization", format!("Bearer {RAW_TOKEN}"));
     let r = app
         .oneshot(requete.body(Body::empty()).unwrap())
         .await
@@ -91,8 +97,11 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 195] = [
+    let instances: [(&str, &[u16]); 196] = [
         ("/healthz", &[200]),
+        // Readiness needs the VFS and the model-serve upstream; the test upstream (port 1)
+        // refuses, so the probe honestly reports degraded.
+        ("/readyz", &[503]),
         ("/api/health", &[200, 503]),
         ("/robots.txt", &[200]),
         ("/sitemap.xml", &[200]),
@@ -362,7 +371,7 @@ async fn toutes_les_routes_declarees_repondent() {
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 193, "le routeur monte 193 routes");
+    assert_eq!(declarees.len(), 194, "le routeur monte 194 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -394,7 +403,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 195, "195 instances interrogees pour 193 routes");
+    assert_eq!(vus, 196, "196 instances interrogees pour 194 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).
@@ -1843,5 +1852,34 @@ async fn graphql_texts_repond_par_le_routeur() {
     assert!(
         body.get("data").is_some() || body.get("errors").is_some(),
         "une réponse GraphQL porte data ou errors : {body}"
+    );
+}
+
+#[tokio::test]
+async fn raw_spaces_are_closed_without_a_token() {
+    let app = nie_site::routeur(etat());
+    for uri in ["/f/data/dx11/menu/title/a.g4tx", "/b", "/b/data/dx11/menu"] {
+        let r = app
+            .clone()
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::NOT_FOUND, "{uri} without a token");
+    }
+    let unconfigured = nie_site::routeur(etat_avec(|c| c.raw_vfs_token = None));
+    let r = unconfigured
+        .oneshot(
+            Request::builder()
+                .uri("/b")
+                .header("authorization", format!("Bearer {RAW_TOKEN}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        r.status(),
+        StatusCode::NOT_FOUND,
+        "closed when no token is configured"
     );
 }

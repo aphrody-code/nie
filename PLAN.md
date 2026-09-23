@@ -2392,3 +2392,13 @@ into `nie`:
   `data/menu/screen-inventory.json`. The original blobs were restored from `fcdc0ea`; all 38
   hashes match again. The visual gate needs ImageMagick (`magick`) on the host.
 - Gate: `bun test scripts/` 39 pass / 0 fail; `typecheck:scripts` clean; `lint` exit 0.
+
+### Raw game spaces closed — 2026-09-23
+
+`nie-site` now puts `/f` (file bytes) and `/b` (VFS browsing) behind `raw_gate`: `404` unless
+`NIE_RAW_VFS_TOKEN` (≥ 32 chars) is set and the request carries `Authorization: Bearer <token>`.
+Decoded `/api/*` data is unchanged. The route-contract test also gained its missing `/readyz`
+instance (broken since `a2ca786`). Gates: `cargo test -p nie-site` 380 passed / 0 failed,
+clippy `-D warnings` and rustfmt clean. **NON_FAIT:** not deployed; the browser features of
+`apps/nie-web` that fetch `/f/{path}` (menu composer, Lua runtime, editor) will 404 publicly
+until they move to decoded `/api` endpoints.

@@ -29,6 +29,7 @@ pub mod debit;
 pub mod error;
 pub mod etag;
 pub mod i18n;
+pub mod raw_gate;
 pub mod routes;
 pub mod state;
 pub mod update_policy;

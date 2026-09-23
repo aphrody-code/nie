@@ -88,6 +88,9 @@ pub struct Config {
     /// Elle ferme un trou mesuré : le vhost pose un `limit_req` sur `nie.` et sur `api.`, et
     /// **aucun** sur `nie.aphrody.com`. `par_seconde = 0` la désactive entièrement.
     pub debit: crate::debit::Reglage,
+    /// Bearer token opening the raw game spaces `/f` and `/b` (`NIE_RAW_VFS_TOKEN`, at least
+    /// 32 characters). `None` keeps them closed; see [`crate::raw_gate`].
+    pub raw_vfs_token: Option<crate::raw_gate::Token>,
 }
 
 impl Default for Config {
@@ -107,6 +110,7 @@ impl Default for Config {
             cache_ttl: Duration::from_secs(300),
             origine: "https://nie.aphrody.com".to_owned(),
             debit: crate::debit::Reglage::defaut(),
+            raw_vfs_token: None,
         }
     }
 }
@@ -160,6 +164,9 @@ pub struct Options {
     /// Requêtes qu'une rafale peut consommer d'un coup, par IP (défaut 120).
     #[arg(long, env = "NIE_SITE_RAFALE")]
     pub rafale: Option<f64>,
+    /// Bearer token for the raw game spaces `/f` and `/b`; never logged.
+    #[arg(long, env = "NIE_RAW_VFS_TOKEN", hide_env_values = true)]
+    pub raw_vfs_token: Option<String>,
 }
 
 impl Options {
@@ -207,6 +214,9 @@ impl Options {
         if let Some(r) = self.rafale.filter(|r| r.is_finite() && *r >= 0.0) {
             cfg.debit.rafale = r;
         }
+        cfg.raw_vfs_token = self
+            .raw_vfs_token
+            .and_then(|t| crate::raw_gate::Token::new(&t));
         Ok(cfg)
     }
 }
