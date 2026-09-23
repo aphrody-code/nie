@@ -25,7 +25,7 @@
 
 .PARAMETER VpsHost
     L'hôte SSH du VPS. Défaut : `ovh-vps-direct`.
-    **Ne jamais viser `ovh-vps`** : cet alias passe par le VPN (10.8.0.1) et expire.
+    **Ne jamais viser `ovh-vps`** : cet alias passe par le VPN et expire.
 
 .PARAMETER GameDir
     La racine du jeu, si la détection Steam échoue. C'est le dossier qui porte
@@ -45,7 +45,7 @@
     pwsh -File scripts\ops\bootstrap-windows.ps1
 
 .EXAMPLE
-    pwsh -File scripts\ops\bootstrap-windows.ps1 -VpsHost ubuntu@51.77.147.152 -WithRe
+    pwsh -File scripts\ops\bootstrap-windows.ps1 -VpsHost ubuntu@<host-from-aphrody-infra-inventory> -WithRe
 #>
 [CmdletBinding()]
 param(

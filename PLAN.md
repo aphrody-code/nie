@@ -1261,7 +1261,7 @@ commands fail explicitly in the browser adapter.
 Measured pre-publication gates on `vps-203bea89` on 2026-09-09: both web and desktop TypeScript
 checks passed; 6 focused tests passed with 12 assertions; Vite built 3,715 modules into 137 files
 (18 MiB) with zero source maps; Chromium mounted the Explorer against the production VFS with
-255,308 indexed entries. DNS resolves to `51.77.147.152`, and the renewed ECDSA certificate includes
+255,308 indexed entries. DNS resolves to the production host (aphrody-infra inventory), and the renewed ECDSA certificate includes
 `inacord.aphrody.com` with expiry 2026-12-08 (the host survives the merge as a redirect). The immutable manifest and live HTTP interaction
 checks remain the release-time proof for the exact pushed commit.
 
@@ -2379,7 +2379,27 @@ into `nie`:
   retired `bxc-site`); they were deleted. The canonical vhosts and the `aphrody-*.inc`
   includes live in `aphrody-infra/nginx/aphrody/`. `release-all.ts` checks drift against
   `../aphrody-infra/nginx/aphrody/aphrody.com.conf`.
-- nie keeps its own units: `deploy/systemd/nie-site.service`, `nie-model-serve.service`.
+- ~~nie keeps its own units~~ — superseded the same day, see below.
+
+### nie infrastructure consolidated into `aphrody-infra` — 2026-09-23
+
+- `deploy/systemd/nie-site.service` and `nie-model-serve.service` moved to
+  `aphrody-infra/systemd/` (same content, LF, ownership header). Ports unchanged: nie-site 8085,
+  nie-model-serve 8790. No nie release plane exists yet, so both still run from
+  `/home/ubuntu/nie/target/release` with `EnvironmentFile=-/etc/nie/nie.env`.
+- `deploy/` now only holds a README pointer. `scripts/deploy-target.ts` and
+  `scripts/release-all.ts` install/compare units and vhost from
+  `${APHRODY_INFRA_ROOT:-../aphrody-infra}`.
+- `release-all.ts` live validation now matches the backend-only `nie.aphrody.com` vhost:
+  `/health`, `/api/v1/health`, `/api/v1/icons`, `/api/v1/modes`, `/cdn/health`, `/` = 404,
+  `/downloads/inacord/latest.json`. The `/`, `/inacord`, `/downloads/catalog.json` and
+  `cdn.aphrody.com/health` checks are gone. `deploy-target.ts` checks the shell on loopback.
+- `scripts/sync-main.ts` (+ test) moved to `aphrody-infra/scripts/nie/`; `sync:main` removed.
+  `scripts/ops/deploy.ts` (rosegriffon blue/green) and the `vps-commander` skill deleted.
+- `docs/HOSTS-AND-PORTS.md` is a pointer to aphrody-infra; infra IPs removed from docs.
+- `.env.example` reduced to variables nie reads; the Supabase anon key in
+  `mirror-supabase-db.ts` / `sync-ievr-supabase.py` now comes from `IEVR_SUPABASE_ANON_KEY`.
+- Inacord updater: `https://nie.aphrody.com/downloads/inacord/latest.json` added as first endpoint.
 
 ### Script gate repaired — 2026-09-23
 

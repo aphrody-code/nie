@@ -1,8 +1,14 @@
 import fs from "fs";
 import { Database } from "bun:sqlite";
 
-const SUPABASE_URL = "https://ovgasnwnfnlvczmtpfrb.supabase.co";
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2FzbnduZm5sdmN6bXRwZnJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NTI2NjQsImV4cCI6MjEwMjIyODY2NH0.amPgGMw-j6i3FkhEQIMupNuLXbxzR9BiV67yztD2xSw";
+// Third-party project mirrored read-only. Its public anon key is supplied at run time and is
+// never committed: IEVR_SUPABASE_ANON_KEY (see .env.example).
+const SUPABASE_URL = process.env["IEVR_SUPABASE_URL"] ?? "https://ovgasnwnfnlvczmtpfrb.supabase.co";
+const ANON_KEY = process.env["IEVR_SUPABASE_ANON_KEY"] ?? "";
+if (!ANON_KEY) {
+  console.error("IEVR_SUPABASE_ANON_KEY is required (anon key of the mirrored Supabase project).");
+  process.exit(2);
+}
 
 const tables = [
   "jugadores",

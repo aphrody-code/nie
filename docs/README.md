@@ -83,9 +83,9 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | Document | What it owns |
 | --- | --- |
 | [`DEVELOPMENT-ENVIRONMENT.md`](DEVELOPMENT-ENVIRONMENT.md) | Reproducible shell environment, repository-local agent configuration, secret-file boundary, validation, and rollback. |
-| [`HOSTS-AND-PORTS.md`](HOSTS-AND-PORTS.md) | **Measured** hosts, ports and DNS. Authoritative against any plan that says otherwise. |
+| [`HOSTS-AND-PORTS.md`](HOSTS-AND-PORTS.md) | Pointer: hosts, ports, routes and DNS are owned by aphrody-infra (`config/service-catalog.json`, `config/nginx-routes.json`, `docs/ops/OVH.md`). |
 | [`SERVER-ROBUSTNESS.md`](SERVER-ROBUSTNESS.md) | Server landscape, runtime library evaluation, and resilience hardening across `nie-site`, `nie-model-serve`, and `nie-net`. |
-| [`OVH.md`](OVH.md) | The three OVH accounts, their zones, records and procedures. Measured, not assumed. |
+| `../aphrody-infra/docs/ops/OVH.md` | The three OVH accounts, their zones, records and procedures (moved to aphrody-infra). |
 | [`legal/`](legal/) | The signed exploitation agreement and its annexes. |
 
 ## Agents and multi-engine work

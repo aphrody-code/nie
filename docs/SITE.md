@@ -66,9 +66,10 @@ waiting for the corpus to grow.
 
 ## Deployment
 
-Vhosts and units are versioned under [`../deploy/`](../deploy/README.md). They are **sources**:
-copying them into `/etc`, `daemon-reload`, `nginx -t` and `reload` are separate, deliberate acts.
-The installed files drift — `diff` against `/etc` and run `ss -ltnp` before editing a vhost.
+The vhost and the units are owned by aphrody-infra: `../aphrody-infra/nginx/aphrody/aphrody.com.conf`
+and `../aphrody-infra/systemd/nie-site.service`, `nie-model-serve.service`. Installing them into
+`/etc`, `daemon-reload`, `nginx -t` and `reload` follow the aphrody-infra runbook. The installed
+files drift — `diff` against `/etc` and run `ss -ltnp` before changing one.
 
-Measured host and port map: [`HOSTS-AND-PORTS.md`](HOSTS-AND-PORTS.md). It wins over any plan that
-says otherwise.
+Host and port map: aphrody-infra `config/service-catalog.json` and `config/nginx-routes.json`
+(pointer in [`HOSTS-AND-PORTS.md`](HOSTS-AND-PORTS.md)). It wins over any plan that says otherwise.

@@ -12,7 +12,8 @@
 		"The remaining 28 are listed in CONTRIBUTING.md under 'Type gate ratchet'.",
 		"deploy-target.ts joined on 2026-09-20; the gate immediately found a defect on its ROLLBACK",
 		"path, where symlink(previous) ran with previous undefined, threw inside the catch block, and",
-		"masked the health-check failure that triggered it. Sixteen errors, fifteen of them mechanical."
+		"masked the health-check failure that triggered it. Sixteen errors, fifteen of them mechanical.",
+		"sync-main.ts and its test moved to aphrody-infra scripts/nie/ on 2026-09-23 (host transport)."
 	],
 	"include": [],
 	"files": [
@@ -27,8 +28,6 @@
 		"link-all-skills.ts",
 		"mirror-supabase-db.ts",
 		"surfaces.ts",
-		"sync-main.test.ts",
-		"sync-main.ts",
 		"sync-memory-to-agy.ts",
 		"validation/download-zukan-reference.ts",
 		"validation/gate-menu-browser.ts",

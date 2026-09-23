@@ -90,7 +90,7 @@ async function gris(chemin: string, largeur: number, hauteur: number): Promise<U
  * `NIE_GAME_DIR` laissé à la racine du dépôt : 156 873 entrées, **0 CPK**, et chaque écran
  * revient en toile vide. Mesuré le 2026-09-19, la porte annonçait alors « RÉGRESSION : 8 écrans »
  * avec un SSIM de 0,0006, c'est-à-dire qu'elle accusait le rendu d'un défaut d'environnement.
- * La valeur de production est dans `deploy/systemd/nie-site.service`.
+ * La valeur de production est dans `../aphrody-infra/systemd/nie-site.service`.
  */
 async function exigerLeVfsDuJeu(): Promise<number> {
 	const reponse = await fetch(`${SITE}/api/v1/health`).catch(() => null);

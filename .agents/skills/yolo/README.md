@@ -63,7 +63,7 @@ agy -p "grind open tasks" --dangerously-skip-permissions
 
 ---
 
-## 📚 Complete Catalog of Verified Skills (60 Production Skills)
+## 📚 Complete Catalog of Verified Skills (59 Production Skills)
 
 Every skill includes complete YAML metadata, structured progressive disclosure, trigger contracts, and zero-pause autonomous execution rules:
 
@@ -90,7 +90,7 @@ Every skill includes complete YAML metadata, structured progressive disclosure, 
 | `rust-best-practices-2026` | `skills/rust-best-practices-2026` | Rust 1.95 features + 1.96 WASM breakage + Cargo CVE-2026-33056 + Edition 2024 async closures / precise capturing / Tokio discipline. Use when writing ne... |
 | `rust-target-check` | `skills/rust-target-check` | Runs `cargo check` on the 3 priority targets in parallel (Linux x86_64, Windows MSVC, wasm32-unknown-unknown). Use whenever the user asks to "verify cro... |
 
-### Reverse Engineering, OS Internals & Security Forensics (14 skills)
+### Reverse Engineering, OS Internals & Security Forensics (13 skills)
 
 | Skill Identifier | Folder | Capabilities & Primary Scope |
 | :--- | :--- | :--- |
@@ -105,7 +105,6 @@ Every skill includes complete YAML metadata, structured progressive disclosure, 
 | `remotion-best-practices` | `skills/remotion-best-practices` | Best practices for Remotion - Video creation in React |
 | `responsive-adaptive` | `skills/responsive-adaptive` | Teaches Claude how to apply Material Design 3 adaptive layout: window size classes, navigation pattern swaps, canonical layouts, grid/margin values, and... |
 | `skill-creator` | `skills/skill-creator` | Create agent skills for any technology (Microsoft / Rust crate / Azure / .NET / browser API / framework) by investigating it live through the MCP server... |
-| `vps-commander` | `skills/vps-commander` | Operates the bidirectional SSH tunnel to the VPS — local port forwards (Chrome 9226, Postgres 5432, Bun 3001) and SOCKS5 (127.0.0.1:1080). |
 | `winclean` | `skills/winclean` | WinClean ecosystem integration for the peer Windows 11 (24H2+) optimization repo — system scanning, debloating, native AOT C# workflows, and a bridge to... |
 | `winclean-mcp-skills` | `skills/winclean-mcp-skills` | Wrapper namespace for 3 nested Microsoft-focused skills synced from the WinClean MCP ecosystem — microsoft-docs (Microsoft Learn API docs lookup), micro... |
 

@@ -182,9 +182,10 @@ Routine releases remain prefixed and independent.
 
 **Deploying is not releasing.** A tag touches no running service. Production goes through
 `scripts/deploy-target.ts`, by hand, on an explicit request, with its own lock, per-target
-deadlines and live health checks. `deploy/nginx/` and `deploy/systemd/` are *sources*: copying
-them into `/etc`, `daemon-reload`, `nginx -t` and `reload` are separate, deliberate acts — and
-the installed files drift, so `diff` against `/etc` and run `ss -ltnp` before editing a vhost.
+deadlines and live health checks. The units and the vhost are owned by aphrody-infra
+(`../aphrody-infra/systemd/nie-*.service`, `nginx/aphrody/aphrody.com.conf`): installing them into
+`/etc`, `daemon-reload`, `nginx -t` and `reload` follow its runbook — and the installed files
+drift, so `diff` against `/etc` and run `ss -ltnp` before changing one.
 
 ## Type gate ratchet
 

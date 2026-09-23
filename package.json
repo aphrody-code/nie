@@ -115,7 +115,6 @@
 		"release:all": "bun scripts/release-all.ts",
 		"release:inacord": "bun scripts/release-inacord.ts",
 		"deploy:target": "bun scripts/deploy-target.ts",
-		"sync:main": "bun scripts/sync-main.ts",
 		"docs:check": "bun run scripts/docs/check.ts",
 		"check:dependencies": "uv run --no-project python scripts/validation/dependency-owners.py",
 		"check:layers": "bun --bun scripts/validation/layers.ts",

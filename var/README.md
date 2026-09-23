@@ -12,10 +12,10 @@ Inventaire des artefacts derives. Regen groupee : `bash scripts/regen-var.sh --a
 | `g4tx-xval.ndjson`, `xval.ndjson` | ~166 Ko | oui | cross-check validation g4tx | regression decodeur g4tx |
 | `model-cache/` | ~variable | oui (a la volee) | servi par nie-model-serve | MAJ du jeu → purger |
 | `zukan/` | ~272 Mo | semi | `nie wiki` / ingesteur zukan | re-scrape zukan voulu |
-| `rag/` | var | oui | `scripts/rag-build.py` (service e5 sur :8799) | corpus RE change |
 | `re-heartbeat.log` | append | n/a | cron `/tmp/nie-re-heartbeat.sh` | CASSE si `target/release/nie` absent → rebuild |
 | `ghidra-decompile/`, `ghidra-scripts/` | var | oui | skill `ghidra-headless` | re-export Ghidra |
 
 Notes :
+- RAG (index, embedder) n'appartient plus a ce depot : il vit dans `aphrody` ; `var/rag/`, s'il reste, est un residu supprimable.
 - Apres une MAJ du jeu/exe : `scripts/regen-var.sh --all` (regenere KB + manifestes), puis penser a purger `model-cache/` et redemarrer `nie-model-serve`.
 - Redis (hors var/) : db0 = frontiere RE + wiki ; db3 = index fichiers CPK + textures. NE PAS exporter `NIE_REDIS` pour `nie textures`/`menu-predecode` (ecraserait db3 par db0).

@@ -674,8 +674,7 @@ metadata:
 ---
 
 Le VPS OVH (dépôt `~/nie`) n'est joignable que par l'alias SSH
-`ovh-vps-ubuntu-direct` (51.77.147.152) : le tunnel WireGuard (`vps`, `ovh-vps`
-→ 10.8.0.1) tombe en timeout depuis cette machine.
+`ovh-vps-ubuntu-direct` : le tunnel WireGuard (`vps`, `ovh-vps`) tombe en timeout depuis cette machine.
 
 **Sa base `var/nie.sqlite` (14 Go) indexe `nie_eacpatched.exe` sha
 `4c2b91fbae6f…` / 31 468 032 o — l'AUTRE build**, pas la cible locale
@@ -783,14 +782,14 @@ Voir [[ovh-vps]] pour le déploiement de nie-site.
 
 ---
 name: ovh-vps
-description: "VPS OVH de prod (51.77.147.152) — accès SSH, services hébergés, tendance au disque plein"
+description: "VPS OVH de prod — accès SSH, services hébergés, tendance au disque plein"
 metadata: 
   node_type: memory
   type: project
   originSessionId: 13b5cb3d-9fef-48bf-984f-c1b06ca61e7b
 ---
 
-VPS OVH Ubuntu de production. Accès SSH via `~/.ssh/config` : alias `ssh vps` (ubuntu via WireGuard 10.8.0.1, sudo sans mot de passe) ; fallback direct `ovh-vps-ubuntu-direct` (51.77.147.152). Clé `~/.ssh/ovh_vps`. 12 cœurs, 45 Go RAM, disque `/dev/sda1` 193 Go.
+VPS OVH Ubuntu de production. Accès SSH via `~/.ssh/config` : alias `ssh vps` (ubuntu via WireGuard, sudo sans mot de passe) ; fallback direct `ovh-vps-ubuntu-direct`. Adresses : inventaire aphrody-infra. Clé `~/.ssh/ovh_vps`. 12 cœurs, 45 Go RAM, disque `/dev/sda1` 193 Go.
 
 Note : `bun` n'est PAS dans le PATH du shell SSH non-login → utiliser `/home/ubuntu/.bun/bin/bun` ou `export PATH=/home/ubuntu/.bun/bin:$PATH`.
 
@@ -1170,8 +1169,8 @@ metadata:
 ---
 
 **Shenron n'est PAS sur le VPS principal.** Il vit sur un second VPS, alias SSH
-`dbfr` dans `~/.ssh/config`. Le VPS `ovh-vps`/`vps` (WireGuard `10.8.0.1`,
-direct `51.77.147.152`) heberge bxc/nie/rg/achillea, mais aucun repo shenron —
+`dbfr` dans `~/.ssh/config`. Le VPS `ovh-vps`/`vps` (WireGuard, ou
+direct `ovh-vps-ubuntu-direct`) heberge bxc/nie/rg/achillea, mais aucun repo shenron —
 seulement des vestiges (timers systemd, `/var/backups/shenron.conf.*`).
 
 Sur `dbfr` : `~/shenron` (monorepo Bun, site Next sur `apps/site`), `~/bxc`,
@@ -1179,7 +1178,7 @@ et `~/databooks-ocr` (29 lots de planches exportees, 5 Go).
 
 **Why:** j'ai perdu du temps a chercher shenron sur le mauvais VPS. WireGuard
 etait down, donc `ssh vps` echoue ; le fallback est
-`ssh ubuntu@51.77.147.152 -i ~/.ssh/ovh_vps`.
+`ssh ovh-vps-ubuntu-direct` (adresse dans l'inventaire aphrody-infra).
 
 **How to apply:** pour tout ce qui touche shenron / dragonballfr.com, se
 connecter a `dbfr`. Le jeton d'ecriture de l'API databooks est

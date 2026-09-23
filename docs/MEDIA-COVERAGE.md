@@ -6,7 +6,7 @@ est donnée à chaque fois ; elles se re-mesurent, elles ne se recopient pas.
 Le VFS n'est PAS celui que `NIE_GAME_DIR` désigne par défaut dans un shell du dépôt — là, il
 pointe sur le dépôt lui-même et `nie vfs stats` rend 156 876 fichiers et **0 CPK**, ce qui se
 lit comme un corpus alors que c'est une arborescence de sources. L'installation réelle est celle
-que déclare `deploy/systemd/nie-site.service` :
+que déclare `../aphrody-infra/systemd/nie-site.service` :
 
 ```sh
 export NIE_GAME_DIR=/home/ubuntu/.local/share/Steam/iecode/inazuma

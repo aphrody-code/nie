@@ -18,12 +18,10 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
-PROJECT_URL = "https://ovgasnwnfnlvczmtpfrb.supabase.co"
-ANON_KEY = (
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-    "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2FzbnduZm5sdmN6bXRwZnJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NTI2NjQsImV4cCI6MjEwMjIyODY2NH0."
-    "amPgGMw-j6i3FkhEQIMupNuLXbxzR9BiV67yztD2xSw"
-)
+# Public anon key of the mirrored third-party project, supplied at run time and never
+# committed: IEVR_SUPABASE_ANON_KEY (see .env.example).
+PROJECT_URL = os.environ.get("IEVR_SUPABASE_URL", "https://ovgasnwnfnlvczmtpfrb.supabase.co")
+ANON_KEY = os.environ.get("IEVR_SUPABASE_ANON_KEY", "")
 
 # All tables identified in prompt
 DEFAULT_TABLES = [
@@ -283,6 +281,8 @@ def main():
     parser.add_argument("--meta", type=str, default=DEFAULT_META_PATH, help="Path to output mirror JSON metadata")
     parser.add_argument("--tables", nargs="*", default=DEFAULT_TABLES, help="List of tables to sync")
     args = parser.parse_args()
+    if not ANON_KEY:
+        sys.exit("IEVR_SUPABASE_ANON_KEY is required (anon key of the mirrored Supabase project).")
 
     db_path = os.path.abspath(args.db)
     meta_path = os.path.abspath(args.meta)

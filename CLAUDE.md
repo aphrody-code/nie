@@ -12,8 +12,9 @@ Formalized by the `yolo` skill (`.agents/skills/yolo/SKILL.md`, pinned to `aphro
 - **Strict Quality Gates:** Run `cargo clippy -p <crate> --lib --tests` and `bun run typecheck`. Protect agent PIDs (no `pkill -f`).
 
 ## The site is `nie`, and it does not describe itself
-- **Names.** The site is **nie**, on `nie.aphrody.com`; `aphrody.com` and `www.` only `308` to
-  it. **Aphrody** is a character (`crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
+- **Names.** The site is **nie**; its only public name is `nie.aphrody.com`, published by the
+  aphrody-infra vhost as a backend (`/api/`, `/cdn/`, gated `/f` `/b`, `/health`, the Inacord
+  updater feed; `/` answers 404 there). `aphrody.com` is the separate Aphrody product. **Aphrody** is a character (`crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
   Byron Love) and the name of the separate `aphrody-code/aphrody` repository — never the name
   of this site. `pages::SITE` is the single source for it; `SUFFIXE_TITRE` derives from the
   same token, so a rename cannot miss one.
@@ -21,12 +22,15 @@ Formalized by the `yolo` skill (`.agents/skills/yolo/SKILL.md`, pinned to `aphro
   service name, no version, in any served response. `/.well-known/security.txt` was removed for
   exactly this reason (RFC 9116 makes `Contact` mandatory). Before adding a field to a public
   DTO, ask what it tells a reader about the machine.
-- **`/` is the game**, not a menu of catalogues. `nie-wasm` renders a **2D placeholder**: never
+- **`/` of `nie-site` is the game**, not a menu of catalogues. `nie-wasm` renders a **2D placeholder**: never
   present it as a faithful reproduction of the game, in code, in docs, or in a commit message.
-- **Deployment is versioned, not applied.** `deploy/nginx/` and `deploy/systemd/` are the
-  source; `cp` into `/etc`, `daemon-reload`, `nginx -t` and `reload` need the user's explicit
-  go. Reconcile the repository with the measured machine (`ss -ltnp`, `diff` against `/etc`)
-  before editing a vhost — the live file drifts.
+- **Infrastructure lives in aphrody-infra, not here** (moved 2026-09-23). Units:
+  `../aphrody-infra/systemd/nie-site.service`, `nie-model-serve.service`; vhost:
+  `../aphrody-infra/nginx/aphrody/aphrody.com.conf`; ports and probes:
+  `config/service-catalog.json` and `config/nginx-routes.json` there. `deploy-target.ts` and
+  `release-all.ts` read them from `${APHRODY_INFRA_ROOT:-../aphrody-infra}`. Installing into
+  `/etc`, `daemon-reload`, `nginx -t` and `reload` follow the aphrody-infra runbook; reconcile
+  against the measured machine (`ss -ltnp`, `diff` against `/etc`) first — the live file drifts.
 
 ## Autonomous migration protocol — `nie-web` & the Inacord Rust workspace
 
@@ -159,12 +163,12 @@ it copied.
 - **A wasm build killed "low on memory" wants `CARGO_BUILD_JOBS=1`, not a weaker LTO.** Three
   `nie-viewer-web` builds died that way while `earlyoom`'s own journal never dropped below 41 %
   available and logged no kill — the guard is the agent harness, and the pressure is
-  `nie-model-serve` at ~13 GiB RSS (a production service for `cdn.aphrody.com`; restarting it is
+  `nie-model-serve` at ~13 GiB RSS (a production service behind `nie.aphrody.com/cdn/`; restarting it is
   host state, not this repository's). Measured 2026-09-12: `-j 1` builds `wgpu` + `naga` under
   the profile's own `lto = "fat"` in 2 min 28 s. Dropping to `thin` costs 367 bytes and buys
   nothing; dropping LTO entirely costs 297 736. Lower the job count, keep the profile.
 - **That pressure is CONFIGURED, not accidental — 18 GiB of CPK cache on a 45 GiB box.** The two
-  services declare their own LRU budgets in `deploy/systemd/`: `NIE_CPK_CACHE_BUDGET_GIB=12` for
+  services declare their own LRU budgets in their units (`../aphrody-infra/systemd/nie-*.service`): `NIE_CPK_CACHE_BUDGET_GIB=12` for
   `nie-model-serve`, `=6` for `nie-site` (default in `nie_formats::vfs` is 16). Measured
   2026-09-13, both sit UNDER budget — 11.1 GiB and 3.6 GiB — so a build that dies has lost to a
   design decision, not to a leak. `nie-site` grew from 0.35 to 3.6 GiB in half an hour of
@@ -174,15 +178,15 @@ it copied.
 - **`wgpu/webgl` costs +2.24 MiB and blows the 6 MiB module budget** (4 518 833 → 6 865 774,
   measured 2026-09-12). Serving WebGL from a *separate* crate costs 2 855 742 bytes paid only by
   browsers without WebGPU — the pattern to reach for when a backend is needed by a minority path.
-- **`/etc/nginx` and `/etc/systemd` DRIFT from `deploy/`.** `diff` against `/etc` and run
+- **`/etc/nginx` and `/etc/systemd` DRIFT from the aphrody-infra sources.** `diff` against `/etc` and run
   `ss -ltnp` before editing a vhost — the installed file had been repointed `:8083` → `:8084`
   and had `bxc.` split into its own file, none of which the repository knew.
-- **A host answering 200 is not free.** `cdn.aphrody.com` was serving `bxc-site` on `:8084`,
-  not a dead port. The measured map is [`docs/HOSTS-AND-PORTS.md`](docs/HOSTS-AND-PORTS.md);
-  it wins over any plan that says otherwise.
+- **A host answering 200 is not free.** `cdn.aphrody.com` was once serving `bxc-site` on
+  `:8084`, not a dead port. The host and port map is owned by aphrody-infra
+  (`config/service-catalog.json`, `config/nginx-routes.json`); it wins over any plan here.
 - **`nginx -t` on a repository file needs stand-in certificates** (the real ones are root-only).
   `syntax is ok` followed by `open() "/run/nginx.pid" failed` is the expected non-root outcome —
-  the config was read and loaded. Recipe in [`deploy/README.md`](deploy/README.md).
+  the config was read and loaded. Recipe in `../aphrody-infra` (vhost header and docs).
 - **Three OVH accounts live here** ([`../aphrody-infra/docs/ops/OVH.md`](../aphrody-infra/docs/ops/OVH.md), tool `../aphrody-infra/scripts/ops/ovh.py`). `aphrody.com` is only reachable with the keys in
   `~/.bash_secrets`; `~/.ovh.conf` sees `rosegriffon.fr` alone and returns **404 on the zone**,
   not 403 — which reads as "this zone does not exist" and sends you to the registrar. The
@@ -501,15 +505,15 @@ left that list; those five did not. Publishing this repository's own targets is 
 
 ## Deploying the site — measured 2026-09-20, and one hole closed
 
-`nie-site` serves `--bundle-dir /home/ubuntu/nie/apps/nie-web/dist` (`deploy/systemd/nie-site.service`,
-installed copy identical to the repository's). `dist` is a **symlink**, and it is the publication
-pointer: nginx proxies `nie.aphrody.com` to `127.0.0.1:8085` and `nie-site` reads that directory
+`nie-site` serves `--bundle-dir /home/ubuntu/nie/apps/nie-web/dist` (`../aphrody-infra/systemd/nie-site.service`,
+installed copy identical to that source). `dist` is a **symlink**, and it is the publication
+pointer: `nie-site` on `127.0.0.1:8085` reads that directory
 per request, so whatever the link resolves to is live, instantly, with no restart.
 
 **The publisher is `bun run deploy:target web`** (`scripts/deploy-target.ts`). It builds into
 `var/deployments/targeted/<commit>/<run>/web/bundle` with an explicit `--outDir`, precompresses,
 then swaps the link with `symlink` + `rename` — atomic — and rolls back if
-`/api/v1/health` or the public shell fails. It also refuses to run when the two validated wasm
+`/api/v1/health` or the loopback shell (`127.0.0.1:8085/`) fails. It also refuses to run when the two validated wasm
 modules are missing from `public/static/game/`.
 
 **That script had never run here.** `var/deployments/` did not exist and neither did

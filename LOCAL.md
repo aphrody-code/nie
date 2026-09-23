@@ -8,7 +8,7 @@ Il ne redit rien de ce que possèdent déjà les autres :
 | Installer la CLI `nie` seule (`cargo install`) | [`docs/INSTALLATION.md`](docs/INSTALLATION.md) |
 | Les règles de travail du dépôt (outils, pièges, gates) | [`CLAUDE.md`](CLAUDE.md) |
 | La chaîne C++ / MSVC / vcpkg | [`scripts/setup.ps1`](scripts/setup.ps1) |
-	| Ce qui tourne sur le VPS, et sous quel service | [`deploy/README.md`](deploy/README.md) |
+	| Ce qui tourne sur le VPS, et sous quel service | `../aphrody-infra` (`config/service-catalog.json`, `systemd/nie-*.service`) |
 
 ---
 
@@ -38,7 +38,7 @@ elle qui porte `nie.exe`, et c'est sur elle que les 255 308 entrées se mesurent
 - **Git** et le **client OpenSSH** de Windows (Paramètres → Fonctionnalités facultatives) ;
 - **Inazuma Eleven: Victory Road** installé par Steam (app **2799860**) ;
 - un accès SSH au VPS. L'alias attendu est `ovh-vps-direct` —
-  **ne jamais viser `ovh-vps`**, qui passe par le VPN (`10.8.0.1`) et expire.
+  **ne jamais viser `ovh-vps`**, qui passe par le VPN et expire.
 
 Facultatif : `sqlite3` sur le `PATH` (le script s'en sert pour **compter** les tables importées ;
 sans lui il ne rend qu'une taille de fichier, ce qui prouve moins).
@@ -67,7 +67,7 @@ Le script fait quatre choses, dans cet ordre, et **compte** à chaque étape :
 4. **vérifie en comptant** : un nombre de tables par gisement, un nombre de lignes pour
    l'inventaire. « Copié » n'a jamais prouvé qu'une base porte des lignes.
 
-Options : `-VpsHost ubuntu@51.77.147.152` (si l'alias n'existe pas), `-GameDir <racine>` (si la
+Options : `-VpsHost ubuntu@<hôte>` (si l'alias n'existe pas ; adresse dans l'inventaire aphrody-infra), `-GameDir <racine>` (si la
 détection Steam échoue), `-SkipVps` (détection Steam seule), `-WithRe` (voir § 6).
 
 ## 4. Vérifier — dans un terminal NEUF

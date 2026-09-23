@@ -1,87 +1,24 @@
-# Hosts, ports and DNS — measured, 2026-09-07
+# Hosts and ports — owned by aphrody-infra
 
-The one place that says what answers what. Every line was measured on this VPS with
-`ss -ltnp`, `dig` and `curl`, not copied from a plan. When this file and a plan disagree, this
-file is right and the plan is stale.
+This repository no longer keeps a host, port or DNS map. Since 2026-09-23 `aphrody-infra`
+(`../aphrody-infra`) is the single owner of nie's infrastructure, and its catalog wins over any
+plan or document here:
 
-## The map
+| Question | Source of truth in aphrody-infra |
+|---|---|
+| Which services run, on which loopback port, with which health probe and unit | `config/service-catalog.json` (`nie-site`, `nie-model-serve`) |
+| Which public host and path reaches which service | `config/nginx-routes.json`, `nginx/aphrody/aphrody.com.conf` |
+| systemd units | `systemd/nie-site.service`, `systemd/nie-model-serve.service` |
+| DNS zones, OVH accounts and API keys | `docs/ops/OVH.md`, `scripts/ops/ovh-dns.ts` |
+| Host inventory and addresses | `inventory/` |
 
-| Host | nginx sends to | Service | Repository |
-|---|---|---|---|
-| `nie.aphrody.com` | `127.0.0.1:8085` | `nie-site` — **the site**, the game at `/` | `nie` |
-| `aphrody.com`, `www.aphrody.com` | — | `308` to `https://nie.aphrody.com` | `nie` |
-| `inacord.aphrody.com` | — | `308` to `https://nie.aphrody.com/inacord` (merged 2026-09-12); `/downloads/*` and `/api/*` `308` to the same path on `nie.`; updater manifest still served locally | `nie` |
-| `api.aphrody.com` | `127.0.0.1:8085` | `nie-site`, API only (`404` elsewhere), `noindex` | `nie` |
-| `cdn.aphrody.com` | `127.0.0.1:8790` | `nie-model-serve` — decoding on demand, rate-limited | `nie` |
-| `mcp.aphrody.com` | `127.0.0.1:8808` | MCP server (`401` without a token is correct) | `nie` |
-| `bxc.aphrody.com` | `127.0.0.1:8084` | `bxc-site` — own file, `conf.d/bxc.aphrody.com.conf` | `bxc` |
-| `downloads.`, `bot.`, `admin.`, `n2b.` | `127.0.0.1:8084` | `bxc-site` | `bxc` |
+What the application itself assumes, and only that:
 
-## `:8083` is dead, and the rollback that named it never existed
+- `nie-site` listens where its unit passes `--listen` and reaches `nie-model-serve` through
+  `--upstream`; neither address is compiled in.
+- `nie.aphrody.com` is the only public name of nie. The vhost publishes it as a backend
+  (`/api/`, `/cdn/`, bearer-gated `/f` and `/b`, `/health`, `/downloads/inacord/latest.json`);
+  `/` answers 404 there, and `cdn.aphrody.com` routes nothing to nie.
 
-`aphrody-site.service` is **`inactive`** and **`disabled`**. Nothing listens on `127.0.0.1:8083`.
-
-Several documents still offered « repoint the vhost at `:8083`, `aphrody-site` is never
-stopped » as the rollback for the `nie-site` switchover. That was already false on 2026-09-05
-and it is false now: there is no service to fall back to, and repointing there returns `502`.
-
-**The real rollback is `git revert` on `nginx/aphrody/aphrody.com.conf` (dépôt aphrody-infra), then `nginx -t` and a
-reload.** The file is versioned precisely so that the previous state is recoverable; the
-machine's own copy is not a backup.
-
-## DNS — eleven names, and exactly eleven
-
-The eleven hosts all resolve to **`51.77.147.152`**, this VPS. `aphrody.com` and
-`n2b.aphrody.com` are `A` records; the nine others are `CNAME` to `aphrody.com`. The certificate
-`letsencrypt/live/aphrody.com` covers those eleven and no more. Nothing to issue.
-
-**The three sets now match**, which is the property to preserve:
-
-```text
-DNS (A/CNAME)  ==  nginx server_name  ==  certificate SAN  ==  11 hosts
-```
-
-A twelfth name used to break it: `ftp.aphrody.com`, a `CNAME` left by OVH at domain creation. It
-resolved to this VPS with no vhost, no certificate coverage, no FTP listener and not one mention
-in any repository — a name that points at your machine without being served is a surface, not a
-service. It was **deleted on 2026-09-07**. Restoring it is one `POST`:
-`CNAME` / `ftp` / `aphrody.com.` / `ttl 0`.
-
-### Credentials — three OVH accounts, do not confuse them
-
-Full zone contents, record ids and the procedures are in [`aphrody-infra/docs/ops/OVH.md`](../../aphrody-infra/docs/ops/OVH.md).
-
-| File | Section / variables | Zones it can see |
-|---|---|---|
-| `/home/ubuntu/.bash_secrets` | `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY` | **`aphrody.com`**, `rpbey.fr` |
-| `/home/ubuntu/.ovh.conf` | `[ovh-eu]` | `rosegriffon.fr` only |
-| `/home/ubuntu/.config/ovh/dbfr.conf`, `/etc/letsencrypt/ovh-dbfr.ini` | `[ovh-eu]`, `dns_ovh_*` | `dragonballfr.com` only |
-
-Reaching for `~/.ovh.conf` to manage `aphrody.com` gives a **404 on the zone**, not a permission
-error — which reads like "the zone does not exist" and sends you looking in the wrong place. The
-`aphrody.com` credentials are the ones in `.bash_secrets`.
-
-Email is hosted at OVH and is **not** ours to tidy: four `MX`, the `SPF` record (published as
-`TXT`, verified with `dig`), two DKIM `CNAME`, `_dmarc` and the autodiscover `SRV`. Touching them
-breaks mail silently.
-
-## Ports that are not facades
-
-`3003`/`3004` are the blue/green Azalée hosts, `8788`–`8805` are bxc workers, `9222` is a bxc
-CDP server. They are behind other vhosts or bound to the VPN interface, and none of them belongs
-to the `aphrody.com` family.
-
-Leftover `nie-site` processes on ephemeral ports (`127.0.0.1:20921`, `33451`, …) are integration
-tests that were not reaped. They are harmless and are **not** the service; the service is the one
-on `8085`. Never kill by name — identify the PID.
-
-## Checking this file is still true
-
-```bash
-ss -ltnp | grep -E ':(8083|8084|8085|8790|8808)\b'
-systemctl is-active nie-site bxc-site nie-model-serve aphrody-site
-for h in aphrody.com www api mcp downloads cdn bot admin bxc nie n2b; do
-    fqdn=$([ "$h" = aphrody.com ] && echo aphrody.com || echo "$h.aphrody.com")
-    printf '%-24s %s\n' "$fqdn" "$(curl -sI --max-time 8 "https://$fqdn/" | head -1)"
-done
-```
+Measure before trusting any of it: `ss -ltnp` and `nginx -T` on the host, and `diff` the installed
+files against the aphrody-infra sources.

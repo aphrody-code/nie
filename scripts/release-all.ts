@@ -37,6 +37,11 @@ const from = valueOf("--from") as StageName | undefined;
 const only = valueOf("--only") as StageName | undefined;
 const commitMessage = valueOf("--message") ?? "chore(release): publish verified repository state";
 const repositoryRoot = process.cwd();
+/**
+ * aphrody-infra owns the units and the vhost that run nie (moved from `deploy/` on
+ * 2026-09-23). Preflight compares the installed files against that checkout.
+ */
+const infraRoot = process.env.APHRODY_INFRA_ROOT || `${repositoryRoot}/../aphrody-infra`;
 const runId = `${new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-")}-${process.pid}`;
 const logDirectory = `${repositoryRoot}/var/log/releases/${runId}`;
 const summaryLog = `${logDirectory}/summary.log`;
@@ -82,7 +87,6 @@ const stages: Stage[] = [
 			// validates it and does not materialize the loadable cdylib after a clean.
 			{ argv: ["cargo", "build", "-p", "nie-ffi", "--locked"] },
 			{ argv: ["bun", "run", "test"] },
-			{ argv: ["bun", "test", "scripts/sync-main.test.ts"] },
 			// This live-VFS soundtrack coverage test is a separate, minutes-long data oracle.
 			// It was measured in the release audit and is announced here rather than hanging
 			// the deterministic repository suite without a bound.
@@ -329,10 +333,12 @@ async function preflightProduction(): Promise<void> {
 			`Release needs ${minimumMemoryMiB} MiB available memory; only ${availableMemoryMiB.toFixed(0)} MiB is available.`
 		);
 	for (const [source, installed] of [
-		["deploy/systemd/nie-site.service", "/etc/systemd/system/nie-site.service"],
-		["deploy/systemd/nie-model-serve.service", "/etc/systemd/system/nie-model-serve.service"],
-		["../aphrody-infra/nginx/aphrody/aphrody.com.conf", "/etc/nginx/conf.d/aphrody.com.conf"],
+		[`${infraRoot}/systemd/nie-site.service`, "/etc/systemd/system/nie-site.service"],
+		[`${infraRoot}/systemd/nie-model-serve.service`, "/etc/systemd/system/nie-model-serve.service"],
+		[`${infraRoot}/nginx/aphrody/aphrody.com.conf`, "/etc/nginx/conf.d/aphrody.com.conf"],
 	] as const) {
+		if (!(await Bun.file(source).exists()))
+			throw new Error(`${source} is missing; set APHRODY_INFRA_ROOT to the aphrody-infra checkout.`);
 		if ((await commandExit(["cmp", "-s", source, installed])) !== 0)
 			throw new Error(`Installed production configuration drifts from ${source}.`);
 	}
@@ -498,9 +504,19 @@ function validateSiteHealth(value: unknown): void {
 	}
 }
 
+/**
+ * Public checks against the vhost aphrody-infra owns (`nginx/aphrody/aphrody.com.conf`).
+ * `nie.aphrody.com` is a backend only: `/api/`, `/cdn/` (nie-model-serve), `/f` and `/b`
+ * (bearer-gated), `/health` (nie-site `/healthz`) and the Inacord updater feed; `/` answers
+ * 404 and `cdn.aphrody.com` routes nothing to nie. The bundle, `/inacord` and the downloads
+ * catalogue are no longer public and are validated on the loopback origin by the deploy stage.
+ */
 async function validateLive(): Promise<void> {
-	validateSiteHealth(await (await fetchResponse("https://nie.aphrody.com/api/v1/health")).json());
-	const icons = object(await (await fetchResponse("https://nie.aphrody.com/api/v1/icons")).json());
+	const base = "https://nie.aphrody.com";
+	const liveness = object(await (await fetchResponse(`${base}/health`)).json());
+	if (liveness.etat !== "ok") throw new Error("Public /health does not report etat=ok.");
+	validateSiteHealth(await (await fetchResponse(`${base}/api/v1/health`)).json());
+	const icons = object(await (await fetchResponse(`${base}/api/v1/icons`)).json());
 	const iconResults = object(icons.results);
 	if (
 		Number(icons.total_indexed) < 1 ||
@@ -509,7 +525,7 @@ async function validateLive(): Promise<void> {
 		iconResults.elements.length < 1
 	)
 		throw new Error("Icon catalogue is empty or malformed.");
-	const modes = object(await (await fetchResponse("https://nie.aphrody.com/api/v1/modes")).json());
+	const modes = object(await (await fetchResponse(`${base}/api/v1/modes`)).json());
 	const modeResults = object(modes.results);
 	if (
 		Number(modes.total_modes) < 1 ||
@@ -517,35 +533,21 @@ async function validateLive(): Promise<void> {
 		modeResults.elements.length < 1
 	)
 		throw new Error("Mode catalogue is empty or malformed.");
-	const home = await (await fetchResponse("https://nie.aphrody.com/")).text();
-	const scriptPath = home.match(/src="(\/static\/[^"]+\.js)"/u)?.[1];
-	if (!scriptPath) throw new Error("Public site shell has no JavaScript entrypoint.");
-	const javascript = await fetchResponse(`https://nie.aphrody.com${scriptPath}`, {
-		headers: { "accept-encoding": "br" },
-	});
-	if ((await javascript.arrayBuffer()).byteLength < 10_000)
-		throw new Error("Public JavaScript entrypoint is unexpectedly small.");
-	if (javascript.headers.get("content-encoding") !== "br")
-		throw new Error("Public JavaScript entrypoint is not Brotli encoded.");
-	const modelHealth = await (await fetchResponse("https://cdn.aphrody.com/health")).text();
+	const modelHealth = await (await fetchResponse(`${base}/cdn/health`)).text();
 	if (modelHealth.trim() !== "ok")
-		throw new Error("Public model backend health payload is not ok.");
-	const inacordHome = await (await fetchResponse("https://nie.aphrody.com/inacord")).text();
-	if (!inacordHome.includes("id=\"racine\"")) throw new Error("Inacord workspace shell is incomplete.");
-	const catalog = object(
-		await (await fetchResponse("https://nie.aphrody.com/downloads/catalog.json")).json()
-	);
-	if (!Array.isArray(catalog.products) || catalog.products.length < 8)
-		throw new Error("Inacord catalog is incomplete.");
+		throw new Error("Public model backend (/cdn/health) payload is not ok.");
+	const root = await fetch(`${base}/`, { signal: AbortSignal.timeout(30_000) });
+	await root.body?.cancel();
+	if (root.status !== 404)
+		throw new Error(`${base}/ returned ${root.status}; the backend-only vhost must answer 404.`);
 	const updater = object(
-		await (
-			await fetchResponse("https://nie.aphrody.com/downloads/channels/stable/latest.json")
-		).json()
+		await (await fetchResponse(`${base}/downloads/inacord/latest.json`)).json()
 	);
 	if (!object(updater.platforms)["windows-x86_64"])
 		throw new Error("Inacord stable updater lacks the Windows platform.");
 	process.stdout.write(
-		`    ✓ site API/VFS, ${icons.total_indexed} icons, ${modes.total_modes} modes, Brotli bundle, model backend, and ${catalog.products.length} Inacord products\n`
+		`    ✓ /health, API/VFS, ${icons.total_indexed} icons, ${modes.total_modes} modes, /cdn model backend, / = 404, Inacord updater
+`
 	);
 }
 

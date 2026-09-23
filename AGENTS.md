@@ -19,10 +19,14 @@ documents linked there; do not duplicate large specifications here.
 - `crates/engine/*`: Rust engine, formats, data, rendering, Lua, and UI primitives.
 - `crates/forge/*`: binary production and reverse-engineering tooling.
 - `crates/tools/*`: CLI, site, model serving, and operational tools.
-- `deploy/nginx/` and `deploy/systemd/`: the vhosts and units that run this stack. They are the
-  source; `/etc` holds the installed copy and drifts. Reconcile against the machine
-  (`ss -ltnp`, `diff` against `/etc`) before editing one, and never install from an agent
-  session — `cp` into `/etc`, `daemon-reload`, `nginx -t` and `reload` are production acts.
+- Infrastructure is NOT in this repository. `aphrody-infra` (`../aphrody-infra`) owns the systemd
+  units (`systemd/nie-site.service`, `systemd/nie-model-serve.service`), the vhost
+  (`nginx/aphrody/aphrody.com.conf`), ports and health probes (`config/service-catalog.json`,
+  `config/nginx-routes.json`), activation, backups, host ops and DNS. This repository owns the
+  application code, its build and its verification; `scripts/deploy-target.ts` and
+  `scripts/release-all.ts` read units and vhost from `${APHRODY_INFRA_ROOT:-../aphrody-infra}`.
+  Installing into `/etc`, `daemon-reload`, `nginx -t` and `reload` are production acts that
+  follow the aphrody-infra runbook.
 - `apps/nie-web`: common Vite frontend, including the desktop adapter in `src/desktop`;
   `apps/inacord`: Tauri host and compatibility entrypoints.
 - `packages/inacord-ui` and `packages/asset-source`: shared UI and asset-source contracts.
@@ -83,14 +87,16 @@ that drifts.
 - Keep code, filenames, schemas, routes, public API keys, and agent-facing documentation in
   English. French is for human reports and explanations. Preserve frozen product names: Azalée,
   Inacord, nie, `nie`, `nie-*`, and `inagle_*`.
-- The **site** is `nie`, on `nie.aphrody.com` (`aphrody.com` and `www.` only `308` to it).
+- The **site** is `nie`. Its only public name is `nie.aphrody.com`, which the aphrody-infra vhost
+  publishes as a backend (`/api/`, `/cdn/`, bearer-gated `/f` and `/b`, `/health`, the Inacord
+  updater feed; `/` answers 404). `aphrody.com` belongs to the separate Aphrody product.
   **Aphrody** is a character — `crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
   Byron Love — and the name of the separate `aphrody-code/aphrody` repository. It is never the
   name of this site. `routes::pages::SITE` is the single source for that name.
 - The origin publishes **no identity and no fingerprint**: no GitHub link, no contact, no
   service name, no version, in any served response. Before adding a field to a public DTO, ask
   what it tells a reader about the machine.
-- `/` serves the game (`crates/engine/nie-wasm` in a canvas). That crate renders a **2D
+- `nie-site` serves the game at `/` of its own origin (`crates/engine/nie-wasm` in a canvas). That crate renders a **2D
   placeholder**, not the game's interface: never present it as a faithful reproduction, in
   code, in docs, or in a commit message.
 - Prefer repository scripts and package managers. Use `uv run` for Python; never use bare
@@ -227,11 +233,13 @@ textures, video, audio, bitmap-font, WASM-decode and secondary-scene preloads. I
 menu only after `/api/v1/health` verifies a non-empty content-backed VFS, the static bundle, and
 successful schema reads from both configured SQLite databases. Media inspection stays on demand.
 
-Use `bun run sync:main` for the inverse path. It is dry-run by default; `--apply` permits only
-fast-forward source reconciliation among local `main`, `origin/main`, and the VPS checkout. It
+The inverse path (workstation ⇄ origin ⇄ production host reconciliation over SSH) is host
+transport and lives in aphrody-infra: `bun ../aphrody-infra/scripts/nie/sync-main.ts`
+(`NIE_REPO_ROOT` selects this checkout). It is dry-run by default; `--apply` permits only
+fast-forward source reconciliation among local `main`, `origin/main`, and the host checkout. It
 must refuse divergence, dirty checkouts, reset, and force-push. Restore a missing artifact from
 the side that has it only when a same-commit manifest and SHA-256 verify it, using atomic rename.
-Its command logs belong under `var/log/sync-main/<run-id>/`.
+Its command logs belong under this repository's `var/log/sync-main/<run-id>/`.
 
 ## Known technical traps
 
@@ -251,8 +259,8 @@ Its command logs belong under `var/log/sync-main/<run-id>/`.
 
 ## Windows ↔ VPS workflow
 
-- The configured administration aliases are `vps` (OVH, `51.77.147.152`) and `dbfr`
-  (`51.255.162.6`). Prefer the wrappers from `C:\Users\aphro\bin` over hand-written `scp`,
+- The configured administration aliases are `vps` (OVH) and `dbfr`; host addresses live in
+  aphrody-infra (`inventory/`, `docs/ops/OVH.md`), never here. Prefer the wrappers from `C:\Users\aphro\bin` over hand-written `scp`,
   `rclone`, or SSH pipelines: `vps-status`, `vps-ports`, `vps-api`, and `vps-logs` provide
   bounded, auditable operations.
 - For file transfer, use `vps-copy`/`vps-upload` when the destination must retain extra files;

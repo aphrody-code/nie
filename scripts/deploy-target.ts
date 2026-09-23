@@ -14,6 +14,16 @@ import { resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 
+/**
+ * aphrody-infra owns the systemd units and the nginx vhost that run nie; this repository only
+ * builds and verifies the binaries. Units are installed from, and compared against, that
+ * checkout. `APHRODY_INFRA_ROOT` overrides the sibling-checkout default.
+ */
+const infraRoot = resolve(
+	process.env["APHRODY_INFRA_ROOT"] || resolve(repositoryRoot, "..", "aphrody-infra")
+);
+const infraSystemdDirectory = `${infraRoot}/systemd`;
+
 process.env["NO_PROXY"] = `${process.env["NO_PROXY"] || ""},aphrody.com,.aphrody.com,127.0.0.1,localhost`.replace(/^,/u, "");
 process.env["no_proxy"] = process.env["NO_PROXY"];
 
@@ -191,7 +201,10 @@ function validateSiteHealth(body: string): void {
 }
 
 async function installUnit(context: TargetContext, unit: string): Promise<void> {
-	const source = `deploy/systemd/${unit}`;
+	const source = `${infraSystemdDirectory}/${unit}`;
+	if (!(await Bun.file(source).exists())) {
+		throw new Error(`${source} is missing; set APHRODY_INFRA_ROOT to the aphrody-infra checkout.`);
+	}
 	const installed = `/etc/systemd/system/${unit}`;
 	const comparison = Bun.spawnSync(["cmp", "-s", source, installed]);
 	if (comparison.exitCode === 0) return;
@@ -349,9 +362,12 @@ async function deployWeb(context: TargetContext): Promise<void> {
 	await rename(next, "apps/nie-web/dist");
 	try {
 		await waitFor(context, "http://127.0.0.1:8085/api/v1/health", validateSiteHealth);
-		await waitFor(context, "https://nie.aphrody.com/", (body) => {
+		// The public vhost (aphrody-infra `nginx/aphrody/aphrody.com.conf`) serves nie.aphrody.com
+		// as a backend only — `/` answers 404 there — so the shell is checked on the loopback
+		// origin that serves the bundle.
+		await waitFor(context, "http://127.0.0.1:8085/", (body) => {
 			if (!body.includes("/static/") || !body.includes("id=\"racine\"")) {
-				throw new Error("Public site shell is incomplete.");
+				throw new Error("Site shell served from the bundle is incomplete.");
 			}
 		});
 	} catch (error) {
@@ -373,9 +389,8 @@ async function deployWeb(context: TargetContext): Promise<void> {
 }
 
 async function deployInacordWeb(context: TargetContext): Promise<void> {
-	// Inacord was merged into the site on 2026-09-12: the workspace is a route of the `web`
-	// bundle (`/inacord`) and the catalogue is `/downloads`. This target only publishes and
-	// validates the release channel those routes read.
+	// Inacord was merged into the site on 2026-09-12. This target validates the release channel
+	// on disk and the one public route that still reads it: the updater feed.
 	const catalog = "var/releases/inacord/public/catalog.json";
 	const updateFeed = "var/releases/inacord/public/channels/stable/latest.json";
 	for (const required of [catalog, updateFeed]) {
@@ -383,24 +398,18 @@ async function deployInacordWeb(context: TargetContext): Promise<void> {
 			throw new Error(`Inacord release channel is missing ${required}.`);
 		}
 	}
-	requireBudget(context, validationWindowMs, "validate the Inacord workspace and download routes");
-	await waitFor(context, "https://nie.aphrody.com/inacord", (body) => {
-		if (!body.includes("id=\"racine\"")) {
-			throw new Error("Public Inacord workspace shell is incomplete.");
-		}
-	});
-	await waitFor(context, "https://nie.aphrody.com/downloads/catalog.json", (body) => {
-		const value = requireJsonObject(body);
-		const products = value["products"];
-		if (!Array.isArray(products) || products.length < 6) {
-			throw new Error("Inacord catalog has fewer than six products.");
-		}
-	});
-	// Installed desktop clients still poll the legacy host directly; it must keep answering.
-	await waitFor(context, "https://inacord.aphrody.com/downloads/channels/stable/latest.json", (body) => {
+	const products = requireJsonObject(await Bun.file(catalog).text())["products"];
+	if (!Array.isArray(products) || products.length < 6) {
+		throw new Error("Inacord catalog has fewer than six products.");
+	}
+	requireBudget(context, validationWindowMs, "validate the Inacord updater feed");
+	// The only public Inacord route left is the updater feed installed clients poll, aliased by
+	// the aphrody-infra vhost onto this channel. `/inacord`, `/downloads/catalog.json` and the
+	// `inacord.aphrody.com` host are no longer served publicly.
+	await waitFor(context, "https://nie.aphrody.com/downloads/inacord/latest.json", (body) => {
 		const value = requireJsonObject(body);
 		if (typeof value["version"] !== "string") {
-			throw new Error("Legacy Inacord updater manifest has no version.");
+			throw new Error("Inacord updater manifest has no version.");
 		}
 	});
 }
@@ -477,9 +486,9 @@ const targets: Record<string, Target> = {
 		seconds: 900,
 	},
 	inacord: {
-		// Three public URLs, each with its own validation window.
+		// One public URL (the updater feed) with its own validation window.
 		seconds: bunServiceSeconds,
-		description: "Inacord release channel behind the site's /inacord and /downloads routes",
+		description: "Inacord release channel and its public updater feed",
 		deploy: deployInacordWeb,
 	},
 	model: {

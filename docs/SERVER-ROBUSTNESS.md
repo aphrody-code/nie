@@ -6,12 +6,13 @@ and `nie-net`.
 
 ## 1. Server landscape and port allocation
 
-Measured against `deploy/nginx/` and runtime sockets (`HOSTS-AND-PORTS.md`):
+Ports and public routes are owned by aphrody-infra (`config/service-catalog.json`,
+`config/nginx-routes.json`, `nginx/aphrody/aphrody.com.conf`):
 
 | Server crate | Port | Protocol & Runtime | Primary responsibilities |
 |---|---|---|---|
-| **`nie-site`** (`crates/tools/nie-site`) | `127.0.0.1:8085` | HTTP/1.1, HTTP/2 (TLS via nginx reverse proxy). **Axum 0.8** on multi-threaded **Tokio 1**. | Serves `nie.aphrody.com`, the static game bundle, GraphQL APIs (`texts`, `assets`), REST catalog, Lua inspector, and SSR templates. |
-| **`nie-model-serve`** (`crates/tools/nie-model-serve`) | `127.0.0.1:8790` | HTTP/1.1 TCP daemon. Multi-threaded synchronous worker pool (`std::net::TcpListener`). | Serves `cdn.aphrody.com`, on-demand 3D model, character, and avatar GLB assembly, G4TX texture decoding, and disk cache. |
+| **`nie-site`** (`crates/tools/nie-site`) | `127.0.0.1:8085` | HTTP/1.1, HTTP/2 (TLS via nginx reverse proxy). **Axum 0.8** on multi-threaded **Tokio 1**. | Backend of `nie.aphrody.com` (`/api/`, gated `/f` `/b`, `/health`); serves the static game bundle on its own origin, GraphQL APIs (`texts`, `assets`), REST catalog, Lua inspector, and SSR templates. |
+| **`nie-model-serve`** (`crates/tools/nie-model-serve`) | `127.0.0.1:8790` | HTTP/1.1 TCP daemon. Multi-threaded synchronous worker pool (`std::net::TcpListener`). | Serves `nie.aphrody.com/cdn/` (rate limited by the vhost), on-demand 3D model, character, and avatar GLB assembly, G4TX texture decoding, and disk cache. |
 | **`nie-net`** (`crates/engine/nie-net`) | `0.0.0.0:4295` | WebSocket (`tokio-tungstenite`) on **Tokio 1**. | Real-time multiplayer daemon: Kizuna town rooms, lockstep 60 Hz deterministic match simulation, matchmaking, ELO and competitive ladder. |
 
 ---

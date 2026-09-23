@@ -23,7 +23,8 @@
  * Only the ROOT crate of each surface is declared here. Its workspace-local dependency closure is
  * read from `cargo metadata` at call time, so a new `nie-formats` dependency in `nie-site` widens
  * the site lane by itself and no list can drift. Paths that Cargo cannot see — the browser shell,
- * the systemd unit, the nginx vhost — are declared explicitly in `extraPaths`.
+ * the browser packages — are declared explicitly in `extraPaths`. The systemd units and the nginx
+ * vhost are owned by aphrody-infra and are not part of any lane here.
  *
  * Deploying is NOT done here: `scripts/deploy-target.ts` owns it, with its own lock, deadlines and
  * live health checks. This module only names which of its targets a surface owns.
@@ -89,8 +90,8 @@ export const surfaces: readonly Surface[] = [
 			"crates/tools/nie-site",
 			"apps/nie-web",
 			"packages/inacord-ui",
-			"deploy/nginx",
-			"deploy/systemd/nie-site.service",
+			// Its unit and vhost live in aphrody-infra (systemd/nie-site.service,
+			// nginx/aphrody/aphrody.com.conf), outside this repository.
 		],
 		build: [
 			["cargo", "build", "--release", "--locked", "-p", "nie-site"],
@@ -112,9 +113,10 @@ export const surfaces: readonly Surface[] = [
 	},
 	{
 		name: "model",
-		description: "nie-model-serve — the model and VFS asset server behind cdn.aphrody.com.",
+		description: "nie-model-serve — the model and VFS asset server behind nie.aphrody.com/cdn/.",
 		rootCrates: ["nie-model-serve"],
-		extraPaths: ["crates/tools/nie-model-serve", "deploy/systemd/nie-model-serve.service"],
+		// Unit: aphrody-infra systemd/nie-model-serve.service.
+		extraPaths: ["crates/tools/nie-model-serve"],
 		build: [["cargo", "build", "--release", "--locked", "-p", "nie-model-serve"]],
 		smoke: [["target/release/nie-model-serve", "--help"]],
 		deployTargets: ["model"],
