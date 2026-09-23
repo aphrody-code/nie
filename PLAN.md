@@ -1,5 +1,31 @@
 # NIE — Reconstruct the game engine that produced `nie.exe`
 
+## Game data in PostgreSQL, no JSON — started 2026-09-23
+
+Goal (owner): nie stops depending on JSON; every VFS `cfg.bin` lives in PostgreSQL, modular,
+without putting Azalée at risk.
+
+- **Done — `crates/engine/nie-pg`** (library + thin `nie-pg` CLI). VFS bytes go through the
+  `nie-formats` binary parsers straight into schema `nie` with binary `COPY`: RDBN as typed
+  cells (`nie.rdbn_list`, `nie.rdbn_value`, one `v_*` column per value type), T2B as an entry
+  tree plus typed variables (`nie.t2b_entry`, `nie.t2b_var`). No `jsonb`, no JSON step.
+  Incremental per file (SHA-256) and transactional per file. Measured against PostgreSQL 18:
+  a replay of 1 209 files rewrites nothing; `font_color.cfg.bin` gives 448 cells, 64 rows.
+- **Azalée boundary.** nie writes only to schema `nie`; `nie_reader` (NOLOGIN, USAGE + SELECT)
+  is the only grant readers get, and the integration test proves it cannot write. rg's
+  `public.inagle_*` tables (incl. `public.inagle_cfgbin`) are not touched. Wiring it in prod
+  is `GRANT nie_reader TO <azalee role>`, done with the owner on the VPS database.
+- **Measured gap — input, not code.** The only local game copy is the VPS offload
+  (`vps-offload/steam-iecode/inazuma`, 24G, transfer in progress): 71 101 `cfg.bin` indexed,
+  first 3 000 → 1 219 imported, 1 781 skipped because their CPK is not copied yet, 0 format
+  failures. `nie-pg import` prints the VFS it opened, because `open_game` silently falls back
+  to this repository's `data/` when `NIE_GAME_DIR` points nowhere.
+- **Next, ordered.** (1) Full import on the host that has the complete game. (2) Move
+  `nie-data`'s 119 table readers from `*.cfg.bin.json` dumps to `nie.*` queries family by family,
+  with the golden tests as the gate. (3) Retire `data/azalee/*.json` exports once their readers
+  query SQL. (4) Point Azalée at `nie.*` through `nie_reader` views, then retire rg's own cfg.bin
+  importer (`packages/inagle/scripts/import-cfgbin-postgres.ts`) so one writer remains.
+
 ## Stable repository release 1.0.0 — 2026-09-20
 
 Version `1.0.0` is the first synchronized stable cut of the complete repository: the Rust

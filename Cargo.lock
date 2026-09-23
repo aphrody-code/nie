@@ -5979,6 +5979,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-pg"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "futures-util",
+ "nie-formats",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-postgres",
+]
+
+[[package]]
 name = "nie-play"
 version = "1.0.0"
 dependencies = [

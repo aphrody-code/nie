@@ -1,0 +1,26 @@
+[package]
+name = "nie-pg"
+description = "Import des cfg.bin du VFS IEVR (RDBN et T2B) dans PostgreSQL, schéma `nie`, sans étape JSON"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-formats = { workspace = true, features = ["std"] }
+tokio-postgres = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+futures-util = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
+
+[[bin]]
+name = "nie-pg"
+path = "src/main.rs"
