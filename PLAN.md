@@ -2344,3 +2344,13 @@ into `nie`:
       establish golden fixtures, isolate C++/.NET exports, bind Bun/Python, then remove compatible
       crates only after non-zero equal parity counts. No physical collapse was falsely reported
       as complete in this documentation-only phase.
+
+### Host-wide ops moved to `aphrody-infra` — 2026-09-23
+
+- `scripts/ops/ovh.py` and `docs/OVH.md` now live in `aphrody-infra/scripts/ops/` and
+  `aphrody-infra/docs/ops/OVH.md`.
+- The `aphrody.com` / `bxc.aphrody.com` vhosts kept here were stale copies (still routing to the
+  retired `bxc-site`); they were deleted. The canonical vhosts and the `aphrody-*.inc`
+  includes live in `aphrody-infra/nginx/aphrody/`. `release-all.ts` checks drift against
+  `../aphrody-infra/nginx/aphrody/aphrody.com.conf`.
+- nie keeps its own units: `deploy/systemd/nie-site.service`, `nie-model-serve.service`.

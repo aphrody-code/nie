@@ -49,7 +49,7 @@ service. It was **deleted on 2026-09-07**. Restoring it is one `POST`:
 
 ### Credentials — three OVH accounts, do not confuse them
 
-Full zone contents, record ids and the procedures are in [`docs/OVH.md`](OVH.md).
+Full zone contents, record ids and the procedures are in [`aphrody-infra/docs/ops/OVH.md`](../../aphrody-infra/docs/ops/OVH.md).
 
 | File | Section / variables | Zones it can see |
 |---|---|---|
