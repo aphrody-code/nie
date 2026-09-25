@@ -4,8 +4,20 @@
 # HTTP) et un poste Windows avec GPU (rendu, capture, jeu). Aucune section ci-dessous ne suppose
 # une machine particulière — ce qui dépend du matériel local se passe par variable
 # d'environnement, jamais par un réglage versionné.
+#
+# Opted OUT of the superproject's shared `../.cargo/config.toml` target-dir (explicit override
+# below pins it back to the repo-local default), recorded 2026-09-25: ~19 build/release/deploy
+# files (scripts/deploy-target.ts, scripts/release-all.ts, scripts/steam-update.sh, the
+# systemd units in aphrody-infra, the byte-exact forge docs) hardcode `target/<triple>/release/…`
+# relative to this repo root, including the Steam packaging pipeline and the production
+# `nie-site`/`nie-model-serve` units that read `$NIE_REPO_ROOT/target/release/…`. The forge's
+# byte-exact reproducibility goal also argues for keeping this workspace's build output isolated
+# from artifacts compiled by other repos' dependency graphs. Re-evaluate only alongside a
+# deliberate rewrite of the release/deploy scripts to resolve `cargo metadata`'s
+# `target_directory`.
 
 [build]
+target-dir = "target"
 # rustc-wrapper = "sccache"  # disabled: sccache is a no-op on the dev host; opt in with RUSTC_WRAPPER=sccache
 # v0 mangling = symboles démanglés lisibles dans les stacktraces et les outils de RE.
 rustflags = ["-C", "symbol-mangling-version=v0", "-A", "linker_messages"]
