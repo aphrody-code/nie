@@ -114,8 +114,9 @@ exactly like a dead server: `cargo run --release` compiles before the first JSON
 minutes on a cold target — and waits on "file lock on build directory" whenever another cargo is
 running, so the client's connection timeout fires first (Claude Code: `MCP server nie-game
 connection timed out after 30000ms`). Measured on the Windows box: no `nie-mcp` had ever been
-built there, and the configured command was still compiling at 40 s. The server itself does no
-indexing at startup; it binds the optional bridge and answers.
+built there, and the configured command was still compiling at 40 s (a cold gnu release build
+took 18 min 32 s). The server itself does no indexing at startup: installed, it answered
+`initialize` in 611 ms and `tools/list` with 66 tools.
 
 Install, and re-install after changing `nie-cli`:
 
@@ -132,8 +133,9 @@ cargo +1.98.1-x86_64-pc-windows-gnu install --locked --path crates/tools/nie-mcp
   --target x86_64-pc-windows-gnu --target-dir target
 ```
 
-`--target-dir target` reuses the workspace's release artefacts instead of rebuilding in a
-temporary directory. From a terminal, `cargo run --release --quiet --package nie-mcp --` and
+`--target-dir target` keeps the build in the workspace's target directory instead of a throwaway
+temporary one. On Windows, `PATH` must not carry an older `nie-mcp` ahead of `~/.cargo/bin`
+(`Get-Command nie-mcp`). From a terminal, `cargo run --release --quiet --package nie-mcp --` and
 `nie mcp` remain equivalent bindings.
 
 Recognized environment variables:

@@ -20,16 +20,12 @@ inherit = "all"
 [shell_environment_policy.set]
 BASH_ENV = ".claude/shell-init.sh"
 
+# nie-game: the prebuilt `nie-mcp` on PATH, like aphrody-mcp below — never `cargo run`, which
+# compiles on launch (minutes on a cold target) and blocks on the build-directory lock while any
+# other cargo runs, so the client gives up before the first frame. Install: see docs/MCP.md.
 [mcp_servers.nie-game]
-command = "cargo"
-args = [
-    "run",
-    "--release",
-    "--quiet",
-    "--package",
-    "nie-mcp",
-    "--",
-]
+command = "nie-mcp"
+args = []
 
 [mcp_servers.nie-game.env]
 NIE_APHRODY_API_URL = "http://127.0.0.1:8085"

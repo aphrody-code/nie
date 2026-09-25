@@ -18,6 +18,10 @@ const SERVER_NAME: &str = "nie-game";
 /// Manifest of the native server, relative to the repository root.
 const ENTRYPOINT: &str = "crates/tools/nie-mcp/Cargo.toml";
 
+/// Prebuilt server both clients launch from `PATH` (see `docs/MCP.md`, "Running and
+/// configuration").
+const SERVER_BINARY: &str = "nie-mcp";
+
 /// Client MCP visé par l'installation.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "kebab-case")]
@@ -103,42 +107,21 @@ fn config_path(target: McpTarget) -> Result<PathBuf, String> {
     }
 }
 
-/// Entrée `mcpServers["nie-game"]` pour un client donné.
+/// `mcpServers["nie-game"]` entry for a given client.
 ///
-/// Claude Code lance les serveurs de projet depuis la racine du dépôt : un chemin relatif y
-/// reste valable d'une machine à l'autre. Claude Desktop, lui, part d'un répertoire courant
-/// arbitraire — il lui faut des chemins absolus.
+/// Both clients launch the prebuilt [`SERVER_BINARY`] from `PATH`. `cargo run` is not a
+/// launcher: it compiles on start — minutes on a cold target — and waits on the build-directory
+/// lock whenever another cargo is running, so the client's connection timeout (30 s in Claude
+/// Code) fires before the first frame. Claude Desktop starts from an arbitrary working directory,
+/// so it also receives the repository root as `NIE_REPO`.
 fn server_entry(target: McpTarget, game_dir: Option<&str>) -> serde_json::Value {
-    let root = repo_root();
-    let (args, mut env) = match target {
-        McpTarget::ClaudeCode => (
-            vec!["run", "--release", "--quiet", "--package", "nie-mcp", "--"]
-                .into_iter()
-                .map(str::to_owned)
-                .collect::<Vec<_>>(),
-            serde_json::Map::new(),
-        ),
-        McpTarget::ClaudeDesktop => {
-            let mut env = serde_json::Map::new();
-            env.insert(
-                "NIE_REPO".to_string(),
-                serde_json::Value::String(root.display().to_string()),
-            );
-            (
-                vec![
-                    "run".to_owned(),
-                    "--release".to_owned(),
-                    "--quiet".to_owned(),
-                    "--manifest-path".to_owned(),
-                    root.join("Cargo.toml").display().to_string(),
-                    "--package".to_owned(),
-                    "nie-mcp".to_owned(),
-                    "--".to_owned(),
-                ],
-                env,
-            )
-        }
-    };
+    let mut env = serde_json::Map::new();
+    if matches!(target, McpTarget::ClaudeDesktop) {
+        env.insert(
+            "NIE_REPO".to_string(),
+            serde_json::Value::String(repo_root().display().to_string()),
+        );
+    }
     if let Some(dir) = game_dir.map(str::trim).filter(|d| !d.is_empty()) {
         env.insert(
             "NIE_GAME_DIR".to_string(),
@@ -147,8 +130,8 @@ fn server_entry(target: McpTarget, game_dir: Option<&str>) -> serde_json::Value 
     }
     serde_json::json!({
         "type": "stdio",
-        "command": "cargo",
-        "args": args,
+        "command": SERVER_BINARY,
+        "args": [],
         "env": serde_json::Value::Object(env),
     })
 }
@@ -262,26 +245,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn claude_code_uses_the_workspace_native_binary() {
+    fn no_client_compiles_on_launch() {
+        for target in [McpTarget::ClaudeCode, McpTarget::ClaudeDesktop] {
+            let entry = server_entry(target, None);
+            assert_eq!(entry["command"].as_str(), Some("nie-mcp"), "{target:?}");
+            assert_eq!(
+                entry["args"].as_array().map(Vec::len),
+                Some(0),
+                "{target:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn claude_code_carries_no_machine_path() {
         let entry = server_entry(McpTarget::ClaudeCode, None);
-        let args = entry["args"].as_array().expect("args");
-        assert_eq!(args[4].as_str(), Some("nie-mcp"));
-        assert_eq!(entry["command"].as_str(), Some("cargo"));
         assert!(entry["env"].get("NIE_REPO").is_none());
     }
 
     #[test]
-    fn claude_desktop_uses_an_absolute_workspace_manifest() {
+    fn claude_desktop_receives_an_absolute_repository_root() {
         let entry = server_entry(McpTarget::ClaudeDesktop, None);
-        let args = entry["args"].as_array().expect("args");
-        let manifest_index = args
-            .iter()
-            .position(|argument| argument.as_str() == Some("--manifest-path"))
-            .expect("manifest argument");
-        let manifest = args[manifest_index + 1].as_str().expect("manifest path");
-        assert!(std::path::Path::new(manifest).is_absolute());
-        assert!(manifest.ends_with("Cargo.toml"));
-        assert_eq!(entry["command"].as_str(), Some("cargo"));
+        let root = entry["env"]["NIE_REPO"].as_str().expect("NIE_REPO");
+        assert!(std::path::Path::new(root).is_absolute());
     }
 
     #[test]
