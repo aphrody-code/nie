@@ -481,8 +481,9 @@ names the wrong culprit.
   `wasm-opt` crate wraps C++ that does not link under windows-gnu. Install binaryen
   from npm instead: `bun add -g binaryen`. Do **not** skip the step: the script
   validates the module and enforces a byte budget on the optimized output.
-- `wasm-bindgen` CLI must match the workspace pin exactly (0.2.125 here); the build
-  refuses a mismatch by design.
+- `wasm-bindgen` CLI must match the workspace pin exactly (0.2.128 here, the same pin as
+  `aphrody` and `aphrody-os`); the build refuses a mismatch by design. Install it with
+  `cargo install wasm-bindgen-cli --version 0.2.128 --locked`.
 
 Measured end state: `bun run build` exits 0 and writes `apps/nie-web/dist/`
 (`index-*.js` ~589 KB, `index-*.css` ~310 KB, 10 files precompressed to 708 KiB
