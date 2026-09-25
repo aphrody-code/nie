@@ -6,7 +6,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aphrody-code/nie/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/aphrody-code/nie/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="version" src="https://img.shields.io/badge/version-1.0.0-blue">
   <img alt="rust" src="https://img.shields.io/badge/rust-1.98.1--stable-orange">
   <img alt="forge" src="https://img.shields.io/badge/forge-74.06%25%20of%20nie.exe-yellow">

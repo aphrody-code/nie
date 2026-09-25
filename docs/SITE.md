@@ -1,5 +1,10 @@
 # The site — `nie.aphrody.com`
 
+> **Status (2026-09-25).** The VPS no longer runs NIE: `nie.aphrody.com` is not deployed, and
+> NIE converges into Aphrody (`../docs/architecture/APHRODY-CONVERGENCE.md` in the superproject).
+> Ports and units below describe the code's defaults, not a live service; deployment facts belong
+> to `aphrody-infra`.
+
 Moved out of `README.md` on 2026-09-19: the README is a shop window, and this level of detail
 belongs where someone comes looking for it.
 

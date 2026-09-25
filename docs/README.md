@@ -95,7 +95,6 @@ owning documents listed below.
 | Document | What it owns |
 | --- | --- |
 | [`A2A-CODEX.md`](A2A-CODEX.md) | The agent-to-agent wire protocol. The rules about *not overwriting each other* live in `AGENTS.md` § 2. |
-| [`WORKFLOW-UNIFIE.md`](WORKFLOW-UNIFIE.md) | Going from a human request to a reproducible proof, across nie/WinClean/nie/Ghidra. |
 | [`AGENT-SYNC.md`](AGENT-SYNC.md) | Synchronisation contract between local agents and the VPS. |
 
 ## History
@@ -104,7 +103,6 @@ owning documents listed below.
 | --- | --- |
 | [`../PROVENANCE.md`](../PROVENANCE.md) | Per-tree provenance, and what was dropped on import. |
 | [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md) | The source-to-crate ledger of the C++ and C# toolkits, exported 2026-09-07. |
-| [`ABSORPTION-IECODE.md`](ABSORPTION-IECODE.md) | The absorption gate, closed. `nie` is the maintained implementation. |
 | [`IMPORT-EXPORT.md`](IMPORT-EXPORT.md) | Import/export boundaries for game data and assets. |
 | [`PUBLIC-NAMING.md`](PUBLIC-NAMING.md) | Public naming and identity conventions. |
 | [`reports/`](reports/) | Dated audits (crates, Bun apps and packages, 2026-09-25) the current plan was triaged against. |

@@ -6,6 +6,9 @@ and `nie-net`.
 
 ## 1. Server landscape and port allocation
 
+> The ports below are code defaults. None of these servers runs on the VPS any more (only RG and
+> Shenron are live); `aphrody-infra` owns any deployment fact.
+
 Ports and public routes are owned by aphrody-infra (`config/service-catalog.json`,
 `config/nginx-routes.json`, `nginx/aphrody/aphrody.com.conf`):
 
