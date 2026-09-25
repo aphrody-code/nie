@@ -9,14 +9,23 @@
  * Symboles exposés (low-level et haut niveau) :
  *   crc32, CRand, version, callOut, cstr,
  *   detectFormat, decode, decodeFile, decodeToPng, decodeToPngFile,
- *   wiki, vfsOpen, VfsHandle, FontHandle, RgbaColor, SO_PATH, FormatInfo, VfsEntry
+ *   wiki, vfsOpen, VfsHandle, FontHandle, RgbaColor, SO_PATH, FormatInfo, VfsEntry,
+ *   SO_CANDIDATES, nativeAvailable, NativeLibraryError
  *
  * Résolution de la bibliothèque partagée `iecode` :
  *   1. NIE_FFI_PATH (override absolu)
  *   2. <workspace-root>/target/debug/libiecode.{suffix}    (dev)
  *   3. <workspace-root>/target/release/libiecode.{suffix}  (release)
+ *   4. <workspace-root>/target/<host-triple>/{debug,release}/…  (`cargo build --target …`,
+ *      e.g. `x86_64-pc-windows-gnu` on a Windows host without MSVC)
  *
  * Chemin depuis packages/nie/src/ vers nie/ : 3 niveaux (../../..)
+ *
+ * **The library is opened lazily**, on the first call that needs a native symbol — never at
+ * import. `bunfig.toml` preloads `@nie/plugin`, which imports this module, so an eager `dlopen`
+ * turned a missing or stale `iecode` into a failure of EVERY `bun` command in the repository
+ * (typecheck, docs:check, lint, unrelated tests). Importing is now free; calling a native
+ * function without the library throws {@link NativeLibraryError}, which names the build command.
  */
 
 import {
@@ -28,7 +37,7 @@ import {
   suffix,
   type Pointer,
 } from "bun:ffi";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 // ─── résolution du .so ──────────────────────────────────────────────────────
 
@@ -38,23 +47,53 @@ const _wsRoot = process.env["NIE_ROOT"] ?? `${import.meta.dir}/../../..`;
 // Le préfixe `lib` n'existe pas sur Windows : rustc y produit `iecode.dll`.
 // On teste les deux formes pour chaque profil, debug d'abord.
 const _prefixes = process.platform === "win32" ? ["", "lib"] : ["lib", ""];
-const _candidates = ["debug", "release"].flatMap((profile) =>
-  _prefixes.map((prefix) => `${_wsRoot}/target/${profile}/${prefix}iecode.${suffix}`),
-);
+const _profiles = ["debug", "release"] as const;
 
-const _soDebug = _candidates[0]!;
+/**
+ * Target triples a `cargo build --target <triple>` may have written for this host. Cargo puts
+ * such builds under `target/<triple>/<profile>/`, not `target/<profile>/`: the windows-gnu recipe
+ * this repository documents for hosts without MSVC lands in `target/x86_64-pc-windows-gnu/`.
+ */
+function hostTriples(): string[] {
+  const arch = process.arch === "x64" ? "x86_64" : process.arch === "arm64" ? "aarch64" : process.arch;
+  switch (process.platform) {
+    case "win32":
+      return [`${arch}-pc-windows-msvc`, `${arch}-pc-windows-gnu`, `${arch}-pc-windows-gnullvm`];
+    case "darwin":
+      return [`${arch}-apple-darwin`];
+    case "linux":
+      return [`${arch}-unknown-linux-gnu`];
+    default:
+      return [];
+  }
+}
+
+const _library = (dir: string): string[] =>
+  _prefixes.map((prefix) => `${dir}/${prefix}iecode.${suffix}`);
+
+/**
+ * Every path searched for `iecode`, in priority order. The host-default `target/<profile>/`
+ * locations come first and keep their historical order, so a checkout that already had a
+ * library there resolves exactly as before; `target/<triple>/<profile>/` builds come after.
+ */
+export const SO_CANDIDATES: readonly string[] = Object.freeze([
+  ..._profiles.flatMap((profile) => _library(`${_wsRoot}/target/${profile}`)),
+  ...hostTriples().flatMap((triple) =>
+    _profiles.flatMap((profile) => _library(`${_wsRoot}/target/${triple}/${profile}`)),
+  ),
+]);
 
 function resolveSo(): string {
   const env = process.env["NIE_FFI_PATH"];
   if (env) return env;
-  for (const c of _candidates) if (existsSync(c)) return c;
-  return _soDebug;
+  for (const c of SO_CANDIDATES) if (existsSync(c)) return c;
+  return SO_CANDIDATES[0]!;
 }
 
-/** Chemin résolu de la bibliothèque partagée iecode (diagnostic). */
+/** Chemin résolu de la bibliothèque partagée iecode (diagnostic). Résolu à l'import, jamais ouvert. */
 export const SO_PATH = resolveSo();
 
-// ─── dlopen ─────────────────────────────────────────────────────────────────
+// ─── dlopen (paresseux) ─────────────────────────────────────────────────────
 
 const symbolsDef = {
   nie_crc32:            { args: [FFIType.ptr, FFIType.u64], returns: FFIType.u32 },
@@ -88,19 +127,88 @@ const symbolsDef = {
   nie_emu_registry_json_out: { args: [FFIType.ptr],         returns: FFIType.void },
 } as const;
 
-function loadLib() {
+/**
+ * The build command to print, computed only on the failure path. On Windows the pinned channel
+ * is read from `rust-toolchain.toml` so the windows-gnu command can be pasted as is: a host
+ * without MSVC cannot link with the default `-msvc` toolchain.
+ */
+function buildHint(): string {
+  const generic = "Build it with `bun run build:ffi` (cargo build -p nie-ffi).";
+  if (process.platform !== "win32") return generic;
+  let channel = "<channel>";
   try {
-    return dlopen(SO_PATH, {
+    const toml = readFileSync(`${_wsRoot}/rust-toolchain.toml`, "utf8");
+    channel = /^\s*channel\s*=\s*"([^"]+)"/m.exec(toml)?.[1] ?? channel;
+  } catch {
+    // Outside a checkout: keep the placeholder rather than guess a version.
+  }
+  return (
+    `${generic} On a Windows host without MSVC, build with the windows-gnu toolchain (from PowerShell): ` +
+    `\`cargo +${channel}-x86_64-pc-windows-gnu build -p nie-ffi --release --target x86_64-pc-windows-gnu\`.`
+  );
+}
+
+/**
+ * Thrown by the first native call when `iecode` cannot be opened. Importing `@aphrody/nie`
+ * never throws it: only functions that actually reach the Rust library do.
+ */
+export class NativeLibraryError extends Error {
+  override readonly name = "NativeLibraryError";
+  /** Path that was handed to `dlopen`. */
+  readonly path: string;
+
+  constructor(path: string, cause: unknown) {
+    const reason = existsSync(path)
+      ? `dlopen failed: ${cause instanceof Error ? cause.message : String(cause)}`
+      : "the file does not exist.";
+    const searched = process.env["NIE_FFI_PATH"]
+      ? "NIE_FFI_PATH is set, so no other location was searched."
+      : `Searched: ${SO_CANDIDATES.join(", ")}.`;
+    super(
+      `@aphrody/nie: cannot load the native library \`iecode\` from ${path}: ${reason} ` +
+        `${buildHint()} Set NIE_FFI_PATH to use a library elsewhere. ${searched}`,
+      { cause },
+    );
+    this.path = path;
+  }
+}
+
+function openLibrary(path: string) {
+  try {
+    return dlopen(path, {
       ...symbolsDef,
       nie_wiki_json_out: { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
     });
   } catch {
-    return dlopen(SO_PATH, symbolsDef as any);
+    return dlopen(path, symbolsDef as any);
   }
 }
 
-const lib = loadLib();
-const symbols = lib.symbols as any;
+let _symbols: any;
+
+/**
+ * Symbols of `iecode`, opened on first use. A failure is not cached: a library that appears at
+ * {@link SO_PATH} while the process runs is picked up by the next call.
+ */
+function native(): any {
+  if (_symbols !== undefined) return _symbols;
+  try {
+    _symbols = openLibrary(SO_PATH).symbols;
+  } catch (cause) {
+    throw new NativeLibraryError(SO_PATH, cause);
+  }
+  return _symbols;
+}
+
+/** `true` when `iecode` can be opened (opening it if it was not yet). Never throws. */
+export function nativeAvailable(): boolean {
+  try {
+    native();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // ─── encodeurs partagés ──────────────────────────────────────────────────────
 const _enc = new TextEncoder();
@@ -146,7 +254,7 @@ export function callOut(call: (outPtr: Pointer) => void): Uint8Array | null {
   copy.set(new Uint8Array(rawBuf));
 
   // Libérer l'allocation Rust (3 × u64 = bigint OK pour FFIType.u64).
-  symbols.nie_bytes_free_fields(dataPtr, dataLen, dataCap);
+  native().nie_bytes_free_fields(dataPtr, dataLen, dataCap);
   return copy;
 }
 
@@ -160,7 +268,7 @@ export function cstr(s: string): Buffer {
 
 /** Retourne la matrice unique des backends et capacités de `nie-emu`. */
 export function emuRegistry(): unknown {
-  const bytes = callOut((out) => symbols.nie_emu_registry_json_out(out));
+  const bytes = callOut((out) => native().nie_emu_registry_json_out(out));
   if (!bytes) return null;
   return JSON.parse(_dec.decode(bytes));
 }
@@ -177,13 +285,13 @@ export function emuRegistry(): unknown {
 export function crc32(s: string | Uint8Array): number {
   const buf: Uint8Array = typeof s === "string" ? _enc.encode(s) : s;
   if (buf.byteLength === 0) return 0;
-  return (symbols.nie_crc32(ptr(buf), BigInt(buf.byteLength)) as number) >>> 0;
+  return (native().nie_crc32(ptr(buf), BigInt(buf.byteLength)) as number) >>> 0;
 }
 
 // ─── CRand ───────────────────────────────────────────────────────────────────
 
 const _registry = new FinalizationRegistry<Pointer>((handle: Pointer) => {
-  symbols.nie_crand_free(handle);
+  native().nie_crand_free(handle);
 });
 
 /** @internal */
@@ -203,14 +311,14 @@ export class CRand {
     if (seedOrSentinel === _FROM_PTR) {
       this.#ptr = rawPtr!;
     } else {
-      this.#ptr = symbols.nie_crand_new(seedOrSentinel as number) as Pointer | null;
+      this.#ptr = native().nie_crand_new(seedOrSentinel as number) as Pointer | null;
     }
     if (this.#ptr !== null) _registry.register(this, this.#ptr, this);
   }
 
   /** Crée un PRNG depuis une graine 64 bits (BigInt → u64). */
   static fromU64(seed: bigint): CRand {
-    const handle = symbols.nie_crand_from_u64(seed) as Pointer;
+    const handle = native().nie_crand_from_u64(seed) as Pointer;
     return new CRand(_FROM_PTR, handle);
   }
 
@@ -221,24 +329,24 @@ export class CRand {
 
   /** Tire le prochain u32 (0..2^32-1). */
   nextU32(): number {
-    return (symbols.nie_crand_next_u32(this.#guard()) as number) >>> 0;
+    return (native().nie_crand_next_u32(this.#guard()) as number) >>> 0;
   }
 
   /** Tire un entier dans [0, n) via Lemire+rejet. n===0 → tirage brut. */
   bounded(n: number): number {
-    return (symbols.nie_crand_bounded(this.#guard(), n) as number) >>> 0;
+    return (native().nie_crand_bounded(this.#guard(), n) as number) >>> 0;
   }
 
   /** Tire un f32 dans [0.0, 1.0). */
   nextF32(): number {
-    return symbols.nie_crand_next_f32(this.#guard()) as number;
+    return native().nie_crand_next_f32(this.#guard()) as number;
   }
 
   /** Libère le handle Rust. Idempotent. */
   free(): void {
     if (this.#ptr === null) return;
     _registry.unregister(this);
-    symbols.nie_crand_free(this.#ptr);
+    native().nie_crand_free(this.#ptr);
     this.#ptr = null;
   }
 
@@ -250,7 +358,7 @@ export class CRand {
 
 /** Retourne la version du crate nie-ffi (ex. "0.1.0"). */
 export function version(): string {
-  const raw = symbols.nie_version() as Pointer;
+  const raw = native().nie_version() as Pointer;
   return new CString(raw).toString();
 }
 
@@ -269,8 +377,8 @@ export interface FormatInfo {
  */
 export function detectFormat(bytes: Uint8Array): FormatInfo {
   if (bytes.byteLength === 0) return { kind: 0, name: "Unknown" };
-  const kind = (symbols.nie_detect(ptr(bytes), BigInt(bytes.byteLength)) as number) >>> 0;
-  const nameRaw = symbols.nie_format_name(kind) as Pointer;
+  const kind = (native().nie_detect(ptr(bytes), BigInt(bytes.byteLength)) as number) >>> 0;
+  const nameRaw = native().nie_format_name(kind) as Pointer;
   const name = new CString(nameRaw).toString();
   return { kind, name };
 }
@@ -284,7 +392,7 @@ export function detectFormat(bytes: Uint8Array): FormatInfo {
 export function decode(bytes: Uint8Array): unknown | null {
   if (bytes.byteLength === 0) return null;
   const json = callOut((outPtr) => {
-    symbols.nie_decode_json_out(ptr(bytes), BigInt(bytes.byteLength), outPtr);
+    native().nie_decode_json_out(ptr(bytes), BigInt(bytes.byteLength), outPtr);
   });
   if (json === null) return null;
   return JSON.parse(_dec.decode(json)) as unknown;
@@ -300,7 +408,7 @@ export function decode(bytes: Uint8Array): unknown | null {
 export function decodeMenuSetting(bytes: Uint8Array): MenuSetting | null {
   if (bytes.byteLength === 0) return null;
   const json = callOut((outPtr) => {
-    symbols.nie_menu_setting_json_out(ptr(bytes), BigInt(bytes.byteLength), outPtr);
+    native().nie_menu_setting_json_out(ptr(bytes), BigInt(bytes.byteLength), outPtr);
   });
   if (json === null) return null;
   return JSON.parse(_dec.decode(json)) as MenuSetting;
@@ -327,15 +435,15 @@ export interface WikiRequest {
  *
  * This is intentionally a transport binding: SQL, mirror access, joins,
  * parsing and game rules are implemented by `nie-wiki`, never by TypeScript.
- * The native library must be built before importing this module.
+ * The native library must be built before calling it (importing the module does not open it).
  */
 export function wiki<T = unknown>(request: WikiRequest): T {
-  if (typeof symbols.nie_wiki_json_out !== "function") {
+  if (typeof native().nie_wiki_json_out !== "function") {
     throw new Error("Rust wiki operation requires a native library with nie_wiki_json_out exported.");
   }
   const input = _enc.encode(JSON.stringify(request));
   const output = callOut((outPtr) => {
-    symbols.nie_wiki_json_out(ptr(input), BigInt(input.byteLength), outPtr);
+    native().nie_wiki_json_out(ptr(input), BigInt(input.byteLength), outPtr);
   });
   if (output === null) {
     throw new Error(`Rust wiki operation failed: ${request.op}`);
@@ -352,7 +460,7 @@ export function wiki<T = unknown>(request: WikiRequest): T {
 export function decodeToPng(bytes: Uint8Array): Uint8Array | null {
   if (bytes.byteLength === 0) return null;
   return callOut((outPtr) => {
-    symbols.nie_g4tx_to_png_out(ptr(bytes), BigInt(bytes.byteLength), outPtr);
+    native().nie_g4tx_to_png_out(ptr(bytes), BigInt(bytes.byteLength), outPtr);
   });
 }
 
@@ -426,7 +534,7 @@ export class VfsHandle {
     const h = this.#guard();
     const pathBuf = cstr(internalPath);
     return callOut((outPtr) => {
-      symbols.nie_vfs_read_out(h, pathBuf, outPtr);
+      native().nie_vfs_read_out(h, pathBuf, outPtr);
     });
   }
 
@@ -440,7 +548,7 @@ export class VfsHandle {
   list(): VfsEntry[] {
     const h = this.#guard();
     const json = callOut((outPtr) => {
-      symbols.nie_vfs_list_json_out(h, outPtr);
+      native().nie_vfs_list_json_out(h, outPtr);
     });
     if (json === null) return [];
     return JSON.parse(_dec.decode(json)) as VfsEntry[];
@@ -448,7 +556,7 @@ export class VfsHandle {
 
   /** Nombre total d'entrées indexées — sans le plafond de {@link list}. */
   count(): number {
-    return Number(symbols.nie_vfs_count(this.#guard()));
+    return Number(native().nie_vfs_count(this.#guard()));
   }
 
   /**
@@ -460,7 +568,7 @@ export class VfsHandle {
   listRange(offset: number, limit: number): VfsEntry[] {
     const h = this.#guard();
     const json = callOut((outPtr) => {
-      symbols.nie_vfs_list_range_json_out(h, BigInt(offset), BigInt(limit), outPtr);
+      native().nie_vfs_list_range_json_out(h, BigInt(offset), BigInt(limit), outPtr);
     });
     if (json === null) return [];
     return JSON.parse(_dec.decode(json)) as VfsEntry[];
@@ -493,7 +601,7 @@ export class VfsHandle {
    * const png  = font.renderText("COMMENCER");   // PNG RGBA8
    */
   openFont(): FontHandle | null {
-    const ctx = symbols.nie_font_open(this.#guard()) as Pointer | null;
+    const ctx = native().nie_font_open(this.#guard()) as Pointer | null;
     if (ctx === null) return null;
     return new FontHandle(ctx);
   }
@@ -501,7 +609,7 @@ export class VfsHandle {
   /** Libère le handle Rust. Idempotent. */
   free(): void {
     if (this.#handle === null) return;
-    symbols.nie_vfs_free(this.#handle);
+    native().nie_vfs_free(this.#handle);
     this.#handle = null;
   }
 
@@ -550,14 +658,14 @@ export class FontHandle {
     const textBuf = cstr(text);
     const [r, g, b, a] = color;
     return callOut((outPtr) => {
-      symbols.nie_font_render_text_out(ctx, textBuf, r, g, b, a, outPtr);
+      native().nie_font_render_text_out(ctx, textBuf, r, g, b, a, outPtr);
     });
   }
 
   /** Libère le contexte de police Rust. Idempotent. */
   free(): void {
     if (this.#ctx === null) return;
-    symbols.nie_font_free(this.#ctx);
+    native().nie_font_free(this.#ctx);
     this.#ctx = null;
   }
 
@@ -570,7 +678,7 @@ export class FontHandle {
  */
 export function vfsOpen(gameDataDir: string): VfsHandle | null {
   const dirBuf = cstr(gameDataDir);
-  const handle = symbols.nie_vfs_open(dirBuf) as Pointer | null;
+  const handle = native().nie_vfs_open(dirBuf) as Pointer | null;
   if (handle === null) return null;
   return new VfsHandle(handle);
 }

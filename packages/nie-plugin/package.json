@@ -1,0 +1,24 @@
+{
+	"name": "@nie/plugin",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Repository Bun preloads: game-format loaders over @aphrody/nie and the happy-dom test globals.",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./register": "./src/register.ts",
+		"./happydom": "./src/happydom.ts"
+	},
+	"scripts": {
+		"test": "bun test src/",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@aphrody/nie": "workspace:*",
+		"@happy-dom/global-registrator": "catalog:"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"typescript": "catalog:"
+	}
+}

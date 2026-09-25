@@ -21,7 +21,7 @@
 		"@nie/asset-source": "workspace:*",
 		"@nie/bridge": "workspace:*",
 		"@nie/game": "workspace:*",
-		"nie-media": "^1.0.0",
+		"nie-media": "workspace:*",
 		"@nie/inacord-ui": "workspace:*",
 		"@tauri-apps/api": "catalog:",
 		"@tauri-apps/plugin-clipboard-manager": "catalog:",
@@ -36,7 +36,6 @@
 		"react": "catalog:",
 		"react-dom": "catalog:",
 		"sonner": "catalog:",
-		"three": "catalog:",
 		"tw-animate-css": "catalog:"
 	},
 	"devDependencies": {
@@ -44,7 +43,6 @@
 		"@types/bun": "catalog:",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
-		"@types/three": "catalog:",
 		"@vitejs/plugin-react": "catalog:",
 		"@webgpu/types": "catalog:",
 		"tailwindcss": "catalog:",

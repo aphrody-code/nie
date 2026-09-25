@@ -15,7 +15,7 @@
 	},
 	"scripts": {
 		"typecheck": "bunx tsc --noEmit",
-		"test": "bun test --pass-with-no-tests"
+		"test": "bun test"
 	},
 	"devDependencies": {
 		"typescript": "catalog:",

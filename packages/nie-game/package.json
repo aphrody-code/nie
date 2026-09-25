@@ -12,6 +12,7 @@
 		"./text/*": "./src/text/*.ts"
 	},
 	"scripts": {
+		"test": "bun test test/",
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {

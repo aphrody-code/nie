@@ -5,8 +5,12 @@
 # Après ça, tout `import` de .g4tx / .cfg.bin / .objbin / .g4pkm / .lip / .mev / .g4md
 # est intercepté par les handlers onLoad sans configuration supplémentaire.
 #
-# Pour l'usage bundler, passer le plugin explicitement :
-#   Bun.build({ plugins: [(await import("nie-plugin/register")).default] })
+# L'inscription n'ouvre PAS `iecode` : `@aphrody/nie` n'est chargé qu'au premier fichier de jeu
+# décodé, et n'ouvre la bibliothèque qu'au premier appel natif. Sans elle, tout `bun` du dépôt
+# fonctionne ; seul l'import d'un format de jeu lève `NativeLibraryError` (qui nomme le build).
+#
+# Pour l'usage bundler, passer le plugin explicitement (export par défaut de register.ts) :
+#   Bun.build({ plugins: [(await import("@nie/plugin/register")).default] })
 preload = ["./packages/nie-plugin/src/register.ts"]
 
 [install]

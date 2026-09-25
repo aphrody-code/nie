@@ -3,8 +3,17 @@
 	"version": "1.0.0",
 	"private": true,
 	"type": "module",
+	"description": "Pure episode navigation and embed-player URLs for the nie hosts; no scraper, no I/O.",
 	"exports": {
 		"./player": "./src/player.ts",
 		"./navigation": "./src/navigation.ts"
+	},
+	"scripts": {
+		"test": "bun test src/",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"typescript": "catalog:"
 	}
 }

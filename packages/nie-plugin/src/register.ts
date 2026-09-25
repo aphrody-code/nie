@@ -19,11 +19,20 @@
  *      nie:re/menu-region-index       → objet JSON
  *      nie:re/lua/<nom>               → Uint8Array (data/lua_scripts/<nom>)
  *
+ * **Registering touches no native code.** This file is preloaded by EVERY `bun` command run from
+ * the repository root, so it must not need `iecode`: `@aphrody/nie` is imported on the first
+ * game-format load, not here. Without the library, `bun run typecheck`, `docs:check`, `lint` and
+ * every test that imports no game file keep working; importing a `.g4tx` then fails with the
+ * binding's `NativeLibraryError`, which names the build command.
+ *
+ * Le plugin est aussi l'export par défaut, pour le bundler :
+ *   Bun.build({ plugins: [(await import("@nie/plugin/register")).default] })
+ *
  * Chemins depuis packages/nie-plugin/src/ :
  *   ../../.. = racine workspace nie/
  */
 
-import { decode, decodeToPng } from "@aphrody/nie";
+import type { BunPlugin } from "bun";
 
 // ─── chemins des données RE ─────────────────────────────────────────────────
 
@@ -40,81 +49,54 @@ async function readBytes(path: string): Promise<Uint8Array> {
   return new Uint8Array(ab);
 }
 
+let _binding: Promise<typeof import("@aphrody/nie")> | undefined;
+
+/** The FFI binding, imported on first use so that registering stays free of native code. */
+function binding(): Promise<typeof import("@aphrody/nie")> {
+  _binding ??= import("@aphrody/nie");
+  return _binding;
+}
+
+/**
+ * Extensions decoded to a JSON object by `nie_decode_json_out`, which dispatches on the file's
+ * magic bytes. Each entry is registered as its own `onLoad`.
+ */
+const JSON_FORMATS: readonly RegExp[] = [
+  /\.cfg\.bin$/,       // RDBN
+  /\.objbin$/,         // MenuObject T2B
+  /\.g4pkm$/,          // G4pkmLayout
+  /\.(p3)?lip$/,       // LipSync
+  /\.(mev|mevbin)$/,   // MevbinDocument
+  /\.g4md$/,           // G4md
+];
+
 // ─── Bun.plugin() ───────────────────────────────────────────────────────────
 
-Bun.plugin({
+const plugin: BunPlugin = {
   name: "nie-game-formats",
 
   setup(build) {
     // ── A1 : .g4tx → Uint8Array PNG ────────────────────────────────────────
     build.onLoad({ filter: /\.g4tx$/ }, async ({ path }) => {
       const raw = await readBytes(path);
-      const png = decodeToPng(raw);
+      const png = (await binding()).decodeToPng(raw);
       if (png === null) {
         throw new Error(`nie-plugin: decodeToPng a échoué pour ${path} (BC7/NXTCH non supporté ?)`);
       }
       return { loader: "object", exports: { default: png } };
     });
 
-    // ── A2 : .cfg.bin → objet JSON ──────────────────────────────────────────
-    build.onLoad({ filter: /\.cfg\.bin$/ }, async ({ path }) => {
-      const raw = await readBytes(path);
-      const obj = decode(raw);
-      if (obj === null) {
-        throw new Error(`nie-plugin: decode a échoué pour ${path}`);
-      }
-      return { loader: "object", exports: { default: obj } };
-    });
-
-    // ── A3 : .objbin → objet JSON (MenuObject T2B) ──────────────────────────
-    build.onLoad({ filter: /\.objbin$/ }, async ({ path }) => {
-      const raw = await readBytes(path);
-      const obj = decode(raw);
-      if (obj === null) {
-        throw new Error(`nie-plugin: decode a échoué pour ${path}`);
-      }
-      return { loader: "object", exports: { default: obj } };
-    });
-
-    // ── A4 : .g4pkm → objet JSON (G4pkmLayout) ─────────────────────────────
-    build.onLoad({ filter: /\.g4pkm$/ }, async ({ path }) => {
-      const raw = await readBytes(path);
-      const obj = decode(raw);
-      if (obj === null) {
-        throw new Error(`nie-plugin: decode a échoué pour ${path}`);
-      }
-      return { loader: "object", exports: { default: obj } };
-    });
-
-    // ── A5 : .lip / .p3lip → objet JSON (LipSync) ──────────────────────────
-    build.onLoad({ filter: /\.(p3)?lip$/ }, async ({ path }) => {
-      const raw = await readBytes(path);
-      const obj = decode(raw);
-      if (obj === null) {
-        throw new Error(`nie-plugin: decode a échoué pour ${path}`);
-      }
-      return { loader: "object", exports: { default: obj } };
-    });
-
-    // ── A6 : .mev / .mevbin → objet JSON (MevbinDocument) ──────────────────
-    build.onLoad({ filter: /\.(mev|mevbin)$/ }, async ({ path }) => {
-      const raw = await readBytes(path);
-      const obj = decode(raw);
-      if (obj === null) {
-        throw new Error(`nie-plugin: decode a échoué pour ${path}`);
-      }
-      return { loader: "object", exports: { default: obj } };
-    });
-
-    // ── A7 : .g4md → objet JSON (G4md) ─────────────────────────────────────
-    build.onLoad({ filter: /\.g4md$/ }, async ({ path }) => {
-      const raw = await readBytes(path);
-      const obj = decode(raw);
-      if (obj === null) {
-        throw new Error(`nie-plugin: decode a échoué pour ${path}`);
-      }
-      return { loader: "object", exports: { default: obj } };
-    });
+    // ── A2…A7 : formats décodés en objet JSON ───────────────────────────────
+    for (const filter of JSON_FORMATS) {
+      build.onLoad({ filter }, async ({ path }) => {
+        const raw = await readBytes(path);
+        const obj = (await binding()).decode(raw);
+        if (obj === null) {
+          throw new Error(`nie-plugin: decode a échoué pour ${path}`);
+        }
+        return { loader: "object", exports: { default: obj } };
+      });
+    }
 
     // ── B : nie:re/* — données RE statiques ─────────────────────────────────
     build.onResolve({ filter: /^nie:re\// }, ({ path }) => {
@@ -135,4 +117,8 @@ Bun.plugin({
       return { loader: "json", contents: text };
     });
   },
-});
+};
+
+Bun.plugin(plugin);
+
+export default plugin;

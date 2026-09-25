@@ -43,7 +43,7 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@rosegriffon/ui": "^1.0.1",
+		"@rosegriffon/ui": "catalog:",
 		"@base-ui/react": "catalog:",
 		"@nie/asset-source": "workspace:*",
 		"@nie/game": "workspace:*",

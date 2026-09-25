@@ -22,6 +22,8 @@ export {
   callOut,
   cstr,
   SO_PATH,
+  nativeAvailable,
+  NativeLibraryError,
   type FormatInfo,
   type VfsEntry,
 } from "@aphrody/nie";

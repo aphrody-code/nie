@@ -7,7 +7,6 @@
 		"dev": "bun run --cwd ../nie-web dev:desktop",
 		"build": "bun run --cwd ../nie-web build:desktop",
 		"preview": "bun run --cwd ../nie-web preview:desktop",
-		"typecheck": "true",
 		"tauri": "tauri"
 	},
 	"dependencies": {
