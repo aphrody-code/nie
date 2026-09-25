@@ -9,7 +9,7 @@ belongs where someone comes looking for it.
 `127.0.0.1:8085` behind nginx and TLS. `aphrody.com` and `www.` answer a `308` to it and hold
 nothing themselves.
 
-The name **Aphrody** stays with [`aphrody-code/aphrody`](https://github.com/aphrody-code/aphrody);
+The name **Aphrody** stays with the [`aphrody-code/aphrody-*`](https://github.com/aphrody-code) repositories;
 only the *character* keeps it here (`crates/engine/nie-aphrody`, the pet routes, the auras).
 `pages::SITE` is the single source for the site's own name, and `SUFFIXE_TITRE` derives from the
 same token, so a rename cannot miss one.

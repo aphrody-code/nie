@@ -93,7 +93,7 @@ that drifts.
   publishes as a backend (`/api/`, `/cdn/`, bearer-gated `/f` and `/b`, `/health`, the Inacord
   updater feed; `/` answers 404). `aphrody.com` belongs to the separate Aphrody product.
   **Aphrody** is a character — `crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
-  Byron Love — and the name of the separate `aphrody-code/aphrody` repository. It is never the
+  Byron Love — and the name of the separate `aphrody-code/aphrody-*` repositories. It is never the
   name of this site. `routes::pages::SITE` is the single source for that name.
 - The origin publishes **no identity and no fingerprint**: no GitHub link, no contact, no
   service name, no version, in any served response. Before adding a field to a public DTO, ask

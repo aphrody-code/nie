@@ -56,8 +56,8 @@ cargo build --release -p nie-cli     # the CLI, ~5 min cold
 Three things this repository assumes and does not install for you:
 
 - the toolchain pinned by `rust-toolchain.toml`, and `mold` as linker;
-- the sibling private repository `../aphrody`, a `path` dependency — without it `cargo metadata`
-  fails before the first compilation;
+- the sibling private repository `../iecode` (the `iecode-*` crates), a `path` dependency —
+  without it `cargo metadata` fails before the first compilation;
 - your own copy of the game, pointed at by `NIE_GAME_DIR`, for anything that reads the VFS.
 
 Tests that need the game are feature-gated (`--features real-fixtures`, `real-saves`) or skipped.

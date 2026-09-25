@@ -15,7 +15,7 @@ Formalized by the `yolo` skill (`.agents/skills/yolo/SKILL.md`, pinned to `aphro
 - **Names.** The site is **nie**; its only public name is `nie.aphrody.com`, published by the
   aphrody-infra vhost as a backend (`/api/`, `/cdn/`, gated `/f` `/b`, `/health`, the Inacord
   updater feed; `/` answers 404 there). `aphrody.com` is the separate Aphrody product. **Aphrody** is a character (`crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
-  Byron Love) and the name of the separate `aphrody-code/aphrody` repository — never the name
+  Byron Love) and the name of the separate `aphrody-code/aphrody-*` repositories — never the name
   of this site. `pages::SITE` is the single source for it; `SUFFIXE_TITRE` derives from the
   same token, so a rename cannot miss one.
 - **The origin publishes no identity and no fingerprint.** No GitHub link, no contact, no
@@ -482,7 +482,7 @@ names the wrong culprit.
   from npm instead: `bun add -g binaryen`. Do **not** skip the step: the script
   validates the module and enforces a byte budget on the optimized output.
 - `wasm-bindgen` CLI must match the workspace pin exactly (0.2.128 here, the same pin as
-  `aphrody` and `aphrody-os`); the build refuses a mismatch by design. Install it with
+  `aphrody-ai`, `aphrody-ui` and `aphrody-compat`); the build refuses a mismatch by design. Install it with
   `cargo install wasm-bindgen-cli --version 0.2.128 --locked`.
 
 Measured end state: `bun run build` exits 0 and writes `apps/nie-web/dist/`

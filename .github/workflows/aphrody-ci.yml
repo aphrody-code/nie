@@ -12,4 +12,4 @@ permissions:
 
 jobs:
   aphrody:
-    uses: aphrody-code/aphrody/.github/workflows/aphrody-reusable-ci.yml@7394f2e57c9be15f464dbf9277f38a305cc89d74
+    uses: aphrody-code/aphrody-ai/.github/workflows/aphrody-reusable-ci.yml@34e110340e718ceb7004fe5700e2c75b63eef5a6

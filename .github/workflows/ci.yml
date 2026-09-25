@@ -1,11 +1,13 @@
 # CI nie — runner SELF-HOSTED obligatoire.
 #
 # POURQUOI PAS UN RUNNER GITHUB
-# Le dépôt dépend en `path` du dépôt frère `../aphrody` (8,1 Gio, privé) : sans lui,
+# Le dépôt dépend en `path` du dépôt frère `../iecode` (privé, `aphrody-code/iecode-csharp`,
+# qui porte les crates `iecode-*` : re, sql, video, emu, geom, tasks) : sans lui,
 # `cargo metadata` échoue avant même la première compilation. La toolchain est épinglée
 # par `rust-toolchain.toml` (stable 1.98.1), le linker est mold, et les fixtures
-# lourdes sont gitignorées. Vendoriser 8 Gio pour chaque exécution coûterait plus cher
-# que ce que la CI vérifie.
+# lourdes sont gitignorées. Cloner un dépôt privé à chaque exécution demanderait un jeton
+# de lecture dans un dépôt public ; le runner auto-hébergé doit donc avoir l'arbre frère
+# à côté du checkout, ce que le pré-vol du job vérifie.
 #
 # POURQUOI LA PORTE EST CADRÉE, ET POURQUOI ELLE RESTE UN SEUL JOB
 # Le dépôt publie cinq surfaces (cli, mcp, site, desktop, model) et elles partagent
@@ -113,7 +115,7 @@ jobs:
         run: |
           cargo --version
           command -v mold    || { echo 'mold absent'; exit 1; }
-          test -d ../aphrody || { echo 'dépendance path ../aphrody absente'; exit 1; }
+          test -f ../iecode/Cargo.toml || { echo 'dépendance path ../iecode absente'; exit 1; }
           # Desktop is a root workspace member; its Linux system libraries are required.
           pkg-config --exists gtk+-3.0 webkit2gtk-4.1 || { echo 'Desktop GTK/WebKit system libraries absent'; exit 1; }
           test -f Cargo.lock && test ! -f apps/inacord/src-tauri/Cargo.lock || { echo 'Expected one root Cargo.lock'; exit 1; }

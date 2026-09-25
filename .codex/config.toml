@@ -30,12 +30,12 @@ args = []
 [mcp_servers.nie-game.env]
 NIE_APHRODY_API_URL = "http://127.0.0.1:8085"
 
-# aphrody-mcp — binaire Rust unique (crate google_mcp du depot frere
-# github.com/aphrody-code/aphrody, installe via `cargo install --path
-# crates/google_mcp` -> ~/.cargo/bin, donc pas de chemin machine ici) :
+# aphrody-mcp — binaire Rust unique (crate aphrody-mcp du depot frere
+# github.com/aphrody-code/aphrody-ai, installe via `cargo install --path
+# crates/aphrody-mcp` -> ~/.cargo/bin, donc pas de chemin machine ici) :
 # 42 outils (RE triage, recon reseau, voix, docs Context7/MS Learn, Gemini
 # web, Adobe Firefly/Photoshop). Cf. plugins/aphrody/.claude-plugin/plugin.json
-# dans le depot aphrody pour le detail des outils.
+# dans le depot aphrody-os pour le detail des outils.
 [mcp_servers.aphrody]
 command = "aphrody-mcp"
 args = []
@@ -51,7 +51,7 @@ default_tools_approval_mode = "writes"
 [plugins."nie@nie-marketplace"]
 enabled = true
 
-[plugins."aphrody@aphrody-marketplace"]
+[plugins."aphrody@aphrody-os"]
 enabled = false
 
 [plugins."frontend-design@claude-plugins-official"]

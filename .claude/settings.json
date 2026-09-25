@@ -35,7 +35,7 @@
   },
   "enabledPlugins": {
     "nie@nie-marketplace": true,
-    "aphrody@aphrody-marketplace": false,
+    "aphrody@aphrody-os": false,
     "frontend-design@claude-plugins-official": false
   },
   "extraKnownMarketplaces": {
@@ -45,10 +45,10 @@
         "path": "/home/ubuntu/nie/plugins"
       }
     },
-    "aphrody-marketplace": {
+    "aphrody-os": {
       "source": {
         "source": "directory",
-        "path": "../aphrody/.claude/plugins"
+        "path": "../aphrody-os"
       }
     }
   }

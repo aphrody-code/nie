@@ -11,7 +11,7 @@ contact_links:
     about: Pour « comment faire », « est-ce que c'est possible », « pourquoi ce choix ».
   - name: Avant de signaler — les pièges d'environnement déjà connus
     url: https://github.com/aphrody-code/nie/blob/main/CONTRIBUTING.md#setting-up
-    about: VFS non monté, NIE_GAME_DIR absente, feature Cargo éteinte, dépendance ../aphrody manquante.
+    about: VFS non monté, NIE_GAME_DIR absente, feature Cargo éteinte, dépendance ../iecode manquante.
   - name: Contenu du jeu (assets, textes, tables)
     url: https://github.com/aphrody-code/nie/blob/main/NOTICE
     about: Ce dépôt ne redistribue aucun contenu LEVEL-5 et n'accepte aucune contribution qui en ajoute.
