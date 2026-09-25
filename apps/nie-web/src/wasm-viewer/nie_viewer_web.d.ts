@@ -160,10 +160,10 @@ export interface InitOutput {
     readonly modelviewer_set_wireframe: (a: number, b: number) => void;
     readonly modelviewer_stage_asset: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly start: () => void;
-    readonly __wasm_bindgen_func_elem_7089: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_7110: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_1532: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_1532_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_7099: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_7120: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_1535: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_1535_25: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

@@ -1219,6 +1219,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly __wasm_start: () => void;
     readonly __wbg_menucomposer_free: (a: number, b: number) => void;
     readonly __wbg_menuscreenbuilder_free: (a: number, b: number) => void;
     readonly __wbg_modelrenderer_free: (a: number, b: number) => void;
@@ -1268,6 +1269,7 @@ export interface InitOutput {
     readonly g4tx_to_png: (a: number, b: number, c: number) => void;
     readonly headless_inspect_json: (a: number, b: number, c: number) => void;
     readonly ievr_pe_inspect_json: (a: number, b: number, c: number) => void;
+    readonly init_panic_hook: () => void;
     readonly initial_vfs_plan_json: (a: number, b: number, c: number) => void;
     readonly input_command_for_key: (a: number, b: number, c: number) => void;
     readonly is_lua_bytecode: (a: number, b: number) => number;
@@ -1316,6 +1318,7 @@ export interface InitOutput {
     readonly net_generate_inacode: (a: number, b: number) => void;
     readonly net_rank_tier_info: (a: number, b: number) => void;
     readonly net_state_hash: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly net_tournament_circuit_points: (a: number, b: number) => number;
     readonly net_validate_clan_tag: (a: number, b: number) => number;
     readonly net_verify_scores: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly offline_image_inspect_json: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -1423,13 +1426,10 @@ export interface InitOutput {
     readonly webgpuviewer_set_wireframe: (a: number, b: number) => void;
     readonly webgpuviewer_stage_asset: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly zukan_rank_json: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
-    readonly __wasm_start: () => void;
-    readonly init_panic_hook: () => void;
-    readonly net_tournament_circuit_points: (a: number, b: number) => number;
-    readonly __wasm_bindgen_func_elem_4585: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_4600: (a: number, b: number, c: number, d: number) => void;
-    readonly __wasm_bindgen_func_elem_3594: (a: number, b: number, c: number) => void;
-    readonly __wasm_bindgen_func_elem_3594_2: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_4588: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_4603: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_3597: (a: number, b: number, c: number) => void;
+    readonly __wasm_bindgen_func_elem_3597_199: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;
