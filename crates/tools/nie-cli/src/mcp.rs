@@ -1092,12 +1092,12 @@ impl NieMcpServer {
 
 #[tool_handler(router = Self::all_tools())]
 impl ServerHandler for NieMcpServer {
-    fn get_info(&self) -> rmcp::model::ServerInfo {
+    fn get_info(&self) -> rmcp::model::ServerConfig {
         let mut implementation = rmcp::model::Implementation::default();
         "nie-game".clone_into(&mut implementation.name);
         env!("CARGO_PKG_VERSION").clone_into(&mut implementation.version);
 
-        let mut info = rmcp::model::ServerInfo::default();
+        let mut info = rmcp::model::ServerConfig::default();
         info.protocol_version = rmcp::model::ProtocolVersion::V_2024_11_05;
         info.capabilities = rmcp::model::ServerCapabilities::builder()
             .enable_tools()
