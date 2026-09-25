@@ -95,7 +95,7 @@ body {
 	/* ── M3 complété : trios rôle/on-rôle/rôle-container, error, inverse, surface, outline ─────
 	 *
 	 * Le bloc precedent ne couvrait que 7 rôles M3 ; le même balayage sur TOUS les composants
-	 * (`rg -o '(bg|text|border|...)-[a-z...]*' packages/inacord-ui/src/components`, filtré des
+	 * (`rg -o '(bg|text|border|...)-[a-z...]*' apps/nie-web/src/inacord/components`, filtré des
 	 * utilitaires natifs Tailwind et des faux positifs de la regex — `text-menu-*` et
 	 * `--radix-*-transform-origin` tronqués, `shadow-intensity` un attribut `<model-viewer>`,
 	 * `border-color`/`border-radius` des noms de propriété CSS littéraux dans une chaîne JS, pas

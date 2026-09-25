@@ -32,7 +32,7 @@
  * named here, once. Scanning only the facade files of the shared UI packages would omit the
  * classes their compatibility entries re-export. */
 @source ".";
-@source "../../../packages/inacord-ui/src";
+@source "./inacord";
 @source "../../../rg/packages/ui/src/components";
 @source "../node_modules/@spacedrive/primitives/dist";
 

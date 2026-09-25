@@ -67,7 +67,7 @@ plugins/**      linguist-documentation=true
 # `game-tokens.css` et `game-screens.css` sont produits par nie-aphrody/nie-ui et vérifiés
 # par une comparaison d'octets bruts. Sans cette déclaration, `core.autocrlf=true` les
 # réécrit en CRLF au checkout et le golden rougit sur une fin de ligne, pas sur une couleur.
-packages/inacord-ui/src/shell/*.css     text eol=lf
+apps/nie-web/src/inacord/shell/*.css text eol=lf
 
 # Aphrody package descriptors are byte-hashed by the Rust integration test.
 crates/engine/nie-aphrody/assets/aphrody/pet.json         text eol=lf

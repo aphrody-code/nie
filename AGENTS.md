@@ -31,7 +31,7 @@ owning document under `docs/`, history in `CHANGELOG.md` and the dated plans und
   follow the aphrody-infra runbook.
 - `apps/nie-web`: common Vite frontend, including the desktop adapter in `src/desktop`;
   `apps/inacord`: Tauri host and compatibility entrypoints.
-- `packages/inacord-ui` and `packages/asset-source`: shared UI and asset-source contracts.
+- `apps/nie-web/src/inacord` (alias `@nie/inacord-ui`): shared UI; `packages/asset-source`: asset-source contract.
 - `crates/tools/nie-site` and `crates/tools/nie-wiki`: the Rust wiki/site and read-only mirror owner.
 - `data/` and `var/`: game assets and measurements; do not commit copyrighted game dumps or
   generated bulk data unless the repository explicitly tracks that exact artifact.
@@ -126,7 +126,7 @@ entries, a `robots.txt` allowance and a mounted manifest route.
 
 **Interface text comes from the game's own `.cfg.bin`, never from a translation written here.**
 `useGameText` / `<GameText>` resolve a hand-written label to the line the game ships, in the
-chosen language, through the batch GraphQL `texts` field; `packages/inacord-ui/src/lib/ui-text-map.ts`
+chosen language, through the batch GraphQL `texts` field; `apps/nie-web/src/inacord/lib/ui-text-map.ts`
 is the measured map behind it and is GENERATED, not edited. A page title does the same on the
 server when the game names the page — `Entree` records the reference it was read from.
 

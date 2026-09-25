@@ -86,6 +86,7 @@ export function createFrontendConfig({ mode }: ConfigEnv): UserConfig {
 			alias: {
 				"#nie-host": fileURLToPath(new URL(desktop ? "./src/desktop/DesktopHost.tsx" : "./src/BrowserHost.tsx", import.meta.url)),
 				"@": fileURLToPath(new URL("./src/desktop", import.meta.url)),
+				"@nie/inacord-ui": fileURLToPath(new URL("./src/inacord", import.meta.url)),
 				...browserShimAliases,
 			},
 		},

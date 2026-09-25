@@ -10,7 +10,11 @@
 		"moduleDetection": "force",
 		"noUncheckedIndexedAccess": false,
 		"baseUrl": ".",
-		"paths": { "@/*": ["./src/desktop/*"] }
+		"paths": {
+			"@/*": ["./src/desktop/*"],
+			"@nie/inacord-ui": ["./src/inacord/index.ts"],
+			"@nie/inacord-ui/*": ["./src/inacord/*"]
+		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "vite.config.ts"]
 }

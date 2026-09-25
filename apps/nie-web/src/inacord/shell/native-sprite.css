@@ -1,0 +1,17 @@
+/* Geometry is expressed in the enclosing GameCanvas's native coordinate system. */
+.native-sprite {
+	position: absolute;
+	display: block;
+	box-sizing: border-box;
+	max-width: none;
+	max-height: none;
+	pointer-events: none;
+	user-select: none;
+	mask-size: 100% 100%;
+	mask-repeat: no-repeat;
+}
+
+/* Input state chooses an authored region in the component; CSS never recolors native art. */
+.native-sprite[data-native-asset-state="failed"] {
+	visibility: hidden;
+}
