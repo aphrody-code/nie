@@ -63,7 +63,7 @@ schemars = { version = "1" }
 # Official Rust SDK for the Model Context Protocol. Keep the same reviewed
 # revision as the production aphrody-mcp sibling until the native nie MCP
 # compatibility suite authorises an SDK upgrade.
-rmcp = { version = "1.8.0" }
+rmcp = { version = "2.2.0" }
 
 # base de connaissance + frontière
 rusqlite = { version = "0.37" }
