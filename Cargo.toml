@@ -149,6 +149,8 @@ nie-headless = { version = "1.0.0", path = "crates/engine/nie-headless", default
 nie-save = { version = "1.0.0", path = "crates/engine/nie-save" }
 nie-wiki = { version = "1.0.0", path = "crates/tools/nie-wiki" }
 nie-core = { version = "1.0.0", path = "crates/engine/nie-core" }
+# CPU rasterizer shared with the Aphrody 3D stack (owner: aphrody-ui). Dependency-free leaf crate.
+aphrody-softraster = { version = "1.0.0-canary", path = "../aphrody-ui/crates/aphrody-softraster" }
 nie-bevy = { version = "1.0.0", path = "crates/engine/nie-bevy", default-features = false }
 nie-data = { version = "1.0.0", path = "crates/engine/nie-data" }
 nie-ocgen = { version = "1.0.0", path = "crates/engine/nie-ocgen" }

@@ -257,6 +257,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "aphrody-softraster"
+version = "1.0.0-canary"
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6043,6 +6047,7 @@ name = "nie-render3d"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "aphrody-softraster",
  "bcdec_rs",
  "bytemuck",
  "clap",

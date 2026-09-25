@@ -203,25 +203,27 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
     px
 }
 
+/// Vue empruntée d'une [`Texture`] pour le rastériseur partagé `aphrody-softraster`.
+fn view(t: &Texture) -> aphrody_softraster::TextureView<'_> {
+    aphrody_softraster::TextureView {
+        width: t.width,
+        height: t.height,
+        rgba: &t.rgba,
+    }
+}
+
 /// Échantillonnage nearest d'une texture en UV [0,1] (CLAMP_TO_EDGE) → RGBA.
 pub(crate) fn sample(t: &Texture, u: f32, v: f32) -> [u8; 4] {
-    let uu = u.clamp(0.0, 1.0);
-    let vv = v.clamp(0.0, 1.0);
-    // Convention nearest : texel = floor(uv * dim), borné à dim-1 (le cas uv==1 retombe sur le dernier).
-    let x = ((uu * t.width as f32) as u32).min(t.width.saturating_sub(1));
-    let y = ((vv * t.height as f32) as u32).min(t.height.saturating_sub(1));
-    let idx = ((y * t.width + x) * 4) as usize;
-    [
-        t.rgba[idx],
-        t.rgba[idx + 1],
-        t.rgba[idx + 2],
-        t.rgba[idx + 3],
-    ]
+    aphrody_softraster::sample_nearest(&view(t), u, v)
 }
+
+/// Couleur argile (avant `shade`) des primitives non texturées.
+const ARGILE: [f32; 3] = [206.0, 198.0, 188.0];
 
 /// Remplit un triangle écran (barycentrique) avec test/écriture z-buffer. Si `tex` est fourni,
 /// échantillonne la texture en UV **perspective-correct** (pondéré par 1/profondeur) et applique
 /// `shade` (Lambert) ; sinon remplit en argile teintée. Cutout : texel d'alpha < 8 ignoré.
+/// Le rastériseur lui-même vit dans `aphrody-softraster` (propriétaire : `aphrody-ui`).
 #[allow(clippy::too_many_arguments)]
 fn fill_triangle(
     px: &mut [u8],
@@ -235,54 +237,8 @@ fn fill_triangle(
     tex: Option<&Texture>,
     shade: f32,
 ) {
-    let minx = a.0.min(b.0).min(c.0).floor().max(0.0) as i32;
-    let maxx = a.0.max(b.0).max(c.0).ceil().min(w as f32 - 1.0) as i32;
-    let miny = a.1.min(b.1).min(c.1).floor().max(0.0) as i32;
-    let maxy = a.1.max(b.1).max(c.1).ceil().min(h as f32 - 1.0) as i32;
-    let area = (b.0 - a.0) * (c.1 - a.1) - (b.1 - a.1) * (c.0 - a.0);
-    if area.abs() < 1e-6 {
-        return;
-    }
-    let inv_area = 1.0 / area;
-    let clay = [206.0 * shade, 198.0 * shade, 188.0 * shade]; // fallback non texturé
-    for y in miny..=maxy {
-        for x in minx..=maxx {
-            let fx = x as f32 + 0.5;
-            let fy = y as f32 + 0.5;
-            let w0 = ((b.0 - fx) * (c.1 - fy) - (b.1 - fy) * (c.0 - fx)) * inv_area;
-            let w1 = ((c.0 - fx) * (a.1 - fy) - (c.1 - fy) * (a.0 - fx)) * inv_area;
-            let w2 = 1.0 - w0 - w1;
-            if w0 < 0.0 || w1 < 0.0 || w2 < 0.0 {
-                continue;
-            }
-            let depth = 1.0 / (w0 / a.2 + w1 / b.2 + w2 / c.2);
-            let zi = (y as u32 * w + x as u32) as usize;
-            if depth >= zbuf[zi] {
-                continue;
-            }
-            let col = if let Some(t) = tex {
-                // Interpolation perspective-correct : on pondère u/z, v/z et 1/z.
-                let invz = w0 / a.2 + w1 / b.2 + w2 / c.2;
-                let u = (w0 * uv[0][0] / a.2 + w1 * uv[1][0] / b.2 + w2 * uv[2][0] / c.2) / invz;
-                let v = (w0 * uv[0][1] / a.2 + w1 * uv[1][1] / b.2 + w2 * uv[2][1] / c.2) / invz;
-                let s = sample(t, u, v);
-                if s[3] < 8 {
-                    continue; // texel transparent (cheveux/visage en cartes alpha)
-                }
-                [
-                    (f32::from(s[0]) * shade) as u8,
-                    (f32::from(s[1]) * shade) as u8,
-                    (f32::from(s[2]) * shade) as u8,
-                    255,
-                ]
-            } else {
-                [clay[0] as u8, clay[1] as u8, clay[2] as u8, 255]
-            };
-            zbuf[zi] = depth;
-            let i = zi * 4;
-            px[i..i + 4].copy_from_slice(&col);
-        }
-    }
+    let tex = tex.map(view);
+    aphrody_softraster::fill_triangle(px, zbuf, w, h, a, b, c, uv, tex.as_ref(), shade, ARGILE);
 }
 
 #[cfg(test)]

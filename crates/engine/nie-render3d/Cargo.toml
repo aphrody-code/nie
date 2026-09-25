@@ -20,6 +20,7 @@ workspace = true
 
 [dependencies]
 nie-core.workspace = true
+aphrody-softraster.workspace = true
 # L'algèbre : une seule arithmétique matricielle, en `scalar-math` (SIMD désactivé) pour que
 # l'ordre des opérations flottantes reste figé sur le chemin de fidélité.
 glam.workspace = true
