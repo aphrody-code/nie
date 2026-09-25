@@ -6,7 +6,7 @@
 # d'environnement, jamais par un réglage versionné.
 
 [build]
-rustc-wrapper = "sccache"
+# rustc-wrapper = "sccache"  # disabled: sccache is a no-op on the dev host; opt in with RUSTC_WRAPPER=sccache
 # v0 mangling = symboles démanglés lisibles dans les stacktraces et les outils de RE.
 rustflags = ["-C", "symbol-mangling-version=v0", "-A", "linker_messages"]
 # Keep dep-info paths relative to the workspace so local and CI compiler caches remain reusable
