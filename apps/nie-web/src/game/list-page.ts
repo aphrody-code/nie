@@ -33,7 +33,9 @@
  * Donc : ne pas porter ce module en Rust tel quel. Ce n'est pas une constante à corriger, c'est
  * une structure d'état à reprendre. En attendant, `listPage` reste une pagination d'HÔTE
  * assumée, correcte pour l'usage qu'en font les écrans, et qui ne prétend plus reproduire le
- * jeu. Désassemblage, bornes des fragments et disposition des champs dans `PLAN.md`.
+ * jeu. Désassemblage et bornes des fragments : `docs/archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md`
+ * § « Pillar 3 — how much of the game is actually painted » ; disposition des champs :
+ * `docs/re/cmenulistview-fields.md`.
  */
 
 /** Une page de liste : son rang, son contenu, et le curseur ramené dans les bornes. */

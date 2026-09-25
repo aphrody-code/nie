@@ -177,7 +177,8 @@ Le sous-système réseau (`crates/engine/nie-net`) unifie l'ingénierie inversé
 
 - **Lancement du serveur de session / hub multijoueur (`server`)** :
   ```bash
-  nie net server --addr 0.0.0.0:8085 --tick-rate 60
+  nie net server                          # 127.0.0.1:8796 (nie_net::DEFAULT_BIND)
+  nie net server --bind 0.0.0.0:8796      # explicit, to listen beyond the machine
   ```
   Démarre le hub multijoueur synchrone cadencé à 60 Hz avec gestionnaire de lobbys Inacode et file d'attente ELO.
 

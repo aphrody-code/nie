@@ -212,3 +212,22 @@ Trois conséquences mesurées, à traiter comme des chantiers et non comme des p
 
 Deux surfaces d'assemblage ne sont **pas** exposées par `/api/v1/3d/modeles` : `/model-avatar/`
 (le seul chemin non-`perso` qui remplit `aux_textures`) et `/model-edit/` (une pièce isolée).
+
+## Audio and video counts — measured 2026-09-20
+
+Moved from the archived plan
+([`PLAN-2026-09-08-to-25.md`](archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md), section "Azalée
+absorption parity gate"). Do not conflate these API counts with the numbers printed on the old
+Azalée screenshots:
+
+- `/api/v1/sons` lists **11 024 files = 5 512 ACB/AWB pairs** (one bank is two files; 284 115 cues).
+- `/api/v1/videos` lists **194 USM paths, paired into 97 distinct names**.
+  `/assets/video/catalog.json` independently holds the same **97** semantic films (15 categories,
+  nine languages, 30 external soundtracks, two films with embedded audio).
+- **The 98th film is unexplained.** The surviving Azalée capture shows 98; no unmatched
+  `dx11`-only film accounts for it and the extra identifier/version has not been recovered.
+  Neither 98 nor the older 190 raw-USM count is hardcoded anywhere — keep it that way.
+
+**Ownership.** The Rust site and wiki (`nie-data`, `nie-formats`, `nie-core`, `nie-wiki`,
+`nie-site`) are the only owners of IEVR data. Bun code is limited to thin host bindings and must
+never query the IEVR mirror directly or call a remote wiki.

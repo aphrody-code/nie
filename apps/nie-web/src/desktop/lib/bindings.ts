@@ -744,7 +744,8 @@ export const commands = {
 	 *  Décode n'importe quel format audio Criware du VFS (`.acb`/`.awb`/`.hca`/`.adx`, dispatch par
 	 *  magic) en WAV PCM16, base64 — `nie_formats::cri_audio::decode_to_wav` (feature `audio-decode`,
 	 *  `cridecoder` + `IEVR_HCA_KEY` reversé de `nie.exe`, vérifié byte-exact sur `c00001001.awb`
-	 *  (48 kHz mono, non silencieux) — cf. `docs/PLAN.md` § C1).
+	 *  (48 kHz mono, non silencieux) — cf. `docs/ROADMAP-100.md` § A2 du pilier C1, retiré le
+	 *  2026-08-11 : `git show 07a18cb9^:docs/ROADMAP-100.md`).
 	 *
 	 *  Décodage lancé sur un THREAD DÉDIÉ à pile de 16 Mio : trouvé par test réel (pas supposé) —
 	 *  `cridecoder` fait un vrai `STATUS_STACK_OVERFLOW` sur la pile debug par défaut (~1 Mio

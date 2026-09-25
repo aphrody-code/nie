@@ -435,9 +435,11 @@ this directory as its working directory.
   native route's VFS closure. Returns a heap `CString` (`ReplayOutput` JSON, or
   `{"error": "..."}`) — call `nie_lua_web_free_string` on the result exactly once.
 
-Localized menu text (`load_menu_text` on the native site) is **not yet wired**: this first
-bring-up always replays with an empty text map. That is a known, explicit gap, not a silent
-approximation.
+Localized menu text (`load_menu_text` on the native site) was **not wired** in the first
+bring-up (2026-09-12). Since 2026-09-13 `nie_lua_web_load_text(json)` receives the
+`[[hash, line], …]` table; `apps/nie-web/src/game/lua-runtime.ts` fetches it from
+`/api/v1/text/{locale}/menu_text` (every page) and hands it over before `replay`. See "Known gaps"
+for the locale it still hardcodes.
 
 ## Generalised beyond menu screens (2026-09-12)
 
@@ -448,7 +450,7 @@ per-family Lua host in `nie-lua` yet). A missing `*_setting.cfg.bin` is treated 
 layer list, not a hard error, so non-menu families can still be replayed for their
 callback/host-call surface — though `nie_lua::menu_runtime::replay` itself still requires a
 **non-empty** layer list, so a family with no menu config will report `"Invalid menu layer
-count"` until `nie-lua` grows a non-menu replay entry point (see `PLAN.md`).
+count"` until `nie-lua` grows a non-menu replay entry point (tracked in the root `PLAN.md`).
 
 ## JS/Bun glue (`js/nie-lua-web.ts`)
 
@@ -465,7 +467,7 @@ correctly for any call path that stays in pure-Rust validation:
 `replay("!!!", "{}")` → `{"error":"invalid menu screen"}`;
 `replay("nonexistent_screen_xyz", "{}")` → `{"error":"script not loaded for screen: ..."}`.
 
-## Differential proof (`scripts/differential.ts`) — measured 0/14
+## Differential proof (`scripts/differential.ts`) — measured 0/14 on 2026-09-12 (historical)
 
 Run against the live site (`127.0.0.1:8085`) for the 14 `runtime_matrix.results` families in
 `data/menu/manifest.json`, having registered all 651 `.lua.bin` under
@@ -489,14 +491,33 @@ imports this module declares. This crate's hand-written JS glue stubs
 `__cxa_find_matching_catch_3` to always report "no match" and does not re-throw through nested
 `invoke_*` frames the way emscripten's real JS runtime does, so `catch_unwind` never finds its
 landing pad and the panic escapes as a genuine `abort()`. This is a JS-glue gap, not a bug in
-`nie-lua`/`mlua` itself. See `PLAN.md`'s "Real Lua 5.2.4 VM in the browser" section for the
-two candidate fixes (port emscripten's real exception runtime, or force `panic = "abort"`
-end-to-end) and the ranked list of what is still missing to turn this bring-up into a shipped
-browser feature.
+`nie-lua`/`mlua` itself. The two candidate fixes considered then (port emscripten's real
+exception runtime, or force `panic = "abort"` end-to-end) and the ranked list of what was missing
+are preserved in the archived plan,
+[`PLAN-2026-09-08-to-25.md`](../../../docs/archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md),
+section "Real Lua 5.2.4 VM in the browser (`nie-lua-web`)". **This section is historical:** the
+abort was fixed on 2026-09-13 by compiling the vendored Lua as C (`vendor/lua-src`), and the
+differential stands at 10/14 — see "The differential: 10/14 identical" above.
 
-## Known gaps (be honest about these)
+## Known gaps (be honest about these) — revised 2026-09-25
 
-- `wasm-opt` was not run on the release artifact in this pass (binaryen not installed on this
-  box within the time box); the 867,690-byte figure above is raw rustc/emcc output.
-- Localized text is stubbed to empty, see above.
-- 0/14 families reach a comparable `MenuScene` today — see the differential section above.
+- **The differential is 10/14, and 10 is its floor.** `scripts/differential.ts` exits non-zero
+  below `NIE_DIFFERENTIAL_FLOOR` (default `10`); raise the variable when the count rises. The
+  remaining divergent screens differ on `$.scene…objects….text`, and `shop_menu` has no top-level
+  script on either host (see "The differential" above). Before reading a gap as a logic bug, rule
+  out this target's 32-bit `lua_Integer`: half of the game's CRC-32 keys exceed `i32::MAX`.
+- **The locale is still hardcoded.** The `nie_lua_web_load_text` ABI exists and is wired, but
+  `apps/nie-web/src/game/lua-runtime.ts` passes `"fr"` to `ensureVfsArchive`, to `menuTextLines`
+  and in the replay request (`{ locale: "fr" }`), so every browser replays the French table
+  whatever the page language.
+- **The five leading missing globals are neither Lua nor binary** (measured 2026-09-13): they have
+  **0 `SETTABUP _ENV`** across the 651 VFS `.lua.bin` scripts, and neither their names nor their
+  CRC-32 appear in `nie.exe`. Either the game does not hash them with `zlib.crc32`, or it stores
+  the names another way; settling it means reversing the game VM's global dispatcher, not another
+  corpus survey.
+- `wasm-opt` was not run on the first bring-up artefacts (867 690 / 870 393 bytes, raw rustc/emcc
+  output). The module published at `apps/nie-web/public/static/game/nie_lua_web.wasm` measures
+  887 551 bytes (2026-09-22). It sits outside the build chain because it needs emsdk, which is why
+  it can go stale; `lua-runtime.test.ts` is the (directional) check. It is already stale on one
+  count: it exports `nie_lua_web_load_text` but not `nie_lua_web_readiness_json`, which
+  `src/lib.rs` defines (`grep -a -c` on the module: 1 and 0, 2026-09-25).

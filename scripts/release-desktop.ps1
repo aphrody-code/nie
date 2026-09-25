@@ -242,7 +242,7 @@ Assert-Exit "git push origin $Tag"
 Write-Host "▸ [8/8] GitHub Release $Tag (upload msi+nsis+sig+blender zip)…"
 & gh release create $Tag `
     --title "nie $Tag" `
-    --notes "App desktop (Tauri v2) signée minisign + extension Blender v$BlenderVersion. Détail : docs/PLAN.md, apps/inacord/ROADMAP.md." `
+    --notes "App desktop (Tauri v2) signée minisign + extension Blender v$BlenderVersion. Détail : PLAN.md, apps/README.md." `
     $Msi "$Msi.sig" $Nsis "$Nsis.sig" $BlenderZip
 Assert-Exit 'gh release create'
 

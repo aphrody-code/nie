@@ -93,7 +93,7 @@ else:
 
 # nie_bridge : panneau de recherche de fichiers VFS (`nie vfs find --json`) + import direct
 # du résultat sélectionné — pont natif nie.exe <-> Blender, ajouté 2026-08-08 (demande
-# utilisatrice « lier au max Blender et nie », cf. docs/PLAN.md du repo nie). Le `-j/--json`
+# utilisatrice « lier au max Blender et nie », cf. plugins/nie-blender/NIE_VENDORING_NOTE.md). Le `-j/--json`
 # de `nie vfs find` référence CE fichier depuis avant qu'il n'existe (cf. crate `nie-cli`,
 # doc-comment "pour consommation programmatique (ex. nie_bridge.py de l'addon Blender
 # plugins/nie-blender)") — l'intention existait côté Rust, ce module la concrétise côté Blender.

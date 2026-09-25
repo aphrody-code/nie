@@ -304,7 +304,7 @@ const hash = net_state_hash(BigInt(120), 0.0, 15.2, 2, 1);
 
 Le binaire CLI universel `nie` fournit la suite de commandes d'administration et de test :
 
-- **`nie net server`** : Démarre le serveur local de matchmaking et de simulation déterministe (`--addr 0.0.0.0:8085 --tick-rate 60`).
+- **`nie net server`** : Démarre le serveur local de matchmaking et de simulation déterministe (`--bind`, default `127.0.0.1:8796` = `nie_net::DEFAULT_BIND`; loopback only unless an explicit address is given).
 - **`nie net room create`** : Instancie une salle de match Inacode (`--mode 1v1 --name "Tournoi" --slots 2`).
 - **`nie net sim-match`** : Exécute une simulation déterministe à 60 Hz entre deux bots avec validation du zéro-desync (`--ticks 120`).
 - **`nie net challenge create <HOST> <OPPONENT>`** : Émet un code de défi de 8 caractères Base-32 avec expiration TTL de 30 min.

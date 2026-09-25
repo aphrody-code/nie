@@ -1,5 +1,5 @@
 # justfile — orchestrateur de la stack RE nie.
-# Requiert `just` (cargo install just). Toolchain nightly-2026-05-17 (cf rust-toolchain.toml).
+# Requiert `just` (cargo install just). Toolchain stable 1.98.1, pinned by rust-toolchain.toml.
 # Variables surchargeables : `just exe=/autre/nie.exe re-all`, ou via env NIE_GAME_DIR.
 
 set shell := ["bash", "-uc"]

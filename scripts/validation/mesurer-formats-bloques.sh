@@ -9,8 +9,8 @@
 #
 # ## Pourquoi ce script existe
 #
-# C'est la QUATRIEME fois que ce depot classe `bloque` un format qu'il sait lire (§ 9 bis du cap
-# pour `.g4ma`/`.g4vs`/`.g4la`, puis les `.bin`, puis les shaders). Le defaut se repete parce
+# C'est la QUATRIEME fois que ce depot classe `bloque` un format qu'il sait lire (§ 9 bis de
+# docs/archive/plans/2026-09-08/SITE-COVERAGE-PLAN.md, pour `.g4ma`/`.g4vs`/`.g4la`, puis les `.bin`, puis les shaders). Le defaut se repete parce
 # que le classement se fait sur l'EXTENSION et que la lecture se fait sur le MAGIC : un
 # `.pfxo` ressortait « ni magic connu » en publiant `44 58 42 43` — c'est-a-dire `DXBC` en
 # ASCII. Le message d'erreur portait la refutation de ce qu'il affirmait.

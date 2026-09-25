@@ -83,7 +83,7 @@ Placeholders runtime dans les chemins : `<LG>` (langue), `<EVENT>`, `<SHADER_VER
 Les **9 `.g4tg`** restent sans interprétation publiée (0,00 % du VFS) : leur charge utile et
 sa disposition sont encore à reverser. Les autres familles autrefois classées « sans parser »
 sont désormais identifiées ou servies par la route de décodage générique ; voir la matrice
-mesurée dans `PLAN.md` et `docs/VFS.md`.
+mesurée dans [`VFS.md`](VFS.md) (§ 2, la matrice).
 
 ### Racines de données
 

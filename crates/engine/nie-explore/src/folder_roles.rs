@@ -1,6 +1,7 @@
 //! Catalogue du rôle de chaque dossier du VFS — PAS deviné : sourcé de `docs/FORMATS.md`
 //! (niveau 2, inventaire exhaustif des 250 800 fichiers réels, daté 2026-06-13) et de
-//! `docs/PLAN.md` (état C1 « formats lus »), plus des sous-dossiers vérifiés en DIRECT
+//! `docs/ROADMAP-100.md` (état C1 « formats lus » ; document retiré le 2026-08-11, relu par
+//! `git show 07a18cb9^:docs/ROADMAP-100.md`), plus des sous-dossiers vérifiés en DIRECT
 //! contre le VFS réel au fil de cette session (`nie vfs find`/`nie vfs chara`, 2026-08-07 —
 //! marqués « session »). Une entrée sans provenance vérifiable n'est pas ajoutée : `describe_folder`
 //! retourne `None` plutôt que d'inventer un rôle.

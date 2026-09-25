@@ -66,6 +66,23 @@ Généré le 2026-06-09T23:51:00Z. Totaux du catalogue Unity Addressables :
 | `CriResourceProvider` | 1,201 |
 | `BundledAssetProvider` | 82,586 |
 
+**Counting traps — measured 2026-09-20** (moved from the archived plan,
+[`PLAN-2026-09-08-to-25.md`](../archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md), section
+"Azalée absorption parity gate"):
+
+- **85 267 is a count of raw Addressables catalogue rows, not of masterdata records.** The Azalée
+  static catalogue declared that number; it measures the catalogue, not game data.
+- **The surviving index holds 25 328 rows: 23 247 assets + 2 081 bundle/CRI rows** — the
+  `index_lines_written`, `loadable_objects` and `physical_bundles` lines of the table above. The
+  raw 85 267-row enumeration itself was not recovered; it and 19 unresolved dependency names
+  remain explicit source gaps.
+- **The mirror's 153 `inagle_cross_*` tables hold 0 rows** (schema only), while the same mirror
+  carried 224 `inagle_*` tables / 165 458 rows for the other domains. `nie-wiki::cross` imports the
+  25 328-row index transactionally and idempotently into a candidate
+  (`var/cross-candidate-20260920.sqlite`: 18 580 distinct GUIDs, 667 368 dependency edges, eight
+  source documents), keeping duplicate GUID variants, dependencies and provenance; it never fills
+  the schema-only masterdata tables with invented records. The production mirror was unchanged.
+
 **Objets chargeables par type d'asset Unity** (top 25) :
 
 | Type | Count |

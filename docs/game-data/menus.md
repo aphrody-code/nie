@@ -276,3 +276,60 @@ Nœuds : `MENU_CREATE_INFO_LIST_BEG`×1, `MENU_CREATE_INFO`×342, `MENU_RES_PATH
 
 Noms (échantillon) : `default`, `em010001`.
 
+---
+
+## What the files place, and what the engine places — measured 2026-09-13
+
+Moved from the archived plan
+([`PLAN-2026-09-08-to-25.md`](../archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md), section
+"Distance to the three pillars"). Compositions come from `GET /api/v1/menu/render/{screen}`; the
+method-level reversal behind them is in [`../re/cmenulistview-fields.md`](../re/cmenulistview-fields.md).
+
+**Placement is per instance: 72 % placed by the files, 28 % stacked.** Over five screens, 701
+instances: 503 carry a position of their own, 198 share one with a sibling.
+
+| Screen | Instances | Stacked | Placed |
+| --- | ---: | ---: | ---: |
+| `story_mode_top_menu` | 13 | 0 (0 %) | 13 |
+| `players_universe_menu` | 338 | 30 (8 %) | 308 |
+| `soccer_formation_menu` | 118 | 40 (33 %) | 78 |
+| `chara_bank_menu` | 57 | 28 (49 %) | 29 |
+| `shop_menu` | 175 | 100 (57 %) | 75 |
+
+The stacked 28 % is **list-view content**: `team00_01_chara_card_blank` and
+`team00_01_chara_card_for_soccer` (11 each on `chara_bank_menu`, 16 each on
+`soccer_formation_menu`), `cmn06_20_list_tab_item` (51 on `shop_menu`, yet spread over 11
+positions on `chara_bank_menu`), `cmn05_01_cursor`, `win05_02_general_sub_list_item` — cells, tabs
+and cursors, the widgets a `CMenuListView` positions and that `nie_core::list_view` models. One
+widget can mix both: `team00_01_p1_chara_card_blank` has 19 instances on 9 positions, 11 piled at
+(929, 355). The metric must be per instance — the first 8 of those 19 looked identical, and a
+per-widget count read "93 % spread"; both were wrong.
+
+**Skill-tree stars are templates too.** On `players_universe_menu`, the 30
+`universe01_05_NN_star` objects each have their own sprite and their own layer, yet all resolve
+through `g4pkm-pose` to the same **(419, 139)**; their pose files are all exactly **5 504 bytes**.
+A second subsystem, not a list view, gets its real positions from the engine.
+
+**Rows at `x = 0` are faithful.** The 13 list items of `story_mode_top_menu` sit at `x = 0`, y =
+148, 220, 292, 364, 436 — exactly **72 px apart**. Against the real capture
+`data/menu/story_mode.png` scaled to 1 280×720 the spacing is exact and the residual is a constant
+bias of **2.5 ± 0.3 px** (row centres picked by eye). In the game those rows are full-width bars
+anchored to the left edge. The objects at `x = 0` are exactly those the engine positions at
+runtime; `chara_bank_menu`, a grid whose cells carry real coordinates, has none.
+
+**Seven screens, three causes.** `main_menu`, `story_mode_top_menu`, `chara_bank_menu`,
+`shop_menu`, `advent_calendar_menu`, `players_universe_menu` and `ability_learning_board_menu`
+were composed and inspected; every visible anomaly reduced to (1) the **font path**
+(`font::draw_text` labels as kanji — the real-font fixture was still red, 536 alpha pixels against
+544), (2) the **dummy texture** of the exact-name rule (fixed in `e2322fc4`), or (3) **runtime
+placement** (instanced content carries a template pose, so the composer stacks it). No fourth
+cause was needed.
+
+**`gallery_menu` stays unactivated (2026-09-20).** Its objbin declares `CMenuListView
+{mViewStart=1, mViewNum=4, mLineNum=5, mLocatorNum=30}`; the native exporter seeds the Lua item
+count from that 30-slot ring and resolves the G4PKM matrix ring to 30 slots, 20 visible, within
+0.3334 px horizontally and 0.4167 px vertically of the capture. Those matrices are evidence only
+(`renderActivated=false`): a like-for-like composition **fell from SSIM 0.423424 to 0.305873**
+because the nested background, lock and cell states are unresolved, so the visual activation was
+removed.
+

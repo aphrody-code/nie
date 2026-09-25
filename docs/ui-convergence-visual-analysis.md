@@ -131,9 +131,12 @@ La scène Avatar présente deux écarts immédiatement bloquants :
   de présentation. Une composition correcte des pièces ne prouve donc pas encore une animation,
   une pose ou un cadrage fidèle.
 
-`PLAN.md` consigne qu'un défaut du blitter `nie_formats::font` touchait tous les hôtes et a été
-corrigé. Il faut vérifier le SHA du bundle live avant toute nouvelle correction d'encodage : la
-capture peut représenter un déploiement antérieur au checkout analysé.
+The archived plan ([`PLAN-2026-09-08-to-25.md`](archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md),
+"Looking at the output was never in the loop") records that a `nie_formats::font` blitter defect
+hit every host and that a correction was attempted (`cc1e05d3`), but the real-font fixture was
+still red on 2026-09-13 (536 alpha pixels against 544): the font path is not resolved. Il faut
+vérifier le SHA du bundle live avant toute nouvelle correction d'encodage : la capture peut
+représenter un déploiement antérieur au checkout analysé.
 
 ### C — catalogue Modèles dans le shell
 
@@ -191,9 +194,9 @@ unité visuelle.
 | Corriger le contraste des lignes avant tout skin final | B inactive `#9EC0F2/#C0C0C2 = 1,03:1`; active `#F8F8F8/#0265E5 = 4,95:1` | Texte normal ≥4,5:1, grand texte ≥3:1, sans confondre ce gate d'accessibilité avec la fidélité pixel |
 | Tirer les couleurs de l'écran visé | A : fond `#F2F8FB` 54,67 %, bleu pâle `#BFDDED` 22,78 % ; C : sombre `#141521` 51,94 %. `game-tokens.css` provient du pet Aphrody | Palette mesurée sur les régions VFS ou la capture oracle du même écran, provenance inscrite avec crop et part |
 | Garder recherche et filtres en les remaquettant | C montre champ 1987×60, familles chiffrées et grille ; ces fonctions sont déjà présentes | Tests de parité des actions et des résultats avant/après, plus capture visuelle du nouvel écran |
-| Bloquer une livraison Avatar avec mojibake | B : texte scène illisible mais shell français lisible ; `PLAN.md` relie un défaut antérieur au blitter partagé | `just ecrans` sur texte réel, vérification du SHA live, au moins une chaîne connue lisible dans chaque locale servie |
+| Bloquer une livraison Avatar avec mojibake | B : texte scène illisible mais shell français lisible ; le plan archivé (2026-09-08 → 25) relie un défaut antérieur au blitter partagé | `just ecrans` sur texte réel, vérification du SHA live, au moins une chaîne connue lisible dans chaque locale servie |
 | Bloquer une livraison Avatar en T-pose | B : bras horizontaux ; oracles Avatar : poses de présentation | Animation/pose identifiée par modèle + temps, capture comparée sur même état et même caméra |
-| Faire de Rust/WASM le propriétaire de la présentation | Le compositeur est déjà annoncé dans `nie_formats::menu_layout` via WASM ; les 629 lignes restantes classées dans `PLAN.md` sont surtout des modèles de présentation catalogue | Un DTO/display-list Rust par écran, consommé par web et natif ; TS ne recalcule ni pagination, ni placement, ni style visuel |
+| Faire de Rust/WASM le propriétaire de la présentation | Le compositeur est déjà annoncé dans `nie_formats::menu_layout` via WASM ; les 629 lignes restantes classées dans le plan archivé (2026-09-08 → 25, « Pillar 1 ») sont surtout des modèles de présentation catalogue | Un DTO/display-list Rust par écran, consommé par web et natif ; TS ne recalcule ni pagination, ni placement, ni style visuel |
 | Ne pas revendiquer « pixel-perfect » pendant la migration | A contre oracle, après crop 16:9 inféré : SSIM 0,363226 et 11,0417 % exact ; la baseline historique du menu reste partielle | SSIM publié sur viewport, état, crop et référence fixes ; hausse mesurée à chaque lot, puis seuil explicite avant la revendication |
 
 ## Séquence de migration issue de la baseline

@@ -12,6 +12,10 @@ The local-to-canonical consumer and parity decision is recorded in
 [`PARITY-AUDIT-2026-09-07.md`](PARITY-AUDIT-2026-09-07.md). It complements
 [`docs/COMPUTER-USE-RE-TRACE.md`](../COMPUTER-USE-RE-TRACE.md) for the `nie-re`/`nie-trace` bridge.
 
+[`cmenulistview-fields.md`](cmenulistview-fields.md) holds the one class reversed in depth here:
+`lives::CMenuListView`'s engine-declared field table, its methods (vtable, scroll/page steps,
+re-indexer, cell positions, the `OnEnter` notifier) and the traps met while reading them.
+
 ## RE anchors
 
 Knowledge base (`var/nie.sqlite`) tables:

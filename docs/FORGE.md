@@ -148,6 +148,21 @@ Chiffres sortis de l'outil, pas d'une estimation. Le binaire produit est **byte-
 > 2026-08-28 par `nie info`), donc la cible est la bonne ; c'est l'état interne de la forge qui
 > manque, pas le binaire.
 
+**Latest measured state — 2026-09-08**, host `vps-203bea89`, target `nie.exe` (33 918 464 bytes,
+SHA-256 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`), after the `vmovdqu`
+batch:
+
+```
+split  : 215 688 units · 56 533 function units · .text residue 1 673 867 B · 0 gap · 0 overlay
+lift   : 105 266 bodies · 22 593 138 B · blockers 1 977 units / 1 240 823 B
+build  : dist/nie.exe · 33 918 464 B · identical=true · 209 376 units / 25 120 611 B produced · 0 rejected
+report : 74.061759 % of the file · 92.447995 % of .text
+```
+
+The 2026-09-08 split recovers a materially different boundary population from the 2026-09-03 one
+below (215 688 against 225 427 units), so the two series are not a regression of one another. The
+percentages are measured, not proven independent: see § 8 rule 6.
+
 Mesure **rejouée le 2026-09-03** sur la cible `b1fa04ea3658…` :
 
 ```
@@ -246,7 +261,32 @@ Régénérer la liste : `nie-forge lift --top 0`, lignes `blocker`, triées par 
 `blocages` qui les précède donne le total — sans elle, une liste tronquée laisse croire que les
 quinze premières causes épuisent le sujet.
 
-État au 2026-09-03 : **194 causes · 4 427 unités · 1 284 617 octets**.
+**Latest measurement — 2026-09-08, host `vps-203bea89`, after the `vmovdqu` batch** (moved here
+from the archived plan, [`archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md`](archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md)
+§ "Engine loop ledger — 2026-09-08"; regenerate with `nie-forge lift --exe nie.exe --top 0`):
+**1 977 blocked units · 1 240 823 bytes**; the lift relays 105 266 bodies / 22 593 138 bytes.
+
+- **Closed since 2026-09-03**, each with an exact round-trip test in `nie-asm` and a post-change
+  lift delta: redundant null REX on register `mov` (`Insn::MovRRRex` / `MovRRmRex`, canonical text
+  `mov.r` / `mov.d.r`), `extractps` general-register form (`Insn::Extractps(Reg, Xmm, u8)`,
+  `66 0f 3a 17 /r ib`), `paddq` (`SseOp::Paddq`, `66 0f d4 /r`), `stmxcsr` (`Insn::Stmxcsr(Mem)`,
+  `0f ae /3`) and 256-bit `vmovdqu` (`Insn::Vex256`, `L=1` over both `C5` and `C4` VEX prefixes).
+- **Next genuine candidate**: `vpaddw` VEX.256 — 4 units / 33 130 bytes, sample
+  `vpaddw ymm0, ymm8, [rcx]` at `0x140727ebb`.
+- **`encodage:add` is false code — do not touch the encoder for it.** Its sample at `0x14003e85d`
+  is unit `res.text.3dc5d` (file offset `0x3dc5d`, bytes `26 02 c3`); `xxd` at `0x3dc50` shows the
+  whole sequence `66 0f 6f 05 68 b1 a2 01 0f 29 05 31 c9 26 02 c3` — the tail of a RIP-relative
+  `movaps` displacement followed by `ret`, split by a stale `CodeResidue` boundary. The fix is a
+  boundary reclassification (`boundaries::valider`), not an encoding. Replay:
+  `nie-forge unit --exe nie.exe --va 0x14003e85d`.
+- **A new operand class needs its own AST form.** `extractps eax, xmm0, 0` (`66 0f 3a 17 c0 00`,
+  `fn.14005fb00`) could not reuse `SseI`, whose destination is an XMM register; the parser,
+  ModRM/imm8 encoding, lifter mapping and round-trip test had to land together, because an
+  enum-only change can silently encode the wrong operand class.
+- `in` / `out` / `sti` remain **suspected false code** (third family below) until independently
+  validated.
+
+Historical list, 2026-09-03 : **194 causes · 4 427 unités · 1 284 617 octets**.
 
 ```
 extractps       25 corps   45 482 o   SSE4.1 hors dialecte
@@ -355,9 +395,9 @@ d'octets plutôt que par adresse), puis renseigner le champ `rust` de chaque ent
 | palier | définition | état |
 |---|---|---|
 | **G0 — identité** | le fichier produit est byte-identique à l'original | ✅ tenu, testé sur le vrai binaire |
-| **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 225 187 unités, invariant testé |
-| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ **74,0033 %** du fichier |
-| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **92,2595 %** |
+| **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 215 688 unités (2026-09-08), invariant testé |
+| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ **74.061759 %** du fichier (2026-09-08) |
+| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **92.447995 %** (2026-09-08) |
 | **G4 — sections** | `.rdata`/`.data` produits depuis les structures, pas recopiés | non commencé (découpage encore d'un seul tenant) |
 | **G5 — disposition** | la forge calcule ses propres adresses (édition de liens réelle) | non commencé ; jusque-là les champs relogés viennent de la disposition de référence |
 | **G6 — total** | 100 % du fichier produit, `nie.exe` reconstructible sans référence | horizon |
@@ -383,3 +423,9 @@ tort — mais rien n'est non plus prétendu résolu.
    © LEVEL-5. Aucune perte — `just forge-lift` la régénère en quelques secondes depuis le `nie.exe`
    de l'utilisateur, et le résultat est déterministe. Ce qui est commité : les **outils**, le
    **registre** (adresses, symboles Rust, preuves) et la **documentation**.
+6. **`identical=true` is not provenance** (gate finding, 2026-09-08). `cmd_build`
+   (`crates/forge/nie-forge/src/main.rs`) regenerates headers, section tables, `int3` padding,
+   `nie-asm` bodies and matching codegen, and then falls back to `reference.payload(u)` — every unit
+   it did not regenerate is **copied from the reference binary**. An identical hash proves exact
+   output and measures replacement coverage; it does not prove independent production. G6 stays
+   open until that fallback is gone.

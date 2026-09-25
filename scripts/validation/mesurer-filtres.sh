@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Measure the filters that the nie API actually applies (canonical PLAN.md evidence gate).
+# Measure the filters that the nie API actually applies (Lot 8 of the archived site-coverage
+# plan, docs/archive/plans/2026-09-08/SITE-COVERAGE-PLAN.md).
 #
 #   scripts/validation/mesurer-filtres.sh [base]
 #

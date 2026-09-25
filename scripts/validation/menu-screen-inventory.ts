@@ -34,7 +34,11 @@ type Identity = {
   clientCrop?: { x: number; y: number; w: number; h: number };
 };
 
-/** PLAN.md "Corrected screen identity" table - user-confirmed PC references. */
+/** "Corrected screen identity" table - user-confirmed PC references. It now lives in
+ *  `docs/game-data/menu-screen-inventory.md` § "Corrected screen identity" (it was a section of the
+ *  2026-09-08 root PLAN.md). The emitted "PLAN.md corrected screen identity" labels are kept verbatim:
+ *  `data/menu/screen-inventory.json` is embedded by `nie-wasm` (`include_str!`), so rewording them
+ *  would change the published module. */
 const OPENING_CROP = { x: 1, y: 32, w: 1920, h: 1080 };
 const IDENTITIES: Record<string, Identity> = {
   "Capture d'écran 2026-09-08 124431.png": {
@@ -85,7 +89,7 @@ const IDENTITIES: Record<string, Identity> = {
     tokens: ["keyconfig_setting_menu", "option01_2"],
     source: "OBJBIN list of data/common/gamedata/menu/cfg/keyconfig_setting_menu_setting.cfg.bin",
   },
-  // PLAN.md: the front selection reference is title02, NOT mainmenu01/main_menu.
+  // Corrected screen identity: the front selection reference is title02, NOT mainmenu01/main_menu.
   "main_menu_alt.png": {
     screen: "title_menu_2",
     tokens: ["title_menu_2", "title02", "title00_07"],

@@ -180,6 +180,18 @@ A synchronized repository milestone is the deliberate exception: after the full
 `vX.Y.Z` tag may freeze that commit and one GitHub release may attach all five surface artifacts.
 Routine releases remain prefixed and independent.
 
+**A stable cut** (first one: `1.0.0`, 2026-09-20) means that **one exact commit is gated,
+packaged, pushed, deployed, live-validated, tagged and recoverable** — all seven, for the same
+commit. It does not declare the open reverse-engineering, native-rendering or parity gaps
+complete; those stay in [`PLAN.md`](PLAN.md). The distributable npm surface is limited to the two
+public nie bindings; internal applications and packages stay private or keep their own versions.
+Rust packages stay `publish = false`: the commercial `LICENSE` is not an OSI crate licence and
+does not authorise a crates.io source release, so the stable Rust distribution is the verified
+native/WASM binary set and source snapshot attached to the GitHub release. Changing that boundary
+is a licensing decision, not a release-script bypass. (The portable `iecode-*` crates this
+workspace consumes from `../iecode` are a separate repository with its own publication gate —
+see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).)
+
 **Deploying is not releasing.** A tag touches no running service. Production goes through
 `scripts/deploy-target.ts`, by hand, on an explicit request, with its own lock, per-target
 deadlines and live health checks. The units and the vhost are owned by aphrody-infra

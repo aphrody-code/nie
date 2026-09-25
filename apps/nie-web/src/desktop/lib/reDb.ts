@@ -287,7 +287,8 @@ export const reDb = {
    * `nie.sqlite` via `shared SQLite owner` (même mécanisme de lecture que `searchFunctions`, la
    * base n'est PAS ouverte en lecture seule). `name_source` passe à `'user-edit'` : distingue un
    * nom entré manuellement dans l'app des sources RE existantes (`'vtable-struct'`/`'ghidra'`/
-   * `'pdb'`, cf. `docs/PLAN.md` E2) — même discipline de provenance que le reste du projet
+   * `'pdb'`, cf. E2 de `docs/ROADMAP-100.md`, retiré le 2026-08-11 et relu par
+   * `git show 07a18cb9^:docs/ROADMAP-100.md`) — même discipline de provenance que le reste du projet
    * (jamais un nom sans savoir d'où il vient).
    */
   async renameFunction(path: string, id: number, name: string): Promise<void> {

@@ -3,7 +3,7 @@
 //! Mince client de [`nie_app`] : il fournit un Renderer CPU + un flow scripté, exécute la machine à
 //! états du cœur ([`nie_app::GameState`]), et écrit le playthrough en PNG (→ MP4 via ffmpeg). Le
 //! match vient de la vraie FSM `nie_core::simulate_match`. Le runner INTERACTIF (GPU, input temps-réel)
-//! est `nie-game` — un autre front-end du même cœur (cf. `docs/PLAN.md`).
+//! est `nie-game` — un autre front-end du même cœur (cf. `docs/ARCHITECTURE.md`).
 //!
 //! Usage : `nie-play --font-cfg <font.cfg.bin> --font-g4tx <font.g4tx> [--char-{md,mg,sk,tex} …] --out <dir>`
 
@@ -204,7 +204,8 @@ fn main() -> Result<()> {
         println!("[nie-play] etat = {state:?}");
         match state {
             // Le match se JOUE : sim physique nie-runtime (best-effort, approximative — PAS la
-            // boucle C++ byte-fidèle, cf. docs/PLAN.md fracture #1) rendue frame par frame.
+            // boucle C++ byte-fidèle, cf. « fracture #1 » de `docs/UNIFICATION.md`, retiré le
+            // 2026-08-11 : `git show 07a18cb9^:docs/UNIFICATION.md`) rendue frame par frame.
             nie_app::GameState::Match { .. } => {
                 let mut world = nie_runtime::World::kickoff();
                 for _ in 0..*dur {

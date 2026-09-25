@@ -159,7 +159,7 @@ git push origin "$TAG"
 echo "▸ [8/8] GitHub Release $TAG (upload msi+nsis+sig+blender zip)…"
 gh release create "$TAG" \
 	--title "nie $TAG" \
-	--notes "App desktop (Tauri v2) signée minisign + extension Blender v$BLENDER_VERSION. Détail : docs/PLAN.md, apps/inacord/ROADMAP.md." \
+	--notes "App desktop (Tauri v2) signée minisign + extension Blender v$BLENDER_VERSION. Détail : PLAN.md, apps/README.md." \
 	"$MSI" "$MSI.sig" "$NSIS" "$NSIS.sig" "$BLENDER_ZIP"
 
 echo "✓ Release $TAG publiée : https://github.com/aphrody-code/nie/releases/tag/$TAG"

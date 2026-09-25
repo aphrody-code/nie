@@ -100,14 +100,18 @@ bun run surfaces build site  # Build specific surface
 ```
 nie/
 ├── crates/
-│   ├── engine/   (23) Pure Rust engine: formats (CPK/cfg.bin/G4*), data, Lua 5.2 VM, core simulation, wgpu
-│   ├── forge/    (10) Binary reconstruction, PE64 assembler, RTTI extractor, forge pipeline
-│   ├── tools/    (13) Unified CLI (nie), MCP server, web site, model serving, editor
-│   └── archive/   (2) Reference read-only decompilation archives (excluded from workspace)
-├── apps/              WebAssembly web shell (nie-web), desktop application (inacord)
-├── packages/          Shared contracts, design system (inacord-ui), asset pipeline
+│   ├── engine/   (25) Pure Rust engine: formats (CPK/cfg.bin/G4*), data, Lua 5.2 VM, core simulation, wgpu
+│   ├── forge/     (9) Binary reconstruction, PE64 assembler, RTTI extractor, forge pipeline
+│   ├── tools/    (12) Unified CLI (nie), MCP server, web site, model serving, editor
+│   └── archive/   (2) Reference read-only decompilation archives (outside the workspace)
+├── apps/          (2) WebAssembly web shell (nie-web), desktop packaging (inacord, its src-tauri is a workspace member)
+├── packages/      (8) Shared contracts, design system (inacord-ui), asset pipeline, Bun preload, tsconfig base
 └── docs/              Exhaustive documentation indexed and verified by `bun run docs:check`
 ```
+
+Counts measured 2026-09-25 with `ls -d crates/*/*/ apps/*/ packages/*/`: 46 workspace crates plus
+`apps/inacord/src-tauri` make the 47 members of the root `Cargo.toml`; `crates/archive/nie-engine`
+is excluded and `crates/archive/nie-rs` was never a member.
 
 ---
 

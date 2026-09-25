@@ -53,6 +53,31 @@ Trois branches du code étaient mortes pour **tous** les personnages :
 - Le numéro de maillot était codé en dur à 10.
 - Le genre n'avait que deux valeurs, et forçait un pictogramme faux.
 
+### The player's save — written 2026-09-11
+
+`crates/engine/nie-save/tests/apply_astro_lor.rs` rewrote the roster of a real
+`002AB8F4-USERDATALIVE` save (moved here from the archived plan,
+[`PLAN-2026-09-08-to-25.md`](archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md), section "Astro Lor
+3D Model, GLB Assembly & Live Steam Save Avatar Configuration"):
+
+- **Astro Lor OG `0x9983CCE2` in slot 0** (the active player avatar) and **Astro Lor VR
+  `0x0C78B74B` in slot 12**.
+- The character that held slot 0, **`0x5ECFA302`, moved to slot 13**; the roster then owns **14**
+  characters, and the test asserts the displaced one is still owned.
+- The container is re-encrypted with the slot-name key (`CRC32("002AB8F4-USERDATALIVE")`) and
+  `write_save` recomputes every blob and header CRC-32; the test re-reads the result (magic, CRC-32,
+  SF-TLV container) before and after the copy.
+
+**The live Steam save of that Windows machine was overwritten on 2026-09-11**, with a `.bak` copy
+of the original left beside it in the Steam `remote/` directory. This is a data fact, not a game
+proof: nothing in the save makes Astro Lor a playable character (section 2), and no launch of the
+game with that save has been recorded here.
+
+⚠ **Running that test is a write to the player's real save.** It works on
+`var/save_work/002AB8F4-USERDATALIVE`, then copies the result over the Steam `remote/` file whenever
+that file exists on the host, and creates the Steam `.bak` only if none exists yet — a second run
+overwrites the live save again without refreshing the backup. Run it only on purpose.
+
 ---
 
 ## 2. Ce qui manque — le jeu

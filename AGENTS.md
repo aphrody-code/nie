@@ -1,13 +1,15 @@
 # AGENTS.md
 
 Repository guidance for coding agents working in `aphrody-code/nie` (`nie`). Keep this file
-short and operational. Human-facing project history belongs in [`PLAN.md`](PLAN.md) and the
-documents linked there; do not duplicate large specifications here.
+short and operational. Open work belongs in [`PLAN.md`](PLAN.md), measured knowledge in the
+owning document under `docs/`, history in `CHANGELOG.md` and the dated plans under
+`docs/archive/plans/`; do not duplicate large specifications here.
 
 ## Source of truth and scope
 
-- Read [`PLAN.md`](PLAN.md) first. It is the active execution plan, decision log, and gate ledger.
-  Specialized plans under `docs/` are appendices and must not contradict it.
+- Read [`PLAN.md`](PLAN.md) first. It is the only active plan: open work, decisions and
+  ownership. There are no plan appendices; superseded plans are archived, read-only, under
+  `docs/archive/plans/` (latest consolidation: 2026-09-25).
 - Read the nearest nested `AGENTS.md` before editing a subproject. A user request overrides this
   file; host permission settings enforce safety and authorization.
 - Preserve unrelated working-tree changes and inspect `git status --short` before editing.
@@ -176,7 +178,8 @@ explicitly, including its platform dependencies. Use the root Cargo lockfile. Do
 files changed in the current batch. A page returning HTTP 200 or a test returning zero cases is
 not proof; inspect payloads and count rendered records/links/assertions.
 
-Cargo is pinned to stable 1.98.1, Edition 2024 and resolver 3. Every live workspace member,
+Cargo is pinned to stable 1.98.1 by `rust-toolchain.toml` (no nightly anywhere; the workspace
+declares `rust-version = "1.97"` as its floor), Edition 2024 and resolver 3. Every live workspace member,
 including Inacord, inherits root package metadata and lints. Keep the disk-bounded dev/test
 profiles and use `--profile debugging` only when full symbols are required. Do not weaken
 `deny.toml`: update compatible vulnerable/yanked transitive packages first, and retain an ignored
@@ -198,17 +201,20 @@ orchestrator. `nie-lua-web` targets `wasm32-unknown-emscripten` because `mlua` c
 Lua's C, which needs `setjmp`/`longjmp`; it sits OUTSIDE `bun run build` (it needs emsdk), which
 is why it silently went stale once — see the artefact table in `CLAUDE.md`.
 
-Measured 2026-09-13, so a fourth module — or a fatter third — knows what room is left:
+Measured 2026-09-25 on the modules in `apps/nie-web/public/static/game/` (built 2026-09-22;
+Brotli with `node:zlib` at `BROTLI_MAX_QUALITY`, as `precompress.ts` does), so a fourth module —
+or a fatter third — knows what room is left:
 
-| Module | Octets | Budget | Marge | Brotli q11 |
+| Module | Bytes | Budget | Margin | Brotli q11 |
 | --- | ---: | ---: | ---: | ---: |
-| `nie_wasm_bg.wasm` | 4 537 432 | 6 MiB | 1 754 024 (28 %) | 932 318 (−80 %) |
-| `nie_viewer_web_bg.wasm` | 2 855 742 | 4 MiB | 1 338 562 | 804 693 (−72 %) |
-| `nie_lua_web.wasm` | 887 551 | aucun | — | 277 174 (−69 %) |
+| `nie_wasm_bg.wasm` | 5 327 437 | 6 MiB | 964 019 (15 %) | 1 019 349 (−81 %) |
+| `nie_viewer_web_bg.wasm` | 2 956 296 | 4 MiB | 1 238 008 | 832 292 (−72 %) |
+| `nie_lua_web.wasm` | 887 551 | none | — | 277 174 (−69 %) |
 
-A browser without WebGPU that opens a 3D model and replays a menu fetches all three: 8 280 725
-bytes uncompressed and **2 014 185 over the wire** (1,92 MiB), since `precompress.ts` runs Brotli
-at `BROTLI_MAX_QUALITY`. Only the first is paid by every visitor — 932 318 bytes.
+A browser without WebGPU that opens a 3D model and replays a menu fetches all three: 9 171 284
+bytes uncompressed and **2 128 815 over the wire** (2.03 MiB). Only the first is paid by every
+visitor — 1 019 349 bytes. The main module grew 4 537 432 → 5 327 437 since 2026-09-13; the
+6 MiB bound is enforced by `build-wasm.ts`, not by this table.
 
 Measure at the build's quality or not at all: the same three modules at `-q 5` give −76 %, −65 %
 and a total that would make this table look wrong when it is right. The earlier figure of
@@ -243,9 +249,11 @@ Its command logs belong under this repository's `var/log/sync-main/<run-id>/`.
 
 ## Known technical traps
 
-- Bun preloads `packages/nie-plugin/src/register.ts`, which loads `iecode.dll`; build
-  `cargo build -p nie-ffi` before diagnosing unrelated Bun failures, and identify/stop only the
-  process that holds the DLL if Windows reports a lock.
+- Bun preloads `packages/nie-plugin/src/register.ts` (`@nie/plugin`). Since 2026-09-25 neither
+  it nor `@aphrody/nie` opens `iecode` at import: a missing library only fails the first native
+  call, with a `NativeLibraryError` naming the build command. `@aphrody/nie` also searches
+  `target/<host-triple>/<profile>/`, where the windows-gnu build lands. If Windows reports a lock
+  on `iecode.dll`, identify and stop only the process that holds it.
 - Game VFS probing requires `NIE_GAME_DIR` to point at the Steam installation containing `data`.
 - Under Windows/MSYS, do not use `sed -i` on source; use structured edits.
 - For production claims, verify the live endpoint and a non-zero/meaningful response after any
@@ -281,7 +289,8 @@ Its command logs belong under this repository's `var/log/sync-main/<run-id>/`.
 - Every changed volatile number needs a command, source path, host, and measurement date.
 - Before editing a vital Markdown file, fact-check referenced versions, paths, commands, counts,
   URLs, and status against the current checkout or an authoritative primary source.
-- After documentation changes, run `git diff --check`, search for stale contradictory references,
-  and update [`PLAN.md`](PLAN.md) with the durable result and the next measurable action.
+- After documentation changes, run `git diff --check` and `bun run docs:check`, and search for
+  stale contradictory references. Record a durable measured result in the document that owns the
+  subject, and the next measurable action as an item in [`PLAN.md`](PLAN.md).
 - Commit only when the requested scope is complete; use a concise imperative commit subject with
   the measured gate in the commit body when the change is substantial.

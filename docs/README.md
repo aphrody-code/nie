@@ -8,7 +8,10 @@ exhaustive.
 
 The repository has one active execution plan: [`../PLAN.md`](../PLAN.md). Documents here provide
 evidence and specifications; they do not define competing priorities. Superseded plans are
-preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
+preserved in the dated `archive/plans/` folders; the latest consolidation is
+[`archive/plans/2026-09-25/`](archive/plans/2026-09-25/README.md), which archived the former root
+plan (2026-09-08 → 25) and `GAME-SCREENS-PLAN.md` and moved their durable measurements into the
+owning documents listed below.
 
 ## Start here
 
@@ -44,7 +47,6 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`STACK.md`](STACK.md) | Engine runtime architecture, Lua 5.2 integration, the main loop. |
 | [`DESIGN.md`](DESIGN.md) | Pixel-perfect rendering of the Start, Menu and HUD screens, measured on real captures. |
 | [`DESIGN-UI.md`](DESIGN-UI.md) | The UI design system derived from those measurements. |
-| [`GAME-SCREENS-PLAN.md`](GAME-SCREENS-PLAN.md) | Every wiki page and Inacord view reached from the main menu, drawn with the game's own layouts. |
 | [`AVATAR.md`](AVATAR.md) | Full specification of the avatar editor (`chara_edit`). |
 | [`modele-de-match.md`](modele-de-match.md) | Match simulation, and the shoot/save evaluator as actually reversed. |
 | [`mainmenu01-visual-analysis.md`](mainmenu01-visual-analysis.md) | Measurements and visual analysis of the `mainmenu01` layer. |
@@ -105,7 +107,8 @@ preserved in the dated [`archive/plans/`](archive/plans/2026-09-08/README.md).
 | [`ABSORPTION-IECODE.md`](ABSORPTION-IECODE.md) | The absorption gate, closed. `nie` is the maintained implementation. |
 | [`IMPORT-EXPORT.md`](IMPORT-EXPORT.md) | Import/export boundaries for game data and assets. |
 | [`PUBLIC-NAMING.md`](PUBLIC-NAMING.md) | Public naming and identity conventions. |
-| [`archive/`](archive/) | Superseded plans, kept dated rather than deleted. |
+| [`reports/`](reports/) | Dated audits (crates, Bun apps and packages, 2026-09-25) the current plan was triaged against. |
+| [`archive/`](archive/) | Superseded plans, kept dated rather than deleted. Latest: [`archive/plans/2026-09-25/`](archive/plans/2026-09-25/README.md). |
 
 ## The two invariants
 

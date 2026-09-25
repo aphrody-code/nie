@@ -8,7 +8,7 @@ Une implémentation maintenue d'IEVR sous une racine. Ce document dit **qui fait
 
 | Arbre | Racine | Volume | Build |
 |---|---|---|---|
-| Rust — moteur, forge et outils | `crates/`, `forge/` | workspace Cargo | `cargo` |
+| Rust — moteur, forge et outils | `crates/`, `apps/inacord/src-tauri` | workspace Cargo | `cargo` |
 | TypeScript/Bun | `packages/`, `apps/` | workspaces Bun | `bun` |
 
 `just all-build` · `just all-test` · `just all-check` pilotent ces deux chaînes.
@@ -47,22 +47,30 @@ Il n'existe plus de délégation vers un binaire C++, une assembly .NET, CMake o
 
 ## Les crates Rust
 
-**46 membres** (`cargo metadata --no-deps --format-version 1 | jq '.packages | length'`, mesuré
-2026-09-13 : 10 forge + 23 engine + 12 tools, plus `apps/inacord/src-tauri`), rangés par rôle
-ci-dessous. La colonne `tests` est un INSTANTANÉ, pas un invariant : elle datait du 2026-09-08 et
-`nie-wasm` y disait 32 pour 66 réels. La lire comme un ordre de grandeur ; la source est
-`cargo test -p <crate> --lib`. `crates/archive/*` (2 crates, hors des 46) est **hors du
-workspace** : `nie-engine` en est exclu explicitement (`exclude = […]` dans le `Cargo.toml`
-racine — ~15 000 lignes portées des fichiers C décompilés, 434 marqueurs `// EXTERN:`, consommées
-par aucune crate vivante) ; `nie-rs` n'a jamais figuré dans `members` (son propre `Cargo.lock`
-autonome, origine dans l'outil externe `iecode-re`, pas un livrable nie). Les deux restent en
-lecture seule, référence de portage, jamais compilées par `cargo build --workspace`.
+**47 workspace members** (measured 2026-09-25: `ls -d crates/{forge,engine,tools}/*/` gives
+9 forge + 25 engine + 12 tools = 46 crates, plus `apps/inacord/src-tauri`; `members` in the root
+`Cargo.toml`), grouped by role below. The `tests` column is a SNAPSHOT, not an invariant: it dates
+from 2026-09-08 (`nie-wasm` said 32 where 66 were real) and rows added since carry `—`. Read it as
+an order of magnitude; the source is `cargo test -p <crate> --lib`. `crates/archive/*` (2 crates,
+not among the 47) is **outside the workspace**: `nie-engine` is excluded explicitly
+(`exclude = […]` in the root `Cargo.toml` — ~15 000 lines ported from decompiled C, 434
+`// EXTERN:` markers, consumed by no live crate); `nie-rs` never appeared in `members` (its own
+standalone `Cargo.lock`, originating in the external `iecode-re` tool, not a nie deliverable).
+Both stay read-only porting references, never built by `cargo build --workspace`.
 
-### `crates/forge/*` — produire le binaire (10)
+**Six portable crates live in the sibling `../iecode` repository**, not here, and are consumed
+through path dependencies in the root `[workspace.dependencies]`: `iecode-re` (alias
+`aphrody-re`), `iecode-sql` (`nie-sql`), `iecode-video` (`nie-video`), `iecode-emu` (`nie-emu`),
+`iecode-geom` (`nie-geom`), `iecode-tasks` (`nie-tasks`). They were absorbed by iecode on
+2026-09-22 (no source copy remains under `crates/`). The `../iecode/crates/*` path edges stay
+until those crates are published to crates.io, which needs a `CARGO_REGISTRY_TOKEN` that is not
+configured; removing the path edge before publication breaks the workspace build. The ledger is in
+[`IECODE-MIGRATION.md`](IECODE-MIGRATION.md).
+
+### `crates/forge/*` — produire le binaire (9)
 
 | Crate | Rôle | Tests |
 |---|---|---:|
-| `iecode-re` | Triage PE/ELF/Mach-O pur Rust (sections, entropie, empreintes) + extraction de chaînes + désassemblage x86 | 0 |
 | `nie-pe` | Lecture/écriture byte-exacte du PE64 + découpage du fichier en unités de forge | 24 |
 | `nie-asm` | Encodeur x86-64 dialecte MSVC — réassemble les corps depuis `forge/asm/*.s` | 23 |
 | `nie-forge` | Boucle `split`/`lift`/`cc`/`build`/`verify`/`report`, mesure la part produite | 33 |
@@ -73,14 +81,13 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-dump` | Lecture/scan AOB d'un minidump Windows de `nie.exe` | 6 |
 | `nie-trace` | RE en direct : lecture de la mémoire d'un `nie.exe` en cours d'exécution | 93 |
 
-### `crates/engine/*` — le moteur (23)
+### `crates/engine/*` — le moteur (25)
 
 | Crate | Rôle | Tests |
 |---|---|---:|
 | `nie-formats` | Parsers Level-5 (CPK, cfg.bin, G4*, CriLayla, Criware), `no_std`-friendly | 386 |
 | `nie-data` | Modèles de données du jeu (skills, auras, chara_param, items, growth) | 1445 |
 | `nie-core` | Logique reversée (ballon, IA tactique, FSM de match, gardien, stats, CRand) | 311 |
-| `nie-geom` | Types géométriques POD partagés — source unique `Vec2`/`Vec3` | 9 |
 | `nie-lua` | VM Lua 5.2 réelle (mlua, PUC-Rio 5.2.4 vendored) + analyse statique tree-sitter | 107 |
 | `nie-camera` | Modèle et contrôleurs de caméra portés (`CCameraCtrl*`), codec G4CM, pilotage live | 33 |
 | `nie-app` | Machine à états d'écran (`GameState`) + rendu abstrait (trait `Renderer`) | 17 |
@@ -92,15 +99,17 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-save` | Déchiffrement, lecture et édition des saves (XOR clé CRC32) | 57 |
 | `nie-explore` | Aperçu/description des entrées VFS par format | 41 |
 | `nie-viola` | Modding Level-5 (dump/pack/merge/crypto Criware), périmètre outil « Viola » | 51 |
-| `nie-emu` | Backend registry and capability contracts for DS/3DS/Wii/Android runners; no copied emulator core | 3 |
 | `nie-ui` | Source unique typée des jetons de design du jeu (OKLCH, géométrie, mouvement) → CSS | 35 |
 | `nie-aphrody` | Runtime typé du pet « Codex Aphrody v2 » (atlas RGBA, animations, directions) | 56 |
 | `nie-ffi` | Frontière C-ABI — **seul natif chargé côté TS** | 13 |
 | `nie-wasm` | Bindings WebAssembly du savoir vérifié | 66 |
 | `nie-lua-web` | La VRAIE VM Lua du jeu dans le navigateur — cible `wasm32-unknown-emscripten` | 0 |
 | `nie-viewer-web` | Le viewer 3D seul, backend WebGL 2, chargé à la demande sans WebGPU | 0 |
-| `nie-sql` | Frontière SQL partagée, en lecture seule | 10 |
 | `nie-ocgen` | Génération 3D d'un personnage original depuis des références mesurées | 0 |
+| `nie-render` | Rendering facade: 2D, CPU/GPU 3D, GUI and wasm | — |
+| `nie-bevy` | Bevy integration: real G4TX/G4MD/G4MG become Bevy `Image`/`Mesh` assets through asset loaders | — |
+| `nie-net` | Online mode: room lobby, matchmaking, deterministic rollback/lockstep synchronisation | — |
+| `nie-pg` | VFS `cfg.bin` (RDBN, T2B) into PostgreSQL schema `nie`, binary `COPY`, no JSON step — see the data-ownership section below | — |
 
 ### `crates/tools/*` — outillage (12)
 
@@ -110,14 +119,14 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-mcp` | Binding MCP Rust natif (`rmcp`) des commandes partagées de `nie` | 7 |
 | `nie-site` | Serveur HTTP nie (Axum 0.8) : le jeu wasm en `/`, bundle `nie-web`, `/api/v1`, VFS `/f` `/b`, proxy `nie-model-serve` | 275 |
 | `nie-model-serve` | Serveur HTTP live d'assemblage GLB IEVR (corps+face+uniforme depuis CPK, cache disque) | 13 |
-| `ievr-tools` | Binding historique d'outils IEVR ; son inspecteur PE est fourni par `iecode-re` via ré-export compatible | 8 |
+| `ievr-tools` | Binding historique d'outils IEVR ; son inspecteur PE est fourni par `iecode-re` (`../iecode`) via ré-export compatible | 8 |
+| `nie-launcher` | Native launcher, save editor and mod-package manager (`.utmod`, save coordination) | — |
 | `nie-computer-use` | Capture et inspection locale bornée des images utilisées par les workflows d'observation | 6 |
 | `nie-steam` | Acquisition Steam native (download/dump de dépôts IEVR), remplace SteamKit2 | 35 |
 | `nie-zukan` | Ingesteur de l'encyclopédie officielle Level-5 Inagle (JP/FR/EN) | 53 |
 | `nie-wiki` | Exploration game-data IEVR depuis le miroir SQLite (personnages, skills, items, équipes) | 0 |
 | `nie-editor` | Éditeur 3D NIE natif, viewport GPU partagé DirectX 12/Vulkan/OpenGL | 1 |
 | `nie-bench` | Banc de mesure des hot paths Rust et des contrats de format | 2 |
-| `nie-tasks` | Orchestration de jobs asynchrones annulables/pausables avec progression | 0 |
 
 ## Les ponts
 
@@ -129,6 +138,28 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 
 `crates/archive/nie-rs` est du décompilé porté en Rust, hors workspace et compilé
 par personne : matière de RE, pas un pont.
+
+## Data ownership
+
+- **The Rust site and wiki are the only IEVR data owners.** IEVR parsing, query rules, mirror
+  access, API projections, CLI behaviour and native IPC belong to `nie-data`, `nie-formats`,
+  `nie-core`, `nie-wiki`, `nie-site`, `nie-cli` and Inacord's Rust backend. Bun is limited to thin
+  host bindings and non-IEVR integrations: it never queries the IEVR mirror directly and never
+  calls a remote wiki. The deleted Azalée application, `packages/azalee`, `packages/azalee-tools`
+  and the IEVR Inagle package are not compatibility targets (decision recorded 2026-09-09 in the
+  archived plan).
+- **`nie-pg` writes only PostgreSQL schema `nie`** (`nie.rdbn_list`, `nie.rdbn_value`,
+  `nie.t2b_entry`, `nie.t2b_var`; binary `COPY`, no `jsonb`, incremental and transactional per
+  file by SHA-256). Readers get exactly one grant, the role `nie_reader` (NOLOGIN, `USAGE` +
+  `SELECT`), and the crate's integration test proves that role cannot write. rg's
+  `public.inagle_*` tables, `public.inagle_cfgbin` included, are never touched from here; wiring
+  Azalée is `GRANT nie_reader TO <azalee role>`, done with the owner on the production database.
+  Measured 2026-09-23 against PostgreSQL 18: replaying 1 209 files rewrites nothing;
+  `font_color.cfg.bin` gives 448 cells in 64 rows.
+- **Trust the `vfs:` line, not `NIE_GAME_DIR`.** `open_game` silently falls back to this
+  repository's `data/` when `NIE_GAME_DIR` points nowhere, so an import can succeed against the
+  wrong tree. `nie-pg import` prints the VFS it actually opened; read that line before reading its
+  counts.
 
 ## Fusions interdites
 
@@ -186,7 +217,13 @@ bun --bun scripts/validation/layers.ts --write  # réimprime la table depuis la 
 ```
 
 Elle fige le rang **mesuré** — le plus long chemin de dépendances internes — et non un rang
-voulu. Mesuré : **50 crates, 9 rangs (N0..N8), aucune dépendance qui remonte.**
+voulu. Mesuré le 2026-09-20 : **50 crates, 9 rangs (N0..N8), aucune dépendance qui remonte.**
+
+Re-measured 2026-09-25 (`bun scripts/validation/layers.ts`): **47 crates, 9 ranks (N0..N8)** —
+the crates moved to `../iecode` left the graph, `nie-pg` and `nie-render` joined it — and the gate **fails with 3
+problems**: `nie-pg` and `nie-render` carry no rank, and `ievr-tools` is declared N1 where the
+measure gives N0. The ranked table lives in the script; `--write` regenerates it from the
+measurement.
 
 ### Ce qu'une version antérieure du diagramme affirmait, et qui ne tenait pas
 
@@ -215,7 +252,9 @@ est vrai par construction et n'a pas besoin d'être testé.
 ### Ce qui reste invérifiable ici
 
 Les **215 688 unités de forge** sont corroborées par quatre documents du dépôt
-(`AGENTS.md`, `PLAN.md` ×2, la skill `re-workflow`) mais leur source vivante,
+(`AGENTS.md`, le plan archivé
+[`PLAN-2026-09-08-to-25.md`](archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md) ×2, la skill
+`re-workflow`) mais leur source vivante,
 `var/forge/cover.json`, **est absente de cette machine** — `var/` ne porte que des artefacts
 régénérables. Ce qui est présent, `data/forge/registry.json`, compte **34 entrées** et est ancré
 sur `b1fa04ea365868e5…`, qui est bien le binaire cible. Le chiffre n'est donc ni confirmé ni

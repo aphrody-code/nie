@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Identify files with rare VFS extensions for the canonical PLAN.md evidence gate.
+# Identify files with rare VFS extensions (§ 9.2 of the archived site-coverage plan,
+# docs/archive/plans/2026-09-08/SITE-COVERAGE-PLAN.md).
 #
-# La gate `100 %` du plan exige qu'aucun des 255 308 fichiers ne reste non classé. Les
+# La gate `100 %` de ce plan exige qu'aucun des 255 308 fichiers ne reste non classé. Les
 # extensions de moins de 15 fichiers en concentrent l'essentiel : 15 extensions, 48 entrées
 # d'inventaire. Ce script les interroge une par une et rend **ce que le serveur a reconnu**,
 # jamais ce qu'on suppose de leur nom.

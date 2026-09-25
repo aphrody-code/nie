@@ -94,31 +94,47 @@ seconds. A new connection cleanly replaces the previous one.
 
 ## Running and configuration
 
-From the repository root:
-
-```bash
-cargo run --release --quiet --package nie-mcp --
-# equivalent binding
-cargo run --quiet --package nie-cli -- mcp
-```
-
-Portable project configuration:
+MCP clients launch the prebuilt `nie-mcp` from `PATH` — the same convention as `aphrody-mcp`, and
+the same command on Linux and Windows. The four versioned declarations (`.mcp.json`,
+`.codex/config.toml`, `plugins/nie/.mcp.json`, `plugins/nie/mcp_config.json`) and the entry
+Inacord's installer writes all read:
 
 ```json
 {
   "mcpServers": {
-    "nie-game": {
-      "type": "stdio",
-      "command": "cargo",
-      "args": ["run", "--release", "--quiet", "--package", "nie-mcp", "--"]
-    }
+    "nie-game": { "type": "stdio", "command": "nie-mcp", "args": [] }
   }
 }
 ```
 
-For a desktop client launched from another directory, Inacord adds
-`--manifest-path <repository>/Cargo.toml`. The four versioned declarations are `.mcp.json`,
-`.codex/config.toml`, and `plugins/nie/mcp_config.json`.
+Inacord adds `NIE_REPO=<repository>` for Claude Desktop, which starts from an arbitrary directory.
+
+**`cargo run` is not a launcher.** It was the declared command until 2026-09-25, and it fails
+exactly like a dead server: `cargo run --release` compiles before the first JSON-RPC frame —
+minutes on a cold target — and waits on "file lock on build directory" whenever another cargo is
+running, so the client's connection timeout fires first (Claude Code: `MCP server nie-game
+connection timed out after 30000ms`). Measured on the Windows box: no `nie-mcp` had ever been
+built there, and the configured command was still compiling at 40 s. The server itself does no
+indexing at startup; it binds the optional bridge and answers.
+
+Install, and re-install after changing `nie-cli`:
+
+```bash
+# Linux host: builds target/release/nie-mcp and links ~/.local/bin/nie-mcp to it
+bun run deploy:target mcp
+# any machine whose default toolchain links
+cargo install --locked --path crates/tools/nie-mcp --target-dir target
+```
+
+```powershell
+# Windows box without a usable MSVC linker (CLAUDE.md, "Building on this Windows box")
+cargo +1.98.1-x86_64-pc-windows-gnu install --locked --path crates/tools/nie-mcp `
+  --target x86_64-pc-windows-gnu --target-dir target
+```
+
+`--target-dir target` reuses the workspace's release artefacts instead of rebuilding in a
+temporary directory. From a terminal, `cargo run --release --quiet --package nie-mcp --` and
+`nie mcp` remain equivalent bindings.
 
 Recognized environment variables:
 

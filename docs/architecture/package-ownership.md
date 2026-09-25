@@ -30,7 +30,8 @@ workspace membership rather than archive directories or generated/vendor code.
 | Game file decoding | `nie-formats` | Native, Wasm, Explorer and tooling bindings reuse its parsers. |
 | Resource inspection, media and local database sessions | `nie-explore` | Site routes, Tauri commands and portable byte adapters are thin consumers. |
 | Game rules and runtime state | `nie-core`, `nie-data`, `nie-runtime`, `nie-lua` by domain | `packages/nie-game` holds existing portable client helpers; Azalee compatibility exports reuse them. |
-| Typed wiki mirror queries | `nie-wiki` | Site, CLI and MCP reuse its query/card APIs. Existing desktop raw-query adapters remain a migration boundary. |
+| Typed wiki mirror queries | `nie-wiki` | Site, CLI and MCP reuse its query/card APIs. Existing desktop raw-query adapters remain a migration boundary. Bun never queries the IEVR mirror directly. |
+| Game data store (PostgreSQL) | `nie-pg`, schema `nie` only | Readers get the `nie_reader` role (SELECT only); rg's `public.inagle_*` is never written from here. See [`../ARCHITECTURE.md`](../ARCHITECTURE.md#data-ownership). |
 | Character candidate ranking | `nie-zukan::api` | Native, Wasm, site, CLI and MCP call the same ranking contract. Historical TypeScript matching pipelines are not declared migrated. |
 | Native automation and command dispatch | `nie-cli`, with `nie-mcp` as its host | `packages/nie-bridge` owns the control client contract. The historical Bun MCP protocol facade remains separately tested. |
 | Rust FFI consumption | `packages/nie` | `packages/nie-plugin` handles Bun file loading; domain algorithms stay in Rust. |

@@ -170,3 +170,23 @@ hash=-797635319 | scene=ev01_00050 | flags… | tag=ev01 | flags…
 | `event_tag_word_replace_config_1.02.54` | 6 sections (voir ci-dessous) | remplacement de mots/tags variables |
 
 `event_tag_word_replace_config` — 6 sections : `EVENT_VARIATION_TAG_WORD_REPLACE_TARGET` (32, `Int×4`), `…_INFO` (4), `EVENT_ASSIGN_TAG_WORD_REPLACE_TARGET` (106, `Int,String`), `…_INFO` (18), `EVENT_ASSIGN_SND_TAG_WORD_REPLACE_TARGET` (143, `Int,String`), `…_INFO` (14). Les `String` sont des codes Keshin/assign `k000180, k000190, k000200, k000210, k000010, k000330, k000990…` (71 et 142 distincts).
+
+---
+
+## Event bytecode opcodes (`event_cfg/{evt,snd,eff}`) — authoritative source
+
+The opcode constants in
+[`crates/engine/nie-formats/src/event_script.rs`](../../crates/engine/nie-formats/src/event_script.rs)
+are the only authority. Each is the dominant CRC-32 opcode of its category, measured over the
+**9 897** fixtures `data/common/event_cfg/{evt,snd,eff}/*.cfg.bin.json` (~800 000 commands), with
+its occurrence count in the doc comment — e.g. `OPCODE_CUT = 0xFD044302` (category 1, 8 546),
+`OPCODE_ACTOR = 0x35746E60` (category 100, 7 246), `OPCODE_DIALOGUE = 0xA4C7132D` (category 150,
+5 322), `OPCODE_END = 0xB4CD69F7` (category 1000, 2 088); camera opcodes are split into
+`OPCODE_CAMERA_POS` / `_TARGET` / `_FOV` (category 110).
+
+**The values recorded in the 2026-09-11 plan entry are wrong — do not copy them.** That entry
+([archived plan](../archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md), section "Full Engine RE:
+Skills, Animation (G4MT/G4MA), Events (T2B)…") lists `OPCODE_CUT 0x53AC0392`, `OPCODE_ACTOR
+0xE31C63A6`, `OPCODE_DIALOGUE 0x1613A5AE`, `OPCODE_CAMERA 0x8A8A1C5A` and `OPCODE_EFF 0x8C1B7A3C`;
+none of them is a constant of the decoder. Recount from the fixtures rather than from prose
+(noted 2026-09-25).

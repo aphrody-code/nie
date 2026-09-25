@@ -1,7 +1,8 @@
 //! Cherche la provenance des **hashes de sprite** d'un menu dans le pool de constantes du
 //! bytecode des scripts.
 //!
-//! Contexte (cf. `docs/PLAN.md`) : les objets construits par le driver de menu portent un
+//! Contexte (cf. `docs/archive/plans/2026-09-08/ENGINE-FORGE-PLAN.md` § « Rendu et menu », qui
+//! consigne aussi la résolution du 2026-08-27) : les objets construits par le driver de menu portent un
 //! `sprite_texture_hash` que rien ne résout — ni `hash_name` (48 508 textures indexées), ni un
 //! CRC32 de chemin `.g4tx` (9 variantes x 3 casses x 54 203 chemins), ni une constante de table
 //! Lua atteignable depuis `_G`. Le RE du handler `0x140CE74D0` montre que ces valeurs arrivent en

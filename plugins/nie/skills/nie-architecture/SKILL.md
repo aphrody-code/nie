@@ -1,6 +1,6 @@
 ---
 name: nie-architecture
-description: "Apply the settled nie architecture: a complete Inacord application with a native game theme, a retained native game reconstruction target, and one shared library owner per capability across web, desktop, CLI, MCP and forge."
+description: "Apply the settled nie architecture: Inacord as the user-facing visual VFS explorer only, a retained native game reconstruction target, and one shared library owner per capability exposed through API, CLI, MCP, code/scripts, web, desktop and forge."
 ---
 
 # nie architecture
@@ -11,11 +11,15 @@ Use `nie-monorepo` for paths, dependency conventions and scoped commands.
 
 ## Two retained product goals
 
-1. **Inacord is the primary application UI.** Preserve its mature components and all capabilities:
-   explorer, editor, inspectors, search, data, saves, mods, Lua, media and tools. Converge web and
-   desktop on this application rather than replacing it with a reduced explorer or menu demo.
-   Redesign its presentation with the game's real icons, colors, fonts and individual VFS assets
-   as the principal theme. Preserve existing interactions and alternate themes during migration.
+1. **Inacord is the user-facing visual VFS explorer, and only that.** Its GUI browses mounted game
+   paths, searches that inventory and previews real resources, themed with the game's real icons,
+   colors, fonts and individual VFS assets. It is not a wiki, a 3D editor, a modding workbench, a
+   reverse-engineering console, a Lua IDE or a live-memory debugger. Those capabilities stay
+   headless in their Rust library owners and are exposed through API, CLI, MCP, code/scripts and
+   the mobile/Blender integrations; a preview may consume their read-only results but never
+   becomes their operator surface. This 2026-09-22 decision supersedes the former "preserve every
+   Inacord GUI capability" direction (`docs/archive/plans/2026-09-25/PLAN-2026-09-08-to-25.md`,
+   § "Product direction — Inacord is the visual VFS explorer").
 2. **The native game UI remains a distinct reconstruction target.** Preserve native layouts,
    menus, animation, resource resolution and Lua/state contracts for backend behavior, mod
    authoring and production of a new `nie.exe`. Retain its reference ledger and native/Wasm
@@ -23,7 +27,7 @@ Use `nie-monorepo` for paths, dependency conventions and scoped commands.
 
 The supplied Inacord explorer and game main-menu captures are visual references. Full-screen
 captures must never become runtime screen textures. Neither reference authorizes fake gameplay,
-substitute artwork or the removal of application features.
+substitute artwork or the deletion of an underlying library owner.
 
 ## Public site boundary
 
@@ -93,23 +97,24 @@ application infrastructure; they are not game-engine capabilities.
 ## Host convergence and migration boundaries
 
 The application 3D editor has one presentation owner: `packages/inacord-ui/src/three/Viewport3D.tsx`.
-Inacord editor and VFS/CPK previews delegate to it through compatibility adapters. Keep its
+It is not an Inacord view (`apps/nie-web/src/desktop/lib/vues.ts` registers `explorer` only);
+VFS/CPK previews delegate to it through compatibility adapters. Keep its
 multi-asset scene, picking, outliner, statistics, TRS gizmos, grid, wireframe and camera controls.
 `ModelViewerSurface` in the same directory owns gallery/detail preview lifecycle; its retained
 model-viewer backend preserves local compressed-model decoders. Do not create another editor
 or duplicate a preview lifecycle to add a host. The Rust reconstruction renderer remains a
 distinct backend until its rendering and editing contracts reach measured parity.
 
-The canonical frontend lives in `apps/nie-web`; the existing Inacord source is currently under
-`src/desktop`. Extract its shell, view registry and inspectors into shared presentation with
-injectable services. Native adapters retain filesystem, process and memory operations; web
-adapters use the existing HTTP/Wasm owners. Preserve desktop features while web adapters are
-implemented. Do not hide unavailable operations behind successful no-ops.
+The canonical frontend lives in `apps/nie-web`; the Inacord source is under `src/desktop`, and
+its view registry exposes the VFS explorer only. Native adapters retain filesystem and process
+operations; web adapters use the existing HTTP/Wasm owners. The browser adapter fails desktop
+filesystem, process, updater and mutation commands explicitly: never hide an unavailable
+operation behind a successful no-op. GUI-only modules made unreachable by the explorer-only cut
+are removed once their browser route consumers are classified, never together with their
+library owners.
 
-A common Vite entry and shared Explorer controls do not establish full application parity.
-The reduced browser inspector and remaining desktop-specific services are migration work, not
-an alternate final architecture. Likewise, wiki raw queries, legacy MCP facades and TypeScript
-ranking remain compatibility boundaries until consumer migration is demonstrated.
+Wiki raw queries, legacy MCP facades and TypeScript ranking remain compatibility boundaries
+until consumer migration is demonstrated.
 
 Use one root Cargo workspace/lockfile and Bun catalog/lockfile. Dependency convergence preserves
 consumer features and target conditions; it does not require one package for unrelated roles.

@@ -40,9 +40,11 @@ Video, soundtrack, bitmap-font, WASM decode and secondary-scene preloads are del
 reachable from `/menu`, and deliberately **absent from the sitemap**.
 
 The site is **neither the wiki nor the file explorer**: the wiki is **Azalée**, the explorer is
-**Inacord**. It hosts `apps/nie-web`, the same interface as Inacord, the desktop and mobile
-application. Both address resources by their **VFS path**, exactly like the game does — no
-translated slug ever identifies a file.
+**Inacord**. It hosts `apps/nie-web`, the same interface as Inacord, the desktop application.
+Both address resources by their **VFS path**, exactly like the game does — no translated slug ever
+identifies a file. There is no native mobile package: the installable mobile web entry is never
+labelled an APK or IPA, and the browser adapter rejects desktop-only commands explicitly — see the
+distribution rules in [`apps/README.md`](../apps/README.md#distribution-rules).
 
 ## The origin publishes no identity
 

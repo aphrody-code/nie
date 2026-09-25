@@ -33,28 +33,35 @@ Relevés sur l'arbre réel (`api.github.com/repos/openai/codex`, branche `main`)
 
 ## Structure actuelle
 
+Measured 2026-09-25 (`ls -d crates/*/*/ apps/*/ packages/*/`, `git ls-files | cut -d/ -f1 | sort -u`):
+
 ```
 nie/
-├── crates/          Rust — 36 crates compilées + 2 archivées   → crates/README.md
-│   ├── forge/       produire nie.exe au byte près, et le reverse qui l'alimente
-│   ├── engine/      le moteur
-│   ├── tools/       l'outillage, dont la CLI `nie`
-│   └── archive/     hors build, référence en lecture seule
-├── python/          Python — le paquet `niepy` et ses tests
-├── packages/        Bun/TS — 19 bibliothèques                   → packages/README.md
-├── apps/            Bun/TS — 10 applications                    → apps/README.md
-├── plugins/         extensions publiées (Claude Code, Blender)
-├── scripts/         scripts et preuves                          → scripts/README.md
-├── supabase/        les migrations SQL du wiki
-├── deploy/          les unités systemd
-├── third_party/     sources tierces vendorisées (header-only)
-├── bench/           bancs de mesure Rust
-├── docs/            la documentation                            → docs/README.md
-│   └── legal/       l'accord commercial signé
-├── data/  var/  refs/  target/  node_modules/     ignorés par Git
-└── (racine)         README AGENTS CHANGELOG LICENSE NOTICE SECURITY PROVENANCE CLAUDE
-                     justfile Cargo.toml package.json + les manifestes et dotfiles
+├── crates/          Rust — 46 workspace crates + 2 archived     → crates/README.md
+│   ├── forge/       (9)  produce nie.exe byte for byte, and the RE that feeds it
+│   ├── engine/      (25) the engine
+│   ├── tools/       (12) tooling, including the `nie` CLI
+│   └── archive/     (2)  outside the workspace, read-only porting reference
+├── apps/            Bun/TS — 2 applications (nie-web, inacord)   → apps/README.md
+│                    apps/inacord/src-tauri is the 47th Cargo workspace member
+├── packages/        Bun/TS — 8 package folders                   → packages/README.md
+├── python/          Python — the `niepy` package and its tests
+├── plugins/         published extensions (Claude Code, Blender)  → plugins/README.md
+├── scripts/         scripts and proofs                           → scripts/README.md
+├── vendor/          vendored third-party sources (PUC-Rio Lua for `nie-lua`)
+├── config/          shared shell configuration
+├── deploy/          pointer only: units, vhost and ports moved to ../aphrody-infra on 2026-09-23
+├── docs/            the documentation                            → docs/README.md
+│   └── legal/       the signed commercial agreement
+├── data/  var/  target/  node_modules/     ignored by Git (except tracked fixtures under data/)
+└── (root)           README AGENTS CLAUDE GEMINI PLAN CHANGELOG CONTRIBUTING CODE_OF_CONDUCT
+                     LICENSE NOTICE SECURITY PROVENANCE LOCAL, justfile, Cargo.toml,
+                     package.json, the other manifests and dotfiles
 ```
+
+Infrastructure (systemd units, nginx vhost, ports, health probes, host transport, DNS) is not
+in this repository: [`deploy/README.md`](../deploy/README.md) maps each item to its
+aphrody-infra path.
 
 ## Où va un fichier nouveau
 
@@ -67,7 +74,8 @@ nie/
 | plus de 2 lignes de Python | un fichier dans `scripts/` | un `python -c` traverse deux couches de quoting |
 | une preuve uemu | `scripts/validate_<sujet>.py` | son nom est cité par `forge/registry.json` et `nie-pe` |
 | un document | `docs/`, indexé dans `docs/README.md` | ce qui n'y est ni mesurable ni vérifiable n'y a pas sa place |
-| une source tierce | `third_party/<projet>/` + une ligne dans `NOTICE` | attribution |
+| une source tierce | `vendor/<projet>/` + une ligne dans `NOTICE` | attribution |
+| une unité systemd, un vhost, un port | `../aphrody-infra` (`systemd/`, `nginx/`, `config/service-catalog.json`) | aphrody-infra est l'unique propriétaire de l'infrastructure depuis le 2026-09-23 |
 | un artefact de build | nulle part — il est ignoré | |
 
 ---
@@ -78,14 +86,15 @@ nie/
 |---|---|
 | `ACCORD_COMMERCIAL_*.pdf` → `docs/legal/` (refs `CLAUDE.md`, `PROVENANCE.md` suivies) | fait |
 | `APP_EXPORT_README.md` → `docs/EXPORT-APP.md` | fait |
-| `CMakeLists.app_export.txt` → `cmake/` | fait |
+| `CMakeLists.app_export.txt` → `cmake/` | fait, puis retiré avec la surface CMake (voir [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md)) |
 | `happydom.ts` → `packages/nie-plugin/src/` — les deux préchargements de `bunfig.toml` au même endroit | fait |
 | `.gitattributes` — fins de ligne, binaires, classement GitHub | ajouté |
 | `CHANGELOG.md` — les 11 versions, comptes de commits réels | ajouté |
 | `NOTICE` — attributions `third_party/`, marques LEVEL-5 | ajouté |
 | `SECURITY.md` — périmètre, signalement, chaîne de signature | ajouté |
 | `.github/` — `CODEOWNERS`, gabarit de PR, deux gabarits d'issue | ajouté |
-| un `README.md` par arbre — `crates/`, `packages/`, `apps/`, `scripts/`, `deploy/`, `plugins/`, `third_party/` | ajouté |
+| un `README.md` par arbre — `crates/`, `packages/`, `apps/`, `scripts/`, `deploy/`, `plugins/`, `python/` | ajouté (`third_party/` n'existe plus ; `deploy/README.md` n'est plus qu'un renvoi vers aphrody-infra depuis le 2026-09-23) |
+| unités systemd et vhost → `../aphrody-infra` | fait le 2026-09-23 (`deploy/README.md`) |
 
 ## Décisions de structure
 
@@ -97,8 +106,9 @@ checkout. La correspondance des capacités est tenue dans [`IECODE-MIGRATION.md`
 ### `crates/nie-wasm/pkg`
 
 1,1 Mo d'artefact `wasm-pack` non suivi, posé sous `crates/` alors que la crate est
-`crates/engine/nie-wasm`. Rien ne le lit ; il se régénère. À supprimer, avec l'accord de
-l'utilisateur puisque c'est une suppression.
+`crates/engine/nie-wasm`. Rien ne le lisait ; il se régénère. Absent de l'arbre au 2026-09-25
+(`ls crates/nie-wasm/pkg` : introuvable) — le module servi est construit par
+`apps/nie-web/scripts/build-wasm.ts` dans `apps/nie-web/public/static/game/`.
 
 ### Les noms de `docs/`
 
@@ -127,18 +137,21 @@ question structurante ici.
 
 ---
 
-## Contradictions connues, non tranchées
+## Known contradictions
 
-Elles sont listées pour ne pas être « redécouvertes » à chaque session ; les trancher est
-une décision de l'utilisateur, pas un effet de bord d'un rangement.
+Listed so they are not "rediscovered" every session; settling one is the user's decision, not a
+side effect of tidying.
 
-- **`LICENSE` contre `Cargo.toml`.** Le fichier `LICENSE` est le texte de l'accord
-  commercial RG-L5-VR-2026-001 ; `[workspace.package]` déclare `license = "MIT"`. Les deux
-  ne peuvent pas être vrais à la fois pour un paquet publié.
-- **`README.md` est en anglais**, tout le reste de la documentation est en français. C'est
-  délibéré pour la page d'accueil GitHub, mais aucune règle écrite ne dit où s'arrête
-  l'anglais. Les fichiers ajoutés ici (`SECURITY.md`, gabarits) suivent le français, langue
-  du dépôt.
+Both contradictions listed here earlier are settled (checked 2026-09-25):
+
+- **`LICENSE` against `Cargo.toml`** — resolved. `[workspace.package]` now declares
+  `license-file = "LICENSE"` and `publish = false`: the commercial agreement RG-L5-VR-2026-001 is
+  not an OSI licence, so no crate is published to crates.io. See the stable-release boundary in
+  [`CONTRIBUTING.md`](../CONTRIBUTING.md#shipping).
+- **Documentation language** — resolved by the naming contract in `AGENTS.md` and `CLAUDE.md`:
+  English for everything the machine reads, documentation included; French only for prose
+  addressed to the user. Existing French documents are migrated in dedicated batches, never in
+  passing.
 
 ## RE anchors
 
