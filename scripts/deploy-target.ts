@@ -329,6 +329,11 @@ async function deployWeb(context: TargetContext): Promise<void> {
 			throw new Error(`The validated WebAssembly artifact ${module} is missing; deploy the wasm target first.`);
 		}
 	}
+	// A checkout fast-forwarded on the host has the new lockfile but not its packages. Without
+	// them the typecheck's `bunx tsc` fetches the latest TypeScript instead of the pinned one and
+	// fails on type libraries it cannot see (measured 2026-09-25: TS2688 on `bun`, `vite/client`
+	// and `@webgpu/types`, TS5102 on `baseUrl`). Frozen: a lockfile drift fails here, not later.
+	await run(context, ["bun", "install", "--frozen-lockfile"]);
 	await run(context, ["bun", "run", "--cwd", "apps/nie-web", "typecheck"]);
 	// Run from `apps/nie-web`, NOT from the repository root. From the root, `bunx vite` resolves
 	// no workspace dependency and fetches whatever version it likes — measured 2026-09-12:
