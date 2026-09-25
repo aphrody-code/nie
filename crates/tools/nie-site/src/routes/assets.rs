@@ -66,10 +66,70 @@ pub fn texture_url(path: &str, texture_name: Option<&str>) -> String {
     }
 }
 
-/// URL publique des octets bruts décompressés d'un fichier VFS.
+/// URL of a VFS file's raw bytes: the bearer-gated `/f` space, never the upstream `raw/`
+/// route, which [`upstream_allowed`] refuses.
 #[must_use]
 pub fn raw_url(path: &str) -> String {
-    format!("/assets/raw/{path}")
+    format!("/f/{path}")
+}
+
+/// Upstream families the `/assets` proxy may reach: the decoded families the frontend and the
+/// site's own routes request (`tex`, `audio`, `video`, models, the avatar and menu catalogues,
+/// decoded `cfg`), matched on the first path segment. Everything else — `raw/`, `vfs/`,
+/// `depot/`, and any family nobody here calls — answers `404` without contacting the upstream.
+pub const UPSTREAM_FAMILIES: &[&str] = &[
+    "tex",
+    "tex-info",
+    "audio",
+    "audio-info",
+    "video",
+    "model-full",
+    "model-chr",
+    "model-tree",
+    "model-report",
+    "model-avatar",
+    "avatar",
+    "cfg",
+    "export",
+    "menu-tree",
+];
+
+/// True when the normalised upstream path `chemin` (with its raw query) may be proxied.
+///
+/// `export/` is a family only with an explicit, decoded format: without `format`, or with the
+/// untouched `raw` format, it would hand out the game's bytes like `raw/` does.
+#[must_use]
+pub fn upstream_allowed(chemin: &str, query: Option<&str>) -> bool {
+    if chemin == "menu-tree.json" {
+        return true;
+    }
+    let Some((family, rest)) = chemin.split_once('/') else {
+        return false;
+    };
+    if !UPSTREAM_FAMILIES.contains(&family) || rest.is_empty() {
+        return false;
+    }
+    if family != "export" {
+        return true;
+    }
+    let formats: Vec<String> = query
+        .and_then(|q| reqwest::Url::parse(&format!("http://upstream/?{q}")).ok())
+        .map(|url| {
+            url.query_pairs()
+                .filter(|(k, _)| k == "format")
+                .map(|(_, v)| v.into_owned())
+                .collect()
+        })
+        .unwrap_or_default();
+    let vfs_path = if rest.starts_with("data/") {
+        rest.to_owned()
+    } else {
+        format!("data/{rest}")
+    };
+    !formats.is_empty()
+        && formats
+            .iter()
+            .all(|f| !nie_explore::raw_access::is_raw_export(&vfs_path, f))
 }
 
 /// URL publique d'un fichier de configuration décodé en JSON.
@@ -157,6 +217,13 @@ pub async fn proxy(
 ) -> Result<Response, ErreurSite> {
     let chemin = crate::routes::vfs::normaliser(&chemin)?;
     let query = query.filter(|q| !q.is_empty());
+    // Allowlist BEFORE the cache and the upstream: a refused family is never fetched, and
+    // answers exactly like an unknown asset.
+    if !upstream_allowed(&chemin, query.as_deref()) {
+        return Err(ErreurSite::Introuvable(format!(
+            "asset inconnu de l'amont: {chemin}"
+        )));
+    }
     let cle = match &query {
         Some(q) => format!("amont:{chemin}?{q}"),
         None => format!("amont:{chemin}"),
@@ -325,10 +392,7 @@ mod tests {
             texture_url("data/dx11/menu/icon.g4tx", Some("face_1")),
             "/assets/tex/data/dx11/menu/icon.g4tx/face_1.png"
         );
-        assert_eq!(
-            raw_url("data/common/file.bin"),
-            "/assets/raw/data/common/file.bin"
-        );
+        assert_eq!(raw_url("data/common/file.bin"), "/f/data/common/file.bin");
         assert_eq!(
             config_url("data/common/config.cfg.bin"),
             "/assets/cfg/data/common/config.cfg.bin.json"
@@ -359,8 +423,47 @@ mod tests {
         );
         assert_eq!(
             cpk_asset_url("data/common/file.bin", Some("bin")).as_deref(),
-            Some("/assets/raw/data/common/file.bin")
+            Some("/f/data/common/file.bin")
         );
         assert_eq!(cpk_asset_url("data/common/file", None), None);
+    }
+
+    #[test]
+    fn only_decoded_upstream_families_are_proxied() {
+        use super::upstream_allowed;
+        for ok in [
+            "tex/dx11/menu/icon.png",
+            "tex-info/dx11/menu/icon.g4tx",
+            "audio/data/common/sound/bgm.acb",
+            "video/catalog.json",
+            "model-full/c01000010.glb",
+            "model-avatar/a+b.glb",
+            "avatar/catalog.json",
+            "menu-tree/main_menu.json",
+            "menu-tree.json",
+        ] {
+            assert!(upstream_allowed(ok, None), "{ok}");
+        }
+        for refused in [
+            "raw/data/common/file.bin",
+            "vfs/ls",
+            "vfs/stat",
+            "depot/ls",
+            "depot/read",
+            "typed/data/x.cfg.bin.json",
+            "data/dx11/menu/icon.g4tx",
+            "tex",
+            "raw",
+        ] {
+            assert!(!upstream_allowed(refused, None), "{refused}");
+        }
+        // `export/` only with an explicit decoded format.
+        let g4tx = "export/data/dx11/icon.g4tx";
+        assert!(upstream_allowed(g4tx, Some("format=png&id=3")));
+        assert!(!upstream_allowed(g4tx, None));
+        assert!(!upstream_allowed(g4tx, Some("id=3")));
+        assert!(!upstream_allowed(g4tx, Some("format=raw")));
+        assert!(!upstream_allowed(g4tx, Some("format=%72aw")));
+        assert!(!upstream_allowed(g4tx, Some("format=png&format=raw")));
     }
 }

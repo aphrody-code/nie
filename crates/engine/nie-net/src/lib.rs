@@ -34,7 +34,7 @@ pub mod server;
 #[cfg(feature = "transport")]
 pub use client::NetClient;
 #[cfg(feature = "transport")]
-pub use server::{NetServer, ServerState};
+pub use server::{DEFAULT_BIND, NetServer, ServerState};
 
 pub use clans::{Clan, ClanMember, ClanMemberRole, ClanRegistry};
 pub use competitive::{

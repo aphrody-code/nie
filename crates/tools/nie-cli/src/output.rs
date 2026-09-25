@@ -59,7 +59,10 @@ impl CapturedCommand {
     }
 }
 
+// Already `const`; clippy 1.98 still flags the macro expansion, so the lint is silenced
+// on the item the macro produces.
 thread_local! {
+    #[allow(clippy::missing_const_for_thread_local)]
     static CAPTURE: RefCell<Option<CapturedOutput>> = const { RefCell::new(None) };
 }
 

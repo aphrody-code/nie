@@ -216,7 +216,19 @@ impl Options {
         }
         cfg.raw_vfs_token = self
             .raw_vfs_token
-            .and_then(|t| crate::raw_gate::Token::new(&t));
+            .filter(|t| !t.trim().is_empty())
+            .and_then(|t| {
+                let token = crate::raw_gate::Token::new(&t);
+                if token.is_none() {
+                    // The length only: the value is never logged.
+                    tracing::warn!(
+                        length = t.trim().len(),
+                        minimum = crate::raw_gate::MIN_TOKEN_LEN,
+                        "NIE_RAW_VFS_TOKEN is too short: the raw spaces stay closed"
+                    );
+                }
+                token
+            });
         Ok(cfg)
     }
 }

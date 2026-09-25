@@ -72,13 +72,22 @@ pub async fn formats(
 }
 
 /// Produce a download in memory; conversion errors never return the original bytes as fallback.
+///
+/// The untouched `raw` format is the game's own bytes, the same as `/f`: it answers `404`
+/// unless the request carries the raw-space bearer token (see [`crate::raw_gate`]).
 pub async fn file(
     State(state): State<EtatSite>,
     Path(raw): Path<String>,
     Query(query): Query<ExportQuery>,
+    headers: axum::http::HeaderMap,
 ) -> Result<Response, ErreurSite> {
     let path = super::vfs::normaliser(&raw)?;
     let format = query.format.as_deref().unwrap_or("raw").to_owned();
+    if nie_explore::raw_access::is_raw_export(&path, &format)
+        && !crate::raw_gate::authorised(&state, &headers)
+    {
+        return Err(ErreurSite::Introuvable("VFS resource not found".into()));
+    }
     if !nie_explore::export::formats_pour(&path)
         .iter()
         .any(|candidate| candidate.id == format)

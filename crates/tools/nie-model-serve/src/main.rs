@@ -315,6 +315,9 @@ struct State {
     depot: Option<nie_explore::depot::Depot>,
     /// Cache LRU vivant uniquement pendant le processus, après le cache disque.
     glb_memory: Mutex<GlbMemoryCache>,
+    /// Bearer token opening `/raw/`, `/depot/` and raw `/export/` (`NIE_RAW_VFS_TOKEN`);
+    /// `None` keeps them closed. See [`private_route`].
+    raw_token: Option<nie_explore::raw_access::Token>,
 }
 
 /// Une source qui référence un asset, telle qu'écrite par
@@ -4183,8 +4186,68 @@ fn spawn_preload(state: Arc<State>, workers: usize) {
 
 // ── Serveur HTTP minimal ──────────────────────────────────────────────────────
 
-thread_local! {
-    static IS_HEAD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+/// Per-request flags of the worker thread handling the connection.
+///
+/// The `allow` silences a clippy 1.98 false positive: `missing_const_for_thread_local` fires on
+/// these initializers although both already are `const { … }` (it fired on `IS_HEAD` alone
+/// before `IS_PRIVATE` existed).
+#[allow(clippy::missing_const_for_thread_local)]
+mod request_flags {
+    thread_local! {
+        pub(super) static IS_HEAD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+        // Set for a request served by a bearer-gated route (see `private_route`): its response
+        // must never be stored by a shared cache and replayed to a client without the token.
+        pub(super) static IS_PRIVATE: std::cell::Cell<bool> =
+            const { std::cell::Cell::new(false) };
+    }
+}
+use request_flags::{IS_HEAD, IS_PRIVATE};
+
+/// `Cache-Control` of the response being written on this worker thread.
+fn cache_control() -> &'static str {
+    if IS_PRIVATE.with(std::cell::Cell::get) {
+        "private, no-store"
+    } else {
+        "public, max-age=31536000, immutable"
+    }
+}
+
+/// True for the routes that hand out the game's own bytes or the repository's code: `/raw/`,
+/// `/depot/`, and `/export/` in an untouched (`raw`, the default) format.
+///
+/// They answer only to `Authorization: Bearer <NIE_RAW_VFS_TOKEN>`
+/// (`nie_explore::raw_access`, the same rule as `nie-site`'s `/f` and `/b`). Every derived route
+/// (`/tex/`, `/model-*`, `/cfg/`, `/typed/`, `/audio/`, `/video/`, `/ui/`, `/icons/`,
+/// `/avatar/`, `/menu-*`, `/health`…) stays public. The prefixes are the routing prefixes
+/// verbatim, so no spelling reaches a gated handler without passing here.
+///
+/// **`/vfs/` is deliberately NOT gated here** (decision of 2026-09-25). It lists names and
+/// sizes, never bytes, and its one legitimate caller is the rg website's server-side rendering
+/// (`rg/packages/azalee/src/cpk/live.ts` → `cdn.rosegriffon.fr/vfs/…`), which this process
+/// cannot tell apart from any other request and which carries no token. Its exposure is closed
+/// one layer up instead: the aphrody-infra vhosts answer `404` on `nie.aphrody.com/cdn/vfs/`
+/// and admit `cdn.rosegriffon.fr/vfs/` from the host itself only (aphrody-infra `31db1fc`).
+/// `nie-site`'s `/assets` proxy refuses `vfs/` on its own allowlist. Gate it here too once
+/// that SSR forwards the token.
+fn private_route(path: &str, query: &str) -> bool {
+    let under = |prefix: &str| {
+        path.strip_prefix(prefix)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+    };
+    if under("/raw") || under("/depot") {
+        return true;
+    }
+    let Some(rest) = path.strip_prefix("/export/") else {
+        return false;
+    };
+    // Same path and format resolution as the `/export/` handler below.
+    let vfs_path = if rest.starts_with("data/") {
+        rest.to_string()
+    } else {
+        format!("data/{rest}")
+    };
+    let format = param(query, "format").unwrap_or_else(|| "raw".to_string());
+    nie_explore::raw_access::is_raw_export(&vfs_path, &format)
 }
 
 /// Réponse HTTP (supporte GET et HEAD avec en-têtes CORS et sécurité complets).
@@ -4194,7 +4257,7 @@ fn respond(stream: &mut TcpStream, status: u16, reason: &str, content_type: &str
         "HTTP/1.1 {status} {reason}\r\n\
          Content-Type: {content_type}\r\n\
          Content-Length: {}\r\n\
-         Cache-Control: public, max-age=31536000, immutable\r\n\
+         Cache-Control: {}\r\n\
          Access-Control-Allow-Origin: *\r\n\
          Access-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n\
          Access-Control-Allow-Headers: *\r\n\
@@ -4202,7 +4265,8 @@ fn respond(stream: &mut TcpStream, status: u16, reason: &str, content_type: &str
          X-Content-Type-Options: nosniff\r\n\
          Connection: close\r\n\
          \r\n",
-        body.len()
+        body.len(),
+        cache_control()
     );
     let _ = stream.write_all(headers.as_bytes());
     if !is_head {
@@ -4328,13 +4392,14 @@ fn respond_download(stream: &mut TcpStream, content_type: &str, nom: &str, body:
          Content-Type: {content_type}\r\n\
          Content-Length: {}\r\n\
          Content-Disposition: attachment; filename=\"{nom}\"\r\n\
-         Cache-Control: public, max-age=31536000, immutable\r\n\
+         Cache-Control: {}\r\n\
          Access-Control-Allow-Origin: *\r\n\
          Cross-Origin-Resource-Policy: cross-origin\r\n\
          X-Content-Type-Options: nosniff\r\n\
          Connection: close\r\n\
          \r\n",
-        body.len()
+        body.len(),
+        cache_control()
     );
     let _ = stream.write_all(headers.as_bytes());
     let _ = stream.write_all(body);
@@ -4543,6 +4608,9 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     // c'est-à-dire au pire moment. L'emprunt doit finir avant qu'on écrive la réponse.
     let mut first_line = String::new();
     let mut range_header: Option<String> = None;
+    let mut authorization: Option<String> = None;
+    // Worker threads are reused: the flag of the previous request must not leak into this one.
+    IS_PRIVATE.with(|p| p.set(false));
     {
         let mut reader = BufReader::new(&stream);
         if reader.read_line(&mut first_line).is_err() {
@@ -4566,6 +4634,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 .or_else(|| line.trim_end().strip_prefix("range:"))
             {
                 range_header = Some(v.trim().to_string());
+            }
+            // Header names are case-insensitive; the value is only ever compared, never logged.
+            if let Some((name, value)) = line.trim_end().split_once(':')
+                && name.trim().eq_ignore_ascii_case("authorization")
+            {
+                authorization = Some(value.trim().to_string());
             }
         }
     }
@@ -4603,6 +4677,16 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     if path == "/health" {
         respond_text(&mut stream, 200, "OK", "ok");
         return;
+    }
+
+    // Bearer gate on the game's own bytes and the repository code, BEFORE any read. Refusal is the
+    // exact body of an unknown route: the origin does not advertise that a private space exists.
+    if private_route(path, query) {
+        if !nie_explore::raw_access::allows(state.raw_token.as_ref(), authorization.as_deref()) {
+            respond_text(&mut stream, 404, "Not Found", "non trouvé");
+            return;
+        }
+        IS_PRIVATE.with(|p| p.set(true));
     }
 
     // `/vfs/…` — pont de LISTING du VFS réel, en JSON.
@@ -6419,6 +6503,23 @@ fn main() -> Result<()> {
         None
     };
 
+    // Raw spaces: closed unless NIE_RAW_VFS_TOKEN holds a long enough token. Only whether it
+    // is configured is logged, never the value.
+    let raw_token = match nie_explore::raw_access::Token::from_env() {
+        Ok(Some(token)) => {
+            info!("/raw, /depot, raw /export: bearer token configured");
+            Some(token)
+        }
+        Ok(None) => {
+            info!("/raw, /depot, raw /export: closed (no NIE_RAW_VFS_TOKEN)");
+            None
+        }
+        Err(e) => {
+            warn!("{e}");
+            None
+        }
+    };
+
     let state = Arc::new(State {
         vfs,
         glb_dir: glb_dir.clone(),
@@ -6436,6 +6537,7 @@ fn main() -> Result<()> {
         glb_memory: Mutex::new(GlbMemoryCache::new(
             cli.memory_cache_mib.saturating_mul(1024 * 1024),
         )),
+        raw_token,
     });
 
     // Audit hors ligne : pas de serveur (donc pas de port à prendre — un serveur peut tourner à
@@ -6834,6 +6936,67 @@ fn audit_models(
 
 #[cfg(test)]
 mod tests {
+
+    /// The routes handing out the game's own bytes or the repository's code are gated; every
+    /// derived route stays public, and the gate uses the routing prefixes verbatim. `/vfs/` is
+    /// public HERE by decision (see `private_route`): nginx restricts it one layer up.
+    #[test]
+    fn only_raw_depot_and_raw_export_are_private() {
+        use super::private_route;
+        for gated in [
+            "/raw/data/common/x.bin",
+            "/raw/common/x.bin",
+            "/raw",
+            "/depot/ls",
+            "/depot/read",
+            "/depot",
+        ] {
+            assert!(private_route(gated, ""), "{gated}");
+        }
+        // `/export/` is private only in an untouched format — `raw`, also the default.
+        assert!(private_route("/export/dx11/a.g4tx", ""));
+        assert!(private_route("/export/dx11/a.g4tx", "format=raw"));
+        assert!(private_route("/export/dx11/a.g4tx", "format=%72aw"));
+        assert!(!private_route("/export/dx11/a.g4tx", "format=png"));
+        assert!(!private_route("/export/common/a.cfg.bin", "format=json"));
+        for public in [
+            "/health",
+            "/tex/dx11/menu/a.png",
+            "/tex-info/dx11/menu/a.g4tx",
+            "/model-full/c01000010.glb",
+            "/model-avatar/a.glb",
+            "/cfg/data/common/a.cfg.bin.json",
+            "/typed/data/common/a.cfg.bin.json",
+            "/audio/data/common/sound/a.acb",
+            "/video/catalog.json",
+            "/ui/theme.json",
+            "/icons/index.json",
+            "/avatar/catalog.json",
+            "/menu-tree.json",
+            "/menu-render/main_menu.png",
+            "/rawx/a",
+            "/depotx",
+            // Listing only, restricted by nginx instead — see `private_route`.
+            "/vfs/ls",
+            "/vfs/stat",
+        ] {
+            assert!(!private_route(public, ""), "{public}");
+        }
+    }
+
+    /// No token configured, or a wrong one: closed. The exact bearer token: open.
+    #[test]
+    fn the_gate_needs_the_configured_bearer_token() {
+        use nie_explore::raw_access::{Token, allows};
+        let token = Token::new("0123456789abcdef0123456789abcdef").unwrap();
+        assert!(!allows(None, Some("Bearer 0123456789abcdef0123456789abcdef")));
+        assert!(!allows(Some(&token), None));
+        assert!(!allows(Some(&token), Some("Bearer nope")));
+        assert!(allows(
+            Some(&token),
+            Some("Bearer 0123456789abcdef0123456789abcdef")
+        ));
+    }
 
     /// La tenue par défaut n'affirme rien, et c'est elle qui garde le nom de cache historique.
     #[test]

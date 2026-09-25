@@ -68,9 +68,11 @@ pub struct LegacySante {
     /// Database checks in the historical response shape.
     pub checks: LegacyChecks,
     /// `ok` when the read-only game mirror is available, otherwise `degraded`.
+    ///
+    /// The historical shape also carried `uptime`; it is gone on purpose. A process uptime
+    /// dates every restart, i.e. every deploy, which is a fingerprint the origin must not
+    /// publish (`AGENTS.md`, "no identity and no fingerprint").
     pub status: &'static str,
-    /// Process uptime in seconds.
-    pub uptime: f64,
 }
 
 /// Database check retained for clients of Azalee's public health URL.
@@ -91,7 +93,6 @@ pub async fn legacy(State(etat): State<EtatSite>) -> impl IntoResponse {
             db: if ready { "ok" } else { "error" },
         },
         status: if ready { "ok" } else { "degraded" },
-        uptime: etat.uptime_seconds(),
     };
     let status = if ready {
         axum::http::StatusCode::OK

@@ -14,8 +14,9 @@ pub struct NetArgs {
 pub enum NetOp {
     /// Start the standalone WebSocket multiplayer and matchmaking server.
     Server {
-        /// Socket address to bind (e.g. 127.0.0.1:8085 or 0.0.0.0:8085).
-        #[arg(long, default_value = "127.0.0.1:8085")]
+        /// Socket address to bind. Loopback by default; listening beyond the machine is an
+        /// explicit choice (e.g. `--bind 0.0.0.0:8796`).
+        #[arg(long, default_value = nie_net::DEFAULT_BIND)]
         bind: String,
     },
     /// Inacode room creation and formatting.

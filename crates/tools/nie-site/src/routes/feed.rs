@@ -79,7 +79,6 @@ struct Flux<'a> {
     titre: &'a str,
     sous_titre: &'a str,
     origine: &'a str,
-    version: &'a str,
     maj: String,
     entrees: Vec<EntreeFlux>,
 }
@@ -135,7 +134,6 @@ pub async fn atom(State(etat): State<EtatSite>) -> Response {
         titre: "nie — épisodes",
         sous_titre: "Les épisodes de la série moissonnés par ce serveur, du plus récent au plus ancien.",
         origine: &etat.config.origine,
-        version: crate::VERSION,
         maj,
         entrees,
     };
@@ -362,7 +360,6 @@ mod tests {
             titre: "T",
             sous_titre: "S",
             origine: "https://exemple.test",
-            version: "0.0.0",
             maj: "2026-09-05T00:00:00Z".to_owned(),
             entrees: vec![e],
         }
@@ -394,6 +391,11 @@ mod tests {
             !rendu.contains("nie.aphrody.com"),
             "aucune origine codee en dur"
         );
+        // The origin publishes no identity and no fingerprint: no generator, service name or
+        // version in the feed.
+        assert!(!rendu.contains("<generator"), "no generator element");
+        assert!(!rendu.contains("nie-site"), "no service name");
+        assert!(!rendu.contains(crate::VERSION), "no version");
     }
 
     #[test]
@@ -402,7 +404,6 @@ mod tests {
             titre: "T",
             sous_titre: "S",
             origine: "https://exemple.test",
-            version: "0.0.0",
             maj: "2026-09-05T00:00:00Z".to_owned(),
             entrees: Vec::new(),
         }

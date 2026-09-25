@@ -132,6 +132,14 @@ impl Default for ServerState {
     }
 }
 
+/// Default bind address of the standalone multiplayer server.
+///
+/// Loopback only, and on a port no catalogued service uses: `127.0.0.1:8085` (the former
+/// default) is `nie-site`'s own port, so `nie net server` on a host running the site either
+/// failed to bind or, started first, took the site's place. Exposing the server beyond the
+/// machine is an explicit `--bind`, never a default.
+pub const DEFAULT_BIND: &str = "127.0.0.1:8796";
+
 /// Asynchronous network server runner.
 pub struct NetServer {
     state: Arc<ServerState>,
@@ -895,4 +903,18 @@ async fn handle_connection(
 
     forward_task.abort();
     Ok(())
+}
+
+#[cfg(test)]
+mod default_bind_tests {
+    use super::DEFAULT_BIND;
+    use std::net::SocketAddr;
+
+    #[test]
+    fn default_bind_is_loopback_and_not_the_site_port() {
+        let addr: SocketAddr = DEFAULT_BIND.parse().expect("valid socket address");
+        assert!(addr.ip().is_loopback(), "never 0.0.0.0 by default");
+        assert_ne!(addr.port(), 8085, "nie-site's port");
+        assert_ne!(addr.port(), 8790, "nie-model-serve's port");
+    }
 }

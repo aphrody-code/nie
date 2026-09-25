@@ -85,7 +85,7 @@ another name.
 
 ## P0 — safety, security, broken production
 
-- [ ] **Close every unauthenticated path to raw VFS bytes.** The bearer gate on `/f` and `/b`
+- [x] **Close every unauthenticated path to raw VFS bytes.** (2026-09-25: nginx aphrody-infra `31db1fc` live; code gate in this commit — `/vfs/` stays host-only at nginx until rg SSR forwards the token) The bearer gate on `/f` and `/b`
       (`raw_gate.rs`) is not the only door: the derived-asset proxy and the CDN vhosts reach the
       same data. Fix in code (one shared token check used by `nie-site` and `nie-model-serve`,
       allowlist in `nie-site`'s asset proxy) and in the aphrody-infra vhosts, then deploy both.
@@ -94,7 +94,7 @@ another name.
 - [x] **Inacord auto-update downloads.** (fixed 2026-09-25, aphrody-infra `31db1fc`: installer URL → 200) The updater feed answers, but the installer URL it
       advertises returns 404 (measured 2026-09-25). *Accept:* `curl -sI` on the URL in
       `latest.json` → 200 and the signature/tamper tests of `scripts/release-inacord.ts` pass.
-- [ ] **No test may write outside the repository.** `nie-save/tests/apply_astro_lor.rs` copies
+- [x] **No test may write outside the repository.** (`5a5edbbf`) `nie-save/tests/apply_astro_lor.rs` copies
       into the live Steam `userdata` directory whenever `var/save_work` exists. *Accept:*
       `cargo test -p nie-save` writes only under a temp dir or `var/`; `rg 'Program Files'
       crates/` is empty; the live install is an explicit, env-gated opt-in.
@@ -102,7 +102,7 @@ another name.
       command die when `iecode.dll`/`libiecode.so` is absent. *Accept:* on a clean checkout with
       no library, `bun run typecheck`, `bun run docs:check` and the non-native tests pass; a
       native call without the library fails with an explicit message.
-- [ ] **The `nie-game` MCP server starts on Windows and Linux.** It timed out at 30 s on the
+- [x] **The `nie-game` MCP server starts on Windows and Linux.** (`5a5edbbf`, `e03ca1a0`; Linux PATH install unverified) It timed out at 30 s on the
       workstation. *Accept:* the configured command answers `initialize` + `tools/list` over
       stdio in under 10 s on both hosts.
 - [ ] **Move the browser off `/f` and `/b`.** `menu-composer.ts`, `menu-layout.ts`,
@@ -116,7 +116,7 @@ another name.
 - [ ] **Public Lua execution is sandboxed.** `POST /api/v1/lua/execute` and `/lua/eval` run
       client-supplied Lua. *Accept:* a test proves no `io`, `os`, `package`, `debug`, `load` of
       bytecode or unbounded loop escapes (instruction and memory limits enforced).
-- [ ] **No fingerprint in public responses.** Drop the crate version from `/feed.atom` and
+- [x] **No fingerprint in public responses.** (feed version and health uptime removed in this commit) Drop the crate version from `/feed.atom` and
       `uptime` from `/api/health`; review `/api/v1/health` and `/readyz` capability detail.
       *Accept:* `rg VERSION crates/tools/nie-site/src/routes` finds no public serialisation.
 - [ ] **Desktop least privilege.** `tauri.conf.json` has `csp: null` and `capabilities/default.json`

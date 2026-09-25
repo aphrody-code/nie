@@ -38,6 +38,7 @@ pub mod motion;
 pub mod native_audio;
 pub mod native_metadata;
 pub mod native_video;
+pub mod raw_access;
 pub mod related;
 pub mod search_query;
 #[cfg(feature = "host")]

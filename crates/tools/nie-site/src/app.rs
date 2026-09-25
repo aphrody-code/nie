@@ -95,7 +95,8 @@ macro_rules! declarer_routes {
 /// garantie qu'on ne peut pas énumérer n'en est pas une. Un test fige cette liste — une entrée
 /// y arrive par une décision visible, jamais par inadvertance.
 ///
-/// **Aucune des trois n'écrit quoi que ce soit.** Le `POST` dit ici la **taille de l'entrée**,
+/// **No entry of this list writes anything** — the count is not repeated here, the test that
+/// pins the list is the only place that states it. Le `POST` dit ici la **taille de l'entrée**,
 /// jamais un effet de bord : deux personnages entiers, onze joueurs avec leurs statistiques, ou
 /// des milliers d'identifiants d'effectif ne tiennent pas dans une query string. Chacune a un
 /// `GET` de même chemin qui publie son contrat, plutôt que de rendre un `405` muet au premier
@@ -128,12 +129,12 @@ pub const CHEMINS_HORS_GET: &[&str] = &[
 // Le site ne prend **aucune écriture** : ni base, ni disque, ni état. C'est la garantie que la
 // macro rend structurelle, et le défaut de la déclaration est `GET`.
 //
-// Cinq routes sortent du `GET`, et aucune n'écrit : elles CALCULENT sur un corps que la query
-// string ne peut pas porter (deux personnages entiers, un effectif de onze joueurs, une liste
-// d'identifiants de sauvegarde, deux images RGBA). Le verbe dit la taille de l'entrée, pas un
-// effet de bord — et chacune a son pendant `GET`, qui publie le contrat plutôt que de rendre un
-// `405` muet au premier client qui explore. Le test `seules_les_routes_declarees_sortent_du_get`
-// fige la liste : une sixième y entrera par une décision visible, jamais par inadvertance.
+// The routes of `CHEMINS_HORS_GET` are the only ones that leave `GET`, and none writes: they
+// COMPUTE on a body a query string cannot carry (two whole characters, an eleven-player squad,
+// a list of save identifiers, two RGBA images, a GraphQL document, a Lua chunk). The verb states
+// the size of the input, not a side effect — and each has its `GET` twin publishing the contract
+// instead of a mute `405`. The test `seules_les_routes_declarees_sortent_du_get` pins the list;
+// the count lives there only, so a new entry arrives by a visible decision, never by accident.
 declarer_routes! {
     "/healthz" => crate::routes::health::healthz,
     "/readyz" => crate::routes::health::readyz,

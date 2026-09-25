@@ -122,7 +122,7 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/f/data/dx11/menu/title/a.g4tx", &[503]), // index sans contenu
         ("/b", &[200]),
         ("/b/data/dx11/menu", &[200]),
-        ("/assets/data/x.g4tx", &[502]), // amont clos
+        ("/assets/tex/data/x.png", &[502]), // amont clos
         // Catalogue des episodes : la base n'est pas la dans l'etat de test, et le serveur le
         // DIT plutot que de rendre une liste vide qu'un client prendrait pour un catalogue a
         // jour. C'est la porte de mise a jour des Inacord installes.
@@ -1273,7 +1273,7 @@ async fn le_wiki_est_servi_titre_et_indexable_dans_les_quatre_langues() {
 #[tokio::test]
 async fn le_proxy_borne_un_amont_injoignable() {
     let etat = etat();
-    let (statut, _, corps) = reponse(&etat, "/assets/data/dx11/menu/title/a.g4tx?format=png").await;
+    let (statut, _, corps) = reponse(&etat, "/assets/tex/dx11/menu/title/a.png").await;
     assert_eq!(statut, StatusCode::BAD_GATEWAY);
     let v = json(&corps);
     assert_eq!(v["genre"], "amont");
@@ -1882,4 +1882,85 @@ async fn raw_spaces_are_closed_without_a_token() {
         StatusCode::NOT_FOUND,
         "closed when no token is configured"
     );
+}
+
+/// The `/assets` proxy reaches only decoded upstream families. A fake upstream counts what it
+/// receives, so "refused" means refused BEFORE any upstream call, not answered 404 by it.
+#[tokio::test]
+async fn assets_proxy_refuses_raw_vfs_and_depot_before_the_upstream() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let seen = Arc::clone(&hits);
+    let upstream = axum::Router::new().fallback(move || {
+        let seen = Arc::clone(&seen);
+        async move {
+            seen.fetch_add(1, Ordering::SeqCst);
+            ([(header::CONTENT_TYPE, "image/png")], "decoded")
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, upstream).await.unwrap() });
+    let etat = etat_avec(|c| c.amont = format!("http://{addr}"));
+
+    for refused in [
+        "/assets/raw/data/common/misc/LISEZMOI",
+        "/assets/raw/common/misc/LISEZMOI",
+        "/assets/vfs/ls",
+        "/assets/vfs/ls?path=data&limit=1",
+        "/assets/vfs/stat?path=data/common/misc/LISEZMOI",
+        "/assets/depot/ls",
+        "/assets/depot/read?path=Cargo.toml",
+        "/assets/%72aw/data/common/misc/LISEZMOI",
+        "/assets/export/data/dx11/menu/title/a.g4tx",
+        "/assets/export/data/dx11/menu/title/a.g4tx?format=raw",
+    ] {
+        let (statut, _, _) = reponse(&etat, refused).await;
+        assert_eq!(statut, StatusCode::NOT_FOUND, "{refused}");
+    }
+    assert_eq!(
+        hits.load(Ordering::SeqCst),
+        0,
+        "no refused path reached the upstream"
+    );
+
+    let (statut, entetes, corps) = reponse(&etat, "/assets/tex/dx11/menu/title/a.png").await;
+    assert_eq!(statut, StatusCode::OK);
+    assert_eq!(corps, b"decoded");
+    assert_eq!(entetes[header::CONTENT_TYPE], "image/png");
+    let (statut, _, _) = reponse(
+        &etat,
+        "/assets/export/data/dx11/menu/title/a.g4tx?format=png",
+    )
+    .await;
+    assert_eq!(statut, StatusCode::OK);
+    assert_eq!(
+        hits.load(Ordering::SeqCst),
+        2,
+        "exactly the two allowed paths"
+    );
+}
+
+/// `format=raw` (and no format, which defaults to it) is the game's own bytes: without the
+/// bearer token it answers like an absent resource, whatever the file.
+#[tokio::test]
+async fn raw_export_needs_the_bearer_token() {
+    let etat = etat();
+    for uri in [
+        "/api/v1/export/file/data/dx11/menu/title/a.g4tx",
+        "/api/v1/export/file/data/dx11/menu/title/a.g4tx?format=raw",
+        "/api/v1/export/file/data/common/misc/LISEZMOI",
+    ] {
+        let r = nie_site::routeur(etat.clone())
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::NOT_FOUND, "{uri}");
+    }
+    // With the token the gate lets it through; this state has no VFS content, so what answers
+    // is the export route itself, not the gate.
+    let (statut, _, _) = reponse(&etat, "/api/v1/export/file/data/dx11/menu/title/a.g4tx").await;
+    assert_ne!(statut, StatusCode::NOT_FOUND);
 }
