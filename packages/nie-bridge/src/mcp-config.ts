@@ -9,8 +9,12 @@
 /** Nom sous lequel le serveur apparaît chez les clients MCP. */
 export const MCP_SERVER_NAME = "nie-game";
 
-/** Manifeste du serveur Rust natif, relatif à la racine du repo. */
-export const MCP_ENTRYPOINT = "Cargo.toml";
+/**
+ * Binaire du serveur, lancé depuis le `PATH` (installé par `cargo install --path crates/tools/nie-mcp`).
+ * Même forme que l'installeur Rust (`apps/inacord/src-tauri/src/mcp.rs`) : `cargo run` compile au
+ * démarrage et attend le verrou du dossier de build, ce qui dépasse le délai de connexion du client.
+ */
+export const MCP_SERVER_BINARY = "nie-mcp";
 
 /** Entrée `mcpServers[...]` telle qu'attendue par Claude Code et Claude Desktop. */
 export interface McpServerEntry {
@@ -37,27 +41,18 @@ export interface McpEntryOptions {
 /**
  * Construit l'entrée de configuration du serveur.
  *
- * Sans `repoRoot`, le chemin reste relatif — c'est la forme versionnée dans le `.mcp.json`
- * du repo, valable sur toutes les machines.
+ * Sans `repoRoot`, l'entrée n'a pas d'environnement — c'est la forme versionnée dans le
+ * `.mcp.json` du repo, valable sur toutes les machines.
  */
 export function mcpServerEntry(options: McpEntryOptions = {}): McpServerEntry {
   const root = options.repoRoot?.trim() ?? "";
   const env: Record<string, string> = {};
-  if (root !== "") {
-    env["NIE_REPO"] = root;
-    env["NIE_REPO"] = root;
-  }
+  if (root !== "") env["NIE_REPO"] = root;
   if (options.gameDir !== undefined && options.gameDir.trim() !== "") env["NIE_GAME_DIR"] = options.gameDir.trim();
   if (options.aphrodyApiUrl !== undefined && options.aphrodyApiUrl.trim() !== "") {
     env["NIE_APHRODY_API_URL"] = options.aphrodyApiUrl.trim().replace(/\/+$/, "");
   }
-  const manifestArgs = root === "" ? [] : ["--manifest-path", joinPath(root, MCP_ENTRYPOINT)];
-  return {
-    type: "stdio",
-    command: "cargo",
-    args: ["run", "--release", "--quiet", ...manifestArgs, "--package", "nie-mcp", "--"],
-    env,
-  };
+  return { type: "stdio", command: MCP_SERVER_BINARY, args: [], env };
 }
 
 /** Objet complet `{ mcpServers: { "nie-game": … } }`, à fusionner dans une config existante. */
@@ -65,17 +60,4 @@ export function mcpConfigFragment(options: McpEntryOptions = {}): {
   mcpServers: Record<string, McpServerEntry>;
 } {
   return { mcpServers: { [MCP_SERVER_NAME]: mcpServerEntry(options) } };
-}
-
-/**
- * Concatène deux segments de chemin en conservant le séparateur de la base.
- *
- * `replace(/\//g, …)` plutôt que `replaceAll` : ce module est aussi compilé par
- * `nie-explorer`, dont la cible TypeScript est ES2020 — `replaceAll` est ES2021.
- */
-function joinPath(base: string, rest: string): string {
-  const windows = base.includes("\\");
-  const trimmed = base.replace(/[\\/]+$/, "");
-  const tail = windows ? rest.replace(/\//g, "\\") : rest;
-  return `${trimmed}${windows ? "\\" : "/"}${tail}`;
 }

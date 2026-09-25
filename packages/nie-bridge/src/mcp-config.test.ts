@@ -1,24 +1,19 @@
 import { expect, test } from "bun:test";
-import { MCP_SERVER_NAME, mcpConfigFragment, mcpServerEntry } from "./mcp-config.ts";
+import { MCP_SERVER_BINARY, MCP_SERVER_NAME, mcpConfigFragment, mcpServerEntry } from "./mcp-config.ts";
 
-test("sans racine, le chemin reste relatif — forme versionnable du .mcp.json", () => {
+test("sans racine, le binaire est lancé depuis le PATH, sans environnement", () => {
   const entry = mcpServerEntry();
-  expect(entry.command).toBe("cargo");
-  expect(entry.args).toEqual(["run", "--release", "--quiet", "--package", "nie-mcp", "--"]);
+  expect(entry.command).toBe(MCP_SERVER_BINARY);
+  expect(entry.command).toBe("nie-mcp");
+  expect(entry.args).toEqual([]);
   expect(entry.env).toEqual({});
 });
 
-test("avec une racine Windows, le chemin est absolu et séparé par des antislashs", () => {
-  const entry = mcpServerEntry({ repoRoot: "C:\\Jeux\\IEVR" });
-  expect(entry.args.slice(3, 5)).toEqual(["--manifest-path", "C:\\Jeux\\IEVR\\Cargo.toml"]);
-	expect(entry.env).toMatchObject({
-		NIE_REPO: "C:\\Jeux\\IEVR",
-	});
-});
-
-test("avec une racine POSIX, le séparateur reste la barre oblique", () => {
-  const entry = mcpServerEntry({ repoRoot: "/home/ubuntu/nie/" });
-  expect(entry.args.slice(3, 5)).toEqual(["--manifest-path", "/home/ubuntu/nie/Cargo.toml"]);
+test("avec une racine, elle passe par NIE_REPO et la commande ne change pas", () => {
+  const entry = mcpServerEntry({ repoRoot: "  C:\Jeux\IEVR  " });
+  expect(entry.command).toBe("nie-mcp");
+  expect(entry.args).toEqual([]);
+  expect(entry.env).toEqual({ NIE_REPO: "C:\Jeux\IEVR" });
 });
 
 test("le dossier du jeu passe par l'environnement, et seulement s'il est renseigné", () => {
