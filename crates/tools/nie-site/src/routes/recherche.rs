@@ -63,16 +63,28 @@ pub struct Demande {
     pub taille_max: Option<u32>,
     /// Champs à compter — `facets=ext,cpk`. Un nom hors de [`Champ::NOMS`] est **refusé**.
     pub facets: Option<String>,
+    /// Alias canonique de `q` (`aphrody-contracts` §6.3). `q` reste accepté seul ; `query`
+    /// gagne quand les deux sont fournis.
+    pub query: Option<String>,
+    /// Alias canonique de `per_page` (`aphrody-contracts` §6.3). Même priorité que `query`.
+    pub limit: Option<u32>,
+    /// Curseur de page opaque, tel que la réponse le publie dans `next_cursor`. Ignoré si
+    /// `page` est fourni ; illisible, il est refusé en `400`.
+    pub cursor: Option<String>,
 }
 
 impl Demande {
-    /// La pagination demandée, déjà bornée.
+    /// La pagination demandée, avant bornage. La réconciliation des alias (`query`/`q`,
+    /// `limit`/`per_page`, `cursor`/`page`) vit dans [`DemandePage`], une seule fois.
     #[must_use]
     pub fn page(&self) -> DemandePage {
         DemandePage {
             page: self.page,
             per_page: self.per_page,
             q: self.q.clone(),
+            query: self.query.clone(),
+            limit: self.limit,
+            cursor: self.cursor.clone(),
         }
     }
 
@@ -105,6 +117,10 @@ pub struct Resultat {
     pub page: u32,
     /// Taille de page réellement appliquée (bornée à [`crate::config::PER_PAGE_MAX`]).
     pub per_page: u32,
+    /// Curseur de la page suivante, à renvoyer tel quel dans `?cursor=`. Absent sur la dernière
+    /// page : sa présence dit qu'il reste des résultats, son absence qu'il n'y en a plus.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
     /// Ce que le serveur a **réellement** appliqué.
     pub filtres: FiltresAppliques,
     /// Les champs demandés, comptés **sous les filtres en cours sauf le leur**. Absent quand
@@ -156,9 +172,11 @@ pub async fn recherche(
     // Les champs sont validés AVANT toute lecture : une demande fausse ne doit pas coûter un
     // parcours de 255 308 entrées avant d'être refusée.
     let champs = champs_demandes(demande.facets.as_deref())?;
-    let bornes = demande.page().bornee();
+    let page = demande.page();
+    // Un `cursor` illisible est refusé ICI, avant tout parcours, comme les facettes.
+    let bornes = page.bornee()?;
     let requete = index
-        .resoudre(demande.q.as_deref(), &demande.filtre())
+        .resoudre(page.effective_q().as_deref(), &demande.filtre())
         .paginer(bornes.offset(), bornes.per_page as usize);
     // `vue = None` : la recherche porte sur l'index ENTIER, pas sur l'une des quatre vues
     // enregistrées — celles-ci ne couvrent que 143 246 des 255 308 entrées.
@@ -181,12 +199,15 @@ pub async fn recherche(
             }
         })
         .collect();
+    let pages = total.div_ceil(bornes.per_page as usize);
     Ok(Json(Resultat {
         fichiers,
         total,
         total_sans_filtre: index.len(),
         page: bornes.page,
         per_page: bornes.per_page,
+        next_cursor: ((bornes.page as usize) < pages)
+            .then(|| crate::routes::encoder_curseur(bornes.page.saturating_add(1))),
         filtres: requete.applique,
         facets,
     }))
@@ -551,8 +572,38 @@ mod tests {
         assert_eq!(d.per_page, Some(25));
         assert_eq!(d.taille_min, Some(100));
         assert_eq!(d.q.as_deref(), Some("chara"));
-        assert_eq!(d.page().bornee().per_page, 25);
+        assert_eq!(d.page().bornee().unwrap().per_page, 25);
         assert_eq!(d.filtre().taille_min, Some(100));
+    }
+
+    #[test]
+    fn les_noms_canoniques_sont_des_alias_et_les_anciens_restent_servis() {
+        // `limit` numerique : le piege `flatten` le casserait en « invalid type: string ».
+        let d = serde_urlencoded_temoin("query=chara&limit=7&page=2");
+        assert_eq!(d.page().effective_q().as_deref(), Some("chara"));
+        assert_eq!(d.page().bornee().unwrap().per_page, 7);
+        assert_eq!(d.page().bornee().unwrap().page, 2);
+
+        // Les deux fournis : le canonique gagne, l'historique ne disparait pas pour autant.
+        let d = serde_urlencoded_temoin("q=ancien&query=canonique&per_page=10&limit=25");
+        assert_eq!(d.page().effective_q().as_deref(), Some("canonique"));
+        assert_eq!(d.page().bornee().unwrap().per_page, 25);
+        let d = serde_urlencoded_temoin("q=ancien&per_page=10");
+        assert_eq!(d.page().effective_q().as_deref(), Some("ancien"));
+        assert_eq!(d.page().bornee().unwrap().per_page, 10);
+    }
+
+    #[test]
+    fn un_cursor_publie_se_relit_et_un_cursor_illisible_est_refuse() {
+        let curseur = crate::routes::encoder_curseur(4);
+        let d = serde_urlencoded_temoin(&format!("q=chara&cursor={curseur}"));
+        assert_eq!(d.page().bornee().unwrap().page, 4);
+        // `page` explicite prime sur le curseur.
+        let d = serde_urlencoded_temoin(&format!("page=2&cursor={curseur}"));
+        assert_eq!(d.page().bornee().unwrap().page, 2);
+        // Illisible : refuse, jamais retombe sur la page 1.
+        let d = serde_urlencoded_temoin("cursor=!!!pas-du-base64");
+        assert!(d.page().bornee().is_err());
     }
 
     #[test]
@@ -561,7 +612,8 @@ mod tests {
         // chercher approximativement, ou dans les quatre gisements, et recevait le meme nombre.
         // Une reponse qui a l'air juste est pire qu'une erreur. Les deux moities comptent : la
         // seconde prouve que le refus ne mord pas sur les parametres reellement servis.
-        for inconnu in ["fuzzy=1", "gisements=tous", "sort=name", "limit=10"] {
+        // `limit` a quitte cette liste : c'est desormais un alias servi de `per_page`.
+        for inconnu in ["fuzzy=1", "gisements=tous", "sort=name", "offset=10"] {
             assert!(
                 essayer(&format!("q=chara&{inconnu}")).is_err(),
                 "`{inconnu}` doit etre refuse, pas avale"
@@ -579,6 +631,9 @@ mod tests {
             "taille_max=2",
             "page=2",
             "per_page=25",
+            "query=chara",
+            "limit=10",
+            "cursor=Mw==",
         ] {
             assert!(essayer(connu).is_ok(), "`{connu}` est servi et doit passer");
         }

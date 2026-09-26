@@ -487,11 +487,17 @@ pub struct DemandeCatalogue {
 
 impl DemandeCatalogue {
     /// La pagination bornée de cette demande.
-    fn pagination(&self) -> crate::config::Pagination {
+    ///
+    /// # Errors
+    ///
+    /// [`ErreurSite::Demande`] si un curseur de pagination illisible finissait par transiter
+    /// ici — cette route n'en expose pas encore, mais [`DemandePage::bornee`] reste faillible.
+    fn pagination(&self) -> Result<crate::config::Pagination, ErreurSite> {
         DemandePage {
             page: self.page,
             per_page: self.per_page,
             q: self.q.clone(),
+            ..DemandePage::default()
         }
         .bornee()
     }
@@ -704,7 +710,7 @@ pub async fn catalogue(
     Query(demande): Query<DemandeCatalogue>,
 ) -> Result<Json<Page<Modele>>, ErreurSite> {
     let famille = demande.famille()?;
-    let p = demande.pagination();
+    let p = demande.pagination()?;
     let motif = demande.motif();
 
     if famille == Famille::Perso {
@@ -1491,7 +1497,7 @@ mod tests {
         let d = DemandeCatalogue::default();
         assert_eq!(d.famille().unwrap(), Famille::Perso, "perso par defaut");
         assert_eq!(d.motif(), None);
-        assert_eq!(d.pagination().page, 1);
+        assert_eq!(d.pagination().unwrap().page, 1);
 
         let d = DemandeCatalogue {
             famille: Some("keshin".into()),
@@ -1505,7 +1511,7 @@ mod tests {
             Some("mark"),
             "espaces et casse retires"
         );
-        assert_eq!(d.pagination().per_page, crate::config::PER_PAGE_MAX);
+        assert_eq!(d.pagination().unwrap().per_page, crate::config::PER_PAGE_MAX);
 
         let d = DemandeCatalogue {
             famille: Some("licorne".into()),

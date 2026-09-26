@@ -195,7 +195,7 @@ pub async fn familles(
 ) -> Result<Json<crate::routes::Page<CleFamille>>, ErreurSite> {
     let index = etat.index()?;
     let tout = catalogue(&index);
-    let motif = demande.q.as_deref().map(str::to_lowercase);
+    let motif = demande.effective_q().map(|q| q.to_lowercase());
     let retenus: Vec<&CleFamille> = tout
         .iter()
         .filter(|c| {
@@ -204,7 +204,7 @@ pub async fn familles(
                 .is_none_or(|m| c.cle.to_lowercase().contains(m))
         })
         .collect();
-    let bornes = demande.bornee();
+    let bornes = demande.bornee()?;
     let items: Vec<CleFamille> = retenus
         .iter()
         .skip(bornes.offset())

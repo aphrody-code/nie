@@ -276,9 +276,9 @@ pub async fn objects(
     Query(demande): Query<DemandePage>,
 ) -> Result<Json<Page<Object>>, ErreurSite> {
     let built = tokio::task::spawn_blocking(move || built(&state)).await??;
-    let bornes = demande.bornee();
+    let bornes = demande.bornee()?;
     let motif = demande
-        .q
+        .effective_q()
         .as_deref()
         .map(str::trim)
         .filter(|q| !q.is_empty())

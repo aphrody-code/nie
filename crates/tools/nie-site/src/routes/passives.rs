@@ -312,8 +312,8 @@ pub async fn kind(
         ))
     })?;
     let b = tokio::task::spawn_blocking(move || built(&state)).await??;
-    let motif = demande.q.as_deref().map(str::to_lowercase);
-    let bornes = demande.bornee();
+    let motif = demande.effective_q().map(|q| q.to_lowercase());
+    let bornes = demande.bornee()?;
 
     // Chaque espèce est sérialisée par `serde`, jamais par `Debug` : un JSON public ne publie
     // pas le nom Rust d'une variante (cf. § 3 du cap, `format!("{:?}")` sur une `Option`).

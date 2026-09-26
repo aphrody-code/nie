@@ -258,9 +258,9 @@ pub async fn scripts(
     Query(demande): Query<DemandePage>,
 ) -> Result<Json<Page<Script>>, ErreurSite> {
     let index = etat.index()?;
-    let p = demande.bornee();
+    let p = demande.bornee()?;
     let motif = demande
-        .q
+        .effective_q()
         .as_deref()
         .map(str::trim)
         .filter(|m| !m.is_empty())

@@ -398,12 +398,26 @@ pub async fn names(
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NameSearchQuery {
-    /// Visible localized label or native identity fragment.
-    pub q: String,
+    /// Visible localized label or native identity fragment. Legacy name of `query`.
+    pub q: Option<String>,
+    /// Canonical name of `q` (`aphrody-contracts` §6.3). Wins when both are supplied.
+    pub query: Option<String>,
     /// Requested game locale.
     pub locale: String,
     /// Optional maximum number of matching identities.
     pub limit: Option<usize>,
+}
+
+/// Resolve the search text from the canonical `query` or its legacy alias `q`.
+///
+/// # Errors
+///
+/// `400` when neither is supplied: the two used to be one required parameter, and a request
+/// carrying neither must still be refused rather than searched for the empty string.
+fn resolve_search_text(query: Option<String>, q: Option<String>) -> Result<String, ErreurSite> {
+    query.or(q).ok_or_else(|| {
+        ErreurSite::Demande("Require a query: `query` (canonical) or `q` (alias)".into())
+    })
 }
 
 /// Search visible game names while retaining the original VFS identity.
@@ -411,8 +425,9 @@ pub async fn search_names(
     State(state): State<EtatSite>,
     Query(input): Query<NameSearchQuery>,
 ) -> Result<Json<nie_wiki::names::NameSearchPage>, ErreurSite> {
+    let text = resolve_search_text(input.query, input.q)?;
     let limit = input.limit.unwrap_or(30);
-    if !valid_query(&input.q) || !(1..=50).contains(&limit) {
+    if !valid_query(&text) || !(1..=50).contains(&limit) {
         return Err(ErreurSite::Demande(
             "Require a nonempty query up to 128 bytes and limit 1..50".into(),
         ));
@@ -426,7 +441,7 @@ pub async fn search_names(
     let page = tokio::task::spawn_blocking(move || {
         let _permit = permit;
         data.lire(|connection| {
-            nie_wiki::names::search(connection, &input.q, &input.locale, limit).map_err(unavailable)
+            nie_wiki::names::search(connection, &text, &input.locale, limit).map_err(unavailable)
         })
         .map_err(unavailable)
     })
@@ -459,8 +474,10 @@ pub async fn gallery(
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SearchQuery {
-    /// Search text.
-    pub q: String,
+    /// Search text. Legacy name of `query`.
+    pub q: Option<String>,
+    /// Canonical name of `q` (`aphrody-contracts` §6.3). Wins when both are supplied.
+    pub query: Option<String>,
     /// Optional maximum number of results.
     pub limit: Option<usize>,
 }
@@ -481,8 +498,9 @@ pub async fn search(
     State(state): State<EtatSite>,
     Query(input): Query<SearchQuery>,
 ) -> Result<Json<SearchPage>, ErreurSite> {
+    let text = resolve_search_text(input.query, input.q)?;
     let limit = input.limit.unwrap_or(30);
-    if !valid_query(&input.q) || !(1..=50).contains(&limit) {
+    if !valid_query(&text) || !(1..=50).contains(&limit) {
         return Err(ErreurSite::Demande(
             "Require a nonempty query up to 128 bytes and limit 1..50".into(),
         ));
@@ -493,7 +511,7 @@ pub async fn search(
     let data = Arc::clone(&state.gisement);
     let results = read_wiki(data, move |connection| {
         let _permit = permit;
-        nie_wiki::query::search_all(connection, &input.q, limit)
+        nie_wiki::query::search_all(connection, &text, limit)
     })
     .await?;
     Ok(Json(SearchPage {
@@ -1137,4 +1155,31 @@ pub async fn invocations(
         })
         .await?,
     ))
+}
+
+#[cfg(test)]
+mod search_alias_tests {
+    use super::*;
+
+    #[test]
+    fn query_is_an_alias_of_q_and_wins_when_both_are_given() {
+        assert_eq!(
+            resolve_search_text(Some("canonical".into()), Some("legacy".into())).unwrap(),
+            "canonical"
+        );
+        assert_eq!(
+            resolve_search_text(None, Some("legacy".into())).unwrap(),
+            "legacy"
+        );
+        assert_eq!(
+            resolve_search_text(Some("canonical".into()), None).unwrap(),
+            "canonical"
+        );
+    }
+
+    #[test]
+    fn neither_query_nor_q_is_a_400() {
+        let error = resolve_search_text(None, None).unwrap_err();
+        assert_eq!(error.statut().as_u16(), 400);
+    }
 }

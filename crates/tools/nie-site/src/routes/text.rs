@@ -689,6 +689,7 @@ impl DemandeTexte {
             page: self.page,
             per_page: self.per_page,
             q: self.q.clone(),
+            ..DemandePage::default()
         }
     }
 }
@@ -789,7 +790,7 @@ pub async fn family(
         })
         .collect();
 
-    let bounds = query.bornee();
+    let bounds = query.bornee()?;
     let page: Vec<Line> = kept
         .iter()
         .skip(bounds.offset())
@@ -916,6 +917,21 @@ pub struct SearchQuery {
     pub page: Option<u32>,
     /// Nombre d'éléments par page, plafonné à [`crate::config::PER_PAGE_MAX`].
     pub per_page: Option<u32>,
+    /// Alias canonique de `q` (`aphrody-contracts` §6.3). `q` reste accepté seul ; `query`
+    /// gagne quand les deux sont fournis.
+    pub query: Option<String>,
+    /// Alias canonique de `per_page` (`aphrody-contracts` §6.3). Même priorité que `query`.
+    pub limit: Option<u32>,
+    /// Curseur de page opaque (`aphrody-contracts` §6.4), même encodage que
+    /// [`crate::routes::DemandePage::cursor`].
+    pub cursor: Option<String>,
+}
+
+impl SearchQuery {
+    /// Le motif réellement retenu : `query` prime sur `q`, son alias historique.
+    fn effective_q(&self) -> Option<&str> {
+        self.query.as_deref().or(self.q.as_deref())
+    }
 }
 
 /// Une ligne trouvée : elle porte sa famille, sinon elle n'est pas adressable.
@@ -964,13 +980,13 @@ pub async fn search(
     let s = survey(&state).await?;
 
     let pattern = query
-        .q
-        .as_deref()
+        .effective_q()
         .map(str::trim)
         .filter(|q| !q.is_empty())
         .ok_or_else(|| {
             ErreurSite::Demande(
-                "parametre `q` obligatoire : la sous-chaine a chercher dans le texte".to_owned(),
+                "parametre `q` (ou `query`) obligatoire : la sous-chaine a chercher dans le texte"
+                    .to_owned(),
             )
         })?
         .to_lowercase();
@@ -1041,9 +1057,11 @@ pub async fn search(
     let bounds = DemandePage {
         page: query.page,
         per_page: query.per_page,
-        q: None,
+        limit: query.limit,
+        cursor: query.cursor.clone(),
+        ..DemandePage::default()
     }
-    .bornee();
+    .bornee()?;
     let total = hits.len();
     let page: Vec<Hit> = hits
         .into_iter()
@@ -1322,9 +1340,9 @@ pub async fn translate(
     let bounds = DemandePage {
         page: query.page,
         per_page: query.per_page,
-        q: None,
+        ..DemandePage::default()
     }
-    .bornee();
+    .bornee()?;
     let total = translations.len();
     let page: Vec<Translation> = translations
         .into_iter()
@@ -1627,10 +1645,27 @@ mod tests {
         let bounds = DemandePage {
             page: Some(1),
             per_page: Some(100_000),
-            q: None,
+            ..DemandePage::default()
         }
-        .bornee();
+        .bornee()
+        .unwrap();
         assert_eq!(bounds.per_page, crate::config::PER_PAGE_MAX);
+    }
+
+    #[test]
+    fn query_est_un_alias_de_q_sur_la_recherche_de_texte() {
+        // Le nom canonique fonctionne seul, et gagne quand `q` est aussi fourni.
+        let seul = SearchQuery {
+            query: Some("ballon".to_owned()),
+            ..SearchQuery::default()
+        };
+        assert_eq!(seul.effective_q(), Some("ballon"));
+        let deux = SearchQuery {
+            q: Some("ancien".to_owned()),
+            query: Some("canonique".to_owned()),
+            ..SearchQuery::default()
+        };
+        assert_eq!(deux.effective_q(), Some("canonique"));
     }
 
     /// Désérialise comme axum le fait pour `Query<T>`, depuis une query string.

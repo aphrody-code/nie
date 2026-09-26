@@ -410,9 +410,9 @@ pub async fn icons(
     let bounds = DemandePage {
         page: query.page,
         per_page: query.per_page,
-        q: None,
+        ..DemandePage::default()
     }
-    .bornee();
+    .bornee()?;
     let total = kept.len();
     let page: Vec<Icon> = kept
         .into_iter()
@@ -1011,12 +1011,12 @@ fn mode_retained(d: &ModeDef, pattern: Option<&str>) -> bool {
 /// Aucune en pratique — la signature reste faillible pour rester homogène avec les autres
 /// routes de l'API et pouvoir évoluer sans casser ses appelants.
 pub async fn modes(Query(query): Query<DemandePage>) -> Result<Json<ModeCatalog>, ErreurSite> {
-    let pattern = clean(query.q.as_deref());
+    let pattern = clean(query.effective_q().as_deref());
     let kept: Vec<&'static ModeDef> = MODES
         .iter()
         .filter(|d| mode_retained(d, pattern.as_deref()))
         .collect();
-    let bounds = query.bornee();
+    let bounds = query.bornee()?;
     let total = kept.len();
     let page: Vec<ModeSummary> = kept
         .into_iter()
@@ -1369,7 +1369,7 @@ pub async fn screens(
     Query(demande): Query<DemandePage>,
 ) -> Result<Json<ScreenCoverage>, ErreurSite> {
     let idx = screen_index(&state).await?;
-    let motif = clean(demande.q.as_deref()).map(|q| q.to_lowercase());
+    let motif = clean(demande.effective_q().as_deref()).map(|q| q.to_lowercase());
     let retenus: Vec<&ScreenEntry> = idx
         .entries
         .iter()
@@ -1381,7 +1381,7 @@ pub async fn screens(
         .collect();
     let total = retenus.len();
     let served = retenus.iter().filter(|e| e.served).count();
-    let bornes = demande.bornee();
+    let bornes = demande.bornee()?;
     let elements: Vec<ScreenEntry> = retenus
         .iter()
         .skip(bornes.offset())
@@ -1439,7 +1439,7 @@ pub async fn missing_layers(
     Query(demande): Query<DemandePage>,
 ) -> Result<Json<Page<MissingLayer>>, ErreurSite> {
     let idx = screen_index(&state).await?;
-    let motif = clean(demande.q.as_deref()).map(|q| q.to_lowercase());
+    let motif = clean(demande.effective_q().as_deref()).map(|q| q.to_lowercase());
     let mut retenus: Vec<MissingLayer> = idx
         .missing_layers
         .iter()
@@ -1457,7 +1457,7 @@ pub async fn missing_layers(
             .then_with(|| a.layer.cmp(&b.layer))
     });
     let total = retenus.len();
-    let bornes = demande.bornee();
+    let bornes = demande.bornee()?;
     let elements = retenus
         .into_iter()
         .skip(bornes.offset())
@@ -2245,9 +2245,10 @@ mod tests {
         let bounds = DemandePage {
             page: Some(1),
             per_page: Some(100_000),
-            q: None,
+            ..DemandePage::default()
         }
-        .bornee();
+        .bornee()
+        .unwrap();
         assert_eq!(bounds.per_page, crate::config::PER_PAGE_MAX);
     }
 

@@ -156,11 +156,11 @@ fn parcourir(
 ) -> Result<Json<Dossier>, ErreurSite> {
     let prefixe = normaliser_prefixe(prefixe)?;
     let index = etat.index()?;
-    let p = demande.bornee();
+    let p = demande.bornee()?;
     // `?q=` était déclaré par `DemandePage` et jamais lu ici : le client croyait filtrer. Il
     // est désormais résolu avec les autres critères, et la réponse annonce ce qui a compté.
     let requete = index
-        .resoudre(demande.q.as_deref(), filtre)
+        .resoudre(demande.effective_q().as_deref(), filtre)
         .paginer(p.offset(), p.per_page as usize);
     Ok(Json(index.dossier_filtre(&prefixe, &requete)))
 }

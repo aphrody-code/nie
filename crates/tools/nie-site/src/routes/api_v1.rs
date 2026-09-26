@@ -161,9 +161,9 @@ pub async fn vue(
         })?)
     };
     let index = etat.index()?;
-    let p = demande.bornee();
+    let p = demande.bornee()?;
     let requete = index
-        .resoudre(demande.q.as_deref(), &filtre)
+        .resoudre(demande.effective_q().as_deref(), &filtre)
         .paginer(p.offset(), p.per_page as usize);
     let filtres = requete.applique.clone();
     let (elements, total) = index.page_filtree(vue, &requete);
@@ -387,14 +387,14 @@ pub async fn chara(
     Query(demande): Query<DemandePage>,
     Query(facettes): Query<DemandeChara>,
 ) -> Result<Json<PageChara>, ErreurSite> {
-    let p = demande.bornee();
+    let p = demande.bornee()?;
     if let Some(role) = facettes.role.as_deref() {
         if !matches!(role, "Coach" | "Coordinator" | "Manager") {
             return Err(ErreurSite::Demande("Unknown staff role".into()));
         }
         let role = role.to_owned();
         let request = nie_wiki::query::CoachFilters {
-            q: demande.q.clone(),
+            q: demande.effective_q(),
             role: Some(role.clone()),
             gender: facettes.attributes.gender.clone(),
             element: facettes.element.clone(),
@@ -448,7 +448,7 @@ pub async fn chara(
             page: Page::nouvelle(records, p, total),
             filtres: FiltresChara {
                 role: Some(role),
-                q: demande.q,
+                q: demande.effective_q(),
                 attributes: facettes.attributes.into_filters(),
                 tri: "code".into(),
                 ordre: "asc",
@@ -470,7 +470,7 @@ pub async fn chara(
                 .filter(|status| *status != "all")
                 .map(|_| false)
         }),
-        query: demande.q.clone(),
+        query: demande.effective_q(),
         element: facettes.element,
         position: facettes.position,
         rarity: facettes.rarity,

@@ -894,7 +894,7 @@ pub fn font_report(
             } else {
                 &metrics.glyphs_small
             };
-            let p = page.bornee();
+            let p = page.bornee()?;
             let total = table.len();
             let elements: Vec<Glyph> = table
                 .values()

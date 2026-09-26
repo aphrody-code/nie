@@ -187,7 +187,7 @@ pub async fn playstyle(
             "aucun personnage de ce jeu ne porte le style `{id}` ; les styles presents sont sur /api/v1/playstyles"
         )));
     }
-    let bornes = demande.bornee();
+    let bornes = demande.bornee()?;
     let total = retenus.len();
     let elements: Vec<Entry> = retenus
         .into_iter()

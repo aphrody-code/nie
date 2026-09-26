@@ -27,14 +27,23 @@ use nie_launcher::ut::{UtDatabase, calculate_squad_valuation, formation_layout, 
 /// Query parameters for searching players.
 #[derive(Debug, Deserialize)]
 pub struct PlayerSearchQuery {
-    /// Free-text search query for player name, nickname or ID.
+    /// Free-text search query for player name, nickname or ID. Legacy name of `query`.
     pub q: Option<String>,
+    /// Canonical name of `q` (`aphrody-contracts` §6.3). Wins when both are supplied.
+    pub query: Option<String>,
     /// Elemental affinity filter (e.g. Fire, Wind, Earth, Wood).
     pub element: Option<String>,
     /// Card rarity filter (e.g. Común, Raro, Legendario, Ícono, Basara).
     pub rarity: Option<String>,
     /// Result limit.
     pub limit: Option<usize>,
+}
+
+impl PlayerSearchQuery {
+    /// The search text actually used: `query` wins over its legacy alias `q`.
+    fn effective_q(&self) -> Option<&str> {
+        self.query.as_deref().or(self.q.as_deref())
+    }
 }
 
 /// Request body for pack opening.
@@ -56,12 +65,21 @@ pub struct SquadValuationRequest {
 /// Query parameters for searching spirits or moves.
 #[derive(Debug, Deserialize)]
 pub struct SpiritSearchQuery {
-    /// Text search query.
+    /// Text search query. Legacy name of `query`.
     pub q: Option<String>,
+    /// Canonical name of `q` (`aphrody-contracts` §6.3). Wins when both are supplied.
+    pub query: Option<String>,
     /// Category filter (e.g. Shot, Catch, Dribble, Block).
     pub category: Option<String>,
     /// Result limit.
     pub limit: Option<usize>,
+}
+
+impl SpiritSearchQuery {
+    /// The search text actually used: `query` wins over its legacy alias `q`.
+    fn effective_q(&self) -> Option<&str> {
+        self.query.as_deref().or(self.q.as_deref())
+    }
 }
 
 /// Request body for encrypting a team lineup.
@@ -108,7 +126,7 @@ pub async fn get_players(Query(query): Query<PlayerSearchQuery>) -> impl IntoRes
 
     let limit = query.limit.unwrap_or(100).min(500);
     match db.search_players(
-        query.q.as_deref(),
+        query.effective_q(),
         query.element.as_deref(),
         query.rarity.as_deref(),
         limit,
@@ -245,7 +263,7 @@ pub async fn post_valuation(Json(req): Json<SquadValuationRequest>) -> impl Into
 /// `GET /api/v1/ut/spirits` — Search spirit cards.
 pub async fn get_spirits(Query(query): Query<SpiritSearchQuery>) -> impl IntoResponse {
     let limit = query.limit.unwrap_or(50).min(200);
-    let cards: Vec<&'static nie_launcher::spirit::SpiritCard> = if let Some(ref q) = query.q {
+    let cards: Vec<&'static nie_launcher::spirit::SpiritCard> = if let Some(q) = query.effective_q() {
         search_spirit_cards(q)
     } else {
         all_spirit_cards().iter().collect()
@@ -267,7 +285,7 @@ pub async fn get_moves(Query(query): Query<SpiritSearchQuery>) -> impl IntoRespo
         return (StatusCode::OK, Json(mirror_skills)).into_response();
     }
 
-    let moves: Vec<&'static nie_launcher::spirit::SpecialMove> = if let Some(ref q) = query.q {
+    let moves: Vec<&'static nie_launcher::spirit::SpecialMove> = if let Some(q) = query.effective_q() {
         search_special_moves(q)
     } else {
         all_special_moves().iter().collect()
@@ -404,4 +422,28 @@ pub async fn contract_decrypt_team() -> Json<serde_json::Value> {
             "passphrase": "string, optional"
         }
     }))
+}
+
+#[cfg(test)]
+mod search_alias_tests {
+    use super::*;
+
+    #[test]
+    fn query_is_an_alias_of_q_on_both_search_structs() {
+        let player = PlayerSearchQuery {
+            q: Some("legacy".into()),
+            query: Some("canonical".into()),
+            element: None,
+            rarity: None,
+            limit: None,
+        };
+        assert_eq!(player.effective_q(), Some("canonical"));
+        let spirit = SpiritSearchQuery {
+            q: Some("legacy".into()),
+            query: None,
+            category: None,
+            limit: None,
+        };
+        assert_eq!(spirit.effective_q(), Some("legacy"));
+    }
 }
