@@ -163,7 +163,16 @@ describe("createWebGalleryServices", () => {
 				return { elements: [], dossiers: [], total: 0 };
 			},
 		} as unknown as AssetSource;
-		await createWebGalleryServices(source).findPaged("data/dx11/menu/220_img", "g4tx", 60, 0, undefined, "  goal  ");
+		// The visible-name enrichment calls the site; answer it here instead of the network so
+		// no request (or its retry) outlives this test.
+		const names = spyOn(globalThis, "fetch").mockImplementation(
+			Object.assign(async () => Response.json({ records: [] }), { preconnect: globalThis.fetch.preconnect })
+		);
+		try {
+			await createWebGalleryServices(source).findPaged("data/dx11/menu/220_img", "g4tx", 60, 0, undefined, "  goal  ");
+		} finally {
+			names.mockRestore();
+		}
 		expect(requested?.q).toBe("goal");
 	});
 

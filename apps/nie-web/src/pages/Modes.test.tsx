@@ -16,6 +16,8 @@ let root: Root | null;
 let container: HTMLDivElement;
 let fetchMock: ReturnType<typeof spyOn>;
 let observerOriginal: typeof IntersectionObserver;
+let createUrlMock: ReturnType<typeof spyOn>;
+let revokeUrlMock: ReturnType<typeof spyOn>;
 
 const reactEnvironment = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -101,8 +103,8 @@ beforeEach(() => {
   // s'est produit avant de mesurer. On le remplace par un observateur qui signale l'entrée
   // dans le champ dès qu'on observe un élément, ce que fait un vrai navigateur pour une
   // fiche ouverte en haut de page.
-  URL.createObjectURL = () => "blob:rendu";
-  URL.revokeObjectURL = () => {};
+  createUrlMock = spyOn(URL, "createObjectURL").mockReturnValue("blob:rendu");
+  revokeUrlMock = spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
   observerOriginal = globalThis.IntersectionObserver;
   globalThis.IntersectionObserver = class {
     constructor(private readonly rappel: IntersectionObserverCallback) {}
@@ -182,6 +184,8 @@ afterEach(async () => {
   root = null;
   container.remove();
   fetchMock.mockRestore();
+  createUrlMock.mockRestore();
+  revokeUrlMock.mockRestore();
   globalThis.IntersectionObserver = observerOriginal;
   reactEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
 });

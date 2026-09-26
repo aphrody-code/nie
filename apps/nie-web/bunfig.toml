@@ -1,0 +1,5 @@
+# Bare `bun test` in this app must load the same setup as `bun run test`:
+# the nie Bun plugin (asset/wasm loaders) and the happy-dom global DOM.
+[test]
+preload = ["../../packages/nie-plugin/src/register.ts", "../../packages/nie-plugin/src/happydom.ts"]
+root = "."
