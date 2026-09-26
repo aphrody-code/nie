@@ -67,8 +67,8 @@ that price on keeper, menu and match-sim.
 - Read the A2A channel continuously; publish progress there rather than assuming a peer knows.
 - When Codex or Gemini leaves a diff, **validate it before adopting it**: `cargo check`, the
   narrow clippy gate, the relevant tests. Report counts, not exit codes.
-- Commit on a peer's behalf only once it passes, and attribute it:
-  `feat(inacord): [peer-agent] <scope>` with `Co-authored-by: <Agent>`.
+- Commit on a peer's behalf only once it passes, without any agent attribution:
+  `feat(inacord): <scope>`, no `Co-authored-by` trailer and no agent name.
 - Rebase on `origin/main` before pushing — peers push to the same branch.
 
 ## Cross-host verification — the two gates no unit test replaces
