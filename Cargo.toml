@@ -187,7 +187,9 @@ nie-launcher = { version = "1.0.0", path = "crates/tools/nie-launcher" }
 nie-steam = { version = "1.0.0", path = "crates/tools/nie-steam", default-features = false }
 nie-net = { version = "1.0.0", path = "crates/engine/nie-net", default-features = false }
 
-# chaîne « image → SVG → raster » (skill pixel-perfect, désormais aphrody-identity dans aphrody-ui).
+# chaîne « image → SVG → raster » (skill pixel-perfect, désormais aphrody-identity dans aphrody-ui ;
+# tout traitement SVG — rendu resvg, nettoyage, sprites, glyphes — passe par aphrody-svg,
+# ../aphrody-ui/crates/aphrody-svg, et non par une copie locale de resvg/usvg/tiny-skia).
 # Choix mesurés le 2026-09-05, avec les rejets et leur raison :
 # plugins/nie/skills/pixel-perfect/references/bibliotheques.md
 # À retenir : `dssim` est AGPL (banni, `image-compare` rend le même SSIM en MIT),
@@ -198,9 +200,6 @@ nie-net = { version = "1.0.0", path = "crates/engine/nie-net", default-features 
 image = { version = "0.25", default-features = false }
 image-compare = { version = "0.5" }
 palette = { version = "0.7", default-features = false }
-resvg = { version = "0.48", default-features = false }
-usvg = { version = "0.48", default-features = false }
-tiny-skia = { version = "0.12" }
 
 # tests CLI (dev-dep commune)
 assert_cmd = { version = "2" }
