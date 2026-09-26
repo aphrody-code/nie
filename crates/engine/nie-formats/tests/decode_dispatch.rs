@@ -91,6 +91,12 @@ fn decode_route_les_familles_level5_annexes() {
     if !absents.is_empty() {
         eprintln!("  extensions absentes de ce corpus : {absents:?}");
     }
+    // A VFS that mounts but carries none of these families (a partial dump, a text-only
+    // extraction) is a missing fixture, not a routing defect: announce the skip.
+    if vus.is_empty() {
+        eprintln!("skip : le corpus monté ne contient aucune des familles annexes");
+        return;
+    }
     assert!(
         vus.len() >= 4,
         "corpus trop pauvre pour conclure : {} familles vues",

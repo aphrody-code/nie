@@ -42,7 +42,7 @@ export {};
 
 const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	// N0 — feuilles : ne dépendent d'aucun crate du workspace.
-	"iecode-re": 0,
+	"ievr-tools": 0,
 	"nie-asm": 0,
 	"nie-data": 0,
 	"nie-dump": 0,
@@ -53,7 +53,6 @@ const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	"nie-wiki": 0,
 	"nie-zukan": 0,
 	// N1
-	"ievr-tools": 1,
 	"nie-core": 1,
 	"nie-forge": 1,
 	"nie-lua": 1,
@@ -70,6 +69,7 @@ const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	"nie-headless": 3,
 	"nie-lua-web": 3,
 	"nie-ocgen": 3,
+	"nie-pg": 3,
 	"nie-render3d": 3,
 	"nie-save": 3,
 	"nie-seed": 3,
@@ -85,6 +85,7 @@ const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	"nie-app": 5,
 	"nie-ffi": 5,
 	"nie-net": 5,
+	"nie-render": 5,
 	// N6
 	"nie-game": 6,
 	"nie-play": 6,
