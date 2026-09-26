@@ -1,7 +1,12 @@
 //! `/downloads/inacord/latest.json` — le manifeste de mise à jour d'Inacord.
 //!
-//! `apps/inacord/src-tauri/tauri.conf.json` points first to this endpoint and then to the GitHub
-//! release fallback. The endpoint serves the latest signed Windows installer manifest.
+//! The standalone Inacord Tauri app (`nie/apps/inacord`) was removed on 2026-09-26
+//! (`8744bbb6`; its non-IEVR pet/pixel commands moved to `aphrody-ui/crates/aphrody-app`,
+//! IEVR stays in `apps/nie-web`). Its already-installed Windows clients still embed
+//! `apps/inacord/src-tauri/tauri.conf.json`'s updater config, which points first at this
+//! endpoint and then at the GitHub release fallback — so this route stays reachable
+//! indefinitely for those installs even though the app source is gone. Do not remove it as
+//! dead code; it serves the latest signed Windows installer manifest.
 //!
 //! ## Ce que la route fait, et ne fait pas
 //!
