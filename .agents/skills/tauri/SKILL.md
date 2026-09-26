@@ -4,10 +4,13 @@ description: >-
   Official Tauri v2 reference — src-tauri project layout, tauri.conf.json,
   the Rust `#[tauri::command]` / `invoke_handler` bridge to the frontend,
   and the v2 permissions system (permissions/scopes/capabilities replacing
-  the v1 allowlist). Use this skill whenever the user mentions Tauri, asks
-  to add a Tauri command, edit `tauri.conf.json` or a `capabilities/*.json`
-  file, debug an `invoke()` call from the frontend, or work on this repo's
-  own Tauri app at `apps/inacord/src-tauri`. Verified against the official
+  the v1 allowlist). This repository has no Tauri app of its own since the
+  Inacord Tauri host (`apps/inacord/src-tauri`) was removed on 2026-09-26;
+  the desktop is now aphrody-ui `crates/aphrody-app`. Use this skill as a
+  generic Tauri v2 reference when working in that sibling repository, or
+  when the user mentions Tauri, asks to add a Tauri command, edit
+  `tauri.conf.json` or a `capabilities/*.json` file, or debug an `invoke()`
+  call from the frontend. Verified against the official
   `tauri-apps/tauri-docs` (v2) via context7 — do not answer Tauri questions
   from memory, this repo's toolchain drifts (v1 allowlist vs v2 ACL).
 metadata:
@@ -18,9 +21,14 @@ metadata:
 # Tauri v2 — desktop apps, Rust backend + web frontend
 
 Tauri bundles a Rust backend around any web frontend into a small native
-binary. This repo's own instance is `apps/inacord/src-tauri` (product
-"Inacord", identifier `dev.nie.explorer`) — read it alongside this skill
-for a real, current example rather than a toy one.
+binary. This repository has no Tauri app: the Inacord Tauri host
+(`apps/inacord/src-tauri`, product "Inacord", identifier `dev.nie.explorer`)
+was removed on 2026-09-26. The desktop is now aphrody-ui
+`crates/aphrody-app` (Tauri v2); read that sibling repository's crate
+alongside this skill for a real, current example rather than a toy one.
+IEVR stays in nie web (`nie-site` + `apps/nie-web`),
+and the app reaches the game only through the `nie.*` tools of aphrody-ai
+`aphrody-mcp`.
 
 Always confirm exact API/config shape against the official docs before
 writing code — use `aphrody:docs` / context7 library `/tauri-apps/tauri-docs`
@@ -50,8 +58,8 @@ blog posts often show the dead v1 shape.
 
 `tauri.conf.json` is the load-bearing file: it is both the app config and
 the marker the Tauri CLI uses to find the Rust project. Its `$schema` should
-point at `https://schema.tauri.app/config/2` (v2) — this repo's own
-`apps/inacord/src-tauri/tauri.conf.json` does.
+point at `https://schema.tauri.app/config/2` (v2) — the sibling `aphrody-ui`
+`crates/aphrody-app/tauri.conf.json` does.
 
 ## Rust ↔ frontend bridge: commands
 
@@ -136,13 +144,13 @@ identifiers (`window:default` → `core:window:default`).
   a leading `=` only if you need to freeze it).
 - `capabilities/*.json` — see permissions system above.
 
-## This repo's instance
+## No Tauri app in this repository
 
-`apps/inacord/src-tauri` is the one real Tauri app in `nie` — do not
-create a second Tauri crate elsewhere (the orphaned, `Cargo.toml`-less
-`crates/tools/inacord/` seen in earlier git status snapshots is stray build
-output, not a crate; the real one is under `apps/`). It already wires:
-`deep-link` (custom `nie://` scheme) and `updater` (minisign pubkey +
+`nie` has no Tauri app: the Inacord Tauri host (`apps/inacord/src-tauri`) was
+removed on 2026-09-26. Do not create a Tauri crate here — the desktop lives
+in the sibling `aphrody-ui` repository, `crates/aphrody-app` (the crate root
+itself is the Tauri project, no nested `src-tauri`). That crate wires
+`deep-link` (custom scheme) and `updater` (minisign pubkey +
 release-channel JSON endpoint) plugins in `tauri.conf.json`, transparent/
 undecorated window chrome, and a single `capabilities/default.json`.
 Extend that file's `permissions` array rather than inventing a new
