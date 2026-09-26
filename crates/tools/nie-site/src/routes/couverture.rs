@@ -65,7 +65,7 @@ fn parse_matrix(corps: &str) -> Result<crate::couverture::Matrice, ErreurSite> {
 /// Rend la matrice en HTML — sans script, sans dépendance, et sans rien afficher que la mesure.
 fn rendre(m: &crate::couverture::Matrice) -> String {
     let mut html = String::with_capacity(64 * 1024);
-    let feuille = nie_aphrody::design::fichier_css();
+    let feuille = aphrody_identity::design::fichier_css();
     html.push_str(
         "<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\">\
          <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
@@ -317,7 +317,7 @@ mod tests {
     #[test]
     fn la_page_porte_la_palette_generee_par_aphrody() {
         let html = rendre(&matrice_temoin());
-        let feuille = nie_aphrody::design::fichier_css();
+        let feuille = aphrody_identity::design::fichier_css();
         assert!(
             html.contains(&feuille),
             "la page de couverture doit embarquer la feuille CSS générée"

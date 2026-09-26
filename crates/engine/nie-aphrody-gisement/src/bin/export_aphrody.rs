@@ -1,7 +1,7 @@
 //! Generate the complete Aphrody (Byron Love) dossier from native game data.
 //!
 //! Crosses chara_param + skill_config + aura_skill_config via
-//! [`nie_aphrody::gisement::build_aphrody_dossier`]. The output contains only native game/VFS
+//! [`nie_aphrody_gisement::gisement::build_aphrody_dossier`]. The output contains only native game/VFS
 //! data and the embedded Aphrody pet package; no website, wiki, or network enrichment is used.
 //!
 //! # Usage
@@ -21,7 +21,8 @@ fn default_data_root() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("data"))
 }
 
-use nie_aphrody::{BUNDLED_ANIMATIONS_JSON, BUNDLED_PET_JSON, gisement::build_aphrody_dossier};
+use aphrody_identity::{BUNDLED_ANIMATIONS_JSON, BUNDLED_PET_JSON};
+use nie_aphrody_gisement::gisement::build_aphrody_dossier;
 use serde_json::Value;
 
 fn main() {
@@ -126,7 +127,7 @@ fn main() {
                 "skills": "data/common/gamedata/skill/",
                 "events": "data/common/text/{ja,fr,en}/event/"
             },
-            "pet_package": "crates/engine/nie-aphrody/assets/aphrody/"
+            "pet_package": "../aphrody-ui/crates/aphrody-identity/assets/aphrody/"
         }
     });
 

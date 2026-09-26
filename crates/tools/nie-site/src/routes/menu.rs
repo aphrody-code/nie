@@ -468,7 +468,7 @@ fn composer_ecran(
     };
     let assets = AssetsVfs { octets, police };
     let composee = compose.compose(&assets, CANVAS.0, CANVAS.1);
-    let png = nie_aphrody::assets::encoder_png(&composee.rgba, composee.width, composee.height)
+    let png = aphrody_identity::assets::encoder_png(&composee.rgba, composee.width, composee.height)
         .map_err(|e| ErreurSite::Interne(format!("encodage PNG : {e}")))?;
     Ok((png, composee.report))
 }

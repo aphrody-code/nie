@@ -1,8 +1,8 @@
-//! Façade IPC de `nie-aphrody` : le pet Aphrody, et la chaîne pixel-perfect.
+//! Façade IPC de `aphrody-identity` : le pet Aphrody, et la chaîne pixel-perfect.
 //!
 //! Même règle que le reste de ce backend — **ce module n'est qu'une façade**. La mesure, la
 //! comparaison, la vectorisation et l'assemblage de planches vivent dans
-//! [`nie_aphrody::pixel`] ; l'écriture du CSS, du SVG et du JSON d'une feuille de sprites vit
+//! [`aphrody_identity::pixel`] ; l'écriture du CSS, du SVG et du JSON d'une feuille de sprites vit
 //! dans `nie_formats::sprite_sheet`. Rien de tout cela n'est réécrit ici, et c'est là-bas que
 //! les tests s'exécutent réellement : le harnais de test de ce paquet Tauri ne démarre pas sur
 //! toutes les plateformes (`STATUS_ENTRYPOINT_NOT_FOUND` avant le premier test, cf. `CLAUDE.md`).
@@ -15,11 +15,11 @@
 use base64::Engine as _;
 use serde::Serialize;
 
-use nie_aphrody::pixel::{
+use aphrody_identity::pixel::{
     Boite, Image, Masque, Reglages, ReglagesVecteur, comparer, mesurer, planche, tokens_css,
     vectoriser,
 };
-use nie_aphrody::{Pet, assets};
+use aphrody_identity::{Pet, assets};
 
 /// Rend l'erreur telle quelle : l'interface affiche le message du domaine, pas un « échec ».
 fn err(e: impl std::fmt::Display) -> String {
@@ -57,7 +57,7 @@ fn masque_depuis(
     }
 }
 
-/// Une couleur de la palette mesurée (miroir IPC de `nie_aphrody::pixel::Couleur`).
+/// Une couleur de la palette mesurée (miroir IPC de `aphrody_identity::pixel::Couleur`).
 #[derive(Serialize, specta::Type)]
 pub struct CouleurDto {
     /// Part des pixels retenus, en pourcentage.
@@ -70,7 +70,7 @@ pub struct CouleurDto {
     pub teinte_deg: f64,
 }
 
-/// Ce qu'une mesure rend au front (miroir IPC de `nie_aphrody::pixel::Mesure`).
+/// Ce qu'une mesure rend au front (miroir IPC de `aphrody_identity::pixel::Mesure`).
 ///
 /// Les profils de silhouette et les bords ligne à ligne **ne sont pas exposés** : ce sont
 /// plusieurs milliers de valeurs par mesure, que l'interface ne sait pas afficher et que l'IPC
@@ -109,7 +109,7 @@ pub struct MesureDto {
     pub palette: Vec<CouleurDto>,
 }
 
-/// Le verdict d'une comparaison (miroir IPC de `nie_aphrody::pixel::Comparaison`).
+/// Le verdict d'une comparaison (miroir IPC de `aphrody_identity::pixel::Comparaison`).
 #[derive(Serialize, specta::Type)]
 pub struct ComparaisonDto {
     /// Similarité structurelle hybride RGB, 0 à 1.
@@ -160,7 +160,7 @@ pub struct PetEtatDto {
     pub erreurs: Vec<String>,
 }
 
-fn mesure_dto(m: &nie_aphrody::pixel::Mesure) -> MesureDto {
+fn mesure_dto(m: &aphrody_identity::pixel::Mesure) -> MesureDto {
     MesureDto {
         source_largeur: m.source[0],
         source_hauteur: m.source[1],

@@ -13,9 +13,9 @@
 //! ## Ce que cette crate NE fait PAS
 //!
 //! Elle ne mesure aucune couleur et ne dérive aucune palette. Cette mesure existe déjà :
-//! [`nie_aphrody::design`] (k-means Oklab sur l'atlas du personnage, `pixel mesurer … --k 10`)
+//! [`aphrody_identity::design`] (k-means Oklab sur l'atlas du personnage, `pixel mesurer … --k 10`)
 //! est la source dont *dérivent* les jetons `--jeu-*`/`--inacord-*` depuis le 2026-09-06
-//! (commit `0374333`, `cargo run -p nie-aphrody --bin design`). `nie-ui` transpose le RENDU de
+//! (commit `0374333`, `cargo run -p aphrody-identity --bin design`). `nie-ui` transpose le RENDU de
 //! cette dérivation (les valeurs écrites dans le CSS aujourd'hui) et vérifie, en test, que cette
 //! transposition reste synchronisée avec le calcul réel — voir [`color`] et son module de test.
 //! Elle ne redécoupe pas non plus un atlas d'icônes : [`icons`] appelle

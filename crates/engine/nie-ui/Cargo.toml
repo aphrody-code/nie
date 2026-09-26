@@ -25,15 +25,15 @@ workspace = true
 nie-formats = { workspace = true, default-features = true }
 
 [dev-dependencies]
-# Cross-check UNIQUEMENT (pas de dépendance de la bibliothèque publiée) : `nie_aphrody::design`
+# Cross-check UNIQUEMENT (pas de dépendance de la bibliothèque publiée) : `aphrody_identity::design`
 # dérive DÉJÀ les 26+3 rôles `--jeu-*`/`--inacord-*` par k-means Oklab sur l'atlas du personnage
 # (`pixel mesurer … --k 10`). nie-ui ne réimplémente pas cette dérivation ; son test appelle le
-# VRAI calcul (`nie_aphrody::design::role(nom).oklch()`) pour prouver que la transposition figée
+# VRAI calcul (`aphrody_identity::design::role(nom).oklch()`) pour prouver que la transposition figée
 # de `color.rs` reste synchronisée avec lui — une divergence future y devient un test rouge, pas
 # une hypothèse. En dev-dependency : le poids de resvg/usvg/tiny-skia/image-compare que porte
-# nie-aphrody (sa chaîne image → SVG → raster, sans rapport avec la lecture d'un jeton) ne
+# aphrody-identity (sa chaîne image → SVG → raster, sans rapport avec la lecture d'un jeton) ne
 # retombe JAMAIS sur un consommateur de la bibliothèque (nie-render3d, nie-game, nie-core).
-nie-aphrody.workspace = true
+aphrody-identity.workspace = true
 # Lecture de `data/menu/manifest.json` dans les tests de `screens` UNIQUEMENT : la bibliothèque
 # publiée n'a pas besoin de parser du JSON, elle porte l'inventaire en constantes.
 serde_json = { workspace = true, default-features = true }

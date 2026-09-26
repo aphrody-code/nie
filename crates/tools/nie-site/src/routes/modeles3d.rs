@@ -1147,7 +1147,7 @@ async fn apercu(
         let rgba = nie_render3d::render::render(&modele, angle, l, h);
         // L'encodeur PNG du dépôt, celui qui sert déjà les frames de nie. En ajouter un
         // second ferait cohabiter deux réglages de compression pour un seul format.
-        nie_aphrody::assets::encoder_png(&rgba, l, h)
+        aphrody_identity::assets::encoder_png(&rgba, l, h)
             .map_err(|e| ErreurSite::Interne(format!("encodage PNG: {e}")))
     })
     .await??;

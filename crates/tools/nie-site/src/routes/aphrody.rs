@@ -1,8 +1,8 @@
-//! Aphrody — tout ce que `nie-aphrody` sait, servi nativement.
+//! Aphrody — tout ce que `aphrody-identity` sait, servi nativement.
 //!
 //! ## Ce que cette crate porte, et pourquoi le site l'expose en entier
 //!
-//! `nie-aphrody` n'est pas un dossier d'images : c'est le runtime typé du personnage. Elle
+//! `aphrody-identity` n'est pas un dossier d'images : c'est le runtime typé du personnage. Elle
 //! embarque au build (`include_str!`/`include_bytes!`) le package Codex Pet v2 — atlas
 //! 1536×2288 en 8×11 cellules de 192×208, onze animations, 74 frames, seize poses de regard —
 //! et le dossier documentaire du personnage : identité trilingue, trois séries du jeu,
@@ -43,7 +43,7 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
-use nie_aphrody::{
+use aphrody_identity::{
     AnimationsManifest, BUNDLED_ANIMATIONS_JSON, BUNDLED_ATLAS_WEBP, BUNDLED_DOSSIER_JSON, Pet,
     assets, codex, pixel,
 };

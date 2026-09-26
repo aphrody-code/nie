@@ -68,7 +68,7 @@ nie-formats = { workspace = true, features = ["serde", "textures", "images", "au
 nie-explore = { workspace = true, default-features = true }
 nie-save = { workspace = true, features = ["serde"] }
 nie-data = { workspace = true, features = ["serde", "std"] }
-nie-aphrody.workspace = true
+aphrody-identity.workspace = true
 nie-core.workspace = true
 nie-trace = { workspace = true, default-features = true }
 nie-queue = { workspace = true, default-features = true }

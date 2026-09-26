@@ -7,12 +7,12 @@
 //! rendus par l'instrument du dépôt :
 //!
 //! ```sh
-//! cargo run -p nie-aphrody --bin pixel -- capture data/menu/<capture>.png --crop X,Y,W,H --k N
+//! cargo run -p aphrody-identity --bin pixel -- capture data/menu/<capture>.png --crop X,Y,W,H --k N
 //! ```
 //!
 //! (`capture` = `mesurer` avec le masque alpha par défaut — une capture est opaque — et un
-//! recadrage origine + taille ; k-means Oklab **déterministe**, cf. `nie_aphrody::pixel`). Le
-//! test [`tests::les_ancres_suivent_la_mesure_reelle_de_nie_aphrody`] rappelle cette fonction
+//! recadrage origine + taille ; k-means Oklab **déterministe**, cf. `aphrody_identity::pixel`). Le
+//! test [`tests::les_ancres_suivent_la_mesure_reelle_de_aphrody_identity`] rappelle cette fonction
 //! sur trois recadrages et exige un ΔE Oklab < 0,02 avec la constante transposée — une capture
 //! remplacée ou une constante retouchée y devient un test rouge.
 //!
@@ -864,7 +864,7 @@ pub const SLANT_SAMPLES: [SlantSample; 2] = [
 
 /// La valeur CSS de `--game-skew` : la moyenne des quatre bords ajustés est −10,02°, arrondie à
 /// `-10deg`. Le signe suit la convention CSS (`skewX(-10deg)` penche le haut vers la droite, la
-/// forme « / » des captures) — ce que `nie_aphrody::pixel` documente comme `skewX(-angle)`
+/// forme « / » des captures) — ce que `aphrody_identity::pixel` documente comme `skewX(-angle)`
 /// n'est vrai que pour son propre signe ; ici le bord mesuré est déjà négatif.
 pub const SKEW_CSS: &str = "-10deg";
 
@@ -1448,12 +1448,12 @@ mod tests {
         }
     }
 
-    /// Cross-check RÉEL : `nie_aphrody::pixel::palette_crop` est rappelée sur les captures
+    /// Cross-check RÉEL : `aphrody_identity::pixel::palette_crop` est rappelée sur les captures
     /// locales pour trois ancres, et la classe dominante doit rester à ΔE Oklab < 0,02 de la
     /// constante transposée. Saute À VOIX HAUTE si `data/menu` est absent.
     #[test]
-    fn les_ancres_suivent_la_mesure_reelle_de_nie_aphrody() {
-        use nie_aphrody::pixel::{Crop, Image, palette_crop};
+    fn les_ancres_suivent_la_mesure_reelle_de_aphrody_identity() {
+        use aphrody_identity::pixel::{Crop, Image, palette_crop};
         let Some(dir) = crate::screens::captures_dir_if_present() else {
             let m =
                 "GOLDEN SAUTE — data/menu absent : les ancres --screen-* ne sont pas re-mesurées";

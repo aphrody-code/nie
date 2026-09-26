@@ -5,7 +5,7 @@
 //!
 //! Le pet est né en 2D — une feuille RGBA 8×11 de cellules 192×208, 11 pistes, 74 images. Ce
 //! module n'abroge pas ce contrat : il en ajoute un second, **au même niveau**, et les deux
-//! partagent le même vocabulaire d'états ([`crate::pets::Etat`], [`crate::pets::Ambiance`]).
+//! partagent le même vocabulaire d'états ([`aphrody_identity::pets::Etat`], [`aphrody_identity::pets::Ambiance`]).
 //! Une piste nommée `idle` désigne la même chose des deux côtés ; c'est ce qui permet à la 2D de
 //! servir de **vérité terrain** à la 3D plutôt que de la remplacer.
 //!
@@ -224,7 +224,7 @@ mod tests {
         // La liste ne doit pas diverger du manifeste embarqué : c'est la condition pour que
         // chaque piste 3D ait des frames 2D auxquelles se comparer.
         let manifeste: serde_json::Value =
-            serde_json::from_str(crate::BUNDLED_ANIMATIONS_JSON).expect("animations.json");
+            serde_json::from_str(aphrody_identity::BUNDLED_ANIMATIONS_JSON).expect("animations.json");
         let mut du_paquet: Vec<String> = manifeste["animations"]
             .as_object()
             .expect("objet animations")

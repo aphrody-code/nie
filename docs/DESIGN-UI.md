@@ -13,16 +13,16 @@ SSIM), voir **`docs/DESIGN.md`** — ce document ne le répète pas.
 Avant d'écrire un seul jeton, deux crates couvraient déjà une partie du problème (chercher
 l'existant d'abord) :
 
-- **`crates/engine/nie-aphrody/src/design.rs`** — commité le jour même (`0374333`, quelques
+- **`../aphrody-ui/crates/aphrody-identity/src/design.rs`** — commité le jour même (`0374333`, quelques
   heures avant cette session) : c'est **le** générateur de `game-tokens.css`
-  (`cargo run -p nie-aphrody --bin design`). Depuis ce commit, les 26 `--jeu-*` + 3 `--inacord-*`
+  (`cargo run --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity --bin design`). Depuis ce commit, les 26 `--jeu-*` + 3 `--inacord-*`
   couleurs ne sont plus mesurées à la main sur une capture du jeu (c'était le cas avant) : elles
   sont **dérivées** par un k-means Oklab sur l'atlas du personnage Aphrody, 74 frames
   (`pixel mesurer …/spritesheet.png --k 10 --json`). `nie-ui` ne réimplémente pas cette
-  dérivation — elle appartient à `nie_aphrody::design` — et **croise son propre calcul contre
+  dérivation — elle appartient à `aphrody_identity::design` — et **croise son propre calcul contre
   elle** par un test dev-dependency-only
   (`color::tests::les_couleurs_du_jeu_suivent_le_calcul_reel_de_nie_aphrody`, voir plus bas)
-  plutôt que de dupliquer la palette mesurée. `cargo run -p nie-aphrody --bin design -- --verifier`
+  plutôt que de dupliquer la palette mesurée. `cargo run --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity --bin design -- --verifier`
   confirme qu'au moment d'écrire ces lignes le fichier livré est **conforme** au calcul.
 - **`crates/engine/nie-formats/src/sprite_sheet.rs`** — les atlas `.g4tx` d'interface du jeu vers
   CSS/SVG/JSON, rectangles recopiés jamais recalculés. `nie-ui::icons` **appelle** ce module (voir
@@ -57,7 +57,7 @@ le compare **octet à octet** à `nie_ui::css::root_block()`. Il annonce son sau
 fond le plus sombre du jeu) a fait ROUGIR **deux** tests :
 
 - le golden CSS ci-dessus, avec la ligne exacte en désaccord affichée (`livre` vs `genere`) ;
-- le cross-check contre `nie_aphrody::design`
+- le cross-check contre `aphrody_identity::design`
   (`left: "oklch(0.9999 0.0242 280.23)" right: "oklch(0.1963 0.0242 280.23)"`).
 
 Revert immédiat (`git diff` vide sur ce fichier après coup), suite revenue à 20/20. Commandes :
@@ -99,7 +99,7 @@ prochaine session.
 
 ## Ce que cette crate ne fait pas (encore)
 
-- Elle ne mesure ni ne dérive aucune couleur — c'est le rôle de `nie_aphrody::design`, qu'elle
+- Elle ne mesure ni ne dérive aucune couleur — c'est le rôle de `aphrody_identity::design`, qu'elle
   croise en test plutôt que de le dupliquer.
 - Elle ne rend aucun pixel des écrans du jeu (placement, texte, 3D in-menu) — voir
   `docs/DESIGN.md`.
@@ -117,7 +117,7 @@ prochaine session.
   `@theme inline`) ; `roles.rs` est le pont **typé** vers cette pile, pas un remplacement.
 - Pas de conversion sRGB↔OKLCH : les jetons stockent la valeur OKLCH telle qu'écrite dans le CSS
   et l'hexadécimal tel que commenté à côté — aucune bibliothèque de couleur n'était nécessaire
-  pour ça, et `nie-aphrody` (qui, elle, calcule cette conversion pour dériver la palette) reste la
+  pour ça, et `aphrody-identity` (aphrody-ui) (qui, elle, calcule cette conversion pour dériver la palette) reste la
   seule à en dépendre.
 
 ## Captures de référence — `data/menu` → `nie-ui` → `game-screens.css` (2026-09-06)
@@ -130,12 +130,12 @@ composants appartiennent à d'autres batches.
 
 ### Ce qui est mesuré, et avec quoi
 
-L'instrument est celui du dépôt, étendu de deux choses dans `nie-aphrody` : `pixel::Crop` +
+L'instrument est celui du dépôt, étendu de deux choses dans `aphrody-identity` (aphrody-ui) : `pixel::Crop` +
 `pixel::palette_crop()` (une région `x,y,w,h` d'une capture opaque → classes k-means Oklab,
 déterministes) et la sous-commande `pixel capture` (plus `--crop` sur `mesurer`) :
 
 ```sh
-cargo run -p nie-aphrody --bin pixel -- capture data/menu/<png> --crop X,Y,W,H --k N [--json]
+cargo run --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity --bin pixel -- capture data/menu/<png> --crop X,Y,W,H --k N [--json]
 ```
 
 **45 couleurs `--screen-*`** (`crates/engine/nie-ui/src/surfaces.rs`), chacune avec capture,
@@ -200,7 +200,7 @@ plus bas.
 | Golden CSS | `cargo run -p nie-ui --bin game_screens_css -- --verify` | exit 0, 21 595 octets conformes |
 | Ancres re-mesurées | `surfaces::tests::les_ancres_suivent_la_mesure_reelle_de_nie_aphrody` | 3/3 (corps du panneau, ligne focalisée, tuile) à ΔE < 0,02 et part à ±0,5 % |
 | Suite nie-ui | `cargo test -p nie-ui` | **35 passed, 0 failed** (20 avant ce batch) |
-| Suite nie-aphrody | `cargo test -p nie-aphrody --lib` | **40 passed, 0 failed** (le rouge `design::tests::le_css_livre_est_celui_qu_on_produit` du 2026-09-06 est corrigé le 07, voir plus bas) ; +2 tests `pixel::tests` ajoutés |
+| Suite nie-aphrody | `cargo test --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity --lib` | **40 passed, 0 failed** (le rouge `design::tests::le_css_livre_est_celui_qu_on_produit` du 2026-09-06 est corrigé le 07, voir plus bas) ; +2 tests `pixel::tests` ajoutés |
 | Gate clippy | `cargo clippy -p nie-ui --lib --tests --bins` et `-p nie-aphrody --lib --tests --bins` | 0 warning |
 
 ### Falsification (rejouée, transcrite)
@@ -234,7 +234,7 @@ géométrie :
 
 1. **`design::tests::le_css_livre_est_celui_qu_on_produit` rougissait sur une fin de ligne, pas
    une couleur.** `core.autocrlf=true` réécrivait `game-tokens.css`/`game-screens.css` en CRLF au
-   checkout (`.gitattributes` ne les déclarait pas) ; le golden de `nie-aphrody` compare les
+   checkout (`.gitattributes` ne les déclarait pas) ; le golden de `aphrody-identity` (aphrody-ui) compare les
    octets bruts et annonçait « 111 lignes livrées, 111 attendues » sans aucune ligne différente.
    Les deux CSS de `packages/inacord-ui/src/shell/` sont maintenant `text eol=lf` dans
    `.gitattributes`. `nie-aphrody --lib` : 39 passed/1 failed → **40 passed/0 failed**. Falsifié

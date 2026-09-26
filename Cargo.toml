@@ -151,6 +151,8 @@ nie-wiki = { version = "1.0.0", path = "crates/tools/nie-wiki" }
 nie-core = { version = "1.0.0", path = "crates/engine/nie-core" }
 # CPU rasterizer shared with the Aphrody 3D stack (owner: aphrody-ui). Dependency-free leaf crate.
 aphrody-softraster = { version = "1.0.0-canary", path = "../aphrody-ui/crates/aphrody-softraster" }
+aphrody-sprite-sheet = { version = "1.0.0-canary", path = "../aphrody-ui/crates/aphrody-sprite-sheet" }
+aphrody-identity = { version = "1.0.0-canary", path = "../aphrody-ui/crates/aphrody-identity" }
 nie-bevy = { version = "1.0.0", path = "crates/engine/nie-bevy", default-features = false }
 nie-data = { version = "1.0.0", path = "crates/engine/nie-data" }
 nie-ocgen = { version = "1.0.0", path = "crates/engine/nie-ocgen" }
@@ -168,7 +170,9 @@ nie-render3d = { version = "1.0.0", path = "crates/engine/nie-render3d", default
 # produit une séquence passe par elle ; le motif « PNG dans un répertoire temporaire + ffmpeg -i
 # f_%04d.png » qu'elle remplace vivait en trois copies.
 nie-video = { package = "iecode-video", version = "1.0.0", path = "../iecode/crates/video" }
-nie-aphrody = { version = "1.0.0", path = "crates/engine/nie-aphrody" }
+# L'identité d'Aphrody (pet, icônes, palette) est `aphrody-identity`, dans aphrody-ui ; ne reste ici
+# que ce qui lit le jeu.
+nie-aphrody-gisement = { version = "1.0.0", path = "crates/engine/nie-aphrody-gisement" }
 # nie-ui : source unique, typée, des jetons de design du jeu (couleurs OKLCH, géométrie,
 # mouvement) — génère le CSS de packages/inacord-ui/src/shell/game-tokens.css et relie
 # nie-formats::sprite_sheet (icônes) aux jetons pour le Rust qui compose des images.
@@ -182,13 +186,13 @@ nie-launcher = { version = "1.0.0", path = "crates/tools/nie-launcher" }
 nie-steam = { version = "1.0.0", path = "crates/tools/nie-steam", default-features = false }
 nie-net = { version = "1.0.0", path = "crates/engine/nie-net", default-features = false }
 
-# chaîne « image → SVG → raster » (skill pixel-perfect, crate nie-aphrody).
+# chaîne « image → SVG → raster » (skill pixel-perfect, désormais aphrody-identity dans aphrody-ui).
 # Choix mesurés le 2026-09-05, avec les rejets et leur raison :
 # plugins/nie/skills/pixel-perfect/references/bibliotheques.md
 # À retenir : `dssim` est AGPL (banni, `image-compare` rend le même SSIM en MIT),
 # potrace est GPL et sans crate, et `vtracer` tirerait un SECOND `image` (^0.23)
 # plus clap 2 et pyo3. La vectorisation, elle, n'a tiré AUCUNE dépendance : suivre le
-# contour d'un masque puis le simplifier tient dans `nie_aphrody::pixel`, et rend des chemins
+# contour d'un masque puis le simplifier tient dans `aphrody_identity::pixel`, et rend des chemins
 # lisibles là où un traceur générique en rend des milliers.
 image = { version = "0.25", default-features = false }
 image-compare = { version = "0.5" }

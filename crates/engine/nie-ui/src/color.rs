@@ -9,12 +9,12 @@
 //! test qui compare au fichier livré (voir `crate::css`).
 //!
 //! Depuis le 2026-09-06 (commit `0374333`), ce CSS n'est plus mesuré à la main sur une capture
-//! du jeu : il est **dérivé** par [`nie_aphrody::design`], par k-means Oklab sur l'atlas du
+//! du jeu : il est **dérivé** par [`aphrody_identity::design`], par k-means Oklab sur l'atlas du
 //! personnage Aphrody (`pixel mesurer …/spritesheet.png --k 10 --json`). C'est un changement de
 //! provenance qui a eu lieu pendant cette même session — antérieurement, le fichier portait 26
 //! couleurs mesurées à la main sur `menu.png`/`start.png` (cf. l'historique Git du fichier). Ce
 //! module ne réimplémente pas cette dérivation ; le test [`tests::les_couleurs_du_jeu_suivent_le_calcul_reel`]
-//! l'appelle réellement (`nie_aphrody::design::role(nom).oklch()`) pour garder les deux en phase
+//! l'appelle réellement (`aphrody_identity::design::role(nom).oklch()`) pour garder les deux en phase
 //! — une divergence future y devient un test rouge, pas une supposition.
 
 /// Une couleur OKLCH, avec la précision d'affichage qu'utilise `game-tokens.css`
@@ -457,7 +457,7 @@ color_token!(
 /// nombre de tirets qui referment son en-tête — mesuré sur le fichier livré (voir
 /// `docs/DESIGN-UI.md`), pas recalculé : les en-têtes des cinq premières sections sont posées à
 /// une largeur totale fixe par le générateur qui a produit ce CSS
-/// ([`nie_aphrody::design::feuille_css`]), la sixième (Coquille InaCord) suit la même règle.
+/// ([`aphrody_identity::design::feuille_css`]), la sixième (Coquille InaCord) suit la même règle.
 pub const SECTIONS: [(usize, &str, usize); 6] = [
     (0, "Fonds : du plus profond au plus clair", 49),
     (4, "Accents : ce qui appelle l'oeil", 55),
@@ -565,16 +565,16 @@ mod tests {
         let _ = hex_to_rgb_triplet("#abc");
     }
 
-    /// Cross-check RÉEL (pas une réimplémentation) : `nie_aphrody::design` dérive déjà chaque
+    /// Cross-check RÉEL (pas une réimplémentation) : `aphrody_identity::design` dérive déjà chaque
     /// rôle `--jeu-*`/`--inacord-*` depuis la palette mesurée du personnage. Ce test appelle ce
     /// calcul et compare son résultat à la transposition figée ci-dessus — une divergence future
     /// (mesure reprise, rôle retouché) le fait ROUGIR au lieu de rester une hypothèse silencieuse.
     #[test]
-    fn les_couleurs_du_jeu_suivent_le_calcul_reel_de_nie_aphrody() {
+    fn les_couleurs_du_jeu_suivent_le_calcul_reel_de_aphrody_identity() {
         for jeton in GAME_COLORS {
-            let role = nie_aphrody::design::role(jeton.name).unwrap_or_else(|| {
+            let role = aphrody_identity::design::role(jeton.name).unwrap_or_else(|| {
                 panic!(
-                    "{} : absent de nie_aphrody::design (rôle renommé ou supprimé ?)",
+                    "{} : absent de aphrody_identity::design (rôle renommé ou supprimé ?)",
                     jeton.name
                 )
             });
@@ -588,7 +588,7 @@ mod tests {
             assert_eq!(
                 jeton.oklch.to_css(),
                 calcule,
-                "{} a divergé de nie_aphrody::design (calcul réel : {calcule})",
+                "{} a divergé de aphrody_identity::design (calcul réel : {calcule})",
                 jeton.name
             );
         }

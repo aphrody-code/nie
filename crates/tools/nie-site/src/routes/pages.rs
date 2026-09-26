@@ -44,7 +44,7 @@ pub const COULEUR_THEME: &str = nie_ui::color::TILE_TOP.hex;
 /// Rust, tandis que cette couche ne porte que la structure de la page. Le bundle React prend
 /// ensuite le relais avec la même famille de jetons.
 fn feuille_ssr() -> String {
-    let mut css = nie_aphrody::design::fichier_css();
+    let mut css = aphrody_identity::design::fichier_css();
     css.push('\n');
     css.push_str(&nie_ui::css::screens_block());
     css.push_str(
@@ -647,7 +647,7 @@ pub struct Coquille {
     pub route: String,
     /// Feuille de style du bundle, quand elle a été trouvée.
     pub feuille: Option<String>,
-    /// CSS SSR généré depuis `nie-aphrody` et `nie-ui`, pour que la page reste alignée avant React.
+    /// CSS SSR généré depuis `aphrody-identity` et `nie-ui`, pour que la page reste alignée avant React.
     pub feuille_ssr: String,
     /// Point d'entrée JavaScript du bundle, quand il a été trouvé.
     pub script: Option<String>,

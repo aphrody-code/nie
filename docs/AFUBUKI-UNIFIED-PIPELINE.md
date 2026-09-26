@@ -35,7 +35,7 @@ var/afubuki/unified/ (dérivé, jamais réinjecté dans data/ref)
 | Mixi-Max/BASARA | `nie-data::basara` + `basara-profile.json` | conserver les listes et les plages `[offset,count]` |
 | Zukan | `nie-zukan` | joindre par hash/CRC confirmé ; ne jamais inventer un personnage |
 | Avatar `chara_edit` | `nie-data` + `nie-ocgen` | relecture T2B identique avant toute écriture dérivée |
-| Rendu 2D | `nie img`, `nie-aphrody` pixel tools | PNG dérivé, comparaison pixel séparée |
+| Rendu 2D | `nie img`, `aphrody-identity` (aphrody-ui) pixel tools | PNG dérivé, comparaison pixel séparée |
 | Rendu 3D | `nie-render3d`, `nie render` | GLB/PNG dérivé, source G4MD/G4MG intacte |
 | C++/Lua/nie.exe | RE et scripts locaux | preuve classée `observed`, `inferred` ou `unknown` |
 

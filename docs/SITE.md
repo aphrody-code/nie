@@ -15,7 +15,7 @@ belongs where someone comes looking for it.
 nothing themselves.
 
 The name **Aphrody** stays with the [`aphrody-code/aphrody-*`](https://github.com/aphrody-code) repositories;
-only the *character* keeps it here (`crates/engine/nie-aphrody`, the pet routes, the auras).
+only the *character* keeps it here (`../aphrody-ui/crates/aphrody-identity`, the pet routes, the auras).
 `pages::SITE` is the single source for the site's own name, and `SUFFIXE_TITRE` derives from the
 same token, so a rename cannot miss one.
 

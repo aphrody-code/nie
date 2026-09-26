@@ -57,12 +57,12 @@ const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	"nie-core": 1,
 	"nie-forge": 1,
 	"nie-lua": 1,
+	"nie-aphrody-gisement": 1,
 	"nie-re": 1,
 	// N2
 	"nie-computer-use": 2,
 	"nie-formats": 2,
 	// N3
-	"nie-aphrody": 3,
 	"nie-bench": 3,
 	"nie-bevy": 3,
 	"nie-camera": 3,
@@ -79,7 +79,7 @@ const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	"nie-launcher": 4,
 	"nie-model-serve": 4,
 	"nie-runtime": 4,
-	"nie-ui": 4,
+	"nie-ui": 3,
 	"nie-viewer-web": 4,
 	// N5
 	"nie-app": 5,

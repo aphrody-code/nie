@@ -3,7 +3,7 @@
 //! Transposés de `packages/inacord-ui/src/shell/game-tokens.css`. Contrairement aux couleurs de
 //! [`crate::color`], ces valeurs ne dérivent d'aucune mesure de palette — un biseau de 14 px ou
 //! une durée de 120 ms ne se lisent pas sur un atlas de personnage. Elles sont donc recopiées
-//! telles quelles depuis le CSS, comme le fait déjà `nie_aphrody::design::socle_css` côté
+//! telles quelles depuis le CSS, comme le fait déjà `aphrody_identity::design::socle_css` côté
 //! générateur existant (voir `crate::css`).
 //!
 //! Seule exception : les trois valeurs d'**élévation** ([`TILE_SHADOW`], [`PANEL_SHADOW`],

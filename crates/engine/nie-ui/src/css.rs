@@ -7,7 +7,7 @@
 //! diverge le fait ROUGIR — c'est la preuve par falsification que la consigne du dépôt exige.
 //!
 //! Ce module ne réécrit PAS `game-tokens.css` (il est produit par
-//! `cargo run -p nie-aphrody --bin design`, cf. `crate` pour la provenance) : il prouve
+//! `cargo run -p aphrody-identity --bin design`, cf. `crate` pour la provenance) : il prouve
 //! seulement que la transposition Rust de cette crate reste identique à ce que ce fichier porte
 //! aujourd'hui.
 
@@ -98,7 +98,7 @@ pub fn root_block() -> String {
 }
 
 /// Le chemin de `game-tokens.css`, résolu depuis l'emplacement de CETTE crate — indépendant du
-/// répertoire courant, comme `nie_aphrody::design::chemin_feuille` (même profondeur dans
+/// répertoire courant, comme le faisait l'ancien `nie_aphrody::design::chemin_feuille` (même profondeur dans
 /// l'arborescence : `crates/engine/nie-ui` → racine du dépôt en trois `ancestors()`).
 #[must_use]
 pub fn game_tokens_css_path() -> std::path::PathBuf {
@@ -150,7 +150,7 @@ pub fn screens_block() -> String {
          \x20*   Regenerer :  cargo run -p nie-ui --bin game_screens_css -- --write\n\
          \x20*   Verifier   :  cargo run -p nie-ui --bin game_screens_css -- --verify\n\
          \x20*   Source     :  crates/engine/nie-ui/src/surfaces.rs (constantes) + css.rs (assemblage)\n\
-         \x20*   Instrument :  cargo run -p nie-aphrody --bin pixel -- capture data/menu/<png> --crop X,Y,W,H --k N\n\
+         \x20*   Instrument :  cargo run -p aphrody-identity --bin pixel -- capture data/menu/<png> --crop X,Y,W,H --k N\n\
          \x20*\n\
          \x20* Chaque --screen-* cite la capture (2560x1440), le recadrage --crop, le --k et la part de la\n\
          \x20* classe k-means Oklab retenue. Les roles deja servis par game-tokens.css (typographie, rythme,\n\

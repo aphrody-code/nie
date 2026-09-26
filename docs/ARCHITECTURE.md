@@ -100,7 +100,7 @@ configured; removing the path edge before publication breaks the workspace build
 | `nie-explore` | Aperçu/description des entrées VFS par format | 41 |
 | `nie-viola` | Modding Level-5 (dump/pack/merge/crypto Criware), périmètre outil « Viola » | 51 |
 | `nie-ui` | Source unique typée des jetons de design du jeu (OKLCH, géométrie, mouvement) → CSS | 35 |
-| `nie-aphrody` | Runtime typé du pet « Codex Aphrody v2 » (atlas RGBA, animations, directions) | 56 |
+| `aphrody-identity` (aphrody-ui) | Runtime typé du pet « Codex Aphrody v2 » (atlas RGBA, animations, directions) | 56 |
 | `nie-ffi` | Frontière C-ABI — **seul natif chargé côté TS** | 13 |
 | `nie-wasm` | Bindings WebAssembly du savoir vérifié | 66 |
 | `nie-lua-web` | La VRAIE VM Lua du jeu dans le navigateur — cible `wasm32-unknown-emscripten` | 0 |
@@ -229,7 +229,7 @@ measurement.
 
 | Affirmé | Mesuré |
 |---|---|
-| 41 crates | **50**. Absents du diagramme : `aphrody-re`, `ievr-tools`, `nie-aphrody`, `nie-bevy`, `nie-computer-use`, `nie-dump`, `nie-queue`, `nie-tasks`, `nie-zukan` |
+| 41 crates | **50**. Absents du diagramme : `aphrody-re`, `ievr-tools`, `aphrody-identity` (aphrody-ui), `nie-bevy`, `nie-computer-use`, `nie-dump`, `nie-queue`, `nie-tasks`, `nie-zukan` |
 | 6 couches | **9 rangs** |
 | couches étanches unidirectionnelles | la **fondation dépend vers le haut par défaut** : `nie-core → nie-data`, `nie-formats → nie-lua`, plus `nie-ffi → nie-wiki` et `nie-wasm → nie-model-serve`, toutes non optionnelles |
 | `src-tauri` hors du workspace, table `[workspace]` vide, pour éviter le conflit `links = "sqlite3"` | `src-tauri` **est** membre (`Cargo.toml:18`) et n'a aucune table `[workspace]`. `cargo check -p inacord` sort **0** : le conflit ne se manifeste pas. Il est membre **non par défaut**, ce qui n'est pas la même chose qu'être dehors |

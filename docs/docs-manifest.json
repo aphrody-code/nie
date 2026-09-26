@@ -14,7 +14,7 @@
     "/en/"
   ],
   "allowedBrokenLinks": {
-    "crates/engine/nie-aphrody/docs/pipeline-svg.md": [
+    "../aphrody-ui/crates/aphrody-identity/docs/pipeline-svg.md": [
       "../plugins/dragon-ball/skills/toriyama-svg/SKILL.md",
       "pieges.md",
       "../apps/site/src/lib/kinto-un.ts",

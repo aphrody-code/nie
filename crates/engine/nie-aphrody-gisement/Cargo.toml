@@ -1,0 +1,26 @@
+[package]
+name = "nie-aphrody-gisement"
+description = "Aphrody depuis le jeu : dossier natif (chara_param, skill_config, aura), contrat 3D et exporteur `export_aphrody`, au-dessus d'aphrody-identity"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# L'identité d'Aphrody (pet, icônes, palette, dossier embarqué) vit dans aphrody-ui depuis le
+# 2026-09-26. Cette crate n'en garde que ce qui lit les fichiers du jeu : aphrody-ui ne dépend
+# pas de nie, c'est nie qui dépend d'aphrody-ui.
+aphrody-identity.workspace = true
+# Le dossier du jeu (`gisement`) parse chara_param, skill_config et aura_skill_config.
+nie-data = { workspace = true, features = ["serde", "std"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, default-features = true }
+
+[[bin]]
+name = "export_aphrody"
+path = "src/bin/export_aphrody.rs"

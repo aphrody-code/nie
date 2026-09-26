@@ -14,7 +14,7 @@ Formalized by the `yolo` skill (`.agents/skills/yolo/SKILL.md`, pinned to `aphro
 ## The site is `nie`, and it does not describe itself
 - **Names.** The site is **nie**; its only public name is `nie.aphrody.com`, published by the
   aphrody-infra vhost as a backend (`/api/`, `/cdn/`, gated `/f` `/b`, `/health`, the Inacord
-  updater feed; `/` answers 404 there). `aphrody.com` is the separate Aphrody product. **Aphrody** is a character (`crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
+  updater feed; `/` answers 404 there). `aphrody.com` is the separate Aphrody product. **Aphrody** is a character (`../aphrody-ui/crates/aphrody-identity`, the pet routes, `Mode Aphrody`,
   Byron Love) and the name of the separate `aphrody-code/aphrody-*` repositories — never the name
   of this site. `pages::SITE` is the single source for it; `SUFFIXE_TITRE` derives from the
   same token, so a rename cannot miss one.
@@ -99,7 +99,7 @@ diff, so the list exists to be re-run rather than remembered.
 | Artefact | Verify | Regenerate |
 | --- | --- | --- |
 | `packages/inacord-ui/src/shell/game-screens.css` | `cargo run -p nie-ui --bin game_screens_css -- --verify` | same, `--write` |
-| `packages/inacord-ui/src/shell/game-tokens.css` | `cargo test -p nie-aphrody` | `cargo run -p nie-aphrody --bin design` |
+| `packages/inacord-ui/src/shell/game-tokens.css` | `cargo test --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity` | `cargo run --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity --bin design` |
 | `packages/inacord-ui/src/lib/ui-text-map.ts` | re-run the generator and `git diff` | `python3 scripts/validation/ui-text-map.py` |
 | `apps/nie-web/public/static/game/nie_wasm_bg.wasm` | compare its mtime/size against `crates/engine/nie-wasm/` | `bun run --filter nie-web build:wasm` |
 | `apps/nie-web/public/static/game/nie_viewer_web_bg.wasm` | same | `bun run --filter nie-web build:wasm-viewer` |

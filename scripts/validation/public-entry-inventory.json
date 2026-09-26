@@ -177,7 +177,7 @@
       "owner": "crates/engine/nie-lua/src/lib.rs",
       "rationale": "Lua delegates portable domain work to its named library owner.",
       "sourceEvidence": [
-        "crates/tools/nie-cli/src/lua_audit_cmd.rs",
+        "crates/tools/nie-cli/src/avatar_cmd.rs",
         "nie_lua::"
       ]
     },
@@ -189,7 +189,7 @@
       "owner": "crates/engine/nie-lua/src/lib.rs",
       "rationale": "LuaRun delegates portable domain work to its named library owner.",
       "sourceEvidence": [
-        "crates/tools/nie-cli/src/lua_audit_cmd.rs",
+        "crates/tools/nie-cli/src/avatar_cmd.rs",
         "nie_lua::"
       ]
     },
@@ -201,7 +201,7 @@
       "owner": "crates/engine/nie-lua/src/lib.rs",
       "rationale": "LuaAudit delegates portable domain work to its named library owner.",
       "sourceEvidence": [
-        "crates/tools/nie-cli/src/lua_audit_cmd.rs",
+        "crates/tools/nie-cli/src/avatar_cmd.rs",
         "nie_lua::"
       ]
     },
@@ -810,7 +810,7 @@
       "entry": "aphrody_pet_etat",
       "capability": "aphrody-pet-etat",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/aphrody.rs",
       "rationale": "aphrody_pet_etat delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -832,7 +832,7 @@
       "entry": "aphrody_pet_frame_png_b64",
       "capability": "aphrody-pet-frame-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/aphrody.rs",
       "rationale": "aphrody_pet_frame_png_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -854,32 +854,12 @@
       "entry": "aphrody_pixel_mesurer",
       "capability": "aphrody-pixel-mesurer",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
       "rationale": "aphrody_pixel_mesurer delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
           "fn aphrody_pixel_mesurer"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "aphrody::mesurer_fichier("
-        ],
-        [
-          "apps/inacord/src-tauri/src/aphrody.rs",
-          "fn mesurer_fichier"
-        ],
-        [
-          "apps/inacord/src-tauri/src/aphrody.rs",
-          "mesure_dto("
-        ],
-        [
-          "apps/inacord/src-tauri/src/aphrody.rs",
-          "fn mesure_dto"
-        ],
-        [
-          "apps/inacord/src-tauri/src/aphrody.rs",
-          "nie_aphrody::pixel::Mesure"
         ]
       ]
     },
@@ -888,7 +868,7 @@
       "entry": "aphrody_pixel_tokens_css",
       "capability": "aphrody-pixel-tokens-css",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/aphrody.rs",
       "rationale": "aphrody_pixel_tokens_css delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -910,7 +890,7 @@
       "entry": "aphrody_pixel_comparer",
       "capability": "aphrody-pixel-comparer",
       "classification": "portable",
-      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "owner": "crates/forge\\nie-forge\\src/lib.rs",
       "rationale": "aphrody_pixel_comparer delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -930,12 +910,12 @@
           "u32::from("
         ],
         [
-          "apps/inacord/src-tauri/src/viola.rs",
+          "apps/inacord/src-tauri/src/forge.rs",
           "fn from"
         ],
         [
-          "apps/inacord/src-tauri/src/viola.rs",
-          "nie_viola::Platform::Pc"
+          "apps/inacord/src-tauri/src/forge.rs",
+          "nie_forge::report::Bucket"
         ]
       ]
     },
@@ -944,7 +924,7 @@
       "entry": "aphrody_pixel_vectoriser",
       "capability": "aphrody-pixel-vectoriser",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/aphrody.rs",
       "rationale": "aphrody_pixel_vectoriser delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -966,7 +946,7 @@
       "entry": "aphrody_pixel_planche",
       "capability": "aphrody-pixel-planche",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "aphrody_pixel_planche delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1034,7 +1014,7 @@
       "entry": "wiki_query",
       "capability": "wiki-query",
       "classification": "portable",
-      "owner": "crates/tools/nie-wiki/src/lib.rs",
+      "owner": "crates/tools\\nie-wiki\\src/lib.rs",
       "rationale": "wiki_query delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1080,7 +1060,7 @@
       "entry": "preload_vfs",
       "capability": "preload-vfs",
       "classification": "host_only",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "preload_vfs requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -1114,7 +1094,7 @@
       "entry": "vfs_ls",
       "capability": "vfs-ls",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_ls delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1132,7 +1112,7 @@
       "entry": "vfs_find",
       "capability": "vfs-find",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_find delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1150,7 +1130,7 @@
       "entry": "vfs_find_paged",
       "capability": "vfs-find-paged",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_find_paged delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1168,7 +1148,7 @@
       "entry": "vfs_stats",
       "capability": "vfs-stats",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_stats delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1194,7 +1174,7 @@
       "entry": "vfs_entry_meta",
       "capability": "vfs-entry-meta",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_entry_meta delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1212,7 +1192,7 @@
       "entry": "vfs_describe",
       "capability": "vfs-describe",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_describe delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1244,7 +1224,7 @@
       "entry": "vfs_texture_png_b64",
       "capability": "vfs-texture-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "vfs_texture_png_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1262,7 +1242,7 @@
       "entry": "vfs_texture_thumb_png_b64",
       "capability": "vfs-texture-thumb-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "vfs_texture_thumb_png_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1280,7 +1260,7 @@
       "entry": "vfs_texture_list",
       "capability": "vfs-texture-list",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "vfs_texture_list delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1298,7 +1278,7 @@
       "entry": "vfs_texture_named_png_b64",
       "capability": "vfs-texture-named-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "vfs_texture_named_png_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1316,7 +1296,7 @@
       "entry": "vfs_texture_named_thumb_png_b64",
       "capability": "vfs-texture-named-thumb-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "vfs_texture_named_thumb_png_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1348,7 +1328,7 @@
       "entry": "vfs_export_formats",
       "capability": "vfs-export-formats",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_export_formats delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1374,7 +1354,7 @@
       "entry": "vfs_export_default_name",
       "capability": "vfs-export-default-name",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_export_default_name delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1400,7 +1380,7 @@
       "entry": "vfs_export_as",
       "capability": "vfs-export-as",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_export_as delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1426,7 +1406,7 @@
       "entry": "vfs_export_many",
       "capability": "vfs-export-many",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_export_many delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1494,7 +1474,7 @@
       "entry": "vfs_related",
       "capability": "vfs-related",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_related delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -1526,16 +1506,12 @@
       "entry": "vfs_index_scan_start",
       "capability": "vfs-index-scan-start",
       "classification": "portable",
-      "owner": "../iecode/src/iecode/nie-tasks/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
       "rationale": "vfs_index_scan_start delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
           "fn vfs_index_scan_start"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "nie_tasks::TaskId::new"
         ]
       ]
     },
@@ -1544,24 +1520,12 @@
       "entry": "vfs_index_scan_cancel",
       "capability": "vfs-index-scan-cancel",
       "classification": "portable",
-      "owner": "../iecode/src/iecode/nie-tasks/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
       "rationale": "vfs_index_scan_cancel delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
           "fn vfs_index_scan_cancel"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "parse_task_id("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn parse_task_id"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "nie_tasks::TaskId"
         ]
       ]
     },
@@ -1570,24 +1534,12 @@
       "entry": "vfs_index_scan_take",
       "capability": "vfs-index-scan-take",
       "classification": "portable",
-      "owner": "../iecode/src/iecode/nie-tasks/src/lib.rs",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
       "rationale": "vfs_index_scan_take delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
           "apps/inacord/src-tauri/src/lib.rs",
           "fn vfs_index_scan_take"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "parse_task_id("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn parse_task_id"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "nie_tasks::TaskId"
         ]
       ]
     },
@@ -2230,7 +2182,7 @@
       "entry": "vfs_apercu_camera",
       "capability": "vfs-apercu-camera",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_apercu_camera delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2256,7 +2208,7 @@
       "entry": "vfs_apercu_navmesh",
       "capability": "vfs-apercu-navmesh",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_apercu_navmesh delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2356,7 +2308,7 @@
       "entry": "raw_cpk_describe",
       "capability": "raw-cpk-describe",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "raw_cpk_describe delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2416,7 +2368,7 @@
       "entry": "raw_cpk_audio_preview_b64",
       "capability": "raw-cpk-audio-preview-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "raw_cpk_audio_preview_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2500,7 +2452,7 @@
       "entry": "stage_texture_replacement",
       "capability": "stage-texture-replacement",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "stage_texture_replacement delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2518,7 +2470,7 @@
       "entry": "export_mod_as_cpk",
       "capability": "export-mod-as-cpk",
       "classification": "host_only",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "export_mod_as_cpk requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -2536,7 +2488,7 @@
       "entry": "set_titlebar_theme",
       "capability": "set-titlebar-theme",
       "classification": "host_only",
-      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "owner": "crates/forge\\nie-forge\\src/lib.rs",
       "rationale": "set_titlebar_theme requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -2548,12 +2500,12 @@
           "i32::from("
         ],
         [
-          "apps/inacord/src-tauri/src/viola.rs",
+          "apps/inacord/src-tauri/src/forge.rs",
           "fn from"
         ],
         [
-          "apps/inacord/src-tauri/src/viola.rs",
-          "nie_viola::Platform::Pc"
+          "apps/inacord/src-tauri/src/forge.rs",
+          "nie_forge::report::Bucket"
         ]
       ]
     },
@@ -2576,7 +2528,7 @@
       "entry": "describe_disk_file",
       "capability": "describe-disk-file",
       "classification": "host_only",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "describe_disk_file requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -2692,7 +2644,7 @@
       "entry": "resolve_avatar_composition",
       "capability": "resolve-avatar-composition",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
+      "owner": "crates/engine\\nie-data\\src/lib.rs",
       "rationale": "resolve_avatar_composition delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2738,7 +2690,7 @@
       "entry": "default_save_path",
       "capability": "default-save-path",
       "classification": "host_only",
-      "owner": "crates/engine/nie-save/src/lib.rs",
+      "owner": "crates/engine\\nie-save\\src/lib.rs",
       "rationale": "default_save_path requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -2756,7 +2708,7 @@
       "entry": "save_open",
       "capability": "save-open",
       "classification": "portable",
-      "owner": "crates/engine/nie-save/src/lib.rs",
+      "owner": "crates/engine\\nie-save\\src/lib.rs",
       "rationale": "save_open delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2774,7 +2726,7 @@
       "entry": "save_list_blobs",
       "capability": "save-list-blobs",
       "classification": "portable",
-      "owner": "crates/engine/nie-save/src/lib.rs",
+      "owner": "crates/engine\\nie-save\\src/lib.rs",
       "rationale": "save_list_blobs delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2792,7 +2744,7 @@
       "entry": "save_blob_hex_b64",
       "capability": "save-blob-hex-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-save/src/lib.rs",
+      "owner": "crates/engine\\nie-save\\src/lib.rs",
       "rationale": "save_blob_hex_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2860,7 +2812,7 @@
       "entry": "video_catalog",
       "capability": "video-catalog",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "video_catalog delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2869,39 +2821,15 @@
         ],
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "with_vfs("
+          "video::catalogue("
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn with_vfs"
+          "apps/inacord/src-tauri/src/video.rs",
+          "fn catalogue"
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "vfs_partage("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn vfs_partage"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "resolve_root("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn resolve_root"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "resolve_game_dir_native("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn resolve_game_dir_native"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "nie_formats::vfs::donnees_disponibles"
+          "apps/inacord/src-tauri/src/video.rs",
+          "nie_explore::native_video::movie_catalog"
         ]
       ]
     },
@@ -2910,7 +2838,7 @@
       "entry": "video_info",
       "capability": "video-info",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "video_info delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -2919,39 +2847,15 @@
         ],
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "with_vfs("
+          "video::info_film("
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn with_vfs"
+          "apps/inacord/src-tauri/src/video.rs",
+          "fn info_film"
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "vfs_partage("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn vfs_partage"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "resolve_root("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn resolve_root"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "resolve_game_dir_native("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn resolve_game_dir_native"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "nie_formats::vfs::donnees_disponibles"
+          "apps/inacord/src-tauri/src/video.rs",
+          "nie_explore::native_video::movie_info"
         ]
       ]
     },
@@ -2960,7 +2864,7 @@
       "entry": "video_precharger",
       "capability": "video-precharger",
       "classification": "transport",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "video_precharger forwards bytes or lifecycle control through the IPC/HTTP boundary.",
       "sourceEvidence": [
         [
@@ -2969,39 +2873,15 @@
         ],
         [
           "apps/inacord/src-tauri/src/lib.rs",
-          "with_vfs("
+          "video::flux_web_depuis_usm("
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn with_vfs"
+          "apps/inacord/src-tauri/src/video.rs",
+          "fn flux_web_depuis_usm"
         ],
         [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "vfs_partage("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn vfs_partage"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "resolve_root("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn resolve_root"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "resolve_game_dir_native("
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "fn resolve_game_dir_native"
-        ],
-        [
-          "apps/inacord/src-tauri/src/lib.rs",
-          "nie_formats::vfs::donnees_disponibles"
+          "apps/inacord/src-tauri/src/video.rs",
+          "nie_explore::native_video::web_video_stream"
         ]
       ]
     },
@@ -3010,7 +2890,7 @@
       "entry": "open_in_scene_editor",
       "capability": "open-in-scene-editor",
       "classification": "host_only",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "open_in_scene_editor requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3036,7 +2916,7 @@
       "entry": "lua_chunk_info",
       "capability": "lua-chunk-info",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "owner": "crates/engine\\nie-lua\\src/lib.rs",
       "rationale": "lua_chunk_info delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3062,7 +2942,7 @@
       "entry": "lua_disassemble",
       "capability": "lua-disassemble",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "owner": "crates/engine\\nie-lua\\src/lib.rs",
       "rationale": "lua_disassemble delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3088,7 +2968,7 @@
       "entry": "lua_execute",
       "capability": "lua-execute",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "owner": "crates/engine\\nie-lua\\src/lib.rs",
       "rationale": "lua_execute delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3114,7 +2994,7 @@
       "entry": "lua_globals",
       "capability": "lua-globals",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "owner": "crates/engine\\nie-lua\\src/lib.rs",
       "rationale": "lua_globals delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3140,7 +3020,7 @@
       "entry": "lua_eval",
       "capability": "lua-eval",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
+      "owner": "crates/engine\\nie-lua\\src/lib.rs",
       "rationale": "lua_eval delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3166,7 +3046,7 @@
       "entry": "lua_list_scripts",
       "capability": "lua-list-scripts",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "lua_list_scripts delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3418,7 +3298,7 @@
       "entry": "vfs_glb_bytes_b64",
       "capability": "vfs-glb-bytes-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "vfs_glb_bytes_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3444,7 +3324,7 @@
       "entry": "vfs_motion_clips",
       "capability": "vfs-motion-clips",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_motion_clips delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3462,7 +3342,7 @@
       "entry": "raw_cpk_glb_bytes_b64",
       "capability": "raw-cpk-glb-bytes-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "raw_cpk_glb_bytes_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3488,7 +3368,7 @@
       "entry": "vfs_audio_preview_b64",
       "capability": "vfs-audio-preview-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "owner": "crates/engine\\nie-formats\\src/lib.rs",
       "rationale": "vfs_audio_preview_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3522,7 +3402,7 @@
       "entry": "vfs_audio_cues",
       "capability": "vfs-audio-cues",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_audio_cues delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3540,7 +3420,7 @@
       "entry": "vfs_audio_cue_wav_b64",
       "capability": "vfs-audio-cue-wav-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "owner": "crates/engine\\nie-explore\\src/lib.rs",
       "rationale": "vfs_audio_cue_wav_b64 delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3600,7 +3480,7 @@
       "entry": "forge::forge_report",
       "capability": "forge-forge-report",
       "classification": "host_only",
-      "owner": "crates/forge/nie-forge/src/lib.rs",
+      "owner": "crates/forge\\nie-forge\\src/lib.rs",
       "rationale": "forge::forge_report requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3618,7 +3498,7 @@
       "entry": "forge::forge_blockers",
       "capability": "forge-forge-blockers",
       "classification": "host_only",
-      "owner": "crates/forge/nie-forge/src/lib.rs",
+      "owner": "crates/forge\\nie-forge\\src/lib.rs",
       "rationale": "forge::forge_blockers requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3636,7 +3516,7 @@
       "entry": "re_trace_find_process",
       "capability": "re-trace-find-process",
       "classification": "host_only",
-      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "owner": "crates/forge\\nie-trace\\src/lib.rs",
       "rationale": "re_trace_find_process requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3654,7 +3534,7 @@
       "entry": "re_trace_module_regions",
       "capability": "re-trace-module-regions",
       "classification": "host_only",
-      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "owner": "crates/forge\\nie-trace\\src/lib.rs",
       "rationale": "re_trace_module_regions requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3672,7 +3552,7 @@
       "entry": "re_trace_read_bytes_b64",
       "capability": "re-trace-read-bytes-b64",
       "classification": "host_only",
-      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "owner": "crates/forge\\nie-trace\\src/lib.rs",
       "rationale": "re_trace_read_bytes_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3690,7 +3570,7 @@
       "entry": "re_trace_write_bytes_b64",
       "capability": "re-trace-write-bytes-b64",
       "classification": "host_only",
-      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "owner": "crates/forge\\nie-trace\\src/lib.rs",
       "rationale": "re_trace_write_bytes_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3708,7 +3588,7 @@
       "entry": "re_trace_dump_module",
       "capability": "re-trace-dump-module",
       "classification": "host_only",
-      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "owner": "crates/forge\\nie-trace\\src/lib.rs",
       "rationale": "re_trace_dump_module requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3726,7 +3606,7 @@
       "entry": "re_dump_open",
       "capability": "re-dump-open",
       "classification": "host_only",
-      "owner": "crates/forge/nie-dump/src/lib.rs",
+      "owner": "crates/forge\\nie-dump\\src/lib.rs",
       "rationale": "re_dump_open requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3744,7 +3624,7 @@
       "entry": "re_dump_scan",
       "capability": "re-dump-scan",
       "classification": "host_only",
-      "owner": "crates/forge/nie-dump/src/lib.rs",
+      "owner": "crates/forge\\nie-dump\\src/lib.rs",
       "rationale": "re_dump_scan requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3790,7 +3670,7 @@
       "entry": "viola::viola_dump_start",
       "capability": "viola-viola-dump-start",
       "classification": "portable",
-      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "owner": "crates/engine\\nie-viola\\src/lib.rs",
       "rationale": "viola::viola_dump_start delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3822,7 +3702,7 @@
       "entry": "viola::viola_pack",
       "capability": "viola-viola-pack",
       "classification": "portable",
-      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "owner": "crates/engine\\nie-viola\\src/lib.rs",
       "rationale": "viola::viola_pack delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3840,7 +3720,7 @@
       "entry": "viola::viola_merge",
       "capability": "viola-viola-merge",
       "classification": "portable",
-      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "owner": "crates/engine\\nie-viola\\src/lib.rs",
       "rationale": "viola::viola_merge delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3858,7 +3738,7 @@
       "entry": "viola::viola_crypto",
       "capability": "viola-viola-crypto",
       "classification": "portable",
-      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "owner": "crates/engine\\nie-viola\\src/lib.rs",
       "rationale": "viola::viola_crypto delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
         [
@@ -3876,7 +3756,7 @@
       "entry": "live_mod::live_status",
       "capability": "live-mod-live-status",
       "classification": "host_only",
-      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "owner": "crates/forge\\nie-trace\\src/lib.rs",
       "rationale": "live_mod::live_status requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3922,7 +3802,7 @@
       "entry": "live_mod::live_write_member",
       "capability": "live-mod-live-write-member",
       "classification": "host_only",
-      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "owner": "crates/forge\\nie-forge\\src/lib.rs",
       "rationale": "live_mod::live_write_member requires native process, window, executable, game-installation, or destination-filesystem access.",
       "sourceEvidence": [
         [
@@ -3934,12 +3814,12 @@
           "u64::from("
         ],
         [
-          "apps/inacord/src-tauri/src/viola.rs",
+          "apps/inacord/src-tauri/src/forge.rs",
           "fn from"
         ],
         [
-          "apps/inacord/src-tauri/src/viola.rs",
-          "nie_viola::Platform::Pc"
+          "apps/inacord/src-tauri/src/forge.rs",
+          "nie_forge::report::Bucket"
         ]
       ]
     },
@@ -3992,6 +3872,14 @@
       "classification": "transport",
       "owner": "crates/tools/nie-site/src/routes/health.rs",
       "rationale": "GET /healthz is HTTP delivery or service metadata."
+    },
+    {
+      "surface": "site",
+      "entry": "GET /readyz",
+      "capability": "get-readyz",
+      "classification": "transport",
+      "owner": "crates/tools/nie-site/src/routes/health.rs",
+      "rationale": "GET /readyz is HTTP delivery or service metadata."
     },
     {
       "surface": "site",
@@ -4162,11 +4050,11 @@
       "entry": "GET /pet/aphrody.json",
       "capability": "get-pet-aphrody-json",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "crates/tools/nie-site/src/routes/aphrody.rs",
       "rationale": "GET /pet/aphrody.json delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/aphrody.rs",
-        "nie_aphrody"
+        "nie_site"
       ]
     },
     {
@@ -4174,11 +4062,11 @@
       "entry": "GET /pet/atlas.webp",
       "capability": "get-pet-atlas-webp",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "crates/tools/nie-site/src/routes/aphrody.rs",
       "rationale": "GET /pet/atlas.webp delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/aphrody.rs",
-        "nie_aphrody"
+        "nie_site"
       ]
     },
     {
@@ -4186,11 +4074,11 @@
       "entry": "GET /pet/aphrody.svg",
       "capability": "get-pet-aphrody-svg",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "crates/tools/nie-site/src/routes/aphrody.rs",
       "rationale": "GET /pet/aphrody.svg delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/aphrody.rs",
-        "nie_aphrody"
+        "nie_site"
       ]
     },
     {
@@ -4198,11 +4086,11 @@
       "entry": "GET /pet/frame/{animation}/{fichier}",
       "capability": "get-pet-frame-animation-fichier",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "crates/tools/nie-site/src/routes/aphrody.rs",
       "rationale": "GET /pet/frame/{animation}/{fichier} delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/aphrody.rs",
-        "nie_aphrody"
+        "nie_site"
       ]
     },
     {
@@ -4210,11 +4098,11 @@
       "entry": "GET /api/v1/aphrody",
       "capability": "get-api-v1-aphrody",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "crates/tools/nie-site/src/routes/aphrody.rs",
       "rationale": "GET /api/v1/aphrody delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/aphrody.rs",
-        "nie_aphrody"
+        "nie_site"
       ]
     },
     {
@@ -4222,11 +4110,11 @@
       "entry": "GET /api/v1/aphrody/diagnostic",
       "capability": "get-api-v1-aphrody-diagnostic",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "crates/tools/nie-site/src/routes/aphrody.rs",
       "rationale": "GET /api/v1/aphrody/diagnostic delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/aphrody.rs",
-        "nie_aphrody"
+        "nie_site"
       ]
     },
     {
@@ -4234,11 +4122,11 @@
       "entry": "GET /api/v1/aphrody/palette",
       "capability": "get-api-v1-aphrody-palette",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
+      "owner": "crates/tools/nie-site/src/routes/aphrody.rs",
       "rationale": "GET /api/v1/aphrody/palette delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/aphrody.rs",
-        "nie_aphrody"
+        "nie_site"
       ]
     },
     {

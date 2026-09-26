@@ -34,7 +34,7 @@ diffère de la référence. Ne jamais « corriger » ce test — c'est lui le co
 typées) · `nie-core` (la logique de jeu portée) · `nie-lua` (la VM Lua 5.2 du jeu) ·
 `nie-render3d`, `nie-game`, `nie-play`, `nie-headless`, `nie-camera`, `nie-geom`,
 `nie-runtime`, `nie-save`, `nie-viola`, `nie-app`, `nie-explore`, `nie-wasm`,
-`nie-ffi` (la porte vers Bun), `nie-aphrody`.
+`nie-ffi` (la porte vers Bun), `aphrody-identity` (aphrody-ui).
 
 ## `tools/` — l'outillage
 

@@ -72,7 +72,7 @@ nie-core.workspace = true
 # Le pet Aphrody : atlas, animations et poses de regard, embarques au build par
 # `include_bytes!`. Le site ne fait que republier ce package — il n'en garde aucune copie.
 # Il porte aussi `assets::encoder_png`, le seul encodeur PNG du site (cf. `routes::modeles3d`).
-nie-aphrody.workspace = true
+aphrody-identity.workspace = true
 # Les surfaces et jetons typés du jeu : la SSR doit partager exactement la même source que
 # `packages/inacord-ui`, pas recopier une couleur ou un angle dans ses templates.
 nie-ui.workspace = true

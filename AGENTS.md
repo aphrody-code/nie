@@ -92,7 +92,7 @@ that drifts.
 - The **site** is `nie`. Its only public name is `nie.aphrody.com`, which the aphrody-infra vhost
   publishes as a backend (`/api/`, `/cdn/`, bearer-gated `/f` and `/b`, `/health`, the Inacord
   updater feed; `/` answers 404). `aphrody.com` belongs to the separate Aphrody product.
-  **Aphrody** is a character — `crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
+  **Aphrody** is a character — `../aphrody-ui/crates/aphrody-identity`, the pet routes, `Mode Aphrody`,
   Byron Love — and the name of the separate `aphrody-code/aphrody-*` repositories. It is never the
   name of this site. `routes::pages::SITE` is the single source for that name.
 - The origin publishes **no identity and no fingerprint**: no GitHub link, no contact, no
