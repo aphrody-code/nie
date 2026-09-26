@@ -15,15 +15,13 @@
 # lints RFC 3389, RE pur-Rust goblin+iced-x86). Voir docs/ARCHITECTURE.md.
 [workspace]
 resolver = "3"
-members = ["crates/forge/*", "crates/engine/*", "crates/tools/*", "apps/inacord/src-tauri"]
-# Headless commands retain their existing default selection. Desktop is an explicit
-# member (`cargo check -p inacord`) and participates in --workspace gates.
+members = ["crates/forge/*", "crates/engine/*", "crates/tools/*"]
+# The Inacord Tauri app was removed on 2026-09-26: the desktop is aphrody-ui/crates/aphrody-app,
+# IEVR stays in nie web (nie-site + apps/nie-web).
 default-members = ["crates/forge/*", "crates/engine/*", "crates/tools/*"]
 # nie-engine = portage RE du moteur Level-5 (~15k LOC, 434 // EXTERN:) consommé par AUCUNE crate vivante.
 # Hors build/test workspace, conservé comme RÉFÉRENCE de portage en lecture seule (cf. docs/ARCHITECTURE.md).
 exclude = ["crates/archive/nie-engine"]
-# Le crate Tauri du dépôt est apps/inacord/src-tauri. `crates/tools/inacord/` n'existe plus
-# (ce n'étaient que des artefacts de build orphelins) : son exclusion a disparu avec lui.
 
 [workspace.package]
 edition = "2024"
@@ -177,7 +175,7 @@ nie-video = { package = "iecode-video", version = "1.0.0", path = "../iecode/cra
 # que ce qui lit le jeu.
 nie-aphrody-gisement = { version = "1.0.0", path = "crates/engine/nie-aphrody-gisement" }
 # nie-ui : source unique, typée, des jetons de design du jeu (couleurs OKLCH, géométrie,
-# mouvement) — génère le CSS de packages/inacord-ui/src/shell/game-tokens.css et relie
+# mouvement) — génère le CSS de apps/nie-web/src/inacord/shell/game-tokens.css et relie
 # nie-formats::sprite_sheet (icônes) aux jetons pour le Rust qui compose des images.
 nie-ui = { version = "1.0.0", path = "crates/engine/nie-ui" }
 # `nie-runtime` : le moteur de match. Declare ici parce que `nie-ffi` le consomme desormais —
@@ -223,11 +221,9 @@ bcdec_rs = { version = "0.2.0" }
 blake3 = { version = "1.8.7" }
 bytemuck = { version = "1" }
 bytes = { version = "1.12.1" }
-clipboard-win = { version = "5" }
 criterion = { version = "0.8" }
 dirs-next = { version = "2" }
 eframe = { version = "=0.34.1", default-features = false }
-flate2 = { version = "1" }
 googletest = { version = "0.14" }
 hmac = { version = "0.12" }
 http-body-util = { version = "0.1.4" }
@@ -251,29 +247,12 @@ rand = { version = "0.8" }
 regex = { version = "1" }
 scraper = { version = "0.22" }
 specta = { version = "2.0.0-rc.25" }
-specta-typescript = { version = "0.0.12" }
 steamroom = { version = "0.2" }
 steamroom-client = { version = "0.2" }
-tauri = { version = "2" }
-tauri-build = { version = "2" }
-tauri-plugin-clipboard-manager = { version = "2" }
-tauri-plugin-deep-link = { version = "2.4.10" }
-tauri-plugin-dialog = { version = "2" }
-tauri-plugin-fs = { version = "2" }
-tauri-plugin-log = { version = "2.9.1" }
-tauri-plugin-opener = { version = "2" }
-tauri-plugin-os = { version = "2.3.2" }
-tauri-plugin-process = { version = "2" }
-tauri-plugin-single-instance = { version = "2" }
-tauri-plugin-updater = { version = "2" }
-tauri-plugin-window-state = { version = "2" }
-tauri-specta = { version = "2.0.0-rc.25" }
 tower = { version = "0.5.3" }
 tower-http = { version = "0.6.11" }
-trash = { version = "5" }
 tree-sitter = { version = "0.26" }
 tree-sitter-lua = { version = "0.5" }
-ureq = { version = "2", default-features = false }
 web-sys = { version = "0.3" }
 wgpu = { version = "=29.0.3" }
 # Bevy 0.19 — sous-crates. Cette version exige `wgpu ^29.0.3`, exactement l'épingle du dépôt :
@@ -303,7 +282,6 @@ futures-lite = { version = "2" }
 
 windows-sys = { version = "0.59" }
 winit = { version = "0.30" }
-winreg = { version = "0.52" }
 zip = { version = "2" }
 
 [workspace.lints.rust]

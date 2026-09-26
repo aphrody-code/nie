@@ -29,8 +29,8 @@ owning document under `docs/`, history in `CHANGELOG.md` and the dated plans und
   `scripts/release-all.ts` read units and vhost from `${APHRODY_INFRA_ROOT:-../aphrody-infra}`.
   Installing into `/etc`, `daemon-reload`, `nginx -t` and `reload` are production acts that
   follow the aphrody-infra runbook.
-- `apps/nie-web`: common Vite frontend, including the desktop adapter in `src/desktop`;
-  `apps/inacord`: Tauri host and compatibility entrypoints.
+- `apps/nie-web`: the Vite frontend (the page served by `nie-site`); `src/desktop` holds the
+  workspace views it mounts. There is no Tauri host here: the Inacord Tauri app was removed on 2026-09-26: the desktop is aphrody-ui `crates/aphrody-app`, IEVR stays in nie web (`nie-site` + `apps/nie-web`), and the app reaches the game only through the `nie.*` tools of aphrody-ai `aphrody-mcp`.
 - `apps/nie-web/src/inacord` (alias `@nie/inacord-ui`): shared UI; `packages/asset-source`: asset-source contract.
 - `crates/tools/nie-site` and `crates/tools/nie-wiki`: the Rust wiki/site and read-only mirror owner.
 - `data/` and `var/`: game assets and measurements; do not commit copyrighted game dumps or
@@ -172,15 +172,14 @@ blitter and its four synthetic fixtures were wrong by the same amount — so the
 was green, and menu text rendered as kanji in all four hosts. Nothing asked whether the picture
 was right. Now something does.
 
-For the desktop workspace member `apps/inacord/src-tauri`, run `cargo check -p inacord`
-explicitly, including its platform dependencies. Use the root Cargo lockfile. Do not run
+Use the root Cargo lockfile. Do not run
 `cargo build --workspace --all-targets` on this machine: disk usage is constrained. Format only
 files changed in the current batch. A page returning HTTP 200 or a test returning zero cases is
 not proof; inspect payloads and count rendered records/links/assertions.
 
 Cargo is pinned to stable 1.98.1 by `rust-toolchain.toml` (no nightly anywhere; the workspace
-declares `rust-version = "1.97"` as its floor), Edition 2024 and resolver 3. Every live workspace member,
-including Inacord, inherits root package metadata and lints. Keep the disk-bounded dev/test
+declares `rust-version = "1.97"` as its floor), Edition 2024 and resolver 3. Every live workspace member
+inherits root package metadata and lints. Keep the disk-bounded dev/test
 profiles and use `--profile debugging` only when full symbols are required. Do not weaken
 `deny.toml`: update compatible vulnerable/yanked transitive packages first, and retain an ignored
 advisory only when no fix exists and its unreachable threat model is stated precisely.

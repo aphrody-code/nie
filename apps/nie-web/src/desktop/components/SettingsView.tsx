@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import inacordPackage from "../../../../inacord/package.json";
+import appPackage from "../../../package.json";
 import { MemoireCard } from "@/components/MemoireCard";
 import { open } from "@tauri-apps/plugin-dialog";
 import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
@@ -369,7 +369,7 @@ export function SettingsView({ toolsOnly = false }: { toolsOnly?: boolean } = {}
           <CardDescription>
             Vérifie, télécharge et installe les nouvelles versions signées d’Inacord depuis le
             canal stable <code>nie.aphrody.com/downloads</code>. Version actuelle :{" "}
-            <Badge variant="secondary">v{inacordPackage.version}</Badge>.
+            <Badge variant="secondary">v{appPackage.version}</Badge>.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

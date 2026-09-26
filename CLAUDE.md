@@ -98,9 +98,9 @@ diff, so the list exists to be re-run rather than remembered.
 
 | Artefact | Verify | Regenerate |
 | --- | --- | --- |
-| `packages/inacord-ui/src/shell/game-screens.css` | `cargo run -p nie-ui --bin game_screens_css -- --verify` | same, `--write` |
-| `packages/inacord-ui/src/shell/game-tokens.css` | `cargo test --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity` | `cargo run --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity --bin design` |
-| `packages/inacord-ui/src/lib/ui-text-map.ts` | re-run the generator and `git diff` | `python3 scripts/validation/ui-text-map.py` |
+| `apps/nie-web/src/inacord/shell/game-screens.css` | `cargo run -p nie-ui --bin game_screens_css -- --verify` | same, `--write` |
+| `apps/nie-web/src/inacord/shell/game-tokens.css` | `cargo test --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity` | `cargo run --manifest-path ../aphrody-ui/Cargo.toml -p aphrody-identity --bin design` |
+| `apps/nie-web/src/inacord/lib/ui-text-map.ts` | re-run the generator and `git diff` | `python3 scripts/validation/ui-text-map.py` |
 | `apps/nie-web/public/static/game/nie_wasm_bg.wasm` | compare its mtime/size against `crates/engine/nie-wasm/` | `bun run --filter nie-web build:wasm` |
 | `apps/nie-web/public/static/game/nie_viewer_web_bg.wasm` | same | `bun run --filter nie-web build:wasm-viewer` |
 | `apps/nie-web/public/static/game/nie_lua_web.wasm` | `lua-runtime.test.ts` (directional) | emsdk recipe in `nie-lua-web/README.md` |

@@ -28,7 +28,7 @@ MCP client ──stdio──> nie-mcp / nie mcp
                          ├── rmcp + schemars schemas
                          ├── in-process nie-cli dispatch
                          ├── Rust VFS / format / RE / repository crates
-                         └── WebSocket 127.0.0.1:8791/bridge ──> Inacord
+                         └── WebSocket 127.0.0.1:8791/bridge ──> Inacord page (nie web)
 ```
 
 ## Tool surface: 65 tools
@@ -87,8 +87,8 @@ available through `cli_convert` and `cli_render`.
 The Rust server listens only on `ws://127.0.0.1:8791/bridge`. `NIE_BRIDGE_PORT` can override
 the port. The bridge is optional: a busy port or absent UI does not disable other MCP tools.
 
-The versioned protocol remains in `packages/nie-bridge/src/protocol.ts` as the WebView client
-contract. Its former `Bun.serve` implementation has been removed. The Rust server validates the
+The versioned protocol remains in `packages/nie-bridge/src/protocol.ts` as the client contract of
+the Inacord page of nie web (the Tauri host was removed on 2026-09-26). Its former `Bun.serve` implementation has been removed. The Rust server validates the
 HTTP path, `hello` frame, protocol version, requested tab, and bounds each reply wait to five
 seconds. A new connection cleanly replaces the previous one.
 
@@ -97,8 +97,9 @@ seconds. A new connection cleanly replaces the previous one.
 Agents reach these tools through the single Aphrody MCP: `aphrody-mcp` exposes them as the
 `nie.*` family (`nie.tools`, `nie.call`, `nie.vfs_list`, `nie.re_query`, ...) and runs the prebuilt
 `nie-mcp` from `PATH` (or `NIE_MCP_BIN`) as a child process, so aphrody-ai never links a nie crate.
-The repository `.mcp.json` and `.codex/config.toml` therefore declare only `aphrody`. Inacord's
-installer can still register `nie-mcp` directly for Claude Desktop; that entry reads:
+The repository `.mcp.json` and `.codex/config.toml` therefore declare only `aphrody`. The former
+Inacord installer (`apps/inacord/src-tauri/src/mcp.rs`) was removed with the Tauri app; a client
+that needs `nie-mcp` directly declares it by hand:
 
 ```json
 {
@@ -108,7 +109,7 @@ installer can still register `nie-mcp` directly for Claude Desktop; that entry r
 }
 ```
 
-Inacord adds `NIE_REPO=<repository>` for Claude Desktop, which starts from an arbitrary directory.
+Add `NIE_REPO=<repository>` for Claude Desktop, which starts from an arbitrary directory.
 
 **`cargo run` is not a launcher.** It was the declared command until 2026-09-25, and it fails
 exactly like a dead server: `cargo run --release` compiles before the first JSON-RPC frame —

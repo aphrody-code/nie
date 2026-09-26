@@ -31,7 +31,6 @@ body:
         - cli — nie, la ligne de commande
         - mcp — nie-mcp, le serveur Model Context Protocol
         - site — nie-site et le module WebAssembly
-        - desktop — Inacord, l'application Tauri
         - model — nie-model-serve, le serveur d'assets
         - forge / reverse-engineering
         - autre

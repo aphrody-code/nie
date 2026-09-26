@@ -8,19 +8,19 @@ Une implémentation maintenue d'IEVR sous une racine. Ce document dit **qui fait
 
 | Arbre | Racine | Volume | Build |
 |---|---|---|---|
-| Rust — moteur, forge et outils | `crates/`, `apps/inacord/src-tauri` | workspace Cargo | `cargo` |
+| Rust — moteur, forge et outils | `crates/` | workspace Cargo | `cargo` |
 | TypeScript/Bun | `packages/`, `apps/` | workspaces Bun | `bun` |
 
 `just all-build` · `just all-test` · `just all-check` pilotent ces deux chaînes.
 
 ## Inacord boundary
 
-Inacord Desktop is deliberately a visual, user-facing VFS explorer: it mounts/browses the game
-filesystem and previews decoded resources. It is not the GUI owner for wiki/data queries, 3D
-authoring, modding, reverse engineering, Lua, live memory or archive tooling. Those capabilities
-remain in their existing Rust owners and are consumed through API, CLI, MCP, code and scripts;
-read-only preview data may be rendered by the explorer without turning the GUI into an operator.
-The desktop view registry therefore has one route: `inacord/explorer`.
+Inacord is the IEVR workspace of the nie web page (`/inacord`, `apps/nie-web`), served by
+`nie-site`. Its Tauri desktop host was removed on 2026-09-26: the single desktop is aphrody-ui
+`crates/aphrody-app`, which never depends on nie and reaches the game only through the `nie.*`
+tools of aphrody-ai `aphrody-mcp` (process boundary). The generic Aphrody pet/pixel commands moved
+to aphrody-app; the IEVR explorer helpers (mods, saves, raw CPK, Lua sessions, Blender) left with
+the host and remain available through `nie-site`, the CLI and MCP.
 
 ## Doctrine — un rôle, un langage
 
@@ -47,8 +47,8 @@ Il n'existe plus de délégation vers un binaire C++, une assembly .NET, CMake o
 
 ## Les crates Rust
 
-**47 workspace members** (measured 2026-09-25: `ls -d crates/{forge,engine,tools}/*/` gives
-9 forge + 25 engine + 12 tools = 46 crates, plus `apps/inacord/src-tauri`; `members` in the root
+**46 workspace members** (measured 2026-09-25: `ls -d crates/{forge,engine,tools}/*/` gives
+9 forge + 25 engine + 12 tools = 46 crates; `members` in the root
 `Cargo.toml`), grouped by role below. The `tests` column is a SNAPSHOT, not an invariant: it dates
 from 2026-09-08 (`nie-wasm` said 32 where 66 were real) and rows added since carry `—`. Read it as
 an order of magnitude; the source is `cargo test -p <crate> --lib`. `crates/archive/*` (2 crates,
@@ -134,7 +134,7 @@ configured; removing the path edge before publication breaks the workspace build
 |---|---|---|
 | `packages/nie` | Rust → TS | `nie_ffi` via `bun:ffi` (préchargé par `bunfig.toml`) — **seul** natif chargé côté TS |
 | `scripts/sync-gamedata.ts` | TS → Rust | `nie steam` puis `nie viola` |
-| `packages/nie-bridge` | Rust ↔ TS | contrat WebSocket entre le serveur Rust `nie-mcp` et le client WebView Inacord |
+| `packages/nie-bridge` | Rust ↔ TS | contrat WebSocket entre le serveur Rust `nie-mcp` et la page Inacord de nie web |
 
 `crates/archive/nie-rs` est du décompilé porté en Rust, hors workspace et compilé
 par personne : matière de RE, pas un pont.
@@ -143,7 +143,7 @@ par personne : matière de RE, pas un pont.
 
 - **The Rust site and wiki are the only IEVR data owners.** IEVR parsing, query rules, mirror
   access, API projections, CLI behaviour and native IPC belong to `nie-data`, `nie-formats`,
-  `nie-core`, `nie-wiki`, `nie-site`, `nie-cli` and Inacord's Rust backend. Bun is limited to thin
+  `nie-core`, `nie-wiki`, `nie-site` and `nie-cli`. Bun is limited to thin
   host bindings and non-IEVR integrations: it never queries the IEVR mirror directly and never
   calls a remote wiki. The deleted Azalée application, `packages/azalee`, `packages/azalee-tools`
   and the IEVR Inagle package are not compatibility targets (decision recorded 2026-09-09 in the

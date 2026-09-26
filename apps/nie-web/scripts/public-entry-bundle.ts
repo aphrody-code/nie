@@ -98,7 +98,7 @@ export function assertPublicEntryBundle(bundle: string): void {
 	const sources = [...critical].flatMap((chunk) => chunk.sources).map(normalize);
 	const react = sources.find((source) => /\/node_modules\/(?:\.bun\/[^/]+\/node_modules\/)?react(?:-dom)?\//u.test(source));
 	if (react) throw new Error(`bundle gate: React entered the static readiness graph through ${react}`);
-	const hostModule = sources.find((source) => source.endsWith("/src/BrowserHost.tsx") || source.endsWith("/src/desktop/DesktopHost.tsx"));
+	const hostModule = sources.find((source) => source.endsWith("/src/BrowserHost.tsx"));
 	if (hostModule) throw new Error(`bundle gate: #nie-host entered the static readiness graph through ${hostModule}`);
 
 	console.log(`public entry bundle: ${critical.size} critical chunks, 0 React modules, compatibility host dynamic`);

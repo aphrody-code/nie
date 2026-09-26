@@ -10,7 +10,7 @@
 # à côté du checkout, ce que le pré-vol du job vérifie.
 #
 # POURQUOI LA PORTE EST CADRÉE, ET POURQUOI ELLE RESTE UN SEUL JOB
-# Le dépôt publie cinq surfaces (cli, mcp, site, desktop, model) et elles partagent
+# Le dépôt publie quatre surfaces (cli, mcp, site, model) et elles partagent
 # l'essentiel de leurs crates : union des cinq fermetures = 36 des 47 membres, et `cli`
 # n'en a aucune qui lui soit propre. Mesuré sur les 400 dernie commits, un job par
 # surface coûterait 19 638 compilations de crate (21 475 si `nie-wasm` a sa lane) contre
@@ -117,9 +117,7 @@ jobs:
           command -v mold    || { echo 'mold absent'; exit 1; }
           test -f ../iecode/Cargo.toml || { echo 'dépendance path ../iecode absente'; exit 1; }
           test -f ../aphrody-ui/crates/aphrody-softraster/Cargo.toml || { echo 'dépendance path ../aphrody-ui (aphrody-softraster) absente'; exit 1; }
-          # Desktop is a root workspace member; its Linux system libraries are required.
-          pkg-config --exists gtk+-3.0 webkit2gtk-4.1 || { echo 'Desktop GTK/WebKit system libraries absent'; exit 1; }
-          test -f Cargo.lock && test ! -f apps/inacord/src-tauri/Cargo.lock || { echo 'Expected one root Cargo.lock'; exit 1; }
+          test -f Cargo.lock || { echo 'Expected one root Cargo.lock'; exit 1; }
           df -h / | tail -1
 
       - name: Clippy cadré sur les surfaces touchées — 0 warning attendu

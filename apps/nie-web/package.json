@@ -6,9 +6,6 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"dev:desktop": "vite --mode desktop",
-		"preview:desktop": "vite preview --mode desktop",
-		"build:desktop": "bun run typecheck && vite build --mode desktop",
 		"build": "bun run build:wasm && bun run build:wasm-viewer && bun run typecheck && tsc -b && bun --bun ./node_modules/.bin/vite build && bun --bun scripts/precompress.ts",
 		"build:wasm": "bun --bun scripts/build-wasm.ts",
 		"build:wasm-viewer": "bun --bun scripts/build-viewer-wasm.ts",

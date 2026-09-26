@@ -42,8 +42,8 @@ nie/
 │   ├── engine/      (25) the engine
 │   ├── tools/       (12) tooling, including the `nie` CLI
 │   └── archive/     (2)  outside the workspace, read-only porting reference
-├── apps/            Bun/TS — 2 applications (nie-web, inacord)   → apps/README.md
-│                    apps/inacord/src-tauri is the 47th Cargo workspace member
+├── apps/            Bun/TS — 1 application (nie-web)             → apps/README.md
+│                    (the Inacord Tauri app was removed on 2026-09-26)
 ├── packages/        Bun/TS — 8 package folders                   → packages/README.md
 ├── python/          Python — the `niepy` package and its tests
 ├── plugins/         published extensions (Claude Code, Blender)  → plugins/README.md

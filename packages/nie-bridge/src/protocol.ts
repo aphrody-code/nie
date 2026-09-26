@@ -1,7 +1,8 @@
 /**
  * Protocole de contrôle `nie-bridge` — la définition unique, partagée par les deux bouts.
  *
- * `nie-mcp` (serveur MCP natif Rust) écoute ; Inacord (UI Tauri) se connecte et exécute.
+ * `nie-mcp` (serveur MCP natif Rust) écoute ; la page Inacord de nie web se connecte et exécute
+ * (l'hôte Tauri d'Inacord a été retiré le 2026-09-26).
  * Ce module est le contrat TypeScript du client ; sa parité est verrouillée par le test
  * WebSocket Rust de `nie-cli` et les tests exhaustifs du client.
  *

@@ -6,9 +6,8 @@
 //!
 //! Deux partis pris, tirés de défauts déjà payés ici :
 //!
-//! - **on lit les sources, on ne devine pas**. Les commandes d'Inacord sont extraites du
-//!   `collect_commands!` qui les enregistre — la seule liste que le compilateur tient à jour —
-//!   et non d'un décompte de `#[tauri::command]` qui inclurait celles qu'on a oublié d'ajouter ;
+//! - **on lit les sources, on ne devine pas**. Les sous-commandes viennent de `nie --help` et
+//!   les modules des `lib.rs` qui les déclarent, jamais d'un décompte deviné ;
 //! - **une source absente est une erreur, pas un zéro**. Une mesure qui rend 0 parce qu'un
 //!   fichier manque produit une matrice verte sur un dépôt vide.
 
@@ -62,7 +61,6 @@ impl Inventaire {
 pub fn mesurer(racine: &Path) -> anyhow::Result<Inventaire> {
     let mut inv = Inventaire::default();
     nie(racine, &mut inv)?;
-    inacord(racine, &mut inv)?;
     modules(
         racine,
         Source::NieData,
@@ -135,33 +133,6 @@ fn nie(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
         }
     }
     anyhow::ensure!(n > 0, "`nie --help` n'a listé aucune sous-commande");
-    Ok(())
-}
-
-/// Le `collect_commands!` de `apps/inacord/src-tauri/src/lib.rs` — la seule liste que le
-/// compilateur tient à jour, puisqu'elle sert **à la fois** l'`invoke_handler` et l'export des
-/// bindings TypeScript.
-fn inacord(racine: &Path, inv: &mut Inventaire) -> anyhow::Result<()> {
-    let chemin = racine.join("apps/inacord/src-tauri/src/lib.rs");
-    let source = fs::read_to_string(&chemin)
-        .map_err(|e| anyhow::anyhow!("{} illisible: {e}", chemin.display()))?;
-    let Some(debut) = source.find("collect_commands![") else {
-        anyhow::bail!("`collect_commands![` introuvable dans {}", chemin.display());
-    };
-    let reste = &source[debut + "collect_commands![".len()..];
-    let Some(fin) = reste.find(']') else {
-        anyhow::bail!("`collect_commands![` non refermé dans {}", chemin.display());
-    };
-    let mut n = 0;
-    for brut in reste[..fin].split(',') {
-        let nom = brut.trim();
-        if nom.is_empty() || nom.starts_with("//") {
-            continue;
-        }
-        inv.pousser(Source::Inacord, nom, 1);
-        n += 1;
-    }
-    anyhow::ensure!(n > 0, "`collect_commands!` vide");
     Ok(())
 }
 

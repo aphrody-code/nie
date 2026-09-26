@@ -77,13 +77,8 @@ for path in sorted(members):
                         f"{label} must use the workspace owner")
                 require(name in catalog, f"{label} has no workspace catalogue entry")
 
-desktop = manifests[ROOT / "apps/inacord/package.json"]
-require(desktop.get("dependencies") == {"nie-web": "workspace:*"},
-        "The desktop wrapper must consume the common frontend instead of duplicating its dependencies")
-require(ROOT / "apps/inacord/src-tauri/Cargo.toml" in members,
-        "Tauri must remain a root workspace member")
-require(not (ROOT / "apps/inacord/src-tauri/Cargo.lock").exists(),
-        "Tauri must use the root Cargo lockfile")
+require(not (ROOT / "apps/inacord").exists(),
+        "The Inacord Tauri app was removed on 2026-09-26; the desktop is aphrody-ui aphrody-app")
 require(bool(bun_edges and rust_edges), "An empty dependency inventory cannot pass")
 print(json.dumps({"bunManifests": len(manifests), "bunDependencies": bun_edges,
                   "rustMembers": len(members), "rustDependencies": rust_edges,

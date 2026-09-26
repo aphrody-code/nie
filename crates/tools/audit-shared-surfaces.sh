@@ -44,7 +44,6 @@ for crate in "${shared_manifest_deps[@]}"; do
   surfaces=()
   contains "$crate" crates/tools/nie-cli/Cargo.toml && surfaces+=(cli)
   contains "$crate" crates/tools/nie-site/Cargo.toml && surfaces+=(site)
-  contains "$crate" apps/inacord/src-tauri/Cargo.toml && surfaces+=(inacord)
   if [[ ${#surfaces[@]} -ge 2 ]]; then
     row "shared_dependency:$crate" PASS "${surfaces[*]}"
   else
@@ -72,12 +71,6 @@ else
   row mode_analysis_single_owner FAIL 'CLI and site do not both delegate mode analysis to nie-explore'
 fi
 
-if contains 'fn t2b_value_to_json(' crates/engine/nie-explore/src/bridge.rs \
-  && contains 'fn t2b_value_to_json(' apps/inacord/src-tauri/src/game_data.rs; then
-  row t2b_json_single_owner FAIL 'nie-explore and Inacord define separate T2B value-to-JSON mappings'
-else
-  row t2b_json_single_owner PASS 'no known engine/Inacord T2B JSON mapping duplication found'
-fi
 
 if contains 'use nie_wiki::entities as shared;' crates/tools/nie-site/src/routes/entites.rs \
   && contains 'shared::analyser(table, brut)' crates/tools/nie-site/src/routes/entites.rs \

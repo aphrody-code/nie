@@ -63,7 +63,6 @@ packages/*/src/data/**/*.json
 
 # Rust build
 /target
-crates/tools/inacord/
 **/*.rs.bk
 Cargo.lock.bak
 

@@ -1,6 +1,4 @@
 dist
 dist-web
-dist-desktop
-dist-inacord
 *.tsbuildinfo
 dist-build

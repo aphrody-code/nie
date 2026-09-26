@@ -1,10 +1,9 @@
 {
   "schema": "nie.shared-capabilities/v1",
-  "surfaces": ["site", "cli", "mcp", "inacord", "browser"],
+  "surfaces": ["site", "cli", "mcp", "browser"],
   "registries": {
     "cli": "crates/tools/nie-cli/src/main.rs",
     "mcp": "crates/tools/nie-mcp/src/main.rs",
-    "inacord": "apps/inacord/src-tauri/src/lib.rs",
     "site": "crates/tools/nie-site/src/app.rs"
   },
   "capabilities": [
@@ -15,7 +14,6 @@
         "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/Cargo.toml","nie-explore = { workspace = true"],["crates/tools/nie-site/src/routes/formats.rs","nie_explore::"]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/Cargo.toml","nie-explore ="]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
-        "inacord": {"kind":"adapter","evidence":[["apps/inacord/src-tauri/Cargo.toml","nie-explore = { workspace = true"]]},
         "browser": {"kind":"adapter","evidence":[["apps/nie-web/src/desktop/lib/bindings.ts","vfsDescribe"]]}
       },
       "proofTests": ["cargo test -p nie-explore --locked"]
@@ -27,7 +25,6 @@
         "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/src/routes/screens.rs","build_icon_index("]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/src/icons_cmd.rs","build_icon_index("]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
-        "inacord": {"kind":"not-exposed","rationale":"Native UI consumes named texture APIs rather than exposing the bulk icon catalogue."},
         "browser": {"kind":"adapter","evidence":[["apps/nie-web/src/game/screen-catalog.ts","/api/v1/icons"]]}
       },
       "proofTests": ["cargo test -p nie-explore --locked menu_icons", "cargo test -p nie-cli --lib --locked icons_cmd::tests", "cargo test -p nie-site --lib --locked routes::screens::tests"]
@@ -39,7 +36,6 @@
         "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/src/routes/screens.rs","collect_shared_mode"]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/src/mode_index.rs","collect_mode("]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
-        "inacord": {"kind":"not-exposed","rationale":"No desktop mode-catalogue command is registered; desktop uses lower-level VFS adapters."},
         "browser": {"kind":"adapter","evidence":[["apps/nie-web/src/game/screen-catalog.ts","/api/v1/modes"]]}
       },
       "proofTests": ["cargo test -p nie-explore --locked menu_mode_analysis", "cargo test -p nie-cli --lib --locked mode_index::tests", "cargo test -p nie-site --lib --locked routes::screens::tests"]
@@ -51,7 +47,6 @@
         "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/src/routes/donnees.rs","nie_data::typed"]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/Cargo.toml","nie-data ="]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
-        "inacord": {"kind":"adapter","evidence":[["apps/inacord/src-tauri/src/lib.rs","pub use nie_app::game_data"],["crates/engine/nie-app/src/game_data.rs","use nie_data::"]]},
         "browser": {"kind":"adapter","evidence":[["apps/nie-web/src/desktop/lib/bindings.ts","gameData"]]}
       },
       "proofTests": ["cargo test -p nie-data --locked"]
@@ -63,7 +58,6 @@
         "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/src/routes/lua.rs","nie_lua::"]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/src/lua_cmd.rs","nie_lua::"]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
-        "inacord": {"kind":"adapter","evidence":[["apps/inacord/src-tauri/Cargo.toml","nie-lua = { workspace = true"]]},
         "browser": {"kind":"adapter","evidence":[["apps/nie-web/src/desktop/lib/bindings.ts","lua"]]}
       },
       "proofTests": ["cargo test -p nie-lua --locked"]

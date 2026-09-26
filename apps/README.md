@@ -3,12 +3,11 @@
 An application has an entry point you launch (`bin`, `server.ts`, a window); a library goes in
 [`packages/`](../packages). All of them share the root lockfile.
 
-Measured 2026-09-25 (`ls -d apps/*/`): **2 applications**.
+Measured 2026-09-25 (`ls -d apps/*/`): **1 application** (Inacord's Tauri lane `apps/inacord` was removed on 2026-09-26).
 
 | Application | What it is | How it runs |
 |---|---|---|
-| `nie-web` | **the** frontend — one application, one shell, one stylesheet, for the page and the native window alike | Rust `nie-site` / Tauri host |
-| `inacord` | the desktop packaging lane: `src-tauri`, the public assets, the Tauri configuration. No frontend of its own since 2026-09-12 | `bun run --cwd apps/inacord tauri build` |
+| `nie-web` | **the** frontend — one application, one shell, one stylesheet | Rust `nie-site` |
 
 The MCP server is not an application of this tree: it is the Rust crate
 [`crates/tools/nie-mcp`](../crates/tools/nie-mcp), declared as `nie-game` in `.mcp.json`.
@@ -17,25 +16,9 @@ What runs in production, on which port and under which unit is owned by `../aphr
 (`config/service-catalog.json`, `systemd/`), not by this table; the live service manager is
 the authority on what is active.
 
-## Inacord (`apps/inacord/src-tauri`) — the traps that bring the application down
+## No desktop application here
 
-`src-tauri` **is** a member of the root Cargo workspace (`members` in the root `Cargo.toml`, not
-in `default-members`) and inherits the workspace edition (2024), lints and package metadata
-(`edition.workspace = true`). Check it explicitly with `cargo check -p inacord`.
-
-- A **synchronous** `#[tauri::command]` runs on the main thread: any `tokio::spawn` inside it
-  panics ("there is no reactor running") and, in a non-unwinding context, **brings the
-  application down** with no useful trace. Every command that touches the VFS, a task or the disk
-  must be `async`.
-- A new command needs **three** steps: `#[tauri::command] #[specta::specta]`, the entry in
-  `invoke_handler`, then `cargo run --bin export-bindings --features dev-bindings`. Without the
-  second or the third, the frontend does not see it.
-- `bundle.resources` **keeps the declared relative path**: `"resources/db/*.gz"` lands in
-  `<resource_dir>/resources/db/`. Targeting the wrong path breaks nothing visible — the package has
-  its weight, the signature is valid, and the resource is never read.
-- **Only launching finds these bugs.** Neither `tsc`, nor clippy, nor the bundle-size check sees a
-  resource that is never read or an empty table. After a build, launch the executable and look at
-  what it wrote into its data directory.
+The Inacord Tauri app was removed on 2026-09-26: the desktop is aphrody-ui `crates/aphrody-app`, IEVR stays in nie web (`nie-site` + `apps/nie-web`), and the app reaches the game only through the `nie.*` tools of aphrody-ai `aphrody-mcp`.
 
 ## Distribution rules
 
@@ -48,9 +31,3 @@ in `default-members`) and inherits the workspace edition (2024), lints and packa
   process, updater and mutation commands that no Web API can express reject through
   `unavailable()` (`native-error.ts`), naming the capability — never a silent no-op or a fake
   success.
-
-## Publishing the desktop application
-
-`scripts/release-desktop.sh <X.Y.Z>` does everything and is idempotent. **Never replay its steps
-by hand**: `bun run tauri build` alone produces *unsigned* installers next to stale `.sig` files,
-which nothing distinguishes and which the updater will refuse.

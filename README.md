@@ -82,7 +82,6 @@ Each surface is built, tested, and deployed independently:
 | `cli` | `nie` | Unified Rust CLI: VFS exploration, formats decoder, RE atlas. |
 | `mcp` | `nie-mcp` | Native Model Context Protocol server for AI coding agents (`rmcp`). |
 | `site` | `nie-site` | `nie.aphrody.com` server + client WebAssembly runtime (`nie-wasm`). |
-| `desktop` | `inacord` | Cross-platform desktop application powered by Tauri v2. |
 | `model` | `nie-model-serve` | 3D asset conversion and streaming server. |
 
 Commands for surface validation:
@@ -103,13 +102,13 @@ nie/
 │   ├── forge/     (9) Binary reconstruction, PE64 assembler, RTTI extractor, forge pipeline
 │   ├── tools/    (12) Unified CLI (nie), MCP server, web site, model serving, editor
 │   └── archive/   (2) Reference read-only decompilation archives (outside the workspace)
-├── apps/          (2) WebAssembly web shell (nie-web), desktop packaging (inacord, its src-tauri is a workspace member)
+├── apps/          (1) WebAssembly web shell (nie-web); the desktop is aphrody-ui `aphrody-app`
 ├── packages/      (8) Shared contracts, design system (inacord-ui), asset pipeline, Bun preload, tsconfig base
 └── docs/              Exhaustive documentation indexed and verified by `bun run docs:check`
 ```
 
-Counts measured 2026-09-25 with `ls -d crates/*/*/ apps/*/ packages/*/`: 46 workspace crates plus
-`apps/inacord/src-tauri` make the 47 members of the root `Cargo.toml`; `crates/archive/nie-engine`
+Counts measured 2026-09-25 with `ls -d crates/*/*/ apps/*/ packages/*/`: 46 workspace crates make
+the members of the root `Cargo.toml` (`apps/inacord/src-tauri` was removed on 2026-09-26); `crates/archive/nie-engine`
 is excluded and `crates/archive/nie-rs` was never a member.
 
 ---

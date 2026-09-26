@@ -1,5 +1,8 @@
 # Shared core and product surfaces
 
+> **Historical (2026-09-26):** the Inacord Tauri host (`apps/inacord`) described below was removed.
+> The desktop is aphrody-ui `aphrody-app`; IEVR stays in nie web; see `PLAN.md`, Decisions 2026-09-26.
+
 Source audit: 2026-09-08. This document records source-level evidence only. It does not turn a
 successful build, an HTTP response, or matching dependency names into behavioral parity.
 

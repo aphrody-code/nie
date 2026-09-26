@@ -45,7 +45,7 @@ Video, soundtrack, bitmap-font, WASM decode and secondary-scene preloads are del
 reachable from `/menu`, and deliberately **absent from the sitemap**.
 
 The site is **neither the wiki nor the file explorer**: the wiki is **Azalée**, the explorer is
-**Inacord**. It hosts `apps/nie-web`, the same interface as Inacord, the desktop application.
+**Inacord**. It hosts `apps/nie-web`, the Inacord workspace (its former Tauri desktop host was removed on 2026-09-26).
 Both address resources by their **VFS path**, exactly like the game does — no translated slug ever
 identifies a file. There is no native mobile package: the installable mobile web entry is never
 labelled an APK or IPA, and the browser adapter rejects desktop-only commands explicitly — see the

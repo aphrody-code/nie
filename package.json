@@ -5,7 +5,6 @@
 	"description": "Bun workspace for nie libraries and applications; the `nie` name is reserved for the FFI package.",
 	"workspaces": {
 		"packages": [
-			"apps/inacord",
 			"apps/nie-web",
 			"packages/asset-source",
 			"packages/nie",
@@ -114,7 +113,6 @@
 		"lint": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction packages apps",
 		"lint:fix": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction --fix packages apps",
 		"release:all": "bun scripts/release-all.ts",
-		"release:inacord": "bun scripts/release-inacord.ts",
 		"deploy:target": "bun scripts/deploy-target.ts",
 		"docs:check": "bun run scripts/docs/check.ts",
 		"check:dependencies": "uv run --no-project python scripts/validation/dependency-owners.py",

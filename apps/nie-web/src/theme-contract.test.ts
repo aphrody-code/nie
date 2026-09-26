@@ -22,7 +22,7 @@ describe("single game theme contract", () => {
 	});
 
 	test("the host role adapter is sourced from measured menu roles", async () => {
-		const css = await read("../../../packages/inacord-ui/src/shell/inacord-tool-theme.css");
+		const css = await read("./inacord/shell/inacord-tool-theme.css");
 		expect(css).toContain("--color-app: var(--screen-canvas-pale)");
 		expect(css).toContain("--color-accent: var(--screen-header-blue)");
 		expect(css).not.toContain("var(--inacord-");
@@ -32,7 +32,7 @@ describe("single game theme contract", () => {
 	});
 
 	test("the shared Explorer cannot reinstall its former dark palette", async () => {
-		const css = await read("../../../packages/inacord-ui/src/explorer/explorer-surface.css");
+		const css = await read("./inacord/explorer/explorer-surface.css");
 		expect(css).toContain("--app-bg: var(--screen-canvas-pale)");
 		expect(css).toContain("color-scheme: light");
 		expect(css).not.toContain("#211b17");
@@ -46,17 +46,17 @@ describe("single game theme contract", () => {
 	});
 
 	test("small faint labels use the measured accessible role", async () => {
-		const css = await read("../../../packages/inacord-ui/src/shell/inacord-tool-theme.css");
+		const css = await read("./inacord/shell/inacord-tool-theme.css");
 		expect(css).toContain("--color-ink-faint: var(--screen-section-title)");
 		expect(css).toContain("--color-sidebar-ink-faint: var(--screen-section-title)");
 	});
 
 	test("every consumed screen token is defined by the measured game palette", async () => {
-		const tokenCss = await read("../../../packages/inacord-ui/src/shell/game-screens.css");
+		const tokenCss = await read("./inacord/shell/game-screens.css");
 		const defined = new Set([...tokenCss.matchAll(/--(screen-[a-z0-9-]+)\s*:/gu)].map(match => match[1]));
 		const roots = [
 			fileURLToPath(new URL("./", import.meta.url)),
-			fileURLToPath(new URL("../../../packages/inacord-ui/src/", import.meta.url)),
+			fileURLToPath(new URL("./inacord/", import.meta.url)),
 		];
 		const consumed = new Set<string>();
 		for (const cwd of roots) {

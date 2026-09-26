@@ -7,7 +7,8 @@ it does not certify interface fidelity or complete migration of historical imple
 
 The root `Cargo.toml` owns Rust dependency versions and paths. Maintained members inherit them,
 with consumer-specific features, optional flags and target conditions kept at the consumer.
-The root `Cargo.lock` is shared by Inacord and the engine/tool crates.
+The root `Cargo.lock` is shared by the engine/tool crates (the Inacord Tauri host was removed on
+2026-09-26).
 
 The root `package.json` owns Bun dependency versions through its workspace catalogue. Local
 packages use `workspace:*`; external dependencies use `catalog:` or an explicitly named
@@ -23,7 +24,7 @@ workspace membership rather than archive directories or generated/vendor code.
 
 | Responsibility | Canonical owner | Consumers and compatibility surfaces |
 | --- | --- | --- |
-| Browser and desktop frontend source/build | `apps/nie-web` | `apps/inacord` delegates frontend commands and retains the Tauri host. |
+| Browser and desktop frontend source/build | `apps/nie-web` | Single browser build; the Inacord Tauri host was removed on 2026-09-26. |
 | General UI primitives | sibling `rg/packages/ui` | RG owns the shared primitives; nie consumes them and keeps only Inacord-specific presentation in `packages/inacord-ui`. |
 | Game and resource interface composition | `packages/inacord-ui` | Both frontend targets consume its sprites, menus, Explorer reducers and controls. |
 | Asset transport, capability and loading contracts | `packages/asset-source` | HTTP and native adapters provide bytes; components do not duplicate decoders. |

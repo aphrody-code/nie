@@ -393,32 +393,6 @@ async function deployWeb(context: TargetContext): Promise<void> {
 	}
 }
 
-async function deployInacordWeb(context: TargetContext): Promise<void> {
-	// Inacord was merged into the site on 2026-09-12. This target validates the release channel
-	// on disk and the one public route that still reads it: the updater feed.
-	const catalog = "var/releases/inacord/public/catalog.json";
-	const updateFeed = "var/releases/inacord/public/channels/stable/latest.json";
-	for (const required of [catalog, updateFeed]) {
-		if (!(await Bun.file(required).exists())) {
-			throw new Error(`Inacord release channel is missing ${required}.`);
-		}
-	}
-	const products = requireJsonObject(await Bun.file(catalog).text())["products"];
-	if (!Array.isArray(products) || products.length < 6) {
-		throw new Error("Inacord catalog has fewer than six products.");
-	}
-	requireBudget(context, validationWindowMs, "validate the Inacord updater feed");
-	// The only public Inacord route left is the updater feed installed clients poll, aliased by
-	// the aphrody-infra vhost onto this channel. `/inacord`, `/downloads/catalog.json` and the
-	// `inacord.aphrody.com` host are no longer served publicly.
-	await waitFor(context, "https://nie.aphrody.com/downloads/inacord/latest.json", (body) => {
-		const value = requireJsonObject(body);
-		if (typeof value["version"] !== "string") {
-			throw new Error("Inacord updater manifest has no version.");
-		}
-	});
-}
-
 async function deployWasm(context: TargetContext): Promise<void> {
 	const artifact = "apps/nie-web/public/static/game/nie_wasm_bg.wasm";
 	const file = Bun.file(artifact);
@@ -490,12 +464,6 @@ const targets: Record<string, Target> = {
 		// window in which the site can be wrong is `validationWindowMs`, and it is unchanged.
 		seconds: 900,
 	},
-	inacord: {
-		// One public URL (the updater feed) with its own validation window.
-		seconds: bunServiceSeconds,
-		description: "Inacord release channel and its public updater feed",
-		deploy: deployInacordWeb,
-	},
 	model: {
 		seconds: releaseBuildSeconds,
 		description: "Rust model and VFS asset server",
@@ -532,7 +500,6 @@ const orderedTargets = [
 	"mcp",
 	"wasm",
 	"web",
-	"inacord",
 	"model",
 	"site",
 ] as const;
@@ -621,7 +588,7 @@ try {
 const concurrencyTiers = [
 	["ffi", "cli", "mcp"],
 	["wasm"],
-	["web", "inacord"],
+	["web"],
 	["model", "site"],
 ] as const;
 

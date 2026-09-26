@@ -11,7 +11,7 @@ export const MCP_SERVER_NAME = "nie-game";
 
 /**
  * Binaire du serveur, lancé depuis le `PATH` (installé par `cargo install --path crates/tools/nie-mcp`).
- * Même forme que l'installeur Rust (`apps/inacord/src-tauri/src/mcp.rs`) : `cargo run` compile au
+ * Même forme que l'ancien installeur Rust d'Inacord (retiré le 2026-09-26) : `cargo run` compile au
  * démarrage et attend le verrou du dossier de build, ce qui dépasse le délai de connexion du client.
  */
 export const MCP_SERVER_BINARY = "nie-mcp";

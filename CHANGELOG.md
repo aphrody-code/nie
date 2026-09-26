@@ -3,13 +3,22 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en
 [SemVer](https://semver.org/lang/fr/). La version qui fait foi est celle de
 `[workspace.package]` dans `Cargo.toml` ; chaque ligne ci-dessous correspond à un tag `vX.Y.Z`
-poussé par `scripts/release-desktop.sh`.
+(l'ancien `scripts/release-desktop.sh` a été retiré avec l'app Tauri le 2026-09-26).
 
 Ce fichier résume ce qu'une version a apporté. Il ne remplace pas `git log`, qui reste la
 source : chaque section porte le nombre réel de commits de l'intervalle, et rien n'y est
 listé qui ne s'y retrouve.
 
 ## [Non publié]
+
+### Retiré
+
+- **L'application Tauri Inacord (`apps/inacord`)** : le bureau est désormais l'unique app
+  aphrody-ui `aphrody-app`. L'IEVR reste dans nie web (`nie-site` + `apps/nie-web`, `/inacord`) ;
+  l'accès depuis l'app passe par les outils `nie.*` d'`aphrody-mcp`. Retirés avec elle : la surface
+  `desktop` (tags `desktop-v*`, cible `inacord` de `deploy-target.ts`), `release-inacord.ts`,
+  `release-desktop.{sh,ps1}`, `packager-bases-explorer.{sh,ps1}`, le mode Vite `desktop` et
+  l'installeur MCP `nie-game`.
 
 ## [1.0.0] — 2026-09-20
 

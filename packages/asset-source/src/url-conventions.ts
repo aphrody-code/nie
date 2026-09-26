@@ -533,10 +533,10 @@ export interface FilmGamedata {
 /**
  * La fiche d'un film telle que le SERVEUR la publie.
  *
- * À ne pas confondre avec le `FilmDto` de l'explorateur Tauri : celui-là est **généré** depuis le
- * même crate par `tauri-specta` (`apps/inacord/src/lib/bindings.ts`) et porte les noms de
- * champs Rust (`nom_origine`, `sous_titres`, `lisible`). Les deux décrivent la même fonction, pas
- * la même sérialisation — les unifier exige de régénérer les bindings, pas de recopier un type.
+ * À ne pas confondre avec le `FilmDto` de l'explorateur Tauri : celui-là était **généré** depuis le
+ * même crate par `tauri-specta` (`apps/nie-web/src/desktop/lib/bindings.ts`, figé depuis le retrait
+ * de l'hôte Tauri le 2026-09-26) et porte les noms de champs Rust (`nom_origine`, `sous_titres`,
+ * `lisible`). Les deux décrivent la même fonction, pas la même sérialisation.
  */
 export interface FilmDto {
 	/** Chemin VFS complet du film. */

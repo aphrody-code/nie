@@ -92,7 +92,6 @@ const RANGS_ATTENDUS: Readonly<Record<string, number>> = {
 	"nie-site": 6,
 	"nie-steam": 6,
 	// N7
-	inacord: 7,
 	"nie-cli": 7,
 	"nie-wasm": 7,
 	// N8

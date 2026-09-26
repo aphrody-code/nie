@@ -141,7 +141,6 @@ const stages: Stage[] = [
 		name: "build",
 		commands: [
 			// Enumerate build owners so the site build can never follow the live dist symlink.
-			{ argv: ["bun", "run", "--cwd", "apps/inacord", "build"] },
 			{
 				argv: [
 					"cargo",
@@ -507,9 +506,9 @@ function validateSiteHealth(value: unknown): void {
 /**
  * Public checks against the vhost aphrody-infra owns (`nginx/aphrody/aphrody.com.conf`).
  * `nie.aphrody.com` is a backend only: `/api/`, `/cdn/` (nie-model-serve), `/f` and `/b`
- * (bearer-gated), `/health` (nie-site `/healthz`) and the Inacord updater feed; `/` answers
- * 404 and `cdn.aphrody.com` routes nothing to nie. The bundle, `/inacord` and the downloads
- * catalogue are no longer public and are validated on the loopback origin by the deploy stage.
+ * (bearer-gated) and `/health` (nie-site `/healthz`); `/` answers 404 and `cdn.aphrody.com`
+ * routes nothing to nie. The bundle, `/inacord` and the downloads catalogue are no longer public
+ * and are validated on the loopback origin by the deploy stage.
  */
 async function validateLive(): Promise<void> {
 	const base = "https://nie.aphrody.com";
@@ -540,13 +539,8 @@ async function validateLive(): Promise<void> {
 	await root.body?.cancel();
 	if (root.status !== 404)
 		throw new Error(`${base}/ returned ${root.status}; the backend-only vhost must answer 404.`);
-	const updater = object(
-		await (await fetchResponse(`${base}/downloads/inacord/latest.json`)).json()
-	);
-	if (!object(updater.platforms)["windows-x86_64"])
-		throw new Error("Inacord stable updater lacks the Windows platform.");
 	process.stdout.write(
-		`    ✓ /health, API/VFS, ${icons.total_indexed} icons, ${modes.total_modes} modes, /cdn model backend, / = 404, Inacord updater
+		`    ✓ /health, API/VFS, ${icons.total_indexed} icons, ${modes.total_modes} modes, /cdn model backend, / = 404
 `
 	);
 }
@@ -589,7 +583,6 @@ async function deployProduction(commit: string): Promise<void> {
 		throw new Error(
 			"apps/nie-web/dist is not a release symlink; refusing a non-atomic deployment."
 		);
-	const previousInacordChannel = await readlink("var/releases/inacord/public").catch(() => "");
 	const rollback = `${release}/rollback`;
 	await rename(releaseStage, release);
 	for (const binary of ["nie", "nie-mcp", "nie-site", "nie-model-serve"])
@@ -597,7 +590,7 @@ async function deployProduction(commit: string): Promise<void> {
 			throw new Error(`Rollback artifact ${binary} is missing.`);
 	await Bun.write(
 		`${release}/rollback.json`,
-		`${JSON.stringify({ previousBundle, previousInacordChannel }, null, 2)}\n`
+		`${JSON.stringify({ previousBundle }, null, 2)}\n`
 	);
 	const oldPids = new Map<string, string>();
 	for (const unit of ["nie-model-serve.service", "nie-site.service"])
@@ -614,7 +607,6 @@ async function deployProduction(commit: string): Promise<void> {
 		}
 		await runCommand({ argv: ["target/release/nie", "--version"] }, commit);
 		await runCommand({ argv: ["target/release/nie", "mcp", "--help"] }, commit);
-		await runCommand({ argv: ["bun", "scripts/release-inacord.ts"] }, commit);
 		await runCommand({ argv: ["sudo", "systemctl", "restart", "nie-model-serve.service"] }, commit);
 		await waitFor("http://127.0.0.1:8790/health", (body) => {
 			if (body.trim() !== "ok") throw new Error("model health payload is not ok");
@@ -649,13 +641,6 @@ async function rollbackProduction(commit: string): Promise<void> {
 	await rm(rollbackLink, { force: true });
 	await symlink(previousBundle, rollbackLink);
 	await rename(rollbackLink, "apps/nie-web/dist");
-	const previousInacordChannel = String(rollbackState.previousInacordChannel ?? "");
-	if (previousInacordChannel) {
-		const channelRollbackLink = "var/releases/inacord/public-rollback";
-		await rm(channelRollbackLink, { force: true });
-		await symlink(previousInacordChannel, channelRollbackLink);
-		await rename(channelRollbackLink, "var/releases/inacord/public");
-	}
 	for (const binary of ["nie", "nie-mcp", "nie-site", "nie-model-serve"]) {
 		if (await Bun.file(`${rollback}/${binary}`).exists())
 			await atomicCopy(`${rollback}/${binary}`, `target/release/${binary}`);

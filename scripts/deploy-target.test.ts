@@ -33,7 +33,7 @@ function budget(listing: string, cible: string): number {
 
 test("chaque cible annonce son budget", () => {
 	const listing = lister();
-	for (const cible of ["ffi", "cli", "mcp", "wasm", "web", "inacord", "model", "site"]) {
+	for (const cible of ["ffi", "cli", "mcp", "wasm", "web", "model", "site"]) {
 		expect(budget(listing, cible)).toBeGreaterThan(0);
 	}
 });

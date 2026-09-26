@@ -61,13 +61,13 @@ const unifiedAgentsContent = `# UNIFIED-AGENTS.md — Single Authority & Operati
   \`\`\`bash
   cargo clippy -p <crate> --bins --tests
   \`\`\`
-- **Independent Workspace Warning:** \`apps/inacord/src-tauri\` is a **separate** Cargo workspace. \`cargo check --workspace\` at the root will **never** validate it. It must be built via \`bun run tauri build\` or directly within its folder.
+- **No desktop app here:** the Inacord Tauri app was removed on 2026-09-26. The desktop is aphrody-ui \`crates/aphrody-app\`; IEVR is served by nie web (\`nie-site\` + \`apps/nie-web\`) and reached from the app only through the \`nie.*\` tools of aphrody-ai \`aphrody-mcp\`.
 - **Never run \`cargo build --workspace --all-targets\`**: The disk is saturated (>92%) and full targets exhaust disk space.
 - **TypeScript Gate:** \`bun run typecheck\` (validates the 5 workspaces).
 
 ### 3.2 Polyglot Architecture
 - **Rust (\`crates/\`):** The primary CLI (\`nie\`), GUI core, WebAssembly, formats, rendering, and RE.
-- **Bun/TypeScript (\`packages/\`, \`apps/\`):** \`packages/inacord-ui\` shared UI, the Inacord WebSocket client contract (\`packages/nie-bridge\`), web serving (\`apps/nie-web\`), and pipelines. The MCP server is native Rust (\`crates/tools/nie-mcp\`).
+- **Bun/TypeScript (\`packages/\`, \`apps/\`):** the Inacord workspace UI (\`apps/nie-web/src/inacord\`), the control-bridge contract (\`packages/nie-bridge\`), web serving (\`apps/nie-web\`), and pipelines. The MCP server is native Rust (\`crates/tools/nie-mcp\`).
 - **Rust (\`crates/\`):** Maintained format parsers, game runtime, RE tooling, and the \`nie\` CLI.
 - **Historical IECODE:** C++/.NET sources are maintained only in their dedicated historical repositories; they are not build inputs here.
 

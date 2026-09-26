@@ -9,10 +9,10 @@ import { useEffect, useRef, useState } from "react";
 import { connectBridge, type BridgeHandlers } from "@nie/bridge";
 import { getSettings } from "@nie/inacord-ui/lib/settings";
 import { NATIVE_WINDOW } from "../../host";
-import inacordPackage from "../../../../inacord/package.json";
+import appPackage from "../../../package.json";
 
 /** Version annoncée au serveur — celle du `package.json` de l'application. */
-const APP_VERSION = inacordPackage.version;
+const APP_VERSION = appPackage.version;
 
 /**
  * Branche la fenêtre sur le pont tant que le composant est monté.

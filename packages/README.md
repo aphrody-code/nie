@@ -8,7 +8,7 @@ lockfile, à la racine.
 |---|---|---|
 | `nie` | `@aphrody/nie` | bindings FFI de `iecode` — la porte d'entrée TS vers les crates Rust ; ouvre la bibliothèque au premier appel natif, jamais à l'import |
 | `nie-plugin` | `@nie/plugin` | préchargements de `bunfig.toml` : loaders des formats de jeu (`register.ts`) et DOM happy-dom des tests (`happydom.ts`) |
-| `nie-bridge` | `@nie/bridge` | protocole de contrôle partagé entre les hôtes Inacord |
+| `nie-bridge` | `@nie/bridge` | protocole de contrôle entre `nie-mcp` et la page Inacord de nie web |
 | `nie-game` | `@nie/game` | types et logique de jeu purs, partagés par les hôtes |
 | `asset-source` | `@nie/asset-source` | contrat de lecture des assets pour web et desktop |
 | `inacord-ui` | `@nie/inacord-ui` | présentation Inacord et adaptateurs de surface |

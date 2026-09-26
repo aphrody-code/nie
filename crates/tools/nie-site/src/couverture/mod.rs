@@ -71,8 +71,6 @@ pub fn serialize_public_matrix(
 pub enum Source {
     /// Les sous-commandes de la CLI unique.
     Nie,
-    /// Les commandes IPC de l'hôte desktop (`collect_commands!` de `apps/inacord/src-tauri`).
-    Inacord,
     /// Les modules publics de `nie-data`.
     NieData,
     /// Les modules publics de `nie-formats`.
@@ -91,7 +89,6 @@ impl Source {
     pub const fn libelle(self) -> &'static str {
         match self {
             Self::Nie => "nie — sous-commandes",
-            Self::Inacord => "Inacord — commandes IPC",
             Self::NieData => "nie-data — modules",
             Self::NieFormats => "nie-formats — modules",
             Self::NieLua => "nie-lua — fonctions publiques",
@@ -105,7 +102,6 @@ impl Source {
     pub const fn commande(self) -> &'static str {
         match self {
             Self::Nie => "nie --help",
-            Self::Inacord => "collect_commands! de apps/inacord/src-tauri/src/lib.rs",
             Self::NieData => "rg '^pub mod ' crates/engine/nie-data/src/lib.rs",
             Self::NieFormats => "rg '^pub mod ' crates/engine/nie-formats/src/lib.rs",
             Self::NieLua => "rg '^pub fn ' crates/engine/nie-lua/src/",
@@ -123,12 +119,12 @@ impl Source {
         }
     }
 
-    /// Les sept sources, dans l'ordre d'affichage.
+    /// Les six sources, dans l'ordre d'affichage (l'hôte Tauri Inacord, septième source, a été
+    /// retiré le 2026-09-26).
     #[must_use]
-    pub const fn toutes() -> [Self; 7] {
+    pub const fn toutes() -> [Self; 6] {
         [
             Self::Nie,
-            Self::Inacord,
             Self::NieData,
             Self::NieFormats,
             Self::NieLua,

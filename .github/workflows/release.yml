@@ -1,15 +1,14 @@
 # Release d'UNE surface, et d'une seule.
 #
 # POURQUOI DES TAGS PRÉFIXÉS
-# Les cinq surfaces partagent leurs crates mais pas leur rythme : le site bouge sur 17,2 %
+# Les quatre surfaces partagent leurs crates mais pas leur rythme : le site bouge sur 17,2 %
 # des commits, le CLI sur 0,5 %. Un tag unique `v0.6.1` forcerait à reconstruire et à
-# republier les cinq à chaque fois, donc à ne jamais publier. Un tag `cli-v0.6.1` ne
+# republier les quatre à chaque fois, donc à ne jamais publier. Un tag `cli-v0.6.1` ne
 # construit que la fermeture du CLI et ne produit que son artefact.
 #
 #   cli-v*      nie, la ligne de commande native
 #   mcp-v*      nie-mcp, le serveur Model Context Protocol
 #   site-v*     nie-site et le module WebAssembly qu'il sert
-#   desktop-v*  Inacord, l'application Tauri
 #   model-v*    nie-model-serve
 #
 # CE QUE CE WORKFLOW NE FAIT PAS : déployer. La mise en production passe par
@@ -23,7 +22,6 @@ on:
       - "cli-v*"
       - "mcp-v*"
       - "site-v*"
-      - "desktop-v*"
       - "model-v*"
   workflow_dispatch:
     inputs:
@@ -31,7 +29,7 @@ on:
         description: Surface à construire (aucune publication)
         required: true
         type: choice
-        options: [cli, mcp, site, desktop, model]
+        options: [cli, mcp, site, model]
 
 concurrency:
   group: release-${{ github.ref }}
@@ -85,7 +83,6 @@ jobs:
             cli)     assets='target/release/nie' ;;
             mcp)     assets='target/release/nie-mcp' ;;
             site)    assets='target/release/nie-site' ;;
-            desktop) assets='target/release/inacord' ;;
             model)   assets='target/release/nie-model-serve' ;;
             *) echo "surface inconnue: $surface" >&2; exit 1 ;;
           esac

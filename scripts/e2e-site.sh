@@ -426,7 +426,7 @@ else
 fi
 
 # --- 13 bis. Le catalogue des épisodes ---------------------------------------------------------
-# C'est la porte par laquelle les Inacord DÉJÀ INSTALLÉS se mettent à jour. Si elle disparaît,
+# C'est la porte par laquelle les clients DÉJÀ CHARGÉS (page web, outils) se mettent à jour. Si elle disparaît,
 # ces clients se figent sans erreur visible — leur repli lit un 503 comme « ce serveur ne
 # moissonne pas la série ». Elle mérite donc d'être éprouvée à chaque passage.
 read -r code _ <<<"$(req '/api/v1/episodes?limit=3')"

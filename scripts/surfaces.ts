@@ -32,7 +32,7 @@
 
 import { resolve } from "node:path";
 
-export type SurfaceName = "cli" | "mcp" | "site" | "desktop" | "model";
+export type SurfaceName = "cli" | "mcp" | "site" | "model";
 
 export type Surface = {
 	/** Stable identifier: the CI matrix entry, the `just` argument, the release tag prefix. */
@@ -89,7 +89,6 @@ export const surfaces: readonly Surface[] = [
 		extraPaths: [
 			"crates/tools/nie-site",
 			"apps/nie-web",
-			"packages/inacord-ui",
 			// Its unit and vhost live in aphrody-infra (systemd/nie-site.service,
 			// nginx/aphrody/aphrody.com.conf), outside this repository.
 		],
@@ -100,16 +99,6 @@ export const surfaces: readonly Surface[] = [
 		smoke: [["target/release/nie-site", "--help"]],
 		deployTargets: ["wasm", "web", "site"],
 		tagPrefix: "site-v",
-	},
-	{
-		name: "desktop",
-		description: "Inacord — the Tauri desktop application (VFS explorer, editor, Blender bridge).",
-		rootCrates: ["inacord"],
-		extraPaths: ["apps/inacord", "packages/inacord-ui"],
-		build: [["cargo", "build", "--release", "--locked", "-p", "inacord"]],
-		smoke: [["target/release/inacord", "--help"]],
-		deployTargets: ["inacord"],
-		tagPrefix: "desktop-v",
 	},
 	{
 		name: "model",

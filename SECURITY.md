@@ -17,7 +17,6 @@ site. Sont dans le périmètre :
 | Surface | Ce qui compte comme vulnérabilité |
 |---|---|
 | CLI `nie`, binaires `crates/` | exécution de code par un fichier de jeu malformé, écriture hors du répertoire visé |
-| Inacord (`apps/inacord`, Tauri) | contournement de l'allowlist, exécution de commande depuis le front, chaîne de mise à jour (signature) |
 | `nie-model-serve`, `nie-site` | path traversal, SSRF, or disclosure of a file outside the served VFS |
 | `nie-mcp` | outil MCP permettant de lire ou d'écrire hors du dépôt |
 | Parseurs binaires (`nie-formats`, `iecode`) | débordement, boucle infinie, allocation non bornée sur une entrée hostile |

@@ -18,5 +18,4 @@
 /docs/A2A-CODEX.md @aphrody-code
 
 # La publication : une erreur ici casse l'updater de tous les clients installés.
-/scripts/release-desktop.sh @aphrody-code
 /.github/workflows/         @aphrody-code

@@ -35,12 +35,12 @@ Reconstruct the engine that produced `nie.exe`:
 - **Provenance** — the forge rebuilds `nie.exe` byte for byte from code this repository owns.
 - **Functional reconstruction** — the same Rust runs native, headless and in `wasm32`, and the
   cross-host gates prove they agree.
-- **Inacord** — the desktop is the visual VFS explorer and preview; every other capability stays
-  headless (CLI, MCP, HTTP, wasm).
+- **Inacord** — the IEVR workspace of the nie web page (`/inacord`); every other capability stays
+  headless (CLI, MCP, HTTP, wasm). There is no nie desktop app (see Decisions 2026-09-26).
 - **Interop** — formats, saves, models and data round-trip through documented, tested libraries.
 
 **Definition of done:** 100 % provenance (forge levels G4–G6), native/headless/wasm parity on
-every served screen, Inacord persistence and packaging green, and this plan empty.
+every served screen, Inacord web persistence green, and this plan empty.
 
 ## Architecture and ownership
 
@@ -55,7 +55,7 @@ another name.
 | forge | `crates/forge/*` (9) | byte-exact PE (`nie-pe`), x86-64 encoder (`nie-asm`), rebuild and coverage (`nie-forge`), RE engine (`nie-re`, `nie-index`, `nie-seed`, `nie-queue`, `nie-dump`, `nie-trace`) |
 | tools | `crates/tools/*` (12) | `nie-cli` (the only user CLI), `nie-mcp`, `nie-site`, `nie-model-serve`, `nie-wiki`, `nie-steam`, `nie-zukan`, `nie-launcher`, `nie-editor`, `nie-bench`, `nie-computer-use`, `ievr-tools` |
 | archive | `crates/archive/*` | read-only porting reference, outside the workspace (`nie-engine` excluded, `nie-rs` orphan) |
-| apps | `apps/nie-web`, `apps/inacord` | `nie-web` is the single frontend (browser and desktop); `inacord` is Tauri packaging of it (`src-tauri` is a workspace member) |
+| apps | `apps/nie-web` | `nie-web` is the single frontend, served by `nie-site` |
 | packages | `packages/*` | TypeScript contracts and UI: `asset-source`, `inacord-ui`, `nie` (Bun FFI over `nie-ffi`), `nie-bridge`, `nie-game`, `nie-media`, plus the `nie-plugin` test/loader preload and `config` |
 | infra | `../aphrody-infra` | units, vhosts, ports, topology, deploy plane — never re-declared here |
 
@@ -67,7 +67,7 @@ another name.
 | `inacord-core` / `inacord-data` | the engine crates — `nie-core`, `nie-data`, `nie-formats`, `nie-explore`, `nie-save`, `nie-lua`, … | duplicated modules (see P2 structure) |
 | `inacord-api` | `crates/tools/nie-site` (axum 0.8) and `crates/tools/nie-model-serve` | model-serve has no router |
 | `inacord-mcp` | `crates/tools/nie-mcp` → `nie mcp` in `nie-cli` (stdio) | — |
-| `inacord-gui` | none native: `apps/inacord` is Tauri over `nie-web` | by decision (explorer only) |
+| `inacord-gui` | none native: the Tauri host was removed 2026-09-26; the desktop is aphrody-ui `aphrody-app` | by decision |
 | `inacord-mobile` | none | not scheduled |
 | `inacord-blender` | `plugins/nie-blender` + `crates/engine/nie-ffi` | not joined |
 | game data store | `crates/engine/nie-pg` → PostgreSQL schema `nie` | readers still use JSON |
@@ -119,10 +119,6 @@ another name.
 - [x] **No fingerprint in public responses.** (feed version and health uptime removed in this commit) Drop the crate version from `/feed.atom` and
       `uptime` from `/api/health`; review `/api/v1/health` and `/readyz` capability detail.
       *Accept:* `rg VERSION crates/tools/nie-site/src/routes` finds no public serialisation.
-- [ ] **Desktop least privilege.** `tauri.conf.json` has `csp: null` and `capabilities/default.json`
-      grants recursive write on home, desktop, documents and the exe directory. *Accept:* a CSP is
-      set and fs scopes cover only the directories the commands use; the built app still opens,
-      explores and exports.
 
 ## P1 — correctness gates and the product
 
@@ -223,16 +219,13 @@ another name.
       what exported bindings reach. *Accept:* `cargo tree -p nie-wasm` shrinks, module size stays
       under the 6 MiB budget.
 - [ ] `nie-model-serve` hand-matches ~30 paths: move it to the axum router `nie-site` uses.
-- [ ] Split oversized files: `nie-game/src/main.rs` (5 219 lines), `apps/inacord/src-tauri/src/lib.rs`
-      (5 733, 134 commands), `nie-ffi/src/lib.rs` (~2 000), `nie-cli/src/mcp.rs` (1 233), and the
+- [ ] Split oversized files: `nie-game/src/main.rs` (5 219 lines), `nie-ffi/src/lib.rs` (~2 000), `nie-cli/src/mcp.rs` (1 233), and the
       nie-web components over 800 lines (`CinemaView`, `ExplorerView`, `PlayerBank`, `EditorView`,
       `VideoPlayer`, `Catalog`, `Models3D`).
 - [ ] `nie-render` (161 lines) — merge into `nie-render3d` or give it a consumer; `nie-bevy` — wire
       a consumer or mark it parked in its README.
 - [ ] Delete `crates/archive/nie-rs` (orphan, 62 Ghidra stub files, 75 TODO markers); map
       `crates/archive/nie-engine`'s overlap with live crates before porting anything from it.
-- [ ] Move the misplaced dependencies in `apps/inacord/src-tauri/Cargo.toml` (every `nie-*`,
-      tokio, zip, trash, uuid, async-trait sit in the desktop `cfg` block).
 
 ### Tests where there are none
 
@@ -249,8 +242,6 @@ another name.
       importers, typecheck and tests green.
 - [ ] `nie-media`: make it the real media owner (move `sources.ts`/`cinema.ts` logic, delete the
       `episode-navigation.ts` facade) or fold it into another package.
-- [ ] `apps/inacord/public`: drop the files duplicated from `nie-web/public` and the service
-      worker + web manifest a Tauri shell does not need.
 - [ ] `inacord-ui` `exports`: remove the `./shell/*` entries that duplicate explicit ones.
 
 ### Rendering and game depth
@@ -291,6 +282,18 @@ another name.
       retire the Azalée pages the game screens replace.
 - [ ] **[VPS] Linux Steam** — depot sync, then `scripts/nie-wine-setup.sh`. *Accept:* Proton's
       `files/bin/wine` exists and the VFS check passes.
+
+## Decisions recorded 2026-09-26
+
+- **One Tauri app, and it is not here.** `apps/inacord` (Tauri host, `src-tauri`, public assets,
+  the `nie-game` MCP installer `mcp.rs`) is removed. The desktop is aphrody-ui
+  `crates/aphrody-app`, which never depends on `../nie`. Classification: the generic Aphrody
+  pet/pixel facade (`aphrody.rs`) moved to aphrody-app; `set_titlebar_theme` is Tauri's own
+  `setTheme`; the explorer helpers (clipboard file lists, disk/AppData/mod files) left with their
+  only consumer; everything IEVR stays in nie web (`nie-site` + `apps/nie-web`, `/inacord`), and
+  the app reaches the game only through the `nie.*` tools of aphrody-ai `aphrody-mcp`. The
+  `desktop` surface, its release scripts, CI lane and deploy target are gone;
+  `apps/nie-web/src/desktop/lib/bindings.ts` is now a hand-maintained contract of the HTTP shims.
 
 ## Decisions recorded 2026-09-25
 

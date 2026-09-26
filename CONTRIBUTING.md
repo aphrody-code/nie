@@ -40,7 +40,6 @@ crate counts derived live from `cargo metadata`:
 | `cli` | `nie` — VFS, formats, the reverse-engineering atlas | `nie-cli` | `cli-v*` |
 | `mcp` | `nie-mcp` — the native Model Context Protocol server | `nie-mcp` | `mcp-v*` |
 | `site` | `nie-site` and the WebAssembly module it serves | `nie-site`, `nie-wasm` | `site-v*` |
-| `desktop` | Inacord, the Tauri application | `inacord` | `desktop-v*` |
 | `model` | `nie-model-serve`, the asset server | `nie-model-serve` | `model-v*` |
 
 They are separate for **building, releasing and deploying** — shipping the CLI must not rebuild
