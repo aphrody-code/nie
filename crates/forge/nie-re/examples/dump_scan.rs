@@ -16,7 +16,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
-use nie_re::dump::{Minidump, Pattern};
+use nie_re::dump::{Minidump, NieStatic, Pattern};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

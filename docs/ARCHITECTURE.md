@@ -78,7 +78,7 @@ configured; removing the path edge before publication breaks the workspace build
 | `nie-index` | Base de connaissance SQLite (`var/nie.sqlite`) | 4 |
 | `nie-seed` | Import du savoir fusionné (index Ghidra, RTTI, formats iecode, hash→nom inagle) | 24 |
 | `nie-queue` | Frontière BFS dédupliquée (redis), workers parallèles sur fonctions non résolues | 0 |
-| `nie-dump` | Lecture/scan AOB d'un minidump Windows de `nie.exe` | 6 |
+| `nie-dump` | Façade `nie.exe` (image base, `NieStatic`) sur `aphrody_re::minidump` (aphrody-os), lecteur de minidump Windows générique | 6 |
 | `nie-trace` | RE en direct : lecture de la mémoire d'un `nie.exe` en cours d'exécution | 93 |
 
 ### `crates/engine/*` — le moteur (25)

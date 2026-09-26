@@ -1,6 +1,6 @@
 [package]
 name = "nie-dump"
-description = "Lecture et scan AOB d'un minidump Windows de nie.exe — zéro dépendance hors thiserror"
+description = "Minidump reader for nie.exe: re-exports aphrody_re::minidump and adds the game image base"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true
@@ -11,8 +11,7 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
-# Volontairement réduit à `thiserror` : ce crate est consommé par `nie-explorer` (Tauri), qui ne
-# peut lier NI `rusqlite` (conflit `links = "sqlite3"` avec le sqlx-sqlite de tauri-plugin-sql)
-# NI le dépôt frère `aphrody` — deux dépendances que traîne `nie-re`, d'où l'extraction ici.
+# Only the generic minidump reader of aphrody-os (pure Rust, no rusqlite): `inacord` links this
+# crate, so it must not pull the rest of the RE stack.
 [dependencies]
-thiserror.workspace = true
+aphrody-os-re.workspace = true

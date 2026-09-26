@@ -100,6 +100,9 @@ zerocopy = { version = "0.8" }
 # electron, golang, google — et les modules sous drapeau — leveldb, magika,
 # yara — sont écartés : `nie-re` n'appelle que `triage()` et `Format`.
 aphrody-re = { package = "iecode-re", version = "1.0.0", path = "../iecode/crates/re" }
+# Generic reverse-engineering primitives owned by aphrody-os (`minidump`, moved out of nie-dump
+# on 2026-09-26). Distinct key because `aphrody-re` above names the internalised iecode crate.
+aphrody-os-re = { package = "aphrody-re", version = "1.0.0-canary", path = "../aphrody-os/crates/aphrody-re" }
 
 # décodage audio CRI (HCA, ACB, AWB) — licence MIT
 cridecoder = { version = "0.2.3", default-features = false }

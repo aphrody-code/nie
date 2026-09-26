@@ -18,6 +18,7 @@
 //! un process vivant, donc hors du champ d'EAC.
 
 use base64::Engine as _;
+use nie_dump::NieStatic as _;
 use serde::Serialize;
 
 /// Noms de process essayés dans l'ordre — le binaire patché EAC (lancé directement, cf.
