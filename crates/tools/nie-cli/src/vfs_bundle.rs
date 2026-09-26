@@ -1463,7 +1463,10 @@ mod tests {
         let root = std::env::temp_dir().join(format!(
             "nie-vfs-bundle-test-{}-{}",
             std::process::id(),
-            std::thread::current().name().unwrap_or("worker")
+            std::thread::current()
+                .name()
+                .unwrap_or("worker")
+                .replace("::", "-")
         ));
         fs::create_dir_all(&root).unwrap();
         let output = root.join("initial.vfs");

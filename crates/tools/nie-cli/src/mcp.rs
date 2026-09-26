@@ -89,6 +89,12 @@ macro_rules! define_cli_tools {
 
 define_cli_tools!(
     (
+        CliOc,
+        "cli_oc",
+        "oc",
+        "Generate an original 3D character (morphology, chara_edit, measured colours) through `nie oc`; pass the exact CLI argument tail in `args`."
+    ),
+    (
         CliComputerUse,
         "cli_computer_use",
         "computer-use",
@@ -1129,7 +1135,7 @@ mod tests {
         use clap::CommandFactory as _;
 
         let tools = NieMcpServer::all_tools().list_all();
-        assert_eq!(tools.len(), 66);
+        assert_eq!(tools.len(), 67);
         let commands = crate::Cli::command()
             .get_subcommands()
             .map(clap::Command::get_name)
