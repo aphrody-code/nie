@@ -1,10 +1,5 @@
 {
   "mcpServers": {
-    "nie-game": {
-      "type": "stdio",
-      "command": "nie-mcp",
-      "args": []
-    },
     "aphrody": {
       "type": "stdio",
       "command": "aphrody-mcp",

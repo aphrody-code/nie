@@ -1,8 +1,9 @@
 # Agent memory, plugins and shell configuration
 
-`plugins/nie` is the only checked-in skill source. Codex, Claude Code and Antigravity
-use host adapter manifests from that directory; skills are not copied into another repository.
-The two MCP JSON names are intentional adapters for host conventions and both start `nie-mcp`.
+The NIE agent skills live in the single Aphrody plugin (`../aphrody-os/plugins/aphrody`, marketplace
+`aphrody-os`); the former `plugins/nie` plugin and `nie-marketplace` were merged there on 2026-09-26.
+Codex, Claude Code and Antigravity enable `aphrody@aphrody-os` from this repository. The NIE MCP
+tools are the `nie.*` family of `aphrody-mcp`, which runs `nie-mcp` as a child process.
 
 Run a dry report first, then update only the generated adapter note:
 

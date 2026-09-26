@@ -25,7 +25,6 @@
 		"extract-ut-asset-urls.ts",
 		"find-duplicates-md.ts",
 		"gen-a2a-sync.ts",
-		"link-all-skills.ts",
 		"mirror-supabase-db.ts",
 		"surfaces.ts",
 		"sync-memory-to-agy.ts",

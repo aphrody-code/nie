@@ -94,10 +94,11 @@ seconds. A new connection cleanly replaces the previous one.
 
 ## Running and configuration
 
-MCP clients launch the prebuilt `nie-mcp` from `PATH` — the same convention as `aphrody-mcp`, and
-the same command on Linux and Windows. The four versioned declarations (`.mcp.json`,
-`.codex/config.toml`, `plugins/nie/.mcp.json`, `plugins/nie/mcp_config.json`) and the entry
-Inacord's installer writes all read:
+Agents reach these tools through the single Aphrody MCP: `aphrody-mcp` exposes them as the
+`nie.*` family (`nie.tools`, `nie.call`, `nie.vfs_list`, `nie.re_query`, ...) and runs the prebuilt
+`nie-mcp` from `PATH` (or `NIE_MCP_BIN`) as a child process, so aphrody-ai never links a nie crate.
+The repository `.mcp.json` and `.codex/config.toml` therefore declare only `aphrody`. Inacord's
+installer can still register `nie-mcp` directly for Claude Desktop; that entry reads:
 
 ```json
 {

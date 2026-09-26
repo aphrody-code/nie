@@ -20,15 +20,8 @@ inherit = "all"
 [shell_environment_policy.set]
 BASH_ENV = ".claude/shell-init.sh"
 
-# nie-game: the prebuilt `nie-mcp` on PATH, like aphrody-mcp below — never `cargo run`, which
-# compiles on launch (minutes on a cold target) and blocks on the build-directory lock while any
-# other cargo runs, so the client gives up before the first frame. Install: see docs/MCP.md.
-[mcp_servers.nie-game]
-command = "nie-mcp"
-args = []
-
-[mcp_servers.nie-game.env]
-NIE_APHRODY_API_URL = "http://127.0.0.1:8085"
+# The former nie-game server (nie-mcp) is reached through aphrody-mcp as the nie.* tool
+# family (process boundary: aphrody-mcp spawns nie-mcp from PATH or NIE_MCP_BIN).
 
 # aphrody-mcp — binaire Rust unique (crate aphrody-mcp du depot frere
 # github.com/aphrody-code/aphrody-ai, installe via `cargo install --path
@@ -48,11 +41,8 @@ default_tools_approval_mode = "writes"
 # Les plugins sont actives DEPUIS LE DEPOT QU ILS SERVENT, jamais globalement : preuve
 # mesuree le 2026-09-06 — `codex plugin list` rend `enabled` depuis C:\Users\aphro\nie
 # et `disabled` depuis C:\Users\aphro, avec le meme reglage global a false.
-[plugins."nie@nie-marketplace"]
-enabled = true
-
 [plugins."aphrody@aphrody-os"]
-enabled = false
+enabled = true
 
 [plugins."frontend-design@claude-plugins-official"]
 enabled = false

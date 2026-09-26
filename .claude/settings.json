@@ -1,7 +1,6 @@
 {
   "env": {
     "NIE_REPO": "/home/ubuntu/nie",
-    "NIE_REPO": "/home/ubuntu/nie",
     "BASH_ENV": "/home/ubuntu/nie/.claude/shell-init.sh",
     "NIE_GAME_DIR": "/home/ubuntu/nie"
   },
@@ -34,17 +33,10 @@
     ]
   },
   "enabledPlugins": {
-    "nie@nie-marketplace": true,
-    "aphrody@aphrody-os": false,
+    "aphrody@aphrody-os": true,
     "frontend-design@claude-plugins-official": false
   },
   "extraKnownMarketplaces": {
-    "nie-marketplace": {
-      "source": {
-        "source": "directory",
-        "path": "/home/ubuntu/nie/plugins"
-      }
-    },
     "aphrody-os": {
       "source": {
         "source": "directory",
